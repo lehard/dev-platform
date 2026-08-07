@@ -26,6 +26,29 @@ main_branch:
   help: Default integration branch
   default: main
 
+workflow_profile:
+  type: str
+  help: Development workflow complexity
+  choices:
+    - light
+    - standard
+    - multi-agent
+  default: standard
+
+publish_mode:
+  type: str
+  help: How completed work reaches GitHub (PR is safer; direct is for intentionally simple repos)
+  choices:
+    - pr
+    - direct
+  default: "{{ 'direct' if workflow_profile == 'light' else 'pr' }}"
+  validator: "{% if workflow_profile == 'light' and publish_mode == 'pr' %}light profile has no feature branch; choose direct or use standard profile{% endif %}"
+
+platform_ci_ref:
+  type: str
+  help: Versioned dev-platform ref used by downstream reusable CI; never use main
+  default: release-v1.0.0
+
 agent_tools:
   type: str
   help: Comma-separated OpenSpec tool IDs

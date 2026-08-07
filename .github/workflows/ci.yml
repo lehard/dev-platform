@@ -10,6 +10,16 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - profile: light
+            publish_mode: direct
+          - profile: standard
+            publish_mode: pr
+          - profile: multi-agent
+            publish_mode: pr
     steps:
       - uses: actions/checkout@v4
 
@@ -26,14 +36,22 @@ jobs:
       - name: Install Copier
         run: python3 -m pip install "copier>=9.4,<10"
 
-      - name: Render factory
+      - name: Render factory profile
         run: |
-          rm -rf /tmp/dev-platform-smoke
+          target="/tmp/dev-platform-${{ matrix.profile }}"
+          rm -rf "$target"
           copier copy --trust --defaults \
-            --data project_name="Smoke Project" \
-            --data project_slug="smoke-project" \
+            --data project_name="Smoke ${{ matrix.profile }}" \
+            --data project_slug="smoke-${{ matrix.profile }}" \
             --data project_description="Factory smoke test" \
-            . /tmp/dev-platform-smoke
-
-      - name: Compile rendered scripts
-        run: python3 -m compileall -q /tmp/dev-platform-smoke/scripts
+            --data workflow_profile="${{ matrix.profile }}" \
+            --data publish_mode="${{ matrix.publish_mode }}" \
+            --data platform_ci_ref="release-v1.0.0" \
+            . "$target"
+          python3 -m compileall -q "$target/scripts"
+          cd "$target"
+          python3 scripts/platform_doctor.py
+          if grep -R "project-ci.yml@main" .github/workflows; then
+            echo "Downstream CI must not track @main" >&2
+            exit 1
+          fi

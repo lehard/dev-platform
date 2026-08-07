@@ -2,52 +2,53 @@
 
 This repository is the central source of truth for reusable engineering process shared by multiple software projects. Treat changes here as potentially cross-project.
 
-## Sources of truth
+## Contract model
 
-- `AGENTS.md` — how agents work in this repository.
-- `openspec/changes/<change>/` — what is being changed now for non-trivial platform work.
-- `openspec/specs/` — durable expected behavior after OpenSpec changes are archived.
-- `docs/` — durable platform architecture, adoption and operational guidance.
-- `template/` — rendered downstream project contract.
+Do not treat platform sources as one flat hierarchy:
 
-Do not create a second backlog or duplicate implementation plan for work already represented by an active OpenSpec change.
+- `AGENTS.md` — process and safety constraints for changing the platform.
+- `openspec/specs/` — accepted platform behavior after archived changes.
+- `openspec/changes/<active>/` — approved deltas currently changing that behavior.
+- `template/` and platform code — implementation of current specs plus active deltas.
+- `docs/` — durable architecture, adoption and operating guidance.
+
+Do not create a second backlog for work represented by an active OpenSpec change.
+
+## No silent divergence
+
+For non-trivial platform changes, use OpenSpec before implementation. If implementation changes intent, behavior, design, or execution dependencies, update the corresponding proposal/spec/design/tasks artifact first. Do not knowingly let code drift from the active contract.
+
+Before archiving a non-trivial platform change, run relevant tests plus `/opsx:verify`. Structural `openspec validate` is useful but is not a substitute for semantic verify or project-specific checks.
 
 ## Scope discipline
 
-Promote a rule/tool into this repository only when it is genuinely reusable across projects or across a defined project profile. Keep application-domain rules, credentials, machine-local paths and one-off workarounds in the owning project.
+Promote a rule/tool only when it is reusable across projects or a defined workflow profile. Keep application-domain rules, credentials, machine-local paths and one-off workarounds in the owning project.
 
-A change that modifies a downstream managed file must consider both:
+A change to a downstream managed file must consider both new-project rendering and Copier update behavior for existing projects.
 
-1. new-project behavior;
-2. update behavior for existing projects with local project-owned extensions.
+## Platform capabilities
 
-Prefer additive or merge-friendly evolution. Avoid silently deleting downstream content.
+The shared lifecycle is composable. `light`, `standard`, and `multi-agent` profiles select capabilities rather than forking the template. GitHub sync/publish, checks, OpenSpec policy and release pinning are core; worktrees/board are multi-agent capabilities.
 
-## Development workflow
+## Release safety
 
-For non-trivial changes, use OpenSpec before implementation. Fix shared contracts before parallelizing implementation.
+Downstream reusable CI must never reference `dev-platform@main`. It must use a versioned release ref (or immutable SHA). Release refs are append-only and must never be moved after publication. Platform upgrades reach projects through reviewed Copier update PRs.
 
-Keep platform tooling dependency-light. Core project scripts rendered from `template/scripts/` should use the Python standard library unless a dependency is explicitly justified.
+## Validation
 
-Validate at least:
+At minimum:
 
 ```bash
 python3 -m compileall -q template/scripts
 python3 -m unittest discover -s tests -v
 ```
 
-When Copier is available, also render the template into a temporary directory and run the generated doctor.
+When Copier is available, render the template and compile/run the generated doctor. For Git lifecycle changes, exercise temporary local/bare remotes so fetch/sync/direct-publish safety is tested.
 
-## Platform-owned vs project-owned files
+## OpenSpec dependency policy
 
-Platform-managed files should contain reusable process only. Project-specific rules belong in `docs/engineering/project-rules.md`, module-level `AGENTS.md` files, OpenSpec specs/changes, or other project-owned docs.
-
-Do not put secrets, SSH details, production credentials, personal data or machine-specific paths into the template.
-
-## OpenSpec integration
-
-OpenSpec itself is an external dependency. Do not vendor or fork OpenSpec-generated Claude/Codex skills into this platform. A fresh project may initialize OpenSpec automatically when the CLI exists. Adoption into an existing Git repository must never auto-run an OpenSpec migration: review the repository first and run the printed init/update command explicitly. Platform code owns only the policy around how OpenSpec is used.
+OpenSpec is external; do not vendor generated Claude/Codex skills. `.dev-platform.toml` records minimum/tested CLI versions. The doctor may warn/fail on version compatibility but must not silently mutate a user's global OpenSpec installation.
 
 ## Friction promotion
 
-An isolated problem in one project is not automatically a platform rule. Require evidence that the issue is reusable, recurring, safety-relevant or structurally caused by the shared workflow. Platform improvements should be expressed as an OpenSpec change here and then propagated to projects through reviewed updates.
+Local friction stays machine-local by default. Promotion to the central inbox is an explicit sanitized action; raw evidence is not uploaded automatically. Multiple observations should be reviewed before turning a candidate into a permanent platform rule.

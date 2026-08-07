@@ -16,13 +16,7 @@ except ImportError:  # pragma: no cover - Windows fallback
 
 
 def run_git(args: list[str], cwd: Path | None = None, check: bool = True) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        ["git", *args],
-        cwd=str(cwd) if cwd else None,
-        text=True,
-        capture_output=True,
-        check=check,
-    )
+    return subprocess.run(["git", *args], cwd=str(cwd) if cwd else None, text=True, capture_output=True, check=check)
 
 
 def current_worktree_root() -> Path:
@@ -43,18 +37,8 @@ def read_platform_config(root: Path | None = None) -> dict[str, Any]:
     root = root or current_worktree_root()
     path = root / ".dev-platform.toml"
     if not path.exists():
-        return {
-            "main_branch": "main",
-            "paths": {
-                "worktrees": ".claude/worktrees",
-                "agent_board": ".claude/agents-board.json",
-                "friction_log": ".claude/agent-friction.jsonl",
-                "checks": "dev-platform/checks.toml",
-            },
-        }
-
+        return {"main_branch": "main", "workflow_profile": "standard", "publish_mode": "pr", "paths": {"worktrees": ".claude/worktrees", "agent_board": ".claude/agents-board.json", "friction_log": ".claude/agent-friction.jsonl", "checks": "dev-platform/checks.toml"}}
     import tomllib
-
     with path.open("rb") as fh:
         return tomllib.load(fh)
 
@@ -70,6 +54,51 @@ def machine_path(key: str, root: Path | None = None) -> Path:
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+
+def remote_ref(remote: str, branch: str) -> str:
+    return f"refs/remotes/{remote}/{branch}"
+
+
+def fetch_main(root: Path, remote: str, branch: str) -> str:
+    run_git(["fetch", "--prune", remote, branch], cwd=root)
+    result = run_git(["rev-parse", remote_ref(remote, branch)], cwd=root)
+    return result.stdout.strip()
+
+
+def ref_sha(root: Path, ref: str) -> str | None:
+    result = run_git(["rev-parse", "--verify", ref], cwd=root, check=False)
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
+def relation(root: Path, left: str, right: str) -> str:
+    left_sha = ref_sha(root, left)
+    right_sha = ref_sha(root, right)
+    if not left_sha or not right_sha:
+        return "missing"
+    if left_sha == right_sha:
+        return "equal"
+    left_is_ancestor = run_git(["merge-base", "--is-ancestor", left, right], cwd=root, check=False).returncode == 0
+    right_is_ancestor = run_git(["merge-base", "--is-ancestor", right, left], cwd=root, check=False).returncode == 0
+    if left_is_ancestor:
+        return "behind"
+    if right_is_ancestor:
+        return "ahead"
+    return "diverged"
+
+
+def require_origin(root: Path, remote: str = "origin") -> None:
+    result = run_git(["remote", "get-url", remote], cwd=root, check=False)
+    if result.returncode != 0:
+        raise SystemExit(f"Git remote {remote!r} is required for sync/publish.")
+
+
+def profile(config: dict[str, Any]) -> str:
+    return str(config.get("workflow_profile", "standard"))
+
+
+def publish_mode(config: dict[str, Any]) -> str:
+    return str(config.get("publish_mode", "pr"))
 
 
 @contextmanager
@@ -88,7 +117,6 @@ def locked_json(path: Path) -> Iterator[dict[str, Any]]:
             else:
                 data = {"version": 1, "items": []}
             yield data
-
             fd, tmp_name = tempfile.mkstemp(prefix=path.name + ".", dir=path.parent)
             try:
                 with os.fdopen(fd, "w", encoding="utf-8") as tmp:
