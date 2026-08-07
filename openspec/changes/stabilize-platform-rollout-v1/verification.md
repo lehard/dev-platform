@@ -10,21 +10,28 @@ All stabilization requirements have implementation and evidence:
 2. **Update conflicts block completion** — generated `platform_doctor.py` blocks `.rej` artifacts and Git `leftover conflict marker` findings; unit tests cover clean, `.rej`, and inline-marker states.
 3. **Tool versions are deliberate** — Copier minimum/tested version is `9.17.0`; CI installs exactly `9.17.0`; doctor diagnoses installed-version compatibility.
 4. **Central Actions are immutable refs** — platform workflows use full commit SHAs. The initial v4/v5 pins produced Node-runtime deprecation warnings, so they were replaced before merge with current v6 full-SHA pins; `setup-node` disables unneeded automatic package-manager caching.
-5. **Release lifecycle uses real SemVer tags** — `publish-version.yml` is dormant until an explicit `VERSION` change, then creates `v<VERSION>` and refuses to move an existing tag. The old `release-v1.0.0` branch is explicitly documented as not being a Copier release.
+5. **Release lifecycle uses real SemVer tags** — `publish-version.yml` creates `v<VERSION>` and refuses to move an existing tag. The old `release-v1.0.0` branch is explicitly documented as not being a Copier release.
 
-The two intentionally post-merge items remain open: pinning generated reusable CI to the stabilization merge SHA and adding `VERSION=1.0.0` so the release commit can create the real `v1.0.0` tag/release.
+Release finalization is complete:
+
+- stabilization implementation SHA used by generated reusable CI: `dab74494c9a6ad9a77d99e73bb36774a6d42350d`;
+- release commit: `ba03435a0c11da928807e2487506d1d24d8cfc39`;
+- Git tag `v1.0.0` resolves to the release commit;
+- matching GitHub Release `v1.0.0` exists and was created by the guarded publish workflow;
+- post-release Platform CI passed fresh render and real Copier upgrade smoke for all three profiles.
 
 ## Correctness
 
-Evidence from PR #4:
+Evidence from stabilization and release CI:
 
 - 22 unit/integration tests pass;
 - all three profiles pass fresh Copier rendering and generated doctor checks;
-- all three profiles pass a real `copier update` from the pre-stabilization rollout baseline to the candidate template;
+- all three profiles pass a real `copier update` from the pre-stabilization rollout baseline to the candidate/release template;
 - project-owned `docs/engineering/project-rules.md` sentinel content and an unrelated local-only project document survive the update;
 - unresolved `.rej` and inline Git conflict marker guards are unit-tested;
 - contract tests reject mutable `actions/*@vN` references in central workflows;
-- exact Copier `9.17.0` installation is exercised in CI.
+- exact Copier `9.17.0` installation is exercised in CI;
+- release publication workflow completed successfully and produced the expected tag and GitHub Release.
 
 The first upgrade-smoke CI run failed because `copier update` attempted an interactive prompt without `--defaults`. That failure was fixed, then the entire matrix reran successfully. This is evidence that the new upgrade gate detects a class of failure the former fresh-render-only CI could not catch.
 
@@ -38,4 +45,4 @@ The change remains within the stated stabilization scope:
 - no auto-merge path is added;
 - existing workflow profiles and zero-hand-off lifecycle are hardened rather than expanded.
 
-The resulting platform is ready for a small release-finalization commit after this stabilization PR merges, then real project adoption should take precedence over further platform feature work.
+The platform now has a real `v1.0.0` Copier release boundary. The next priority is controlled adoption and observation, not further platform feature expansion. Local `/opsx:verify` and archive may be performed later by an agent with the OpenSpec workflow available.

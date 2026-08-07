@@ -10,6 +10,13 @@ A release tag is append-only: once published it must never be moved or reused. I
 
 The old `release-v1.0.0` branch is not a Copier release and must not be used as a version source. It may remain only as a legacy navigation ref until it can be safely removed.
 
+### Current v1 release
+
+- Copier template tag: `v1.0.0`.
+- Release commit: `ba03435a0c11da928807e2487506d1d24d8cfc39`.
+- Generated reusable-CI pin: `dab74494c9a6ad9a77d99e73bb36774a6d42350d`.
+- A matching GitHub Release `v1.0.0` is published.
+
 ## Downstream execution pin
 
 A downstream project records a concrete `platform_ci_ref` in `.dev-platform.toml`. Reusable CI uses the full commit SHA, not `main` and not a movable major tag.
