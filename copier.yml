@@ -46,8 +46,8 @@ publish_mode:
 
 platform_ci_ref:
   type: str
-  help: Versioned dev-platform ref used by downstream reusable CI; never use main
-  default: release-v1.0.0
+  help: Immutable dev-platform commit SHA used by downstream reusable CI; never use main
+  default: b4a95a26c7caf14dd5b0d44da0237dcd70bf8715
 
 agent_tools:
   type: str

@@ -24,7 +24,7 @@ OpenSpec remains external. The platform records minimum/tested versions and diag
 
 ## Release pinning
 
-Generated CI references `platform_ci_ref`, default `release-v1.0.0`, never `main`. The v1 release ref is append-only: once created it must never move. Future release refs are changed downstream only through reviewed Copier updates.
+Generated CI references `platform_ci_ref`, never `main`. Before the first release commit exists, the release candidate may render against the append-only alias `release-v1.0.0`. Immediately after v1.0.0 is validated and merged, the factory default is pinned to the exact release commit SHA `b4a95a26c7caf14dd5b0d44da0237dcd70bf8715`; the human-readable `release-v1.0.0` alias points to the same commit and must never move. Future platform upgrades change the downstream SHA only through reviewed Copier updates.
 
 ## Promotion inbox
 
@@ -32,4 +32,4 @@ Friction stays machine-local. `agent_friction.py promote <id>` is deliberate, re
 
 ## Compatibility and rollback
 
-Existing downstream repositories have not yet adopted the platform, so schema v2 can be introduced before dogfood. Copier remains the migration mechanism. All Git mutation paths fail closed on dirty/diverged states. A project can roll back by pinning its previous platform release ref and reverting the reviewed Copier update.
+Existing downstream repositories have not yet adopted the platform, so schema v2 can be introduced before dogfood. Copier remains the migration mechanism. All Git mutation paths fail closed on dirty/diverged states. A project can roll back by pinning its previous platform release SHA and reverting the reviewed Copier update.

@@ -46,7 +46,7 @@ jobs:
             --data project_description="Factory smoke test" \
             --data workflow_profile="${{ matrix.profile }}" \
             --data publish_mode="${{ matrix.publish_mode }}" \
-            --data platform_ci_ref="release-v1.0.0" \
+            --data platform_ci_ref="b4a95a26c7caf14dd5b0d44da0237dcd70bf8715" \
             . "$target"
           python3 -m compileall -q "$target/scripts"
           cd "$target"

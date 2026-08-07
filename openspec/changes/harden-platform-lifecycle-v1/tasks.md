@@ -4,7 +4,8 @@
 
 - [x] 1.1 Add `platform_ci_ref` to Copier/project config and remove downstream `@main`.
 - [x] 1.2 Document append-only release refs and v1 rollout contract.
-- [ ] 1.3 After merge, create `release-v1.0.0` at the validated main commit and never move it.
+- [x] 1.3 Create append-only `release-v1.0.0` at validated commit `b4a95a26c7caf14dd5b0d44da0237dcd70bf8715` and never move it.
+- [x] 1.4 Pin the new-project/default downstream reusable CI ref to the exact v1 release commit SHA.
 
 ## 2. GitHub-aware zero-hand-off lifecycle
 
