@@ -23,7 +23,7 @@
 - [x] 4.1 Replace branch-alias release documentation with SemVer Git-tag policy.
 - [x] 4.2 Add guarded `VERSION`-driven tag/release workflow.
 - [x] 4.3 Pin generated reusable CI to stabilization commit `dab74494c9a6ad9a77d99e73bb36774a6d42350d`.
-- [ ] 4.4 Add `VERSION=1.0.0`; confirm `v1.0.0` tag and GitHub Release are created at the release commit.
+- [x] 4.4 Add `VERSION=1.0.0`; confirm tag `v1.0.0` and GitHub Release were created at release commit `ba03435a0c11da928807e2487506d1d24d8cfc39`.
 
 ## 5. Verification
 
