@@ -21,7 +21,7 @@ jobs:
 
       - name: Run selected platform-managed checks
         if: github.event_name == 'pull_request'
-        run: python3 scripts/select_checks.py --base "origin/${{ github.base_ref }}" --execute
+        run: python3 scripts/select_checks.py --base "origin/{% raw %}${{ github.base_ref }}{% endraw %}" --execute
 
       - name: Run full platform-managed checks
         if: github.event_name != 'pull_request'
