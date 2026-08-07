@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+import tomllib
 from pathlib import Path
 
 
@@ -9,16 +10,26 @@ def run(command: list[str], root: Path, check: bool = True) -> subprocess.Comple
     return subprocess.run(command, cwd=root, text=True, check=check)
 
 
+def load_config(root: Path) -> dict:
+    path = root / ".dev-platform.toml"
+    if not path.exists():
+        raise SystemExit(f"Missing platform configuration: {path}")
+    with path.open("rb") as fh:
+        return tomllib.load(fh)
+
+
 def main() -> int:
     root = Path.cwd().resolve()
+    config = load_config(root)
+    main_branch = str(config.get("main_branch", "main"))
+    tools = str(config.get("agent_tools", "claude,codex"))
     was_git_repo = (root / ".git").exists()
 
     if not was_git_repo:
-        run(["git", "init", "-b", "{{ main_branch }}"], root)
+        run(["git", "init", "-b", main_branch], root)
 
     (root / ".claude" / "worktrees").mkdir(parents=True, exist_ok=True)
 
-    tools = "{{ agent_tools }}"
     command = ["openspec", "init", ".", "--tools", tools, "--profile", "core", "--no-animation"]
     openspec = shutil.which("openspec")
 
