@@ -28,5 +28,5 @@
 ## 5. Verification
 
 - [x] 5.1 Compile new/changed Python scripts.
-- [ ] 5.2 PR CI must pass fresh render + upgrade smoke for `light`, `standard`, and `multi-agent`.
-- [ ] 5.3 Perform final semantic verification before merge/release.
+- [x] 5.2 PR CI passes fresh render + upgrade smoke for `light`, `standard`, and `multi-agent`.
+- [x] 5.3 Semantic completeness/correctness/coherence verification is recorded in `verification.md`; literal `/opsx:verify` remains a local OpenSpec workflow gate before archive.
