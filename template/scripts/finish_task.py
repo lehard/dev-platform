@@ -80,6 +80,9 @@ def main() -> int:
         if args.body:
             command += ["--body", args.body]
         subprocess.run(command, cwd=work, check=True)
+        if prof == "standard" and work == integration:
+            run_git(["switch", main_branch], cwd=integration)
+            print(f"Returned integration copy to {main_branch} after PR publication.")
         if prof == "multi-agent":
             finish_board(integration, work, config)
         print("Task published as PR. OpenSpec verification remains required before archiving a non-trivial change.")
