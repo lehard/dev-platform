@@ -1,0 +1,32 @@
+_min_copier_version: "9.4.0"
+_subdirectory: template
+_answers_file: .copier-answers.yml
+_templates_suffix: .jinja
+_skip_if_exists:
+  - docs/engineering/project-rules.md
+_tasks:
+  - command: ["{{ _copier_python }}", "scripts/platform_bootstrap.py"]
+
+project_name:
+  type: str
+  help: Human-readable project name
+
+project_slug:
+  type: str
+  help: Repository/project slug
+  default: "{{ project_name | lower | replace(' ', '-') | replace('_', '-') }}"
+
+project_description:
+  type: str
+  help: One-line project description
+  default: ""
+
+main_branch:
+  type: str
+  help: Default integration branch
+  default: main
+
+agent_tools:
+  type: str
+  help: Comma-separated OpenSpec tool IDs
+  default: "claude,codex"

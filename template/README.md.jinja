@@ -1,0 +1,38 @@
+# {{ project_name }}
+
+{{ project_description }}
+
+This repository uses `lehard/dev-platform` for the shared agent/OpenSpec/worktree/merge/check/friction workflow.
+
+Project/domain documentation belongs in this repository; the central platform owns only reusable development process.
+
+## First check
+
+```bash
+python3 scripts/platform_doctor.py
+```
+
+## Working on a change
+
+For non-trivial product or architecture work, create/update the OpenSpec change first.
+
+Start isolated work with:
+
+```bash
+python3 scripts/start_worktree.py my-change --task "OpenSpec my-change: task range" --scope "path/or/module"
+```
+
+Inside the worktree, run selected checks before completion:
+
+```bash
+python3 scripts/select_checks.py
+python3 scripts/select_checks.py --execute
+```
+
+Merge only through:
+
+```bash
+python3 scripts/merge_to_main.py
+```
+
+See `AGENTS.md` and `docs/engineering/`.

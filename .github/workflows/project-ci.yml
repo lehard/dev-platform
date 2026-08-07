@@ -1,0 +1,33 @@
+name: Reusable Project CI
+
+on:
+  workflow_call:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout caller repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Run selected checks
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: python3 scripts/select_checks.py --base "origin/${{ github.base_ref }}" --execute
+
+      - name: Run full checks
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: python3 scripts/select_checks.py --full --execute

@@ -1,0 +1,33 @@
+schema: spec-driven
+
+context: |
+  dev-platform is the central developer platform and Copier project factory for multiple agent-first repositories.
+  It owns reusable engineering workflow, not application-domain requirements.
+  Downstream compatibility and safe update behavior are first-class requirements.
+  OpenSpec-generated tool skills are external generated artifacts and must not be vendored as platform-owned code.
+
+rules:
+  proposal:
+    - State whether the change affects new projects, existing-project updates, or both.
+    - Separate universal platform behavior from project/profile-specific behavior.
+    - Identify downstream managed files and compatibility risks.
+  design:
+    - Define ownership boundaries and upgrade/rollback behavior.
+    - Prefer dependency-light, deterministic tooling.
+    - Avoid requiring secrets or machine-specific absolute paths.
+    - Resolve shared contracts before parallel implementation.
+  tasks:
+    - Include template-render validation and downstream update considerations.
+    - Define logical commit boundaries for non-trivial work.
+    - Include tests for shared scripts and CI behavior.
+
+operations:
+  apply:
+    guidance:
+      - Keep the template generic and move project-specific examples into documentation or profile configuration.
+      - Do not vendor OpenSpec-generated AI tool skills.
+      - Treat downstream project content as potentially divergent; never assume blind overwrite is safe.
+  archive:
+    guidance:
+      - Confirm durable platform behavior is represented in docs/template before archiving.
+      - Ensure completed task checkboxes reflect validated implementation.

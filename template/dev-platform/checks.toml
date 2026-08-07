@@ -1,0 +1,18 @@
+# Project-owned check mapping consumed by scripts/select_checks.py.
+# Keep this file aligned with the actual repository stack.
+
+[settings]
+fallback_commands = ["git diff --check"]
+full_commands = ["git diff --check"]
+
+[checks.docs]
+patterns = ["*.md", "docs/**", "openspec/**", "AGENTS.md", "CLAUDE.md"]
+commands = ["git diff --check"]
+
+[checks.python]
+patterns = ["**/*.py"]
+commands = ["python3 -m compileall -q ."]
+
+[checks.javascript]
+patterns = ["**/*.js", "**/*.jsx", "**/*.ts", "**/*.tsx"]
+commands = []
