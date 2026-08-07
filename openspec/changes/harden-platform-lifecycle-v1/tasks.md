@@ -20,7 +20,7 @@
 ## 4. OpenSpec contract hardening
 
 - [x] 4.1 Replace false flat source hierarchy with current-spec + active-delta model.
-- [x] 4.2 Add no-silent-divergence routing for proposal/spec/design/tasks.
+- [x] 4.2 Add no-silent-divergence routing for proposal/specs/design/tasks.
 - [x] 4.3 Require `/opsx:verify` before archive for non-trivial changes and distinguish it from structural validation/project QA.
 - [x] 4.4 Add minimum/tested OpenSpec version policy and doctor diagnostics.
 
@@ -34,4 +34,4 @@
 - [x] 6.1 Compile platform scripts and run unit tests locally.
 - [x] 6.2 Render all three profiles with Copier and compile generated scripts in PR CI.
 - [x] 6.3 Exercise sync/direct-publish safety against temporary Git remotes and verify divergence aborts.
-- [ ] 6.4 Final PR CI must pass after verification fixes; semantic verification is documented in `verification.md`. Literal `/opsx:verify` is not invokable from this GitHub connector session, so the published verify dimensions are applied explicitly instead of claiming a slash-command run.
+- [x] 6.4 Final code PR CI passed after verification fixes. Semantic verification against the published `/opsx:verify` dimensions is documented in `verification.md`; the literal slash workflow is not invokable from this GitHub connector session and is therefore not falsely claimed as executed.

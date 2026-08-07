@@ -17,16 +17,18 @@ The only intentionally post-merge item is creation of append-only `release-v1.0.
 
 ## Correctness
 
-Evidence before final merge:
+Evidence before merge:
 
 - shared platform scripts compile;
-- 11 local unit/integration tests pass;
-- temporary Git remotes verify fast-forward sync, refusal of local-ahead start, safe direct publication, refusal on real divergence, and standard/direct local integration + publication;
-- PR CI successfully rendered and compiled all three profiles;
-- generated doctors ran in the profile matrix;
+- 12 local/CI unit and integration tests cover template and Git lifecycle behavior, including a simulated authenticated `standard + pr` publication path that returns the integration copy to `main`;
+- temporary Git remotes verify fast-forward sync, refusal of local-ahead start, safe direct publication, refusal on real divergence, standard/direct local integration + publication, and PR branch publication behavior;
+- final code PR CI run `31210780560` passed for `light/direct`, `standard/pr`, and `multi-agent/pr`;
+- each profile rendered through real Copier, compiled generated scripts and ran the generated platform doctor;
 - downstream workflow templates contain no `@main` reference.
 
-One semantic review issue was found after the first green CI: current OpenSpec 1.6 generated verify skills are named `openspec-verify-change`, not `openspec-verify`. `platform_doctor.py` was corrected to detect `openspec-verify-change` before merge. Final PR CI must pass again after this correction.
+Semantic review found one issue after an earlier green CI: current OpenSpec 1.6 generated verify skills are named `openspec-verify-change`, not `openspec-verify`. `platform_doctor.py` was corrected to detect `openspec-verify-change`, and the full profile matrix passed again after that correction.
+
+A second lifecycle review found that `standard + pr` returned from PR creation while leaving the local integration copy checked out on the feature branch. That would have required a manual `git switch main` before the next task and violated zero-hand-off. `finish_task.py` now switches the standard integration copy back to `main` after a successful PR publication, with a simulated-`gh` integration test covering the behavior.
 
 ## Coherence
 
@@ -42,6 +44,6 @@ Implementation matches the active proposal/design:
 
 No Jara_Fin files or workflows are changed by this OpenSpec change.
 
-## Remaining release gate
+## Release gate
 
-After this verification fix, PR CI must be green. Then the PR may be merged and `release-v1.0.0` created at the resulting validated main commit. The release ref must never be moved.
+The implementation and final code CI are green. The PR may be merged. After merge, create `release-v1.0.0` at the resulting validated main commit and never move that ref. A follow-up metadata-only hardening may pin the Copier default reusable workflow reference to the exact v1 commit SHA for cryptographic immutability.
