@@ -27,9 +27,11 @@ OpenSpec is the canonical planning layer for non-trivial changes. Current specs 
 
 Non-trivial changes require project QA/tests **and** `/opsx:verify` before archive. The platform currently tests against OpenSpec 1.6.0 and records compatibility policy in generated `.dev-platform.toml`; it never silently upgrades a user's global CLI.
 
-## Versioned downstream CI
+## Immutable downstream CI
 
-Generated projects call reusable CI using the configured `platform_ci_ref`, never `@main`. The initial v1 line uses `release-v1.0.0`; release refs are append-only and must never move. Future upgrades change the ref only through reviewed Copier update PRs.
+Generated projects call reusable CI using the configured `platform_ci_ref`, never `@main`. For platform v1.0.0 the factory defaults to the exact validated commit SHA `b4a95a26c7caf14dd5b0d44da0237dcd70bf8715`. The human-readable append-only alias `release-v1.0.0` points to that same commit, but downstream execution uses the SHA so later platform changes cannot silently alter CI behavior.
+
+Future upgrades change `platform_ci_ref` only through reviewed Copier update PRs.
 
 Because this repository is private, enable **Settings -> Actions -> General -> Access -> Accessible from repositories owned by `lehard`** before downstream private repositories call its reusable workflow.
 
@@ -41,7 +43,7 @@ Prerequisites: Git, Python 3.11+, Copier 9.x, OpenSpec CLI, and GitHub CLI (`gh`
 copier copy --trust https://github.com/lehard/dev-platform.git ./my-project
 ```
 
-Copier asks for `workflow_profile`, `publish_mode`, and the versioned platform CI ref. `.copier-answers.yml` is committed so future platform updates can be reviewed with `copier update --trust`.
+Copier asks for `workflow_profile`, `publish_mode`, and the immutable platform CI ref. `.copier-answers.yml` is committed so future platform updates can be reviewed with `copier update --trust`.
 
 ## Existing project
 

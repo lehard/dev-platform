@@ -10,14 +10,14 @@ All six delta requirements have implementation surfaces and validation evidence:
 2. **Configurable publication modes** — Copier/config expose `pr` and `direct`; PR mode uses authenticated `gh` without auto-merge; direct mode re-fetches and forbids force push.
 3. **Composable workflow profiles** — one Copier template renders `light`, `standard`, and `multi-agent`; CI renders all three; worktree/board rules are conditional.
 4. **OpenSpec contract coherence** — root/template AGENTS, OpenSpec config and workflow docs encode current-spec + active-delta ownership, no-silent-divergence routing, and verify-before-archive policy.
-5. **Versioned platform dependency** — generated CI uses `platform_ci_ref`; tests and CI reject `project-ci.yml@main`.
+5. **Versioned platform dependency** — generated CI uses `platform_ci_ref`; tests and CI reject `project-ci.yml@main`; the final v1 factory default is the exact validated release SHA.
 6. **Deliberate learning promotion** — friction events have IDs; `promote` requires explicit action, only accepts platform scope, omits raw evidence, sanitizes obvious secret patterns, supports dry-run, and creates the central issue through authenticated `gh`.
 
-The only intentionally post-merge item is creation of append-only `release-v1.0.0` at the validated main commit.
+The append-only `release-v1.0.0` alias was created at validated commit `b4a95a26c7caf14dd5b0d44da0237dcd70bf8715`. The factory default is pinned to that exact SHA.
 
 ## Correctness
 
-Evidence before merge:
+Evidence before release:
 
 - shared platform scripts compile;
 - 12 local/CI unit and integration tests cover template and Git lifecycle behavior, including a simulated authenticated `standard + pr` publication path that returns the integration copy to `main`;
@@ -39,11 +39,11 @@ Implementation matches the active proposal/design:
 - profiles compose capabilities rather than forking templates;
 - OpenSpec policy distinguishes process constraints, accepted current behavior and active approved delta;
 - project-specific QA remains separate from semantic OpenSpec verification;
-- release pinning eliminates the silent `@main` update channel;
+- exact-SHA release pinning eliminates the silent `@main` update channel and removes mutability from downstream reusable CI execution;
 - promotion remains deliberate and sanitized rather than automatically uploading local friction.
 
 No Jara_Fin files or workflows are changed by this OpenSpec change.
 
-## Release gate
+## Release status
 
-The implementation and final code CI are green. The PR may be merged. After merge, create `release-v1.0.0` at the resulting validated main commit and never move that ref. A follow-up metadata-only hardening may pin the Copier default reusable workflow reference to the exact v1 commit SHA for cryptographic immutability.
+Platform v1.0.0 implementation was merged at `b4a95a26c7caf14dd5b0d44da0237dcd70bf8715`. The append-only `release-v1.0.0` alias points to that commit, and new generated projects pin reusable CI to the exact same SHA.
