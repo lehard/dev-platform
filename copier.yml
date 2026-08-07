@@ -47,7 +47,7 @@ publish_mode:
 platform_ci_ref:
   type: str
   help: Immutable dev-platform commit SHA used by downstream reusable CI; never use main
-  default: b4a95a26c7caf14dd5b0d44da0237dcd70bf8715
+  default: dab74494c9a6ad9a77d99e73bb36774a6d42350d
 
 agent_tools:
   type: str
