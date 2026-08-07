@@ -1,0 +1,32 @@
+schema: spec-driven
+
+context: |
+  {{ project_name }}: {{ project_description }}
+  Repository engineering and safety rules live in AGENTS.md and applicable module-level AGENTS.md files.
+  Project-specific engineering rules live in docs/engineering/project-rules.md.
+  OpenSpec is the canonical planning layer for non-trivial product and architecture work.
+  Reuse existing domain models, source-of-truth ownership, integrations and repository conventions unless a change explicitly replaces them.
+
+rules:
+  proposal:
+    - State goals and non-goals explicitly.
+    - Identify affected existing domains, integrations, contracts and source-of-truth ownership.
+    - Prefer evolving the existing system over creating parallel canonical sources.
+  design:
+    - Document migration/backfill, compatibility, audit/history, rollback/cutover and performance implications when relevant.
+    - Resolve shared contracts before declaring workstreams safe to run in parallel.
+  tasks:
+    - Express dependencies and mark only genuinely independent work as parallelizable.
+    - Define logical commit boundaries for non-trivial work.
+    - Include targeted tests, regression checks and end-to-end acceptance scenarios.
+
+operations:
+  apply:
+    guidance:
+      - Follow AGENTS.md for worktrees, agent-board coordination, check selection and merge safety.
+      - Treat proposal/specs/design/tasks as the implementation contract.
+      - Mark a task complete only after implementation and required verification.
+  archive:
+    guidance:
+      - Preserve durable architecture/runbook information in docs/ when it is operational context rather than product behavior.
+      - Confirm task checkboxes and verification reflect implemented state before archive.

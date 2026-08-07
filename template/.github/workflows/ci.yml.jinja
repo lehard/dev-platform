@@ -1,0 +1,12 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - {{ main_branch }}
+  workflow_dispatch:
+
+jobs:
+  platform-ci:
+    uses: lehard/dev-platform/.github/workflows/project-ci.yml@main
