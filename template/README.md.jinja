@@ -42,6 +42,6 @@ The finish step re-fetches `origin/{{ main_branch }}` and either creates a PR or
 
 For non-trivial OpenSpec changes, run `/opsx:verify` before archive in addition to project-specific tests/QA.
 
-Reusable CI is pinned to `{{ platform_ci_ref }}`, not `dev-platform@main`.
+Platform-managed CI is self-contained in this repository and updates only through reviewed Copier releases; it does not execute `dev-platform@main` or require private cross-repository workflow access.
 
 See `AGENTS.md` and `docs/engineering/`.

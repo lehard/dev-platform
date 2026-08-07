@@ -46,7 +46,7 @@ publish_mode:
 
 platform_ci_ref:
   type: str
-  help: Immutable dev-platform commit SHA used by downstream reusable CI; never use main
+  help: Legacy schema-v2 CI metadata retained for v1 compatibility; self-contained CI does not execute this ref
   default: dab74494c9a6ad9a77d99e73bb36774a6d42350d
 
 agent_tools:

@@ -91,9 +91,11 @@ python3 scripts/finish_task.py
 
 The human user must not be used as a routine Git courier between completed agent work and GitHub.
 
-## Platform release pinning
+## Platform release and CI updates
 
-Reusable CI is pinned to the versioned ref recorded as `platform_ci_ref` in `.dev-platform.toml`. Never change that ref to `main`. Platform upgrades arrive as reviewed Copier updates/PRs.
+Platform-managed scripts, docs and the self-contained CI workflow are versioned inside this repository by Copier. Platform upgrades arrive only through reviewed Copier update PRs; downstream CI never executes mutable `dev-platform@main` logic and does not require private cross-repository Actions Access.
+
+`platform_ci_ref` in schema v2 is legacy compatibility metadata and is not executed by the self-contained CI workflow.
 
 ## Friction and promotion
 
