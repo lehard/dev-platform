@@ -32,6 +32,6 @@
 ## 6. Verification
 
 - [x] 6.1 Compile platform scripts and run unit tests locally.
-- [ ] 6.2 Render all three profiles with Copier and compile generated scripts.
+- [x] 6.2 Render all three profiles with Copier and compile generated scripts in PR CI.
 - [x] 6.3 Exercise sync/direct-publish safety against temporary Git remotes and verify divergence aborts.
-- [ ] 6.4 Run platform CI on PR and `/opsx:verify` before archive/release.
+- [ ] 6.4 Final PR CI must pass after verification fixes; semantic verification is documented in `verification.md`. Literal `/opsx:verify` is not invokable from this GitHub connector session, so the published verify dimensions are applied explicitly instead of claiming a slash-command run.
