@@ -5,6 +5,7 @@ context: |
   It owns reusable engineering workflow, not application-domain requirements.
   Downstream compatibility and safe update behavior are first-class requirements.
   OpenSpec-generated tool skills are external generated artifacts and must not be vendored as platform-owned code.
+  Current specs describe accepted behavior; an active change describes an approved delta to that behavior, not a lower-priority source.
 
 rules:
   proposal:
@@ -27,7 +28,9 @@ operations:
       - Keep the template generic and move project-specific examples into documentation or profile configuration.
       - Do not vendor OpenSpec-generated AI tool skills.
       - Treat downstream project content as potentially divergent; never assume blind overwrite is safe.
+      - No silent divergence: when implementation changes intent/scope, observable behavior, technical approach, or execution dependencies, update proposal/specs/design/tasks respectively before continuing in the new direction.
   archive:
     guidance:
       - Confirm durable platform behavior is represented in docs/template before archiving.
       - Ensure completed task checkboxes reflect validated implementation.
+      - For non-trivial changes, require project/platform checks plus /opsx:verify before archive; structural openspec validate alone is insufficient.

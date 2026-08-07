@@ -2,37 +2,46 @@
 
 {{ project_description }}
 
-This repository uses `lehard/dev-platform` for the shared agent/OpenSpec/worktree/merge/check/friction workflow.
+This repository uses `lehard/dev-platform` with `workflow_profile={{ workflow_profile }}` and `publish_mode={{ publish_mode }}`.
 
-Project/domain documentation belongs in this repository; the central platform owns only reusable development process.
+Project/domain documentation belongs here; the central platform owns only reusable development process.
 
-## First check
+## First checks
 
 ```bash
 python3 scripts/platform_doctor.py
+python3 scripts/agent_doctor.py
 ```
+
+`platform_doctor.py` checks the installed platform contract and OpenSpec compatibility. `agent_doctor.py` checks current GitHub/Git readiness for starting or finishing work.
 
 ## Working on a change
 
-For non-trivial product or architecture work, create/update the OpenSpec change first.
+For non-trivial product or architecture work, create/update the OpenSpec change first. If implementation changes direction, update the relevant OpenSpec artifact before code knowingly diverges.
 
-Start isolated work with:
+Start through the shared profile-aware entrypoint:
 
 ```bash
-python3 scripts/start_worktree.py my-change --task "OpenSpec my-change: task range" --scope "path/or/module"
+python3 scripts/start_task.py my-change --task "OpenSpec my-change: task range" --scope "path/or/module"
 ```
 
-Inside the worktree, run selected checks before completion:
+Run selected checks before completion:
 
 ```bash
 python3 scripts/select_checks.py
 python3 scripts/select_checks.py --execute
 ```
 
-Merge only through:
+Publish through:
 
 ```bash
-python3 scripts/merge_to_main.py
+python3 scripts/finish_task.py
 ```
+
+The finish step re-fetches `origin/{{ main_branch }}` and either creates a PR or performs a guarded direct push according to `.dev-platform.toml`. It never force-pushes or auto-resolves divergence.
+
+For non-trivial OpenSpec changes, run `/opsx:verify` before archive in addition to project-specific tests/QA.
+
+Reusable CI is pinned to `{{ platform_ci_ref }}`, not `dev-platform@main`.
 
 See `AGENTS.md` and `docs/engineering/`.

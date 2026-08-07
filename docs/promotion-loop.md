@@ -1,52 +1,13 @@
-# Improvement promotion loop
+# Promotion loop
 
-The platform is intended to learn from real project work without automatically turning every local annoyance into global policy.
+Shared process improvements begin as local evidence, not automatic policy changes.
 
-## 1. Observe in the project
+1. Record only high-signal friction locally with `agent_friction.py record`.
+2. Review recurring/project-vs-platform candidates locally.
+3. For a reusable platform candidate, run `agent_friction.py promote <id> --dry-run`.
+4. If the sanitized payload is appropriate, run `agent_friction.py promote <id>` to create a central `dev-platform` GitHub Issue through authenticated `gh`.
+5. Review evidence across projects. One event is not automatically a permanent rule.
+6. If accepted, create an OpenSpec change in `dev-platform`.
+7. Release the platform and propagate through reviewed Copier upgrade PRs.
 
-Record friction only when there is useful signal: a user correction, repeated failure, safety near-miss, important undocumented invariant, or excessive retries.
-
-Use:
-
-```bash
-python3 scripts/agent_friction.py record \
-  --category workflow \
-  --observation "..." \
-  --evidence "..." \
-  --hypothesis "..." \
-  --scope platform \
-  --proposal "..."
-```
-
-The log is machine-local under `.claude/` and must not contain secrets or sensitive data.
-
-## 2. Review periodically
-
-```bash
-python3 scripts/agent_friction.py review --days 7
-```
-
-Classify each useful finding as:
-
-- `project` — fix only the owning repository;
-- `platform` — candidate for `dev-platform`.
-
-One incident is evidence, not automatic authorization to rewrite shared rules.
-
-## 3. Promote through OpenSpec
-
-For a platform candidate:
-
-1. inspect current platform behavior and affected downstream files;
-2. create an OpenSpec change in `dev-platform`;
-3. define compatibility/update behavior;
-4. implement and validate the template plus platform CI;
-5. merge a reviewed platform change.
-
-## 4. Propagate
-
-Existing projects receive the change through a reviewed Copier update, ideally in a dedicated PR/worktree.
-
-New projects automatically start from the latest accepted platform state.
-
-The goal is controlled learning: improvements spread, but project-specific exceptions and local experiments do not silently become global policy.
+Raw evidence is intentionally omitted from promotion because it may contain machine-local, customer, financial, operational or credential-adjacent context. Promotion includes only sanitized observation, hypothesis and proposed reusable change.

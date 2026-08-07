@@ -1,31 +1,39 @@
 # OpenSpec workflow
 
-OpenSpec is the canonical planning layer for non-trivial product and architecture work. It does not replace repository engineering rules, runtime coordination, test selection, merge safety, operational runbooks or durable architecture documentation.
+OpenSpec is the planning contract for non-trivial product and architecture changes. It complements repository process rules and project-specific verification.
 
-## Ownership
+## Contract model
 
-- `AGENTS.md` — how agents work.
-- `openspec/specs/` — current durable expected behavior.
-- `openspec/changes/<change>/` — active implementation contract.
-- `.claude/agents-board.json` — active local concurrency coordination only.
-- `docs/` — durable architecture/runbooks/project context outside active feature specs.
+Do not model these as a flat precedence ladder:
 
-## Change lifecycle
+1. `AGENTS.md` constrains **how work may be performed**.
+2. `openspec/specs/` states the **accepted current behavior**.
+3. `openspec/changes/<active>/` states the **approved delta** currently changing that behavior.
+4. Code implements current behavior plus approved active deltas.
 
-1. Explore current code/specs/active changes.
-2. Create or update one named OpenSpec change.
-3. Put requirements/acceptance in specs, cross-cutting decisions in design, and execution/dependencies/verification in tasks.
-4. Do not duplicate the plan elsewhere.
-5. Implement in isolated worktrees using the agent board.
-6. Mark tasks complete only after implementation and required verification.
-7. Validate/synchronize/archive the change so durable behavior reaches `openspec/specs/`.
+The target behavior during an active change is therefore `current specs + active delta`, subject to process/safety constraints.
 
-Small fixes may use the normal repository workflow without a ceremonial change.
+## No silent divergence
 
-## Parallel agents
+If implementation reveals that the plan must change, update the relevant artifact before proceeding in a different direction:
 
-Parallelize only task groups whose shared contracts are already fixed. Each agent uses its own worktree and board entry. Overlapping files or contracts must be serialized or explicitly split.
+- intent/scope -> `proposal.md`;
+- observable behavior -> delta specs;
+- technical approach -> `design.md`;
+- execution order/dependencies -> `tasks.md`.
 
-## Definition of done
+Do not knowingly make code and OpenSpec disagree and plan to repair the docs later.
 
-A change is ready to archive when implementation is complete, selected checks pass (or deviations are explicit), migrations/compatibility are addressed where relevant, task checkboxes match reality, and durable behavior is synchronized through OpenSpec.
+## Verify before archive
+
+For non-trivial changes:
+
+`plan review -> implementation -> project tests/QA -> /opsx:verify -> archive`
+
+`/opsx:verify` is semantic implementation review; `openspec validate` is structural validation. Neither replaces project-specific tests, E2E, browser/render QA, migrations or operational checks.
+
+The expanded OpenSpec verify workflow must be enabled for the repository before a non-trivial change is archived. If it is absent, run `openspec config profile` to enable `verify`, then `openspec update` to regenerate tool integrations.
+
+## OpenSpec version policy
+
+`.dev-platform.toml` records the platform-tested OpenSpec version and minimum compatible version. `platform_doctor.py` warns when the local CLI is newer than the tested version and fails when it is below the minimum. The platform does not silently upgrade a user's global CLI.

@@ -1,8 +1,27 @@
-schema_version = 1
+schema_version = 2
+platform_version = "1.0.0"
+platform_ci_ref = "{{ platform_ci_ref }}"
 project_name = "{{ project_name }}"
 project_slug = "{{ project_slug }}"
 main_branch = "{{ main_branch }}"
+workflow_profile = "{{ workflow_profile }}"
+publish_mode = "{{ publish_mode }}"
 agent_tools = "{{ agent_tools }}"
+
+[capabilities]
+openspec = true
+github_sync = true
+feature_branches = {{ 'true' if workflow_profile in ['standard', 'multi-agent'] else 'false' }}
+worktrees = {{ 'true' if workflow_profile == 'multi-agent' else 'false' }}
+agent_board = {{ 'true' if workflow_profile == 'multi-agent' else 'false' }}
+
+[tools.openspec]
+min_version = "1.6.0"
+tested_version = "1.6.0"
+verify_required = true
+
+[promotion]
+repo = "lehard/dev-platform"
 
 [paths]
 worktrees = ".claude/worktrees"
