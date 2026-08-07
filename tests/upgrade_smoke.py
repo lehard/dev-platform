@@ -64,7 +64,7 @@ def main() -> int:
         run(["git", "add", "-A"], target)
         run(["git", "commit", "-m", "Add project-owned customizations"], target)
 
-        run(["copier", "update", "--trust", "--vcs-ref", "HEAD", "--conflict", "inline"], target)
+        run(["copier", "update", "--trust", "--defaults", "--vcs-ref", "HEAD", "--conflict", "inline"], target)
 
         if "project-owned-upgrade-sentinel" not in project_rules.read_text(encoding="utf-8"):
             raise SystemExit("Copier update removed project-owned project-rules content")
