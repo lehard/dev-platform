@@ -19,38 +19,50 @@ Profiles are compositions of capabilities, not separate template forks.
 ### Publishing
 
 - `pr` — safe default for `standard`/`multi-agent`: push feature branch and create PR with authenticated `gh`; no automatic merge.
-- `direct` — explicit simplification: repeat fetch immediately before push and only fast-forward remote main; never force-push.
-
-## OpenSpec policy
-
-OpenSpec is the canonical planning layer for non-trivial changes. Current specs describe accepted behavior; active changes describe the approved delta. If implementation discovers a different goal, behavior, technical approach or task plan, update the relevant OpenSpec artifact before code diverges.
-
-Non-trivial changes require project QA/tests **and** `/opsx:verify` before archive. The platform currently tests against OpenSpec 1.6.0 and records compatibility policy in generated `.dev-platform.toml`; it never silently upgrades a user's global CLI.
-
-## Immutable downstream CI
-
-Generated projects call reusable CI using the configured `platform_ci_ref`, never `@main`. For platform v1.0.0 the factory defaults to the exact validated commit SHA `b4a95a26c7caf14dd5b0d44da0237dcd70bf8715`. The human-readable append-only alias `release-v1.0.0` points to that same commit, but downstream execution uses the SHA so later platform changes cannot silently alter CI behavior.
-
-Future upgrades change `platform_ci_ref` only through reviewed Copier update PRs.
-
-Because this repository is private, enable **Settings -> Actions -> General -> Access -> Accessible from repositories owned by `lehard`** before downstream private repositories call its reusable workflow.
+- `direct` — explicit simplification: repeat fetch immediately before push and only fast-forward the configured main branch. Force push is forbidden.
 
 ## New project
 
-Prerequisites: Git, Python 3.11+, Copier 9.x, OpenSpec CLI, and GitHub CLI (`gh`) when `publish_mode=pr`.
+Prerequisites: Git, Python 3.11+, Copier **9.17.0**, and preferably a platform-compatible OpenSpec CLI.
 
 ```bash
 copier copy --trust https://github.com/lehard/dev-platform.git ./my-project
 ```
 
-Copier asks for `workflow_profile`, `publish_mode`, and the immutable platform CI ref. `.copier-answers.yml` is committed so future platform updates can be reviewed with `copier update --trust`.
+Copier uses stable Git version tags for template lifecycle. Once `v1.0.0` is published, normal project creation/update should use the latest stable tag unless an explicit `--vcs-ref` is supplied.
 
-## Existing project
+For existing repositories, adoption remains a reviewed migration: never blindly overwrite local agent/OpenSpec/process files.
 
-Adopt only from a clean dedicated branch/worktree and review every conflict. Existing repositories are never auto-migrated by OpenSpec bootstrap. Domain/project rules remain project-owned.
+## Update
+
+From a clean project worktree:
+
+```bash
+copier check-update
+copier update --trust
+python3 scripts/platform_doctor.py
+```
+
+Always review the resulting diff. The doctor blocks unresolved `*.rej` files and Git/Copier conflict markers. Platform CI also tests upgrades from the last stable platform tag while preserving project-owned content.
+
+## Release safety
+
+Downstream reusable CI is pinned to an exact `dev-platform` commit SHA. Platform template versions use stable SemVer Git tags. See `docs/release-policy.md`.
+
+GitHub Actions used by the central workflows are pinned to full commit SHAs rather than mutable major tags.
+
+## Repository layout
+
+- `copier.yml` — template questions and update contract.
+- `template/` — files rendered into downstream projects.
+- `.github/workflows/project-ci.yml` — reusable CI called by downstream projects.
+- `.github/workflows/publish-version.yml` — creates SemVer tag/release when `VERSION` changes on `main`.
+- `docs/` — platform ownership, adoption, releases and promotion-loop documentation.
+- `openspec/` — OpenSpec configuration and changes for this platform itself.
+- `tests/` — validation for new-project rendering, Git lifecycle and Copier upgrade behavior.
 
 ## Promotion loop
 
-`project friction -> local classification -> deliberate sanitized promote -> dev-platform issue inbox -> OpenSpec platform change -> release -> reviewed Copier upgrade PRs`
+`project friction -> classify project/platform -> deliberate sanitized promotion -> OpenSpec change in dev-platform -> platform release -> reviewed downstream upgrade`
 
-Use `python3 scripts/agent_friction.py promote <event-id> --dry-run` before uploading a platform candidate.
+The next priority after rollout stabilization is real project adoption and observation, not adding more platform capabilities.

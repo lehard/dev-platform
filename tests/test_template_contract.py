@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import unittest
 from pathlib import Path
 
@@ -29,6 +30,34 @@ class TemplateContractTests(unittest.TestCase):
 
     def test_no_silent_divergence_and_verify_are_in_agent_contract(self) -> None:
         text = (ROOT / "template" / "AGENTS.md.jinja").read_text(encoding="utf-8").lower(); self.assertIn("no silent divergence", text); self.assertIn("/opsx:verify", text)
+
+    def test_copier_version_is_explicitly_tested(self) -> None:
+        copier = (ROOT / "copier.yml").read_text(encoding="utf-8")
+        config = (ROOT / "template" / ".dev-platform.toml.jinja").read_text(encoding="utf-8")
+        ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        self.assertIn('_min_copier_version: "9.17.0"', copier)
+        self.assertIn('[tools.copier]', config)
+        self.assertIn('tested_version = "9.17.0"', config)
+        self.assertIn('copier==9.17.0', ci)
+
+    def test_central_github_actions_are_sha_pinned(self) -> None:
+        pattern = re.compile(r"uses:\s+actions/[\w-]+@([^\s#]+)")
+        for workflow in (ROOT / ".github" / "workflows").glob("*.yml"):
+            text = workflow.read_text(encoding="utf-8")
+            for ref in pattern.findall(text):
+                with self.subTest(workflow=workflow.name, ref=ref):
+                    self.assertRegex(ref, r"^[0-9a-f]{40}$")
+
+    def test_upgrade_smoke_is_part_of_ci(self) -> None:
+        ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        self.assertIn("tests/upgrade_smoke.py", ci)
+        self.assertIn("fetch-depth: 0", ci)
+
+    def test_version_release_workflow_is_guarded(self) -> None:
+        workflow = (ROOT / ".github" / "workflows" / "publish-version.yml").read_text(encoding="utf-8")
+        self.assertIn("paths:\n      - VERSION", workflow)
+        self.assertIn("Refusing to move existing tag", workflow)
+        self.assertIn('tag="v$version"', workflow)
 
 
 if __name__ == "__main__": unittest.main()
