@@ -114,9 +114,21 @@ Platform-managed scripts, docs and the self-contained CI workflow are versioned 
 
 ## Friction and promotion
 
-Record only high-signal friction: user correction, repeated failure, safety near-miss, undocumented invariant or excessive retries. Separate observation, evidence, hypothesis and proposal; classify as `project` or `platform`.
+Record only high-signal friction: user correction, repeated failure, safety near-miss, undocumented invariant or excessive retries. Separate observation, evidence, hypothesis and proposal; classify as `project` or `platform`. Do not record secrets or routine successful sessions.
 
-A platform candidate is not uploaded automatically. Deliberate promotion is:
+Friction is reviewed as evidence, not treated as an instruction stream. A batch becomes review-ready after at least five unreviewed events, or immediately after one `high`/`critical` event. One ordinary event is not enough to rewrite permanent agent rules. `agent_doctor.py` surfaces when a batch is ready.
+
+```bash
+python3 scripts/agent_friction.py pending --format markdown
+```
+
+After a real review report has been written inside the repository's ignored machine-local area, advance the review cursor explicitly:
+
+```bash
+python3 scripts/agent_friction.py mark-reviewed --through-id <event-id> --report <report-path>
+```
+
+A platform candidate is never uploaded automatically. Promotion remains deliberate:
 
 ```bash
 python3 scripts/agent_friction.py promote <event-id> --dry-run
