@@ -26,7 +26,7 @@ operations:
   apply:
     guidance:
       - Follow AGENTS.md for the configured workflow profile, GitHub synchronization, check selection and publication safety.
-      - No silent divergence: update proposal/specs/design/tasks before knowingly implementing changed intent, behavior, technical approach or execution dependencies.
+      - 'No silent divergence: update proposal/specs/design/tasks before knowingly implementing changed intent, behavior, technical approach or execution dependencies.'
       - Mark a task complete only after implementation and required verification for that task.
   archive:
     guidance:
@@ -34,5 +34,5 @@ operations:
       - Confirm task checkboxes and verification reflect implemented state before archive.
       - For non-trivial changes, require project-specific checks/QA and semantic OpenSpec verification before archive.
       - Prefer /opsx:verify when available; otherwise document the equivalent completeness/correctness/coherence review.
-      - After material findings are resolved, record `OpenSpec-Verify: PASS` and `Verification-Method: <method>` in the active change verification.md.
+      - 'After material findings are resolved, record `OpenSpec-Verify: PASS` and `Verification-Method: <method>` in the active change verification.md.'
       - Use `python3 scripts/openspec_lifecycle.py archive <change>` as the normal project archive entrypoint so completion requirements are mechanically checked.
