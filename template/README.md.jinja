@@ -6,14 +6,15 @@ This repository uses `lehard/dev-platform` with `workflow_profile={{ workflow_pr
 
 Project/domain documentation belongs here; the central platform owns only reusable development process.
 
-## First checks
+## Get ready locally
+
+After cloning or switching machines, use the single readiness entrypoint:
 
 ```bash
-python3 scripts/platform_doctor.py
-python3 scripts/agent_doctor.py
+python3 scripts/dev.py ready
 ```
 
-`platform_doctor.py` checks the installed platform contract and OpenSpec compatibility. `agent_doctor.py` checks current GitHub/Git readiness for starting or finishing work.
+It synchronizes `{{ main_branch }}` when safe, restores/refreshes the configured OpenSpec integrations and expanded workflows, then runs platform and agent doctors. You should not need to remember separate OpenSpec init/update or doctor commands.
 
 ## Working on a change
 
