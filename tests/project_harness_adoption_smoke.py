@@ -37,7 +37,7 @@ def main() -> int:
 
         run(
             [
-                "copier", "copy", "--trust", "--defaults",
+                "copier", "copy", "--trust", "--defaults", "--vcs-ref", "HEAD",
                 "--data", "project_name=Mature Project",
                 "--data", "project_slug=mature-project",
                 "--data", "project_description=Existing project harness adoption smoke",
