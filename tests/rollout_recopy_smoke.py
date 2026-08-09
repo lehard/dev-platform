@@ -73,6 +73,15 @@ def main() -> int:
             for relative, body in custom_scripts.items():
                 (project / relative).write_text(body, encoding="utf-8")
 
+            # Reproduce the Planner Lab transition precisely: _platform_common.py
+            # used to be customized downstream, but the project-specific helpers
+            # have already moved out and the common file has been restored to the
+            # new platform-owned target bytes. Copier still sees a historic diff
+            # from v1.2.3 and may emit a reject while replaying that diff.
+            (project / "scripts" / "_platform_common.py").write_bytes(
+                (ROOT / "template" / "scripts" / "_platform_common.py").read_bytes()
+            )
+
             answers_path = project / ".copier-answers.yml"
             append_answer(answers_path, "harness_mode", "project")
             config_path = project / ".dev-platform.toml"
@@ -118,6 +127,10 @@ def main() -> int:
             if rollout_project.platform_config_contract(project) != config_before:
                 raise SystemExit("Project config changed beyond platform_version")
             rollout_project.require_project_owned_snapshot(project, before)
+            if not rollout_project.reclaimed_platform_path_matches_template(
+                project, "scripts/_platform_common.py"
+            ):
+                raise SystemExit("Reclaimed platform common no longer matches the target template")
             if not (project / ".github" / "workflows" / "dev-platform.yml").exists():
                 raise SystemExit("Safe harness transition did not add the non-colliding platform CI workflow")
             if rollout_project.find_reject_files(project):
