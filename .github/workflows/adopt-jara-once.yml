@@ -1,0 +1,150 @@
+name: Adopt Jara_Fin Once
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  adopt:
+    if: github.head_ref == 'ops/adopt-jara-v1.4.4' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout platform
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          path: platform
+          fetch-depth: 0
+
+      - name: Require Dev Platform GitHub App
+        env:
+          APP_CLIENT_ID: ${{ vars.DEV_PLATFORM_APP_CLIENT_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.DEV_PLATFORM_APP_PRIVATE_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$APP_CLIENT_ID"
+          test -n "$APP_PRIVATE_KEY"
+
+      - name: Create read-only platform source token
+        id: source-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          client-id: ${{ vars.DEV_PLATFORM_APP_CLIENT_ID }}
+          private-key: ${{ secrets.DEV_PLATFORM_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: dev-platform
+          permission-contents: read
+
+      - name: Create Jara_Fin target token
+        id: target-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          client-id: ${{ vars.DEV_PLATFORM_APP_CLIENT_ID }}
+          private-key: ${{ secrets.DEV_PLATFORM_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: Jara_Fin
+          permission-contents: write
+          permission-pull-requests: write
+          permission-workflows: write
+
+      - name: Checkout Jara_Fin main
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: lehard/Jara_Fin
+          ref: main
+          token: ${{ steps.target-token.outputs.token }}
+          path: target
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.11"
+
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "20.19.0"
+          package-manager-cache: false
+
+      - name: Install tested onboarding tools
+        run: |
+          python3 -m pip install "copier==9.17.0"
+          npm install --global @fission-ai/openspec@1.6.0
+
+      - name: Configure target bot identity
+        env:
+          GH_TOKEN: ${{ steps.target-token.outputs.token }}
+          APP_SLUG: ${{ steps.target-token.outputs.app-slug }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          bot_id="$(gh api "/users/${APP_SLUG}%5Bbot%5D" --jq .id)"
+          git -C target config user.name "${APP_SLUG}[bot]"
+          git -C target config user.email "${bot_id}+${APP_SLUG}[bot]@users.noreply.github.com"
+
+      - name: Prepare reviewed Jara_Fin adoption
+        id: adopt
+        env:
+          DEV_PLATFORM_SOURCE_TOKEN: ${{ steps.source-token.outputs.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 platform/scripts/adopt_project.py \
+            --project-root target \
+            --repository lehard/Jara_Fin \
+            --version v1.4.4 \
+            --base-branch main \
+            --output /tmp/adoption-result.json
+          cat /tmp/adoption-result.json
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          data = json.load(open('/tmp/adoption-result.json', encoding='utf-8'))
+          for key in ('status', 'kind', 'branch', 'workflow_profile', 'harness_mode', 'publish_mode'):
+              print(f"{key}={data.get(key, '')}")
+          print("reasons=" + "; ".join(data.get('reasons', [])))
+          PY
+
+      - name: Assert mature migration plan
+        if: steps.adopt.outputs.status == 'updated'
+        shell: bash
+        env:
+          KIND: ${{ steps.adopt.outputs.kind }}
+          PROFILE: ${{ steps.adopt.outputs.workflow_profile }}
+          HARNESS: ${{ steps.adopt.outputs.harness_mode }}
+          PUBLISH: ${{ steps.adopt.outputs.publish_mode }}
+        run: |
+          set -euo pipefail
+          test "$KIND" = "existing"
+          test "$PROFILE" = "multi-agent"
+          test "$HARNESS" = "project"
+          test "$PUBLISH" = "pr"
+
+      - name: Push adoption branch
+        if: steps.adopt.outputs.status == 'updated'
+        run: git -C target push origin HEAD
+
+      - name: Open reviewed adoption PR
+        if: steps.adopt.outputs.status == 'updated'
+        env:
+          GH_TOKEN: ${{ steps.target-token.outputs.token }}
+          BRANCH: ${{ steps.adopt.outputs.branch }}
+          PROFILE: ${{ steps.adopt.outputs.workflow_profile }}
+          HARNESS: ${{ steps.adopt.outputs.harness_mode }}
+          PUBLISH: ${{ steps.adopt.outputs.publish_mode }}
+          REASONS: ${{ steps.adopt.outputs.reasons }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="Dev Platform one-command onboarding to **v1.4.4**.\n\nDerived migration plan: **${PROFILE} + ${HARNESS} harness + ${PUBLISH}**.\n\nDetector reasons: ${REASONS}\n\nThis is the cautious existing-project path: Jara_Fin keeps its repository-owned lifecycle/check selector/product CI. Dev Platform owns metadata and platform/OpenSpec hygiene. Product/application validation remains delegated to the existing Jara_Fin CI. After this PR is reviewed and merged, onboarding is rerun once to promote the repository to managed."
+          gh pr create \
+            --repo lehard/Jara_Fin \
+            --base main \
+            --head "$BRANCH" \
+            --title "chore: adopt dev-platform v1.4.4" \
+            --body "$body"
