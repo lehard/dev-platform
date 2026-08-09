@@ -15,11 +15,11 @@ import rollout_project  # noqa: E402
 
 
 class ManagedProjectRegistryTests(unittest.TestCase):
-    def test_real_registry_is_valid_comprehensive_and_has_one_pilot(self) -> None:
+    def test_real_registry_is_valid_comprehensive_and_has_expected_managed_projects(self) -> None:
         data = managed_projects.load_registry(ROOT / "managed-projects.json")
         matrix = managed_projects.matrix_payload(data)
         repos = {item["repository"] for item in matrix["include"]}
-        self.assertEqual(repos, {"lehard/planner-agent-lab"})
+        self.assertEqual(repos, {"lehard/planner-agent-lab", "lehard/cuby"})
         self.assertEqual(len(data["projects"]), 13)
         self.assertEqual(sum(1 for item in data["projects"] if item["state"] == "excluded"), 3)
 
