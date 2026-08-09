@@ -4,7 +4,7 @@ import argparse
 import re
 import subprocess
 
-from _platform_common import current_worktree_root, profile, read_platform_config, run_git
+from _platform_common import current_worktree_root, harness_mode, profile, read_platform_config, run_git
 
 
 def slug(value: str) -> str:
@@ -22,8 +22,13 @@ def main() -> int:
     args = parser.parse_args()
     root = current_worktree_root()
     config = read_platform_config(root)
+    if harness_mode(config) != "platform":
+        raise SystemExit("harness_mode=project: use the repository-owned task/worktree entrypoint described by its AGENTS.md.")
     prof = profile(config)
     main_branch = str(config.get("main_branch", "main"))
+    doctor = subprocess.run(["python3", str(root / "scripts" / "agent_doctor.py")], cwd=root)
+    if doctor.returncode != 0:
+        raise SystemExit(doctor.returncode)
     subprocess.run(["python3", str(root / "scripts" / "project_sync.py")], cwd=root, check=True)
     if prof == "light":
         checked_out = run_git(["branch", "--show-current"], cwd=root).stdout.strip()
