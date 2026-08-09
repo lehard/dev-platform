@@ -44,7 +44,7 @@ Recommended setup:
    - **Pull requests: Read and write**
    - Metadata remains read-only as required by GitHub.
 5. Do not grant organization/account permissions that rollout does not use.
-6. Install the App only on the repositories intentionally participating in Dev Platform rollout. Initially that is `planner-agent-lab`; add a repository when its registry state is promoted to `managed`.
+6. Install the App on **`dev-platform` itself** plus repositories intentionally participating in rollout. Initially select `dev-platform` and `planner-agent-lab`; add a downstream repository only when its reviewed adoption is complete and it is being promoted to `managed`.
 7. Generate a private key for the App.
 8. In `lehard/dev-platform` repository settings add:
    - Actions variable `DEV_PLATFORM_APP_CLIENT_ID` = the App **Client ID**;
@@ -52,23 +52,32 @@ Recommended setup:
 
 Never commit the private key or a long-lived installation token.
 
-The rollout workflow uses the SHA-pinned GitHub-owned `actions/create-github-app-token` action and requests only Contents/Pull-request permissions for the single matrix repository being processed.
+Although the App installation has the permissions above, each rollout job creates **two separately down-scoped short-lived tokens**:
+
+- a `dev-platform` source token with **Contents: read** only, used by Copier to fetch the private template/tag;
+- a target-repository token with **Contents: write** and **Pull requests: write**, used to push the rollout branch and create the PR.
+
+This avoids giving the write-capable target token write access to the central platform source. The source token is supplied to Copier through process-only Git configuration and is not written into the project or committed.
+
+The rollout workflow uses the SHA-pinned GitHub-owned `actions/create-github-app-token` action. No PAT is required.
 
 ## Automatic release rollout
 
 `publish-version.yml` publishes the immutable release and then dispatches `.github/workflows/rollout.yml` with that exact tag.
 
+Before any cross-repository token is created, rollout confirms the requested tag is an actually published **immutable** GitHub Release. A manually entered but unpublished version is rejected.
+
 For every `managed` repository, rollout:
 
-1. obtains a repository-scoped GitHub App token;
+1. obtains a read-only source token for private `dev-platform` access and a separate write-capable token scoped to the target repository;
 2. checks for an already-open PR for `dev-platform/rollout-vX.Y.Z`;
 3. checks out the current configured default branch;
 4. validates Copier ownership/source/version metadata;
-5. runs Copier `9.17.0` against the exact `vX.Y.Z` tag with `--conflict rej`;
+5. runs Copier `9.17.0` against the exact `vX.Y.Z` tag with `--conflict rej`, using the read-only source token only for private template fetches;
 6. blocks on `.rej`, Git conflict markers, downgrade attempts, unexpected template source or validation failure;
 7. runs `scripts/platform_doctor.py` and selected project checks;
-8. commits and pushes a deterministic rollout branch without force;
-9. opens a normal PR;
+8. commits and pushes a deterministic rollout branch without force using the target token;
+9. opens a normal PR using the target token;
 10. stops. Merge remains governed by downstream CI/review.
 
 Matrix rollout uses `fail-fast: false`: one blocked project does not prevent clean managed projects from receiving PRs.
@@ -79,7 +88,7 @@ GitHub Actions -> **Roll Out Platform** -> **Run workflow**.
 
 Inputs:
 
-- `version` — exact immutable tag such as `v1.2.0`; empty uses current `VERSION`;
+- `version` — exact immutable published tag such as `v1.2.0`; empty uses current `VERSION`;
 - `repository` — optional exact `owner/name` to retry only one managed project.
 
 A `candidate` repository is rejected by the registry tool even when manually specified.
@@ -105,6 +114,6 @@ If the target project is already on the requested version, rollout reports a no-
 1. Adopt Dev Platform in a dedicated project branch/worktree using `docs/adoption.md`.
 2. Review project-specific `AGENTS`, OpenSpec, CI/check mappings and `.gitignore`; do not blindly overwrite them.
 3. Merge the clean adoption PR.
-4. Add/install the Dev Platform GitHub App on that repository.
+4. Install/extend the Dev Platform GitHub App installation to include that repository.
 5. Change the central registry entry from `candidate` to `managed` in a reviewed Dev Platform PR.
 6. From then on, stable platform releases can create rollout PRs automatically.
