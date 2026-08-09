@@ -148,3 +148,5 @@ jobs:
             --head "$BRANCH" \
             --title "chore: adopt dev-platform v1.4.4" \
             --body "$body"
+
+# retrigger after granting Jara_Fin installation access
