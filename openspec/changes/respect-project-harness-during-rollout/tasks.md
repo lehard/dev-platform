@@ -14,10 +14,13 @@
 
 - [x] 3.1 Add unit test proving project-mode rollout does not invoke project selector.
 - [x] 3.2 Add unit evidence that platform-mode rollout invokes the platform selector with `--execute`.
-- [ ] 3.3 Run full Platform CI including render/upgrade/mature-adoption smokes and strict OpenSpec validation.
+- [x] 3.3 Run full Platform CI including render/upgrade/mature-adoption smokes and strict OpenSpec validation (Platform CI #218 passed on `1d43532da952f6dbe5e1fe8d1ea12b0d131c482e`).
 
 ## 4. Completion
 
-- [ ] 4.1 Record semantic verification with no critical findings.
-- [ ] 4.2 Reconcile canonical `platform-rollout` spec and archive the change.
-- [ ] 4.3 Publish the next immutable patch and complete managed rollout.
+- [x] 4.1 Record semantic verification with no critical findings.
+- [x] 4.2 Reconcile canonical `platform-rollout` spec and archive the change.
+
+## Post-archive release operation
+
+Publish the next immutable patch and complete managed rollout. This is an operational release step after the implementation contract is archive-ready, not a prerequisite for archiving the fix itself.
