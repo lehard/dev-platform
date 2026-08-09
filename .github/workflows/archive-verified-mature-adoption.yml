@@ -1,0 +1,44 @@
+name: Archive Verified Mature Adoption
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  archive:
+    if: github.head_ref == 'agent/support-mature-project-adoption' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout implementation branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "20.19.0"
+          package-manager-cache: false
+
+      - name: Install tested OpenSpec
+        run: npm install --global @fission-ai/openspec@1.6.0
+
+      - name: Archive verified change and remove one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f openspec/changes/support-mature-project-adoption/verification.md
+          grep -qx 'OpenSpec-Verify: PASS' openspec/changes/support-mature-project-adoption/verification.md
+          python3 template/scripts/openspec_lifecycle.py archive support-mature-project-adoption
+          rm .github/workflows/archive-verified-mature-adoption.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "docs(openspec): archive mature project adoption"
+          git push origin "HEAD:${GITHUB_HEAD_REF}"
