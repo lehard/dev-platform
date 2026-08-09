@@ -26,4 +26,4 @@
 ## 5. Verification
 
 - [x] 5.1 Run Python compile/unit checks and strict structural OpenSpec validation in CI.
-- [ ] 5.2 Perform semantic verification against this change and record `OpenSpec-Verify: PASS` only if findings are resolved.
+- [x] 5.2 Perform semantic verification against this change and record `OpenSpec-Verify: PASS` only if findings are resolved.
