@@ -22,7 +22,7 @@ def main() -> int:
         preserved = {
             "AGENTS.md": "# mature project agent contract\n",
             "CLAUDE.md": "# mature project claude contract\n",
-            ".gitignore": ".claude/agents-board.json\n.claude/skills/local-only/\n",
+            ".gitignore": ".claude/agents-board.json\n.claude/skills/local-only/\nAGENTS.local.md\n",
             "scripts/agent_board.py": "# mature agent board\n",
             "scripts/agent_friction.py": "# mature friction loop\n",
             "scripts/merge_to_main.py": "# mature merge serializer\n",
