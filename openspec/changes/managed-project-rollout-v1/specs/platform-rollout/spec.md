@@ -20,21 +20,31 @@ The platform SHALL keep an explicit central registry of downstream repositories 
 
 ### Requirement: Successful releases dispatch reviewed downstream rollout
 
-After publishing an immutable platform version, the central release workflow SHALL dispatch the managed-project rollout for that exact SemVer tag. Rollout SHALL also support an explicit manual retry path.
+After publishing an immutable platform version, the central release workflow SHALL dispatch the managed-project rollout for that exact SemVer tag. Rollout SHALL also support an explicit manual retry path and SHALL reject versions that are not actually published platform releases.
 
 #### Scenario: New platform version is published
 
 - **WHEN** the release workflow successfully creates or confirms `vX.Y.Z` at the release commit
 - **THEN** it dispatches the rollout workflow with target version `vX.Y.Z`
 
+#### Scenario: Manual retry names an unpublished version
+
+- **WHEN** a manually dispatched rollout requests a syntactically valid tag that is not a published platform release
+- **THEN** rollout fails before creating any downstream write token or mutation
+
 ### Requirement: Cross-repository rollout uses least-privilege GitHub App authentication
 
-Automated downstream writes SHALL use a dedicated GitHub App installation token scoped to the target repositories rather than relying on the source repository `GITHUB_TOKEN` or a broadly reusable personal token.
+Automated rollout SHALL use a dedicated GitHub App rather than relying on the source repository `GITHUB_TOKEN` or a broadly reusable personal token. Each project job SHALL use separately down-scoped short-lived credentials for the private platform source and downstream target.
 
-#### Scenario: Rollout job targets one managed repository
+#### Scenario: Rollout job needs private template access
 
-- **WHEN** the job authenticates for that repository
-- **THEN** it requests only the repository permissions needed to push an update branch and create a pull request
+- **WHEN** Copier fetches the private `lehard/dev-platform` source
+- **THEN** it uses a token scoped only to `dev-platform` with Contents read permission
+
+#### Scenario: Rollout job writes one managed repository
+
+- **WHEN** the job checks out, pushes or opens a PR in the downstream repository
+- **THEN** it uses a different token scoped only to that repository with the Contents/Pull-request write permissions required for those operations
 
 ### Requirement: Managed upgrades target exact immutable platform versions
 
