@@ -29,6 +29,22 @@ python3 scripts/managed_projects.py validate
 python3 scripts/managed_projects.py status
 ```
 
+## Template ownership boundary
+
+Copier creates the initial repository contract, but not every generated file remains platform-owned forever.
+
+The following files are **project-owned after initial creation** and are preserved on later Copier updates:
+
+- `AGENTS.md` — project/root agent contract and any project-specific workflow additions;
+- `README.md` — product/repository documentation;
+- `dev-platform/checks.toml` — project-specific check selection and acceptance commands;
+- `openspec/config.yaml` — project/domain context and OpenSpec guidance;
+- `docs/engineering/project-rules.md` — project-specific engineering invariants.
+
+Shared executable lifecycle scripts, self-contained CI and shared workflow documentation remain platform-managed. If a project needs an extra file to be required by platform doctor, declare it in `.dev-platform.toml` as `project_required_files = ["path"]` instead of editing `scripts/platform_doctor.py`.
+
+After Copier renders or updates a stable release, `scripts/platform_bootstrap.py` synchronizes `.dev-platform.toml` `platform_version` from `.copier-answers.yml` `_commit`. Managed rollout and platform doctor both reject a stable-tag state where those two version records disagree.
+
 ## One-time GitHub App setup
 
 The repository `GITHUB_TOKEN` is intentionally scoped to `dev-platform`, so cross-repository rollout uses a dedicated GitHub App.
@@ -74,9 +90,9 @@ For every `managed` repository, rollout:
 1. obtains a read-only source token for private `dev-platform` access and a separate write-capable token scoped to the target repository;
 2. checks for an already-open PR for `dev-platform/rollout-vX.Y.Z`;
 3. checks out the current configured default branch;
-4. validates Copier ownership/source/version metadata;
+4. validates Copier ownership/source/version metadata and current version coherence;
 5. runs Copier `9.17.0` against the exact `vX.Y.Z` tag with `--conflict rej`, using the read-only source token only for private template fetches;
-6. blocks on `.rej`, Git conflict markers, downgrade attempts, unexpected template source or validation failure;
+6. requires the post-update Copier `_commit` and `.dev-platform.toml` `platform_version` to agree, then blocks on `.rej`, Git conflict markers, downgrade attempts, unexpected template source or validation failure;
 7. runs `scripts/platform_doctor.py` and selected project checks;
 8. commits and pushes a deterministic rollout branch without force using the target token;
 9. opens a normal PR using the target token;
@@ -109,7 +125,7 @@ If a rollout job is blocked:
 
 If an open rollout PR already exists for the same version, the job reports it as already pending and does not rewrite the branch.
 
-If the target project is already on the requested version, rollout reports a no-op.
+If the target project is already on the requested version, rollout reports a no-op only when the two platform version records are coherent.
 
 ## Adding a new project
 

@@ -3,6 +3,10 @@ _subdirectory: template
 _answers_file: .copier-answers.yml
 _templates_suffix: .jinja
 _skip_if_exists:
+  - AGENTS.md
+  - README.md
+  - dev-platform/checks.toml
+  - openspec/config.yaml
   - docs/engineering/project-rules.md
 _tasks:
   - command: ["{{ _copier_python }}", "scripts/platform_bootstrap.py"]

@@ -29,6 +29,10 @@ def choose_base_ref() -> str:
     return tags[0] if tags else FALLBACK_BASE_REF
 
 
+def append_sentinel(path: Path, sentinel: str) -> None:
+    path.write_text(path.read_text(encoding="utf-8") + f"\n{sentinel}\n", encoding="utf-8")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Smoke-test a Copier upgrade from the last stable platform version to HEAD.")
     parser.add_argument("--profile", choices=["light", "standard", "multi-agent"], required=True)
@@ -56,9 +60,15 @@ def main() -> int:
         run(["git", "add", "-A"], target)
         run(["git", "commit", "-m", "Baseline generated project"], target)
 
-        project_rules = target / "docs" / "engineering" / "project-rules.md"
-        sentinel = "\n<!-- project-owned-upgrade-sentinel -->\n"
-        project_rules.write_text(project_rules.read_text(encoding="utf-8") + sentinel, encoding="utf-8")
+        sentinels = {
+            "AGENTS.md": "<!-- project-owned-agents-sentinel -->",
+            "README.md": "<!-- project-owned-readme-sentinel -->",
+            "dev-platform/checks.toml": "# project-owned-checks-sentinel",
+            "openspec/config.yaml": "# project-owned-openspec-sentinel",
+            "docs/engineering/project-rules.md": "<!-- project-owned-rules-sentinel -->",
+        }
+        for relative, sentinel in sentinels.items():
+            append_sentinel(target / relative, sentinel)
         local_doc = target / "docs" / "engineering" / "local-only.md"
         local_doc.write_text("# Local-only project documentation\n", encoding="utf-8")
         run(["git", "add", "-A"], target)
@@ -66,8 +76,9 @@ def main() -> int:
 
         run(["copier", "update", "--trust", "--defaults", "--vcs-ref", "HEAD", "--conflict", "inline"], target)
 
-        if "project-owned-upgrade-sentinel" not in project_rules.read_text(encoding="utf-8"):
-            raise SystemExit("Copier update removed project-owned project-rules content")
+        for relative, sentinel in sentinels.items():
+            if sentinel not in (target / relative).read_text(encoding="utf-8"):
+                raise SystemExit(f"Copier update removed project-owned content from {relative}")
         if not local_doc.exists():
             raise SystemExit("Copier update removed project-owned local-only documentation")
         if list(target.rglob("*.rej")):

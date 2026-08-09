@@ -70,6 +70,30 @@ def load_answers(project_root: Path) -> dict[str, str]:
     return answers
 
 
+def load_platform_version(project_root: Path) -> str:
+    import tomllib
+
+    path = project_root / ".dev-platform.toml"
+    if not path.exists():
+        raise ValueError(".dev-platform.toml is missing")
+    with path.open("rb") as fh:
+        config = tomllib.load(fh)
+    value = str(config.get("platform_version", "")).strip()
+    if not value:
+        raise ValueError(".dev-platform.toml does not contain platform_version")
+    return value
+
+
+def require_version_coherence(project_root: Path, copier_tag: str) -> None:
+    expected = copier_tag[1:]
+    configured = load_platform_version(project_root)
+    if configured != expected:
+        raise ValueError(
+            f"platform version metadata mismatch: .copier-answers.yml={copier_tag}, "
+            f".dev-platform.toml={configured!r}"
+        )
+
+
 def parse_version(tag: str) -> tuple[int, int, int]:
     match = SEMVER_TAG_RE.fullmatch(tag)
     if not match:
@@ -151,6 +175,7 @@ def apply_rollout(project_root: Path, repository: str, version: str, base_branch
     answers = load_answers(project_root)
     current_tag = answers["_commit"]
     current = parse_version(current_tag)
+    require_version_coherence(project_root, current_tag)
     branch = rollout_branch(version)
 
     if current == target:
@@ -173,6 +198,7 @@ def apply_rollout(project_root: Path, repository: str, version: str, base_branch
     updated = load_answers(project_root)
     if updated["_commit"] != version:
         raise ValueError(f"Copier recorded {updated['_commit']!r}, expected exact target {version!r}")
+    require_version_coherence(project_root, version)
 
     run_project_validation(project_root, base_branch)
     status = run(["git", "status", "--porcelain"], project_root, capture=True)

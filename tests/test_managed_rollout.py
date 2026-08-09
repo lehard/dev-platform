@@ -93,6 +93,14 @@ class RolloutProjectTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 rollout_project.load_answers(root)
 
+    def test_platform_version_metadata_must_match_copier_commit(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".dev-platform.toml").write_text('platform_version = "1.2.1"\n', encoding="utf-8")
+            rollout_project.require_version_coherence(root, "v1.2.1")
+            with self.assertRaises(ValueError):
+                rollout_project.require_version_coherence(root, "v1.2.2")
+
     def test_private_source_git_env_is_process_only_and_required(self) -> None:
         with patch.dict(os.environ, {}, clear=True):
             with self.assertRaises(ValueError):
@@ -139,6 +147,7 @@ class RolloutWorkflowContractTests(unittest.TestCase):
         script = (ROOT / "scripts" / "rollout_project.py").read_text(encoding="utf-8")
         self.assertIn('"--vcs-ref", version', script)
         self.assertIn('"--conflict", "rej"', script)
+        self.assertIn("require_version_coherence", script)
         self.assertNotIn("force", script.lower())
 
 
