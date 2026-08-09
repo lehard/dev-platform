@@ -3,9 +3,17 @@ from __future__ import annotations
 import argparse
 import json
 import subprocess
+import time
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Iterator
 
-from _platform_common import current_worktree_root, fetch_main, main_root, profile, publish_mode, read_platform_config, run_git
+try:
+    import fcntl
+except ImportError:  # pragma: no cover - Windows fallback
+    fcntl = None
+
+from _platform_common import current_worktree_root, fetch_main, harness_mode, main_root, profile, publish_mode, read_platform_config, run_git
 
 
 def clean(root: Path) -> bool:
@@ -55,16 +63,64 @@ def run_openspec_hygiene(root: Path) -> None:
         raise SystemExit(result.returncode)
 
 
+@contextmanager
+def serialized_integration(root: Path, config: dict, timeout_seconds: float) -> Iterator[None]:
+    relative = config.get("paths", {}).get("main_merge_lock", ".claude/main-merge.lock")
+    path = (root / relative).resolve()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a+", encoding="utf-8") as lock_file:
+        if fcntl is None:
+            yield
+            return
+        deadline = time.monotonic() + timeout_seconds
+        while True:
+            try:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError:
+                if time.monotonic() >= deadline:
+                    raise SystemExit("Another agent is still integrating into the main branch. Retry after it finishes.") from None
+                time.sleep(0.1)
+        try:
+            yield
+        finally:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+
+
+def integrate_and_publish_direct(work: Path, integration: Path, config: dict, branch: str, main_branch: str) -> None:
+    fetch_main(integration, "origin", main_branch)
+    remote_main = f"origin/{main_branch}"
+    if branch != main_branch:
+        if not clean(integration):
+            raise SystemExit("Integration copy is dirty. Resolve it before direct integration.")
+        if work == integration:
+            run_git(["switch", main_branch], cwd=integration)
+        elif current_branch(integration) != main_branch:
+            raise SystemExit(f"Integration copy must have {main_branch!r} checked out.")
+        if run_git(["merge-base", "--is-ancestor", remote_main, main_branch], cwd=integration, check=False).returncode != 0:
+            raise SystemExit(f"Local {main_branch} is not safely based on current {remote_main}.")
+        if run_git(["merge-base", "--is-ancestor", main_branch, branch], cwd=integration, check=False).returncode != 0:
+            raise SystemExit(f"{branch} is stale relative to current local {main_branch}. Rebase/update explicitly and rerun checks.")
+        run_git(["merge", "--ff-only", branch], cwd=integration)
+        print(f"Integrated {branch} -> {main_branch} locally.")
+    subprocess.run(["python3", str(integration / "scripts" / "project_publish.py"), "--mode", "direct"], cwd=integration, check=True)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate, integrate when needed, and publish a completed task without a human git hand-off.")
     parser.add_argument("--no-checks", action="store_true")
     parser.add_argument("--cleanup", action="store_true")
     parser.add_argument("--title")
     parser.add_argument("--body")
+    parser.add_argument("--merge-timeout", type=float, default=60.0)
     args = parser.parse_args()
+    if args.merge_timeout < 0:
+        parser.error("--merge-timeout must be non-negative")
     work = current_worktree_root()
     integration = main_root()
     config = read_platform_config(work)
+    if harness_mode(config) != "platform":
+        raise SystemExit("harness_mode=project: use the repository-owned Git/worktree publication workflow instead of scripts/finish_task.py.")
     prof = profile(config)
     mode = publish_mode(config)
     main_branch = str(config.get("main_branch", "main"))
@@ -97,22 +153,10 @@ def main() -> int:
         return 0
     if mode != "direct":
         raise SystemExit(f"Unknown publish_mode: {mode}")
-    if branch != main_branch:
-        if not clean(integration):
-            raise SystemExit("Integration copy is dirty. Resolve it before direct integration.")
-        if work == integration:
-            run_git(["switch", main_branch], cwd=integration)
-        elif current_branch(integration) != main_branch:
-            raise SystemExit(f"Integration copy must have {main_branch!r} checked out.")
-        if run_git(["merge-base", "--is-ancestor", remote_main, main_branch], cwd=integration, check=False).returncode != 0:
-            raise SystemExit(f"Local {main_branch} is not safely based on current {remote_main}.")
-        if run_git(["merge-base", "--is-ancestor", main_branch, branch], cwd=integration, check=False).returncode != 0:
-            raise SystemExit(f"{branch} is not based on current local {main_branch}. Rebase/update explicitly.")
-        run_git(["merge", "--ff-only", branch], cwd=integration)
-        print(f"Integrated {branch} -> {main_branch} locally.")
-    subprocess.run(["python3", str(integration / "scripts" / "project_publish.py"), "--mode", "direct"], cwd=integration, check=True)
-    if prof == "multi-agent" and work != integration:
-        finish_board(integration, work, config)
+    with serialized_integration(integration, config, args.merge_timeout):
+        integrate_and_publish_direct(work, integration, config, branch, main_branch)
+        if prof == "multi-agent" and work != integration:
+            finish_board(integration, work, config)
     if args.cleanup and work != integration:
         run_git(["worktree", "remove", str(work)], cwd=integration)
         run_git(["branch", "-d", branch], cwd=integration)
