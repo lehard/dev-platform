@@ -39,7 +39,7 @@ Generated Dev Platform CI SHALL separate platform-owned hygiene from project-own
 
 - **GIVEN** `harness_mode=platform`
 - **WHEN** generated Dev Platform CI runs
-- **THEN** it MAY execute selected/full checks through the platform-managed selector contract in addition to platform/OpenSpec hygiene
+- **THEN** it MAY execute selected/full checks through the platform-managed selector contract in addition to platform/OpenSpec hygiene according to the triggering event
 
 #### Scenario: Project owns the project harness
 
@@ -72,7 +72,7 @@ Choosing `harness_mode=project` SHALL NOT disable shared Dev Platform/OpenSpec h
 
 ### Requirement: Downstream platform CI preserves the repository publish path and required PR compatibility
 
-Generated Dev Platform CI SHALL derive its normal automatic validation from the repository's `publish_mode` while remaining capable of producing the stable platform check on reviewed pull requests that require it.
+Generated Dev Platform CI SHALL derive its normal automatic validation from the repository's `publish_mode` while remaining capable of producing the stable platform check on reviewed pull requests that require it. Event-specific execution SHALL avoid repeating the full project check set on direct main publication.
 
 #### Scenario: PR-published repository validates before merge
 
@@ -82,21 +82,27 @@ Generated Dev Platform CI SHALL derive its normal automatic validation from the 
 - **AND** it remains manually dispatchable
 - **AND** it does not automatically rerun the same platform CI because that pull request was merged to main
 
-#### Scenario: Direct-published repository validates published main
+#### Scenario: Direct-published repository validates published main lightly
 
 - **GIVEN** `publish_mode=direct`
-- **WHEN** generated Dev Platform CI is rendered
-- **THEN** it listens to pushes to the configured main branch
-- **AND** it remains manually dispatchable
-- **AND** normal direct publication therefore produces one automatic post-publish validation run
+- **WHEN** generated Dev Platform CI runs on a push to the configured main branch
+- **THEN** it executes common platform/OpenSpec health validation
+- **AND** it does not execute `scripts/select_checks.py --full --execute`
+- **AND** normal direct publication therefore produces one lightweight automatic post-publish health run
 
 #### Scenario: Direct-published repository uses a reviewed maintenance PR
 
 - **GIVEN** `publish_mode=direct`
-- **AND** repository protection or rollout policy requires the stable `platform-ci` status on pull requests
 - **WHEN** a pull request targets the configured main branch
-- **THEN** generated Dev Platform CI runs on that pull request so the required platform status can be produced
-- **AND** the pull-request run uses the existing PR/selected-check semantics rather than pretending it is a direct main publication
+- **THEN** generated Dev Platform CI runs on that pull request so the stable platform status can be produced
+- **AND** a platform-owned harness uses selected-check semantics for that pull request
+
+#### Scenario: Full cloud validation is requested explicitly
+
+- **GIVEN** `harness_mode=platform`
+- **WHEN** a maintainer manually dispatches generated Dev Platform CI
+- **THEN** it executes the configured full platform-managed check set
+- **AND** manual dispatch is the cloud path for deliberately repeating full verification
 
 ### Requirement: Superseded validation runs are cancelled
 
@@ -138,16 +144,15 @@ Generated platform CI SHALL continue to respect `harness_mode` and SHALL NOT rep
 
 ### Requirement: Local-heavy / cloud-final verification is documented
 
-Platform operating guidance SHALL describe local agent verification as the place for required selected/full checks before publish, cloud CI as the clean-environment final gate for PR publication or post-direct-publish health signal, and the direct-mode pull-request trigger as a compatibility gate for explicitly reviewed PRs.
+Platform operating guidance SHALL describe local agent verification as the place for required selected/full checks before publish, pull-request cloud CI as the clean-environment merge gate, direct main cloud CI as a lightweight platform/OpenSpec health signal, and manual dispatch as the optional full cloud diagnostic path.
 
 #### Scenario: Agent prepares a direct-published change
 
-- **WHEN** the agent follows the normal direct lifecycle without opening a PR
+- **WHEN** the agent follows the normal direct lifecycle
 - **THEN** it does not skip required local verification
-- **AND** the published main state receives its automatic cloud validation
+- **AND** the published main state receives lightweight platform/OpenSpec validation without repeating the full project check set
 
-#### Scenario: Direct repository uses a maintenance PR
+#### Scenario: Maintainer wants a cloud full run
 
-- **WHEN** a reviewed maintenance or rollout PR is used in a direct-publish repository
-- **THEN** the generated platform workflow can satisfy the stable required PR check
-- **AND** documentation does not describe that compatibility run as a reason to duplicate expensive project-owned full suites
+- **WHEN** a clean cloud rerun of the configured full platform-managed checks is intentionally needed
+- **THEN** the maintainer can use manual workflow dispatch rather than relying on every direct main push to run the full suite
