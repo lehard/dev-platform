@@ -1,0 +1,166 @@
+from __future__ import annotations
+
+import os
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+
+import rollout_project  # noqa: E402
+
+
+class GuardedRecopyTests(unittest.TestCase):
+    def make_project(self) -> Path:
+        root = Path(self.tmp.name)
+        (root / ".dev-platform.toml").write_text(
+            'platform_version = "1.2.3"\n'
+            'harness_mode = "project"\n'
+            'workflow_profile = "standard"\n'
+            'project_required_files = ["scripts/project_helper.py"]\n',
+            encoding="utf-8",
+        )
+        for relative, content in {
+            "AGENTS.md": "project agents\n",
+            "scripts/start_task.py": "print('project start')\n",
+            "scripts/project_helper.py": "print('helper')\n",
+            ".github/workflows/ci.yml": "name: Product CI\n",
+        }.items():
+            path = root / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content, encoding="utf-8")
+        return root
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = self.make_project()
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def test_platform_config_contract_ignores_only_release_version(self) -> None:
+        before = rollout_project.platform_config_contract(self.root)
+        path = self.root / ".dev-platform.toml"
+        path.write_text(path.read_text(encoding="utf-8").replace('1.2.3', '1.3.1'), encoding="utf-8")
+        after = rollout_project.platform_config_contract(self.root)
+        self.assertEqual(before, after)
+
+    def test_snapshot_covers_dynamic_required_files_and_product_ci(self) -> None:
+        snapshot = rollout_project.snapshot_existing_project_owned(self.root)
+        self.assertIn("scripts/project_helper.py", snapshot)
+        self.assertIn(".github/workflows/ci.yml", snapshot)
+        self.assertIn("scripts/start_task.py", snapshot)
+
+    def test_snapshot_preserves_symlink_identity(self) -> None:
+        agents = self.root / "AGENTS.md"
+        claude = self.root / "CLAUDE.md"
+        claude.symlink_to("AGENTS.md")
+        snapshot = rollout_project.snapshot_existing_project_owned(self.root)
+        self.assertEqual(snapshot["CLAUDE.md"], ("symlink", "AGENTS.md"))
+        claude.unlink()
+        claude.write_text(agents.read_text(encoding="utf-8"), encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "project-owned files changed"):
+            rollout_project.require_project_owned_snapshot(self.root, snapshot)
+
+    def test_guarded_recopy_runs_only_for_project_owned_rejects(self) -> None:
+        commands: list[list[str]] = []
+
+        def fake_run(command, cwd, **kwargs):
+            commands.append(command)
+            return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+
+        with (
+            patch.object(rollout_project, "run", side_effect=fake_run),
+            patch.object(
+                rollout_project,
+                "find_reject_files",
+                side_effect=[["scripts/start_task.py.rej"], []],
+            ),
+            patch.object(rollout_project, "reset_failed_copier_update"),
+        ):
+            strategy = rollout_project.copier_update_with_guarded_recopy(
+                self.root,
+                "v1.3.1",
+                env=os.environ.copy(),
+            )
+        self.assertEqual(strategy, "guarded-recopy")
+        self.assertTrue(any(command[:2] == ["copier", "update"] for command in commands))
+        self.assertTrue(any(command[:2] == ["copier", "recopy"] for command in commands))
+
+    def test_non_project_owned_conflict_blocks_without_recopy(self) -> None:
+        commands: list[list[str]] = []
+
+        def fake_run(command, cwd, **kwargs):
+            commands.append(command)
+            return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+
+        with (
+            patch.object(rollout_project, "run", side_effect=fake_run),
+            patch.object(
+                rollout_project,
+                "find_reject_files",
+                return_value=["src/runtime.py.rej"],
+            ),
+        ):
+            with self.assertRaisesRegex(ValueError, "non-project-owned conflicts"):
+                rollout_project.copier_update_with_guarded_recopy(
+                    self.root,
+                    "v1.3.1",
+                    env=os.environ.copy(),
+                )
+        self.assertFalse(any(command[:2] == ["copier", "recopy"] for command in commands))
+
+    def test_recopy_is_blocked_if_protected_file_changes(self) -> None:
+        call = 0
+
+        def fake_run(command, cwd, **kwargs):
+            nonlocal call
+            if command[:2] == ["copier", "recopy"]:
+                (self.root / "scripts/start_task.py").write_text("changed by recopy\n", encoding="utf-8")
+            call += 1
+            return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+
+        with (
+            patch.object(rollout_project, "run", side_effect=fake_run),
+            patch.object(
+                rollout_project,
+                "find_reject_files",
+                side_effect=[["scripts/start_task.py.rej"], []],
+            ),
+            patch.object(rollout_project, "reset_failed_copier_update"),
+        ):
+            with self.assertRaisesRegex(ValueError, "project-owned files changed"):
+                rollout_project.copier_update_with_guarded_recopy(
+                    self.root,
+                    "v1.3.1",
+                    env=os.environ.copy(),
+                )
+
+    def test_platform_mode_never_uses_recopy_fallback(self) -> None:
+        config = self.root / ".dev-platform.toml"
+        config.write_text(config.read_text(encoding="utf-8").replace('harness_mode = "project"', 'harness_mode = "platform"'), encoding="utf-8")
+        with (
+            patch.object(
+                rollout_project,
+                "run",
+                return_value=type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})(),
+            ),
+            patch.object(
+                rollout_project,
+                "find_reject_files",
+                return_value=["scripts/start_task.py.rej"],
+            ),
+        ):
+            with self.assertRaisesRegex(ValueError, "Copier left unresolved"):
+                rollout_project.copier_update_with_guarded_recopy(
+                    self.root,
+                    "v1.3.1",
+                    env=os.environ.copy(),
+                )
+
+
+if __name__ == "__main__":
+    unittest.main()
