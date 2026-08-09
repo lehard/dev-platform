@@ -42,6 +42,7 @@ Recommended setup:
 4. Repository permissions:
    - **Contents: Read and write**
    - **Pull requests: Read and write**
+   - **Workflows: Read and write** — required because Dev Platform can update downstream `.github/workflows/*` files
    - Metadata remains read-only as required by GitHub.
 5. Do not grant organization/account permissions that rollout does not use.
 6. Install the App on **`dev-platform` itself** plus repositories intentionally participating in rollout. Initially select `dev-platform` and `planner-agent-lab`; add a downstream repository only when its reviewed adoption is complete and it is being promoted to `managed`.
@@ -55,7 +56,7 @@ Never commit the private key or a long-lived installation token.
 Although the App installation has the permissions above, each rollout job creates **two separately down-scoped short-lived tokens**:
 
 - a `dev-platform` source token with **Contents: read** only, used by Copier to fetch the private template/tag;
-- a target-repository token with **Contents: write** and **Pull requests: write**, used to push the rollout branch and create the PR.
+- a target-repository token with **Contents: write**, **Pull requests: write** and **Workflows: write**, used to push the rollout branch, including managed workflow-file changes, and create the PR.
 
 This avoids giving the write-capable target token write access to the central platform source. The source token is supplied to Copier through process-only Git configuration and is not written into the project or committed.
 
