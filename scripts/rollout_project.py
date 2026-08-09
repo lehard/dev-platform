@@ -421,6 +421,13 @@ def run_project_validation(project_root: Path, base_branch: str) -> None:
         raise ValueError("updated project is missing scripts/platform_doctor.py")
     run(["python3", str(doctor)], project_root)
 
+    if harness_mode(project_root) == "project":
+        print(
+            "harness_mode=project; rollout delegates product/application checks to downstream CI.",
+            flush=True,
+        )
+        return
+
     checks = project_root / "scripts" / "select_checks.py"
     if not checks.exists():
         raise ValueError("updated project is missing scripts/select_checks.py")
