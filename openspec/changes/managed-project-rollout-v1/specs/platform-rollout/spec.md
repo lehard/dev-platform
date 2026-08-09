@@ -2,15 +2,21 @@
 
 ## ADDED Requirements
 
-### Requirement: Managed repositories are explicitly allowlisted
+### Requirement: Managed repositories are explicitly allowlisted and known projects are classified
 
-The platform SHALL keep an explicit central registry of downstream repositories and SHALL automatically mutate only entries whose state is `managed`.
+The platform SHALL keep an explicit central registry of known downstream project repositories and SHALL automatically mutate only entries whose state is `managed`. Known repositories intentionally outside adoption/rollout SHALL be recorded as `excluded` rather than silently omitted.
 
 #### Scenario: Candidate repository is present in the registry
 
 - **GIVEN** a repository is recorded as `candidate`
 - **WHEN** automated rollout builds its project matrix
 - **THEN** that repository is excluded from all cross-repository write operations
+
+#### Scenario: Excluded repository is present in the registry
+
+- **GIVEN** a repository is recorded as `excluded`
+- **WHEN** automated rollout builds its project matrix
+- **THEN** that repository is excluded from all cross-repository write operations and its registry note explains the intentional exclusion
 
 #### Scenario: Managed repository is present in the registry
 
