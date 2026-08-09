@@ -3,11 +3,11 @@
 
 [settings]
 fallback_commands = ["git diff --check"]
-full_commands = ["git diff --check"]
+full_commands = ["git diff --check", "python3 scripts/openspec_lifecycle.py check"]
 
 [checks.docs]
 patterns = ["*.md", "docs/**", "openspec/**", "AGENTS.md", "CLAUDE.md"]
-commands = ["git diff --check"]
+commands = ["git diff --check", "python3 scripts/openspec_lifecycle.py check"]
 
 [checks.python]
 patterns = ["**/*.py"]
