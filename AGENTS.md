@@ -20,6 +20,16 @@ For non-trivial platform changes, use OpenSpec before implementation. If impleme
 
 Before archiving a non-trivial platform change, run relevant tests plus `/opsx:verify`. Structural `openspec validate` is useful but is not a substitute for semantic verify or project-specific checks.
 
+A platform change is not done merely because its task checkboxes are complete. After semantic verification succeeds and material findings are resolved, record `OpenSpec-Verify: PASS` in the active change's `verification.md`, archive through the platform lifecycle helper, commit the resulting current-spec/archive changes, and only then publish. Completed-but-active changes are treated as lifecycle debt and are blocked by platform CI.
+
+For the central repository, the lifecycle helper is invoked as:
+
+```bash
+python3 template/scripts/openspec_lifecycle.py archive <change>
+```
+
+Do not fabricate a verification receipt. If the semantic verify workflow cannot be run, leave the change active and report the blocker.
+
 ## Scope discipline
 
 Promote a rule/tool only when it is reusable across projects or a defined workflow profile. Keep application-domain rules, credentials, machine-local paths and one-off workarounds in the owning project.
@@ -41,6 +51,7 @@ At minimum:
 ```bash
 python3 -m compileall -q template/scripts
 python3 -m unittest discover -s tests -v
+python3 template/scripts/openspec_lifecycle.py check
 ```
 
 When Copier is available, render the template and compile/run the generated doctor. For Git lifecycle changes, exercise temporary local/bare remotes so fetch/sync/direct-publish safety is tested.
