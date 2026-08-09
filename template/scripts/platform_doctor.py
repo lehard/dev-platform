@@ -6,10 +6,10 @@ import subprocess
 import sys
 from pathlib import Path
 
-from _platform_common import read_platform_config
+from _platform_common import harness_mode, read_platform_config
 
 REQUIRED_COMMON = ["AGENTS.md", "CLAUDE.md", ".dev-platform.toml", "dev-platform/checks.toml", "docs/engineering/openspec-workflow.md", "scripts/select_checks.py", "scripts/project_sync.py", "scripts/project_publish.py", "scripts/start_task.py", "scripts/finish_task.py", "scripts/openspec_lifecycle.py", "scripts/agent_friction.py", "scripts/agent_doctor.py"]
-REQUIRED_MULTI_AGENT = ["scripts/agent_board.py", "scripts/start_worktree.py"]
+REQUIRED_MULTI_AGENT_PLATFORM = ["scripts/agent_board.py", "scripts/start_worktree.py", "scripts/git_hooks/pre-commit", "scripts/git_hooks/pre-merge-commit"]
 VERIFY_CANDIDATES = [".agents/skills/openspec-verify-change/SKILL.md", ".claude/skills/openspec-verify-change/SKILL.md", ".cursor/skills/openspec-verify-change/SKILL.md"]
 IGNORED_CONFLICT_DIRS = {".git", ".claude", "node_modules", ".venv", "venv"}
 SEMVER_TAG_RE = re.compile(r"^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
@@ -80,6 +80,11 @@ def main() -> int:
     failures = [0]
     config = read_platform_config(root)
     workflow_profile = str(config.get("workflow_profile", "standard"))
+    harness = harness_mode(config)
+    if harness not in {"platform", "project"}:
+        fail(f"unknown harness_mode={harness!r}; expected 'platform' or 'project'"); failures[0] += 1
+    else:
+        ok(f"harness ownership: {harness}")
     if sys.version_info >= (3, 11): ok(f"Python {sys.version_info.major}.{sys.version_info.minor}")
     else:
         fail("Python 3.11+ is required (tomllib is used by platform scripts)"); failures[0] += 1
@@ -95,7 +100,9 @@ def main() -> int:
     if not isinstance(project_required, list) or not all(isinstance(item, str) and item for item in project_required):
         fail("project_required_files must be a list of non-empty repository-relative paths"); failures[0] += 1
         project_required = []
-    required = list(REQUIRED_COMMON) + list(project_required) + (REQUIRED_MULTI_AGENT if workflow_profile == "multi-agent" else [])
+    required = list(REQUIRED_COMMON) + list(project_required)
+    if workflow_profile == "multi-agent" and harness == "platform":
+        required += REQUIRED_MULTI_AGENT_PLATFORM
     for relative in dict.fromkeys(required):
         if (root / relative).exists(): ok(relative)
         else:
@@ -130,10 +137,11 @@ def main() -> int:
     else:
         ok("no unresolved Copier/Git conflict artifacts")
 
-    ignored = subprocess.run(["git", "check-ignore", "-q", ".claude/agents-board.json"], cwd=root)
-    if ignored.returncode == 0: ok(".claude machine-local state is ignored")
+    board_rel = str(config.get("paths", {}).get("agent_board", ".claude/agents-board.json"))
+    ignored = subprocess.run(["git", "check-ignore", "-q", board_rel], cwd=root)
+    if ignored.returncode == 0: ok(f"machine-local agent state is ignored: {board_rel}")
     else:
-        fail(".claude machine-local state is not ignored"); failures[0] += 1
+        fail(f"machine-local agent state is not ignored: {board_rel}"); failures[0] += 1
     local_rules = subprocess.run(["git", "check-ignore", "-q", "AGENTS.local.md"], cwd=root)
     if local_rules.returncode == 0: ok("AGENTS.local.md is ignored")
     else:
@@ -141,7 +149,7 @@ def main() -> int:
 
     if failures[0]:
         print(f"Doctor found {failures[0]} blocking issue(s)."); return 1
-    print(f"Doctor: platform contract looks healthy for profile={workflow_profile}."); return 0
+    print(f"Doctor: platform contract looks healthy for profile={workflow_profile}, harness={harness}."); return 0
 
 
 if __name__ == "__main__":

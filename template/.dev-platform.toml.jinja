@@ -5,6 +5,7 @@ project_name = "{{ project_name }}"
 project_slug = "{{ project_slug }}"
 main_branch = "{{ main_branch }}"
 workflow_profile = "{{ workflow_profile }}"
+harness_mode = "{{ harness_mode }}"
 publish_mode = "{{ publish_mode }}"
 agent_tools = "{{ agent_tools }}"
 project_required_files = []
@@ -15,6 +16,7 @@ github_sync = true
 feature_branches = {{ 'true' if workflow_profile in ['standard', 'multi-agent'] else 'false' }}
 worktrees = {{ 'true' if workflow_profile == 'multi-agent' else 'false' }}
 agent_board = {{ 'true' if workflow_profile == 'multi-agent' else 'false' }}
+platform_git_lifecycle = {{ 'true' if harness_mode == 'platform' else 'false' }}
 
 [tools.openspec]
 min_version = "1.6.0"
@@ -31,5 +33,6 @@ repo = "lehard/dev-platform"
 [paths]
 worktrees = ".claude/worktrees"
 agent_board = ".claude/agents-board.json"
+main_merge_lock = ".claude/main-merge.lock"
 friction_log = ".claude/agent-friction.jsonl"
 checks = "dev-platform/checks.toml"

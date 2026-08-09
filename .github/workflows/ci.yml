@@ -41,7 +41,26 @@ jobs:
         run: python3 scripts/managed_projects.py validate
 
       - name: Unit tests
-        run: python3 -m unittest discover -s tests -v
+        shell: bash
+        run: |
+          set +e
+          python3 -m unittest discover -s tests -v > /tmp/unit-tests.log 2>&1
+          status=$?
+          cat /tmp/unit-tests.log
+          if [ "$status" -ne 0 ]; then
+            python3 - <<'PY'
+          from pathlib import Path
+          lines = Path("/tmp/unit-tests.log").read_text(encoding="utf-8", errors="replace").splitlines()
+          separators = [i for i, line in enumerate(lines) if line.startswith("====")]
+          start = separators[0] if separators else max(0, len(lines) - 25)
+          detail = "\n".join(lines[start:])
+          if len(detail) > 7000:
+              detail = detail[-7000:]
+          escaped = detail.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+          print(f"::error file=tests,title=Unit test failure::{escaped}")
+          PY
+            exit "$status"
+          fi
 
       - name: Enforce OpenSpec lifecycle hygiene
         run: python3 template/scripts/openspec_lifecycle.py check
@@ -53,24 +72,44 @@ jobs:
         run: python3 -m pip install "copier==9.17.0"
 
       - name: Render factory profile
+        shell: bash
         run: |
-          target="/tmp/dev-platform-${{ matrix.profile }}"
-          rm -rf "$target"
-          copier copy --trust --defaults \
-            --data project_name="Smoke ${{ matrix.profile }}" \
-            --data project_slug="smoke-${{ matrix.profile }}" \
-            --data project_description="Factory smoke test" \
-            --data workflow_profile="${{ matrix.profile }}" \
-            --data publish_mode="${{ matrix.publish_mode }}" \
-            --data platform_ci_ref="dab74494c9a6ad9a77d99e73bb36774a6d42350d" \
-            . "$target"
-          python3 -m compileall -q "$target/scripts"
-          cd "$target"
-          python3 scripts/platform_doctor.py
-          if grep -R "project-ci.yml@main" .github/workflows; then
-            echo "Downstream CI must not track @main" >&2
-            exit 1
+          set +e
+          {
+            target="/tmp/dev-platform-${{ matrix.profile }}"
+            rm -rf "$target"
+            copier copy --trust --defaults --vcs-ref HEAD \
+              --data project_name="Smoke ${{ matrix.profile }}" \
+              --data project_slug="smoke-${{ matrix.profile }}" \
+              --data project_description="Factory smoke test" \
+              --data workflow_profile="${{ matrix.profile }}" \
+              --data harness_mode="platform" \
+              --data publish_mode="${{ matrix.publish_mode }}" \
+              --data platform_ci_ref="dab74494c9a6ad9a77d99e73bb36774a6d42350d" \
+              . "$target" && \
+            python3 -m compileall -q "$target/scripts" && \
+            cd "$target" && \
+            python3 scripts/platform_doctor.py && \
+            test -f .github/workflows/dev-platform.yml && \
+            ! grep -R "project-ci.yml@main" .github/workflows
+          } > /tmp/factory-render.log 2>&1
+          status=$?
+          cat /tmp/factory-render.log
+          if [ "$status" -ne 0 ]; then
+            python3 - <<'PY'
+          from pathlib import Path
+          detail = "\n".join(Path("/tmp/factory-render.log").read_text(encoding="utf-8", errors="replace").splitlines()[-60:])
+          if len(detail) > 7000:
+              detail = detail[-7000:]
+          escaped = detail.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+          print(f"::error file=copier.yml,title=Factory render failure::{escaped}")
+          PY
+            exit "$status"
           fi
 
       - name: Smoke-test Copier upgrade path
         run: python3 tests/upgrade_smoke.py --profile "${{ matrix.profile }}" --publish-mode "${{ matrix.publish_mode }}"
+
+      - name: Smoke-test mature project harness adoption
+        if: matrix.profile == 'multi-agent'
+        run: python3 tests/project_harness_adoption_smoke.py
