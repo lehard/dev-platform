@@ -315,6 +315,9 @@ def copier_update_with_guarded_recopy(
     reset_failed_copier_update(project_root)
     require_project_owned_snapshot(project_root, protected_before)
 
+    # Copier 9.17 `recopy` has no --conflict switch. Recopy is allowed only after
+    # the conflict set has already been proven project-owned, and we verify the
+    # resulting tree/fingerprints immediately afterwards.
     run(
         [
             "copier",
@@ -323,8 +326,6 @@ def copier_update_with_guarded_recopy(
             "--defaults",
             "--vcs-ref",
             version,
-            "--conflict",
-            "rej",
         ],
         project_root,
         env=env,
