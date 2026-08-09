@@ -35,6 +35,9 @@ jobs:
       - name: Unit tests
         run: python3 -m unittest discover -s tests -v
 
+      - name: Enforce OpenSpec lifecycle hygiene
+        run: python3 template/scripts/openspec_lifecycle.py check
+
       - name: Install tested Copier
         run: python3 -m pip install "copier==9.17.0"
 
