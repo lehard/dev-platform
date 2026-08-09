@@ -118,8 +118,10 @@ def main() -> int:
             raise SystemExit("Fresh-only auto-merge guard is missing from one-command onboarding")
         if "steps.adopt.outputs.kind == 'fresh' || steps.adopt.outputs.status == 'already_adopted'" not in central_workflow:
             raise SystemExit("Managed promotion must exclude first-pass existing migrations")
-        if "Product/application checks: delegated to the repository's existing CI." not in central_workflow:
+        if "Product/application checks remain owned by the repository CI" not in central_workflow:
             raise SystemExit("Existing project-harness PR must explain delegated product validation")
+        if "Product/application validation is delegated to the repository-owned CI." not in central_workflow:
+            raise SystemExit("Workflow summary must explain delegated product validation")
 
         run(["git", "add", "-A"], target)
         run(["git", "commit", "-m", "Adopt dev-platform without replacing mature harness"], target)
