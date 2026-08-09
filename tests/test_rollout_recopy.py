@@ -23,10 +23,14 @@ class GuardedRecopyTests(unittest.TestCase):
             'project_required_files = ["scripts/project_helper.py"]\n',
             encoding="utf-8",
         )
+        target_common = (
+            rollout_project.PLATFORM_ROOT / "template" / "scripts" / "_platform_common.py"
+        ).read_text(encoding="utf-8")
         for relative, content in {
             "AGENTS.md": "project agents\n",
             "scripts/start_task.py": "print('project start')\n",
             "scripts/project_helper.py": "print('helper')\n",
+            "scripts/_platform_common.py": target_common,
             ".github/workflows/ci.yml": "name: Product CI\n",
         }.items():
             path = root / relative
@@ -89,6 +93,55 @@ class GuardedRecopyTests(unittest.TestCase):
         self.assertEqual(strategy, "guarded-recopy")
         self.assertTrue(any(command[:2] == ["copier", "update"] for command in commands))
         self.assertTrue(any(command[:2] == ["copier", "recopy"] for command in commands))
+
+    def test_reclaimed_platform_conflict_allows_recopy_when_already_on_target(self) -> None:
+        commands: list[list[str]] = []
+
+        def fake_run(command, cwd, **kwargs):
+            commands.append(command)
+            return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+
+        with (
+            patch.object(rollout_project, "run", side_effect=fake_run),
+            patch.object(
+                rollout_project,
+                "find_reject_files",
+                side_effect=[["scripts/_platform_common.py.rej"], []],
+            ),
+            patch.object(rollout_project, "reset_failed_copier_update"),
+        ):
+            strategy = rollout_project.copier_update_with_guarded_recopy(
+                self.root,
+                "v1.3.1",
+                env=os.environ.copy(),
+            )
+        self.assertEqual(strategy, "guarded-recopy")
+        self.assertTrue(any(command[:2] == ["copier", "recopy"] for command in commands))
+
+    def test_reclaimed_platform_conflict_blocks_if_downstream_differs(self) -> None:
+        common = self.root / "scripts" / "_platform_common.py"
+        common.write_text("# downstream customization still present\n", encoding="utf-8")
+        commands: list[list[str]] = []
+
+        def fake_run(command, cwd, **kwargs):
+            commands.append(command)
+            return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+
+        with (
+            patch.object(rollout_project, "run", side_effect=fake_run),
+            patch.object(
+                rollout_project,
+                "find_reject_files",
+                return_value=["scripts/_platform_common.py.rej"],
+            ),
+        ):
+            with self.assertRaisesRegex(ValueError, "non-project-owned conflicts"):
+                rollout_project.copier_update_with_guarded_recopy(
+                    self.root,
+                    "v1.3.1",
+                    env=os.environ.copy(),
+                )
+        self.assertFalse(any(command[:2] == ["copier", "recopy"] for command in commands))
 
     def test_non_project_owned_conflict_blocks_without_recopy(self) -> None:
         commands: list[list[str]] = []
