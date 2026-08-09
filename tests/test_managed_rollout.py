@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-import json
+import os
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -78,16 +79,40 @@ class RolloutProjectTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 rollout_project.load_answers(root)
 
+    def test_private_source_git_env_is_process_only_and_required(self) -> None:
+        with patch.dict(os.environ, {}, clear=True):
+            with self.assertRaises(ValueError):
+                rollout_project.private_source_git_env()
+        with patch.dict(os.environ, {"DEV_PLATFORM_SOURCE_TOKEN": "test-token"}, clear=True):
+            env = rollout_project.private_source_git_env()
+            self.assertEqual(env["GIT_CONFIG_COUNT"], "1")
+            self.assertEqual(env["GIT_CONFIG_VALUE_0"], "https://github.com/")
+            self.assertIn("x-access-token:test-token@github.com", env["GIT_CONFIG_KEY_0"])
+
 
 class RolloutWorkflowContractTests(unittest.TestCase):
-    def test_rollout_workflow_is_app_scoped_sha_pinned_and_pr_only(self) -> None:
+    def test_rollout_workflow_uses_split_app_tokens_and_is_pr_only(self) -> None:
         workflow = (ROOT / ".github" / "workflows" / "rollout.yml").read_text(encoding="utf-8")
-        self.assertIn("actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1", workflow)
+        pin = "actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1"
+        self.assertEqual(workflow.count(pin), 2)
+        self.assertIn("id: source-token", workflow)
+        self.assertIn("repositories: dev-platform", workflow)
+        self.assertIn("permission-contents: read", workflow)
+        self.assertIn("id: target-token", workflow)
+        self.assertIn("repositories: ${{ matrix.repo_name }}", workflow)
         self.assertIn("permission-contents: write", workflow)
         self.assertIn("permission-pull-requests: write", workflow)
+        self.assertIn("DEV_PLATFORM_SOURCE_TOKEN: ${{ steps.source-token.outputs.token }}", workflow)
+        self.assertIn("token: ${{ steps.target-token.outputs.token }}", workflow)
         self.assertIn("gh pr create", workflow)
         self.assertNotIn("gh pr merge", workflow)
         self.assertNotIn("--auto-merge", workflow)
+
+    def test_rollout_requires_an_immutable_published_release(self) -> None:
+        workflow = (ROOT / ".github" / "workflows" / "rollout.yml").read_text(encoding="utf-8")
+        self.assertIn("releases/tags/$version", workflow)
+        self.assertIn(".immutable // false", workflow)
+        self.assertIn("must be an existing immutable published platform release", workflow)
 
     def test_release_dispatches_exact_rollout_workflow(self) -> None:
         workflow = (ROOT / ".github" / "workflows" / "publish-version.yml").read_text(encoding="utf-8")
