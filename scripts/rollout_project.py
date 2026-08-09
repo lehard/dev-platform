@@ -55,6 +55,17 @@ def parse_answers(text: str) -> dict[str, str]:
     return answers
 
 
+def normalize_copier_answers(project_root: Path) -> None:
+    path = project_root / ".copier-answers.yml"
+    if not path.exists():
+        raise ValueError(".copier-answers.yml is missing after Copier update")
+    text = path.read_text(encoding="utf-8")
+    normalized = text.rstrip("\r\n") + "\n"
+    if normalized != text:
+        path.write_text(normalized, encoding="utf-8")
+        print("Normalized .copier-answers.yml trailing newline formatting")
+
+
 def load_answers(project_root: Path) -> dict[str, str]:
     path = project_root / ".copier-answers.yml"
     if not path.exists():
@@ -194,6 +205,7 @@ def apply_rollout(project_root: Path, repository: str, version: str, base_branch
         project_root,
         env=private_source_git_env(),
     )
+    normalize_copier_answers(project_root)
 
     updated = load_answers(project_root)
     if updated["_commit"] != version:
