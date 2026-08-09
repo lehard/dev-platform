@@ -61,6 +61,7 @@ def main() -> int:
         run(["git", "commit", "-m", "Baseline generated project"], target)
 
         sentinels = {
+            ".dev-platform.toml": "# project-owned-platform-config-sentinel",
             "AGENTS.md": "<!-- project-owned-agents-sentinel -->",
             "README.md": "<!-- project-owned-readme-sentinel -->",
             "dev-platform/checks.toml": "# project-owned-checks-sentinel",
@@ -69,6 +70,18 @@ def main() -> int:
         }
         for relative, sentinel in sentinels.items():
             append_sentinel(target / relative, sentinel)
+
+        platform_config = target / ".dev-platform.toml"
+        config_text = platform_config.read_text(encoding="utf-8")
+        if "project_required_files = []" in config_text:
+            config_text = config_text.replace(
+                "project_required_files = []",
+                'project_required_files = ["scripts/project_required_helper.py"]',
+                1,
+            )
+            platform_config.write_text(config_text, encoding="utf-8")
+            (target / "scripts" / "project_required_helper.py").write_text("# project-owned helper\n", encoding="utf-8")
+
         local_doc = target / "docs" / "engineering" / "local-only.md"
         local_doc.write_text("# Local-only project documentation\n", encoding="utf-8")
         run(["git", "add", "-A"], target)
@@ -79,6 +92,8 @@ def main() -> int:
         for relative, sentinel in sentinels.items():
             if sentinel not in (target / relative).read_text(encoding="utf-8"):
                 raise SystemExit(f"Copier update removed project-owned content from {relative}")
+        if 'project_required_files = ["scripts/project_required_helper.py"]' not in platform_config.read_text(encoding="utf-8"):
+            raise SystemExit("Copier update removed project-owned platform configuration")
         if not local_doc.exists():
             raise SystemExit("Copier update removed project-owned local-only documentation")
         if list(target.rglob("*.rej")):
