@@ -1,19 +1,4 @@
-# Project Factory Specification
-
-## Purpose
-
-The Project Factory SHALL define the reusable, versioned contract for creating and safely updating agent-first repositories without taking ownership of application-domain behavior.
-
-## Requirements
-
-### Requirement: Central versioned project factory
-
-The platform SHALL provide a central Copier-based factory for creating new agent-first repositories and delivering reviewed updates to existing managed repositories.
-
-#### Scenario: New project creation
-
-- **WHEN** a new repository is rendered from a stable platform release
-- **THEN** it receives the selected workflow profile, shared agent rules, OpenSpec policy, local workflow scripts, check configuration and self-contained CI scaffolding
+## ADDED Requirements
 
 ### Requirement: Human-facing onboarding is one operation
 
@@ -63,23 +48,7 @@ Generated repositories SHALL provide one idempotent developer readiness entrypoi
 - **WHEN** the developer or agent runs `python3 scripts/dev.py ready`
 - **THEN** local readiness is established without requiring the human to remember separate sync, OpenSpec init/update, platform doctor and agent doctor commands
 
-### Requirement: Project and platform ownership remain separate
-
-The platform SHALL own reusable engineering process only. Application/domain rules and project-specific architecture SHALL remain project-owned and SHALL NOT be promoted into the shared template unless they are demonstrably reusable.
-
-#### Scenario: Project-specific rule is encountered
-
-- **WHEN** an application-specific invariant is needed by only one downstream repository
-- **THEN** the rule remains in that repository instead of becoming a platform default
-
-### Requirement: Runtime workflow is self-contained
-
-Generated repositories SHALL contain the platform-managed scripts needed for normal agent workflow and SHALL NOT require runtime access to the central `dev-platform` repository.
-
-#### Scenario: Downstream repository runs normal workflow
-
-- **WHEN** an agent starts, validates or publishes work in a generated repository
-- **THEN** the required platform workflow executes from files present in that repository
+## MODIFIED Requirements
 
 ### Requirement: OpenSpec remains an external tool
 

@@ -24,13 +24,17 @@ def load_registry(path: Path = DEFAULT_REGISTRY) -> dict[str, Any]:
     return data
 
 
+def save_registry(data: dict[str, Any], path: Path = DEFAULT_REGISTRY) -> None:
+    validate_registry(data)
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
 def validate_registry(data: dict[str, Any]) -> None:
     if data.get("schema_version") != 1:
         raise ValueError("managed project registry schema_version must be 1")
     projects = data.get("projects")
     if not isinstance(projects, list):
         raise ValueError("managed project registry projects must be a list")
-
     seen: set[str] = set()
     for index, item in enumerate(projects):
         label = f"projects[{index}]"
@@ -40,7 +44,6 @@ def validate_registry(data: dict[str, Any]) -> None:
         state = item.get("state")
         default_branch = item.get("default_branch")
         note = item.get("note", "")
-
         if not isinstance(repository, str) or not REPOSITORY_RE.fullmatch(repository):
             raise ValueError(f"{label}.repository must be owner/name")
         if repository in seen:
@@ -65,18 +68,32 @@ def managed_projects(data: dict[str, Any], repository: str | None = None) -> lis
         if matching[0]["state"] != "managed":
             raise ValueError(f"repository is registered as {matching[0]['state']}, not managed: {repository}")
         projects = matching
-    return [
-        {
-            "repository": item["repository"],
-            "repo_name": item["repository"].split("/", 1)[1],
-            "default_branch": item["default_branch"],
-        }
-        for item in projects
-    ]
+    return [{"repository": item["repository"], "repo_name": item["repository"].split("/", 1)[1], "default_branch": item["default_branch"]} for item in projects]
 
 
 def matrix_payload(data: dict[str, Any], repository: str | None = None) -> dict[str, Any]:
     return {"include": managed_projects(data, repository)}
+
+
+def promote_repository(data: dict[str, Any], repository: str, default_branch: str = "main", note: str = "Adopted through Dev Platform onboarding; eligible for reviewed managed rollout.") -> bool:
+    if not REPOSITORY_RE.fullmatch(repository):
+        raise ValueError("repository must be owner/name")
+    if not default_branch or not BRANCH_RE.fullmatch(default_branch):
+        raise ValueError(f"invalid default_branch: {default_branch!r}")
+    if not note.strip():
+        raise ValueError("managed project note must not be empty")
+    for item in data["projects"]:
+        if item["repository"] != repository:
+            continue
+        changed = item.get("state") != "managed" or item.get("default_branch") != default_branch or item.get("note") != note
+        item["state"] = "managed"
+        item["default_branch"] = default_branch
+        item["note"] = note
+        validate_registry(data)
+        return changed
+    data["projects"].append({"repository": repository, "state": "managed", "default_branch": default_branch, "note": note})
+    validate_registry(data)
+    return True
 
 
 def main() -> int:
@@ -88,16 +105,16 @@ def main() -> int:
     matrix.add_argument("--repository", help="Limit to one exact registered managed repository.")
     status = sub.add_parser("status", help="Print registry entries and state.")
     status.add_argument("--json", action="store_true")
+    promote = sub.add_parser("promote", help="Explicitly promote an adopted repository to managed.")
+    promote.add_argument("--repository", required=True)
+    promote.add_argument("--default-branch", default="main")
+    promote.add_argument("--note", default="Adopted through Dev Platform onboarding; eligible for reviewed managed rollout.")
     args = parser.parse_args()
-
     try:
         data = load_registry(args.registry)
         if args.command == "validate":
             counts = {state: sum(1 for item in data["projects"] if item["state"] == state) for state in sorted(ALLOWED_STATES)}
-            print(
-                "Managed project registry: OK "
-                f"({counts['managed']} managed, {counts['candidate']} candidate, {counts['excluded']} excluded)"
-            )
+            print("Managed project registry: OK " f"({counts['managed']} managed, {counts['candidate']} candidate, {counts['excluded']} excluded)")
             return 0
         if args.command == "matrix":
             payload = matrix_payload(data, args.repository)
@@ -111,6 +128,14 @@ def main() -> int:
             else:
                 for item in data["projects"]:
                     print(f"{item['state']:9} {item['repository']} ({item['default_branch']})")
+            return 0
+        if args.command == "promote":
+            changed = promote_repository(data, args.repository, args.default_branch, args.note)
+            if changed:
+                save_registry(data, args.registry)
+                print(f"Promoted {args.repository} to managed.")
+            else:
+                print(f"{args.repository} is already managed with the requested metadata.")
             return 0
     except ValueError as exc:
         print(f"Managed project registry: BLOCKED: {exc}")

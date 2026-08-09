@@ -1,16 +1,20 @@
 from __future__ import annotations
 
+import json
+import os
 import re
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 
 SEMVER_TAG_RE = re.compile(r"^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
 PLATFORM_VERSION_RE = re.compile(r'^platform_version\s*=\s*"[^"]*"\s*$', re.MULTILINE)
+ALL_OPENSPEC_WORKFLOWS = ["propose", "explore", "new", "continue", "apply", "ff", "sync", "archive", "bulk-archive", "verify", "onboard"]
 
 
-def run(command: list[str], root: Path, check: bool = True) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(command, cwd=root, text=True, check=check)
+def run(command: list[str], root: Path, check: bool = True, *, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(command, cwd=root, text=True, check=check, env=env)
 
 
 def load_config(root: Path) -> dict:
@@ -45,6 +49,20 @@ def sync_platform_version(root: Path) -> None:
         print(f"Synchronized .dev-platform.toml platform_version to {commit[1:]}")
 
 
+def openspec_profile() -> dict[str, object]:
+    return {"featureFlags": {}, "profile": "custom", "delivery": "both", "workflows": ALL_OPENSPEC_WORKFLOWS}
+
+
+def initialize_openspec(root: Path, executable: str, tools: str) -> None:
+    with tempfile.TemporaryDirectory(prefix="dev-platform-openspec-") as tmp:
+        config_dir = Path(tmp) / "openspec"
+        config_dir.mkdir(parents=True)
+        (config_dir / "config.json").write_text(json.dumps(openspec_profile(), indent=2) + "\n", encoding="utf-8")
+        env = os.environ.copy()
+        env["XDG_CONFIG_HOME"] = tmp
+        run([executable, "init", ".", "--tools", tools, "--profile", "custom", "--force"], root, env=env)
+
+
 def main() -> int:
     root = Path.cwd().resolve()
     sync_platform_version(root)
@@ -52,24 +70,20 @@ def main() -> int:
     main_branch = str(config.get("main_branch", "main"))
     tools = str(config.get("agent_tools", "claude,codex"))
     was_git_repo = (root / ".git").exists()
+    safe_fresh_adoption = os.environ.get("DEV_PLATFORM_SAFE_FRESH_ADOPTION") == "1"
     if not was_git_repo:
         run(["git", "init", "-b", main_branch], root)
     (root / ".claude" / "worktrees").mkdir(parents=True, exist_ok=True)
-    command = ["openspec", "init", ".", "--tools", tools, "--profile", "core", "--no-animation"]
     openspec = shutil.which("openspec")
-    if openspec and not was_git_repo:
-        print("Initializing OpenSpec core workflows for fresh project...")
-        run(command, root)
-        print("Platform policy also requires /opsx:verify for non-trivial changes.")
-        print("Enable the expanded verify workflow once with `openspec config profile`, then run `openspec update`.")
+    if openspec and (not was_git_repo or safe_fresh_adoption):
+        print("Initializing full OpenSpec workflow set for fresh project/adoption...")
+        initialize_openspec(root, openspec, tools)
+        print("OpenSpec integrations include the expanded workflow set, including /opsx:verify.")
     elif was_git_repo:
-        print("Existing Git repository detected; OpenSpec migration is not run automatically.")
-        print("Review existing OpenSpec/tool files, then run explicitly if appropriate:")
-        print("  " + " ".join(command))
-        print("Then enable verify with `openspec config profile` and run `openspec update`.")
+        print("Existing/mature Git repository detected; OpenSpec migration is not run automatically.")
+        print("After reviewing the adoption diff, run `python3 scripts/dev.py ready` locally.")
     else:
-        print("OpenSpec CLI not found. Install a compatible version, then run:")
-        print("  " + " ".join(command))
+        print("OpenSpec CLI not found. Install the compatible version, then run `python3 scripts/dev.py ready`.")
     doctor = root / "scripts" / "platform_doctor.py"
     if doctor.exists():
         run(["python3", str(doctor)], root, check=False)

@@ -1,0 +1,252 @@
+name: Adopt Project
+
+on:
+  workflow_dispatch:
+    inputs:
+      repository:
+        description: Repository to adopt (owner/name)
+        required: true
+      version:
+        description: Exact immutable platform tag; empty uses current VERSION
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  adopt:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout platform
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          path: platform
+          fetch-depth: 0
+
+      - name: Plan adoption
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED_REPOSITORY: ${{ inputs.repository }}
+          REQUESTED_VERSION: ${{ inputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          repository="$REQUESTED_REPOSITORY"
+          if [[ ! "$repository" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
+            echo "Repository must be owner/name; got: $repository" >&2
+            exit 1
+          fi
+          owner="${repository%%/*}"
+          if [[ "$owner" != "$GITHUB_REPOSITORY_OWNER" ]]; then
+            echo "Adoption is limited to repositories owned by $GITHUB_REPOSITORY_OWNER; got: $repository" >&2
+            exit 1
+          fi
+          version="$REQUESTED_VERSION"
+          if [[ -z "$version" ]]; then
+            version="v$(tr -d '[:space:]' < platform/VERSION)"
+          fi
+          if [[ ! "$version" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "Adoption version must be an exact stable tag vX.Y.Z; got: $version" >&2
+            exit 1
+          fi
+          immutable="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$version" --jq '.immutable // false' 2>/dev/null || true)"
+          if [[ "$immutable" != "true" ]]; then
+            echo "Adoption target must be an existing immutable published platform release; got: $version" >&2
+            exit 1
+          fi
+          echo "repository=$repository" >> "$GITHUB_OUTPUT"
+          echo "repo_name=${repository#*/}" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Require Dev Platform GitHub App
+        env:
+          APP_CLIENT_ID: ${{ vars.DEV_PLATFORM_APP_CLIENT_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.DEV_PLATFORM_APP_PRIVATE_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$APP_CLIENT_ID" || -z "$APP_PRIVATE_KEY" ]]; then
+            echo "Dev Platform GitHub App is not configured; see docs/managed-rollout.md." >&2
+            exit 1
+          fi
+
+      - name: Create read-only platform source token
+        id: source-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          client-id: ${{ vars.DEV_PLATFORM_APP_CLIENT_ID }}
+          private-key: ${{ secrets.DEV_PLATFORM_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: dev-platform
+          permission-contents: read
+
+      - name: Create target repository token
+        id: target-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          client-id: ${{ vars.DEV_PLATFORM_APP_CLIENT_ID }}
+          private-key: ${{ secrets.DEV_PLATFORM_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ steps.plan.outputs.repo_name }}
+          permission-contents: write
+          permission-pull-requests: write
+          permission-workflows: write
+
+      - name: Create platform registry write token
+        id: registry-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          client-id: ${{ vars.DEV_PLATFORM_APP_CLIENT_ID }}
+          private-key: ${{ secrets.DEV_PLATFORM_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: dev-platform
+          permission-contents: write
+
+      - name: Resolve target default branch
+        id: target
+        env:
+          GH_TOKEN: ${{ steps.target-token.outputs.token }}
+          REPOSITORY: ${{ steps.plan.outputs.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          base_branch="$(gh api "repos/$REPOSITORY" --jq .default_branch)"
+          echo "base_branch=$base_branch" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout target project
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: ${{ steps.plan.outputs.repository }}
+          ref: ${{ steps.target.outputs.base_branch }}
+          token: ${{ steps.target-token.outputs.token }}
+          path: target
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.11"
+
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "20.19.0"
+          package-manager-cache: false
+
+      - name: Install tested onboarding tools
+        run: |
+          python3 -m pip install "copier==9.17.0"
+          npm install --global @fission-ai/openspec@1.6.0
+
+      - name: Configure target bot identity
+        env:
+          GH_TOKEN: ${{ steps.target-token.outputs.token }}
+          APP_SLUG: ${{ steps.target-token.outputs.app-slug }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          bot_id="$(gh api "/users/${APP_SLUG}%5Bbot%5D" --jq .id)"
+          git -C target config user.name "${APP_SLUG}[bot]"
+          git -C target config user.email "${bot_id}+${APP_SLUG}[bot]@users.noreply.github.com"
+
+      - name: Prepare adoption
+        id: adopt
+        env:
+          DEV_PLATFORM_SOURCE_TOKEN: ${{ steps.source-token.outputs.token }}
+          REPOSITORY: ${{ steps.plan.outputs.repository }}
+          VERSION: ${{ steps.plan.outputs.version }}
+          BASE_BRANCH: ${{ steps.target.outputs.base_branch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 platform/scripts/adopt_project.py --project-root target --repository "$REPOSITORY" --version "$VERSION" --base-branch "$BASE_BRANCH" --output /tmp/adoption-result.json
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          data = json.load(open('/tmp/adoption-result.json', encoding='utf-8'))
+          for key in ('status', 'kind', 'branch'):
+              print(f"{key}={data.get(key, '')}")
+          print("reasons=" + "; ".join(data.get('reasons', [])))
+          PY
+
+      - name: Push adoption branch
+        if: steps.adopt.outputs.status == 'updated'
+        run: git -C target push origin HEAD
+
+      - name: Open adoption PR
+        if: steps.adopt.outputs.status == 'updated'
+        id: pr
+        env:
+          GH_TOKEN: ${{ steps.target-token.outputs.token }}
+          REPOSITORY: ${{ steps.plan.outputs.repository }}
+          VERSION: ${{ steps.plan.outputs.version }}
+          BASE_BRANCH: ${{ steps.target.outputs.base_branch }}
+          BRANCH: ${{ steps.adopt.outputs.branch }}
+          KIND: ${{ steps.adopt.outputs.kind }}
+          REASONS: ${{ steps.adopt.outputs.reasons }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          body="Dev Platform one-command onboarding to **$VERSION**.\n\nDetected repository kind: **$KIND**."
+          if [[ -n "$REASONS" ]]; then body="$body\n\nDetector reasons: $REASONS"; fi
+          if [[ "$KIND" == "fresh" ]]; then
+            body="$body\n\nFresh fast path: platform doctor, OpenSpec lifecycle/strict validation and selected project checks passed. This PR will be merged automatically by onboarding."
+          else
+            body="$body\n\nExisting-project cautious path: this PR is intentionally left for review. After merge, run Adopt Project once more to promote the repository to managed automatically."
+          fi
+          url="$(gh pr create --repo "$REPOSITORY" --base "$BASE_BRANCH" --head "$BRANCH" --title "chore: adopt dev-platform $VERSION" --body "$body")"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Auto-merge validated fresh adoption
+        if: steps.adopt.outputs.status == 'updated' && steps.adopt.outputs.kind == 'fresh'
+        env:
+          GH_TOKEN: ${{ steps.target-token.outputs.token }}
+          PR_URL: ${{ steps.pr.outputs.url }}
+        run: gh pr merge "$PR_URL" --squash --delete-branch
+
+      - name: Promote completed adoption to managed
+        if: steps.adopt.outputs.kind == 'fresh' || steps.adopt.outputs.status == 'already_adopted'
+        env:
+          PLATFORM_TOKEN: ${{ steps.registry-token.outputs.token }}
+          APP_SLUG: ${{ steps.registry-token.outputs.app-slug }}
+          REPOSITORY: ${{ steps.plan.outputs.repository }}
+          BASE_BRANCH: ${{ steps.target.outputs.base_branch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          bot_id="$(GH_TOKEN="$PLATFORM_TOKEN" gh api "/users/${APP_SLUG}%5Bbot%5D" --jq .id)"
+          git -C platform config user.name "${APP_SLUG}[bot]"
+          git -C platform config user.email "${bot_id}+${APP_SLUG}[bot]@users.noreply.github.com"
+          git -C platform remote set-url origin "https://x-access-token:${PLATFORM_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git -C platform fetch origin main
+          git -C platform checkout -B onboarding-registry origin/main
+          python3 platform/scripts/managed_projects.py --registry platform/managed-projects.json promote --repository "$REPOSITORY" --default-branch "$BASE_BRANCH" --note "Adopted through one-command onboarding; eligible for reviewed managed rollout."
+          if ! git -C platform diff --quiet -- managed-projects.json; then
+            git -C platform add managed-projects.json
+            git -C platform commit -m "chore: manage $REPOSITORY"
+            git -C platform push origin HEAD:main
+          fi
+
+      - name: Summarize adoption
+        if: always()
+        env:
+          REPOSITORY: ${{ steps.plan.outputs.repository }}
+          VERSION: ${{ steps.plan.outputs.version }}
+          STATUS: ${{ steps.adopt.outputs.status }}
+          KIND: ${{ steps.adopt.outputs.kind }}
+          PR_URL: ${{ steps.pr.outputs.url }}
+        shell: bash
+        run: |
+          {
+            echo "### Dev Platform adoption"
+            echo "Repository: $REPOSITORY"
+            echo "Version: $VERSION"
+            echo "Detected kind: ${KIND:-unknown}"
+            echo "Status: ${STATUS:-blocked}"
+            if [[ -n "$PR_URL" ]]; then echo "PR: $PR_URL"; fi
+            if [[ "$KIND" == "existing" && "$STATUS" == "updated" ]]; then
+              echo "Existing-project migration is waiting for PR review/merge. Rerun this workflow after merge to promote it to managed."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
