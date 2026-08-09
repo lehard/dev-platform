@@ -163,8 +163,9 @@ class RolloutWorkflowContractTests(unittest.TestCase):
         self.assertIn('"update"', source)
         self.assertIn('"recopy"', source)
         self.assertEqual(source.count('"--vcs-ref"'), 2)
-        self.assertEqual(source.count('"--conflict"'), 2)
-        self.assertEqual(source.count('"rej"'), 2)
+        # Copier 9.17 exposes --conflict on update, but not on recopy.
+        self.assertEqual(source.count('"--conflict"'), 1)
+        self.assertEqual(source.count('"rej"'), 1)
         script = (ROOT / "scripts" / "rollout_project.py").read_text(encoding="utf-8")
         self.assertIn("normalize_copier_answers(project_root)", script)
         self.assertIn('["git", "diff", "--check", "--"]', script)
