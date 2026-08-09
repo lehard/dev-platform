@@ -29,6 +29,11 @@ jobs:
         with:
           python-version: "3.11"
 
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "20.19.0"
+          package-manager-cache: false
+
       - name: Compile shared scripts
         run: python3 -m compileall -q template/scripts
 
@@ -37,6 +42,9 @@ jobs:
 
       - name: Enforce OpenSpec lifecycle hygiene
         run: python3 template/scripts/openspec_lifecycle.py check
+
+      - name: Strict-validate OpenSpec
+        run: npx --yes @fission-ai/openspec@1.6.0 validate --all --strict --no-interactive
 
       - name: Install tested Copier
         run: python3 -m pip install "copier==9.17.0"
