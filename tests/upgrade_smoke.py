@@ -63,6 +63,7 @@ def main() -> int:
         sentinels = {
             ".dev-platform.toml": "# project-owned-platform-config-sentinel",
             "AGENTS.md": "<!-- project-owned-agents-sentinel -->",
+            "CLAUDE.md": "<!-- project-owned-claude-sentinel -->",
             "README.md": "<!-- project-owned-readme-sentinel -->",
             "dev-platform/checks.toml": "# project-owned-checks-sentinel",
             "openspec/config.yaml": "# project-owned-openspec-sentinel",
@@ -96,6 +97,8 @@ def main() -> int:
             raise SystemExit("Copier update removed project-owned platform configuration")
         if not local_doc.exists():
             raise SystemExit("Copier update removed project-owned local-only documentation")
+        if not (target / ".github" / "workflows" / "dev-platform.yml").is_file():
+            raise SystemExit("Copier update did not migrate platform CI to .github/workflows/dev-platform.yml")
         if list(target.rglob("*.rej")):
             raise SystemExit("Copier update left .rej files")
 
