@@ -10,16 +10,17 @@ Rollout never performs first-time adoption and never auto-merges by default.
 
 ## Registry
 
-`managed-projects.json` is the cross-project write allowlist.
+`managed-projects.json` is the central project inventory and cross-project write allowlist.
 
 States:
 
-- `managed` — eligible for automatic rollout PRs;
-- `candidate` — known project, but automatic mutation is forbidden until reviewed adoption is complete.
+- `managed` — adopted and eligible for automatic rollout PRs;
+- `candidate` — active software/project repository where reviewed Dev Platform adoption is still required;
+- `excluded` — known repository intentionally outside Dev Platform adoption/rollout, with a required explanatory note.
 
-Promote a project to `managed` only after its default branch contains a valid `.copier-answers.yml` pointing at `lehard/dev-platform`, platform doctor/checks pass, and the adoption PR has been reviewed and merged.
+Only `managed` enters the rollout matrix. `candidate` and `excluded` are both non-mutating states. Keeping excluded repositories explicit prevents omission from becoming an accidental state that someone has to remember later.
 
-Do not automatically discover and mutate every repository owned by the account. The explicit registry is a safety boundary.
+Promote a project to `managed` only after its default branch contains a valid `.copier-answers.yml` pointing at `lehard/dev-platform`, platform doctor/checks pass, and the adoption PR has been reviewed and merged. Reclassify an `excluded` repository to `candidate` first if its role changes and software adoption becomes appropriate.
 
 Validate locally with:
 
@@ -92,7 +93,7 @@ Inputs:
 - `version` — exact immutable published tag such as `v1.2.0`; empty uses current `VERSION`;
 - `repository` — optional exact `owner/name` to retry only one managed project.
 
-A `candidate` repository is rejected by the registry tool even when manually specified.
+A `candidate` or `excluded` repository is rejected by the registry tool even when manually specified.
 
 ## Failure handling
 
@@ -112,9 +113,10 @@ If the target project is already on the requested version, rollout reports a no-
 
 ## Adding a new project
 
-1. Adopt Dev Platform in a dedicated project branch/worktree using `docs/adoption.md`.
-2. Review project-specific `AGENTS`, OpenSpec, CI/check mappings and `.gitignore`; do not blindly overwrite them.
-3. Merge the clean adoption PR.
-4. Install/extend the Dev Platform GitHub App installation to include that repository.
-5. Change the central registry entry from `candidate` to `managed` in a reviewed Dev Platform PR.
-6. From then on, stable platform releases can create rollout PRs automatically.
+1. Ensure the repository is represented in `managed-projects.json`; active software projects normally start as `candidate`.
+2. Adopt Dev Platform in a dedicated project branch/worktree using `docs/adoption.md`.
+3. Review project-specific `AGENTS`, OpenSpec, CI/check mappings and `.gitignore`; do not blindly overwrite them.
+4. Merge the clean adoption PR.
+5. Install/extend the Dev Platform GitHub App installation to include that repository.
+6. Change the central registry entry from `candidate` to `managed` in a reviewed Dev Platform PR.
+7. From then on, stable platform releases can create rollout PRs automatically.
