@@ -1,11 +1,20 @@
 name: Dev Platform
 
 on:
+{% if publish_mode == 'pr' %}
   pull_request:
+    branches:
+      - {{ main_branch }}
+{% else %}
   push:
     branches:
       - {{ main_branch }}
+{% endif %}
   workflow_dispatch:
+
+concurrency:
+  group: "{% raw %}${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}{% endraw %}"
+  cancel-in-progress: true
 
 jobs:
   platform-ci:

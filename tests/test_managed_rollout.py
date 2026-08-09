@@ -63,6 +63,14 @@ class ManagedProjectRegistryTests(unittest.TestCase):
 
 
 class RolloutProjectTests(unittest.TestCase):
+    def test_rollout_skips_historical_copier_tasks_then_runs_candidate_bootstrap(self) -> None:
+        source = inspect.getsource(rollout_project.copier_update_with_guarded_recopy)
+        bootstrap = inspect.getsource(rollout_project.run_rendered_platform_bootstrap)
+        self.assertEqual(source.count('"--skip-tasks"'), 2)
+        self.assertIn("run_rendered_platform_bootstrap(project_root, env=env)", source)
+        self.assertIn('project_root / "scripts" / "platform_bootstrap.py"', bootstrap)
+        self.assertIn("updated project is missing scripts/platform_bootstrap.py", bootstrap)
+
     def test_answers_metadata_is_parsed(self) -> None:
         answers = rollout_project.parse_answers(
             "# managed by Copier\n_commit: v1.0.2\n_src_path: gh:lehard/dev-platform\nproject_name: Test\n"

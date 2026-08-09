@@ -295,6 +295,19 @@ def reset_failed_copier_update(project_root: Path) -> None:
     ensure_clean(project_root)
 
 
+def run_rendered_platform_bootstrap(project_root: Path, *, env: dict[str, str]) -> None:
+    """Apply platform-owned post-render initialization from the candidate version.
+
+    Copier update can otherwise execute `_tasks` from the historical template
+    snapshot. Managed rollout deliberately skips those tasks and runs only this
+    newly rendered bootstrap after the update/recovery path is conflict-free.
+    """
+    bootstrap = project_root / "scripts" / "platform_bootstrap.py"
+    if not bootstrap.is_file():
+        raise ValueError("updated project is missing scripts/platform_bootstrap.py")
+    run(["python3", str(bootstrap)], project_root, env=env)
+
+
 def copier_update_with_guarded_recopy(
     project_root: Path,
     version: str,
@@ -326,6 +339,7 @@ def copier_update_with_guarded_recopy(
             "update",
             "--trust",
             "--defaults",
+            "--skip-tasks",
             "--vcs-ref",
             version,
             "--conflict",
@@ -336,6 +350,7 @@ def copier_update_with_guarded_recopy(
     )
     rejects = find_reject_files(project_root)
     if not rejects:
+        run_rendered_platform_bootstrap(project_root, env=env)
         return "update"
 
     owned = project_owned_paths(project_root)
@@ -367,6 +382,7 @@ def copier_update_with_guarded_recopy(
             "recopy",
             "--trust",
             "--defaults",
+            "--skip-tasks",
             "--overwrite",
             "--vcs-ref",
             version,
@@ -381,6 +397,7 @@ def copier_update_with_guarded_recopy(
             "guarded Copier recopy still left unresolved .rej files: "
             + ", ".join(recopy_rejects[:10])
         )
+    run_rendered_platform_bootstrap(project_root, env=env)
     require_project_owned_snapshot(project_root, protected_before)
     require_reclaimed_platform_paths_match_template(project_root, reclaimed_conflicts)
     config_after = platform_config_contract(project_root)

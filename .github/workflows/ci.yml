@@ -2,24 +2,15 @@ name: Platform CI
 
 on:
   pull_request:
-  push:
-    branches:
-      - main
   workflow_dispatch:
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"
+  cancel-in-progress: true
 
 jobs:
   validate:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - profile: light
-            publish_mode: direct
-          - profile: standard
-            publish_mode: pr
-          - profile: multi-agent
-            publish_mode: pr
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -71,27 +62,33 @@ jobs:
       - name: Install tested Copier
         run: python3 -m pip install "copier==9.17.0"
 
-      - name: Render factory profile
+      - name: Render factory profiles
         shell: bash
         run: |
           set +e
           {
-            target="/tmp/dev-platform-${{ matrix.profile }}"
-            rm -rf "$target"
-            copier copy --trust --defaults --vcs-ref HEAD \
-              --data project_name="Smoke ${{ matrix.profile }}" \
-              --data project_slug="smoke-${{ matrix.profile }}" \
-              --data project_description="Factory smoke test" \
-              --data workflow_profile="${{ matrix.profile }}" \
-              --data harness_mode="platform" \
-              --data publish_mode="${{ matrix.publish_mode }}" \
-              --data platform_ci_ref="dab74494c9a6ad9a77d99e73bb36774a6d42350d" \
-              . "$target" && \
-            python3 -m compileall -q "$target/scripts" && \
-            cd "$target" && \
-            python3 scripts/platform_doctor.py && \
-            test -f .github/workflows/dev-platform.yml && \
-            ! grep -R "project-ci.yml@main" .github/workflows
+            for profile_and_mode in light:direct standard:pr multi-agent:pr; do
+              profile="${profile_and_mode%%:*}"
+              publish_mode="${profile_and_mode##*:}"
+              target="/tmp/dev-platform-$profile"
+              rm -rf "$target"
+              copier copy --trust --defaults --vcs-ref HEAD \
+                --data project_name="Smoke $profile" \
+                --data project_slug="smoke-$profile" \
+                --data project_description="Factory smoke test" \
+                --data workflow_profile="$profile" \
+                --data harness_mode="platform" \
+                --data publish_mode="$publish_mode" \
+                --data platform_ci_ref="dab74494c9a6ad9a77d99e73bb36774a6d42350d" \
+                . "$target"
+              python3 -m compileall -q "$target/scripts"
+              (
+                cd "$target"
+                python3 scripts/platform_doctor.py
+                test -f .github/workflows/dev-platform.yml
+                ! grep -R "project-ci.yml@main" .github/workflows
+              )
+            done
           } > /tmp/factory-render.log 2>&1
           status=$?
           cat /tmp/factory-render.log
@@ -107,13 +104,14 @@ jobs:
             exit "$status"
           fi
 
-      - name: Smoke-test Copier upgrade path
-        run: python3 tests/upgrade_smoke.py --profile "${{ matrix.profile }}" --publish-mode "${{ matrix.publish_mode }}"
+      - name: Smoke-test Copier upgrade paths
+        run: |
+          python3 tests/upgrade_smoke.py --profile light --publish-mode direct
+          python3 tests/upgrade_smoke.py --profile standard --publish-mode pr
+          python3 tests/upgrade_smoke.py --profile multi-agent --publish-mode pr
 
       - name: Smoke-test mature project harness adoption
-        if: matrix.profile == 'multi-agent'
         run: python3 tests/project_harness_adoption_smoke.py
 
       - name: Smoke-test project-harness smart-update fallback
-        if: matrix.profile == 'multi-agent'
         run: python3 tests/rollout_recopy_smoke.py
