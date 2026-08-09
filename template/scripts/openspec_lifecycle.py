@@ -39,9 +39,10 @@ def verification_passed(change: Path) -> bool:
     receipt = change / "verification.md"
     if not receipt.exists():
         return False
-    text = receipt.read_text(encoding="utf-8")
-    has_method = any(line.strip().startswith(VERIFY_METHOD_PREFIX) and line.split(":", 1)[1].strip() for line in text.splitlines())
-    return VERIFY_MARKER in text and has_method
+    lines = [line.strip() for line in receipt.read_text(encoding="utf-8").splitlines()]
+    has_marker = VERIFY_MARKER in lines
+    has_method = any(line.startswith(VERIFY_METHOD_PREFIX) and line.split(":", 1)[1].strip() for line in lines)
+    return has_marker and has_method
 
 
 def completed_active_changes(root: Path) -> list[str]:
