@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import uuid
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from _platform_common import (
@@ -11,9 +12,13 @@ from _platform_common import (
     locked_json,
     machine_path,
     main_root,
+    read_platform_config,
     run_git,
     utc_now,
 )
+
+
+DEFAULT_STALE_HOURS = 72
 
 
 def board_path() -> Path:
@@ -25,14 +30,52 @@ def _branch_exists(branch: str, root: Path) -> bool:
     return result.returncode == 0
 
 
-def _status(item: dict, root: Path) -> list[str]:
+def _heartbeat_is_stale(raw: str | None, stale_hours: int) -> bool:
+    if not raw:
+        return True
+    try:
+        value = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+    except ValueError:
+        return True
+    return value < datetime.now(timezone.utc) - timedelta(hours=stale_hours)
+
+
+def _checked_out_branch(worktree: Path) -> str | None:
+    result = run_git(["branch", "--show-current"], cwd=worktree, check=False)
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip() or None
+
+
+def _worktree_clean(worktree: Path) -> bool:
+    result = run_git(["status", "--porcelain", "--untracked-files=normal"], cwd=worktree, check=False)
+    return result.returncode == 0 and not result.stdout.strip()
+
+
+def _merged_into(root: Path, branch: str, main_branch: str) -> bool:
+    result = run_git(["merge-base", "--is-ancestor", f"refs/heads/{branch}", f"refs/heads/{main_branch}"], cwd=root, check=False)
+    return result.returncode == 0
+
+
+def _status(item: dict, root: Path, *, main_branch: str, stale_hours: int) -> list[str]:
     problems: list[str] = []
-    worktree = Path(item.get("worktree", ""))
-    if not worktree.exists():
+    raw_worktree = item.get("worktree", "")
+    worktree = Path(raw_worktree).expanduser().resolve() if raw_worktree else None
+    branch = str(item.get("branch", ""))
+    if worktree is None or not worktree.exists():
         problems.append("worktree-missing")
-    branch = item.get("branch", "")
-    if branch and not _branch_exists(branch, root):
+    elif branch:
+        actual = _checked_out_branch(worktree)
+        if actual != branch:
+            problems.append("branch-path-mismatch")
+    if not branch or not _branch_exists(branch, root):
         problems.append("branch-missing")
+    elif branch != main_branch and _merged_into(root, branch, main_branch):
+        problems.append("merged-branch")
+    if _heartbeat_is_stale(item.get("heartbeat"), stale_hours):
+        problems.append("stale-heartbeat")
     return problems
 
 
@@ -111,33 +154,48 @@ def cmd_finish(args: argparse.Namespace) -> int:
     return 0
 
 
+def _safe_to_remove(item: dict, problems: list[str]) -> bool:
+    if "worktree-missing" in problems:
+        return True
+    if "merged-branch" not in problems:
+        return False
+    raw = item.get("worktree")
+    if not raw:
+        return True
+    path = Path(raw).expanduser()
+    return path.exists() and _worktree_clean(path)
+
+
 def cmd_doctor(args: argparse.Namespace) -> int:
     root = main_root()
     path = board_path()
     if not path.exists():
         print("agent-board: ok (empty)")
         return 0
+    config = read_platform_config(root)
+    main_branch = str(config.get("main_branch", "main"))
 
     with locked_json(path) as data:
         items = data.setdefault("items", [])
         bad: list[tuple[dict, list[str]]] = []
         for item in items:
-            problems = _status(item, root)
+            problems = _status(item, root, main_branch=main_branch, stale_hours=args.stale_hours)
             if problems:
                 bad.append((item, problems))
 
         if args.fix and bad:
-            removable = {item["id"] for item, problems in bad if "worktree-missing" in problems}
+            removable = {item["id"] for item, problems in bad if _safe_to_remove(item, problems)}
             items[:] = [item for item in items if item.get("id") not in removable]
             if removable:
-                print("Removed stale entries:", ", ".join(sorted(removable)))
+                print("Removed safely stale entries:", ", ".join(sorted(removable)))
+            bad = [(item, problems) for item, problems in bad if item.get("id") not in removable]
 
     if not bad:
         print("agent-board: ok")
         return 0
     for item, problems in bad:
         print(f"{item.get('id')}: {', '.join(problems)}")
-    return 1 if not args.fix else 0
+    return 1
 
 
 def find_id_for_current_worktree() -> str | None:
@@ -161,6 +219,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("doctor")
     p.add_argument("--fix", action="store_true")
+    p.add_argument("--stale-hours", type=int, default=DEFAULT_STALE_HOURS)
     p.set_defaults(func=cmd_doctor)
 
     p = sub.add_parser("start")
