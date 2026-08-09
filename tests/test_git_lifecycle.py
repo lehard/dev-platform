@@ -31,7 +31,7 @@ class GitLifecycleTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory(); self.base = Path(self.tmp.name); self.remote = self.base / "remote.git"
         run("git", "init", "--bare", str(self.remote), cwd=self.base)
         self.seed = self.base / "seed"; run("git", "init", "-b", "main", str(self.seed), cwd=self.base); configure(self.seed)
-        (self.seed / "README.md").write_text("seed\n", encoding="utf-8"); install_scripts(self.seed); (self.seed / ".gitignore").write_text("__pycache__/\n*.py[cod]\n", encoding="utf-8")
+        (self.seed / "README.md").write_text("seed\n", encoding="utf-8"); install_scripts(self.seed); (self.seed / ".gitignore").write_text(".claude/\n__pycache__/\n*.py[cod]\n", encoding="utf-8")
         git("add", ".", cwd=self.seed); git("commit", "-m", "seed platform", cwd=self.seed); git("remote", "add", "origin", str(self.remote), cwd=self.seed); git("push", "-u", "origin", "main", cwd=self.seed)
         run("git", "--git-dir", str(self.remote), "symbolic-ref", "HEAD", "refs/heads/main", cwd=self.base)
         self.repo = self.base / "repo"; run("git", "clone", str(self.remote), str(self.repo), cwd=self.base); configure(self.repo)
