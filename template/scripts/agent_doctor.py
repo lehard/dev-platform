@@ -106,6 +106,34 @@ def run_multi_agent_hygiene(integration: Path) -> None:
         report("warn", f"{eligible} old merged worktree(s) are safe cleanup candidates; use scripts/worktree_cleanup.py cleanup")
 
 
+def run_friction_review_status(integration: Path) -> None:
+    result = subprocess.run(
+        ["python3", str(integration / "scripts" / "agent_friction.py"), "pending", "--min-events", "5", "--format", "json"],
+        cwd=integration,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        report("warn", "friction review status could not be read: " + (result.stderr.strip() or result.stdout.strip() or f"exit {result.returncode}"))
+        return
+    try:
+        payload = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        report("warn", "friction review status returned unreadable output")
+        return
+    pending = int(payload.get("pending_count", 0))
+    if payload.get("ready"):
+        report(
+            "warn",
+            f"agent friction review is ready ({pending} pending; reason={payload.get('reason')}); review with `python3 scripts/agent_friction.py pending --format markdown`",
+        )
+    elif pending:
+        report("ok", f"agent friction review not ready yet ({pending}/5 pending events)")
+    else:
+        report("ok", "no unreviewed agent friction events")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Check whether an agent can safely start or finish work against current GitHub state.")
     parser.add_argument("--no-fetch", action="store_true")
@@ -175,6 +203,8 @@ def main() -> int:
         else:
             report("ok", "integration copy is clean")
         run_multi_agent_hygiene(integration)
+    if harness == "platform":
+        run_friction_review_status(integration)
     return 1 if failures else 0
 
 
