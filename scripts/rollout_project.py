@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -18,9 +19,16 @@ EXPECTED_SOURCES = {
 }
 
 
-def run(command: list[str], cwd: Path, *, capture: bool = False, check: bool = True) -> subprocess.CompletedProcess[str]:
+def run(
+    command: list[str],
+    cwd: Path,
+    *,
+    capture: bool = False,
+    check: bool = True,
+    env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
     print("+ " + " ".join(command), flush=True)
-    result = subprocess.run(command, cwd=cwd, text=True, capture_output=capture)
+    result = subprocess.run(command, cwd=cwd, text=True, capture_output=capture, env=env)
     if check and result.returncode != 0:
         if capture:
             if result.stdout:
@@ -99,6 +107,17 @@ def ensure_branch_absent(project_root: Path, branch: str) -> None:
         raise ValueError("could not inspect downstream rollout branch state")
 
 
+def private_source_git_env() -> dict[str, str]:
+    token = os.environ.get("DEV_PLATFORM_SOURCE_TOKEN", "").strip()
+    if not token:
+        raise ValueError("DEV_PLATFORM_SOURCE_TOKEN is required to fetch the private dev-platform Copier source")
+    env = os.environ.copy()
+    env["GIT_CONFIG_COUNT"] = "1"
+    env["GIT_CONFIG_KEY_0"] = f"url.https://x-access-token:{token}@github.com/.insteadOf"
+    env["GIT_CONFIG_VALUE_0"] = "https://github.com/"
+    return env
+
+
 def run_project_validation(project_root: Path, base_branch: str) -> None:
     rejects = find_reject_files(project_root)
     if rejects:
@@ -145,7 +164,11 @@ def apply_rollout(project_root: Path, repository: str, version: str, base_branch
     run(["git", "checkout", "-b", branch, f"origin/{base_branch}"], project_root)
     ensure_clean(project_root)
 
-    run(["copier", "update", "--trust", "--defaults", "--vcs-ref", version, "--conflict", "rej"], project_root)
+    run(
+        ["copier", "update", "--trust", "--defaults", "--vcs-ref", version, "--conflict", "rej"],
+        project_root,
+        env=private_source_git_env(),
+    )
 
     updated = load_answers(project_root)
     if updated["_commit"] != version:
