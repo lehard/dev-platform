@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import os
 import sys
 import tempfile
@@ -158,13 +159,18 @@ class RolloutWorkflowContractTests(unittest.TestCase):
         self.assertIn('version=$TAG', workflow)
 
     def test_rollout_helper_pins_exact_copier_ref_and_keeps_strict_diff_check(self) -> None:
+        source = inspect.getsource(rollout_project.copier_update_with_guarded_recopy)
+        self.assertIn('"update"', source)
+        self.assertIn('"recopy"', source)
+        self.assertEqual(source.count('"--vcs-ref"'), 2)
+        # Copier 9.17 exposes --conflict on update, but not on recopy.
+        self.assertEqual(source.count('"--conflict"'), 1)
+        self.assertEqual(source.count('"rej"'), 1)
         script = (ROOT / "scripts" / "rollout_project.py").read_text(encoding="utf-8")
-        self.assertIn('"--vcs-ref", version', script)
-        self.assertIn('"--conflict", "rej"', script)
         self.assertIn("normalize_copier_answers(project_root)", script)
         self.assertIn('["git", "diff", "--check", "--"]', script)
         self.assertIn("require_version_coherence", script)
-        self.assertNotIn("force", script.lower())
+        self.assertNotIn("--force", script.lower())
 
 
 if __name__ == "__main__":

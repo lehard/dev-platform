@@ -113,3 +113,7 @@ jobs:
       - name: Smoke-test mature project harness adoption
         if: matrix.profile == 'multi-agent'
         run: python3 tests/project_harness_adoption_smoke.py
+
+      - name: Smoke-test project-harness smart-update fallback
+        if: matrix.profile == 'multi-agent'
+        run: python3 tests/rollout_recopy_smoke.py

@@ -11,11 +11,18 @@ _skip_if_exists:
   - openspec/config.yaml
   - docs/engineering/project-rules.md
   - "{{ 'scripts/agent_board.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
+  - "{{ 'scripts/agent_doctor.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
   - "{{ 'scripts/agent_friction.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
+  - "{{ 'scripts/finish_task.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
   - "{{ 'scripts/merge_to_main.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
+  - "{{ 'scripts/project_publish.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
+  - "{{ 'scripts/project_sync.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
   - "{{ 'scripts/select_checks.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
+  - "{{ 'scripts/start_task.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
   - "{{ 'scripts/start_worktree.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
   - "{{ 'scripts/worktree_cleanup.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
+  - "{{ 'scripts/git_hooks/pre-commit' if harness_mode == 'project' else '.copier-managed-harness' }}"
+  - "{{ 'scripts/git_hooks/pre-merge-commit' if harness_mode == 'project' else '.copier-managed-harness' }}"
 _tasks:
   - command: ["{{ _copier_python }}", "scripts/platform_bootstrap.py"]
 
@@ -49,7 +56,7 @@ workflow_profile:
 
 harness_mode:
   type: str
-  help: Who owns the Git/worktree/test-coordination harness. Use project for mature repositories that already have a proven harness.
+  help: Who owns the Git/task/worktree/test-coordination harness. Use project for mature repositories that already have a proven repository-specific lifecycle.
   choices:
     - platform
     - project
