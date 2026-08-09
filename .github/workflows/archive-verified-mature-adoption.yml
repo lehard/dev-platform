@@ -35,6 +35,16 @@ jobs:
           test -f openspec/changes/support-mature-project-adoption/verification.md
           grep -qx 'OpenSpec-Verify: PASS' openspec/changes/support-mature-project-adoption/verification.md
           python3 template/scripts/openspec_lifecycle.py archive support-mature-project-adoption
+          python3 - <<'PY'
+          from pathlib import Path
+          for relative in (
+              "openspec/specs/platform-ci/spec.md",
+              "openspec/specs/platform-lifecycle/spec.md",
+              "openspec/specs/project-factory/spec.md",
+          ):
+              path = Path(relative)
+              path.write_text(path.read_text(encoding="utf-8").rstrip() + "\n", encoding="utf-8")
+          PY
           rm .github/workflows/archive-verified-mature-adoption.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
