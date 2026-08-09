@@ -2,7 +2,7 @@
 
 ## 1. Registry and rollout tooling
 
-- [x] 1.1 Add a dependency-light managed-project registry with explicit `managed`/`candidate` states.
+- [x] 1.1 Add a dependency-light managed-project registry with explicit `managed`/`candidate`/`excluded` states.
 - [x] 1.2 Add registry validation and rollout-matrix generation.
 - [x] 1.3 Add a per-project exact-version Copier rollout helper with fail-closed preflight/conflict checks.
 
@@ -26,5 +26,5 @@
 
 ## 5. Completion
 
-- [ ] 5.1 Perform semantic OpenSpec verification across completeness, correctness and coherence and record truthful PASS evidence only after findings are resolved.
+- [x] 5.1 Perform semantic OpenSpec verification across completeness, correctness and coherence and record truthful PASS evidence only after findings are resolved.
 - [ ] 5.2 Archive the change and confirm accepted rollout behavior is represented under `openspec/specs/` before publication.
