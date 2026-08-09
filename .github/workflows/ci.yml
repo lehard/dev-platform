@@ -61,12 +61,14 @@ jobs:
             --data project_slug="smoke-${{ matrix.profile }}" \
             --data project_description="Factory smoke test" \
             --data workflow_profile="${{ matrix.profile }}" \
+            --data harness_mode="platform" \
             --data publish_mode="${{ matrix.publish_mode }}" \
             --data platform_ci_ref="dab74494c9a6ad9a77d99e73bb36774a6d42350d" \
             . "$target"
           python3 -m compileall -q "$target/scripts"
           cd "$target"
           python3 scripts/platform_doctor.py
+          test -f .github/workflows/dev-platform.yml
           if grep -R "project-ci.yml@main" .github/workflows; then
             echo "Downstream CI must not track @main" >&2
             exit 1
@@ -74,3 +76,7 @@ jobs:
 
       - name: Smoke-test Copier upgrade path
         run: python3 tests/upgrade_smoke.py --profile "${{ matrix.profile }}" --publish-mode "${{ matrix.publish_mode }}"
+
+      - name: Smoke-test mature project harness adoption
+        if: matrix.profile == 'multi-agent'
+        run: python3 tests/project_harness_adoption_smoke.py
