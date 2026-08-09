@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import shutil
 import stat
 import subprocess
@@ -63,6 +64,46 @@ def ensure_git_hooks(root: Path) -> tuple[dict[str, str], int]:
         target.write_bytes(content)
         target.chmod(0o775)
     return results, failures
+
+
+def run_multi_agent_hygiene(integration: Path) -> None:
+    board = subprocess.run(
+        ["python3", str(integration / "scripts" / "agent_board.py"), "doctor", "--fix"],
+        cwd=integration,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    board_detail = (board.stdout + "\n" + board.stderr).strip()
+    if board.returncode == 0:
+        report("ok", board_detail or "agent board is healthy")
+    else:
+        report("warn", "agent board needs attention: " + (board_detail or f"exit {board.returncode}"))
+
+    cleanup = subprocess.run(
+        ["python3", str(integration / "scripts" / "worktree_cleanup.py"), "scan"],
+        cwd=integration,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if cleanup.returncode != 0:
+        report("warn", "worktree hygiene scan could not complete: " + (cleanup.stderr.strip() or cleanup.stdout.strip() or f"exit {cleanup.returncode}"))
+        return
+    try:
+        payload = json.loads(cleanup.stdout.strip().splitlines()[-1])
+    except (json.JSONDecodeError, IndexError):
+        report("warn", "worktree hygiene scan returned unreadable output")
+        return
+    pending = int(payload.get("pending", 0))
+    eligible = int(payload.get("eligible", 0))
+    pending_report = payload.get("pending_report")
+    if pending:
+        report("warn", f"{pending} inactive dirty/unmerged worktree(s) need attention; report: {pending_report}")
+    else:
+        report("ok", "no forgotten dirty/unmerged managed worktrees detected")
+    if eligible:
+        report("warn", f"{eligible} old merged worktree(s) are safe cleanup candidates; use scripts/worktree_cleanup.py cleanup")
 
 
 def main() -> int:
@@ -133,8 +174,7 @@ def main() -> int:
             failures += 1
         else:
             report("ok", "integration copy is clean")
-        board = integration / config.get("paths", {}).get("agent_board", ".claude/agents-board.json")
-        report("ok" if board.exists() else "warn", f"agent board: {board}")
+        run_multi_agent_hygiene(integration)
     return 1 if failures else 0
 
 

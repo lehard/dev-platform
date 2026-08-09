@@ -1,6 +1,6 @@
 # Repository Agent Rules
 
-This repository uses the shared workflow from `lehard/dev-platform` with `workflow_profile={{ workflow_profile }}` and `publish_mode={{ publish_mode }}`.
+This repository uses the shared workflow from `lehard/dev-platform` with `workflow_profile={{ workflow_profile }}`, `harness_mode={{ harness_mode }}` and `publish_mode={{ publish_mode }}`.
 
 ## Contract model — not a flat hierarchy
 
@@ -66,12 +66,17 @@ Each task uses a feature branch created from freshly synchronized `{{ main_branc
 
 Agents develop in isolated Git worktrees and register scope ownership in the machine-local agent board. The integration copy on `{{ main_branch }}` remains clean and acts only as the integration point.
 
+`agent_doctor.py` is the normal hygiene entrypoint: it diagnoses the board, safely removes board entries that are provably obsolete, scans managed worktrees, and refreshes `.claude/pending-worktrees.md`. Dirty or unmerged inactive work is surfaced rather than deleted. Old worktrees are cleanup candidates only when they are managed, clean, inactive, already merged and not used by a live process.
+
 Before manual worktree operations run:
 
 ```bash
-python3 scripts/agent_board.py doctor
+python3 scripts/agent_board.py doctor --fix
+python3 scripts/worktree_cleanup.py scan
 git worktree list
 ```
+
+If the pending-worktree report shows forgotten work in the same area, resolve that overlap before starting another worktree. Safe old merged worktrees can be removed with `python3 scripts/worktree_cleanup.py cleanup`; never manually delete another agent's dirty or unmerged tree.
 
 Do not use another agent's worktree or modify another active entry's scope without resolving the overlap.
 {% endif %}
