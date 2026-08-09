@@ -40,6 +40,7 @@ class TemplateContractTests(unittest.TestCase):
     def test_project_owned_files_are_preserved_after_initial_render(self) -> None:
         text = (ROOT / "copier.yml").read_text(encoding="utf-8")
         for relative in (
+            ".dev-platform.toml",
             "AGENTS.md",
             "README.md",
             "dev-platform/checks.toml",
