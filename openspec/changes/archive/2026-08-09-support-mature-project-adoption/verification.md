@@ -16,6 +16,7 @@ Verification-Method: semantic completeness/correctness/coherence review plus suc
 - One-command onboarding reports the derived workflow/harness/publish plan and reasons, leaves first-pass existing migrations review-only, and excludes them from managed promotion until the adoption PR is merged and onboarding is rerun.
 - Platform CI run 182 completed successfully across light, standard and multi-agent matrices, including unit tests, compile checks, registry validation, strict OpenSpec validation, factory rendering, Copier upgrade smoke, mature project-harness acceptance and guarded recopy smoke.
 - Documentation now explains automatic mature-harness detection, CI ownership boundaries, ambiguous collision behavior and the manual fallback.
+- The platform lifecycle helper archived the verified change as `2026-08-09-support-mature-project-adoption`, applied all three delta-spec sets to canonical specs, and the helper's post-archive strict validation reported 6 specs passed and 0 failed.
 
 ## Findings
 
