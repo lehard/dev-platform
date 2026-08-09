@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_REGISTRY = ROOT / "managed-projects.json"
 REPOSITORY_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 BRANCH_RE = re.compile(r"^[A-Za-z0-9._/-]+$")
-ALLOWED_STATES = {"managed", "candidate"}
+ALLOWED_STATES = {"managed", "candidate", "excluded"}
 
 
 def load_registry(path: Path = DEFAULT_REGISTRY) -> dict[str, Any]:
@@ -52,6 +52,8 @@ def validate_registry(data: dict[str, Any]) -> None:
             raise ValueError(f"{repository}: invalid default_branch")
         if note is not None and not isinstance(note, str):
             raise ValueError(f"{repository}: note must be a string")
+        if state == "excluded" and (not isinstance(note, str) or not note.strip()):
+            raise ValueError(f"{repository}: excluded entries must explain the exclusion in note")
 
 
 def managed_projects(data: dict[str, Any], repository: str | None = None) -> list[dict[str, str]]:
@@ -91,9 +93,11 @@ def main() -> int:
     try:
         data = load_registry(args.registry)
         if args.command == "validate":
-            managed = len(managed_projects(data))
-            candidates = sum(1 for item in data["projects"] if item["state"] == "candidate")
-            print(f"Managed project registry: OK ({managed} managed, {candidates} candidate)")
+            counts = {state: sum(1 for item in data["projects"] if item["state"] == state) for state in sorted(ALLOWED_STATES)}
+            print(
+                "Managed project registry: OK "
+                f"({counts['managed']} managed, {counts['candidate']} candidate, {counts['excluded']} excluded)"
+            )
             return 0
         if args.command == "matrix":
             payload = matrix_payload(data, args.repository)
