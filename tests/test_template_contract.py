@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class TemplateContractTests(unittest.TestCase):
     def test_required_template_files_exist(self) -> None:
-        required = ["copier.yml", "template/AGENTS.md.jinja", "template/CLAUDE.md.jinja", "template/.dev-platform.toml.jinja", "template/dev-platform/checks.toml", "template/.github/workflows/dev-platform.yml.jinja", "template/scripts/agent_board.py", "template/scripts/start_worktree.py", "template/scripts/start_task.py", "template/scripts/select_checks.py", "template/scripts/project_sync.py", "template/scripts/project_publish.py", "template/scripts/finish_task.py", "template/scripts/openspec_lifecycle.py", "template/scripts/merge_to_main.py", "template/scripts/agent_friction.py", "template/scripts/agent_doctor.py", "template/scripts/platform_bootstrap.py", "template/scripts/platform_doctor.py", "template/scripts/git_hooks/pre-commit", "template/scripts/git_hooks/pre-merge-commit"]
+        required = ["copier.yml", "template/AGENTS.md.jinja", "template/CLAUDE.md.jinja", "template/.dev-platform.toml.jinja", "template/dev-platform/checks.toml", "template/.github/workflows/dev-platform.yml.jinja", "template/scripts/agent_board.py", "template/scripts/start_worktree.py", "template/scripts/worktree_cleanup.py", "template/scripts/start_task.py", "template/scripts/select_checks.py", "template/scripts/project_sync.py", "template/scripts/project_publish.py", "template/scripts/finish_task.py", "template/scripts/openspec_lifecycle.py", "template/scripts/merge_to_main.py", "template/scripts/agent_friction.py", "template/scripts/agent_doctor.py", "template/scripts/platform_bootstrap.py", "template/scripts/platform_doctor.py", "template/scripts/git_hooks/pre-commit", "template/scripts/git_hooks/pre-merge-commit"]
         for relative in required:
             with self.subTest(relative=relative): self.assertTrue((ROOT / relative).exists(), relative)
 
@@ -71,6 +71,7 @@ class TemplateContractTests(unittest.TestCase):
         self.assertIn('harness_mode = "{{ harness_mode }}"', config)
         self.assertIn("platform_git_lifecycle", config)
         self.assertIn("main_merge_lock", config)
+        self.assertIn("pending_worktrees", config)
 
     def test_project_specific_required_files_are_configurable(self) -> None:
         config = (ROOT / "template" / ".dev-platform.toml.jinja").read_text(encoding="utf-8")
@@ -78,6 +79,7 @@ class TemplateContractTests(unittest.TestCase):
         self.assertIn("project_required_files = []", config)
         self.assertIn('config.get("project_required_files", [])', doctor)
         self.assertIn("REQUIRED_MULTI_AGENT_PLATFORM", doctor)
+        self.assertIn("scripts/worktree_cleanup.py", doctor)
 
     def test_no_silent_divergence_and_verify_are_in_agent_contract(self) -> None:
         text = (ROOT / "template" / "AGENTS.md.jinja").read_text(encoding="utf-8")
@@ -95,12 +97,16 @@ class TemplateContractTests(unittest.TestCase):
         self.assertIn("fetch_main(integration", text)
         self.assertIn("harness_mode=project", text)
 
-    def test_multi_agent_git_guards_are_platform_managed(self) -> None:
+    def test_multi_agent_git_guards_and_hygiene_are_platform_managed(self) -> None:
         doctor = (ROOT / "template" / "scripts" / "agent_doctor.py").read_text(encoding="utf-8")
+        cleanup = (ROOT / "template" / "scripts" / "worktree_cleanup.py").read_text(encoding="utf-8")
         pre_commit = (ROOT / "template" / "scripts" / "git_hooks" / "pre-commit").read_text(encoding="utf-8")
         pre_merge = (ROOT / "template" / "scripts" / "git_hooks" / "pre-merge-commit").read_text(encoding="utf-8")
         self.assertIn("ensure_git_hooks", doctor)
         self.assertIn("integration copy is dirty", doctor)
+        self.assertIn("run_multi_agent_hygiene", doctor)
+        self.assertIn("pending-worktrees.md", cleanup)
+        self.assertIn("candidate-no-longer-safe", cleanup)
         self.assertIn("DEV_PLATFORM_ALLOW_MAIN_COMMIT", pre_commit)
         self.assertIn("DEV_PLATFORM_ALLOW_MERGE_COMMIT", pre_merge)
 
