@@ -33,6 +33,32 @@ class TemplateContractTests(unittest.TestCase):
         self.assertNotIn("Reusable CI is pinned", agents)
         self.assertNotIn("Reusable CI is pinned", readme)
 
+    def test_downstream_platform_ci_derives_one_trigger_from_publish_mode_and_cancels_superseded_runs(self) -> None:
+        workflow = (ROOT / "template" / ".github" / "workflows" / "dev-platform.yml.jinja").read_text(encoding="utf-8")
+        self.assertIn("{% if publish_mode == 'pr' %}", workflow)
+        self.assertIn("pull_request:", workflow)
+        self.assertIn("push:", workflow)
+        self.assertIn("workflow_dispatch:", workflow)
+        self.assertIn('{% raw %}${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}{% endraw %}', workflow)
+        self.assertIn("cancel-in-progress: true", workflow)
+
+    def test_central_ci_runs_once_per_pr_and_keeps_all_profile_smokes(self) -> None:
+        ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        self.assertIn("pull_request:", ci)
+        self.assertIn("workflow_dispatch:", ci)
+        self.assertNotIn("\n  push:", ci)
+        self.assertNotIn("matrix:", ci)
+        self.assertIn("cancel-in-progress: true", ci)
+        for profile_and_mode in ("light:direct", "standard:pr", "multi-agent:pr"):
+            with self.subTest(profile_and_mode=profile_and_mode):
+                self.assertIn(profile_and_mode, ci)
+
+    def test_generated_guidance_keeps_local_checks_required_and_cloud_final(self) -> None:
+        readme = (ROOT / "template" / "README.md.jinja").read_text(encoding="utf-8")
+        workflow = (ROOT / "template" / "docs" / "engineering" / "agent-workflow.md").read_text(encoding="utf-8")
+        self.assertIn("Required selected and full checks run locally before publication", readme)
+        self.assertIn("Local-heavy, cloud-final verification", workflow)
+
     def test_profiles_publish_modes_and_harness_modes_are_declared(self) -> None:
         text = (ROOT / "copier.yml").read_text(encoding="utf-8")
         for value in ("light", "standard", "multi-agent", "publish_mode", "harness_mode", "platform", "project", "platform_ci_ref"): self.assertIn(value, text)
@@ -127,7 +153,13 @@ class TemplateContractTests(unittest.TestCase):
         ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"); self.assertIn("tests/upgrade_smoke.py", ci); self.assertIn("fetch-depth: 0", ci)
 
     def test_version_release_workflow_is_guarded(self) -> None:
-        workflow = (ROOT / ".github" / "workflows" / "publish-version.yml").read_text(encoding="utf-8"); self.assertIn("paths:\n      - VERSION", workflow); self.assertIn("Refusing to move existing tag", workflow); self.assertIn('tag="v$version"', workflow)
+        workflow = (ROOT / ".github" / "workflows" / "publish-version.yml").read_text(encoding="utf-8")
+        rollout = (ROOT / ".github" / "workflows" / "rollout.yml").read_text(encoding="utf-8")
+        self.assertIn("paths:\n      - VERSION", workflow)
+        self.assertIn("Refusing to move existing tag", workflow)
+        self.assertIn('tag="v$version"', workflow)
+        self.assertNotIn("cancel-in-progress: true", workflow)
+        self.assertNotIn("cancel-in-progress: true", rollout)
 
 
 if __name__ == "__main__": unittest.main()

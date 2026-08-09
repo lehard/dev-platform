@@ -61,6 +61,10 @@ python3 scripts/platform_doctor.py
 
 `managed-projects.json` is the explicit project inventory and rollout allowlist. A successful stable platform release dispatches `.github/workflows/rollout.yml`, which performs an exact-version Copier update for `managed` entries, runs project validation, pushes a deterministic automation branch and opens a downstream PR. Ordinary platform upgrades do **not** auto-merge.
 
+## CI cost contract
+
+Platform verification remains required locally before publication. Generated Dev Platform CI provides one automatic clean-environment validation path for the repository's publish mode (`pull_request` for PR publishing, `main` push for direct publishing), plus manual dispatch; superseded validation runs are cancelled. Platform publication and managed rollout remain separate side-effect workflows and are never made cancel-in-progress.
+
 Registry states are deliberate:
 
 - `managed` — adopted and eligible for rollout;
