@@ -51,6 +51,17 @@ class OpenSpecLifecycleTests(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 lifecycle.require_ready(change)
 
+    def test_embedded_pass_text_is_not_a_receipt(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            change = self.make_change(
+                Path(tmp),
+                "done",
+                "- [x] one\n",
+                "Do not write OpenSpec-Verify: PASS unless verification succeeds.\nVerification-Method: equivalent-review\n",
+            )
+            with self.assertRaises(SystemExit):
+                lifecycle.require_ready(change)
+
     def test_archive_readiness_accepts_pass_and_method(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             change = self.make_change(
