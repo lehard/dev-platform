@@ -4,24 +4,27 @@
 
 For a non-trivial OpenSpec change, `done` means:
 
-`implementation -> project checks -> /opsx:verify -> verification receipt -> archive -> publication`
+`implementation -> project checks -> semantic OpenSpec verify -> verification receipt -> archive -> publication`
+
+Prefer `/opsx:verify` when the installed agent integration exposes it. OpenSpec itself permits an equivalent review of the change and diff when that tool-integrated workflow is unavailable. The platform therefore enforces the semantic result and recorded method rather than coupling completion to one chat command surface.
 
 The platform must prevent a completed task list from remaining active at publication time.
 
 ## Verification receipt
 
-`/opsx:verify` remains an agent workflow. After material findings are resolved, the agent records `openspec/changes/<change>/verification.md` containing the exact marker:
+After material findings are resolved, the agent records `openspec/changes/<change>/verification.md` containing:
 
-`OpenSpec-Verify: PASS`
+- `OpenSpec-Verify: PASS`
+- `Verification-Method: <method>`
 
-The receipt is intentionally simple and reviewable. Python does not pretend to reproduce semantic verification.
+The report must cover completeness, correctness and coherence and state what was actually checked. Python does not pretend to reproduce semantic verification; it only validates that an explicit review result and method were recorded.
 
 ## Lifecycle tool
 
 Add `scripts/openspec_lifecycle.py` with two operations:
 
 - `check`: scan active changes (excluding `archive/`). If a change has at least one task checkbox and all are checked, fail and require archive before publication. Incomplete changes are allowed.
-- `archive <change>`: require all tasks checked and the PASS receipt; run strict OpenSpec validation for the change; invoke `openspec archive <change> --yes`; then run strict global validation.
+- `archive <change>`: require all tasks checked plus the PASS receipt and method; run strict OpenSpec validation for the change; invoke `openspec archive <change> --yes`; then run strict global validation.
 
 The tool never edits planning artifacts to make them pass and never installs/upgrades OpenSpec.
 
@@ -31,7 +34,7 @@ The tool never edits planning artifacts to make them pass and never installs/upg
 
 ## CI/check integration
 
-Generated project checks run lifecycle hygiene for OpenSpec/process changes and full checks. This catches stale completed active changes even outside `finish_task.py`.
+Generated project checks run lifecycle hygiene for OpenSpec/process changes and full checks. This catches stale completed active changes even outside `finish_task.py`. `platform_doctor.py` also requires the lifecycle helper to be present in a healthy generated installation.
 
 ## Legacy reconciliation
 
