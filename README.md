@@ -45,11 +45,17 @@ copier update --trust
 python3 scripts/platform_doctor.py
 ```
 
-For centrally managed projects, `managed-projects.json` is the explicit allowlist. A successful stable platform release dispatches `.github/workflows/rollout.yml`, which performs an exact-version Copier update, runs project validation, pushes a deterministic automation branch and opens a downstream PR. It does **not** auto-merge.
+`managed-projects.json` is the explicit project inventory and rollout allowlist. A successful stable platform release dispatches `.github/workflows/rollout.yml`, which performs an exact-version Copier update for `managed` entries, runs project validation, pushes a deterministic automation branch and opens a downstream PR. It does **not** auto-merge.
 
-Repositories in registry state `candidate` are documentation only: they are never mutated until reviewed first-time adoption is complete and the registry state is explicitly promoted to `managed`.
+Registry states are deliberate:
 
-Cross-repository writes use a dedicated least-privilege GitHub App, not the source repository `GITHUB_TOKEN` or a shared PAT. See `docs/managed-rollout.md` for one-time setup and recovery.
+- `managed` — adopted and eligible for rollout;
+- `candidate` — active project awaiting reviewed adoption;
+- `excluded` — known repository intentionally outside Dev Platform adoption/rollout, with an explanation.
+
+Only `managed` can be mutated by rollout. `candidate` and `excluded` are non-mutating states, so repositories are not silently forgotten merely because they are not yet platform-managed.
+
+Cross-repository access uses a dedicated least-privilege GitHub App, not the source repository `GITHUB_TOKEN` or a shared PAT. Each job uses a read-only source token for private `dev-platform` and a separate target token for downstream Contents/Pull-request/Workflow writes. See `docs/managed-rollout.md` for one-time setup and recovery.
 
 Always review rollout diffs. The doctor blocks unresolved `*.rej` files and Git/Copier conflict markers. Platform CI also tests upgrades from the last stable platform tag while preserving project-owned content.
 
@@ -63,7 +69,7 @@ GitHub Actions used by the central and generated workflows are pinned to full co
 
 - `copier.yml` — template questions and update contract.
 - `template/` — files rendered into downstream projects.
-- `managed-projects.json` — explicit downstream rollout allowlist/status registry.
+- `managed-projects.json` — explicit downstream project inventory and rollout allowlist.
 - `scripts/managed_projects.py` — registry validation and rollout matrix generation.
 - `scripts/rollout_project.py` — exact-version downstream Copier rollout preparation.
 - `.github/workflows/project-ci.yml` — legacy central workflow compatibility where retained; generated projects use self-contained CI.
