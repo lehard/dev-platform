@@ -21,8 +21,8 @@ EXPECTED_SOURCES = {
 
 # Paths that a mature project may own while still receiving the additive
 # dev-platform lifecycle around them. These mirror the guarded collision points
-# in copier.yml. A recopy fallback is allowed only when every smart-update
-# conflict is confined to this surface.
+# in copier.yml. Platform common/bootstrap/doctor/OpenSpec lifecycle remain
+# platform-owned; repository-specific Git/task execution stays project-owned.
 PROJECT_OWNED_ROLLOUT_PATHS = {
     "AGENTS.md",
     "CLAUDE.md",
@@ -31,11 +31,18 @@ PROJECT_OWNED_ROLLOUT_PATHS = {
     "openspec/config.yaml",
     "docs/engineering/project-rules.md",
     "scripts/agent_board.py",
+    "scripts/agent_doctor.py",
     "scripts/agent_friction.py",
+    "scripts/finish_task.py",
     "scripts/merge_to_main.py",
+    "scripts/project_publish.py",
+    "scripts/project_sync.py",
     "scripts/select_checks.py",
+    "scripts/start_task.py",
     "scripts/start_worktree.py",
     "scripts/worktree_cleanup.py",
+    "scripts/git_hooks/pre-commit",
+    "scripts/git_hooks/pre-merge-commit",
 }
 
 
