@@ -50,8 +50,13 @@ jobs:
           if [ "$status" -ne 0 ]; then
             python3 - <<'PY'
           from pathlib import Path
-          tail = "\n".join(Path("/tmp/unit-tests.log").read_text(encoding="utf-8", errors="replace").splitlines()[-60:])
-          escaped = tail.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+          lines = Path("/tmp/unit-tests.log").read_text(encoding="utf-8", errors="replace").splitlines()
+          separators = [i for i, line in enumerate(lines) if line.startswith("====")]
+          start = separators[0] if separators else max(0, len(lines) - 25)
+          detail = "\n".join(lines[start:])
+          if len(detail) > 7000:
+              detail = detail[-7000:]
+          escaped = detail.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
           print(f"::error file=tests,title=Unit test failure::{escaped}")
           PY
             exit "$status"
