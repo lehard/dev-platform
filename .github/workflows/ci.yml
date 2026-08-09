@@ -78,7 +78,7 @@ jobs:
           {
             target="/tmp/dev-platform-${{ matrix.profile }}"
             rm -rf "$target"
-            copier copy --trust --defaults \
+            copier copy --trust --defaults --vcs-ref HEAD \
               --data project_name="Smoke ${{ matrix.profile }}" \
               --data project_slug="smoke-${{ matrix.profile }}" \
               --data project_description="Factory smoke test" \
