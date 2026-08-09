@@ -33,9 +33,9 @@
     },
     {
       "repository": "lehard/cuby",
-      "state": "candidate",
+      "state": "managed",
       "default_branch": "main",
-      "note": "Existing software project; reviewed Dev Platform adoption required before rollout."
+      "note": "Adopted on dev-platform v1.3.0; eligible for reviewed managed rollout."
     },
     {
       "repository": "lehard/Jara_kassy_detect",
