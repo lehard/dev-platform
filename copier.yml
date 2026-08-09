@@ -5,10 +5,17 @@ _templates_suffix: .jinja
 _skip_if_exists:
   - .dev-platform.toml
   - AGENTS.md
+  - CLAUDE.md
   - README.md
   - dev-platform/checks.toml
   - openspec/config.yaml
   - docs/engineering/project-rules.md
+  - "{{ 'scripts/agent_board.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
+  - "{{ 'scripts/agent_friction.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
+  - "{{ 'scripts/merge_to_main.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
+  - "{{ 'scripts/select_checks.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
+  - "{{ 'scripts/start_worktree.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
+  - "{{ 'scripts/worktree_cleanup.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
 _tasks:
   - command: ["{{ _copier_python }}", "scripts/platform_bootstrap.py"]
 
@@ -39,6 +46,14 @@ workflow_profile:
     - standard
     - multi-agent
   default: standard
+
+harness_mode:
+  type: str
+  help: Who owns the Git/worktree/test-coordination harness. Use project for mature repositories that already have a proven harness.
+  choices:
+    - platform
+    - project
+  default: platform
 
 publish_mode:
   type: str
