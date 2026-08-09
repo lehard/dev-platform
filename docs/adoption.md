@@ -45,7 +45,7 @@ After cloning an adopted project, the normal local preparation command is:
 python3 scripts/dev.py ready
 ```
 
-`ready` synchronizes the integration branch when it is safe to do so, restores/refreshes the configured OpenSpec integrations for Claude/Codex with the platform workflow set, and runs platform and agent doctors. OpenSpec-generated tool files remain machine-local/generated artifacts rather than platform-owned source.
+`ready` synchronizes the integration branch when it is safe to do so, restores/refreshes the configured OpenSpec integrations for Claude/Codex with the platform workflow set, and runs platform and agent doctors. OpenSpec-generated tool files remain machine-local/generated artifacts rather than platform-owned source. `ready` also records generated integration paths in the clone-local `.git/info/exclude`, so mature repositories do not need platform edits to their project-owned `.gitignore`.
 
 Agents should prefer this entrypoint over asking the human to remember `project_sync`, OpenSpec init/update, `platform_doctor` and `agent_doctor` separately.
 
@@ -82,7 +82,7 @@ Before accepting the result:
 
 The manual existing-repository path deliberately does **not** auto-run a potentially destructive OpenSpec migration. After reviewing the adoption diff, `python3 scripts/dev.py ready` is the normal local integration refresh.
 
-After the initial adoption is reviewed, the following generated defaults are treated as **project-owned** and preserved by later Copier updates: `AGENTS.md`, `README.md`, `dev-platform/checks.toml`, `openspec/config.yaml`, and `docs/engineering/project-rules.md`. Shared lifecycle scripts, shared workflow documentation and self-contained platform CI remain platform-managed.
+After the initial adoption is reviewed, the following generated defaults are treated as **project-owned** and preserved by later Copier updates: `.gitignore`, `AGENTS.md`, `README.md`, `dev-platform/checks.toml`, `openspec/config.yaml`, and `docs/engineering/project-rules.md`. Shared lifecycle scripts, shared workflow documentation and self-contained platform CI remain platform-managed.
 
 If the project needs additional compatibility helpers to be mandatory, declare repository-relative paths in `.dev-platform.toml` as `project_required_files = ["..."]` rather than customizing `scripts/platform_doctor.py`.
 

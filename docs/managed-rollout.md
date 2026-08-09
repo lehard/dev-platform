@@ -39,13 +39,16 @@ Copier creates the initial repository contract, but not every generated file rem
 
 The following files are **project-owned after initial creation** and are preserved on later Copier updates:
 
+- `.gitignore` — repository-specific generated/runtime/editor ignores; mature projects keep their existing rules;
 - `AGENTS.md` — project/root agent contract and any project-specific workflow additions;
 - `README.md` — product/repository documentation;
 - `dev-platform/checks.toml` — project-specific check selection and acceptance commands;
 - `openspec/config.yaml` — project/domain context and OpenSpec guidance;
 - `docs/engineering/project-rules.md` — project-specific engineering invariants.
 
-Shared executable lifecycle scripts, self-contained CI and shared workflow documentation remain platform-managed. If a project needs an extra file to be required by platform doctor, declare it in `.dev-platform.toml` as `project_required_files = ["path"]` instead of editing `scripts/platform_doctor.py`.
+Shared executable lifecycle scripts, self-contained CI and shared workflow documentation remain platform-managed. For mature `harness_mode=project` repositories, project-specific Git/task harness collision points listed in `copier.yml` are also preserved during guarded recopy. If a project needs an extra file to be required by platform doctor, declare it in `.dev-platform.toml` as `project_required_files = ["..."]` instead of editing `scripts/platform_doctor.py`.
+
+Generated agent integrations do not require platform edits to a mature project's `.gitignore`: `python3 scripts/dev.py ready` records those machine-local patterns in the clone's `.git/info/exclude`.
 
 After Copier renders or updates a stable release, `scripts/platform_bootstrap.py` synchronizes `.dev-platform.toml` `platform_version` from `.copier-answers.yml` `_commit`. Managed rollout and platform doctor both reject a stable-tag state where those two version records disagree.
 
@@ -118,7 +121,7 @@ GitHub Actions -> **Roll Out Platform** -> **Run workflow**.
 
 Inputs:
 
-- `version` — exact immutable published tag such as `v1.4.0`; empty uses current `VERSION`;
+- `version` — exact immutable published tag such as `v1.4.2`; empty uses current `VERSION`;
 - `repository` — optional exact `owner/name` to retry only one managed project.
 
 A `candidate` or `excluded` repository is rejected by ordinary rollout even when manually specified; use **Adopt Project** for first-time onboarding/reclassification.

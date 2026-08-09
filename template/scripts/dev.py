@@ -9,6 +9,7 @@ import tempfile
 from pathlib import Path
 
 ALL_OPENSPEC_WORKFLOWS = ["propose", "explore", "new", "continue", "apply", "ff", "sync", "archive", "bulk-archive", "verify", "onboard"]
+LOCAL_GENERATED_EXCLUDES = [".claude/", ".codex/skills/openspec-*/", "AGENTS.local.md"]
 
 
 def run(command: list[str], root: Path, *, env: dict[str, str] | None = None) -> None:
@@ -24,6 +25,27 @@ def load_config(root: Path) -> dict:
 
 def openspec_profile() -> dict[str, object]:
     return {"featureFlags": {}, "profile": "custom", "delivery": "both", "workflows": ALL_OPENSPEC_WORKFLOWS}
+
+
+def ensure_local_generated_excludes(root: Path) -> None:
+    git_dir_result = subprocess.run(
+        ["git", "rev-parse", "--git-dir"], cwd=root, text=True, capture_output=True, check=True
+    )
+    git_dir = Path(git_dir_result.stdout.strip())
+    if not git_dir.is_absolute():
+        git_dir = root / git_dir
+    exclude = git_dir / "info" / "exclude"
+    exclude.parent.mkdir(parents=True, exist_ok=True)
+    existing = exclude.read_text(encoding="utf-8") if exclude.exists() else ""
+    existing_lines = {line.strip() for line in existing.splitlines()}
+    missing = [pattern for pattern in LOCAL_GENERATED_EXCLUDES if pattern not in existing_lines]
+    if not missing:
+        return
+    prefix = "" if not existing or existing.endswith("\n") else "\n"
+    block = "# Dev Platform machine-local generated integrations\n" + "\n".join(missing) + "\n"
+    with exclude.open("a", encoding="utf-8") as fh:
+        fh.write(prefix + block)
+    print("Configured Git-local excludes for generated agent integrations.")
 
 
 def refresh_openspec(root: Path) -> None:
@@ -52,6 +74,7 @@ def maybe_sync_main(root: Path) -> None:
 def ready(root: Path) -> int:
     root = root.resolve()
     maybe_sync_main(root)
+    ensure_local_generated_excludes(root)
     refresh_openspec(root)
     run(["python3", "scripts/platform_doctor.py"], root)
     run(["python3", "scripts/agent_doctor.py"], root)
