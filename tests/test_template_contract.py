@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class TemplateContractTests(unittest.TestCase):
     def test_required_template_files_exist(self) -> None:
-        required = ["copier.yml", "template/AGENTS.md.jinja", "template/CLAUDE.md.jinja", "template/.dev-platform.toml.jinja", "template/dev-platform/checks.toml", "template/scripts/agent_board.py", "template/scripts/start_worktree.py", "template/scripts/start_task.py", "template/scripts/select_checks.py", "template/scripts/project_sync.py", "template/scripts/project_publish.py", "template/scripts/finish_task.py", "template/scripts/openspec_lifecycle.py", "template/scripts/merge_to_main.py", "template/scripts/agent_friction.py", "template/scripts/agent_doctor.py", "template/scripts/platform_bootstrap.py", "template/scripts/platform_doctor.py"]
+        required = ["copier.yml", "template/AGENTS.md.jinja", "template/CLAUDE.md.jinja", "template/.dev-platform.toml.jinja", "template/dev-platform/checks.toml", "template/.github/workflows/dev-platform.yml.jinja", "template/scripts/agent_board.py", "template/scripts/start_worktree.py", "template/scripts/start_task.py", "template/scripts/select_checks.py", "template/scripts/project_sync.py", "template/scripts/project_publish.py", "template/scripts/finish_task.py", "template/scripts/openspec_lifecycle.py", "template/scripts/merge_to_main.py", "template/scripts/agent_friction.py", "template/scripts/agent_doctor.py", "template/scripts/platform_bootstrap.py", "template/scripts/platform_doctor.py", "template/scripts/git_hooks/pre-commit", "template/scripts/git_hooks/pre-merge-commit"]
         for relative in required:
             with self.subTest(relative=relative): self.assertTrue((ROOT / relative).exists(), relative)
 
@@ -20,10 +20,11 @@ class TemplateContractTests(unittest.TestCase):
         text = (ROOT / "template" / "openspec" / "config.yaml.jinja").read_text(encoding="utf-8").lower()
         for term in ("p&l", "dds", "payroll", "cash canonical", "bank canonical"): self.assertNotIn(term, text)
 
-    def test_downstream_ci_is_self_contained_and_reviewed(self) -> None:
-        workflow = (ROOT / "template" / ".github" / "workflows" / "ci.yml.jinja").read_text(encoding="utf-8")
+    def test_downstream_platform_ci_is_self_contained_and_does_not_own_project_ci_name(self) -> None:
+        workflow = (ROOT / "template" / ".github" / "workflows" / "dev-platform.yml.jinja").read_text(encoding="utf-8")
         agents = (ROOT / "template" / "AGENTS.md.jinja").read_text(encoding="utf-8")
         readme = (ROOT / "template" / "README.md.jinja").read_text(encoding="utf-8")
+        self.assertFalse((ROOT / "template" / ".github" / "workflows" / "ci.yml.jinja").exists())
         self.assertNotIn("lehard/dev-platform/.github/workflows", workflow)
         self.assertIn("scripts/select_checks.py", workflow)
         self.assertIn("scripts/openspec_lifecycle.py check", workflow)
@@ -32,9 +33,9 @@ class TemplateContractTests(unittest.TestCase):
         self.assertNotIn("Reusable CI is pinned", agents)
         self.assertNotIn("Reusable CI is pinned", readme)
 
-    def test_profiles_and_publish_modes_are_declared(self) -> None:
+    def test_profiles_publish_modes_and_harness_modes_are_declared(self) -> None:
         text = (ROOT / "copier.yml").read_text(encoding="utf-8")
-        for value in ("light", "standard", "multi-agent", "publish_mode", "platform_ci_ref"): self.assertIn(value, text)
+        for value in ("light", "standard", "multi-agent", "publish_mode", "harness_mode", "platform", "project", "platform_ci_ref"): self.assertIn(value, text)
         self.assertIn("legacy", text.lower())
 
     def test_project_owned_files_are_preserved_after_initial_render(self) -> None:
@@ -42,6 +43,7 @@ class TemplateContractTests(unittest.TestCase):
         for relative in (
             ".dev-platform.toml",
             "AGENTS.md",
+            "CLAUDE.md",
             "README.md",
             "dev-platform/checks.toml",
             "openspec/config.yaml",
@@ -50,11 +52,32 @@ class TemplateContractTests(unittest.TestCase):
             with self.subTest(relative=relative):
                 self.assertIn(f"  - {relative}", text)
 
+    def test_project_harness_can_preserve_mature_collision_points(self) -> None:
+        text = (ROOT / "copier.yml").read_text(encoding="utf-8")
+        for relative in (
+            "scripts/agent_board.py",
+            "scripts/agent_friction.py",
+            "scripts/merge_to_main.py",
+            "scripts/select_checks.py",
+            "scripts/start_worktree.py",
+            "scripts/worktree_cleanup.py",
+        ):
+            with self.subTest(relative=relative):
+                self.assertIn(relative, text)
+                self.assertIn("harness_mode == 'project'", text)
+
+    def test_harness_ownership_is_recorded_in_project_config(self) -> None:
+        config = (ROOT / "template" / ".dev-platform.toml.jinja").read_text(encoding="utf-8")
+        self.assertIn('harness_mode = "{{ harness_mode }}"', config)
+        self.assertIn("platform_git_lifecycle", config)
+        self.assertIn("main_merge_lock", config)
+
     def test_project_specific_required_files_are_configurable(self) -> None:
         config = (ROOT / "template" / ".dev-platform.toml.jinja").read_text(encoding="utf-8")
         doctor = (ROOT / "template" / "scripts" / "platform_doctor.py").read_text(encoding="utf-8")
         self.assertIn("project_required_files = []", config)
         self.assertIn('config.get("project_required_files", [])', doctor)
+        self.assertIn("REQUIRED_MULTI_AGENT_PLATFORM", doctor)
 
     def test_no_silent_divergence_and_verify_are_in_agent_contract(self) -> None:
         text = (ROOT / "template" / "AGENTS.md.jinja").read_text(encoding="utf-8")
@@ -64,10 +87,22 @@ class TemplateContractTests(unittest.TestCase):
         self.assertIn("OpenSpec-Verify: PASS", text)
         self.assertIn("scripts/openspec_lifecycle.py archive", text)
 
-    def test_finish_task_has_openspec_hygiene_gate(self) -> None:
+    def test_finish_task_has_openspec_hygiene_and_serialized_direct_integration(self) -> None:
         text = (ROOT / "template" / "scripts" / "finish_task.py").read_text(encoding="utf-8")
         self.assertIn("run_openspec_hygiene(work)", text)
         self.assertIn('"openspec_lifecycle.py"', text)
+        self.assertIn("serialized_integration", text)
+        self.assertIn("fetch_main(integration", text)
+        self.assertIn("harness_mode=project", text)
+
+    def test_multi_agent_git_guards_are_platform_managed(self) -> None:
+        doctor = (ROOT / "template" / "scripts" / "agent_doctor.py").read_text(encoding="utf-8")
+        pre_commit = (ROOT / "template" / "scripts" / "git_hooks" / "pre-commit").read_text(encoding="utf-8")
+        pre_merge = (ROOT / "template" / "scripts" / "git_hooks" / "pre-merge-commit").read_text(encoding="utf-8")
+        self.assertIn("ensure_git_hooks", doctor)
+        self.assertIn("integration copy is dirty", doctor)
+        self.assertIn("DEV_PLATFORM_ALLOW_MAIN_COMMIT", pre_commit)
+        self.assertIn("DEV_PLATFORM_ALLOW_MERGE_COMMIT", pre_merge)
 
     def test_copier_version_is_explicitly_tested(self) -> None:
         copier = (ROOT / "copier.yml").read_text(encoding="utf-8")
