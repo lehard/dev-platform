@@ -10,7 +10,6 @@ _skip_if_exists:
   - dev-platform/checks.toml
   - openspec/config.yaml
   - docs/engineering/project-rules.md
-  - "{{ 'scripts/_platform_common.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
   - "{{ 'scripts/agent_board.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
   - "{{ 'scripts/agent_doctor.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
   - "{{ 'scripts/agent_friction.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
