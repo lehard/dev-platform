@@ -37,7 +37,7 @@ def read_platform_config(root: Path | None = None) -> dict[str, Any]:
     root = root or current_worktree_root()
     path = root / ".dev-platform.toml"
     if not path.exists():
-        return {"main_branch": "main", "workflow_profile": "standard", "publish_mode": "pr", "paths": {"worktrees": ".claude/worktrees", "agent_board": ".claude/agents-board.json", "friction_log": ".claude/agent-friction.jsonl", "checks": "dev-platform/checks.toml"}}
+        return {"main_branch": "main", "workflow_profile": "standard", "harness_mode": "platform", "publish_mode": "pr", "paths": {"worktrees": ".claude/worktrees", "agent_board": ".claude/agents-board.json", "friction_log": ".claude/agent-friction.jsonl", "checks": "dev-platform/checks.toml"}}
     import tomllib
     with path.open("rb") as fh:
         return tomllib.load(fh)
@@ -95,6 +95,10 @@ def require_origin(root: Path, remote: str = "origin") -> None:
 
 def profile(config: dict[str, Any]) -> str:
     return str(config.get("workflow_profile", "standard"))
+
+
+def harness_mode(config: dict[str, Any]) -> str:
+    return str(config.get("harness_mode", "platform"))
 
 
 def publish_mode(config: dict[str, Any]) -> str:
