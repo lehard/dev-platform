@@ -6,7 +6,7 @@ context: |
   Downstream compatibility and safe update behavior are first-class requirements.
   OpenSpec-generated tool skills are external generated artifacts and must not be vendored as platform-owned code.
   Current specs describe accepted behavior; an active change describes an approved delta to that behavior, not a lower-priority source.
-  A non-trivial platform change is complete only after platform checks, semantic /opsx:verify, recorded PASS evidence, archive, and publication.
+  A non-trivial platform change is complete only after platform checks, semantic OpenSpec verification, recorded PASS evidence and method, archive, and publication.
 
 rules:
   proposal:
@@ -34,6 +34,7 @@ operations:
     guidance:
       - Confirm durable platform behavior is represented in docs/template before archiving.
       - Ensure completed task checkboxes reflect validated implementation.
-      - For non-trivial changes, require project/platform checks plus /opsx:verify before archive; structural openspec validate alone is insufficient.
-      - After material verify findings are resolved, record `OpenSpec-Verify: PASS` in the active change verification.md.
+      - For non-trivial changes, require project/platform checks plus semantic OpenSpec verification before archive; structural openspec validate alone is insufficient.
+      - Prefer /opsx:verify when available; otherwise document the equivalent completeness/correctness/coherence review.
+      - After material findings are resolved, record `OpenSpec-Verify: PASS` and `Verification-Method: <method>` in the active change verification.md.
       - Archive central platform changes through `python3 template/scripts/openspec_lifecycle.py archive <change>` so completion requirements are mechanically checked.
