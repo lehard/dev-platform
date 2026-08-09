@@ -37,6 +37,24 @@ class TemplateContractTests(unittest.TestCase):
         for value in ("light", "standard", "multi-agent", "publish_mode", "platform_ci_ref"): self.assertIn(value, text)
         self.assertIn("legacy", text.lower())
 
+    def test_project_owned_files_are_preserved_after_initial_render(self) -> None:
+        text = (ROOT / "copier.yml").read_text(encoding="utf-8")
+        for relative in (
+            "AGENTS.md",
+            "README.md",
+            "dev-platform/checks.toml",
+            "openspec/config.yaml",
+            "docs/engineering/project-rules.md",
+        ):
+            with self.subTest(relative=relative):
+                self.assertIn(f"  - {relative}", text)
+
+    def test_project_specific_required_files_are_configurable(self) -> None:
+        config = (ROOT / "template" / ".dev-platform.toml.jinja").read_text(encoding="utf-8")
+        doctor = (ROOT / "template" / "scripts" / "platform_doctor.py").read_text(encoding="utf-8")
+        self.assertIn("project_required_files = []", config)
+        self.assertIn('config.get("project_required_files", [])', doctor)
+
     def test_no_silent_divergence_and_verify_are_in_agent_contract(self) -> None:
         text = (ROOT / "template" / "AGENTS.md.jinja").read_text(encoding="utf-8")
         lower = text.lower()
