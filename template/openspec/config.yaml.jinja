@@ -7,6 +7,7 @@ context: |
   OpenSpec is the planning contract for non-trivial product and architecture work.
   openspec/specs describes accepted current behavior; an active openspec/changes delta describes the approved change to that behavior.
   Reuse existing domain models, source-of-truth ownership, integrations and repository conventions unless a change explicitly replaces them.
+  A non-trivial OpenSpec change is complete only after project checks, semantic /opsx:verify, recorded PASS evidence, archive, and configured publication.
 
 rules:
   proposal:
@@ -26,9 +27,11 @@ operations:
     guidance:
       - Follow AGENTS.md for the configured workflow profile, GitHub synchronization, check selection and publication safety.
       - No silent divergence: update proposal/specs/design/tasks before knowingly implementing changed intent, behavior, technical approach or execution dependencies.
-      - Mark a task complete only after implementation and required verification.
+      - Mark a task complete only after implementation and required verification for that task.
   archive:
     guidance:
       - Preserve durable architecture/runbook information in docs/ when it is operational context rather than product behavior.
       - Confirm task checkboxes and verification reflect implemented state before archive.
       - For non-trivial changes, require project-specific checks/QA and /opsx:verify before archive.
+      - After material verify findings are resolved, record `OpenSpec-Verify: PASS` in the active change verification.md.
+      - Use `python3 scripts/openspec_lifecycle.py archive <change>` as the normal project archive entrypoint so completion requirements are mechanically checked.
