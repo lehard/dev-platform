@@ -166,7 +166,7 @@ jobs:
           python3 - <<'PY' >> "$GITHUB_OUTPUT"
           import json
           data = json.load(open('/tmp/adoption-result.json', encoding='utf-8'))
-          for key in ('status', 'kind', 'branch'):
+          for key in ('status', 'kind', 'branch', 'workflow_profile', 'harness_mode', 'publish_mode'):
               print(f"{key}={data.get(key, '')}")
           print("reasons=" + "; ".join(data.get('reasons', [])))
           PY
@@ -185,16 +185,21 @@ jobs:
           BASE_BRANCH: ${{ steps.target.outputs.base_branch }}
           BRANCH: ${{ steps.adopt.outputs.branch }}
           KIND: ${{ steps.adopt.outputs.kind }}
+          WORKFLOW_PROFILE: ${{ steps.adopt.outputs.workflow_profile }}
+          HARNESS_MODE: ${{ steps.adopt.outputs.harness_mode }}
+          PUBLISH_MODE: ${{ steps.adopt.outputs.publish_mode }}
           REASONS: ${{ steps.adopt.outputs.reasons }}
         shell: bash
         run: |
           set -euo pipefail
-          body="Dev Platform one-command onboarding to **$VERSION**.\n\nDetected repository kind: **$KIND**."
+          body="Dev Platform one-command onboarding to **$VERSION**.\n\nDetected repository kind: **$KIND**.\n\nDerived migration plan: **workflow=$WORKFLOW_PROFILE, harness=$HARNESS_MODE, publish=$PUBLISH_MODE**."
           if [[ -n "$REASONS" ]]; then body="$body\n\nDetector reasons: $REASONS"; fi
           if [[ "$KIND" == "fresh" ]]; then
             body="$body\n\nFresh fast path: platform doctor, OpenSpec lifecycle/strict validation and selected project checks passed. This PR will be merged automatically by onboarding."
+          elif [[ "$HARNESS_MODE" == "project" ]]; then
+            body="$body\n\nExisting-project cautious path: platform/OpenSpec migration hygiene passed. Product/application checks remain owned by the repository CI and are intentionally not executed by onboarding. This PR is left for review; after merge, run Adopt Project once more to promote the repository to managed automatically."
           else
-            body="$body\n\nExisting-project cautious path: this PR is intentionally left for review. After merge, run Adopt Project once more to promote the repository to managed automatically."
+            body="$body\n\nExisting-project cautious path: platform-managed selected checks and migration hygiene passed. This PR is intentionally left for review. After merge, run Adopt Project once more to promote the repository to managed automatically."
           fi
           url="$(gh pr create --repo "$REPOSITORY" --base "$BASE_BRANCH" --head "$BRANCH" --title "chore: adopt dev-platform $VERSION" --body "$body")"
           echo "url=$url" >> "$GITHUB_OUTPUT"
@@ -236,6 +241,10 @@ jobs:
           VERSION: ${{ steps.plan.outputs.version }}
           STATUS: ${{ steps.adopt.outputs.status }}
           KIND: ${{ steps.adopt.outputs.kind }}
+          WORKFLOW_PROFILE: ${{ steps.adopt.outputs.workflow_profile }}
+          HARNESS_MODE: ${{ steps.adopt.outputs.harness_mode }}
+          PUBLISH_MODE: ${{ steps.adopt.outputs.publish_mode }}
+          REASONS: ${{ steps.adopt.outputs.reasons }}
           PR_URL: ${{ steps.pr.outputs.url }}
         shell: bash
         run: |
@@ -244,7 +253,14 @@ jobs:
             echo "Repository: $REPOSITORY"
             echo "Version: $VERSION"
             echo "Detected kind: ${KIND:-unknown}"
+            if [[ -n "$WORKFLOW_PROFILE" || -n "$HARNESS_MODE" || -n "$PUBLISH_MODE" ]]; then
+              echo "Migration plan: workflow=${WORKFLOW_PROFILE:-unknown}, harness=${HARNESS_MODE:-unknown}, publish=${PUBLISH_MODE:-unknown}"
+            fi
+            if [[ -n "$REASONS" ]]; then echo "Reasons: $REASONS"; fi
             echo "Status: ${STATUS:-blocked}"
+            if [[ "$HARNESS_MODE" == "project" ]]; then
+              echo "Product/application validation is delegated to the repository-owned CI."
+            fi
             if [[ -n "$PR_URL" ]]; then echo "PR: $PR_URL"; fi
             if [[ "$KIND" == "existing" && "$STATUS" == "updated" ]]; then
               echo "Existing-project migration is waiting for PR review/merge. Rerun this workflow after merge to promote it to managed."

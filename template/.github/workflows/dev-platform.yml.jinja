@@ -24,11 +24,15 @@ jobs:
           node-version: "20.19.0"
           package-manager-cache: false
 
+      - name: Validate platform contract
+        run: python3 scripts/platform_doctor.py
+
       - name: Enforce OpenSpec lifecycle hygiene
         run: python3 scripts/openspec_lifecycle.py check
 
       - name: Strict-validate OpenSpec
         run: npx --yes @fission-ai/openspec@1.6.0 validate --all --strict --no-interactive
+{% if harness_mode == 'platform' %}
 
       - name: Run selected platform-managed checks
         if: github.event_name == 'pull_request'
@@ -37,3 +41,8 @@ jobs:
       - name: Run full platform-managed checks
         if: github.event_name != 'pull_request'
         run: python3 scripts/select_checks.py --full --execute
+{% else %}
+
+      - name: Project checks are repository-owned
+        run: echo "harness_mode=project; product/application checks are delegated to repository CI."
+{% endif %}

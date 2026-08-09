@@ -16,7 +16,7 @@ A non-trivial OpenSpec change is not complete while its fully checked task list 
 - `standard` — feature branches + GitHub sync/publish; default for most projects.
 - `multi-agent` — standard + isolated worktrees + machine-local agent board and scope ownership.
 
-Profiles are compositions of capabilities, not separate template forks.
+Profiles are compositions of capabilities, not separate template forks. `workflow_profile` describes the capabilities a repository uses; `harness_mode` independently records whether those lifecycle mechanics are implemented by Dev Platform (`platform`) or by a proven repository-specific harness (`project`). A mature multi-agent repository can therefore be `multi-agent + project` without being rewritten to the platform's board/worktree implementation.
 
 ### Publishing
 
@@ -30,8 +30,12 @@ The primary human interface is **GitHub Actions -> Adopt Project** with one requ
 The platform detects the repository state automatically:
 
 - `fresh` — new/nearly empty: apply the stable template, initialize full OpenSpec integrations, validate, auto-merge the auditable adoption PR, and promote the project to `managed`;
-- `existing` — mature/process-bearing: prepare a cautious reviewed migration PR and stop; after merge, rerun the same workflow to promote it to `managed`;
+- `existing` — process-bearing or otherwise non-trivial: derive a conservative migration plan, prepare a reviewed migration PR and stop; after merge, rerun the same workflow to promote it to `managed`;
 - `adopted` — platform metadata is already present: skip recopy and perform the managed promotion if needed.
+
+For an existing repository, repository state and lifecycle ownership are separate decisions. If deterministic lifecycle markers show a coherent repository-owned harness (for example project check selection plus merge/publish mechanics, or a mature board/worktree surface), onboarding selects `harness_mode=project` and preserves those files. Worktree isolation plus agent/scope coordination selects `workflow_profile=multi-agent`. The calculated plan and its evidence are written into the adoption result, PR and workflow summary. Ambiguous collisions fail closed before Copier mutation rather than being silently overwritten.
+
+With `harness_mode=project`, Dev Platform CI owns only platform/OpenSpec hygiene; the repository's existing dependency-aware CI remains authoritative for product/application checks. The platform does not require a project-owned `select_checks.py` to implement platform-only `--execute` or `--full` flags and does not install arbitrary product dependencies during generic onboarding.
 
 The only normal manual security gate is adding the target repository to the Dev Platform GitHub App installation when the App is restricted to selected repositories. See `docs/adoption.md`.
 
@@ -41,7 +45,7 @@ For a local clone of an adopted project, use:
 python3 scripts/dev.py ready
 ```
 
-This safely synchronizes the integration branch when applicable, refreshes the configured OpenSpec integrations with the platform workflow set, and runs platform/agent doctors.
+This safely synchronizes the integration branch when applicable, refreshes the configured OpenSpec integrations with the platform workflow set, and runs platform/agent doctors. In `harness_mode=project`, repository-owned lifecycle entrypoints remain authoritative.
 
 Direct Copier commands remain documented as a recovery/advanced fallback, not the normal onboarding UX.
 
@@ -78,7 +82,7 @@ GitHub Actions used by the central and generated workflows are pinned to full co
 - `copier.yml` — template questions and update contract.
 - `template/` — files rendered into downstream projects.
 - `managed-projects.json` — explicit downstream project inventory and rollout allowlist.
-- `scripts/adopt_project.py` — first-time fresh/existing detector and adoption preparation.
+- `scripts/adopt_project.py` — first-time repository classification plus mature-harness-aware adoption planning/preparation.
 - `scripts/managed_projects.py` — registry validation, explicit promotion and rollout matrix generation.
 - `scripts/rollout_project.py` — exact-version downstream Copier rollout preparation.
 - `.github/workflows/adopt-project.yml` — one-command first-time onboarding orchestration.

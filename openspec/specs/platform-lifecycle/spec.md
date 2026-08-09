@@ -3,9 +3,7 @@
 ## Purpose
 
 The platform lifecycle SHALL define safe, agent-driven task execution from synchronization through publication while preserving OpenSpec contract coherence and avoiding routine human Git hand-offs.
-
 ## Requirements
-
 ### Requirement: GitHub-aware task lifecycle
 
 The platform SHALL fetch and compare the configured remote integration branch before starting work and again immediately before publication. It SHALL abort rather than auto-resolve divergent histories and SHALL never force-push.
@@ -70,3 +68,20 @@ Platform friction SHALL remain local unless explicitly promoted. Promotion SHALL
 
 - **WHEN** an agent identifies a recurring platform-level problem and an authenticated promotion is explicitly requested
 - **THEN** only sanitized structured evidence is sent to the central platform inbox
+
+### Requirement: Workflow profile and harness ownership are composable
+
+The platform SHALL treat workflow profile and lifecycle implementation ownership as independent configuration dimensions. `multi-agent` SHALL describe required capabilities, while `harness_mode=project` SHALL allow a downstream repository to satisfy those capabilities through its own reviewed implementation.
+
+#### Scenario: Mature project provides its own multi-agent lifecycle
+
+- **GIVEN** `workflow_profile=multi-agent` and `harness_mode=project`
+- **WHEN** an agent starts or finishes work
+- **THEN** platform-owned start/finish wrappers SHALL direct the agent to the repository-owned lifecycle described by project rules instead of requiring platform worktree/board implementations
+- **AND** platform doctor SHALL validate only the project-required lifecycle files declared by the reviewed project contract plus common platform files
+
+#### Scenario: Platform provides multi-agent lifecycle
+
+- **GIVEN** `workflow_profile=multi-agent` and `harness_mode=platform`
+- **WHEN** platform doctor validates the repository
+- **THEN** the platform-managed worktree, board and Git-hook files remain mandatory

@@ -24,6 +24,33 @@ PROCESS_MARKERS = (
     "scripts/platform_doctor.py",
     "scripts/start_task.py",
 )
+PROJECT_HARNESS_MARKERS = (
+    "scripts/select_checks.py",
+    "scripts/merge_to_main.py",
+    "scripts/project_publish.py",
+    "scripts/start_task.py",
+    "scripts/finish_task.py",
+    "scripts/agent_board.py",
+    "scripts/start_worktree.py",
+    "scripts/worktree_cleanup.py",
+    "scripts/git_hooks/pre-commit",
+    "scripts/git_hooks/pre-merge-commit",
+)
+PROJECT_CHECK_MARKERS = {"scripts/select_checks.py"}
+PROJECT_INTEGRATION_MARKERS = {
+    "scripts/merge_to_main.py",
+    "scripts/project_publish.py",
+    "scripts/finish_task.py",
+}
+MULTI_AGENT_COORDINATION_MARKERS = {"scripts/agent_board.py"}
+MULTI_AGENT_WORKTREE_MARKERS = {"scripts/start_worktree.py", "scripts/worktree_cleanup.py"}
+PLATFORM_OWNED_COLLISION_MARKERS = (
+    ".github/workflows/dev-platform.yml",
+    "scripts/dev.py",
+    "scripts/platform_doctor.py",
+    "scripts/openspec_lifecycle.py",
+)
+PROJECT_GUIDANCE_MARKERS = ("docs/engineering/openspec-workflow.md",)
 CODE_SUFFIXES = {
     ".py", ".js", ".jsx", ".ts", ".tsx", ".java", ".kt", ".go", ".rs",
     ".rb", ".php", ".cs", ".cpp", ".c", ".h", ".swift", ".vue", ".svelte",
@@ -83,7 +110,8 @@ def classify_repository(root: Path) -> tuple[str, list[str]]:
     if (root / ".dev-platform.toml").exists() or (root / ".copier-answers.yml").exists():
         return "adopted", ["existing Dev Platform metadata"]
     reasons: list[str] = []
-    for marker in PROCESS_MARKERS:
+    markers = dict.fromkeys((*PROCESS_MARKERS, *PROJECT_HARNESS_MARKERS))
+    for marker in markers:
         if (root / marker).exists():
             reasons.append(f"process marker: {marker}")
     files = tracked_files(root)
@@ -96,11 +124,71 @@ def classify_repository(root: Path) -> tuple[str, list[str]]:
 
 
 def adoption_defaults(kind: str) -> dict[str, str]:
+    """Stable defaults retained for callers that do not have a repository tree."""
     if kind == "fresh":
         return {"workflow_profile": "standard", "harness_mode": "platform", "publish_mode": "direct"}
     if kind == "existing":
         return {"workflow_profile": "standard", "harness_mode": "platform", "publish_mode": "pr"}
     raise ValueError(f"unsupported adoption kind: {kind}")
+
+
+def existing_markers(root: Path, markers: tuple[str, ...] | set[str]) -> list[str]:
+    return sorted(relative for relative in markers if (root / relative).exists())
+
+
+def plan_adoption(root: Path, kind: str, kind_reasons: list[str] | None = None) -> dict[str, Any]:
+    root = root.resolve()
+    reasons = list(kind_reasons or [])
+    defaults = adoption_defaults("fresh" if kind == "fresh" else "existing")
+    plan: dict[str, Any] = {
+        "workflow_profile": defaults["workflow_profile"],
+        "harness_mode": defaults["harness_mode"],
+        "publish_mode": defaults["publish_mode"],
+        "reasons": reasons,
+        "blockers": [],
+        "project_required_files": [],
+    }
+    if kind != "existing":
+        return plan
+
+    platform_collisions = existing_markers(root, PLATFORM_OWNED_COLLISION_MARKERS)
+    if platform_collisions:
+        plan["blockers"].append(
+            "existing platform-owned path(s) without Dev Platform metadata: " + ", ".join(platform_collisions)
+        )
+
+    harness_markers = existing_markers(root, PROJECT_HARNESS_MARKERS)
+    check_markers = set(harness_markers) & PROJECT_CHECK_MARKERS
+    integration_markers = set(harness_markers) & PROJECT_INTEGRATION_MARKERS
+    coherent_project_harness = bool(check_markers and integration_markers) or len(harness_markers) >= 3
+
+    if coherent_project_harness:
+        plan["harness_mode"] = "project"
+        plan["publish_mode"] = "pr"
+        plan["project_required_files"] = harness_markers
+        plan["reasons"].append("coherent project-owned harness: " + ", ".join(harness_markers))
+        coordination = set(harness_markers) & MULTI_AGENT_COORDINATION_MARKERS
+        worktrees = set(harness_markers) & MULTI_AGENT_WORKTREE_MARKERS
+        if coordination and worktrees:
+            plan["workflow_profile"] = "multi-agent"
+            plan["reasons"].append(
+                "multi-agent coordination: " + ", ".join(sorted(coordination | worktrees))
+            )
+        else:
+            plan["workflow_profile"] = "standard"
+    elif harness_markers:
+        plan["blockers"].append(
+            "ambiguous lifecycle ownership; project has platform-colliding harness path(s) but no coherent project harness: "
+            + ", ".join(harness_markers)
+        )
+
+    if plan["harness_mode"] == "platform":
+        guidance = existing_markers(root, PROJECT_GUIDANCE_MARKERS)
+        if guidance:
+            plan["blockers"].append(
+                "project-owned engineering guidance collides with platform-managed guidance: " + ", ".join(guidance)
+            )
+    return plan
 
 
 def source_env() -> dict[str, str]:
@@ -121,10 +209,26 @@ def ensure_clean(root: Path) -> None:
 
 
 def reject_files(root: Path) -> list[str]:
-    return sorted(str(path.relative_to(root)) for path in root.rglob("*.rej") if not any(part in IGNORED_PARTS for part in path.relative_to(root).parts))
+    return sorted(
+        str(path.relative_to(root))
+        for path in root.rglob("*.rej")
+        if not any(part in IGNORED_PARTS for part in path.relative_to(root).parts)
+    )
 
 
-def validate_project(root: Path, base_branch: str) -> None:
+def configure_project_required_files(root: Path, required_files: list[str]) -> None:
+    if not required_files:
+        return
+    config_path = root / ".dev-platform.toml"
+    text = config_path.read_text(encoding="utf-8")
+    marker = "project_required_files = []"
+    if marker not in text:
+        raise ValueError("generated .dev-platform.toml does not expose project_required_files")
+    replacement = "project_required_files = " + json.dumps(sorted(set(required_files)), ensure_ascii=False)
+    config_path.write_text(text.replace(marker, replacement, 1), encoding="utf-8")
+
+
+def validate_project(root: Path, base_branch: str, harness_mode: str) -> None:
     rejects = reject_files(root)
     if rejects:
         raise ValueError("Copier left unresolved .rej files: " + ", ".join(rejects[:10]))
@@ -134,7 +238,12 @@ def validate_project(root: Path, base_branch: str) -> None:
     openspec = shutil.which("openspec")
     if openspec:
         run([openspec, "validate", "--all", "--strict", "--no-interactive"], root)
-    run(["python3", "scripts/select_checks.py", "--base", f"origin/{base_branch}", "--execute"], root)
+    if harness_mode == "platform":
+        run(["python3", "scripts/select_checks.py", "--base", f"origin/{base_branch}", "--execute"], root)
+    elif harness_mode == "project":
+        print("Project-owned harness detected; product/application checks are delegated to repository CI.")
+    else:
+        raise ValueError(f"unsupported harness_mode: {harness_mode}")
 
 
 def write_result(path: Path | None, payload: dict[str, Any]) -> None:
@@ -152,12 +261,27 @@ def adopt(root: Path, repository: str, version: str, base_branch: str, output: P
     if shutil.which("copier") is None:
         raise ValueError("Copier is not installed")
     ensure_clean(root)
-    kind, reasons = classify_repository(root)
+    kind, kind_reasons = classify_repository(root)
     branch = adoption_branch(version)
     if kind == "adopted":
-        write_result(output, {"status": "already_adopted", "repository": repository, "kind": kind, "branch": branch, "base_branch": base_branch})
+        write_result(
+            output,
+            {
+                "status": "already_adopted",
+                "repository": repository,
+                "kind": kind,
+                "reasons": kind_reasons,
+                "branch": branch,
+                "base_branch": base_branch,
+            },
+        )
         return 0
-    defaults = adoption_defaults(kind)
+
+    plan = plan_adoption(root, kind, kind_reasons)
+    blockers = list(plan.pop("blockers"))
+    if blockers:
+        raise ValueError("; ".join(blockers))
+
     run(["git", "fetch", "origin", base_branch], root)
     remote_probe = run(["git", "ls-remote", "--exit-code", "--heads", "origin", branch], root, capture=True, check=False)
     if remote_probe.returncode == 0 and remote_probe.stdout.strip():
@@ -172,12 +296,14 @@ def adopt(root: Path, repository: str, version: str, base_branch: str, output: P
     command = [
         "copier", "copy", "--trust", "--defaults", "--vcs-ref", version, "--conflict", "rej",
         "--data", f"project_name={repo_name}", "--data", f"project_slug={repo_name.lower().replace('_', '-')}",
-        "--data", "project_description=", "--data", f"workflow_profile={defaults['workflow_profile']}",
-        "--data", f"harness_mode={defaults['harness_mode']}", "--data", f"publish_mode={defaults['publish_mode']}",
+        "--data", "project_description=", "--data", f"workflow_profile={plan['workflow_profile']}",
+        "--data", f"harness_mode={plan['harness_mode']}", "--data", f"publish_mode={plan['publish_mode']}",
         "--data", f"platform_ci_ref={PLATFORM_CI_REF}", PLATFORM_SOURCE, ".",
     ]
     run(command, root, env=env)
-    validate_project(root, base_branch)
+    if plan["harness_mode"] == "project":
+        configure_project_required_files(root, list(plan["project_required_files"]))
+    validate_project(root, base_branch, str(plan["harness_mode"]))
     run(["git", "add", "-A"], root)
     staged = run(["git", "diff", "--cached", "--quiet"], root, check=False)
     if staged.returncode == 0:
@@ -185,7 +311,17 @@ def adopt(root: Path, repository: str, version: str, base_branch: str, output: P
     if staged.returncode != 1:
         raise ValueError("could not inspect staged adoption diff")
     run(["git", "commit", "-m", f"chore: adopt dev-platform {version}"], root)
-    write_result(output, {"status": "updated", "repository": repository, "kind": kind, "reasons": reasons, "branch": branch, "base_branch": base_branch, **defaults})
+    write_result(
+        output,
+        {
+            "status": "updated",
+            "repository": repository,
+            "kind": kind,
+            "branch": branch,
+            "base_branch": base_branch,
+            **plan,
+        },
+    )
     return 0
 
 
