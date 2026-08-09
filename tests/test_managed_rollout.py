@@ -20,7 +20,7 @@ class ManagedProjectRegistryTests(unittest.TestCase):
         data = managed_projects.load_registry(ROOT / "managed-projects.json")
         matrix = managed_projects.matrix_payload(data)
         repos = {item["repository"] for item in matrix["include"]}
-        self.assertEqual(repos, {"lehard/planner-agent-lab", "lehard/cuby"})
+        self.assertEqual(repos, {"lehard/planner-agent-lab", "lehard/cuby", "lehard/Jara_Fin"})
         self.assertEqual(len(data["projects"]), 13)
         self.assertEqual(sum(1 for item in data["projects"] if item["state"] == "excluded"), 3)
 

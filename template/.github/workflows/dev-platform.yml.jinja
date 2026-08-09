@@ -1,11 +1,10 @@
 name: Dev Platform
 
 on:
-{% if publish_mode == 'pr' %}
   pull_request:
     branches:
       - {{ main_branch }}
-{% else %}
+{% if publish_mode == 'direct' %}
   push:
     branches:
       - {{ main_branch }}

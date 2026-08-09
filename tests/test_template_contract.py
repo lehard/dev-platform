@@ -37,11 +37,12 @@ class TemplateContractTests(unittest.TestCase):
         self.assertNotIn("Reusable CI is pinned", agents)
         self.assertNotIn("Reusable CI is pinned", readme)
 
-    def test_downstream_platform_ci_derives_one_trigger_from_publish_mode_and_cancels_superseded_runs(self) -> None:
+    def test_downstream_platform_ci_preserves_required_pr_check_and_cancels_superseded_runs(self) -> None:
         workflow = (ROOT / "template" / ".github" / "workflows" / "dev-platform.yml.jinja").read_text(encoding="utf-8")
-        self.assertIn("{% if publish_mode == 'pr' %}", workflow)
-        self.assertIn("pull_request:", workflow)
+        self.assertIn("on:\n  pull_request:\n    branches:\n      - {{ main_branch }}", workflow)
+        self.assertIn("{% if publish_mode == 'direct' %}", workflow)
         self.assertIn("push:", workflow)
+        self.assertNotIn("{% if publish_mode == 'pr' %}", workflow)
         self.assertIn("workflow_dispatch:", workflow)
         self.assertIn('{% raw %}${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}{% endraw %}', workflow)
         self.assertIn("cancel-in-progress: true", workflow)
