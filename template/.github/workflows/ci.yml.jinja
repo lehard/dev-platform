@@ -19,8 +19,16 @@ jobs:
         with:
           python-version: "3.11"
 
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "20.19.0"
+          package-manager-cache: false
+
       - name: Enforce OpenSpec lifecycle hygiene
         run: python3 scripts/openspec_lifecycle.py check
+
+      - name: Strict-validate OpenSpec
+        run: npx --yes @fission-ai/openspec@1.6.0 validate --all --strict --no-interactive
 
       - name: Run selected platform-managed checks
         if: github.event_name == 'pull_request'
