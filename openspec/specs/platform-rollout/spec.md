@@ -3,9 +3,7 @@
 ## Purpose
 
 Platform rollout SHALL keep shared workflow releases and downstream upgrades reproducible, reviewable and recoverable across new and existing repositories.
-
 ## Requirements
-
 ### Requirement: Copier upgrades are tested, not assumed
 
 Before a platform release is published, CI SHALL exercise a real Copier update from the latest stable platform template or an explicit bootstrap baseline to the candidate template. The smoke project SHALL contain project-owned modifications before update and SHALL fail validation if those modifications are lost or unresolved conflicts remain.
@@ -196,3 +194,21 @@ Managed rollout SHALL normalize only `.copier-answers.yml` machine-owned trailin
 
 - **WHEN** the downstream update contains a whitespace error outside the explicit Copier metadata normalization
 - **THEN** strict `git diff --check` still blocks rollout before push or PR creation
+
+### Requirement: Managed rollout isolates historical Copier tasks
+
+Managed exact-version Copier update and guarded recopy SHALL skip embedded template tasks from historical source snapshots. After a conflict-free render, rollout SHALL execute the candidate version's platform bootstrap exactly once before project validation.
+
+#### Scenario: Historical template has an obsolete bootstrap task
+
+- **GIVEN** a managed project was created from an older platform release whose Copier task is incompatible with the available OpenSpec CLI
+- **WHEN** managed rollout updates it to a newer exact platform version
+- **THEN** historical Copier tasks are not executed
+- **AND** the newly rendered candidate bootstrap synchronizes platform-owned metadata before validation
+
+#### Scenario: Copier update has unresolved conflicts
+
+- **WHEN** exact-version Copier update leaves an unresolved rejection or otherwise fails
+- **THEN** rollout fails closed
+- **AND** it does not execute the candidate bootstrap or push a downstream branch
+

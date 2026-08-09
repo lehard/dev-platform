@@ -1,6 +1,6 @@
 # Platform CI Delta
 
-## MODIFIED Requirements
+## ADDED Requirements
 
 ### Requirement: Downstream platform CI uses one cloud validation path per publish path
 
