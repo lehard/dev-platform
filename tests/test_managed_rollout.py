@@ -15,11 +15,11 @@ import rollout_project  # noqa: E402
 
 
 class ManagedProjectRegistryTests(unittest.TestCase):
-    def test_real_registry_is_valid_comprehensive_and_has_one_pilot(self) -> None:
+    def test_real_registry_is_valid_comprehensive_and_has_expected_managed_projects(self) -> None:
         data = managed_projects.load_registry(ROOT / "managed-projects.json")
         matrix = managed_projects.matrix_payload(data)
         repos = {item["repository"] for item in matrix["include"]}
-        self.assertEqual(repos, {"lehard/planner-agent-lab"})
+        self.assertEqual(repos, {"lehard/planner-agent-lab", "lehard/cuby"})
         self.assertEqual(len(data["projects"]), 13)
         self.assertEqual(sum(1 for item in data["projects"] if item["state"] == "excluded"), 3)
 
@@ -135,12 +135,12 @@ class RolloutWorkflowContractTests(unittest.TestCase):
         self.assertIn("repositories: dev-platform", workflow)
         self.assertIn("permission-contents: read", workflow)
         self.assertIn("id: target-token", workflow)
-        self.assertIn("repositories: ${{ matrix.repo_name }}", workflow)
+        self.assertIn("repositories: $${{ matrix.repo_name }}", workflow)
         self.assertIn("permission-contents: write", workflow)
         self.assertIn("permission-pull-requests: write", workflow)
         self.assertIn("permission-workflows: write", workflow)
-        self.assertIn("DEV_PLATFORM_SOURCE_TOKEN: ${{ steps.source-token.outputs.token }}", workflow)
-        self.assertIn("token: ${{ steps.target-token.outputs.token }}", workflow)
+        self.assertIn("DEV_PLATFORM_SOURCE_TOKEN: $${{ steps.source-token.outputs.token }}", workflow)
+        self.assertIn("token: $${{ steps.target-token.outputs.token }}", workflow)
         self.assertIn("gh pr create", workflow)
         self.assertNotIn("gh pr merge", workflow)
         self.assertNotIn("--auto-merge", workflow)
