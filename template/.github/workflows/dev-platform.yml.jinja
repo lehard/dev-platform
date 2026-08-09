@@ -1,0 +1,39 @@
+name: Dev Platform
+
+on:
+  pull_request:
+  push:
+    branches:
+      - {{ main_branch }}
+  workflow_dispatch:
+
+jobs:
+  platform-ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.11"
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "20.19.0"
+          package-manager-cache: false
+
+      - name: Enforce OpenSpec lifecycle hygiene
+        run: python3 scripts/openspec_lifecycle.py check
+
+      - name: Strict-validate OpenSpec
+        run: npx --yes @fission-ai/openspec@1.6.0 validate --all --strict --no-interactive
+
+      - name: Run selected platform-managed checks
+        if: github.event_name == 'pull_request'
+        run: python3 scripts/select_checks.py --base "origin/{% raw %}${{ github.base_ref }}{% endraw %}" --execute
+
+      - name: Run full platform-managed checks
+        if: github.event_name != 'pull_request'
+        run: python3 scripts/select_checks.py --full --execute
