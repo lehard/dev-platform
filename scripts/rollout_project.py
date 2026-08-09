@@ -10,6 +10,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+PLATFORM_ROOT = Path(__file__).resolve().parents[1]
 SEMVER_TAG_RE = re.compile(r"^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
 ANSWER_RE = re.compile(r"^([A-Za-z0-9_]+):\s*(.*?)\s*$")
 EXPECTED_SOURCES = {
@@ -43,6 +44,15 @@ PROJECT_OWNED_ROLLOUT_PATHS = {
     "scripts/worktree_cleanup.py",
     "scripts/git_hooks/pre-commit",
     "scripts/git_hooks/pre-merge-commit",
+}
+
+# A very small migration-only allowlist for files that used to carry downstream
+# customization but have since been deliberately reclaimed by the platform.
+# They are NEVER treated as project-owned. A Copier conflict is eligible for the
+# guarded recopy path only when the downstream file already matches the exact
+# target template bytes before the smart update starts.
+RECLAIMED_PLATFORM_ROLLOUT_PATHS = {
+    "scripts/_platform_common.py",
 }
 
 
@@ -196,6 +206,31 @@ def path_fingerprint(path: Path) -> tuple[str, str]:
     return ("missing", "")
 
 
+def reclaimed_platform_path_matches_template(project_root: Path, relative: str) -> bool:
+    if relative not in RECLAIMED_PLATFORM_ROLLOUT_PATHS:
+        return False
+    project_path = project_root / relative
+    template_path = PLATFORM_ROOT / "template" / relative
+    project_fingerprint = path_fingerprint(project_path)
+    template_fingerprint = path_fingerprint(template_path)
+    return project_fingerprint[0] != "missing" and project_fingerprint == template_fingerprint
+
+
+def require_reclaimed_platform_paths_match_template(
+    project_root: Path, relatives: set[str]
+) -> None:
+    mismatched = sorted(
+        relative
+        for relative in relatives
+        if not reclaimed_platform_path_matches_template(project_root, relative)
+    )
+    if mismatched:
+        raise ValueError(
+            "reclaimed platform files no longer match the target template: "
+            + ", ".join(mismatched[:10])
+        )
+
+
 def snapshot_existing_project_owned(project_root: Path) -> dict[str, tuple[str, str]]:
     snapshot: dict[str, tuple[str, str]] = {}
     for relative in sorted(project_owned_paths(project_root)):
@@ -266,19 +301,24 @@ def copier_update_with_guarded_recopy(
     *,
     env: dict[str, str],
 ) -> str:
-    """Run smart update, falling back to recopy only for project-owned conflicts.
+    """Run smart update, falling back to recopy only for proven-safe conflicts.
 
     Copier's update algorithm replays the downstream diff from the old template
-    onto the new template. When an already-customized file changes ownership from
-    platform to project, that historic diff can conflict even though the new
-    template marks the path skip_if_exists. In that narrow case recopy is safe only
-    if every conflict is on a declared project-owned path and those paths are
-    proven byte-for-byte/symlink-identical afterwards.
+    onto the new template. When ownership changes, that historic diff can conflict
+    even though the current downstream tree is already correct. Recopy is allowed
+    only for a project-owned harness when every conflict is either a declared
+    project-owned path or a narrowly allowlisted reclaimed platform path that
+    already matched the exact target template before the smart update started.
     """
 
     mode = harness_mode(project_root)
     config_before = platform_config_contract(project_root)
     protected_before = snapshot_existing_project_owned(project_root)
+    reclaimed_before = {
+        relative
+        for relative in RECLAIMED_PLATFORM_ROLLOUT_PATHS
+        if reclaimed_platform_path_matches_template(project_root, relative)
+    }
 
     run(
         [
@@ -300,7 +340,8 @@ def copier_update_with_guarded_recopy(
 
     owned = project_owned_paths(project_root)
     conflict_targets = {reject_target(path) for path in rejects}
-    unexpected = sorted(conflict_targets - owned)
+    reclaimed_conflicts = conflict_targets & reclaimed_before
+    unexpected = sorted(conflict_targets - owned - reclaimed_conflicts)
     if mode != "project" or unexpected:
         detail = ", ".join(rejects[:10])
         if unexpected:
@@ -308,12 +349,13 @@ def copier_update_with_guarded_recopy(
         raise ValueError("Copier left unresolved .rej files: " + detail)
 
     print(
-        "Smart Copier update conflicted only on project-owned paths; "
-        "retrying with guarded recopy.",
+        "Smart Copier update conflicted only on protected project-owned paths "
+        "or already-reclaimed platform paths; retrying with guarded recopy.",
         flush=True,
     )
     reset_failed_copier_update(project_root)
     require_project_owned_snapshot(project_root, protected_before)
+    require_reclaimed_platform_paths_match_template(project_root, reclaimed_conflicts)
 
     # Copier 9.17 `recopy` has no --conflict switch. We use --overwrite so
     # platform-owned files can update non-interactively; template skip_if_exists
@@ -340,6 +382,7 @@ def copier_update_with_guarded_recopy(
             + ", ".join(recopy_rejects[:10])
         )
     require_project_owned_snapshot(project_root, protected_before)
+    require_reclaimed_platform_paths_match_template(project_root, reclaimed_conflicts)
     config_after = platform_config_contract(project_root)
     if config_after != config_before:
         raise ValueError(
