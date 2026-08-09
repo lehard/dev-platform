@@ -29,6 +29,7 @@ class GuardedRecopyTests(unittest.TestCase):
         for relative, content in {
             "AGENTS.md": "project agents\n",
             "scripts/start_task.py": "print('project start')\n",
+            "scripts/platform_bootstrap.py": "print('candidate bootstrap')\n",
             "scripts/project_helper.py": "print('helper')\n",
             "scripts/_platform_common.py": target_common,
             ".github/workflows/ci.yml": "name: Product CI\n",

@@ -20,6 +20,10 @@ class TemplateContractTests(unittest.TestCase):
         text = (ROOT / "template" / "openspec" / "config.yaml.jinja").read_text(encoding="utf-8").lower()
         for term in ("p&l", "dds", "payroll", "cash canonical", "bank canonical"): self.assertNotIn(term, text)
 
+    def test_root_openspec_receipt_guidance_is_yaml_safe(self) -> None:
+        config = (ROOT / "openspec" / "config.yaml").read_text(encoding="utf-8")
+        self.assertIn("'After material findings are resolved, record `OpenSpec-Verify: PASS`", config)
+
     def test_downstream_platform_ci_is_self_contained_and_does_not_own_project_ci_name(self) -> None:
         workflow = (ROOT / "template" / ".github" / "workflows" / "dev-platform.yml.jinja").read_text(encoding="utf-8")
         agents = (ROOT / "template" / "AGENTS.md.jinja").read_text(encoding="utf-8")
