@@ -23,10 +23,12 @@ def main() -> int:
             "AGENTS.md": "# mature project agent contract\n",
             "CLAUDE.md": "# mature project claude contract\n",
             ".gitignore": ".claude/agents-board.json\n.claude/skills/local-only/\nAGENTS.local.md\n",
+            "docs/engineering/openspec-workflow.md": "# mature project OpenSpec workflow\n",
+            "openspec/config.yaml": "schema: spec-driven\n",
             "scripts/agent_board.py": "# mature agent board\n",
             "scripts/agent_friction.py": "# mature friction loop\n",
             "scripts/merge_to_main.py": "# mature merge serializer\n",
-            "scripts/select_checks.py": "# mature check selector\n",
+            "scripts/select_checks.py": "# project selector intentionally has no --execute/--full contract\n",
             "scripts/start_worktree.py": "# mature worktree launcher\n",
             "scripts/worktree_cleanup.py": "# mature worktree cleanup\n",
             ".github/workflows/ci.yml": "name: Mature Project CI\n",
@@ -44,7 +46,7 @@ def main() -> int:
                 "--data", "project_description=Existing project harness adoption smoke",
                 "--data", "workflow_profile=multi-agent",
                 "--data", "harness_mode=project",
-                "--data", "publish_mode=direct",
+                "--data", "publish_mode=pr",
                 str(ROOT), str(target),
             ],
             ROOT,
@@ -58,6 +60,12 @@ def main() -> int:
         platform_workflow = target / ".github" / "workflows" / "dev-platform.yml"
         if not platform_workflow.is_file():
             raise SystemExit("Platform CI was not added under the non-colliding dev-platform.yml name")
+        workflow_text = platform_workflow.read_text(encoding="utf-8")
+        if "scripts/select_checks.py" in workflow_text:
+            raise SystemExit("Project-harness platform CI must not execute or depend on the project selector")
+        if "scripts/platform_doctor.py" not in workflow_text:
+            raise SystemExit("Project-harness platform CI must still validate the platform contract")
+
         config = (target / ".dev-platform.toml").read_text(encoding="utf-8")
         if 'harness_mode = "project"' not in config:
             raise SystemExit("Rendered project config did not record harness_mode=project")
