@@ -31,12 +31,18 @@ The bootstrap deliberately does **not** run `openspec init` automatically when a
 
 ## Upgrade
 
+For an ordinary manual upgrade:
+
 ```bash
 copier update --trust
 ```
 
 Perform upgrades in a dedicated worktree and review the diff. If there is a merge conflict, resolve ownership rather than automatically preferring template or project content.
 
-## One-time GitHub Actions sharing setting
+Once an adopted repository is intentionally promoted to `managed` in the central `managed-projects.json` registry, new stable platform releases are eligible for automatic exact-version Copier rollout PRs. The rollout system still stops at a PR; it does not auto-merge.
 
-`dev-platform` is private. In GitHub open **dev-platform -> Settings -> Actions -> General -> Access**, select **Accessible from repositories owned by `lehard` user**, and save. This allows other private repositories owned by the same account to call `.github/workflows/project-ci.yml`.
+## CI access
+
+Generated downstream CI has been self-contained since platform v1.0.1. A managed private project does **not** need GitHub Actions access to execute a reusable workflow from the private `dev-platform` repository. Platform CI changes arrive through reviewed Copier updates instead.
+
+The only cross-repository credential required for central automated rollout is the dedicated least-privilege Dev Platform GitHub App described in `docs/managed-rollout.md`.
