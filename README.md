@@ -31,13 +31,13 @@ Prerequisites: Git, Python 3.11+, Copier **9.17.0**, and preferably a platform-c
 copier copy --trust https://github.com/lehard/dev-platform.git ./my-project
 ```
 
-Copier uses stable Git version tags for template lifecycle. Once `v1.0.0` is published, normal project creation/update should use the latest stable tag unless an explicit `--vcs-ref` is supplied.
+Copier uses stable Git version tags for template lifecycle. Normal project creation/update uses stable tags unless an explicit `--vcs-ref` is supplied.
 
 For existing repositories, adoption remains a reviewed migration: never blindly overwrite local agent/OpenSpec/process files.
 
-## Update
+## Update and managed rollout
 
-From a clean project worktree:
+A manual project update remains available from a clean worktree:
 
 ```bash
 copier check-update
@@ -45,7 +45,19 @@ copier update --trust
 python3 scripts/platform_doctor.py
 ```
 
-Always review the resulting diff. The doctor blocks unresolved `*.rej` files and Git/Copier conflict markers. Platform CI also tests upgrades from the last stable platform tag while preserving project-owned content.
+`managed-projects.json` is the explicit project inventory and rollout allowlist. A successful stable platform release dispatches `.github/workflows/rollout.yml`, which performs an exact-version Copier update for `managed` entries, runs project validation, pushes a deterministic automation branch and opens a downstream PR. It does **not** auto-merge.
+
+Registry states are deliberate:
+
+- `managed` — adopted and eligible for rollout;
+- `candidate` — active project awaiting reviewed adoption;
+- `excluded` — known repository intentionally outside Dev Platform adoption/rollout, with an explanation.
+
+Only `managed` can be mutated by rollout. `candidate` and `excluded` are non-mutating states, so repositories are not silently forgotten merely because they are not yet platform-managed.
+
+Cross-repository access uses a dedicated least-privilege GitHub App, not the source repository `GITHUB_TOKEN` or a shared PAT. Each job uses a read-only source token for private `dev-platform` and a separate target token for downstream Contents/Pull-request/Workflow writes. See `docs/managed-rollout.md` for one-time setup and recovery.
+
+Always review rollout diffs. The doctor blocks unresolved `*.rej` files and Git/Copier conflict markers. Platform CI also tests upgrades from the last stable platform tag while preserving project-owned content.
 
 ## Release safety
 
@@ -57,14 +69,18 @@ GitHub Actions used by the central and generated workflows are pinned to full co
 
 - `copier.yml` — template questions and update contract.
 - `template/` — files rendered into downstream projects.
+- `managed-projects.json` — explicit downstream project inventory and rollout allowlist.
+- `scripts/managed_projects.py` — registry validation and rollout matrix generation.
+- `scripts/rollout_project.py` — exact-version downstream Copier rollout preparation.
 - `.github/workflows/project-ci.yml` — legacy central workflow compatibility where retained; generated projects use self-contained CI.
-- `.github/workflows/publish-version.yml` — creates SemVer tag/release when `VERSION` changes on `main`.
-- `docs/` — platform ownership, adoption, releases and promotion-loop documentation.
+- `.github/workflows/publish-version.yml` — creates SemVer tag/release when `VERSION` changes on `main`, then dispatches managed rollout.
+- `.github/workflows/rollout.yml` — creates reviewed exact-version update PRs for managed repositories.
+- `docs/` — platform ownership, adoption, releases, managed rollout and promotion-loop documentation.
 - `openspec/` — accepted platform specs, active changes and archive for this platform itself.
-- `tests/` — validation for new-project rendering, Git lifecycle and Copier upgrade behavior.
+- `tests/` — validation for new-project rendering, Git lifecycle, managed rollout and Copier upgrade behavior.
 
 ## Promotion loop
 
 `project friction -> classify project/platform -> deliberate sanitized promotion -> OpenSpec change in dev-platform -> platform release -> reviewed downstream upgrade`
 
-The next priority after rollout stabilization is real project adoption and observation, not adding more platform capabilities.
+First-time adoption and recurring rollout are deliberately separate: adoption is a project-specific reviewed migration; rollout becomes automated only after a project is explicitly marked `managed`.

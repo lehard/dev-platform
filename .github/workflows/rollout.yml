@@ -1,0 +1,228 @@
+name: Roll Out Platform
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact immutable platform tag (for example v1.2.0); empty uses VERSION
+        required: false
+        default: ""
+      repository:
+        description: Optional exact managed repository owner/name for retry
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.plan.outputs.version }}
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - name: Checkout platform
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.11"
+
+      - name: Validate published release and build rollout matrix
+        id: plan
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REQUESTED_VERSION: ${{ inputs.version }}
+          REQUESTED_REPOSITORY: ${{ inputs.repository }}
+        run: |
+          set -euo pipefail
+          python3 scripts/managed_projects.py validate
+          version="$REQUESTED_VERSION"
+          if [[ -z "$version" ]]; then
+            version="v$(tr -d '[:space:]' < VERSION)"
+          fi
+          if [[ ! "$version" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "Rollout version must be an exact stable tag vX.Y.Z; got: $version" >&2
+            exit 1
+          fi
+          immutable="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$version" --jq '.immutable // false' 2>/dev/null || true)"
+          if [[ "$immutable" != "true" ]]; then
+            echo "Rollout target must be an existing immutable published platform release; got: $version" >&2
+            exit 1
+          fi
+          if [[ -n "$REQUESTED_REPOSITORY" ]]; then
+            matrix="$(python3 scripts/managed_projects.py matrix --repository "$REQUESTED_REPOSITORY")"
+          else
+            matrix="$(python3 scripts/managed_projects.py matrix)"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+  rollout:
+    needs: plan
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    name: ${{ matrix.repository }} -> ${{ needs.plan.outputs.version }}
+    steps:
+      - name: Require rollout GitHub App configuration
+        shell: bash
+        env:
+          APP_CLIENT_ID: ${{ vars.DEV_PLATFORM_APP_CLIENT_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.DEV_PLATFORM_APP_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$APP_CLIENT_ID" || -z "$APP_PRIVATE_KEY" ]]; then
+            echo "Managed rollout GitHub App is not configured." >&2
+            echo "Set repository variable DEV_PLATFORM_APP_CLIENT_ID and secret DEV_PLATFORM_APP_PRIVATE_KEY; see docs/managed-rollout.md." >&2
+            exit 1
+          fi
+
+      - name: Create read-only platform source token
+        id: source-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          client-id: ${{ vars.DEV_PLATFORM_APP_CLIENT_ID }}
+          private-key: ${{ secrets.DEV_PLATFORM_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: dev-platform
+          permission-contents: read
+
+      - name: Create write-capable target token
+        id: target-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          client-id: ${{ vars.DEV_PLATFORM_APP_CLIENT_ID }}
+          private-key: ${{ secrets.DEV_PLATFORM_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ matrix.repo_name }}
+          permission-contents: write
+          permission-pull-requests: write
+          permission-workflows: write
+
+      - name: Checkout platform tooling
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          path: platform
+
+      - name: Checkout downstream project
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: ${{ matrix.repository }}
+          ref: ${{ matrix.default_branch }}
+          token: ${{ steps.target-token.outputs.token }}
+          path: target
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.11"
+
+      - name: Install tested Copier
+        run: python3 -m pip install "copier==9.17.0"
+
+      - name: Configure GitHub App commit identity
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.target-token.outputs.token }}
+          APP_SLUG: ${{ steps.target-token.outputs.app-slug }}
+        run: |
+          set -euo pipefail
+          bot_id="$(gh api "/users/${APP_SLUG}%5Bbot%5D" --jq .id)"
+          git -C target config user.name "${APP_SLUG}[bot]"
+          git -C target config user.email "${bot_id}+${APP_SLUG}[bot]@users.noreply.github.com"
+
+      - name: Detect already-pending rollout PR
+        id: pending
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.target-token.outputs.token }}
+          REPOSITORY: ${{ matrix.repository }}
+          VERSION: ${{ needs.plan.outputs.version }}
+        run: |
+          set -euo pipefail
+          branch="dev-platform/rollout-${VERSION}"
+          url="$(gh pr list --repo "$REPOSITORY" --state open --head "$branch" --json url --jq '.[0].url // ""')"
+          if [[ -n "$url" ]]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "url=$url" >> "$GITHUB_OUTPUT"
+            echo "Rollout already pending: $url"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Prepare exact-version Copier update
+        if: steps.pending.outputs.found != 'true'
+        id: prepare
+        shell: bash
+        env:
+          DEV_PLATFORM_SOURCE_TOKEN: ${{ steps.source-token.outputs.token }}
+          REPOSITORY: ${{ matrix.repository }}
+          VERSION: ${{ needs.plan.outputs.version }}
+          BASE_BRANCH: ${{ matrix.default_branch }}
+        run: |
+          set -euo pipefail
+          python3 platform/scripts/rollout_project.py \
+            --project-root target \
+            --repository "$REPOSITORY" \
+            --version "$VERSION" \
+            --base-branch "$BASE_BRANCH" \
+            --output /tmp/rollout-result.json
+          status="$(python3 -c 'import json; print(json.load(open("/tmp/rollout-result.json"))["status"])')"
+          branch="$(python3 -c 'import json; print(json.load(open("/tmp/rollout-result.json"))["branch"])')"
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+
+      - name: Push rollout branch
+        if: steps.pending.outputs.found != 'true' && steps.prepare.outputs.status == 'updated'
+        run: git -C target push origin HEAD
+
+      - name: Open reviewed rollout PR
+        if: steps.pending.outputs.found != 'true' && steps.prepare.outputs.status == 'updated'
+        id: pr
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.target-token.outputs.token }}
+          REPOSITORY: ${{ matrix.repository }}
+          VERSION: ${{ needs.plan.outputs.version }}
+          BASE_BRANCH: ${{ matrix.default_branch }}
+          BRANCH: ${{ steps.prepare.outputs.branch }}
+        run: |
+          set -euo pipefail
+          url="$(gh pr create \
+            --repo "$REPOSITORY" \
+            --base "$BASE_BRANCH" \
+            --head "$BRANCH" \
+            --title "chore: update dev-platform to $VERSION" \
+            --body "Automated reviewed Copier rollout from lehard/dev-platform to exact immutable release **$VERSION**.\n\nThe rollout bot ran platform doctor and selected project checks before pushing. This PR is intentionally **not auto-merged**; downstream CI/review remains the merge gate.")"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Opened rollout PR: $url"
+
+      - name: Summarize rollout
+        if: always()
+        shell: bash
+        env:
+          REPOSITORY: ${{ matrix.repository }}
+          VERSION: ${{ needs.plan.outputs.version }}
+          PENDING_URL: ${{ steps.pending.outputs.url }}
+          PR_URL: ${{ steps.pr.outputs.url }}
+          PREPARE_STATUS: ${{ steps.prepare.outputs.status }}
+        run: |
+          {
+            echo "### $REPOSITORY -> $VERSION"
+            if [[ -n "$PENDING_URL" ]]; then
+              echo "Already pending: $PENDING_URL"
+            elif [[ -n "$PR_URL" ]]; then
+              echo "Opened: $PR_URL"
+            elif [[ "$PREPARE_STATUS" == "up_to_date" ]]; then
+              echo "Already up to date."
+            else
+              echo "No rollout PR was produced; inspect this job for the blocking reason."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

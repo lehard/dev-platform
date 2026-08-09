@@ -44,12 +44,19 @@ The shared lifecycle is composable. `light`, `standard`, and `multi-agent` profi
 
 Downstream reusable CI must never reference `dev-platform@main`. It must use a versioned release ref (or immutable SHA). Release refs are append-only and must never be moved after publication. Platform upgrades reach projects through reviewed Copier update PRs.
 
+`managed-projects.json` is the explicit project inventory and cross-repository rollout allowlist. Automation must write only to entries whose state is `managed`. `candidate` means reviewed adoption is still expected; `excluded` records an intentional non-adoption decision. Both are non-mutating states. Do not silently omit a known project to avoid classifying it.
+
+Exact-version rollout must target an immutable published SemVer release, fail closed on conflicts/ownership ambiguity, never force-push, and never auto-merge by default.
+
+Cross-repository rollout credentials must come from the dedicated least-privilege GitHub App. Use separately down-scoped source-read and target-write tokens; target rollout needs Contents, Pull requests and Workflows write because platform updates can change `.github/workflows/*`. Never commit the App private key, installation token or a fallback personal access token.
+
 ## Validation
 
 At minimum:
 
 ```bash
-python3 -m compileall -q template/scripts
+python3 -m compileall -q template/scripts scripts
+python3 scripts/managed_projects.py validate
 python3 -m unittest discover -s tests -v
 python3 template/scripts/openspec_lifecycle.py check
 ```

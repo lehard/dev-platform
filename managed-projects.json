@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "projects": [
+    {
+      "repository": "lehard/planner-agent-lab",
+      "state": "managed",
+      "default_branch": "main",
+      "note": "Project Factory pilot; currently Copier-managed."
+    },
+    {
+      "repository": "lehard/Jara_Fin",
+      "state": "candidate",
+      "default_branch": "main",
+      "note": "Existing software project; reviewed Dev Platform adoption required before rollout."
+    },
+    {
+      "repository": "lehard/etsy",
+      "state": "candidate",
+      "default_branch": "main",
+      "note": "Existing software project; reviewed Dev Platform adoption required before rollout."
+    },
+    {
+      "repository": "lehard/VedAgent",
+      "state": "candidate",
+      "default_branch": "main",
+      "note": "Existing software project; reviewed Dev Platform adoption required before rollout."
+    },
+    {
+      "repository": "lehard/glav-ai",
+      "state": "candidate",
+      "default_branch": "main",
+      "note": "Existing software project; reviewed Dev Platform adoption required before rollout."
+    },
+    {
+      "repository": "lehard/cuby",
+      "state": "candidate",
+      "default_branch": "main",
+      "note": "Existing software project; reviewed Dev Platform adoption required before rollout."
+    },
+    {
+      "repository": "lehard/Jara_kassy_detect",
+      "state": "candidate",
+      "default_branch": "main",
+      "note": "Existing software project; reviewed Dev Platform adoption required before rollout."
+    },
+    {
+      "repository": "lehard/Sex_Universe",
+      "state": "candidate",
+      "default_branch": "main",
+      "note": "Existing software project; reviewed Dev Platform adoption required before rollout."
+    },
+    {
+      "repository": "lehard/design-os",
+      "state": "candidate",
+      "default_branch": "main",
+      "note": "Existing software/tooling project; reviewed Dev Platform adoption required before rollout."
+    },
+    {
+      "repository": "lehard/biz_community_bot",
+      "state": "candidate",
+      "default_branch": "main",
+      "note": "Existing software project; reviewed Dev Platform adoption required before rollout."
+    },
+    {
+      "repository": "lehard/lection",
+      "state": "excluded",
+      "default_branch": "main",
+      "note": "Course/content repository rather than a software delivery project; no Dev Platform adoption planned."
+    },
+    {
+      "repository": "lehard/CalmPlanningCircle",
+      "state": "excluded",
+      "default_branch": "main",
+      "note": "Empty placeholder repository; reclassify to candidate if active software development starts."
+    },
+    {
+      "repository": "lehard/The-Edge-of-Chaos",
+      "state": "excluded",
+      "default_branch": "main",
+      "note": "Empty placeholder repository; reclassify to candidate if active software development starts."
+    }
+  ]
+}
