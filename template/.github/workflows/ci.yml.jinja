@@ -19,6 +19,9 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Enforce OpenSpec lifecycle hygiene
+        run: python3 scripts/openspec_lifecycle.py check
+
       - name: Run selected platform-managed checks
         if: github.event_name == 'pull_request'
         run: python3 scripts/select_checks.py --base "origin/{% raw %}${{ github.base_ref }}{% endraw %}" --execute
