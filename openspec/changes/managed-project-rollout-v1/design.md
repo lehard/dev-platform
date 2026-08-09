@@ -28,10 +28,10 @@ Cross-repository access uses a dedicated GitHub App. The workflow references:
 - repository variable `DEV_PLATFORM_APP_CLIENT_ID`;
 - repository secret `DEV_PLATFORM_APP_PRIVATE_KEY`.
 
-The App is installed on the central `dev-platform` repository and on repositories intentionally eligible for platform management. It grants repository metadata/read, Contents read/write and Pull requests read/write at the installation level, but each rollout job creates two separately down-scoped short-lived tokens:
+The App is installed on the central `dev-platform` repository and on repositories intentionally eligible for platform management. Because platform-managed updates can include `.github/workflows/*`, the installation grants repository metadata/read plus Contents read/write, Pull requests read/write and Workflows read/write. Each rollout job then creates two separately down-scoped short-lived tokens:
 
 1. **source token** — scoped only to `dev-platform` with Contents **read** permission, used only so Copier can fetch the private template/version;
-2. **target token** — scoped only to the current managed downstream repository with Contents **write** and Pull requests **write**, used for checkout/push/PR operations.
+2. **target token** — scoped only to the current managed downstream repository with Contents **write**, Pull requests **write** and Workflows **write**, used for checkout/push/PR operations, including platform-managed GitHub Actions workflow changes.
 
 This separation prevents the write-capable target token from also having write access to the central source repository. The source token is passed to Copier only through process environment Git URL rewriting and is not printed or committed.
 
@@ -41,7 +41,7 @@ The GitHub-owned `actions/create-github-app-token` action is SHA-pinned. No PAT 
 
 `publish-version.yml` remains responsible for immutable tag/release creation. After successful publication it dispatches `rollout.yml` using `workflow_dispatch`, because GitHub deliberately suppresses most workflow chains caused by the repository `GITHUB_TOKEN`, while `workflow_dispatch` is explicitly allowed.
 
-The rollout workflow also exposes manual dispatch with an optional version/repository filter for retries. Before building a rollout matrix, it confirms that the requested tag is an actually published GitHub Release; syntactically valid but unpublished tags/versions are rejected.
+The rollout workflow also exposes manual dispatch with an optional version/repository filter for retries. Before building a rollout matrix, it confirms that the requested tag is an actually published immutable GitHub Release; syntactically valid but unpublished/non-immutable tags are rejected.
 
 ## Per-project algorithm
 
@@ -71,7 +71,7 @@ Automatic rollout does not perform first-time adoption. Existing repositories wi
 - Pure unit tests validate registry parsing/filtering, answers metadata parsing, version checks, deterministic branch naming and conflict scanning.
 - Platform CI validates the registry and compiles rollout tooling.
 - Existing Copier upgrade smoke remains the compatibility test for actual template updates.
-- Workflow contract tests assert SHA pinning, split source/target token scopes, no auto-merge, exact-version Copier invocation, published-release validation and release dispatch wiring.
+- Workflow contract tests assert SHA pinning, split source/target token scopes including workflow-write capability, no auto-merge, exact-version Copier invocation, published-release validation and release dispatch wiring.
 
 ## Rollback
 
