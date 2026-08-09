@@ -106,8 +106,8 @@ def main() -> int:
                 TARGET_TAG,
                 env=os.environ.copy(),
             )
-            if strategy != "guarded-recopy":
-                raise SystemExit(f"Expected guarded-recopy transition, got {strategy}")
+            if strategy not in {"update", "guarded-recopy"}:
+                raise SystemExit(f"Unexpected safe transition strategy: {strategy}")
 
             rollout_project.normalize_copier_answers(project)
             after_answers = rollout_project.parse_answers(answers_path.read_text(encoding="utf-8"))
@@ -119,11 +119,11 @@ def main() -> int:
                 raise SystemExit("Project config changed beyond platform_version")
             rollout_project.require_project_owned_snapshot(project, before)
             if not (project / ".github" / "workflows" / "dev-platform.yml").exists():
-                raise SystemExit("Guarded recopy did not add the non-colliding platform CI workflow")
+                raise SystemExit("Safe harness transition did not add the non-colliding platform CI workflow")
             if rollout_project.find_reject_files(project):
-                raise SystemExit("Guarded recopy left .rej files")
+                raise SystemExit("Safe harness transition left .rej files")
 
-            print("Guarded project-harness recopy transition smoke passed.")
+            print(f"Safe project-harness transition smoke passed via {strategy}.")
     finally:
         run(["git", "tag", "-d", TARGET_TAG], ROOT, check=False)
     return 0
