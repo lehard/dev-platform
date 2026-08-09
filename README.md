@@ -4,9 +4,11 @@
 
 ## Core model
 
-`doctor -> sync origin -> start -> OpenSpec -> implementation -> checks -> fetch origin again -> publish -> /opsx:verify -> archive`
+`doctor -> sync origin -> start -> OpenSpec -> implementation -> checks -> /opsx:verify -> archive -> fetch origin again -> publish`
 
-The human user should not be a routine Git courier after an agent finishes implementation.
+The human user should not be a routine Git courier or the person who remembers lifecycle cleanup after an agent finishes implementation.
+
+A non-trivial OpenSpec change is not complete while its fully checked task list is still active. Agents record successful semantic verification in `verification.md` with `OpenSpec-Verify: PASS`, archive through the platform lifecycle helper, commit the resulting specs/archive state, and only then publish. Generated `finish_task.py` and CI enforce the completed-but-active hygiene rule.
 
 ### Workflow profiles
 
@@ -47,18 +49,18 @@ Always review the resulting diff. The doctor blocks unresolved `*.rej` files and
 
 ## Release safety
 
-Downstream reusable CI is pinned to an exact `dev-platform` commit SHA. Platform template versions use stable SemVer Git tags. See `docs/release-policy.md`.
+Downstream platform-managed CI is self-contained in each generated repository and changes through reviewed Copier updates. Platform template versions use stable SemVer Git tags. See `docs/release-policy.md`.
 
-GitHub Actions used by the central workflows are pinned to full commit SHAs rather than mutable major tags.
+GitHub Actions used by the central and generated workflows are pinned to full commit SHAs rather than mutable major tags.
 
 ## Repository layout
 
 - `copier.yml` — template questions and update contract.
 - `template/` — files rendered into downstream projects.
-- `.github/workflows/project-ci.yml` — reusable CI called by downstream projects.
+- `.github/workflows/project-ci.yml` — legacy central workflow compatibility where retained; generated projects use self-contained CI.
 - `.github/workflows/publish-version.yml` — creates SemVer tag/release when `VERSION` changes on `main`.
 - `docs/` — platform ownership, adoption, releases and promotion-loop documentation.
-- `openspec/` — OpenSpec configuration and changes for this platform itself.
+- `openspec/` — accepted platform specs, active changes and archive for this platform itself.
 - `tests/` — validation for new-project rendering, Git lifecycle and Copier upgrade behavior.
 
 ## Promotion loop

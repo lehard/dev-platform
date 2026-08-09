@@ -24,15 +24,36 @@ If implementation reveals that the plan must change, update the relevant artifac
 
 Do not knowingly make code and OpenSpec disagree and plan to repair the docs later.
 
-## Verify before archive
+## Verify, archive, then publish
 
 For non-trivial changes:
 
-`plan review -> implementation -> project tests/QA -> /opsx:verify -> archive`
+`plan review -> implementation -> project tests/QA -> semantic OpenSpec verify -> verification receipt -> archive -> publish`
 
-`/opsx:verify` is semantic implementation review; `openspec validate` is structural validation. Neither replaces project-specific tests, E2E, browser/render QA, migrations or operational checks.
+Prefer `/opsx:verify` when the installed agent integration exposes it. If the current environment cannot invoke that workflow, OpenSpec allows the agent to re-read the change and implementation and perform the equivalent review. The equivalent review must cover the same three dimensions: **completeness, correctness, and coherence**.
 
-The expanded OpenSpec verify workflow must be enabled for the repository before a non-trivial change is archived. If it is absent, run `openspec config profile` to enable `verify`, then `openspec update` to regenerate tool integrations.
+Semantic verification and `openspec validate` are different. The former checks implementation against intent; the latter checks OpenSpec structure. Neither replaces project-specific tests, E2E, browser/render QA, migrations or operational checks.
+
+After material semantic findings are resolved, record the result in the active change's `verification.md` with:
+
+```text
+OpenSpec-Verify: PASS
+Verification-Method: <method actually used>
+```
+
+The report should state what was checked and any warnings/suggestions that remain.
+
+Then archive through the platform entrypoint:
+
+```bash
+python3 scripts/openspec_lifecycle.py archive <change>
+```
+
+The helper requires all tasks to be complete and the PASS receipt plus method, runs strict validation, invokes the OpenSpec CLI archive, and validates the resulting OpenSpec state. It does not emulate semantic verification and does not install or upgrade OpenSpec.
+
+`finish_task.py` and CI run lifecycle hygiene. If all task checkboxes in an active change are complete but the change is still active, publication is blocked. This turns “remember to archive” into a repository invariant rather than a human reminder.
+
+Where `/opsx:verify` is the selected method, the expanded OpenSpec verify workflow must be enabled for the repository (`openspec config profile`, then `openspec update`). `platform_doctor.py` detects whether that generated workflow is present, but absence is not a reason to skip semantic verification: use the documented equivalent review if the current agent surface cannot invoke it.
 
 ## OpenSpec version policy
 

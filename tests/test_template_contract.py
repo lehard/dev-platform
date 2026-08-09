@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class TemplateContractTests(unittest.TestCase):
     def test_required_template_files_exist(self) -> None:
-        required = ["copier.yml", "template/AGENTS.md.jinja", "template/CLAUDE.md.jinja", "template/.dev-platform.toml.jinja", "template/dev-platform/checks.toml", "template/scripts/agent_board.py", "template/scripts/start_worktree.py", "template/scripts/start_task.py", "template/scripts/select_checks.py", "template/scripts/project_sync.py", "template/scripts/project_publish.py", "template/scripts/finish_task.py", "template/scripts/merge_to_main.py", "template/scripts/agent_friction.py", "template/scripts/agent_doctor.py", "template/scripts/platform_bootstrap.py", "template/scripts/platform_doctor.py"]
+        required = ["copier.yml", "template/AGENTS.md.jinja", "template/CLAUDE.md.jinja", "template/.dev-platform.toml.jinja", "template/dev-platform/checks.toml", "template/scripts/agent_board.py", "template/scripts/start_worktree.py", "template/scripts/start_task.py", "template/scripts/select_checks.py", "template/scripts/project_sync.py", "template/scripts/project_publish.py", "template/scripts/finish_task.py", "template/scripts/openspec_lifecycle.py", "template/scripts/merge_to_main.py", "template/scripts/agent_friction.py", "template/scripts/agent_doctor.py", "template/scripts/platform_bootstrap.py", "template/scripts/platform_doctor.py"]
         for relative in required:
             with self.subTest(relative=relative): self.assertTrue((ROOT / relative).exists(), relative)
 
@@ -26,6 +26,7 @@ class TemplateContractTests(unittest.TestCase):
         readme = (ROOT / "template" / "README.md.jinja").read_text(encoding="utf-8")
         self.assertNotIn("lehard/dev-platform/.github/workflows", workflow)
         self.assertIn("scripts/select_checks.py", workflow)
+        self.assertIn("scripts/openspec_lifecycle.py check", workflow)
         self.assertIn("self-contained CI workflow", agents)
         self.assertIn("self-contained in this repository", readme)
         self.assertNotIn("Reusable CI is pinned", agents)
@@ -37,7 +38,17 @@ class TemplateContractTests(unittest.TestCase):
         self.assertIn("legacy", text.lower())
 
     def test_no_silent_divergence_and_verify_are_in_agent_contract(self) -> None:
-        text = (ROOT / "template" / "AGENTS.md.jinja").read_text(encoding="utf-8").lower(); self.assertIn("no silent divergence", text); self.assertIn("/opsx:verify", text)
+        text = (ROOT / "template" / "AGENTS.md.jinja").read_text(encoding="utf-8")
+        lower = text.lower()
+        self.assertIn("no silent divergence", lower)
+        self.assertIn("/opsx:verify", text)
+        self.assertIn("OpenSpec-Verify: PASS", text)
+        self.assertIn("scripts/openspec_lifecycle.py archive", text)
+
+    def test_finish_task_has_openspec_hygiene_gate(self) -> None:
+        text = (ROOT / "template" / "scripts" / "finish_task.py").read_text(encoding="utf-8")
+        self.assertIn("run_openspec_hygiene(work)", text)
+        self.assertIn('"openspec_lifecycle.py"', text)
 
     def test_copier_version_is_explicitly_tested(self) -> None:
         copier = (ROOT / "copier.yml").read_text(encoding="utf-8")

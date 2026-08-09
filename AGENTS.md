@@ -18,7 +18,17 @@ Do not create a second backlog for work represented by an active OpenSpec change
 
 For non-trivial platform changes, use OpenSpec before implementation. If implementation changes intent, behavior, design, or execution dependencies, update the corresponding proposal/spec/design/tasks artifact first. Do not knowingly let code drift from the active contract.
 
-Before archiving a non-trivial platform change, run relevant tests plus `/opsx:verify`. Structural `openspec validate` is useful but is not a substitute for semantic verify or project-specific checks.
+Before archiving a non-trivial platform change, run relevant tests plus semantic OpenSpec verification. Prefer `/opsx:verify` when the installed tool integration exposes it. If the current agent environment cannot invoke that workflow, perform and document the equivalent OpenSpec review across completeness, correctness, and coherence. Structural `openspec validate` is useful but is not a substitute for semantic verification or project-specific checks.
+
+A platform change is not done merely because its task checkboxes are complete. After semantic verification succeeds and material findings are resolved, record `OpenSpec-Verify: PASS` and `Verification-Method: <method>` in the active change's `verification.md`, archive through the platform lifecycle helper, commit the resulting current-spec/archive changes, and only then publish. Completed-but-active changes are treated as lifecycle debt and are blocked by platform CI.
+
+For the central repository, the lifecycle helper is invoked as:
+
+```bash
+python3 template/scripts/openspec_lifecycle.py archive <change>
+```
+
+Do not fabricate a verification receipt. The verification report must state what was actually checked and which method was used.
 
 ## Scope discipline
 
@@ -41,6 +51,7 @@ At minimum:
 ```bash
 python3 -m compileall -q template/scripts
 python3 -m unittest discover -s tests -v
+python3 template/scripts/openspec_lifecycle.py check
 ```
 
 When Copier is available, render the template and compile/run the generated doctor. For Git lifecycle changes, exercise temporary local/bare remotes so fetch/sync/direct-publish safety is tested.
