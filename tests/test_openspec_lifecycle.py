@@ -45,13 +45,19 @@ class OpenSpecLifecycleTests(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 lifecycle.require_ready(change)
 
-    def test_archive_readiness_accepts_exact_pass_marker(self) -> None:
+    def test_pass_without_method_is_not_enough(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            change = self.make_change(Path(tmp), "done", "- [x] one\n", "OpenSpec-Verify: PASS\n")
+            with self.assertRaises(SystemExit):
+                lifecycle.require_ready(change)
+
+    def test_archive_readiness_accepts_pass_and_method(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             change = self.make_change(
                 Path(tmp),
                 "done",
                 "- [x] one\n- [x] two\n",
-                "# Verification\n\nOpenSpec-Verify: PASS\n",
+                "# Verification\n\nOpenSpec-Verify: PASS\nVerification-Method: opsx-verify\n",
             )
             lifecycle.require_ready(change)
 
