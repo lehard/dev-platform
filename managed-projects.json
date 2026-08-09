@@ -9,9 +9,9 @@
     },
     {
       "repository": "lehard/Jara_Fin",
-      "state": "candidate",
+      "state": "managed",
       "default_branch": "main",
-      "note": "Existing software project; reviewed Dev Platform adoption required before rollout."
+      "note": "Adopted through one-command onboarding; eligible for reviewed managed rollout."
     },
     {
       "repository": "lehard/etsy",
