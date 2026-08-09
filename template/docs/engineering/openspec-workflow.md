@@ -24,13 +24,27 @@ If implementation reveals that the plan must change, update the relevant artifac
 
 Do not knowingly make code and OpenSpec disagree and plan to repair the docs later.
 
-## Verify before archive
+## Verify, archive, then publish
 
 For non-trivial changes:
 
-`plan review -> implementation -> project tests/QA -> /opsx:verify -> archive`
+`plan review -> implementation -> project tests/QA -> /opsx:verify -> verification receipt -> archive -> publish`
 
 `/opsx:verify` is semantic implementation review; `openspec validate` is structural validation. Neither replaces project-specific tests, E2E, browser/render QA, migrations or operational checks.
+
+After material findings from `/opsx:verify` are resolved, record the result in the active change's `verification.md` with the exact marker:
+
+`OpenSpec-Verify: PASS`
+
+Then archive through the platform entrypoint:
+
+```bash
+python3 scripts/openspec_lifecycle.py archive <change>
+```
+
+The helper requires all tasks to be complete and the PASS receipt, runs strict validation, invokes the OpenSpec CLI archive, and validates the resulting OpenSpec state. It does not emulate semantic verification and does not install or upgrade OpenSpec.
+
+`finish_task.py` and CI run lifecycle hygiene. If all task checkboxes in an active change are complete but the change is still active, publication is blocked. This turns “remember to archive” into a repository invariant rather than a human reminder.
 
 The expanded OpenSpec verify workflow must be enabled for the repository before a non-trivial change is archived. If it is absent, run `openspec config profile` to enable `verify`, then `openspec update` to regenerate tool integrations.
 
