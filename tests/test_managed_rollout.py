@@ -69,6 +69,20 @@ class RolloutProjectTests(unittest.TestCase):
         self.assertEqual(answers["_commit"], "v1.0.2")
         self.assertEqual(answers["_src_path"], "gh:lehard/dev-platform")
 
+    def test_normalize_copier_answers_removes_only_trailing_blank_lines(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            path = root / ".copier-answers.yml"
+            original_body = "_commit: v1.2.3\n_src_path: gh:lehard/dev-platform"
+            path.write_text(original_body + "\n\n\n", encoding="utf-8")
+            rollout_project.normalize_copier_answers(root)
+            self.assertEqual(path.read_text(encoding="utf-8"), original_body + "\n")
+
+    def test_normalize_copier_answers_requires_metadata_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaises(ValueError):
+                rollout_project.normalize_copier_answers(Path(tmp))
+
     def test_stable_versions_and_branch_are_deterministic(self) -> None:
         self.assertEqual(rollout_project.parse_version("v1.2.3"), (1, 2, 3))
         self.assertEqual(rollout_project.rollout_branch("v1.2.3"), "dev-platform/rollout-v1.2.3")
@@ -143,10 +157,12 @@ class RolloutWorkflowContractTests(unittest.TestCase):
         self.assertIn("gh workflow run rollout.yml", workflow)
         self.assertIn('version=$TAG', workflow)
 
-    def test_rollout_helper_pins_exact_copier_ref(self) -> None:
+    def test_rollout_helper_pins_exact_copier_ref_and_keeps_strict_diff_check(self) -> None:
         script = (ROOT / "scripts" / "rollout_project.py").read_text(encoding="utf-8")
         self.assertIn('"--vcs-ref", version', script)
         self.assertIn('"--conflict", "rej"', script)
+        self.assertIn("normalize_copier_answers(project_root)", script)
+        self.assertIn('["git", "diff", "--check", "--"]', script)
         self.assertIn("require_version_coherence", script)
         self.assertNotIn("force", script.lower())
 
