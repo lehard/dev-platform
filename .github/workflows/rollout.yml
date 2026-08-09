@@ -30,10 +30,11 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Validate registry and build rollout matrix
+      - name: Validate published release and build rollout matrix
         id: plan
         shell: bash
         env:
+          GH_TOKEN: ${{ github.token }}
           REQUESTED_VERSION: ${{ inputs.version }}
           REQUESTED_REPOSITORY: ${{ inputs.repository }}
         run: |
@@ -45,6 +46,11 @@ jobs:
           fi
           if [[ ! "$version" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
             echo "Rollout version must be an exact stable tag vX.Y.Z; got: $version" >&2
+            exit 1
+          fi
+          immutable="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$version" --jq '.immutable // false' 2>/dev/null || true)"
+          if [[ "$immutable" != "true" ]]; then
+            echo "Rollout target must be an existing immutable published platform release; got: $version" >&2
             exit 1
           fi
           if [[ -n "$REQUESTED_REPOSITORY" ]]; then
@@ -76,8 +82,18 @@ jobs:
             exit 1
           fi
 
-      - name: Create repository-scoped GitHub App token
-        id: app-token
+      - name: Create read-only platform source token
+        id: source-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          client-id: ${{ vars.DEV_PLATFORM_APP_CLIENT_ID }}
+          private-key: ${{ secrets.DEV_PLATFORM_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: dev-platform
+          permission-contents: read
+
+      - name: Create write-capable target token
+        id: target-token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
         with:
           client-id: ${{ vars.DEV_PLATFORM_APP_CLIENT_ID }}
@@ -97,7 +113,7 @@ jobs:
         with:
           repository: ${{ matrix.repository }}
           ref: ${{ matrix.default_branch }}
-          token: ${{ steps.app-token.outputs.token }}
+          token: ${{ steps.target-token.outputs.token }}
           path: target
           fetch-depth: 0
           persist-credentials: true
@@ -113,8 +129,8 @@ jobs:
       - name: Configure GitHub App commit identity
         shell: bash
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+          GH_TOKEN: ${{ steps.target-token.outputs.token }}
+          APP_SLUG: ${{ steps.target-token.outputs.app-slug }}
         run: |
           set -euo pipefail
           bot_id="$(gh api "/users/${APP_SLUG}%5Bbot%5D" --jq .id)"
@@ -125,7 +141,7 @@ jobs:
         id: pending
         shell: bash
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.target-token.outputs.token }}
           REPOSITORY: ${{ matrix.repository }}
           VERSION: ${{ needs.plan.outputs.version }}
         run: |
@@ -145,6 +161,7 @@ jobs:
         id: prepare
         shell: bash
         env:
+          DEV_PLATFORM_SOURCE_TOKEN: ${{ steps.source-token.outputs.token }}
           REPOSITORY: ${{ matrix.repository }}
           VERSION: ${{ needs.plan.outputs.version }}
           BASE_BRANCH: ${{ matrix.default_branch }}
@@ -170,7 +187,7 @@ jobs:
         id: pr
         shell: bash
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.target-token.outputs.token }}
           REPOSITORY: ${{ matrix.repository }}
           VERSION: ${{ needs.plan.outputs.version }}
           BASE_BRANCH: ${{ matrix.default_branch }}
