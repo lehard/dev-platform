@@ -27,4 +27,4 @@
 ## 5. Completion
 
 - [x] 5.1 Perform semantic OpenSpec verification across completeness, correctness and coherence and record truthful PASS evidence only after findings are resolved.
-- [ ] 5.2 Archive the change and confirm accepted rollout behavior is represented under `openspec/specs/` before publication.
+- [x] 5.2 Archive the change and confirm accepted rollout behavior is represented under `openspec/specs/` before publication.
