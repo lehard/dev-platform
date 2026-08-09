@@ -21,19 +21,20 @@ For non-trivial OpenSpec work, the platform SHALL treat a change with a complete
 
 ### Requirement: Archive requires semantic verification evidence
 
-The supported platform archive entrypoint SHALL require a successful `/opsx:verify` receipt before archiving a non-trivial change.
+The supported platform archive entrypoint SHALL require a successful semantic OpenSpec verification receipt before archiving a non-trivial change. Agents SHALL prefer `/opsx:verify` when available; environments without that workflow MAY perform the documented equivalent review across completeness, correctness and coherence.
 
 #### Scenario: Verified change archives
 
 - **GIVEN** all implementation tasks are complete
 - **AND** `verification.md` records `OpenSpec-Verify: PASS`
+- **AND** `verification.md` records a truthful `Verification-Method`
 - **AND** strict OpenSpec validation succeeds
 - **WHEN** the agent invokes the platform archive entrypoint
 - **THEN** OpenSpec archives the change and global strict validation is run
 
 #### Scenario: Missing or failed verification blocks archive
 
-- **GIVEN** a completed change has no PASS verification receipt
+- **GIVEN** a completed change has no PASS verification receipt or no documented verification method
 - **WHEN** the agent invokes the platform archive entrypoint
 - **THEN** archive is refused without mutating the change
 
