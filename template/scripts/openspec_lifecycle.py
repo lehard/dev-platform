@@ -10,6 +10,7 @@ from _platform_common import current_worktree_root
 
 TASK_RE = re.compile(r"^\s*-\s*\[([ xX])\]\s+")
 VERIFY_MARKER = "OpenSpec-Verify: PASS"
+VERIFY_METHOD_PREFIX = "Verification-Method:"
 
 
 def active_changes(root: Path) -> list[Path]:
@@ -38,7 +39,9 @@ def verification_passed(change: Path) -> bool:
     receipt = change / "verification.md"
     if not receipt.exists():
         return False
-    return VERIFY_MARKER in receipt.read_text(encoding="utf-8")
+    text = receipt.read_text(encoding="utf-8")
+    has_method = any(line.strip().startswith(VERIFY_METHOD_PREFIX) and line.split(":", 1)[1].strip() for line in text.splitlines())
+    return VERIFY_MARKER in text and has_method
 
 
 def completed_active_changes(root: Path) -> list[str]:
@@ -58,7 +61,7 @@ def check_hygiene(root: Path) -> int:
     print("OpenSpec lifecycle hygiene: BLOCKED")
     for name in stale:
         print(f"- {name}: all tasks are complete but the change is still active")
-    print("Run /opsx:verify, resolve findings, record verification.md with 'OpenSpec-Verify: PASS', then archive through scripts/openspec_lifecycle.py.")
+    print("Run /opsx:verify when available (or the documented equivalent semantic review), resolve findings, record the PASS receipt and method, then archive through scripts/openspec_lifecycle.py.")
     return 1
 
 
@@ -73,7 +76,8 @@ def require_ready(change: Path) -> None:
     if not verification_passed(change):
         raise SystemExit(
             f"{change.name}: missing successful semantic verification receipt. "
-            f"Run /opsx:verify, resolve material findings, then add '{VERIFY_MARKER}' to verification.md."
+            f"Run /opsx:verify when available (or an equivalent documented OpenSpec verification), resolve material findings, "
+            f"then record '{VERIFY_MARKER}' and a '{VERIFY_METHOD_PREFIX} <method>' line in verification.md."
         )
 
 
