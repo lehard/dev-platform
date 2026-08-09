@@ -29,7 +29,7 @@ After publishing an immutable platform version, the central release workflow SHA
 
 #### Scenario: Manual retry names an unpublished version
 
-- **WHEN** a manually dispatched rollout requests a syntactically valid tag that is not a published platform release
+- **WHEN** a manually dispatched rollout requests a syntactically valid tag that is not a published immutable platform release
 - **THEN** rollout fails before creating any downstream write token or mutation
 
 ### Requirement: Cross-repository rollout uses least-privilege GitHub App authentication
@@ -44,7 +44,7 @@ Automated rollout SHALL use a dedicated GitHub App rather than relying on the so
 #### Scenario: Rollout job writes one managed repository
 
 - **WHEN** the job checks out, pushes or opens a PR in the downstream repository
-- **THEN** it uses a different token scoped only to that repository with the Contents/Pull-request write permissions required for those operations
+- **THEN** it uses a different token scoped only to that repository with Contents write, Pull requests write, and Workflows write permissions so platform-managed `.github/workflows/*` changes can be delivered
 
 ### Requirement: Managed upgrades target exact immutable platform versions
 
