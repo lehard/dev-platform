@@ -2,46 +2,18 @@
 
 {{ project_description }}
 
-This repository uses `lehard/dev-platform` with `workflow_profile={{ workflow_profile }}` and `publish_mode={{ publish_mode }}`.
+This repository is attached to the versioned `lehard/dev-platform` project factory.
 
-Project/domain documentation belongs here; the central platform owns only reusable development process.
+## Developer workflow
 
-## Get ready locally
+The repository uses `workflow_profile={{ workflow_profile }}`, `harness_mode={{ harness_mode }}` and `publish_mode={{ publish_mode }}`. Shared lifecycle scripts are versioned in this repository and updated through reviewed Copier releases.
 
-After cloning or switching machines, use the single readiness entrypoint:
-
-```bash
-python3 scripts/dev.py ready
-```
-
-It synchronizes `{{ main_branch }}` when safe, restores/refreshes the configured OpenSpec integrations and expanded workflows, then runs platform and agent doctors. You should not need to remember separate OpenSpec init/update or doctor commands.
-
-## Working on a change
-
-For non-trivial product or architecture work, create/update the OpenSpec change first. If implementation changes direction, update the relevant OpenSpec artifact before code knowingly diverges.
-
-Start through the shared profile-aware entrypoint:
+For normal agent work:
 
 ```bash
-python3 scripts/start_task.py my-change --task "OpenSpec my-change: task range" --scope "path/or/module"
-```
-
-Run selected checks before completion:
-
-```bash
-python3 scripts/select_checks.py
+python3 scripts/agent_doctor.py
+python3 scripts/start_task.py my-task --task "OpenSpec add-x: 1-3" --scope "backend/..."
 python3 scripts/select_checks.py --execute
-```
-
-For a non-trivial OpenSpec change, completion is not just “all tasks checked”. The agent must run `/opsx:verify`, resolve material findings, record `OpenSpec-Verify: PASS` in the change's `verification.md`, and archive through:
-
-```bash
-python3 scripts/openspec_lifecycle.py archive my-change
-```
-
-Only after archive is committed should the task be published through:
-
-```bash
 python3 scripts/finish_task.py
 ```
 
@@ -51,6 +23,6 @@ Platform-managed CI is self-contained in this repository and updates only throug
 
 ## Local and cloud verification
 
-Required selected and full checks run locally before publication; cloud CI is the clean-environment final gate for `publish_mode=pr` and a post-publish health signal for `publish_mode=direct`. The generated workflow has one automatic validation path per publish mode and cancels superseded runs. Do not use the narrower cloud workflow as a reason to skip required local checks or to duplicate expensive full suites without a reviewed repository-specific need.
+Required selected and full checks run locally before publication. Cloud CI is the clean-environment final gate for `publish_mode=pr`; for `publish_mode=direct`, the normal automatic path validates the published main state as a health signal. Direct-mode repositories also keep the stable pull-request `platform-ci` compatibility gate so reviewed maintenance/rollout PRs can satisfy existing required-status protection. Superseded validation runs are cancelled. Do not use the narrower cloud workflow or the compatibility PR gate as a reason to skip required local checks or duplicate expensive project full suites without a reviewed repository-specific need.
 
 See `AGENTS.md` and `docs/engineering/`.
