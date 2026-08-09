@@ -16,19 +16,16 @@
 
 - [x] 3.1 Add focused template contract coverage for the new trigger matrix.
 - [x] 3.2 Keep central CI single-job PR validation and release/rollout side-effect safety assertions unchanged.
-- [ ] 3.3 Run platform CI/template render/update smoke coverage.
+- [x] 3.3 Run platform CI/template render/update smoke coverage (Platform CI #203 passed on `b5f78815064a319e54ba2e508740ed4b9e17e24a`).
 
-## 4. Downstream compatibility
+## 4. Completion
 
-- [ ] 4.1 Publish an immutable patch release after implementation is verified and archived.
-- [ ] 4.2 Roll managed projects forward through reviewed Copier PRs.
-- [ ] 4.3 Confirm direct-mode rollout PRs produce the required `platform-ci` check and can merge normally.
-- [ ] 4.4 Supersede stale v1.4.5 rollout PRs rather than force-updating them.
+- [x] 4.1 Perform semantic OpenSpec completeness/correctness/coherence verification and record the receipt.
+- [x] 4.2 Reconcile the durable `platform-ci` spec and archive the verified change.
 
-## 5. Completion
+## Post-archive rollout
 
-- [ ] 5.1 Perform semantic OpenSpec completeness/correctness/coherence verification and record the receipt.
-- [ ] 5.2 Archive the verified change through the platform lifecycle and strict-validate the resulting specs.
+After the implementation/archive PR merges, publish an immutable patch release, let managed rollout create reviewed Copier PRs, confirm direct-mode rollout PRs produce `platform-ci`, merge green rollouts, and close stale v1.4.5 rollout PRs. These are release operations after the change itself is archive-ready, not prerequisites for archiving the implementation contract.
 
 ## Commit boundaries
 
