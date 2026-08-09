@@ -96,8 +96,8 @@
 - [x] 7.5 Run `python3 scripts/managed_projects.py validate`.
 - [x] 7.6 Run `python3 -m unittest discover -s tests -v` including fresh and mature adoption fixtures.
 - [x] 7.7 Run `python3 template/scripts/openspec_lifecycle.py check` and strict OpenSpec validation.
-- [ ] 7.8 Perform semantic OpenSpec verification across completeness, correctness and coherence; resolve material findings and record the verification receipt.
-- [ ] 7.9 Archive this change through the platform lifecycle helper and only then prepare the next immutable platform release.
+- [x] 7.8 Perform semantic OpenSpec verification across completeness, correctness and coherence; resolve material findings and record the verification receipt.
+- [x] 7.9 Archive this change through the platform lifecycle helper and only then prepare the next immutable platform release.
 
 ## Definition of Done
 
