@@ -8,14 +8,14 @@
 
 ## 2. Template and guidance
 
-- [ ] 2.1 Update generated `dev-platform.yml` so PR mode stays PR-only while direct mode supports main push plus PR compatibility.
-- [ ] 2.2 Update generated README and agent workflow guidance to describe the compatibility exception.
-- [ ] 2.3 Preserve concurrency cancellation and harness ownership behavior.
+- [x] 2.1 Update generated `dev-platform.yml` so PR mode stays PR-only while direct mode supports main push plus PR compatibility.
+- [x] 2.2 Update generated README and agent workflow guidance to describe the compatibility exception.
+- [x] 2.3 Preserve concurrency cancellation and harness ownership behavior.
 
 ## 3. Tests
 
-- [ ] 3.1 Update template contract tests for the new trigger matrix.
-- [ ] 3.2 Keep central CI single-job PR validation and release/rollout side-effect safety assertions unchanged.
+- [x] 3.1 Add focused template contract coverage for the new trigger matrix.
+- [x] 3.2 Keep central CI single-job PR validation and release/rollout side-effect safety assertions unchanged.
 - [ ] 3.3 Run platform CI/template render/update smoke coverage.
 
 ## 4. Downstream compatibility
