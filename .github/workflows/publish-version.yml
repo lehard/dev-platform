@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   publish:
@@ -20,6 +21,7 @@ jobs:
           fetch-depth: 0
 
       - name: Create immutable-by-policy tag and release
+        id: release
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -46,3 +48,14 @@ jobs:
             gh release create "$tag" --repo "$GITHUB_REPOSITORY" --verify-tag \
               --title "$tag" --notes "Developer Platform $tag"
           fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Dispatch managed-project rollout
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh workflow run rollout.yml --repo "$GITHUB_REPOSITORY" --ref main -f "version=$TAG"
+          echo "Dispatched managed rollout for $TAG"
