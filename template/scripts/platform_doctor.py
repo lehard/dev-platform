@@ -12,6 +12,7 @@ REQUIRED_COMMON = ["AGENTS.md", "CLAUDE.md", ".dev-platform.toml", "dev-platform
 REQUIRED_MULTI_AGENT = ["scripts/agent_board.py", "scripts/start_worktree.py"]
 VERIFY_CANDIDATES = [".agents/skills/openspec-verify-change/SKILL.md", ".claude/skills/openspec-verify-change/SKILL.md", ".cursor/skills/openspec-verify-change/SKILL.md"]
 IGNORED_CONFLICT_DIRS = {".git", ".claude", "node_modules", ".venv", "venv"}
+SEMVER_TAG_RE = re.compile(r"^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
 
 
 def ok(label: str) -> None: print(f"[ok]   {label}")
@@ -22,6 +23,17 @@ def fail(label: str) -> None: print(f"[fail] {label}")
 def version_tuple(value: str) -> tuple[int, ...] | None:
     match = re.search(r"(\d+)\.(\d+)\.(\d+)", value)
     return tuple(map(int, match.groups())) if match else None
+
+
+def copier_commit(root: Path) -> str | None:
+    answers = root / ".copier-answers.yml"
+    if not answers.exists():
+        return None
+    for line in answers.read_text(encoding="utf-8").splitlines():
+        if line.startswith("_commit:"):
+            value = line.split(":", 1)[1].strip().strip("'\"")
+            return value or None
+    return None
 
 
 def find_update_conflicts(root: Path) -> list[str]:
@@ -79,11 +91,26 @@ def main() -> int:
     else:
         fail("not inside a Git repository"); failures[0] += 1
 
-    required = list(REQUIRED_COMMON) + (REQUIRED_MULTI_AGENT if workflow_profile == "multi-agent" else [])
-    for relative in required:
+    project_required = config.get("project_required_files", [])
+    if not isinstance(project_required, list) or not all(isinstance(item, str) and item for item in project_required):
+        fail("project_required_files must be a list of non-empty repository-relative paths"); failures[0] += 1
+        project_required = []
+    required = list(REQUIRED_COMMON) + list(project_required) + (REQUIRED_MULTI_AGENT if workflow_profile == "multi-agent" else [])
+    for relative in dict.fromkeys(required):
         if (root / relative).exists(): ok(relative)
         else:
             fail(f"missing {relative}"); failures[0] += 1
+
+    commit = copier_commit(root)
+    configured_version = str(config.get("platform_version", ""))
+    if commit and SEMVER_TAG_RE.fullmatch(commit):
+        expected_version = commit[1:]
+        if configured_version == expected_version:
+            ok(f"platform version metadata agrees at {commit}")
+        else:
+            fail(f"platform version metadata mismatch: .copier-answers.yml={commit}, .dev-platform.toml={configured_version!r}"); failures[0] += 1
+    elif commit:
+        warn(f"Copier _commit is not a stable SemVer tag: {commit}")
 
     tools = config.get("tools", {})
     openspec_cfg = tools.get("openspec", {})
