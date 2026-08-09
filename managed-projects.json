@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "projects": [
+    {
+      "repository": "lehard/planner-agent-lab",
+      "state": "managed",
+      "default_branch": "main",
+      "note": "Project Factory pilot; currently Copier-managed."
+    },
+    {
+      "repository": "lehard/Jara_Fin",
+      "state": "candidate",
+      "default_branch": "main",
+      "note": "Existing project; reviewed Dev Platform adoption required before rollout."
+    },
+    {
+      "repository": "lehard/etsy",
+      "state": "candidate",
+      "default_branch": "main",
+      "note": "Existing project; reviewed Dev Platform adoption required before rollout."
+    },
+    {
+      "repository": "lehard/VedAgent",
+      "state": "candidate",
+      "default_branch": "main",
+      "note": "Existing project; reviewed Dev Platform adoption required before rollout."
+    },
+    {
+      "repository": "lehard/glav-ai",
+      "state": "candidate",
+      "default_branch": "main",
+      "note": "Existing project; reviewed Dev Platform adoption required before rollout."
+    },
+    {
+      "repository": "lehard/cuby",
+      "state": "candidate",
+      "default_branch": "main",
+      "note": "Existing project; reviewed Dev Platform adoption required before rollout."
+    },
+    {
+      "repository": "lehard/Jara_kassy_detect",
+      "state": "candidate",
+      "default_branch": "main",
+      "note": "Existing project; reviewed Dev Platform adoption required before rollout."
+    },
+    {
+      "repository": "lehard/Sex_Universe",
+      "state": "candidate",
+      "default_branch": "main",
+      "note": "Existing project; reviewed Dev Platform adoption required before rollout."
+    },
+    {
+      "repository": "lehard/design-os",
+      "state": "candidate",
+      "default_branch": "main",
+      "note": "Existing project; reviewed Dev Platform adoption required before rollout."
+    }
+  ]
+}
