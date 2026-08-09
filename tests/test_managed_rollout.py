@@ -102,6 +102,7 @@ class RolloutWorkflowContractTests(unittest.TestCase):
         self.assertIn("repositories: ${{ matrix.repo_name }}", workflow)
         self.assertIn("permission-contents: write", workflow)
         self.assertIn("permission-pull-requests: write", workflow)
+        self.assertIn("permission-workflows: write", workflow)
         self.assertIn("DEV_PLATFORM_SOURCE_TOKEN: ${{ steps.source-token.outputs.token }}", workflow)
         self.assertIn("token: ${{ steps.target-token.outputs.token }}", workflow)
         self.assertIn("gh pr create", workflow)
