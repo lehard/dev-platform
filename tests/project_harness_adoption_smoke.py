@@ -87,6 +87,8 @@ def main() -> int:
         if not platform_workflow.is_file():
             raise SystemExit("Platform CI was not added under the non-colliding dev-platform.yml name")
         workflow_text = platform_workflow.read_text(encoding="utf-8")
+        if not workflow_text.endswith("\n") or workflow_text.endswith("\n\n"):
+            raise SystemExit("Rendered Dev Platform workflow must end with exactly one newline")
         if "scripts/select_checks.py" in workflow_text or "--execute" in workflow_text or "--full" in workflow_text:
             raise SystemExit("Project-harness platform CI must not execute or depend on the project selector")
         for required_hygiene in (
