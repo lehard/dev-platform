@@ -29,6 +29,10 @@ Before accepting the result:
 
 The bootstrap deliberately does **not** run `openspec init` automatically when adopting into an existing Git repository, because current OpenSpec init can migrate/remove OpenSpec-managed legacy files. Review the existing tool files first, then run the printed `openspec init ...` command manually.
 
+After the initial adoption is reviewed, the following generated defaults are treated as **project-owned** and preserved by later Copier updates: `AGENTS.md`, `README.md`, `dev-platform/checks.toml`, `openspec/config.yaml`, and `docs/engineering/project-rules.md`. Shared lifecycle scripts, shared workflow documentation and self-contained platform CI remain platform-managed.
+
+If the project needs additional compatibility helpers to be mandatory, declare repository-relative paths in `.dev-platform.toml` as `project_required_files = ["..."]` rather than customizing `scripts/platform_doctor.py`.
+
 ## Upgrade
 
 For an ordinary manual upgrade:
@@ -37,7 +41,9 @@ For an ordinary manual upgrade:
 copier update --trust
 ```
 
-Perform upgrades in a dedicated worktree and review the diff. If there is a merge conflict, resolve ownership rather than automatically preferring template or project content.
+Perform upgrades in a dedicated worktree and review the diff. If there is a merge conflict in a platform-managed file, resolve ownership rather than automatically preferring template or project content. Project-owned files listed above should remain unchanged by Copier after their initial creation.
+
+Stable Copier renders synchronize `.dev-platform.toml` `platform_version` from `.copier-answers.yml` `_commit`; platform doctor treats disagreement between those records as blocking drift.
 
 Once an adopted repository is intentionally promoted to `managed` in the central `managed-projects.json` registry, new stable platform releases are eligible for automatic exact-version Copier rollout PRs. The rollout system still stops at a PR; it does not auto-merge.
 
