@@ -12,12 +12,16 @@ The rollout path is:
 
 Use a dependency-free JSON file in the central repository. Each entry contains:
 
-- `repository`: exact `owner/name` allowlist value;
-- `state`: `managed` or `candidate`;
+- `repository`: exact `owner/name` repository identity;
+- `state`: `managed`, `candidate`, or `excluded`;
 - `default_branch`;
-- optional note.
+- optional note explaining the state.
 
-Only `managed` entries enter the rollout matrix. `candidate` documents observed repositories that still require reviewed adoption but grants no mutation authority.
+The registry is intended to be comprehensive for the user's known project repositories so omission does not become an accidental fourth state.
+
+- `managed` enters the rollout matrix and is eligible for cross-repository writes.
+- `candidate` is a software/project repository that still requires reviewed adoption; it grants no mutation authority.
+- `excluded` is intentionally outside Dev Platform adoption/rollout (for example content-only or empty placeholder repositories); it grants no mutation authority and records why it is excluded.
 
 Registry validation fails on duplicate repositories, malformed names, unsupported states, missing branches or an empty managed set when rollout is requested.
 
@@ -64,7 +68,7 @@ If a project fails before push, its default branch is untouched. Matrix jobs use
 
 ## Adoption boundary
 
-Automatic rollout does not perform first-time adoption. Existing repositories without valid Copier metadata remain `candidate` until a reviewed adoption PR lands. Promotion from `candidate` to `managed` is an explicit central registry change.
+Automatic rollout does not perform first-time adoption. Existing software repositories without valid Copier metadata remain `candidate` until a reviewed adoption PR lands. Promotion from `candidate` to `managed` is an explicit central registry change. An `excluded` repository must first be deliberately reclassified to `candidate` before adoption work is expected.
 
 ## Testing
 
