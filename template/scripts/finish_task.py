@@ -48,6 +48,13 @@ def run_checks(root: Path, base: str, no_checks: bool) -> None:
         raise SystemExit(result.returncode)
 
 
+def run_openspec_hygiene(root: Path) -> None:
+    script = root / "scripts" / "openspec_lifecycle.py"
+    result = subprocess.run(["python3", str(script), "check"], cwd=root)
+    if result.returncode != 0:
+        raise SystemExit(result.returncode)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate, integrate when needed, and publish a completed task without a human git hand-off.")
     parser.add_argument("--no-checks", action="store_true")
@@ -64,6 +71,7 @@ def main() -> int:
     branch = current_branch(work)
     if not branch:
         raise SystemExit("Detached HEAD is not publishable through the platform lifecycle.")
+    run_openspec_hygiene(work)
     if not clean(work):
         raise SystemExit("Current worktree is dirty. Commit or remove changes first.")
     fetch_main(integration, "origin", main_branch)
@@ -85,7 +93,7 @@ def main() -> int:
             print(f"Returned integration copy to {main_branch} after PR publication.")
         if prof == "multi-agent":
             finish_board(integration, work, config)
-        print("Task published as PR. OpenSpec verification remains required before archiving a non-trivial change.")
+        print("Task published as PR. OpenSpec lifecycle hygiene passed.")
         return 0
     if mode != "direct":
         raise SystemExit(f"Unknown publish_mode: {mode}")
@@ -109,7 +117,7 @@ def main() -> int:
         run_git(["worktree", "remove", str(work)], cwd=integration)
         run_git(["branch", "-d", branch], cwd=integration)
         print(f"Removed worktree and branch {branch}.")
-    print("Task published directly. OpenSpec verification remains required before archiving a non-trivial change.")
+    print("Task published directly. OpenSpec lifecycle hygiene passed.")
     return 0
 
 
