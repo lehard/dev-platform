@@ -64,10 +64,12 @@ class TemplateContractTests(unittest.TestCase):
         self.assertIn("Required selected and full checks run locally before publication", readme)
         self.assertIn("Local-heavy, cloud-final verification", workflow)
 
-    def test_profiles_publish_modes_and_harness_modes_are_declared(self) -> None:
+    def test_profiles_publish_modes_harness_and_protection_modes_are_declared(self) -> None:
         text = (ROOT / "copier.yml").read_text(encoding="utf-8")
-        for value in ("light", "standard", "multi-agent", "publish_mode", "harness_mode", "platform", "project", "platform_ci_ref"): self.assertIn(value, text)
+        for value in ("light", "standard", "multi-agent", "publish_mode", "harness_mode", "platform", "project", "platform_ci_ref", "protected_main", "pr_merge_mode", "auto", "manual"):
+            self.assertIn(value, text)
         self.assertIn("legacy", text.lower())
+        self.assertIn("protected_main and publish_mode == 'direct'", text)
 
     def test_project_owned_files_are_preserved_after_initial_render(self) -> None:
         text = (ROOT / "copier.yml").read_text(encoding="utf-8")
@@ -97,12 +99,14 @@ class TemplateContractTests(unittest.TestCase):
                 self.assertIn(relative, text)
                 self.assertIn("harness_mode == 'project'", text)
 
-    def test_harness_ownership_is_recorded_in_project_config(self) -> None:
+    def test_harness_ownership_and_protection_are_recorded_in_project_config(self) -> None:
         config = (ROOT / "template" / ".dev-platform.toml.jinja").read_text(encoding="utf-8")
         self.assertIn('harness_mode = "{{ harness_mode }}"', config)
         self.assertIn("platform_git_lifecycle", config)
         self.assertIn("main_merge_lock", config)
         self.assertIn("pending_worktrees", config)
+        self.assertIn("protected_main =", config)
+        self.assertIn('pr_merge_mode = "{{ pr_merge_mode }}"', config)
 
     def test_project_specific_required_files_are_configurable(self) -> None:
         config = (ROOT / "template" / ".dev-platform.toml.jinja").read_text(encoding="utf-8")
@@ -120,13 +124,34 @@ class TemplateContractTests(unittest.TestCase):
         self.assertIn("OpenSpec-Verify: PASS", text)
         self.assertIn("scripts/openspec_lifecycle.py archive", text)
 
-    def test_finish_task_has_openspec_hygiene_and_serialized_direct_integration(self) -> None:
+    def test_finish_task_has_openspec_hygiene_and_remote_first_protected_integration(self) -> None:
         text = (ROOT / "template" / "scripts" / "finish_task.py").read_text(encoding="utf-8")
         self.assertIn("run_openspec_hygiene(work)", text)
         self.assertIn('"openspec_lifecycle.py"', text)
         self.assertIn("serialized_integration", text)
         self.assertIn("fetch_main(integration", text)
         self.assertIn("harness_mode=project", text)
+        self.assertIn("protected_main(config) and mode == \"direct\"", text)
+        self.assertIn("sync_after_remote_pr_merge", text)
+        self.assertIn("pr_merge_mode(config) == \"auto\"", text)
+        self.assertLess(text.index("subprocess.run(command, cwd=work, check=True)"), text.index("sync_after_remote_pr_merge(work, integration, main_branch)"))
+
+    def test_project_publish_waits_for_checks_and_merges_without_bypass(self) -> None:
+        text = (ROOT / "template" / "scripts" / "project_publish.py").read_text(encoding="utf-8")
+        self.assertIn("push_feature_branch", text)
+        self.assertIn("wait_for_pr_checks", text)
+        self.assertIn('"pr", "checks"', text)
+        self.assertIn('"pr", "merge"', text)
+        self.assertIn('"--squash"', text)
+        self.assertNotIn("--admin", text)
+        self.assertIn("branch is already pushed", text)
+
+    def test_agent_doctor_detects_protected_direct_and_auth_prerequisites(self) -> None:
+        doctor = (ROOT / "template" / "scripts" / "agent_doctor.py").read_text(encoding="utf-8")
+        self.assertIn("protected_main=true is incompatible with publish_mode=direct", doctor)
+        self.assertIn("query_github_branch_protection", doctor)
+        self.assertIn("gh auth login", doctor)
+        self.assertIn("GitHub reports", doctor)
 
     def test_multi_agent_git_guards_and_hygiene_are_platform_managed(self) -> None:
         doctor = (ROOT / "template" / "scripts" / "agent_doctor.py").read_text(encoding="utf-8")
