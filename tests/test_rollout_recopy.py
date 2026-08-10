@@ -95,7 +95,7 @@ class GuardedRecopyTests(unittest.TestCase):
         self.assertTrue(any(command[:2] == ["copier", "update"] for command in commands))
         self.assertTrue(any(command[:2] == ["copier", "recopy"] for command in commands))
 
-    def test_reclaimed_platform_conflict_allows_recopy_when_already_on_target(self) -> None:
+    def test_target_equivalent_platform_conflict_allows_project_recopy(self) -> None:
         commands: list[list[str]] = []
 
         def fake_run(command, cwd, **kwargs):
@@ -119,7 +119,7 @@ class GuardedRecopyTests(unittest.TestCase):
         self.assertEqual(strategy, "guarded-recopy")
         self.assertTrue(any(command[:2] == ["copier", "recopy"] for command in commands))
 
-    def test_reclaimed_platform_conflict_blocks_if_downstream_differs(self) -> None:
+    def test_target_equivalent_platform_conflict_blocks_if_downstream_differs(self) -> None:
         common = self.root / "scripts" / "_platform_common.py"
         common.write_text("# downstream customization still present\n", encoding="utf-8")
         commands: list[list[str]] = []
@@ -136,7 +136,7 @@ class GuardedRecopyTests(unittest.TestCase):
                 return_value=["scripts/_platform_common.py.rej"],
             ),
         ):
-            with self.assertRaisesRegex(ValueError, "non-project-owned conflicts"):
+            with self.assertRaisesRegex(ValueError, "non-recoverable conflicts"):
                 rollout_project.copier_update_with_guarded_recopy(
                     self.root,
                     "v1.3.1",
@@ -159,7 +159,7 @@ class GuardedRecopyTests(unittest.TestCase):
                 return_value=["src/runtime.py.rej"],
             ),
         ):
-            with self.assertRaisesRegex(ValueError, "non-project-owned conflicts"):
+            with self.assertRaisesRegex(ValueError, "non-recoverable conflicts"):
                 rollout_project.copier_update_with_guarded_recopy(
                     self.root,
                     "v1.3.1",
@@ -168,13 +168,9 @@ class GuardedRecopyTests(unittest.TestCase):
         self.assertFalse(any(command[:2] == ["copier", "recopy"] for command in commands))
 
     def test_recopy_is_blocked_if_protected_file_changes(self) -> None:
-        call = 0
-
         def fake_run(command, cwd, **kwargs):
-            nonlocal call
             if command[:2] == ["copier", "recopy"]:
                 (self.root / "scripts/start_task.py").write_text("changed by recopy\n", encoding="utf-8")
-            call += 1
             return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
 
         with (
@@ -193,9 +189,43 @@ class GuardedRecopyTests(unittest.TestCase):
                     env=os.environ.copy(),
                 )
 
-    def test_platform_mode_never_uses_recopy_fallback(self) -> None:
+    def test_platform_mode_recovers_target_equivalent_project_publish_conflict(self) -> None:
         config = self.root / ".dev-platform.toml"
         config.write_text(config.read_text(encoding="utf-8").replace('harness_mode = "project"', 'harness_mode = "platform"'), encoding="utf-8")
+        target_publish = (
+            rollout_project.PLATFORM_ROOT / "template" / "scripts" / "project_publish.py"
+        ).read_text(encoding="utf-8")
+        publish = self.root / "scripts" / "project_publish.py"
+        publish.write_text(target_publish, encoding="utf-8")
+        commands: list[list[str]] = []
+
+        def fake_run(command, cwd, **kwargs):
+            commands.append(command)
+            return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+
+        with (
+            patch.object(rollout_project, "run", side_effect=fake_run),
+            patch.object(
+                rollout_project,
+                "find_reject_files",
+                side_effect=[["scripts/project_publish.py.rej"], []],
+            ),
+            patch.object(rollout_project, "reset_failed_copier_update"),
+        ):
+            strategy = rollout_project.copier_update_with_guarded_recopy(
+                self.root,
+                "v1.4.14",
+                env=os.environ.copy(),
+            )
+        self.assertEqual(strategy, "guarded-recopy")
+        self.assertTrue(any(command[:2] == ["copier", "recopy"] for command in commands))
+        self.assertEqual(publish.read_text(encoding="utf-8"), target_publish)
+
+    def test_platform_mode_blocks_real_platform_divergence(self) -> None:
+        config = self.root / ".dev-platform.toml"
+        config.write_text(config.read_text(encoding="utf-8").replace('harness_mode = "project"', 'harness_mode = "platform"'), encoding="utf-8")
+        publish = self.root / "scripts" / "project_publish.py"
+        publish.write_text("# real downstream divergence\n", encoding="utf-8")
         with (
             patch.object(
                 rollout_project,
@@ -205,13 +235,13 @@ class GuardedRecopyTests(unittest.TestCase):
             patch.object(
                 rollout_project,
                 "find_reject_files",
-                return_value=["scripts/start_task.py.rej"],
+                return_value=["scripts/project_publish.py.rej"],
             ),
         ):
-            with self.assertRaisesRegex(ValueError, "Copier left unresolved"):
+            with self.assertRaisesRegex(ValueError, "non-recoverable conflicts"):
                 rollout_project.copier_update_with_guarded_recopy(
                     self.root,
-                    "v1.3.1",
+                    "v1.4.14",
                     env=os.environ.copy(),
                 )
 
