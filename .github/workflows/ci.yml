@@ -53,6 +53,15 @@ jobs:
             exit "$status"
           fi
 
+      # One-time lifecycle exercise for this verified platform change. The
+      # archive output is printed from the ephemeral checkout, then applied to
+      # the branch and this step is removed before merge.
+      - name: Exercise verified OpenSpec archive
+        run: |
+          npm install -g @fission-ai/openspec@1.6.0
+          python3 template/scripts/openspec_lifecycle.py archive protected-main-zero-handoff
+          git diff -- openspec
+
       - name: Enforce OpenSpec lifecycle hygiene
         run: python3 template/scripts/openspec_lifecycle.py check
 
