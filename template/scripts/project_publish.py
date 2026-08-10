@@ -163,7 +163,7 @@ def wait_for_pr_checks(root: Path, env: dict[str, str], current: str) -> None:
 
 def pr_state(root: Path, env: dict[str, str], current: str) -> str | None:
     result = subprocess.run(
-        ["gh", "pr", "view", current, "--json", "state", "--jq", ".state"],
+        ["gh", "pr", "view", current, "--json", "state,mergedAt", "--jq", ".state"],
         cwd=root,
         env=env,
         text=True,
