@@ -49,6 +49,14 @@ The v1.4.16 acceptance run proved that broad `Error:` scraping is unsafe. The v1
 
 A product-check failure remains blocking; diagnostics only identify which command failed so the correction is based on evidence. The marker carries no secrets beyond commands already printed to the Actions log.
 
+## Downstream runtime parity
+
+The v1.4.18 diagnostic identified the real remaining Cuby blocker as `cd apps/web && npm run build`. The same web build had just passed Cuby's normal PR gate, whose generated platform workflow explicitly pins Node `20.19.0`. Managed rollout, however, set up Python but relied on the hosted runner's ambient Node executable. That makes rollout validation semantically different from the downstream gate it is supposed to preflight.
+
+Managed rollout therefore pins the same platform-owned Node runtime as the generated platform CI before running downstream selected checks. This is not a Cuby-specific exception: both workflows are platform-owned and must use the same supported Node baseline. Python remains pinned to `3.11` in both paths. Project-owned harnesses still control the commands they execute; rollout only supplies the same base runtime that the platform-generated gate supplies.
+
+If a future platform release changes the generated CI Node baseline, rollout and its tests must change in the same release so validation cannot silently drift again.
+
 ## Git/tag handling
 
 Managed rollout already executes tooling from the exact immutable target release. If the older recorded tag is not present in that shallow checkout, rollout fetches only that exact old tag before computing template fingerprints. Failure to fetch or inspect it blocks recovery.
@@ -57,8 +65,8 @@ This proof remains reproducible because both sides are immutable Git objects: do
 
 ## Compatibility and rollback
 
-No downstream format changes are introduced. If recovery cannot prove safety, behavior stays fail-closed: rollout stops without pushing a branch. Removing baseline-equivalence recovery restores the stricter v1.4.14 behavior. Removing the diagnostic improvements only reduces observability and does not alter recovery eligibility.
+No downstream format changes are introduced. If recovery cannot prove safety, behavior stays fail-closed: rollout stops without pushing a branch. Removing baseline-equivalence recovery restores the stricter v1.4.14 behavior. Removing the diagnostic improvements only reduces observability and does not alter recovery eligibility. Removing runtime parity restores reliance on the hosted runner's ambient Node and is therefore not an acceptable forward configuration while generated CI pins Node.
 
 ## Validation
 
-Unit tests cover target-equivalent reclaimed recovery, exact old-baseline and missing/missing proof, the actual mixed Cuby reject set, and real-divergence blocking. Workflow/helper tests cover preservation of failure, structured marker precedence, rejection of broad/ambiguous log scraping, and gating of push/PR creation. Existing project-harness guarded-recopy tests remain green. The final immutable release is then exercised against real Cuby rollout before archive.
+Unit tests cover target-equivalent reclaimed recovery, exact old-baseline and missing/missing proof, the actual mixed Cuby reject set, and real-divergence blocking. Workflow/helper tests cover preservation of failure, structured marker precedence, rejection of broad/ambiguous log scraping, gating of push/PR creation, and equality of the Node runtime pinned by managed rollout and the generated downstream gate. Existing project-harness guarded-recopy tests remain green. The final immutable release is then exercised against real Cuby rollout before archive.
