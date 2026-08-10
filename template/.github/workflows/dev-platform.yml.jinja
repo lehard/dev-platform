@@ -12,7 +12,9 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: "{% raw %}${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}{% endraw %}"
+  # Event type is part of the key deliberately: a lightweight push health run
+  # must never cancel an explicitly requested manual full-suite run on the same ref.
+  group: "{% raw %}${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}{% endraw %}"
   cancel-in-progress: true
 
 jobs:

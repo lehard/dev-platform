@@ -4,6 +4,30 @@
 [settings]
 fallback_commands = ["git diff --check"]
 full_commands = ["git diff --check", "python3 scripts/openspec_lifecycle.py check"]
+# These files can change dependency resolution, build behavior, schema/runtime
+# startup, or CI policy. They deliberately escalate to full_commands instead of
+# falling through to whitespace-only validation. Mature projects should keep
+# full_commands representative of their real stack.
+full_trigger_patterns = [
+  ".dev-platform.toml",
+  "dev-platform/checks.toml",
+  ".github/workflows/**",
+  "**/pyproject.toml",
+  "**/requirements*.txt",
+  "**/poetry.lock",
+  "**/uv.lock",
+  "**/Pipfile",
+  "**/Pipfile.lock",
+  "**/package.json",
+  "**/package-lock.json",
+  "**/npm-shrinkwrap.json",
+  "**/pnpm-lock.yaml",
+  "**/yarn.lock",
+  "**/next.config.*",
+  "**/vite.config.*",
+  "**/alembic.ini",
+  "**/alembic/**",
+]
 
 [checks.docs]
 patterns = ["*.md", "docs/**", "openspec/**", "AGENTS.md", "CLAUDE.md"]

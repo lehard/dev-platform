@@ -160,6 +160,12 @@ class RolloutWorkflowContractTests(unittest.TestCase):
         self.assertIn(".immutable // false", workflow)
         self.assertIn("must be an existing immutable published platform release", workflow)
 
+    def test_rollout_executes_tooling_from_requested_release(self) -> None:
+        workflow = (ROOT / ".github" / "workflows" / "rollout.yml").read_text(encoding="utf-8")
+        self.assertIn("Checkout platform tooling from requested immutable release", workflow)
+        self.assertIn("ref: ${{ needs.plan.outputs.version }}", workflow)
+        self.assertIn("python3 platform/scripts/rollout_project.py", workflow)
+
     def test_release_dispatches_exact_rollout_workflow(self) -> None:
         workflow = (ROOT / ".github" / "workflows" / "publish-version.yml").read_text(encoding="utf-8")
         self.assertIn("actions: write", workflow)

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import time
 from contextlib import contextmanager
@@ -14,6 +15,10 @@ except ImportError:  # pragma: no cover - Windows fallback
     fcntl = None
 
 from _platform_common import current_worktree_root, fetch_main, harness_mode, main_root, profile, publish_mode, read_platform_config, run_git
+
+
+ALLOW_NO_CHECKS_ENV = "DEV_PLATFORM_ALLOW_NO_CHECKS"
+DIRECT_PUBLISH_GUARD = "DEV_PLATFORM_VALIDATED_DIRECT_PUBLISH"
 
 
 def clean(root: Path) -> bool:
@@ -103,7 +108,9 @@ def integrate_and_publish_direct(work: Path, integration: Path, config: dict, br
             raise SystemExit(f"{branch} is stale relative to current local {main_branch}. Rebase/update explicitly and rerun checks.")
         run_git(["merge", "--ff-only", branch], cwd=integration)
         print(f"Integrated {branch} -> {main_branch} locally.")
-    subprocess.run(["python3", str(integration / "scripts" / "project_publish.py"), "--mode", "direct"], cwd=integration, check=True)
+    env = os.environ.copy()
+    env[DIRECT_PUBLISH_GUARD] = "1"
+    subprocess.run(["python3", str(integration / "scripts" / "project_publish.py"), "--mode", "direct"], cwd=integration, check=True, env=env)
 
 
 def main() -> int:
@@ -116,6 +123,11 @@ def main() -> int:
     args = parser.parse_args()
     if args.merge_timeout < 0:
         parser.error("--merge-timeout must be non-negative")
+    if args.no_checks and os.environ.get(ALLOW_NO_CHECKS_ENV) != "1":
+        raise SystemExit(
+            "--no-checks is an emergency/operator override and is blocked by default. "
+            f"Set {ALLOW_NO_CHECKS_ENV}=1 only after an explicit decision to bypass validation."
+        )
     work = current_worktree_root()
     integration = main_root()
     config = read_platform_config(work)

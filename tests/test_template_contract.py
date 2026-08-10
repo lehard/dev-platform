@@ -44,7 +44,7 @@ class TemplateContractTests(unittest.TestCase):
         self.assertIn("push:", workflow)
         self.assertNotIn("{% if publish_mode == 'pr' %}", workflow)
         self.assertIn("workflow_dispatch:", workflow)
-        self.assertIn('{% raw %}${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}{% endraw %}', workflow)
+        self.assertIn('{% raw %}${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}{% endraw %}', workflow)
         self.assertIn("cancel-in-progress: true", workflow)
 
     def test_central_ci_runs_once_per_pr_and_keeps_all_profile_smokes(self) -> None:

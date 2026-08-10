@@ -50,8 +50,21 @@ def changed_files(root: Path, base: str | None, explicit: list[str]) -> list[str
 
 
 def select(config: dict[str, Any], paths: list[str]) -> list[dict[str, Any]]:
+    settings = config.get("settings", {})
     checks = config.get("checks", {})
-    fallback = list(config.get("settings", {}).get("fallback_commands", []))
+    fallback = list(settings.get("fallback_commands", []))
+    full_commands = list(settings.get("full_commands", []))
+    full_trigger_patterns = list(settings.get("full_trigger_patterns", []))
+
+    full_trigger_paths = [path for path in paths if full_trigger_patterns and match_any(path, full_trigger_patterns)]
+    if full_trigger_paths:
+        if not full_commands:
+            raise SystemExit(
+                "High-impact file matched settings.full_trigger_patterns, but settings.full_commands is empty. "
+                "Refusing to downgrade the change to whitespace-only validation."
+            )
+        return [{"id": "full-trigger", "paths": full_trigger_paths, "commands": full_commands}]
+
     selected: list[dict[str, Any]] = []
     seen: set[str] = set()
     unknown: list[str] = []

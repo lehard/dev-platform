@@ -38,6 +38,37 @@ class SelectChecksTests(unittest.TestCase):
         self.assertEqual(checks[0]["id"], "fallback")
         self.assertEqual(checks[0]["commands"], ["git diff --check"])
 
+    def test_high_impact_file_escalates_to_full_commands(self) -> None:
+        config = {
+            "settings": {
+                "fallback_commands": ["git diff --check"],
+                "full_commands": ["pytest", "npm run build"],
+                "full_trigger_patterns": ["**/pyproject.toml", "**/package-lock.json"],
+            },
+            "checks": {
+                "python": {"patterns": ["**/*.py"], "commands": ["python3 -m compileall -q ."]},
+            },
+        }
+        checks = select_checks.select(config, ["apps/api/pyproject.toml", "apps/api/app/main.py"])
+        self.assertEqual(checks, [{"id": "full-trigger", "paths": ["apps/api/pyproject.toml"], "commands": ["pytest", "npm run build"]}])
+
+    def test_high_impact_file_without_full_commands_fails_closed(self) -> None:
+        config = {
+            "settings": {
+                "fallback_commands": ["git diff --check"],
+                "full_trigger_patterns": ["**/package.json"],
+            },
+            "checks": {},
+        }
+        with self.assertRaises(SystemExit):
+            select_checks.select(config, ["apps/web/package.json"])
+
+    def test_template_declares_common_dependency_and_ci_full_triggers(self) -> None:
+        text = (ROOT / "template" / "dev-platform" / "checks.toml").read_text(encoding="utf-8")
+        self.assertIn("full_trigger_patterns", text)
+        for pattern in ("**/pyproject.toml", "**/package.json", "**/package-lock.json", ".github/workflows/**", "dev-platform/checks.toml"):
+            self.assertIn(pattern, text)
+
 
 if __name__ == "__main__":
     unittest.main()
