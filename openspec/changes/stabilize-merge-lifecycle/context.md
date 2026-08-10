@@ -1,0 +1,1 @@
+Observed incidents motivating this change: stale environment GitHub token shadowing a working keyring credential; PR checks not yet registered immediately after creation; branch policy requiring async merge/merge queue; and post-merge cleanup/retry confusion. Raw incident logs are intentionally not copied into the repository.
