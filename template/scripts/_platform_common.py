@@ -37,7 +37,20 @@ def read_platform_config(root: Path | None = None) -> dict[str, Any]:
     root = root or current_worktree_root()
     path = root / ".dev-platform.toml"
     if not path.exists():
-        return {"main_branch": "main", "workflow_profile": "standard", "harness_mode": "platform", "publish_mode": "pr", "paths": {"worktrees": ".claude/worktrees", "agent_board": ".claude/agents-board.json", "friction_log": ".claude/agent-friction.jsonl", "checks": "dev-platform/checks.toml"}}
+        return {
+            "main_branch": "main",
+            "workflow_profile": "standard",
+            "harness_mode": "platform",
+            "protected_main": True,
+            "publish_mode": "pr",
+            "pr_merge_mode": "auto",
+            "paths": {
+                "worktrees": ".claude/worktrees",
+                "agent_board": ".claude/agents-board.json",
+                "friction_log": ".claude/agent-friction.jsonl",
+                "checks": "dev-platform/checks.toml",
+            },
+        }
     import tomllib
     with path.open("rb") as fh:
         return tomllib.load(fh)
@@ -101,8 +114,19 @@ def harness_mode(config: dict[str, Any]) -> str:
     return str(config.get("harness_mode", "platform"))
 
 
+def protected_main(config: dict[str, Any]) -> bool:
+    # Legacy configs predate this key. Keep their old behavior until an explicit
+    # reviewed rollout records the repository's protection contract.
+    return bool(config.get("protected_main", False))
+
+
 def publish_mode(config: dict[str, Any]) -> str:
     return str(config.get("publish_mode", "pr"))
+
+
+def pr_merge_mode(config: dict[str, Any]) -> str:
+    # Legacy PR projects were manual. New generated projects explicitly record auto.
+    return str(config.get("pr_merge_mode", "manual"))
 
 
 @contextmanager
