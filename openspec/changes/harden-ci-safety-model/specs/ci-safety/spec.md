@@ -78,3 +78,27 @@ Repositories SHALL NOT rely on a required status context name that can be emitte
 #### Scenario: Legacy and platform workflows overlap
 - **WHEN** two workflows both define a job with the same required check context
 - **THEN** one context is renamed or removed before that context is relied on as a branch-protection gate
+
+### Requirement: Protected PR merge completion is reconciled from remote truth
+For platform-owned PR publication, GitHub's confirmed PR state SHALL be authoritative over local GitHub CLI convenience cleanup. The lifecycle SHALL remain compatible with multi-agent repositories where `main` is checked out in a sibling integration worktree.
+
+#### Scenario: GitHub merge succeeds but gh exits non-zero after local convenience work
+- **GIVEN** `main` is already checked out in the integration worktree
+- **WHEN** the server-side PR merge succeeds but the merge command exits non-zero for a local post-merge reason
+- **THEN** the lifecycle independently queries the PR state
+- **AND** a confirmed `MERGED` state is treated as successful remote publication
+- **AND** local main synchronization and board reconciliation continue
+
+#### Scenario: Remote branch cleanup follows a confirmed merge
+- **WHEN** GitHub confirms the PR is `MERGED`
+- **THEN** the remote feature branch is deleted as a separate no-checkout operation
+- **AND** a remote branch cleanup failure does not retroactively report the completed merge as failed
+
+#### Scenario: Optional multi-agent local cleanup is requested
+- **WHEN** a merged multi-agent task is finished with local cleanup enabled
+- **THEN** cleanup executes from the integration checkout rather than from the feature worktree being removed
+- **AND** the feature worktree is removed only after local `main` has synchronized to the merged remote state
+
+#### Scenario: Merge state cannot be confirmed
+- **WHEN** bounded post-merge polling does not observe `MERGED`
+- **THEN** the lifecycle fails closed without claiming local reconciliation is complete
