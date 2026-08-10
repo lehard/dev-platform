@@ -103,10 +103,17 @@ class ProtectedMainZeroHandoffTests(unittest.TestCase):
         self.make_feature("agent/auto")
         env = self.fake_gh(
             'if [ "$1" = "auth" ] && [ "$2" = "status" ]; then exit 0; fi\n'
-            'if [ "$1" = "pr" ] && [ "$2" = "view" ]; then exit 1; fi\n'
+            'if [ "$1" = "pr" ] && [ "$2" = "view" ]; then\n'
+            '  if [ "$4" = "--json" ] && [ "$5" = "state,mergedAt" ]; then\n'
+            '    main_sha=$(git --git-dir "$FAKE_REMOTE" rev-parse refs/heads/main 2>/dev/null) || exit 1;\n'
+            '    branch_sha=$(git --git-dir "$FAKE_REMOTE" rev-parse "refs/heads/$3" 2>/dev/null) || exit 1;\n'
+            '    if [ "$main_sha" = "$branch_sha" ]; then echo MERGED; else echo OPEN; fi; exit 0;\n'
+            '  fi;\n'
+            '  exit 1;\n'
+            'fi\n'
             'if [ "$1" = "pr" ] && [ "$2" = "create" ]; then echo "https://example.invalid/pr/1"; exit 0; fi\n'
             'if [ "$1" = "pr" ] && [ "$2" = "checks" ]; then echo "platform-ci pass"; exit 0; fi\n'
-            'if [ "$1" = "pr" ] && [ "$2" = "merge" ]; then sha=$(git --git-dir "$FAKE_REMOTE" rev-parse "refs/heads/$3") || exit 1; git --git-dir "$FAKE_REMOTE" update-ref refs/heads/main "$sha" || exit 1; git --git-dir "$FAKE_REMOTE" update-ref -d "refs/heads/$3"; exit 0; fi\n'
+            'if [ "$1" = "pr" ] && [ "$2" = "merge" ]; then sha=$(git --git-dir "$FAKE_REMOTE" rev-parse "refs/heads/$3") || exit 1; git --git-dir "$FAKE_REMOTE" update-ref refs/heads/main "$sha" || exit 1; exit 0; fi\n'
             'exit 1'
         )
         result = run("python3", "scripts/finish_task.py", "--no-checks", cwd=self.repo, env=env)
@@ -116,6 +123,8 @@ class ProtectedMainZeroHandoffTests(unittest.TestCase):
         local = git("rev-parse", "main", cwd=self.repo).stdout.strip()
         remote = run("git", "--git-dir", str(self.remote), "rev-parse", "main", cwd=self.base).stdout.strip()
         self.assertEqual(local, remote)
+        remote_feature = run("git", "--git-dir", str(self.remote), "rev-parse", "--verify", "refs/heads/agent/auto", cwd=self.base, check=False)
+        self.assertNotEqual(remote_feature.returncode, 0)
 
     def test_failed_cloud_checks_leave_local_and_remote_main_unchanged(self) -> None:
         local_before = self.make_feature("agent/fail-check")
