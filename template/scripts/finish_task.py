@@ -14,7 +14,20 @@ try:
 except ImportError:  # pragma: no cover - Windows fallback
     fcntl = None
 
-from _platform_common import current_worktree_root, fetch_main, harness_mode, main_root, profile, publish_mode, read_platform_config, run_git
+from _platform_common import (
+    current_worktree_root,
+    fetch_main,
+    github_cli_env,
+    harness_mode,
+    main_root,
+    pr_merge_mode,
+    profile,
+    protected_main,
+    publish_mode,
+    read_platform_config,
+    relation,
+    run_git,
+)
 
 
 ALLOW_NO_CHECKS_ENV = "DEV_PLATFORM_ALLOW_NO_CHECKS"
@@ -68,6 +81,20 @@ def run_openspec_hygiene(root: Path) -> None:
         raise SystemExit(result.returncode)
 
 
+def validate_publication_config(root: Path, config: dict, prof: str, mode: str) -> None:
+    merge_mode = pr_merge_mode(config)
+    if merge_mode not in {"auto", "manual"}:
+        raise SystemExit(f"Invalid pr_merge_mode={merge_mode!r}; expected 'auto' or 'manual'.")
+    if protected_main(config) and mode == "direct":
+        raise SystemExit("protected_main=true is incompatible with publish_mode=direct. Use publish_mode=pr so GitHub required checks can gate the merge.")
+    if mode == "pr" and prof == "light":
+        raise SystemExit("publish_mode=pr requires a feature-capable profile. Use standard/multi-agent or a reviewed project-owned harness.")
+    if mode == "pr" and github_cli_env(root) is None:
+        raise SystemExit(
+            "publish_mode=pr requires authenticated GitHub CLI/API access. Run `gh auth login`, provide GH_TOKEN/GITHUB_TOKEN, or configure reusable GitHub HTTPS credentials before finishing the task."
+        )
+
+
 @contextmanager
 def serialized_integration(root: Path, config: dict, timeout_seconds: float) -> Iterator[None]:
     relative = config.get("paths", {}).get("main_merge_lock", ".claude/main-merge.lock")
@@ -113,6 +140,25 @@ def integrate_and_publish_direct(work: Path, integration: Path, config: dict, br
     subprocess.run(["python3", str(integration / "scripts" / "project_publish.py"), "--mode", "direct"], cwd=integration, check=True, env=env)
 
 
+def sync_after_remote_pr_merge(work: Path, integration: Path, main_branch: str) -> None:
+    if not clean(integration):
+        raise SystemExit("Remote PR merged, but the integration copy is dirty. Leave it untouched and synchronize main manually after resolving local state.")
+    fetch_main(integration, "origin", main_branch)
+    remote_main = f"origin/{main_branch}"
+    if work == integration:
+        run_git(["switch", main_branch], cwd=integration)
+    elif current_branch(integration) != main_branch:
+        raise SystemExit(f"Remote PR merged, but integration copy must have {main_branch!r} checked out before synchronization.")
+    state = relation(integration, main_branch, remote_main)
+    if state == "behind":
+        run_git(["merge", "--ff-only", remote_main], cwd=integration)
+        print(f"Fast-forwarded local {main_branch} to merged {remote_main}.")
+    elif state == "equal":
+        print(f"Local {main_branch} already equals merged {remote_main}.")
+    else:
+        raise SystemExit(f"Remote PR merged, but local {main_branch} vs {remote_main} is {state}. Refusing automatic reconciliation.")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate, integrate when needed, and publish a completed task without a human git hand-off.")
     parser.add_argument("--no-checks", action="store_true")
@@ -139,6 +185,7 @@ def main() -> int:
     branch = current_branch(work)
     if not branch:
         raise SystemExit("Detached HEAD is not publishable through the platform lifecycle.")
+    validate_publication_config(work, config, prof, mode)
     run_openspec_hygiene(work)
     if not clean(work):
         raise SystemExit("Current worktree is dirty. Commit or remove changes first.")
@@ -156,12 +203,18 @@ def main() -> int:
         if args.body:
             command += ["--body", args.body]
         subprocess.run(command, cwd=work, check=True)
-        if prof == "standard" and work == integration:
-            run_git(["switch", main_branch], cwd=integration)
-            print(f"Returned integration copy to {main_branch} after PR publication.")
-        if prof == "multi-agent":
-            finish_board(integration, work, config)
-        print("Task published as PR. OpenSpec lifecycle hygiene passed.")
+        if pr_merge_mode(config) == "auto":
+            sync_after_remote_pr_merge(work, integration, main_branch)
+            if prof == "multi-agent":
+                finish_board(integration, work, config)
+            print("Task PR passed required checks, merged through GitHub, and local main was synchronized.")
+        else:
+            if prof == "standard" and work == integration:
+                run_git(["switch", main_branch], cwd=integration)
+                print(f"Returned integration copy to {main_branch} after manual-review PR publication.")
+            if prof == "multi-agent":
+                finish_board(integration, work, config)
+            print("Task published as PR for manual review. OpenSpec lifecycle hygiene passed.")
         return 0
     if mode != "direct":
         raise SystemExit(f"Unknown publish_mode: {mode}")
