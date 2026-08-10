@@ -103,6 +103,7 @@ def execute(root: Path, checks: list[dict[str, Any]]) -> int:
         return 0
 
     for command in commands:
+        print(f"DEV_PLATFORM_CHECK_COMMAND: {command}", flush=True)
         print(f"+ {command}", flush=True)
         result = subprocess.run(command, cwd=root, shell=True)
         if result.returncode != 0:
