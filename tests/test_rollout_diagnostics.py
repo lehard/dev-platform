@@ -1,10 +1,19 @@
 from pathlib import Path
+import re
 import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "rollout.yml"
+GENERATED_GATE = ROOT / "template" / ".github" / "workflows" / "dev-platform.yml.jinja"
 SELECTOR = ROOT / "template" / "scripts" / "select_checks.py"
+
+
+def node_version(path: Path) -> str:
+    match = re.search(r'node-version: "([^"]+)"', path.read_text(encoding="utf-8"))
+    if not match:
+        raise AssertionError(f"node-version not found in {path}")
+    return match.group(1)
 
 
 class RolloutDiagnosticsTests(unittest.TestCase):
@@ -26,6 +35,10 @@ class RolloutDiagnosticsTests(unittest.TestCase):
         self.assertIn('blocker="command failed (exit $rc): ${check_marker#DEV_PLATFORM_CHECK_COMMAND: }"', text)
         self.assertNotIn("grep -E '^\\+ '", text)
         self.assertNotIn("\\[fail\\]|Error:|ERROR:", text)
+
+    def test_rollout_node_matches_generated_platform_gate(self) -> None:
+        self.assertEqual(node_version(WORKFLOW), node_version(GENERATED_GATE))
+        self.assertEqual(node_version(WORKFLOW), "20.19.0")
 
     def test_failed_prepare_cannot_push_or_open_pr(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
