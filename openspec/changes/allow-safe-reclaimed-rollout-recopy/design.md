@@ -49,6 +49,47 @@ The v1.4.16 acceptance run proved that broad `Error:` scraping is unsafe. The v1
 
 A product-check failure remains blocking; diagnostics only identify which command failed so the correction is based on evidence. The marker carries no secrets beyond commands already printed to the Actions log.
 
+## Agent-consumable terminal diagnostic
+
+Human-readable annotations are not sufficient for reliable automated diagnosis. The rollout SHALL also construct one canonical diagnostic envelope from structured rollout state rather than by asking a later agent to reinterpret the full log.
+
+The envelope is written as JSON with a stable schema. At minimum it contains:
+
+```json
+{
+  "schema_version": 1,
+  "status": "blocked",
+  "project": "owner/repo",
+  "target_release": "vX.Y.Z",
+  "stage": "prepare|copier_update|recovery|platform_validation|downstream_check|publish|unknown",
+  "category": "safety_guard|copier_conflict|downstream_check|runtime_environment|publish_guard|unknown",
+  "reason": "stable human-readable blocker",
+  "command": "selected command or null",
+  "exit_code": 2,
+  "retry_same_inputs": "safe|pointless|unknown",
+  "evidence": {
+    "marker": "stable marker or null",
+    "conflict_paths": []
+  }
+}
+```
+
+`reason` is concise and suitable for both the Actions summary and agent consumption. `command` comes only from the reserved selected-check marker, never arbitrary shell/compiler output. `conflict_paths` are included only when rollout already has structured conflict knowledge. Secrets, environment dumps, tokens, and unrestricted raw logs are never copied into the envelope.
+
+`retry_same_inputs` is advisory, not executable policy:
+
+- `safe` means the failure is plausibly transient and a same-input rerun does not bypass a safety decision;
+- `pointless` means the same immutable inputs are expected to hit the same deterministic blocker and code/config/template state must change first;
+- `unknown` is used when the platform cannot prove either case.
+
+The workflow does not auto-rerun from this field. It only prevents an agent from blindly retrying a deterministic safety or validation failure.
+
+The canonical JSON is saved to a predictable file such as `rollout-diagnostic.json`, rendered into the step summary in a compact human-readable form, and uploaded as a named artifact such as `rollout-diagnostic-<project>-<release>`. Artifact upload runs under `if: always()` or equivalent after preparation diagnostics are available, but is non-authoritative: if upload itself fails, the original rollout exit remains the terminal result and the annotation/summary still attempt to expose the blocker.
+
+Exactly one terminal envelope is produced per failed project rollout attempt. Later diagnostic steps may enrich presentation but must not replace the original failure with a different synthetic cause such as "artifact upload failed".
+
+This contract gives an external agent a deterministic path: inspect the failed run, retrieve the named diagnostic artifact or summary, classify the blocker, then decide whether code/config work is required. Full job-log retrieval remains a fallback for additional evidence, not the primary way to discover the failure.
+
 ## Downstream runtime parity
 
 The v1.4.18 diagnostic identified the real remaining Cuby blocker as `cd apps/web && npm run build`. The same web build had just passed Cuby's normal PR gate, whose generated platform workflow explicitly pins Node `20.19.0`. Managed rollout, however, set up Python but relied on the hosted runner's ambient Node executable. That makes rollout validation semantically different from the downstream gate it is supposed to preflight.
@@ -67,6 +108,8 @@ This proof remains reproducible because both sides are immutable Git objects: do
 
 No downstream format changes are introduced. If recovery cannot prove safety, behavior stays fail-closed: rollout stops without pushing a branch. Removing baseline-equivalence recovery restores the stricter v1.4.14 behavior. Removing the diagnostic improvements only reduces observability and does not alter recovery eligibility. Removing runtime parity restores reliance on the hosted runner's ambient Node and is therefore not an acceptable forward configuration while generated CI pins Node.
 
+The diagnostic artifact is additive. Consumers must tolerate unknown future fields and key behavior off `schema_version`, `status`, `stage`, and `category` rather than exact JSON byte shape. A diagnostic-generation failure must degrade to the existing annotation/summary behavior, never to rollout success.
+
 ## Validation
 
-Unit tests cover target-equivalent reclaimed recovery, exact old-baseline and missing/missing proof, the actual mixed Cuby reject set, and real-divergence blocking. Workflow/helper tests cover preservation of failure, structured marker precedence, rejection of broad/ambiguous log scraping, gating of push/PR creation, and equality of the Node runtime pinned by managed rollout and the generated downstream gate. Existing project-harness guarded-recopy tests remain green. The final immutable release is then exercised against real Cuby rollout before archive.
+Unit tests cover target-equivalent reclaimed recovery, exact old-baseline and missing/missing proof, the actual mixed Cuby reject set, and real-divergence blocking. Workflow/helper tests cover preservation of failure, structured marker precedence, rejection of broad/ambiguous log scraping, gating of push/PR creation, equality of the Node runtime pinned by managed rollout and the generated downstream gate, deterministic diagnostic-envelope generation, category/stage mapping, same-input retry advisory, secret exclusion, and preservation of the original failure when artifact upload/presentation fails. Existing project-harness guarded-recopy tests remain green. The final immutable release is then exercised against real Cuby rollout before archive.
