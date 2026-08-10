@@ -23,7 +23,19 @@ def configure(repo: Path) -> None:
 def install_scripts(repo: Path, profile: str = "light", publish: str = "direct") -> None:
     target = repo / "scripts"; target.mkdir(exist_ok=True)
     for name in ("_platform_common.py", "project_sync.py", "project_publish.py", "finish_task.py", "openspec_lifecycle.py"): shutil.copy2(SCRIPT_SOURCE / name, target / name)
-    (repo / ".dev-platform.toml").write_text(f'main_branch = "main"\nworkflow_profile = "{profile}"\npublish_mode = "{publish}"\n', encoding="utf-8")
+    (repo / ".dev-platform.toml").write_text(f'main_branch = "main"\nworkflow_profile = "{profile}"\nharness_mode = "platform"\npublish_mode = "{publish}"\n', encoding="utf-8")
+
+
+def explicit_bypass_env() -> dict[str, str]:
+    env = os.environ.copy()
+    env["DEV_PLATFORM_ALLOW_NO_CHECKS"] = "1"
+    return env
+
+
+def validated_direct_env() -> dict[str, str]:
+    env = os.environ.copy()
+    env["DEV_PLATFORM_VALIDATED_DIRECT_PUBLISH"] = "1"
+    return env
 
 
 class GitLifecycleTests(unittest.TestCase):
@@ -47,23 +59,34 @@ class GitLifecycleTests(unittest.TestCase):
         (self.repo / "local.txt").write_text("local\n", encoding="utf-8"); git("add", "local.txt", cwd=self.repo); git("commit", "-m", "local", cwd=self.repo)
         result = run("python3", "scripts/project_sync.py", cwd=self.repo, check=False); self.assertNotEqual(result.returncode, 0); self.assertIn("ahead", result.stderr + result.stdout)
 
-    def test_direct_publish_pushes_fast_forward(self) -> None:
+    def test_direct_publish_is_blocked_outside_validated_lifecycle(self) -> None:
         (self.repo / "local.txt").write_text("local\n", encoding="utf-8"); git("add", "local.txt", cwd=self.repo); git("commit", "-m", "local", cwd=self.repo)
-        result = run("python3", "scripts/project_publish.py", "--mode", "direct", cwd=self.repo); self.assertIn("Published main", result.stdout)
+        result = run("python3", "scripts/project_publish.py", "--mode", "direct", cwd=self.repo, check=False)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("validated finish_task lifecycle", result.stderr + result.stdout)
+
+    def test_direct_publish_pushes_fast_forward_with_explicit_validated_guard(self) -> None:
+        (self.repo / "local.txt").write_text("local\n", encoding="utf-8"); git("add", "local.txt", cwd=self.repo); git("commit", "-m", "local", cwd=self.repo)
+        result = run("python3", "scripts/project_publish.py", "--mode", "direct", cwd=self.repo, env=validated_direct_env()); self.assertIn("Published main", result.stdout)
         remote_sha = run("git", "--git-dir", str(self.remote), "rev-parse", "main", cwd=self.base).stdout.strip(); local_sha = git("rev-parse", "main", cwd=self.repo).stdout.strip(); self.assertEqual(remote_sha, local_sha)
 
+    def test_no_checks_requires_explicit_operator_override(self) -> None:
+        result = run("python3", "scripts/finish_task.py", "--no-checks", cwd=self.repo, check=False)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("DEV_PLATFORM_ALLOW_NO_CHECKS", result.stderr + result.stdout)
+
     def test_standard_direct_finish_integrates_and_pushes(self) -> None:
-        (self.repo / ".dev-platform.toml").write_text('main_branch = "main"\nworkflow_profile = "standard"\npublish_mode = "direct"\n', encoding="utf-8"); git("add", ".dev-platform.toml", cwd=self.repo); git("commit", "-m", "standard profile", cwd=self.repo); git("push", cwd=self.repo)
+        (self.repo / ".dev-platform.toml").write_text('main_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\npublish_mode = "direct"\n', encoding="utf-8"); git("add", ".dev-platform.toml", cwd=self.repo); git("commit", "-m", "standard profile", cwd=self.repo); git("push", cwd=self.repo)
         git("switch", "-c", "agent/test", cwd=self.repo); (self.repo / "feature.txt").write_text("feature\n", encoding="utf-8"); git("add", "feature.txt", cwd=self.repo); git("commit", "-m", "feature", cwd=self.repo)
-        result = run("python3", "scripts/finish_task.py", "--no-checks", cwd=self.repo); self.assertIn("Integrated agent/test -> main", result.stdout); self.assertEqual(git("branch", "--show-current", cwd=self.repo).stdout.strip(), "main")
+        result = run("python3", "scripts/finish_task.py", "--no-checks", cwd=self.repo, env=explicit_bypass_env()); self.assertIn("Integrated agent/test -> main", result.stdout); self.assertEqual(git("branch", "--show-current", cwd=self.repo).stdout.strip(), "main")
         remote_sha = run("git", "--git-dir", str(self.remote), "rev-parse", "main", cwd=self.base).stdout.strip(); local_sha = git("rev-parse", "main", cwd=self.repo).stdout.strip(); self.assertEqual(remote_sha, local_sha)
 
     def test_standard_pr_finish_returns_to_main(self) -> None:
-        (self.repo / ".dev-platform.toml").write_text('main_branch = "main"\nworkflow_profile = "standard"\npublish_mode = "pr"\n', encoding="utf-8"); git("add", ".dev-platform.toml", cwd=self.repo); git("commit", "-m", "pr profile", cwd=self.repo); git("push", cwd=self.repo)
+        (self.repo / ".dev-platform.toml").write_text('main_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\npublish_mode = "pr"\n', encoding="utf-8"); git("add", ".dev-platform.toml", cwd=self.repo); git("commit", "-m", "pr profile", cwd=self.repo); git("push", cwd=self.repo)
         git("switch", "-c", "agent/pr-test", cwd=self.repo); (self.repo / "feature.txt").write_text("feature\n", encoding="utf-8"); git("add", "feature.txt", cwd=self.repo); git("commit", "-m", "feature pr", cwd=self.repo)
         fake_bin = self.base / "fake-bin"; fake_bin.mkdir(); fake_gh = fake_bin / "gh"
         fake_gh.write_text('#!/bin/sh\nif [ "$1" = "auth" ] && [ "$2" = "status" ]; then exit 0; fi\nif [ "$1" = "pr" ] && [ "$2" = "view" ]; then exit 1; fi\nif [ "$1" = "pr" ] && [ "$2" = "create" ]; then echo "https://example.invalid/pr/1"; exit 0; fi\nexit 1\n', encoding="utf-8"); fake_gh.chmod(0o755)
-        env = os.environ.copy(); env["PATH"] = str(fake_bin) + os.pathsep + env.get("PATH", "")
+        env = explicit_bypass_env(); env["PATH"] = str(fake_bin) + os.pathsep + env.get("PATH", "")
         result = run("python3", "scripts/finish_task.py", "--no-checks", cwd=self.repo, env=env)
         self.assertIn("Returned integration copy to main", result.stdout); self.assertEqual(git("branch", "--show-current", cwd=self.repo).stdout.strip(), "main")
         self.assertIsNotNone(run("git", "--git-dir", str(self.remote), "rev-parse", "refs/heads/agent/pr-test", cwd=self.base).stdout.strip())
@@ -71,7 +94,7 @@ class GitLifecycleTests(unittest.TestCase):
     def test_direct_publish_refuses_divergence(self) -> None:
         (self.repo / "local.txt").write_text("local\n", encoding="utf-8"); git("add", "local.txt", cwd=self.repo); git("commit", "-m", "local", cwd=self.repo)
         other = self.base / "other"; run("git", "clone", str(self.remote), str(other), cwd=self.base); configure(other); (other / "remote.txt").write_text("remote\n", encoding="utf-8"); git("add", "remote.txt", cwd=other); git("commit", "-m", "remote", cwd=other); git("push", cwd=other)
-        result = run("python3", "scripts/project_publish.py", "--mode", "direct", cwd=self.repo, check=False); self.assertNotEqual(result.returncode, 0); self.assertIn("diverged", result.stderr + result.stdout)
+        result = run("python3", "scripts/project_publish.py", "--mode", "direct", cwd=self.repo, check=False, env=validated_direct_env()); self.assertNotEqual(result.returncode, 0); self.assertIn("diverged", result.stderr + result.stdout)
 
 
 if __name__ == "__main__": unittest.main()
