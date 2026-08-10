@@ -4,7 +4,7 @@
 
 Protected integration branches use PR-based remote integration. The agent still runs one finish command; the implementation detail changes from local-main-first direct push to remote-PR-first merge.
 
-Two configuration dimensions are explicit:
+Three configuration dimensions are explicit:
 
 ```toml
 protected_main = true
@@ -24,11 +24,11 @@ The template defaults standard/multi-agent projects to protected PR publication 
 
 For `harness_mode=platform`, `publish_mode=pr`, `pr_merge_mode=auto`:
 
-1. Run OpenSpec hygiene.
-2. Require a clean task branch.
-3. Fetch current `origin/main` and reject stale/divergent task branches.
-4. Run required local selected/full checks.
-5. Verify GitHub CLI/API authentication before remote PR operations.
+1. Run publication preflight, including protection-policy and GitHub API credential checks.
+2. Run OpenSpec hygiene.
+3. Require a clean task branch.
+4. Fetch current `origin/main` and reject stale/divergent task branches.
+5. Run required local selected/full checks.
 6. Push the feature branch.
 7. Create or reuse its PR.
 8. Wait for required PR checks using GitHub CLI.
@@ -44,11 +44,14 @@ The platform never merges the feature branch into local `main` before step 9.
 Git branch publication and GitHub PR API operations are separate concepts.
 
 - A normal git credential may be sufficient to push the feature branch.
-- Creating, inspecting, waiting on, and merging the PR requires authenticated `gh` (including credentials supplied through supported `GH_TOKEN`/`GITHUB_TOKEN` environment mechanisms).
-- `agent_doctor.py` fails early for platform-owned PR publication when `gh` is absent or unauthenticated.
-- `project_publish.py` pushes the feature branch first only after the caller has passed preflight; if invoked directly without API auth it reports that the branch is safely published but the PR API step is unavailable.
+- Creating, inspecting, waiting on, and merging the PR requires authenticated GitHub API access through `gh`.
+- Explicit `GH_TOKEN` / `GITHUB_TOKEN` or an existing `gh` login are preferred.
+- If `gh` itself is unauthenticated but the machine already has a reusable HTTPS credential for `github.com` that is sufficient for normal git operations, the platform may obtain it non-interactively through `git credential fill`, pass it only to the `gh` subprocess as `GH_TOKEN`, validate it, and never print or persist it. This avoids forcing a redundant second login on a machine that already has an appropriate GitHub token stored in its credential helper.
+- SSH-only git credentials cannot be converted into GitHub REST credentials. Those hosts still need a one-time `gh auth login` or token environment setup.
+- `agent_doctor.py` fails early for platform-owned PR publication when no usable GitHub API credential can be resolved.
+- `project_publish.py` keeps branch push independent from PR API work. Normal `finish_task.py` preflight catches missing API auth before any push; direct `project_publish.py --mode pr` invocation may safely push the validated branch first and then report that PR creation/merge is incomplete.
 
-This preserves work while still making autonomous completion requirements explicit.
+This preserves work while making autonomous completion requirements explicit without storing additional secrets in the repository.
 
 ## Required-check waiting
 
@@ -75,32 +78,38 @@ For platform-owned harnesses doctor validates:
 - `protected_main=true` cannot use `publish_mode=direct`;
 - PR mode requires a feature-capable profile (`standard` or `multi-agent`);
 - `pr_merge_mode` is a supported value;
-- platform-owned PR mode has authenticated GitHub CLI/API access;
+- platform-owned PR mode has usable GitHub API authentication;
 - current integration and remote state are safe as before.
 
-When authenticated `gh` is available, doctor also queries the GitHub branch endpoint and warns if the recorded `protected_main` expectation disagrees with GitHub. This verification is advisory because the explicit project config remains the deterministic local contract.
+When GitHub API authentication is available, doctor also queries the GitHub branch endpoint and warns if the recorded `protected_main` expectation disagrees with GitHub. It additionally fails if GitHub reports the branch protected while direct publication is configured. The remote verification complements the explicit local contract and catches legacy configs that predate `protected_main`.
 
 ## Project-owned harnesses
 
-`harness_mode=project` remains owned by each repository. Dev Platform rollout updates the shared config/guidance, but project-specific publication scripts must satisfy the same observable contract:
+`harness_mode=project` remains owned by each repository. Dev Platform rollout updates shared generated assets, but project-specific publication scripts must satisfy the same observable contract:
 
 - no direct protected-main push;
 - no local-main mutation before remote merge;
 - required checks before merge;
 - early auth/preflight failure.
 
-Planner Agent Lab and Jara_Fin therefore receive small reviewed harness updates after the platform release.
+Planner Agent Lab and Jara_Fin therefore receive separate small reviewed harness/config updates after the platform release.
 
-## Migration
+## Migration and release sequencing
 
-- Cuby: platform-owned harness; set protected PR + auto merge and receive template scripts through Copier rollout.
+The active platform change defines and implements the reusable contract first. It is verified, archived, merged, and published as a new immutable Dev Platform release. Downstream migration is then an operational rollout of that released contract; it is intentionally not a prerequisite for archiving the central change because the immutable release must exist before managed Copier rollout can target it.
+
+After the release:
+
+- Cuby: platform-owned harness; explicitly set protected PR + auto merge because `.dev-platform.toml` is project-owned/preserved, and receive template scripts through Copier rollout.
 - Planner Agent Lab: project-owned harness; switch config from direct to protected PR/auto and adapt its project publication flow.
 - Jara_Fin: already PR-published; mark protected main and auto task merge while preserving its repository-owned selected checks.
-- Etsy: candidate, not managed; do not mutate it through managed rollout. Record/handle separately if/when adopted.
+- Etsy: candidate, not managed; do not mutate it through managed rollout. Handle separately if/when adopted or explicitly requested.
+
+`.dev-platform.toml` is deliberately preserved on existing projects, so rollout automation must not assume the new keys appear automatically. Existing managed repositories require explicit reviewed config changes.
 
 ## Failure behavior
 
-- Missing auth: fail doctor/preflight before integration.
+- Missing auth: fail doctor/preflight before integration or normal finish-task branch publication.
 - Failed local checks: no branch push or local-main mutation.
 - Failed cloud checks: PR stays open; local main unchanged.
 - Merge rejected: PR stays open; local main unchanged.
@@ -108,4 +117,4 @@ Planner Agent Lab and Jara_Fin therefore receive small reviewed harness updates 
 
 ## Security
 
-The design deliberately avoids branch-protection bypass. GitHub credentials need normal contents/pull-request rights sufficient to push task branches and merge eligible PRs, but required status checks remain enforced by GitHub.
+The design deliberately avoids branch-protection bypass. GitHub credentials need normal contents/pull-request rights sufficient to push task branches and merge eligible PRs, but required status checks remain enforced by GitHub. Tokens recovered through a configured git credential helper are process-local only and are never logged, written to project files, or promoted as friction evidence.
