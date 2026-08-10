@@ -68,6 +68,20 @@ The managed rollout workflow SHALL preserve a non-zero rollout preparation resul
 - **AND** does not guess a command from arbitrary subprocess output
 - **AND** the rollout remains failed
 
+### Requirement: Managed rollout validates with the platform CI runtime baseline
+
+Managed rollout SHALL provision the same platform-owned base runtime versions used by the generated downstream Dev Platform gate before executing selected downstream checks. Runtime parity SHALL be tested so a platform release cannot silently validate a consumer under a different Node baseline than the generated PR gate.
+
+#### Scenario: Rollout executes JavaScript checks
+- **GIVEN** the generated Dev Platform workflow pins Node `20.19.0`
+- **WHEN** managed rollout reaches selected downstream checks
+- **THEN** the rollout job has provisioned Node `20.19.0` before those checks
+- **AND** the downstream build is evaluated under the same platform-owned Node baseline as its PR gate
+
+#### Scenario: Platform changes the generated Node baseline
+- **WHEN** a later platform release changes the Node version in the generated Dev Platform workflow
+- **THEN** validation fails unless managed rollout is updated to the same version in that release
+
 ### Requirement: Rollout service branches do not weaken interactive task branch rules
 
 Managed rollout SHALL use only the reserved service-branch form `dev-platform/rollout-vX.Y.Z` generated from an exact SemVer release. This automation branch SHALL be validated through rollout-specific validation and SHALL NOT cause interactive task lifecycle rules to accept arbitrary `dev-platform/*` branches in place of `agent/<task>`.
