@@ -18,6 +18,17 @@ The platform-owned selected-check mechanism SHALL NOT treat dependency manifests
 - **WHEN** a project using the platform-owned harness changes a Python or Node dependency manifest/lockfile
 - **THEN** the selected checks include the relevant test/build/install validation defined by the project check configuration
 
+### Requirement: Direct publication cannot silently bypass validation
+The platform-owned direct publication path SHALL require the validated `finish_task.py` lifecycle. Validation bypass SHALL require a separate explicit operator override rather than a normal command-line flag alone.
+
+#### Scenario: Agent calls project_publish directly
+- **WHEN** `project_publish.py --mode direct` is invoked without the validated lifecycle guard
+- **THEN** publication is refused before any push
+
+#### Scenario: Agent passes --no-checks casually
+- **WHEN** `finish_task.py --no-checks` is invoked without the explicit validation-bypass environment override
+- **THEN** publication is refused before integration or push
+
 ### Requirement: Managed rollout executes from the requested immutable release
 Managed rollout SHALL execute rollout helper code from the same exact immutable release tag that is being applied downstream.
 
