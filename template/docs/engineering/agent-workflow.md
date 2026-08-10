@@ -24,6 +24,8 @@ pr_merge_mode = "auto"
 
 With that configuration, `finish_task.py` pushes the validated feature branch, creates or reuses a PR, waits for GitHub checks, merges through GitHub, and only then fast-forwards local `main` to the merged remote state. Required status checks remain authoritative; the platform never uses branch-protection bypass.
 
+PR merge completion is reconciled from GitHub's PR state rather than from client-side branch-cleanup convenience. The merge command does not use `--delete-branch`; after GitHub confirms `MERGED`, the remote task branch is deleted separately, then local `main`/board state is reconciled. If `--cleanup` is requested in a multi-agent worktree, the running process first moves to the integration checkout and removes the completed task worktree/local branch from there.
+
 `pr_merge_mode=manual` keeps an explicit review stop after PR creation. Cross-repository Dev Platform rollout PRs remain reviewed and are not auto-merged by this task-publication policy.
 
 `publish_mode=direct` is only valid for an intentionally unprotected integration branch. It re-fetches immediately before push and only pushes when remote main is an ancestor of local main. `protected_main=true` plus `publish_mode=direct` is an invalid configuration and doctor/finish preflight must reject it before local integration.
