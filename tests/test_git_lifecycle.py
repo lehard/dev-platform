@@ -91,6 +91,75 @@ class GitLifecycleTests(unittest.TestCase):
         self.assertIn("Returned integration copy to main", result.stdout); self.assertEqual(git("branch", "--show-current", cwd=self.repo).stdout.strip(), "main")
         self.assertIsNotNone(run("git", "--git-dir", str(self.remote), "rev-parse", "refs/heads/agent/pr-test", cwd=self.base).stdout.strip())
 
+    def test_multi_agent_pr_finish_reconciles_remote_merge_after_nonzero_gh_exit(self) -> None:
+        config = (
+            'main_branch = "main"\n'
+            'workflow_profile = "multi-agent"\n'
+            'harness_mode = "platform"\n'
+            'protected_main = true\n'
+            'publish_mode = "pr"\n'
+            'pr_merge_mode = "auto"\n'
+            '[paths]\n'
+            'agent_board = ".claude/agents-board.json"\n'
+            'main_merge_lock = ".claude/main-merge.lock"\n'
+        )
+        (self.repo / ".dev-platform.toml").write_text(config, encoding="utf-8")
+        git("add", ".dev-platform.toml", cwd=self.repo); git("commit", "-m", "multi-agent protected pr", cwd=self.repo); git("push", cwd=self.repo)
+
+        worktree = self.repo / ".claude" / "worktrees" / "pr-reconcile"
+        worktree.parent.mkdir(parents=True, exist_ok=True)
+        git("worktree", "add", "-b", "agent/pr-reconcile", str(worktree), "main", cwd=self.repo)
+        configure(worktree)
+        (worktree / "feature.txt").write_text("feature\n", encoding="utf-8")
+        git("add", "feature.txt", cwd=worktree); git("commit", "-m", "feature via protected pr", cwd=worktree)
+
+        fake_bin = self.base / "fake-gh-bin"; fake_bin.mkdir()
+        fake_gh = fake_bin / "gh"
+        merged_marker = self.base / "merged.marker"
+        created_marker = self.base / "created.marker"
+        gh_log = self.base / "gh.log"
+        fake_gh.write_text(
+            "#!/bin/sh\n"
+            f"echo \"$*\" >> '{gh_log}'\n"
+            "if [ \"$1\" = \"auth\" ] && [ \"$2\" = \"status\" ]; then exit 0; fi\n"
+            "if [ \"$1\" = \"pr\" ] && [ \"$2\" = \"view\" ]; then\n"
+            "  case \" $* \" in\n"
+            "    *\" state,mergedAt \"*)\n"
+            f"      if [ -f '{merged_marker}' ]; then echo MERGED; else echo OPEN; fi; exit 0;;\n"
+            "    *)\n"
+            f"      if [ -f '{created_marker}' ]; then echo https://example.invalid/pr/2; exit 0; fi; exit 1;;\n"
+            "  esac\n"
+            "fi\n"
+            "if [ \"$1\" = \"pr\" ] && [ \"$2\" = \"create\" ]; then\n"
+            f"  touch '{created_marker}'; echo https://example.invalid/pr/2; exit 0\n"
+            "fi\n"
+            "if [ \"$1\" = \"pr\" ] && [ \"$2\" = \"checks\" ]; then exit 0; fi\n"
+            "if [ \"$1\" = \"pr\" ] && [ \"$2\" = \"merge\" ]; then\n"
+            "  git push origin HEAD:main >/dev/null 2>&1\n"
+            f"  touch '{merged_marker}'\n"
+            "  echo \"simulated post-merge client failure\" >&2\n"
+            "  exit 1\n"
+            "fi\n"
+            "exit 1\n",
+            encoding="utf-8",
+        )
+        fake_gh.chmod(0o755)
+        env = explicit_bypass_env(); env["PATH"] = str(fake_bin) + os.pathsep + env.get("PATH", "")
+
+        result = run("python3", "scripts/finish_task.py", "--no-checks", "--cleanup", cwd=worktree, check=False, env=env)
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+        self.assertIn("GitHub confirms the PR is MERGED", result.stdout)
+        self.assertIn("Task PR passed required checks, merged through GitHub", result.stdout)
+        remote_sha = run("git", "--git-dir", str(self.remote), "rev-parse", "main", cwd=self.base).stdout.strip()
+        local_sha = git("rev-parse", "main", cwd=self.repo).stdout.strip()
+        self.assertEqual(remote_sha, local_sha)
+        self.assertFalse(worktree.exists())
+        self.assertNotEqual(git("show-ref", "--verify", "refs/heads/agent/pr-reconcile", cwd=self.repo, check=False).returncode, 0)
+        self.assertNotEqual(run("git", "--git-dir", str(self.remote), "show-ref", "--verify", "refs/heads/agent/pr-reconcile", cwd=self.base, check=False).returncode, 0)
+        logged = gh_log.read_text(encoding="utf-8")
+        self.assertNotIn("--delete-branch", logged)
+        self.assertIn("pr view agent/pr-reconcile --json state,mergedAt", logged)
+
     def test_direct_publish_refuses_divergence(self) -> None:
         (self.repo / "local.txt").write_text("local\n", encoding="utf-8"); git("add", "local.txt", cwd=self.repo); git("commit", "-m", "local", cwd=self.repo)
         other = self.base / "other"; run("git", "clone", str(self.remote), str(other), cwd=self.base); configure(other); (other / "remote.txt").write_text("remote\n", encoding="utf-8"); git("add", "remote.txt", cwd=other); git("commit", "-m", "remote", cwd=other); git("push", cwd=other)
