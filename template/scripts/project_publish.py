@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import argparse
-import shutil
 import subprocess
 from pathlib import Path
 
 from _platform_common import (
     current_worktree_root,
     fetch_main,
+    github_cli_env,
     main_root,
     pr_merge_mode,
     publish_mode,
@@ -26,21 +26,16 @@ def branch(root: Path) -> str:
     return run_git(["branch", "--show-current"], cwd=root).stdout.strip()
 
 
-def gh_authenticated(root: Path) -> bool:
-    if not shutil.which("gh"):
-        return False
-    auth = subprocess.run(["gh", "auth", "status"], cwd=root, text=True, capture_output=True, check=False)
-    return auth.returncode == 0
-
-
-def require_gh_authenticated(root: Path, *, branch_pushed: bool = False) -> None:
-    if not shutil.which("gh"):
-        suffix = " The validated feature branch is already pushed." if branch_pushed else ""
-        raise SystemExit("GitHub CLI (gh) is required for PR creation/merge." + suffix + " Install gh and authenticate once, then rerun finish_task.py.")
-    auth = subprocess.run(["gh", "auth", "status"], cwd=root, text=True, capture_output=True, check=False)
-    if auth.returncode != 0:
-        suffix = " The validated feature branch is already pushed." if branch_pushed else ""
-        raise SystemExit("GitHub CLI is not authenticated for PR creation/merge." + suffix + " Run `gh auth login` (or provide a supported GH_TOKEN/GITHUB_TOKEN), then rerun finish_task.py.")
+def require_gh_environment(root: Path, *, branch_pushed: bool = False) -> dict[str, str]:
+    env = github_cli_env(root)
+    if env is not None:
+        return env
+    suffix = " The validated feature branch is already pushed." if branch_pushed else ""
+    raise SystemExit(
+        "GitHub PR API authentication is unavailable."
+        + suffix
+        + " Install gh if needed, then run `gh auth login`, provide GH_TOKEN/GITHUB_TOKEN, or configure a reusable GitHub HTTPS credential for git."
+    )
 
 
 def publish_direct(root: Path, remote: str, main_branch: str) -> int:
@@ -80,10 +75,11 @@ def push_feature_branch(root: Path, remote: str, main_branch: str) -> str:
     return current
 
 
-def ensure_pr(root: Path, current: str, main_branch: str, title: str | None, body: str | None) -> str:
+def ensure_pr(root: Path, env: dict[str, str], current: str, main_branch: str, title: str | None, body: str | None) -> str:
     existing = subprocess.run(
         ["gh", "pr", "view", current, "--json", "url", "--jq", ".url"],
         cwd=root,
+        env=env,
         text=True,
         capture_output=True,
         check=False,
@@ -99,6 +95,7 @@ def ensure_pr(root: Path, current: str, main_branch: str, title: str | None, bod
     created = subprocess.run(
         ["gh", "pr", "create", "--base", main_branch, "--head", current, "--title", title, "--body", body],
         cwd=root,
+        env=env,
         text=True,
         capture_output=True,
         check=True,
@@ -108,11 +105,12 @@ def ensure_pr(root: Path, current: str, main_branch: str, title: str | None, bod
     return url
 
 
-def wait_for_pr_checks(root: Path, current: str) -> None:
+def wait_for_pr_checks(root: Path, env: dict[str, str], current: str) -> None:
     print("Waiting for GitHub PR checks...")
     result = subprocess.run(
         ["gh", "pr", "checks", current, "--watch", "--fail-fast", "--interval", "5"],
         cwd=root,
+        env=env,
         text=True,
         capture_output=True,
         check=False,
@@ -124,10 +122,11 @@ def wait_for_pr_checks(root: Path, current: str) -> None:
         raise SystemExit("Required PR checks did not pass; PR remains open and local main was not changed. " + detail)
 
 
-def merge_pr(root: Path, current: str) -> None:
+def merge_pr(root: Path, env: dict[str, str], current: str) -> None:
     result = subprocess.run(
         ["gh", "pr", "merge", current, "--squash", "--delete-branch"],
         cwd=root,
+        env=env,
         text=True,
         capture_output=True,
         check=False,
@@ -152,15 +151,15 @@ def publish_pr(
     # Keep git publication independent from GitHub API credentials. Normal
     # finish_task preflight catches missing auth before this point, while direct
     # project_publish invocation still leaves validated work safely pushed.
-    require_gh_authenticated(root, branch_pushed=True)
-    ensure_pr(root, current, main_branch, title, body)
+    env = require_gh_environment(root, branch_pushed=True)
+    ensure_pr(root, env, current, main_branch, title, body)
     if merge_mode == "manual":
         print("PR published for manual review; pr_merge_mode=manual, so no merge was attempted.")
         return 0
     if merge_mode != "auto":
         raise SystemExit(f"Unknown pr_merge_mode: {merge_mode!r}; expected 'auto' or 'manual'.")
-    wait_for_pr_checks(root, current)
-    merge_pr(root, current)
+    wait_for_pr_checks(root, env, current)
+    merge_pr(root, env, current)
     return 0
 
 
