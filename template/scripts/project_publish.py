@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
 import subprocess
 from pathlib import Path
 
 from _platform_common import current_worktree_root, fetch_main, main_root, publish_mode, read_platform_config, relation, require_origin, run_git
+
+
+DIRECT_PUBLISH_GUARD = "DEV_PLATFORM_VALIDATED_DIRECT_PUBLISH"
 
 
 def clean(root: Path) -> bool:
@@ -17,6 +21,11 @@ def branch(root: Path) -> str:
 
 
 def publish_direct(root: Path, remote: str, main_branch: str) -> int:
+    if os.environ.get(DIRECT_PUBLISH_GUARD) != "1":
+        raise SystemExit(
+            "Direct publication must be invoked by the validated finish_task lifecycle. "
+            f"For an explicit emergency/operator override, set {DIRECT_PUBLISH_GUARD}=1 yourself."
+        )
     integration = main_root()
     if root != integration:
         raise SystemExit("Direct publication must run from the integration copy after local integration.")
