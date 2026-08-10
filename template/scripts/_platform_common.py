@@ -130,22 +130,50 @@ def pr_merge_mode(config: dict[str, Any]) -> str:
     return str(config.get("pr_merge_mode", "manual"))
 
 
+def _gh_auth_ok(root: Path, env: dict[str, str]) -> bool:
+    auth = subprocess.run(
+        ["gh", "auth", "status", "--hostname", "github.com"],
+        cwd=root,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    return auth.returncode == 0
+
+
+def _without_github_token_env(env: dict[str, str]) -> dict[str, str]:
+    sanitized = env.copy()
+    sanitized.pop("GH_TOKEN", None)
+    sanitized.pop("GITHUB_TOKEN", None)
+    return sanitized
+
+
 def github_cli_env(root: Path) -> dict[str, str] | None:
     """Return a validated environment for gh without persisting or printing tokens.
 
-    Prefer explicit GH/GITHUB token env, then an existing gh login. If gh itself
-    is unauthenticated but git HTTPS credentials are already stored, reuse that
-    credential only for this subprocess environment. This avoids requiring a
-    second login on hosts where git push already has suitable GitHub credentials.
+    A valid explicit GH/GITHUB token keeps normal gh precedence. If an explicit
+    token is stale, retry without token environment variables so a persistent gh
+    keyring login can be used. If gh itself is still unauthenticated but git HTTPS
+    credentials are already stored, reuse that credential only for this subprocess
+    environment. This prevents stale shell/agent tokens from forcing repeated login.
     """
     if not shutil.which("gh"):
         return None
+
     env = os.environ.copy()
-    auth = subprocess.run(["gh", "auth", "status"], cwd=root, env=env, text=True, capture_output=True, check=False)
-    if auth.returncode == 0:
+    if _gh_auth_ok(root, env):
         return env
 
-    credential_env = env.copy()
+    # gh gives GH_TOKEN/GITHUB_TOKEN precedence over its credential store. A stale
+    # inherited token can therefore make `gh auth status` fail even though the
+    # user's persistent keyring login is healthy. Validate the token-free path
+    # before asking the user to authenticate again.
+    sanitized = _without_github_token_env(env)
+    if _gh_auth_ok(root, sanitized):
+        return sanitized
+
+    credential_env = sanitized.copy()
     credential_env["GIT_TERMINAL_PROMPT"] = "0"
     filled = subprocess.run(
         ["git", "credential", "fill"],
@@ -167,10 +195,10 @@ def github_cli_env(root: Path) -> dict[str, str] | None:
     token = values.get("password")
     if not token:
         return None
-    candidate = env.copy()
+
+    candidate = sanitized.copy()
     candidate["GH_TOKEN"] = token
-    validated = subprocess.run(["gh", "auth", "status"], cwd=root, env=candidate, text=True, capture_output=True, check=False)
-    return candidate if validated.returncode == 0 else None
+    return candidate if _gh_auth_ok(root, candidate) else None
 
 
 @contextmanager

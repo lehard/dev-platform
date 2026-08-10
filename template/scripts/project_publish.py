@@ -22,8 +22,17 @@ from _platform_common import (
 
 
 DIRECT_PUBLISH_GUARD = "DEV_PLATFORM_VALIDATED_DIRECT_PUBLISH"
-MERGE_CONFIRM_ATTEMPTS = 10
-MERGE_CONFIRM_INTERVAL_SECONDS = 0.5
+CHECK_REGISTRATION_TIMEOUT_SECONDS = 90.0
+CHECK_REGISTRATION_INTERVAL_SECONDS = 3.0
+MERGE_CONFIRM_TIMEOUT_SECONDS = 600.0
+MERGE_CONFIRM_INTERVAL_SECONDS = 2.0
+MERGE_FAILURE_CONFIRM_TIMEOUT_SECONDS = 3.0
+NO_CHECK_MARKERS = (
+    "no checks reported",
+    "no checks were reported",
+    "no required checks",
+    "no checks found",
+)
 
 
 def clean(root: Path) -> bool:
@@ -42,7 +51,7 @@ def require_gh_environment(root: Path, *, branch_pushed: bool = False) -> dict[s
     raise SystemExit(
         "GitHub PR API authentication is unavailable."
         + suffix
-        + " Install gh if needed, then run `gh auth login`, provide GH_TOKEN/GITHUB_TOKEN, or configure a reusable GitHub HTTPS credential for git."
+        + " Install gh if needed, provide a valid GH_TOKEN/GITHUB_TOKEN, or configure a persistent gh/Git HTTPS credential."
     )
 
 
@@ -118,38 +127,63 @@ def ensure_pr(root: Path, env: dict[str, str], current: str, main_branch: str, t
     return url
 
 
+def _checks_not_registered(detail: str) -> bool:
+    lowered = detail.lower()
+    return any(marker in lowered for marker in NO_CHECK_MARKERS)
+
+
 def wait_for_pr_checks(root: Path, env: dict[str, str], current: str) -> None:
-    print("Waiting for GitHub PR checks...")
-    result = subprocess.run(
-        ["gh", "pr", "checks", current, "--watch", "--fail-fast", "--interval", "5"],
-        cwd=root,
-        env=env,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    if result.stdout.strip():
-        print(result.stdout.strip())
-    if result.returncode != 0:
-        detail = result.stderr.strip() or result.stdout.strip() or f"exit {result.returncode}"
-        raise SystemExit("Required PR checks did not pass; PR remains open and local main was not changed. " + detail)
-
-
-def wait_for_pr_merged(root: Path, env: dict[str, str], current: str) -> bool:
-    for attempt in range(MERGE_CONFIRM_ATTEMPTS):
+    print("Waiting for GitHub required PR checks...")
+    deadline = time.monotonic() + CHECK_REGISTRATION_TIMEOUT_SECONDS
+    while True:
         result = subprocess.run(
-            ["gh", "pr", "view", current, "--json", "state,mergedAt", "--jq", ".state"],
+            ["gh", "pr", "checks", current, "--required", "--watch", "--fail-fast", "--interval", "5"],
             cwd=root,
             env=env,
             text=True,
             capture_output=True,
             check=False,
         )
-        if result.returncode == 0 and result.stdout.strip().upper() == "MERGED":
+        if result.stdout.strip():
+            print(result.stdout.strip())
+        if result.returncode == 0:
+            return
+        detail = result.stderr.strip() or result.stdout.strip() or f"exit {result.returncode}"
+        if _checks_not_registered(detail) and time.monotonic() < deadline:
+            print("Required PR checks are not registered yet; waiting for GitHub to attach them to the PR...")
+            time.sleep(CHECK_REGISTRATION_INTERVAL_SECONDS)
+            continue
+        if _checks_not_registered(detail):
+            raise SystemExit(
+                "Required PR checks did not register within the bounded wait; PR remains open and local main was not changed. "
+                + detail
+            )
+        raise SystemExit("Required PR checks did not pass; PR remains open and local main was not changed. " + detail)
+
+
+def pr_state(root: Path, env: dict[str, str], current: str) -> str | None:
+    result = subprocess.run(
+        ["gh", "pr", "view", current, "--json", "state,mergedAt", "--jq", ".state"],
+        cwd=root,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+    value = result.stdout.strip().upper()
+    return value or None
+
+
+def wait_for_pr_merged(root: Path, env: dict[str, str], current: str, *, timeout_seconds: float) -> bool:
+    deadline = time.monotonic() + max(timeout_seconds, 0.0)
+    while True:
+        if pr_state(root, env, current) == "MERGED":
             return True
-        if attempt + 1 < MERGE_CONFIRM_ATTEMPTS:
-            time.sleep(MERGE_CONFIRM_INTERVAL_SECONDS)
-    return False
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(MERGE_CONFIRM_INTERVAL_SECONDS)
 
 
 def delete_remote_branch(root: Path, remote: str, current: str) -> None:
@@ -166,28 +200,53 @@ def delete_remote_branch(root: Path, remote: str, current: str) -> None:
 
 
 def merge_pr(root: Path, env: dict[str, str], current: str, remote: str) -> None:
-    result = subprocess.run(
-        ["gh", "pr", "merge", current, "--squash"],
-        cwd=root,
-        env=env,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    if result.stdout.strip():
-        print(result.stdout.strip())
+    attempts = [
+        ("ordinary squash merge", ["gh", "pr", "merge", current, "--squash"]),
+        ("GitHub auto-merge with squash", ["gh", "pr", "merge", current, "--auto", "--squash"]),
+        ("GitHub auto/queue enrollment", ["gh", "pr", "merge", current, "--auto"]),
+    ]
+    last_detail = "merge command was not attempted"
+    confirmed_after_nonzero = False
 
-    # The GitHub-side PR state is authoritative. gh can return non-zero after a
-    # successful server-side merge because of unrelated local convenience work.
-    if not wait_for_pr_merged(root, env, current):
-        detail = result.stderr.strip() or result.stdout.strip() or f"exit {result.returncode}"
-        raise SystemExit(
-            "GitHub PR merge could not be confirmed as MERGED after bounded retries; "
-            "local main was not reconciled. " + detail
+    for index, (label, command) in enumerate(attempts):
+        result = subprocess.run(
+            command,
+            cwd=root,
+            env=env,
+            text=True,
+            capture_output=True,
+            check=False,
         )
-    if result.returncode != 0:
+        if result.stdout.strip():
+            print(result.stdout.strip())
         detail = result.stderr.strip() or result.stdout.strip() or f"exit {result.returncode}"
-        print(f"WARNING: gh pr merge exited non-zero, but GitHub confirms the PR is MERGED; continuing reconciliation: {detail}")
+        last_detail = detail
+
+        if result.returncode == 0:
+            if wait_for_pr_merged(root, env, current, timeout_seconds=MERGE_CONFIRM_TIMEOUT_SECONDS):
+                break
+            raise SystemExit(
+                f"{label} was accepted by GitHub, but the PR did not reach MERGED within the bounded wait; "
+                "local main was not reconciled."
+            )
+
+        # gh can report a convenience/cleanup error after GitHub already accepted
+        # the merge. Confirm remote state before interpreting a non-zero exit as a
+        # failed merge request.
+        if wait_for_pr_merged(root, env, current, timeout_seconds=MERGE_FAILURE_CONFIRM_TIMEOUT_SECONDS):
+            confirmed_after_nonzero = True
+            break
+
+        if index + 1 < len(attempts):
+            print(f"{label} was not accepted ({detail}); trying the next protected GitHub merge mode...")
+    else:
+        raise SystemExit(
+            "GitHub rejected every supported protected PR merge mode; PR remains open and local main was not reconciled. "
+            + last_detail
+        )
+
+    if confirmed_after_nonzero:
+        print(f"WARNING: gh pr merge exited non-zero, but GitHub confirms the PR is MERGED; continuing reconciliation: {last_detail}")
 
     delete_remote_branch(root, remote, current)
     print(f"Merged PR for {current} through GitHub after successful checks.")
