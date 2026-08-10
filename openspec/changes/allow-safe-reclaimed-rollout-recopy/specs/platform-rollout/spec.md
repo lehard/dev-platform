@@ -45,14 +45,21 @@ Managed rollout MAY use guarded Copier recopy to recover a smart-update conflict
 
 ### Requirement: Managed rollout failures remain fail-closed and diagnosable
 
-The managed rollout workflow SHALL preserve the rollout preparation command's non-zero exit status and SHALL surface its blocking reason in GitHub Actions when preparation fails. Diagnostic handling SHALL NOT push the rollout branch, open a pull request, skip a guard, or convert a failed rollout into success.
+The managed rollout workflow SHALL preserve a non-zero rollout preparation result and SHALL surface its blocking reason in GitHub Actions when preparation fails. A failed checked subprocess SHALL be reported with its exact command and exit code through the stable managed-rollout blocker marker. Diagnostic handling SHALL NOT push the rollout branch, open a pull request, skip a guard, or convert a failed rollout into success.
 
 #### Scenario: Prepare fails on a safety guard
-- **WHEN** `rollout_project.py` exits non-zero during the prepare step
+- **WHEN** `rollout_project.py` exits non-zero because a managed safety invariant fails
 - **THEN** the workflow records the command output
-- **AND** emits a readable GitHub Actions error annotation containing the final managed-rollout blocker
-- **AND** exits with the original non-zero status
+- **AND** emits a readable GitHub Actions error annotation containing the final `Managed rollout: BLOCKED:` reason
+- **AND** remains failed
 - **AND** branch push and PR creation remain skipped
+
+#### Scenario: Downstream validation command fails
+- **GIVEN** rollout safely reached downstream platform/product validation
+- **WHEN** a checked subprocess exits non-zero
+- **THEN** the managed blocker identifies the exact command and its exit code
+- **AND** arbitrary source-code lines containing words such as `Error:` SHALL NOT replace that blocker
+- **AND** the failed command remains a blocking result rather than becoming recoverable
 
 ### Requirement: Rollout service branches do not weaken interactive task branch rules
 
