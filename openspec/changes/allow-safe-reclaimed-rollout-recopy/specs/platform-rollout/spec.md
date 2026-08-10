@@ -45,7 +45,7 @@ Managed rollout MAY use guarded Copier recopy to recover a smart-update conflict
 
 ### Requirement: Managed rollout failures remain fail-closed and diagnosable
 
-The managed rollout workflow SHALL preserve a non-zero rollout preparation result and SHALL surface its blocking reason in GitHub Actions when preparation fails. A failed checked subprocess SHALL be reported with its exact command and exit code through the stable managed-rollout blocker marker. Diagnostic handling SHALL NOT push the rollout branch, open a pull request, skip a guard, or convert a failed rollout into success.
+The managed rollout workflow SHALL preserve a non-zero rollout preparation result and SHALL surface its blocking reason in GitHub Actions when preparation fails. A failed checked subprocess SHALL be reported with its exact last emitted command marker and the preparation exit code when no stable platform blocker marker exists. Diagnostic handling SHALL NOT push the rollout branch, open a pull request, skip a guard, or convert a failed rollout into success.
 
 #### Scenario: Prepare fails on a safety guard
 - **WHEN** `rollout_project.py` exits non-zero because a managed safety invariant fails
@@ -56,8 +56,8 @@ The managed rollout workflow SHALL preserve a non-zero rollout preparation resul
 
 #### Scenario: Downstream validation command fails
 - **GIVEN** rollout safely reached downstream platform/product validation
-- **WHEN** a checked subprocess exits non-zero
-- **THEN** the managed blocker identifies the exact command and its exit code
+- **WHEN** a checked subprocess exits non-zero without a `Managed rollout: BLOCKED:` marker
+- **THEN** the workflow identifies the final command line emitted as `+ <command>` and reports that command with the exit code
 - **AND** arbitrary source-code lines containing words such as `Error:` SHALL NOT replace that blocker
 - **AND** the failed command remains a blocking result rather than becoming recoverable
 
