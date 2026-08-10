@@ -13,7 +13,7 @@ Platform-owned PR publication SHALL validate GitHub CLI/API availability before 
 - **AND** continues with the valid persistent credential
 - **AND** does not require the user to run `gh auth login` again
 
-#### Scenario: GitHub CLI is unavailable or no credential source is usable
+#### Scenario: GitHub CLI is unavailable or unauthenticated
 
 - **GIVEN** `harness_mode=platform` and `publish_mode=pr`
 - **WHEN** all supported GitHub CLI/API credential sources fail validation
@@ -33,7 +33,7 @@ PR publication SHALL support an automatic task merge policy that completes ordin
 - **AND** continues waiting for the required checks once they appear
 - **AND** does not require a manual rerun solely because registration was delayed
 
-#### Scenario: Automatic task PR succeeds through immediate merge
+#### Scenario: Automatic task PR succeeds
 
 - **GIVEN** `pr_merge_mode=auto`
 - **WHEN** required PR checks succeed and GitHub accepts an ordinary protected merge
