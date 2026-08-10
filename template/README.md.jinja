@@ -6,7 +6,7 @@ This repository is attached to the versioned `lehard/dev-platform` project facto
 
 ## Developer workflow
 
-The repository uses `workflow_profile={{ workflow_profile }}`, `harness_mode={{ harness_mode }}` and `publish_mode={{ publish_mode }}`. Shared lifecycle scripts are versioned in this repository and updated through reviewed Copier releases.
+The repository uses `workflow_profile={{ workflow_profile }}`, `harness_mode={{ harness_mode }}`, `protected_main={{ protected_main }}`, `publish_mode={{ publish_mode }}` and `pr_merge_mode={{ pr_merge_mode }}`. Shared lifecycle scripts are versioned in this repository and updated through reviewed Copier releases.
 
 For normal agent work:
 
@@ -17,12 +17,16 @@ python3 scripts/select_checks.py --execute
 python3 scripts/finish_task.py
 ```
 
-`finish_task.py` enforces OpenSpec lifecycle hygiene, re-fetches `origin/{{ main_branch }}` and either creates a PR or performs a guarded direct push according to `.dev-platform.toml`. It never force-pushes or auto-resolves divergence. A completed task list left active blocks publication instead of relying on a reminder.
+`finish_task.py` enforces OpenSpec lifecycle hygiene and re-fetches `origin/{{ main_branch }}` immediately before publication. For protected-main PR delivery it pushes the feature branch, creates/reuses a PR, waits for required GitHub checks, merges through GitHub when `pr_merge_mode=auto`, and only then synchronizes local `main`. Failed checks or merge leave local main unchanged. It never force-pushes, bypasses required checks, or auto-resolves divergence.
+
+Platform-owned PR publication requires authenticated GitHub CLI/API access; run `gh auth login` once on the agent host or provide a supported `GH_TOKEN`/`GITHUB_TOKEN`. `agent_doctor.py` catches missing auth and invalid `protected_main=true + publish_mode=direct` before publication.
 
 Platform-managed CI is self-contained in this repository and updates only through reviewed Copier releases; it does not execute `dev-platform@main` or require private cross-repository workflow access.
 
 ## Local and cloud verification
 
-Required selected and full checks run locally before publication. Cloud CI is the clean-environment final gate for `publish_mode=pr`. For `publish_mode=direct`, the published main state receives an automatic run that is deliberately lightweight and validates platform/OpenSpec health without repeating the full project check set. Direct-mode repositories also keep the stable pull-request `platform-ci` compatibility gate so reviewed maintenance/rollout PRs can satisfy existing required-status protection. Superseded validation runs are cancelled. Manual workflow dispatch is the explicit path when a full cloud run is useful. Do not use the narrower cloud workflow or the compatibility PR gate as a reason to skip required local checks or duplicate expensive project full suites without a reviewed repository-specific need.
+Required selected and full checks run locally before publication. Cloud CI is the clean-environment final gate for `publish_mode=pr`, and automatic task PR merge waits for it. Superseded validation runs are cancelled. Manual workflow dispatch is the explicit path when a full cloud run is useful.
+
+For deliberately unprotected `publish_mode=direct`, the published main state receives an automatic run that is deliberately lightweight and validates platform/OpenSpec health without repeating the full project check set. Direct-mode repositories also keep the stable pull-request `platform-ci` compatibility gate for reviewed maintenance/rollout PRs.
 
 See `AGENTS.md` and `docs/engineering/`.
