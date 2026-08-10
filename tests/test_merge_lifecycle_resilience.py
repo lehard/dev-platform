@@ -164,7 +164,7 @@ class MergeLifecycleResilienceTests(unittest.TestCase):
         base_sha = git("rev-parse", "main", cwd=self.repo).stdout.strip()
         tree_sha = git("rev-parse", "agent/already-merged^{tree}", cwd=self.repo).stdout.strip()
         squash_sha = git("commit-tree", tree_sha, "-p", base_sha, "-m", "squash merged", cwd=self.repo).stdout.strip()
-        run("git", "--git-dir", str(self.remote), "update-ref", "refs/heads/main", squash_sha, cwd=self.base)
+        git("push", "origin", f"{squash_sha}:refs/heads/main", cwd=self.repo)
 
         body = (
             'if [ "$1" = "auth" ] && [ "$2" = "status" ]; then exit 0; fi\n'
