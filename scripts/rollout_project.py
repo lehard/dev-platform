@@ -46,13 +46,14 @@ PROJECT_OWNED_ROLLOUT_PATHS = {
     "scripts/git_hooks/pre-merge-commit",
 }
 
-# A very small migration-only allowlist for files that used to carry downstream
-# customization but have since been deliberately reclaimed by the platform.
-# They are NEVER treated as project-owned. A Copier conflict is eligible for the
-# guarded recopy path only when the downstream file already matches the exact
-# target template bytes before the smart update starts.
-RECLAIMED_PLATFORM_ROLLOUT_PATHS = {
+# A deliberately narrow allowlist for platform-owned files that can already be
+# repaired downstream before the formal release rollout reaches that repository.
+# A conflict is eligible for guarded recovery only when the downstream file was
+# byte-identical to the exact target-release template before Copier was started.
+TARGET_EQUIVALENT_PLATFORM_ROLLOUT_PATHS = {
     "scripts/_platform_common.py",
+    "scripts/project_publish.py",
+    "scripts/finish_task.py",
 }
 
 
@@ -206,8 +207,8 @@ def path_fingerprint(path: Path) -> tuple[str, str]:
     return ("missing", "")
 
 
-def reclaimed_platform_path_matches_template(project_root: Path, relative: str) -> bool:
-    if relative not in RECLAIMED_PLATFORM_ROLLOUT_PATHS:
+def target_equivalent_platform_path_matches_template(project_root: Path, relative: str) -> bool:
+    if relative not in TARGET_EQUIVALENT_PLATFORM_ROLLOUT_PATHS:
         return False
     project_path = project_root / relative
     template_path = PLATFORM_ROOT / "template" / relative
@@ -216,17 +217,17 @@ def reclaimed_platform_path_matches_template(project_root: Path, relative: str) 
     return project_fingerprint[0] != "missing" and project_fingerprint == template_fingerprint
 
 
-def require_reclaimed_platform_paths_match_template(
+def require_target_equivalent_platform_paths_match_template(
     project_root: Path, relatives: set[str]
 ) -> None:
     mismatched = sorted(
         relative
         for relative in relatives
-        if not reclaimed_platform_path_matches_template(project_root, relative)
+        if not target_equivalent_platform_path_matches_template(project_root, relative)
     )
     if mismatched:
         raise ValueError(
-            "reclaimed platform files no longer match the target template: "
+            "target-equivalent platform files no longer match the target template: "
             + ", ".join(mismatched[:10])
         )
 
@@ -317,20 +318,19 @@ def copier_update_with_guarded_recopy(
     """Run smart update, falling back to recopy only for proven-safe conflicts.
 
     Copier's update algorithm replays the downstream diff from the old template
-    onto the new template. When ownership changes, that historic diff can conflict
-    even though the current downstream tree is already correct. Recopy is allowed
-    only for a project-owned harness when every conflict is either a declared
-    project-owned path or a narrowly allowlisted reclaimed platform path that
-    already matched the exact target template before the smart update started.
+    onto the new template. A project-owned harness may recover conflicts on its
+    declared protected files. A platform-owned harness may recover only when every
+    conflict target was already byte-identical to the exact target-release template
+    before the smart update began.
     """
 
     mode = harness_mode(project_root)
     config_before = platform_config_contract(project_root)
     protected_before = snapshot_existing_project_owned(project_root)
-    reclaimed_before = {
+    target_equivalent_before = {
         relative
-        for relative in RECLAIMED_PLATFORM_ROLLOUT_PATHS
-        if reclaimed_platform_path_matches_template(project_root, relative)
+        for relative in TARGET_EQUIVALENT_PLATFORM_ROLLOUT_PATHS
+        if target_equivalent_platform_path_matches_template(project_root, relative)
     }
 
     run(
@@ -355,22 +355,31 @@ def copier_update_with_guarded_recopy(
 
     owned = project_owned_paths(project_root)
     conflict_targets = {reject_target(path) for path in rejects}
-    reclaimed_conflicts = conflict_targets & reclaimed_before
-    unexpected = sorted(conflict_targets - owned - reclaimed_conflicts)
-    if mode != "project" or unexpected:
+    target_equivalent_conflicts = conflict_targets & target_equivalent_before
+    if mode == "project":
+        unexpected = sorted(conflict_targets - owned - target_equivalent_conflicts)
+        recovery_reason = "protected project-owned or target-equivalent platform paths"
+    elif mode == "platform":
+        unexpected = sorted(conflict_targets - target_equivalent_conflicts)
+        recovery_reason = "platform-owned paths already identical to the exact target release"
+    else:
+        raise ValueError(f"unknown harness_mode={mode!r}; refusing Copier conflict recovery")
+
+    if unexpected:
         detail = ", ".join(rejects[:10])
-        if unexpected:
-            detail += "; non-project-owned conflicts: " + ", ".join(unexpected[:10])
+        detail += "; non-recoverable conflicts: " + ", ".join(unexpected[:10])
         raise ValueError("Copier left unresolved .rej files: " + detail)
 
     print(
-        "Smart Copier update conflicted only on protected project-owned paths "
-        "or already-reclaimed platform paths; retrying with guarded recopy.",
+        f"Smart Copier update conflicted only on {recovery_reason}; retrying with guarded recopy.",
         flush=True,
     )
     reset_failed_copier_update(project_root)
-    require_project_owned_snapshot(project_root, protected_before)
-    require_reclaimed_platform_paths_match_template(project_root, reclaimed_conflicts)
+    if mode == "project":
+        require_project_owned_snapshot(project_root, protected_before)
+    require_target_equivalent_platform_paths_match_template(
+        project_root, target_equivalent_conflicts
+    )
 
     # Copier 9.17 `recopy` has no --conflict switch. We use --overwrite so
     # platform-owned files can update non-interactively; template skip_if_exists
@@ -398,15 +407,18 @@ def copier_update_with_guarded_recopy(
             + ", ".join(recopy_rejects[:10])
         )
     run_rendered_platform_bootstrap(project_root, env=env)
-    require_project_owned_snapshot(project_root, protected_before)
-    require_reclaimed_platform_paths_match_template(project_root, reclaimed_conflicts)
+    if mode == "project":
+        require_project_owned_snapshot(project_root, protected_before)
+    require_target_equivalent_platform_paths_match_template(
+        project_root, target_equivalent_conflicts
+    )
     config_after = platform_config_contract(project_root)
     if config_after != config_before:
         raise ValueError(
-            "project-owned .dev-platform.toml changed beyond platform_version during guarded recopy"
+            ".dev-platform.toml changed beyond platform_version during guarded recopy"
         )
-    if harness_mode(project_root) != "project":
-        raise ValueError("guarded recopy changed harness_mode away from project")
+    if harness_mode(project_root) != mode:
+        raise ValueError(f"guarded recopy changed harness_mode away from {mode}")
     return "guarded-recopy"
 
 
