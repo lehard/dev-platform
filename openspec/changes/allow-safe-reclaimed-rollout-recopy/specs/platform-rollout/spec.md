@@ -45,7 +45,7 @@ Managed rollout MAY use guarded Copier recopy to recover a smart-update conflict
 
 ### Requirement: Managed rollout failures remain fail-closed and diagnosable
 
-The managed rollout workflow SHALL preserve a non-zero rollout preparation result and SHALL surface its blocking reason in GitHub Actions when preparation fails. Managed helpers SHALL emit reserved command markers before checked subprocesses so compiler, diff, or application output cannot be mistaken for an executable command. Diagnostic handling SHALL NOT push the rollout branch, open a pull request, skip a guard, or convert a failed rollout into success.
+The managed rollout workflow SHALL preserve a non-zero rollout preparation result and SHALL surface its blocking reason in GitHub Actions when preparation fails. The selected-check helper SHALL emit a reserved command marker before each selected downstream command so compiler, diff, or application output cannot be mistaken for the command being executed. Diagnostic handling SHALL NOT push the rollout branch, open a pull request, skip a guard, or convert a failed rollout into success.
 
 #### Scenario: Prepare fails on a safety guard
 - **WHEN** `rollout_project.py` exits non-zero because a managed safety invariant fails
@@ -62,10 +62,10 @@ The managed rollout workflow SHALL preserve a non-zero rollout preparation resul
 - **AND** arbitrary source/compiler lines beginning with `+` or containing `Error:` SHALL NOT replace that blocker
 - **AND** the failed command remains a blocking result rather than becoming recoverable
 
-#### Scenario: Rollout-owned checked subprocess fails
-- **WHEN** a rollout-owned checked subprocess fails before a selected project command marker exists
-- **THEN** the runner has emitted `DEV_PLATFORM_ROLLOUT_COMMAND: <command>` immediately before execution
-- **AND** the workflow may use that reserved marker as its diagnostic fallback
+#### Scenario: Failure occurs outside selected checks
+- **WHEN** rollout preparation exits non-zero before any stable blocker or selected-check marker exists
+- **THEN** the workflow reports the preparation exit code generically
+- **AND** does not guess a command from arbitrary subprocess output
 - **AND** the rollout remains failed
 
 ### Requirement: Rollout service branches do not weaken interactive task branch rules
