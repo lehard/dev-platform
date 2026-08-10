@@ -127,10 +127,10 @@ def main() -> int:
             if rollout_project.platform_config_contract(project) != config_before:
                 raise SystemExit("Project config changed beyond platform_version")
             rollout_project.require_project_owned_snapshot(project, before)
-            if not rollout_project.reclaimed_platform_path_matches_template(
+            if not rollout_project.target_equivalent_platform_path_matches_template(
                 project, "scripts/_platform_common.py"
             ):
-                raise SystemExit("Reclaimed platform common no longer matches the target template")
+                raise SystemExit("Target-equivalent platform common no longer matches the target template")
             if not (project / ".github" / "workflows" / "dev-platform.yml").exists():
                 raise SystemExit("Safe harness transition did not add the non-colliding platform CI workflow")
             if rollout_project.find_reject_files(project):
