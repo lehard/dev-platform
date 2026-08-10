@@ -86,7 +86,7 @@ def validate_publication_config(root: Path, config: dict, prof: str, mode: str) 
         raise SystemExit("publish_mode=pr requires a feature-capable profile. Use standard/multi-agent or a reviewed project-owned harness.")
     if mode == "pr" and github_cli_env(root) is None:
         raise SystemExit(
-            "publish_mode=pr requires GitHub PR API authentication. Run `gh auth login`, provide GH_TOKEN/GITHUB_TOKEN, or configure reusable GitHub HTTPS credentials before finishing the task."
+            "publish_mode=pr requires authenticated GitHub CLI/API access. Run `gh auth login`, provide GH_TOKEN/GITHUB_TOKEN, or configure reusable GitHub HTTPS credentials before finishing the task."
         )
 
 
