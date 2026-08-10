@@ -91,8 +91,35 @@ def validate_publication_config(root: Path, config: dict, prof: str, mode: str) 
         raise SystemExit("publish_mode=pr requires a feature-capable profile. Use standard/multi-agent or a reviewed project-owned harness.")
     if mode == "pr" and github_cli_env(root) is None:
         raise SystemExit(
-            "publish_mode=pr requires authenticated GitHub CLI/API access. Run `gh auth login`, provide GH_TOKEN/GITHUB_TOKEN, or configure reusable GitHub HTTPS credentials before finishing the task."
+            "publish_mode=pr requires authenticated GitHub CLI/API access. Provide a valid GH_TOKEN/GITHUB_TOKEN, a persistent gh login, or reusable GitHub HTTPS credentials before finishing the task."
         )
+
+
+def task_pr_is_already_merged(root: Path, branch: str) -> bool:
+    """Return true only when GitHub merged the PR for this exact local branch head."""
+    env = github_cli_env(root)
+    if env is None:
+        return False
+    result = subprocess.run(
+        ["gh", "pr", "view", branch, "--json", "state,headRefOid"],
+        cwd=root,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0 or not result.stdout.strip():
+        return False
+    try:
+        payload = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return False
+    remote_head = str(payload.get("headRefOid", "")).strip()
+    state = str(payload.get("state", "")).strip().upper()
+    local_head = run_git(["rev-parse", branch], cwd=root, check=False)
+    if local_head.returncode != 0:
+        return False
+    return state == "MERGED" and remote_head == local_head.stdout.strip()
 
 
 @contextmanager
@@ -217,6 +244,20 @@ def main() -> int:
         raise SystemExit("Current worktree is dirty. Commit or remove changes first.")
     fetch_main(integration, "origin", main_branch)
     remote_main = f"origin/{main_branch}"
+
+    # Recovery is intentionally checked before local validation against the new
+    # remote base. A squash-merged task branch is no longer an ancestor of main,
+    # but if GitHub already merged this exact head there is nothing to rebase or
+    # republish; only local reconciliation remains.
+    if mode == "pr" and branch != main_branch and pr_merge_mode(config) == "auto" and task_pr_is_already_merged(work, branch):
+        sync_after_remote_pr_merge(work, integration, main_branch)
+        if prof == "multi-agent":
+            finish_board(integration, work, config)
+        if args.cleanup:
+            cleanup_completed_task(work, integration, branch, squash_merged=True)
+        print("Task PR was already merged through GitHub; local main and task state were reconciled without republishing.")
+        return 0
+
     run_checks(work, remote_main, args.no_checks)
     if mode == "pr":
         if branch == main_branch:
