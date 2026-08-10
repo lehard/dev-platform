@@ -126,6 +126,19 @@ Inputs:
 
 A `candidate` or `excluded` repository is rejected by ordinary rollout even when manually specified; use **Adopt Project** for first-time onboarding/reclassification.
 
+## Repeated-failure alerting
+
+A single blocked rollout attempt is surfaced per-run: an `::error::` annotation, a step-summary blocker, and a `rollout-diagnostic.json` artifact (see `rollout-diagnostic-<project>-<version>`). None of that persists across runs, so a project that keeps failing the same way on every release looked, from the platform's point of view, identical to a project that failed once — that gap let `lehard/cuby` fail 8 consecutive releases before anyone noticed.
+
+`scripts/rollout_failure_streak.py` closes that gap by keeping a durable, cross-run streak count per managed project:
+
+- on every terminal blocked attempt, it opens or updates a `rollout-failure-streak`-labeled issue on `lehard/dev-platform` (one per actively-failing project), incrementing `consecutive_failures` and recording the latest diagnostic category/reason;
+- once `consecutive_failures` reaches **3**, it adds a `rollout-alert` label and emits a distinct `::warning::` annotation naming the project, the streak length, and the tracking issue;
+- the next time that project's rollout preparation succeeds, the tracking issue is closed with a resolution note (it is not deleted, so it remains a searchable history);
+- an unreadable or missing prior state escalates rather than silently resetting to zero — ambiguity is never treated as "clean."
+
+This runs with the workflow's own default `GITHUB_TOKEN` (`issues: write`), not the cross-repository App token, because it only writes to `lehard/dev-platform` itself. It is strictly additive and best-effort: a failure inside the tracker is surfaced as a warning but never changes the rollout attempt's own pass/fail result, and never pushes, retries, or merges anything.
+
 ## Failure handling
 
 The system is intentionally fail-closed.
