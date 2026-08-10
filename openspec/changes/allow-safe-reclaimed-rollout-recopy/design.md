@@ -35,6 +35,18 @@ Path allowlisting alone cannot model this safely without accumulating repository
 10. Re-verify protected snapshots, reclaimed target equality, every baseline-equivalent path against the **new** target template state, platform config contract, and harness mode.
 11. Any unproven conflict remains fail-closed.
 
+## Rollout service branches
+
+Managed rollout uses the reserved branch form `dev-platform/rollout-vX.Y.Z`. That branch is automation infrastructure, not an interactive agent task. Interactive work continues to use `agent/<task>` through `start_task.py`/`start_worktree.py`; rollout MUST NOT weaken that contract by globally accepting arbitrary `dev-platform/*` branches in task lifecycle validation.
+
+Rollout validation therefore stays on the rollout-specific path (`platform_doctor.py` plus selected downstream checks) instead of invoking an interactive task-branch doctor. If a future validation layer needs branch context, only the exact SemVer service-branch form created by `rollout_branch()` may be recognized in rollout context.
+
+## Blocking diagnostics
+
+A fail-closed rollout is useful only if the operator can identify which safety proof blocked it. The workflow SHALL preserve the original non-zero exit status while surfacing the final managed-rollout blocker as a GitHub Actions error annotation and step summary. This is observability only: it MUST NOT convert a failed rollout into success, skip a guard, push a branch, or open a PR.
+
+This diagnostic is required for the real Cuby acceptance loop because v1.4.15 still stops inside the prepare step with exit code 2 after the broader baseline-equivalence implementation. The exact blocking guard must be visible before changing recovery semantics again.
+
 ## Git/tag handling
 
 Managed rollout already executes tooling from the exact immutable target release. If the older recorded tag is not present in that shallow checkout, rollout fetches only that exact old tag before computing template fingerprints. Failure to fetch or inspect it blocks recovery.
@@ -43,8 +55,8 @@ This proof remains reproducible because both sides are immutable Git objects: do
 
 ## Compatibility and rollback
 
-No downstream format changes are introduced. If recovery cannot prove safety, behavior stays fail-closed: rollout stops without pushing a branch. Removing baseline-equivalence recovery restores the stricter v1.4.14 behavior.
+No downstream format changes are introduced. If recovery cannot prove safety, behavior stays fail-closed: rollout stops without pushing a branch. Removing baseline-equivalence recovery restores the stricter v1.4.14 behavior. Removing the workflow diagnostic only reduces observability and does not alter recovery eligibility.
 
 ## Validation
 
-Unit tests cover target-equivalent reclaimed recovery, exact old-baseline and missing/missing proof, the actual mixed Cuby reject set, and real-divergence blocking. Existing project-harness guarded-recopy tests remain green. The final immutable release is then exercised against real Cuby rollout before archive.
+Unit tests cover target-equivalent reclaimed recovery, exact old-baseline and missing/missing proof, the actual mixed Cuby reject set, and real-divergence blocking. Workflow validation covers preservation of the prepare command's exit status while emitting a readable blocker annotation. Existing project-harness guarded-recopy tests remain green. The final immutable release is then exercised against real Cuby rollout before archive.
