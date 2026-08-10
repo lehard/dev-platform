@@ -39,6 +39,21 @@ class GuardedRecopyTests(unittest.TestCase):
             path.write_text(content, encoding="utf-8")
         return root
 
+    def use_platform_mode(self) -> None:
+        config = self.root / ".dev-platform.toml"
+        config.write_text(
+            config.read_text(encoding="utf-8").replace(
+                'harness_mode = "project"', 'harness_mode = "platform"'
+            ),
+            encoding="utf-8",
+        )
+
+    def copy_target_template(self, relative: str) -> None:
+        source = rollout_project.PLATFORM_ROOT / "template" / relative
+        target = self.root / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(source.read_bytes())
+
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
         self.root = self.make_project()
@@ -58,6 +73,14 @@ class GuardedRecopyTests(unittest.TestCase):
         self.assertIn("scripts/project_helper.py", snapshot)
         self.assertIn(".github/workflows/ci.yml", snapshot)
         self.assertIn("scripts/start_task.py", snapshot)
+
+    def test_platform_snapshot_excludes_platform_harness_scripts(self) -> None:
+        self.use_platform_mode()
+        snapshot = rollout_project.snapshot_existing_project_owned(self.root)
+        self.assertIn("AGENTS.md", snapshot)
+        self.assertIn("scripts/project_helper.py", snapshot)
+        self.assertIn(".github/workflows/ci.yml", snapshot)
+        self.assertNotIn("scripts/start_task.py", snapshot)
 
     def test_snapshot_preserves_symlink_identity(self) -> None:
         agents = self.root / "AGENTS.md"
@@ -119,6 +142,58 @@ class GuardedRecopyTests(unittest.TestCase):
         self.assertEqual(strategy, "guarded-recopy")
         self.assertTrue(any(command[:2] == ["copier", "recopy"] for command in commands))
 
+    def test_platform_mode_reclaimed_project_publish_allows_guarded_recopy(self) -> None:
+        self.use_platform_mode()
+        self.copy_target_template("scripts/project_publish.py")
+        commands: list[list[str]] = []
+
+        def fake_run(command, cwd, **kwargs):
+            commands.append(command)
+            return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+
+        with (
+            patch.object(rollout_project, "run", side_effect=fake_run),
+            patch.object(
+                rollout_project,
+                "find_reject_files",
+                side_effect=[["scripts/project_publish.py.rej"], []],
+            ),
+            patch.object(rollout_project, "reset_failed_copier_update"),
+        ):
+            strategy = rollout_project.copier_update_with_guarded_recopy(
+                self.root,
+                "v1.4.14",
+                env=os.environ.copy(),
+            )
+        self.assertEqual(strategy, "guarded-recopy")
+        self.assertTrue(any(command[:2] == ["copier", "recopy"] for command in commands))
+
+    def test_platform_mode_reclaimed_project_publish_blocks_if_divergent(self) -> None:
+        self.use_platform_mode()
+        project_publish = self.root / "scripts" / "project_publish.py"
+        project_publish.write_text("# downstream override still differs\n", encoding="utf-8")
+        commands: list[list[str]] = []
+
+        def fake_run(command, cwd, **kwargs):
+            commands.append(command)
+            return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+
+        with (
+            patch.object(rollout_project, "run", side_effect=fake_run),
+            patch.object(
+                rollout_project,
+                "find_reject_files",
+                return_value=["scripts/project_publish.py.rej"],
+            ),
+        ):
+            with self.assertRaisesRegex(ValueError, "non-recoverable conflicts"):
+                rollout_project.copier_update_with_guarded_recopy(
+                    self.root,
+                    "v1.4.14",
+                    env=os.environ.copy(),
+                )
+        self.assertFalse(any(command[:2] == ["copier", "recopy"] for command in commands))
+
     def test_reclaimed_platform_conflict_blocks_if_downstream_differs(self) -> None:
         common = self.root / "scripts" / "_platform_common.py"
         common.write_text("# downstream customization still present\n", encoding="utf-8")
@@ -136,7 +211,7 @@ class GuardedRecopyTests(unittest.TestCase):
                 return_value=["scripts/_platform_common.py.rej"],
             ),
         ):
-            with self.assertRaisesRegex(ValueError, "non-project-owned conflicts"):
+            with self.assertRaisesRegex(ValueError, "non-recoverable conflicts"):
                 rollout_project.copier_update_with_guarded_recopy(
                     self.root,
                     "v1.3.1",
@@ -159,7 +234,7 @@ class GuardedRecopyTests(unittest.TestCase):
                 return_value=["src/runtime.py.rej"],
             ),
         ):
-            with self.assertRaisesRegex(ValueError, "non-project-owned conflicts"):
+            with self.assertRaisesRegex(ValueError, "non-recoverable conflicts"):
                 rollout_project.copier_update_with_guarded_recopy(
                     self.root,
                     "v1.3.1",
@@ -168,13 +243,9 @@ class GuardedRecopyTests(unittest.TestCase):
         self.assertFalse(any(command[:2] == ["copier", "recopy"] for command in commands))
 
     def test_recopy_is_blocked_if_protected_file_changes(self) -> None:
-        call = 0
-
         def fake_run(command, cwd, **kwargs):
-            nonlocal call
             if command[:2] == ["copier", "recopy"]:
                 (self.root / "scripts/start_task.py").write_text("changed by recopy\n", encoding="utf-8")
-            call += 1
             return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
 
         with (
@@ -193,9 +264,8 @@ class GuardedRecopyTests(unittest.TestCase):
                     env=os.environ.copy(),
                 )
 
-    def test_platform_mode_never_uses_recopy_fallback(self) -> None:
-        config = self.root / ".dev-platform.toml"
-        config.write_text(config.read_text(encoding="utf-8").replace('harness_mode = "project"', 'harness_mode = "platform"'), encoding="utf-8")
+    def test_platform_mode_blocks_non_reclaimed_harness_conflict(self) -> None:
+        self.use_platform_mode()
         with (
             patch.object(
                 rollout_project,
