@@ -7,7 +7,20 @@ import stat
 import subprocess
 from pathlib import Path
 
-from _platform_common import current_worktree_root, fetch_main, harness_mode, main_root, profile, publish_mode, read_platform_config, relation, require_origin, run_git
+from _platform_common import (
+    current_worktree_root,
+    fetch_main,
+    harness_mode,
+    main_root,
+    pr_merge_mode,
+    profile,
+    protected_main,
+    publish_mode,
+    read_platform_config,
+    relation,
+    require_origin,
+    run_git,
+)
 
 
 CONFLICT_STATUS_CODES = {"DD", "AU", "UD", "UA", "DU", "AA", "UU"}
@@ -134,6 +147,43 @@ def run_friction_review_status(integration: Path) -> None:
         report("ok", "no unreviewed agent friction events")
 
 
+def gh_auth_state(root: Path) -> tuple[bool, str]:
+    if not shutil.which("gh"):
+        return False, "GitHub CLI (gh) is not installed"
+    auth = subprocess.run(["gh", "auth", "status"], cwd=root, text=True, capture_output=True, check=False)
+    if auth.returncode != 0:
+        return False, "GitHub CLI is installed but not authenticated; run gh auth login (or provide GH_TOKEN/GITHUB_TOKEN)"
+    return True, "GitHub CLI authenticated"
+
+
+def query_github_branch_protection(root: Path, branch: str) -> bool | None:
+    repo = subprocess.run(
+        ["gh", "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"],
+        cwd=root,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    name = repo.stdout.strip()
+    if repo.returncode != 0 or not name:
+        return None
+    result = subprocess.run(
+        ["gh", "api", f"repos/{name}/branches/{branch}", "--jq", ".protected"],
+        cwd=root,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+    value = result.stdout.strip().lower()
+    if value == "true":
+        return True
+    if value == "false":
+        return False
+    return None
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Check whether an agent can safely start or finish work against current GitHub state.")
     parser.add_argument("--no-fetch", action="store_true")
@@ -146,8 +196,22 @@ def main() -> int:
     prof = profile(config)
     mode = publish_mode(config)
     harness = harness_mode(config)
+    expected_protected = protected_main(config)
+    merge_mode = pr_merge_mode(config)
     failures = 0
-    report("ok", f"workflow_profile={prof}; harness_mode={harness}; publish_mode={mode}")
+    report(
+        "ok",
+        f"workflow_profile={prof}; harness_mode={harness}; protected_main={str(expected_protected).lower()}; publish_mode={mode}; pr_merge_mode={merge_mode}",
+    )
+    if merge_mode not in {"auto", "manual"}:
+        report("fail", f"invalid pr_merge_mode={merge_mode!r}; expected auto or manual")
+        failures += 1
+    if expected_protected and mode == "direct":
+        report("fail", "protected_main=true is incompatible with publish_mode=direct; use PR publication so required checks can gate merge")
+        failures += 1
+    if mode == "pr" and prof == "light" and harness == "platform":
+        report("fail", "platform-owned PR publication requires a feature-capable standard/multi-agent profile")
+        failures += 1
     if harness != "platform":
         report("ok", "project-owned harness selected; repository AGENTS.md owns task/worktree/merge mechanics")
     try:
@@ -177,17 +241,32 @@ def main() -> int:
     report("ok", f"current branch={current}")
     if run_git(["status", "--porcelain"], cwd=root).stdout.strip():
         report("warn", "current worktree is dirty")
+
+    gh_ok, gh_detail = gh_auth_state(root)
     if mode == "pr" and harness == "platform":
-        if shutil.which("gh"):
-            auth = subprocess.run(["gh", "auth", "status"], cwd=root, text=True, capture_output=True)
-            if auth.returncode == 0:
-                report("ok", "GitHub CLI authenticated for PR publishing")
-            else:
-                report("fail", "GitHub CLI is installed but not authenticated; run gh auth login")
-                failures += 1
+        if gh_ok:
+            report("ok", "GitHub CLI authenticated for protected PR publishing")
         else:
-            report("fail", "publish_mode=pr requires GitHub CLI (gh)")
+            report("fail", gh_detail)
             failures += 1
+    elif gh_ok:
+        report("ok", "GitHub CLI authenticated")
+
+    if gh_ok:
+        actual_protected = query_github_branch_protection(root, branch)
+        if actual_protected is None:
+            report("warn", f"could not verify GitHub protection state for {branch}")
+        else:
+            report("ok", f"GitHub reports {branch} protected={str(actual_protected).lower()}")
+            if actual_protected and mode == "direct":
+                report("fail", f"GitHub {branch} is protected but publish_mode=direct would push it directly")
+                failures += 1
+            if actual_protected != expected_protected:
+                report(
+                    "warn",
+                    f"configured protected_main={str(expected_protected).lower()} differs from GitHub protected={str(actual_protected).lower()}; reconcile project config through review",
+                )
+
     if prof == "multi-agent" and harness == "platform":
         hook_results, hook_failures = ensure_git_hooks(integration)
         for name, state in sorted(hook_results.items()):
