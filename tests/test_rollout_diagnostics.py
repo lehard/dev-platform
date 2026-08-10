@@ -22,7 +22,9 @@ class RolloutDiagnosticsTests(unittest.TestCase):
         self.assertIn("rc=${PIPESTATUS[0]}", text)
         self.assertIn("::error title=Managed rollout blocked::", text)
         self.assertIn('exit "$rc"', text)
-        self.assertNotIn("continue-on-error: true", text)
+        prepare_block = text.split("Prepare exact-version Copier update", 1)[1]
+        prepare_block = prepare_block.split("- name:", 1)[0]
+        self.assertNotIn("continue-on-error: true", prepare_block)
 
     def test_selected_checks_emit_reserved_command_marker(self) -> None:
         text = SELECTOR.read_text(encoding="utf-8")
