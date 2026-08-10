@@ -57,8 +57,8 @@ PROJECT_OWNED_ROLLOUT_PATHS = (
 # A very small migration-only allowlist for files that used to carry downstream
 # customization but have since been deliberately reclaimed by the platform.
 # They are NEVER treated as project-owned for recovery. A Copier conflict is
-# eligible for guarded recopy only when the downstream file already matches the
-# exact target template bytes before the smart update starts.
+# eligible for guarded recopy when the committed downstream file already matches
+# the exact target template bytes before the smart update starts.
 RECLAIMED_PLATFORM_ROLLOUT_PATHS = {
     "scripts/_platform_common.py",
     "scripts/project_publish.py",
@@ -217,6 +217,93 @@ def path_fingerprint(path: Path) -> tuple[str, str]:
     return ("missing", "")
 
 
+def git_tree_path_fingerprint(root: Path, treeish: str, relative: str) -> tuple[str, str]:
+    """Fingerprint one committed path without depending on the mutated worktree."""
+    pathspec = relative.replace("\\", "/")
+    listing = subprocess.run(
+        ["git", "ls-tree", treeish, "--", pathspec],
+        cwd=root,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if listing.returncode != 0:
+        detail = listing.stderr.strip() or listing.stdout.strip() or f"exit {listing.returncode}"
+        raise ValueError(f"could not inspect {treeish}:{pathspec}: {detail}")
+    line = listing.stdout.strip()
+    if not line:
+        return ("missing", "")
+    metadata, _, _listed_path = line.partition("\t")
+    parts = metadata.split()
+    if len(parts) < 3:
+        raise ValueError(f"unexpected git ls-tree output for {treeish}:{pathspec}")
+    mode, object_type, _sha = parts[:3]
+    if object_type == "tree":
+        return ("dir", "present")
+    content = subprocess.run(
+        ["git", "show", f"{treeish}:{pathspec}"],
+        cwd=root,
+        capture_output=True,
+        check=False,
+    )
+    if content.returncode != 0:
+        detail = content.stderr.decode(errors="replace").strip() or f"exit {content.returncode}"
+        raise ValueError(f"could not read {treeish}:{pathspec}: {detail}")
+    if mode == "120000":
+        return ("symlink", content.stdout.decode(errors="surrogateescape"))
+    return ("file", hashlib.sha256(content.stdout).hexdigest())
+
+
+def ensure_platform_tag_available(tag: str, *, env: dict[str, str]) -> None:
+    found = subprocess.run(
+        ["git", "rev-parse", "--verify", f"refs/tags/{tag}^{{commit}}"],
+        cwd=PLATFORM_ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if found.returncode == 0:
+        return
+    fetched = subprocess.run(
+        ["git", "fetch", "--quiet", "--depth=1", "origin", f"refs/tags/{tag}:refs/tags/{tag}"],
+        cwd=PLATFORM_ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if fetched.returncode != 0:
+        detail = fetched.stderr.strip() or fetched.stdout.strip() or f"exit {fetched.returncode}"
+        raise ValueError(f"could not fetch recorded platform baseline {tag}: {detail}")
+
+
+def baseline_template_fingerprint(tag: str, relative: str, *, env: dict[str, str]) -> tuple[str, str]:
+    ensure_platform_tag_available(tag, env=env)
+    return git_tree_path_fingerprint(PLATFORM_ROOT, tag, f"template/{relative}")
+
+
+def baseline_equivalent_conflict_paths(
+    project_root: Path,
+    current_tag: str,
+    relatives: set[str],
+    *,
+    env: dict[str, str],
+) -> set[str]:
+    """Prove the committed downstream path still equals its recorded old template.
+
+    The proof reads downstream HEAD, not the worktree after Copier has modified it.
+    Missing/missing is a valid equivalence: there was no downstream customization
+    at that path in the recorded baseline, so guarded recopy cannot erase one.
+    """
+    proven: set[str] = set()
+    for relative in relatives:
+        downstream = git_tree_path_fingerprint(project_root, "HEAD", relative)
+        baseline = baseline_template_fingerprint(current_tag, relative, env=env)
+        if downstream == baseline:
+            proven.add(relative)
+    return proven
+
+
 def reclaimed_platform_path_matches_template(project_root: Path, relative: str) -> bool:
     if relative not in RECLAIMED_PLATFORM_ROLLOUT_PATHS:
         return False
@@ -238,6 +325,20 @@ def require_reclaimed_platform_paths_match_template(
     if mismatched:
         raise ValueError(
             "reclaimed platform files no longer match the target template: "
+            + ", ".join(mismatched[:10])
+        )
+
+
+def require_paths_match_target_template(project_root: Path, relatives: set[str]) -> None:
+    mismatched = sorted(
+        relative
+        for relative in relatives
+        if path_fingerprint(project_root / relative)
+        != path_fingerprint(PLATFORM_ROOT / "template" / relative)
+    )
+    if mismatched:
+        raise ValueError(
+            "baseline-equivalent conflict paths do not match the target template after recopy: "
             + ", ".join(mismatched[:10])
         )
 
@@ -327,15 +428,14 @@ def copier_update_with_guarded_recopy(
 ) -> str:
     """Run smart update, falling back to recopy only for proven-safe conflicts.
 
-    Copier's update algorithm replays the downstream diff from the old template
-    onto the new template. When ownership changes, that historic diff can conflict
-    even though the current downstream tree is already correct. Project-owned
-    harnesses may recover declared project-owned collision points. Any harness
-    mode may recover narrowly allowlisted reclaimed platform paths only when they
-    already matched the exact target template before smart update started.
+    Copier replays the downstream diff from the recorded old template onto the
+    new template. Recovery is safe when a project-owned snapshot is preserved,
+    a narrowly reclaimed path already equals the target, or (platform harness)
+    the committed downstream path still exactly equals its recorded old template.
     """
 
     mode = harness_mode(project_root)
+    current_tag = load_answers(project_root)["_commit"]
     config_before = platform_config_contract(project_root)
     protected_before = snapshot_existing_project_owned(project_root)
     reclaimed_before = {
@@ -368,20 +468,47 @@ def copier_update_with_guarded_recopy(
     recoverable_owned = owned if mode == "project" else set()
     conflict_targets = {reject_target(path) for path in rejects}
     reclaimed_conflicts = conflict_targets & reclaimed_before
-    unexpected = sorted(conflict_targets - recoverable_owned - reclaimed_conflicts)
+    baseline_conflicts = (
+        baseline_equivalent_conflict_paths(
+            project_root,
+            current_tag,
+            conflict_targets - reclaimed_conflicts,
+            env=env,
+        )
+        if mode == "platform"
+        else set()
+    )
+    unexpected = sorted(
+        conflict_targets - recoverable_owned - reclaimed_conflicts - baseline_conflicts
+    )
     if unexpected:
         detail = ", ".join(rejects[:10])
         detail += "; non-recoverable conflicts: " + ", ".join(unexpected[:10])
         raise ValueError("Copier left unresolved .rej files: " + detail)
 
     print(
-        "Smart Copier update conflicted only on recoverable project-owned paths "
-        "or proven reclaimed platform paths; retrying with guarded recopy.",
+        "Smart Copier update conflicted only on recoverable project-owned paths, "
+        "proven reclaimed target paths, or platform paths still identical to their "
+        "recorded baseline; retrying with guarded recopy.",
         flush=True,
     )
     reset_failed_copier_update(project_root)
     require_project_owned_snapshot(project_root, protected_before)
     require_reclaimed_platform_paths_match_template(project_root, reclaimed_conflicts)
+    # Re-prove from committed HEAD after reset. This is intentionally independent
+    # of the failed Copier worktree mutation.
+    reproven = baseline_equivalent_conflict_paths(
+        project_root,
+        current_tag,
+        baseline_conflicts,
+        env=env,
+    )
+    if reproven != baseline_conflicts:
+        missing = sorted(baseline_conflicts - reproven)
+        raise ValueError(
+            "baseline-equivalent rollout proof changed before recopy: "
+            + ", ".join(missing[:10])
+        )
 
     # Copier 9.17 `recopy` has no --conflict switch. We use --overwrite so
     # platform-owned files can update non-interactively; template skip_if_exists
@@ -411,6 +538,7 @@ def copier_update_with_guarded_recopy(
     run_rendered_platform_bootstrap(project_root, env=env)
     require_project_owned_snapshot(project_root, protected_before)
     require_reclaimed_platform_paths_match_template(project_root, reclaimed_conflicts)
+    require_paths_match_target_template(project_root, baseline_conflicts)
     config_after = platform_config_contract(project_root)
     if config_after != config_before:
         raise ValueError(
