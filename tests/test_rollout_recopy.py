@@ -23,6 +23,10 @@ class GuardedRecopyTests(unittest.TestCase):
             'project_required_files = ["scripts/project_helper.py"]\n',
             encoding="utf-8",
         )
+        (root / ".copier-answers.yml").write_text(
+            "_commit: v1.2.3\n_src_path: gh:lehard/dev-platform\n",
+            encoding="utf-8",
+        )
         target_common = (
             rollout_project.PLATFORM_ROOT / "template" / "scripts" / "_platform_common.py"
         ).read_text(encoding="utf-8")
@@ -93,6 +97,41 @@ class GuardedRecopyTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "project-owned files changed"):
             rollout_project.require_project_owned_snapshot(self.root, snapshot)
 
+    def test_baseline_equivalence_accepts_unchanged_and_missing_paths_only(self) -> None:
+        downstream = {
+            "scripts/finish_task.py": ("file", "same"),
+            "tests/test_git_lifecycle.py": ("missing", ""),
+            "src/runtime.py": ("file", "downstream-change"),
+        }
+        baseline = {
+            "scripts/finish_task.py": ("file", "same"),
+            "tests/test_git_lifecycle.py": ("missing", ""),
+            "src/runtime.py": ("missing", ""),
+        }
+
+        def fake_git_tree(root, treeish, relative):
+            self.assertEqual(treeish, "HEAD")
+            return downstream[relative]
+
+        def fake_baseline(tag, relative, *, env):
+            self.assertEqual(tag, "v1.2.3")
+            return baseline[relative]
+
+        with (
+            patch.object(rollout_project, "git_tree_path_fingerprint", side_effect=fake_git_tree),
+            patch.object(rollout_project, "baseline_template_fingerprint", side_effect=fake_baseline),
+        ):
+            proven = rollout_project.baseline_equivalent_conflict_paths(
+                self.root,
+                "v1.2.3",
+                set(downstream),
+                env=os.environ.copy(),
+            )
+        self.assertEqual(
+            proven,
+            {"scripts/finish_task.py", "tests/test_git_lifecycle.py"},
+        )
+
     def test_guarded_recopy_runs_only_for_project_owned_rejects(self) -> None:
         commands: list[list[str]] = []
 
@@ -159,10 +198,55 @@ class GuardedRecopyTests(unittest.TestCase):
                 side_effect=[["scripts/project_publish.py.rej"], []],
             ),
             patch.object(rollout_project, "reset_failed_copier_update"),
+            patch.object(rollout_project, "baseline_equivalent_conflict_paths", return_value=set()),
         ):
             strategy = rollout_project.copier_update_with_guarded_recopy(
                 self.root,
                 "v1.4.14",
+                env=os.environ.copy(),
+            )
+        self.assertEqual(strategy, "guarded-recopy")
+        self.assertTrue(any(command[:2] == ["copier", "recopy"] for command in commands))
+
+    def test_platform_mode_recovers_cuby_shaped_mixed_historical_rejects(self) -> None:
+        self.use_platform_mode()
+        self.copy_target_template("scripts/project_publish.py")
+        (self.root / "scripts" / "finish_task.py").write_text(
+            "# exact recorded-baseline bytes in the real Cuby reproduction\n",
+            encoding="utf-8",
+        )
+        commands: list[list[str]] = []
+        baseline = {"scripts/finish_task.py", "tests/test_git_lifecycle.py"}
+
+        def fake_run(command, cwd, **kwargs):
+            commands.append(command)
+            return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+
+        with (
+            patch.object(rollout_project, "run", side_effect=fake_run),
+            patch.object(
+                rollout_project,
+                "find_reject_files",
+                side_effect=[
+                    [
+                        "scripts/finish_task.py.rej",
+                        "scripts/project_publish.py.rej",
+                        "tests/test_git_lifecycle.py.rej",
+                    ],
+                    [],
+                ],
+            ),
+            patch.object(rollout_project, "reset_failed_copier_update"),
+            patch.object(
+                rollout_project,
+                "baseline_equivalent_conflict_paths",
+                return_value=baseline,
+            ),
+            patch.object(rollout_project, "require_paths_match_target_template"),
+        ):
+            strategy = rollout_project.copier_update_with_guarded_recopy(
+                self.root,
+                "v1.4.15",
                 env=os.environ.copy(),
             )
         self.assertEqual(strategy, "guarded-recopy")
@@ -185,11 +269,12 @@ class GuardedRecopyTests(unittest.TestCase):
                 "find_reject_files",
                 return_value=["scripts/project_publish.py.rej"],
             ),
+            patch.object(rollout_project, "baseline_equivalent_conflict_paths", return_value=set()),
         ):
             with self.assertRaisesRegex(ValueError, "non-recoverable conflicts"):
                 rollout_project.copier_update_with_guarded_recopy(
                     self.root,
-                    "v1.4.14",
+                    "v1.4.15",
                     env=os.environ.copy(),
                 )
         self.assertFalse(any(command[:2] == ["copier", "recopy"] for command in commands))
@@ -264,7 +349,7 @@ class GuardedRecopyTests(unittest.TestCase):
                     env=os.environ.copy(),
                 )
 
-    def test_platform_mode_blocks_non_reclaimed_harness_conflict(self) -> None:
+    def test_platform_mode_blocks_real_divergence_even_with_baseline_recovery(self) -> None:
         self.use_platform_mode()
         with (
             patch.object(
@@ -277,11 +362,12 @@ class GuardedRecopyTests(unittest.TestCase):
                 "find_reject_files",
                 return_value=["scripts/start_task.py.rej"],
             ),
+            patch.object(rollout_project, "baseline_equivalent_conflict_paths", return_value=set()),
         ):
             with self.assertRaisesRegex(ValueError, "Copier left unresolved"):
                 rollout_project.copier_update_with_guarded_recopy(
                     self.root,
-                    "v1.3.1",
+                    "v1.4.15",
                     env=os.environ.copy(),
                 )
 

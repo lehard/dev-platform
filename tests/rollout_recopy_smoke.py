@@ -108,6 +108,12 @@ def main() -> int:
             run(["git", "add", "-A"], project)
             run(["git", "commit", "-m", "Simulate customized v1.2.3 project harness"], project)
 
+            # Production managed rollout accepts only the canonical GitHub Copier
+            # source. This smoke deliberately renders from the current local checkout
+            # so it can exercise an unreleased candidate tag; authorize only that
+            # local source inside the test process.
+            rollout_project.EXPECTED_SOURCES.add(str(ROOT))
+
             before = rollout_project.snapshot_existing_project_owned(project)
             config_before = rollout_project.platform_config_contract(project)
             strategy = rollout_project.copier_update_with_guarded_recopy(
