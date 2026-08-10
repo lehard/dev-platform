@@ -9,7 +9,7 @@
 - [x] 7. Update generated docs/agent guidance for protected-main zero-hand-off behavior and GitHub API authentication prerequisites.
 - [x] 8. Add lifecycle regression tests for auto PR merge, failed checks, missing auth, invalid direct/protected config, and unchanged local main on remote failure.
 - [x] 9. Update template-contract tests and generated workflow expectations without reintroducing duplicate Actions runs.
-- [x] 10. Complete compile/unit/template/OpenSpec validation and semantic verification; record the truthful verification receipt.
+- [ ] 10. Complete compile/unit/template/OpenSpec validation and semantic verification on the current v1.4.9 safety-hardened baseline; record the truthful verification receipt.
 
 ## Post-release rollout (operational follow-up, not an archive prerequisite)
 
