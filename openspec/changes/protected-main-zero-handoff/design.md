@@ -53,6 +53,15 @@ Git branch publication and GitHub PR API operations are separate concepts.
 
 This preserves work while making autonomous completion requirements explicit without storing additional secrets in the repository.
 
+## Compatibility with the v1.4.9 safety model
+
+This change is additive to, not a replacement for, the safety hardening released in v1.4.9.
+
+- `finish_task.py --no-checks` remains blocked unless the explicit `DEV_PLATFORM_ALLOW_NO_CHECKS=1` operator override is present.
+- Direct publication remains guarded by `DEV_PLATFORM_VALIDATED_DIRECT_PUBLISH`; `finish_task.py` sets that guard only after its validation path. The new protected-main policy narrows direct publication further by rejecting it entirely when `protected_main=true`.
+- High-impact check escalation and workflow/config consistency checks remain owned by the v1.4.9 CI safety contract and are preserved by this implementation.
+- The new PR auto-merge path never uses `--admin` and never bypasses GitHub branch protection.
+
 ## Required-check waiting
 
 The implementation uses `gh pr checks <branch> --watch --fail-fast` before `gh pr merge`. Branch protection remains the source of truth: even if the watcher races or a check is added later, the merge API is still rejected until GitHub considers requirements satisfied.
