@@ -14,6 +14,12 @@ class DirectMainHealthTests(unittest.TestCase):
         self.assertNotIn("if: github.event_name != 'pull_request'", workflow)
         self.assertIn("python3 scripts/select_checks.py --full --execute", workflow)
 
+    def test_manual_full_run_has_distinct_concurrency_group_from_push(self) -> None:
+        workflow = (ROOT / "template" / ".github" / "workflows" / "dev-platform.yml.jinja").read_text(encoding="utf-8")
+        self.assertIn("github.event_name", workflow)
+        self.assertIn("github.event.pull_request.number || github.ref", workflow)
+        self.assertIn("cancel-in-progress: true", workflow)
+
     def test_generated_guidance_calls_direct_main_health_lightweight(self) -> None:
         readme = (ROOT / "template" / "README.md.jinja").read_text(encoding="utf-8")
         workflow_doc = (ROOT / "template" / "docs" / "engineering" / "agent-workflow.md").read_text(encoding="utf-8")
