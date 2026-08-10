@@ -180,9 +180,12 @@ jobs:
           rc=${PIPESTATUS[0]}
           set -e
           if [[ "$rc" -ne 0 ]]; then
-            blocker="$(grep -E 'Managed rollout: BLOCKED:|\[fail\]|Error:|ERROR:' "$log_file" | tail -n 1 || true)"
+            blocker="$(grep -F 'Managed rollout: BLOCKED:' "$log_file" | tail -n 1 || true)"
             if [[ -z "$blocker" ]]; then
-              blocker="$(tail -n 1 "$log_file" || true)"
+              failed_command="$(grep -E '^\+ ' "$log_file" | tail -n 1 || true)"
+              if [[ -n "$failed_command" ]]; then
+                blocker="command failed (exit $rc): ${failed_command#+ }"
+              fi
             fi
             if [[ -z "$blocker" ]]; then
               blocker="rollout preparation exited with status $rc"
