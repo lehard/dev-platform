@@ -6,7 +6,16 @@
 - [x] Treat missing/missing as safe baseline equivalence and verify recovered paths against the new target template after recopy.
 - [x] Add regression tests for exact-target recovery, old-baseline recovery, the actual mixed Cuby reject set, and real-divergence blocking.
 - [ ] Surface failed prepare blockers in Actions without weakening fail-closed behavior or the `agent/<task>` interactive branch contract.
+- [ ] Introduce a canonical versioned `rollout-diagnostic.json` model produced from structured rollout state rather than arbitrary log scraping.
+- [ ] Map terminal failures to stable stage/category/reason/exit-code fields and preserve the exact selected command only from `DEV_PLATFORM_CHECK_COMMAND:` markers.
+- [ ] Add `retry_same_inputs = safe|pointless|unknown` as advisory metadata; do not auto-rerun or weaken any safety gate.
+- [ ] Include already-known structured evidence such as Copier conflict paths while excluding tokens, environment dumps, secrets, and raw logs.
+- [ ] Render the same canonical diagnostic into a concise GitHub Actions summary/error annotation and upload a predictably named diagnostic artifact on failure.
+- [ ] Ensure diagnostic-generation/upload failures never replace the original rollout blocker, change its exit status, push a branch, or create a PR.
+- [ ] Add regression tests for safety-guard, selected-check, runtime/environment, and unknown failure envelopes plus stable-schema/secret-exclusion behavior.
+- [ ] Add workflow tests proving exactly one canonical terminal diagnostic per failed project rollout attempt and preservation of the original failure if artifact upload/presentation fails.
 - [ ] Re-run platform CI/OpenSpec validation and semantic verification on the exact final implementation.
 - [ ] Release the verified fix as a new immutable platform version and roll it through all managed projects.
 - [ ] Verify Cuby no longer blocks on the historical replay/prepare path and all downstream required checks pass.
+- [ ] Verify a deliberately failed managed rollout exposes enough structured diagnostic evidence for an agent to identify the blocker without arbitrary full-log scraping.
 - [ ] Record `OpenSpec-Verify: PASS` plus verification method and archive the completed change.
