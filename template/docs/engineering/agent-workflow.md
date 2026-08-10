@@ -14,13 +14,29 @@ Profiles select capabilities; they are not separate forks of the platform.
 
 ## Publishing
 
-`publish_mode=pr` is the safe default for standard and multi-agent profiles. It pushes the task branch and creates a PR via authenticated GitHub CLI. It does not auto-merge.
+Protected main and zero-hand-off are compatible. The safe normal configuration for feature-capable projects is:
 
-`publish_mode=direct` is an explicit simplification. It re-fetches immediately before push and only pushes when remote main is an ancestor of local main. Force push is never used.
+```toml
+protected_main = true
+publish_mode = "pr"
+pr_merge_mode = "auto"
+```
+
+With that configuration, `finish_task.py` pushes the validated feature branch, creates or reuses a PR, waits for GitHub checks, merges through GitHub, and only then fast-forwards local `main` to the merged remote state. Required status checks remain authoritative; the platform never uses branch-protection bypass.
+
+`pr_merge_mode=manual` keeps an explicit review stop after PR creation. Cross-repository Dev Platform rollout PRs remain reviewed and are not auto-merged by this task-publication policy.
+
+`publish_mode=direct` is only valid for an intentionally unprotected integration branch. It re-fetches immediately before push and only pushes when remote main is an ancestor of local main. `protected_main=true` plus `publish_mode=direct` is an invalid configuration and doctor/finish preflight must reject it before local integration.
+
+Platform-owned PR publication requires authenticated GitHub CLI/API access. Run `gh auth login` once on the agent host (or provide a supported `GH_TOKEN`/`GITHUB_TOKEN`). Doctor checks this before a protected-main task reaches publication. Git branch push and PR API operations are kept separate so validated work is not lost if `project_publish.py` is invoked directly in a partially configured environment.
 
 ## Local-heavy, cloud-final verification
 
-Required selected and full checks run locally before publication. The self-contained cloud workflow is the final clean-environment merge gate for `publish_mode=pr`. For `publish_mode=direct`, the published main state receives an automatic run that is deliberately lightweight: it validates platform/OpenSpec health without repeating the full project check set. Direct-mode repositories also retain the stable pull-request `platform-ci` gate for explicitly reviewed maintenance or rollout PRs so existing required-status protection remains satisfiable. Superseded validation runs for the same PR/ref are cancelled. Manual workflow dispatch remains the explicit cloud path for a full platform-managed run when that is useful. Do not skip local verification because cloud CI is narrower, and do not use the compatibility PR gate as a reason to duplicate expensive full/browser suites without a reviewed repository-specific need.
+Required selected and full checks run locally before publication. The self-contained cloud workflow is the final clean-environment merge gate for `publish_mode=pr`. Protected PR publication waits for that gate before merging. Superseded validation runs for the same PR/ref are cancelled. Manual workflow dispatch remains the explicit cloud path for a full platform-managed run when that is useful.
+
+For intentionally unprotected `publish_mode=direct` repositories, the published main state receives an automatic run that is deliberately lightweight: it validates platform/OpenSpec health without repeating the full project check set. Direct-mode repositories also retain the stable pull-request `platform-ci` gate for explicitly reviewed maintenance or rollout PRs so existing required-status protection can be satisfied if such a PR is used.
+
+Do not skip local verification because cloud CI is narrower, and do not use the compatibility PR gate as a reason to duplicate expensive full/browser suites without a reviewed repository-specific need.
 
 ## Commands
 
