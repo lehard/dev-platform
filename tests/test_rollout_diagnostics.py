@@ -14,6 +14,13 @@ class RolloutDiagnosticsTests(unittest.TestCase):
         self.assertIn('exit "$rc"', text)
         self.assertNotIn("continue-on-error: true", text)
 
+    def test_diagnostic_prefers_stable_blocker_then_exact_command_marker(self) -> None:
+        text = WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("grep -F 'Managed rollout: BLOCKED:'", text)
+        self.assertIn("grep -E '^\\+ '", text)
+        self.assertIn('blocker="command failed (exit $rc): ${failed_command#+ }"', text)
+        self.assertNotIn("\\[fail\\]|Error:|ERROR:", text)
+
     def test_failed_prepare_cannot_push_or_open_pr(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
         condition = "steps.pending.outputs.found != 'true' && steps.prepare.outputs.status == 'updated'"

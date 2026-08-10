@@ -43,9 +43,11 @@ Rollout validation therefore stays on the rollout-specific path (`platform_docto
 
 ## Blocking diagnostics
 
-A fail-closed rollout is useful only if the operator can identify which safety proof blocked it. The workflow SHALL preserve the original non-zero exit status while surfacing the final managed-rollout blocker as a GitHub Actions error annotation and step summary. This is observability only: it MUST NOT convert a failed rollout into success, skip a guard, push a branch, or open a PR.
+A fail-closed rollout is useful only if the operator can identify which safety proof or downstream validation command blocked it. The workflow SHALL preserve a non-zero result while surfacing the final managed-rollout blocker as a GitHub Actions error annotation and step summary. This is observability only: it MUST NOT convert a failed rollout into success, skip a guard, push a branch, or open a PR.
 
-This diagnostic is required for the real Cuby acceptance loop because v1.4.15 still stops inside the prepare step with exit code 2 after the broader baseline-equivalence implementation. The exact blocking guard must be visible before changing recovery semantics again.
+The v1.4.16 acceptance run showed that broad log scraping is unsafe: a downstream validation command exited `2`, but a broad `Error:` grep selected an unrelated TypeScript declaration line as the annotation. The rollout workflow now uses only structured-enough markers already emitted by the managed path: it first prefers the stable `Managed rollout: BLOCKED:` marker from a platform invariant; if that marker is absent, it takes the last command marker whose line begins with `+ ` and reports `command failed (exit N): ...`. It never treats arbitrary source-code lines containing words such as `Error:` as the blocker.
+
+This works with nested selected checks because `select_checks.py` prints each command as `+ <command>` immediately before executing it. A product-check failure remains blocking; the diagnostic only identifies which command failed so the next correction is based on evidence.
 
 ## Git/tag handling
 
@@ -55,8 +57,8 @@ This proof remains reproducible because both sides are immutable Git objects: do
 
 ## Compatibility and rollback
 
-No downstream format changes are introduced. If recovery cannot prove safety, behavior stays fail-closed: rollout stops without pushing a branch. Removing baseline-equivalence recovery restores the stricter v1.4.14 behavior. Removing the workflow diagnostic only reduces observability and does not alter recovery eligibility.
+No downstream format changes are introduced. If recovery cannot prove safety, behavior stays fail-closed: rollout stops without pushing a branch. Removing baseline-equivalence recovery restores the stricter v1.4.14 behavior. Removing the diagnostic improvements only reduces observability and does not alter recovery eligibility.
 
 ## Validation
 
-Unit tests cover target-equivalent reclaimed recovery, exact old-baseline and missing/missing proof, the actual mixed Cuby reject set, and real-divergence blocking. Workflow validation covers preservation of the prepare command's exit status while emitting a readable blocker annotation. Existing project-harness guarded-recopy tests remain green. The final immutable release is then exercised against real Cuby rollout before archive.
+Unit tests cover target-equivalent reclaimed recovery, exact old-baseline and missing/missing proof, the actual mixed Cuby reject set, and real-divergence blocking. Workflow tests cover preservation of failure, preference for the stable blocker marker, exact failed-command fallback, rejection of broad `Error:` scraping, and gating of push/PR creation. Existing project-harness guarded-recopy tests remain green. The final immutable release is then exercised against real Cuby rollout before archive.
