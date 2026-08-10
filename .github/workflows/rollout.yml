@@ -205,12 +205,29 @@ jobs:
               echo "$blocker"
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
+            python3 platform/scripts/rollout_diagnostic.py \
+              --log-file "$log_file" \
+              --exit-code "$rc" \
+              --repository "$REPOSITORY" \
+              --version "$VERSION" \
+              --output rollout-diagnostic.json \
+              --summary-output "$GITHUB_STEP_SUMMARY" || true
             exit "$rc"
           fi
           status="$(python3 -c 'import json; print(json.load(open("/tmp/rollout-result.json"))["status"])')"
           branch="$(python3 -c 'import json; print(json.load(open("/tmp/rollout-result.json"))["branch"])')"
           echo "status=$status" >> "$GITHUB_OUTPUT"
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
+
+      - name: Upload rollout diagnostic artifact
+        if: steps.pending.outputs.found != 'true' && failure()
+        continue-on-error: true
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: rollout-diagnostic-${{ matrix.repo_name }}-${{ needs.plan.outputs.version }}
+          path: rollout-diagnostic.json
+          if-no-files-found: ignore
+          retention-days: 30
 
       - name: Push rollout branch
         if: steps.pending.outputs.found != 'true' && steps.prepare.outputs.status == 'updated'
