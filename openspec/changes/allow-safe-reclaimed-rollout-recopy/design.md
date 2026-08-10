@@ -45,9 +45,9 @@ Rollout validation therefore stays on the rollout-specific path (`platform_docto
 
 A fail-closed rollout is useful only if the operator can identify which safety proof or downstream validation command blocked it. The workflow SHALL preserve a non-zero result while surfacing the final managed-rollout blocker as a GitHub Actions error annotation and step summary. This is observability only: it MUST NOT convert a failed rollout into success, skip a guard, push a branch, or open a PR.
 
-The v1.4.16 acceptance run showed that workflow-level log scraping is insufficient by itself: a downstream validation command exited `2`, but a broad `Error:` grep selected an unrelated TypeScript declaration line as the annotation. The rollout runner therefore owns command-failure context. A checked subprocess failure is converted into a managed `ValueError` that states the exact command and exit code. `main()` then emits the stable `Managed rollout: BLOCKED:` marker already consumed by the workflow. The workflow extractor prefers that marker and must not treat arbitrary source-code lines containing `Error:` as the blocker.
+The v1.4.16 acceptance run showed that broad log scraping is unsafe: a downstream validation command exited `2`, but a broad `Error:` grep selected an unrelated TypeScript declaration line as the annotation. The rollout workflow now uses only structured-enough markers already emitted by the managed path: it first prefers the stable `Managed rollout: BLOCKED:` marker from a platform invariant; if that marker is absent, it takes the last command marker whose line begins with `+ ` and reports `command failed (exit N): ...`. It never treats arbitrary source-code lines containing words such as `Error:` as the blocker.
 
-This change does not make a failed product check recoverable. It only identifies which command failed so the next correction is based on evidence.
+This works with nested selected checks because `select_checks.py` prints each command as `+ <command>` immediately before executing it. A product-check failure remains blocking; the diagnostic only identifies which command failed so the next correction is based on evidence.
 
 ## Git/tag handling
 
@@ -61,4 +61,4 @@ No downstream format changes are introduced. If recovery cannot prove safety, be
 
 ## Validation
 
-Unit tests cover target-equivalent reclaimed recovery, exact old-baseline and missing/missing proof, the actual mixed Cuby reject set, real-divergence blocking, and checked-command failure conversion into a stable managed blocker. Workflow validation covers preservation of failure, blocker annotation, and gating of push/PR creation. Existing project-harness guarded-recopy tests remain green. The final immutable release is then exercised against real Cuby rollout before archive.
+Unit tests cover target-equivalent reclaimed recovery, exact old-baseline and missing/missing proof, the actual mixed Cuby reject set, and real-divergence blocking. Workflow tests cover preservation of failure, preference for the stable blocker marker, exact failed-command fallback, rejection of broad `Error:` scraping, and gating of push/PR creation. Existing project-harness guarded-recopy tests remain green. The final immutable release is then exercised against real Cuby rollout before archive.
