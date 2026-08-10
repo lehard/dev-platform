@@ -1,4 +1,4 @@
-schema_version = 2
+schema_version = 3
 platform_version = "1.0.0"
 platform_ci_ref = "{{ platform_ci_ref }}"
 project_name = "{{ project_name }}"
@@ -6,7 +6,9 @@ project_slug = "{{ project_slug }}"
 main_branch = "{{ main_branch }}"
 workflow_profile = "{{ workflow_profile }}"
 harness_mode = "{{ harness_mode }}"
+protected_main = {{ 'true' if protected_main else 'false' }}
 publish_mode = "{{ publish_mode }}"
+pr_merge_mode = "{{ pr_merge_mode }}"
 agent_tools = "{{ agent_tools }}"
 project_required_files = []
 
