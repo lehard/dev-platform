@@ -25,3 +25,5 @@ Regression coverage includes both the Cuby-shaped `scripts/project_publish.py.re
 ## Finding
 
 PASS. The change closes the v1.4.13 rollout dead-end without weakening Copier conflict handling or downstream PR/CI review. Release and managed rollout are operational follow-up after archive/merge, not prerequisites for semantic verification.
+
+The archived PR head must still pass the normal Platform CI gate before merge and release.
