@@ -10,6 +10,7 @@ from _platform_common import (
     github_cli_env,
     main_root,
     pr_merge_mode,
+    protected_main,
     publish_mode,
     read_platform_config,
     relation,
@@ -175,6 +176,8 @@ def main() -> int:
     mode = args.mode or publish_mode(config)
     main_branch = str(config.get("main_branch", "main"))
     if mode == "direct":
+        if protected_main(config):
+            raise SystemExit("protected_main=true is incompatible with direct publication. Use PR publication so required checks can gate the merge.")
         return publish_direct(root, args.remote, main_branch)
     return publish_pr(root, args.remote, main_branch, args.title, args.body, pr_merge_mode(config))
 
