@@ -42,3 +42,25 @@ Managed rollout MAY use guarded Copier recopy to recover a smart-update conflict
 - **WHEN** rollout classifies conflicts after smart update has emitted `.rej` files
 - **THEN** downstream equivalence SHALL be derived from committed `HEAD` rather than current worktree bytes
 - **AND** the old side SHALL be read from the exact immutable tag recorded by `.copier-answers.yml`
+
+### Requirement: Managed rollout failures remain fail-closed and diagnosable
+
+The managed rollout workflow SHALL preserve the rollout preparation command's non-zero exit status and SHALL surface its blocking reason in GitHub Actions when preparation fails. Diagnostic handling SHALL NOT push the rollout branch, open a pull request, skip a guard, or convert a failed rollout into success.
+
+#### Scenario: Prepare fails on a safety guard
+- **WHEN** `rollout_project.py` exits non-zero during the prepare step
+- **THEN** the workflow records the command output
+- **AND** emits a readable GitHub Actions error annotation containing the final managed-rollout blocker
+- **AND** exits with the original non-zero status
+- **AND** branch push and PR creation remain skipped
+
+### Requirement: Rollout service branches do not weaken interactive task branch rules
+
+Managed rollout SHALL use only the reserved service-branch form `dev-platform/rollout-vX.Y.Z` generated from an exact SemVer release. This automation branch SHALL be validated through rollout-specific validation and SHALL NOT cause interactive task lifecycle rules to accept arbitrary `dev-platform/*` branches in place of `agent/<task>`.
+
+#### Scenario: Rollout validates an automation branch
+- **GIVEN** managed rollout created `dev-platform/rollout-v1.2.3`
+- **WHEN** downstream validation runs before push
+- **THEN** rollout-specific platform validation and selected project checks MAY run on that service branch
+- **AND** no interactive `agent/<task>` branch precondition is required
+- **AND** ordinary task creation/publication continues to use its existing agent branch contract
