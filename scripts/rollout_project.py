@@ -20,17 +20,19 @@ EXPECTED_SOURCES = {
     "git@github.com:lehard/dev-platform.git",
 }
 
-# Paths that a mature project may own while still receiving the additive
-# dev-platform lifecycle around them. These mirror the guarded collision points
-# in copier.yml. Platform common/bootstrap/doctor/OpenSpec lifecycle remain
-# platform-owned; repository-specific Git/task execution stays project-owned.
-PROJECT_OWNED_ROLLOUT_PATHS = {
+# Files that remain downstream-owned for every harness mode.
+ALWAYS_PROJECT_OWNED_ROLLOUT_PATHS = {
     "AGENTS.md",
     "CLAUDE.md",
     "README.md",
     "dev-platform/checks.toml",
     "openspec/config.yaml",
     "docs/engineering/project-rules.md",
+}
+
+# Paths that a mature project-owned harness may keep while still receiving the
+# additive dev-platform lifecycle around it. Platform harnesses own these paths.
+PROJECT_HARNESS_ROLLOUT_PATHS = {
     "scripts/agent_board.py",
     "scripts/agent_doctor.py",
     "scripts/agent_friction.py",
@@ -46,13 +48,20 @@ PROJECT_OWNED_ROLLOUT_PATHS = {
     "scripts/git_hooks/pre-merge-commit",
 }
 
+# Compatibility union retained for callers/tests that inspect the declared
+# collision surface directly.
+PROJECT_OWNED_ROLLOUT_PATHS = (
+    ALWAYS_PROJECT_OWNED_ROLLOUT_PATHS | PROJECT_HARNESS_ROLLOUT_PATHS
+)
+
 # A very small migration-only allowlist for files that used to carry downstream
 # customization but have since been deliberately reclaimed by the platform.
-# They are NEVER treated as project-owned. A Copier conflict is eligible for the
-# guarded recopy path only when the downstream file already matches the exact
-# target template bytes before the smart update starts.
+# They are NEVER treated as project-owned for recovery. A Copier conflict is
+# eligible for guarded recopy only when the downstream file already matches the
+# exact target template bytes before the smart update starts.
 RECLAIMED_PLATFORM_ROLLOUT_PATHS = {
     "scripts/_platform_common.py",
+    "scripts/project_publish.py",
 }
 
 
@@ -186,7 +195,9 @@ def reject_target(reject_path: str) -> str:
 
 def project_owned_paths(project_root: Path) -> set[str]:
     config = load_platform_config(project_root)
-    paths = set(PROJECT_OWNED_ROLLOUT_PATHS)
+    paths = set(ALWAYS_PROJECT_OWNED_ROLLOUT_PATHS)
+    if str(config.get("harness_mode", "platform")) == "project":
+        paths.update(PROJECT_HARNESS_ROLLOUT_PATHS)
     required = config.get("project_required_files", [])
     if isinstance(required, list):
         paths.update(str(item) for item in required if isinstance(item, str) and item)
@@ -318,10 +329,10 @@ def copier_update_with_guarded_recopy(
 
     Copier's update algorithm replays the downstream diff from the old template
     onto the new template. When ownership changes, that historic diff can conflict
-    even though the current downstream tree is already correct. Recopy is allowed
-    only for a project-owned harness when every conflict is either a declared
-    project-owned path or a narrowly allowlisted reclaimed platform path that
-    already matched the exact target template before the smart update started.
+    even though the current downstream tree is already correct. Project-owned
+    harnesses may recover declared project-owned collision points. Any harness
+    mode may recover narrowly allowlisted reclaimed platform paths only when they
+    already matched the exact target template before smart update started.
     """
 
     mode = harness_mode(project_root)
@@ -354,18 +365,18 @@ def copier_update_with_guarded_recopy(
         return "update"
 
     owned = project_owned_paths(project_root)
+    recoverable_owned = owned if mode == "project" else set()
     conflict_targets = {reject_target(path) for path in rejects}
     reclaimed_conflicts = conflict_targets & reclaimed_before
-    unexpected = sorted(conflict_targets - owned - reclaimed_conflicts)
-    if mode != "project" or unexpected:
+    unexpected = sorted(conflict_targets - recoverable_owned - reclaimed_conflicts)
+    if unexpected:
         detail = ", ".join(rejects[:10])
-        if unexpected:
-            detail += "; non-project-owned conflicts: " + ", ".join(unexpected[:10])
+        detail += "; non-recoverable conflicts: " + ", ".join(unexpected[:10])
         raise ValueError("Copier left unresolved .rej files: " + detail)
 
     print(
-        "Smart Copier update conflicted only on protected project-owned paths "
-        "or already-reclaimed platform paths; retrying with guarded recopy.",
+        "Smart Copier update conflicted only on recoverable project-owned paths "
+        "or proven reclaimed platform paths; retrying with guarded recopy.",
         flush=True,
     )
     reset_failed_copier_update(project_root)
@@ -405,8 +416,8 @@ def copier_update_with_guarded_recopy(
         raise ValueError(
             "project-owned .dev-platform.toml changed beyond platform_version during guarded recopy"
         )
-    if harness_mode(project_root) != "project":
-        raise ValueError("guarded recopy changed harness_mode away from project")
+    if harness_mode(project_root) != mode:
+        raise ValueError(f"guarded recopy changed harness_mode away from {mode}")
     return "guarded-recopy"
 
 
