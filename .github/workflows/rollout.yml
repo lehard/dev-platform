@@ -168,13 +168,36 @@ jobs:
           VERSION: ${{ needs.plan.outputs.version }}
           BASE_BRANCH: ${{ matrix.default_branch }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
+          log_file="$(mktemp)"
+          set +e
           python3 platform/scripts/rollout_project.py \
             --project-root target \
             --repository "$REPOSITORY" \
             --version "$VERSION" \
             --base-branch "$BASE_BRANCH" \
-            --output /tmp/rollout-result.json
+            --output /tmp/rollout-result.json 2>&1 | tee "$log_file"
+          rc=${PIPESTATUS[0]}
+          set -e
+          if [[ "$rc" -ne 0 ]]; then
+            blocker="$(grep -E 'Managed rollout: BLOCKED:|\[fail\]|Error:|ERROR:' "$log_file" | tail -n 1 || true)"
+            if [[ -z "$blocker" ]]; then
+              blocker="$(tail -n 1 "$log_file" || true)"
+            fi
+            if [[ -z "$blocker" ]]; then
+              blocker="rollout preparation exited with status $rc"
+            fi
+            blocker="${blocker//$'\r'/ }"
+            blocker="${blocker//$'\n'/ }"
+            echo "::error title=Managed rollout blocked::$blocker"
+            {
+              echo "#### Rollout blocker"
+              echo '```text'
+              echo "$blocker"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit "$rc"
+          fi
           status="$(python3 -c 'import json; print(json.load(open("/tmp/rollout-result.json"))["status"])')"
           branch="$(python3 -c 'import json; print(json.load(open("/tmp/rollout-result.json"))["branch"])')"
           echo "status=$status" >> "$GITHUB_OUTPUT"
@@ -224,6 +247,6 @@ jobs:
             elif [[ "$PREPARE_STATUS" == "up_to_date" ]]; then
               echo "Already up to date."
             else
-              echo "No rollout PR was produced; inspect this job for the blocking reason."
+              echo "No rollout PR was produced; inspect the blocker annotation above."
             fi
           } >> "$GITHUB_STEP_SUMMARY"
