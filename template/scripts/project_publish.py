@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import os
 import subprocess
+import time
 from pathlib import Path
 
 from _platform_common import (
@@ -21,6 +22,8 @@ from _platform_common import (
 
 
 DIRECT_PUBLISH_GUARD = "DEV_PLATFORM_VALIDATED_DIRECT_PUBLISH"
+MERGE_CONFIRM_ATTEMPTS = 10
+MERGE_CONFIRM_INTERVAL_SECONDS = 0.5
 
 
 def clean(root: Path) -> bool:
@@ -132,9 +135,39 @@ def wait_for_pr_checks(root: Path, env: dict[str, str], current: str) -> None:
         raise SystemExit("Required PR checks did not pass; PR remains open and local main was not changed. " + detail)
 
 
-def merge_pr(root: Path, env: dict[str, str], current: str) -> None:
+def wait_for_pr_merged(root: Path, env: dict[str, str], current: str) -> bool:
+    for attempt in range(MERGE_CONFIRM_ATTEMPTS):
+        result = subprocess.run(
+            ["gh", "pr", "view", current, "--json", "state,mergedAt", "--jq", ".state"],
+            cwd=root,
+            env=env,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        if result.returncode == 0 and result.stdout.strip().upper() == "MERGED":
+            return True
+        if attempt + 1 < MERGE_CONFIRM_ATTEMPTS:
+            time.sleep(MERGE_CONFIRM_INTERVAL_SECONDS)
+    return False
+
+
+def delete_remote_branch(root: Path, remote: str, current: str) -> None:
+    exists = run_git(["ls-remote", "--exit-code", "--heads", remote, current], cwd=root, check=False)
+    if exists.returncode != 0:
+        print(f"Remote feature branch {remote}/{current} is already absent.")
+        return
+    deleted = run_git(["push", remote, "--delete", current], cwd=root, check=False)
+    if deleted.returncode != 0:
+        detail = deleted.stderr.strip() or deleted.stdout.strip() or f"exit {deleted.returncode}"
+        print(f"WARNING: PR is merged, but remote branch cleanup failed for {remote}/{current}: {detail}")
+        return
+    print(f"Deleted remote feature branch {remote}/{current} after confirmed merge.")
+
+
+def merge_pr(root: Path, env: dict[str, str], current: str, remote: str) -> None:
     result = subprocess.run(
-        ["gh", "pr", "merge", current, "--squash", "--delete-branch"],
+        ["gh", "pr", "merge", current, "--squash"],
         cwd=root,
         env=env,
         text=True,
@@ -143,9 +176,20 @@ def merge_pr(root: Path, env: dict[str, str], current: str) -> None:
     )
     if result.stdout.strip():
         print(result.stdout.strip())
+
+    # The GitHub-side PR state is authoritative. gh can return non-zero after a
+    # successful server-side merge because of unrelated local convenience work.
+    if not wait_for_pr_merged(root, env, current):
+        detail = result.stderr.strip() or result.stdout.strip() or f"exit {result.returncode}"
+        raise SystemExit(
+            "GitHub PR merge could not be confirmed as MERGED after bounded retries; "
+            "local main was not reconciled. " + detail
+        )
     if result.returncode != 0:
         detail = result.stderr.strip() or result.stdout.strip() or f"exit {result.returncode}"
-        raise SystemExit("GitHub rejected PR merge; PR remains open and local main was not changed. " + detail)
+        print(f"WARNING: gh pr merge exited non-zero, but GitHub confirms the PR is MERGED; continuing reconciliation: {detail}")
+
+    delete_remote_branch(root, remote, current)
     print(f"Merged PR for {current} through GitHub after successful checks.")
 
 
@@ -162,7 +206,7 @@ def publish_pr(root: Path, remote: str, main_branch: str, title: str | None, bod
     if merge_mode != "auto":
         raise SystemExit(f"Unknown pr_merge_mode: {merge_mode!r}; expected 'auto' or 'manual'.")
     wait_for_pr_checks(root, env, current)
-    merge_pr(root, env, current)
+    merge_pr(root, env, current, remote)
     return 0
 
 
