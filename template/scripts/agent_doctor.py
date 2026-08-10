@@ -10,6 +10,7 @@ from pathlib import Path
 from _platform_common import (
     current_worktree_root,
     fetch_main,
+    github_cli_env,
     harness_mode,
     main_root,
     pr_merge_mode,
@@ -147,19 +148,11 @@ def run_friction_review_status(integration: Path) -> None:
         report("ok", "no unreviewed agent friction events")
 
 
-def gh_auth_state(root: Path) -> tuple[bool, str]:
-    if not shutil.which("gh"):
-        return False, "GitHub CLI (gh) is not installed"
-    auth = subprocess.run(["gh", "auth", "status"], cwd=root, text=True, capture_output=True, check=False)
-    if auth.returncode != 0:
-        return False, "GitHub CLI is installed but not authenticated; run gh auth login (or provide GH_TOKEN/GITHUB_TOKEN)"
-    return True, "GitHub CLI authenticated"
-
-
-def query_github_branch_protection(root: Path, branch: str) -> bool | None:
+def query_github_branch_protection(root: Path, env: dict[str, str], branch: str) -> bool | None:
     repo = subprocess.run(
         ["gh", "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"],
         cwd=root,
+        env=env,
         text=True,
         capture_output=True,
         check=False,
@@ -170,6 +163,7 @@ def query_github_branch_protection(root: Path, branch: str) -> bool | None:
     result = subprocess.run(
         ["gh", "api", f"repos/{name}/branches/{branch}", "--jq", ".protected"],
         cwd=root,
+        env=env,
         text=True,
         capture_output=True,
         check=False,
@@ -242,18 +236,18 @@ def main() -> int:
     if run_git(["status", "--porcelain"], cwd=root).stdout.strip():
         report("warn", "current worktree is dirty")
 
-    gh_ok, gh_detail = gh_auth_state(root)
+    gh_env = github_cli_env(root)
     if mode == "pr" and harness == "platform":
-        if gh_ok:
-            report("ok", "GitHub CLI authenticated for protected PR publishing")
+        if gh_env is not None:
+            report("ok", "GitHub PR API authentication available")
         else:
-            report("fail", gh_detail)
+            report("fail", "GitHub PR API auth unavailable; run gh auth login, provide GH_TOKEN/GITHUB_TOKEN, or configure reusable GitHub HTTPS credentials")
             failures += 1
-    elif gh_ok:
-        report("ok", "GitHub CLI authenticated")
+    elif gh_env is not None:
+        report("ok", "GitHub API authentication available")
 
-    if gh_ok:
-        actual_protected = query_github_branch_protection(root, branch)
+    if gh_env is not None:
+        actual_protected = query_github_branch_protection(root, gh_env, branch)
         if actual_protected is None:
             report("warn", f"could not verify GitHub protection state for {branch}")
         else:
