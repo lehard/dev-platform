@@ -29,6 +29,20 @@ The platform-owned direct publication path SHALL require the validated `finish_t
 - **WHEN** `finish_task.py --no-checks` is invoked without the explicit validation-bypass environment override
 - **THEN** publication is refused before integration or push
 
+### Requirement: Rendered workflow agrees with publication mode
+The platform doctor SHALL fail when the committed Dev Platform workflow trigger set is stale relative to the repository's configured `publish_mode`.
+
+#### Scenario: Repository switches from direct to PR publication
+- **GIVEN** `.dev-platform.toml` declares `publish_mode=pr`
+- **WHEN** the committed `.github/workflows/dev-platform.yml` still contains the direct-mode `push` trigger
+- **THEN** `platform_doctor.py` fails
+- **AND** managed rollout is blocked until the generated workflow is reconciled
+
+#### Scenario: Direct repository loses push health trigger
+- **GIVEN** `.dev-platform.toml` declares `publish_mode=direct`
+- **WHEN** the committed Dev Platform workflow has no top-level `push` trigger
+- **THEN** `platform_doctor.py` fails
+
 ### Requirement: Managed rollout executes from the requested immutable release
 Managed rollout SHALL execute rollout helper code from the same exact immutable release tag that is being applied downstream.
 
