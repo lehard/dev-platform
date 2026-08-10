@@ -13,6 +13,8 @@ REQUIRED_MULTI_AGENT_PLATFORM = ["scripts/agent_board.py", "scripts/start_worktr
 VERIFY_CANDIDATES = [".codex/skills/openspec-verify-change/SKILL.md", ".claude/skills/openspec-verify-change/SKILL.md", ".cursor/skills/openspec-verify-change/SKILL.md"]
 IGNORED_CONFLICT_DIRS = {".git", ".claude", ".codex", "node_modules", ".venv", "venv"}
 SEMVER_TAG_RE = re.compile(r"^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
+TOP_LEVEL_PUSH_RE = re.compile(r"(?m)^  push:\s*$")
+TOP_LEVEL_PR_RE = re.compile(r"(?m)^  pull_request:\s*$")
 
 
 def ok(label: str) -> None: print(f"[ok]   {label}")
@@ -75,6 +77,33 @@ def check_tool_version(root: Path, tool: str, config: dict, failures: list[int],
         warn(f"{tool} version could not be parsed")
 
 
+def check_rendered_workflow_mode(root: Path, config: dict, failures: list[int]) -> None:
+    """Detect a stale Copier render after a publication-mode answer changes.
+
+    Copier can preserve a previously rendered conditional block as a downstream
+    customization when `.copier-answers.yml` is changed by hand. The workflow is
+    executable safety policy, so configuration and rendered triggers must agree.
+    """
+    workflow = root / ".github" / "workflows" / "dev-platform.yml"
+    if not workflow.exists():
+        fail("missing .github/workflows/dev-platform.yml"); failures[0] += 1
+        return
+    text = workflow.read_text(encoding="utf-8")
+    if not TOP_LEVEL_PR_RE.search(text):
+        fail("dev-platform workflow is missing the pull_request gate"); failures[0] += 1
+    mode = str(config.get("publish_mode", "pr"))
+    has_push = bool(TOP_LEVEL_PUSH_RE.search(text))
+    if mode == "direct" and not has_push:
+        fail("publish_mode=direct but rendered dev-platform workflow has no main push health trigger"); failures[0] += 1
+    elif mode == "pr" and has_push:
+        fail("publish_mode=pr but rendered dev-platform workflow still has a main push trigger; re-render/reconcile the workflow")
+        failures[0] += 1
+    elif mode not in {"direct", "pr"}:
+        fail(f"unknown publish_mode={mode!r}; expected 'direct' or 'pr'"); failures[0] += 1
+    else:
+        ok(f"rendered workflow agrees with publish_mode={mode}")
+
+
 def main() -> int:
     root = Path.cwd().resolve()
     failures = [0]
@@ -107,6 +136,8 @@ def main() -> int:
         if (root / relative).exists(): ok(relative)
         else:
             fail(f"missing {relative}"); failures[0] += 1
+
+    check_rendered_workflow_mode(root, config, failures)
 
     commit = copier_commit(root)
     configured_version = str(config.get("platform_version", ""))
