@@ -182,9 +182,9 @@ jobs:
           if [[ "$rc" -ne 0 ]]; then
             blocker="$(grep -F 'Managed rollout: BLOCKED:' "$log_file" | tail -n 1 || true)"
             if [[ -z "$blocker" ]]; then
-              failed_command="$(grep -E '^\+ ' "$log_file" | tail -n 1 || true)"
-              if [[ -n "$failed_command" ]]; then
-                blocker="command failed (exit $rc): ${failed_command#+ }"
+              check_marker="$(grep -F 'DEV_PLATFORM_CHECK_COMMAND:' "$log_file" | tail -n 1 || true)"
+              if [[ -n "$check_marker" ]]; then
+                blocker="command failed (exit $rc): ${check_marker#DEV_PLATFORM_CHECK_COMMAND: }"
               fi
             fi
             if [[ -z "$blocker" ]]; then
