@@ -8,6 +8,8 @@
 - [x] Prepare Cuby clean-environment/high-impact selected-check hardening.
 - [x] Prepare Planner Agent Lab switch from direct publication to PR-gated authoritative QA and remove duplicate required check context ambiguity.
 - [x] Prepare Jara_Fin stable aggregate CI gate for conditional backend/frontend/script jobs.
+- [ ] Make protected PR merge completion worktree-safe: remove `--delete-branch`, verify `MERGED` independently, separate remote branch deletion, and run optional local cleanup from the integration checkout.
+- [ ] Add regression coverage for a non-zero `gh pr merge` exit after a successful remote merge in multi-agent worktree topology.
 - [ ] Run platform unit/smoke/OpenSpec validation and semantic verification on the exact final commit.
 - [ ] Merge and verify the three downstream safety PRs against their real required status checks.
 - [ ] Archive the verified OpenSpec change and release a new immutable platform version.
