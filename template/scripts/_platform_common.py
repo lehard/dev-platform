@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import tempfile
 from contextlib import contextmanager
@@ -127,6 +128,49 @@ def publish_mode(config: dict[str, Any]) -> str:
 def pr_merge_mode(config: dict[str, Any]) -> str:
     # Legacy PR projects were manual. New generated projects explicitly record auto.
     return str(config.get("pr_merge_mode", "manual"))
+
+
+def github_cli_env(root: Path) -> dict[str, str] | None:
+    """Return a validated environment for gh without persisting or printing tokens.
+
+    Prefer explicit GH/GITHUB token env, then an existing gh login. If gh itself
+    is unauthenticated but git HTTPS credentials are already stored, reuse that
+    credential only for this subprocess environment. This avoids requiring a
+    second login on hosts where git push already has suitable GitHub credentials.
+    """
+    if not shutil.which("gh"):
+        return None
+    env = os.environ.copy()
+    auth = subprocess.run(["gh", "auth", "status"], cwd=root, env=env, text=True, capture_output=True, check=False)
+    if auth.returncode == 0:
+        return env
+
+    credential_env = env.copy()
+    credential_env["GIT_TERMINAL_PROMPT"] = "0"
+    filled = subprocess.run(
+        ["git", "credential", "fill"],
+        cwd=root,
+        env=credential_env,
+        input="protocol=https\nhost=github.com\n\n",
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if filled.returncode != 0:
+        return None
+    values: dict[str, str] = {}
+    for line in filled.stdout.splitlines():
+        if "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        values[key] = value
+    token = values.get("password")
+    if not token:
+        return None
+    candidate = env.copy()
+    candidate["GH_TOKEN"] = token
+    validated = subprocess.run(["gh", "auth", "status"], cwd=root, env=candidate, text=True, capture_output=True, check=False)
+    return candidate if validated.returncode == 0 else None
 
 
 @contextmanager
