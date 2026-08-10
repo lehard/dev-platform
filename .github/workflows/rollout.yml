@@ -125,6 +125,12 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "20.19.0"
+          package-manager-cache: false
+
       - name: Install tested Copier
         run: python3 -m pip install "copier==9.17.0"
 
