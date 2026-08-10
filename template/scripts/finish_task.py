@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import shutil
 import subprocess
 import time
 from contextlib import contextmanager
@@ -17,6 +16,7 @@ except ImportError:  # pragma: no cover - Windows fallback
 from _platform_common import (
     current_worktree_root,
     fetch_main,
+    github_cli_env,
     harness_mode,
     main_root,
     pr_merge_mode,
@@ -84,13 +84,10 @@ def validate_publication_config(root: Path, config: dict, prof: str, mode: str) 
         raise SystemExit("protected_main=true is incompatible with publish_mode=direct. Use publish_mode=pr so GitHub required checks can gate the merge.")
     if mode == "pr" and prof == "light":
         raise SystemExit("publish_mode=pr requires a feature-capable profile. Use standard/multi-agent or a reviewed project-owned harness.")
-    if mode != "pr":
-        return
-    if not shutil.which("gh"):
-        raise SystemExit("publish_mode=pr requires GitHub CLI (gh). Install it and authenticate once before finishing protected-main work.")
-    auth = subprocess.run(["gh", "auth", "status"], cwd=root, text=True, capture_output=True, check=False)
-    if auth.returncode != 0:
-        raise SystemExit("publish_mode=pr requires authenticated GitHub CLI. Run `gh auth login` (or provide a supported GH_TOKEN/GITHUB_TOKEN) before finishing the task.")
+    if mode == "pr" and github_cli_env(root) is None:
+        raise SystemExit(
+            "publish_mode=pr requires GitHub PR API authentication. Run `gh auth login`, provide GH_TOKEN/GITHUB_TOKEN, or configure reusable GitHub HTTPS credentials before finishing the task."
+        )
 
 
 @contextmanager
@@ -195,8 +192,6 @@ def main() -> int:
             command += ["--body", args.body]
         subprocess.run(command, cwd=work, check=True)
         if pr_merge_mode(config) == "auto":
-            # Protected-main integration happens remotely first. Only after GitHub
-            # confirms merge do we mutate the local integration branch.
             sync_after_remote_pr_merge(work, integration, main_branch)
             if prof == "multi-agent":
                 finish_board(integration, work, config)
