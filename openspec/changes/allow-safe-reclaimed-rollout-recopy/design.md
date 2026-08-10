@@ -45,9 +45,9 @@ Rollout validation therefore stays on the rollout-specific path (`platform_docto
 
 A fail-closed rollout is useful only if the operator can identify which safety proof or downstream validation command blocked it. The workflow SHALL preserve a non-zero result while surfacing the final managed-rollout blocker as a GitHub Actions error annotation and step summary. This is observability only: it MUST NOT convert a failed rollout into success, skip a guard, push a branch, or open a PR.
 
-The v1.4.16 acceptance run proved that broad `Error:` scraping is unsafe. The v1.4.17 run proved that a generic `^+ ` marker is still ambiguous because compiler/diff output can itself begin with `+`. Therefore executable platform helpers emit reserved machine-readable markers that ordinary tool output cannot impersonate accidentally: `DEV_PLATFORM_CHECK_COMMAND:` immediately before each selected downstream command and `DEV_PLATFORM_ROLLOUT_COMMAND:` before rollout-owned checked subprocesses. The workflow prefers `Managed rollout: BLOCKED:`, then the last structured check-command marker, then the last structured rollout-command marker, and finally a generic exit-code message.
+The v1.4.16 acceptance run proved that broad `Error:` scraping is unsafe. The v1.4.17 run proved that a generic `^+ ` marker is still ambiguous because compiler/diff output can itself begin with `+`. Therefore `select_checks.py` emits the reserved marker `DEV_PLATFORM_CHECK_COMMAND:` immediately before each selected downstream command. The workflow prefers the stable `Managed rollout: BLOCKED:` marker, then the last structured selected-check marker, and finally a generic exit-code message for failures outside selected checks.
 
-A product-check failure remains blocking; diagnostics only identify which command failed so the correction is based on evidence. The marker strings carry no secrets beyond commands already printed to the Actions log.
+A product-check failure remains blocking; diagnostics only identify which command failed so the correction is based on evidence. The marker carries no secrets beyond commands already printed to the Actions log.
 
 ## Git/tag handling
 
