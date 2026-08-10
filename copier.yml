@@ -64,14 +64,27 @@ harness_mode:
     - project
   default: platform
 
+protected_main:
+  type: bool
+  help: Whether the GitHub integration branch is expected to be protected. Protected branches require PR publication.
+  default: "{{ false if workflow_profile == 'light' else true }}"
+
 publish_mode:
   type: str
-  help: How completed work reaches GitHub (PR is safer; direct is for intentionally simple repos)
+  help: How completed work reaches GitHub (PR is required for protected main; direct is only for intentionally unprotected repos)
   choices:
     - pr
     - direct
   default: "{{ 'direct' if workflow_profile == 'light' else 'pr' }}"
-  validator: "{% if workflow_profile == 'light' and publish_mode == 'pr' %}light profile has no feature branch; choose direct or use standard profile{% endif %}"
+  validator: "{% if workflow_profile == 'light' and publish_mode == 'pr' %}light profile has no feature branch; choose direct or use standard profile{% elif protected_main and publish_mode == 'direct' %}protected_main=true is incompatible with direct publication; choose pr or disable protection deliberately{% endif %}"
+
+pr_merge_mode:
+  type: str
+  help: Whether ordinary task PRs merge automatically after required checks or stop for manual review
+  choices:
+    - auto
+    - manual
+  default: auto
 
 platform_ci_ref:
   type: str
