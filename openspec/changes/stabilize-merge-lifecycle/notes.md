@@ -1,1 +1,0 @@
-Implementation note: delegated-agent filesystem containment is intentionally excluded from this change because enforcement spans external Claude/Codex runtimes rather than only the repository lifecycle.
