@@ -159,6 +159,32 @@ def sync_after_remote_pr_merge(work: Path, integration: Path, main_branch: str) 
         raise SystemExit(f"Remote PR merged, but local {main_branch} vs {remote_main} is {state}. Refusing automatic reconciliation.")
 
 
+def cleanup_completed_task(work: Path, integration: Path, branch: str, *, squash_merged: bool) -> None:
+    if work == integration:
+        return
+
+    # The running process must leave the task worktree before asking Git to
+    # remove it. All post-merge housekeeping is driven from the integration
+    # checkout where main is already synchronized.
+    os.chdir(integration)
+    removed = run_git(["worktree", "remove", str(work)], cwd=integration, check=False)
+    if removed.returncode != 0:
+        detail = removed.stderr.strip() or removed.stdout.strip() or f"exit {removed.returncode}"
+        print(f"WARNING: task is integrated, but local worktree cleanup failed for {work}: {detail}")
+        return
+
+    # A squash-merged branch is not an ancestor of main even though its PR is
+    # merged. At this point remote merge has been confirmed and main synced, so
+    # explicit local branch deletion is safe for the exact completed task.
+    delete_flag = "-D" if squash_merged else "-d"
+    deleted = run_git(["branch", delete_flag, branch], cwd=integration, check=False)
+    if deleted.returncode != 0:
+        detail = deleted.stderr.strip() or deleted.stdout.strip() or f"exit {deleted.returncode}"
+        print(f"WARNING: task is integrated, but local branch cleanup failed for {branch}: {detail}")
+        return
+    print(f"Removed completed worktree and local branch {branch}.")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate, integrate when needed, and publish a completed task without a human git hand-off.")
     parser.add_argument("--no-checks", action="store_true")
@@ -207,6 +233,8 @@ def main() -> int:
             sync_after_remote_pr_merge(work, integration, main_branch)
             if prof == "multi-agent":
                 finish_board(integration, work, config)
+            if args.cleanup:
+                cleanup_completed_task(work, integration, branch, squash_merged=True)
             print("Task PR passed required checks, merged through GitHub, and local main was synchronized.")
         else:
             if prof == "standard" and work == integration:
@@ -222,10 +250,8 @@ def main() -> int:
         integrate_and_publish_direct(work, integration, config, branch, main_branch)
         if prof == "multi-agent" and work != integration:
             finish_board(integration, work, config)
-    if args.cleanup and work != integration:
-        run_git(["worktree", "remove", str(work)], cwd=integration)
-        run_git(["branch", "-d", branch], cwd=integration)
-        print(f"Removed worktree and branch {branch}.")
+    if args.cleanup:
+        cleanup_completed_task(work, integration, branch, squash_merged=False)
     print("Task published directly. OpenSpec lifecycle hygiene passed.")
     return 0
 
