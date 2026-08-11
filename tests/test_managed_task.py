@@ -49,6 +49,30 @@ def package_body(*, target: str = "lehard/dev-platform", artifact: str = "propos
     )
 
 
+def authoring_bundle(root: Path, *, change: str = "author-managed-task", title: str = "Author a managed task") -> managed_task.AuthoringBundle:
+    (root / "specs" / "authoring").mkdir(parents=True)
+    (root / "manifest.json").write_text(
+        json.dumps({"title": title, "change": change, "artifacts": ["proposal.md", "design.md", "tasks.md", "specs/authoring/spec.md"]}),
+        encoding="utf-8",
+    )
+    (root / "issue.md").write_text("## Why\n\nA durable managed change.\n", encoding="utf-8")
+    (root / "proposal.md").write_text("## Why\n", encoding="utf-8")
+    (root / "design.md").write_text("## Design\n", encoding="utf-8")
+    (root / "tasks.md").write_text("## Tasks\n\n- [ ] Do it\n", encoding="utf-8")
+    (root / "specs" / "authoring" / "spec.md").write_text(
+        "## ADDED Requirements\n\n### Requirement: Authoring\n\n#### Scenario: Valid\n\n- **WHEN** authoring runs\n- **THEN** it stops\n",
+        encoding="utf-8",
+    )
+    return managed_task.load_authoring_bundle(str(root))
+
+
+def authoring_config(root: Path) -> None:
+    (root / ".dev-platform.toml").write_text(
+        "main_branch = \"main\"\n\n[development_backlog]\nrepository = \"lehard/development-backlog\"\nproject_label = \"project:dev-platform\"\ndefault_priority = \"P2\"\n",
+        encoding="utf-8",
+    )
+
+
 class ManagedPackageTests(unittest.TestCase):
     def test_parse_valid_package_and_revision_is_stable(self) -> None:
         body = package_body()
@@ -249,6 +273,140 @@ class ManagedPackageTests(unittest.TestCase):
                 with self.assertRaisesRegex(managed_task.ManagedTaskError, "not this checkout"):
                     managed_task.import_task(root, "lehard/development-backlog#1")
             target_main.assert_not_called()
+
+    def test_authoring_bundle_and_transport_are_import_compatible(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            bundle = authoring_bundle(Path(tmp))
+            package = managed_task.package_for_bundle(bundle, "lehard/development-backlog#7", "lehard/dev-platform", "c" * 40)
+            parsed = managed_task.parse_package([managed_task.serialize_package(package)], package.source_issue)
+            self.assertEqual(parsed.revision, package.revision)
+            self.assertEqual(parsed.change, bundle.change)
+
+    def test_authoring_config_fails_closed_until_a_project_is_upgraded(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with self.assertRaisesRegex(managed_task.ManagedTaskError, "not configured"):
+                managed_task.authoring_config(root)
+            authoring_config(root)
+            config = managed_task.authoring_config(root)
+            self.assertEqual(config.project_label, "project:dev-platform")
+            self.assertEqual(managed_task.priority_label("P3"), "priority:P3")
+            with self.assertRaisesRegex(managed_task.ManagedTaskError, "priority"):
+                managed_task.priority_label("P9")
+
+    def test_authoring_invalid_bundle_and_missing_auth_fail_before_remote_creation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            authoring_config(root)
+            invalid = root / "invalid-bundle"
+            invalid.mkdir()
+            (invalid / "manifest.json").write_text('{"title":"Bad","change":"bad","artifacts":["proposal.md"]}', encoding="utf-8")
+            (invalid / "issue.md").write_text("body\n", encoding="utf-8")
+            with patch.object(managed_task, "origin_repository") as origin:
+                with self.assertRaisesRegex(managed_task.ManagedTaskError, "missing or escapes"):
+                    managed_task.create_task(root, str(invalid), None, False)
+            origin.assert_not_called()
+
+            config = managed_task.authoring_config(root)
+            with patch.object(managed_task, "github_cli_env", return_value=None):
+                with self.assertRaisesRegex(managed_task.ManagedTaskError, "authentication"):
+                    managed_task.validate_backlog_labels(root, config, "P2")
+
+    def test_authoring_validation_removes_its_temporary_change(self) -> None:
+        schema = {
+            "artifactPaths": {
+                "proposal": {"outputPath": "proposal.md"}, "specs": {"outputPath": "specs/**/*.md"},
+                "design": {"outputPath": "design.md"}, "tasks": {"outputPath": "tasks.md"},
+            }
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bundle = authoring_bundle(root / "bundle")
+
+            def fake_json(command: list[str], cwd: Path, env=None):
+                self.assertEqual(command[:3], ["openspec", "new", "change"])
+                (root / "openspec" / "changes" / bundle.change).mkdir(parents=True)
+                return {"change": {"id": bundle.change}}
+
+            with (
+                patch.object(managed_task, "run_json", side_effect=fake_json),
+                patch.object(managed_task, "openspec_status", return_value=schema),
+                patch.object(managed_task, "validate_change") as validate,
+                patch.object(managed_task.shutil, "which", return_value="/usr/bin/openspec"),
+            ):
+                managed_task.validate_authoring_bundle(root, bundle, "lehard/dev-platform", "d" * 40)
+            validate.assert_called_once_with(root, bundle.change)
+            self.assertFalse((root / "openspec" / "changes" / bundle.change).exists())
+
+    def test_create_rejects_exact_duplicate_and_requires_confirmation_for_candidates(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            authoring_config(root)
+            bundle_root = root / "bundle"
+            authoring_bundle(bundle_root)
+            exact = {"number": 4, "title": "Existing", "body": "**Target repository:** `lehard/dev-platform`\n\n**OpenSpec change:** `author-managed-task`\n"}
+            with (
+                patch.object(managed_task, "origin_repository", return_value="lehard/dev-platform"),
+                patch.object(managed_task, "target_main", return_value="e" * 40),
+                patch.object(managed_task, "validate_backlog_labels"),
+                patch.object(managed_task, "validate_authoring_bundle"),
+                patch.object(managed_task, "open_backlog_issues", return_value=[exact]),
+                patch.object(managed_task, "create_issue") as create,
+            ):
+                with self.assertRaisesRegex(managed_task.ManagedTaskError, "clear duplicate"):
+                    managed_task.create_task(root, str(bundle_root), None, False)
+            create.assert_not_called()
+
+            related = {"number": 5, "title": "Related", "body": "**Target repository:** `lehard/dev-platform`\n\n**OpenSpec change:** `another-change`\n"}
+            with (
+                patch.object(managed_task, "origin_repository", return_value="lehard/dev-platform"),
+                patch.object(managed_task, "target_main", return_value="e" * 40),
+                patch.object(managed_task, "validate_backlog_labels"),
+                patch.object(managed_task, "validate_authoring_bundle"),
+                patch.object(managed_task, "open_backlog_issues", return_value=[related]),
+                patch.object(managed_task, "create_issue") as create,
+            ):
+                with self.assertRaisesRegex(managed_task.ManagedTaskError, "confirm-distinct"):
+                    managed_task.create_task(root, str(bundle_root), None, False)
+            create.assert_not_called()
+
+    def test_create_publishes_one_package_and_resumes_a_partial_issue(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            authoring_config(root)
+            bundle_root = root / "bundle"
+            bundle = authoring_bundle(bundle_root)
+            with (
+                patch.object(managed_task, "origin_repository", return_value="lehard/dev-platform"),
+                patch.object(managed_task, "target_main", return_value="f" * 40),
+                patch.object(managed_task, "validate_backlog_labels") as labels,
+                patch.object(managed_task, "validate_authoring_bundle"),
+                patch.object(managed_task, "open_backlog_issues", return_value=[]),
+                patch.object(managed_task, "create_issue", return_value=7) as create,
+                patch.object(managed_task, "publish_package", return_value=False) as publish,
+            ):
+                package, resumed, already = managed_task.create_task(root, str(bundle_root), "P1", False)
+            self.assertEqual(package.source_issue, "lehard/development-backlog#7")
+            self.assertFalse(resumed); self.assertFalse(already)
+            self.assertEqual(create.call_args.args[4], "P1")
+            labels.assert_called_once()
+            publish.assert_called_once()
+
+            receipt = managed_task.authoring_receipt(bundle, "lehard/dev-platform", "f" * 40)
+            partial = {"number": 8, "title": bundle.title, "body": f"<!-- managed-task:authoring:{receipt} -->"}
+            with (
+                patch.object(managed_task, "origin_repository", return_value="lehard/dev-platform"),
+                patch.object(managed_task, "target_main", return_value="f" * 40),
+                patch.object(managed_task, "validate_backlog_labels"),
+                patch.object(managed_task, "validate_authoring_bundle"),
+                patch.object(managed_task, "open_backlog_issues", return_value=[partial]),
+                patch.object(managed_task, "create_issue") as create,
+                patch.object(managed_task, "publish_package", return_value=False) as publish,
+            ):
+                package, resumed, already = managed_task.create_task(root, str(bundle_root), None, False)
+            self.assertEqual(package.source_issue, "lehard/development-backlog#8")
+            self.assertTrue(resumed); self.assertFalse(already)
+            create.assert_not_called(); publish.assert_called_once()
 
 
 if __name__ == "__main__":
