@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import subprocess
 import time
@@ -21,6 +20,13 @@ from _platform_common import (
     require_origin,
     run_git,
 )
+from publication_state import (
+    ExactHeadPrLookup,
+    RequiredCheckState,
+    current_pr_head,
+    find_exact_head_pr,
+    required_check_state,
+)
 
 
 DIRECT_PUBLISH_GUARD = "DEV_PLATFORM_VALIDATED_DIRECT_PUBLISH"
@@ -31,18 +37,13 @@ CHECK_COMPLETION_INTERVAL_SECONDS = 5.0
 MERGE_CONFIRM_TIMEOUT_SECONDS = 600.0
 MERGE_CONFIRM_INTERVAL_SECONDS = 2.0
 MERGE_FAILURE_CONFIRM_TIMEOUT_SECONDS = 3.0
-PASSED_CHECK_STATES = {"SUCCESS", "NEUTRAL", "SKIPPING", "SKIPPED"}
-FAILED_CHECK_STATES = {"FAILURE", "CANCELLED", "TIMED_OUT", "ACTION_REQUIRED", "STALE", "ERROR"}
-PENDING_CHECK_STATES = {"EXPECTED", "PENDING", "QUEUED", "IN_PROGRESS", "WAITING", "REQUESTED"}
 
 
 @dataclass(frozen=True)
-class RequiredCheckState:
-    """Normalized, structured GitHub state for required checks on one PR head."""
-
-    kind: str
-    detail: str = ""
-    checks: tuple[dict[str, object], ...] = ()
+class PrRef:
+    number: int | None
+    url: str
+    already_merged: bool = False
 
 
 def clean(root: Path) -> bool:
@@ -92,34 +93,66 @@ def publish_direct(root: Path, remote: str, main_branch: str) -> int:
     return 0
 
 
-def push_feature_branch(root: Path, remote: str, main_branch: str) -> str:
+def _validate_feature_branch(root: Path, remote: str, main_branch: str) -> str:
     current = branch(root)
     if not current or current == main_branch:
         raise SystemExit("PR publication requires a feature branch, not the integration branch.")
     if not clean(root):
         raise SystemExit("Task worktree is dirty. Commit or remove changes before publishing.")
     require_origin(root, remote)
+    return current
+
+
+def push_feature_branch(root: Path, remote: str, main_branch: str, *, require_fresh_base: bool) -> str:
+    """Push the validated feature branch; the push itself is always safe/idempotent.
+
+    `require_fresh_base` gates only the first-publication precondition that the
+    branch already contains current `{remote}/{main_branch}`. Recovery of an
+    already-existing exact-head PR passes `require_fresh_base=False`: that PR's
+    `headRefOid` already proves this exact commit reached GitHub, so an
+    already-published branch must not be blocked from resuming merely because
+    the base advanced after that PR was opened -- pushing again is a harmless
+    no-op fast-forward to the same commit.
+    """
+    current = _validate_feature_branch(root, remote, main_branch)
     fetch_main(root, remote, main_branch)
-    if run_git(["merge-base", "--is-ancestor", f"{remote}/{main_branch}", current], cwd=root, check=False).returncode != 0:
+    if require_fresh_base and run_git(["merge-base", "--is-ancestor", f"{remote}/{main_branch}", current], cwd=root, check=False).returncode != 0:
         raise SystemExit(f"{current} does not contain current {remote}/{main_branch}. Rebase/update explicitly, rerun checks, then publish.")
     run_git(["push", "-u", remote, current], cwd=root)
     print(f"Published feature branch {current} -> {remote}/{current}.")
     return current
 
 
-def ensure_pr(root: Path, env: dict[str, str], current: str, main_branch: str, title: str | None, body: str | None) -> str:
-    existing = subprocess.run(
-        ["gh", "pr", "view", current, "--json", "url", "--jq", ".url"],
-        cwd=root,
-        env=env,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    if existing.returncode == 0 and existing.stdout.strip():
-        url = existing.stdout.strip()
-        print(f"PR already exists: {url}")
-        return url
+def ensure_pr(
+    root: Path,
+    env: dict[str, str],
+    current: str,
+    main_branch: str,
+    title: str | None,
+    body: str | None,
+    expected_head: str,
+    lookup: ExactHeadPrLookup | None = None,
+) -> PrRef:
+    """Reuse an exact-head PR if one exists; otherwise create one.
+
+    Ownership is decided by repository/base branch + task head branch + exact
+    `headRefOid`, never by title/body text or a remembered PR number. A create
+    race against a concurrent publisher is resolved by re-observing GitHub and
+    reusing whatever exact PR won, instead of producing a duplicate.
+    """
+    if lookup is None:
+        lookup = find_exact_head_pr(root, env, current, main_branch, expected_head)
+    if not lookup.available:
+        raise SystemExit("GitHub PR state is unavailable; publication remains resumable without local-main mutation.")
+    if lookup.exact_open is not None:
+        url = str(lookup.exact_open.get("url", ""))
+        print(f"PR already exists for exact task head: {url}")
+        return PrRef(lookup.exact_open.get("number"), url)
+    if lookup.exact_merged is not None:
+        url = str(lookup.exact_merged.get("url", ""))
+        print(f"PR already merged on GitHub for exact task head: {url}")
+        return PrRef(lookup.exact_merged.get("number"), url, already_merged=True)
+
     if not title:
         title = run_git(["log", "-1", "--pretty=%s"], cwd=root).stdout.strip() or current
     if body is None:
@@ -130,72 +163,23 @@ def ensure_pr(root: Path, env: dict[str, str], current: str, main_branch: str, t
         env=env,
         text=True,
         capture_output=True,
-        check=True,
-    )
-    url = created.stdout.strip()
-    print(url)
-    return url
-
-
-def required_check_state(root: Path, env: dict[str, str], current: str) -> RequiredCheckState:
-    """Read required-check state from gh JSON, never from rendered CLI wording.
-
-    `gh pr checks --required --json` delegates required-context selection to
-    GitHub, and the preceding PR query proves those contexts belong to this
-    local task head.  An unreadable API response is intentionally `unknown`.
-    """
-    pr = subprocess.run(
-        ["gh", "pr", "view", current, "--json", "state,headRefOid"],
-        cwd=root,
-        env=env,
-        text=True,
-        capture_output=True,
         check=False,
     )
-    if pr.returncode != 0:
-        return RequiredCheckState("unknown", "GitHub PR state is unavailable")
-    try:
-        pr_payload = json.loads(pr.stdout)
-    except json.JSONDecodeError:
-        return RequiredCheckState("unknown", "GitHub PR state was not structured JSON")
-    local_head = run_git(["rev-parse", current], cwd=root, check=False)
-    if local_head.returncode != 0:
-        return RequiredCheckState("unknown", f"local task branch {current!r} is unavailable")
-    remote_head = str(pr_payload.get("headRefOid", "")).strip()
-    if remote_head != local_head.stdout.strip():
-        return RequiredCheckState("unknown", "GitHub PR head does not match the local task head")
+    if created.returncode == 0:
+        url = created.stdout.strip()
+        print(url)
+        return PrRef(None, url)
 
-    checks = subprocess.run(
-        ["gh", "pr", "checks", current, "--required", "--json", "name,state,workflow,link"],
-        cwd=root,
-        env=env,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    if checks.returncode != 0:
-        return RequiredCheckState("unknown", "GitHub required-check state is unavailable")
-    try:
-        payload = json.loads(checks.stdout)
-    except json.JSONDecodeError:
-        return RequiredCheckState("unknown", "GitHub required-check state was not structured JSON")
-    if not isinstance(payload, list):
-        return RequiredCheckState("unknown", "GitHub required-check response was not a list")
-    normalized = tuple(item for item in payload if isinstance(item, dict))
-    if len(normalized) != len(payload):
-        return RequiredCheckState("unknown", "GitHub required-check response contained an invalid check")
-    if not normalized:
-        return RequiredCheckState("not_registered")
-
-    states = {str(item.get("state", "")).strip().upper() for item in normalized}
-    if any(state in FAILED_CHECK_STATES for state in states):
-        failed = ", ".join(str(item.get("name", "unnamed")) for item in normalized if str(item.get("state", "")).strip().upper() in FAILED_CHECK_STATES)
-        return RequiredCheckState("failed", failed, normalized)
-    if all(state in PASSED_CHECK_STATES for state in states):
-        return RequiredCheckState("passed", checks=normalized)
-    if all(state in PASSED_CHECK_STATES | PENDING_CHECK_STATES for state in states):
-        return RequiredCheckState("pending", checks=normalized)
-    return RequiredCheckState("unknown", "GitHub returned an unsupported required-check state", normalized)
+    # A concurrent publisher may have created the exact PR between our lookup
+    # and this create attempt. Re-observe and reuse it instead of treating the
+    # race as a reason to create competing delivery work.
+    retry = find_exact_head_pr(root, env, current, main_branch, expected_head)
+    if retry.available and retry.exact_open is not None:
+        url = str(retry.exact_open.get("url", ""))
+        print(f"PR creation lost a race with a concurrent publisher; reusing exact PR: {url}")
+        return PrRef(retry.exact_open.get("number"), url)
+    detail = created.stderr.strip() or created.stdout.strip() or f"exit {created.returncode}"
+    raise SystemExit(f"gh pr create failed: {detail}")
 
 
 def wait_for_pr_checks(root: Path, env: dict[str, str], current: str) -> None:
@@ -276,16 +260,32 @@ def delete_remote_branch(root: Path, remote: str, current: str) -> None:
     print(f"Deleted remote feature branch {remote}/{current} after confirmed merge.")
 
 
-def merge_pr(root: Path, env: dict[str, str], current: str, remote: str) -> None:
+def request_protected_merge(root: Path, env: dict[str, str], current: str, remote: str, expected_head: str) -> str:
+    """Try ordinary/auto/queue merge for the exact validated head.
+
+    Every attempt is guarded with `--match-head-commit` so GitHub itself
+    refuses to merge a head other than `expected_head`. If an attempt is
+    rejected, the PR's current head is re-observed directly (not inferred from
+    error text): a changed head fails closed immediately; an unchanged head
+    means the rejection was for another reason (checks pending, auto-merge
+    disabled, ...), so the next protected mode is tried.
+
+    Returns "merged" once GitHub confirms MERGED, or "unavailable" once every
+    protected mode was rejected without the head ever changing -- meaning
+    native durable arming could not be persisted at all and the caller should
+    fall back to the bounded foreground check wait. A resumable pending state
+    (accepted but not yet MERGED within the bounded wait) and a fail-closed
+    changed-head both exit the process directly, matching this codebase's
+    existing terminal/resumable SystemExit convention.
+    """
     attempts = [
-        ("ordinary squash merge", ["gh", "pr", "merge", current, "--squash"]),
-        ("GitHub auto-merge with squash", ["gh", "pr", "merge", current, "--auto", "--squash"]),
-        ("GitHub auto/queue enrollment", ["gh", "pr", "merge", current, "--auto"]),
+        ("ordinary squash merge", ["gh", "pr", "merge", current, "--squash", "--match-head-commit", expected_head]),
+        ("GitHub auto-merge with squash", ["gh", "pr", "merge", current, "--auto", "--squash", "--match-head-commit", expected_head]),
+        ("GitHub auto/queue enrollment", ["gh", "pr", "merge", current, "--auto", "--match-head-commit", expected_head]),
     ]
     last_detail = "merge command was not attempted"
-    confirmed_after_nonzero = False
 
-    for index, (label, command) in enumerate(attempts):
+    for label, command in attempts:
         result = subprocess.run(
             command,
             cwd=root,
@@ -297,53 +297,92 @@ def merge_pr(root: Path, env: dict[str, str], current: str, remote: str) -> None
         if result.stdout.strip():
             print(result.stdout.strip())
         detail = result.stderr.strip() or result.stdout.strip() or f"exit {result.returncode}"
-        last_detail = detail
 
         if result.returncode == 0:
+            print(f"GitHub accepted {label} for exact validated head {expected_head}.")
             if wait_for_pr_merged(root, env, current, timeout_seconds=MERGE_CONFIRM_TIMEOUT_SECONDS):
-                break
+                delete_remote_branch(root, remote, current)
+                print(f"Merged PR for {current} through GitHub ({label}).")
+                return "merged"
             raise SystemExit(
-                f"{label} was accepted by GitHub, but the PR did not reach MERGED within the bounded wait; "
-                "remote state remains pending and resumable; local main was not reconciled."
+                f"{label} was accepted by GitHub for exact head {expected_head}, but the PR did not reach MERGED "
+                "within this bounded local wait. GitHub retains that accepted merge request independently of this "
+                "process; rerun finish or finish --status later to reconcile once it completes. Local main was not changed."
             )
 
         # gh can report a convenience/cleanup error after GitHub already accepted
-        # the merge. Confirm remote state before interpreting a non-zero exit as a
-        # failed merge request.
+        # the merge. Confirm remote state before interpreting a non-zero exit as
+        # a failed merge request.
         if wait_for_pr_merged(root, env, current, timeout_seconds=MERGE_FAILURE_CONFIRM_TIMEOUT_SECONDS):
-            confirmed_after_nonzero = True
-            break
+            print(f"WARNING: {label} exited non-zero, but GitHub confirms the PR is MERGED; continuing reconciliation: {detail}")
+            delete_remote_branch(root, remote, current)
+            print(f"Merged PR for {current} through GitHub ({label}).")
+            return "merged"
 
-        if index + 1 < len(attempts):
-            print(f"{label} was not accepted ({detail}); trying the next protected GitHub merge mode...")
-    else:
-        raise SystemExit(
-            "GitHub rejected every supported protected PR merge mode; PR remains open and local main was not reconciled. "
-            + last_detail
-        )
+        actual_head = current_pr_head(root, env, current)
+        if actual_head is not None and actual_head != expected_head:
+            raise SystemExit(
+                f"PR head changed from validated {expected_head} to {actual_head} before a merge request was "
+                "accepted; refusing to merge a different head under this validation. Revalidate the new head and "
+                "finish again. Local main was not changed."
+            )
 
-    if confirmed_after_nonzero:
-        print(f"WARNING: gh pr merge exited non-zero, but GitHub confirms the PR is MERGED; continuing reconciliation: {last_detail}")
+        last_detail = detail
+        print(f"{label} was not accepted for the unchanged validated head ({detail}); trying the next protected GitHub merge mode...")
 
-    delete_remote_branch(root, remote, current)
-    print(f"Merged PR for {current} through GitHub after successful checks.")
+    print(f"Native GitHub auto-merge/merge-queue could not be armed for the exact validated head ({last_detail}); it remains resumable.")
+    return "unavailable"
 
 
 def publish_pr(root: Path, remote: str, main_branch: str, title: str | None, body: str | None, merge_mode: str) -> int:
-    current = push_feature_branch(root, remote, main_branch)
-    # Keep git publication independent from GitHub API credentials. Normal
-    # finish_task preflight catches missing auth before this point, while direct
-    # project_publish invocation still leaves validated work safely pushed.
-    env = require_gh_environment(root, branch_pushed=True)
-    ensure_pr(root, env, current, main_branch, title, body)
+    current = _validate_feature_branch(root, remote, main_branch)
+    env = require_gh_environment(root)
+    expected_head = run_git(["rev-parse", current], cwd=root).stdout.strip()
+
+    # An already-open (or already-merged) exact-head PR is a resumable remote
+    # object: recovery does not require re-applying the first-publication
+    # freshness precondition, even if the base has advanced since that PR was
+    # opened -- GitHub protection/queue/auto-merge remains authoritative for
+    # whether it can still integrate. The push itself still happens whenever
+    # the PR isn't already merged: it is a harmless idempotent no-op when the
+    # exact head is already on GitHub, and it is the actual first-publication
+    # push otherwise.
+    lookup = find_exact_head_pr(root, env, current, main_branch, expected_head)
+    if not lookup.available:
+        raise SystemExit("GitHub PR state is unavailable; publication remains resumable without local-main mutation.")
+    if lookup.exact_merged is None:
+        push_feature_branch(root, remote, main_branch, require_fresh_base=lookup.exact_open is None)
+
+    pr = ensure_pr(root, env, current, main_branch, title, body, expected_head, lookup=lookup)
+    if pr.already_merged:
+        delete_remote_branch(root, remote, current)
+        print(f"PR for {current} was already merged on GitHub for the exact validated head; nothing further to merge.")
+        return 0
     if merge_mode == "manual":
         print("PR published for manual review; pr_merge_mode=manual, so no merge was attempted.")
         return 0
     if merge_mode != "auto":
         raise SystemExit(f"Unknown pr_merge_mode: {merge_mode!r}; expected 'auto' or 'manual'.")
+
+    # Prefer to persist merge intent in native GitHub auto-merge/merge-queue
+    # state before any long local wait, so an accepted remote request survives
+    # loss of this process.
+    outcome = request_protected_merge(root, env, current, remote, expected_head)
+    if outcome == "merged":
+        return 0
+
+    print(
+        "WARNING: falling back to the bounded foreground required-check wait; remote durability is degraded "
+        "until this process (or a resumed one) completes it."
+    )
     wait_for_pr_checks(root, env, current)
-    merge_pr(root, env, current, remote)
-    return 0
+    fallback_outcome = request_protected_merge(root, env, current, remote, expected_head)
+    if fallback_outcome == "merged":
+        return 0
+    raise SystemExit(
+        "GitHub did not accept a protected merge for the exact validated head after required checks passed; "
+        "PR remains open and local main was not reconciled."
+    )
 
 
 def main() -> int:

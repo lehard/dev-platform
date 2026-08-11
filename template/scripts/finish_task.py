@@ -28,6 +28,7 @@ from _platform_common import (
     relation,
     run_git,
 )
+import publication_state
 
 
 ALLOW_NO_CHECKS_ENV = "DEV_PLATFORM_ALLOW_NO_CHECKS"
@@ -102,31 +103,66 @@ def validate_publication_config(root: Path, config: dict, prof: str, mode: str) 
         )
 
 
-def task_pr_is_already_merged(root: Path, branch: str) -> bool:
-    """Return true only when GitHub merged the PR for this exact local branch head."""
+def _local_head(root: Path, branch: str) -> str | None:
+    result = run_git(["rev-parse", branch], cwd=root, check=False)
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
+def task_pr_is_already_merged(root: Path, branch: str, main_branch: str) -> bool:
+    """Return true only when GitHub merged the exact-head PR for this local branch."""
     env = github_cli_env(root)
     if env is None:
         return False
-    result = subprocess.run(
-        ["gh", "pr", "view", branch, "--json", "state,headRefOid"],
-        cwd=root,
-        env=env,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    if result.returncode != 0 or not result.stdout.strip():
+    local_head = _local_head(root, branch)
+    if local_head is None:
         return False
-    try:
-        payload = json.loads(result.stdout)
-    except json.JSONDecodeError:
-        return False
-    remote_head = str(payload.get("headRefOid", "")).strip()
-    state = str(payload.get("state", "")).strip().upper()
-    local_head = run_git(["rev-parse", branch], cwd=root, check=False)
-    if local_head.returncode != 0:
-        return False
-    return state == "MERGED" and remote_head == local_head.stdout.strip()
+    lookup = publication_state.find_exact_head_pr(root, env, branch, main_branch, local_head)
+    return lookup.available and lookup.exact_merged is not None
+
+
+def find_existing_exact_open_pr(root: Path, branch: str, main_branch: str) -> dict | None:
+    """Detect an already-open exact-head PR so recovery can resume it.
+
+    This is deliberately checked before the first-publication stale-base
+    precondition: an existing exact-head PR remains resumable through GitHub
+    required checks/protection/auto-merge/queue even after the base branch has
+    advanced, and the platform must not force a rebase merely to satisfy a
+    local check that GitHub itself does not require for recovery.
+    """
+    env = github_cli_env(root)
+    if env is None:
+        return None
+    local_head = _local_head(root, branch)
+    if local_head is None:
+        return None
+    lookup = publication_state.find_exact_head_pr(root, env, branch, main_branch, local_head)
+    return lookup.exact_open if lookup.available else None
+
+
+def run_status(work: Path, integration: Path, config: dict, *, as_json: bool) -> int:
+    """Strictly read-only publication status: no push/PR/merge/board/cleanup/main mutation."""
+    main_branch = str(config.get("main_branch", "main"))
+    mode = publish_mode(config)
+    branch = current_branch(work)
+    if harness_mode(config) != "platform" or mode != "pr":
+        message = (
+            f"status: not_applicable (harness_mode={harness_mode(config)!r}, publish_mode={mode!r}); "
+            "this status view covers harness_mode=platform, publish_mode=pr tasks only."
+        )
+        print(json.dumps({"status": "not_applicable"}) if as_json else message)
+        return 0
+    if not branch or branch == main_branch:
+        message = "status: not_published (no feature branch is checked out)"
+        print(json.dumps({"status": "not_published", "detail": "no feature branch is checked out"}) if as_json else message)
+        return 0
+    env = github_cli_env(work)
+    obs = publication_state.observe_publication(work, integration, env, branch, main_branch)
+    durability = publication_state.merge_durability_capability(config, env, work)
+    if as_json:
+        print(json.dumps(publication_state.status_payload(obs, durability), indent=2))
+    else:
+        print(publication_state.status_text(obs, durability))
+    return 0
 
 
 @contextmanager
@@ -249,7 +285,11 @@ def main() -> int:
     parser.add_argument("--title")
     parser.add_argument("--body")
     parser.add_argument("--merge-timeout", type=float, default=60.0)
+    parser.add_argument("--status", action="store_true", help="Read-only publication status; makes no mutations.")
+    parser.add_argument("--json", action="store_true", help="Emit --status output as JSON.")
     args = parser.parse_args()
+    if args.json and not args.status:
+        parser.error("--json requires --status")
     if args.merge_timeout < 0:
         parser.error("--merge-timeout must be non-negative")
     if args.no_checks and os.environ.get(ALLOW_NO_CHECKS_ENV) != "1":
@@ -260,6 +300,8 @@ def main() -> int:
     work = current_worktree_root()
     integration = main_root()
     config = read_platform_config(work)
+    if args.status:
+        return run_status(work, integration, config, as_json=args.json)
     if harness_mode(config) != "platform":
         raise SystemExit("harness_mode=project: use the repository-owned Git/worktree publication workflow instead of scripts/finish_task.py.")
     prof = profile(config)
@@ -279,19 +321,30 @@ def main() -> int:
     # remote base. A squash-merged task branch is no longer an ancestor of main,
     # but if GitHub already merged this exact head there is nothing to rebase or
     # republish; only local reconciliation remains.
-    if mode == "pr" and branch != main_branch and pr_merge_mode(config) == "auto" and task_pr_is_already_merged(work, branch):
+    if mode == "pr" and branch != main_branch and pr_merge_mode(config) == "auto" and task_pr_is_already_merged(work, branch, main_branch):
         reconcile_confirmed_remote_pr_merge(
             work, integration, config, branch, main_branch, prof, cleanup=args.cleanup, timeout_seconds=args.merge_timeout
         )
         print("Task PR was already merged through GitHub; local main and task state were reconciled without republishing.")
         return 0
 
+    # An already-open exact-head PR is a resumable remote object: detect it
+    # before the first-publication fresh-base precondition below, so recovery
+    # of an existing PR is not blocked merely because origin/main advanced
+    # after that PR was opened. GitHub required checks/protection/auto-merge/
+    # merge queue remain authoritative for whether it can actually integrate.
+    exact_open_pr = None
+    if mode == "pr" and branch != main_branch:
+        exact_open_pr = find_existing_exact_open_pr(work, branch, main_branch)
+
     run_checks(work, remote_main, args.no_checks)
     if mode == "pr":
         if branch == main_branch:
             raise SystemExit("publish_mode=pr requires a feature branch. Use standard/multi-agent profile or switch publish_mode deliberately.")
-        if run_git(["merge-base", "--is-ancestor", remote_main, branch], cwd=work, check=False).returncode != 0:
+        if exact_open_pr is None and run_git(["merge-base", "--is-ancestor", remote_main, branch], cwd=work, check=False).returncode != 0:
             raise SystemExit(f"{branch} is stale relative to {remote_main}. Rebase/update explicitly, rerun checks, then finish.")
+        if exact_open_pr is not None:
+            print(f"Resuming existing exact-head PR: {exact_open_pr.get('url')}")
         command = ["python3", str(work / "scripts" / "project_publish.py"), "--mode", "pr"]
         if args.title:
             command += ["--title", args.title]

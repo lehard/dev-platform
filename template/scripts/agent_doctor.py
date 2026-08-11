@@ -22,6 +22,7 @@ from _platform_common import (
     require_origin,
     run_git,
 )
+import publication_state
 
 
 CONFLICT_STATUS_CODES = {"DD", "AU", "UD", "UA", "DU", "AA", "UU"}
@@ -149,16 +150,8 @@ def run_friction_review_status(integration: Path) -> None:
 
 
 def query_github_branch_protection(root: Path, env: dict[str, str], branch: str) -> bool | None:
-    repo = subprocess.run(
-        ["gh", "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"],
-        cwd=root,
-        env=env,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    name = repo.stdout.strip()
-    if repo.returncode != 0 or not name:
+    name = publication_state.github_repo_name(root, env)
+    if name is None:
         return None
     result = subprocess.run(
         ["gh", "api", f"repos/{name}/branches/{branch}", "--jq", ".protected"],
@@ -176,6 +169,50 @@ def query_github_branch_protection(root: Path, env: dict[str, str], branch: str)
     if value == "false":
         return False
     return None
+
+
+def report_publication_status(root: Path, integration: Path, config: dict, gh_env: dict[str, str] | None) -> int:
+    """Report unfinished automatic PR delivery as actionable publication state.
+
+    Never mutates: this only observes current Git/GitHub state, exactly like
+    `finish_task.py --status`. It intentionally does not fail doctor's overall
+    exit code by itself -- unfinished delivery is expected mid-task state, not
+    a hygiene defect -- except when GitHub state cannot be read at all while
+    automatic delivery is configured, which is reported as a warning too since
+    the operator still has a safe, resumable `finish`/`finish --status` path.
+    """
+    main_branch = str(config.get("main_branch", "main"))
+    branch = run_git(["branch", "--show-current"], cwd=root).stdout.strip()
+    if not branch or branch == main_branch:
+        return 0
+    obs = publication_state.observe_publication(root, integration, gh_env, branch, main_branch)
+    durability = publication_state.merge_durability_capability(config, gh_env, root)
+    pr_ref = f" ({obs.pr.get('url')})" if obs.pr else ""
+    if obs.bucket == publication_state.GITHUB_UNAVAILABLE:
+        report("warn", f"publication status for {branch} could not be read from GitHub; resume with `finish_task.py --status`")
+    elif obs.bucket == publication_state.NOT_PUBLISHED:
+        report("ok", f"{branch} has no exact-head PR yet")
+    elif obs.bucket == publication_state.BLOCKED:
+        report("warn", f"{branch} publication is blocked: required checks failed{pr_ref}; delivery is unfinished, not complete")
+    elif obs.bucket in (publication_state.OPEN_CHECKS_PENDING, publication_state.REMOTE_ARMED):
+        armed = "auto-merge/queue is armed remotely" if obs.bucket == publication_state.REMOTE_ARMED else "checks are pending"
+        report("warn", f"{branch} publication is unfinished ({armed}){pr_ref}; run finish_task.py (or --status) to continue, do not report the task as delivered")
+    elif obs.bucket == publication_state.REMOTE_MERGED_LOCAL_PENDING:
+        report("warn", f"{branch} was merged on GitHub{pr_ref}, but local main/board/worktree reconciliation is still pending; run finish_task.py to reconcile")
+    elif obs.bucket == publication_state.COMPLETE:
+        report("ok", f"{branch} is merged and reconciled{pr_ref}")
+    if pr_merge_mode(config) == "auto" and gh_env is not None:
+        if durability == "remote_armed_capable":
+            report("ok", "native GitHub auto-merge/queue capability is available for durable remote delivery")
+        elif durability == "foreground_fallback":
+            report(
+                "warn",
+                "native GitHub auto-merge/queue is unavailable; publication uses the safe bounded foreground fallback "
+                "(degraded remote durability). An administrator can enable it explicitly with "
+                "`gh repo edit --enable-auto-merge` (or the repository Settings > General > 'Allow auto-merge' toggle) "
+                "if durable remote delivery is desired; this is never changed automatically by the platform.",
+            )
+    return 0
 
 
 def main() -> int:
@@ -245,6 +282,9 @@ def main() -> int:
             failures += 1
     elif gh_env is not None:
         report("ok", "GitHub API authentication available")
+
+    if mode == "pr" and harness == "platform":
+        report_publication_status(root, integration, config, gh_env)
 
     if gh_env is not None:
         actual_protected = query_github_branch_protection(root, gh_env, branch)

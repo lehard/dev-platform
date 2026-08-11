@@ -130,6 +130,22 @@ class TemplateContractTests(unittest.TestCase):
         self.assertIn("fetch_main(integration", text)
         self.assertIn("harness_mode=project", text)
 
+    def test_publication_recovery_reconciler_and_status_are_wired_into_lifecycle(self) -> None:
+        finish_text = (ROOT / "template" / "scripts" / "finish_task.py").read_text(encoding="utf-8")
+        self.assertIn("--status", finish_text)
+        self.assertIn("run_status", finish_text)
+        self.assertIn("find_existing_exact_open_pr", finish_text)
+        publish_text = (ROOT / "template" / "scripts" / "project_publish.py").read_text(encoding="utf-8")
+        self.assertIn("request_protected_merge", publish_text)
+        self.assertIn("--match-head-commit", publish_text)
+        state_text = (ROOT / "template" / "scripts" / "publication_state.py").read_text(encoding="utf-8")
+        self.assertIn("find_exact_head_pr", state_text)
+        doctor_text = (ROOT / "template" / "scripts" / "agent_doctor.py").read_text(encoding="utf-8")
+        self.assertIn("report_publication_status", doctor_text)
+        agents_text = (ROOT / "template" / "AGENTS.md.jinja").read_text(encoding="utf-8")
+        self.assertIn("--status", agents_text)
+        self.assertIn("exact validated head", agents_text)
+
     def test_multi_agent_git_guards_and_hygiene_are_platform_managed(self) -> None:
         doctor = (ROOT / "template" / "scripts" / "agent_doctor.py").read_text(encoding="utf-8")
         cleanup = (ROOT / "template" / "scripts" / "worktree_cleanup.py").read_text(encoding="utf-8")

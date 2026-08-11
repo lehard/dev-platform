@@ -27,7 +27,7 @@ def configure(repo: Path) -> None:
 def install_scripts(repo: Path) -> None:
     target = repo / "scripts"
     target.mkdir(exist_ok=True)
-    for name in ("_platform_common.py", "project_publish.py", "finish_task.py", "openspec_lifecycle.py"):
+    for name in ("_platform_common.py", "project_publish.py", "publication_state.py", "finish_task.py", "openspec_lifecycle.py"):
         shutil.copy2(SCRIPT_SOURCE / name, target / name)
 
 
@@ -132,12 +132,20 @@ class MergeLifecycleResilienceTests(unittest.TestCase):
             + '  if [ "$count" -lt 2 ]; then echo "[]"; exit 0; fi;\n'
             + '  echo \'[{"name":"platform-ci","state":"SUCCESS","workflow":"platform-ci","link":""}]\'; exit 0;\n'
             + 'fi\n'
-            + 'if [ "$1" = "pr" ] && [ "$2" = "merge" ]; then sha=$(git --git-dir "$FAKE_REMOTE" rev-parse "refs/heads/$3") || exit 1; git --git-dir "$FAKE_REMOTE" update-ref refs/heads/main "$sha" || exit 1; exit 0; fi\n'
+            + 'if [ "$1" = "pr" ] && [ "$2" = "merge" ]; then\n'
+            + '  count=0; if [ -f "$FAKE_CHECK_STATE" ]; then count=$(cat "$FAKE_CHECK_STATE"); fi\n'
+            + '  if [ "$count" -lt 2 ]; then echo "required status check is expected" >&2; exit 1; fi\n'
+            + '  sha=$(git --git-dir "$FAKE_REMOTE" rev-parse "refs/heads/$3") || exit 1; git --git-dir "$FAKE_REMOTE" update-ref refs/heads/main "$sha" || exit 1; exit 0\n'
+            + 'fi\n'
             + 'exit 1'
         )
         env = self.fake_gh(body)
         env["FAKE_CHECK_STATE"] = str(check_state)
         result = run("python3", "scripts/finish_task.py", "--no-checks", cwd=self.repo, env=env)
+        self.assertIn(
+            "Native GitHub auto-merge/merge-queue could not be armed for the exact validated head",
+            result.stdout,
+        )
         self.assertIn("not registered yet", result.stdout)
         self.assertEqual(check_state.read_text(encoding="utf-8").strip(), "2")
         self.assertIn("merged through GitHub", result.stdout)
