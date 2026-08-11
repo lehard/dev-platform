@@ -86,6 +86,7 @@ class ManagedStatusLifecycleTests(unittest.TestCase):
                     timeout_seconds=1,
                 )
             self.assertEqual(events, ["sync", "done", "board", "cleanup"])
+            self.assertEqual(root.stat().st_gid, (root / ".lock").stat().st_gid)
 
     def test_done_failure_preserves_merged_truth_and_blocks_cleanup(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -27,6 +27,7 @@ from _platform_common import (
     publish_mode,
     read_platform_config,
     relation,
+    resolve_shared_group,
     run_git,
     preflight,
 )
@@ -224,9 +225,10 @@ def serialized_integration(root: Path, config: dict, timeout_seconds: float) -> 
     relative = config.get("paths", {}).get("main_merge_lock", ".claude/main-merge.lock")
     path = (root / relative).resolve()
     path.parent.mkdir(parents=True, exist_ok=True)
-    ensure_shared_path(path.parent)
+    group = resolve_shared_group(root)
+    ensure_shared_path(path.parent, group=group)
     with path.open("a+", encoding="utf-8") as lock_file:
-        ensure_shared_path(path)
+        ensure_shared_path(path, group=group)
         if fcntl is None:
             yield
             return

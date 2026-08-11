@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, Iterator
 
 try:
-    from shared_workspace import SharedWorkspaceError, atomic_write_text, cooperative_umask, ensure_shared_path, preflight
+    from shared_workspace import SharedWorkspaceError, atomic_write_text, cooperative_umask, ensure_shared_path, preflight, resolve_shared_group
 except ModuleNotFoundError:  # Compatibility while an existing project is being upgraded by Copier.
     class SharedWorkspaceError(RuntimeError):
         pass
@@ -20,7 +20,10 @@ except ModuleNotFoundError:  # Compatibility while an existing project is being 
         if os.name == "posix":
             os.umask(0o002)
 
-    def ensure_shared_path(path: Path) -> None:
+    def ensure_shared_path(path: Path, *, group: object | None = None) -> None:
+        return None
+
+    def resolve_shared_group(root: Path) -> object | None:
         return None
 
     def preflight(root: Path, *, fix: bool = True) -> None:
