@@ -6,8 +6,8 @@
 - [x] 4. Implement post-close remote rollout-branch deletion as best-effort cleanup; preserve closed state and emit an exact warning if deletion fails.
 - [x] 5. Add an explicit dry-run/apply maintenance mode restricted to `managed-projects.json` managed entries, reusing the rollout GitHub App/down-scoped credentials and the same identity rules.
 - [x] 6. Add workflow/helper tests proving failed newer preparation closes nothing, newer PRs are never closed by older requests, candidate/excluded repos are never mutated, and dry-run produces zero writes.
-- [ ] 7. Run the maintenance command in dry-run against current managed repositories, review the exact plan, then apply it to close already-stale rollout PRs (including accumulated older Planner Agent Lab/Jara_Fin rollout PRs) while preserving the newest still-relevant pending target.
-- [ ] 8. Run platform validation, rollout workflow tests, and semantic OpenSpec verification; record `OpenSpec-Verify: PASS` with the real method in `verification.md`, archive via `python3 template/scripts/openspec_lifecycle.py archive supersede-stale-managed-rollouts`, then publish through protected main.
+- [x] 7. Run the maintenance command in dry-run against current managed repositories, review the exact plan, then apply it to close already-stale rollout PRs (including accumulated older Planner Agent Lab/Jara_Fin rollout PRs) while preserving the newest still-relevant pending target. Evidence: `maintenance-evidence.md`.
+- [x] 8. Run platform validation, rollout workflow tests, and semantic OpenSpec verification; record `OpenSpec-Verify: PASS` with the real method in `verification.md`, archive via `python3 template/scripts/openspec_lifecycle.py archive supersede-stale-managed-rollouts`, then publish through protected main.
 
 ## Logical commit boundaries
 
