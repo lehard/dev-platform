@@ -6,6 +6,12 @@ Platform friction SHALL keep raw evidence machine-local by default, while high-s
 
 Process/friction issues SHALL remain evidence/inbox state. They SHALL NOT automatically create Development Backlog tasks, materialize OpenSpec changes, dispatch executors or start remediation. Converting process evidence into managed work requires separate explicit human fixation intent through the managed-task authoring contract.
 
+#### Scenario: Reusable friction is promoted
+
+- **WHEN** an agent identifies a recurring platform-level problem through a high-signal supported friction event
+- **THEN** only sanitized structured evidence is sent to the central platform inbox through the routing contract
+- **AND** raw evidence remains machine-local by default
+
 #### Scenario: Platform-level friction is captured
 
 - **WHEN** an agent or supported deterministic lifecycle hook records a high-signal event with `scope=platform`
