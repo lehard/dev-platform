@@ -90,6 +90,15 @@ class SharedWorkspaceTests(unittest.TestCase):
             self.assertIn(str(path), str(raised.exception))
             self.assertIn("owner must run: chgrp", str(raised.exception))
 
+    def test_already_correct_path_needs_no_permission_syscall(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "state.json"
+            path.write_text("{}\n", encoding="utf-8")
+            group = shared_workspace.resolve_shared_group(path.parent)
+            path.chmod(0o660)
+            with mock.patch.object(Path, "chmod", side_effect=AssertionError("chmod must not run for compliant path")):
+                shared_workspace._repair(path, group)
+
     def test_unsupported_platform_is_a_non_mutating_diagnostic(self) -> None:
         with mock.patch.object(shared_workspace, "posix_available", return_value=False):
             group, findings = shared_workspace.audit(Path.cwd())

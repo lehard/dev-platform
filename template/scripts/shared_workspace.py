@@ -206,7 +206,10 @@ def _repair(path: Path, group: SharedGroup) -> None:
     try:
         if info.st_gid != group.gid:
             os.chown(path, -1, group.gid)
-        path.chmod(stat.S_IMODE(path.stat().st_mode) | _expected_bits(path))
+        mode = stat.S_IMODE(path.stat().st_mode)
+        desired = mode | _expected_bits(path)
+        if desired != mode:
+            path.chmod(desired)
     except PermissionError as exc:
         mode = stat.S_IMODE(info.st_mode)
         action = f"chgrp {group.name} {path} && chmod {'g+rwxs' if path.is_dir() else 'g+rw'} {path}"
