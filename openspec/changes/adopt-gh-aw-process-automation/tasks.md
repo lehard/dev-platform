@@ -1,16 +1,16 @@
 ## 1. Pin and validate the gh-aw foundation
 
-- [ ] 1.1 Select one exact tested GitHub Agentic Workflows (`gh-aw`) release, record the pin in platform maintenance documentation/configuration, and verify installation with `gh aw doctor` for `lehard/dev-platform`.
-- [ ] 1.2 Add deterministic validation for agentic workflow sources/compiled lock files so source/lock drift or unsupported frontmatter fails review before merge.
-- [ ] 1.3 Document the single required secret contract (`OPENAI_API_KEY`) without storing or echoing the secret value.
+- [x] 1.1 Select one exact tested GitHub Agentic Workflows (`gh-aw`) release, record the pin in platform maintenance documentation/configuration, and verify installation with `gh aw doctor` for `lehard/dev-platform`.
+- [x] 1.2 Add deterministic validation for agentic workflow sources/compiled lock files so source/lock drift or unsupported frontmatter fails review before merge.
+- [x] 1.3 Document the single required secret contract (`OPENAI_API_KEY`) without storing or echoing the secret value.
 
 ## 2. Add the central dev-platform cloud pilot
 
-- [ ] 2.1 Import/adapt the maintained `githubnext/agentics` issue-triage pattern into a narrowly scoped `dev-platform` process-issue triage workflow using `engine: codex`.
-- [ ] 2.2 Restrict the triage trigger to controlled process/platform-candidate issues and restrict writes to allow-listed `safe-outputs` (labels/comments only in v1).
-- [ ] 2.3 Add a weekly fuzzy-schedule + `workflow_dispatch` process-backlog review workflow that produces one bounded human-readable summary and does not modify code, create implementation PRs, merge, approve or close source issues.
-- [ ] 2.4 Add conservative `timeout-minutes` and `max-ai-credits` to each agentic workflow and document how to inspect actual usage with `gh aw audit`/`gh aw logs` before increasing limits.
-- [ ] 2.5 Compile with the pinned `gh-aw` version, commit generated lock workflows, and run applicable workflow/security validation.
+- [x] 2.1 Import/adapt the maintained `githubnext/agentics` issue-triage pattern into a narrowly scoped `dev-platform` process-issue triage workflow using `engine: codex`.
+- [x] 2.2 Restrict the triage trigger to controlled process/platform-candidate issues and restrict writes to allow-listed `safe-outputs` (labels/comments only in v1).
+- [x] 2.3 Add a weekly fuzzy-schedule + `workflow_dispatch` process-backlog review workflow that produces one bounded human-readable summary and does not modify code, create implementation PRs, merge, approve or close source issues.
+- [x] 2.4 Add conservative `timeout-minutes` and `max-ai-credits` to each agentic workflow and document how to inspect actual usage with `gh aw audit`/`gh aw logs` before increasing limits.
+- [x] 2.5 Compile with the pinned `gh-aw` version, commit generated lock workflows, and run applicable workflow/security validation.
 
 ## 3. Simplify friction routing to GitHub Issues
 
