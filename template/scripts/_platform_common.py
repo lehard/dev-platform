@@ -11,12 +11,40 @@ from pathlib import Path
 from typing import Any, Iterator
 
 try:
+    from shared_workspace import SharedWorkspaceError, atomic_write_text, cooperative_umask, ensure_shared_path, preflight
+except ModuleNotFoundError:  # Compatibility while an existing project is being upgraded by Copier.
+    class SharedWorkspaceError(RuntimeError):
+        pass
+
+    def cooperative_umask() -> None:
+        if os.name == "posix":
+            os.umask(0o002)
+
+    def ensure_shared_path(path: Path) -> None:
+        return None
+
+    def preflight(root: Path, *, fix: bool = True) -> None:
+        cooperative_umask()
+
+    def atomic_write_text(path: Path, text: str) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        descriptor, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+        try:
+            with os.fdopen(descriptor, "w", encoding="utf-8", newline="") as handle:
+                handle.write(text)
+            os.replace(temporary, path)
+        finally:
+            if os.path.exists(temporary):
+                os.unlink(temporary)
+
+try:
     import fcntl
 except ImportError:  # pragma: no cover - Windows fallback
     fcntl = None
 
 
 def run_git(args: list[str], cwd: Path | None = None, check: bool = True) -> subprocess.CompletedProcess[str]:
+    cooperative_umask()
     return subprocess.run(["git", *args], cwd=str(cwd) if cwd else None, text=True, capture_output=True, check=check)
 
 
@@ -203,9 +231,12 @@ def github_cli_env(root: Path) -> dict[str, str] | None:
 
 @contextmanager
 def locked_json(path: Path) -> Iterator[dict[str, Any]]:
+    cooperative_umask()
     path.parent.mkdir(parents=True, exist_ok=True)
+    ensure_shared_path(path.parent)
     lock_path = path.with_suffix(path.suffix + ".lock")
     with lock_path.open("a+", encoding="utf-8") as lock_file:
+        ensure_shared_path(lock_path)
         if fcntl is not None:
             fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
         try:
@@ -217,15 +248,7 @@ def locked_json(path: Path) -> Iterator[dict[str, Any]]:
             else:
                 data = {"version": 1, "items": []}
             yield data
-            fd, tmp_name = tempfile.mkstemp(prefix=path.name + ".", dir=path.parent)
-            try:
-                with os.fdopen(fd, "w", encoding="utf-8") as tmp:
-                    json.dump(data, tmp, ensure_ascii=False, indent=2)
-                    tmp.write("\n")
-                os.replace(tmp_name, path)
-            finally:
-                if os.path.exists(tmp_name):
-                    os.unlink(tmp_name)
+            atomic_write_text(path, json.dumps(data, ensure_ascii=False, indent=2) + "\n")
         finally:
             if fcntl is not None:
                 fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)

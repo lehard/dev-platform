@@ -14,6 +14,7 @@ project_required_files = []
 source_required_paths = [
   "scripts/dogfood_task.py",
   "scripts/source_adapter.py",
+  "scripts/shared_workspace.py",
   "scripts/agent_doctor.py",
   "scripts/start_task.py",
   "scripts/managed_project_status.py",

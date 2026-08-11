@@ -15,6 +15,7 @@ except ImportError:  # pragma: no cover - Windows fallback
     fcntl = None
 
 from _platform_common import (
+    ensure_shared_path,
     current_worktree_root,
     fetch_main,
     github_cli_env,
@@ -27,6 +28,7 @@ from _platform_common import (
     read_platform_config,
     relation,
     run_git,
+    preflight,
 )
 import publication_state
 from managed_project_status import (
@@ -222,7 +224,9 @@ def serialized_integration(root: Path, config: dict, timeout_seconds: float) -> 
     relative = config.get("paths", {}).get("main_merge_lock", ".claude/main-merge.lock")
     path = (root / relative).resolve()
     path.parent.mkdir(parents=True, exist_ok=True)
+    ensure_shared_path(path.parent)
     with path.open("a+", encoding="utf-8") as lock_file:
+        ensure_shared_path(path)
         if fcntl is None:
             yield
             return
@@ -377,6 +381,9 @@ def main() -> int:
     if harness_mode(config) != "platform":
         raise SystemExit("harness_mode=project: use the repository-owned Git/worktree publication workflow instead of scripts/finish_task.py.")
     prof = profile(config)
+    preflight(integration)
+    if work != integration:
+        preflight(work)
     mode = publish_mode(config)
     main_branch = str(config.get("main_branch", "main"))
     branch = current_branch(work)

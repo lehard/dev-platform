@@ -6,7 +6,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from _platform_common import main_root, machine_path, profile, read_platform_config, run_git
+from _platform_common import main_root, machine_path, preflight, profile, read_platform_config, run_git
 
 
 def slug(value: str) -> str:
@@ -25,6 +25,7 @@ class StartedWorktree:
 
 def create_worktree(root: Path, slug_value: str, task: str, scope: str = "", *, base: str | None = None, sync: bool = True) -> StartedWorktree:
     root = root.resolve()
+    preflight(root)
     config = read_platform_config(root)
     if profile(config) != "multi-agent":
         raise RuntimeError("start_worktree.py is only valid for workflow_profile=multi-agent. Use start_task.py.")

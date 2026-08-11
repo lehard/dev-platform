@@ -8,6 +8,7 @@ import subprocess
 from pathlib import Path
 
 from _platform_common import (
+    SharedWorkspaceError,
     current_worktree_root,
     fetch_main,
     github_cli_env,
@@ -21,6 +22,7 @@ from _platform_common import (
     relation,
     require_origin,
     run_git,
+    preflight,
 )
 import publication_state
 import rollout_preflight
@@ -246,6 +248,11 @@ def main() -> int:
     args = parser.parse_args()
     root = current_worktree_root()
     integration = main_root()
+    try:
+        preflight(integration)
+    except SharedWorkspaceError as exc:
+        report("fail", str(exc))
+        return 1
     config = read_platform_config(root)
     branch = str(config.get("main_branch", "main"))
     prof = profile(config)

@@ -1,0 +1,16 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/project-factory/spec.md",
+    "specs/platform-lifecycle/spec.md"
+  ],
+  "change": "enforce-shared-workspace-permissions",
+  "imported_at": "2026-08-11T19:58:34+00:00",
+  "package_revision": "725f982f450647333d35944209a08cfc5e0d301155f91013be0c2b7cdd01d0cc",
+  "prepared_against": "3c970b815b92f0711d85957a263330b8ecd9d439",
+  "source_issue": "lehard/development-backlog#12",
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
