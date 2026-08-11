@@ -191,7 +191,6 @@ class ManagedPackageTests(unittest.TestCase):
 
             with (
                 patch.object(start_managed_task, "discover_task", return_value=package),
-                patch.object(start_managed_task, "check_schema"),
                 patch.object(start_managed_task, "start_task", return_value=started) as start,
                 patch.object(start_managed_task, "import_task", side_effect=materialize),
             ):
@@ -209,7 +208,6 @@ class ManagedPackageTests(unittest.TestCase):
         started = start_managed_task.StartedTask(profile="standard", branch="agent/add-managed-backlog-intake", task_root=root)
         with (
             patch.object(start_managed_task, "discover_task", return_value=package),
-            patch.object(start_managed_task, "check_schema"),
             patch.object(start_managed_task, "start_task", return_value=started),
             patch.object(start_managed_task, "import_task", side_effect=managed_task.ManagedTaskError("validation failed")),
             patch.object(start_managed_task, "cleanup_started_task") as cleanup,
@@ -228,17 +226,36 @@ class ManagedPackageTests(unittest.TestCase):
                 start_managed_task.start_managed_task(root, "lehard/development-backlog#1")
         task_start.assert_not_called()
 
-    def test_schema_failure_creates_no_task_state(self) -> None:
+    def test_fresh_managed_start_defers_schema_validation_until_task_checkout(self) -> None:
         package = managed_task.parse_package([package_body()], "lehard/development-backlog#1")
-        root = Path("/tmp/integration")
-        with (
-            patch.object(start_managed_task, "discover_task", return_value=package),
-            patch.object(start_managed_task, "check_schema", side_effect=managed_task.ManagedTaskError("schema mismatch")),
-            patch.object(start_managed_task, "start_task") as task_start,
-        ):
-            with self.assertRaisesRegex(managed_task.ManagedTaskError, "schema mismatch"):
-                start_managed_task.start_managed_task(root, "lehard/development-backlog#1")
-        task_start.assert_not_called()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "integration"
+            task_root = Path(tmp) / "task"
+            root.mkdir()
+            task_root.mkdir()
+            started = start_managed_task.StartedTask(profile="multi-agent", branch="agent/fresh-managed-task", task_root=task_root)
+
+            def materialize(destination: Path, reference: str, *, expected_revision: str):
+                self.assertEqual(destination, task_root)
+                self.assertEqual(reference, "lehard/development-backlog#1")
+                self.assertEqual(expected_revision, package.revision)
+                self.assertFalse((root / "openspec" / "changes" / package.change).exists())
+                (destination / "openspec" / "changes" / package.change).mkdir(parents=True)
+                return package, "b" * 40, False
+
+            with (
+                patch.object(start_managed_task, "discover_task", return_value=package),
+                patch.object(start_managed_task, "check_schema", create=True) as schema,
+                patch.object(start_managed_task, "start_task", return_value=started) as task_start,
+                patch.object(start_managed_task, "import_task", side_effect=materialize),
+            ):
+                result, current_main, reused = start_managed_task.start_managed_task(root, "lehard/development-backlog#1")
+            self.assertEqual(result, started)
+            self.assertEqual(current_main, "b" * 40)
+            self.assertFalse(reused)
+            task_start.assert_called_once()
+            schema.assert_not_called()
+            self.assertTrue((task_root / "openspec" / "changes" / package.change).is_dir())
 
     def test_standard_task_start_creates_feature_branch_before_import(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
