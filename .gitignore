@@ -1,4 +1,5 @@
 .claude/
+.github/aw/logs/
 AGENTS.local.md
 __pycache__/
 *.py[cod]
