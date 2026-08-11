@@ -63,8 +63,11 @@
 - [x] 7.6 Verify `finish_task --status` accurately reports at least open/checks-pending, remotely armed, merged-awaiting-local-reconciliation, and complete states without mutation.
   - `not_published` (before first publish, 7.5 and 7.4), `open_checks_pending` (7.5, PR #48 open/`pr_relationship=exact_open`), `remote_armed` (7.4, PR #49, `auto_merge_armed: true`, checks still pending), `remote_merged_local_pending` (7.4, PR #49 merged on GitHub but local `main` not yet fast-forwarded, `local_reconciliation_pending: true`), and `complete` (7.5 PR #48 and 7.4 PR #49, `pr_relationship=exact_merged`, `local_main_head==remote_main_head`) were all observed via `finish_task.py --status --json`.
   - `git status --porcelain` / `git log -1` were unchanged by every `--status` invocation across both legs, and the exact-head PR count never exceeded 1 for either branch (`lehard/cuby#48`, `lehard/cuby#49`).
-- [ ] 7.7 Only after 7.4-7.6 pass, perform semantic OpenSpec verification, record a truthful `OpenSpec-Verify: PASS` receipt and method, archive through the lifecycle helper, rerun full validation, and publish the archive/current-spec update through protected main.
-- [ ] 7.8 Do not cut an additional platform release solely for an archive/spec-only commit if runtime/template code did not change after the already-accepted implementation release.
+- [x] 7.7 Only after 7.4-7.6 pass, perform semantic OpenSpec verification, record a truthful `OpenSpec-Verify: PASS` receipt and method, archive through the lifecycle helper, rerun full validation, and publish the archive/current-spec update through protected main.
+  - Full validation rerun on implementation head `2a4bb4b` (after 7.4/7.6 evidence PR #120 merged): `python3 -m compileall -q template/scripts scripts`, `python3 scripts/managed_projects.py validate`, `python3 -m unittest discover -s tests -v` (308 tests, OK), `python3 template/scripts/openspec_lifecycle.py check`, `openspec validate --all --strict` — all passed.
+  - Semantic verification recorded in `verification.md`; archived via `python3 template/scripts/openspec_lifecycle.py archive durable-publication-recovery`, then published through protected `main`.
+- [x] 7.8 Do not cut an additional platform release solely for an archive/spec-only commit if runtime/template code did not change after the already-accepted implementation release.
+  - No additional release cut for this archive/spec-only commit: no `template/scripts`, `scripts`, or other runtime/template code changed since `v1.4.23`; only `openspec/` bookkeeping and this archival move.
 
 ## Explicitly removed from this change
 
