@@ -30,11 +30,11 @@
 
 ## 5. Pilot acceptance
 
-- [ ] 5.1 With `OPENAI_API_KEY` configured as a repository Actions secret, run the triage workflow manually or with a controlled test issue and verify Codex executes in GitHub Actions without local-computer participation.
-- [ ] 5.2 Verify agent analysis is read-only and every GitHub write is performed only through declared safe outputs; confirm no implementation PR/code write path exists in v1.
+- [x] 5.1 With `OPENAI_API_KEY` configured as a repository Actions secret, run the triage workflow manually or with a controlled test issue and verify Codex executes in GitHub Actions without local-computer participation.
+- [x] 5.2 Verify agent analysis is read-only and every GitHub write is performed only through declared safe outputs; confirm no implementation PR/code write path exists in v1.
 - [ ] 5.3 Verify one repeated friction case updates the existing fingerprinted issue instead of opening a duplicate.
 - [ ] 5.4 Run the backlog review manually, then observe at least one scheduled review; verify the output is concise/actionable and deterministic CI/release remains independent if the agentic workflow fails.
-- [ ] 5.5 Inspect representative run cost/runtime with `gh aw audit`/`gh aw logs`; record acceptance evidence and adjust caps only if justified by observed usage.
+- [x] 5.5 Inspect representative run cost/runtime with `gh aw audit`/`gh aw logs`; record acceptance evidence and adjust caps only if justified by observed usage.
 
 ## 6. Validate and release centrally
 

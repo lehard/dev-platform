@@ -1,0 +1,68 @@
+# Cloud pilot evidence
+
+## Scope
+
+This evidence covers only the independent `dev-platform` GitHub Agentic
+Workflows cloud pilot. It does not change `finish_task`, publication state, or
+any other lifecycle surface owned by `durable-publication-recovery`. No rollout
+was made to Cuby, Jara_Fin, or Planner Agent Lab.
+
+## 2026-08-11 manual Actions acceptance
+
+The repository Actions secret contract was validated by the successful
+activation step `Validate CODEX_API_KEY or OPENAI_API_KEY secret`; the secret
+value was not read or logged.
+
+| Workflow | Run | Result | Observed safe output | Audit usage |
+| --- | --- | --- | --- | --- |
+| Process Issue Triage | [31472738182](https://github.com/lehard/dev-platform/actions/runs/31472738182) | Success, 6/6 jobs | No GitHub write (`noop`); see limitation below | 5.4 min wall time, 86.9k tokens, 7.53 AIC, 18 firewall requests |
+| Weekly Process Backlog Review | [31471123098](https://github.com/lehard/dev-platform/actions/runs/31471123098) | Success, 5/5 jobs | Created exactly one allowed report issue: [#98](https://github.com/lehard/dev-platform/issues/98) | 4.6 min wall time, 67.6k tokens, 8.20 AIC, 16 firewall requests |
+
+The outcome check immediately after the weekly run recorded #98 as `ignored`
+because it was still open without engagement. This is an observation-window
+result, not a failed safe output.
+
+Two earlier controlled triage runs
+([31471123015](https://github.com/lehard/dev-platform/actions/runs/31471123015)
+and [31471624719](https://github.com/lehard/dev-platform/actions/runs/31471624719))
+also completed successfully with no GitHub write. This confirms that the
+fail-safe route has no hidden write path.
+
+## Safety and limits observed
+
+- The agent jobs ran with `contents: read` and `issues: read`; all writes are
+  isolated in generated safe-output jobs.
+- No implementation pull request, repository code write, merge, approval, or
+  source-issue closure was created. A post-run open-PR query returned none.
+- Process Issue Triage is capped at 50 AIC/run, 100 AIC/day, 8 minutes, and 8
+  turns; its threat detection is capped at 25 AIC.
+- Weekly Process Backlog Review is capped at 100 AIC/run, 100 AIC/day, 10
+  minutes, and 10 turns; its threat detection is capped at 25 AIC.
+- Observed usage was far below the configured per-run caps, so no cap increase
+  is justified.
+
+## Limitation discovered
+
+In this private-repository environment, Codex treated issue bodies returned by
+the read-only GitHub MCP as filtered by a repository secrecy policy and emitted
+`noop` rather than a triage comment. The workflow engine, Codex execution,
+threat detection, and safe-output isolation all completed successfully, but
+useful triage commentary is not yet proven. A prompt hardening change was
+merged in [#102](https://github.com/lehard/dev-platform/pull/102); the final
+manual run still exhibited the same conservative `noop`. Do not weaken the
+read-only or safe-output boundaries as a workaround.
+
+`gh aw audit` emitted a local case-colliding-artifact extraction warning, then
+retried individual artifacts and completed successfully. The reported audit
+metrics above are therefore actual retrieved data.
+
+## Remaining acceptance work
+
+- Observe a real scheduled weekly run; the workflow's manual dispatch has been
+  verified, but the scheduled half of task 5.4 has not yet occurred.
+- Keep friction routing/deduplication and the completion checkpoint deferred
+  until `durable-publication-recovery` stabilizes. In particular, task 5.3 is
+  intentionally not implemented in this pilot.
+- Before archival, perform the full semantic OpenSpec verification and then
+  record its truthful verification receipt. This active change is not ready to
+  archive or release yet.
