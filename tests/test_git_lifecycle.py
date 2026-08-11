@@ -3,12 +3,16 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_SOURCE = ROOT / "template" / "scripts"
+sys.path.insert(0, str(SCRIPT_SOURCE))
+
+import finish_task  # noqa: E402
 
 
 def run(*args: str, cwd: Path, check: bool = True, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
@@ -22,7 +26,7 @@ def configure(repo: Path) -> None:
 
 def install_scripts(repo: Path, profile: str = "light", publish: str = "direct") -> None:
     target = repo / "scripts"; target.mkdir(exist_ok=True)
-    for name in ("_platform_common.py", "project_sync.py", "project_publish.py", "publication_state.py", "managed_project_status.py", "finish_task.py", "openspec_lifecycle.py"): shutil.copy2(SCRIPT_SOURCE / name, target / name)
+    for name in ("_platform_common.py", "integration_state.py", "project_sync.py", "project_publish.py", "publication_state.py", "managed_project_status.py", "finish_task.py", "openspec_lifecycle.py"): shutil.copy2(SCRIPT_SOURCE / name, target / name)
     (repo / ".dev-platform.toml").write_text(f'main_branch = "main"\nworkflow_profile = "{profile}"\nharness_mode = "platform"\npublish_mode = "{publish}"\n', encoding="utf-8")
 
 
@@ -161,6 +165,119 @@ class GitLifecycleTests(unittest.TestCase):
         logged = gh_log.read_text(encoding="utf-8")
         self.assertNotIn("--delete-branch", logged)
         self.assertIn("pr view agent/pr-reconcile --json state,mergedAt", logged)
+
+    def _protected_pr_worktree(self, name: str) -> Path:
+        config = (
+            'main_branch = "main"\n'
+            'workflow_profile = "multi-agent"\n'
+            'harness_mode = "platform"\n'
+            'protected_main = true\n'
+            'publish_mode = "pr"\n'
+            'pr_merge_mode = "auto"\n'
+            '[paths]\n'
+            'agent_board = ".claude/agents-board.json"\n'
+            'main_merge_lock = ".claude/main-merge.lock"\n'
+        )
+        (self.repo / ".dev-platform.toml").write_text(config, encoding="utf-8")
+        git("add", ".dev-platform.toml", cwd=self.repo)
+        git("commit", "-m", "protected pr config", cwd=self.repo)
+        git("push", cwd=self.repo)
+        worktree = self.repo / ".claude" / "worktrees" / name
+        worktree.parent.mkdir(parents=True, exist_ok=True)
+        git("worktree", "add", "-b", f"agent/{name}", str(worktree), "main", cwd=self.repo)
+        configure(worktree)
+        (worktree / "feature.txt").write_text("task result\n", encoding="utf-8")
+        git("add", "feature.txt", cwd=worktree)
+        git("commit", "-m", "protected feature", cwd=worktree)
+        return worktree
+
+    def _fake_protected_gh(self, *, dirty_during_checks: bool = False) -> tuple[dict[str, str], Path]:
+        fake_bin = self.base / "premerge-fake-gh"; fake_bin.mkdir()
+        log = self.base / "premerge-gh.log"
+        dirty_command = f"printf 'late local state\\n' > '{self.repo / 'late.txt'}'\n" if dirty_during_checks else ""
+        fake_gh = fake_bin / "gh"
+        fake_gh.write_text(
+            "#!/bin/sh\n"
+            f"echo \"$*\" >> '{log}'\n"
+            "if [ \"$1\" = \"auth\" ] && [ \"$2\" = \"status\" ]; then exit 0; fi\n"
+            "if [ \"$1\" = \"pr\" ] && [ \"$2\" = \"view\" ]; then\n"
+            "  case \" $* \" in\n"
+            "    *\" state,headRefOid \"*) head_sha=$(git rev-parse \"$3\") || exit 1; printf '{\"state\":\"OPEN\",\"headRefOid\":\"%s\"}\\n' \"$head_sha\"; exit 0;;\n"
+            "    *\" state,mergedAt \"*) echo OPEN; exit 0;;\n"
+            "    *) exit 1;;\n"
+            "  esac\n"
+            "fi\n"
+            "if [ \"$1\" = \"pr\" ] && [ \"$2\" = \"create\" ]; then echo https://example.invalid/pr/9; exit 0; fi\n"
+            "if [ \"$1\" = \"pr\" ] && [ \"$2\" = \"checks\" ]; then\n"
+            f"  {dirty_command}"
+            "  echo '[{\"name\":\"platform-ci\",\"state\":\"SUCCESS\",\"workflow\":\"platform-ci\",\"link\":\"\"}]'; exit 0\n"
+            "fi\n"
+            "if [ \"$1\" = \"pr\" ] && [ \"$2\" = \"merge\" ]; then echo merge rejected >&2; exit 1; fi\n"
+            "exit 1\n",
+            encoding="utf-8",
+        )
+        fake_gh.chmod(0o755)
+        env = explicit_bypass_env(); env["PATH"] = str(fake_bin) + os.pathsep + env.get("PATH", "")
+        return env, log
+
+    def test_protected_pr_blocks_dirty_integration_before_remote_merge_intent(self) -> None:
+        worktree = self._protected_pr_worktree("dirty-before-merge")
+        (self.repo / "feature.txt").write_text("different local content\n", encoding="utf-8")
+        env, log = self._fake_protected_gh()
+        original_remote = run("git", "--git-dir", str(self.remote), "rev-parse", "main", cwd=self.base).stdout.strip()
+
+        result = run("python3", "scripts/finish_task.py", "--no-checks", cwd=worktree, check=False, env=env)
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("before protected remote merge intent", result.stderr + result.stdout)
+        self.assertIn("feature.txt", result.stderr + result.stdout)
+        self.assertNotIn("pr merge", log.read_text(encoding="utf-8"))
+        self.assertEqual(original_remote, run("git", "--git-dir", str(self.remote), "rev-parse", "main", cwd=self.base).stdout.strip())
+        self.assertEqual((self.repo / "feature.txt").read_text(encoding="utf-8"), "different local content\n")
+
+    def test_protected_pr_rechecks_integration_after_check_wait(self) -> None:
+        worktree = self._protected_pr_worktree("dirty-during-checks")
+        env, log = self._fake_protected_gh(dirty_during_checks=True)
+        original_remote = run("git", "--git-dir", str(self.remote), "rev-parse", "main", cwd=self.base).stdout.strip()
+
+        result = run("python3", "scripts/finish_task.py", "--no-checks", cwd=worktree, check=False, env=env)
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("before protected remote merge intent", result.stderr + result.stdout)
+        self.assertIn("late.txt", result.stderr + result.stdout)
+        self.assertEqual(log.read_text(encoding="utf-8").count("pr merge"), 3)
+        self.assertEqual(original_remote, run("git", "--git-dir", str(self.remote), "rev-parse", "main", cwd=self.base).stdout.strip())
+        self.assertEqual((self.repo / "late.txt").read_text(encoding="utf-8"), "late local state\n")
+
+    def _push_remote_feature(self, content: str) -> Path:
+        worktree = self.base / "remote-feature"
+        git("worktree", "add", "-b", "agent/remote-feature", str(worktree), "main", cwd=self.repo)
+        configure(worktree)
+        (worktree / "feature.txt").write_text(content, encoding="utf-8")
+        git("add", "feature.txt", cwd=worktree)
+        git("commit", "-m", "remote feature", cwd=worktree)
+        git("push", "origin", "HEAD:main", cwd=worktree)
+        return worktree
+
+    def test_remote_merged_equivalent_local_content_converges_without_loss(self) -> None:
+        worktree = self._push_remote_feature("authoritative result\n")
+        (self.repo / "feature.txt").write_text("authoritative result\n", encoding="utf-8")
+
+        finish_task.sync_after_remote_pr_merge(worktree, self.repo, {"paths": {"main_merge_lock": ".claude/main-merge.lock"}}, "main")
+
+        self.assertFalse(run("git", "status", "--porcelain", cwd=self.repo).stdout.strip())
+        self.assertEqual((self.repo / "feature.txt").read_text(encoding="utf-8"), "authoritative result\n")
+        self.assertEqual(git("rev-parse", "main", cwd=self.repo).stdout.strip(), run("git", "--git-dir", str(self.remote), "rev-parse", "main", cwd=self.base).stdout.strip())
+
+    def test_remote_merged_divergent_local_content_remains_a_blocker(self) -> None:
+        worktree = self._push_remote_feature("authoritative result\n")
+        (self.repo / "feature.txt").write_text("do not overwrite me\n", encoding="utf-8")
+
+        with self.assertRaisesRegex(SystemExit, r"merged \(authoritative\).*Affected paths: feature.txt"):
+            finish_task.sync_after_remote_pr_merge(worktree, self.repo, {"paths": {"main_merge_lock": ".claude/main-merge.lock"}}, "main")
+
+        self.assertEqual((self.repo / "feature.txt").read_text(encoding="utf-8"), "do not overwrite me\n")
+        self.assertTrue(run("git", "status", "--porcelain", cwd=self.repo).stdout.strip())
 
     def test_direct_publish_refuses_divergence(self) -> None:
         (self.repo / "local.txt").write_text("local\n", encoding="utf-8"); git("add", "local.txt", cwd=self.repo); git("commit", "-m", "local", cwd=self.repo)

@@ -4,8 +4,10 @@ import argparse
 import os
 import subprocess
 import time
+from contextlib import nullcontext
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable, ContextManager
 
 from _platform_common import (
     current_worktree_root,
@@ -21,6 +23,7 @@ from _platform_common import (
     run_git,
     preflight,
 )
+from integration_state import guard_before_protected_merge
 from publication_state import (
     ExactHeadPrLookup,
     RequiredCheckState,
@@ -47,6 +50,7 @@ CHECK_COMPLETION_INTERVAL_SECONDS = 5.0
 MERGE_CONFIRM_TIMEOUT_SECONDS = 600.0
 MERGE_CONFIRM_INTERVAL_SECONDS = 2.0
 MERGE_FAILURE_CONFIRM_TIMEOUT_SECONDS = 3.0
+PRE_MERGE_GUARD_TIMEOUT_SECONDS = 60.0
 
 
 @dataclass(frozen=True)
@@ -272,7 +276,15 @@ def delete_remote_branch(root: Path, remote: str, current: str) -> None:
     print(f"Deleted remote feature branch {remote}/{current} after confirmed merge.")
 
 
-def request_protected_merge(root: Path, env: dict[str, str], current: str, remote: str, expected_head: str) -> str:
+def request_protected_merge(
+    root: Path,
+    env: dict[str, str],
+    current: str,
+    remote: str,
+    expected_head: str,
+    *,
+    merge_guard: Callable[[], ContextManager[None]] | None = None,
+) -> str:
     """Try ordinary/auto/queue merge for the exact validated head.
 
     Every attempt is guarded with `--match-head-commit` so GitHub itself
@@ -298,14 +310,15 @@ def request_protected_merge(root: Path, env: dict[str, str], current: str, remot
     last_detail = "merge command was not attempted"
 
     for label, command in attempts:
-        result = subprocess.run(
-            command,
-            cwd=root,
-            env=env,
-            text=True,
-            capture_output=True,
-            check=False,
-        )
+        with merge_guard() if merge_guard is not None else nullcontext():
+            result = subprocess.run(
+                command,
+                cwd=root,
+                env=env,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
         if result.stdout.strip():
             print(result.stdout.strip())
         detail = result.stderr.strip() or result.stdout.strip() or f"exit {result.returncode}"
@@ -346,7 +359,16 @@ def request_protected_merge(root: Path, env: dict[str, str], current: str, remot
     return "unavailable"
 
 
-def publish_pr(root: Path, remote: str, main_branch: str, title: str | None, body: str | None, merge_mode: str) -> int:
+def publish_pr(
+    root: Path,
+    remote: str,
+    main_branch: str,
+    title: str | None,
+    body: str | None,
+    merge_mode: str,
+    *,
+    config: dict | None = None,
+) -> int:
     try:
         require_delivery_provenance(root)
     except ManagedTaskError as exc:
@@ -391,10 +413,18 @@ def publish_pr(root: Path, remote: str, main_branch: str, title: str | None, bod
     if merge_mode != "auto":
         raise SystemExit(f"Unknown pr_merge_mode: {merge_mode!r}; expected 'auto' or 'manual'.")
 
+    config = config or read_platform_config(root)
+    integration = main_root()
+
+    def merge_guard() -> ContextManager[None]:
+        return guard_before_protected_merge(
+            integration, config, remote, main_branch, PRE_MERGE_GUARD_TIMEOUT_SECONDS
+        )
+
     # Prefer to persist merge intent in native GitHub auto-merge/merge-queue
     # state before any long local wait, so an accepted remote request survives
     # loss of this process.
-    outcome = request_protected_merge(root, env, current, remote, expected_head)
+    outcome = request_protected_merge(root, env, current, remote, expected_head, merge_guard=merge_guard)
     if outcome == "merged":
         return 0
 
@@ -403,7 +433,7 @@ def publish_pr(root: Path, remote: str, main_branch: str, title: str | None, bod
         "until this process (or a resumed one) completes it."
     )
     wait_for_pr_checks(root, env, current)
-    fallback_outcome = request_protected_merge(root, env, current, remote, expected_head)
+    fallback_outcome = request_protected_merge(root, env, current, remote, expected_head, merge_guard=merge_guard)
     if fallback_outcome == "merged":
         return 0
     raise SystemExit(
@@ -427,7 +457,7 @@ def main() -> int:
         if protected_main(config):
             raise SystemExit("protected_main=true is incompatible with direct publication. Use PR publication so required checks can gate the merge.")
         return publish_direct(root, args.remote, main_branch)
-    return publish_pr(root, args.remote, main_branch, args.title, args.body, pr_merge_mode(config))
+    return publish_pr(root, args.remote, main_branch, args.title, args.body, pr_merge_mode(config), config=config)
 
 
 if __name__ == "__main__":
