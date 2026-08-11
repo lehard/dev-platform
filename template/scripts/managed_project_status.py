@@ -115,6 +115,12 @@ def _provenance_source(path: Path) -> str:
 
 def discover_source_issue(root: Path, config: dict[str, Any] | None = None) -> SourceIssue | None:
     """Resolve only the managed package belonging to the current task checkout."""
+    # This task-level identity remains after OpenSpec archival and lets the
+    # delivery guard distinguish a broken managed task from an ordinary quick
+    # task whose branch happens not to carry managed provenance.
+    state = root / ".managed-task-state.json"
+    if state.is_file():
+        return parse_source_issue(_provenance_source(state))
     active = sorted((root / "openspec" / "changes").glob("*/.managed-task.json"))
     if len(active) > 1:
         raise ManagedProjectStatusError("multiple active managed OpenSpec packages make task identity ambiguous")
