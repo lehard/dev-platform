@@ -4,6 +4,11 @@
 
 Platform friction SHALL keep raw evidence machine-local by default, but high-signal sanitized friction candidates SHALL be routed automatically to the appropriate GitHub issue backlog during supported lifecycle processing instead of depending on remembered routine manual promotion. Routing SHALL sanitize credential-like content and arbitrary raw evidence, deduplicate repeated occurrences, and preserve a durable local fallback when GitHub routing is unavailable.
 
+#### Scenario: Reusable friction is promoted
+
+- **WHEN** an agent identifies a recurring platform-level problem and an authenticated promotion is explicitly requested
+- **THEN** only sanitized structured evidence is sent to the central platform inbox
+
 #### Scenario: Platform-level friction is captured
 
 - **WHEN** an agent or deterministic lifecycle hook records a high-signal event with `scope=platform`

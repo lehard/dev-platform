@@ -31,6 +31,12 @@ jobs:
       - name: Validate managed project registry
         run: python3 scripts/managed_projects.py validate
 
+      - name: Install pinned gh-aw
+        run: gh extension install github/gh-aw --pin "$(tr -d '[:space:]' < .github/aw/gh-aw-version.txt)"
+
+      - name: Validate agentic workflow sources and generated locks
+        run: python3 scripts/validate_agentic_workflows.py
+
       - name: Unit tests
         shell: bash
         run: |
