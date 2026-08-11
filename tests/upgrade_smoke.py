@@ -99,6 +99,8 @@ def main() -> int:
             raise SystemExit("Copier update removed project-owned local-only documentation")
         if not (target / ".github" / "workflows" / "dev-platform.yml").is_file():
             raise SystemExit("Copier update did not migrate platform CI to .github/workflows/dev-platform.yml")
+        if not (target / "scripts" / "managed_task.py").is_file():
+            raise SystemExit("Copier update did not materialize managed-task intake")
         if list(target.rglob("*.rej")):
             raise SystemExit("Copier update left .rej files")
 
