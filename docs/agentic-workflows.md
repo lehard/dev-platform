@@ -15,6 +15,12 @@ gh extension install github/gh-aw --pin "$(tr -d '[:space:]' < .github/aw/gh-aw-
 gh aw doctor --repo lehard/dev-platform
 ```
 
+The repository-level `.github/workflows/aw.json` maps the compiler's default
+MCP gateway runtime to its immutable `v0.4.9` digest. This supported compiled
+lock substitution corrects public-repository secrecy classification while
+retaining `allowed-repos: public`. Do not enable `private-to-public-flows`; this
+pilot must never read private repository data for a public GitHub safe output.
+
 The only required repository Actions secret is `OPENAI_API_KEY`. It is consumed
 by the Codex runtime and must never be committed, printed, copied into workflow
 prompts, or included in validation evidence. Repository administrators configure

@@ -31,6 +31,7 @@ tools:
   github:
     toolsets: [issues, labels]
     min-integrity: none
+    allowed-repos: public
 
 safe-outputs:
   allowed-domains: []

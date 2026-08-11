@@ -38,6 +38,21 @@ The v1 process-maintenance agent job SHALL NOT receive unrestricted repository w
 - **AND** may request only allow-listed label/comment safe outputs
 - **AND** cannot edit code, create an implementation pull request, approve, merge, or directly mutate repository contents
 
+### Requirement: Public pilot reads remain public-only
+
+The public `dev-platform` pilot SHALL constrain GitHub MCP reads to public
+repositories and retain the gateway secrecy/integrity policy. If a gateway
+runtime needs a maintenance override to correctly classify public repository
+data, that exact runtime SHALL be reviewable in the source and compiled lock;
+the workflow SHALL NOT use a private-to-public data-flow opt-out.
+
+#### Scenario: Public process issue is read for a public safe output
+
+- **WHEN** a workflow reads a labelled `dev-platform` process issue
+- **THEN** the GitHub MCP policy permits only public repository data
+- **AND** the gateway classifies that public response as eligible for the public safe output
+- **AND** no private repository data is made available to the agent or output sink
+
 ### Requirement: Process issue triage reuses a maintained upstream pattern
 
 The initial process-issue triage workflow SHALL be imported or adapted from a maintained GitHub Agentic Workflows / `githubnext/agentics` issue-triage pattern rather than implementing a custom unrestricted agent framework.
