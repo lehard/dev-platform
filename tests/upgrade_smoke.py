@@ -103,6 +103,9 @@ def main() -> int:
             raise SystemExit("Copier update did not materialize managed-task intake")
         if not (target / "scripts" / "start_managed_task.py").is_file():
             raise SystemExit("Copier update did not materialize managed-task start")
+        updated_config = platform_config.read_text(encoding="utf-8")
+        if "[development_backlog]" not in updated_config or 'project_label = "project:upgrade-' not in updated_config:
+            raise SystemExit("Copier update did not migrate Development Backlog authoring configuration")
         if list(target.rglob("*.rej")):
             raise SystemExit("Copier update left .rej files")
 

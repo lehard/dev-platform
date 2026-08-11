@@ -37,6 +37,19 @@ class PlatformBootstrapTests(unittest.TestCase):
             platform_bootstrap.sync_platform_version(root)
             self.assertEqual(config.read_text(encoding="utf-8"), original)
 
+    def test_development_backlog_migration_adds_only_the_missing_section(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config = root / ".dev-platform.toml"
+            config.write_text('project_slug = "existing-project"\ncustom_value = "preserve"\n', encoding="utf-8")
+            platform_bootstrap.sync_development_backlog_config(root)
+            text = config.read_text(encoding="utf-8")
+            self.assertIn('custom_value = "preserve"', text)
+            self.assertIn('[development_backlog]', text)
+            self.assertIn('project_label = "project:existing-project"', text)
+            platform_bootstrap.sync_development_backlog_config(root)
+            self.assertEqual(text, config.read_text(encoding="utf-8"))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -40,6 +40,11 @@ tested_version = "9.17.0"
 [promotion]
 repo = "lehard/dev-platform"
 
+[development_backlog]
+repository = "lehard/development-backlog"
+project_label = "project:dev-platform"
+default_priority = "P2"
+
 [paths]
 worktrees = ".claude/worktrees"
 agent_board = ".claude/agents-board.json"

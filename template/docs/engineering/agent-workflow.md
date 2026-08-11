@@ -14,7 +14,15 @@ Profiles select capabilities; they are not separate forks of the platform.
 
 ## Task intake
 
-Use the managed path only when the user explicitly supplies a Development Backlog task:
+`AGENTS.md` owns the cross-agent task protocol. For an explicitly accepted non-trivial change that the user asks to record in Backlog, prepare a contained authoring bundle and run:
+
+~~~
+python3 scripts/managed_task.py create --bundle <directory>
+~~~
+
+The helper validates the configured `development_backlog` contract, target origin and temporary OpenSpec artifacts, then publishes exactly one package and stops. A bounded same-project/target candidate result requires the agent to decide scope explicitly before rerunning with `--confirm-distinct`; authoring never begins implementation.
+
+Use the managed execution path only when the user explicitly supplies a Development Backlog task:
 
 ~~~
 python3 scripts/start_managed_task.py owner/repo#N

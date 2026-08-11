@@ -15,6 +15,9 @@ IGNORED_CONFLICT_DIRS = {".git", ".claude", ".codex", "node_modules", ".venv", "
 SEMVER_TAG_RE = re.compile(r"^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
 TOP_LEVEL_PUSH_RE = re.compile(r"(?m)^  push:\s*$")
 TOP_LEVEL_PR_RE = re.compile(r"(?m)^  pull_request:\s*$")
+BACKLOG_REPOSITORY_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
+BACKLOG_PROJECT_LABEL_RE = re.compile(r"^project:[A-Za-z0-9_.-]+$")
+BACKLOG_PRIORITY_RE = re.compile(r"^P[0-3]$")
 
 
 def ok(label: str) -> None: print(f"[ok]   {label}")
@@ -104,10 +107,34 @@ def check_rendered_workflow_mode(root: Path, config: dict, failures: list[int]) 
         ok(f"rendered workflow agrees with publish_mode={mode}")
 
 
+def check_development_backlog_config(config: dict, failures: list[int]) -> None:
+    """Accept pre-authoring renders while rejecting a partially configured authoring contract."""
+    backlog = config.get("development_backlog")
+    if backlog is None:
+        warn("Development Backlog authoring is not configured (compatible with pre-authoring renders)")
+        return
+    if not isinstance(backlog, dict):
+        fail("development_backlog must be a TOML table"); failures[0] += 1
+        return
+    before = failures[0]
+    repository = backlog.get("repository")
+    project_label = backlog.get("project_label")
+    priority = backlog.get("default_priority")
+    if not isinstance(repository, str) or not BACKLOG_REPOSITORY_RE.fullmatch(repository):
+        fail("development_backlog.repository must be owner/name"); failures[0] += 1
+    if not isinstance(project_label, str) or not BACKLOG_PROJECT_LABEL_RE.fullmatch(project_label):
+        fail("development_backlog.project_label must be project:<slug>"); failures[0] += 1
+    if not isinstance(priority, str) or not BACKLOG_PRIORITY_RE.fullmatch(priority):
+        fail("development_backlog.default_priority must be P0, P1, P2 or P3"); failures[0] += 1
+    if failures[0] == before:
+        ok("Development Backlog authoring configuration is valid")
+
+
 def main() -> int:
     root = Path.cwd().resolve()
     failures = [0]
     config = read_platform_config(root)
+    check_development_backlog_config(config, failures)
     workflow_profile = str(config.get("workflow_profile", "standard"))
     harness = harness_mode(config)
     if harness not in {"platform", "project"}:
