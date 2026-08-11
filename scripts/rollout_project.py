@@ -154,7 +154,15 @@ def platform_config_contract(project_root: Path) -> dict[str, Any]:
 
 def expected_development_backlog_migration(config: dict[str, Any]) -> dict[str, Any] | None:
     """Return the sole bootstrap-owned addition permitted to project config."""
-    if "development_backlog" in config:
+    existing = config.get("development_backlog")
+    if isinstance(existing, dict):
+        additions = {key: value for key, value in {"project_owner": "lehard", "project_number": 1}.items() if key not in existing}
+        if not additions:
+            return None
+        migrated = dict(config)
+        migrated["development_backlog"] = {**existing, **additions}
+        return migrated
+    if existing is not None:
         return None
     project_slug = config.get("project_slug")
     if not isinstance(project_slug, str) or not re.fullmatch(r"[A-Za-z0-9_.-]+", project_slug):
@@ -164,6 +172,8 @@ def expected_development_backlog_migration(config: dict[str, Any]) -> dict[str, 
         "repository": "lehard/development-backlog",
         "project_label": f"project:{project_slug}",
         "default_priority": "P2",
+        "project_owner": "lehard",
+        "project_number": 1,
     }
     return migrated
 
