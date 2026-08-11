@@ -6,7 +6,8 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from _platform_common import current_worktree_root, harness_mode, profile, read_platform_config, run_git
+from _platform_common import current_worktree_root, github_cli_env, harness_mode, profile, read_platform_config, run_git
+from rollout_preflight import NONE, RECONCILED, reconcile_pending_rollout
 from start_worktree import StartedWorktree, create_worktree
 
 
@@ -36,6 +37,14 @@ def start_task(root: Path, slug_value: str, task: str, scope: str = "") -> Start
     if doctor.returncode != 0:
         raise RuntimeError("agent doctor failed; task start was not attempted")
     subprocess.run(["python3", str(root / "scripts" / "project_sync.py")], cwd=root, check=True)
+    rollout_outcome = reconcile_pending_rollout(root, config, github_cli_env(root))
+    if rollout_outcome.state == RECONCILED:
+        print(rollout_outcome.detail)
+    elif rollout_outcome.state == NONE:
+        if rollout_outcome.detail:
+            print(f"Dev Platform rollout reconciliation skipped: {rollout_outcome.detail}")
+    else:
+        raise RuntimeError(f"Dev Platform rollout reconciliation blocked task start: {rollout_outcome.detail}")
     if prof == "light":
         checked_out = run_git(["branch", "--show-current"], cwd=root).stdout.strip()
         if checked_out != main_branch:

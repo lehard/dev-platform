@@ -291,5 +291,51 @@ class MergeDurabilityCapabilityTests(PublicationStateTestCase):
         self.assertEqual(result, "foreground_fallback")
 
 
+class RequiredCheckStateForRefTests(PublicationStateTestCase):
+    """`required_check_state_for_ref` backs rollout PR adoption: no local checkout exists for
+    a rollout branch, so it compares against a caller-supplied expected head instead of a
+    local git ref."""
+
+    def test_passed_checks_for_matching_head(self) -> None:
+        env = self.fake_gh(
+            'if [ "$1" = "pr" ] && [ "$2" = "view" ]; then printf \'{"state":"OPEN","headRefOid":"abc123"}\'; exit 0; fi\n'
+            'if [ "$1" = "pr" ] && [ "$2" = "checks" ]; then printf \'[{"name":"ci","state":"SUCCESS"}]\'; exit 0; fi\n'
+            'exit 1'
+        )
+        result = publication_state.required_check_state_for_ref(self.root, env, "dev-platform/rollout-v1.0.0", "abc123")
+        self.assertEqual(result.kind, "passed")
+
+    def test_failed_checks_for_matching_head(self) -> None:
+        env = self.fake_gh(
+            'if [ "$1" = "pr" ] && [ "$2" = "view" ]; then printf \'{"state":"OPEN","headRefOid":"abc123"}\'; exit 0; fi\n'
+            'if [ "$1" = "pr" ] && [ "$2" = "checks" ]; then printf \'[{"name":"ci","state":"FAILURE"}]\'; exit 0; fi\n'
+            'exit 1'
+        )
+        result = publication_state.required_check_state_for_ref(self.root, env, "dev-platform/rollout-v1.0.0", "abc123")
+        self.assertEqual(result.kind, "failed")
+
+    def test_changed_head_is_unknown_not_a_silent_pass(self) -> None:
+        env = self.fake_gh(
+            'if [ "$1" = "pr" ] && [ "$2" = "view" ]; then printf \'{"state":"OPEN","headRefOid":"def456"}\'; exit 0; fi\n'
+            'if [ "$1" = "pr" ] && [ "$2" = "checks" ]; then printf \'[{"name":"ci","state":"SUCCESS"}]\'; exit 0; fi\n'
+            'exit 1'
+        )
+        result = publication_state.required_check_state_for_ref(self.root, env, "dev-platform/rollout-v1.0.0", "abc123")
+        self.assertEqual(result.kind, "unknown")
+
+    def test_unreadable_pr_state_is_unknown(self) -> None:
+        result = publication_state.required_check_state_for_ref(self.root, self.no_pr_gh(), "dev-platform/rollout-v1.0.0", "abc123")
+        self.assertEqual(result.kind, "unknown")
+
+    def test_pending_checks_for_matching_head(self) -> None:
+        env = self.fake_gh(
+            'if [ "$1" = "pr" ] && [ "$2" = "view" ]; then printf \'{"state":"OPEN","headRefOid":"abc123"}\'; exit 0; fi\n'
+            'if [ "$1" = "pr" ] && [ "$2" = "checks" ]; then printf \'[{"name":"ci","state":"IN_PROGRESS"}]\'; exit 0; fi\n'
+            'exit 1'
+        )
+        result = publication_state.required_check_state_for_ref(self.root, env, "dev-platform/rollout-v1.0.0", "abc123")
+        self.assertEqual(result.kind, "pending")
+
+
 if __name__ == "__main__":
     unittest.main()

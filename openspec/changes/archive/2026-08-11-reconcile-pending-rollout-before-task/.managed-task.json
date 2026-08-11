@@ -1,0 +1,16 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/platform-lifecycle/spec.md",
+    "specs/platform-rollout/spec.md"
+  ],
+  "change": "reconcile-pending-rollout-before-task",
+  "imported_at": "2026-08-11T14:45:05+00:00",
+  "package_revision": "351c1949d24a5711a3bf4358728e8e89775b9d2ffad9295276bdb9606cdb9293",
+  "prepared_against": "21a10c6dc41365fba80e1759dbfe89b3a99a67ea",
+  "source_issue": "lehard/development-backlog#7",
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

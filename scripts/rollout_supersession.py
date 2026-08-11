@@ -14,86 +14,28 @@ import json
 import re
 import subprocess
 import sys
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 from urllib.parse import quote
 
 import managed_projects
 
 ROOT = Path(__file__).resolve().parents[1]
-SEMVER_RE = re.compile(r"^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
-ROLLOUT_BRANCH_RE = re.compile(r"^dev-platform/rollout-(v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*))$")
+sys.path.insert(0, str(ROOT / "template" / "scripts"))
+
+from rollout_identity import (  # noqa: E402
+    ROLLOUT_BRANCH_RE,
+    SEMVER_RE,
+    RolloutPR,
+    eligible_rollout_prs,
+    gh_api,
+    list_open_prs,
+    parse_version,
+    rollout_branch,
+)
+
 COPIER_COMMIT_RE = re.compile(r"^_commit:\s*['\"]?([^\s'\"]+)", re.MULTILINE)
 PLATFORM_VERSION_RE = re.compile(r"^platform_version\s*=\s*['\"]([^'\"]+)['\"]", re.MULTILINE)
-
-
-def parse_version(version: str) -> tuple[int, int, int]:
-    match = SEMVER_RE.fullmatch(version)
-    if not match:
-        raise ValueError(f"platform version must be an exact stable SemVer tag vX.Y.Z; got {version!r}")
-    return tuple(map(int, match.groups()))  # type: ignore[return-value]
-
-
-def rollout_branch(version: str) -> str:
-    parse_version(version)
-    return f"dev-platform/rollout-{version}"
-
-
-@dataclass(frozen=True)
-class RolloutPR:
-    number: int
-    url: str
-    branch: str
-    version: str
-
-
-def gh_api(arguments: list[str], *, runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run) -> Any:
-    result = runner(["gh", "api", *arguments], text=True, capture_output=True, check=False)
-    if result.returncode != 0:
-        detail = result.stderr.strip() or result.stdout.strip() or f"exit {result.returncode}"
-        raise ValueError(f"GitHub API request failed: {detail}")
-    if not result.stdout.strip():
-        # GitHub returns 204 No Content for a successful ref deletion.
-        return None
-    try:
-        return json.loads(result.stdout)
-    except json.JSONDecodeError as exc:
-        raise ValueError("GitHub API returned invalid JSON") from exc
-
-
-def list_open_prs(repository: str, base_branch: str) -> list[dict[str, Any]]:
-    payload = gh_api([
-        "--paginate", "--slurp", f"repos/{repository}/pulls?state=open&base={quote(base_branch, safe='')}&per_page=100"
-    ])
-    pages = payload if isinstance(payload, list) else [payload]
-    return [item for page in pages if isinstance(page, list) for item in page if isinstance(item, dict)]
-
-
-def eligible_rollout_prs(
-    prs: list[dict[str, Any]], *, repository: str, base_branch: str, expected_bot: str
-) -> list[RolloutPR]:
-    """Return only PRs that cross the complete managed-rollout trust boundary."""
-    eligible: list[RolloutPR] = []
-    for pr in prs:
-        head = pr.get("head") if isinstance(pr.get("head"), dict) else {}
-        base = pr.get("base") if isinstance(pr.get("base"), dict) else {}
-        user = pr.get("user") if isinstance(pr.get("user"), dict) else {}
-        branch = head.get("ref")
-        match = ROLLOUT_BRANCH_RE.fullmatch(branch) if isinstance(branch, str) else None
-        head_repo = head.get("repo") if isinstance(head.get("repo"), dict) else {}
-        if not match or base.get("ref") != base_branch:
-            continue
-        if user.get("login") != expected_bot or head_repo.get("full_name") != repository:
-            continue
-        number = pr.get("number")
-        url = pr.get("html_url")
-        if not isinstance(number, int) or not isinstance(url, str):
-            continue
-        version = match.group(1)
-        parse_version(version)
-        eligible.append(RolloutPR(number=number, url=url, branch=branch, version=version))
-    return sorted(eligible, key=lambda item: (parse_version(item.version), item.number))
 
 
 def find_exact_pending_rollout_pr(

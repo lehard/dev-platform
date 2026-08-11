@@ -37,6 +37,9 @@ verify_required = true
 min_version = "9.17.0"
 tested_version = "9.17.0"
 
+[tools.rollout]
+bot_login = "dev-platform-bot-lehard[bot]"
+
 [promotion]
 repo = "lehard/dev-platform"
 
