@@ -23,6 +23,7 @@ from _platform_common import (
     run_git,
 )
 import publication_state
+import rollout_preflight
 
 
 CONFLICT_STATUS_CODES = {"DD", "AU", "UD", "UA", "DU", "AA", "UU"}
@@ -305,6 +306,16 @@ def main() -> int:
             failures += 1
     elif gh_env is not None:
         report("ok", "GitHub API authentication available")
+
+    if gh_env is not None:
+        rollout_outcome = rollout_preflight.observe_pending_rollout(root, config, gh_env)
+        if rollout_outcome.state == rollout_preflight.NONE:
+            if rollout_outcome.detail:
+                report("warn", f"pending Dev Platform rollout check skipped: {rollout_outcome.detail}")
+            else:
+                report("ok", "no pending Dev Platform rollout PR")
+        else:
+            report("warn", f"pending Dev Platform rollout ({rollout_outcome.state}): {rollout_outcome.detail}")
 
     if mode == "pr" and harness == "platform":
         report_publication_status(root, integration, config, gh_env)

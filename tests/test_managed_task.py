@@ -25,6 +25,7 @@ start_managed_task = importlib.util.module_from_spec(start_spec)
 sys.modules[start_spec.name] = start_managed_task
 start_spec.loader.exec_module(start_managed_task)
 task_start = sys.modules["start_task"]
+import rollout_preflight  # noqa: E402
 
 
 def package_body(*, target: str = "lehard/dev-platform", artifact: str = "proposal.md", version: str = "v1") -> str:
@@ -278,6 +279,42 @@ class ManagedPackageTests(unittest.TestCase):
             self.assertEqual(subprocess.run(["git", "branch", "--show-current"], cwd=root, text=True, capture_output=True, check=True).stdout.strip(), started.branch)
             task_start.cleanup_started_task(root, started)
             self.assertEqual(subprocess.run(["git", "branch", "--show-current"], cwd=root, text=True, capture_output=True, check=True).stdout.strip(), "main")
+
+    def _bare_platform_repo(self, tmp: str) -> Path:
+        root = Path(tmp)
+        subprocess = __import__("subprocess")
+        subprocess.run(["git", "init", "-q", "-b", "main"], cwd=root, check=True)
+        subprocess.run(["git", "config", "user.name", "test"], cwd=root, check=True)
+        subprocess.run(["git", "config", "user.email", "test@example.invalid"], cwd=root, check=True)
+        (root / "README.md").write_text("test\n", encoding="utf-8")
+        subprocess.run(["git", "add", "README.md"], cwd=root, check=True)
+        subprocess.run(["git", "commit", "-qm", "initial"], cwd=root, check=True)
+        (root / ".dev-platform.toml").write_text('workflow_profile = "standard"\nharness_mode = "platform"\nmain_branch = "main"\n', encoding="utf-8")
+        scripts = root / "scripts"
+        scripts.mkdir()
+        for name in ("agent_doctor.py", "project_sync.py"):
+            (scripts / name).write_text("#!/usr/bin/env python3\n", encoding="utf-8")
+        return root
+
+    def test_reconciled_rollout_prints_detail_and_still_creates_the_task_branch(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._bare_platform_repo(tmp)
+            reconciled = rollout_preflight.RolloutPreflightResult(rollout_preflight.RECONCILED, detail="merged and synchronized rollout PR #7 (v1.2.3)")
+            with patch.object(task_start, "reconcile_pending_rollout", return_value=reconciled) as reconcile:
+                started = task_start.start_task(root, "managed-intake", "Managed task")
+            reconcile.assert_called_once()
+            self.assertEqual(started.branch, "agent/managed-intake")
+
+    def test_blocked_rollout_stops_task_start_before_any_branch_exists(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._bare_platform_repo(tmp)
+            blocked = rollout_preflight.RolloutPreflightResult(rollout_preflight.BLOCKED, detail="rollout PR #7 required checks failed: ci")
+            with patch.object(task_start, "reconcile_pending_rollout", return_value=blocked):
+                with self.assertRaisesRegex(RuntimeError, "rollout PR #7 required checks failed"):
+                    task_start.start_task(root, "managed-intake", "Managed task")
+            subprocess = __import__("subprocess")
+            branches = subprocess.run(["git", "branch"], cwd=root, text=True, capture_output=True, check=True).stdout
+            self.assertNotIn("managed-intake", branches)
 
     def test_wrong_target_stops_before_openspec_materialization(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

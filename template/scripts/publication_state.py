@@ -69,6 +69,10 @@ def required_check_state(root: Path, env: dict[str, str], current: str) -> Requi
         return RequiredCheckState("unknown", "GitHub required-check state was not structured JSON")
     if not isinstance(payload, list):
         return RequiredCheckState("unknown", "GitHub required-check response was not a list")
+    return _classify_required_checks(payload)
+
+
+def _classify_required_checks(payload: list[Any]) -> RequiredCheckState:
     normalized = tuple(item for item in payload if isinstance(item, dict))
     if len(normalized) != len(payload):
         return RequiredCheckState("unknown", "GitHub required-check response contained an invalid check")
@@ -84,6 +88,52 @@ def required_check_state(root: Path, env: dict[str, str], current: str) -> Requi
     if all(state in PASSED_CHECK_STATES | PENDING_CHECK_STATES for state in states):
         return RequiredCheckState("pending", checks=normalized)
     return RequiredCheckState("unknown", "GitHub returned an unsupported required-check state", normalized)
+
+
+def required_check_state_for_ref(root: Path, env: dict[str, str], ref: str, expected_head: str) -> RequiredCheckState:
+    """Like `required_check_state`, but for a PR with no local checkout.
+
+    `ref` may be a PR number, URL, or branch name that `gh pr view` accepts
+    directly. The caller supplies `expected_head` (read fresh from GitHub, not
+    from a local branch) to guard against the PR head changing between
+    observation and this check -- used for rollout PR reconciliation, where
+    the platform never checks out the PR's branch locally.
+    """
+    pr = subprocess.run(
+        ["gh", "pr", "view", ref, "--json", "state,headRefOid"],
+        cwd=root,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if pr.returncode != 0:
+        return RequiredCheckState("unknown", "GitHub PR state is unavailable")
+    try:
+        pr_payload = json.loads(pr.stdout)
+    except json.JSONDecodeError:
+        return RequiredCheckState("unknown", "GitHub PR state was not structured JSON")
+    remote_head = str(pr_payload.get("headRefOid", "")).strip()
+    if remote_head != expected_head:
+        return RequiredCheckState("unknown", "GitHub PR head does not match the expected observed head")
+
+    checks = subprocess.run(
+        ["gh", "pr", "checks", ref, "--required", "--json", "name,state,workflow,link"],
+        cwd=root,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if checks.returncode != 0:
+        return RequiredCheckState("unknown", "GitHub required-check state is unavailable")
+    try:
+        payload = json.loads(checks.stdout)
+    except json.JSONDecodeError:
+        return RequiredCheckState("unknown", "GitHub required-check state was not structured JSON")
+    if not isinstance(payload, list):
+        return RequiredCheckState("unknown", "GitHub required-check response was not a list")
+    return _classify_required_checks(payload)
 
 
 @dataclass(frozen=True)

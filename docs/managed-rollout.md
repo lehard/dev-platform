@@ -132,6 +132,41 @@ the validated replacement and closes only its older eligible predecessors.
 
 Matrix rollout uses `fail-fast: false`: one blocked project does not prevent clean managed projects from receiving PRs.
 
+## Downstream adoption at task start
+
+A clean rollout PR deliberately stops at review; it does not auto-merge. Left
+alone, that PR can sit open indefinitely and a later coding session can start
+on the older platform version without anyone noticing.
+
+`template/scripts/rollout_preflight.py` closes that gap on the consumer side.
+Every platform-owned `start_task.py` invocation (including through
+`start_managed_task.py`) reconciles a pending rollout before creating a new
+task branch/worktree:
+
+1. after the ordinary `project_sync.py` fetch, it looks for open PRs whose
+   head matches the reserved `dev-platform/rollout-vX.Y.Z` branch contract
+   against the configured base branch;
+2. ownership is confirmed the same way central rollout automation confirms
+   it -- exact repository, base branch, and the automation identity recorded
+   in `.dev-platform.toml`'s `[tools.rollout] bot_login` -- never by PR title
+   or body;
+3. a rollout PR whose required checks are green is merged through ordinary
+   non-bypass GitHub policy (`gh pr merge --match-head-commit`, the same
+   exact-head guard `project_publish.py` uses for task PRs), then local `main`
+   is fast-forwarded before the task branch/worktree is created;
+4. pending/failed checks, a conflict, a changed head, or an unconfirmed
+   automation identity blocks new work with an explicit, resumable state
+   instead of silently starting on the older platform layer.
+
+`tools.rollout.bot_login` is rendered into every project's `.dev-platform.toml`
+by the Copier template (it is the same platform-wide GitHub App login used by
+central rollout automation, not a secret). An existing project only gains this
+field once it adopts the rollout carrying it.
+
+`harness_mode=project` repositories keep their own task/worktree entrypoint;
+`agent_doctor.py` still reports pending-rollout state there (read-only) so the
+prerequisite is visible without the platform replacing that entrypoint.
+
 ## Manual retry
 
 GitHub Actions -> **Roll Out Platform** -> **Run workflow**.
