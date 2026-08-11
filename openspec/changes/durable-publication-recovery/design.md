@@ -120,8 +120,9 @@ Not adopted:
 ## Migration Plan
 
 1. Refactor platform-owned PR publication around observe/reconcile helpers while preserving existing CLI behavior.
-2. Add exact-head PR discovery, exact-head merge guards, early native auto-merge/queue arming, and read-only status.
-3. Update `finish_task`/doctor guidance so an existing exact-head PR is resumed before first-publication stale-base rejection and unfinished remote/local delivery is explicit.
-4. Add restart/concurrency/fault-boundary tests plus template render/update coverage.
-5. Validate against a real platform-owned repository with native auto-merge enabled explicitly as an adoption step; also verify the safe foreground fallback with auto-merge disabled.
-6. Release through the normal immutable platform + reviewed managed rollout path. Project-owned harnesses remain untouched.
+2. Add exact-head PR discovery, exact-head merge guards, early native auto-merge/queue arming, read-only status, and restart/concurrency tests.
+3. Merge the implementation through protected main while live-acceptance tasks remain explicitly incomplete in the active OpenSpec.
+4. Publish the next normal immutable platform release containing the implementation and roll it to the platform-owned managed consumers needed for live acceptance.
+5. Run real acceptance after the released code is installed: one consumer with native auto-merge explicitly enabled to prove remote execution survives caller loss, and one disabled/unavailable case to prove the foreground fallback remains resumable.
+6. Only after live acceptance passes, record semantic verification, archive the OpenSpec, rerun validation, and publish the archive/current-spec update. Do not cut a second release solely for archive/spec-only changes when runtime/template code did not change after the accepted release.
+7. Project-owned harnesses remain untouched throughout.
