@@ -55,9 +55,19 @@ Upstream tracked this as the public-repository secrecy-tag regression and fixed
 the missing response-visibility path in `gh-aw-mcpg:v0.4.9`. The repository
 compiled-lock configuration now maps the default gateway to the immutable
 v0.4.9 image and constrains GitHub MCP reads to `allowed-repos: public`; it does
-not enable `private-to-public-flows` or widen the read-only/safe-output
-boundary. A fresh main-branch manual triage run is required before declaring
-this acceptance complete.
+not enable `private-to-public-flows` or widen GitHub repository visibility.
+
+The first post-fix triage run,
+[31475984733](https://github.com/lehard/dev-platform/actions/runs/31475984733),
+proved the secrecy fix: Codex received #96's body and `process` label through
+the GitHub MCP with no DIFC filtering. It did not complete acceptance because
+`gh-aw-mcpg:v0.4.9` then rejected the `v0.85.4` compiler's own read-write
+workspace mount for the `safeoutputs` backend. This is a separate runtime
+compatibility defect introduced by v0.4.9's trusted host-mount policy, not a
+prompt, repository-permissions, or private-data-flow failure. The pilot now
+uses that policy's documented exact-path allowlist for only the three
+compiler-owned safe-output mounts. A fresh main-branch manual triage run is
+required before declaring this acceptance complete.
 
 `gh aw audit` emitted a local case-colliding-artifact extraction warning, then
 retried individual artifacts and completed successfully. The reported audit
