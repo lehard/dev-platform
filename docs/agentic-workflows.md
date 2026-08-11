@@ -15,6 +15,20 @@ gh extension install github/gh-aw --pin "$(tr -d '[:space:]' < .github/aw/gh-aw-
 gh aw doctor --repo lehard/dev-platform
 ```
 
+The repository-level `.github/workflows/aw.json` maps the compiler's default
+MCP gateway runtime to its immutable `v0.4.9` digest. This supported compiled
+lock substitution corrects public-repository secrecy classification while
+retaining `allowed-repos: public`. Do not enable `private-to-public-flows`; this
+pilot must never read private repository data for a public GitHub safe output.
+
+`gh-aw-mcpg` v0.4.9 also enforces a trusted host-mount policy. The two pilot
+sources therefore declare only the three compiler-owned mount roots required by
+the `v0.85.4` safe-output backend: the workflow workspace, its
+`$RUNNER_TEMP/gh-aw/safeoutputs` runtime directory, and `/tmp/gh-aw`. This is
+not an agent write grant: Codex remains read-only and can request GitHub writes
+only through the configured safe-output handler. Do not add broader roots,
+private repository access, or `private-to-public-flows` as a workaround.
+
 The only required repository Actions secret is `OPENAI_API_KEY`. It is consumed
 by the Codex runtime and must never be committed, printed, copied into workflow
 prompts, or included in validation evidence. Repository administrators configure
