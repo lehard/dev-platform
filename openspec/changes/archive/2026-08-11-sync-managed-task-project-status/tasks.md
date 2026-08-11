@@ -30,5 +30,5 @@
 - [x] 5.2 Add recovery tests for an already-started/merged managed task whose Project item is still `Ready`.
 - [x] 5.3 Exercise at least one real Development Backlog transition chain against the configured Project without bypassing repository protection.
 - [x] 5.4 Reconcile currently stale managed items only where source/delivery evidence is unambiguous and record the acceptance evidence.
-- [ ] 5.5 Run relevant unit/integration suites, template render/upgrade smoke, strict OpenSpec validation and semantic verification.
-- [ ] 5.6 Archive the verified change and publish it through the normal immutable release/managed rollout when platform/template runtime changes require a release.
+- [x] 5.5 Run relevant unit/integration suites, template render/upgrade smoke, strict OpenSpec validation and semantic verification.
+- [x] 5.6 Archive the verified change and publish it through the normal immutable release/managed rollout when platform/template runtime changes require a release.
