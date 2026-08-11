@@ -81,6 +81,12 @@ git worktree list
 If the pending-worktree report shows forgotten work in the same area, resolve that overlap before starting another worktree. Safe old merged worktrees can be removed with `python3 scripts/worktree_cleanup.py cleanup`; never manually delete another agent's dirty or unmerged tree.
 
 Do not use another agent's worktree or modify another active entry's scope without resolving the overlap.
+
+### Delegated write containment
+
+Platform-controlled write-capable delegation (a subagent or subprocess with filesystem write access) is platform-contained only when it goes through `scripts/delegated_write_guard.py` (`run_guarded_delegation`). It validates `assigned_worktree`, applies the strongest enforcement tier the runtime can prove (`hard` for a real OS writable-root sandbox or a hook-enforced structured-write-only Claude session; `detection-only` otherwise), launches the child with `cwd=assigned_worktree`, and always performs a content-aware post-check against the integration copy before reporting success, even if the child fails or is cancelled.
+
+Direct native subagent/subprocess invocation outside that entrypoint is not represented as platform-contained. A `detection-only` writer (no proven OS sandbox or hook boundary, for example shell-capable Claude delegation) must not start while the integration checkout is already dirty. No containment path stashes, resets, cleans, or deletes integration state.
 {% endif %}
 
 ## Validation and publication
