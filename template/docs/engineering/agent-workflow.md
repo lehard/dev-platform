@@ -17,16 +17,16 @@ Profiles select capabilities; they are not separate forks of the platform.
 Use the managed path only when the user explicitly supplies a Development Backlog task:
 
 ~~~
-python3 scripts/managed_task.py owner/repo#N
+python3 scripts/start_managed_task.py owner/repo#N
 ~~~
 
-The v1 importer reads one versioned package through existing GitHub authentication, validates the target checkout, creates the current OpenSpec scaffold, materializes planning artifacts and performs structural validation. It stops before OpenSpec apply, implementation, task start, publication, GitHub Project mutation, or automatic dispatch.
+The managed-start entrypoint reads one versioned package through existing GitHub authentication and validates the target checkout without writing. It then starts the normal task branch/worktree, materializes planning artifacts there and performs structural validation. It stops before OpenSpec apply, implementation, publication, GitHub Project mutation, or automatic dispatch. The standalone importer remains for recovery inside a task checkout and for the `light` profile; it rejects direct materialization from platform-owned `standard` and `multi-agent` integration branches.
 
 If Prepared against differs from the fetched integration commit, semantic preflight against current specs and active changes is mandatory. Formal/schema reconciliation is allowed; a material product-contract conflict must return to the user. After import, repository-local OpenSpec is the implementation contract and the backlog issue is provenance only.
 
 Small direct requests remain quick tasks: use the normal start/check/finish lifecycle without creating a central issue. Escalate rather than silently expanding a quick task into a material behavior, architecture, compatibility, data-contract, or scope change.
 
-Bootstrap exception: Development Backlog issue lehard/development-backlog#1 introduced this importer, so its package was manually scaffolded through the current OpenSpec CLI after target and semantic preflight. All later managed tasks use this command.
+Bootstrap exception: Development Backlog issue lehard/development-backlog#1 introduced the importer, so its package was manually scaffolded through the current OpenSpec CLI after target and semantic preflight. All later managed tasks use the managed-start command.
 
 ## Publishing
 

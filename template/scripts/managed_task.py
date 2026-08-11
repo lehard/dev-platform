@@ -16,7 +16,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import urlparse
 
-from _platform_common import current_worktree_root, github_cli_env, read_platform_config
+from _platform_common import current_worktree_root, github_cli_env, harness_mode, main_root, profile, read_platform_config, run_git
 
 PACKAGE = "managed-openspec:v1"
 MARKER_RE = re.compile(r"<!--\s*(managed-openspec:v[0-9]+)\s*-->")
@@ -262,12 +262,34 @@ def write_provenance(root: Path, package: Package) -> None:
     )
 
 
-def import_task(root: Path, reference: str) -> tuple[Package, str, bool]:
+def discover_task(root: Path, reference: str) -> Package:
     issue_repository, number = issue_ref(reference)
     requested = f"{issue_repository}#{number}"
     package = parse_package(issue_bodies(root, issue_repository, number), requested)
     if package.target_repository != origin_repository(root):
         raise ManagedTaskError(f"package targets {package.target_repository}, not this checkout; no files changed")
+    return package
+
+
+def direct_materialization_is_forbidden(root: Path) -> bool:
+    """Return whether this is the platform integration checkout of a feature profile."""
+    config = read_platform_config(root)
+    if harness_mode(config) != "platform" or profile(config) not in {"standard", "multi-agent"}:
+        return False
+    try:
+        integration = main_root()
+        branch = run_git(["branch", "--show-current"], cwd=root).stdout.strip()
+    except (subprocess.CalledProcessError, OSError):
+        return False
+    return root.resolve() == integration.resolve() and branch == str(config.get("main_branch", "main"))
+
+
+def import_task(root: Path, reference: str, *, expected_revision: str | None = None) -> tuple[Package, str, bool]:
+    package = discover_task(root, reference)
+    if expected_revision is not None and package.revision != expected_revision:
+        raise ManagedTaskError("managed package changed after discovery; refusing to materialize a different revision")
+    if direct_materialization_is_forbidden(root):
+        raise ManagedTaskError("managed import from the platform integration branch is blocked; use scripts/start_managed_task.py owner/repo#N")
     current_main = target_main(root)
     destination = change_root(root, package.change)
     if destination.exists():

@@ -18,6 +18,14 @@ managed_task = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = managed_task
 spec.loader.exec_module(managed_task)
 
+START_SOURCE = ROOT / "template" / "scripts" / "start_managed_task.py"
+start_spec = importlib.util.spec_from_file_location("start_managed_task", START_SOURCE)
+assert start_spec and start_spec.loader
+start_managed_task = importlib.util.module_from_spec(start_spec)
+sys.modules[start_spec.name] = start_managed_task
+start_spec.loader.exec_module(start_managed_task)
+task_start = sys.modules["start_task"]
+
 
 def package_body(*, target: str = "lehard/dev-platform", artifact: str = "proposal.md", version: str = "v1") -> str:
     fence = chr(96) * 3
@@ -111,6 +119,124 @@ class ManagedPackageTests(unittest.TestCase):
             joined = " ".join(" ".join(call) for call in calls)
             for forbidden in ("apply", "start_task", "finish_task", "project_publish", "gh-aw"):
                 self.assertNotIn(forbidden, joined)
+
+    def test_direct_import_refuses_feature_profile_integration_before_materialization(self) -> None:
+        package = managed_task.parse_package([package_body()], "lehard/development-backlog#1")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with (
+                patch.object(managed_task, "discover_task", return_value=package),
+                patch.object(managed_task, "direct_materialization_is_forbidden", return_value=True),
+                patch.object(managed_task, "target_main") as target_main,
+            ):
+                with self.assertRaisesRegex(managed_task.ManagedTaskError, "start_managed_task"):
+                    managed_task.import_task(root, "lehard/development-backlog#1")
+            target_main.assert_not_called()
+            self.assertFalse((root / "openspec").exists())
+
+    def test_integration_guard_only_applies_to_platform_feature_profiles(self) -> None:
+        root = Path("/tmp/integration")
+
+        class Result:
+            stdout = "main\n"
+
+        with (
+            patch.object(managed_task, "read_platform_config", return_value={"workflow_profile": "standard", "harness_mode": "platform", "main_branch": "main"}),
+            patch.object(managed_task, "main_root", return_value=root),
+            patch.object(managed_task, "run_git", return_value=Result()),
+        ):
+            self.assertTrue(managed_task.direct_materialization_is_forbidden(root))
+        with patch.object(managed_task, "read_platform_config", return_value={"workflow_profile": "light", "harness_mode": "platform"}):
+            self.assertFalse(managed_task.direct_materialization_is_forbidden(root))
+
+    def test_managed_start_materializes_only_after_task_start(self) -> None:
+        package = managed_task.parse_package([package_body()], "lehard/development-backlog#1")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "integration"
+            task_root = Path(tmp) / "task"
+            root.mkdir()
+            task_root.mkdir()
+            started = start_managed_task.StartedTask(profile="multi-agent", branch="agent/add-managed-backlog-intake", task_root=task_root, board_id="board-1")
+
+            def materialize(destination: Path, reference: str, *, expected_revision: str):
+                self.assertEqual(destination, task_root)
+                self.assertEqual(reference, "lehard/development-backlog#1")
+                self.assertEqual(expected_revision, package.revision)
+                (destination / "openspec" / "changes" / package.change).mkdir(parents=True)
+                return package, "b" * 40, False
+
+            with (
+                patch.object(start_managed_task, "discover_task", return_value=package),
+                patch.object(start_managed_task, "check_schema"),
+                patch.object(start_managed_task, "start_task", return_value=started) as start,
+                patch.object(start_managed_task, "import_task", side_effect=materialize),
+            ):
+                result, current_main, reused = start_managed_task.start_managed_task(root, "lehard/development-backlog#1", "scripts")
+            self.assertEqual(result, started)
+            self.assertEqual(current_main, "b" * 40)
+            self.assertFalse(reused)
+            start.assert_called_once_with(root, package.change, task="Managed task lehard/development-backlog#1", scope="scripts")
+            self.assertTrue((task_root / "openspec" / "changes" / package.change).is_dir())
+            self.assertFalse((root / "openspec").exists())
+
+    def test_managed_start_cleans_only_new_task_when_materialization_fails(self) -> None:
+        package = managed_task.parse_package([package_body()], "lehard/development-backlog#1")
+        root = Path("/tmp/integration")
+        started = start_managed_task.StartedTask(profile="standard", branch="agent/add-managed-backlog-intake", task_root=root)
+        with (
+            patch.object(start_managed_task, "discover_task", return_value=package),
+            patch.object(start_managed_task, "check_schema"),
+            patch.object(start_managed_task, "start_task", return_value=started),
+            patch.object(start_managed_task, "import_task", side_effect=managed_task.ManagedTaskError("validation failed")),
+            patch.object(start_managed_task, "cleanup_started_task") as cleanup,
+        ):
+            with self.assertRaisesRegex(managed_task.ManagedTaskError, "validation failed"):
+                start_managed_task.start_managed_task(root, "lehard/development-backlog#1")
+        cleanup.assert_called_once_with(root, started)
+
+    def test_invalid_managed_start_creates_no_task_state(self) -> None:
+        root = Path("/tmp/integration")
+        with (
+            patch.object(start_managed_task, "discover_task", side_effect=managed_task.ManagedTaskError("wrong target")),
+            patch.object(start_managed_task, "start_task") as task_start,
+        ):
+            with self.assertRaisesRegex(managed_task.ManagedTaskError, "wrong target"):
+                start_managed_task.start_managed_task(root, "lehard/development-backlog#1")
+        task_start.assert_not_called()
+
+    def test_schema_failure_creates_no_task_state(self) -> None:
+        package = managed_task.parse_package([package_body()], "lehard/development-backlog#1")
+        root = Path("/tmp/integration")
+        with (
+            patch.object(start_managed_task, "discover_task", return_value=package),
+            patch.object(start_managed_task, "check_schema", side_effect=managed_task.ManagedTaskError("schema mismatch")),
+            patch.object(start_managed_task, "start_task") as task_start,
+        ):
+            with self.assertRaisesRegex(managed_task.ManagedTaskError, "schema mismatch"):
+                start_managed_task.start_managed_task(root, "lehard/development-backlog#1")
+        task_start.assert_not_called()
+
+    def test_standard_task_start_creates_feature_branch_before_import(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            subprocess = __import__("subprocess")
+            subprocess.run(["git", "init", "-q", "-b", "main"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.name", "test"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.email", "test@example.invalid"], cwd=root, check=True)
+            (root / "README.md").write_text("test\n", encoding="utf-8")
+            subprocess.run(["git", "add", "README.md"], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "initial"], cwd=root, check=True)
+            (root / ".dev-platform.toml").write_text('workflow_profile = "standard"\nharness_mode = "platform"\nmain_branch = "main"\n', encoding="utf-8")
+            scripts = root / "scripts"
+            scripts.mkdir()
+            for name in ("agent_doctor.py", "project_sync.py"):
+                (scripts / name).write_text("#!/usr/bin/env python3\n", encoding="utf-8")
+            started = task_start.start_task(root, "managed-intake", "Managed task")
+            self.assertEqual(started.branch, "agent/managed-intake")
+            self.assertEqual(started.task_root, root.resolve())
+            self.assertEqual(subprocess.run(["git", "branch", "--show-current"], cwd=root, text=True, capture_output=True, check=True).stdout.strip(), started.branch)
+            task_start.cleanup_started_task(root, started)
+            self.assertEqual(subprocess.run(["git", "branch", "--show-current"], cwd=root, text=True, capture_output=True, check=True).stdout.strip(), "main")
 
     def test_wrong_target_stops_before_openspec_materialization(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
