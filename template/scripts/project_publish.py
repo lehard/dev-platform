@@ -27,6 +27,7 @@ from publication_state import (
     find_exact_head_pr,
     required_check_state,
 )
+from managed_project_status import ManagedProjectStatusError, reconcile as reconcile_managed_project
 
 
 DIRECT_PUBLISH_GUARD = "DEV_PLATFORM_VALIDATED_DIRECT_PUBLISH"
@@ -358,6 +359,17 @@ def publish_pr(root: Path, remote: str, main_branch: str, title: str | None, bod
         delete_remote_branch(root, remote, current)
         print(f"PR for {current} was already merged on GitHub for the exact validated head; nothing further to merge.")
         return 0
+    try:
+        project = reconcile_managed_project(root, "In review")
+    except ManagedProjectStatusError as exc:
+        raise SystemExit(
+            "Reviewable PR exists, but managed Project reconciliation is pending: " + str(exc)
+        ) from exc
+    if project is not None:
+        print(
+            f"Managed Project status {'updated' if project.changed else 'already current'}: "
+            f"{project.source_issue} -> In review"
+        )
     if merge_mode == "manual":
         print("PR published for manual review; pr_merge_mode=manual, so no merge was attempted.")
         return 0

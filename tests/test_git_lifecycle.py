@@ -22,7 +22,7 @@ def configure(repo: Path) -> None:
 
 def install_scripts(repo: Path, profile: str = "light", publish: str = "direct") -> None:
     target = repo / "scripts"; target.mkdir(exist_ok=True)
-    for name in ("_platform_common.py", "project_sync.py", "project_publish.py", "publication_state.py", "finish_task.py", "openspec_lifecycle.py"): shutil.copy2(SCRIPT_SOURCE / name, target / name)
+    for name in ("_platform_common.py", "project_sync.py", "project_publish.py", "publication_state.py", "managed_project_status.py", "finish_task.py", "openspec_lifecycle.py"): shutil.copy2(SCRIPT_SOURCE / name, target / name)
     (repo / ".dev-platform.toml").write_text(f'main_branch = "main"\nworkflow_profile = "{profile}"\nharness_mode = "platform"\npublish_mode = "{publish}"\n', encoding="utf-8")
 
 

@@ -59,7 +59,7 @@ class RenderedWorkflowModeTests(unittest.TestCase):
         platform_doctor.check_development_backlog_config(
             {"development_backlog": {"repository": "invalid", "project_label": "dev-platform", "default_priority": "P9"}}, failures
         )
-        self.assertEqual(failures[0], 3)
+        self.assertEqual(failures[0], 5)
 
 
 if __name__ == "__main__":

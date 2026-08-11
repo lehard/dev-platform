@@ -77,12 +77,43 @@ class GuardedRecopyTests(unittest.TestCase):
         before = rollout_project.platform_config_contract(self.root)
         self.root.joinpath(".dev-platform.toml").write_text(
             self.root.joinpath(".dev-platform.toml").read_text(encoding="utf-8")
-            + '\n[development_backlog]\nrepository = "lehard/development-backlog"\nproject_label = "project:transition-smoke"\ndefault_priority = "P2"\n',
+            + '\n[development_backlog]\nrepository = "lehard/development-backlog"\nproject_label = "project:transition-smoke"\ndefault_priority = "P2"\nproject_owner = "lehard"\nproject_number = 1\n',
             encoding="utf-8",
         )
         after = rollout_project.platform_config_contract(self.root)
         rollout_project.require_platform_config_contract(before, after)
         after["development_backlog"]["default_priority"] = "P1"
+        with self.assertRaisesRegex(ValueError, "beyond platform_version"):
+            rollout_project.require_platform_config_contract(before, after)
+
+    def test_platform_config_contract_allows_missing_project_locator_migration(self) -> None:
+        before = rollout_project.platform_config_contract(self.root)
+        before["development_backlog"] = {
+            "repository": "lehard/development-backlog",
+            "project_label": "project:transition-smoke",
+            "default_priority": "P2",
+        }
+        after = rollout_project.expected_development_backlog_migration(before)
+        assert after is not None
+        rollout_project.require_platform_config_contract(before, after)
+        after["development_backlog"]["project_number"] = 2
+        with self.assertRaisesRegex(ValueError, "beyond platform_version"):
+            rollout_project.require_platform_config_contract(before, after)
+
+    def test_platform_config_contract_uses_reviewed_copier_locator_answers(self) -> None:
+        before = rollout_project.platform_config_contract(self.root)
+        after = rollout_project.expected_development_backlog_migration(
+            before,
+            project_owner="example-owner",
+            project_number=42,
+        )
+        assert after is not None
+        rollout_project.require_platform_config_contract(
+            before,
+            after,
+            project_owner="example-owner",
+            project_number=42,
+        )
         with self.assertRaisesRegex(ValueError, "beyond platform_version"):
             rollout_project.require_platform_config_contract(before, after)
 

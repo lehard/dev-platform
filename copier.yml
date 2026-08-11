@@ -117,3 +117,13 @@ development_backlog_default_priority:
     - P2
     - P3
   default: P2
+
+development_backlog_project_owner:
+  type: str
+  help: GitHub user login that owns the Development Backlog Project
+  default: "lehard"
+
+development_backlog_project_number:
+  type: int
+  help: Stable GitHub Project number used for managed lifecycle status projection
+  default: 1
