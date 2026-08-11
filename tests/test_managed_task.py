@@ -167,6 +167,7 @@ class ManagedPackageTests(unittest.TestCase):
 
             with (
                 patch.object(start_managed_task, "discover_task", return_value=package),
+                patch.object(start_managed_task, "check_schema"),
                 patch.object(start_managed_task, "start_task", return_value=started) as start,
                 patch.object(start_managed_task, "import_task", side_effect=materialize),
             ):
@@ -184,6 +185,7 @@ class ManagedPackageTests(unittest.TestCase):
         started = start_managed_task.StartedTask(profile="standard", branch="agent/add-managed-backlog-intake", task_root=root)
         with (
             patch.object(start_managed_task, "discover_task", return_value=package),
+            patch.object(start_managed_task, "check_schema"),
             patch.object(start_managed_task, "start_task", return_value=started),
             patch.object(start_managed_task, "import_task", side_effect=managed_task.ManagedTaskError("validation failed")),
             patch.object(start_managed_task, "cleanup_started_task") as cleanup,
@@ -199,6 +201,18 @@ class ManagedPackageTests(unittest.TestCase):
             patch.object(start_managed_task, "start_task") as task_start,
         ):
             with self.assertRaisesRegex(managed_task.ManagedTaskError, "wrong target"):
+                start_managed_task.start_managed_task(root, "lehard/development-backlog#1")
+        task_start.assert_not_called()
+
+    def test_schema_failure_creates_no_task_state(self) -> None:
+        package = managed_task.parse_package([package_body()], "lehard/development-backlog#1")
+        root = Path("/tmp/integration")
+        with (
+            patch.object(start_managed_task, "discover_task", return_value=package),
+            patch.object(start_managed_task, "check_schema", side_effect=managed_task.ManagedTaskError("schema mismatch")),
+            patch.object(start_managed_task, "start_task") as task_start,
+        ):
+            with self.assertRaisesRegex(managed_task.ManagedTaskError, "schema mismatch"):
                 start_managed_task.start_managed_task(root, "lehard/development-backlog#1")
         task_start.assert_not_called()
 

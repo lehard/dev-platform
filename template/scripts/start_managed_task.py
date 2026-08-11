@@ -7,13 +7,14 @@ import subprocess
 from pathlib import Path
 
 from _platform_common import current_worktree_root
-from managed_task import ManagedTaskError, discover_task, import_task
+from managed_task import ManagedTaskError, check_schema, discover_task, import_task
 from start_task import StartedTask, cleanup_started_task, start_task
 
 
 def start_managed_task(root: Path, reference: str, scope: str = "") -> tuple[StartedTask, str, bool]:
     """Discover before task creation, then materialize in the task checkout only."""
     package = discover_task(root, reference)
+    check_schema(root, package)
     started = start_task(
         root,
         package.change,
