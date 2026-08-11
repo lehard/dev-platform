@@ -72,6 +72,31 @@ class OpenSpecLifecycleTests(unittest.TestCase):
             )
             lifecycle.require_ready(change)
 
+    def test_platform_archive_readiness_requires_generated_automated_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            change = self.make_change(
+                Path(tmp),
+                "done",
+                "- [x] one\n",
+                "OpenSpec-Verify: PASS\nVerification-Method: equivalent-review\n",
+            )
+            with self.assertRaises(SystemExit):
+                lifecycle.require_ready(change, platform_owned=True)
+
+    def test_platform_archive_readiness_accepts_executed_automated_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            change = self.make_change(
+                Path(tmp),
+                "done",
+                "- [x] one\n",
+                "OpenSpec-Verify: PASS\nVerification-Method: equivalent-review\nAutomated-Checks-Evidence: automated-checks.json\n",
+            )
+            (change / "automated-checks.json").write_text(
+                '{"selection":{"state":"ready","command_count":1},"outcome":"success","executed_commands":[{"command":"pytest","outcome":"success"}]}\n',
+                encoding="utf-8",
+            )
+            lifecycle.require_ready(change, platform_owned=True)
+
     def test_archive_directory_is_not_scanned_as_active(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

@@ -1,16 +1,19 @@
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import shutil
 import subprocess
 from pathlib import Path
 
-from _platform_common import current_worktree_root
+from _platform_common import current_worktree_root, harness_mode, read_platform_config
 
 TASK_RE = re.compile(r"^\s*-\s*\[([ xX])\]\s+")
 VERIFY_MARKER = "OpenSpec-Verify: PASS"
 VERIFY_METHOD_PREFIX = "Verification-Method:"
+AUTOMATED_EVIDENCE_PREFIX = "Automated-Checks-Evidence:"
+AUTOMATED_EVIDENCE_FILE = "automated-checks.json"
 
 
 def active_changes(root: Path) -> list[Path]:
@@ -45,6 +48,31 @@ def verification_passed(change: Path) -> bool:
     return has_marker and has_method
 
 
+def require_automated_evidence(change: Path) -> None:
+    receipt = change / "verification.md"
+    lines = [line.strip() for line in receipt.read_text(encoding="utf-8").splitlines()]
+    expected_marker = f"{AUTOMATED_EVIDENCE_PREFIX} {AUTOMATED_EVIDENCE_FILE}"
+    if expected_marker not in lines:
+        raise SystemExit(
+            f"{change.name}: platform-owned verification must cite '{expected_marker}' so the receipt cannot claim checks that did not run"
+        )
+    path = change / AUTOMATED_EVIDENCE_FILE
+    try:
+        evidence = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise SystemExit(f"{change.name}: missing readable automated check evidence: {path}") from exc
+    selection = evidence.get("selection")
+    executed = evidence.get("executed_commands")
+    if not isinstance(selection, dict) or selection.get("state") != "ready":
+        raise SystemExit(f"{change.name}: automated evidence does not show valid applicable platform coverage")
+    if evidence.get("outcome") != "success" or not isinstance(executed, list):
+        raise SystemExit(f"{change.name}: automated evidence does not show successful executed commands")
+    if len(executed) != selection.get("command_count") or not executed:
+        raise SystemExit(f"{change.name}: automated evidence command count does not match the selected platform coverage")
+    if any(item.get("outcome") != "success" for item in executed if isinstance(item, dict)):
+        raise SystemExit(f"{change.name}: automated evidence contains a failed command")
+
+
 def completed_active_changes(root: Path) -> list[str]:
     stale: list[str] = []
     for change in active_changes(root):
@@ -66,7 +94,7 @@ def check_hygiene(root: Path) -> int:
     return 1
 
 
-def require_ready(change: Path) -> None:
+def require_ready(change: Path, *, platform_owned: bool = False) -> None:
     if not change.exists() or not change.is_dir():
         raise SystemExit(f"Active OpenSpec change not found: {change.name}")
     total, incomplete = task_state(change)
@@ -80,6 +108,8 @@ def require_ready(change: Path) -> None:
             f"Run /opsx:verify when available (or an equivalent documented OpenSpec verification), resolve material findings, "
             f"then record '{VERIFY_MARKER}' and a '{VERIFY_METHOD_PREFIX} <method>' line in verification.md."
         )
+    if platform_owned:
+        require_automated_evidence(change)
 
 
 def run_checked(command: list[str], root: Path) -> None:
@@ -91,7 +121,14 @@ def run_checked(command: list[str], root: Path) -> None:
 
 def archive_change(root: Path, name: str) -> int:
     change = root / "openspec" / "changes" / name
-    require_ready(change)
+    platform_owned = harness_mode(read_platform_config(root)) == "platform"
+    if platform_owned:
+        evidence = change / AUTOMATED_EVIDENCE_FILE
+        run_checked(
+            ["python3", "scripts/select_checks.py", "--base", "origin/main", "--execute", "--evidence", str(evidence)],
+            root,
+        )
+    require_ready(change, platform_owned=platform_owned)
     executable = shutil.which("openspec")
     if not executable:
         raise SystemExit("OpenSpec CLI is required to archive a verified change")
