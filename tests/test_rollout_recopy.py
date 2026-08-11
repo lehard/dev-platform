@@ -18,6 +18,7 @@ class GuardedRecopyTests(unittest.TestCase):
         root = Path(self.tmp.name)
         (root / ".dev-platform.toml").write_text(
             'platform_version = "1.2.3"\n'
+            'project_slug = "transition-smoke"\n'
             'harness_mode = "project"\n'
             'workflow_profile = "standard"\n'
             'project_required_files = ["scripts/project_helper.py"]\n',
@@ -71,6 +72,19 @@ class GuardedRecopyTests(unittest.TestCase):
         path.write_text(path.read_text(encoding="utf-8").replace('1.2.3', '1.3.1'), encoding="utf-8")
         after = rollout_project.platform_config_contract(self.root)
         self.assertEqual(before, after)
+
+    def test_platform_config_contract_allows_only_the_expected_backlog_migration(self) -> None:
+        before = rollout_project.platform_config_contract(self.root)
+        self.root.joinpath(".dev-platform.toml").write_text(
+            self.root.joinpath(".dev-platform.toml").read_text(encoding="utf-8")
+            + '\n[development_backlog]\nrepository = "lehard/development-backlog"\nproject_label = "project:transition-smoke"\ndefault_priority = "P2"\n',
+            encoding="utf-8",
+        )
+        after = rollout_project.platform_config_contract(self.root)
+        rollout_project.require_platform_config_contract(before, after)
+        after["development_backlog"]["default_priority"] = "P1"
+        with self.assertRaisesRegex(ValueError, "beyond platform_version"):
+            rollout_project.require_platform_config_contract(before, after)
 
     def test_snapshot_covers_dynamic_required_files_and_product_ci(self) -> None:
         snapshot = rollout_project.snapshot_existing_project_owned(self.root)
