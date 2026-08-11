@@ -96,3 +96,24 @@ agent_tools:
   type: str
   help: Comma-separated OpenSpec tool IDs
   default: "claude,codex"
+
+development_backlog_repository:
+  type: str
+  help: Shared GitHub repository that stores managed Development Backlog tasks
+  default: "lehard/development-backlog"
+
+development_backlog_project_label:
+  type: str
+  help: Project label used to scope this repository's managed Backlog tasks
+  default: "project:{{ project_slug }}"
+  validator: "{% if not development_backlog_project_label.startswith('project:') %}development_backlog_project_label must start with project:{% endif %}"
+
+development_backlog_default_priority:
+  type: str
+  help: Default priority for newly authored managed tasks
+  choices:
+    - P0
+    - P1
+    - P2
+    - P3
+  default: P2

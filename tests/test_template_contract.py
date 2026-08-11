@@ -133,6 +133,20 @@ class TemplateContractTests(unittest.TestCase):
         self.assertIn("scripts/start_managed_task.py", doctor)
         self.assertIn("stops before OpenSpec apply", workflow)
 
+    def test_managed_task_authoring_is_configured_once_and_claude_keeps_the_bridge(self) -> None:
+        copier = (ROOT / "copier.yml").read_text(encoding="utf-8")
+        config = (ROOT / "template" / ".dev-platform.toml.jinja").read_text(encoding="utf-8")
+        agents = (ROOT / "template" / "AGENTS.md.jinja").read_text(encoding="utf-8")
+        claude = (ROOT / "template" / "CLAUDE.md.jinja").read_text(encoding="utf-8")
+        helper = (ROOT / "template" / "scripts" / "managed_task.py").read_text(encoding="utf-8")
+        for value in ("development_backlog_repository", "development_backlog_project_label", "development_backlog_default_priority"):
+            self.assertIn(value, copier)
+        self.assertIn("[development_backlog]", config)
+        self.assertIn("create --bundle", agents)
+        self.assertIn("--confirm-distinct", agents)
+        self.assertEqual(claude.count("managed"), 0)
+        self.assertIn("Authoring stops here", helper)
+
     def test_finish_task_has_openspec_hygiene_and_serialized_direct_integration(self) -> None:
         text = (ROOT / "template" / "scripts" / "finish_task.py").read_text(encoding="utf-8")
         self.assertIn("run_openspec_hygiene(work)", text)

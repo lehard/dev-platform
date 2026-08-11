@@ -52,6 +52,15 @@ class RenderedWorkflowModeTests(unittest.TestCase):
         platform_doctor.check_rendered_workflow_mode(root, {"publish_mode": "direct"}, failures)
         self.assertEqual(failures[0], 0)
 
+    def test_backlog_config_allows_legacy_renders_but_rejects_partial_authoring_contract(self) -> None:
+        failures = [0]
+        platform_doctor.check_development_backlog_config({}, failures)
+        self.assertEqual(failures[0], 0)
+        platform_doctor.check_development_backlog_config(
+            {"development_backlog": {"repository": "invalid", "project_label": "dev-platform", "default_priority": "P9"}}, failures
+        )
+        self.assertEqual(failures[0], 3)
+
 
 if __name__ == "__main__":
     unittest.main()

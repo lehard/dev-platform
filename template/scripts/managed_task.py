@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Managed task intake."""
+"""Managed task intake and authoring."""
 from __future__ import annotations
 
 import argparse
@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 from _platform_common import current_worktree_root, github_cli_env, harness_mode, main_root, profile, read_platform_config, run_git
 
@@ -26,6 +26,10 @@ REF_RE = re.compile(r"^([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)#([1-9][0-9]*)$")
 CHANGE_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 PROVENANCE = ".managed-task.json"
+AUTHORING_RECEIPT_RE = re.compile(r"<!--\s*managed-task:authoring:([0-9a-f]{64})\s*-->")
+ISSUE_TARGET_RE = re.compile(r"^\*\*Target repository:\*\*\s*`([^`]+)`", re.MULTILINE)
+ISSUE_CHANGE_RE = re.compile(r"^\*\*OpenSpec change:\*\*\s*`([^`]+)`", re.MULTILINE)
+PRIORITY_RE = re.compile(r"^P[0-3]$")
 
 
 class ManagedTaskError(RuntimeError):
@@ -41,6 +45,22 @@ class Package:
     artifacts: tuple[str, ...]
     contents: dict[str, str]
     revision: str
+
+
+@dataclass(frozen=True)
+class AuthoringConfig:
+    repository: str
+    project_label: str
+    default_priority: str
+
+
+@dataclass(frozen=True)
+class AuthoringBundle:
+    title: str
+    issue_body: str
+    change: str
+    artifacts: tuple[str, ...]
+    contents: dict[str, str]
 
 
 def repo(value: str) -> str:
@@ -80,8 +100,8 @@ def origin_repository(root: Path) -> str:
     raise ManagedTaskError("origin must be a standard GitHub HTTPS or SSH owner/repo remote")
 
 
-def run(command: list[str], root: Path, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
-    result = subprocess.run(command, cwd=root, env=env, text=True, capture_output=True)
+def run(command: list[str], root: Path, env: dict[str, str] | None = None, input_text: str | None = None) -> subprocess.CompletedProcess[str]:
+    result = subprocess.run(command, cwd=root, env=env, text=True, capture_output=True, input=input_text)
     if result.returncode:
         detail = (result.stderr or result.stdout).strip()
         raise ManagedTaskError(f"{' '.join(command[:2])} failed: {detail or 'unknown error'}")
@@ -125,6 +145,67 @@ def safe_artifact(value: str) -> str:
     ):
         raise ManagedTaskError(f"unsafe managed OpenSpec artifact path: {value!r}")
     return value
+
+
+def authoring_config(root: Path) -> AuthoringConfig:
+    value = read_platform_config(root).get("development_backlog")
+    if not isinstance(value, dict):
+        raise ManagedTaskError("Development Backlog authoring is not configured; add [development_backlog] to .dev-platform.toml")
+    repository = value.get("repository")
+    project_label = value.get("project_label")
+    default_priority = value.get("default_priority")
+    if not isinstance(repository, str):
+        raise ManagedTaskError("development_backlog.repository must be owner/name")
+    if not isinstance(project_label, str) or not re.fullmatch(r"project:[A-Za-z0-9_.-]+", project_label):
+        raise ManagedTaskError("development_backlog.project_label must be a project:<slug> label")
+    if not isinstance(default_priority, str) or not PRIORITY_RE.fullmatch(default_priority):
+        raise ManagedTaskError("development_backlog.default_priority must be one of P0, P1, P2 or P3")
+    return AuthoringConfig(repo(repository), project_label, default_priority)
+
+
+def priority_label(value: str) -> str:
+    if not PRIORITY_RE.fullmatch(value):
+        raise ManagedTaskError("priority must be one of P0, P1, P2 or P3")
+    return f"priority:{value}"
+
+
+def contained_file(root: Path, relative: str) -> Path:
+    path = (root / relative).resolve()
+    if root not in path.parents or not path.is_file():
+        raise ManagedTaskError(f"authoring bundle artifact is missing or escapes the bundle: {relative!r}")
+    return path
+
+
+def load_authoring_bundle(value: str) -> AuthoringBundle:
+    root = Path(value).expanduser().resolve()
+    if not root.is_dir():
+        raise ManagedTaskError("authoring bundle must be a directory")
+    manifest_path = contained_file(root, "manifest.json")
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ManagedTaskError(f"authoring bundle manifest is not valid JSON: {exc.msg}") from exc
+    if not isinstance(manifest, dict):
+        raise ManagedTaskError("authoring bundle manifest must be a JSON object")
+    title = manifest.get("title")
+    change = manifest.get("change")
+    declared = manifest.get("artifacts")
+    if not isinstance(title, str) or not title.strip():
+        raise ManagedTaskError("authoring bundle manifest needs a non-empty title")
+    if not isinstance(change, str) or not CHANGE_RE.fullmatch(change):
+        raise ManagedTaskError("authoring bundle change must be a lowercase OpenSpec change name")
+    if not isinstance(declared, list) or not declared or not all(isinstance(item, str) for item in declared):
+        raise ManagedTaskError("authoring bundle artifacts must be a non-empty ordered list")
+    artifacts = tuple(safe_artifact(item) for item in declared)
+    if len(set(artifacts)) != len(artifacts):
+        raise ManagedTaskError("authoring bundle artifacts must not contain duplicates")
+    issue_body = contained_file(root, "issue.md").read_text(encoding="utf-8")
+    if not issue_body.strip():
+        raise ManagedTaskError("authoring bundle issue.md must not be empty")
+    contents = {path: contained_file(root, path).read_text(encoding="utf-8") for path in artifacts}
+    if any(not content.strip() for content in contents.values()):
+        raise ManagedTaskError("authoring bundle artifacts must not be empty")
+    return AuthoringBundle(title.strip(), issue_body, change, artifacts, contents)
 
 
 def revision(manifest: dict[str, Any], artifacts: tuple[str, ...], contents: dict[str, str]) -> str:
@@ -209,6 +290,78 @@ def check_schema(root: Path, package: Package) -> None:
         raise ManagedTaskError("managed package cannot satisfy the current OpenSpec schema")
 
 
+def package_for_bundle(bundle: AuthoringBundle, source_issue: str, target_repository: str, prepared_against: str) -> Package:
+    manifest = {
+        "version": 1,
+        "source_issue": source_issue,
+        "target_repository": target_repository,
+        "change": bundle.change,
+        "prepared_against": prepared_against,
+        "artifacts": list(bundle.artifacts),
+    }
+    return Package(
+        source_issue=source_issue,
+        target_repository=target_repository,
+        change=bundle.change,
+        prepared_against=prepared_against,
+        artifacts=bundle.artifacts,
+        contents=bundle.contents,
+        revision=revision(manifest, bundle.artifacts, bundle.contents),
+    )
+
+
+def serialize_package(package: Package) -> str:
+    manifest = {
+        "version": 1,
+        "source_issue": package.source_issue,
+        "target_repository": package.target_repository,
+        "change": package.change,
+        "prepared_against": package.prepared_against,
+        "artifacts": list(package.artifacts),
+    }
+    fence = "`" * 3
+    parts = [f"<!-- {PACKAGE} -->\n\n## Managed OpenSpec package\n\n{fence}json\n", json.dumps(manifest, indent=2), f"\n{fence}\n"]
+    for path in package.artifacts:
+        parts.extend((f"\n### OpenSpec artifact: `{path}`\n<!-- managed-openspec:file:{path} -->\n", package.contents[path], "<!-- managed-openspec:endfile -->\n"))
+    return "".join(parts)
+
+
+def authoring_receipt(bundle: AuthoringBundle, target_repository: str, prepared_against: str) -> str:
+    digest = hashlib.sha256()
+    for value in (target_repository, prepared_against, bundle.title, bundle.issue_body, bundle.change):
+        digest.update(value.encode())
+        digest.update(bytes([0]))
+    for path in bundle.artifacts:
+        digest.update(path.encode())
+        digest.update(bytes([0]))
+        digest.update(bundle.contents[path].encode())
+        digest.update(bytes([0]))
+    return digest.hexdigest()
+
+
+def validate_authoring_bundle(root: Path, bundle: AuthoringBundle, target_repository: str, prepared_against: str) -> None:
+    """Validate in a short-lived real change root so the current CLI owns syntax checks."""
+    if shutil.which("openspec") is None:
+        raise ManagedTaskError("installed OpenSpec CLI is required")
+    destination = change_root(root, bundle.change)
+    if destination.exists():
+        raise ManagedTaskError(f"OpenSpec change {bundle.change!r} already exists; authoring must not overwrite active local planning")
+    package = package_for_bundle(bundle, "placeholder/issue#1", target_repository, prepared_against)
+    created = False
+    try:
+        run_json(["openspec", "new", "change", bundle.change, "--json"], root)
+        created = True
+        if not destination.is_dir():
+            raise ManagedTaskError("OpenSpec CLI did not create the expected temporary change root")
+        check_schema(root, package)
+        for relative in package.artifacts:
+            atomic_write((destination / relative).resolve(), package.contents[relative])
+        validate_change(root, bundle.change)
+    finally:
+        if created and destination.is_dir():
+            shutil.rmtree(destination)
+
+
 def change_root(root: Path, change: str) -> Path:
     return (root / "openspec" / "changes" / change).resolve()
 
@@ -233,6 +386,139 @@ def target_main(root: Path) -> str:
     branch = str(read_platform_config(root).get("main_branch", "main"))
     run(["git", "fetch", "--prune", "origin", branch], root)
     return run(["git", "rev-parse", f"refs/remotes/origin/{branch}"], root).stdout.strip().lower()
+
+
+def open_backlog_issues(root: Path, config: AuthoringConfig) -> list[dict[str, Any]]:
+    env = github_cli_env(root)
+    if env is None:
+        raise ManagedTaskError("GitHub CLI authentication is required; run gh auth login and retry")
+    endpoint = f"repos/{config.repository}/issues?state=open&per_page=100&labels={quote(config.project_label, safe='')}"
+    value = run_json(["gh", "api", "--paginate", endpoint], root, env)
+    if not isinstance(value, list) or any(not isinstance(item, dict) for item in value):
+        raise ManagedTaskError("GitHub returned an invalid open-issue list for duplicate checking")
+    return [item for item in value if "pull_request" not in item]
+
+
+def validate_backlog_labels(root: Path, config: AuthoringConfig, priority: str) -> None:
+    """Fail before Issue creation when configured labels cannot be applied."""
+    env = github_cli_env(root)
+    if env is None:
+        raise ManagedTaskError("GitHub CLI authentication is required; run gh auth login and retry")
+    for label in (config.project_label, priority_label(priority)):
+        value = run_json(["gh", "api", f"repos/{config.repository}/labels/{quote(label, safe='')}"], root, env)
+        if not isinstance(value, dict) or value.get("name") != label:
+            raise ManagedTaskError(f"configured Development Backlog label is unavailable: {label}")
+
+
+def issue_metadata(issue: dict[str, Any]) -> tuple[str | None, str | None]:
+    body = str(issue.get("body") or "")
+    target_match = ISSUE_TARGET_RE.search(body)
+    change_match = ISSUE_CHANGE_RE.search(body)
+    try:
+        target = repo(target_match.group(1)) if target_match else None
+    except ManagedTaskError:
+        target = None
+    change = change_match.group(1) if change_match else None
+    return target, change
+
+
+def candidate_summary(issues: list[dict[str, Any]], target_repository: str, change: str, receipt: str) -> tuple[dict[str, Any] | None, list[dict[str, Any]], dict[str, Any] | None]:
+    resumed: dict[str, Any] | None = None
+    exact: dict[str, Any] | None = None
+    candidates: list[dict[str, Any]] = []
+    for issue in issues:
+        body = str(issue.get("body") or "")
+        if receipt in AUTHORING_RECEIPT_RE.findall(body):
+            resumed = issue
+            continue
+        target, existing_change = issue_metadata(issue)
+        if target != target_repository:
+            continue
+        if existing_change == change:
+            exact = issue
+        else:
+            candidates.append(issue)
+    return exact, candidates, resumed
+
+
+def issue_number(issue: dict[str, Any]) -> int:
+    value = issue.get("number")
+    if not isinstance(value, int) or value < 1:
+        raise ManagedTaskError("GitHub returned an issue without a valid number")
+    return value
+
+
+def summarize_candidates(issues: list[dict[str, Any]]) -> str:
+    return ", ".join(f"#{issue_number(item)} {str(item.get('title') or '').strip()!r}" for item in issues[:10])
+
+
+def create_issue(root: Path, config: AuthoringConfig, bundle: AuthoringBundle, target_repository: str, priority: str, receipt: str) -> int:
+    env = github_cli_env(root)
+    if env is None:
+        raise ManagedTaskError("GitHub CLI authentication is required; run gh auth login and retry")
+    body = (
+        f"**Target repository:** `{target_repository}`\n\n"
+        f"**OpenSpec change:** `{bundle.change}`\n\n"
+        + bundle.issue_body.rstrip()
+        + f"\n\n<!-- managed-task:authoring:{receipt} -->\n"
+    )
+    result = run(
+        [
+            "gh", "issue", "create", "--repo", config.repository, "--title", bundle.title,
+            "--body", body, "--label", config.project_label, "--label", priority_label(priority),
+        ],
+        root,
+        env,
+    )
+    _, number = issue_ref(result.stdout.strip())
+    return number
+
+
+def publish_package(root: Path, config: AuthoringConfig, package: Package) -> bool:
+    bodies = issue_bodies(root, config.repository, int(package.source_issue.rsplit("#", 1)[1]))
+    marker_count = sum(len(MARKER_RE.findall(body)) for body in bodies)
+    if marker_count:
+        existing = parse_package(bodies, package.source_issue)
+        if existing.revision != package.revision:
+            raise ManagedTaskError("existing managed package for the authoring receipt differs; refusing to publish another one")
+        return True
+    env = github_cli_env(root)
+    if env is None:
+        raise ManagedTaskError("GitHub CLI authentication is required; run gh auth login and retry")
+    endpoint = f"repos/{config.repository}/issues/{int(package.source_issue.rsplit('#', 1)[1])}/comments"
+    run(["gh", "api", "--method", "POST", endpoint, "--input", "-"], root, env, input_text=serialize_package(package))
+    return False
+
+
+def create_task(root: Path, bundle_path: str, requested_priority: str | None, confirm_distinct: bool) -> tuple[Package, bool, bool]:
+    config = authoring_config(root)
+    bundle = load_authoring_bundle(bundle_path)
+    priority = requested_priority or config.default_priority
+    priority_label(priority)
+    target_repository = origin_repository(root)
+    prepared_against = target_main(root)
+    validate_backlog_labels(root, config, priority)
+    validate_authoring_bundle(root, bundle, target_repository, prepared_against)
+    receipt = authoring_receipt(bundle, target_repository, prepared_against)
+    issues = open_backlog_issues(root, config)
+    exact, candidates, resumed = candidate_summary(issues, target_repository, bundle.change, receipt)
+    if resumed is not None:
+        number = issue_number(resumed)
+        package = package_for_bundle(bundle, f"{config.repository}#{number}", target_repository, prepared_against)
+        already_published = publish_package(root, config, package)
+        return package, True, already_published
+    if exact is not None:
+        raise ManagedTaskError(f"clear duplicate already exists: {config.repository}#{issue_number(exact)}; no issue was created")
+    if candidates and not confirm_distinct:
+        raise ManagedTaskError(
+            "potential same-project/target tasks require an explicit scope decision: "
+            + summarize_candidates(candidates)
+            + "; review them, then rerun with --confirm-distinct if this is a separate change"
+        )
+    number = create_issue(root, config, bundle, target_repository, priority, receipt)
+    package = package_for_bundle(bundle, f"{config.repository}#{number}", target_repository, prepared_against)
+    already_published = publish_package(root, config, package)
+    return package, False, already_published
 
 
 def read_provenance(root: Path) -> dict[str, Any]:
@@ -325,9 +611,30 @@ def import_task(root: Path, reference: str, *, expected_revision: str | None = N
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Import one managed OpenSpec package without starting implementation.")
-    parser.add_argument("issue", help="owner/repo#N or GitHub issue URL")
+    parser = argparse.ArgumentParser(description="Import or author one managed OpenSpec task without starting implementation.")
+    subcommands = parser.add_subparsers(dest="command")
+    create = subcommands.add_parser("create", help="publish a prepared managed-task bundle and stop")
+    create.add_argument("--bundle", required=True, help="directory containing manifest.json, issue.md and declared OpenSpec artifacts")
+    create.add_argument("--priority", help="override configured priority (P0, P1, P2 or P3)")
+    create.add_argument("--confirm-distinct", action="store_true", help="confirm that bounded same-project/target candidates are separate work")
+    parser.add_argument("issue", nargs="?", help="owner/repo#N or GitHub issue URL to import")
     args = parser.parse_args()
+    if args.command == "create":
+        try:
+            package, resumed, already_published = create_task(
+                current_worktree_root(), args.bundle, args.priority, args.confirm_distinct
+            )
+        except ManagedTaskError as exc:
+            print(f"Managed task authoring blocked: {exc}")
+            return 2
+        state = "resumed" if resumed else "created"
+        package_state = "already present" if already_published else "published"
+        print(f"Managed task {state}: {package.source_issue} ({package.change})")
+        print(f"Managed OpenSpec package {package_state}: {PACKAGE}")
+        print("Authoring stops here; import the task later only when the user explicitly requests execution.")
+        return 0
+    if not args.issue:
+        parser.error("an issue is required for import, or use create --bundle <directory>")
     try:
         package, current_main, reused = import_task(current_worktree_root(), args.issue)
     except ManagedTaskError as exc:

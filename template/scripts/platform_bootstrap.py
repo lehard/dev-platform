@@ -10,6 +10,7 @@ from pathlib import Path
 
 SEMVER_TAG_RE = re.compile(r"^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
 PLATFORM_VERSION_RE = re.compile(r'^platform_version\s*=\s*"[^"]*"\s*$', re.MULTILINE)
+PROJECT_SLUG_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
 ALL_OPENSPEC_WORKFLOWS = ["propose", "explore", "new", "continue", "apply", "ff", "sync", "archive", "bulk-archive", "verify", "onboard"]
 
 
@@ -49,6 +50,26 @@ def sync_platform_version(root: Path) -> None:
         print(f"Synchronized .dev-platform.toml platform_version to {commit[1:]}")
 
 
+def sync_development_backlog_config(root: Path) -> None:
+    """Add the platform-owned authoring section without rewriting project config."""
+    config = load_config(root)
+    if "development_backlog" in config:
+        return
+    project_slug = config.get("project_slug")
+    if not isinstance(project_slug, str) or not PROJECT_SLUG_RE.fullmatch(project_slug):
+        raise RuntimeError(".dev-platform.toml is missing a safe project_slug for Development Backlog migration")
+    config_path = root / ".dev-platform.toml"
+    text = config_path.read_text(encoding="utf-8").rstrip()
+    addition = (
+        "\n\n[development_backlog]\n"
+        'repository = "lehard/development-backlog"\n'
+        f'project_label = "project:{project_slug}"\n'
+        'default_priority = "P2"\n'
+    )
+    config_path.write_text(text + addition, encoding="utf-8")
+    print("Added Development Backlog authoring configuration.")
+
+
 def openspec_profile() -> dict[str, object]:
     return {"featureFlags": {}, "profile": "custom", "delivery": "both", "workflows": ALL_OPENSPEC_WORKFLOWS}
 
@@ -66,6 +87,7 @@ def initialize_openspec(root: Path, executable: str, tools: str) -> None:
 def main() -> int:
     root = Path.cwd().resolve()
     sync_platform_version(root)
+    sync_development_backlog_config(root)
     config = load_config(root)
     main_branch = str(config.get("main_branch", "main"))
     tools = str(config.get("agent_tools", "claude,codex"))
