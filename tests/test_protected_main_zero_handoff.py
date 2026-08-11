@@ -104,6 +104,10 @@ class ProtectedMainZeroHandoffTests(unittest.TestCase):
         env = self.fake_gh(
             'if [ "$1" = "auth" ] && [ "$2" = "status" ]; then exit 0; fi\n'
             'if [ "$1" = "pr" ] && [ "$2" = "view" ]; then\n'
+            '  if [ "$4" = "--json" ] && [ "$5" = "state,headRefOid" ]; then\n'
+            '    head_sha=$(git rev-parse "$3" 2>/dev/null) || exit 1;\n'
+            '    printf \'{"state":"OPEN","headRefOid":"%s"}\\n\' "$head_sha"; exit 0;\n'
+            '  fi;\n'
             '  if [ "$4" = "--json" ] && [ "$5" = "state,mergedAt" ]; then\n'
             '    main_sha=$(git --git-dir "$FAKE_REMOTE" rev-parse refs/heads/main 2>/dev/null) || exit 1;\n'
             '    branch_sha=$(git --git-dir "$FAKE_REMOTE" rev-parse "refs/heads/$3" 2>/dev/null) || exit 1;\n'
@@ -112,7 +116,7 @@ class ProtectedMainZeroHandoffTests(unittest.TestCase):
             '  exit 1;\n'
             'fi\n'
             'if [ "$1" = "pr" ] && [ "$2" = "create" ]; then echo "https://example.invalid/pr/1"; exit 0; fi\n'
-            'if [ "$1" = "pr" ] && [ "$2" = "checks" ]; then echo "platform-ci pass"; exit 0; fi\n'
+            'if [ "$1" = "pr" ] && [ "$2" = "checks" ]; then echo \'[{"name":"platform-ci","state":"SUCCESS","workflow":"platform-ci","link":""}]\'; exit 0; fi\n'
             'if [ "$1" = "pr" ] && [ "$2" = "merge" ]; then sha=$(git --git-dir "$FAKE_REMOTE" rev-parse "refs/heads/$3") || exit 1; git --git-dir "$FAKE_REMOTE" update-ref refs/heads/main "$sha" || exit 1; exit 0; fi\n'
             'exit 1'
         )
