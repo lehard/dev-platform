@@ -503,6 +503,35 @@ class ManagedPackageTests(unittest.TestCase):
             self.assertTrue(resumed); self.assertFalse(already)
             create.assert_not_called(); publish.assert_called_once()
 
+    def test_create_resumes_partial_issue_after_main_advances(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            authoring_config(root)
+            bundle_root = root / "bundle"
+            bundle = authoring_bundle(bundle_root)
+            partial = {
+                "number": 8,
+                "title": bundle.title,
+                "body": (
+                    "**Target repository:** `lehard/dev-platform`\n\n"
+                    "**OpenSpec change:** `author-managed-task`\n\n"
+                    "<!-- managed-task:authoring:" + "a" * 64 + " -->"
+                ),
+            }
+            with (
+                patch.object(managed_task, "origin_repository", return_value="lehard/dev-platform"),
+                patch.object(managed_task, "target_main", return_value="f" * 40),
+                patch.object(managed_task, "validate_backlog_labels"),
+                patch.object(managed_task, "validate_authoring_bundle"),
+                patch.object(managed_task, "open_backlog_issues", return_value=[partial]),
+                patch.object(managed_task, "create_issue") as create,
+                patch.object(managed_task, "publish_package", return_value=False) as publish,
+            ):
+                package, resumed, already = managed_task.create_task(root, str(bundle_root), None, False)
+            self.assertEqual(package.source_issue, "lehard/development-backlog#8")
+            self.assertTrue(resumed); self.assertFalse(already)
+            create.assert_not_called(); publish.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()
