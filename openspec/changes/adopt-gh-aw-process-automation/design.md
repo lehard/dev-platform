@@ -1,135 +1,129 @@
 ## Context
 
-`dev-platform` already has a local structured friction log and a central GitHub issue inbox, but the current path between them is intentionally manual. That protects raw evidence, yet it leaves capture and promotion dependent on agent memory and human follow-up. The platform also has no need to invent a local scheduler now that `gh-aw` can run Codex inside GitHub Actions on events and schedules with read-only analysis and validated safe outputs.
+The change started when `dev-platform` had three gaps at once: no cloud review runtime, a manual friction-promotion path, and no structural completion trigger that forced an agent to decide whether meaningful friction had occurred. The first gap is now solved and proven in production-like acceptance: pinned `gh-aw` workflows run Codex inside GitHub Actions with bounded cost/runtime, read-only analysis and constrained `safe-outputs`.
 
-This design treats GitHub Issues as the visible process backlog and `gh-aw` as an external, replaceable automation layer. It does not make cloud agents part of deterministic build/test/release correctness.
+Two other platform changes have since landed and materially simplify the remaining design:
+
+- `durable-publication-recovery` provides the stable platform-owned `finish_task`/publication boundary and resumable GitHub-backed lifecycle.
+- managed-task authoring provides a separate intentional path from an accepted human decision to `lehard/development-backlog` plus OpenSpec. Process/friction issues therefore must remain evidence, not a second managed-task queue.
+
+The remaining design should optimize for reliability and few moving parts, not for a generalized self-improving agent framework.
 
 ## Goals
 
-- Minimize human participation in process-problem capture and review.
-- Reuse maintained GitHub automation rather than create a scheduler/daemon/background-agent subsystem.
-- Keep the first version small enough to diagnose and trust.
-- Preserve raw local evidence privacy and fail safely when GitHub/API access is unavailable.
-- Prevent duplicate issue spam.
-- Keep one explicit human decision before code-changing remediation.
-- Make the cloud layer removable without breaking local development lifecycle.
+- Make significant process friction hard to forget at the ordinary platform-owned completion boundary.
+- Route useful sanitized evidence to the correct GitHub issue backlog without a remembered `promote` command.
+- Prevent duplicate issue spam with deterministic, non-secret identity.
+- Preserve raw evidence locally and survive temporary GitHub/auth/network failure without blocking safe publication.
+- Reuse the working `gh-aw` triage/review layer rather than add another scheduler, memory system or review daemon.
+- Keep an explicit human decision between process evidence and a managed implementation task.
 
-## Non-Goals
+## Non-goals
 
-- Autonomous code fixes, autonomous OpenSpec acceptance, autonomous PR merge, or self-modifying platform rules.
-- Full `Repo Assist` adoption in v1.
-- Managed-project rollout in this change.
-- Replacing deterministic CI, lifecycle checks, release orchestration, or local containment.
-- A local cron/launchd daemon.
+- Autonomous code fixes, OpenSpec creation/acceptance, Development Backlog creation or executor dispatch from process issues.
+- A local cron/launchd daemon, new background service, MemoryOps state, or transcript export pipeline.
+- Per-agent Claude/Codex hooks as the primary completion enforcement mechanism.
+- Full Repo Assist or Process Analyzer adoption in this change.
+- Downstream rollout of `gh-aw` workflows to managed consumer repositories.
+- Removing every legacy friction CLI command in the same change when keeping it as a recovery surface is cheaper and safer.
 
 ## Decisions
 
-### 1. GitHub Actions is the scheduler and runtime
+### 1. Preserve the working cloud pilot
 
-Agentic maintenance runs in GitHub Actions through compiled `gh-aw` workflows. The source-of-intent remains Markdown under `.github/workflows/`; compiled lock workflows are committed as required by `gh-aw`.
+`Process Issue Triage` and `Weekly Process Backlog Review` remain the cloud advisory layer. Their existing engine, safe-output boundary, public-only MCP constraints, gateway compatibility pinning, timeout and AI-credit limits are retained unless a concrete acceptance or maintenance failure requires adjustment.
 
-The implementation SHALL select and record one exact tested `gh-aw` release rather than tracking `latest` implicitly. Updating that pin is an explicit maintenance action.
+Cloud workflow success is not part of deterministic CI/publication/release correctness.
 
-### 2. Codex is the initial engine
+### 2. One normal local path: record, then route
 
-The pilot uses `engine: codex` and the repository Actions secret `OPENAI_API_KEY`. The secret is never committed, printed, copied into OpenSpec evidence, or exposed to the agent prompt.
+The normal friction flow becomes:
 
-### 3. Start with two narrow workflows
+`structured local event -> sanitized candidate -> deterministic GitHub issue upsert -> gh-aw triage/review`
 
-#### Process issue triage
+The existing local JSONL remains useful as raw evidence and as a retry queue. The separate batch-review cursor is no longer part of the normal operator flow.
 
-Adapt the upstream `githubnext/agentics` issue-triage pattern rather than starting from an unrestricted general repository assistant.
+`pending`, `review`, `mark-reviewed` and `promote` MAY remain temporarily for recovery/backward compatibility, but generated guidance SHALL stop presenting them as routine completion work.
 
-The workflow runs only for issues that match platform/process routing criteria (for example a controlled label or title prefix). It may:
+### 3. Process issues and managed tasks are different state machines
 
-- inspect repository context and related issues;
-- add allow-listed type/severity/status labels;
-- identify likely duplicates;
-- add at most one concise triage comment.
+A friction/process issue represents evidence: something went wrong, repeated, required a workaround, exposed an invariant, or may justify process improvement.
 
-It may not edit repository contents, create implementation pull requests, merge, approve, or close issues in v1.
+A Development Backlog issue represents an explicit human decision to manage and later implement a change. `gh-aw` triage/review SHALL NOT cross this boundary automatically.
 
-#### Process backlog review
+If weekly review says a process issue is ready for remediation, the output is advisory. Only explicit human fixation intent invokes the existing managed-task authoring path.
 
-Run on a weekly fuzzy schedule and via `workflow_dispatch`. It reviews the open process backlog and produces one concise current summary containing:
+### 4. Completion enforcement lives at the platform lifecycle boundary
 
-- new/unreviewed issues;
-- likely duplicates;
-- likely already-resolved/stale items;
-- issues needing more evidence;
-- issues ready for a human remediation decision.
+For a non-trivial platform-owned task, completion must resolve one small checkpoint:
 
-The summary is advisory. It may update labels/comments and create/refresh a bounded summary issue, but it does not close source issues or start fixes in v1.
+- `friction: none`; or
+- `friction: <structured event reference>`.
 
-### 4. Cost and runaway protection are part of the contract
+The exact minimal CLI/receipt shape is implementation-owned and should reuse the final `finish_task` lifecycle rather than introduce a parallel state machine. The checkpoint must be deterministic enough that a non-trivial task cannot silently omit it, while `none` must not create GitHub noise.
 
-Every cloud agent workflow SHALL declare a bounded `timeout-minutes` and `max-ai-credits`. Initial values should be intentionally conservative and may be tuned only after reviewing a representative run with `gh aw audit`/`gh aw logs`.
+Per-agent hooks may remain compatible helpers, but they are not required for correctness because Codex and Claude must share the same repository lifecycle contract.
 
-The first implementation should prefer a per-run cap over a complicated daily accounting scheme. No scheduled workflow should run more frequently than needed for its user-facing purpose.
+### 5. Deterministic failures record themselves
 
-### 5. GitHub Issues become the visible backlog; local JSONL becomes raw/fallback storage
+When a lifecycle component can mechanically classify a high-signal failure or safety near-miss, it should create the structured local friction event directly with bounded context. Model judgment is reserved for semantic friction such as user correction, false premise or repeated workaround.
 
-`agent_friction.py` remains useful, but its role changes:
+Do not instrument every exception. Only supported high-signal lifecycle/process categories belong in automatic capture.
 
-- raw observation/evidence may stay local;
-- a sanitized candidate contains scope, severity, observation, hypothesis/proposal summary and a stable fingerprint;
-- routing attempts to create or update the appropriate GitHub issue automatically;
-- `scope=project` routes to the current repository;
-- `scope=platform` routes to the configured platform repository (`lehard/dev-platform` for current managed projects).
+### 6. Routing is deterministic and sanitized
 
-Manual `promote` is no longer the normal operator path.
+The router resolves destination from event scope:
 
-### 6. Repeated friction updates one issue
+- `project` -> normalized current GitHub repository;
+- `platform` -> configured platform promotion repository.
 
-A stable fingerprint is computed from normalized non-secret fields such as scope plus a machine-safe category/key. The corresponding issue contains a machine-readable marker such as an HTML comment. Before creating a new issue, routing searches for an open issue with that marker.
+The issue representation contains bounded sanitized fields such as source repository/project, category/key, severity, first/last occurrence and a concise observation/proposal summary. Raw arbitrary evidence stays local by default.
 
-When found, the router adds a bounded sanitized occurrence comment or increments structured occurrence metadata rather than opening another issue.
+The router uses existing authenticated GitHub CLI/API access. It does not invoke an LLM to decide where or how to write the issue.
 
-The fingerprint must not include raw evidence, tokens, absolute secret-bearing paths, or arbitrary user content.
+### 7. Stable fingerprint owns deduplication
 
-### 7. Capture is enforced at lifecycle boundaries
+Each routable event has a stable non-secret fingerprint derived only from normalized machine-safe identity fields such as destination scope/repository plus category/key. It must not contain raw evidence, credentials, arbitrary user text or secret-bearing absolute paths.
 
-Machine-detectable lifecycle failures should call the friction recorder directly.
+The canonical issue stores a machine-readable marker containing that fingerprint. Routing first looks for an open issue with the marker:
 
-For model-observed friction, ordinary non-trivial completion includes a small mandatory checkpoint asking whether any high-signal condition occurred (user correction, repeated failure, safety near-miss, workaround, false task premise, avoidable CI/lifecycle failure, or excessive retries). If yes, a structured friction record must exist before completion reports success.
+- if found, append/update a bounded sanitized occurrence;
+- if not found, create one issue.
 
-This checkpoint is implemented only after `durable-publication-recovery` stabilizes so the two changes do not race on `finish_task.py` semantics.
+Closed historical issues are not silently reopened unless implementation evidence shows reopening is the desired contract; a new occurrence after closure may create a new current issue while preserving the old history.
 
-### 8. Routing failure is durable but does not break safe delivery
+### 8. Routing failure is durable and non-blocking
 
-If GitHub authentication, API availability or network access prevents issue routing:
+A recorded event has explicit local routing state sufficient to distinguish pending from successfully routed. If GitHub auth/network/API access is unavailable, the event remains pending and a concise non-secret warning is emitted.
 
-- retain the local pending event;
-- report a concise non-secret warning;
-- retry pending routing during a later supported doctor/start/finish invocation;
-- do not silently drop the event;
-- do not fail an otherwise safe code publication solely because process telemetry could not be uploaded.
+A later supported lifecycle invocation (`doctor`, task start or finish; choose the narrowest implementation surface) retries pending routing. Telemetry failure alone does not turn an otherwise safely delivered task into failed publication.
 
-### 9. Human approval remains before remediation
+No separate retry daemon is introduced.
 
-The cloud review may recommend `ready-for-fix`, but v1 has no trigger that writes code from that status. The operator approves remediation explicitly; normal OpenSpec/task lifecycle then performs the implementation.
+### 9. Weekly review remains advisory and bounded
 
-This keeps autonomous observation and triage separate from autonomous self-modification.
+The scheduled weekly workflow summarizes process issues, likely duplicates, stale/already-resolved candidates, missing evidence and items ready for a human decision. It may use bounded safe outputs already declared by the pilot.
 
-### 10. The cloud layer is additive and replaceable
+The acceptance requirement is at least one genuine scheduled run; a manual `workflow_dispatch` does not substitute for that evidence.
 
-`gh-aw` workflows must not become prerequisites for deterministic CI or release correctness. If `gh-aw`, OpenAI API, or GitHub Actions is unavailable, local development and publication continue; only automated process triage/review is degraded.
+### 10. Keep the central pilot boundary
 
-## Rollout Strategy
+This change completes the central `dev-platform` loop only. Consumer workflow rollout is a separate future managed change after the central behavior proves useful over real work.
 
-1. Merge this OpenSpec plan only.
-2. Implement and validate the cloud workflows in `dev-platform` independently of `finish_task` work.
-3. After `durable-publication-recovery` stabilizes, integrate automatic friction checkpoint/routing with the final lifecycle shape.
-4. Run one manual workflow dispatch and one real issue-event triage acceptance.
-5. Let at least one scheduled review complete successfully and inspect cost/audit output.
-6. Archive/release this central-platform change only after those acceptance checks pass.
-7. Create a separate follow-up OpenSpec for managed-project rollout if the pilot is stable and useful.
+## Updated execution shape
 
-## Risks and Mitigations
+1. Preserve current cloud pilot and its validation.
+2. Simplify local friction storage/routing and retire the manual promotion ritual from normal guidance.
+3. Integrate the minimal completion checkpoint into the now-stable platform-owned lifecycle.
+4. Prove deterministic dedupe, sanitization and offline retry with controlled acceptance.
+5. Observe one real scheduled weekly review.
+6. Perform semantic verification, archive and release only when all acceptance evidence is truthful.
 
-- **Public Preview churn:** pin an exact tested `gh-aw` release and validate compiled workflows in CI.
-- **Prompt injection through issue text:** keep agent jobs read-only and use allow-listed `safe-outputs` only.
-- **Unexpected spend:** conservative `max-ai-credits` and timeout, low-frequency schedule, audit representative runs.
-- **Issue spam:** stable fingerprint deduplication and bounded safe outputs.
-- **Cloud outage/vendor change:** keep the layer additive; local lifecycle must not depend on it.
-- **Concurrent lifecycle work:** delay `finish_task` integration until `durable-publication-recovery` is stable.
+## Risks and mitigations
+
+- **Checkpoint becomes ceremony:** keep it binary/minimal and create no issue when the result is `none`.
+- **Issue spam:** deterministic fingerprint plus bounded occurrence updates.
+- **Sensitive leakage:** raw evidence local by default; strict sanitization and tests for credential-like content.
+- **GitHub outage:** local pending state and later lifecycle retry; no daemon.
+- **AI self-modification:** process review cannot create Development Backlog tasks or implementation PRs.
+- **Preview churn in `gh-aw`:** retain exact tested pins and existing deterministic source/lock validation.
