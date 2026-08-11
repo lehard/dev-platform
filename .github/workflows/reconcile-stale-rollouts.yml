@@ -77,7 +77,7 @@ jobs:
           set -euo pipefail
           args=(--repository "$REPOSITORY" --base-branch "$BASE_BRANCH" --expected-bot "${APP_SLUG}[bot]" --output rollout-supersession.json)
           if [[ "$MODE" == apply ]]; then args+=(--apply); fi
-          python3 scripts/rollout_supersession.py "${args[@]}"
+          python3 scripts/rollout_supersession.py reconcile "${args[@]}"
       - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         if: always()
         with:

@@ -145,8 +145,28 @@ def run_gh(args: list[str]) -> subprocess.CompletedProcess[str]:
     return result
 
 
+LABEL_METADATA = {
+    TRACKING_LABEL: ("ededed", "Automated tracking issue for repeated managed rollout failures against one project."),
+    ALERT_LABEL: ("d73a4a", "Managed rollout has failed repeatedly against the same project and needs human attention."),
+}
+
+
+def ensure_label(repo: str, name: str) -> None:
+    """Idempotently ensure a tracking label exists on the tracker repository.
+
+    `gh label create --force` creates the label if absent, or updates its color/
+    description in place if already present -- safe to call on every invocation,
+    no separate list-then-create race. Requires only the `issues: write`
+    permission the rollout job already declares.
+    """
+    color, description = LABEL_METADATA[name]
+    run_gh(["label", "create", name, "--repo", repo, "--color", color, "--description", description, "--force"])
+
+
 def cmd_record_failure(args: argparse.Namespace) -> int:
     try:
+        ensure_label(args.tracker_repo, TRACKING_LABEL)
+        ensure_label(args.tracker_repo, ALERT_LABEL)
         existing = find_tracking_issue(args.repository, args.tracker_repo)
         state, alert, unreadable = next_state_on_failure(
             existing.get("body") if existing else None,
@@ -202,6 +222,7 @@ def cmd_record_failure(args: argparse.Namespace) -> int:
 
 def cmd_record_success(args: argparse.Namespace) -> int:
     try:
+        ensure_label(args.tracker_repo, TRACKING_LABEL)
         existing = find_tracking_issue(args.repository, args.tracker_repo)
         if existing is None:
             return 0
