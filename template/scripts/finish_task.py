@@ -29,7 +29,6 @@ from _platform_common import (
     run_git,
 )
 import publication_state
-import agent_friction
 
 
 ALLOW_NO_CHECKS_ENV = "DEV_PLATFORM_ALLOW_NO_CHECKS"
@@ -94,9 +93,12 @@ def run_openspec_hygiene(root: Path) -> None:
 
 def record_lifecycle_friction(root: Path, category: str, observation: str, evidence: str) -> None:
     """Capture narrow deterministic failures without changing delivery outcome."""
+    helper = root / "scripts" / "agent_friction.py"
+    if not helper.is_file():
+        return
     subprocess.run(
         [
-            "python3", str(root / "scripts" / "agent_friction.py"), "record",
+            "python3", str(helper), "record",
             "--category", category, "--trigger", "repeated-error", "--severity", "high",
             "--observation", observation, "--evidence", evidence,
             "--hypothesis", "a deterministic lifecycle guard needs operator review",
@@ -109,10 +111,29 @@ def record_lifecycle_friction(root: Path, category: str, observation: str, evide
 
 def run_friction_retry_and_checkpoint(root: Path, branch: str) -> None:
     """Telemetry is best effort; the explicit semantic checkpoint is not."""
-    result = agent_friction.route_pending()
-    if result["failures"]:
-        print(f"WARNING: {result['failures']} friction event(s) remain pending GitHub routing; safe publication may continue.")
-    agent_friction.require_checkpoint(branch)
+    helper = root / "scripts" / "agent_friction.py"
+    # Compatibility for minimal pre-friction renders used by older project
+    # harnesses. Current platform renders always include this helper.
+    if not helper.is_file():
+        return
+    result = subprocess.run(
+        ["python3", str(helper), "route-pending"], cwd=root, text=True, capture_output=True, check=False,
+    )
+    if result.returncode == 0:
+        try:
+            payload = json.loads(result.stdout)
+        except json.JSONDecodeError:
+            print("WARNING: friction routing retry returned unreadable output; safe publication may continue.")
+        else:
+            if payload.get("failures"):
+                print(f"WARNING: {payload['failures']} friction event(s) remain pending GitHub routing; safe publication may continue.")
+    else:
+        print("WARNING: friction routing retry could not run; safe publication may continue.")
+    checkpoint = subprocess.run(
+        ["python3", str(helper), "assert-checkpoint", "--branch", branch], cwd=root, text=True, capture_output=True, check=False,
+    )
+    if checkpoint.returncode:
+        raise SystemExit(checkpoint.stderr.strip() or checkpoint.stdout.strip() or "Completion friction checkpoint is required.")
 
 
 def validate_publication_config(root: Path, config: dict, prof: str, mode: str) -> None:

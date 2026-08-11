@@ -472,6 +472,11 @@ def cmd_checkpoint(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_assert_checkpoint(args: argparse.Namespace) -> int:
+    require_checkpoint(args.branch or current_branch())
+    return 0
+
+
 def require_checkpoint(branch: str) -> None:
     checkpoint = read_state().get("checkpoints", {}).get(branch)
     if not isinstance(checkpoint, dict) or checkpoint.get("result") in (None, ""):
@@ -570,6 +575,10 @@ def main() -> int:
     p = sub.add_parser("checkpoint", help="resolve the required completion friction checkpoint")
     p.add_argument("--result", required=True, help="'none' or a recorded friction event id")
     p.set_defaults(func=cmd_checkpoint)
+
+    p = sub.add_parser("assert-checkpoint", help="fail unless the current task checkpoint is resolved")
+    p.add_argument("--branch")
+    p.set_defaults(func=cmd_assert_checkpoint)
 
     p = sub.add_parser("pending")
     p.add_argument("--min-events", type=int, default=DEFAULT_MIN_EVENTS)
