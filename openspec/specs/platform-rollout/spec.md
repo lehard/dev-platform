@@ -120,7 +120,7 @@ Automated rollout SHALL run Copier against the exact published SemVer tag suppli
 
 ### Requirement: Rollout fails closed on project ambiguity or conflicts
 
-Automatic rollout SHALL leave the downstream default branch untouched when Copier metadata is missing or unexpected, a downgrade is requested, an unresolved Copier/Git conflict remains, project validation fails, or an unexpected rollout branch collision exists.
+Automatic rollout SHALL leave the downstream default branch untouched when Copier metadata is missing or unexpected, a downgrade is requested, an unresolved Copier/Git conflict remains, project validation fails, or an unexpected rollout branch collision exists. Detection of an already-pending rollout PR SHALL be performed by a testable, platform-owned helper that filters structured GitHub API JSON by the exact reserved branch, configured base branch, and expected rollout automation identity -- not by ad hoc shell/`jq` argument combinations, human-readable `gh` command output parsing, or PR title/body text matching.
 
 #### Scenario: Copier produces a rejected patch
 
@@ -131,6 +131,13 @@ Automatic rollout SHALL leave the downstream default branch untouched when Copie
 
 - **WHEN** rollout finds the deterministic target branch already associated with an open pull request
 - **THEN** it reports the rollout as already pending without force-pushing or opening a duplicate PR
+- **AND** that determination is made by the structured pending-PR helper, reusing the same eligibility rules (exact branch, base, and automation identity) already used for rollout PR supersession
+
+#### Scenario: Pending-PR detection uses only supported CLI/API surface
+
+- **WHEN** the rollout job checks for an already-pending PR
+- **THEN** it SHALL NOT pass unsupported flags to the `gh` CLI
+- **AND** a regression test SHALL assert the workflow does not combine `--jq` with a separate `--arg` flag on any `gh` invocation
 
 ### Requirement: Automatic rollout stops at a reviewable pull request
 
@@ -295,9 +302,9 @@ The envelope SHALL include at least: schema version, terminal status, target pro
 
 ### Requirement: Repeated managed rollout failures against the same project are surfaced to a human
 
-The platform SHALL maintain a durable, cross-run record of consecutive terminal `blocked` managed-rollout attempts per project, independent of any single ephemeral workflow run. When that count reaches a fixed threshold, the platform SHALL escalate beyond the existing per-attempt annotation into a distinct, labeled, human-discoverable alert. The record SHALL reset the next time that project's rollout preparation succeeds.
+The platform SHALL maintain a durable, cross-run record of consecutive terminal `blocked` managed-rollout attempts per project, independent of any single ephemeral workflow run. When that count reaches a fixed threshold, the platform SHALL escalate beyond the existing per-attempt annotation into a distinct, labeled, human-discoverable alert. The record SHALL reset the next time that project's rollout preparation succeeds. Before either the tracking label or the alert label is referenced, the platform SHALL idempotently ensure both exist on the tracker repository, using only the least-privilege permission already granted to the rollout job.
 
-This tracking layer SHALL be strictly additive: a failure inside it SHALL NOT change rollout's own pass/fail result for the current attempt, SHALL NOT retry, push, merge, or affect PR-creation, and SHALL NOT modify any existing safety guard, recovery eligibility, or credential scope.
+This tracking layer SHALL be strictly additive: a failure inside it, including a failure to bootstrap its own labels, SHALL NOT change rollout's own pass/fail result for the current attempt, SHALL NOT retry, push, merge, or affect PR-creation, and SHALL NOT modify any existing safety guard, recovery eligibility, or credential scope.
 
 #### Scenario: First failure against a project opens a tracking record
 - **GIVEN** a project has no open rollout-failure tracking record
@@ -305,6 +312,18 @@ This tracking layer SHALL be strictly additive: a failure inside it SHALL NOT ch
 - **THEN** a new durable tracking record is created for that exact project
 - **AND** its consecutive-failure count is `1`
 - **AND** no alert-threshold escalation occurs yet
+
+#### Scenario: Tracking label does not yet exist on the tracker repository
+
+- **GIVEN** the tracker repository does not yet have the `rollout-failure-streak` or `rollout-alert` label
+- **WHEN** the tracking layer needs to create or label a tracking issue
+- **THEN** the missing label is created automatically before it is referenced
+- **AND** no manual repository UI setup is required
+
+#### Scenario: Label bootstrap is idempotent
+
+- **WHEN** label bootstrap runs against a tracker repository that already has the label
+- **THEN** it succeeds without error and does not create a duplicate label
 
 #### Scenario: Repeated failures increment the same tracking record
 - **GIVEN** a project already has an open rollout-failure tracking record with a readable prior state
@@ -341,7 +360,7 @@ This tracking layer SHALL be strictly additive: a failure inside it SHALL NOT ch
 
 #### Scenario: The tracking layer itself fails
 - **GIVEN** a rollout attempt has already reached a terminal status
-- **WHEN** creating, reading, or updating the durable tracking record fails for any reason
+- **WHEN** creating, reading, or updating the durable tracking record fails for any reason, including label bootstrap
 - **THEN** that failure is surfaced as a visible warning in the run's own output
 - **AND** it SHALL NOT change the rollout attempt's already-determined success or failure result
 - **AND** it SHALL NOT retry, push, merge, or otherwise act beyond the tracking record itself
@@ -427,4 +446,115 @@ The platform SHALL provide an explicit maintenance mode for reporting and reconc
 - **WHEN** reviewed maintenance mutation is invoked
 - **THEN** it closes only PRs proven stale by committed downstream version or a safely available newer rollout target
 - **AND** never mutates candidate/excluded repositories
+
+### Requirement: Platform-owned rollout helpers are invoked from their actual checkout path
+
+Every platform-owned Python helper invoked from a workflow job that checks out platform tooling into a non-root path (for example `platform/` alongside a separate downstream `target/` checkout) SHALL be invoked using that actual path. A regression test SHALL verify, for each such job, that every reference to a known platform-owned root-level script resolves under the job's real checkout layout rather than relying solely on a passing workflow run.
+
+#### Scenario: Rollout job checks out platform tooling into a non-root path
+
+- **GIVEN** the `rollout` job in `.github/workflows/rollout.yml` checks out immutable platform tooling into `platform/` and the downstream project into `target/`
+- **WHEN** any step in that job invokes a platform-owned root-level script
+- **THEN** the invocation SHALL use the `platform/`-prefixed path
+- **AND** a regression test SHALL fail if a bare unprefixed path is introduced
+
+#### Scenario: A different workflow uses a single root checkout
+
+- **GIVEN** a workflow job checks out the platform repository directly at the job's working directory with no separate `platform/` path
+- **WHEN** that job invokes a platform-owned root-level script
+- **THEN** the bare root-relative path is correct for that job's layout
+- **AND** the path-correctness regression test SHALL evaluate each job against its own actual checkout layout, not a single assumed layout
+
+### Requirement: Historical Copier replay may recover only proven platform-owned state
+
+Managed rollout MAY use guarded Copier recopy to recover a smart-update conflict on a platform-owned harness only when every conflicted path is proven safe from immutable pre-update state. A conflict is safe when either (a) an explicitly reclaimed migration path already matches the exact target immutable template, or (b) the committed downstream path exactly matches the same path in the immutable platform template version recorded by `.copier-answers.yml`. Missing/missing SHALL count as baseline equivalence. Any currently divergent or otherwise unproven path SHALL remain fail-closed.
+
+#### Scenario: Platform-owned file already equals target but historical replay conflicts
+- **GIVEN** a managed repository uses `harness_mode=platform`
+- **AND** `scripts/project_publish.py` exactly matches the target immutable platform template before update
+- **WHEN** `copier update` replays historical downstream edits and emits `scripts/project_publish.py.rej`
+- **THEN** managed rollout may reset the ephemeral rollout branch and use guarded recopy
+- **AND** it verifies protected snapshots and platform configuration after recopy
+- **AND** it can continue to normal validation and reviewed PR creation
+
+#### Scenario: Unmodified old-platform file conflicts during historical replay
+- **GIVEN** a managed repository uses `harness_mode=platform`
+- **AND** a conflicted downstream path in committed `HEAD` exactly equals the same path in the immutable platform version recorded by `.copier-answers.yml`
+- **WHEN** smart Copier update emits a rejection for that path
+- **THEN** the path is eligible for guarded recopy without adding a repository-specific allowlist entry
+- **AND** after recopy the path SHALL match the new target template state
+
+#### Scenario: Path is absent in both downstream and recorded old template
+- **GIVEN** a managed repository uses `harness_mode=platform`
+- **AND** a rejection names a path absent from both committed downstream `HEAD` and the recorded old consumer template
+- **THEN** that missing/missing state is treated as baseline-equivalent
+- **AND** guarded recopy MAY recover it if every other conflict is also proven safe
+
+#### Scenario: Reclaimed path still contains downstream divergence
+- **GIVEN** a managed repository uses `harness_mode=platform`
+- **AND** an allowlisted reclaimed path does not match the target immutable template before update
+- **AND** it also does not match its recorded old-template state
+- **WHEN** Copier reports a conflict on that path
+- **THEN** managed rollout fails closed
+- **AND** it does not use recopy, push a rollout branch, or open a PR
+
+#### Scenario: Platform-mode conflict contains real downstream customization
+- **GIVEN** a managed repository uses `harness_mode=platform`
+- **WHEN** any conflicted path differs from both its recorded old-template state and any applicable reclaimed target state
+- **THEN** managed rollout fails closed without recopy
+
+#### Scenario: Baseline proof is computed after Copier mutates the worktree
+- **WHEN** rollout classifies conflicts after smart update has emitted `.rej` files
+- **THEN** downstream equivalence SHALL be derived from committed `HEAD` rather than current worktree bytes
+- **AND** the old side SHALL be read from the exact immutable tag recorded by `.copier-answers.yml`
+
+### Requirement: Managed rollout failures remain fail-closed and diagnosable
+
+The managed rollout workflow SHALL preserve a non-zero rollout preparation result and SHALL surface its blocking reason in GitHub Actions when preparation fails. The selected-check helper SHALL emit a reserved command marker before each selected downstream command so compiler, diff, or application output cannot be mistaken for the command being executed. Diagnostic handling SHALL NOT push the rollout branch, open a pull request, skip a guard, or convert a failed rollout into success.
+
+#### Scenario: Prepare fails on a safety guard
+- **WHEN** `rollout_project.py` exits non-zero because a managed safety invariant fails
+- **THEN** the workflow records the command output
+- **AND** emits a readable GitHub Actions error annotation containing the final `Managed rollout: BLOCKED:` reason
+- **AND** remains failed
+- **AND** branch push and PR creation remain skipped
+
+#### Scenario: Downstream validation command fails
+- **GIVEN** rollout safely reached downstream platform/product validation
+- **WHEN** a checked selected command exits non-zero without a `Managed rollout: BLOCKED:` marker
+- **THEN** `select_checks.py` has emitted `DEV_PLATFORM_CHECK_COMMAND: <command>` immediately before that command
+- **AND** the workflow reports the last such reserved marker with the exit code
+- **AND** arbitrary source/compiler lines beginning with `+` or containing `Error:` SHALL NOT replace that blocker
+- **AND** the failed command remains a blocking result rather than becoming recoverable
+
+#### Scenario: Failure occurs outside selected checks
+- **WHEN** rollout preparation exits non-zero before any stable blocker or selected-check marker exists
+- **THEN** the workflow reports the preparation exit code generically
+- **AND** does not guess a command from arbitrary subprocess output
+- **AND** the rollout remains failed
+
+### Requirement: Managed rollout validates with the platform CI runtime baseline
+
+Managed rollout SHALL provision the same platform-owned base runtime versions used by the generated downstream Dev Platform gate before executing selected downstream checks. Runtime parity SHALL be tested so a platform release cannot silently validate a consumer under a different Node baseline than the generated PR gate.
+
+#### Scenario: Rollout executes JavaScript checks
+- **GIVEN** the generated Dev Platform workflow pins Node `20.19.0`
+- **WHEN** managed rollout reaches selected downstream checks
+- **THEN** the rollout job has provisioned Node `20.19.0` before those checks
+- **AND** the downstream build is evaluated under the same platform-owned Node baseline as its PR gate
+
+#### Scenario: Platform changes the generated Node baseline
+- **WHEN** a later platform release changes the Node version in the generated Dev Platform workflow
+- **THEN** validation fails unless managed rollout is updated to the same version in that release
+
+### Requirement: Rollout service branches do not weaken interactive task branch rules
+
+Managed rollout SHALL use only the reserved service-branch form `dev-platform/rollout-vX.Y.Z` generated from an exact SemVer release. This automation branch SHALL be validated through rollout-specific validation and SHALL NOT cause interactive task lifecycle rules to accept arbitrary `dev-platform/*` branches in place of `agent/<task>`.
+
+#### Scenario: Rollout validates an automation branch
+- **GIVEN** managed rollout created `dev-platform/rollout-v1.2.3`
+- **WHEN** downstream validation runs before push
+- **THEN** rollout-specific platform validation and selected project checks MAY run on that service branch
+- **AND** no interactive `agent/<task>` branch precondition is required
+- **AND** ordinary task creation/publication continues to use its existing agent branch contract
 

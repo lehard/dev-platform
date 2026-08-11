@@ -1,0 +1,19 @@
+# Tasks
+
+- [x] Add the platform-rollout delta requirement for proven historical-conflict recovery.
+- [x] Keep narrow exact-target recovery for reclaimed migration paths such as `scripts/project_publish.py`.
+- [x] Add immutable recorded-baseline equivalence for platform-mode conflicts using downstream committed `HEAD` plus the old platform SemVer tag.
+- [x] Treat missing/missing as safe baseline equivalence and verify recovered paths against the new target template after recopy.
+- [x] Add regression tests for exact-target recovery, old-baseline recovery, the actual mixed Cuby reject set, and real-divergence blocking.
+- [x] Surface failed prepare blockers without weakening fail-closed behavior; richer machine-readable diagnostics are owned by the archived `harden-rollout-diagnostics` change.
+- [x] Match managed-rollout Node runtime to the platform-generated downstream CI baseline and keep parity regression coverage.
+- [x] After `harden-pr-reconciliation-concurrency`, `wire-runtime-delegation-containment`, and `supersede-stale-managed-rollouts` are merged/verified, rerun the full platform validation suite on the cumulative exact release candidate and perform semantic review of this recovery change against current implementation. All four are merged; `repair-managed-rollout-control-plane` additionally repaired the rollout control-plane regressions that were blocking this change's own acceptance from ever reaching its "Prepare exact-version Copier update" step. Full validation suite green on v1.4.22 (251 tests, strict OpenSpec validate 12/12).
+- [x] Publish the next normal cumulative immutable platform release (do not cut a throwaway acceptance-only version) and confirm release orchestration dispatches managed rollout for all current `managed` projects. v1.4.22 (#94); rollout run 31469600804 dispatched automatically and covered all three managed projects.
+- [x] Verify Cuby's managed rollout preparation completes automatically with no manual `copier update/recopy`, no manual `.rej` deletion/file copying, and no hand-synchronization of platform version metadata; if it fails, keep this change active and use the canonical diagnostic as evidence before changing design. `Prepare exact-version Copier update` succeeded automatically (job 93709828214); the resulting PR lehard/cuby#46 diff contains only platform-managed files (`.copier-answers.yml`, `.dev-platform.toml`, `docs/engineering/agent-workflow.md`, `scripts/delegated_write_guard.py`, `scripts/delegation_containment.py`, `scripts/finish_task.py`, `scripts/project_publish.py`), no `.rej` file anywhere, no manual edit by this agent.
+- [x] Verify the resulting Cuby rollout PR's required downstream CI passes (or the project is correctly reported already-current) and record the exact release/run/PR evidence. lehard/cuby#46 `platform-ci` check passed (run 31469681104); merged via `gh pr merge --squash` at commit `e0cd7edd2b638c5358ad9558b3b4bb6e29d6a6e5`. Cuby's `.dev-platform.toml`/`.copier-answers.yml` now record `v1.4.22`.
+- [x] Confirm the same immutable release produces a normal managed-rollout result for Planner Agent Lab and Jara_Fin; stale older rollout PR cleanup is handled through the dedicated supersession change rather than ad-hoc steps here. Both jobs succeeded in the same run (93709828173, 93709828206); left untouched, no manual action taken.
+- [x] Record `OpenSpec-Verify: PASS` plus `Verification-Method: <actual method/evidence>` in `verification.md`, then archive through `python3 template/scripts/openspec_lifecycle.py archive allow-safe-reclaimed-rollout-recopy` and publish the archive/current-spec result.
+
+## Closure rule
+
+Manual downstream reconciliation is incident recovery, not acceptance evidence. Do not check the Cuby acceptance task merely because a manually repaired PR merged.
