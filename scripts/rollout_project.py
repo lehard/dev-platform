@@ -152,6 +152,30 @@ def platform_config_contract(project_root: Path) -> dict[str, Any]:
     return config
 
 
+def expected_development_backlog_migration(config: dict[str, Any]) -> dict[str, Any] | None:
+    """Return the sole bootstrap-owned addition permitted to project config."""
+    if "development_backlog" in config:
+        return None
+    project_slug = config.get("project_slug")
+    if not isinstance(project_slug, str) or not re.fullmatch(r"[A-Za-z0-9_.-]+", project_slug):
+        return None
+    migrated = dict(config)
+    migrated["development_backlog"] = {
+        "repository": "lehard/development-backlog",
+        "project_label": f"project:{project_slug}",
+        "default_priority": "P2",
+    }
+    return migrated
+
+
+def require_platform_config_contract(before: dict[str, Any], after: dict[str, Any]) -> None:
+    if after == before or after == expected_development_backlog_migration(before):
+        return
+    raise ValueError(
+        "project-owned .dev-platform.toml changed beyond platform_version or the expected Development Backlog migration during guarded recopy"
+    )
+
+
 def harness_mode(project_root: Path) -> str:
     return str(load_platform_config(project_root).get("harness_mode", "platform"))
 
@@ -462,6 +486,7 @@ def copier_update_with_guarded_recopy(
     rejects = find_reject_files(project_root)
     if not rejects:
         run_rendered_platform_bootstrap(project_root, env=env)
+        require_platform_config_contract(config_before, platform_config_contract(project_root))
         return "update"
 
     owned = project_owned_paths(project_root)
@@ -539,11 +564,7 @@ def copier_update_with_guarded_recopy(
     require_project_owned_snapshot(project_root, protected_before)
     require_reclaimed_platform_paths_match_template(project_root, reclaimed_conflicts)
     require_paths_match_target_template(project_root, baseline_conflicts)
-    config_after = platform_config_contract(project_root)
-    if config_after != config_before:
-        raise ValueError(
-            "project-owned .dev-platform.toml changed beyond platform_version during guarded recopy"
-        )
+    require_platform_config_contract(config_before, platform_config_contract(project_root))
     if harness_mode(project_root) != mode:
         raise ValueError(f"guarded recopy changed harness_mode away from {mode}")
     return "guarded-recopy"
