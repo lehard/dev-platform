@@ -41,16 +41,23 @@ fail-safe route has no hidden write path.
 - Observed usage was far below the configured per-run caps, so no cap increase
   is justified.
 
-## Limitation discovered
+## Gateway blocker diagnosed
 
-In this private-repository environment, Codex treated issue bodies returned by
-the read-only GitHub MCP as filtered by a repository secrecy policy and emitted
-`noop` rather than a triage comment. The workflow engine, Codex execution,
-threat detection, and safe-output isolation all completed successfully, but
-useful triage commentary is not yet proven. A prompt hardening change was
-merged in [#102](https://github.com/lehard/dev-platform/pull/102); the final
-manual run still exhibited the same conservative `noop`. Do not weaken the
-read-only or safe-output boundaries as a workaround.
+`dev-platform` is public; it was not a private-repository prompt or permissions
+problem. In run 31472738182, gh-aw correctly detected public visibility and
+forced the GitHub read scope to `public`, with `min-integrity: none` and the
+configured `issues,labels` toolsets. The generated lock nevertheless started
+the gh-aw 0.85.4 default gateway, `gh-aw-mcpg:v0.4.8`. That gateway assigned a
+`private` secrecy tag to GitHub MCP responses for this public repository, so it
+filtered `issue_read` and `list_label` before Codex could receive them.
+
+Upstream tracked this as the public-repository secrecy-tag regression and fixed
+the missing response-visibility path in `gh-aw-mcpg:v0.4.9`. The repository
+compiled-lock configuration now maps the default gateway to the immutable
+v0.4.9 image and constrains GitHub MCP reads to `allowed-repos: public`; it does
+not enable `private-to-public-flows` or widen the read-only/safe-output
+boundary. A fresh main-branch manual triage run is required before declaring
+this acceptance complete.
 
 `gh aw audit` emitted a local case-colliding-artifact extraction warning, then
 retried individual artifacts and completed successfully. The reported audit
