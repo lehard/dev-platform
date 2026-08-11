@@ -1,18 +1,28 @@
-## MODIFIED Requirements
+## ADDED Requirements
 
-### Requirement: Agents own the whole lifecycle
+### Requirement: Unfinished automatic delivery remains explicit completion work
 
-Repository-wide agent instructions SHALL define semantic verify, archive, and configured publication as part of completing non-trivial OpenSpec work so the human user is not expected to remember or relay those steps. For a sealed platform-owned task, doctor and completion status SHALL explicitly identify a recoverable unmerged publication and its safe next operation; an agent SHALL not report delivery complete until automatic publication has merged or an actionable blocking exception is stated explicitly.
+For a platform-owned task configured for automatic PR delivery, an agent SHALL NOT report the task as fully delivered while its exact task PR is still open/pending or while GitHub has merged it but safe local reconciliation remains incomplete. Completion/doctor status SHALL derive that condition from current Git/GitHub state and identify the supported next operation without requiring the human user to remember a Git hand-off.
 
-#### Scenario: Agent reports completion
+#### Scenario: Automatic PR is still waiting remotely
 
-- **WHEN** an agent reports a non-trivial OpenSpec task as complete
-- **THEN** project checks, semantic verification, archive, and configured publication have already been completed or any blocking exception is stated explicitly
+- **GIVEN** local validation and OpenSpec lifecycle work are complete
+- **AND** the exact task PR is still open, checking, auto-merge armed, queued, or otherwise pending
+- **WHEN** the agent reports task status
+- **THEN** it describes delivery as unfinished/recoverable rather than complete
+- **AND** identifies normal finish/status as the supported continuation path
 
-#### Scenario: Sealed automatic publication remains unmerged
+#### Scenario: Remote PR merged but local reconciliation remains
 
-- **GIVEN** a platform-owned task has completed required local validation and archive
-- **AND** its automatic publication is not merged
-- **WHEN** doctor or task completion status runs
-- **THEN** it reports an actionable recoverable delivery condition rather than an ordinary inactive-worktree warning
-- **AND** it identifies the safe resume/status operation without requiring a human Git hand-off
+- **GIVEN** GitHub reports the exact task PR as `MERGED`
+- **AND** local integration/board/worktree reconciliation is still pending
+- **WHEN** completion status runs
+- **THEN** it reports remote delivery complete but local completion work pending
+- **AND** does not ask the human to manually reconstruct publication history
+
+#### Scenario: Publication reaches an actionable blocker
+
+- **WHEN** required checks fail, GitHub authentication/state is unavailable, the exact head changed, or repository policy requires an explicit branch update
+- **THEN** the agent may stop automatic delivery
+- **AND** reports the specific blocker and preserved remote/local state
+- **AND** does not misrepresent the task as successfully delivered
