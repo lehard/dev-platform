@@ -1,29 +1,35 @@
 ## Why
 
-The current task lifecycle tells agents to publish completed work, but it does not retain an authoritative publication state or resume an interrupted automatic PR merge. A completed, validated and archived task can therefore remain unmerged until a human remembers to intervene; transient command-output loss and a stale token environment make that failure unnecessarily likely.
+The original version of this change was written before the v1.4.20-v1.4.22 lifecycle stabilization. The current platform already has independent GitHub credential fallback, structured required-check waiting, protected merge/auto-merge/queue negotiation, authoritative `MERGED` handling, concurrent local reconciliation locking, and recovery after a PR was already merged remotely.
+
+The remaining publication gap is narrower: platform-owned PR delivery is still driven by one foreground process. If that process disappears before GitHub has been asked to complete the merge, the PR can remain open until a later lifecycle invocation notices it. The platform also lacks one concise read-only status view for an exact task head.
+
+A machine-local phase journal and long-lived publisher lease would duplicate state that Git and GitHub already expose and introduce a second state system that can drift. The change therefore adopts a level-based reconciliation model: derive the current publication state from Git + GitHub on every invocation, make each transition idempotent, and let native GitHub auto-merge / merge-queue state provide durable remote waiting whenever repository policy supports it.
 
 ## What Changes
 
-- Add a durable, machine-local publication state machine for sealed platform-owned task branches, with safe resume and clear operator status.
-- Make automatic PR publication idempotent and single-flight: an interrupted publisher resumes the same branch/PR instead of creating competing publishers or duplicate PRs.
-- Resolve GitHub CLI authentication by testing candidate credentials independently, so an invalid exported token cannot hide a valid local GitHub CLI session.
-- Make agent completion and doctor guidance report an unfinished sealed publication as an actionable delivery condition rather than a routine warning.
-- Add a documented local browser-QA discovery fallback (installed supported browser/cached browser) before declaring Playwright browser validation unavailable.
-- Preserve explicit manual review and project-owned lifecycle authority; no arbitrary dirty worktree is auto-published or auto-merged.
+- Add a GitHub-backed publication reconciler for platform-owned PR tasks. It observes the exact branch/head SHA, matching PR, required checks, merge request/queue state, remote merge state, and remaining local reconciliation work instead of relying on a persisted phase cursor.
+- Arm native GitHub auto-merge / merge-queue processing as early as possible for `pr_merge_mode=auto`, guarded by the exact validated head SHA. A caller may still wait for completion, but loss of the caller stream does not cancel an already-accepted GitHub merge request.
+- Make normal `finish_task` idempotently resume an existing exact-head PR before stale-branch rejection, and add a read-only `finish_task --status` view derived from current Git/GitHub state.
+- Preserve the existing bounded foreground fallback when native auto-merge is unavailable, while reporting that repository capability as degraded durability rather than inventing a local daemon or hidden repository-setting mutation.
+- Use exact-head guards (`--match-head-commit` or equivalent API expected-head semantics) for every merge/auto-merge request so a changed branch cannot be merged under an earlier validation decision.
+- Add restart/fault-injection and concurrent-resume regression coverage at remote boundaries: after push, after PR creation, after remote merge arming, after remote merge, and before local reconciliation.
+- Keep current authentication fallback as baseline behavior; do not reimplement it in this change.
+- Remove browser-QA discovery from this change. It is unrelated to publication recovery and should be handled separately only if it remains a demonstrated need.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `publication-recovery`: Durable and recoverable automatic publication for a sealed platform-owned task.
+- `publication-recovery`: Authoritative Git/GitHub observation plus idempotent reconciliation for interrupted platform-owned PR publication.
 
 ### Modified Capabilities
 
-- `platform-lifecycle`: Require resumable, observable completion behavior for platform-owned automatic PR delivery and robust credential selection.
-- `completion-lifecycle`: Make unfinished sealed publication visible as incomplete delivery rather than relying on a human hand-off.
+- `platform-lifecycle`: Prefer durable native GitHub merge orchestration, exact-head merge guards, and restartable reconciliation for automatic PR delivery.
+- `completion-lifecycle`: Expose unfinished automatic delivery as actionable incomplete work without requiring a human Git hand-off.
 
 ## Impact
 
-This affects generated platform-managed scripts and guidance: `finish_task.py`, `project_publish.py`, `_platform_common.py`, `agent_doctor.py`, multi-agent board/cleanup integration, `AGENTS.md`, and engineering workflow/QA documentation. New projects receive the behavior on render; existing platform-owned managed projects receive it through reviewable Copier updates. Project-owned harnesses retain their own publisher, but receive explicit status and integration guidance rather than a silently substituted lifecycle.
+This affects platform-managed publication scripts and guidance, primarily `finish_task.py`, `project_publish.py`, `agent_doctor.py`, generated AGENTS/engineering workflow documentation, and tests. It does not introduce a daemon, database, credential store, or mandatory machine-local publication journal.
 
-Compatibility risks are limited to machine-local state and stricter completion reporting. State must contain no credentials, must be safe to delete/rebuild from GitHub, and must not make a stale or unvalidated branch publishable.
+`harness_mode=project` remains authoritative for project-owned publication. Manual-review PR mode remains manual. The platform SHALL NOT silently change repository settings; native auto-merge capability is detected and reported, and any repository-setting change is an explicit adoption/administrative action.
