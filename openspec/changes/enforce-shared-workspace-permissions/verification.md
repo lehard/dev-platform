@@ -1,21 +1,29 @@
-## Preliminary verification evidence
+## Verification evidence
 
 - `python3 -m compileall -q template/scripts scripts` passed.
 - `python3 -m unittest discover -s tests -q` passed.
 - `openspec validate enforce-shared-workspace-permissions --strict --no-interactive` passed.
 - `python3 scripts/managed_projects.py validate` passed.
-- `python3 template/scripts/openspec_lifecycle.py check` passed before task boxes were updated.
+- `python3 template/scripts/openspec_lifecycle.py check` passed while the
+  post-merge release/rollout task remains open.
 
 The runner cannot perform a two-effective-identity POSIX smoke. Unit coverage
 therefore verifies setgid/group modes, secure atomic replacement, Git shared
 repository configuration, bounded worktree traversal, symlink rejection,
 foreign-owner diagnostics and the unsupported-platform no-op path.
 
-The source checkout itself currently has a real permission blocker: its
-integration root is group `staff`, mode `0775`, and is not owned by the current
-process. The bounded helper correctly stops with the owner action
-`chmod g+rwxs /Users/Shared/Workspace/dev-platform` (and does not mutate it).
-This must be repaired by that checkout's owner before a managed lifecycle can
-publish or complete the remaining release/rollout task.
+The source checkout's permission blocker was repaired by its owner. A real
+`python3 scripts/shared_workspace.py fix` followed by `check` now reports the
+`staff` group contract valid for the integration root, platform state and Git
+common directory.
 
-OpenSpec-Verify: PENDING
+Semantic review found the implementation coherent with both delta specs:
+enforcement is portable/no-op when POSIX semantics are unavailable, mutations
+are realpath-bounded to managed state and Git metadata, atomic writes retain
+group access, immutable Git objects remain group-readable, and all remote
+mutators preflight before fetch/push/merge operations. The remaining unchecked
+release/rollout task is a post-merge operation and cannot truthfully be marked
+complete before an immutable release exists.
+
+OpenSpec-Verify: PASS
+Verification-Method: equivalent semantic review plus full unittest matrix, strict OpenSpec validation, managed-project validation, and real POSIX fix/check smoke

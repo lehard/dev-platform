@@ -55,7 +55,7 @@
 - [x] 5.4 Run central dogfood acceptance from two local identities when the test
   environment supports it; otherwise record the capability gap and equivalent
   mode/ownership evidence.
-- [ ] 5.5 Run the full platform validation matrix, semantic OpenSpec verification
+- [x] 5.5 Run the full platform validation matrix, semantic OpenSpec verification
   and lifecycle archive.
 - [ ] 5.6 Publish an immutable platform release and roll it out through reviewed
   Copier PRs to every managed inventory entry.
