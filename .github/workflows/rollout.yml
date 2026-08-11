@@ -157,13 +157,19 @@ jobs:
           VERSION: ${{ needs.plan.outputs.version }}
         run: |
           set -euo pipefail
-          branch="dev-platform/rollout-${VERSION}"
-          pending="$(gh pr list --repo "$REPOSITORY" --state open --head "$branch" --json number,url,headRefName,baseRefName,author --jq --arg branch "$branch" --arg base "$BASE_BRANCH" --arg bot "${APP_SLUG}[bot]" '[.[] | select(.headRefName == $branch and .baseRefName == $base and .author.login == $bot)][0] // {}')"
-          url="$(jq -r '.url // ""' <<<"$pending")"
-          if [[ -n "$url" ]]; then
+          python3 platform/scripts/rollout_supersession.py find-pending \
+            --repository "$REPOSITORY" \
+            --base-branch "$BASE_BRANCH" \
+            --expected-bot "${APP_SLUG}[bot]" \
+            --version "$VERSION" \
+            --output rollout-pending.json
+          found="$(python3 -c 'import json; print(json.load(open("rollout-pending.json"))["found"])')"
+          if [[ "$found" == "True" ]]; then
+            url="$(python3 -c 'import json; print(json.load(open("rollout-pending.json"))["url"])')"
+            number="$(python3 -c 'import json; print(json.load(open("rollout-pending.json"))["number"])')"
             echo "found=true" >> "$GITHUB_OUTPUT"
             echo "url=$url" >> "$GITHUB_OUTPUT"
-            echo "number=$(jq -r '.number' <<<"$pending")" >> "$GITHUB_OUTPUT"
+            echo "number=$number" >> "$GITHUB_OUTPUT"
             echo "Rollout already pending: $url"
           else
             echo "found=false" >> "$GITHUB_OUTPUT"
@@ -313,7 +319,7 @@ jobs:
           APP_SLUG: ${{ steps.target-token.outputs.app-slug }}
         run: |
           set -euo pipefail
-          python3 scripts/rollout_supersession.py \
+          python3 platform/scripts/rollout_supersession.py reconcile \
             --repository "$REPOSITORY" \
             --base-branch "$BASE_BRANCH" \
             --expected-bot "${APP_SLUG}[bot]" \
@@ -332,7 +338,7 @@ jobs:
           APP_SLUG: ${{ steps.target-token.outputs.app-slug }}
         run: |
           set -euo pipefail
-          python3 scripts/rollout_supersession.py \
+          python3 platform/scripts/rollout_supersession.py reconcile \
             --repository "$REPOSITORY" \
             --base-branch "$BASE_BRANCH" \
             --expected-bot "${APP_SLUG}[bot]" \

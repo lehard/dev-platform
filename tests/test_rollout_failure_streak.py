@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import argparse
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -146,6 +148,71 @@ class ParseAndRenderTests(unittest.TestCase):
             "-->"
         )
         self.assertIsNone(rfs.parse_state(body))
+
+
+class LabelBootstrapTests(unittest.TestCase):
+    def test_ensure_label_uses_idempotent_force_create(self) -> None:
+        with patch.object(rfs, "run_gh") as run_gh:
+            run_gh.return_value = rfs.subprocess.CompletedProcess(["gh"], 0, "", "")
+            rfs.ensure_label("lehard/dev-platform", rfs.TRACKING_LABEL)
+        run_gh.assert_called_once()
+        args = run_gh.call_args[0][0]
+        self.assertEqual(args[:3], ["label", "create", rfs.TRACKING_LABEL])
+        self.assertIn("--force", args)
+        self.assertIn("lehard/dev-platform", args)
+
+    def test_ensure_label_is_safe_to_call_repeatedly(self) -> None:
+        with patch.object(rfs, "run_gh") as run_gh:
+            run_gh.return_value = rfs.subprocess.CompletedProcess(["gh"], 0, "", "")
+            rfs.ensure_label("lehard/dev-platform", rfs.TRACKING_LABEL)
+            rfs.ensure_label("lehard/dev-platform", rfs.TRACKING_LABEL)
+        self.assertEqual(run_gh.call_count, 2)
+
+    def test_record_failure_bootstraps_both_labels_before_finding_the_issue(self) -> None:
+        calls: list[str] = []
+
+        def fake_run_gh(args: list[str]) -> "rfs.subprocess.CompletedProcess[str]":
+            calls.append(args[0] if args[0] != "label" else f"label:{args[2]}")
+            if args[:2] == ["issue", "create"]:
+                return rfs.subprocess.CompletedProcess(["gh"], 0, "https://example.invalid/issues/1\n", "")
+            return rfs.subprocess.CompletedProcess(["gh"], 0, "", "")
+
+        with patch.object(rfs, "run_gh", side_effect=fake_run_gh), \
+             patch.object(rfs, "find_tracking_issue", return_value=None) as find_issue:
+            args = argparse.Namespace(
+                repository="lehard/cuby", version="v1.4.21", category="unknown",
+                reason="unsupported gh flag", last_updated="2026-08-11T00:00:00Z",
+                threshold=3, tracker_repo="lehard/dev-platform", summary_output=None,
+            )
+            self.assertEqual(rfs.cmd_record_failure(args), 0)
+        self.assertEqual(calls[0], f"label:{rfs.TRACKING_LABEL}")
+        self.assertEqual(calls[1], f"label:{rfs.ALERT_LABEL}")
+        self.assertLess(calls.index(f"label:{rfs.TRACKING_LABEL}"), calls.index("issue"))
+        find_issue.assert_called_once()
+
+    def test_missing_label_failure_does_not_crash_tracking_or_change_outcome(self) -> None:
+        def fake_run_gh(args: list[str]) -> "rfs.subprocess.CompletedProcess[str]":
+            if args[:2] == ["label", "create"]:
+                raise rfs.TrackerError("gh label create failed: HTTP 403")
+            raise AssertionError("should not reach further gh calls once label bootstrap fails")
+
+        with patch.object(rfs, "run_gh", side_effect=fake_run_gh):
+            args = argparse.Namespace(
+                repository="lehard/cuby", version="v1.4.21", category="unknown",
+                reason="unsupported gh flag", last_updated="2026-08-11T00:00:00Z",
+                threshold=3, tracker_repo="lehard/dev-platform", summary_output=None,
+            )
+            # Must return 0 (tracking is best-effort) and must not raise.
+            self.assertEqual(rfs.cmd_record_failure(args), 0)
+
+    def test_record_success_also_bootstraps_tracking_label_before_lookup(self) -> None:
+        with patch.object(rfs, "run_gh") as run_gh, patch.object(rfs, "find_tracking_issue", return_value=None) as find_issue:
+            run_gh.return_value = rfs.subprocess.CompletedProcess(["gh"], 0, "", "")
+            args = argparse.Namespace(repository="lehard/cuby", version="v1.4.21", tracker_repo="lehard/dev-platform")
+            self.assertEqual(rfs.cmd_record_success(args), 0)
+        run_gh.assert_called_once()
+        self.assertEqual(run_gh.call_args[0][0][:3], ["label", "create", rfs.TRACKING_LABEL])
+        find_issue.assert_called_once()
 
 
 if __name__ == "__main__":
