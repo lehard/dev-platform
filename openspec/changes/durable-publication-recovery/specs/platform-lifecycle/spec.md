@@ -1,80 +1,111 @@
-## MODIFIED Requirements
+## ADDED Requirements
 
-### Requirement: Automatic task PR merge preserves zero-hand-off delivery
+### Requirement: Automatic PR publication reconciles from exact observed state
 
-PR publication SHALL support an automatic task merge policy that completes ordinary agent work after required GitHub checks pass, while retaining an explicit manual-review policy. For a platform-owned automatic task, a completed local validation/archive candidate SHALL be sealed and remain recoverable until it is remotely merged or reaches an actionable terminal failure; an interrupted attempt SHALL resume the same safe candidate rather than require a human to remember or relay publication.
+Platform-owned automatic PR publication SHALL be restartable by re-observing the exact task branch/head and GitHub PR/check/merge state instead of depending on an uninterrupted foreground process or replaying prior phase events.
 
-#### Scenario: Required checks are not registered immediately
+#### Scenario: Existing exact-head PR is resumed
 
-- **GIVEN** `pr_merge_mode=auto`
-- **AND** the task PR was just created or updated
-- **WHEN** GitHub temporarily reports that required checks are not yet present
-- **THEN** the platform waits for check registration for a bounded period
-- **AND** continues waiting for the required checks once they appear
-- **AND** does not require a manual rerun solely because registration was delayed
+- **GIVEN** `harness_mode=platform`, `publish_mode=pr`, and `pr_merge_mode=auto`
+- **AND** an open PR already exists for the configured base and exact local task head SHA
+- **WHEN** the agent runs normal finish again
+- **THEN** the platform reuses and reconciles that PR
+- **AND** does not create duplicate delivery work solely because the previous publisher stopped
 
-#### Scenario: Automatic task PR succeeds
+#### Scenario: Existing PR head differs from validated local head
 
-- **GIVEN** `pr_merge_mode=auto`
-- **WHEN** required PR checks succeed
-- **THEN** the platform merges the PR through GitHub
-- **AND** updates the local integration copy to the merged remote state
-- **AND** completes normal board/worktree cleanup
+- **GIVEN** the local task head was validated as A
+- **WHEN** the candidate GitHub PR resolves to head B
+- **THEN** the platform refuses to treat that PR as publication of A
+- **AND** it does not merge B under the validation decision for A
 
-#### Scenario: Repository requires auto-merge or merge queue
+### Requirement: Automatic merge intent is exact-head guarded and durable when GitHub supports it
 
-- **GIVEN** `pr_merge_mode=auto`
-- **AND** required PR checks have succeeded
-- **WHEN** GitHub rejects the ordinary merge form because repository policy requires asynchronous auto-merge or merge-queue enrollment
-- **THEN** the platform tries supported non-bypass auto/queue merge forms
-- **AND** waits for GitHub to report the PR as `MERGED` for a bounded period
-- **AND** does not use an administrative bypass
+For an exact-head automatic task PR, the platform SHALL prefer to persist merge intent in native GitHub auto-merge / merge-queue state before entering a long local wait. Every protected merge request SHALL include an exact expected task-head guard.
 
-#### Scenario: Automatic task PR check fails
+#### Scenario: Auto-merge is armed before required checks finish
 
-- **GIVEN** `pr_merge_mode=auto`
-- **WHEN** a required PR check fails
-- **THEN** the platform does not merge the PR
-- **AND** local main remains unchanged
-- **AND** the agent receives the failing-check result
+- **GIVEN** native GitHub auto-merge is available
+- **AND** required checks for exact head A are still pending
+- **WHEN** the platform publishes the task PR
+- **THEN** it requests auto-merge for A before waiting for all checks locally
+- **AND** GitHub may complete the merge after the publisher process exits, provided protections pass and the head remains A
 
-#### Scenario: Automatic publisher is interrupted before merge
+#### Scenario: Exact head changes before GitHub accepts merge
 
-- **GIVEN** `pr_merge_mode=auto` and a sealed task candidate
-- **WHEN** the publishing process ends before its PR merges
-- **THEN** a supported later lifecycle invocation detects the recoverable publication
-- **AND** resumes or clearly reports the same branch and PR without creating duplicate delivery work
+- **GIVEN** validation covered A
+- **WHEN** a protected merge operation observes a different PR head
+- **THEN** the merge request fails closed through expected-head semantics
+- **AND** the changed head must be validated separately
 
-#### Scenario: Manual task PR is requested
+#### Scenario: Native auto-merge is not available
 
-- **GIVEN** `pr_merge_mode=manual`
-- **WHEN** the task is published
-- **THEN** the platform creates or reuses the PR and stops without merging it
+- **WHEN** repository capability/policy does not allow the platform to persist remote automatic merge intent
+- **THEN** the existing bounded foreground required-check and protected-merge path remains available
+- **AND** the task remains safely resumable through the same exact branch/PR
+- **AND** status reports degraded remote durability rather than claiming durable remote execution
 
-### Requirement: Publication prerequisites fail early
+### Requirement: Existing published PR recovery is distinct from first-publication freshness
 
-Platform-owned PR publication SHALL validate GitHub CLI/API availability before work reaches the remote merge stage. It SHALL independently evaluate supported credential sources so an invalid exported credential cannot mask a valid local authenticated session.
+The platform SHALL preserve the existing fresh-base prerequisite for first publication while allowing an already-existing exact-head task PR to continue through GitHub protection after the base advances. It SHALL NOT silently rewrite the candidate branch during recovery.
 
-#### Scenario: Stale environment token shadows persistent credentials
+#### Scenario: Base advances after exact PR was opened
 
-- **GIVEN** `GH_TOKEN` or `GITHUB_TOKEN` is present but invalid
-- **AND** a valid persistent `gh` login or reusable Git HTTPS credential exists
-- **WHEN** platform PR publication resolves GitHub API authentication
-- **THEN** it ignores the invalid token source after validation fails
-- **AND** continues with the valid persistent credential
-- **AND** does not require the user to run `gh auth login` again
+- **GIVEN** an exact-head task PR already exists
+- **AND** the configured base advances before merge
+- **WHEN** normal finish runs again
+- **THEN** it re-observes the existing PR before applying first-publication stale-base rejection
+- **AND** GitHub required checks / branch protection / merge queue determine whether integration may proceed
 
-#### Scenario: GitHub CLI is unavailable or unauthenticated
+#### Scenario: Repository requires candidate branch update
 
-- **GIVEN** `harness_mode=platform` and `publish_mode=pr`
-- **WHEN** doctor runs
-- **THEN** it fails with an actionable authentication/setup message
-- **AND** no local-main integration is attempted
+- **GIVEN** an existing exact-head PR cannot integrate because repository policy requires an updated branch
+- **AND** no supported queue/automatic integration path can satisfy that policy
+- **WHEN** recovery runs
+- **THEN** it reports the branch-update requirement as an actionable blocker
+- **AND** it does not silently mutate/rebase the task head
 
-#### Scenario: Invalid exported credential masks no valid local session
+### Requirement: Task publication status is read-only
 
-- **GIVEN** an exported GitHub credential is invalid
-- **AND** a supported local GitHub CLI session is valid
-- **WHEN** doctor or publication preflight runs
-- **THEN** it selects the valid session without logging a credential value
-- **AND** it does not report the repository unauthenticated
+Platform-owned publication SHALL expose a supported status operation derived from current Git/GitHub state. The status operation SHALL not perform publication or local integration mutations.
+
+#### Scenario: Status observes an unfinished remote task
+
+- **WHEN** an exact task PR is open, waiting, armed, queued, failed, or merged
+- **THEN** status reports the exact task SHA, PR identity, current remote delivery state and safe next operation
+- **AND** it does not push, create/merge PRs, update boards, clean worktrees, or change local main
+
+#### Scenario: Remote merge is complete but local reconciliation is not
+
+- **WHEN** GitHub reports the exact task PR as `MERGED` but the local integration copy has not yet been reconciled
+- **THEN** status distinguishes `remote merged` from `local reconciliation pending`
+- **AND** normal finish may complete only the already-supported serialized local reconciliation
+
+### Requirement: Remote publication races converge idempotently
+
+Repeated or concurrent platform-owned publication attempts for the same exact task head SHALL converge on the same remote PR and merge intent without requiring a lease that spans remote waits.
+
+#### Scenario: Concurrent PR create race
+
+- **GIVEN** two publishers target the same exact branch/base/head SHA
+- **WHEN** one publisher creates the PR after both initially observed none
+- **THEN** the other publisher re-queries and reuses that PR
+- **AND** the create race does not produce competing task PRs
+
+#### Scenario: Concurrent merge request race
+
+- **GIVEN** two publishers target the same exact PR head A
+- **WHEN** both request protected automatic integration
+- **THEN** exact-head guards and current GitHub state make the operations convergent
+- **AND** neither process may merge a different head
+
+### Requirement: Native automatic-merge capability is visible and explicitly administered
+
+For `harness_mode=platform` and `pr_merge_mode=auto`, platform diagnostics SHOULD report whether repository-native auto-merge / queue capability is available to persist the remote waiting step. Task publication SHALL NOT silently enable or disable repository-level auto-merge settings.
+
+#### Scenario: Repository auto-merge is disabled
+
+- **WHEN** automatic task publication is configured but native auto-merge/queue is unavailable
+- **THEN** doctor/status reports the foreground fallback accurately
+- **AND** may provide the explicit administrative action required to enable native auto-merge
+- **AND** no repository setting is changed implicitly
