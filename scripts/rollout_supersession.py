@@ -96,6 +96,22 @@ def eligible_rollout_prs(
     return sorted(eligible, key=lambda item: (parse_version(item.version), item.number))
 
 
+def find_exact_pending_rollout_pr(
+    repository: str, base_branch: str, expected_bot: str, version: str,
+) -> RolloutPR | None:
+    """Find the trusted open rollout PR for an exact target version, if any.
+
+    Reuses the same structured trust boundary as supersession (exact reserved
+    branch, base branch, and automation identity from the GitHub API's own
+    JSON) instead of parsing human-readable `gh` output or matching by title.
+    """
+    parse_version(version)
+    eligible = eligible_rollout_prs(
+        list_open_prs(repository, base_branch), repository=repository, base_branch=base_branch, expected_bot=expected_bot
+    )
+    return next((pr for pr in eligible if pr.version == version), None)
+
+
 def platform_version_from_contents(copier_text: str, config_text: str) -> str | None:
     copier = COPIER_COMMIT_RE.search(copier_text)
     config = PLATFORM_VERSION_RE.search(config_text)
@@ -220,17 +236,7 @@ def reconcile(
     return report
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description="Reconcile stale exact-version managed rollout PRs.")
-    parser.add_argument("--repository", required=True)
-    parser.add_argument("--base-branch", required=True)
-    parser.add_argument("--expected-bot", required=True, help="Expected GitHub App login, for example dev-platform-bot[bot].")
-    parser.add_argument("--registry", type=Path, default=ROOT / "managed-projects.json")
-    parser.add_argument("--authoritative-version")
-    parser.add_argument("--authoritative-pr", type=int)
-    parser.add_argument("--apply", action="store_true", help="Close only PRs shown by the dry-run plan.")
-    parser.add_argument("--output", type=Path)
-    args = parser.parse_args()
+def _cmd_reconcile(args: argparse.Namespace) -> int:
     try:
         if bool(args.authoritative_version) != bool(args.authoritative_pr):
             raise ValueError("authoritative version and PR must be supplied together")
@@ -247,6 +253,51 @@ def main() -> int:
     except ValueError as exc:
         print(f"Managed rollout supersession: BLOCKED: {exc}", file=sys.stderr)
         return 2
+
+
+def _cmd_find_pending(args: argparse.Namespace) -> int:
+    try:
+        pr = find_exact_pending_rollout_pr(args.repository, args.base_branch, args.expected_bot, args.version)
+        payload = (
+            {"found": True, "url": pr.url, "number": pr.number, "branch": pr.branch}
+            if pr is not None
+            else {"found": False, "url": None, "number": None, "branch": None}
+        )
+        text = json.dumps(payload, ensure_ascii=False, sort_keys=True)
+        if args.output:
+            args.output.write_text(text + "\n", encoding="utf-8")
+        print(text)
+        return 0
+    except ValueError as exc:
+        print(f"Managed rollout pending-PR detection: BLOCKED: {exc}", file=sys.stderr)
+        return 2
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Structured helpers for the managed rollout control plane.")
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    reconcile_parser = sub.add_parser("reconcile", help="Reconcile stale exact-version managed rollout PRs.")
+    reconcile_parser.add_argument("--repository", required=True)
+    reconcile_parser.add_argument("--base-branch", required=True)
+    reconcile_parser.add_argument("--expected-bot", required=True, help="Expected GitHub App login, for example dev-platform-bot[bot].")
+    reconcile_parser.add_argument("--registry", type=Path, default=ROOT / "managed-projects.json")
+    reconcile_parser.add_argument("--authoritative-version")
+    reconcile_parser.add_argument("--authoritative-pr", type=int)
+    reconcile_parser.add_argument("--apply", action="store_true", help="Close only PRs shown by the dry-run plan.")
+    reconcile_parser.add_argument("--output", type=Path)
+    reconcile_parser.set_defaults(func=_cmd_reconcile)
+
+    pending_parser = sub.add_parser("find-pending", help="Find the trusted open rollout PR for an exact target version.")
+    pending_parser.add_argument("--repository", required=True)
+    pending_parser.add_argument("--base-branch", required=True)
+    pending_parser.add_argument("--expected-bot", required=True, help="Expected GitHub App login, for example dev-platform-bot[bot].")
+    pending_parser.add_argument("--version", required=True)
+    pending_parser.add_argument("--output", type=Path)
+    pending_parser.set_defaults(func=_cmd_find_pending)
+
+    args = parser.parse_args()
+    return args.func(args)
 
 
 if __name__ == "__main__":

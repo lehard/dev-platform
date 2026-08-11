@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 import unittest
 from pathlib import Path
@@ -123,7 +124,7 @@ class RolloutSupersessionWorkflowTests(unittest.TestCase):
     def test_normal_rollout_reconciles_only_after_target_pr_is_confirmed(self) -> None:
         workflow = (ROOT / ".github/workflows/rollout.yml").read_text(encoding="utf-8")
         self.assertIn("Supersede older validated rollout PRs", workflow)
-        self.assertIn("python3 scripts/rollout_supersession.py", workflow)
+        self.assertIn("python3 platform/scripts/rollout_supersession.py reconcile", workflow)
         self.assertIn("--authoritative-pr \"$TARGET_PR\"", workflow)
         self.assertIn("${APP_SLUG}[bot]", workflow)
         self.assertIn("dev-platform-managed-rollout: validated-exact-version", workflow)
@@ -136,6 +137,69 @@ class RolloutSupersessionWorkflowTests(unittest.TestCase):
         self.assertIn("scripts/managed_projects.py matrix", workflow)
         self.assertIn("if [[ \"$MODE\" == apply ]]; then args+=(--apply); fi", workflow)
         self.assertIn("actions/create-github-app-token@", workflow)
+        self.assertIn("python3 scripts/rollout_supersession.py reconcile", workflow)
+
+
+class FindExactPendingRolloutPrTests(unittest.TestCase):
+    def eligible_prs(self, *prs: dict[str, object]) -> list[dict[str, object]]:
+        return list(prs)
+
+    def test_finds_exact_eligible_pending_pr_for_version(self) -> None:
+        prs = [pr(1, "v1.2.2"), pr(2, "v1.2.3")]
+        with patch.object(supersession, "list_open_prs", return_value=prs):
+            found = supersession.find_exact_pending_rollout_pr(
+                "lehard/managed", "main", "dev-platform-bot[bot]", "v1.2.3"
+            )
+        self.assertIsNotNone(found)
+        self.assertEqual((found.number, found.version), (2, "v1.2.3"))
+
+    def test_absent_when_no_pr_targets_the_exact_version(self) -> None:
+        prs = [pr(1, "v1.2.2")]
+        with patch.object(supersession, "list_open_prs", return_value=prs):
+            found = supersession.find_exact_pending_rollout_pr(
+                "lehard/managed", "main", "dev-platform-bot[bot]", "v1.2.3"
+            )
+        self.assertIsNone(found)
+
+    def test_wrong_bot_is_not_a_trusted_pending_pr(self) -> None:
+        prs = [pr(1, "v1.2.3", author="some-human")]
+        with patch.object(supersession, "list_open_prs", return_value=prs):
+            found = supersession.find_exact_pending_rollout_pr(
+                "lehard/managed", "main", "dev-platform-bot[bot]", "v1.2.3"
+            )
+        self.assertIsNone(found)
+
+    def test_wrong_base_branch_is_not_a_trusted_pending_pr(self) -> None:
+        prs = [pr(1, "v1.2.3", base="release")]
+        with patch.object(supersession, "list_open_prs", return_value=prs):
+            found = supersession.find_exact_pending_rollout_pr(
+                "lehard/managed", "main", "dev-platform-bot[bot]", "v1.2.3"
+            )
+        self.assertIsNone(found)
+
+    def test_wrong_branch_pattern_is_not_a_trusted_pending_pr(self) -> None:
+        prs = [pr(1, "v1.2.3", branch="dev-platform/rollout-v1.2.3-extra")]
+        with patch.object(supersession, "list_open_prs", return_value=prs):
+            found = supersession.find_exact_pending_rollout_pr(
+                "lehard/managed", "main", "dev-platform-bot[bot]", "v1.2.3"
+            )
+        self.assertIsNone(found)
+
+    def test_cli_find_pending_reports_structured_json(self) -> None:
+        prs = [pr(7, "v1.2.3")]
+        output = ROOT / "does-not-exist-find-pending.json"
+        try:
+            with patch.object(supersession, "list_open_prs", return_value=prs):
+                argv = [
+                    "find-pending", "--repository", "lehard/managed", "--base-branch", "main",
+                    "--expected-bot", "dev-platform-bot[bot]", "--version", "v1.2.3", "--output", str(output),
+                ]
+                with patch.object(sys, "argv", ["rollout_supersession.py", *argv]):
+                    self.assertEqual(supersession.main(), 0)
+            payload = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual(payload, {"found": True, "url": "https://example.invalid/pr/7", "number": 7, "branch": "dev-platform/rollout-v1.2.3"})
+        finally:
+            output.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":
