@@ -4,6 +4,7 @@ import argparse
 import fnmatch
 import json
 import subprocess
+import time
 from pathlib import Path
 from typing import Any
 
@@ -49,21 +50,24 @@ def changed_files(root: Path, base: str | None, explicit: list[str]) -> list[str
     return sorted(result)
 
 
+def full_checks(config: dict[str, Any], *, selection_reason: str = "protected-full") -> list[dict[str, Any]]:
+    commands = list(config.get("settings", {}).get("full_commands", []))
+    if not commands:
+        raise SystemExit("settings.full_commands must not be empty for protected full validation.")
+    return [{"id": "full", "paths": [], "commands": commands, "selection_reason": selection_reason}]
+
+
 def select(config: dict[str, Any], paths: list[str]) -> list[dict[str, Any]]:
     settings = config.get("settings", {})
     checks = config.get("checks", {})
-    fallback = list(settings.get("fallback_commands", []))
-    full_commands = list(settings.get("full_commands", []))
     full_trigger_patterns = list(settings.get("full_trigger_patterns", []))
 
     full_trigger_paths = [path for path in paths if full_trigger_patterns and match_any(path, full_trigger_patterns)]
     if full_trigger_paths:
-        if not full_commands:
-            raise SystemExit(
-                "High-impact file matched settings.full_trigger_patterns, but settings.full_commands is empty. "
-                "Refusing to downgrade the change to whitespace-only validation."
-            )
-        return [{"id": "full-trigger", "paths": full_trigger_paths, "commands": full_commands}]
+        selected = full_checks(config, selection_reason="high-impact-path")
+        selected[0]["id"] = "full-trigger"
+        selected[0]["paths"] = full_trigger_paths
+        return selected
 
     selected: list[dict[str, Any]] = []
     seen: set[str] = set()
@@ -82,31 +86,54 @@ def select(config: dict[str, Any], paths: list[str]) -> list[dict[str, Any]]:
         if not matched:
             unknown.append(path)
 
-    if unknown and fallback:
-        selected.append({"id": "fallback", "paths": unknown, "commands": fallback})
+    if unknown:
+        selected = full_checks(config, selection_reason="unknown-path")
+        selected[0]["id"] = "full-fallback"
+        selected[0]["paths"] = unknown
+        return selected
     return selected
 
 
-def full_checks(config: dict[str, Any]) -> list[dict[str, Any]]:
-    commands = list(config.get("settings", {}).get("full_commands", []))
-    return [{"id": "full", "paths": [], "commands": commands}]
-
-
-def execute(root: Path, checks: list[dict[str, Any]]) -> int:
+def commands_for(checks: list[dict[str, Any]]) -> list[str]:
     commands: list[str] = []
     for check in checks:
         for command in check.get("commands", []):
             if command not in commands:
                 commands.append(command)
+    return commands
+
+
+def diagnostic_tail(output: str, limit: int = 7000) -> str:
+    if len(output) <= limit:
+        return output
+    return "[output truncated]\n" + output[-limit:]
+
+
+def command_result(command: str, result: subprocess.CompletedProcess[str], duration_seconds: float) -> dict[str, Any]:
+    return {
+        "command": command,
+        "duration_seconds": round(duration_seconds, 3),
+        "outcome": "success" if result.returncode == 0 else "failure",
+        "exit_code": result.returncode,
+    }
+
+
+def execute(root: Path, checks: list[dict[str, Any]]) -> int:
+    commands = commands_for(checks)
     if not commands:
         print("No commands selected.")
         return 0
 
     for command in commands:
         print(f"DEV_PLATFORM_CHECK_COMMAND: {command}", flush=True)
-        print(f"+ {command}", flush=True)
-        result = subprocess.run(command, cwd=root, shell=True)
+        started = time.monotonic()
+        result = subprocess.run(command, cwd=root, shell=True, capture_output=True, text=True)
+        evidence = command_result(command, result, time.monotonic() - started)
+        print("DEV_PLATFORM_CHECK_RESULT: " + json.dumps(evidence, ensure_ascii=False), flush=True)
         if result.returncode != 0:
+            detail = diagnostic_tail((result.stdout or "") + (result.stderr or ""))
+            if detail:
+                print("DEV_PLATFORM_CHECK_DIAGNOSTIC:\n" + detail.rstrip(), flush=True)
             return result.returncode
     return 0
 
@@ -117,15 +144,20 @@ def main() -> int:
     parser.add_argument("--changed-file", action="append", default=[])
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--execute", action="store_true")
-    parser.add_argument("--full", action="store_true")
+    parser.add_argument("--mode", choices=("local-affected", "protected-full"), default="local-affected")
+    parser.add_argument("--protected-full", action="store_true", help="Alias for --mode protected-full.")
+    parser.add_argument("--full", action="store_true", help="Deprecated alias for --mode protected-full.")
     args = parser.parse_args()
+
+    if args.protected_full or args.full:
+        args.mode = "protected-full"
 
     root = current_worktree_root()
     config = load_config(root)
-    paths = [] if args.full else changed_files(root, args.base, args.changed_file)
-    checks = full_checks(config) if args.full else select(config, paths)
+    paths = [] if args.mode == "protected-full" else changed_files(root, args.base, args.changed_file)
+    checks = full_checks(config) if args.mode == "protected-full" else select(config, paths)
 
-    payload = {"files": paths, "checks": checks, "mode": "full" if args.full else "changed"}
+    payload = {"files": paths, "checks": checks, "mode": args.mode}
     if args.json:
         print(json.dumps(payload, ensure_ascii=False, indent=2))
     else:
@@ -133,12 +165,11 @@ def main() -> int:
             print("Changed files:")
             for path in paths:
                 print(f"  {path}")
-        for check in checks:
-            print(f"[{check['id']}]")
-            for command in check.get("commands", []):
-                print(f"  {command}")
-        if not checks:
-            print("No checks selected.")
+        if checks:
+            reasons = sorted({str(check.get("selection_reason", "mapped")) for check in checks})
+            print(f"Validation mode: {args.mode}; reason: {', '.join(reasons)}; commands: {len(commands_for(checks))}")
+        else:
+            print(f"Validation mode: {args.mode}; no commands selected.")
 
     if args.execute:
         return execute(root, checks)

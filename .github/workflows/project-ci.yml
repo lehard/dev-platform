@@ -23,12 +23,12 @@ jobs:
           node-version: "20"
           package-manager-cache: false
 
-      - name: Run selected checks
+      - name: Run protected full checks
         if: github.event_name == 'pull_request'
         shell: bash
-        run: python3 scripts/select_checks.py --base "origin/${{ github.base_ref }}" --execute
+        run: python3 scripts/select_checks.py --base "origin/${{ github.base_ref }}" --mode protected-full --execute
 
-      - name: Run full checks
+      - name: Run protected full checks
         if: github.event_name != 'pull_request'
         shell: bash
-        run: python3 scripts/select_checks.py --full --execute
+        run: python3 scripts/select_checks.py --mode protected-full --execute

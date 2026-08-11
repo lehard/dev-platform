@@ -68,6 +68,8 @@ Platform-owned PR publication requires authenticated GitHub CLI/API access. Run 
 
 ## Local-heavy, cloud-final verification
 
+`select_checks.py` has two deliberate policies: the default `local-affected` mode provides fast feedback only when every changed path has a maintained mapping; unknown paths and control-plane paths fail closed to the configured full set. `--mode protected-full` always runs that full set and is the only selector mode used by the reusable protected-PR gate. Successful commands print compact machine-readable duration/outcome evidence; failures also retain a bounded output tail. A local success is never merge authority.
+
 Required selected and full checks run locally before publication. The self-contained cloud workflow is the final clean-environment merge gate for `publish_mode=pr`. Protected PR publication waits for that gate before merging. Superseded validation runs for the same PR/ref are cancelled. Manual workflow dispatch remains the explicit cloud path for a full platform-managed run when that is useful.
 
 For intentionally unprotected `publish_mode=direct` repositories, the published main state receives an automatic run that is deliberately lightweight: it validates platform/OpenSpec health without repeating the full project check set. Direct-mode repositories also retain the stable pull-request `platform-ci` gate for explicitly reviewed maintenance or rollout PRs so existing required-status protection can be satisfied if such a PR is used.
