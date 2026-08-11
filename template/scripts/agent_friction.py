@@ -20,7 +20,7 @@ try:
 except ImportError:  # pragma: no cover - Windows fallback
     fcntl = None
 
-from _platform_common import current_worktree_root, main_root, read_platform_config, utc_now
+from _platform_common import atomic_write_text, cooperative_umask, current_worktree_root, ensure_shared_path, main_root, read_platform_config, utc_now
 
 
 DEFAULT_MIN_EVENTS = 5
@@ -80,7 +80,9 @@ def normalize_text(value: str, field: str, max_length: int = 4000) -> str:
 def friction_lock() -> Iterator[None]:
     path = log_path().with_suffix(".lock")
     path.parent.mkdir(parents=True, exist_ok=True)
+    ensure_shared_path(path.parent)
     with path.open("a+", encoding="utf-8") as lock_file:
+        ensure_shared_path(path)
         if fcntl is not None:
             fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
         try:
@@ -91,12 +93,7 @@ def friction_lock() -> Iterator[None]:
 
 
 def atomic_write_json(path: Path, payload: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile("w", encoding="utf-8", dir=path.parent, delete=False) as fh:
-        json.dump(payload, fh, ensure_ascii=False, indent=2, sort_keys=True)
-        fh.write("\n")
-        temporary = Path(fh.name)
-    os.replace(temporary, path)
+    atomic_write_text(path, json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n")
 
 
 def current_branch() -> str:
@@ -107,6 +104,8 @@ def current_branch() -> str:
 def cmd_record(args: argparse.Namespace) -> int:
     path = log_path()
     path.parent.mkdir(parents=True, exist_ok=True)
+    if path.exists():
+        ensure_shared_path(path)
     triggers = sorted(set(args.trigger or [args.category]))
     event = {
         "id": uuid.uuid4().hex[:12],
@@ -125,6 +124,7 @@ def cmd_record(args: argparse.Namespace) -> int:
     encoded = json.dumps(event, ensure_ascii=False, sort_keys=True)
     with friction_lock():
         with path.open("a", encoding="utf-8") as fh:
+            ensure_shared_path(path)
             fh.write(encoded + "\n")
             fh.flush()
             os.fsync(fh.fileno())
@@ -554,6 +554,7 @@ def cmd_promote(args: argparse.Namespace) -> int:
 
 
 def main() -> int:
+    cooperative_umask()
     parser = argparse.ArgumentParser(description="Record high-signal agent friction and route sanitized process evidence safely.")
     sub = parser.add_subparsers(dest="command", required=True)
 

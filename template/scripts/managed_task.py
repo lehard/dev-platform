@@ -16,7 +16,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import quote, urlparse
 
-from _platform_common import current_worktree_root, github_cli_env, harness_mode, main_root, profile, read_platform_config, run_git
+from _platform_common import atomic_write_text, current_worktree_root, github_cli_env, harness_mode, main_root, profile, read_platform_config, run_git
 
 PACKAGE = "managed-openspec:v1"
 MARKER_RE = re.compile(r"<!--\s*(managed-openspec:v[0-9]+)\s*-->")
@@ -367,15 +367,7 @@ def change_root(root: Path, change: str) -> Path:
 
 
 def atomic_write(path: Path, text: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    descriptor, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
-    try:
-        with os.fdopen(descriptor, "w", encoding="utf-8", newline="") as handle:
-            handle.write(text)
-        os.replace(temporary, path)
-    finally:
-        if os.path.exists(temporary):
-            os.unlink(temporary)
+    atomic_write_text(path, text)
 
 
 def validate_change(root: Path, change: str) -> None:

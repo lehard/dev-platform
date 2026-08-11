@@ -6,7 +6,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from _platform_common import current_worktree_root, github_cli_env, harness_mode, profile, read_platform_config, run_git
+from _platform_common import current_worktree_root, github_cli_env, harness_mode, preflight, profile, read_platform_config, run_git
 from rollout_preflight import NONE, RECONCILED, reconcile_pending_rollout
 from start_worktree import StartedWorktree, create_worktree
 
@@ -28,6 +28,7 @@ class StartedTask:
 
 def start_task(root: Path, slug_value: str, task: str, scope: str = "") -> StartedTask:
     root = root.resolve()
+    preflight(root)
     config = read_platform_config(root)
     if harness_mode(config) != "platform":
         raise RuntimeError("harness_mode=project: use the repository-owned task/worktree entrypoint described by its AGENTS.md.")

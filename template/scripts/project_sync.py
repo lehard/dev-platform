@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from _platform_common import current_worktree_root, fetch_main, main_root, read_platform_config, relation, require_origin, run_git
+from _platform_common import current_worktree_root, fetch_main, main_root, preflight, read_platform_config, relation, require_origin, run_git
 
 
 def clean(root: Path) -> bool:
@@ -20,6 +20,7 @@ def main() -> int:
     args = parser.parse_args()
     caller = current_worktree_root()
     integration = main_root()
+    preflight(integration)
     config = read_platform_config(caller)
     branch = str(config.get("main_branch", "main"))
     remote_branch = f"{args.remote}/{branch}"

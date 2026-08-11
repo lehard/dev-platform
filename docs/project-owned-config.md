@@ -8,4 +8,8 @@ The platform may still migrate explicitly platform-owned fields through versione
 
 This boundary means future additions to `.dev-platform.toml` must be backward-compatible in platform scripts: new optional settings need safe defaults, and mandatory schema migrations belong in bootstrap/migration code rather than relying on Copier to overwrite an adopted project's config.
 
+## Shared-workspace permission contract
+
+The rendered `scripts/shared_workspace.py` derives the shared group from the integration checkout (or the machine-local `DEV_PLATFORM_SHARED_GROUP` override). It checks and repairs only platform-owned `.claude` coordination state and required Git common-directory metadata. `check` is read-only; `fix` sets group write and setgid only within those registered roots, configures `core.sharedRepository=group`, and stops with the exact path and owner action when repair is not authorized. Unsupported non-POSIX filesystems use a diagnostic no-op path.
+
 Do not resolve a `.dev-platform.toml` rollout conflict by blindly taking the template version. Preserve reviewed project configuration and use the platform migration path for platform-owned fields.

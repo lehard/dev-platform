@@ -9,7 +9,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Sequence
 
-from _platform_common import machine_path, main_root, read_platform_config, run_git
+from _platform_common import atomic_write_text, machine_path, main_root, read_platform_config, run_git
 
 
 DEFAULT_AGE_DAYS = 7
@@ -241,7 +241,7 @@ def write_pending_report(root: Path, decisions: Sequence[Decision]) -> Path:
         for item in pending:
             lines.append(f"| `{item.branch}` | `{item.path}` | {item.reason} |")
     lines.append("")
-    path.write_text("\n".join(lines), encoding="utf-8")
+    atomic_write_text(path, "\n".join(lines))
     return path
 
 

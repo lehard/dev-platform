@@ -19,6 +19,7 @@ from _platform_common import (
     relation,
     require_origin,
     run_git,
+    preflight,
 )
 from publication_state import (
     ExactHeadPrLookup,
@@ -74,6 +75,7 @@ def publish_direct(root: Path, remote: str, main_branch: str) -> int:
             f"For an explicit emergency/operator override, set {DIRECT_PUBLISH_GUARD}=1 yourself."
         )
     integration = main_root()
+    preflight(integration)
     if root != integration:
         raise SystemExit("Direct publication must run from the integration copy after local integration.")
     if branch(integration) != main_branch:
@@ -115,6 +117,7 @@ def push_feature_branch(root: Path, remote: str, main_branch: str, *, require_fr
     the base advanced after that PR was opened -- pushing again is a harmless
     no-op fast-forward to the same commit.
     """
+    preflight(root)
     current = _validate_feature_branch(root, remote, main_branch)
     fetch_main(root, remote, main_branch)
     if require_fresh_base and run_git(["merge-base", "--is-ancestor", f"{remote}/{main_branch}", current], cwd=root, check=False).returncode != 0:

@@ -8,6 +8,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from _platform_common import preflight
+
 SEMVER_TAG_RE = re.compile(r"^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
 PLATFORM_VERSION_RE = re.compile(r'^platform_version\s*=\s*"[^"]*"\s*$', re.MULTILINE)
 PROJECT_SLUG_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
@@ -148,6 +150,7 @@ def main() -> int:
     if not was_git_repo:
         run(["git", "init", "-b", main_branch], root)
     (root / ".claude" / "worktrees").mkdir(parents=True, exist_ok=True)
+    preflight(root)
     openspec = shutil.which("openspec")
     if openspec and (not was_git_repo or safe_fresh_adoption):
         print("Initializing full OpenSpec workflow set for fresh project/adoption...")

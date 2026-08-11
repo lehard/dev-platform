@@ -106,8 +106,9 @@ class CentralDogfoodLifecycleTests(unittest.TestCase):
         self.assertEqual(config["paths"]["worktrees"], ".claude/worktrees")
         self.assertIn("scripts/dogfood_task.py", config["source_required_paths"])
         self.assertIn("scripts/managed_project_status.py", config["source_required_paths"])
+        self.assertIn("scripts/shared_workspace.py", config["source_required_paths"])
         for name in (
-            "agent_board.py", "agent_doctor.py", "agent_friction.py", "finish_task.py", "managed_project_status.py", "openspec_lifecycle.py",
+            "agent_board.py", "agent_doctor.py", "agent_friction.py", "finish_task.py", "managed_project_status.py", "openspec_lifecycle.py", "shared_workspace.py",
             "project_publish.py", "project_sync.py", "select_checks.py", "start_task.py", "start_worktree.py", "worktree_cleanup.py",
         ):
             with self.subTest(name=name):
