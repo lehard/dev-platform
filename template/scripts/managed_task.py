@@ -427,7 +427,14 @@ def candidate_summary(issues: list[dict[str, Any]], target_repository: str, chan
         if target != target_repository:
             continue
         if existing_change == change:
-            exact = issue
+            # A transport interruption can create the Issue but fail before
+            # posting its managed package. The receipt then refers to the
+            # former main revision; resume it and let publish_package prove
+            # that no conflicting package already exists.
+            if AUTHORING_RECEIPT_RE.search(body):
+                resumed = issue
+            else:
+                exact = issue
         else:
             candidates.append(issue)
     return exact, candidates, resumed
