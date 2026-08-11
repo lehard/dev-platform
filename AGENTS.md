@@ -40,6 +40,12 @@ A change to a downstream managed file must consider both new-project rendering a
 
 The shared lifecycle is composable. `light`, `standard`, and `multi-agent` profiles select capabilities rather than forking the template. GitHub sync/publish, checks, OpenSpec policy and release pinning are core; worktrees/board are multi-agent capabilities.
 
+## Delegated write containment
+
+A write-capable delegated subagent/subprocess (Codex, Claude, or any other runtime with filesystem write access) is platform-contained only when it runs through the guarded entrypoint in `template/scripts/delegated_write_guard.py` (`run_guarded_delegation`). It validates an absolute, registered `assigned_worktree`, applies the strongest enforcement tier the runtime can actually prove (`hard` for a real OS writable-root sandbox, or a hook-enforced structured-write-only Claude session; `detection-only` otherwise), launches the child with `cwd=assigned_worktree`, and always runs a content-aware post-delegation comparison against the integration copy before reporting success — even when the child fails, times out, or is cancelled.
+
+Direct native subagent/subprocess invocation outside that entrypoint is not represented as platform-contained, regardless of how it happens to behave. `detection-only` delegation must not start while the integration checkout already has uncommitted state, since a purely after-the-fact check cannot tell a pre-existing dirty path from writer-caused damage the way a hard-contained run's post-check still can. No containment path stashes, resets, cleans, or deletes anything in the integration copy; a detected violation is reported with the exact paths and recorded as local friction, independent of GitHub auth.
+
 ## Release safety
 
 Downstream reusable CI must never reference `dev-platform@main`. It must use a versioned release ref (or immutable SHA). Release refs are append-only and must never be moved after publication. Platform upgrades reach projects through reviewed Copier update PRs.
