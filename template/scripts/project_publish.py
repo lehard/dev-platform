@@ -29,6 +29,14 @@ from publication_state import (
     required_check_state,
 )
 from managed_project_status import ManagedProjectStatusError, reconcile as reconcile_managed_project
+try:
+    from managed_task import ManagedTaskError, require_delivery_provenance
+except ModuleNotFoundError:  # Compatibility while a pre-managed-intake render is being upgraded.
+    class ManagedTaskError(RuntimeError):
+        pass
+
+    def require_delivery_provenance(root: Path):
+        return None
 
 
 DIRECT_PUBLISH_GUARD = "DEV_PLATFORM_VALIDATED_DIRECT_PUBLISH"
@@ -339,6 +347,10 @@ def request_protected_merge(root: Path, env: dict[str, str], current: str, remot
 
 
 def publish_pr(root: Path, remote: str, main_branch: str, title: str | None, body: str | None, merge_mode: str) -> int:
+    try:
+        require_delivery_provenance(root)
+    except ManagedTaskError as exc:
+        raise SystemExit("Managed task publication blocked: " + str(exc)) from exc
     current = _validate_feature_branch(root, remote, main_branch)
     env = require_gh_environment(root)
     expected_head = run_git(["rev-parse", current], cwd=root).stdout.strip()

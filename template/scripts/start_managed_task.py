@@ -6,8 +6,14 @@ import argparse
 import subprocess
 from pathlib import Path
 
-from _platform_common import current_worktree_root
-from managed_task import ManagedTaskError, discover_task, import_task
+from _platform_common import current_worktree_root, machine_path, profile, read_platform_config, run_git
+from managed_task import (
+    ManagedTaskError,
+    discover_task,
+    import_task,
+    resolve_canonical_provenance,
+    write_task_state,
+)
 from managed_project_status import ManagedProjectStatusError, reconcile
 from start_task import StartedTask, cleanup_started_task, start_task
 
@@ -15,6 +21,33 @@ from start_task import StartedTask, cleanup_started_task, start_task
 def start_managed_task(root: Path, reference: str, scope: str = "") -> tuple[StartedTask, str, bool]:
     """Discover before task creation, then materialize in the task checkout only."""
     package = discover_task(root, reference)
+    config = read_platform_config(root)
+    if profile(config) == "multi-agent":
+        existing_root = machine_path("worktrees", root) / package.change
+        if existing_root.is_dir():
+            provenance = resolve_canonical_provenance(
+                existing_root, source_issue=package.source_issue, change=package.change
+            )
+            if provenance is None:
+                raise ManagedTaskError(
+                    f"existing managed task worktree {existing_root} has no canonical OpenSpec provenance"
+                )
+            # Bounded migration for tasks created before task-level state was
+            # introduced. It records identity only and never reimports the
+            # transport package over the repository-local change.
+            write_task_state(existing_root, package)
+            branch = run_git(["branch", "--show-current"], cwd=existing_root).stdout.strip()
+            if not branch:
+                raise ManagedTaskError(f"existing managed task worktree is detached: {existing_root}")
+            started = StartedTask(profile="multi-agent", branch=branch, task_root=existing_root)
+            reconciliation = reconcile(existing_root, "In progress", source_issue=package.source_issue)
+            if reconciliation is None:
+                raise ManagedProjectStatusError("managed resume lost its source Issue identity")
+            print(
+                f"Managed Project status {'updated' if reconciliation.changed else 'already current'}: "
+                f"{package.source_issue} -> In progress"
+            )
+            return started, package.prepared_against, True
     started = start_task(
         root,
         package.change,

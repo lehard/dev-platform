@@ -37,6 +37,14 @@ from managed_project_status import (
     discover_source_issue as discover_managed_source,
     reconcile as reconcile_managed_project,
 )
+try:
+    from managed_task import ManagedTaskError, require_delivery_provenance
+except ModuleNotFoundError:  # Compatibility while a pre-managed-intake render is being upgraded.
+    class ManagedTaskError(RuntimeError):
+        pass
+
+    def require_delivery_provenance(root: Path):
+        return None
 
 
 ALLOW_NO_CHECKS_ENV = "DEV_PLATFORM_ALLOW_NO_CHECKS"
@@ -329,6 +337,10 @@ def reconcile_confirmed_remote_pr_merge(
 ) -> None:
     """Serialize only local post-MERGED reconciliation, never remote waits."""
     try:
+        require_delivery_provenance(work)
+    except ManagedTaskError as exc:
+        raise SystemExit("Managed task provenance is invalid before terminal reconciliation: " + str(exc)) from exc
+    try:
         managed_source = discover_managed_source(work, config)
     except ManagedProjectStatusError as exc:
         raise SystemExit("Managed task provenance is ambiguous before terminal reconciliation: " + str(exc)) from exc
@@ -392,6 +404,10 @@ def main() -> int:
     if not branch:
         raise SystemExit("Detached HEAD is not publishable through the platform lifecycle.")
     validate_publication_config(work, config, prof, mode)
+    try:
+        require_delivery_provenance(work)
+    except ManagedTaskError as exc:
+        raise SystemExit("Managed task publication blocked: " + str(exc)) from exc
     run_openspec_hygiene(work)
     run_friction_retry_and_checkpoint(work, branch)
     if not clean(work):

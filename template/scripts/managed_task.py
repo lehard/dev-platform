@@ -26,6 +26,7 @@ REF_RE = re.compile(r"^([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)#([1-9][0-9]*)$")
 CHANGE_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 PROVENANCE = ".managed-task.json"
+TASK_STATE = ".managed-task-state.json"
 AUTHORING_RECEIPT_RE = re.compile(r"<!--\s*managed-task:authoring:([0-9a-f]{64})\s*-->")
 ISSUE_TARGET_RE = re.compile(r"^\*\*Target repository:\*\*\s*`([^`]+)`", re.MULTILINE)
 ISSUE_CHANGE_RE = re.compile(r"^\*\*OpenSpec change:\*\*\s*`([^`]+)`", re.MULTILINE)
@@ -45,6 +46,16 @@ class Package:
     artifacts: tuple[str, ...]
     contents: dict[str, str]
     revision: str
+
+
+@dataclass(frozen=True)
+class CanonicalProvenance:
+    """The repository-local OpenSpec lineage for one managed task."""
+
+    source_issue: str
+    change: str
+    path: Path
+    lifecycle: str  # ``active`` or ``archived``
 
 
 @dataclass(frozen=True)
@@ -539,6 +550,179 @@ def read_provenance(root: Path) -> dict[str, Any]:
     return value
 
 
+def task_state_path(root: Path) -> Path:
+    return root / TASK_STATE
+
+
+def read_task_state(root: Path) -> dict[str, Any] | None:
+    """Read the task-level identity that survives OpenSpec archival.
+
+    The change-local record remains the canonical contract.  This small
+    task-level record only preserves the identity needed to fail closed if
+    that contract is subsequently deleted or replaced.
+    """
+    path = task_state_path(root)
+    if not path.exists():
+        return None
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ManagedTaskError(f"managed task state is invalid JSON: {exc.msg}") from exc
+    if not isinstance(value, dict):
+        raise ManagedTaskError("managed task state is invalid")
+    source = value.get("source_issue")
+    change = value.get("change")
+    if not isinstance(source, str) or not isinstance(change, str):
+        raise ManagedTaskError("managed task state must identify source_issue and change")
+    repository, number = issue_ref(source)
+    if not CHANGE_RE.fullmatch(change):
+        raise ManagedTaskError("managed task state has an invalid OpenSpec change name")
+    return {**value, "source_issue": f"{repository}#{number}", "change": change}
+
+
+def write_task_state(root: Path, package: Package) -> None:
+    """Persist identity, never a second copy of the managed package."""
+    atomic_write(
+        task_state_path(root),
+        json.dumps(
+            {
+                "version": 1,
+                "source_issue": package.source_issue,
+                "target_repository": package.target_repository,
+                "change": package.change,
+            },
+            sort_keys=True,
+            indent=2,
+        )
+        + "\n",
+    )
+
+
+def _provenance_for(path: Path, lifecycle: str) -> CanonicalProvenance:
+    payload = read_provenance(path)
+    source = payload.get("source_issue")
+    change = payload.get("change")
+    if not isinstance(source, str) or not isinstance(change, str):
+        raise ManagedTaskError(f"managed-task provenance is incomplete: {path}")
+    repository, number = issue_ref(source)
+    valid_path = path.name == change if lifecycle == "active" else path.name == change or path.name.endswith(f"-{change}")
+    if not valid_path or not CHANGE_RE.fullmatch(change):
+        raise ManagedTaskError(f"managed-task provenance does not match its OpenSpec change path: {path}")
+    return CanonicalProvenance(f"{repository}#{number}", change, path, lifecycle)
+
+
+def canonical_provenance_candidates(root: Path, change: str) -> list[CanonicalProvenance]:
+    """Locate only canonical active/archive locations for ``change``."""
+    active = change_root(root, change)
+    candidates: list[CanonicalProvenance] = []
+    if (active / PROVENANCE).is_file():
+        candidates.append(_provenance_for(active, "active"))
+    archive = root / "openspec" / "changes" / "archive"
+    if archive.is_dir():
+        # Current OpenSpec archives directly to a dated change directory,
+        # while older repository history may use a dated parent/change layout.
+        archived_paths = list(archive.glob(f"*-{change}")) + list(archive.glob(f"*/{change}"))
+        for archived in sorted(set(archived_paths)):
+            if (archived / PROVENANCE).is_file():
+                candidates.append(_provenance_for(archived, "archived"))
+    return candidates
+
+
+def resolve_canonical_provenance(
+    root: Path,
+    *,
+    source_issue: str | None = None,
+    change: str | None = None,
+) -> CanonicalProvenance | None:
+    """Resolve managed lineage, failing closed for a claimed broken task.
+
+    A task-level state record makes a missing canonical change observable. For
+    pre-state tasks, one active managed change is accepted as bounded legacy
+    recovery; it is upgraded on the next managed import/resume.
+    """
+    state = read_task_state(root)
+    expected_source = source_issue or (state or {}).get("source_issue")
+    expected_change = change or (state or {}).get("change")
+    if expected_source is not None:
+        repository, number = issue_ref(expected_source)
+        expected_source = f"{repository}#{number}"
+    if expected_change is not None and not CHANGE_RE.fullmatch(expected_change):
+        raise ManagedTaskError("managed task has an invalid canonical OpenSpec change name")
+
+    if expected_change is None:
+        active = sorted((root / "openspec" / "changes").glob(f"*/{PROVENANCE}"))
+        if not active:
+            return None
+        if len(active) != 1:
+            raise ManagedTaskError("multiple active managed OpenSpec packages make task identity ambiguous")
+        candidate = _provenance_for(active[0].parent, "active")
+        expected_source, expected_change = candidate.source_issue, candidate.change
+
+    candidates = canonical_provenance_candidates(root, expected_change)
+    matching = [item for item in candidates if item.source_issue.lower() == str(expected_source).lower()]
+    if not matching:
+        if candidates:
+            actual = ", ".join(sorted({item.source_issue for item in candidates}))
+            raise ManagedTaskError(
+                f"canonical OpenSpec change {expected_change!r} belongs to {actual}, not managed source {expected_source}"
+            )
+        if state is not None or source_issue is not None:
+            raise ManagedTaskError(
+                f"managed source {expected_source} has no matching active or archived canonical OpenSpec change {expected_change!r}; "
+                "restore the canonical change/provenance through reviewed recovery before resuming"
+            )
+        return None
+    if len(matching) != 1:
+        locations = ", ".join(str(item.path) for item in matching)
+        raise ManagedTaskError(f"managed source {expected_source} has ambiguous canonical OpenSpec lineage: {locations}")
+    return matching[0]
+
+
+def _task_completion(change: Path) -> tuple[int, int]:
+    total = incomplete = 0
+    tasks = change / "tasks.md"
+    if not tasks.is_file():
+        return total, incomplete
+    for line in tasks.read_text(encoding="utf-8").splitlines():
+        match = re.match(r"^\s*-\s*\[([ xX])\]\s+", line)
+        if match:
+            total += 1
+            if match.group(1) == " ":
+                incomplete += 1
+    return total, incomplete
+
+
+def _verified(change: Path) -> bool:
+    receipt = change / "verification.md"
+    if not receipt.is_file():
+        return False
+    lines = [line.strip() for line in receipt.read_text(encoding="utf-8").splitlines()]
+    return "OpenSpec-Verify: PASS" in lines and any(
+        line.startswith("Verification-Method:") and line.split(":", 1)[1].strip() for line in lines
+    )
+
+
+def require_delivery_provenance(root: Path) -> CanonicalProvenance | None:
+    """Require archived, verified managed lineage before publication."""
+    provenance = resolve_canonical_provenance(root)
+    if provenance is None:
+        return None
+    if provenance.lifecycle != "archived":
+        raise ManagedTaskError(
+            f"managed source {provenance.source_issue} still has active canonical change {provenance.change!r}; "
+            "complete tasks, record semantic verification, and archive it before publication"
+        )
+    total, incomplete = _task_completion(provenance.path)
+    if total == 0 or incomplete:
+        raise ManagedTaskError(
+            f"archived managed change {provenance.change!r} lacks completed task evidence "
+            f"({incomplete} incomplete of {total} task(s))"
+        )
+    if not _verified(provenance.path):
+        raise ManagedTaskError(f"archived managed change {provenance.change!r} lacks a successful semantic verification receipt")
+    return provenance
+
+
 def write_provenance(root: Path, package: Package) -> None:
     atomic_write(
         root / PROVENANCE,
@@ -584,14 +768,21 @@ def import_task(root: Path, reference: str, *, expected_revision: str | None = N
         raise ManagedTaskError("managed import from the platform integration branch is blocked; use scripts/start_managed_task.py owner/repo#N")
     current_main = target_main(root)
     destination = change_root(root, package.change)
+    # An archived task remains canonical for publication/reconciliation.  Do
+    # not create a second active package when an operator resumes it.
+    existing_state = read_task_state(root)
+    if existing_state is not None:
+        archived = resolve_canonical_provenance(root, source_issue=package.source_issue, change=package.change)
+        if archived is not None and archived.lifecycle == "archived":
+            write_task_state(root, package)
+            return package, current_main, True
     if destination.exists():
         provenance = read_provenance(destination)
         if provenance.get("source_issue", "").lower() != package.source_issue.lower():
             raise ManagedTaskError("same-name OpenSpec change belongs to a different source issue")
-        if provenance.get("package_revision") != package.revision:
-            raise ManagedTaskError("managed package changed after materialization; refusing to overwrite local OpenSpec")
         check_schema(root, package)
         validate_change(root, package.change)
+        write_task_state(root, package)
         return package, current_main, True
     if shutil.which("openspec") is None:
         raise ManagedTaskError("installed OpenSpec CLI is required")
@@ -609,6 +800,7 @@ def import_task(root: Path, reference: str, *, expected_revision: str | None = N
             atomic_write(path, package.contents[relative])
         validate_change(root, package.change)
         write_provenance(destination, package)
+        write_task_state(root, package)
     except Exception:
         if created and destination.is_dir():
             shutil.rmtree(destination)

@@ -75,6 +75,20 @@ def authoring_config(root: Path) -> None:
     )
 
 
+def canonical_change(root: Path, package: managed_task.Package, *, lifecycle: str = "active", source: str | None = None) -> Path:
+    parent = root / "openspec" / "changes"
+    if lifecycle == "archived":
+        parent = parent / "archive"
+        change = parent / f"2026-08-12-{package.change}"
+    else:
+        change = parent / package.change
+    change.mkdir(parents=True)
+    (change / ".managed-task.json").write_text(
+        json.dumps({"source_issue": source or package.source_issue, "change": package.change}), encoding="utf-8"
+    )
+    return change
+
+
 class ManagedPackageTests(unittest.TestCase):
     def test_parse_valid_package_and_revision_is_stable(self) -> None:
         body = package_body()
@@ -146,6 +160,76 @@ class ManagedPackageTests(unittest.TestCase):
             for forbidden in ("apply", "start_task", "finish_task", "project_publish", "gh-aw"):
                 self.assertNotIn(forbidden, joined)
 
+    def test_canonical_provenance_fails_closed_when_state_loses_its_change(self) -> None:
+        package = managed_task.parse_package([package_body()], "lehard/development-backlog#1")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            managed_task.write_task_state(root, package)
+            with self.assertRaisesRegex(managed_task.ManagedTaskError, "no matching active or archived canonical"):
+                managed_task.resolve_canonical_provenance(root)
+
+    def test_delivery_rejects_direct_current_spec_edit_without_canonical_lineage(self) -> None:
+        package = managed_task.parse_package([package_body()], "lehard/development-backlog#1")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            managed_task.write_task_state(root, package)
+            current_spec = root / "openspec" / "specs" / "intake" / "spec.md"
+            current_spec.parent.mkdir(parents=True)
+            current_spec.write_text("## Requirement: Unexplained\n", encoding="utf-8")
+            with self.assertRaisesRegex(managed_task.ManagedTaskError, "no matching active or archived canonical"):
+                managed_task.require_delivery_provenance(root)
+
+    def test_canonical_provenance_rejects_same_name_from_another_issue(self) -> None:
+        package = managed_task.parse_package([package_body()], "lehard/development-backlog#1")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            managed_task.write_task_state(root, package)
+            canonical_change(root, package, source="lehard/development-backlog#2")
+            with self.assertRaisesRegex(managed_task.ManagedTaskError, "belongs to lehard/development-backlog#2"):
+                managed_task.resolve_canonical_provenance(root)
+
+    def test_delivery_requires_archived_completed_and_verified_canonical_change(self) -> None:
+        package = managed_task.parse_package([package_body()], "lehard/development-backlog#1")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            managed_task.write_task_state(root, package)
+            active = canonical_change(root, package)
+            with self.assertRaisesRegex(managed_task.ManagedTaskError, "still has active canonical"):
+                managed_task.require_delivery_provenance(root)
+            shutil.rmtree(active)
+            archived = canonical_change(root, package, lifecycle="archived")
+            (archived / "tasks.md").write_text("- [x] Complete\n", encoding="utf-8")
+            (archived / "verification.md").write_text(
+                "OpenSpec-Verify: PASS\nVerification-Method: equivalent-review\n", encoding="utf-8"
+            )
+            resolved = managed_task.require_delivery_provenance(root)
+            assert resolved is not None
+            self.assertEqual(resolved.lifecycle, "archived")
+
+    def test_delivery_rejects_archived_change_with_incomplete_tasks(self) -> None:
+        package = managed_task.parse_package([package_body()], "lehard/development-backlog#1")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            managed_task.write_task_state(root, package)
+            archived = canonical_change(root, package, lifecycle="archived")
+            (archived / "tasks.md").write_text("- [ ] Incomplete\n", encoding="utf-8")
+            (archived / "verification.md").write_text(
+                "OpenSpec-Verify: PASS\nVerification-Method: equivalent-review\n", encoding="utf-8"
+            )
+            with self.assertRaisesRegex(managed_task.ManagedTaskError, "lacks completed task evidence"):
+                managed_task.require_delivery_provenance(root)
+
+    def test_evolved_canonical_package_retains_identity_without_transport_hash_match(self) -> None:
+        package = managed_task.parse_package([package_body()], "lehard/development-backlog#1")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            managed_task.write_task_state(root, package)
+            change = canonical_change(root, package)
+            (change / "tasks.md").write_text("- [ ] Evolved after materialization\n", encoding="utf-8")
+            resolved = managed_task.resolve_canonical_provenance(root)
+            assert resolved is not None
+            self.assertEqual(resolved.source_issue, package.source_issue)
+
     def test_direct_import_refuses_feature_profile_integration_before_materialization(self) -> None:
         package = managed_task.parse_package([package_body()], "lehard/development-backlog#1")
         with tempfile.TemporaryDirectory() as tmp:
@@ -204,6 +288,29 @@ class ManagedPackageTests(unittest.TestCase):
             start.assert_called_once_with(root, package.change, task="Managed task lehard/development-backlog#1", scope="scripts")
             self.assertTrue((task_root / "openspec" / "changes" / package.change).is_dir())
             self.assertFalse((root / "openspec").exists())
+
+    def test_managed_start_reuses_existing_worktree_only_with_matching_provenance(self) -> None:
+        package = managed_task.parse_package([package_body()], "lehard/development-backlog#1")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "integration"
+            task_root = Path(tmp) / "worktrees" / package.change
+            root.mkdir()
+            canonical_change(task_root, package)
+            with (
+                patch.object(start_managed_task, "discover_task", return_value=package),
+                patch.object(start_managed_task, "read_platform_config", return_value={"workflow_profile": "multi-agent"}),
+                patch.object(start_managed_task, "machine_path", return_value=task_root.parent),
+                patch.object(start_managed_task, "run_git", return_value=SimpleNamespace(stdout="agent/resumed\n")),
+                patch.object(start_managed_task, "reconcile", return_value=SimpleNamespace(changed=False)) as reconcile,
+                patch.object(start_managed_task, "start_task") as fresh_start,
+            ):
+                started, _, reused = start_managed_task.start_managed_task(root, "lehard/development-backlog#1")
+            self.assertTrue(reused)
+            self.assertEqual(started.task_root, task_root)
+            self.assertEqual(started.branch, "agent/resumed")
+            fresh_start.assert_not_called()
+            reconcile.assert_called_once_with(task_root, "In progress", source_issue=package.source_issue)
+            self.assertTrue((task_root / ".managed-task-state.json").is_file())
 
     def test_managed_start_cleans_only_new_task_when_materialization_fails(self) -> None:
         package = managed_task.parse_package([package_body()], "lehard/development-backlog#1")

@@ -81,6 +81,15 @@ class ManagedProjectStatusTests(unittest.TestCase):
         assert source is not None
         self.assertEqual(source.reference, "lehard/development-backlog#8")
 
+    def test_task_level_state_survives_after_active_change_is_archived(self) -> None:
+        (self.root / "openspec" / "changes" / "managed" / ".managed-task.json").unlink()
+        (self.root / ".managed-task-state.json").write_text(
+            json.dumps({"source_issue": "lehard/development-backlog#8", "change": "managed"}), encoding="utf-8"
+        )
+        source = managed_project_status.discover_source_issue(self.root)
+        assert source is not None
+        self.assertEqual(source.reference, "lehard/development-backlog#8")
+
     def test_reconcile_is_idempotent_when_status_is_already_current(self) -> None:
         with (
             patch.object(managed_project_status, "github_cli_env", return_value={}),
