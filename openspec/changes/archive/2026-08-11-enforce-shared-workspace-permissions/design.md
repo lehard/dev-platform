@@ -108,6 +108,14 @@ render/update behavior. A POSIX acceptance smoke alternates effective ownership
 where the runner supports it; otherwise mode and mocked ownership tests remain
 mandatory and the skipped capability is explicit.
 
+### 8. Release rollout follows source delivery
+
+An immutable platform release must identify merged source history. The managed
+source lifecycle requires semantic verification and OpenSpec archive before it
+creates that PR. This change therefore ends at verified source delivery. After
+GitHub confirms the exact source PR merged, a separately fixed managed change
+owns release publication and reviewed Copier rollout PRs.
+
 ## Alternatives considered
 
 - **One-time recursive chmod only:** rejected because atomic writers and Git

@@ -57,5 +57,5 @@
   mode/ownership evidence.
 - [x] 5.5 Run the full platform validation matrix, semantic OpenSpec verification
   and lifecycle archive.
-- [ ] 5.6 Publish an immutable platform release and roll it out through reviewed
-  Copier PRs to every managed inventory entry.
+- [x] 5.6 Record the post-merge release/rollout dependency as a separately
+  fixed managed change; do not publish a release from unmerged source history.

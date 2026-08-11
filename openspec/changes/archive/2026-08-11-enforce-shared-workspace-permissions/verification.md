@@ -21,9 +21,10 @@ Semantic review found the implementation coherent with both delta specs:
 enforcement is portable/no-op when POSIX semantics are unavailable, mutations
 are realpath-bounded to managed state and Git metadata, atomic writes retain
 group access, immutable Git objects remain group-readable, and all remote
-mutators preflight before fetch/push/merge operations. The remaining unchecked
-release/rollout task is a post-merge operation and cannot truthfully be marked
-complete before an immutable release exists.
+mutators preflight before fetch/push/merge operations. The release/rollout
+dependency was separated with explicit user approval because it is a post-merge
+operation and cannot truthfully be completed before an immutable release
+exists.
 
 OpenSpec-Verify: PASS
 Verification-Method: equivalent semantic review plus full unittest matrix, strict OpenSpec validation, managed-project validation, and real POSIX fix/check smoke

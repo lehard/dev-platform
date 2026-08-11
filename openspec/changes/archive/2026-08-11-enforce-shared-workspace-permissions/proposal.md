@@ -43,6 +43,10 @@ rediscover it.
 - Affected platform areas: `_platform_common.py`, platform state writers,
   bootstrap/doctor/start/finish/cleanup, Git lifecycle, Copier template and
   downstream upgrade tests.
+- Delivery boundary: this task verifies, archives and publishes the source
+  implementation. Immutable release publication and downstream Copier rollout
+  need the source PR to be merged, so they are fixed as a separate post-merge
+  managed change.
 - Existing active change dependency: compose with the final archived form of
   `adopt-gh-aw-process-automation`; do not fork its friction-routing behavior.
 - Security boundary: group access is granted only to the checkout's reviewed
