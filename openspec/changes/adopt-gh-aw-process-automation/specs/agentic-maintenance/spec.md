@@ -40,11 +40,7 @@ The v1 process-maintenance agent job SHALL NOT receive unrestricted repository w
 
 ### Requirement: Public pilot reads remain public-only
 
-The public `dev-platform` pilot SHALL constrain GitHub MCP reads to public
-repositories and retain the gateway secrecy/integrity policy. If a gateway
-runtime needs a maintenance override to correctly classify public repository
-data, that exact runtime SHALL be reviewable in the source and compiled lock;
-the workflow SHALL NOT use a private-to-public data-flow opt-out.
+The public `dev-platform` pilot SHALL constrain GitHub MCP reads to public repositories and retain the gateway secrecy/integrity policy. If a gateway runtime needs a maintenance override to correctly classify public repository data, that exact runtime SHALL be reviewable in the source and compiled lock; the workflow SHALL NOT use a private-to-public data-flow opt-out.
 
 #### Scenario: Public process issue is read for a public safe output
 
@@ -80,6 +76,17 @@ The repository SHALL provide a periodic process-backlog review workflow with a w
 - **WHEN** the workflow judges an issue ready for remediation
 - **THEN** it may recommend a status/label and include the issue in the summary
 - **AND** it SHALL NOT modify code, create/merge an implementation PR, accept an OpenSpec change or otherwise self-modify the platform in v1
+
+### Requirement: Process review does not create managed work
+
+Process/friction issues SHALL be treated as evidence and advisory maintenance input, not as Development Backlog tasks. Neither triage nor periodic review SHALL create a managed task, publish a `managed-openspec:v1` package, materialize OpenSpec, dispatch an executor or change Development Backlog workflow state.
+
+#### Scenario: Review finds a process issue ready for remediation
+
+- **WHEN** triage or weekly review identifies a likely reusable fix
+- **THEN** the workflow may explain the recommendation in bounded process output
+- **AND** no managed task is created automatically
+- **AND** a later explicit human fixation request is required before the existing managed-task authoring path can create Development Backlog state
 
 ### Requirement: Agentic maintenance has explicit cost and runtime guardrails
 
