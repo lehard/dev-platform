@@ -130,8 +130,12 @@ def main() -> int:
                 raise SystemExit(f"Copier did not record {TARGET_TAG}: {after_answers.get('_commit')}")
             if rollout_project.load_platform_version(project) != TARGET_TAG[1:]:
                 raise SystemExit("platform_bootstrap did not synchronize platform_version to current smoke tag")
-            if rollout_project.platform_config_contract(project) != config_before:
-                raise SystemExit("Project config changed beyond platform_version")
+            try:
+                rollout_project.require_platform_config_contract(
+                    config_before, rollout_project.platform_config_contract(project)
+                )
+            except ValueError as exc:
+                raise SystemExit(str(exc)) from exc
             rollout_project.require_project_owned_snapshot(project, before)
             if not rollout_project.reclaimed_platform_path_matches_template(
                 project, "scripts/_platform_common.py"
