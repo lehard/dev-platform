@@ -8,7 +8,7 @@ from pathlib import Path
 
 from _platform_common import harness_mode, read_platform_config
 
-REQUIRED_COMMON = ["AGENTS.md", "CLAUDE.md", ".dev-platform.toml", "dev-platform/checks.toml", "docs/engineering/openspec-workflow.md", "scripts/dev.py", "scripts/managed_task.py", "scripts/start_managed_task.py", "scripts/select_checks.py", "scripts/project_sync.py", "scripts/project_publish.py", "scripts/start_task.py", "scripts/finish_task.py", "scripts/openspec_lifecycle.py", "scripts/agent_friction.py", "scripts/agent_doctor.py"]
+REQUIRED_COMMON = ["AGENTS.md", "CLAUDE.md", ".dev-platform.toml", "dev-platform/checks.toml", "docs/engineering/openspec-workflow.md", "scripts/dev.py", "scripts/managed_task.py", "scripts/managed_project_status.py", "scripts/start_managed_task.py", "scripts/select_checks.py", "scripts/project_sync.py", "scripts/project_publish.py", "scripts/start_task.py", "scripts/finish_task.py", "scripts/openspec_lifecycle.py", "scripts/agent_friction.py", "scripts/agent_doctor.py"]
 REQUIRED_MULTI_AGENT_PLATFORM = ["scripts/agent_board.py", "scripts/start_worktree.py", "scripts/worktree_cleanup.py", "scripts/git_hooks/pre-commit", "scripts/git_hooks/pre-merge-commit"]
 VERIFY_CANDIDATES = [".codex/skills/openspec-verify-change/SKILL.md", ".claude/skills/openspec-verify-change/SKILL.md", ".cursor/skills/openspec-verify-change/SKILL.md"]
 IGNORED_CONFLICT_DIRS = {".git", ".claude", ".codex", "node_modules", ".venv", "venv"}
@@ -18,6 +18,7 @@ TOP_LEVEL_PR_RE = re.compile(r"(?m)^  pull_request:\s*$")
 BACKLOG_REPOSITORY_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 BACKLOG_PROJECT_LABEL_RE = re.compile(r"^project:[A-Za-z0-9_.-]+$")
 BACKLOG_PRIORITY_RE = re.compile(r"^P[0-3]$")
+BACKLOG_PROJECT_OWNER_RE = re.compile(r"^[A-Za-z0-9-]+$")
 
 
 def ok(label: str) -> None: print(f"[ok]   {label}")
@@ -120,12 +121,18 @@ def check_development_backlog_config(config: dict, failures: list[int]) -> None:
     repository = backlog.get("repository")
     project_label = backlog.get("project_label")
     priority = backlog.get("default_priority")
+    project_owner = backlog.get("project_owner")
+    project_number = backlog.get("project_number")
     if not isinstance(repository, str) or not BACKLOG_REPOSITORY_RE.fullmatch(repository):
         fail("development_backlog.repository must be owner/name"); failures[0] += 1
     if not isinstance(project_label, str) or not BACKLOG_PROJECT_LABEL_RE.fullmatch(project_label):
         fail("development_backlog.project_label must be project:<slug>"); failures[0] += 1
     if not isinstance(priority, str) or not BACKLOG_PRIORITY_RE.fullmatch(priority):
         fail("development_backlog.default_priority must be P0, P1, P2 or P3"); failures[0] += 1
+    if not isinstance(project_owner, str) or not BACKLOG_PROJECT_OWNER_RE.fullmatch(project_owner):
+        fail("development_backlog.project_owner must be a GitHub login"); failures[0] += 1
+    if isinstance(project_number, bool) or not isinstance(project_number, int) or project_number < 1:
+        fail("development_backlog.project_number must be a positive integer"); failures[0] += 1
     if failures[0] == before:
         ok("Development Backlog authoring configuration is valid")
 

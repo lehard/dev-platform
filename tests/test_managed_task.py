@@ -7,6 +7,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -194,6 +195,7 @@ class ManagedPackageTests(unittest.TestCase):
                 patch.object(start_managed_task, "discover_task", return_value=package),
                 patch.object(start_managed_task, "start_task", return_value=started) as start,
                 patch.object(start_managed_task, "import_task", side_effect=materialize),
+                patch.object(start_managed_task, "reconcile", return_value=SimpleNamespace(changed=True)),
             ):
                 result, current_main, reused = start_managed_task.start_managed_task(root, "lehard/development-backlog#1", "scripts")
             self.assertEqual(result, started)
@@ -249,6 +251,7 @@ class ManagedPackageTests(unittest.TestCase):
                 patch.object(start_managed_task, "check_schema", create=True) as schema,
                 patch.object(start_managed_task, "start_task", return_value=started) as task_start,
                 patch.object(start_managed_task, "import_task", side_effect=materialize),
+                patch.object(start_managed_task, "reconcile", return_value=SimpleNamespace(changed=False)),
             ):
                 result, current_main, reused = start_managed_task.start_managed_task(root, "lehard/development-backlog#1")
             self.assertEqual(result, started)
@@ -257,6 +260,25 @@ class ManagedPackageTests(unittest.TestCase):
             task_start.assert_called_once()
             schema.assert_not_called()
             self.assertTrue((task_root / "openspec" / "changes" / package.change).is_dir())
+
+    def test_managed_start_cleans_new_task_when_project_claim_fails(self) -> None:
+        package = managed_task.parse_package([package_body()], "lehard/development-backlog#1")
+        root = Path("/tmp/integration")
+        started = start_managed_task.StartedTask(profile="standard", branch="agent/managed", task_root=root)
+        with (
+            patch.object(start_managed_task, "discover_task", return_value=package),
+            patch.object(start_managed_task, "start_task", return_value=started),
+            patch.object(start_managed_task, "import_task", return_value=(package, "b" * 40, False)),
+            patch.object(
+                start_managed_task,
+                "reconcile",
+                side_effect=start_managed_task.ManagedProjectStatusError("missing project scope"),
+            ),
+            patch.object(start_managed_task, "cleanup_started_task") as cleanup,
+        ):
+            with self.assertRaisesRegex(start_managed_task.ManagedProjectStatusError, "missing project scope"):
+                start_managed_task.start_managed_task(root, "lehard/development-backlog#1")
+        cleanup.assert_called_once_with(root, started)
 
     def test_standard_task_start_creates_feature_branch_before_import(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

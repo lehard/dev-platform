@@ -8,6 +8,7 @@ from pathlib import Path
 
 from _platform_common import current_worktree_root
 from managed_task import ManagedTaskError, discover_task, import_task
+from managed_project_status import ManagedProjectStatusError, reconcile
 from start_task import StartedTask, cleanup_started_task, start_task
 
 
@@ -26,6 +27,17 @@ def start_managed_task(root: Path, reference: str, scope: str = "") -> tuple[Sta
             reference,
             expected_revision=package.revision,
         )
+        reconciliation = reconcile(
+            started.task_root,
+            "In progress",
+            source_issue=package.source_issue,
+        )
+        if reconciliation is None:
+            raise ManagedProjectStatusError("managed start lost its source Issue identity")
+        print(
+            f"Managed Project status {'updated' if reconciliation.changed else 'already current'}: "
+            f"{package.source_issue} -> In progress"
+        )
     except Exception:
         cleanup_started_task(root, started)
         raise
@@ -40,7 +52,7 @@ def main() -> int:
     root = current_worktree_root()
     try:
         started, current_main, reused = start_managed_task(root, args.issue, args.scope)
-    except (ManagedTaskError, RuntimeError, subprocess.CalledProcessError) as exc:
+    except (ManagedTaskError, ManagedProjectStatusError, RuntimeError, subprocess.CalledProcessError) as exc:
         print(f"Managed task start blocked: {exc}")
         return 2
     print(f"Managed task {'reused' if reused else 'materialized'} in {started.task_root}")

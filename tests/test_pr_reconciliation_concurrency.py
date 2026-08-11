@@ -97,6 +97,7 @@ class ReconciliationLockTests(unittest.TestCase):
             git("config", "user.name", "Test", cwd=integration)
             git("config", "user.email", "test@example.invalid", cwd=integration)
             (integration / "file.txt").write_text("merged remote state\n", encoding="utf-8")
+            (integration / ".dev-platform.toml").write_text('main_branch = "main"\n', encoding="utf-8")
             git("add", ".", cwd=integration)
             git("commit", "-m", "merged", cwd=integration)
             git("remote", "add", "origin", str(remote), cwd=integration)
@@ -133,7 +134,11 @@ class ReconciliationLockTests(unittest.TestCase):
             )
             time.sleep(0.08)
             started = time.monotonic()
-            with mock.patch.object(finish_task, "sync_after_remote_pr_merge") as sync, mock.patch.object(finish_task, "finish_board") as board:
+            with (
+                mock.patch.object(finish_task, "sync_after_remote_pr_merge") as sync,
+                mock.patch.object(finish_task, "reconcile_managed_project", return_value=None),
+                mock.patch.object(finish_task, "finish_board") as board,
+            ):
                 finish_task.reconcile_confirmed_remote_pr_merge(
                     integration, integration, config, "agent/already-merged", "main", "multi-agent", cleanup=False, timeout_seconds=2
                 )

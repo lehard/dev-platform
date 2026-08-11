@@ -29,6 +29,11 @@ from _platform_common import (
     run_git,
 )
 import publication_state
+from managed_project_status import (
+    ManagedProjectStatusError,
+    discover_source_issue as discover_managed_source,
+    reconcile as reconcile_managed_project,
+)
 
 
 ALLOW_NO_CHECKS_ENV = "DEV_PLATFORM_ALLOW_NO_CHECKS"
@@ -317,8 +322,28 @@ def reconcile_confirmed_remote_pr_merge(
     timeout_seconds: float,
 ) -> None:
     """Serialize only local post-MERGED reconciliation, never remote waits."""
+    try:
+        managed_source = discover_managed_source(work, config)
+    except ManagedProjectStatusError as exc:
+        raise SystemExit("Managed task provenance is ambiguous before terminal reconciliation: " + str(exc)) from exc
     with serialized_integration(integration, config, timeout_seconds):
         sync_after_remote_pr_merge(work, integration, config, main_branch)
+        try:
+            project = reconcile_managed_project(
+                work,
+                "Done",
+                source_issue=managed_source.reference if managed_source else None,
+            )
+        except ManagedProjectStatusError as exc:
+            raise SystemExit(
+                "GitHub confirms the task PR is merged and local main is synchronized, "
+                "but managed Project reconciliation is pending: " + str(exc)
+            ) from exc
+        if project is not None:
+            print(
+                f"Managed Project status {'updated' if project.changed else 'already current'}: "
+                f"{project.source_issue} -> Done"
+            )
         if prof == "multi-agent":
             finish_board(integration, work, config)
         if cleanup:
@@ -369,7 +394,7 @@ def main() -> int:
     # remote base. A squash-merged task branch is no longer an ancestor of main,
     # but if GitHub already merged this exact head there is nothing to rebase or
     # republish; only local reconciliation remains.
-    if mode == "pr" and branch != main_branch and pr_merge_mode(config) == "auto" and task_pr_is_already_merged(work, branch, main_branch):
+    if mode == "pr" and branch != main_branch and task_pr_is_already_merged(work, branch, main_branch):
         reconcile_confirmed_remote_pr_merge(
             work, integration, config, branch, main_branch, prof, cleanup=args.cleanup, timeout_seconds=args.merge_timeout
         )
@@ -414,8 +439,27 @@ def main() -> int:
         return 0
     if mode != "direct":
         raise SystemExit(f"Unknown publish_mode: {mode}")
+    try:
+        managed_source = discover_managed_source(work, config)
+    except ManagedProjectStatusError as exc:
+        raise SystemExit("Managed task provenance is ambiguous before direct publication: " + str(exc)) from exc
     with serialized_integration(integration, config, args.merge_timeout):
         integrate_and_publish_direct(work, integration, config, branch, main_branch)
+        try:
+            project = reconcile_managed_project(
+                work,
+                "Done",
+                source_issue=managed_source.reference if managed_source else None,
+            )
+        except ManagedProjectStatusError as exc:
+            raise SystemExit(
+                "Direct publication succeeded, but managed Project reconciliation is pending: " + str(exc)
+            ) from exc
+        if project is not None:
+            print(
+                f"Managed Project status {'updated' if project.changed else 'already current'}: "
+                f"{project.source_issue} -> Done"
+            )
         if prof == "multi-agent" and work != integration:
             finish_board(integration, work, config)
     if args.cleanup:

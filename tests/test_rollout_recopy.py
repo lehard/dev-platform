@@ -100,6 +100,23 @@ class GuardedRecopyTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "beyond platform_version"):
             rollout_project.require_platform_config_contract(before, after)
 
+    def test_platform_config_contract_uses_reviewed_copier_locator_answers(self) -> None:
+        before = rollout_project.platform_config_contract(self.root)
+        after = rollout_project.expected_development_backlog_migration(
+            before,
+            project_owner="example-owner",
+            project_number=42,
+        )
+        assert after is not None
+        rollout_project.require_platform_config_contract(
+            before,
+            after,
+            project_owner="example-owner",
+            project_number=42,
+        )
+        with self.assertRaisesRegex(ValueError, "beyond platform_version"):
+            rollout_project.require_platform_config_contract(before, after)
+
     def test_snapshot_covers_dynamic_required_files_and_product_ci(self) -> None:
         snapshot = rollout_project.snapshot_existing_project_owned(self.root)
         self.assertIn("scripts/project_helper.py", snapshot)

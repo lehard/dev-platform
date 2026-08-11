@@ -16,6 +16,7 @@ source_required_paths = [
   "scripts/source_adapter.py",
   "scripts/agent_doctor.py",
   "scripts/start_task.py",
+  "scripts/managed_project_status.py",
   "scripts/finish_task.py",
   "scripts/openspec_lifecycle.py",
 ]
@@ -47,6 +48,8 @@ repo = "lehard/dev-platform"
 repository = "lehard/development-backlog"
 project_label = "project:dev-platform"
 default_priority = "P2"
+project_owner = "lehard"
+project_number = 1
 
 [paths]
 worktrees = ".claude/worktrees"

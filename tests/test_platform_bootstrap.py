@@ -47,8 +47,42 @@ class PlatformBootstrapTests(unittest.TestCase):
             self.assertIn('custom_value = "preserve"', text)
             self.assertIn('[development_backlog]', text)
             self.assertIn('project_label = "project:existing-project"', text)
+            self.assertIn('project_owner = "lehard"', text)
+            self.assertIn('project_number = 1', text)
             platform_bootstrap.sync_development_backlog_config(root)
             self.assertEqual(text, config.read_text(encoding="utf-8"))
+
+    def test_development_backlog_migration_adds_locator_inside_existing_table(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config = root / ".dev-platform.toml"
+            config.write_text(
+                'project_slug = "existing-project"\n\n'
+                '[development_backlog]\nrepository = "lehard/development-backlog"\n'
+                'project_label = "project:existing-project"\ndefault_priority = "P2"\n\n'
+                '[paths]\nchecks = "dev-platform/checks.toml"\n',
+                encoding="utf-8",
+            )
+            platform_bootstrap.sync_development_backlog_config(root)
+            loaded = platform_bootstrap.load_config(root)
+            self.assertEqual(loaded["development_backlog"]["project_owner"], "lehard")
+            self.assertEqual(loaded["development_backlog"]["project_number"], 1)
+            self.assertNotIn("project_owner", loaded["paths"])
+
+    def test_development_backlog_migration_uses_copier_locator_answers(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".copier-answers.yml").write_text(
+                "development_backlog_project_owner: example-owner\n"
+                "development_backlog_project_number: 42\n",
+                encoding="utf-8",
+            )
+            config = root / ".dev-platform.toml"
+            config.write_text('project_slug = "existing-project"\n', encoding="utf-8")
+            platform_bootstrap.sync_development_backlog_config(root)
+            loaded = platform_bootstrap.load_config(root)
+            self.assertEqual(loaded["development_backlog"]["project_owner"], "example-owner")
+            self.assertEqual(loaded["development_backlog"]["project_number"], 42)
 
 
 if __name__ == "__main__":

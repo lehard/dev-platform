@@ -19,6 +19,7 @@ EXPECTED_SOURCES = {
     "https://github.com/lehard/dev-platform.git",
     "git@github.com:lehard/dev-platform.git",
 }
+BACKLOG_PROJECT_OWNER_RE = re.compile(r"^[A-Za-z0-9-]+$")
 
 # Files that remain downstream-owned for every harness mode.
 ALWAYS_PROJECT_OWNED_ROLLOUT_PATHS = {
@@ -152,11 +153,35 @@ def platform_config_contract(project_root: Path) -> dict[str, Any]:
     return config
 
 
-def expected_development_backlog_migration(config: dict[str, Any]) -> dict[str, Any] | None:
+def development_backlog_locator_answers(project_root: Path) -> tuple[str, int]:
+    answers = parse_answers((project_root / ".copier-answers.yml").read_text(encoding="utf-8"))
+    owner = answers.get("development_backlog_project_owner", "lehard")
+    number_text = answers.get("development_backlog_project_number", "1")
+    if not BACKLOG_PROJECT_OWNER_RE.fullmatch(owner):
+        raise ValueError("Copier answer development_backlog_project_owner must be a GitHub login")
+    try:
+        number = int(number_text)
+    except ValueError as exc:
+        raise ValueError("Copier answer development_backlog_project_number must be a positive integer") from exc
+    if number < 1:
+        raise ValueError("Copier answer development_backlog_project_number must be a positive integer")
+    return owner, number
+
+
+def expected_development_backlog_migration(
+    config: dict[str, Any],
+    *,
+    project_owner: str = "lehard",
+    project_number: int = 1,
+) -> dict[str, Any] | None:
     """Return the sole bootstrap-owned addition permitted to project config."""
     existing = config.get("development_backlog")
     if isinstance(existing, dict):
-        additions = {key: value for key, value in {"project_owner": "lehard", "project_number": 1}.items() if key not in existing}
+        additions = {
+            key: value
+            for key, value in {"project_owner": project_owner, "project_number": project_number}.items()
+            if key not in existing
+        }
         if not additions:
             return None
         migrated = dict(config)
@@ -172,14 +197,24 @@ def expected_development_backlog_migration(config: dict[str, Any]) -> dict[str, 
         "repository": "lehard/development-backlog",
         "project_label": f"project:{project_slug}",
         "default_priority": "P2",
-        "project_owner": "lehard",
-        "project_number": 1,
+        "project_owner": project_owner,
+        "project_number": project_number,
     }
     return migrated
 
 
-def require_platform_config_contract(before: dict[str, Any], after: dict[str, Any]) -> None:
-    if after == before or after == expected_development_backlog_migration(before):
+def require_platform_config_contract(
+    before: dict[str, Any],
+    after: dict[str, Any],
+    *,
+    project_owner: str = "lehard",
+    project_number: int = 1,
+) -> None:
+    if after == before or after == expected_development_backlog_migration(
+        before,
+        project_owner=project_owner,
+        project_number=project_number,
+    ):
         return
     raise ValueError(
         "project-owned .dev-platform.toml changed beyond platform_version or the expected Development Backlog migration during guarded recopy"
@@ -496,7 +531,13 @@ def copier_update_with_guarded_recopy(
     rejects = find_reject_files(project_root)
     if not rejects:
         run_rendered_platform_bootstrap(project_root, env=env)
-        require_platform_config_contract(config_before, platform_config_contract(project_root))
+        project_owner, project_number = development_backlog_locator_answers(project_root)
+        require_platform_config_contract(
+            config_before,
+            platform_config_contract(project_root),
+            project_owner=project_owner,
+            project_number=project_number,
+        )
         return "update"
 
     owned = project_owned_paths(project_root)
@@ -574,7 +615,13 @@ def copier_update_with_guarded_recopy(
     require_project_owned_snapshot(project_root, protected_before)
     require_reclaimed_platform_paths_match_template(project_root, reclaimed_conflicts)
     require_paths_match_target_template(project_root, baseline_conflicts)
-    require_platform_config_contract(config_before, platform_config_contract(project_root))
+    project_owner, project_number = development_backlog_locator_answers(project_root)
+    require_platform_config_contract(
+        config_before,
+        platform_config_contract(project_root),
+        project_owner=project_owner,
+        project_number=project_number,
+    )
     if harness_mode(project_root) != mode:
         raise ValueError(f"guarded recopy changed harness_mode away from {mode}")
     return "guarded-recopy"
