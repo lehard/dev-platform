@@ -41,14 +41,16 @@
 - [ ] 6.2 Update template/render/Copier tests for any changed managed scripts/configuration/guidance.
 - [ ] 6.3 Do not add browser/Playwright discovery work to this change.
 
-## 7. Validate, live-accept and release
+## 7. Validate, ship implementation, live-accept, then archive
 
-- [ ] 7.1 Run `python3 -m compileall -q template/scripts scripts`, `python3 scripts/managed_projects.py validate`, `python3 -m unittest discover -s tests -v`, `python3 template/scripts/openspec_lifecycle.py check`, strict OpenSpec validation, and applicable Factory/Copier render-update smoke tests.
-- [ ] 7.2 Perform real acceptance in a platform-owned repository with native GitHub auto-merge explicitly enabled as an administrative setup step: create a validated task PR, confirm remote merge is armed before checks finish, terminate/interrupt the local waiting path, and prove GitHub can complete the exact-head merge without that process remaining alive.
-- [ ] 7.3 Perform a second real acceptance with native auto-merge unavailable/disabled and prove the safe foreground fallback remains resumable and does not duplicate the PR.
-- [ ] 7.4 Verify `finish_task --status` accurately reports at least open/checks-pending, remotely armed, merged-awaiting-local-reconciliation, and complete states without mutation.
-- [ ] 7.5 Perform semantic OpenSpec verification, record a truthful `OpenSpec-Verify: PASS` receipt and method, archive through the lifecycle helper, and publish the archive/spec update through protected main.
-- [ ] 7.6 Publish the next normal immutable SemVer platform release and prepare reviewed exact-version Copier rollout PRs for managed platform-owned consumers. Do not replace project-owned harness publication.
+- [ ] 7.1 Run `python3 -m compileall -q template/scripts scripts`, `python3 scripts/managed_projects.py validate`, `python3 -m unittest discover -s tests -v`, `python3 template/scripts/openspec_lifecycle.py check`, strict OpenSpec validation, and applicable Factory/Copier render-update smoke tests on the exact implementation head.
+- [ ] 7.2 Publish the implementation through the normal protected-main PR lifecycle while this OpenSpec remains active with the live-acceptance tasks below still incomplete. Do not fabricate verification/archive before downstream acceptance.
+- [ ] 7.3 Publish the next normal immutable SemVer platform release containing the implementation and let normal managed rollout prepare reviewed exact-version Copier PRs. Merge only the platform-owned consumer rollout PRs needed for acceptance after their downstream CI is green; do not replace or silently modify project-owned harness publication.
+- [ ] 7.4 Perform real remote-durability acceptance in a platform-owned consumer with native GitHub auto-merge explicitly enabled as an administrative setup step: create a validated task PR, confirm remote merge is armed before checks finish, terminate/interrupt the local waiting path, and prove GitHub completes the exact-head merge without that process remaining alive.
+- [ ] 7.5 Perform a second real acceptance with native auto-merge unavailable/disabled and prove the safe foreground fallback remains resumable and does not duplicate the PR.
+- [ ] 7.6 Verify `finish_task --status` accurately reports at least open/checks-pending, remotely armed, merged-awaiting-local-reconciliation, and complete states without mutation.
+- [ ] 7.7 Only after 7.4-7.6 pass, perform semantic OpenSpec verification, record a truthful `OpenSpec-Verify: PASS` receipt and method, archive through the lifecycle helper, rerun full validation, and publish the archive/current-spec update through protected main.
+- [ ] 7.8 Do not cut an additional platform release solely for an archive/spec-only commit if runtime/template code did not change after the already-accepted implementation release.
 
 ## Explicitly removed from this change
 
