@@ -16,8 +16,10 @@ Guarded flow, always in this order:
 Enforcement tiers are honest, not aspirational:
 
 - HARD means a proven pre-write boundary exists before the child can mutate
-  anything outside `assigned_worktree`: for Codex, a real OS writable-root
-  sandbox (Landlock/Seatbelt, exposed via `codex --sandbox workspace-write`);
+  protected repository paths outside `assigned_worktree`: for Codex, a real
+  OS writable-root sandbox (Landlock/Seatbelt, exposed via
+  `codex --sandbox workspace-write`) whose known additional temporary writable
+  roots do not overlap the integration or assigned-worktree topology;
   for Claude, a platform-installed PreToolUse hook denying Write/Edit/
   NotebookEdit targets outside `assigned_worktree`, valid only when no
   shell-capable tool is also enabled for the same delegated session.
@@ -37,6 +39,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import platform
 import shutil
 import stat
@@ -200,18 +203,84 @@ def _codex_help_text(binary: str) -> str:
     return completed.stdout + completed.stderr
 
 
+def _normalized_path(path: str | Path) -> Path:
+    """Normalize filesystem paths with the same realpath semantics as the guard."""
+    return Path(path).expanduser().resolve()
+
+
+def _codex_runtime_temp_roots() -> tuple[Path, ...]:
+    """Return only the extra Codex workspace-write roots established by evidence.
+
+    Codex workspace-write can also allow system temporary roots. `/tmp` is the
+    observed portable root and `$TMPDIR` is included explicitly because Python's
+    tempfile resolver can be cached before an environment override is applied.
+    The current tempfile root covers the platform-selected temporary location.
+    """
+    candidates: list[str | Path] = ["/tmp"]
+    if configured := os.environ.get("TMPDIR"):
+        candidates.append(configured)
+    try:
+        candidates.append(tempfile.gettempdir())
+    except (OSError, RuntimeError):
+        # An unreadable temp configuration means we retain the proven `/tmp`
+        # root; callers still fail closed if a required path cannot be resolved.
+        pass
+
+    roots: list[Path] = []
+    for candidate in candidates:
+        try:
+            resolved = _normalized_path(candidate)
+        except OSError:
+            continue
+        if resolved not in roots:
+            roots.append(resolved)
+    return tuple(roots)
+
+
+def _path_is_within(path: Path, root: Path) -> bool:
+    try:
+        path.relative_to(root)
+    except ValueError:
+        return False
+    return True
+
+
+def _codex_temp_root_overlap(
+    integration_root: str | Path,
+    assigned_worktree: str | Path,
+    runtime_temp_roots: tuple[str | Path, ...] | None,
+) -> tuple[str, Path, Path] | None:
+    """Return the first protected repository path overlapping an extra root."""
+    roots = runtime_temp_roots if runtime_temp_roots is not None else _codex_runtime_temp_roots()
+    normalized_roots = tuple(_normalized_path(root) for root in roots)
+    protected_paths = (
+        ("integration_root", _normalized_path(integration_root)),
+        ("assigned_worktree", _normalized_path(assigned_worktree)),
+    )
+    for label, protected_path in protected_paths:
+        for root in normalized_roots:
+            if _path_is_within(protected_path, root):
+                return label, protected_path, root
+    return None
+
+
 def determine_codex_tier(
     *,
     codex_bin: str | None = None,
     require_hard: bool = False,
     platform_system: str | None = None,
+    integration_root: str | Path | None = None,
+    assigned_worktree: str | Path | None = None,
+    runtime_temp_roots: tuple[str | Path, ...] | None = None,
 ) -> EnforcementDecision:
     """Decide the enforcement tier for a platform-controlled Codex delegation.
 
     Empirically checks the installed codex binary's own --help output for the
     workspace-write sandbox flag rather than assuming a fixed CLI surface, since
-    the interface can evolve. If require_hard is set and hard containment cannot
-    be established, this fails closed (raises) instead of silently downgrading.
+    the interface can evolve. HARD additionally requires a normalized repository
+    topology that does not overlap known runtime-added temporary writable roots.
+    If require_hard is set and hard containment cannot be established, this
+    fails closed (raises) instead of silently downgrading.
     """
     binary = shutil.which(codex_bin) if codex_bin else shutil.which("codex")
     system = platform_system or platform.system()
@@ -236,12 +305,36 @@ def determine_codex_tier(
                 "detection-only:sandbox-flag-unsupported",
                 "Installed codex build does not advertise a workspace-write sandbox flag in `codex exec --help`.",
             )
-        else:
+        elif integration_root is None or assigned_worktree is None:
             decision = EnforcementDecision(
-                EnforcementTier.HARD,
-                "codex-workspace-write-sandbox",
-                f"codex {CODEX_SANDBOX_FLAG} {CODEX_SANDBOX_MODE} on {system}, writable root restricted to assigned_worktree.",
+                EnforcementTier.DETECTION_ONLY,
+                "detection-only:topology-unavailable",
+                "Codex repository topology was not supplied, so temp-root overlap cannot be ruled out.",
             )
+        else:
+            try:
+                overlap = _codex_temp_root_overlap(integration_root, assigned_worktree, runtime_temp_roots)
+            except OSError as exc:
+                decision = EnforcementDecision(
+                    EnforcementTier.DETECTION_ONLY,
+                    "detection-only:topology-unresolvable",
+                    f"Codex repository topology could not be normalized: {exc}",
+                )
+            else:
+                if overlap is not None:
+                    label, protected_path, temp_root = overlap
+                    decision = EnforcementDecision(
+                        EnforcementTier.DETECTION_ONLY,
+                        "detection-only:runtime-temp-root-overlap",
+                        f"{label} {protected_path} resolves inside Codex runtime-writable temp root {temp_root}.",
+                    )
+                else:
+                    decision = EnforcementDecision(
+                        EnforcementTier.HARD,
+                        "codex-workspace-write-sandbox",
+                        f"codex {CODEX_SANDBOX_FLAG} {CODEX_SANDBOX_MODE} on {system}; "
+                        "protected repository paths are outside known runtime-added temp roots.",
+                    )
 
     if require_hard and decision.tier is not EnforcementTier.HARD:
         raise ContainmentError(
@@ -258,9 +351,9 @@ def build_codex_argv(
 ) -> list[str]:
     """Build the codex CLI argv for the resolved tier.
 
-    Hard tier restricts the writable root to assigned_worktree and deliberately
-    omits --add-dir for any other repository path, so no additional writable root
-    is granted alongside the assignment.
+    Hard tier supplies only the assigned worktree through Codex flags and
+    deliberately omits --add-dir for any other repository path. Runtime-known
+    temporary roots are assessed separately by determine_codex_tier.
     """
     argv = [codex_bin, "exec"]
     if tier is EnforcementTier.HARD:
@@ -413,9 +506,18 @@ def _split_argv(raw: list[str]) -> list[str]:
 
 def _cmd_codex(args: argparse.Namespace) -> int:
     integration_root = Path(args.integration_root).resolve()
-    tier_decision = determine_codex_tier(codex_bin=args.codex_bin, require_hard=args.require_hard)
-    binary = args.codex_bin or shutil.which("codex") or "codex"
     resolved_worktree = resolve_assigned_worktree(integration_root, args.assigned_worktree)
+    try:
+        tier_decision = determine_codex_tier(
+            codex_bin=args.codex_bin,
+            require_hard=args.require_hard,
+            integration_root=integration_root,
+            assigned_worktree=resolved_worktree,
+        )
+    except ContainmentError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    binary = args.codex_bin or shutil.which("codex") or "codex"
     argv = build_codex_argv(binary, resolved_worktree, tier_decision.tier, _split_argv(args.child_argv))
     return _run_and_report(integration_root, args.assigned_worktree, argv, tier_decision, args.task)
 

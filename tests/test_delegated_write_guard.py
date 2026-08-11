@@ -8,6 +8,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_ROOT = ROOT / "template" / "scripts"
@@ -63,11 +64,27 @@ class CodexTierTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.tmp.cleanup()
 
+    @staticmethod
+    def _safe_topology() -> dict[str, object]:
+        return {
+            "integration_root": Path("/opt/dev-platform/integration"),
+            "assigned_worktree": Path("/opt/dev-platform/worktrees/agent-a"),
+            "runtime_temp_roots": (Path("/tmp"),),
+        }
+
     def test_hard_tier_when_sandbox_flag_present_on_supported_os(self) -> None:
         codex = _write_executable(self.bin_dir / "codex", FAKE_CODEX_WITH_SANDBOX)
-        decision = guard.determine_codex_tier(codex_bin=str(codex), platform_system="Darwin")
+        decision = guard.determine_codex_tier(
+            codex_bin=str(codex), platform_system="Darwin", **self._safe_topology()
+        )
         self.assertEqual(decision.tier, guard.EnforcementTier.HARD)
         self.assertEqual(decision.mechanism, "codex-workspace-write-sandbox")
+
+    def test_detection_only_when_repository_topology_is_unavailable(self) -> None:
+        codex = _write_executable(self.bin_dir / "codex", FAKE_CODEX_WITH_SANDBOX)
+        decision = guard.determine_codex_tier(codex_bin=str(codex), platform_system="Darwin")
+        self.assertEqual(decision.tier, guard.EnforcementTier.DETECTION_ONLY)
+        self.assertEqual(decision.mechanism, "detection-only:topology-unavailable")
 
     def test_detection_only_when_binary_missing(self) -> None:
         decision = guard.determine_codex_tier(codex_bin=str(self.bin_dir / "does-not-exist"), platform_system="Darwin")
@@ -94,10 +111,81 @@ class CodexTierTests(unittest.TestCase):
 
     def test_require_hard_does_not_raise_when_available(self) -> None:
         codex = _write_executable(self.bin_dir / "codex", FAKE_CODEX_WITH_SANDBOX)
-        decision = guard.determine_codex_tier(codex_bin=str(codex), require_hard=True, platform_system="Linux")
+        decision = guard.determine_codex_tier(
+            codex_bin=str(codex), require_hard=True, platform_system="Linux", **self._safe_topology()
+        )
         self.assertEqual(decision.tier, guard.EnforcementTier.HARD)
 
-    def test_build_codex_argv_hard_tier_restricts_writable_root(self) -> None:
+    def test_integration_under_tmp_is_not_hard(self) -> None:
+        codex = _write_executable(self.bin_dir / "codex", FAKE_CODEX_WITH_SANDBOX)
+        decision = guard.determine_codex_tier(
+            codex_bin=str(codex),
+            platform_system="Darwin",
+            integration_root=Path("/tmp/integration"),
+            assigned_worktree=Path("/opt/dev-platform/worktrees/agent-a"),
+            runtime_temp_roots=(Path("/tmp"),),
+        )
+        self.assertEqual(decision.tier, guard.EnforcementTier.DETECTION_ONLY)
+        self.assertEqual(decision.mechanism, "detection-only:runtime-temp-root-overlap")
+        self.assertIn("integration_root", decision.detail)
+
+    def test_assigned_worktree_under_tmp_is_not_hard(self) -> None:
+        codex = _write_executable(self.bin_dir / "codex", FAKE_CODEX_WITH_SANDBOX)
+        decision = guard.determine_codex_tier(
+            codex_bin=str(codex),
+            platform_system="Darwin",
+            integration_root=Path("/opt/dev-platform/integration"),
+            assigned_worktree=Path("/tmp/worktrees/agent-a"),
+            runtime_temp_roots=(Path("/tmp"),),
+        )
+        self.assertEqual(decision.tier, guard.EnforcementTier.DETECTION_ONLY)
+        self.assertIn("assigned_worktree", decision.detail)
+
+    def test_custom_tmpdir_is_a_runtime_root(self) -> None:
+        codex = _write_executable(self.bin_dir / "codex", FAKE_CODEX_WITH_SANDBOX)
+        custom_tmpdir = self.bin_dir / "custom-tmpdir"
+        custom_tmpdir.mkdir()
+        with patch.dict(guard.os.environ, {"TMPDIR": str(custom_tmpdir)}):
+            self.assertIn(custom_tmpdir.resolve(), guard._codex_runtime_temp_roots())
+            decision = guard.determine_codex_tier(
+                codex_bin=str(codex),
+                platform_system="Darwin",
+                integration_root=custom_tmpdir / "integration",
+                assigned_worktree=Path("/opt/dev-platform/worktrees/agent-a"),
+            )
+        self.assertEqual(decision.tier, guard.EnforcementTier.DETECTION_ONLY)
+        self.assertIn("runtime-temp-root-overlap", decision.mechanism)
+
+    def test_symlink_into_runtime_temp_root_is_not_hard(self) -> None:
+        codex = _write_executable(self.bin_dir / "codex", FAKE_CODEX_WITH_SANDBOX)
+        temp_root = self.bin_dir / "runtime-temp"
+        target = temp_root / "integration"
+        target.mkdir(parents=True)
+        linked = self.bin_dir / "integration-link"
+        linked.symlink_to(target, target_is_directory=True)
+        decision = guard.determine_codex_tier(
+            codex_bin=str(codex),
+            platform_system="Darwin",
+            integration_root=linked,
+            assigned_worktree=Path("/opt/dev-platform/worktrees/agent-a"),
+            runtime_temp_roots=(temp_root,),
+        )
+        self.assertEqual(decision.tier, guard.EnforcementTier.DETECTION_ONLY)
+        self.assertIn(str(target), decision.detail)
+
+    def test_require_hard_fails_closed_for_temp_root_overlap(self) -> None:
+        codex = _write_executable(self.bin_dir / "codex", FAKE_CODEX_WITH_SANDBOX)
+        with self.assertRaisesRegex(delegation_containment.ContainmentError, "runtime-writable temp root"):
+            guard.determine_codex_tier(
+                codex_bin=str(codex),
+                require_hard=True,
+                platform_system="Darwin",
+                integration_root=Path("/tmp/integration"),
+                assigned_worktree=Path("/opt/dev-platform/worktrees/agent-a"),
+                runtime_temp_roots=(Path("/tmp"),),
+            )
+
+    def test_build_codex_argv_hard_tier_supplies_workspace_write_flags(self) -> None:
         argv = guard.build_codex_argv("codex", Path("/worktrees/agent-a"), guard.EnforcementTier.HARD, ["do it"])
         self.assertIn("--sandbox", argv)
         self.assertIn("workspace-write", argv)
@@ -410,7 +498,7 @@ class CliSmokeTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.tmp.cleanup()
 
-    def test_codex_subcommand_end_to_end_with_fake_hard_sandbox_binary(self) -> None:
+    def test_codex_subcommand_downgrades_when_fixture_is_under_temp_root(self) -> None:
         fake_codex = _write_executable(
             self.bin_dir / "codex",
             "#!/usr/bin/env python3\n"
@@ -439,8 +527,39 @@ class CliSmokeTests(unittest.TestCase):
         ]
         completed = subprocess.run(argv, text=True, capture_output=True)
         self.assertEqual(completed.returncode, 0, completed.stderr)
-        self.assertIn("hard", completed.stderr)
+        self.assertIn("detection-only", completed.stderr)
         self.assertTrue((self.worktree / "cli-output.txt").exists())
+
+    def test_codex_require_hard_refuses_temp_root_before_child_launch(self) -> None:
+        fake_codex = _write_executable(
+            self.bin_dir / "codex",
+            "#!/usr/bin/env python3\n"
+            "import sys\n"
+            "from pathlib import Path\n"
+            "if sys.argv[1:3] == ['exec', '--help']:\n"
+            "    print('--sandbox workspace-write --cd')\n"
+            "    raise SystemExit(0)\n"
+            "Path('child-ran.marker').write_text('ran\\n', encoding='utf-8')\n"
+            "raise SystemExit(0)\n",
+        )
+        argv = [
+            sys.executable,
+            str(SCRIPT_ROOT / "delegated_write_guard.py"),
+            "codex",
+            "--integration-root",
+            str(self.integration),
+            "--assigned-worktree",
+            str(self.worktree),
+            "--codex-bin",
+            str(fake_codex),
+            "--require-hard",
+            "--",
+            "do the task",
+        ]
+        completed = subprocess.run(argv, text=True, capture_output=True)
+        self.assertEqual(completed.returncode, 2)
+        self.assertIn("hard containment was required", completed.stderr)
+        self.assertFalse((self.worktree / "child-ran.marker").exists())
 
 
 if __name__ == "__main__":
