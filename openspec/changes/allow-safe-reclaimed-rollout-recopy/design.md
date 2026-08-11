@@ -49,6 +49,8 @@ The v1.4.16 acceptance run proved that broad `Error:` scraping is unsafe. The v1
 
 A product-check failure remains blocking; diagnostics only identify which command failed so the correction is based on evidence. The marker carries no secrets beyond commands already printed to the Actions log.
 
+The richer machine-readable terminal diagnostic envelope is now governed by the archived `harden-rollout-diagnostics` change. This active recovery change consumes those diagnostics as acceptance evidence but does not own a second diagnostic contract.
+
 ## Downstream runtime parity
 
 The v1.4.18 diagnostic identified the real remaining Cuby blocker as `cd apps/web && npm run build`. The same web build had just passed Cuby's normal PR gate, whose generated platform workflow explicitly pins Node `20.19.0`. Managed rollout, however, set up Python but relied on the hosted runner's ambient Node executable. That makes rollout validation semantically different from the downstream gate it is supposed to preflight.
@@ -63,10 +65,24 @@ Managed rollout already executes tooling from the exact immutable target release
 
 This proof remains reproducible because both sides are immutable Git objects: downstream rollout starts from a clean committed `HEAD`, and the old platform state is a stable SemVer tag.
 
+## Acceptance and closure sequencing
+
+The recovery code has shipped through immutable v1.4.20, but the v1.4.20 Cuby rollout required manual reconciliation. That is useful incident evidence, not acceptance of this change.
+
+Do not add another recovery heuristic just to close the lifecycle. Instead, after the current platform stability follow-ups are merged and semantically verified, cut the next normal cumulative immutable release and use its ordinary release-triggered managed rollout as the acceptance attempt.
+
+For Cuby, acceptance requires the managed job itself to complete preparation without any manual downstream intervention: no manual `copier update/recopy`, no hand removal of `.rej`, no file copying from the template, and no manual synchronization of `.dev-platform.toml`/`.copier-answers.yml`. The resulting update PR must then satisfy Cuby's required downstream CI before acceptance is recorded.
+
+All current `managed` projects must receive a normal rollout result for that same immutable release. Stale older rollout PR cleanup is owned by `supersede-stale-managed-rollouts`; it must not be solved by ad-hoc closure steps hidden inside this recovery algorithm.
+
+If the automatic Cuby attempt fails, leave this change active. Use the canonical rollout diagnostic to identify the exact stage/category/reason, update the OpenSpec artifacts before changing recovery semantics, and rerun only after a reviewed fix. A manually repaired Cuby PR cannot substitute for this acceptance receipt.
+
 ## Compatibility and rollback
 
 No downstream format changes are introduced. If recovery cannot prove safety, behavior stays fail-closed: rollout stops without pushing a branch. Removing baseline-equivalence recovery restores the stricter v1.4.14 behavior. Removing the diagnostic improvements only reduces observability and does not alter recovery eligibility. Removing runtime parity restores reliance on the hosted runner's ambient Node and is therefore not an acceptable forward configuration while generated CI pins Node.
 
 ## Validation
 
-Unit tests cover target-equivalent reclaimed recovery, exact old-baseline and missing/missing proof, the actual mixed Cuby reject set, and real-divergence blocking. Workflow/helper tests cover preservation of failure, structured marker precedence, rejection of broad/ambiguous log scraping, gating of push/PR creation, and equality of the Node runtime pinned by managed rollout and the generated downstream gate. Existing project-harness guarded-recopy tests remain green. The final immutable release is then exercised against real Cuby rollout before archive.
+Unit tests cover target-equivalent reclaimed recovery, exact old-baseline and missing/missing proof, the actual mixed Cuby reject set, and real-divergence blocking. Workflow/helper tests cover preservation of failure, structured marker precedence, rejection of broad/ambiguous log scraping, gating of push/PR creation, and equality of the Node runtime pinned by managed rollout and the generated downstream gate. Existing project-harness guarded-recopy tests remain green.
+
+Final semantic verification is intentionally deferred until a post-hardening immutable release completes a real automatic Cuby rollout and all downstream required checks for that rollout PR pass. The verification receipt must name the exact release/run/PR evidence actually observed before archive.
