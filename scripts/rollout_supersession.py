@@ -181,6 +181,15 @@ def reconcile(
     eligible = eligible_rollout_prs(
         list_open_prs(repository, base_branch), repository=repository, base_branch=base_branch, expected_bot=expected_bot
     )
+    # Maintenance has no just-created target PR.  The newest eligible open PR
+    # was created only after this automation's validation path, so it is the
+    # safely available replacement allowed by the OpenSpec contract.  Keeping
+    # it while closing only strictly older eligible PRs prevents accumulated
+    # pending rollouts from remaining actionable.
+    if authoritative_version is None and eligible:
+        newest = eligible[-1]
+        authoritative_version = newest.version
+        authoritative_pr = newest.number
     base_version = committed_platform_version(repository, base_branch)
     planned = plan_supersession(
         eligible, base_version=base_version, authoritative_version=authoritative_version,

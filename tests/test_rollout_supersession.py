@@ -84,7 +84,27 @@ class RolloutSupersessionTests(unittest.TestCase):
                 registry=registry, authoritative_version=None, authoritative_pr=None, apply=False,
             )
         self.assertEqual([item["number"] for item in report["planned_closures"]], [1])
+        self.assertEqual((report["authoritative_version"], report["authoritative_pr"]), ("v1.1.0", 2))
         close.assert_not_called()
+
+    def test_maintenance_uses_newest_eligible_pr_and_preserves_it(self) -> None:
+        registry = ROOT / "managed-projects.json"
+        with patch.object(supersession, "list_open_prs", return_value=[
+            pr(1, "v1.4.17", repository="lehard/planner-agent-lab"),
+            pr(2, "v1.4.18", repository="lehard/planner-agent-lab"),
+            pr(3, "v1.4.20", repository="lehard/planner-agent-lab"),
+        ]), patch.object(supersession, "committed_platform_version", return_value="v1.4.16"):
+            report = supersession.reconcile(
+                repository="lehard/planner-agent-lab", base_branch="main", expected_bot="dev-platform-bot[bot]",
+                registry=registry, authoritative_version=None, authoritative_pr=None, apply=False,
+            )
+        self.assertEqual([item["number"] for item in report["planned_closures"]], [1, 2])
+        self.assertEqual((report["authoritative_version"], report["authoritative_pr"]), ("v1.4.20", 3))
+
+    def test_candidate_and_excluded_repositories_cannot_enter_reconciliation(self) -> None:
+        for repository in ("lehard/etsy", "lehard/lection"):
+            with self.subTest(repository=repository), self.assertRaises(ValueError):
+                supersession.require_managed(repository, ROOT / "managed-projects.json")
 
     def test_branch_delete_failure_is_warning_only_after_confirmed_close(self) -> None:
         responses = iter([{}, {"state": "closed"}, {}, ValueError("protected branch")])
