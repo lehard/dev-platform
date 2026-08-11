@@ -110,7 +110,7 @@ class MergeLifecycleResilienceTests(unittest.TestCase):
             '  exit 0\n'
             'fi\n'
             + COMMON_PR_BODY
-            + 'if [ "$1" = "pr" ] && [ "$2" = "checks" ]; then echo "platform-ci pass"; exit 0; fi\n'
+            + 'if [ "$1" = "pr" ] && [ "$2" = "checks" ]; then echo \'[{"name":"platform-ci","state":"SUCCESS","workflow":"platform-ci","link":""}]\'; exit 0; fi\n'
             + 'if [ "$1" = "pr" ] && [ "$2" = "merge" ]; then sha=$(git --git-dir "$FAKE_REMOTE" rev-parse "refs/heads/$3") || exit 1; git --git-dir "$FAKE_REMOTE" update-ref refs/heads/main "$sha" || exit 1; exit 0; fi\n'
             + 'exit 1'
         )
@@ -129,8 +129,8 @@ class MergeLifecycleResilienceTests(unittest.TestCase):
             + COMMON_PR_BODY
             + 'if [ "$1" = "pr" ] && [ "$2" = "checks" ]; then\n'
             + '  count=0; if [ -f "$FAKE_CHECK_STATE" ]; then count=$(cat "$FAKE_CHECK_STATE"); fi; count=$((count + 1)); echo "$count" > "$FAKE_CHECK_STATE";\n'
-            + '  if [ "$count" -lt 2 ]; then echo "no checks reported" >&2; exit 1; fi;\n'
-            + '  echo "platform-ci pass"; exit 0;\n'
+            + '  if [ "$count" -lt 2 ]; then echo "[]"; exit 0; fi;\n'
+            + '  echo \'[{"name":"platform-ci","state":"SUCCESS","workflow":"platform-ci","link":""}]\'; exit 0;\n'
             + 'fi\n'
             + 'if [ "$1" = "pr" ] && [ "$2" = "merge" ]; then sha=$(git --git-dir "$FAKE_REMOTE" rev-parse "refs/heads/$3") || exit 1; git --git-dir "$FAKE_REMOTE" update-ref refs/heads/main "$sha" || exit 1; exit 0; fi\n'
             + 'exit 1'
@@ -147,7 +147,7 @@ class MergeLifecycleResilienceTests(unittest.TestCase):
         body = (
             'if [ "$1" = "auth" ] && [ "$2" = "status" ]; then exit 0; fi\n'
             + COMMON_PR_BODY
-            + 'if [ "$1" = "pr" ] && [ "$2" = "checks" ]; then echo "platform-ci pass"; exit 0; fi\n'
+            + 'if [ "$1" = "pr" ] && [ "$2" = "checks" ]; then echo \'[{"name":"platform-ci","state":"SUCCESS","workflow":"platform-ci","link":""}]\'; exit 0; fi\n'
             + 'if [ "$1" = "pr" ] && [ "$2" = "merge" ]; then\n'
             + '  case " $* " in *" --auto "*) sha=$(git --git-dir "$FAKE_REMOTE" rev-parse "refs/heads/$3") || exit 1; git --git-dir "$FAKE_REMOTE" update-ref refs/heads/main "$sha" || exit 1; exit 0;; esac;\n'
             + '  echo "merge queue required" >&2; exit 1;\n'

@@ -38,6 +38,13 @@ def clean(root: Path) -> bool:
     return not run_git(["status", "--porcelain"], cwd=root).stdout.strip()
 
 
+def integration_clean(root: Path, config: dict) -> bool:
+    """Ignore the platform's own untracked lock file, but no other mutation."""
+    lock = str(config.get("paths", {}).get("main_merge_lock", ".claude/main-merge.lock")).replace("\\", "/")
+    status = run_git(["status", "--porcelain", "--untracked-files=all"], cwd=root).stdout.splitlines()
+    return all(not line or line[3:].replace("\\", "/") == lock for line in status)
+
+
 def current_branch(root: Path) -> str:
     return run_git(["branch", "--show-current"], cwd=root).stdout.strip()
 
@@ -167,10 +174,13 @@ def integrate_and_publish_direct(work: Path, integration: Path, config: dict, br
     subprocess.run(["python3", str(integration / "scripts" / "project_publish.py"), "--mode", "direct"], cwd=integration, check=True, env=env)
 
 
-def sync_after_remote_pr_merge(work: Path, integration: Path, main_branch: str) -> None:
-    if not clean(integration):
-        raise SystemExit("Remote PR merged, but the integration copy is dirty. Leave it untouched and synchronize main manually after resolving local state.")
+def sync_after_remote_pr_merge(work: Path, integration: Path, config: dict, main_branch: str) -> None:
+    # This function is called only while serialized_integration is held. Fetch
+    # after lock acquisition: a previous reconciler may have advanced main while
+    # this task was waiting for the shared checkout.
     fetch_main(integration, "origin", main_branch)
+    if not integration_clean(integration, config):
+        raise SystemExit("Remote PR merged, but the integration copy is dirty. Leave it untouched and synchronize main manually after resolving local state.")
     remote_main = f"origin/{main_branch}"
     if work == integration:
         run_git(["switch", main_branch], cwd=integration)
@@ -212,6 +222,26 @@ def cleanup_completed_task(work: Path, integration: Path, branch: str, *, squash
     print(f"Removed completed worktree and local branch {branch}.")
 
 
+def reconcile_confirmed_remote_pr_merge(
+    work: Path,
+    integration: Path,
+    config: dict,
+    branch: str,
+    main_branch: str,
+    prof: str,
+    *,
+    cleanup: bool,
+    timeout_seconds: float,
+) -> None:
+    """Serialize only local post-MERGED reconciliation, never remote waits."""
+    with serialized_integration(integration, config, timeout_seconds):
+        sync_after_remote_pr_merge(work, integration, config, main_branch)
+        if prof == "multi-agent":
+            finish_board(integration, work, config)
+        if cleanup:
+            cleanup_completed_task(work, integration, branch, squash_merged=True)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate, integrate when needed, and publish a completed task without a human git hand-off.")
     parser.add_argument("--no-checks", action="store_true")
@@ -250,11 +280,9 @@ def main() -> int:
     # but if GitHub already merged this exact head there is nothing to rebase or
     # republish; only local reconciliation remains.
     if mode == "pr" and branch != main_branch and pr_merge_mode(config) == "auto" and task_pr_is_already_merged(work, branch):
-        sync_after_remote_pr_merge(work, integration, main_branch)
-        if prof == "multi-agent":
-            finish_board(integration, work, config)
-        if args.cleanup:
-            cleanup_completed_task(work, integration, branch, squash_merged=True)
+        reconcile_confirmed_remote_pr_merge(
+            work, integration, config, branch, main_branch, prof, cleanup=args.cleanup, timeout_seconds=args.merge_timeout
+        )
         print("Task PR was already merged through GitHub; local main and task state were reconciled without republishing.")
         return 0
 
@@ -271,11 +299,9 @@ def main() -> int:
             command += ["--body", args.body]
         subprocess.run(command, cwd=work, check=True)
         if pr_merge_mode(config) == "auto":
-            sync_after_remote_pr_merge(work, integration, main_branch)
-            if prof == "multi-agent":
-                finish_board(integration, work, config)
-            if args.cleanup:
-                cleanup_completed_task(work, integration, branch, squash_merged=True)
+            reconcile_confirmed_remote_pr_merge(
+                work, integration, config, branch, main_branch, prof, cleanup=args.cleanup, timeout_seconds=args.merge_timeout
+            )
             print("Task PR passed required checks, merged through GitHub, and local main was synchronized.")
         else:
             if prof == "standard" and work == integration:

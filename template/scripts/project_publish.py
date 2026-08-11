@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import subprocess
 import time
+from dataclasses import dataclass
 from pathlib import Path
 
 from _platform_common import (
@@ -24,15 +26,23 @@ from _platform_common import (
 DIRECT_PUBLISH_GUARD = "DEV_PLATFORM_VALIDATED_DIRECT_PUBLISH"
 CHECK_REGISTRATION_TIMEOUT_SECONDS = 90.0
 CHECK_REGISTRATION_INTERVAL_SECONDS = 3.0
+CHECK_COMPLETION_TIMEOUT_SECONDS = 600.0
+CHECK_COMPLETION_INTERVAL_SECONDS = 5.0
 MERGE_CONFIRM_TIMEOUT_SECONDS = 600.0
 MERGE_CONFIRM_INTERVAL_SECONDS = 2.0
 MERGE_FAILURE_CONFIRM_TIMEOUT_SECONDS = 3.0
-NO_CHECK_MARKERS = (
-    "no checks reported",
-    "no checks were reported",
-    "no required checks",
-    "no checks found",
-)
+PASSED_CHECK_STATES = {"SUCCESS", "NEUTRAL", "SKIPPING", "SKIPPED"}
+FAILED_CHECK_STATES = {"FAILURE", "CANCELLED", "TIMED_OUT", "ACTION_REQUIRED", "STALE", "ERROR"}
+PENDING_CHECK_STATES = {"EXPECTED", "PENDING", "QUEUED", "IN_PROGRESS", "WAITING", "REQUESTED"}
+
+
+@dataclass(frozen=True)
+class RequiredCheckState:
+    """Normalized, structured GitHub state for required checks on one PR head."""
+
+    kind: str
+    detail: str = ""
+    checks: tuple[dict[str, object], ...] = ()
 
 
 def clean(root: Path) -> bool:
@@ -127,38 +137,105 @@ def ensure_pr(root: Path, env: dict[str, str], current: str, main_branch: str, t
     return url
 
 
-def _checks_not_registered(detail: str) -> bool:
-    lowered = detail.lower()
-    return any(marker in lowered for marker in NO_CHECK_MARKERS)
+def required_check_state(root: Path, env: dict[str, str], current: str) -> RequiredCheckState:
+    """Read required-check state from gh JSON, never from rendered CLI wording.
+
+    `gh pr checks --required --json` delegates required-context selection to
+    GitHub, and the preceding PR query proves those contexts belong to this
+    local task head.  An unreadable API response is intentionally `unknown`.
+    """
+    pr = subprocess.run(
+        ["gh", "pr", "view", current, "--json", "state,headRefOid"],
+        cwd=root,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if pr.returncode != 0:
+        return RequiredCheckState("unknown", "GitHub PR state is unavailable")
+    try:
+        pr_payload = json.loads(pr.stdout)
+    except json.JSONDecodeError:
+        return RequiredCheckState("unknown", "GitHub PR state was not structured JSON")
+    local_head = run_git(["rev-parse", current], cwd=root, check=False)
+    if local_head.returncode != 0:
+        return RequiredCheckState("unknown", f"local task branch {current!r} is unavailable")
+    remote_head = str(pr_payload.get("headRefOid", "")).strip()
+    if remote_head != local_head.stdout.strip():
+        return RequiredCheckState("unknown", "GitHub PR head does not match the local task head")
+
+    checks = subprocess.run(
+        ["gh", "pr", "checks", current, "--required", "--json", "name,state,workflow,link"],
+        cwd=root,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if checks.returncode != 0:
+        return RequiredCheckState("unknown", "GitHub required-check state is unavailable")
+    try:
+        payload = json.loads(checks.stdout)
+    except json.JSONDecodeError:
+        return RequiredCheckState("unknown", "GitHub required-check state was not structured JSON")
+    if not isinstance(payload, list):
+        return RequiredCheckState("unknown", "GitHub required-check response was not a list")
+    normalized = tuple(item for item in payload if isinstance(item, dict))
+    if len(normalized) != len(payload):
+        return RequiredCheckState("unknown", "GitHub required-check response contained an invalid check")
+    if not normalized:
+        return RequiredCheckState("not_registered")
+
+    states = {str(item.get("state", "")).strip().upper() for item in normalized}
+    if any(state in FAILED_CHECK_STATES for state in states):
+        failed = ", ".join(str(item.get("name", "unnamed")) for item in normalized if str(item.get("state", "")).strip().upper() in FAILED_CHECK_STATES)
+        return RequiredCheckState("failed", failed, normalized)
+    if all(state in PASSED_CHECK_STATES for state in states):
+        return RequiredCheckState("passed", checks=normalized)
+    if all(state in PASSED_CHECK_STATES | PENDING_CHECK_STATES for state in states):
+        return RequiredCheckState("pending", checks=normalized)
+    return RequiredCheckState("unknown", "GitHub returned an unsupported required-check state", normalized)
 
 
 def wait_for_pr_checks(root: Path, env: dict[str, str], current: str) -> None:
-    print("Waiting for GitHub required PR checks...")
-    deadline = time.monotonic() + CHECK_REGISTRATION_TIMEOUT_SECONDS
+    print("Waiting for GitHub required PR checks from structured PR state...")
+    registration_deadline = time.monotonic() + CHECK_REGISTRATION_TIMEOUT_SECONDS
+    completion_deadline: float | None = None
     while True:
-        result = subprocess.run(
-            ["gh", "pr", "checks", current, "--required", "--watch", "--fail-fast", "--interval", "5"],
-            cwd=root,
-            env=env,
-            text=True,
-            capture_output=True,
-            check=False,
-        )
-        if result.stdout.strip():
-            print(result.stdout.strip())
-        if result.returncode == 0:
+        state = required_check_state(root, env, current)
+        if state.kind == "passed":
             return
-        detail = result.stderr.strip() or result.stdout.strip() or f"exit {result.returncode}"
-        if _checks_not_registered(detail) and time.monotonic() < deadline:
-            print("Required PR checks are not registered yet; waiting for GitHub to attach them to the PR...")
+        if state.kind == "not_registered":
+            if time.monotonic() >= registration_deadline:
+                raise SystemExit(
+                    "Required PR checks did not register within the bounded wait; remote state remains pending and resumable. "
+                    "The PR and feature branch remain intact; local main was not changed."
+                )
+            print("Required PR checks are not registered yet; waiting for GitHub to attach them to the current PR head...")
             time.sleep(CHECK_REGISTRATION_INTERVAL_SECONDS)
             continue
-        if _checks_not_registered(detail):
+        if state.kind == "pending":
+            if completion_deadline is None:
+                completion_deadline = time.monotonic() + CHECK_COMPLETION_TIMEOUT_SECONDS
+            if time.monotonic() >= completion_deadline:
+                raise SystemExit(
+                    "Required PR checks did not complete within the bounded wait; remote state remains pending and resumable. "
+                    "The PR and feature branch remain intact; local main was not changed."
+                )
+            print("Required PR checks are pending for the current PR head; waiting for terminal state...")
+            time.sleep(CHECK_COMPLETION_INTERVAL_SECONDS)
+            continue
+        if state.kind == "failed":
             raise SystemExit(
-                "Required PR checks did not register within the bounded wait; PR remains open and local main was not changed. "
-                + detail
+                "Required PR checks failed for the current PR head; PR remains open and local main was not changed. "
+                + state.detail
             )
-        raise SystemExit("Required PR checks did not pass; PR remains open and local main was not changed. " + detail)
+        raise SystemExit(
+            "GitHub required-check state is unknown; failing closed with a resumable remote-pending result. "
+            "The PR and feature branch remain intact; local main was not changed. "
+            + state.detail
+        )
 
 
 def pr_state(root: Path, env: dict[str, str], current: str) -> str | None:
@@ -227,7 +304,7 @@ def merge_pr(root: Path, env: dict[str, str], current: str, remote: str) -> None
                 break
             raise SystemExit(
                 f"{label} was accepted by GitHub, but the PR did not reach MERGED within the bounded wait; "
-                "local main was not reconciled."
+                "remote state remains pending and resumable; local main was not reconciled."
             )
 
         # gh can report a convenience/cleanup error after GitHub already accepted
