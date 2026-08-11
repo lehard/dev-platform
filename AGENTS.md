@@ -104,6 +104,6 @@ When Copier is available, render the template and compile/run the generated doct
 
 OpenSpec is external; do not vendor generated Claude/Codex skills. `.dev-platform.toml` records minimum/tested CLI versions. The doctor may warn/fail on version compatibility but must not silently mutate a user's global OpenSpec installation.
 
-## Friction promotion
+## Friction routing
 
-Local friction stays machine-local by default. Promotion to the central inbox is an explicit sanitized action; raw evidence is not uploaded automatically. Multiple observations should be reviewed before turning a candidate into a permanent platform rule.
+Raw friction evidence stays machine-local. Record high-signal events through `scripts/agent_friction.py`; the normal path automatically upserts a bounded sanitized, fingerprinted process issue in the configured project or platform repository. Retry failure is durable and non-blocking for safe delivery. Process issues are evidence only: cloud triage/review must never create managed tasks, OpenSpec, implementation PRs, or code changes. Before non-trivial completion, resolve the friction checkpoint with `python3 scripts/agent_friction.py checkpoint --result none` or a recorded event id.

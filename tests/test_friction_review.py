@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -30,8 +31,18 @@ class FrictionReviewTests(unittest.TestCase):
         agent_friction.log_path = lambda: self.log
         agent_friction.state_path = lambda: self.state
         agent_friction.reports_dir = lambda: self.reports
+        self.original_gh = agent_friction.gh
+        self.original_which = agent_friction.shutil.which
+        self.original_destination = agent_friction.destination_for
+        self.original_branch = agent_friction.current_branch
+        agent_friction.destination_for = lambda event: "example/project" if event["scope"] == "project" else "lehard/dev-platform"
+        agent_friction.current_branch = lambda: "test-branch"
 
     def tearDown(self) -> None:
+        agent_friction.gh = self.original_gh
+        agent_friction.shutil.which = self.original_which
+        agent_friction.destination_for = self.original_destination
+        agent_friction.current_branch = self.original_branch
         self.tmp.cleanup()
 
     def write_events(self, count: int, *, severity: str = "medium") -> list[str]:
@@ -118,6 +129,87 @@ class FrictionReviewTests(unittest.TestCase):
         event = agent_friction.read_events(None)[0]
         self.assertEqual(event["severity"], "medium")
         self.assertEqual(event["triggers"], ["old-category"])
+
+    def event(self, *, scope: str = "platform") -> dict:
+        return {
+            "id": "route-me", "at": "2026-08-11T10:00:00+00:00", "scope": scope,
+            "category": "repeated-error", "severity": "high", "observation": "token=very-secret-value",
+            "evidence": "api_key=local-only-secret", "hypothesis": "missing guard", "proposal": "add guard",
+        }
+
+    def test_route_creates_sanitized_fingerprinted_issue_without_evidence(self) -> None:
+        calls: list[list[str]] = []
+        agent_friction.shutil.which = lambda _: "/usr/bin/gh"
+
+        def fake_gh(command: list[str]) -> subprocess.CompletedProcess[str]:
+            calls.append(command)
+            if command[:2] == ["auth", "status"]:
+                return subprocess.CompletedProcess(command, 0, "", "")
+            if command[:2] == ["api", "repos/lehard/dev-platform/issues?state=open&per_page=100"]:
+                return subprocess.CompletedProcess(command, 0, "[]", "")
+            return subprocess.CompletedProcess(command, 0, json.dumps({"number": 17}), "")
+
+        agent_friction.gh = fake_gh
+        result = agent_friction.route_event(self.event())
+        self.assertEqual(result["status"], "routed")
+        self.assertEqual(result["issue_number"], 17)
+        request = calls[-1]
+        body = next(item for item in request if item.startswith("body="))
+        self.assertIn("dev-platform-friction:", body)
+        self.assertIn("[REDACTED]", body)
+        self.assertNotIn("local-only-secret", body)
+        self.assertNotIn("Evidence", body)
+
+    def test_open_fingerprint_is_updated_instead_of_creating_duplicate(self) -> None:
+        event = self.event(scope="project")
+        marker = agent_friction.marker_for(agent_friction.fingerprint_for(event, "example/project"))
+        calls: list[list[str]] = []
+        agent_friction.shutil.which = lambda _: "/usr/bin/gh"
+
+        def fake_gh(command: list[str]) -> subprocess.CompletedProcess[str]:
+            calls.append(command)
+            if command[:2] == ["auth", "status"]:
+                return subprocess.CompletedProcess(command, 0, "", "")
+            if command[:2] == ["api", "repos/example/project/issues?state=open&per_page=100"]:
+                return subprocess.CompletedProcess(command, 0, json.dumps([{"number": 31, "body": marker}]), "")
+            return subprocess.CompletedProcess(command, 0, "{}", "")
+
+        agent_friction.gh = fake_gh
+        result = agent_friction.route_event(event)
+        self.assertEqual(result["issue_number"], 31)
+        self.assertIn("repos/example/project/issues/31/comments", calls[-1])
+        self.assertFalse(any(command[:3] == ["api", "--method", "POST"] and command[3] == "repos/example/project/issues" for command in calls))
+
+    def test_unavailable_routing_stays_pending_then_retries(self) -> None:
+        event = self.event()
+        self.log.write_text(json.dumps(event) + "\n", encoding="utf-8")
+        agent_friction.shutil.which = lambda _: None
+        self.assertEqual(agent_friction.route_event(event)["status"], "pending")
+        self.assertEqual(agent_friction.read_state()["routes"]["route-me"]["status"], "pending")
+        agent_friction.shutil.which = lambda _: "/usr/bin/gh"
+
+        def fake_gh(command: list[str]) -> subprocess.CompletedProcess[str]:
+            if command[:2] == ["auth", "status"]:
+                return subprocess.CompletedProcess(command, 0, "", "")
+            if command[:2] == ["api", "repos/lehard/dev-platform/issues?state=open&per_page=100"]:
+                return subprocess.CompletedProcess(command, 0, "[]", "")
+            return subprocess.CompletedProcess(command, 0, json.dumps({"number": 44}), "")
+
+        agent_friction.gh = fake_gh
+        retry = agent_friction.route_pending()
+        self.assertEqual(retry, {"pending": 1, "routed": 1, "failures": 0})
+        self.assertEqual(agent_friction.read_state()["routes"]["route-me"]["status"], "routed")
+
+    def test_checkpoint_none_is_explicit_and_creates_no_route(self) -> None:
+        args = type("Args", (), {"result": "none"})()
+        agent_friction.cmd_checkpoint(args)
+        agent_friction.require_checkpoint("test-branch")
+        self.assertEqual(agent_friction.read_state()["checkpoints"]["test-branch"]["result"], "none")
+        self.assertEqual(agent_friction.read_state()["routes"], {})
+
+    def test_missing_checkpoint_blocks_non_trivial_completion(self) -> None:
+        with self.assertRaisesRegex(SystemExit, "Completion friction checkpoint is required"):
+            agent_friction.require_checkpoint("test-branch")
 
 
 if __name__ == "__main__":

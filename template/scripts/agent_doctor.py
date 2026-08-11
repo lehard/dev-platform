@@ -149,6 +149,29 @@ def run_friction_review_status(integration: Path) -> None:
         report("ok", "no unreviewed agent friction events")
 
 
+def retry_friction_routing(integration: Path) -> None:
+    """Best-effort telemetry retry; delivery hygiene must stay independent."""
+    result = subprocess.run(
+        ["python3", str(integration / "scripts" / "agent_friction.py"), "route-pending"],
+        cwd=integration,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode:
+        report("warn", "friction routing retry could not run: " + (result.stderr.strip() or result.stdout.strip() or f"exit {result.returncode}"))
+        return
+    try:
+        payload = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        report("warn", "friction routing retry returned unreadable output")
+        return
+    if payload.get("failures"):
+        report("warn", f"friction routing remains pending for {payload.get('failures')} event(s); safe delivery is unaffected")
+    elif payload.get("routed"):
+        report("ok", f"routed {payload.get('routed')} pending friction event(s)")
+
+
 def query_github_branch_protection(root: Path, env: dict[str, str], branch: str) -> bool | None:
     name = publication_state.github_repo_name(root, env)
     if name is None:
@@ -317,6 +340,7 @@ def main() -> int:
             report("ok", "integration copy is clean")
         run_multi_agent_hygiene(integration)
     if harness == "platform":
+        retry_friction_routing(integration)
         run_friction_review_status(integration)
     return 1 if failures else 0
 

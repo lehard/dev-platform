@@ -29,6 +29,7 @@ from _platform_common import (
     run_git,
 )
 import publication_state
+import agent_friction
 
 
 ALLOW_NO_CHECKS_ENV = "DEV_PLATFORM_ALLOW_NO_CHECKS"
@@ -79,6 +80,7 @@ def run_checks(root: Path, base: str, no_checks: bool) -> None:
         return
     result = subprocess.run(["python3", str(root / "scripts" / "select_checks.py"), "--base", base, "--execute"], cwd=root)
     if result.returncode != 0:
+        record_lifecycle_friction(root, "lifecycle-validation-failure", "required platform validation failed", "select_checks returned a non-zero exit status")
         raise SystemExit(result.returncode)
 
 
@@ -86,7 +88,31 @@ def run_openspec_hygiene(root: Path) -> None:
     script = root / "scripts" / "openspec_lifecycle.py"
     result = subprocess.run(["python3", str(script), "check"], cwd=root)
     if result.returncode != 0:
+        record_lifecycle_friction(root, "lifecycle-openspec-hygiene-failure", "OpenSpec lifecycle hygiene failed", "openspec_lifecycle check returned a non-zero exit status")
         raise SystemExit(result.returncode)
+
+
+def record_lifecycle_friction(root: Path, category: str, observation: str, evidence: str) -> None:
+    """Capture narrow deterministic failures without changing delivery outcome."""
+    subprocess.run(
+        [
+            "python3", str(root / "scripts" / "agent_friction.py"), "record",
+            "--category", category, "--trigger", "repeated-error", "--severity", "high",
+            "--observation", observation, "--evidence", evidence,
+            "--hypothesis", "a deterministic lifecycle guard needs operator review",
+            "--scope", "platform", "--proposal", "review the lifecycle failure and its guard",
+            "--task", current_branch(root),
+        ],
+        cwd=root, text=True, capture_output=True, check=False,
+    )
+
+
+def run_friction_retry_and_checkpoint(root: Path, branch: str) -> None:
+    """Telemetry is best effort; the explicit semantic checkpoint is not."""
+    result = agent_friction.route_pending()
+    if result["failures"]:
+        print(f"WARNING: {result['failures']} friction event(s) remain pending GitHub routing; safe publication may continue.")
+    agent_friction.require_checkpoint(branch)
 
 
 def validate_publication_config(root: Path, config: dict, prof: str, mode: str) -> None:
@@ -312,6 +338,7 @@ def main() -> int:
         raise SystemExit("Detached HEAD is not publishable through the platform lifecycle.")
     validate_publication_config(work, config, prof, mode)
     run_openspec_hygiene(work)
+    run_friction_retry_and_checkpoint(work, branch)
     if not clean(work):
         raise SystemExit("Current worktree is dirty. Commit or remove changes first.")
     fetch_main(integration, "origin", main_branch)

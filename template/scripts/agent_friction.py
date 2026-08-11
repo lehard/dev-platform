@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import hashlib
 import json
 import os
 import re
@@ -19,7 +20,7 @@ try:
 except ImportError:  # pragma: no cover - Windows fallback
     fcntl = None
 
-from _platform_common import main_root, read_platform_config, utc_now
+from _platform_common import current_worktree_root, main_root, read_platform_config, utc_now
 
 
 DEFAULT_MIN_EVENTS = 5
@@ -36,6 +37,7 @@ SECRET_PATTERNS = (
     re.compile(r"\bsk-[A-Za-z0-9_-]{16,}\b"),
     re.compile(r"(?i)\b(?:password|passwd|api[_-]?key|access[_-]?token|secret)\s*[:=]\s*\S+"),
 )
+FINGERPRINT_PREFIX = "dev-platform-friction"
 
 
 def local_path(key: str, default: str) -> Path:
@@ -98,7 +100,7 @@ def atomic_write_json(path: Path, payload: dict) -> None:
 
 
 def current_branch() -> str:
-    result = subprocess.run(["git", "branch", "--show-current"], cwd=main_root(), text=True, capture_output=True)
+    result = subprocess.run(["git", "branch", "--show-current"], cwd=current_worktree_root(), text=True, capture_output=True)
     return result.stdout.strip() if result.returncode == 0 and result.stdout.strip() else "unknown"
 
 
@@ -127,6 +129,11 @@ def cmd_record(args: argparse.Namespace) -> int:
             fh.flush()
             os.fsync(fh.fileno())
     print(f"Recorded friction candidate {event['id']}: {args.scope}/{args.category} severity={args.severity}")
+    result = route_event(event)
+    if result["status"] == "pending":
+        print(f"WARNING: friction routing is pending for {event['id']}: {result['detail']}")
+    else:
+        print(f"Routed friction candidate {event['id']} to {result['repository']}#{result['issue_number']}")
     return 0
 
 
@@ -154,7 +161,7 @@ def read_events(days: int | None = None) -> list[dict]:
 def read_state() -> dict:
     path = state_path()
     if not path.exists():
-        return {"version": 1, "reviewed_count": 0}
+        return {"version": 2, "reviewed_count": 0, "routes": {}, "checkpoints": {}}
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
@@ -162,6 +169,13 @@ def read_state() -> dict:
     reviewed = payload.get("reviewed_count", 0)
     if not isinstance(reviewed, int) or reviewed < 0:
         raise SystemExit("Invalid friction review state: reviewed_count must be a non-negative integer")
+    if not isinstance(payload.get("routes", {}), dict):
+        raise SystemExit("Invalid friction routing state: routes must be an object")
+    if not isinstance(payload.get("checkpoints", {}), dict):
+        raise SystemExit("Invalid friction checkpoint state: checkpoints must be an object")
+    payload.setdefault("version", 2)
+    payload.setdefault("routes", {})
+    payload.setdefault("checkpoints", {})
     return payload
 
 
@@ -291,6 +305,182 @@ def sanitize(value: str) -> str:
     return value[:4000]
 
 
+def sanitize_for_route(value: object, max_length: int = 500) -> str:
+    """Return a bounded public representation without trusting legacy events."""
+    text = " ".join(str(value or "").split())
+    if any(pattern.search(text) for pattern in SECRET_PATTERNS):
+        return "[REDACTED]"
+    return sanitize(text)[:max_length] or "[not supplied]"
+
+
+def origin_repository() -> str:
+    root = current_worktree_root()
+    result = subprocess.run(["git", "remote", "get-url", "origin"], cwd=root, text=True, capture_output=True)
+    if result.returncode:
+        raise RuntimeError("current repository has no readable origin remote")
+    remote = result.stdout.strip().removesuffix(".git").removesuffix("/")
+    match = re.fullmatch(r"(?:[^@]+@)?github\.com:([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)", remote)
+    if match:
+        return f"{match.group(1)}/{match.group(2)}".lower()
+    match = re.fullmatch(r"https?://github\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)", remote)
+    if match:
+        return f"{match.group(1)}/{match.group(2)}".lower()
+    raise RuntimeError("origin must be a standard GitHub owner/repository remote")
+
+
+def destination_for(event: dict) -> str:
+    if event.get("scope") == "project":
+        return origin_repository()
+    if event.get("scope") == "platform":
+        config = read_platform_config(main_root())
+        return str(config.get("promotion", {}).get("repo", "lehard/dev-platform")).lower()
+    raise RuntimeError("friction event has an unsupported scope")
+
+
+def fingerprint_for(event: dict, repository: str) -> str:
+    """Identity intentionally excludes raw observation, evidence and proposal."""
+    category = re.sub(r"[^a-z0-9._-]+", "-", str(event.get("category", "unknown")).lower()).strip("-")
+    identity = f"v1|{repository.lower()}|{event.get('scope')}|{category or 'unknown'}"
+    return hashlib.sha256(identity.encode("utf-8")).hexdigest()[:24]
+
+
+def marker_for(fingerprint: str) -> str:
+    return f"<!-- {FINGERPRINT_PREFIX}:{fingerprint} -->"
+
+
+def gh(command: list[str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(["gh", *command], cwd=current_worktree_root(), text=True, capture_output=True)
+
+
+def gh_json(command: list[str]) -> object:
+    result = gh(command)
+    if result.returncode:
+        raise RuntimeError((result.stderr or result.stdout or "GitHub CLI request failed").strip())
+    try:
+        return json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("GitHub CLI returned invalid JSON") from exc
+
+
+def route_body(event: dict, fingerprint: str, *, occurrence: bool) -> str:
+    lines = [
+        marker_for(fingerprint),
+        "## Sanitized process friction occurrence" if occurrence else "## Sanitized process friction",
+        "",
+        f"- Scope: `{sanitize_for_route(event.get('scope'), 32)}`",
+        f"- Category: `{sanitize_for_route(event.get('category'), 100)}`",
+        f"- Severity: `{sanitize_for_route(event.get('severity', 'medium'), 20)}`",
+        f"- Fingerprint: `{fingerprint}`",
+        f"- Recorded at: `{sanitize_for_route(event.get('at'), 64)}`",
+        "",
+        "### Observation",
+        sanitize_for_route(event.get("observation")),
+        "",
+        "### Hypothesis",
+        sanitize_for_route(event.get("hypothesis")),
+        "",
+        "### Proposed change",
+        sanitize_for_route(event.get("proposal")),
+        "",
+        "> Raw evidence is deliberately retained only in the machine-local friction log.",
+    ]
+    return "\n".join(lines)
+
+
+def route_event(event: dict) -> dict:
+    """Upsert one sanitized process issue and leave failures retryable locally."""
+    event_id = str(event.get("id") or "")
+    if not event_id:
+        return {"status": "pending", "detail": "event has no id"}
+    try:
+        if shutil.which("gh") is None:
+            raise RuntimeError("GitHub CLI is unavailable")
+        auth = gh(["auth", "status"])
+        if auth.returncode:
+            raise RuntimeError("GitHub CLI is not authenticated")
+        repository = destination_for(event)
+        fingerprint = fingerprint_for(event, repository)
+        marker = marker_for(fingerprint)
+        # HTML comments are intentionally not reliably indexed by GitHub search.
+        # Read the bounded open-issue set and inspect the exact marker ourselves.
+        listed = gh_json(["api", f"repos/{repository}/issues?state=open&per_page=100"])
+        issue_number = None
+        if isinstance(listed, list):
+            for issue in listed:
+                if isinstance(issue, dict) and marker in str(issue.get("body", "")):
+                    issue_number = issue.get("number")
+                    break
+        if isinstance(issue_number, int):
+            result = gh([
+                "api", "--method", "POST", f"repos/{repository}/issues/{issue_number}/comments",
+                "-f", f"body={route_body(event, fingerprint, occurrence=True)}",
+            ])
+            if result.returncode:
+                raise RuntimeError((result.stderr or result.stdout or "GitHub issue update failed").strip())
+        else:
+            created = gh_json([
+                "api", "--method", "POST", f"repos/{repository}/issues",
+                "-f", f"title=[process-friction] {sanitize_for_route(event.get('category'), 100)}",
+                "-f", f"body={route_body(event, fingerprint, occurrence=False)}",
+            ])
+            if not isinstance(created, dict) or not isinstance(created.get("number"), int):
+                raise RuntimeError("GitHub did not return a created issue number")
+            issue_number = created["number"]
+        route = {
+            "status": "routed", "repository": repository, "issue_number": issue_number,
+            "fingerprint": fingerprint, "routed_at": utc_now(),
+        }
+    except RuntimeError as exc:
+        route = {"status": "pending", "detail": sanitize_for_route(str(exc), 240), "last_attempt_at": utc_now()}
+    with friction_lock():
+        state = read_state()
+        state["routes"][event_id] = route
+        atomic_write_json(state_path(), state)
+    return route
+
+
+def route_pending() -> dict:
+    state = read_state()
+    routes = state.get("routes", {})
+    pending = [event for event in read_events(None) if routes.get(str(event.get("id")), {}).get("status") != "routed"]
+    routed = 0
+    failures = 0
+    for event in pending:
+        result = route_event(event)
+        routed += result["status"] == "routed"
+        failures += result["status"] != "routed"
+    return {"pending": len(pending), "routed": routed, "failures": failures}
+
+
+def cmd_route_pending(_: argparse.Namespace) -> int:
+    result = route_pending()
+    print(json.dumps(result, ensure_ascii=False))
+    return 0
+
+
+def cmd_checkpoint(args: argparse.Namespace) -> int:
+    branch = current_branch()
+    event_id = None if args.result == "none" else args.result
+    if event_id is not None and not any(str(event.get("id")) == event_id for event in read_events(None)):
+        raise SystemExit(f"Friction event not found: {event_id}")
+    checkpoint = {"result": args.result, "event_id": event_id, "at": utc_now(), "branch": branch}
+    with friction_lock():
+        state = read_state()
+        state["checkpoints"][branch] = checkpoint
+        atomic_write_json(state_path(), state)
+    print(json.dumps({"status": "recorded", "checkpoint": checkpoint}, ensure_ascii=False))
+    return 0
+
+
+def require_checkpoint(branch: str) -> None:
+    checkpoint = read_state().get("checkpoints", {}).get(branch)
+    if not isinstance(checkpoint, dict) or checkpoint.get("result") in (None, ""):
+        raise SystemExit(
+            "Completion friction checkpoint is required for this non-trivial platform task. "
+            "Run `python3 scripts/agent_friction.py checkpoint --result none` or provide a recorded event id."
+        )
+
+
 def choose_event(selector: str) -> dict:
     events = read_events(None)
     for event in events:
@@ -359,7 +549,7 @@ def cmd_promote(args: argparse.Namespace) -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Record high-signal agent friction, review evidence in batches, and deliberately promote reusable candidates.")
+    parser = argparse.ArgumentParser(description="Record high-signal agent friction and route sanitized process evidence safely.")
     sub = parser.add_subparsers(dest="command", required=True)
 
     p = sub.add_parser("record")
@@ -373,6 +563,13 @@ def main() -> int:
     p.add_argument("--proposal", required=True)
     p.add_argument("--task")
     p.set_defaults(func=cmd_record)
+
+    p = sub.add_parser("route-pending", help="retry locally retained friction events without failing the caller")
+    p.set_defaults(func=cmd_route_pending)
+
+    p = sub.add_parser("checkpoint", help="resolve the required completion friction checkpoint")
+    p.add_argument("--result", required=True, help="'none' or a recorded friction event id")
+    p.set_defaults(func=cmd_checkpoint)
 
     p = sub.add_parser("pending")
     p.add_argument("--min-events", type=int, default=DEFAULT_MIN_EVENTS)

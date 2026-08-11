@@ -2,10 +2,10 @@
 
 ## Scope
 
-This evidence covers only the independent `dev-platform` GitHub Agentic
-Workflows cloud pilot. It does not change `finish_task`, publication state, or
-any other lifecycle surface owned by `durable-publication-recovery`. No rollout
-was made to Cuby, Jara_Fin, or Planner Agent Lab.
+This evidence covers the central `dev-platform` GitHub Agentic Workflows cloud
+pilot and the completed local friction-routing acceptance. The completion
+integration relies on the now-archived `durable-publication-recovery` surface.
+No rollout was made to Cuby, Jara_Fin, or Planner Agent Lab.
 
 ## 2026-08-11 manual Actions acceptance
 
@@ -80,13 +80,28 @@ reports #99 and #108, were closed. The actual backlog report #98 remains open.
 retried individual artifacts and completed successfully. The reported audit
 metrics above are therefore actual retrieved data.
 
+## 2026-08-11 friction-routing acceptance
+
+- A controlled high-signal platform event automatically created sanitized
+  process issue [#126](https://github.com/lehard/dev-platform/issues/126).
+  Its raw local evidence was omitted from the GitHub body.
+- A repeated controlled event originally exposed that GitHub full-text search
+  does not reliably index HTML-comment markers. The router was corrected to
+  inspect the bounded open-issue set directly. The false duplicate #127 was
+  closed with an explicit consolidation note; a third controlled occurrence
+  automatically appended its bounded occurrence to #126, proving the final
+  fingerprinted-upsert path.
+- Unit coverage exercised project/platform destinations, redaction, open-issue
+  dedupe, closed-history behavior (a closed issue is absent from the open-only
+  lookup), unauthenticated fallback, later retry, and both `none` and positive
+  completion checkpoints. Routing failure remains non-blocking for publication.
+- The current task checkpoint was resolved positively with local structured
+  event `dbdbc3ffea2f`, routed to #126.
+
 ## Remaining acceptance work
 
 - Observe a real scheduled weekly run; the workflow's manual dispatch has been
-  verified, but the scheduled half of task 5.4 has not yet occurred.
-- Keep friction routing/deduplication and the completion checkpoint deferred
-  until `durable-publication-recovery` stabilizes. In particular, task 5.3 is
-  intentionally not implemented in this pilot.
+  verified, but the scheduled half of task 5.6 has not yet occurred.
 - Before archival, perform the full semantic OpenSpec verification and then
   record its truthful verification receipt. This active change is not ready to
   archive or release yet.
