@@ -14,6 +14,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
 
 jobs:
   plan:
@@ -228,6 +229,47 @@ jobs:
           path: rollout-diagnostic.json
           if-no-files-found: ignore
           retention-days: 30
+
+      - name: Record rollout failure streak
+        if: steps.pending.outputs.found != 'true' && failure()
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ matrix.repository }}
+          VERSION: ${{ needs.plan.outputs.version }}
+          TRACKER_REPO: ${{ github.repository }}
+        run: |
+          set -uo pipefail
+          category="unknown"
+          reason="rollout preparation failed"
+          if [[ -f rollout-diagnostic.json ]]; then
+            category="$(python3 -c 'import json; print(json.load(open("rollout-diagnostic.json")).get("category", "unknown"))' 2>/dev/null || echo unknown)"
+            reason="$(python3 -c 'import json; print(json.load(open("rollout-diagnostic.json")).get("reason", "rollout preparation failed"))' 2>/dev/null || echo "rollout preparation failed")"
+          fi
+          python3 platform/scripts/rollout_failure_streak.py record-failure \
+            --repository "$REPOSITORY" \
+            --version "$VERSION" \
+            --tracker-repo "$TRACKER_REPO" \
+            --category "$category" \
+            --reason "$reason" \
+            --last-updated "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --summary-output "$GITHUB_STEP_SUMMARY"
+
+      - name: Record rollout recovery
+        if: steps.pending.outputs.found != 'true' && steps.prepare.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ matrix.repository }}
+          VERSION: ${{ needs.plan.outputs.version }}
+          TRACKER_REPO: ${{ github.repository }}
+        run: |
+          python3 platform/scripts/rollout_failure_streak.py record-success \
+            --repository "$REPOSITORY" \
+            --version "$VERSION" \
+            --tracker-repo "$TRACKER_REPO"
 
       - name: Push rollout branch
         if: steps.pending.outputs.found != 'true' && steps.prepare.outputs.status == 'updated'
