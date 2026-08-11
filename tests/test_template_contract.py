@@ -125,6 +125,8 @@ class TemplateContractTests(unittest.TestCase):
         self.assertIn("run_openspec_hygiene(work)", text)
         self.assertIn('"openspec_lifecycle.py"', text)
         self.assertIn("serialized_integration", text)
+        self.assertIn("reconcile_confirmed_remote_pr_merge", text)
+        self.assertIn('fetch_main(integration, "origin", main_branch)', text)
         self.assertIn("fetch_main(integration", text)
         self.assertIn("harness_mode=project", text)
 

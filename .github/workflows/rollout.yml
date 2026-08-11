@@ -151,15 +151,19 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ steps.target-token.outputs.token }}
+          APP_SLUG: ${{ steps.target-token.outputs.app-slug }}
           REPOSITORY: ${{ matrix.repository }}
+          BASE_BRANCH: ${{ matrix.default_branch }}
           VERSION: ${{ needs.plan.outputs.version }}
         run: |
           set -euo pipefail
           branch="dev-platform/rollout-${VERSION}"
-          url="$(gh pr list --repo "$REPOSITORY" --state open --head "$branch" --json url --jq '.[0].url // ""')"
+          pending="$(gh pr list --repo "$REPOSITORY" --state open --head "$branch" --json number,url,headRefName,baseRefName,author --jq --arg branch "$branch" --arg base "$BASE_BRANCH" --arg bot "${APP_SLUG}[bot]" '[.[] | select(.headRefName == $branch and .baseRefName == $base and .author.login == $bot)][0] // {}')"
+          url="$(jq -r '.url // ""' <<<"$pending")"
           if [[ -n "$url" ]]; then
             echo "found=true" >> "$GITHUB_OUTPUT"
             echo "url=$url" >> "$GITHUB_OUTPUT"
+            echo "number=$(jq -r '.number' <<<"$pending")" >> "$GITHUB_OUTPUT"
             echo "Rollout already pending: $url"
           else
             echo "found=false" >> "$GITHUB_OUTPUT"
@@ -292,9 +296,58 @@ jobs:
             --base "$BASE_BRANCH" \
             --head "$BRANCH" \
             --title "chore: update dev-platform to $VERSION" \
-            --body "Automated reviewed Copier rollout from lehard/dev-platform to exact immutable release **$VERSION**.\n\nThe rollout bot ran platform doctor and selected project checks before pushing. This PR is intentionally **not auto-merged**; downstream CI/review remains the merge gate.")"
+            --body "<!-- dev-platform-managed-rollout: validated-exact-version -->\nAutomated reviewed Copier rollout from lehard/dev-platform to exact immutable release **$VERSION**.\n\nThe rollout bot ran platform doctor and selected project checks before pushing. This PR is intentionally **not auto-merged**; downstream CI/review remains the merge gate.")"
           echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "number=$(gh pr view "$url" --repo "$REPOSITORY" --json number --jq .number)" >> "$GITHUB_OUTPUT"
           echo "Opened rollout PR: $url"
+
+      - name: Supersede older validated rollout PRs
+        if: steps.pending.outputs.found == 'true' || steps.pr.outputs.number != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.target-token.outputs.token }}
+          REPOSITORY: ${{ matrix.repository }}
+          BASE_BRANCH: ${{ matrix.default_branch }}
+          VERSION: ${{ needs.plan.outputs.version }}
+          TARGET_PR: ${{ steps.pending.outputs.number || steps.pr.outputs.number }}
+          APP_SLUG: ${{ steps.target-token.outputs.app-slug }}
+        run: |
+          set -euo pipefail
+          python3 scripts/rollout_supersession.py \
+            --repository "$REPOSITORY" \
+            --base-branch "$BASE_BRANCH" \
+            --expected-bot "${APP_SLUG}[bot]" \
+            --authoritative-version "$VERSION" \
+            --authoritative-pr "$TARGET_PR" \
+            --apply \
+            --output rollout-supersession.json
+
+      - name: Reconcile rollout PRs already adopted by downstream base
+        if: steps.pending.outputs.found != 'true' && steps.prepare.outputs.status == 'up_to_date'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.target-token.outputs.token }}
+          REPOSITORY: ${{ matrix.repository }}
+          BASE_BRANCH: ${{ matrix.default_branch }}
+          APP_SLUG: ${{ steps.target-token.outputs.app-slug }}
+        run: |
+          set -euo pipefail
+          python3 scripts/rollout_supersession.py \
+            --repository "$REPOSITORY" \
+            --base-branch "$BASE_BRANCH" \
+            --expected-bot "${APP_SLUG}[bot]" \
+            --apply \
+            --output rollout-supersession.json
+
+      - name: Upload rollout supersession report
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: rollout-supersession-${{ matrix.repo_name }}-${{ needs.plan.outputs.version }}
+          path: rollout-supersession.json
+          if-no-files-found: ignore
+          retention-days: 30
 
       - name: Summarize rollout
         if: always()
