@@ -54,6 +54,12 @@ class AgenticWorkflowTests(unittest.TestCase):
             for uses in re.findall(r"^\s*uses:\s+[^@\s]+@([^\s#]+)", text, flags=re.MULTILINE):
                 self.assertRegex(uses, r"^[0-9a-f]{40}$", msg=f"non-immutable action reference: {uses}")
 
+    def test_triage_only_names_available_read_tools(self) -> None:
+        text = (ROOT / ".github" / "workflows" / "process-issue-triage.md").read_text(encoding="utf-8")
+        for tool in ("`issue_read`", "`list_label`", "`search_issues`"):
+            self.assertIn(tool, text)
+        self.assertIn("Do not use `search_repositories`", text)
+
 
 if __name__ == "__main__":
     unittest.main()
