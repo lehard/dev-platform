@@ -1,34 +1,39 @@
 ## Why
 
-The current friction-learning path still depends on an agent remembering to record a problem and on a later explicit promotion/review step. That creates exactly the kind of human follow-up the platform is meant to remove. At the same time, GitHub Agentic Workflows (`gh-aw`) now provides a ready-made cloud execution layer for Codex/Claude/Copilot/Gemini inside GitHub Actions, with read-only agent execution, validated safe outputs, schedules, event triggers, sandboxing and cost controls.
+Source backlog issue: `lehard/development-backlog#5`  
+Prepared against: `lehard/dev-platform@c89a809123265e842187aa5b14959533f995416e`
 
-The platform should use that existing layer instead of building its own local scheduler, daemon or background review agent. The first version must remain deliberately small and reliable: GitHub Issues are the visible process backlog; local friction storage is only a durable raw/fallback buffer; cloud workflows triage and summarize; humans approve actual platform changes.
+The `gh-aw` cloud pilot is already proven: Codex runs in GitHub Actions, controlled process issues can be read, mutations are constrained through `safe-outputs`, and representative cost/runtime evidence exists. The remaining gap is local process-friction capture. Today the normal agent guidance still depends on a remembered `pending/review/mark-reviewed/promote` ritual and on the model noticing that a problem should be recorded at all.
+
+The platform has also gained a separate managed-task authoring path through the Development Backlog. That makes the source-of-truth boundary clearer than when this change was first drafted: a process/friction issue is evidence about how development went wrong; a Development Backlog issue plus OpenSpec is an explicitly accepted future change. Automation must not silently convert the former into the latter.
+
+The remaining work should therefore be smaller than the original design: preserve the working cloud pilot, make friction capture unavoidable at the platform-owned completion boundary, route sanitized events directly to GitHub Issues with deterministic deduplication and retry, and let `gh-aw` triage/review that evidence. No second scheduler, agent memory system, background daemon or autonomous remediation loop is needed.
 
 ## What Changes
 
-- Adopt GitHub Agentic Workflows as an optional additive cloud-maintenance layer for `dev-platform`, using the Codex engine and a repository Actions secret named `OPENAI_API_KEY`.
-- Add a narrowly scoped process-issue triage workflow, adapted from the maintained `githubnext/agentics` patterns, that reacts only to process/platform-candidate issues and may label/comment through `safe-outputs` but may not edit code or create implementation PRs.
-- Add a periodic process-backlog review workflow (weekly fuzzy schedule plus manual dispatch) that reviews open process issues, identifies likely duplicates/stale/resolved candidates, and creates or refreshes one concise review summary for the human operator.
-- Replace the routine manual `promote` expectation with automatic sanitized routing of high-signal friction to the appropriate GitHub backlog: project friction to the current repository, platform friction to `lehard/dev-platform`. Raw evidence remains machine-local by default.
-- Add a mandatory completion checkpoint so a non-trivial task cannot silently finish without deciding whether meaningful friction occurred; deterministic lifecycle failures should be captured automatically without relying on model memory.
-- Deduplicate repeated friction by a stable sanitized fingerprint so repeated occurrences update one issue rather than creating issue spam.
-- Keep an offline/auth-failure fallback: if GitHub issue routing is unavailable, retain the local event and retry routing on a later supported lifecycle invocation rather than losing the observation or blocking safe task completion.
-- Put explicit cost/runtime guardrails on every agentic workflow and make workflow failure non-blocking for deterministic CI, publication and release pipelines.
-- Pilot this only in `dev-platform`. Do not roll agentic workflows to managed consumer repositories in this change; downstream rollout is a follow-up after the central pilot is proven.
-- Preserve a human approval boundary before code-changing remediation. The v1 cloud workflows may triage, research and summarize, but SHALL NOT autonomously modify `dev-platform`, create implementation PRs, approve OpenSpec changes, or merge fixes.
+- Keep the already accepted `gh-aw + Codex` process-triage and weekly-review pilot as the cloud advisory layer; do not redesign it without a demonstrated compatibility/security need.
+- Simplify the normal local friction path to `capture -> sanitized GitHub issue upsert -> gh-aw triage/review`.
+- Make a minimal explicit friction checkpoint part of non-trivial platform-owned task completion so the agent must resolve either `friction: none` or identify a recorded structured event before reporting completion.
+- Record supported deterministic lifecycle/process failures directly where they are mechanically observable instead of relying on model memory.
+- Route sanitized high-signal friction automatically: `scope=project` to the current repository and `scope=platform` to the configured platform repository. Raw evidence stays machine-local by default.
+- Deduplicate by a stable non-secret fingerprint/marker so repeated occurrences update one open issue with bounded occurrence metadata rather than creating issue spam.
+- Keep routing failure non-blocking for otherwise safe publication: an unrouted event stays pending locally and is retried on a later supported lifecycle invocation.
+- Remove `pending/review/mark-reviewed/promote` from the normal agent/operator path. Existing commands MAY remain temporarily as recovery/backward-compatible surfaces, but they are no longer the expected workflow.
+- Explicitly separate process evidence from managed work: `gh-aw` may triage, summarize, identify stale/duplicate/resolved candidates and recommend remediation, but SHALL NOT create Development Backlog tasks, materialize OpenSpec changes, modify code or dispatch executors. A managed task appears only after explicit human fixation intent through the normal authoring contract.
+- Keep the pilot central to `dev-platform` in this change. Do not roll `gh-aw` workflows into Cuby, Jara_Fin or Planner Agent Lab here.
 
 ## Capabilities
 
 ### New Capabilities
 
-- `agentic-maintenance`: Safe, bounded cloud maintenance using GitHub Agentic Workflows and Codex for process-issue triage and periodic backlog review.
+- `agentic-maintenance`: Safe, bounded cloud triage and periodic review of process evidence using GitHub Agentic Workflows and Codex.
 
 ### Modified Capabilities
 
-- `platform-lifecycle`: Make high-signal friction capture and sanitized routing part of ordinary task completion instead of depending on remembered manual promotion.
+- `platform-lifecycle`: Make meaningful friction capture plus sanitized routing a normal completion invariant instead of a remembered manual promotion ritual.
 
 ## Impact
 
-The change affects repository workflows under `.github/workflows/`, platform friction helpers such as `template/scripts/agent_friction.py`, generated agent guidance, completion/doctor integration, tests, and operator setup documentation. The exact `gh-aw` release used for compilation must be pinned and recorded because the project is still in Public Preview.
+The remaining implementation is expected to touch the friction helper, the stable platform-owned completion lifecycle, generated agent guidance, deterministic tests and OpenSpec evidence. The existing agentic workflow sources/locks should change only if current validation or acceptance exposes a concrete defect.
 
-Implementation sequencing matters: the cloud workflow files and their validation can be developed independently, but any changes to `finish_task.py` or publication/completion integration should be applied only after the active `durable-publication-recovery` work has stabilized, because both changes touch the same lifecycle surface.
+The change does not own Development Backlog authoring, managed-task execution/publication, or autonomous remediation. Those remain separate platform capabilities with a deliberate human boundary between process evidence and accepted managed work.
