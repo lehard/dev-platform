@@ -1,0 +1,87 @@
+name: Reconcile Stale Managed Rollouts
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: dry-run reports exact closures; apply closes only reviewed stale PRs
+        required: true
+        type: choice
+        options: [dry-run, apply]
+        default: dry-run
+      confirm_apply:
+        description: Required only for apply; type SUPERSEDE_STALE_ROLLOUTS
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - id: plan
+        shell: bash
+        env:
+          MODE: ${{ inputs.mode }}
+          CONFIRM_APPLY: ${{ inputs.confirm_apply }}
+        run: |
+          set -euo pipefail
+          if [[ "$MODE" == apply && "$CONFIRM_APPLY" != SUPERSEDE_STALE_ROLLOUTS ]]; then
+            echo "apply requires confirm_apply=SUPERSEDE_STALE_ROLLOUTS" >&2
+            exit 1
+          fi
+          python3 scripts/managed_projects.py validate
+          echo "matrix=$(python3 scripts/managed_projects.py matrix)" >> "$GITHUB_OUTPUT"
+
+  reconcile:
+    needs: plan
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Require rollout GitHub App configuration
+        env:
+          APP_CLIENT_ID: ${{ vars.DEV_PLATFORM_APP_CLIENT_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.DEV_PLATFORM_APP_PRIVATE_KEY }}
+        run: |
+          test -n "$APP_CLIENT_ID" && test -n "$APP_PRIVATE_KEY" || { echo "Managed rollout GitHub App is not configured." >&2; exit 1; }
+      - id: target-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          client-id: ${{ vars.DEV_PLATFORM_APP_CLIENT_ID }}
+          private-key: ${{ secrets.DEV_PLATFORM_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ matrix.repo_name }}
+          permission-contents: write
+          permission-pull-requests: write
+          permission-workflows: write
+      - name: Plan or apply stale rollout supersession
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.target-token.outputs.token }}
+          REPOSITORY: ${{ matrix.repository }}
+          BASE_BRANCH: ${{ matrix.default_branch }}
+          APP_SLUG: ${{ steps.target-token.outputs.app-slug }}
+          MODE: ${{ inputs.mode }}
+        run: |
+          set -euo pipefail
+          args=(--repository "$REPOSITORY" --base-branch "$BASE_BRANCH" --expected-bot "${APP_SLUG}[bot]" --output rollout-supersession.json)
+          if [[ "$MODE" == apply ]]; then args+=(--apply); fi
+          python3 scripts/rollout_supersession.py "${args[@]}"
+      - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        if: always()
+        with:
+          name: rollout-supersession-${{ matrix.repo_name }}-${{ inputs.mode }}-${{ github.run_id }}
+          path: rollout-supersession.json
+          if-no-files-found: ignore
+          retention-days: 90

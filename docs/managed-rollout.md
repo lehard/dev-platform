@@ -113,6 +113,21 @@ For every `managed` repository, rollout:
 9. opens a normal PR;
 10. stops. Merge remains governed by downstream CI/review.
 
+After a validated exact-version rollout PR exists, the workflow reconciles older
+bot-owned rollout PRs. A PR is eligible only when its head is exactly
+`dev-platform/rollout-vX.Y.Z`, its target is stable SemVer, its base matches the
+managed registry, and its author is the configured rollout GitHub App. Titles
+never establish ownership. Older eligible PRs are closed only after that newer
+PR exists; a rollout preparation failure therefore preserves the prior pending
+PR. Branch deletion happens only after GitHub confirms close and is warning-only.
+
+For accumulated debt, run **Reconcile Stale Managed Rollouts** first with
+`mode=dry-run`. Its artifacts record every proposed closure for the three
+currently managed repositories. Review that exact list, then run
+`mode=apply` with `confirm_apply=SUPERSEDE_STALE_ROLLOUTS`. The workflow creates
+the same down-scoped GitHub App token per managed target and never creates a
+token or mutation for `candidate` or `excluded` entries.
+
 Matrix rollout uses `fail-fast: false`: one blocked project does not prevent clean managed projects from receiving PRs.
 
 ## Manual retry
