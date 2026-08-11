@@ -1,0 +1,117 @@
+from __future__ import annotations
+
+import importlib.util
+import json
+import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+from unittest import mock
+
+
+ROOT = Path(__file__).resolve().parents[1]
+SOURCE = ROOT / "scripts" / "dogfood_task.py"
+SPEC = importlib.util.spec_from_file_location("dogfood_task", SOURCE)
+assert SPEC and SPEC.loader
+dogfood_task = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = dogfood_task
+SPEC.loader.exec_module(dogfood_task)
+
+
+def git(root: Path, *args: str) -> None:
+    subprocess.run(["git", *args], cwd=root, check=True, capture_output=True, text=True)
+
+
+class CentralDogfoodLifecycleTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temp = tempfile.TemporaryDirectory()
+        self.root = Path(self.temp.name) / "repo"
+        self.root.mkdir()
+        git(self.root, "init", "-b", "main")
+        git(self.root, "config", "user.email", "test@example.com")
+        git(self.root, "config", "user.name", "Central lifecycle test")
+        (self.root / ".gitignore").write_text(".claude/\n", encoding="utf-8")
+        (self.root / ".dev-platform.toml").write_text(
+            'main_branch = "main"\nworkflow_profile = "multi-agent"\nharness_mode = "platform"\npublish_mode = "pr"\npr_merge_mode = "auto"\n'
+            'source_required_paths = ["scripts/dogfood_task.py"]\n[paths]\nworktrees = ".claude/worktrees"\n',
+            encoding="utf-8",
+        )
+        (self.root / "scripts").mkdir()
+        (self.root / "scripts" / "dogfood_task.py").write_text("# adapter\n", encoding="utf-8")
+        (self.root / "README.md").write_text("base\n", encoding="utf-8")
+        git(self.root, "add", ".")
+        git(self.root, "commit", "-m", "base")
+
+    def tearDown(self) -> None:
+        self.temp.cleanup()
+
+    def add_managed_change(self, name: str = "central-task") -> Path:
+        change = self.root / "openspec" / "changes" / name
+        change.mkdir(parents=True)
+        (change / ".managed-task.json").write_text(
+            json.dumps({"change": name, "source_issue": "lehard/development-backlog#2"}), encoding="utf-8"
+        )
+        (change / "proposal.md").write_text("## Why\n", encoding="utf-8")
+        return change
+
+    def test_start_transfers_only_validated_import_into_isolated_worktree(self) -> None:
+        source = self.add_managed_change()
+        args = dogfood_task.argparse.Namespace(slug="central-task", task="Backlog #2", scope="scripts", change="central-task")
+
+        def fake_run(command: list[str], root: Path) -> None:
+            if command[1:] == ["scripts/start_task.py", "central-task", "--task", "Backlog #2", "--scope", "scripts"]:
+                (root / ".claude" / "worktrees" / "central-task").mkdir(parents=True)
+
+        with mock.patch.object(dogfood_task, "run", side_effect=fake_run) as run:
+            self.assertEqual(dogfood_task.start(self.root, args), 0)
+
+        destination = self.root / ".claude" / "worktrees" / "central-task" / "openspec" / "changes" / "central-task"
+        self.assertFalse(source.exists())
+        self.assertTrue((destination / ".managed-task.json").exists())
+        self.assertEqual(run.call_count, 2)
+        self.assertEqual(subprocess.run(["git", "status", "--porcelain"], cwd=self.root, text=True, capture_output=True, check=True).stdout, "")
+
+    def test_start_refuses_unrelated_integration_mutation(self) -> None:
+        self.add_managed_change()
+        (self.root / "foreign.txt").write_text("do not move\n", encoding="utf-8")
+        args = dogfood_task.argparse.Namespace(slug="central-task", task="Backlog #2", scope="scripts", change="central-task")
+        with mock.patch.object(dogfood_task, "run") as run:
+            with self.assertRaisesRegex(SystemExit, "dirty outside managed change"):
+                dogfood_task.start(self.root, args)
+        run.assert_not_called()
+
+    def test_status_and_finish_delegate_to_authoritative_shared_commands(self) -> None:
+        args = dogfood_task.argparse.Namespace(title="Central task", body="body")
+        with mock.patch.object(dogfood_task, "current_root", return_value=self.root), mock.patch.object(dogfood_task, "run") as run:
+            self.assertEqual(dogfood_task.status(args), 0)
+            self.assertEqual(dogfood_task.finish(args), 0)
+        self.assertEqual(
+            [call.args[0] for call in run.call_args_list],
+            [
+                ["python3", "scripts/finish_task.py", "--status"],
+                ["python3", "scripts/finish_task.py", "--cleanup", "--title", "Central task", "--body", "body"],
+            ],
+        )
+
+    def test_source_contract_is_explicit_and_adapter_paths_are_present(self) -> None:
+        import tomllib
+
+        with (ROOT / ".dev-platform.toml").open("rb") as handle:
+            config = tomllib.load(handle)
+        self.assertEqual(config["workflow_profile"], "multi-agent")
+        self.assertTrue(config["protected_main"])
+        self.assertEqual(config["publish_mode"], "pr")
+        self.assertEqual(config["pr_merge_mode"], "auto")
+        self.assertEqual(config["paths"]["worktrees"], ".claude/worktrees")
+        self.assertIn("scripts/dogfood_task.py", config["source_required_paths"])
+        for name in (
+            "agent_board.py", "agent_doctor.py", "agent_friction.py", "finish_task.py", "openspec_lifecycle.py",
+            "project_publish.py", "project_sync.py", "select_checks.py", "start_task.py", "start_worktree.py", "worktree_cleanup.py",
+        ):
+            with self.subTest(name=name):
+                self.assertIn("run_template", (ROOT / "scripts" / name).read_text(encoding="utf-8"))
+
+
+if __name__ == "__main__":
+    unittest.main()

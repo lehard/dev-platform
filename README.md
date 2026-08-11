@@ -8,6 +8,23 @@
 
 The human user should not be a routine Git courier or the person who remembers lifecycle cleanup, OpenSpec setup or platform bootstrap steps.
 
+### Central repository dogfood
+
+`dev-platform` uses the same protected-main publication semantics it supplies
+to managed projects. Central managed tasks follow:
+
+```bash
+python3 scripts/managed_task.py owner/repo#N
+python3 scripts/dogfood_task.py start <slug> --task "owner/repo#N" --scope "paths" --change <openspec-change>
+cd .claude/worktrees/<slug>
+python3 scripts/dogfood_task.py finish
+```
+
+The source adapter has explicit source configuration and delegates status and
+finish to the released lifecycle primitives. An open/draft PR or green CI is a
+resumable intermediate state, never completion; terminal delivery requires the
+exact PR to be `MERGED` and local central `main` reconciled.
+
 A non-trivial OpenSpec change is not complete while its fully checked task list is still active. Agents record successful semantic verification in `verification.md` with `OpenSpec-Verify: PASS`, archive through the platform lifecycle helper, commit the resulting specs/archive state, and only then publish. Generated `finish_task.py` and CI enforce the completed-but-active hygiene rule.
 
 ### Workflow profiles
