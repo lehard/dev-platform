@@ -126,7 +126,9 @@ For accumulated debt, run **Reconcile Stale Managed Rollouts** first with
 currently managed repositories. Review that exact list, then run
 `mode=apply` with `confirm_apply=SUPERSEDE_STALE_ROLLOUTS`. The workflow creates
 the same down-scoped GitHub App token per managed target and never creates a
-token or mutation for `candidate` or `excluded` entries.
+token or mutation for `candidate` or `excluded` entries. When the committed
+base is behind, maintenance retains the newest eligible bot-owned rollout PR as
+the validated replacement and closes only its older eligible predecessors.
 
 Matrix rollout uses `fail-fast: false`: one blocked project does not prevent clean managed projects from receiving PRs.
 
