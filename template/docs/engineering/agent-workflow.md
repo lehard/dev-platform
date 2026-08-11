@@ -12,6 +12,22 @@ The platform exposes one lifecycle with profile-specific capabilities:
 
 Profiles select capabilities; they are not separate forks of the platform.
 
+## Task intake
+
+Use the managed path only when the user explicitly supplies a Development Backlog task:
+
+~~~
+python3 scripts/managed_task.py owner/repo#N
+~~~
+
+The v1 importer reads one versioned package through existing GitHub authentication, validates the target checkout, creates the current OpenSpec scaffold, materializes planning artifacts and performs structural validation. It stops before OpenSpec apply, implementation, task start, publication, GitHub Project mutation, or automatic dispatch.
+
+If Prepared against differs from the fetched integration commit, semantic preflight against current specs and active changes is mandatory. Formal/schema reconciliation is allowed; a material product-contract conflict must return to the user. After import, repository-local OpenSpec is the implementation contract and the backlog issue is provenance only.
+
+Small direct requests remain quick tasks: use the normal start/check/finish lifecycle without creating a central issue. Escalate rather than silently expanding a quick task into a material behavior, architecture, compatibility, data-contract, or scope change.
+
+Bootstrap exception: Development Backlog issue lehard/development-backlog#1 introduced this importer, so its package was manually scaffolded through the current OpenSpec CLI after target and semantic preflight. All later managed tasks use this command.
+
 ## Publishing
 
 Protected main and zero-hand-off are compatible. The safe normal configuration for feature-capable projects is:

@@ -8,7 +8,7 @@ from pathlib import Path
 
 from _platform_common import harness_mode, read_platform_config
 
-REQUIRED_COMMON = ["AGENTS.md", "CLAUDE.md", ".dev-platform.toml", "dev-platform/checks.toml", "docs/engineering/openspec-workflow.md", "scripts/dev.py", "scripts/select_checks.py", "scripts/project_sync.py", "scripts/project_publish.py", "scripts/start_task.py", "scripts/finish_task.py", "scripts/openspec_lifecycle.py", "scripts/agent_friction.py", "scripts/agent_doctor.py"]
+REQUIRED_COMMON = ["AGENTS.md", "CLAUDE.md", ".dev-platform.toml", "dev-platform/checks.toml", "docs/engineering/openspec-workflow.md", "scripts/dev.py", "scripts/managed_task.py", "scripts/select_checks.py", "scripts/project_sync.py", "scripts/project_publish.py", "scripts/start_task.py", "scripts/finish_task.py", "scripts/openspec_lifecycle.py", "scripts/agent_friction.py", "scripts/agent_doctor.py"]
 REQUIRED_MULTI_AGENT_PLATFORM = ["scripts/agent_board.py", "scripts/start_worktree.py", "scripts/worktree_cleanup.py", "scripts/git_hooks/pre-commit", "scripts/git_hooks/pre-merge-commit"]
 VERIFY_CANDIDATES = [".codex/skills/openspec-verify-change/SKILL.md", ".claude/skills/openspec-verify-change/SKILL.md", ".cursor/skills/openspec-verify-change/SKILL.md"]
 IGNORED_CONFLICT_DIRS = {".git", ".claude", ".codex", "node_modules", ".venv", "venv"}
