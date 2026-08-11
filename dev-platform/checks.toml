@@ -1,0 +1,26 @@
+[settings]
+fallback_commands = ["git diff --check"]
+full_commands = [
+  "python3 -m compileall -q template/scripts scripts",
+  "python3 scripts/managed_projects.py validate",
+  "python3 -m unittest discover -s tests -v",
+  "python3 template/scripts/openspec_lifecycle.py check",
+]
+full_trigger_patterns = [
+  ".dev-platform.toml",
+  "dev-platform/checks.toml",
+  ".github/workflows/**",
+  "template/**",
+  "scripts/**",
+  "tests/**",
+  "openspec/**",
+  "AGENTS.md",
+]
+
+[checks.docs]
+patterns = ["*.md", "docs/**", "openspec/**", "AGENTS.md"]
+commands = ["git diff --check"]
+
+[checks.python]
+patterns = ["**/*.py"]
+commands = ["python3 -m compileall -q template/scripts scripts"]

@@ -1,0 +1,51 @@
+schema_version = 2
+platform_version = "source"
+platform_ci_ref = "source"
+project_name = "dev-platform"
+project_slug = "dev-platform"
+main_branch = "main"
+workflow_profile = "multi-agent"
+harness_mode = "platform"
+protected_main = true
+publish_mode = "pr"
+pr_merge_mode = "auto"
+agent_tools = "claude,codex"
+project_required_files = []
+source_required_paths = [
+  "scripts/dogfood_task.py",
+  "scripts/source_adapter.py",
+  "scripts/agent_doctor.py",
+  "scripts/start_task.py",
+  "scripts/finish_task.py",
+  "scripts/openspec_lifecycle.py",
+]
+
+[capabilities]
+openspec = true
+github_sync = true
+feature_branches = true
+worktrees = true
+agent_board = true
+platform_git_lifecycle = true
+
+[tools.openspec]
+min_version = "1.6.0"
+tested_version = "1.6.0"
+verify_required = true
+
+[tools.copier]
+min_version = "9.17.0"
+tested_version = "9.17.0"
+
+[promotion]
+repo = "lehard/dev-platform"
+
+[paths]
+worktrees = ".claude/worktrees"
+agent_board = ".claude/agents-board.json"
+main_merge_lock = ".claude/main-merge.lock"
+pending_worktrees = ".claude/pending-worktrees.md"
+friction_log = ".claude/agent-friction.jsonl"
+friction_state = ".claude/agent-friction-state.json"
+friction_reports = ".claude/reports/process-improvement"
+checks = "dev-platform/checks.toml"

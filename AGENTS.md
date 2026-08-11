@@ -36,6 +36,27 @@ For the central repository, the lifecycle helper is invoked as:
 python3 template/scripts/openspec_lifecycle.py archive <change>
 ```
 
+## Central source dogfood lifecycle
+
+For ordinary work in this central repository, use the committed source contract
+in `.dev-platform.toml` and its lifecycle adapter. Do not assemble a manual
+branch/worktree/PR flow. A managed task is imported first, then its sole
+untracked package is transferred into the isolated task worktree:
+
+```bash
+python3 scripts/managed_task.py owner/repo#N
+python3 scripts/dogfood_task.py start <slug> --task "owner/repo#N" --scope "paths" --change <openspec-change>
+cd .claude/worktrees/<slug>
+python3 scripts/dogfood_task.py status
+python3 scripts/dogfood_task.py finish
+```
+
+`status` is read-only. `finish` delegates to the authoritative GitHub-backed
+publication/reconciliation lifecycle and is resumable; branch pushed, draft or
+open PR, and green checks are nonterminal states. Do not report source work as
+complete until GitHub reports the exact PR `MERGED` and local `main` has been
+reconciled (with cleanup warnings classified under the shared lifecycle policy).
+
 Do not fabricate a verification receipt. The verification report must state what was actually checked and which method was used.
 
 ## Scope discipline
