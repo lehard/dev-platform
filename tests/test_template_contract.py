@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class TemplateContractTests(unittest.TestCase):
     def test_required_template_files_exist(self) -> None:
-        required = ["copier.yml", "template/AGENTS.md.jinja", "template/CLAUDE.md.jinja", "template/.dev-platform.toml.jinja", "template/dev-platform/checks.toml", "template/.github/workflows/dev-platform.yml.jinja", "template/scripts/agent_board.py", "template/scripts/start_worktree.py", "template/scripts/worktree_cleanup.py", "template/scripts/start_task.py", "template/scripts/managed_task.py", "template/scripts/select_checks.py", "template/scripts/project_sync.py", "template/scripts/project_publish.py", "template/scripts/finish_task.py", "template/scripts/openspec_lifecycle.py", "template/scripts/merge_to_main.py", "template/scripts/agent_friction.py", "template/scripts/agent_doctor.py", "template/scripts/platform_bootstrap.py", "template/scripts/platform_doctor.py", "template/scripts/git_hooks/pre-commit", "template/scripts/git_hooks/pre-merge-commit"]
+        required = ["copier.yml", "template/AGENTS.md.jinja", "template/CLAUDE.md.jinja", "template/.dev-platform.toml.jinja", "template/dev-platform/checks.toml", "template/.github/workflows/dev-platform.yml.jinja", "template/scripts/agent_board.py", "template/scripts/start_worktree.py", "template/scripts/worktree_cleanup.py", "template/scripts/start_task.py", "template/scripts/managed_task.py", "template/scripts/start_managed_task.py", "template/scripts/select_checks.py", "template/scripts/project_sync.py", "template/scripts/project_publish.py", "template/scripts/finish_task.py", "template/scripts/openspec_lifecycle.py", "template/scripts/merge_to_main.py", "template/scripts/agent_friction.py", "template/scripts/agent_doctor.py", "template/scripts/platform_bootstrap.py", "template/scripts/platform_doctor.py", "template/scripts/git_hooks/pre-commit", "template/scripts/git_hooks/pre-merge-commit"]
         for relative in required:
             with self.subTest(relative=relative): self.assertTrue((ROOT / relative).exists(), relative)
 
@@ -127,6 +127,10 @@ class TemplateContractTests(unittest.TestCase):
         self.assertIn("managed task", agents)
         self.assertIn("quick task", agents)
         self.assertIn("GitHub Project-status mutation", agents)
+        self.assertIn("scripts/start_managed_task.py", agents)
+        self.assertIn("scripts/start_managed_task.py", workflow)
+        doctor = (ROOT / "template" / "scripts" / "platform_doctor.py").read_text(encoding="utf-8")
+        self.assertIn("scripts/start_managed_task.py", doctor)
         self.assertIn("stops before OpenSpec apply", workflow)
 
     def test_finish_task_has_openspec_hygiene_and_serialized_direct_integration(self) -> None:
