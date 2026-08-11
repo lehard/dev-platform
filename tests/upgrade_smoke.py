@@ -101,6 +101,8 @@ def main() -> int:
             raise SystemExit("Copier update did not migrate platform CI to .github/workflows/dev-platform.yml")
         if not (target / "scripts" / "managed_task.py").is_file():
             raise SystemExit("Copier update did not materialize managed-task intake")
+        if not (target / "scripts" / "start_managed_task.py").is_file():
+            raise SystemExit("Copier update did not materialize managed-task start")
         if list(target.rglob("*.rej")):
             raise SystemExit("Copier update left .rej files")
 

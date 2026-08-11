@@ -20,7 +20,7 @@ For non-trivial platform changes, use OpenSpec before implementation. If impleme
 
 ## Managed and quick task intake
 
-An explicitly supplied Development Backlog issue is a managed task. Run "python3 scripts/managed_task.py owner/repo#N" before implementation; it materializes the agreed package and does not start apply, dispatch, publication, or Project-status changes. Then compare the materialized change with current specs and active changes. Repair formal/schema mismatches, but stop for user resolution if the product contract materially conflicts.
+An explicitly supplied Development Backlog issue is a managed task. Run "python3 scripts/start_managed_task.py owner/repo#N" before implementation; it performs read-only package intake, creates the task branch/worktree, then materializes the agreed package only in that task checkout. It does not start apply, dispatch, publication, or Project-status changes. `managed_task.py` is a task-checkout-only importer for recovery and light-profile use; it must not materialize files in a feature-capable integration checkout. Then compare the materialized change with current specs and active changes. Repair formal/schema mismatches, but stop for user resolution if the product contract materially conflicts.
 
 After successful import, the local "openspec/changes/<change>/" artifacts are canonical for implementation, verification, and archive. The backlog issue remains the human-facing provenance item, not a competing implementation task list.
 
