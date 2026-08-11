@@ -358,6 +358,25 @@ class ManagedPackageTests(unittest.TestCase):
             self.assertEqual(parsed.revision, package.revision)
             self.assertEqual(parsed.change, bundle.change)
 
+    def test_publish_package_encodes_markdown_as_comment_body_field(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bundle = authoring_bundle(root / "bundle")
+            package = managed_task.package_for_bundle(bundle, "lehard/development-backlog#7", "lehard/dev-platform", "c" * 40)
+            config = managed_task.AuthoringConfig("lehard/development-backlog", "project:dev-platform", "P2")
+            with (
+                patch.object(managed_task, "issue_bodies", return_value=[]),
+                patch.object(managed_task, "github_cli_env", return_value={}),
+                patch.object(managed_task, "run") as run,
+            ):
+                self.assertFalse(managed_task.publish_package(root, config, package))
+            command = run.call_args.args[0]
+            self.assertEqual(command[:5], ["gh", "api", "--method", "POST", "repos/lehard/development-backlog/issues/7/comments"])
+            self.assertEqual(command[5], "--raw-field")
+            self.assertEqual(command[6], "body=" + managed_task.serialize_package(package))
+            self.assertNotIn("--input", command)
+            self.assertIsNone(run.call_args.kwargs.get("input_text"))
+
     def test_authoring_config_fails_closed_until_a_project_is_upgraded(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

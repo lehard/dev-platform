@@ -478,7 +478,14 @@ def publish_package(root: Path, config: AuthoringConfig, package: Package) -> bo
     if env is None:
         raise ManagedTaskError("GitHub CLI authentication is required; run gh auth login and retry")
     endpoint = f"repos/{config.repository}/issues/{int(package.source_issue.rsplit('#', 1)[1])}/comments"
-    run(["gh", "api", "--method", "POST", endpoint, "--input", "-"], root, env, input_text=serialize_package(package))
+    # The REST endpoint requires a JSON object with a `body` field. Passing
+    # Markdown via --input makes gh parse that Markdown as the entire JSON
+    # request, which GitHub rejects with HTTP 400.
+    run(
+        ["gh", "api", "--method", "POST", endpoint, "--raw-field", "body=" + serialize_package(package)],
+        root,
+        env,
+    )
     return False
 
 
