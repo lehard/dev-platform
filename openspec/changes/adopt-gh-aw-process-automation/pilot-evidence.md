@@ -17,6 +17,7 @@ value was not read or logged.
 | --- | --- | --- | --- | --- |
 | Process Issue Triage | [31472738182](https://github.com/lehard/dev-platform/actions/runs/31472738182) | Success, 6/6 jobs | No GitHub write (`noop`); see limitation below | 5.4 min wall time, 86.9k tokens, 7.53 AIC, 18 firewall requests |
 | Weekly Process Backlog Review | [31471123098](https://github.com/lehard/dev-platform/actions/runs/31471123098) | Success, 5/5 jobs | Created exactly one allowed report issue: [#98](https://github.com/lehard/dev-platform/issues/98) | 4.6 min wall time, 67.6k tokens, 8.20 AIC, 16 firewall requests |
+| Process Issue Triage (post-fix) | [31477078649](https://github.com/lehard/dev-platform/actions/runs/31477078649) | Success, 6/6 jobs | Read #96 body and `process` label; safe outputs added exactly one [triage comment](https://github.com/lehard/dev-platform/issues/96#issuecomment-5251306082) | 4m03s wall time; primary 8.399 AIC (81,874 input / 1,861 output tokens) + detection 0.715 AIC (37,397 input / 1,350 output tokens); 16/16 firewall requests allowed |
 
 The outcome check immediately after the weekly run recorded #98 as `ignored`
 because it was still open without engagement. This is an observation-window
@@ -66,8 +67,14 @@ workspace mount for the `safeoutputs` backend. This is a separate runtime
 compatibility defect introduced by v0.4.9's trusted host-mount policy, not a
 prompt, repository-permissions, or private-data-flow failure. The pilot now
 uses that policy's documented exact-path allowlist for only the three
-compiler-owned safe-output mounts. A fresh main-branch manual triage run is
-required before declaring this acceptance complete.
+compiler-owned safe-output mounts.
+
+The post-fix main-branch run 31477078649 completed the acceptance: GitHub MCP
+`issue_read` returned #96's body and label data without `difc_filtered`, and
+the `safeoutputs` write-sink accepted one `add_comment` with `secrecy: public`
+and applied it to #96. The run registered no code-write or implementation-PR
+path. After that proof, temporary fixtures #96, #100 and #101, plus failed-run
+reports #99 and #108, were closed. The actual backlog report #98 remains open.
 
 `gh aw audit` emitted a local case-colliding-artifact extraction warning, then
 retried individual artifacts and completed successfully. The reported audit
