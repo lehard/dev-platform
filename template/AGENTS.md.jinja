@@ -123,6 +123,8 @@ python3 scripts/select_checks.py
 python3 scripts/select_checks.py --execute
 ```
 
+The default is `local-affected` feedback. It uses a mapped subset only when every changed path is known; unknown and control-plane paths run the configured full set. `--mode protected-full` is reserved for the protected PR gate and always runs the full configured set. The compact `DEV_PLATFORM_CHECK_RESULT` lines are machine-readable timing/outcome evidence; failures also print a bounded diagnostic tail.
+
 For non-trivial OpenSpec work, complete semantic verification and archive before publication as described above. Then use the zero-hand-off publication entrypoint:
 
 ```bash

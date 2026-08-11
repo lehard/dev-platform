@@ -44,13 +44,13 @@ jobs:
         run: npx --yes @fission-ai/openspec@1.6.0 validate --all --strict --no-interactive
 {% if harness_mode == 'platform' %}
 
-      - name: Run selected platform-managed checks
+      - name: Run protected full platform-managed checks
         if: github.event_name == 'pull_request'
-        run: python3 scripts/select_checks.py --base "origin/{% raw %}${{ github.base_ref }}{% endraw %}" --execute
+        run: python3 scripts/select_checks.py --base "origin/{% raw %}${{ github.base_ref }}{% endraw %}" --mode protected-full --execute
 
-      - name: Run full platform-managed checks
+      - name: Run protected full platform-managed checks
         if: github.event_name == 'workflow_dispatch'
-        run: python3 scripts/select_checks.py --full --execute
+        run: python3 scripts/select_checks.py --mode protected-full --execute
 {% else %}
 
       - name: Project checks are repository-owned

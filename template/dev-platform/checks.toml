@@ -2,16 +2,21 @@
 # Keep this file aligned with the actual repository stack.
 
 [settings]
-fallback_commands = ["git diff --check"]
 full_commands = ["git diff --check", "python3 scripts/openspec_lifecycle.py check"]
 # These files can change dependency resolution, build behavior, schema/runtime
-# startup, or CI policy. They deliberately escalate to full_commands instead of
-# falling through to whitespace-only validation. Mature projects should keep
-# full_commands representative of their real stack.
+# startup, or CI policy. Unknown paths and these control-plane paths both run
+# full_commands. Mature projects should keep full_commands representative of
+# their real stack; a local subset never supplies protected-PR authority.
 full_trigger_patterns = [
   ".dev-platform.toml",
   "dev-platform/checks.toml",
   ".github/workflows/**",
+  "openspec/**",
+  "scripts/select_checks.py",
+  "scripts/openspec_lifecycle.py",
+  "scripts/finish_task.py",
+  "scripts/project_publish.py",
+  "scripts/project_sync.py",
   "**/pyproject.toml",
   "**/requirements*.txt",
   "**/poetry.lock",

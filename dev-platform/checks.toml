@@ -1,5 +1,4 @@
 [settings]
-fallback_commands = ["git diff --check"]
 full_commands = [
   "python3 -m compileall -q template/scripts scripts",
   "python3 scripts/managed_projects.py validate",
