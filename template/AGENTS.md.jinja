@@ -102,12 +102,13 @@ For non-trivial OpenSpec work, complete semantic verification and archive before
 
 ```bash
 python3 scripts/finish_task.py
+python3 scripts/finish_task.py --status
 ```
 
-`finish_task.py` first enforces OpenSpec lifecycle hygiene, then fetches `origin/{{ main_branch }}` again immediately before publication. It refuses stale/diverged integration and never force-pushes.
+`finish_task.py` first enforces OpenSpec lifecycle hygiene, then fetches `origin/{{ main_branch }}` again immediately before publication. It refuses stale/diverged integration and never force-pushes. It is also a reconciler: rerunning it after any interruption re-observes current Git/GitHub state and resumes from there instead of assuming one uninterrupted run. `--status` is a strictly read-only view of the current task's publication state (no push/PR/merge/board/main mutation).
 
 {% if publish_mode == 'pr' %}
-`publish_mode=pr`: validated feature work is pushed and a GitHub PR is created/reused through authenticated GitHub API access. With `pr_merge_mode=auto`, the platform waits for required PR checks, merges through GitHub, and only after the remote merge succeeds fast-forwards local `{{ main_branch }}`. Failed checks or merge leave local main unchanged. With `pr_merge_mode=manual`, publication stops at the PR for explicit review.
+`publish_mode=pr`: validated feature work is pushed and a GitHub PR is created/reused through authenticated GitHub API access, matched by exact head SHA (never by title/PR-number alone). An already-open PR for the exact current head is resumed even if `{{ main_branch }}` has advanced since it was opened; a brand-new, never-published stale branch is still rejected until rebased/updated. With `pr_merge_mode=auto`, the platform prefers to arm GitHub's native auto-merge/merge-queue for the exact validated head before any long local wait -- once GitHub accepts it, that request survives this process exiting -- then waits for required checks/merge, and only after the remote merge succeeds fast-forwards local `{{ main_branch }}`. If native auto-merge is unavailable, it falls back to a bounded foreground check-and-merge wait (reported as degraded remote durability). Every merge request is guarded to the exact validated head SHA; a changed head fails closed. Failed checks or merge leave local main unchanged. With `pr_merge_mode=manual`, publication stops at the PR for explicit review.
 {% else %}
 `publish_mode=direct`: this is valid only when `protected_main=false`. After safe local integration, the platform performs one final fetch and only pushes when `origin/{{ main_branch }}` is an ancestor of local `{{ main_branch }}`. Any divergence aborts publication. If GitHub protects main, doctor must reject this configuration before integration.
 {% endif %}

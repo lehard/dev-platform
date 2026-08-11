@@ -21,6 +21,14 @@ def run(
 
 
 def main() -> int:
+    # Every python invocation below (copier's post-copy bootstrap task, dev.py
+    # ready, compileall, doctor) must never leave __pycache__/*.pyc as a fresh
+    # untracked/modified file in the simulated project checkout: this smoke
+    # test intentionally uses a minimal mature-project .gitignore that does
+    # not exclude __pycache__/, to prove adoption doesn't require rewriting a
+    # project-owned .gitignore. Bytecode caching is therefore disabled for the
+    # whole smoke run rather than for one script.
+    os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
     with tempfile.TemporaryDirectory(prefix="dev-platform-project-harness-") as tmp:
         temp_root = Path(tmp)
         target = temp_root / "project"

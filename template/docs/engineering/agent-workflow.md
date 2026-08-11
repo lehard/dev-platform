@@ -22,13 +22,21 @@ publish_mode = "pr"
 pr_merge_mode = "auto"
 ```
 
-With that configuration, `finish_task.py` pushes the validated feature branch, creates or reuses a PR, waits for GitHub checks, merges through GitHub, and only then fast-forwards local `main` to the merged remote state. Required status checks remain authoritative; the platform never uses branch-protection bypass.
+With that configuration, `finish_task.py` is a GitHub-backed reconciler, not a one-shot pipeline: every invocation re-observes the local task branch/head SHA, the configured base, any exact-matching PR (identified by repository/base branch + head branch + exact `headRefOid`, never by title/body text or a remembered PR number), required-check state, remote merge/auto-merge state, and whether local reconciliation remains, then performs only the next safe step. Required status checks remain authoritative; the platform never uses branch-protection bypass.
+
+An already-open exact-head PR is detected and resumed *before* the first-publication fresh-base precondition. If `origin/main` has advanced since that PR was opened, the platform does not force a rebase just to satisfy a local check -- it re-observes GitHub and lets required checks/branch protection/auto-merge/merge queue decide whether the exact validated head can still integrate. A brand-new, never-published branch that is stale relative to `origin/main` is still rejected until it is explicitly rebased/updated and revalidated; only *existing* PR recovery skips that precondition.
+
+For `pr_merge_mode=auto`, after a PR is created or reused, the platform prefers to arm GitHub's native auto-merge/merge-queue processing for the exact validated head *before* entering any long local wait (`gh pr merge --auto --match-head-commit <SHA>` or equivalent). Once GitHub accepts that request it persists independently of this process, so losing the caller after arming does not cancel it -- a later `finish_task`/`finish_task --status` invocation re-observes the same PR and continues from current remote state. Every ordinary/auto/queue merge request is guarded with the exact validated head SHA; if GitHub reports a different head before a request is accepted, the request fails closed and the changed head must be revalidated separately. If native auto-merge/queue is unavailable or disabled for the repository, the platform falls back to the existing bounded foreground required-check wait plus protected merge, and reports that path as degraded remote durability rather than pretending it is equally durable.
 
 PR merge completion and required checks are determined from structured GitHub state for the current PR head, never from human-readable `gh` messages. Check registration, pending checks, and merge-queue confirmation each have bounded waits: a timeout leaves the PR and feature branch intact, does not change local `main`, and is safe to resume by rerunning the same `finish_task` command.
 
-After GitHub confirms `MERGED`, and only then, multi-agent local reconciliation takes the shared integration lock. It re-fetches `origin/main` under that lock, fast-forwards or accepts an already-equal local `main`, reconciles the board, and optionally removes only its own completed worktree/branch. Remote CI and merge-queue waits never hold this lock, so independently finishing tasks can wait in parallel without Git/index races.
+After GitHub confirms `MERGED`, and only then, multi-agent local reconciliation takes the shared integration lock. It re-fetches `origin/main` under that lock, fast-forwards or accepts an already-equal local `main`, reconciles the board, and optionally removes only its own completed worktree/branch. Remote CI and merge-queue waits never hold this lock, so independently finishing tasks can wait in parallel without Git/index races. The platform does not hold a long-lived publisher lease across those remote waits: repeated/concurrent publish attempts for the same exact head converge through PR re-observation, create-race re-query, and exact-head merge guards instead.
+
+Run `python3 scripts/finish_task.py --status` for a strictly read-only view of the current task's publication state (not published / PR open-checks-pending / remote auto-merge armed-or-queued / blocked-failed-checks / remotely merged with local reconciliation pending / complete / GitHub state unavailable), including the exact task SHA and PR number/URL when known. `--status` never pushes, creates/merges a PR, arms a merge, mutates the board, removes a worktree, or changes local `main`; it does not even fetch in a way that would mutate local refs. Add `--json` for a sanitized machine-readable payload (no credentials, no raw logs). Normal `finish_task` is the resume/reconcile operation -- rerunning it after any interruption is always the correct next step; there is no separate `--resume` mode.
 
 `pr_merge_mode=manual` keeps an explicit review stop after PR creation. Cross-repository Dev Platform rollout PRs remain reviewed and are not auto-merged by this task-publication policy.
+
+Native auto-merge/merge-queue capability is a repository setting (`gh repo edit --enable-auto-merge`, or Settings > General > "Allow auto-merge"). The platform detects and reports that capability (`agent_doctor.py`, `finish_task.py --status`) but never enables or disables it automatically; enabling it is an explicit administrative/adoption action, and doing so does not by itself merge anything -- only a specific PR that the publication lifecycle explicitly arms becomes eligible.
 
 `publish_mode=direct` is only valid for an intentionally unprotected integration branch. It re-fetches immediately before push and only pushes when remote main is an ancestor of local main. `protected_main=true` plus `publish_mode=direct` is an invalid configuration and doctor/finish preflight must reject it before local integration.
 
@@ -49,6 +57,7 @@ python3 scripts/agent_doctor.py
 python3 scripts/start_task.py my-task --task "OpenSpec add-x: 1-3" --scope "backend/..."
 python3 scripts/select_checks.py --execute
 python3 scripts/finish_task.py
+python3 scripts/finish_task.py --status
 ```
 
 The multi-agent profile may use `start_worktree.py` directly, but `start_task.py` is the preferred shared entrypoint.
