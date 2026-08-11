@@ -24,7 +24,9 @@ pr_merge_mode = "auto"
 
 With that configuration, `finish_task.py` pushes the validated feature branch, creates or reuses a PR, waits for GitHub checks, merges through GitHub, and only then fast-forwards local `main` to the merged remote state. Required status checks remain authoritative; the platform never uses branch-protection bypass.
 
-PR merge completion is reconciled from GitHub's PR state rather than from client-side branch-cleanup convenience. The merge command does not use `--delete-branch`; after GitHub confirms `MERGED`, the remote task branch is deleted separately, then local `main`/board state is reconciled. If `--cleanup` is requested in a multi-agent worktree, the running process first moves to the integration checkout and removes the completed task worktree/local branch from there.
+PR merge completion and required checks are determined from structured GitHub state for the current PR head, never from human-readable `gh` messages. Check registration, pending checks, and merge-queue confirmation each have bounded waits: a timeout leaves the PR and feature branch intact, does not change local `main`, and is safe to resume by rerunning the same `finish_task` command.
+
+After GitHub confirms `MERGED`, and only then, multi-agent local reconciliation takes the shared integration lock. It re-fetches `origin/main` under that lock, fast-forwards or accepts an already-equal local `main`, reconciles the board, and optionally removes only its own completed worktree/branch. Remote CI and merge-queue waits never hold this lock, so independently finishing tasks can wait in parallel without Git/index races.
 
 `pr_merge_mode=manual` keeps an explicit review stop after PR creation. Cross-repository Dev Platform rollout PRs remain reviewed and are not auto-merged by this task-publication policy.
 
