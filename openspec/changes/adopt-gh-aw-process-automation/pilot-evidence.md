@@ -139,6 +139,71 @@ task 3.2's original checkpoint.
   last class -- and states the final report must truthfully say the
   retrospective ran and list findings or say none were found.
 
+## 2026-08-12 truthful bounded execution provenance (tasks 6.1-6.11)
+
+The 2026-08-12 execution-provenance revision (merged via PR #209, authoring
+only) added section 6 to this change. All items are implemented and tested
+except real Codex-leg acceptance, which is externally blocked.
+
+**Preflight (6.1), against the actual current runtime, not assumptions:**
+
+- Codex: `codex exec --json --sandbox read-only --skip-git-repo-check -m
+  gpt-5.6-terra "Reply with exactly: OK"` was run live in an isolated
+  scratch git repository. It emitted `{"type":"thread.started","thread_id":
+  "019ff7be-6e9d-7110-98bb-2591886d55d1"}` before the account's usage limit
+  cut the turn short (`"You've hit your usage limit... try again at Aug
+  18th, 2026 7:52 AM"`). `thread_id` is therefore a confirmed, real, bounded
+  execution identifier; no field in the documented `--json` stream confirms
+  effective model/reasoning-effort for a turn -- internal `codex.turn.
+  reasoning_effort` OpenTelemetry span attributes exist in the compiled
+  binary (`strings` inspection) but require undocumented OTel wiring, so
+  they are deliberately not used as a supported surface.
+- Claude Code: the actual `Agent` tool's parameter schema (read directly,
+  not inferred) is `description, isolation, model, prompt, run_in_background,
+  subagent_type` -- no `effort`. `model_routing.py`'s `claude_agent()` had
+  been silently emitting a fabricated `"effort": "medium"/"high"` and
+  `"maxTurns": 24` that the real tool never consumes; both were removed.
+
+**Real acceptance (6.11):**
+
+- Claude leg, done for real: `python3 scripts/dogfood_task.py route-claude
+  --profile routine ...` emitted the real hand-off (`model: haiku`); the
+  exact hand-off was invoked as an actual `Agent` tool call (not simulated)
+  for a bounded, read-only verification task; it returned agent id
+  `a7238c3adade4fd10`; `python3 scripts/model_routing.py
+  record-claude-execution --agent-id a7238c3adade4fd10 ...` produced:
+  `participant.model = {"value": "haiku", "source": "selected"}`,
+  `participant.reasoning_effort = {"value": null, "source": "unknown"}`,
+  `participant.execution_id = {"value": "a7238c3adade4fd10", "kind":
+  "claude-agent-id"}`, `postcheck.containment = "clean"`. The delegated
+  child's first attempt read stale content from the wrong absolute path
+  (the main checkout instead of the assigned worktree) despite its actual
+  `pwd`/`git rev-parse --show-toplevel`/`branch`/`HEAD` all being correct;
+  it self-corrected once asked for raw diagnostics, then confirmed all 5
+  documentation claims accurate against the real code. That near-miss is
+  itself now sanitized process evidence: `lehard/dev-platform#213`. This
+  run was performed on a real routing record and then reverted (the
+  worktree's actual routing record was restored to the correctly-recorded
+  `complex` decision for the main implementation work afterward) so it does
+  not misrepresent how the substantive implementation was actually done.
+- Codex leg: not completed. The authenticated Codex account is credit-limited
+  until 2026-08-18T07:52 (confirmed live during the 6.1 preflight run
+  above, not assumed or estimated). A genuine routine/standard Codex
+  delegation with a real `thread_id` capture cannot happen before then.
+
+**Other findings from this work, sanitized and routed:**
+
+- `lehard/dev-platform#200` -- no recovery path existed for OpenSpec
+  changes materialized before `.managed-task.json` provenance enforcement
+  (discovered while resuming this very task).
+- `lehard/dev-platform#204` -- `AGENTS.md`'s documented central-repo
+  `managed_task.py owner/repo#N` command unconditionally fails on this
+  repo's own integration checkout; fixed in the relocated
+  `docs/engineering/agent-workflow.md`.
+- `lehard/dev-platform#205` -- no first-class command to abandon a started
+  but non-viable quick task.
+- `lehard/dev-platform#213` -- the Claude hand-off near-miss described above.
+
 ## Remaining acceptance work
 
 - Observe a real scheduled weekly run; the workflow's manual dispatch has been
@@ -148,7 +213,12 @@ task 3.2's original checkpoint.
 - Task 5.12 (truthful final-report retrospective statement) is satisfied by
   this task's own terminal report, not by a unit test; it closes when this
   task actually completes.
+- Task 6.11's Codex leg: blocked until the account's usage limit resets on
+  2026-08-18T07:52. Re-run the same live preflight command in
+  `run_codex()`'s real path (a genuine routine/standard `dispatch-codex`
+  call) once credits are available, and record the resulting real
+  `thread_id`/participant evidence here.
 - Before archival, perform the full semantic OpenSpec verification and then
   record its truthful verification receipt. This active change is still not
-  ready to archive or release: 5.6 and 5.12 remain open, and archival cannot
-  precede them.
+  ready to archive or release: 5.6, 5.12, and 6.11's Codex leg remain open,
+  and archival cannot precede them.
