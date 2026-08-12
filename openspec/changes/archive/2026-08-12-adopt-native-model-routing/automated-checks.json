@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.339,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/managed_projects.py validate",
+      "duration_seconds": 0.114,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m unittest discover -s tests -v",
+      "duration_seconds": 283.389,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        ".dev-platform.toml",
+        "openspec/changes/adopt-native-model-routing/.managed-task.json",
+        "openspec/changes/adopt-native-model-routing/.openspec.yaml",
+        "openspec/changes/adopt-native-model-routing/design.md",
+        "openspec/changes/adopt-native-model-routing/proposal.md",
+        "openspec/changes/adopt-native-model-routing/specs/model-routing/spec.md",
+        "openspec/changes/adopt-native-model-routing/specs/platform-delegation/spec.md",
+        "openspec/changes/adopt-native-model-routing/tasks.md",
+        "scripts/model_routing.py",
+        "template/.dev-platform.toml.jinja",
+        "template/AGENTS.md.jinja",
+        "template/docs/engineering/agent-workflow.md",
+        "template/docs/engineering/model-routing.md",
+        "template/scripts/delegated_write_guard.py",
+        "template/scripts/model_routing.py",
+        "template/scripts/platform_doctor.py",
+        "tests/test_delegated_write_guard.py",
+        "tests/test_model_routing.py",
+        "tests/test_template_contract.py",
+        "tests/upgrade_smoke.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/managed_projects.py validate",
+        "python3 -m unittest discover -s tests -v"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ]
+}
