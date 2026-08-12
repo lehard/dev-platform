@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from argparse import Namespace
 from contextlib import redirect_stderr, redirect_stdout
@@ -191,6 +192,27 @@ class AgentBoardDoctorTests(WorktreeHarnessCase):
 
 
 class AgentBoardRegistrationTests(WorktreeHarnessCase):
+    def register_board(self, *items: dict) -> Path:
+        board = self.root / ".claude" / "agents-board.json"
+        board.parent.mkdir(parents=True, exist_ok=True)
+        board.write_text(json.dumps({"version": 1, "items": list(items)}), encoding="utf-8")
+        return board
+
+    def board_item(self, item_id: str, task: str, worktree: Path, *, scope: str = "", heartbeat: str | None = None) -> dict:
+        return {
+            "id": item_id,
+            "task": task,
+            "scope": scope,
+            "branch": f"agent/{worktree.name}",
+            "worktree": str(worktree),
+            "heartbeat": heartbeat or datetime.now(timezone.utc).isoformat(),
+        }
+
+    def admit(self, board: Path, worktree: Path, scope: str | None = None) -> int:
+        args = Namespace(branch=f"agent/{worktree.name}", worktree=str(worktree), scope=scope)
+        with mock.patch.object(agent_board, "main_root", return_value=self.root), mock.patch.object(agent_board, "board_path", return_value=board):
+            return agent_board.cmd_admit(args)
+
     def test_relative_worktree_is_rejected_before_board_file_or_git_lookup(self) -> None:
         board = self.root / ".claude" / "agents-board.json"
         with mock.patch.object(agent_board, "_registered_worktrees") as registered:
@@ -294,6 +316,78 @@ class AgentBoardRegistrationTests(WorktreeHarnessCase):
             self.root, second, "agent/second", "", [item]
         )
         self.assertEqual(conflicts, [("first-id", "first task", "shared.txt")])
+
+    def test_admission_blocks_exact_concrete_claim_and_preserves_soft_overlap(self) -> None:
+        first = self.add_worktree("first")
+        second = self.add_worktree("second")
+        board = self.register_board(
+            self.board_item("first-id", "first task", first, scope="template/scripts/shared.py"),
+            self.board_item("second-id", "second task", second, scope="template/scripts"),
+        )
+        self.assertEqual(self.admit(board, first), 0)
+        self.assertEqual(self.admit(board, second, "template/scripts/shared.py"), 0)
+        items = {item["id"]: item for item in json.loads(board.read_text(encoding="utf-8"))["items"]}
+        self.assertEqual(items["first-id"]["admission"]["decision"], "RUN")
+        self.assertEqual(items["second-id"]["admission"]["decision"], "WAIT")
+        self.assertEqual(items["second-id"]["admission"]["conflicts"], [["first-id", "first task", "template/scripts/shared.py"]])
+
+        # A shared directory is advisory only: a distinct concrete file still
+        # receives RUN and may execute in parallel.
+        self.assertEqual(self.admit(board, second, "template/scripts/other.py"), 0)
+        items = {item["id"]: item for item in json.loads(board.read_text(encoding="utf-8"))["items"]}
+        self.assertEqual(items["second-id"]["admission"]["decision"], "RUN")
+
+    def test_admission_uses_factual_file_scope_and_ignores_stale_owners(self) -> None:
+        first = self.add_worktree("first")
+        second = self.add_worktree("second")
+        shared = first / "shared.py"
+        shared.write_text("shared\n", encoding="utf-8")
+        git(first, "add", "shared.py")
+        git(first, "commit", "-m", "factual shared scope")
+        stale = (datetime.now(timezone.utc) - timedelta(days=5)).isoformat()
+        board = self.register_board(
+            self.board_item("first-id", "first task", first, scope="template/scripts", heartbeat=stale),
+            self.board_item("second-id", "second task", second),
+        )
+        # An invalid/stale owner has no live claim, even when its old declared
+        # scope is broad and its factual diff contains the requested file.
+        self.assertEqual(self.admit(board, second, "shared.py"), 0)
+        items = {item["id"]: item for item in json.loads(board.read_text(encoding="utf-8"))["items"]}
+        self.assertEqual(items["second-id"]["admission"]["decision"], "RUN")
+
+        # In a fresh admission state the active factual file wins over a broad
+        # declaration and blocks the same explicit file claim.
+        board = self.register_board(
+            self.board_item("first-id", "first task", first, scope="template/scripts"),
+            self.board_item("second-id", "second task", second),
+        )
+        self.assertEqual(self.admit(board, first), 0)
+        self.assertEqual(self.admit(board, second, "shared.py"), 0)
+        items = {item["id"]: item for item in json.loads(board.read_text(encoding="utf-8"))["items"]}
+        self.assertEqual(items["first-id"]["admission"]["decision"], "RUN")
+        self.assertEqual(items["second-id"]["admission"]["decision"], "WAIT")
+
+    def test_concurrent_exact_claims_cannot_both_run(self) -> None:
+        first = self.add_worktree("first")
+        second = self.add_worktree("second")
+        board = self.register_board(
+            self.board_item("first-id", "first task", first),
+            self.board_item("second-id", "second task", second),
+        )
+
+        def claim(worktree: Path) -> str:
+            # Exercise the same locked read-and-claim primitive from two
+            # callers.  The CLI delegates to this primitive after identity
+            # validation, so this isolates the actual race boundary.
+            with agent_board.locked_json(board) as data:
+                current = next(item for item in data["items"] if item["worktree"] == str(worktree))
+                current["scope"] = "shared.py"
+                return agent_board._admit_item(self.root, current, data["items"], main_branch="main")["decision"]
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            self.assertEqual(sorted(pool.map(claim, (first, second))), ["RUN", "WAIT"])
+        decisions = [item["admission"]["decision"] for item in json.loads(board.read_text(encoding="utf-8"))["items"]]
+        self.assertEqual(sorted(decisions), ["RUN", "WAIT"])
 
 
 if __name__ == "__main__":
