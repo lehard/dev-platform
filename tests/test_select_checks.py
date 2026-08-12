@@ -75,6 +75,46 @@ class SelectChecksTests(unittest.TestCase):
             [{"id": "full", "paths": [], "commands": ["pytest"], "selection_reason": "protected-full"}],
         )
 
+    def test_applicable_empty_group_is_invalid_while_no_group_is_not_applicable(self) -> None:
+        empty = select_checks.select(
+            {"settings": {}, "checks": {"frontend": {"patterns": ["**/*.tsx"], "commands": []}}},
+            ["apps/web/page.tsx"],
+        )
+        self.assertEqual(select_checks.selection_status(empty)["state"], "invalid-coverage")
+        with self.assertRaises(SystemExit):
+            select_checks.validate_platform_selection(empty, "platform")
+        self.assertEqual(select_checks.selection_status([]), {"state": "not-applicable", "command_count": 0, "check_count": 0})
+        self.assertEqual(select_checks.validate_platform_selection(empty, "project")["state"], "invalid-coverage")
+
+    def test_required_test_evidence_cannot_be_satisfied_by_syntax_only(self) -> None:
+        checks = select_checks.select(
+            {
+                "settings": {},
+                "checks": {
+                    "python": {
+                        "patterns": ["**/*.py"],
+                        "commands": ["python3 -m compileall -q ."],
+                        "evidence_types": ["syntax"],
+                        "required_evidence_types": ["test"],
+                    }
+                },
+            },
+            ["app/service.py"],
+        )
+        status = select_checks.selection_status(checks)
+        self.assertEqual(status["state"], "invalid-coverage")
+        self.assertEqual(status["missing_required_evidence"], {"python": ["test"]})
+
+    def test_execution_evidence_records_exact_successful_commands(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            evidence_path = Path(directory) / "evidence.json"
+            outcome = select_checks.execute(Path(directory), [{"id": "test", "commands": ["printf ok"]}], evidence_path)
+            evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+        self.assertEqual(outcome, 0)
+        self.assertEqual(evidence["selection"]["state"], "ready")
+        self.assertEqual(evidence["outcome"], "success")
+        self.assertEqual(evidence["executed_commands"][0]["command"], "printf ok")
+
     def test_successful_command_emits_compact_machine_readable_timing(self) -> None:
         with tempfile.TemporaryDirectory() as directory, mock.patch.object(select_checks, "time") as clock:
             clock.monotonic.side_effect = [10.0, 11.2345]
@@ -101,6 +141,8 @@ class SelectChecksTests(unittest.TestCase):
         self.assertNotIn("fallback_commands", text)
         for pattern in ("**/pyproject.toml", "**/package.json", "**/package-lock.json", ".github/workflows/**", "openspec/**", "scripts/select_checks.py", "dev-platform/checks.toml"):
             self.assertIn(pattern, text)
+        self.assertIn("[checks.javascript]", text)
+        self.assertIn("commands = []", text)
 
     def test_reusable_pr_gate_uses_protected_full_mode(self) -> None:
         workflow = (ROOT / ".github" / "workflows" / "project-ci.yml").read_text(encoding="utf-8")

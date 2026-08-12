@@ -52,6 +52,10 @@ class ConflictGuardTests(unittest.TestCase):
             subprocess.run(["git", "init"], cwd=root, check=True, capture_output=True)
             self.assertEqual([], self.module.find_update_conflicts(root))
 
+    def test_doctor_does_not_require_project_owned_selector_api(self) -> None:
+        source = SCRIPT.read_text(encoding="utf-8")
+        self.assertNotIn("from select_checks import", source)
+
 
 if __name__ == "__main__":
     unittest.main()

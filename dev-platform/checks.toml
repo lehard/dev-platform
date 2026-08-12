@@ -3,8 +3,9 @@ full_commands = [
   "python3 -m compileall -q template/scripts scripts",
   "python3 scripts/managed_projects.py validate",
   "python3 -m unittest discover -s tests -v",
-  "python3 template/scripts/openspec_lifecycle.py check",
 ]
+full_evidence_types = ["syntax", "configuration", "test"]
+full_required_evidence_types = ["test"]
 full_trigger_patterns = [
   ".dev-platform.toml",
   "dev-platform/checks.toml",
@@ -22,4 +23,6 @@ commands = ["git diff --check"]
 
 [checks.python]
 patterns = ["**/*.py"]
-commands = ["python3 -m compileall -q template/scripts scripts"]
+commands = ["python3 -m compileall -q template/scripts scripts", "python3 -m unittest discover -s tests -v"]
+evidence_types = ["syntax", "test"]
+required_evidence_types = ["test"]

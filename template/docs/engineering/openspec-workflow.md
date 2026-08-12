@@ -41,7 +41,13 @@ OpenSpec-Verify: PASS
 Verification-Method: <method actually used>
 ```
 
-The report should state what was checked and any warnings/suggestions that remain.
+The report should state what was checked and any warnings/suggestions that remain. For a platform-owned harness, it must also contain:
+
+```text
+Automated-Checks-Evidence: automated-checks.json
+```
+
+The archive helper creates that file from the selected commands it actually runs, then refuses to archive if the selection is empty/invalid, any command fails, or the receipt does not cite the generated evidence. This is intentionally not required for `harness_mode=project`, where repository CI remains the product-verification authority.
 
 Then archive through the platform entrypoint:
 
