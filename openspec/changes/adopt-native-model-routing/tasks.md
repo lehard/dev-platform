@@ -27,7 +27,7 @@
 
 ## 5. Verification and cleanup
 
-- [ ] 5.1 Add/update deterministic containment tests for native Codex and Claude paths, invalid assigned worktree, native-boundary failure, fallback mode, integration mutation, dirty/pre-existing integration state and child failure/cancellation.
-- [ ] 5.2 Add routing contract tests for routine/standard delegation, complex/no-cheap-trial, standard-to-complex escalation and unavailable-executor fallback.
-- [ ] 5.3 Remove dead/redundant containment code only after the supported native/fallback matrix is covered; do not perform unrelated delegation refactors.
+- [x] 5.1 Add/update deterministic containment tests for native Codex and Claude paths, invalid assigned worktree, native-boundary failure, fallback mode, integration mutation, dirty/pre-existing integration state and child failure/cancellation.
+- [x] 5.2 Add routing contract tests for routine/standard delegation, complex/no-cheap-trial, standard-to-complex escalation and unavailable-executor fallback.
+- [x] 5.3 Remove dead/redundant containment code only after the supported native/fallback matrix is covered; do not perform unrelated delegation refactors.
 - [ ] 5.4 Run relevant template/OpenSpec lifecycle tests and Copier/render smoke validation, then perform semantic OpenSpec verification before archive.
