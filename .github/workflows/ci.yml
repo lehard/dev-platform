@@ -41,14 +41,14 @@ jobs:
         shell: bash
         run: |
           set +e
-          python3 -m unittest discover -s tests -v > /tmp/unit-tests.log 2>&1
+          python3 scripts/run_test_groups.py --all --evidence /tmp/test-groups-evidence.json > /tmp/unit-tests.log 2>&1
           status=$?
           cat /tmp/unit-tests.log
           if [ "$status" -ne 0 ]; then
             python3 - <<'PY'
           from pathlib import Path
           lines = Path("/tmp/unit-tests.log").read_text(encoding="utf-8", errors="replace").splitlines()
-          separators = [i for i, line in enumerate(lines) if line.startswith("====")]
+          separators = [i for i, line in enumerate(lines) if line.startswith("----- failing group")]
           start = separators[0] if separators else max(0, len(lines) - 25)
           detail = "\n".join(lines[start:])
           if len(detail) > 7000:
@@ -58,6 +58,11 @@ jobs:
           PY
             exit "$status"
           fi
+      # This one job's exit status is GitHub's required check ("validate"); a
+      # failure in ANY group above already fails this step (and therefore the
+      # job), so no separate cross-job aggregate is needed while tests run in
+      # a single job. See tests/test_run_test_groups.py for the aggregate
+      # contract this depends on: any failed group -> non-zero exit.
 
       - name: Enforce OpenSpec lifecycle hygiene
         run: python3 template/scripts/openspec_lifecycle.py check
