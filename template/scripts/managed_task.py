@@ -17,7 +17,17 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import quote, urlparse
 
-from _platform_common import atomic_write_text, current_worktree_root, github_cli_env, harness_mode, main_root, profile, read_platform_config, run_git
+from _platform_common import (
+    GitCommandError,
+    atomic_write_text,
+    current_worktree_root,
+    github_cli_env,
+    harness_mode,
+    main_root,
+    profile,
+    read_platform_config,
+    run_git,
+)
 
 PACKAGE = "managed-openspec:v1"
 MARKER_RE = re.compile(r"<!--\s*(managed-openspec:v[0-9]+)\s*-->")
@@ -816,7 +826,7 @@ def direct_materialization_is_forbidden(root: Path) -> bool:
     try:
         integration = main_root()
         branch = run_git(["branch", "--show-current"], cwd=root).stdout.strip()
-    except (subprocess.CalledProcessError, OSError):
+    except (GitCommandError, OSError):
         return False
     return root.resolve() == integration.resolve() and branch == str(config.get("main_branch", "main"))
 

@@ -2,13 +2,15 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
+import shlex
 import subprocess
 import tempfile
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any, Iterator, Mapping
 
 try:
     from shared_workspace import SharedWorkspaceError, atomic_write_text, cooperative_umask, ensure_shared_path, preflight, resolve_shared_group
@@ -46,9 +48,82 @@ except ImportError:  # pragma: no cover - Windows fallback
     fcntl = None
 
 
-def run_git(args: list[str], cwd: Path | None = None, check: bool = True) -> subprocess.CompletedProcess[str]:
+REPOSITORY_SCOPED_GIT_ENV = frozenset(
+    {
+        "GIT_DIR",
+        "GIT_WORK_TREE",
+        "GIT_COMMON_DIR",
+        "GIT_INDEX_FILE",
+        "GIT_OBJECT_DIRECTORY",
+        "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+    }
+)
+GIT_DIAGNOSTIC_LIMIT = 4000
+_CREDENTIAL_URL_RE = re.compile(r"(?i)(https?://[^/:\s]+:)([^@/\s]+)(@)")
+_SECRET_ASSIGNMENT_RE = re.compile(
+    r"(?i)\b(gh_token|github_token|token|password|passwd|secret|api[_-]?key|access[_-]?token)"
+    r"(\s*[:=]\s*)([^\s'\"\\]+)"
+)
+
+
+def validation_subprocess_env(parent: Mapping[str, str] | None = None) -> dict[str, str]:
+    """Keep ordinary tool context while dropping Git bindings to a parent repo."""
+    env = dict(os.environ if parent is None else parent)
+    for name in REPOSITORY_SCOPED_GIT_ENV:
+        env.pop(name, None)
+    return env
+
+
+def _sanitize_git_diagnostic(value: str) -> str:
+    value = _CREDENTIAL_URL_RE.sub(r"\1[REDACTED]\3", value)
+    return _SECRET_ASSIGNMENT_RE.sub(r"\1\2[REDACTED]", value)
+
+
+def _bounded_git_diagnostic(value: str, limit: int = GIT_DIAGNOSTIC_LIMIT) -> str:
+    sanitized = _sanitize_git_diagnostic(value)
+    if len(sanitized) <= limit:
+        return sanitized
+    return "[output truncated]\n" + sanitized[-limit:]
+
+
+class GitCommandError(RuntimeError):
+    """A checked Git failure with bounded, secret-safe operator diagnostics."""
+
+    def __init__(self, args: list[str], cwd: Path | None, result: subprocess.CompletedProcess[str]) -> None:
+        command = _bounded_git_diagnostic(shlex.join(["git", *args]), limit=1200)
+        location = _bounded_git_diagnostic(str(cwd) if cwd else os.getcwd(), limit=1200)
+        lines = [
+            f"Git command failed: {command}",
+            f"cwd: {location}",
+            f"exit code: {result.returncode}",
+        ]
+        for label, output in (("stderr", result.stderr), ("stdout", result.stdout)):
+            if output:
+                lines.extend((f"{label}:", _bounded_git_diagnostic(output)))
+        super().__init__("\n".join(lines))
+        self.args_list = tuple(args)
+        self.cwd = cwd
+        self.result = result
+
+
+def run_git(
+    args: list[str],
+    cwd: Path | None = None,
+    check: bool = True,
+    env: Mapping[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
     cooperative_umask()
-    return subprocess.run(["git", *args], cwd=str(cwd) if cwd else None, text=True, capture_output=True, check=check)
+    result = subprocess.run(
+        ["git", *args],
+        cwd=str(cwd) if cwd else None,
+        env=dict(env) if env is not None else None,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if check and result.returncode:
+        raise GitCommandError(args, cwd, result)
+    return result
 
 
 def current_worktree_root() -> Path:
@@ -152,8 +227,8 @@ def observe_task_base_freshness(
     authoritative = f"{remote}/{main_branch}"
     try:
         remote_sha = fetch_main(root, remote, main_branch)
-    except (OSError, subprocess.CalledProcessError) as exc:
-        detail = exc.stderr.strip() if isinstance(exc, subprocess.CalledProcessError) and exc.stderr else str(exc)
+    except (OSError, GitCommandError) as exc:
+        detail = str(exc)
         raise TaskFreshnessError(
             f"unable to refresh authoritative {authoritative} before validation ({detail or 'git fetch failed'}); retry after remote access is restored"
         ) from exc

@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
+import shlex
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -11,6 +14,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "template" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
+import _platform_common  # noqa: E402
+
 SPEC = importlib.util.spec_from_file_location("select_checks", SCRIPTS / "select_checks.py")
 assert SPEC and SPEC.loader
 select_checks = importlib.util.module_from_spec(SPEC)
@@ -134,6 +139,60 @@ class SelectChecksTests(unittest.TestCase):
         lines = "".join(call.args[0] for call in stdout.write.call_args_list)
         self.assertIn('"outcome": "failure"', lines)
         self.assertIn("DEV_PLATFORM_CHECK_DIAGNOSTIC:\nfailure-detail", lines)
+
+    def test_validation_environment_removes_only_repository_scoped_git_overrides(self) -> None:
+        parent = {
+            "PATH": "/tool/bin",
+            "VIRTUAL_ENV": "/tool/venv",
+            "UNRELATED_SETTING": "kept",
+            "GIT_DIR": "/parent/.git",
+            "GIT_WORK_TREE": "/parent",
+            "GIT_COMMON_DIR": "/parent/.git",
+            "GIT_INDEX_FILE": "/parent/.git/index",
+            "GIT_OBJECT_DIRECTORY": "/parent/.git/objects",
+            "GIT_ALTERNATE_OBJECT_DIRECTORIES": "/parent/.git/objects",
+        }
+
+        child = select_checks.validation_subprocess_env(parent)
+
+        self.assertEqual(child["PATH"], "/tool/bin")
+        self.assertEqual(child["VIRTUAL_ENV"], "/tool/venv")
+        self.assertEqual(child["UNRELATED_SETTING"], "kept")
+        for name in _platform_common.REPOSITORY_SCOPED_GIT_ENV:
+            self.assertNotIn(name, child)
+
+    def test_validation_command_uses_an_independent_git_object_store(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            parent = root / "parent"
+            nested = root / "nested"
+            subprocess.run(["git", "init", "-q", str(parent)], check=True)
+            parent_objects = subprocess.run(
+                ["git", "-C", str(parent), "rev-parse", "--git-path", "objects"],
+                text=True,
+                capture_output=True,
+                check=True,
+            ).stdout.strip()
+            command = " && ".join(
+                (
+                    f"git init -q {shlex.quote(str(nested))}",
+                    f"git -C {shlex.quote(str(nested))} -c user.name=Nested -c user.email=nested@example.invalid commit --allow-empty -qm nested",
+                )
+            )
+            with mock.patch.dict(os.environ, {"GIT_OBJECT_DIRECTORY": parent_objects}, clear=False):
+                outcome = select_checks.execute(root, [{"id": "nested", "commands": [command]}])
+
+            self.assertEqual(outcome, 0)
+            nested_head = subprocess.run(
+                ["git", "-C", str(nested), "rev-parse", "HEAD"], text=True, capture_output=True, check=True
+            ).stdout.strip()
+            parent_has_nested_object = subprocess.run(
+                ["git", "-C", str(parent), "cat-file", "-e", f"{nested_head}^{{commit}}"],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertNotEqual(parent_has_nested_object.returncode, 0, parent_has_nested_object.stderr)
 
     def test_template_declares_common_dependency_and_ci_full_triggers(self) -> None:
         text = (ROOT / "template" / "dev-platform" / "checks.toml").read_text(encoding="utf-8")
