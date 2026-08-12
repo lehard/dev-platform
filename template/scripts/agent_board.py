@@ -22,6 +22,7 @@ from _platform_common import (
 
 DEFAULT_STALE_HOURS = 72
 MAX_OVERLAP_DIAGNOSTICS = 5
+MAX_ADMISSION_DIAGNOSTICS = 5
 
 
 def board_path(root: Path | None = None) -> Path:
@@ -119,11 +120,58 @@ def _normalized_scope_paths(scope: str, root: Path) -> set[str]:
     return paths
 
 
+def _concrete_declared_scope_paths(scope: str, root: Path) -> set[str]:
+    """Return only declared paths that can safely be treated as file claims.
+
+    Scope is deliberately permissive because it is also used for advisory
+    diagnostics.  Admission is stricter: directories, globs and other broad
+    values must never become a hard blocker.  Existing files are concrete even
+    without an extension (for example ``Makefile``); a non-existing path with
+    a suffix is a useful declaration of a planned file.
+    """
+    concrete: set[str] = set()
+    for raw in re.split(r"[,\n]", scope):
+        value = raw.strip()
+        if not value or any(token in value for token in ("*", "?", "[", "]")):
+            continue
+        candidate = Path(value).expanduser()
+        resolved = candidate.resolve() if candidate.is_absolute() else (root / candidate).resolve()
+        try:
+            relative = resolved.relative_to(root.resolve())
+        except ValueError:
+            continue
+        if resolved.is_dir():
+            continue
+        normalized = relative.as_posix()
+        if normalized and normalized != "." and (resolved.is_file() or relative.suffix):
+            concrete.add(normalized)
+    return concrete
+
+
 def _factual_scope_paths(worktree: Path, root: Path, main_branch: str) -> set[str]:
     result = run_git(["diff", "--name-only", f"{main_branch}...HEAD"], cwd=worktree, check=False)
     if result.returncode != 0:
         return set()
     return _normalized_scope_paths(result.stdout, root)
+
+
+def _claim_candidates(item: dict, root: Path, main_branch: str) -> set[str]:
+    """Resolve concrete paths a task is asking to claim at admission time."""
+    candidates = _concrete_declared_scope_paths(str(item.get("scope", "")), root)
+    raw_worktree = item.get("worktree", "")
+    if raw_worktree:
+        candidates |= _factual_scope_paths(Path(str(raw_worktree)).expanduser().resolve(), root, main_branch)
+    return candidates
+
+
+def _owned_claim_paths(item: dict, root: Path, main_branch: str) -> set[str]:
+    """Resolve concrete paths currently owned by an admitted active task."""
+    stored = item.get("claims", [])
+    claims = _normalized_scope_paths("\n".join(stored), root) if isinstance(stored, list) else set()
+    raw_worktree = item.get("worktree", "")
+    if raw_worktree:
+        claims |= _factual_scope_paths(Path(str(raw_worktree)).expanduser().resolve(), root, main_branch)
+    return claims
 
 
 def _overlap_path(left: str, right: str) -> str | None:
@@ -177,6 +225,54 @@ def _print_overlap_warning(conflicts: list[tuple[str, str, str]]) -> None:
     print("Scope-overlap warning: coordinate or serialize work before costly validation or publication.", file=sys.stderr)
     for item_id, task, path in conflicts:
         print(f"- {item_id} ({task}): {path}", file=sys.stderr)
+
+
+def _admission_conflicts(
+    root: Path,
+    current: dict,
+    items: list[dict],
+    *,
+    main_branch: str,
+) -> list[tuple[str, str, str]]:
+    """Find bounded hard conflicts against valid active claims.
+
+    This function is called while ``locked_json`` holds the board lock.  The
+    caller records a successful claim in the same critical section, making the
+    read-and-claim decision race-safe on one machine.
+    """
+    current_claims = _claim_candidates(current, root, main_branch)
+    if not current_claims:
+        return []
+    conflicts: list[tuple[str, str, str]] = []
+    current_worktree = Path(str(current.get("worktree", ""))).expanduser().resolve()
+    current_branch = str(current.get("branch", ""))
+    for item in items:
+        if item is current:
+            continue
+        if Path(str(item.get("worktree", ""))).expanduser().resolve() == current_worktree:
+            continue
+        if str(item.get("branch", "")) == current_branch:
+            continue
+        if _status(item, root, main_branch=main_branch, stale_hours=DEFAULT_STALE_HOURS):
+            continue
+        for path in sorted(current_claims & _owned_claim_paths(item, root, main_branch)):
+            conflict = (str(item.get("id", "unknown")), str(item.get("task", "active task")), path)
+            if conflict not in conflicts:
+                conflicts.append(conflict)
+            if len(conflicts) >= MAX_ADMISSION_DIAGNOSTICS:
+                return conflicts
+    return conflicts
+
+
+def _admit_item(root: Path, current: dict, items: list[dict], *, main_branch: str) -> dict:
+    conflicts = _admission_conflicts(root, current, items, main_branch=main_branch)
+    if conflicts:
+        current["admission"] = {"decision": "WAIT", "conflicts": [list(conflict) for conflict in conflicts], "at": utc_now()}
+        return {"decision": "WAIT", "conflicts": [list(conflict) for conflict in conflicts]}
+    claims = sorted(_claim_candidates(current, root, main_branch))
+    current["claims"] = claims
+    current["admission"] = {"decision": "RUN", "at": utc_now()}
+    return {"decision": "RUN", "claims": claims}
 
 
 def _worktree_clean(worktree: Path) -> bool:
@@ -270,6 +366,34 @@ def cmd_update(args: argparse.Namespace) -> int:
         if args.scope is not None:
             item["scope"] = args.scope
         item["heartbeat"] = utc_now()
+    return 0
+
+
+def cmd_admit(args: argparse.Namespace) -> int:
+    """Atomically admit an already registered task or return a resumable WAIT."""
+    root = main_root()
+    worktree = validate_worktree_identity(args.worktree, args.branch, root)
+    path = board_path(root)
+    config = read_platform_config(root)
+    main_branch = str(config.get("main_branch", "main"))
+    with locked_json(path) as data:
+        items = data.setdefault("items", [])
+        current = next(
+            (
+                item
+                for item in items
+                if Path(str(item.get("worktree", ""))).expanduser().resolve() == worktree
+                and str(item.get("branch", "")) == args.branch
+            ),
+            None,
+        )
+        if current is None:
+            raise SystemExit(f"Agent admission blocked: no registered board entry for {worktree}.")
+        if args.scope is not None:
+            current["scope"] = args.scope
+        current["heartbeat"] = utc_now()
+        decision = _admit_item(root, current, items, main_branch=main_branch)
+    print(json.dumps(decision, ensure_ascii=False, sort_keys=True))
     return 0
 
 
@@ -387,6 +511,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--task")
     p.add_argument("--scope")
     p.set_defaults(func=cmd_update)
+
+    p = sub.add_parser("admit", help="atomically claim concrete scope for an active multi-agent task")
+    p.add_argument("--branch", required=True)
+    p.add_argument("--worktree", required=True)
+    p.add_argument("--scope", default=None)
+    p.set_defaults(func=cmd_admit)
 
     p = sub.add_parser("finish")
     p.add_argument("--id", required=True)
