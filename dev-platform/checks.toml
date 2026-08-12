@@ -2,27 +2,151 @@
 full_commands = [
   "python3 -m compileall -q template/scripts scripts",
   "python3 scripts/managed_projects.py validate",
-  "python3 -m unittest discover -s tests -v",
+  "python3 scripts/run_test_groups.py --all",
 ]
 full_evidence_types = ["syntax", "configuration", "test"]
 full_required_evidence_types = ["test"]
+# control-plane: unknown/ambiguous paths and selector/CI/lifecycle surfaces stay
+# full-suite triggers (see [checks.*] below for the narrower risk classes).
 full_trigger_patterns = [
   ".dev-platform.toml",
   "dev-platform/checks.toml",
   ".github/workflows/**",
-  "template/**",
+  "template/scripts/**",
+  "template/.github/workflows/**",
+  "template/dev-platform/checks.toml",
   "scripts/**",
   "tests/**",
-  "openspec/**",
+]
+# instruction-behavior-change: instruction/prompt surfaces eligible for a
+# --declare-behavior-change RUNTIME declaration (see [behavioral_evidence]
+# below). Absent a declaration these still fall through to [checks.docs] /
+# [checks.docs-template-render] as docs-semantic.
+instruction_behavior_surface_patterns = [
   "AGENTS.md",
+  "template/AGENTS.md.jinja",
 ]
 
+# No runtime currently has a configured targeted behavioral smoke command, so
+# any --declare-behavior-change today fails closed to full validation by
+# design (see design.md §0 and the "Validation optimization..." non-goals) --
+# a model's own report is never accepted as a substitute. Add a
+# [behavioral_evidence.<runtime>] table with a non-empty `commands` list only
+# once a real targeted smoke exists for that runtime/provider.
+
+# docs-semantic: documentation/instruction content with no intended
+# agent-behavior change. Bounded structure/link/anchor/render checks only;
+# does not by itself run the full Python suite. A `template/AGENTS.md.jinja`
+# change also gets a Jinja render smoke so a broken template still fails.
 [checks.docs]
-patterns = ["*.md", "docs/**", "openspec/**", "AGENTS.md"]
-commands = ["git diff --check"]
+patterns = ["*.md", "docs/**", "openspec/**", "AGENTS.md", "template/**/*.md", "template/**/*.md.jinja"]
+commands = ["git diff --check", "python3 scripts/check_docs_links.py"]
+evidence_types = ["configuration", "configuration"]
+
+[checks.docs-template-render]
+patterns = ["template/AGENTS.md.jinja"]
+commands = ["git diff --check", "python3 scripts/check_docs_links.py", "python3 scripts/render_agents_md_smoke.py"]
+evidence_types = ["configuration", "configuration", "configuration"]
 
 [checks.python]
 patterns = ["**/*.py"]
-commands = ["python3 -m compileall -q template/scripts scripts", "python3 -m unittest discover -s tests -v"]
+commands = ["python3 -m compileall -q template/scripts scripts", "python3 scripts/run_test_groups.py --all"]
 evidence_types = ["syntax", "test"]
 required_evidence_types = ["test"]
+
+# Canonical mandatory test groups. `mode = "parallel"` groups run concurrently
+# (their mutable resources are per-run temp roots, proven isolated by
+# tests/test_module_isolation.py and the audit in this change's design.md);
+# `mode = "serial"` groups run one at a time behind an explicit boundary.
+# run_test_groups.py --verify-coverage proves these are exactly the tests
+# `unittest discover -s tests` collects, with no gaps and no duplicates.
+[test_groups.publication_recovery_cli]
+targets = ["test_publication_recovery_cli"]
+mode = "parallel"
+
+[test_groups.git_lifecycle]
+targets = ["test_git_lifecycle"]
+mode = "parallel"
+
+[test_groups.publication_state]
+targets = ["test_publication_state"]
+mode = "parallel"
+
+[test_groups.merge_lifecycle_resilience]
+targets = ["test_merge_lifecycle_resilience"]
+mode = "parallel"
+
+[test_groups.delegated_write_guard]
+targets = ["test_delegated_write_guard"]
+mode = "parallel"
+
+[test_groups.protected_main_zero_handoff]
+targets = ["test_protected_main_zero_handoff"]
+mode = "parallel"
+
+[test_groups.worktree_hygiene]
+targets = ["test_worktree_hygiene"]
+mode = "parallel"
+
+[test_groups.model_routing]
+targets = ["test_model_routing"]
+mode = "parallel"
+
+[test_groups.fast-a]
+targets = [
+  "test_adopt_project",
+  "test_agentic_workflows",
+  "test_central_dogfood_lifecycle",
+  "test_ci_trigger_compatibility",
+  "test_delegation_containment",
+  "test_dev_entrypoint",
+  "test_direct_main_health",
+  "test_friction_review",
+  "test_harness_safety",
+]
+mode = "parallel"
+
+[test_groups.fast-b]
+targets = [
+  "test_managed_project_promotion",
+  "test_managed_project_status",
+  "test_managed_rollout",
+  "test_managed_status_lifecycle",
+  "test_managed_task",
+  "test_openspec_lifecycle",
+  "test_platform_bootstrap",
+  "test_platform_common",
+  "test_platform_doctor",
+  "test_docs_semantic_checks",
+]
+mode = "parallel"
+
+[test_groups.fast-c]
+targets = [
+  "test_platform_doctor_workflow_mode",
+  "test_pr_reconciliation_concurrency",
+  "test_project_harness_doc_ownership",
+  "test_protected_publish_contract",
+  "test_rollout_control_plane_regressions",
+  "test_rollout_diagnostic_envelope",
+  "test_rollout_diagnostics",
+  "test_rollout_failure_streak",
+  "test_rollout_failure_streak_workflow",
+  "test_run_test_groups",
+  "test_root_guidance_contract",
+]
+mode = "parallel"
+
+[test_groups.fast-d]
+targets = [
+  "test_rollout_preflight",
+  "test_rollout_recopy",
+  "test_rollout_supersession",
+  "test_rollout_validation_ownership",
+  "test_select_checks",
+  "test_shared_workspace",
+  "test_task_freshness",
+  "test_template_contract",
+  "test_module_isolation",
+]
+mode = "parallel"

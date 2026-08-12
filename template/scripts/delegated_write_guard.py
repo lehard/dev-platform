@@ -221,8 +221,14 @@ _HARD_SANDBOX_OS = ("Darwin", "Linux")
 
 def _codex_help_text(binary: str) -> str:
     try:
+        # A real `codex exec --help` answers in milliseconds; this timeout only
+        # guards against a genuinely hung process. It must stay generous enough
+        # to survive legitimate CPU contention from concurrent mandatory test
+        # groups (see dev-platform/checks.toml [test_groups]) -- a tighter bound
+        # previously caused this to time out under contention and downgrade to
+        # "sandbox-flag-unsupported" instead of reporting the real mechanism.
         completed = subprocess.run(
-            [binary, "exec", "--help"], text=True, capture_output=True, check=False, timeout=10
+            [binary, "exec", "--help"], text=True, capture_output=True, check=False, timeout=30
         )
     except (OSError, subprocess.TimeoutExpired):
         return ""

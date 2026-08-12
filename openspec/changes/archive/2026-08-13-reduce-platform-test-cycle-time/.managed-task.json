@@ -1,0 +1,15 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/platform-lifecycle/spec.md"
+  ],
+  "change": "reduce-platform-test-cycle-time",
+  "imported_at": "2026-08-12T17:37:31+00:00",
+  "package_revision": "1b5efdd6eb2211e5bd6e9f40f4346aceb6b4fde5c49154a7edbd92a2113f89d0",
+  "prepared_against": "64055d86eed7a90f3561a0dd300dfa3459b0dde5",
+  "source_issue": "lehard/development-backlog#27",
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

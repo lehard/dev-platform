@@ -61,7 +61,7 @@ Minimum validation before finishing:
 ```bash
 python3 -m compileall -q template/scripts scripts
 python3 scripts/managed_projects.py validate
-python3 -m unittest discover -s tests -v
+python3 scripts/run_test_groups.py --all
 python3 template/scripts/openspec_lifecycle.py check
 ```
 

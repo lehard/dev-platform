@@ -75,7 +75,25 @@ def full_checks(config: dict[str, Any], *, selection_reason: str = "protected-fu
     return [check]
 
 
-def select(config: dict[str, Any], paths: list[str]) -> list[dict[str, Any]]:
+def instruction_behavior_surface_paths(config: dict[str, Any], paths: list[str]) -> list[str]:
+    """Paths eligible for the `instruction-behavior-change` risk class (§0 of design.md)."""
+    settings = config.get("settings", {})
+    patterns = list(settings.get("instruction_behavior_surface_patterns", []))
+    if not patterns:
+        return []
+    return [path for path in paths if match_any(path, patterns)]
+
+
+def behavioral_evidence_commands(config: dict[str, Any], runtime: str) -> list[str]:
+    table = config.get("behavioral_evidence", {})
+    rule = table.get(runtime) if isinstance(table, dict) else None
+    if not isinstance(rule, dict):
+        return []
+    commands = rule.get("commands", [])
+    return list(commands) if isinstance(commands, list) else []
+
+
+def select(config: dict[str, Any], paths: list[str], *, declare_behavior_change: str | None = None) -> list[dict[str, Any]]:
     settings = config.get("settings", {})
     checks = config.get("checks", {})
     full_trigger_patterns = list(settings.get("full_trigger_patterns", []))
@@ -86,6 +104,28 @@ def select(config: dict[str, Any], paths: list[str]) -> list[dict[str, Any]]:
         selected[0]["id"] = "full-trigger"
         selected[0]["paths"] = full_trigger_paths
         return selected
+
+    if declare_behavior_change:
+        behavior_paths = instruction_behavior_surface_paths(config, paths)
+        if behavior_paths:
+            commands = behavioral_evidence_commands(config, declare_behavior_change)
+            if not commands:
+                # Model self-report is never accepted as behavioral evidence: a
+                # declaration with no configured, executable command for this
+                # runtime/provider fails closed to full validation instead of
+                # being taken on trust.
+                selected = full_checks(config, selection_reason="behavior-declaration-unproven")
+                selected[0]["id"] = "full-fallback"
+                selected[0]["paths"] = behavior_paths
+                return selected
+            behavior_check = {
+                "id": "instruction-behavior-change",
+                "paths": behavior_paths,
+                "commands": commands,
+                "selection_reason": "instruction-behavior-change",
+            }
+            remaining = [path for path in paths if path not in behavior_paths]
+            return [behavior_check] + select(config, remaining, declare_behavior_change=None)
 
     selected: list[dict[str, Any]] = []
     seen: set[str] = set()
@@ -267,6 +307,17 @@ def main() -> int:
     parser.add_argument("--mode", choices=("local-affected", "protected-full"), default="local-affected")
     parser.add_argument("--protected-full", action="store_true", help="Alias for --mode protected-full.")
     parser.add_argument("--full", action="store_true", help="Deprecated alias for --mode protected-full.")
+    parser.add_argument(
+        "--declare-behavior-change",
+        metavar="RUNTIME",
+        help=(
+            "Declare that an instruction/prompt-surface change intentionally changes agent "
+            "behavior for RUNTIME. The configured behavioral evidence command(s) for RUNTIME "
+            "are executed as part of this invocation; a declaration with no configured, "
+            "executed, successful command falls back to full validation. A model's own report "
+            "that the change is safe is never accepted in place of an executed command."
+        ),
+    )
     args = parser.parse_args()
 
     if args.protected_full or args.full:
@@ -275,7 +326,11 @@ def main() -> int:
     root = current_worktree_root()
     config = load_config(root)
     paths = [] if args.mode == "protected-full" else changed_files(root, args.base, args.changed_file)
-    checks = full_checks(config) if args.mode == "protected-full" else select(config, paths)
+    checks = (
+        full_checks(config)
+        if args.mode == "protected-full"
+        else select(config, paths, declare_behavior_change=args.declare_behavior_change)
+    )
     harness = str(read_platform_config(root).get("harness_mode", "platform"))
     status = validate_platform_selection(checks, harness)
 
