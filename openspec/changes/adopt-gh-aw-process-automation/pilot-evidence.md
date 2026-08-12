@@ -204,12 +204,49 @@ except real Codex-leg acceptance, which is externally blocked.
   but non-viable quick task.
 - `lehard/dev-platform#213` -- the Claude hand-off near-miss described above.
 
+## 2026-08-12 genuine scheduled Weekly Process Backlog Review run (task 5.6, closed)
+
+Rather than wait out the normal weekly cadence, the schedule was temporarily
+changed to fire once near-term, the real trigger was observed and recorded,
+and the schedule was reverted -- all on `main`, since GitHub only evaluates
+scheduled-workflow cron from the default branch.
+
+- `PR #217` (merged 2026-08-12T21:48:49Z) changed `on.schedule` from the
+  fuzzy `weekly` shorthand to a single fixed `cron: "10 22 * * *"` for
+  `weekly-process-backlog-review.md`, recompiled with the pinned `gh aw`
+  v0.85.4, and included only that one-line cron change plus the
+  frontmatter-hash metadata line gh-aw derives from it.
+- The real GitHub scheduler fired run
+  [`31649072869`](https://github.com/lehard/dev-platform/actions/runs/31649072869)
+  at `2026-08-12T22:57:52Z` -- about 47 minutes after the configured
+  22:10 UTC, a live demonstration of GitHub's documented scheduling delay.
+  `gh run view 31649072869 --json status,conclusion,event` confirmed
+  `"event":"schedule"`, `"conclusion":"success"`; all five jobs (activation,
+  agent, detection, safe_outputs, conclusion) succeeded; total runtime
+  ~4.5 minutes.
+- The run produced exactly one bounded, useful advisory issue,
+  [`lehard/dev-platform#221`](https://github.com/lehard/dev-platform/issues/221)
+  ("[process-backlog] 2026-08-12"), following the required
+  new/duplicates/needs-evidence/ready-for-decision structure and creating no
+  Development Backlog task (satisfying 5.7 again on real data). It ran under
+  the cloud pilot's own Actions-secret Codex credentials -- a separate
+  credential pool from the locally authenticated `codex` CLI used for 6.1/6.11,
+  which is why this run's success does not by itself unblock 6.11's Codex
+  leg.
+- `PR #222` (merged 2026-08-12T23:08:13Z) reverted `weekly-process-backlog-review.md`
+  and its compiled lock file to be byte-identical to their pre-probe state
+  (`diff` against a pre-change backup confirmed no residual difference);
+  `main`'s schedule is `cron: "25 22 * * 4"` (fuzzy weekly, scattered) again.
+- Both quick-task PRs reported a false `exit_code: 1` from their wrapping
+  shell after actually completing successfully (GitHub `MERGED`, local main
+  fast-forwarded, worktree cleaned up) -- the already-recorded
+  `dogfood-finish-cwd-self-deletion` near-miss (`finish_task.py`'s cleanup
+  deletes the very worktree the invoking shell's cwd is inside). Each
+  outcome was independently confirmed via `gh pr view --json state,mergedAt`
+  and `git log`, not by trusting the shell's reported exit code.
+
 ## Remaining acceptance work
 
-- Observe a real scheduled weekly run; the workflow's manual dispatch has been
-  verified, but the scheduled half of task 5.6 has not yet occurred. Nearest
-  expected slot per the 2026-08-11 checkpoint comment on
-  `lehard/development-backlog#5`: 2026-08-13 22:25 UTC.
 - Task 5.12 (truthful final-report retrospective statement) is satisfied by
   this task's own terminal report, not by a unit test; it closes when this
   task actually completes.
