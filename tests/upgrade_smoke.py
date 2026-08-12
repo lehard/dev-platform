@@ -105,6 +105,10 @@ def main() -> int:
             raise SystemExit("Copier update did not materialize managed-task start")
         if not (target / "scripts" / "managed_project_status.py").is_file():
             raise SystemExit("Copier update did not materialize managed Project status reconciliation")
+        if not (target / "scripts" / "model_routing.py").is_file():
+            raise SystemExit("Copier update did not materialize provider-local model routing")
+        if not (target / "docs" / "engineering" / "model-routing.md").is_file():
+            raise SystemExit("Copier update did not materialize model-routing guidance")
         updated_config = platform_config.read_text(encoding="utf-8")
         if (
             "[development_backlog]" not in updated_config

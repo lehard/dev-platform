@@ -32,6 +32,19 @@ tested_version = "9.17.0"
 [tools.rollout]
 bot_login = "dev-platform-bot-lehard[bot]"
 
+[model_routing]
+enabled = true
+
+[model_routing.codex]
+routine_model = "gpt-5.6-terra"
+standard_model = "gpt-5.6-terra"
+complex_model = "gpt-5.6-sol"
+
+[model_routing.claude]
+routine_model = "haiku"
+standard_model = "sonnet"
+complex_model = "opus"
+
 [promotion]
 repo = "lehard/dev-platform"
 

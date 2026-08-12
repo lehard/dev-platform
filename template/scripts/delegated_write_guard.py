@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
-"""The one supported platform entrypoint for write-capable delegated execution.
+"""Containment observation and legacy fallback for write-capable delegation.
 
 See openspec/specs/platform-delegation/spec.md and the active
 wire-runtime-delegation-containment change for the contract. A delegation is
-platform-contained only when it goes through `run_guarded_delegation` below;
-invoking a write-capable subagent/subprocess any other way is not represented
-as platform-contained, even if it happens to behave safely.
+platform-contained when it has a valid assigned worktree, a proven native or
+fallback boundary, and the post-delegation comparison below. Native runtime
+containment is the preferred prevention layer; this module observes it and
+retains the smallest compatibility fallback. ``run_guarded_delegation`` is a
+backwards-compatible name, while new native callers should use
+``run_observed_delegation`` to avoid implying that a second custom guard is
+what protects the filesystem.
 
 Guarded flow, always in this order:
 
@@ -103,7 +107,7 @@ class GuardedChildError(ContainmentError):
 # --------------------------------------------------------------------------
 
 
-def run_guarded_delegation(
+def run_observed_delegation(
     *,
     integration_root: Path,
     assigned_worktree: str | Path,
@@ -113,7 +117,7 @@ def run_guarded_delegation(
     task: str | None = None,
     timeout: float | None = None,
 ) -> GuardedRunResult:
-    """Run one write-capable delegated child under the guarded containment contract.
+    """Run one delegated child under a native/fallback containment contract.
 
     Always validates assigned_worktree first (fail closed before any launch), always
     snapshots before launch, always launches with cwd=assigned_worktree, and always
@@ -181,6 +185,28 @@ def run_guarded_delegation(
         ) from launch_exception
 
     return result
+
+
+def run_guarded_delegation(
+    *,
+    integration_root: Path,
+    assigned_worktree: str | Path,
+    argv: list[str],
+    tier_decision: EnforcementDecision,
+    env: dict[str, str] | None = None,
+    task: str | None = None,
+    timeout: float | None = None,
+) -> GuardedRunResult:
+    """Compatibility alias for callers that still use the former guard name."""
+    return run_observed_delegation(
+        integration_root=integration_root,
+        assigned_worktree=assigned_worktree,
+        argv=argv,
+        tier_decision=tier_decision,
+        env=env,
+        task=task,
+        timeout=timeout,
+    )
 
 
 # --------------------------------------------------------------------------

@@ -48,6 +48,12 @@ managed provenance and therefore do not touch the Project.
 
 Bootstrap exception: Development Backlog issue lehard/development-backlog#1 introduced the importer, so its package was manually scaffolded through the current OpenSpec CLI after target and semantic preflight. All later managed tasks use the managed-start command.
 
+## Provider-local model routing
+
+After managed OpenSpec materialization, a strong parent/supervisor records its bounded semantic preflight with `scripts/model_routing.py prepare`. It selects `routine`, `standard`, or `complex` based on uncertainty, blast radius, failure cost, verification difficulty, contract conflicts and material unknowns; users do not choose an executor. Concrete provider-local model mappings are replaceable `[model_routing]` policy in `.dev-platform.toml`, not durable task artifacts.
+
+Codex routine/standard execution is launched only with proven native `workspace-write` containment; otherwise the parent retains the work or reports an actionable capability limit. Claude Code execution uses the emitted `claude-agent` definition with `isolation: worktree`, followed by the supervisor's `postcheck`. The parent always reviews the resulting diff and runs normal verification. Escalate routine/standard work on material conflicts, unexpected cross-cutting scope, low confidence or repeated substantive verification failures with `scripts/model_routing.py escalate --reason "..."`; preserve the existing task worktree and evidence.
+
 ## Publishing
 
 Protected main and zero-hand-off are compatible. The safe normal configuration for feature-capable projects is:

@@ -325,6 +325,17 @@ class GuardedDelegationTests(unittest.TestCase):
         self.assertTrue((self.worktree / "output.txt").exists())
         self.assertFalse(self._friction_log().exists())
 
+    def test_native_observer_alias_preserves_post_check_contract(self) -> None:
+        result = guard.run_observed_delegation(
+            integration_root=self.integration,
+            assigned_worktree=self.worktree,
+            argv=[sys.executable, "-c", "from pathlib import Path; Path('native.txt').write_text('ok')"],
+            tier_decision=guard.EnforcementDecision(guard.EnforcementTier.HARD, "native-test", "native boundary proven"),
+        )
+        self.assertTrue(result.launched)
+        self.assertFalse(result.violation)
+        self.assertTrue((self.worktree / "native.txt").is_file())
+
     def test_writer_escaping_into_integration_root_is_a_violation_and_records_friction(self) -> None:
         escape_target = self.integration / "escaped.txt"
         script = self.worktree / "escape.py"
