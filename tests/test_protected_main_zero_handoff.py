@@ -27,7 +27,7 @@ def configure(repo: Path) -> None:
 def install_scripts(repo: Path) -> None:
     target = repo / "scripts"
     target.mkdir(exist_ok=True)
-    for name in ("_platform_common.py", "project_publish.py", "publication_state.py", "managed_project_status.py", "finish_task.py", "openspec_lifecycle.py"):
+    for name in ("_platform_common.py", "integration_state.py", "project_publish.py", "publication_state.py", "managed_project_status.py", "finish_task.py", "openspec_lifecycle.py"):
         shutil.copy2(SCRIPT_SOURCE / name, target / name)
 
 

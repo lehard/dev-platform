@@ -4,18 +4,9 @@ import argparse
 import json
 import os
 import subprocess
-import time
-from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator
-
-try:
-    import fcntl
-except ImportError:  # pragma: no cover - Windows fallback
-    fcntl = None
 
 from _platform_common import (
-    ensure_shared_path,
     current_worktree_root,
     fetch_main,
     github_cli_env,
@@ -27,9 +18,16 @@ from _platform_common import (
     publish_mode,
     read_platform_config,
     relation,
-    resolve_shared_group,
     run_git,
     preflight,
+)
+from integration_state import (
+    dirty_paths,
+    fcntl,
+    integration_clean,
+    local_state_matches_remote_target,
+    normalize_equivalent_remote_state,
+    serialized_integration,
 )
 import publication_state
 from managed_project_status import (
@@ -53,13 +51,6 @@ DIRECT_PUBLISH_GUARD = "DEV_PLATFORM_VALIDATED_DIRECT_PUBLISH"
 
 def clean(root: Path) -> bool:
     return not run_git(["status", "--porcelain"], cwd=root).stdout.strip()
-
-
-def integration_clean(root: Path, config: dict) -> bool:
-    """Ignore the platform's own untracked lock file, but no other mutation."""
-    lock = str(config.get("paths", {}).get("main_merge_lock", ".claude/main-merge.lock")).replace("\\", "/")
-    status = run_git(["status", "--porcelain", "--untracked-files=all"], cwd=root).stdout.splitlines()
-    return all(not line or line[3:].replace("\\", "/") == lock for line in status)
 
 
 def current_branch(root: Path) -> str:
@@ -228,33 +219,6 @@ def run_status(work: Path, integration: Path, config: dict, *, as_json: bool) ->
     return 0
 
 
-@contextmanager
-def serialized_integration(root: Path, config: dict, timeout_seconds: float) -> Iterator[None]:
-    relative = config.get("paths", {}).get("main_merge_lock", ".claude/main-merge.lock")
-    path = (root / relative).resolve()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    group = resolve_shared_group(root)
-    ensure_shared_path(path.parent, group=group)
-    with path.open("a+", encoding="utf-8") as lock_file:
-        ensure_shared_path(path, group=group)
-        if fcntl is None:
-            yield
-            return
-        deadline = time.monotonic() + timeout_seconds
-        while True:
-            try:
-                fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-                break
-            except BlockingIOError:
-                if time.monotonic() >= deadline:
-                    raise SystemExit("Another agent is still integrating into the main branch. Retry after it finishes.") from None
-                time.sleep(0.1)
-        try:
-            yield
-        finally:
-            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
-
-
 def integrate_and_publish_direct(work: Path, integration: Path, config: dict, branch: str, main_branch: str) -> None:
     fetch_main(integration, "origin", main_branch)
     remote_main = f"origin/{main_branch}"
@@ -282,7 +246,16 @@ def sync_after_remote_pr_merge(work: Path, integration: Path, config: dict, main
     # this task was waiting for the shared checkout.
     fetch_main(integration, "origin", main_branch)
     if not integration_clean(integration, config):
-        raise SystemExit("Remote PR merged, but the integration copy is dirty. Leave it untouched and synchronize main manually after resolving local state.")
+        remote_main = f"origin/{main_branch}"
+        paths = dirty_paths(integration, config)
+        if not local_state_matches_remote_target(integration, config, remote_main):
+            raise SystemExit(
+                "Remote PR is merged (authoritative), but local reconciliation is blocked by divergent integration content. "
+                "Leave it untouched and synchronize main manually after resolving local state. Affected paths: "
+                + ", ".join(paths)
+            )
+        normalize_equivalent_remote_state(integration, remote_main)
+        print(f"Normalized integration index to the already-merged {remote_main}; local content was proven equivalent.")
     remote_main = f"origin/{main_branch}"
     if work == integration:
         run_git(["switch", main_branch], cwd=integration)

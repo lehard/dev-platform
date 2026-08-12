@@ -1,0 +1,16 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "specs/platform-lifecycle/spec.md",
+    "specs/publication-recovery/spec.md",
+    "design.md",
+    "tasks.md"
+  ],
+  "change": "preflight-integration-before-remote-merge",
+  "imported_at": "2026-08-11T21:19:58+00:00",
+  "package_revision": "373f1a38f3059023bb72bbe78bdc75b0d184ff8b0e1fe73dba7d5cb8ba6482f8",
+  "prepared_against": "3c970b815b92f0711d85957a263330b8ecd9d439",
+  "source_issue": "lehard/development-backlog#16",
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

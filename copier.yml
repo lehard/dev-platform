@@ -16,6 +16,7 @@ _skip_if_exists:
   - "{{ 'scripts/agent_board.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
   - "{{ 'scripts/agent_doctor.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
   - "{{ 'scripts/agent_friction.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
+  - "{{ 'scripts/integration_state.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
   - "{{ 'scripts/finish_task.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
   - "{{ 'scripts/merge_to_main.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
   - "{{ 'scripts/project_publish.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
