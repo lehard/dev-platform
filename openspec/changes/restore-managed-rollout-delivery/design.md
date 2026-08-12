@@ -27,6 +27,13 @@ block-scalar workflows stay byte-sensitive.  The post-recopy target comparison
 remains exact bytes, so the recovery writes the candidate rendering rather than
 preserving formatting drift.
 
+The same retry then demonstrated that application validation can create
+disposable build outputs in the isolated downstream checkout.  The rollout
+commit must capture the reviewed Copier/bootstrap result before checks execute;
+otherwise a blanket post-check `git add -A` can accidentally deliver generated
+files or fail on their whitespace.  Check failures remain blockers, but their
+filesystem side effects are intentionally outside the staged reviewable diff.
+
 ### Keep permission ownership with backlog #12
 
 `enforce-shared-workspace-permissions` owns cross-user filesystem/Git permission semantics. This change may identify that a rollout failed because of those semantics, but must not fork their implementation. Such a leg becomes an acceptance dependency; other rollout causes remain independently actionable.

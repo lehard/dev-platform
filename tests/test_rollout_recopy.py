@@ -258,6 +258,40 @@ class GuardedRecopyTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, r"command failed \(exit 2\): git diff --cached --check --"):
                 rollout_project.run(["git", "diff", "--cached", "--check", "--"], self.root)
 
+    def test_stage_rollout_changes_excludes_later_validation_artifacts(self) -> None:
+        commands: list[list[str]] = []
+
+        def fake_run(command, cwd, **kwargs):
+            commands.append(command)
+            returncode = 1 if command == ["git", "diff", "--cached", "--quiet", "--"] else 0
+            return type("Result", (), {"returncode": returncode, "stdout": "", "stderr": ""})()
+
+        with patch.object(rollout_project, "run", side_effect=fake_run):
+            rollout_project.stage_rollout_changes(self.root)
+        self.assertEqual(
+            commands,
+            [
+                ["git", "add", "-A"],
+                ["git", "diff", "--cached", "--quiet", "--"],
+                ["git", "diff", "--cached", "--check", "--"],
+            ],
+        )
+
+    def test_stage_rollout_changes_blocks_empty_or_uninspectable_index(self) -> None:
+        empty = type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+        with patch.object(rollout_project, "run", return_value=empty):
+            with self.assertRaisesRegex(ValueError, "produced no repository diff"):
+                rollout_project.stage_rollout_changes(self.root)
+
+        broken = type("Result", (), {"returncode": 2, "stdout": "", "stderr": "broken index"})()
+
+        def fake_run(command, cwd, **kwargs):
+            return broken if command == ["git", "diff", "--cached", "--quiet", "--"] else empty
+
+        with patch.object(rollout_project, "run", side_effect=fake_run):
+            with self.assertRaisesRegex(ValueError, "could not inspect staged rollout changes: broken index"):
+                rollout_project.stage_rollout_changes(self.root)
+
     def test_guarded_recopy_runs_only_for_project_owned_rejects(self) -> None:
         commands: list[list[str]] = []
 
