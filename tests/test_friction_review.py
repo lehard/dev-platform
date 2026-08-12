@@ -35,15 +35,25 @@ class FrictionReviewTests(unittest.TestCase):
         self.original_which = agent_friction.shutil.which
         self.original_destination = agent_friction.destination_for
         self.original_branch = agent_friction.current_branch
+        self.original_worktree_root = agent_friction.current_worktree_root
+        self.original_current_head = agent_friction.current_head
         agent_friction.destination_for = lambda event: "example/project" if event["scope"] == "project" else "lehard/dev-platform"
         agent_friction.current_branch = lambda: "test-branch"
+        agent_friction.current_worktree_root = lambda: self.root
+        self.head = "a" * 40
+        agent_friction.current_head = lambda root: self.head
 
     def tearDown(self) -> None:
         agent_friction.gh = self.original_gh
         agent_friction.shutil.which = self.original_which
         agent_friction.destination_for = self.original_destination
         agent_friction.current_branch = self.original_branch
+        agent_friction.current_worktree_root = self.original_worktree_root
+        agent_friction.current_head = self.original_current_head
         self.tmp.cleanup()
+
+    def checkpoint_args(self, *, result: str | None = None, events: list[str] | None = None) -> object:
+        return type("Args", (), {"result": result, "events": events or []})()
 
     def write_events(self, count: int, *, severity: str = "medium") -> list[str]:
         ids: list[str] = []
@@ -201,15 +211,85 @@ class FrictionReviewTests(unittest.TestCase):
         self.assertEqual(agent_friction.read_state()["routes"]["route-me"]["status"], "routed")
 
     def test_checkpoint_none_is_explicit_and_creates_no_route(self) -> None:
-        args = type("Args", (), {"result": "none"})()
-        agent_friction.cmd_checkpoint(args)
+        agent_friction.cmd_checkpoint(self.checkpoint_args(result="none"))
         agent_friction.require_checkpoint("test-branch")
         self.assertEqual(agent_friction.read_state()["checkpoints"]["test-branch"]["result"], "none")
+        self.assertEqual(agent_friction.read_state()["checkpoints"]["test-branch"]["head"], self.head)
         self.assertEqual(agent_friction.read_state()["routes"], {})
 
     def test_missing_checkpoint_blocks_non_trivial_completion(self) -> None:
-        with self.assertRaisesRegex(SystemExit, "Completion friction checkpoint is required"):
+        with self.assertRaisesRegex(SystemExit, "retrospective is required"):
             agent_friction.require_checkpoint("test-branch")
+
+    def test_checkpoint_supports_multiple_findings_in_one_retrospective(self) -> None:
+        self.write_events(2)
+        agent_friction.cmd_checkpoint(self.checkpoint_args(events=["event-1", "event-2"]))
+        checkpoint = agent_friction.read_state()["checkpoints"]["test-branch"]
+        self.assertEqual(checkpoint["result"], "events")
+        self.assertEqual(checkpoint["event_ids"], ["event-1", "event-2"])
+        agent_friction.require_checkpoint("test-branch")
+
+    def test_checkpoint_rejects_unknown_finding_id(self) -> None:
+        with self.assertRaisesRegex(SystemExit, "Friction event not found: does-not-exist"):
+            agent_friction.cmd_checkpoint(self.checkpoint_args(events=["does-not-exist"]))
+
+    def test_checkpoint_rejects_none_combined_with_findings(self) -> None:
+        self.write_events(1)
+        with self.assertRaisesRegex(SystemExit, "cannot be combined"):
+            agent_friction.cmd_checkpoint(self.checkpoint_args(result="none", events=["event-1"]))
+
+    def test_checkpoint_requires_result_or_event(self) -> None:
+        with self.assertRaisesRegex(SystemExit, "requires --result none"):
+            agent_friction.cmd_checkpoint(self.checkpoint_args())
+
+    def test_stale_checkpoint_head_blocks_completion(self) -> None:
+        agent_friction.cmd_checkpoint(self.checkpoint_args(result="none"))
+        agent_friction.current_head = lambda root: "b" * 40
+        with self.assertRaisesRegex(SystemExit, "retrospective is stale"):
+            agent_friction.require_checkpoint("test-branch")
+
+    def test_fresh_checkpoint_after_new_commit_satisfies_completion(self) -> None:
+        agent_friction.cmd_checkpoint(self.checkpoint_args(result="none"))
+        agent_friction.current_head = lambda root: "b" * 40
+        with self.assertRaisesRegex(SystemExit, "retrospective is stale"):
+            agent_friction.require_checkpoint("test-branch")
+        agent_friction.cmd_checkpoint(self.checkpoint_args(result="none"))
+        agent_friction.require_checkpoint("test-branch")
+        self.assertEqual(agent_friction.read_state()["checkpoints"]["test-branch"]["head"], "b" * 40)
+
+    def test_checkpoint_referencing_already_recorded_event_creates_no_duplicate(self) -> None:
+        self.write_events(1)
+        before = len(agent_friction.read_events(None))
+        agent_friction.cmd_checkpoint(self.checkpoint_args(events=["event-1"]))
+        agent_friction.require_checkpoint("test-branch")
+        self.assertEqual(len(agent_friction.read_events(None)), before)
+
+    def test_positive_findings_satisfy_completion_despite_pending_routing_failure(self) -> None:
+        # A finding whose GitHub routing is still pending remains a valid local
+        # retrospective reference; routing failure must not block completion.
+        self.write_events(1)
+        with self.friction_lock_state() as state:
+            state["routes"]["event-1"] = {"status": "pending", "detail": "GitHub CLI is not authenticated"}
+        agent_friction.cmd_checkpoint(self.checkpoint_args(events=["event-1"]))
+        agent_friction.require_checkpoint("test-branch")
+
+    def friction_lock_state(self):
+        class _StateWriter:
+            def __enter__(inner):
+                inner.state = agent_friction.read_state()
+                return inner.state
+
+            def __exit__(inner, *exc):
+                agent_friction.atomic_write_json(agent_friction.state_path(), inner.state)
+
+        return _StateWriter()
+
+    def test_checkpoint_needs_no_managed_task_provenance(self) -> None:
+        # Quick tasks without Development Backlog provenance reuse the same
+        # branch/head identity; no managed-task state is required.
+        self.assertFalse((self.root / "openspec").exists())
+        agent_friction.cmd_checkpoint(self.checkpoint_args(result="none"))
+        agent_friction.require_checkpoint("test-branch")
 
 
 if __name__ == "__main__":

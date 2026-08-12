@@ -190,6 +190,25 @@ python3 scripts/agent_friction.py record --category <category> --scope project -
 
 Legacy `pending`, `review`, `mark-reviewed`, and `promote` commands remain recovery surfaces; do not make them a routine completion ritual.
 
+### Post-task retrospective
+
+Before non-trivial completion, run a distinct post-task retrospective — a real semantic review, not just picking a checkpoint value. Inspect the substantive task execution for: user corrections or a changed understanding caused by an avoidable miss; repeated substantive failures or excessive retries; a manual workaround or unsupported detour; a safety near-miss; a false premise; an undocumented invariant; missing automation/documentation that materially slowed or repeated work; tooling/auth/worktree/Git/OpenSpec/CI/lifecycle friction; avoidable repeated actions; and problems noticed but intentionally left unresolved. Do not catalog routine successful work.
+
+Classify each candidate as exactly one of:
+
+1. already resolved during this task — no new friction record;
+2. already represented by an existing recorded friction/process event — reference it, do not duplicate it;
+3. new and meaningful, unresolved and unrecorded — record it with `agent_friction.py record`.
+
+Only class 3 produces a new event. One retrospective legitimately yields zero, one, or several findings.
+
+```bash
+python3 scripts/agent_friction.py checkpoint --result none
+python3 scripts/agent_friction.py checkpoint --event <id> [--event <id> ...]
+```
+
+`--result none` is valid only after the retrospective actually ran and found nothing new. The checkpoint binds to the task's current branch and Git head; `finish_task.py` rejects it as stale once new commits land, so a fresh retrospective is required after further changes. A missing or stale checkpoint blocks publication with an actionable instruction — `finish_task.py` never invents `none` on the agent's behalf. Deterministic lifecycle failures the platform already records directly (for example a failed `select_checks.py` or `openspec_lifecycle.py check` run) count as already recorded; the retrospective should recognize them rather than duplicate them.
+
 ## Completion
 
 Before reporting a non-trivial OpenSpec task as complete:
@@ -201,6 +220,8 @@ Before reporting a non-trivial OpenSpec task as complete:
 - the OpenSpec change has been archived through the lifecycle helper;
 - the task is published according to the configured mode;
 - temporary machine-local artifacts are not tracked;
-- the completion friction checkpoint is resolved: `python3 scripts/agent_friction.py checkpoint --result none`, or pass the id of a recorded meaningful friction event.
+- the post-task retrospective ran and the completion friction checkpoint reflects its current result (`--result none`, or every `--event <id>` it produced).
+
+The final report states that the retrospective ran and either lists its findings/evidence or says explicitly that no new unresolved/unrecorded friction was found; no separate human reminder should be needed to trigger it.
 
 If any required completion step is blocked, report the blocker instead of saying the task is done.

@@ -101,6 +101,11 @@ def current_branch() -> str:
     return result.stdout.strip() if result.returncode == 0 and result.stdout.strip() else "unknown"
 
 
+def current_head(root: Path) -> str | None:
+    result = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, text=True, capture_output=True)
+    return result.stdout.strip() if result.returncode == 0 and result.stdout.strip() else None
+
+
 def cmd_record(args: argparse.Namespace) -> int:
     path = log_path()
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -459,11 +464,35 @@ def cmd_route_pending(_: argparse.Namespace) -> int:
 
 
 def cmd_checkpoint(args: argparse.Namespace) -> int:
+    """Record the post-task retrospective result: zero or more findings.
+
+    ``--result none`` means the retrospective actually ran and found no new
+    meaningful unresolved/unrecorded friction. ``--result <id>``/``--event
+    <id>`` (repeatable) reference existing recorded friction events this
+    retrospective classified as new meaningful findings; already-resolved or
+    already-recorded candidates are simply not referenced here.
+    """
     branch = current_branch()
-    event_id = None if args.result == "none" else args.result
-    if event_id is not None and not any(str(event.get("id")) == event_id for event in read_events(None)):
-        raise SystemExit(f"Friction event not found: {event_id}")
-    checkpoint = {"result": args.result, "event_id": event_id, "at": utc_now(), "branch": branch}
+    root = current_worktree_root()
+    explicit_none = args.result == "none"
+    event_ids: list[str] = list(dict.fromkeys([*args.events, *([args.result] if args.result not in (None, "none") else [])]))
+    if explicit_none and event_ids:
+        raise SystemExit("--result none cannot be combined with recorded findings; a clean retrospective references zero events")
+    if not explicit_none and not event_ids:
+        raise SystemExit(
+            "checkpoint requires --result none for a clean retrospective, or --result/--event with one or more recorded finding ids"
+        )
+    known_ids = {str(event.get("id")) for event in read_events(None)}
+    missing = [event_id for event_id in event_ids if event_id not in known_ids]
+    if missing:
+        raise SystemExit(f"Friction event not found: {', '.join(missing)}")
+    checkpoint = {
+        "result": "events" if event_ids else "none",
+        "event_ids": event_ids,
+        "at": utc_now(),
+        "branch": branch,
+        "head": current_head(root),
+    }
     with friction_lock():
         state = read_state()
         state["checkpoints"][branch] = checkpoint
@@ -473,16 +502,43 @@ def cmd_checkpoint(args: argparse.Namespace) -> int:
 
 
 def cmd_assert_checkpoint(args: argparse.Namespace) -> int:
-    require_checkpoint(args.branch or current_branch())
+    require_checkpoint(args.branch or current_branch(), current_worktree_root())
     return 0
 
 
-def require_checkpoint(branch: str) -> None:
+def require_checkpoint(branch: str, root: Path | None = None) -> None:
+    """Reject a missing, malformed or stale post-task retrospective receipt.
+
+    Freshness reuses the task's own branch/head instead of a second identity
+    system: a retrospective recorded against an earlier head no longer
+    satisfies completion once the branch has moved on.
+    """
     checkpoint = read_state().get("checkpoints", {}).get(branch)
-    if not isinstance(checkpoint, dict) or checkpoint.get("result") in (None, ""):
+    if not isinstance(checkpoint, dict) or checkpoint.get("result") not in ("none", "events"):
         raise SystemExit(
-            "Completion friction checkpoint is required for this non-trivial platform task. "
-            "Run `python3 scripts/agent_friction.py checkpoint --result none` or provide a recorded event id."
+            "Completion friction retrospective is required for this non-trivial platform task. "
+            "Run `python3 scripts/agent_friction.py checkpoint --result none` after reviewing the task for "
+            "unresolved friction, or `--event <id>` (repeatable) for each recorded meaningful finding."
+        )
+    if checkpoint.get("result") == "events":
+        event_ids = checkpoint.get("event_ids") or []
+        if not event_ids:
+            raise SystemExit("Retrospective checkpoint declares findings but records no event ids; rerun the retrospective.")
+        known_ids = {str(event.get("id")) for event in read_events(None)}
+        missing = [event_id for event_id in event_ids if event_id not in known_ids]
+        if missing:
+            raise SystemExit(
+                f"Retrospective checkpoint references unknown friction event id(s): {', '.join(missing)}; rerun the retrospective."
+            )
+    resolved_root = root if root is not None else current_worktree_root()
+    current = current_head(resolved_root)
+    if current is None:
+        raise SystemExit("Could not determine the current task head to verify retrospective freshness.")
+    if checkpoint.get("head") != current:
+        raise SystemExit(
+            "Completion friction retrospective is stale for the current task execution state "
+            f"(recorded head {checkpoint.get('head')!r}, current head {current!r}). "
+            "Run a fresh `python3 scripts/agent_friction.py checkpoint ...` after reviewing the latest changes."
         )
 
 
@@ -573,8 +629,9 @@ def main() -> int:
     p = sub.add_parser("route-pending", help="retry locally retained friction events without failing the caller")
     p.set_defaults(func=cmd_route_pending)
 
-    p = sub.add_parser("checkpoint", help="resolve the required completion friction checkpoint")
-    p.add_argument("--result", required=True, help="'none' or a recorded friction event id")
+    p = sub.add_parser("checkpoint", help="resolve the required post-task friction retrospective")
+    p.add_argument("--result", help="'none' for a clean retrospective, or a recorded friction event id")
+    p.add_argument("--event", dest="events", action="append", default=[], help="repeatable: another recorded finding id from this retrospective")
     p.set_defaults(func=cmd_checkpoint)
 
     p = sub.add_parser("assert-checkpoint", help="fail unless the current task checkpoint is resolved")

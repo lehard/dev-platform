@@ -98,10 +98,57 @@ metrics above are therefore actual retrieved data.
 - The current task checkpoint was resolved positively with local structured
   event `dbdbc3ffea2f`, routed to #126.
 
+## 2026-08-12 mandatory post-task retrospective (tasks 3.7-3.12, 5.8-5.11)
+
+The 2026-08-12 issue revision strengthened the checkpoint from a bare
+`none | one event` value into a required post-task retrospective. The
+completion identity extension lives entirely in
+`template/scripts/agent_friction.py`; `finish_task.py`'s call site
+(`run_friction_retry_and_checkpoint` -> `assert-checkpoint`) is unchanged,
+so the stronger contract applies through the exact boundary already used for
+task 3.2's original checkpoint.
+
+- `checkpoint --result none` still means a clean run, but is now rejected if
+  combined with `--event`; `checkpoint --event <id>` is repeatable, so one
+  retrospective can reference `0..N` existing recorded friction events
+  (already-recorded findings) without creating duplicates. A candidate
+  resolved during the task is simply never referenced -- no CLI call, no new
+  state.
+- The stored checkpoint now binds `branch` + current Git `head`.
+  `require_checkpoint`/`assert-checkpoint` reject a checkpoint whose recorded
+  head no longer matches the branch's current head, so a stale receipt from
+  earlier work cannot silently satisfy new commits; the rejection message is
+  actionable (tells the agent to rerun the retrospective).
+- `require_checkpoint` also rejects a checkpoint that references a friction
+  event id no longer present in the local log, without ever inventing `none`
+  on the agent's behalf.
+- Referenced findings whose GitHub routing is still `pending` (auth/network
+  failure) still satisfy completion: only local existence is checked, so
+  routing failure remains non-blocking for otherwise safe publication.
+- `tests/test_friction_review.py` gained 8 new cases exercising this
+  end-to-end through the real `cmd_checkpoint`/`require_checkpoint` functions:
+  multiple findings in one retrospective, unknown-id rejection, `none`
+  combined with findings rejected, missing-argument rejection, stale-head
+  rejection, fresh-after-new-commit acceptance, already-recorded reference
+  creating no duplicate, pending-routing-failure tolerance, and
+  no-managed-provenance-required (quick-task) behavior. All 20 cases in that
+  module pass; see task 5.8-5.11 evidence pointers in `tasks.md`.
+- Generated guidance (`AGENTS.md`, `template/AGENTS.md.jinja`) now documents
+  the retrospective as a distinct semantic pass -- inspect signal classes,
+  classify resolved / already-recorded / new-unresolved, record only the
+  last class -- and states the final report must truthfully say the
+  retrospective ran and list findings or say none were found.
+
 ## Remaining acceptance work
 
 - Observe a real scheduled weekly run; the workflow's manual dispatch has been
-  verified, but the scheduled half of task 5.6 has not yet occurred.
+  verified, but the scheduled half of task 5.6 has not yet occurred. Nearest
+  expected slot per the 2026-08-11 checkpoint comment on
+  `lehard/development-backlog#5`: 2026-08-13 22:25 UTC.
+- Task 5.12 (truthful final-report retrospective statement) is satisfied by
+  this task's own terminal report, not by a unit test; it closes when this
+  task actually completes.
 - Before archival, perform the full semantic OpenSpec verification and then
-  record its truthful verification receipt. This active change is not ready to
-  archive or release yet.
+  record its truthful verification receipt. This active change is still not
+  ready to archive or release: 5.6 and 5.12 remain open, and archival cannot
+  precede them.

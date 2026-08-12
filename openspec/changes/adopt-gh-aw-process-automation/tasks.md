@@ -26,12 +26,12 @@
 
 ### 3A. Strengthen the checkpoint with an actual post-task retrospective
 
-- [ ] 3.7 Define the minimal retrospective receipt/state extension so one review can represent `0..N` recorded friction event ids and so `none` is distinguishable from “review not performed”.
-- [ ] 3.8 Reuse current task-local lifecycle/provenance identity to make retrospective evidence fresh for the current execution state; do not add a parallel task database. `lehard/development-backlog#18` is complete and may be relied on for managed-task identity isolation.
-- [ ] 3.9 Add the bounded semantic retrospective flow before completion: inspect the agreed signal classes, classify candidates as resolved / already recorded / new unresolved, and record all new meaningful unresolved/unrecorded findings.
-- [ ] 3.10 Make the authoritative `finish_task` boundary reject missing or stale retrospective evidence and validate referenced positive local events without inventing `none`.
-- [ ] 3.11 Update generated Codex/Claude guidance and final-report expectations so the retrospective runs without a human reminder and reports either the recorded findings or an explicit clean result.
-- [ ] 3.12 Add deterministic regression coverage for multiple findings in one review, clean zero-finding review, resolved/already-recorded filtering, stale receipt rejection, positive findings with temporary routing failure, and quick/non-applicable scope behavior.
+- [x] 3.7 Define the minimal retrospective receipt/state extension so one review can represent `0..N` recorded friction event ids and so `none` is distinguishable from “review not performed”.
+- [x] 3.8 Reuse current task-local lifecycle/provenance identity to make retrospective evidence fresh for the current execution state; do not add a parallel task database. `lehard/development-backlog#18` is complete and may be relied on for managed-task identity isolation.
+- [x] 3.9 Add the bounded semantic retrospective flow before completion: inspect the agreed signal classes, classify candidates as resolved / already recorded / new unresolved, and record all new meaningful unresolved/unrecorded findings.
+- [x] 3.10 Make the authoritative `finish_task` boundary reject missing or stale retrospective evidence and validate referenced positive local events without inventing `none`.
+- [x] 3.11 Update generated Codex/Claude guidance and final-report expectations so the retrospective runs without a human reminder and reports either the recorded findings or an explicit clean result.
+- [x] 3.12 Add deterministic regression coverage for multiple findings in one review, clean zero-finding review, resolved/already-recorded filtering, stale receipt rejection, positive findings with temporary routing failure, and quick/non-applicable scope behavior.
 
 ## 4. Preserve the process-evidence / managed-task boundary
 
@@ -48,11 +48,11 @@
 - [x] 5.5 Verify the original completion checkpoint accepts a clean `none` path with no issue noise and a positive path with a structured routed event.
 - [ ] 5.6 Observe at least one genuine scheduled `Weekly Process Backlog Review` run (not `workflow_dispatch`), verify the result is bounded/useful, and confirm deterministic CI/release remains independent if the agentic workflow fails.
 - [x] 5.7 Confirm weekly/triage output remains advisory and does not create any Development Backlog task or implementation activity.
-- [ ] 5.8 Controlled non-trivial task with at least two distinct unrecorded semantic friction conditions completes only after the retrospective records/references both without a user reminder.
-- [ ] 5.9 Controlled clean task completes the retrospective with zero findings; only then is `none` accepted and no issue noise is created.
-- [ ] 5.10 Controlled task containing one resolved problem and one already-recorded problem creates no duplicate event for those candidates.
-- [ ] 5.11 Missing or stale retrospective evidence prevents terminal completion with an actionable instruction, while a fresh result for the current task state succeeds.
-- [ ] 5.12 Final agent output truthfully reports retrospective completion and either the captured findings or the clean zero-finding result.
+- [x] 5.8 Controlled non-trivial task with at least two distinct unrecorded semantic friction conditions completes only after the retrospective records/references both without a user reminder. Evidence: `tests/test_friction_review.py::test_checkpoint_supports_multiple_findings_in_one_retrospective` exercises `cmd_checkpoint`/`require_checkpoint` end to end with two distinct finding ids through the exact code path `finish_task.py` calls.
+- [x] 5.9 Controlled clean task completes the retrospective with zero findings; only then is `none` accepted and no issue noise is created. Evidence: `test_checkpoint_none_is_explicit_and_creates_no_route`.
+- [x] 5.10 Controlled task containing one resolved problem and one already-recorded problem creates no duplicate event for those candidates. Evidence: `test_checkpoint_referencing_already_recorded_event_creates_no_duplicate` (already-recorded, referenced without duplication); a resolved-in-task candidate is a semantic no-op by design (no CLI call at all), documented in generated guidance.
+- [x] 5.11 Missing or stale retrospective evidence prevents terminal completion with an actionable instruction, while a fresh result for the current task state succeeds. Evidence: `test_missing_checkpoint_blocks_non_trivial_completion`, `test_stale_checkpoint_head_blocks_completion`, `test_fresh_checkpoint_after_new_commit_satisfies_completion`.
+- [ ] 5.12 Final agent output truthfully reports retrospective completion and either the captured findings or the clean zero-finding result. Pending this task's own terminal report.
 
 ## 6. Verify, archive and release centrally
 
