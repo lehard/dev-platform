@@ -1,4 +1,5 @@
 .claude/
+.managed-task-state.json
 .github/aw/logs/
 AGENTS.local.md
 __pycache__/

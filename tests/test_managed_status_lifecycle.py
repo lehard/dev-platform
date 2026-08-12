@@ -57,16 +57,17 @@ class ManagedStatusLifecycleTests(unittest.TestCase):
             root = Path(tmp)
             events: list[str] = []
             project = SimpleNamespace(changed=False, source_issue="lehard/development-backlog#8")
-            source = SimpleNamespace(reference="lehard/development-backlog#8")
+            identity = SimpleNamespace(source_issue="lehard/development-backlog#8", change="managed")
 
             def record_done(*args, **kwargs):
-                self.assertEqual(kwargs["source_issue"], source.reference)
+                self.assertEqual(kwargs["source_issue"], identity.source_issue)
                 events.append("done")
                 return project
 
             with (
-                mock.patch.object(finish_task, "discover_managed_source", return_value=source),
+                mock.patch.object(finish_task, "delivery_identity", return_value=identity),
                 mock.patch.object(finish_task, "sync_after_remote_pr_merge", side_effect=lambda *args: events.append("sync")),
+                mock.patch.object(finish_task, "assert_integration_identity_cross_check"),
                 mock.patch.object(
                     finish_task,
                     "reconcile_managed_project",
@@ -94,8 +95,8 @@ class ManagedStatusLifecycleTests(unittest.TestCase):
             with (
                 mock.patch.object(
                     finish_task,
-                    "discover_managed_source",
-                    return_value=SimpleNamespace(reference="lehard/development-backlog#8"),
+                    "delivery_identity",
+                    return_value=SimpleNamespace(source_issue="lehard/development-backlog#8", change="managed"),
                 ),
                 mock.patch.object(finish_task, "sync_after_remote_pr_merge") as sync,
                 mock.patch.object(
@@ -117,6 +118,36 @@ class ManagedStatusLifecycleTests(unittest.TestCase):
                         timeout_seconds=1,
                     )
             sync.assert_called_once()
+            cleanup.assert_not_called()
+
+    def test_terminal_identity_mismatch_blocks_project_mutation_after_sync(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            identity = SimpleNamespace(source_issue="lehard/development-backlog#8", change="managed-a")
+            with (
+                mock.patch.object(finish_task, "delivery_identity", return_value=identity),
+                mock.patch.object(finish_task, "sync_after_remote_pr_merge") as sync,
+                mock.patch.object(
+                    finish_task,
+                    "assert_integration_identity_cross_check",
+                    side_effect=finish_task.ManagedTaskError("exact task=#8; integration state=#9"),
+                ),
+                mock.patch.object(finish_task, "reconcile_managed_project") as reconcile,
+                mock.patch.object(finish_task, "cleanup_completed_task") as cleanup,
+            ):
+                with self.assertRaisesRegex(SystemExit, "merged.*pending.*integration state=#9"):
+                    finish_task.reconcile_confirmed_remote_pr_merge(
+                        root,
+                        root,
+                        {"paths": {"main_merge_lock": ".lock"}},
+                        "agent/managed",
+                        "main",
+                        "standard",
+                        cleanup=True,
+                        timeout_seconds=1,
+                    )
+            sync.assert_called_once()
+            reconcile.assert_not_called()
             cleanup.assert_not_called()
 
     def test_resume_derives_active_state_but_never_infers_done(self) -> None:

@@ -32,16 +32,26 @@ from integration_state import (
 import publication_state
 from managed_project_status import (
     ManagedProjectStatusError,
-    discover_source_issue as discover_managed_source,
     reconcile as reconcile_managed_project,
 )
 try:
-    from managed_task import ManagedTaskError, require_delivery_provenance
+    from managed_task import (
+        ManagedTaskError,
+        assert_integration_identity_cross_check,
+        delivery_identity,
+        require_delivery_provenance,
+    )
 except ModuleNotFoundError:  # Compatibility while a pre-managed-intake render is being upgraded.
     class ManagedTaskError(RuntimeError):
         pass
 
     def require_delivery_provenance(root: Path):
+        return None
+
+    def delivery_identity(root: Path):
+        return None
+
+    def assert_integration_identity_cross_check(integration: Path, identity) -> None:
         return None
 
 
@@ -310,22 +320,19 @@ def reconcile_confirmed_remote_pr_merge(
 ) -> None:
     """Serialize only local post-MERGED reconciliation, never remote waits."""
     try:
-        require_delivery_provenance(work)
+        identity = delivery_identity(work)
     except ManagedTaskError as exc:
         raise SystemExit("Managed task provenance is invalid before terminal reconciliation: " + str(exc)) from exc
-    try:
-        managed_source = discover_managed_source(work, config)
-    except ManagedProjectStatusError as exc:
-        raise SystemExit("Managed task provenance is ambiguous before terminal reconciliation: " + str(exc)) from exc
     with serialized_integration(integration, config, timeout_seconds):
         sync_after_remote_pr_merge(work, integration, config, main_branch)
         try:
+            assert_integration_identity_cross_check(integration, identity)
             project = reconcile_managed_project(
                 work,
                 "Done",
-                source_issue=managed_source.reference if managed_source else None,
+                source_issue=identity.source_issue if identity else None,
             )
-        except ManagedProjectStatusError as exc:
+        except (ManagedProjectStatusError, ManagedTaskError) as exc:
             raise SystemExit(
                 "GitHub confirms the task PR is merged and local main is synchronized, "
                 "but managed Project reconciliation is pending: " + str(exc)
@@ -438,18 +445,19 @@ def main() -> int:
     if mode != "direct":
         raise SystemExit(f"Unknown publish_mode: {mode}")
     try:
-        managed_source = discover_managed_source(work, config)
-    except ManagedProjectStatusError as exc:
-        raise SystemExit("Managed task provenance is ambiguous before direct publication: " + str(exc)) from exc
+        identity = delivery_identity(work)
+    except ManagedTaskError as exc:
+        raise SystemExit("Managed task provenance is invalid before direct publication: " + str(exc)) from exc
     with serialized_integration(integration, config, args.merge_timeout):
         integrate_and_publish_direct(work, integration, config, branch, main_branch)
         try:
+            assert_integration_identity_cross_check(integration, identity)
             project = reconcile_managed_project(
                 work,
                 "Done",
-                source_issue=managed_source.reference if managed_source else None,
+                source_issue=identity.source_issue if identity else None,
             )
-        except ManagedProjectStatusError as exc:
+        except (ManagedProjectStatusError, ManagedTaskError) as exc:
             raise SystemExit(
                 "Direct publication succeeded, but managed Project reconciliation is pending: " + str(exc)
             ) from exc

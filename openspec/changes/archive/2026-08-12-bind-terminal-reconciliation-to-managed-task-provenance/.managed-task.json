@@ -1,0 +1,16 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "specs/managed-task-intake/spec.md",
+    "specs/platform-lifecycle/spec.md",
+    "design.md",
+    "tasks.md"
+  ],
+  "change": "bind-terminal-reconciliation-to-managed-task-provenance",
+  "imported_at": "2026-08-12T11:01:49+00:00",
+  "package_revision": "dadbbb3cb9c82f76986164877da8c789f53f03bde1601517c150a2318f058555",
+  "prepared_against": "5eb43498ec0ba996932adf9d0a46d1df5993e29a",
+  "source_issue": "lehard/development-backlog#18",
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
