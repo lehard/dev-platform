@@ -45,7 +45,7 @@
 - [x] 5.9 Controlled clean task completes the retrospective with zero findings; only then is `none` accepted and no issue noise is created. Evidence: `test_checkpoint_none_is_explicit_and_creates_no_route`.
 - [x] 5.10 Controlled task containing one resolved problem and one already-recorded problem creates no duplicate event for those candidates. Evidence: `test_checkpoint_referencing_already_recorded_event_creates_no_duplicate` (already-recorded, referenced without duplication); a resolved-in-task candidate is a semantic no-op by design (no CLI call at all), documented in generated guidance.
 - [x] 5.11 Missing or stale retrospective evidence prevents terminal completion with an actionable instruction, while a fresh result for the current task state succeeds. Evidence: `test_missing_checkpoint_blocks_non_trivial_completion`, `test_stale_checkpoint_head_blocks_completion`, `test_fresh_checkpoint_after_new_commit_satisfies_completion`.
-- [ ] 5.12 Final agent output truthfully reports retrospective completion and either the captured findings or the clean zero-finding result. Pending this task's own terminal report.
+- [x] 5.12 Final agent output truthfully reports retrospective completion and either the captured findings or the clean zero-finding result. Satisfied by this session's terminal report to the user: retrospective ran, 5 findings recorded and referenced (`lehard/dev-platform#200`, `#204`, `#205`, `#213`, `#214`), checkpoint fresh at head `348c4fb`.
 
 ## 6. Add truthful bounded execution provenance
 
