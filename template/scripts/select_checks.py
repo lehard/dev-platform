@@ -8,7 +8,14 @@ import time
 from pathlib import Path
 from typing import Any
 
-from _platform_common import TaskFreshnessError, current_worktree_root, read_platform_config, require_fresh_task_base, run_git
+from _platform_common import (
+    TaskFreshnessError,
+    current_worktree_root,
+    read_platform_config,
+    require_fresh_task_base,
+    run_git,
+    validation_subprocess_env,
+)
 
 
 def load_config(root: Path) -> dict[str, Any]:
@@ -212,7 +219,14 @@ def execute(root: Path, checks: list[dict[str, Any]], evidence_path: Path | None
     for command in commands:
         print(f"DEV_PLATFORM_CHECK_COMMAND: {command}", flush=True)
         started = time.monotonic()
-        result = subprocess.run(command, cwd=root, shell=True, capture_output=True, text=True)
+        result = subprocess.run(
+            command,
+            cwd=root,
+            shell=True,
+            capture_output=True,
+            text=True,
+            env=validation_subprocess_env(),
+        )
         evidence = command_result(command, result, time.monotonic() - started)
         records.append(evidence)
         print("DEV_PLATFORM_CHECK_RESULT: " + json.dumps(evidence, ensure_ascii=False), flush=True)

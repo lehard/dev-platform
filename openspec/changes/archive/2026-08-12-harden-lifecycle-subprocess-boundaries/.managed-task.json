@@ -1,0 +1,16 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "specs/platform-ci/spec.md",
+    "specs/platform-lifecycle/spec.md",
+    "design.md",
+    "tasks.md"
+  ],
+  "change": "harden-lifecycle-subprocess-boundaries",
+  "imported_at": "2026-08-12T11:31:48+00:00",
+  "package_revision": "8038f65ea7c2d5fac3aeb059a2977977c92529fda204248cae35e8a6e2bd6233",
+  "prepared_against": "5eb43498ec0ba996932adf9d0a46d1df5993e29a",
+  "source_issue": "lehard/development-backlog#20",
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
