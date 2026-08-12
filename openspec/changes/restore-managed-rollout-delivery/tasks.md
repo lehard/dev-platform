@@ -13,13 +13,13 @@
 
 ## 3. Regression coverage
 
-- [ ] 3.1 Reproduce each platform-owned failure class with deterministic rollout tests/fixtures.
-- [ ] 3.2 Prove unresolved Copier/ownership conflicts still fail closed.
+- [x] 3.1 Reproduce each platform-owned failure class with deterministic rollout tests/fixtures.
+- [x] 3.2 Prove unresolved Copier/ownership conflicts still fail closed.
 - [ ] 3.3 Prove successful retry uses the existing exact-version reviewable-PR path and tracker reset semantics.
 
 ## 4. Acceptance and delivery
 
-- [ ] 4.1 Run full applicable platform/OpenSpec/rollout validation.
+- [x] 4.1 Run full applicable platform/OpenSpec/rollout validation.
 - [ ] 4.2 Retry the current cumulative immutable release across all managed inventory entries.
 - [ ] 4.3 Confirm Cuby, Jara_Fin and planner-agent-lab each reach successful preparation/PR-or-already-current state; any leg dependent on #12 must use its shipped result.
 - [ ] 4.4 Confirm rollout-failure trackers close through normal successful automation.
