@@ -300,7 +300,7 @@ def main() -> int:
     route_parser.set_defaults(func=route_codex)
     route_claude_parser = sub.add_parser(
         "route-claude",
-        help="Record the Sol supervisor's semantic route for the Claude Code path; prints the hand-off to invoke.",
+        help="Record the strong Claude parent's semantic route for the Claude Code path; prints the hand-off to invoke.",
     )
     route_claude_parser.add_argument("--profile", choices=("routine", "standard", "complex"), required=True)
     route_claude_parser.add_argument("--rationale", required=True)
