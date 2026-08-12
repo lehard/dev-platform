@@ -44,14 +44,17 @@ def strip_code(text: str) -> str:
 
 
 def iter_markdown_files(root: Path):
-    for path in sorted(root.rglob("*.md")):
-        if any(part in EXCLUDED_DIRS for part in path.parts):
-            continue
-        yield path
-    for path in sorted(root.rglob("*.md.jinja")):
-        if any(part in EXCLUDED_DIRS for part in path.parts):
-            continue
-        yield path
+    # Exclusion must be checked against the path *relative to root*, not the
+    # absolute path: a task worktree commonly lives under a path like
+    # .claude/worktrees/<slug>/, and matching on path.parts against the
+    # absolute path would exclude every file just because an ancestor
+    # directory outside the repository happens to be named .claude.
+    for pattern in ("*.md", "*.md.jinja"):
+        for path in sorted(root.rglob(pattern)):
+            relative = path.relative_to(root)
+            if any(part in EXCLUDED_DIRS for part in relative.parts):
+                continue
+            yield path
 
 
 def check_file(root: Path, path: Path, cache: dict[Path, set[str]]) -> list[str]:

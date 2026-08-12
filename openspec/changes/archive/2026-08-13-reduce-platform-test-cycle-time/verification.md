@@ -44,16 +44,21 @@ Reconciling this by hand was a real (not fabricated) exercise of the new mechani
 - No runtime/provider currently has a configured `[behavioral_evidence.<runtime>]` table, so `instruction-behavior-change` is exercised today only through fabricated-config unit tests, not a real declared change; it fails closed to full validation until a real targeted smoke command is configured for a runtime, which is the intended conservative default (see design.md non-goals).
 - Group wall-clock is sensitive to concurrent CPU load on the machine (observed 60s–152s across runs at `jobs=7` on an 8-core host); this is expected and documented, not a hidden regression, and the required aggregate result is unaffected by it.
 
-## Post-archive CI fix
+## Post-archive CI fixes
 
-The published PR's `validate` job failed on GitHub Actions (`ubuntu-latest`) with `ModuleNotFoundError: No module named 'jinja2'` from `test_docs_semantic_checks` and, transitively, `test_module_isolation` (which standalone-imports every test module, including that one). `jinja2` was present locally only as a side effect of this machine already having `copier` installed; the CI workflow's own "Install tested Copier" step (which would have supplied it transitively) runs *after* "Unit tests", and nothing installed `jinja2` before that point. Fixed by adding an explicit `Install Jinja2 for docs-semantic checks` step (`python3 -m pip install jinja2`) to `.github/workflows/ci.yml` immediately before "Unit tests". Local `python3 -m compileall` and YAML-parse checks passed; the corrected workflow was pushed to the same PR for CI to re-validate.
+Two real defects surfaced only once the published PR ran on GitHub Actions (`ubuntu-latest`), because this development machine's local state masked both:
+
+1. `ModuleNotFoundError: No module named 'jinja2'` from `test_docs_semantic_checks` and, transitively, `test_module_isolation` (which standalone-imports every test module, including that one). `jinja2` was present locally only as a side effect of this machine already having `copier` installed; the CI workflow's own "Install tested Copier" step (which would have supplied it transitively) runs *after* "Unit tests", and nothing installed `jinja2` before that point. Fixed by adding an explicit `Install Jinja2 for docs-semantic checks` step (`python3 -m pip install jinja2`) to `.github/workflows/ci.yml` immediately before "Unit tests".
+2. After fixing (1), CI found 5 genuinely broken links in `openspec/changes/archive/2026-08-12-optimize-agent-context-map/migration-trace.md` (relative paths one `../` short of `docs/...`) that `check_docs_links.py` had never actually caught locally. Root cause: `iter_markdown_files()` excluded a path if any *absolute* path component matched `EXCLUDED_DIRS` (`.git`, `node_modules`, `.claude`) -- but this repository's own multi-agent task worktrees live under `.claude/worktrees/<slug>/`, so every file in this exact development checkout was silently excluded and the scan always reported zero files / "no problems found" here, while a plain CI checkout (no `.claude` ancestor) correctly scanned everything and hit the real broken links. Fixed by checking `path.relative_to(root).parts` instead of the absolute path. Added `test_scan_is_not_fooled_by_a_dot_claude_ancestor` (constructs a fixture root literally nested under `.claude/worktrees/...`) and strengthened `test_repo_docs_have_no_broken_links_or_anchors` to assert a realistic minimum scanned-file count, so a silent zero-file scan can never again read as "no problems" in this repository's own development layout. Fixed the 5 broken links directly (each needed one more `../`).
+
+Local `python3 -m compileall`, the corrected `check_docs_links.py` (330 files now genuinely scanned, 0 problems), and the full 490-test/12-group run (96.40s, all groups success) passed after both fixes; the corrected commits were pushed to the same PR for CI to re-validate.
 
 ## Automated checks
 
 - Automated-Checks-Evidence: automated-checks.json
 - `python3 -m compileall -q template/scripts scripts` — OK
 - `python3 scripts/managed_projects.py validate` — OK (3 managed, 7 candidate, 3 excluded)
-- `python3 scripts/run_test_groups.py --all` — 489 tests across 12 groups, all success, coverage-equivalence proven (489/489, 0 missing, 0 duplicated), 71.73s wall-clock on the final rebased head
+- `python3 scripts/run_test_groups.py --all` — 490 tests across 12 groups (489 after rebasing, +1 `test_scan_is_not_fooled_by_a_dot_claude_ancestor` from the post-archive `check_docs_links.py` fix), all success, coverage-equivalence proven (490/490, 0 missing, 0 duplicated), 96.40s wall-clock on the final head
 - `python3 template/scripts/openspec_lifecycle.py check` — OK (after this file and archival)
 - `openspec validate --all --strict --no-interactive` — 16 passed, 0 failed (all current specs plus both active changes)
 - `python3 scripts/check_docs_links.py` — no problems found
