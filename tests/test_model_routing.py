@@ -109,6 +109,17 @@ class ModelRoutingTests(unittest.TestCase):
                 routing.postcheck(route)
         recorded.assert_called_once()
 
+    def test_cli_reports_missing_active_managed_change_without_traceback(self) -> None:
+        completed = subprocess.run(
+            [sys.executable, str(SCRIPTS / "model_routing.py"), "context"],
+            cwd=self.task,
+            text=True,
+            capture_output=True,
+        )
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("Model routing blocked:", completed.stderr)
+        self.assertNotIn("Traceback", completed.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()
