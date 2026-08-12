@@ -1,0 +1,15 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/project-factory/spec.md"
+  ],
+  "change": "optimize-agent-context-map",
+  "imported_at": "2026-08-12T17:39:47+00:00",
+  "package_revision": "56d07a19ae1fe0ef70d1df2865629612cfaf5b78a3c42b140ed764bbc5d9a393",
+  "prepared_against": "6d2629db8b5f4e6ed6dbdcdaa5dba8a0ddd14d8a",
+  "source_issue": "lehard/development-backlog#28",
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
