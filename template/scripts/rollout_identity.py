@@ -125,5 +125,3 @@ def authoritative_pending_rollout(
     """
     eligible = eligible_rollout_prs(prs, repository=repository, base_branch=base_branch, expected_bot=expected_bot)
     return eligible[-1] if eligible else None
-
-

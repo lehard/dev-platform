@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import os
 import sys
 import tempfile
@@ -158,24 +159,66 @@ class GuardedRecopyTests(unittest.TestCase):
             self.assertEqual(treeish, "HEAD")
             return downstream[relative]
 
-        def fake_baseline(tag, relative, *, env):
+        def fake_baseline(tag, answers_text, relatives, *, env):
             self.assertEqual(tag, "v1.2.3")
-            return baseline[relative]
+            self.assertIn("_commit: v1.2.3", answers_text)
+            self.assertEqual(relatives, set(downstream))
+            return baseline
 
         with (
             patch.object(rollout_project, "git_tree_path_fingerprint", side_effect=fake_git_tree),
-            patch.object(rollout_project, "baseline_template_fingerprint", side_effect=fake_baseline),
+            patch.object(rollout_project, "rendered_template_fingerprints", side_effect=fake_baseline),
         ):
             proven = rollout_project.baseline_equivalent_conflict_paths(
                 self.root,
                 "v1.2.3",
                 set(downstream),
                 env=os.environ.copy(),
+                answers_text=(self.root / ".copier-answers.yml").read_text(encoding="utf-8"),
             )
         self.assertEqual(
             proven,
             {"scripts/finish_task.py", "tests/test_git_lifecycle.py"},
         )
+
+    def test_baseline_renderer_uses_isolated_task_free_copier_copy(self) -> None:
+        commands: list[list[str]] = []
+
+        def fake_run(command, cwd, **kwargs):
+            commands.append(command)
+            rendered = Path(command[-1])
+            path = rendered / ".github" / "workflows" / "dev-platform.yml"
+            path.parent.mkdir(parents=True)
+            path.write_text("rendered baseline\n", encoding="utf-8")
+            return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+
+        with (
+            patch.object(rollout_project, "ensure_platform_tag_available"),
+            patch.object(rollout_project, "run", side_effect=fake_run),
+        ):
+            fingerprints = rollout_project.rendered_template_fingerprints(
+                "v1.2.3",
+                "_commit: v1.2.3\nproject_name: Test\n",
+                {".github/workflows/dev-platform.yml"},
+                env=os.environ.copy(),
+            )
+        self.assertEqual(
+            fingerprints,
+            {
+                ".github/workflows/dev-platform.yml": (
+                    "file",
+                    hashlib.sha256(b"rendered baseline\n").hexdigest(),
+                )
+            },
+        )
+        self.assertEqual(commands[0][:7], ["copier", "copy", "--trust", "--defaults", "--skip-tasks", "--vcs-ref", "v1.2.3"])
+        self.assertIn("--data-file", commands[0])
+
+    def test_failed_prepare_command_is_a_structured_blocker(self) -> None:
+        result = type("Result", (), {"returncode": 2, "stdout": None, "stderr": None})()
+        with patch.object(rollout_project.subprocess, "run", return_value=result):
+            with self.assertRaisesRegex(ValueError, r"command failed \(exit 2\): git diff --cached --check --"):
+                rollout_project.run(["git", "diff", "--cached", "--check", "--"], self.root)
 
     def test_guarded_recopy_runs_only_for_project_owned_rejects(self) -> None:
         commands: list[list[str]] = []
@@ -287,7 +330,7 @@ class GuardedRecopyTests(unittest.TestCase):
                 "baseline_equivalent_conflict_paths",
                 return_value=baseline,
             ),
-            patch.object(rollout_project, "require_paths_match_target_template"),
+            patch.object(rollout_project, "require_paths_match_rendered_template"),
         ):
             strategy = rollout_project.copier_update_with_guarded_recopy(
                 self.root,

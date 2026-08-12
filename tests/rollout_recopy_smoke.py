@@ -55,6 +55,8 @@ def main() -> int:
                     "workflow_profile=standard",
                     "--data",
                     "publish_mode=direct",
+                    "--data",
+                    "protected_main=false",
                     str(ROOT),
                     str(project),
                 ],
@@ -84,8 +86,10 @@ def main() -> int:
 
             answers_path = project / ".copier-answers.yml"
             append_answer(answers_path, "harness_mode", "project")
+            append_answer(answers_path, "protected_main", "false")
             config_path = project / ".dev-platform.toml"
             config_text = config_path.read_text(encoding="utf-8")
+            config_text = config_text.replace("protected_main = true", "protected_main = false")
             if "harness_mode" not in config_text:
                 config_text = config_text.replace(
                     'workflow_profile = "standard"\n',

@@ -7,6 +7,7 @@ import os
 import re
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -82,7 +83,9 @@ def run(
                 print(result.stdout, end="")
             if result.stderr:
                 print(result.stderr, end="")
-        raise SystemExit(result.returncode)
+        detail = (result.stderr or "").strip() or (result.stdout or "").strip()
+        suffix = f": {detail}" if detail else ""
+        raise ValueError(f"command failed (exit {result.returncode}): {' '.join(command)}{suffix}")
     return result
 
 
@@ -346,9 +349,44 @@ def ensure_platform_tag_available(tag: str, *, env: dict[str, str]) -> None:
         raise ValueError(f"could not fetch recorded platform baseline {tag}: {detail}")
 
 
-def baseline_template_fingerprint(tag: str, relative: str, *, env: dict[str, str]) -> tuple[str, str]:
+def rendered_template_fingerprints(
+    tag: str,
+    answers_text: str,
+    relatives: set[str],
+    *,
+    env: dict[str, str],
+) -> dict[str, tuple[str, str]]:
+    """Render an immutable template revision with the downstream's recorded answers.
+
+    A Copier template path can contain Jinja, so comparing it directly with a
+    rendered downstream path is not evidence that the downstream has not
+    customized the file.  Render in an isolated directory instead.  Tasks are
+    explicitly skipped: this is a read-only ownership proof, not adoption.
+    """
     ensure_platform_tag_available(tag, env=env)
-    return git_tree_path_fingerprint(PLATFORM_ROOT, tag, f"template/{relative}")
+    with tempfile.TemporaryDirectory(prefix="dev-platform-rollout-baseline-") as temporary:
+        root = Path(temporary)
+        answers = root / "answers.yml"
+        rendered = root / "rendered"
+        answers.write_text(answers_text, encoding="utf-8")
+        run(
+            [
+                "copier",
+                "copy",
+                "--trust",
+                "--defaults",
+                "--skip-tasks",
+                "--vcs-ref",
+                tag,
+                "--data-file",
+                str(answers),
+                str(PLATFORM_ROOT),
+                str(rendered),
+            ],
+            PLATFORM_ROOT,
+            env=env,
+        )
+        return {relative: path_fingerprint(rendered / relative) for relative in relatives}
 
 
 def baseline_equivalent_conflict_paths(
@@ -357,6 +395,7 @@ def baseline_equivalent_conflict_paths(
     relatives: set[str],
     *,
     env: dict[str, str],
+    answers_text: str,
 ) -> set[str]:
     """Prove the committed downstream path still equals its recorded old template.
 
@@ -364,11 +403,11 @@ def baseline_equivalent_conflict_paths(
     Missing/missing is a valid equivalence: there was no downstream customization
     at that path in the recorded baseline, so guarded recopy cannot erase one.
     """
+    baseline = rendered_template_fingerprints(current_tag, answers_text, relatives, env=env)
     proven: set[str] = set()
     for relative in relatives:
         downstream = git_tree_path_fingerprint(project_root, "HEAD", relative)
-        baseline = baseline_template_fingerprint(current_tag, relative, env=env)
-        if downstream == baseline:
+        if downstream == baseline[relative]:
             proven.add(relative)
     return proven
 
@@ -398,12 +437,13 @@ def require_reclaimed_platform_paths_match_template(
         )
 
 
-def require_paths_match_target_template(project_root: Path, relatives: set[str]) -> None:
+def require_paths_match_rendered_template(
+    project_root: Path, expected: dict[str, tuple[str, str]]
+) -> None:
     mismatched = sorted(
         relative
-        for relative in relatives
-        if path_fingerprint(project_root / relative)
-        != path_fingerprint(PLATFORM_ROOT / "template" / relative)
+        for relative, fingerprint in expected.items()
+        if path_fingerprint(project_root / relative) != fingerprint
     )
     if mismatched:
         raise ValueError(
@@ -505,6 +545,7 @@ def copier_update_with_guarded_recopy(
 
     mode = harness_mode(project_root)
     current_tag = load_answers(project_root)["_commit"]
+    answers_before = (project_root / ".copier-answers.yml").read_text(encoding="utf-8")
     config_before = platform_config_contract(project_root)
     protected_before = snapshot_existing_project_owned(project_root)
     reclaimed_before = {
@@ -550,6 +591,7 @@ def copier_update_with_guarded_recopy(
             current_tag,
             conflict_targets - reclaimed_conflicts,
             env=env,
+            answers_text=answers_before,
         )
         if mode == "platform"
         else set()
@@ -578,6 +620,7 @@ def copier_update_with_guarded_recopy(
         current_tag,
         baseline_conflicts,
         env=env,
+        answers_text=answers_before,
     )
     if reproven != baseline_conflicts:
         missing = sorted(baseline_conflicts - reproven)
@@ -614,7 +657,13 @@ def copier_update_with_guarded_recopy(
     run_rendered_platform_bootstrap(project_root, env=env)
     require_project_owned_snapshot(project_root, protected_before)
     require_reclaimed_platform_paths_match_template(project_root, reclaimed_conflicts)
-    require_paths_match_target_template(project_root, baseline_conflicts)
+    expected_target = rendered_template_fingerprints(
+        version,
+        answers_before,
+        baseline_conflicts,
+        env=env,
+    )
+    require_paths_match_rendered_template(project_root, expected_target)
     project_owner, project_number = development_backlog_locator_answers(project_root)
     require_platform_config_contract(
         config_before,
