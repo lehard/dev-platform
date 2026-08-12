@@ -3,7 +3,12 @@ name: Weekly Process Backlog Review
 description: Bounded weekly Codex summary of the dev-platform process backlog.
 
 on:
-  schedule: weekly
+  schedule:
+    # TEMPORARY: fires once near-term to gather real event=schedule
+    # acceptance evidence for lehard/development-backlog#5 task 5.6. Must be
+    # reverted back to `schedule: weekly` immediately after the run is
+    # observed -- see the follow-up revert commit/PR.
+    - cron: "10 22 * * *"
   workflow_dispatch:
 
 permissions:
