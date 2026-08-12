@@ -7,23 +7,23 @@
 
 ## 2. Simplify delegation containment without a rewrite
 
-- [ ] 2.1 Change platform-owned delegation guidance/adapters from mandatory custom-guard wording to the stable assigned-worktree + proven-boundary + post-check invariant.
-- [ ] 2.2 For current supported Codex modes, use proven native sandbox containment as the primary prevention path where it satisfies the invariant.
-- [ ] 2.3 For current supported Claude modes, use proven native sandbox/worktree isolation as the primary prevention path where it satisfies the invariant.
-- [ ] 2.4 Preserve a minimal custom guarded/detection fallback only for supported modes that lack sufficient native containment; remove or simplify redundant provider-specific hook/wrapper code only after tests prove coverage.
-- [ ] 2.5 Preserve the lightweight content-aware integration post-check and fail-closed reporting for detected protected-path mutation.
+- [x] 2.1 Change platform-owned delegation guidance/adapters from mandatory custom-guard wording to the stable assigned-worktree + proven-boundary + post-check invariant.
+- [x] 2.2 For current supported Codex modes, use proven native sandbox containment as the primary prevention path where it satisfies the invariant.
+- [x] 2.3 For current supported Claude modes, use proven native sandbox/worktree isolation as the primary prevention path where it satisfies the invariant.
+- [x] 2.4 Preserve a minimal custom guarded/detection fallback only for supported modes that lack sufficient native containment; remove or simplify redundant provider-specific hook/wrapper code only after tests prove coverage.
+- [x] 2.5 Preserve the lightweight content-aware integration post-check and fail-closed reporting for detected protected-path mutation.
 
 ## 3. Routing policy and reusable agent profiles
 
-- [ ] 3.1 Add reusable routing guidance that makes the strong parent perform bounded semantic classification after task materialization and before implementation.
-- [ ] 3.2 Define versioned provider-local `routine`, `standard` and `complex` executor mappings using the smallest supported project-level Codex/Claude configuration surface; keep concrete model/reasoning settings outside durable task artifacts.
-- [ ] 3.3 Ensure downstream projects receive routing and containment guidance/profiles through the normal template/Copier lifecycle.
+- [x] 3.1 Add reusable routing guidance that makes the strong parent perform bounded semantic classification after task materialization and before implementation.
+- [x] 3.2 Define versioned provider-local `routine`, `standard` and `complex` executor mappings using the smallest supported project-level Codex/Claude configuration surface; keep concrete model/reasoning settings outside durable task artifacts.
+- [x] 3.3 Ensure downstream projects receive routing and containment guidance/profiles through the normal template/Copier lifecycle.
 
 ## 4. Delegated execution and escalation
 
-- [ ] 4.1 Implement bounded context handoff from parent to executor and back, including canonical OpenSpec, task worktree state and relevant verification evidence without creating a second implementation plan.
-- [ ] 4.2 Implement explicit escalation for material contract conflict, unexpected cross-cutting/scope growth, low confidence and bounded substantive verification failures; preserve useful worktree/diff state across escalation.
-- [ ] 4.3 Implement truthful fallback when the preferred cheap executor/native child capability is unavailable: use configured fallback/parent or return an actionable diagnostic.
+- [x] 4.1 Implement bounded context handoff from parent to executor and back, including canonical OpenSpec, task worktree state and relevant verification evidence without creating a second implementation plan.
+- [x] 4.2 Implement explicit escalation for material contract conflict, unexpected cross-cutting/scope growth, low confidence and bounded substantive verification failures; preserve useful worktree/diff state across escalation.
+- [x] 4.3 Implement truthful fallback when the preferred cheap executor/native child capability is unavailable: use configured fallback/parent or return an actionable diagnostic.
 
 ## 5. Verification and cleanup
 
