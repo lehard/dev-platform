@@ -4,11 +4,11 @@ import re
 import shutil
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 from _platform_common import SharedWorkspaceError, harness_mode, read_platform_config
 from shared_workspace import audit as audit_shared_workspace
-from select_checks import configured_empty_check_ids, load_config
 
 REQUIRED_COMMON = ["AGENTS.md", "CLAUDE.md", ".dev-platform.toml", "dev-platform/checks.toml", "docs/engineering/openspec-workflow.md", "scripts/dev.py", "scripts/shared_workspace.py", "scripts/managed_task.py", "scripts/managed_project_status.py", "scripts/start_managed_task.py", "scripts/select_checks.py", "scripts/project_sync.py", "scripts/project_publish.py", "scripts/start_task.py", "scripts/finish_task.py", "scripts/openspec_lifecycle.py", "scripts/agent_friction.py", "scripts/agent_doctor.py"]
 REQUIRED_MULTI_AGENT_PLATFORM = ["scripts/agent_board.py", "scripts/start_worktree.py", "scripts/worktree_cleanup.py", "scripts/git_hooks/pre-commit", "scripts/git_hooks/pre-merge-commit"]
@@ -159,13 +159,20 @@ def check_shared_workspace(root: Path, failures: list[int]) -> None:
         ok(f"shared workspace group contract is valid for {group.name} ({group.source})")
 
 
-def check_platform_check_contract(root: Path, harness: str) -> None:
+def check_platform_check_contract(root: Path, config: dict, harness: str) -> None:
     """Report latent empty mappings without making unrelated scopes fail doctor."""
     if harness != "platform":
         return
     try:
-        empty_groups = configured_empty_check_ids(load_config(root))
-    except (OSError, SystemExit, ValueError) as exc:
+        relative = str(config.get("paths", {}).get("checks", "dev-platform/checks.toml"))
+        with (root / relative).open("rb") as handle:
+            checks_config = tomllib.load(handle)
+        checks = checks_config.get("checks", {})
+        empty_groups = sorted(
+            str(check_id) for check_id, rule in checks.items()
+            if isinstance(rule, dict) and not rule.get("commands", [])
+        ) if isinstance(checks, dict) else []
+    except (OSError, tomllib.TOMLDecodeError) as exc:
         warn(f"could not inspect platform check contract: {exc}")
         return
     if empty_groups:
@@ -189,7 +196,7 @@ def main() -> int:
         fail(f"unknown harness_mode={harness!r}; expected 'platform' or 'project'"); failures[0] += 1
     else:
         ok(f"harness ownership: {harness}")
-    check_platform_check_contract(root, harness)
+    check_platform_check_contract(root, config, harness)
     if sys.version_info >= (3, 11): ok(f"Python {sys.version_info.major}.{sys.version_info.minor}")
     else:
         fail("Python 3.11+ is required (tomllib is used by platform scripts)"); failures[0] += 1
