@@ -46,3 +46,11 @@ Repairing a failed rollout SHALL NOT turn unresolved Copier conflicts, project-o
 - **WHEN** Copier reports a conflict for that workflow during guarded recovery
 - **THEN** rollout MAY treat that formatting-only difference as baseline-equivalent and recopy the platform-owned workflow
 - **AND** comments, non-empty content, all other paths, and workflows containing YAML block scalars SHALL remain byte-sensitive ownership checks
+
+#### Scenario: Downstream validation creates disposable build artifacts
+
+- **GIVEN** Copier and candidate bootstrap have produced a reviewable exact-version diff
+- **WHEN** a downstream validation command creates generated files in the isolated rollout checkout
+- **THEN** rollout SHALL commit only the Copier/bootstrap diff staged before validation
+- **AND** validation failure SHALL still block delivery
+- **AND** validation filesystem side effects SHALL NOT be added to the rollout pull request

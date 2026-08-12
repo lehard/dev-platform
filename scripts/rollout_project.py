@@ -762,6 +762,23 @@ def run_project_validation(project_root: Path, base_branch: str) -> None:
     )
 
 
+def stage_rollout_changes(project_root: Path) -> None:
+    """Stage the Copier result before validation can create disposable outputs."""
+    run(["git", "add", "-A"], project_root)
+    staged = run(
+        ["git", "diff", "--cached", "--quiet", "--"],
+        project_root,
+        capture=True,
+        check=False,
+    )
+    if staged.returncode == 0:
+        raise ValueError("Copier changed the recorded version but produced no repository diff")
+    if staged.returncode != 1:
+        detail = (staged.stderr or staged.stdout or f"exit {staged.returncode}").strip()
+        raise ValueError(f"could not inspect staged rollout changes: {detail}")
+    run(["git", "diff", "--cached", "--check", "--"], project_root)
+
+
 def write_result(path: Path | None, payload: dict[str, Any]) -> None:
     text = json.dumps(payload, ensure_ascii=False, sort_keys=True)
     if path:
@@ -821,12 +838,8 @@ def apply_rollout(
         )
     require_version_coherence(project_root, version)
 
+    stage_rollout_changes(project_root)
     run_project_validation(project_root, base_branch)
-    status = run(["git", "status", "--porcelain"], project_root, capture=True)
-    if not status.stdout.strip():
-        raise ValueError("Copier changed the recorded version but produced no repository diff")
-
-    run(["git", "add", "-A"], project_root)
     run(["git", "diff", "--cached", "--check", "--"], project_root)
     run(["git", "commit", "-m", f"chore: update dev-platform to {version}"], project_root)
     write_result(
