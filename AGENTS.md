@@ -18,6 +18,16 @@ Do not create a second backlog for work represented by an active OpenSpec change
 
 For non-trivial platform changes, use OpenSpec before implementation. If implementation changes intent, behavior, design, or execution dependencies, update the corresponding proposal/spec/design/tasks artifact first. Do not knowingly let code drift from the active contract.
 
+## Selective goal definition
+
+Refine a goal before OpenSpec or managed-task authoring only when the user explicitly requests goal-backed work, or when a non-trivial request is materially unclear about its intended outcome or success evidence. Do not require goal creation for an ordinary concrete quick or implementation task.
+
+A usable goal states the concrete outcome, verification evidence, a meaningful quantitative or binary success threshold, relevant scope bounds, and the condition that should stop work for clarification. If a missing choice could change the intended result, ask one concise question instead of inventing the requirement.
+
+For an explicit goal-backed request, use supported native goal state through `/goal` or runtime-native goal tools when available, and inspect any active goal before creating a duplicate or conflicting one. Include a token budget only when the user explicitly requests one. A fuzzy request that the user did not ask to make goal-backed receives transient natural-language refinement, not implicit durable goal state. If native goal state was explicitly requested but is unavailable, perform an explicitly transient refinement or report the limitation; never claim that `create_goal` succeeded or that an active goal exists when the runtime cannot prove it.
+
+Goal refinement creates no goal file, backlog entry, decision log, resume artifact, or competing implementation plan. For managed work, the refined outcome informs the Issue/OpenSpec package; after materialization, that package remains canonical.
+
 ## Managed and quick task intake
 
 Keep four distinct intents: discuss (no Backlog state); explicitly fix/add an accepted non-trivial change to Backlog; quick execution; and execution of an existing managed task. For explicit fixation (“зафиксируй”, “добавь в бэклог”, “создай задачу” or equivalent), prepare a local authoring bundle and run `python3 scripts/managed_task.py create --bundle <directory>`. The bundle contains `manifest.json` (`title`, `change`, ordered `artifacts`), `issue.md`, and those artifacts. The helper validates the configured Backlog contract and temporary OpenSpec change, performs bounded duplicate checking, publishes one `managed-openspec:v1` package, then stops. Review potential-overlap candidates and pass `--confirm-distinct` only after deciding the scopes are separate. Do not implement, apply, dispatch, publish, or change Project state after authoring; wait for a separate execution request.

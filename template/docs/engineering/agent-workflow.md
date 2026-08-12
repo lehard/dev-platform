@@ -34,6 +34,8 @@ If Prepared against differs from the fetched integration commit, semantic prefli
 
 Small direct requests remain quick tasks: use the normal start/check/finish lifecycle without creating a central issue. Escalate rather than silently expanding a quick task into a material behavior, architecture, compatibility, data-contract, or scope change.
 
+Goal definition is a selective refinement layer before this intake, not a new task state. Use it for explicit goal-backed requests or when a non-trivial request lacks a reliable outcome or validator; concrete quick and implementation requests proceed directly. A refined goal names the outcome, evidence and threshold, scope bounds, and clarification stop. Use supported native `/goal` or runtime goal tools only for explicit goal-backed work. Fuzzy managed intake remains transient and must not claim native goal state. The refinement creates no durable authoring artifact: once managed authoring completes, the Issue/OpenSpec package is authoritative.
+
 Managed delivery projects lifecycle evidence onto the central board: an exact
 reviewable PR becomes `In review`, while `Done` is written only after confirmed
 delivery and local reconciliation. Normal CI/merge waiting stays `In review`.

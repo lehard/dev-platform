@@ -1,0 +1,15 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "specs/goal-definition/spec.md",
+    "design.md",
+    "tasks.md"
+  ],
+  "change": "adopt-define-goal-intake",
+  "imported_at": "2026-08-12T13:24:25+00:00",
+  "package_revision": "6d8a83e2635aa430a8a5b483c2f465172c89ba632c028f5cb23eb2d6bb007c40",
+  "prepared_against": "5eb43498ec0ba996932adf9d0a46d1df5993e29a",
+  "source_issue": "lehard/development-backlog#24",
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

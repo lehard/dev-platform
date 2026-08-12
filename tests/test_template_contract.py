@@ -133,6 +133,24 @@ class TemplateContractTests(unittest.TestCase):
         self.assertIn("scripts/start_managed_task.py", doctor)
         self.assertIn("stops before OpenSpec apply", workflow)
 
+    def test_goal_definition_is_selective_measurable_and_transient(self) -> None:
+        root_agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        agents = (ROOT / "template" / "AGENTS.md.jinja").read_text(encoding="utf-8")
+        workflow = (ROOT / "template" / "docs" / "engineering" / "agent-workflow.md").read_text(encoding="utf-8")
+        for contract, text in (("root", root_agents), ("template", agents)):
+            with self.subTest(contract=contract):
+                self.assertIn("## Selective goal definition", text)
+                self.assertIn("materially unclear about its intended outcome or success evidence", text)
+                self.assertIn("ordinary concrete quick or implementation task", text)
+                self.assertIn("quantitative or binary success threshold", text)
+                self.assertIn("For an explicit goal-backed request", text)
+                self.assertIn("`/goal` or runtime-native goal tools when available", text)
+                self.assertIn("not implicit durable goal state", text)
+                self.assertIn("never claim that `create_goal` succeeded", text)
+                self.assertIn("creates no goal file, backlog entry, decision log, resume artifact, or competing implementation plan", text)
+        self.assertIn("Goal definition is a selective refinement layer before this intake", workflow)
+        self.assertIn("Issue/OpenSpec package is authoritative", workflow)
+
     def test_managed_task_authoring_is_configured_once_and_claude_keeps_the_bridge(self) -> None:
         copier = (ROOT / "copier.yml").read_text(encoding="utf-8")
         config = (ROOT / "template" / ".dev-platform.toml.jinja").read_text(encoding="utf-8")
