@@ -1,0 +1,16 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "specs/model-routing/spec.md",
+    "specs/platform-delegation/spec.md",
+    "design.md",
+    "tasks.md"
+  ],
+  "change": "adopt-native-model-routing",
+  "imported_at": "2026-08-12T12:06:52+00:00",
+  "package_revision": "12ab055ce3d444239a024712dfe531e6fcf32c5d97a313385c824d0e5e96218a",
+  "prepared_against": "9e16668a4ebb28a0bc79ee7915aa48499df62903",
+  "source_issue": "lehard/development-backlog#26",
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

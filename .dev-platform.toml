@@ -16,6 +16,7 @@ source_required_paths = [
   "scripts/source_adapter.py",
   "scripts/shared_workspace.py",
   "scripts/agent_doctor.py",
+  "scripts/model_routing.py",
   "scripts/start_task.py",
   "scripts/managed_project_status.py",
   "scripts/finish_task.py",
@@ -41,6 +42,19 @@ tested_version = "9.17.0"
 
 [tools.rollout]
 bot_login = "dev-platform-bot-lehard[bot]"
+
+[model_routing]
+enabled = true
+
+[model_routing.codex]
+routine_model = "gpt-5.6-terra"
+standard_model = "gpt-5.6-terra"
+complex_model = "gpt-5.6-sol"
+
+[model_routing.claude]
+routine_model = "haiku"
+standard_model = "sonnet"
+complex_model = "opus"
 
 [promotion]
 repo = "lehard/dev-platform"

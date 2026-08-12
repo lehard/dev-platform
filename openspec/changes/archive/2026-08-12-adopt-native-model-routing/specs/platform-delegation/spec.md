@@ -1,8 +1,5 @@
-# platform-delegation Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change contain-delegated-write-scope. Update Purpose after archive.
-## Requirements
 ### Requirement: Write-capable delegation carries an assigned worktree
 
 Every platform-supported write-capable subagent/subprocess delegation SHALL carry an absolute `assigned_worktree` path that resolves to a registered git worktree of the integration repository and is distinct from the integration copy itself. The platform SHALL validate that assignment before launching a write-capable child.
@@ -132,58 +129,3 @@ For supported runtimes with proven native OS-level writable-root sandboxing or n
 - **WHEN** the delegated child exits non-zero, is cancelled, or otherwise fails
 - **THEN** the platform SHALL still execute the post-delegation containment comparison
 - **AND** a detected integration mutation SHALL be reported as a containment violation in addition to the child failure
-
-### Requirement: Containment incidents are recorded locally regardless of GitHub auth
-
-A detected containment violation SHALL be recorded as a friction event through the existing local friction mechanism, independent of GitHub authentication availability, and only after the non-mutating containment comparison has completed. Hard-prevention refusal and detection-only dirty-integration refusal MAY also be recorded as structured safety friction when useful, but SHALL NOT require GitHub access.
-
-#### Scenario: Runtime prevention is bypassed or misconfigured but post-check catches mutation
-
-- **WHEN** the content-aware post-check detects integration mutation after a supposedly contained child
-- **THEN** the delegation SHALL fail closed
-- **AND** the local friction record SHALL identify the affected path(s) and claimed enforcement tier
-- **AND** the platform SHALL NOT automatically stash, reset, clean, or delete the integration changes
-
-#### Scenario: GitHub authentication is unavailable
-
-- **WHEN** a containment violation is detected
-- **AND** no GitHub API credentials are available
-- **THEN** the friction event SHALL still be recorded locally
-- **AND** the delegation SHALL still fail closed
-
-#### Scenario: Friction is not recorded before the safety check completes
-
-- **WHEN** a delegation is evaluated for containment
-- **THEN** no friction event SHALL be written until the pre/post snapshot comparison has produced a definitive result
-
-### Requirement: Integration snapshots detect content changes, not only Git status labels
-
-The containment snapshot SHALL be sufficient to detect relevant integration working-tree/index/untracked content changes even when the same path remains in the same porcelain status category before and after delegation.
-
-#### Scenario: Pre-existing modified tracked file is changed again
-
-- **GIVEN** `integration/main` contains a tracked path already reported modified before delegation
-- **WHEN** the delegated writer changes that path's contents while its porcelain status code remains the same
-- **THEN** the post-check SHALL classify the path as newly changed during the delegation window
-- **AND** SHALL report a containment violation
-
-#### Scenario: Pre-existing dirty path is actually unchanged
-
-- **GIVEN** a hard-contained delegated run is allowed to start while integration already contains dirty state
-- **WHEN** the relevant path/index/untracked fingerprints are identical before and after delegation
-- **THEN** that state SHALL remain classified as pre-existing unchanged state
-- **AND** SHALL NOT be reported as a new containment violation
-
-#### Scenario: Untracked content changes without path disappearance
-
-- **GIVEN** an untracked path exists before delegation
-- **WHEN** its contents change during delegation but the path remains untracked
-- **THEN** the content-aware snapshot SHALL detect the change
-- **AND** SHALL report the affected path
-
-#### Scenario: Snapshot cannot inspect required state
-
-- **WHEN** a required pre- or post-snapshot fingerprint cannot be captured consistently
-- **THEN** containment evaluation SHALL fail closed
-- **AND** SHALL NOT report the delegation as violation-free by default
-
