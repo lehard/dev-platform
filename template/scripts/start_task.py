@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import subprocess
 from dataclasses import dataclass
@@ -35,7 +36,50 @@ class StartedTask:
     board_id: str | None = None
 
 
-def start_task(root: Path, slug_value: str, task: str, scope: str = "") -> StartedTask:
+class TaskAdmissionWait(RuntimeError):
+    """A resumable multi-agent scope conflict prevented implementation."""
+
+
+def admit_task(root: Path, started: StartedTask, scope: str | None = None) -> dict[str, object]:
+    """Ask the board to atomically claim this task's concrete file scope."""
+    if started.profile != "multi-agent":
+        return {"decision": "RUN", "claims": []}
+    command = [
+        "python3",
+        str(root / "scripts" / "agent_board.py"),
+        "admit",
+        "--branch",
+        started.branch,
+        "--worktree",
+        str(started.task_root),
+    ]
+    if scope is not None:
+        command += ["--scope", scope]
+    result = subprocess.run(command, cwd=root, text=True, capture_output=True, check=False)
+    if result.returncode:
+        detail = result.stderr.strip() or result.stdout.strip() or f"exit {result.returncode}"
+        raise RuntimeError(f"multi-agent admission failed: {detail}")
+    try:
+        payload = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("multi-agent admission returned unreadable JSON") from exc
+    if payload.get("decision") not in {"RUN", "WAIT"}:
+        raise RuntimeError("multi-agent admission returned an invalid decision")
+    return payload
+
+
+def admission_reason(decision: dict[str, object]) -> str:
+    conflicts = decision.get("conflicts", [])
+    if not isinstance(conflicts, list) or not conflicts:
+        return "hard overlap with another active task"
+    rendered: list[str] = []
+    for conflict in conflicts[:5]:
+        if isinstance(conflict, list) and len(conflict) == 3:
+            rendered.append(f"{conflict[0]} ({conflict[1]}): {conflict[2]}")
+    return "hard overlap with " + "; ".join(rendered) if rendered else "hard overlap with another active task"
+
+
+def start_task(root: Path, slug_value: str, task: str, scope: str = "", *, admission: bool = True) -> StartedTask:
     root = root.resolve()
     preflight(root)
     config = read_platform_config(root)
@@ -71,7 +115,13 @@ def start_task(root: Path, slug_value: str, task: str, scope: str = "") -> Start
         return StartedTask(profile=prof, branch=branch, task_root=root)
     if prof == "multi-agent":
         started: StartedWorktree = create_worktree(root, slug_value, task, scope, sync=False)
-        return StartedTask(profile=prof, branch=started.branch, task_root=started.worktree, board_id=started.board_id)
+        task_started = StartedTask(profile=prof, branch=started.branch, task_root=started.worktree, board_id=started.board_id)
+        if admission:
+            decision = admit_task(root, task_started, scope)
+            if decision["decision"] == "WAIT":
+                cleanup_started_task(root, task_started)
+                raise TaskAdmissionWait(admission_reason(decision))
+        return task_started
     raise RuntimeError(f"Unknown workflow_profile: {prof}")
 
 

@@ -16,6 +16,11 @@ from managed_task import (
 )
 from managed_project_status import ManagedProjectStatusError, reconcile
 from start_task import StartedTask, cleanup_started_task, start_task
+from start_task import admission_reason, admit_task
+
+
+class ManagedAdmissionWait(RuntimeError):
+    """Managed package/worktree are preserved while a hard claim is active."""
 
 
 def start_managed_task(root: Path, reference: str, scope: str = "") -> tuple[StartedTask, str, bool]:
@@ -40,19 +45,24 @@ def start_managed_task(root: Path, reference: str, scope: str = "") -> tuple[Sta
             if not branch:
                 raise ManagedTaskError(f"existing managed task worktree is detached: {existing_root}")
             started = StartedTask(profile="multi-agent", branch=branch, task_root=existing_root)
-            reconciliation = reconcile(existing_root, "In progress", source_issue=package.source_issue)
+            decision = admit_task(root, started, scope if scope else None)
+            desired_status = "Blocked" if decision["decision"] == "WAIT" else "In progress"
+            reconciliation = reconcile(existing_root, desired_status, source_issue=package.source_issue)
             if reconciliation is None:
                 raise ManagedProjectStatusError("managed resume lost its source Issue identity")
             print(
                 f"Managed Project status {'updated' if reconciliation.changed else 'already current'}: "
-                f"{package.source_issue} -> In progress"
+                f"{package.source_issue} -> {desired_status}"
             )
+            if decision["decision"] == "WAIT":
+                raise ManagedAdmissionWait(admission_reason(decision))
             return started, package.prepared_against, True
     started = start_task(
         root,
         package.change,
         task=f"Managed task {package.source_issue}",
         scope=scope or f"openspec/changes/{package.change}",
+        admission=False,
     )
     try:
         imported, current_main, reused = import_task(
@@ -60,17 +70,25 @@ def start_managed_task(root: Path, reference: str, scope: str = "") -> tuple[Sta
             reference,
             expected_revision=package.revision,
         )
+        decision = admit_task(root, started, scope if scope else None)
+        desired_status = "Blocked" if decision["decision"] == "WAIT" else "In progress"
         reconciliation = reconcile(
             started.task_root,
-            "In progress",
+            desired_status,
             source_issue=package.source_issue,
         )
         if reconciliation is None:
             raise ManagedProjectStatusError("managed start lost its source Issue identity")
         print(
             f"Managed Project status {'updated' if reconciliation.changed else 'already current'}: "
-            f"{package.source_issue} -> In progress"
+            f"{package.source_issue} -> {desired_status}"
         )
+        if decision["decision"] == "WAIT":
+            raise ManagedAdmissionWait(admission_reason(decision))
+    except ManagedAdmissionWait:
+        # WAIT is a resumable state.  Keep the registered worktree and the
+        # canonical package so the next explicit invocation can re-check it.
+        raise
     except Exception:
         cleanup_started_task(root, started)
         raise
@@ -85,6 +103,9 @@ def main() -> int:
     root = current_worktree_root()
     try:
         started, current_main, reused = start_managed_task(root, args.issue, args.scope)
+    except ManagedAdmissionWait as exc:
+        print(f"Managed task waiting: {exc}")
+        return 3
     except (ManagedTaskError, ManagedProjectStatusError, RuntimeError, subprocess.CalledProcessError) as exc:
         print(f"Managed task start blocked: {exc}")
         return 2

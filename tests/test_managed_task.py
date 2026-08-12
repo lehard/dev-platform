@@ -358,13 +358,14 @@ class ManagedPackageTests(unittest.TestCase):
                 patch.object(start_managed_task, "discover_task", return_value=package),
                 patch.object(start_managed_task, "start_task", return_value=started) as start,
                 patch.object(start_managed_task, "import_task", side_effect=materialize),
+                patch.object(start_managed_task, "admit_task", return_value={"decision": "RUN", "claims": []}),
                 patch.object(start_managed_task, "reconcile", return_value=SimpleNamespace(changed=True)),
             ):
                 result, current_main, reused = start_managed_task.start_managed_task(root, "lehard/development-backlog#1", "scripts")
             self.assertEqual(result, started)
             self.assertEqual(current_main, "b" * 40)
             self.assertFalse(reused)
-            start.assert_called_once_with(root, package.change, task="Managed task lehard/development-backlog#1", scope="scripts")
+            start.assert_called_once_with(root, package.change, task="Managed task lehard/development-backlog#1", scope="scripts", admission=False)
             self.assertTrue((task_root / "openspec" / "changes" / package.change).is_dir())
             self.assertFalse((root / "openspec").exists())
 
@@ -380,6 +381,7 @@ class ManagedPackageTests(unittest.TestCase):
                 patch.object(start_managed_task, "read_platform_config", return_value={"workflow_profile": "multi-agent"}),
                 patch.object(start_managed_task, "machine_path", return_value=task_root.parent),
                 patch.object(start_managed_task, "run_git", return_value=SimpleNamespace(stdout="agent/resumed\n")),
+                patch.object(start_managed_task, "admit_task", return_value={"decision": "RUN", "claims": []}),
                 patch.object(start_managed_task, "reconcile", return_value=SimpleNamespace(changed=False)) as reconcile,
                 patch.object(start_managed_task, "start_task") as fresh_start,
             ):
@@ -390,6 +392,62 @@ class ManagedPackageTests(unittest.TestCase):
             fresh_start.assert_not_called()
             reconcile.assert_called_once_with(task_root, "In progress", source_issue=package.source_issue)
             self.assertTrue((task_root / ".managed-task-state.json").is_file())
+
+    def test_managed_wait_preserves_materialized_worktree_and_blocks_project(self) -> None:
+        package = managed_task.parse_package([package_body()], "lehard/development-backlog#1")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "integration"
+            task_root = Path(tmp) / "task"
+            root.mkdir()
+            task_root.mkdir()
+            started = start_managed_task.StartedTask(profile="multi-agent", branch="agent/add-managed-backlog-intake", task_root=task_root, board_id="board-1")
+
+            def materialize(destination: Path, reference: str, *, expected_revision: str):
+                canonical_change(destination, package)
+                return package, "b" * 40, False
+
+            wait = {"decision": "WAIT", "conflicts": [["active-id", "active task", "template/scripts/shared.py"]]}
+            with (
+                patch.object(start_managed_task, "discover_task", return_value=package),
+                patch.object(start_managed_task, "start_task", return_value=started),
+                patch.object(start_managed_task, "import_task", side_effect=materialize),
+                patch.object(start_managed_task, "admit_task", return_value=wait),
+                patch.object(start_managed_task, "reconcile", return_value=SimpleNamespace(changed=True)) as reconcile,
+                patch.object(start_managed_task, "cleanup_started_task") as cleanup,
+            ):
+                with self.assertRaisesRegex(start_managed_task.ManagedAdmissionWait, "active-id"):
+                    start_managed_task.start_managed_task(root, "lehard/development-backlog#1")
+            self.assertTrue((task_root / "openspec" / "changes" / package.change / ".managed-task.json").is_file())
+            cleanup.assert_not_called()
+            reconcile.assert_called_once_with(task_root, "Blocked", source_issue=package.source_issue)
+
+    def test_managed_resume_rechecks_wait_then_restores_in_progress_without_reimport(self) -> None:
+        package = managed_task.parse_package([package_body()], "lehard/development-backlog#1")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "integration"
+            task_root = Path(tmp) / "worktrees" / package.change
+            root.mkdir()
+            canonical_change(task_root, package)
+            wait = {"decision": "WAIT", "conflicts": [["active-id", "active task", "template/scripts/shared.py"]]}
+            run = {"decision": "RUN", "claims": ["template/scripts/shared.py"]}
+            with (
+                patch.object(start_managed_task, "discover_task", return_value=package),
+                patch.object(start_managed_task, "read_platform_config", return_value={"workflow_profile": "multi-agent"}),
+                patch.object(start_managed_task, "machine_path", return_value=task_root.parent),
+                patch.object(start_managed_task, "run_git", return_value=SimpleNamespace(stdout="agent/resumed\n")),
+                patch.object(start_managed_task, "admit_task", side_effect=[wait, run]) as admit,
+                patch.object(start_managed_task, "reconcile", return_value=SimpleNamespace(changed=True)) as reconcile,
+                patch.object(start_managed_task, "start_task") as fresh_start,
+            ):
+                with self.assertRaises(start_managed_task.ManagedAdmissionWait):
+                    start_managed_task.start_managed_task(root, "lehard/development-backlog#1")
+                started, _, reused = start_managed_task.start_managed_task(root, "lehard/development-backlog#1")
+            self.assertTrue(reused)
+            self.assertEqual(started.task_root, task_root)
+            fresh_start.assert_not_called()
+            self.assertEqual(admit.call_count, 2)
+            self.assertEqual([call.args[1].task_root for call in admit.call_args_list], [task_root, task_root])
+            self.assertEqual([call.args[1] for call in reconcile.call_args_list], ["Blocked", "In progress"])
 
     def test_managed_start_cleans_only_new_task_when_materialization_fails(self) -> None:
         package = managed_task.parse_package([package_body()], "lehard/development-backlog#1")
@@ -437,6 +495,7 @@ class ManagedPackageTests(unittest.TestCase):
                 patch.object(start_managed_task, "check_schema", create=True) as schema,
                 patch.object(start_managed_task, "start_task", return_value=started) as task_start,
                 patch.object(start_managed_task, "import_task", side_effect=materialize),
+                patch.object(start_managed_task, "admit_task", return_value={"decision": "RUN", "claims": []}),
                 patch.object(start_managed_task, "reconcile", return_value=SimpleNamespace(changed=False)),
             ):
                 result, current_main, reused = start_managed_task.start_managed_task(root, "lehard/development-backlog#1")

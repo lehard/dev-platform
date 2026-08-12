@@ -1,0 +1,16 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "specs/worktree-coordination/spec.md",
+    "specs/platform-lifecycle/spec.md",
+    "design.md",
+    "tasks.md"
+  ],
+  "change": "gate-concurrent-task-scope-overlap",
+  "imported_at": "2026-08-12T13:22:10+00:00",
+  "package_revision": "080a702a5de926ebdd2adc2f177cac4ae5b555e8144f9a7fb0ee0762739a2b3b",
+  "prepared_against": "4092be266b7c8896276960544d9dcdf0b22663e4",
+  "source_issue": "lehard/development-backlog#25",
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
