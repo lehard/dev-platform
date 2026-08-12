@@ -140,6 +140,24 @@ class FrictionReviewTests(unittest.TestCase):
         self.assertEqual(event["severity"], "medium")
         self.assertEqual(event["triggers"], ["old-category"])
 
+    def write_route(self, *, change: str = "routing-change", participant: dict | None = None) -> None:
+        change_dir = self.root / "openspec" / "changes" / change
+        change_dir.mkdir(parents=True, exist_ok=True)
+        (change_dir / ".managed-task.json").write_text(
+            json.dumps({"source_issue": "owner/backlog#9", "change": change}), encoding="utf-8"
+        )
+        routing_dir = self.root / ".claude" / "model-routing"
+        routing_dir.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "source_issue": "owner/backlog#9", "change": change, "task_worktree": str(self.root),
+            "integration_root": str(self.root), "provider": "claude", "profile": "standard",
+            "executor_model": "sonnet", "rationale": "r", "evidence": [], "prepared_at": "2026-08-12T00:00:00+00:00",
+            "pre_snapshot": {"head": "x", "paths": {}}, "escalations": [],
+            "supervisor": {"role": "supervisor", "provider": "claude", "model": {"value": "opus", "source": "selected"}},
+            "execution": {"launched": True, "participant": participant} if participant is not None else None,
+        }
+        (routing_dir / f"{change}.json").write_text(json.dumps(payload), encoding="utf-8")
+
     def event(self, *, scope: str = "platform") -> dict:
         return {
             "id": "route-me", "at": "2026-08-11T10:00:00+00:00", "scope": scope,
@@ -290,6 +308,85 @@ class FrictionReviewTests(unittest.TestCase):
         self.assertFalse((self.root / "openspec").exists())
         agent_friction.cmd_checkpoint(self.checkpoint_args(result="none"))
         agent_friction.require_checkpoint("test-branch")
+
+    def test_unknown_participant_role_needs_no_route_and_stays_unknown(self) -> None:
+        run = agent_friction._current_run_provenance("unknown")
+        self.assertEqual(run, {"source_issue": None, "change": None, "role": "unknown", "supervisor": None, "participant": None})
+
+    def test_supervisor_participant_role_reads_machine_owned_identity(self) -> None:
+        self.write_route()
+        run = agent_friction._current_run_provenance("supervisor")
+        self.assertEqual(run["source_issue"], "owner/backlog#9")
+        self.assertEqual(run["supervisor"], {"role": "supervisor", "provider": "claude", "model": {"value": "opus", "source": "selected"}})
+        self.assertIsNone(run["participant"])
+
+    def test_executor_participant_role_reflects_actual_execution_only(self) -> None:
+        participant = {
+            "role": "executor", "provider": "claude", "profile": "standard",
+            "model": {"value": "sonnet", "source": "selected"},
+            "reasoning_effort": {"value": None, "source": "unknown"},
+            "execution_id": {"value": "agent-xyz", "kind": "claude-agent-id"},
+        }
+        self.write_route(participant=participant)
+        run = agent_friction._current_run_provenance("executor")
+        self.assertEqual(run["participant"], participant)
+
+    def test_executor_participant_role_without_confirmed_execution_stays_unknown(self) -> None:
+        # A route may be prepared without a child having actually run yet;
+        # that must never be represented as an executed participant.
+        self.write_route(participant=None)
+        run = agent_friction._current_run_provenance("executor")
+        self.assertIsNone(run["participant"])
+
+    def test_missing_route_degrades_to_unknown_without_raising(self) -> None:
+        run = agent_friction._current_run_provenance("executor")
+        self.assertEqual(run, {"source_issue": None, "change": None, "role": "executor", "supervisor": None, "participant": None})
+
+    def test_record_embeds_run_provenance_from_participant_role(self) -> None:
+        self.write_route()
+        agent_friction.shutil.which = lambda _: None  # keep routing local for this test
+        args = type(
+            "Args", (),
+            {
+                "category": "workaround", "trigger": None, "severity": "medium", "task": None,
+                "observation": "obs", "evidence": "ev", "hypothesis": "hyp", "scope": "platform",
+                "proposal": "prop", "participant_role": "supervisor",
+            },
+        )()
+        agent_friction.cmd_record(args)
+        event = agent_friction.read_events(None)[0]
+        self.assertEqual(event["run"]["role"], "supervisor")
+        self.assertEqual(event["run"]["supervisor"]["provider"], "claude")
+
+    def test_route_body_includes_bounded_participant_line_when_known(self) -> None:
+        event = self.event()
+        event["run"] = {
+            "source_issue": "owner/backlog#9", "change": "routing-change", "role": "executor",
+            "supervisor": None,
+            "participant": {
+                "role": "executor", "provider": "claude", "profile": "standard",
+                "model": {"value": "sonnet", "source": "selected"},
+                "reasoning_effort": {"value": None, "source": "unknown"},
+                "execution_id": {"value": "agent-xyz", "kind": "claude-agent-id"},
+            },
+        }
+        body = agent_friction.route_body(event, "fp123", occurrence=False)
+        self.assertIn("Participant: `executor` / provider `claude` / model `sonnet` (selected)", body)
+        self.assertNotIn("agent-xyz", body)  # execution id stays local, not public
+
+    def test_route_body_omits_participant_line_when_role_unknown(self) -> None:
+        event = self.event()
+        event["run"] = agent_friction._unknown_run_provenance("unknown")
+        body = agent_friction.route_body(event, "fp123", occurrence=False)
+        self.assertNotIn("Participant:", body)
+
+    def test_fingerprint_ignores_participant_and_model_identity(self) -> None:
+        base = self.event()
+        with_claude = {**base, "run": {"role": "executor", "participant": {"provider": "claude", "model": {"value": "sonnet"}}}}
+        with_codex = {**base, "run": {"role": "executor", "participant": {"provider": "codex", "model": {"value": "gpt-5.6-sol"}}}}
+        fp_claude = agent_friction.fingerprint_for(with_claude, "lehard/dev-platform")
+        fp_codex = agent_friction.fingerprint_for(with_codex, "lehard/dev-platform")
+        self.assertEqual(fp_claude, fp_codex)
 
 
 if __name__ == "__main__":

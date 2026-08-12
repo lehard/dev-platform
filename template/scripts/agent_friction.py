@@ -106,6 +106,45 @@ def current_head(root: Path) -> str | None:
     return result.stdout.strip() if result.returncode == 0 and result.stdout.strip() else None
 
 
+def _unknown_run_provenance(role: str) -> dict:
+    return {"source_issue": None, "change": None, "role": role, "supervisor": None, "participant": None}
+
+
+def _current_run_provenance(participant_role: str) -> dict:
+    """Bounded, truthful execution provenance for one friction event.
+
+    Reuses the existing model-routing record instead of a second run
+    database (adopt-gh-aw-process-automation, tasks 6.2/6.6). ``participant_role``
+    is the only thing the caller asserts (which participant this finding is
+    about); the actual provider/model identity is read back from the
+    machine-owned routing record, not trusted as free-form self-identification.
+    A missing/unreadable route, or an executor role with no confirmed
+    execution yet, degrades to an explicit unknown rather than a guess.
+    """
+    if participant_role not in ("supervisor", "executor", "unknown"):
+        participant_role = "unknown"
+    if participant_role == "unknown":
+        return _unknown_run_provenance("unknown")
+    try:
+        import model_routing
+    except ImportError:
+        return _unknown_run_provenance(participant_role)
+    try:
+        route, _ = model_routing._read_route(current_worktree_root())
+    except Exception:
+        return _unknown_run_provenance(participant_role)
+    participant = None
+    if participant_role == "executor" and isinstance(route.execution, dict):
+        participant = route.execution.get("participant")
+    return {
+        "source_issue": route.source_issue,
+        "change": route.change,
+        "role": participant_role,
+        "supervisor": route.supervisor or None,
+        "participant": participant,
+    }
+
+
 def cmd_record(args: argparse.Namespace) -> int:
     path = log_path()
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -125,6 +164,7 @@ def cmd_record(args: argparse.Namespace) -> int:
         "hypothesis": normalize_text(args.hypothesis, "hypothesis"),
         "scope": args.scope,
         "proposal": normalize_text(args.proposal, "proposal"),
+        "run": _current_run_provenance(args.participant_role),
     }
     encoded = json.dumps(event, ensure_ascii=False, sort_keys=True)
     with friction_lock():
@@ -156,6 +196,7 @@ def read_events(days: int | None = None) -> list[dict]:
             event.setdefault("id", f"legacy-{index}")
             event.setdefault("severity", "medium")
             event.setdefault("triggers", [event.get("category", "legacy")])
+            event.setdefault("run", _unknown_run_provenance("unknown"))
             if cutoff is None or parse_time(event["at"]) >= cutoff:
                 events.append(event)
         except (json.JSONDecodeError, KeyError, ValueError, TypeError):
@@ -367,7 +408,28 @@ def gh_json(command: list[str]) -> object:
         raise RuntimeError("GitHub CLI returned invalid JSON") from exc
 
 
+def _provenance_line(event: dict) -> str | None:
+    """One bounded, sanitized line naming the participant a finding concerns.
+
+    Deliberately omits the execution identifier (thread/agent id) and any
+    other machine-local detail -- those stay in the local friction log only
+    (adopt-gh-aw-process-automation, task 6.7). This is occurrence metadata,
+    not part of the dedupe identity (see fingerprint_for).
+    """
+    run = event.get("run") or {}
+    role = run.get("role")
+    if role not in ("supervisor", "executor"):
+        return None
+    who = (run.get("participant") if role == "executor" else run.get("supervisor")) or {}
+    model = who.get("model") or {}
+    provider = sanitize_for_route(who.get("provider"), 32)
+    model_value = sanitize_for_route(model.get("value"), 64)
+    model_source = sanitize_for_route(model.get("source"), 32)
+    return f"- Participant: `{role}` / provider `{provider}` / model `{model_value}` ({model_source})"
+
+
 def route_body(event: dict, fingerprint: str, *, occurrence: bool) -> str:
+    provenance_line = _provenance_line(event)
     lines = [
         marker_for(fingerprint),
         "## Sanitized process friction occurrence" if occurrence else "## Sanitized process friction",
@@ -377,6 +439,7 @@ def route_body(event: dict, fingerprint: str, *, occurrence: bool) -> str:
         f"- Severity: `{sanitize_for_route(event.get('severity', 'medium'), 20)}`",
         f"- Fingerprint: `{fingerprint}`",
         f"- Recorded at: `{sanitize_for_route(event.get('at'), 64)}`",
+        *([provenance_line] if provenance_line else []),
         "",
         "### Observation",
         sanitize_for_route(event.get("observation")),
@@ -624,6 +687,10 @@ def main() -> int:
     p.add_argument("--scope", choices=["project", "platform"], required=True)
     p.add_argument("--proposal", required=True)
     p.add_argument("--task")
+    p.add_argument(
+        "--participant-role", choices=("supervisor", "executor", "unknown"), default="unknown",
+        help="which participant this finding concerns; identity is read back from the current routing record, not self-reported",
+    )
     p.set_defaults(func=cmd_record)
 
     p = sub.add_parser("route-pending", help="retry locally retained friction events without failing the caller")
