@@ -78,11 +78,13 @@ At minimum:
 ```bash
 python3 -m compileall -q template/scripts scripts
 python3 scripts/managed_projects.py validate
-python3 -m unittest discover -s tests -v
+python3 scripts/run_test_groups.py --all
 python3 template/scripts/openspec_lifecycle.py check
 ```
 
 When Copier is available, render the template and compile/run the generated doctor. For Git lifecycle changes, exercise temporary local/bare remotes so fetch/sync/direct-publish safety is tested.
+
+For a bounded local change, prefer `python3 scripts/select_checks.py --base origin/main --execute` over the full command list above: a semantic-preserving `AGENTS.md`/`docs/**`/OpenSpec-prose/`template/AGENTS.md.jinja` change gets bounded structure/link/anchor/render checks instead of the full suite, a proven executable-surface change gets its mapped test group(s), and an unknown, ambiguous or control-plane (selector/CI/lifecycle) path still fails closed to the full set above. This never replaces the protected-full result required for a PR.
 
 ## Friction routing
 

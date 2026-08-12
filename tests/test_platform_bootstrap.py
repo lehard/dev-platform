@@ -1,12 +1,19 @@
 from __future__ import annotations
 
 import importlib.util
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-MODULE_PATH = ROOT / "template" / "scripts" / "platform_bootstrap.py"
+SCRIPT_ROOT = ROOT / "template" / "scripts"
+MODULE_PATH = SCRIPT_ROOT / "platform_bootstrap.py"
+# platform_bootstrap imports the bare top-level `_platform_common`; without this
+# the module only loads when another test module happened to run first and left
+# template/scripts on sys.path, which made this test order-dependent.
+if str(SCRIPT_ROOT) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_ROOT))
 SPEC = importlib.util.spec_from_file_location("template_platform_bootstrap", MODULE_PATH)
 assert SPEC and SPEC.loader
 platform_bootstrap = importlib.util.module_from_spec(SPEC)

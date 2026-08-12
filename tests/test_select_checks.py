@@ -73,6 +73,74 @@ class SelectChecksTests(unittest.TestCase):
         with self.assertRaises(SystemExit):
             select_checks.select(config, ["apps/web/package.json"])
 
+    def test_docs_semantic_path_does_not_run_full_suite(self) -> None:
+        config = {
+            "settings": {"full_commands": ["python3 -m unittest discover"], "full_trigger_patterns": ["scripts/**"]},
+            "checks": {"docs": {"patterns": ["docs/**", "AGENTS.md"], "commands": ["python3 scripts/check_docs_links.py"]}},
+        }
+        checks = select_checks.select(config, ["AGENTS.md"])
+        self.assertEqual(checks, [{"id": "docs", "paths": ["AGENTS.md"], "commands": ["python3 scripts/check_docs_links.py"]}])
+
+    def test_instruction_behavior_surface_paths_filters_by_configured_pattern(self) -> None:
+        config = {"settings": {"instruction_behavior_surface_patterns": ["AGENTS.md", "template/AGENTS.md.jinja"]}}
+        self.assertEqual(
+            select_checks.instruction_behavior_surface_paths(config, ["AGENTS.md", "docs/x.md", "template/AGENTS.md.jinja"]),
+            ["AGENTS.md", "template/AGENTS.md.jinja"],
+        )
+        self.assertEqual(select_checks.instruction_behavior_surface_paths({"settings": {}}, ["AGENTS.md"]), [])
+
+    def test_declared_behavior_change_without_configured_evidence_fails_closed_to_full(self) -> None:
+        config = {
+            "settings": {
+                "full_commands": ["python3 -m unittest discover"],
+                "instruction_behavior_surface_patterns": ["AGENTS.md"],
+            },
+            "checks": {"docs": {"patterns": ["AGENTS.md"], "commands": ["python3 scripts/check_docs_links.py"]}},
+        }
+        checks = select_checks.select(config, ["AGENTS.md"], declare_behavior_change="claude-code")
+        self.assertEqual(len(checks), 1)
+        self.assertEqual(checks[0]["id"], "full-fallback")
+        self.assertEqual(checks[0]["selection_reason"], "behavior-declaration-unproven")
+        self.assertEqual(checks[0]["commands"], ["python3 -m unittest discover"])
+
+    def test_declared_behavior_change_with_configured_evidence_runs_it_instead_of_full(self) -> None:
+        config = {
+            "settings": {
+                "full_commands": ["python3 -m unittest discover"],
+                "instruction_behavior_surface_patterns": ["AGENTS.md"],
+            },
+            "checks": {"docs": {"patterns": ["AGENTS.md"], "commands": ["python3 scripts/check_docs_links.py"]}},
+            "behavioral_evidence": {"claude-code": {"commands": ["python3 scripts/render_agents_md_smoke.py"]}},
+        }
+        checks = select_checks.select(config, ["AGENTS.md"], declare_behavior_change="claude-code")
+        self.assertEqual(len(checks), 1)
+        self.assertEqual(checks[0]["id"], "instruction-behavior-change")
+        self.assertEqual(checks[0]["selection_reason"], "instruction-behavior-change")
+        self.assertEqual(checks[0]["commands"], ["python3 scripts/render_agents_md_smoke.py"])
+        self.assertNotIn("python3 -m unittest discover", checks[0]["commands"])
+
+    def test_declared_behavior_change_leaves_unrelated_paths_on_normal_selection(self) -> None:
+        config = {
+            "settings": {"instruction_behavior_surface_patterns": ["AGENTS.md"]},
+            "checks": {
+                "docs": {"patterns": ["AGENTS.md"], "commands": ["python3 scripts/check_docs_links.py"]},
+                "python": {"patterns": ["**/*.py"], "commands": ["python3 -m compileall -q ."]},
+            },
+            "behavioral_evidence": {"claude-code": {"commands": ["python3 scripts/render_agents_md_smoke.py"]}},
+        }
+        checks = select_checks.select(config, ["AGENTS.md", "app/main.py"], declare_behavior_change="claude-code")
+        ids = {check["id"] for check in checks}
+        self.assertEqual(ids, {"instruction-behavior-change", "python"})
+
+    def test_declaration_is_ignored_when_no_instruction_surface_path_changed(self) -> None:
+        config = {
+            "settings": {"instruction_behavior_surface_patterns": ["AGENTS.md"]},
+            "checks": {"python": {"patterns": ["**/*.py"], "commands": ["python3 -m compileall -q ."]}},
+            "behavioral_evidence": {"claude-code": {"commands": ["python3 scripts/render_agents_md_smoke.py"]}},
+        }
+        checks = select_checks.select(config, ["app/main.py"], declare_behavior_change="claude-code")
+        self.assertEqual(checks, select_checks.select(config, ["app/main.py"]))
+
     def test_protected_full_is_independent_of_changed_paths(self) -> None:
         config = {"settings": {"full_commands": ["pytest"]}}
         self.assertEqual(

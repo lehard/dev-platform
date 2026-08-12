@@ -11,9 +11,9 @@ Pre-change baseline: `AGENTS.md` at 131 lines and `template/AGENTS.md.jinja` at 
 
 | Pre-change section | Retained in root | Canonical destination |
 | --- | --- | --- |
-| Contract model | `## Sources of truth` (full list, plus "no second backlog" and the safety-over-artifact rule) | [docs/engineering/openspec-workflow.md](../../../docs/engineering/openspec-workflow.md) |
+| Contract model | `## Sources of truth` (full list, plus "no second backlog" and the safety-over-artifact rule) | [docs/engineering/openspec-workflow.md](../../../../docs/engineering/openspec-workflow.md) |
 | No silent divergence | invariant: update the artifact *first* | openspec-workflow.md |
-| Selective goal definition | invariant: selective, creates no durable artifact, plus link | [docs/engineering/agent-workflow.md](../../../docs/engineering/agent-workflow.md) |
+| Selective goal definition | invariant: selective, creates no durable artifact, plus link | [docs/engineering/agent-workflow.md](../../../../docs/engineering/agent-workflow.md) |
 | Managed/quick intake, four intents | `## Task intents` with both entrypoints and the canonical-after-import rule | agent-workflow.md |
 | Backlog Project state reconciliation (`In review`/`Done`/`block`/`resume`) | — | agent-workflow.md |
 | Formal repair vs material conflict | invariant: managed contract conflicts stop | agent-workflow.md |
@@ -23,9 +23,9 @@ Pre-change baseline: `AGENTS.md` at 131 lines and `template/AGENTS.md.jinja` at 
 | Central dogfood lifecycle commands | `## Entrypoints` (start/route/status/archive/finish) and the "not complete until MERGED" rule | agent-workflow.md |
 | Scope discipline | `## Ownership` | agent-workflow.md |
 | Platform capabilities/profiles | `## Ownership` (one line) | agent-workflow.md |
-| Delegated write containment | invariant: no path mutates integration state | [docs/engineering/model-routing.md](../../../docs/engineering/model-routing.md) |
+| Delegated write containment | invariant: no path mutates integration state | [docs/engineering/model-routing.md](../../../../docs/engineering/model-routing.md) |
 | Provider-local model routing | invariant: routing is a required gate, user does not choose, containment must be proven | model-routing.md |
-| Release safety | invariant: never `dev-platform@main`, refs append-only | [docs/release-policy.md](../../../docs/release-policy.md), [docs/managed-rollout.md](../../../docs/managed-rollout.md) |
+| Release safety | invariant: never `dev-platform@main`, refs append-only | [docs/release-policy.md](../../../../docs/release-policy.md), [docs/managed-rollout.md](../../../../docs/managed-rollout.md) |
 | Validation commands | `## Entrypoints` (retained verbatim) | agent-workflow.md |
 | OpenSpec dependency policy | `## Ownership` (do not vendor generated skills) | openspec-workflow.md |
 | Friction routing | invariant: resolve the friction checkpoint | agent-workflow.md |
