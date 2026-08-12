@@ -19,6 +19,12 @@ from pathlib import Path
 
 
 CHANGE_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+CODEX_EXECUTOR_PROMPT = (
+    "You are the delegated Codex executor for this managed dev-platform task. "
+    "Read the materialized canonical OpenSpec and relevant current repository context, "
+    "implement only the bounded task scope in this assigned worktree, and return the exact "
+    "diff, checks run, uncertainty, and any escalation trigger to the Sol supervisor."
+)
 
 
 def run(command: list[str], root: Path) -> None:
@@ -148,11 +154,71 @@ def status(_: argparse.Namespace) -> int:
 def finish(args: argparse.Namespace) -> int:
     root = current_root()
     verify_source_contract(root)
+    require_routing_gate(root)
     command = ["python3", "scripts/finish_task.py", "--cleanup"]
     if args.title:
         command += ["--title", args.title]
     if args.body:
         command += ["--body", args.body]
+    run(command, root)
+    return 0
+
+
+def require_routing_gate(root: Path) -> None:
+    """Prevent managed dogfood delivery without the required routed execution."""
+    changes = list((root / "openspec" / "changes").glob("*/.managed-task.json"))
+    if not changes:
+        return
+    if len(changes) != 1:
+        raise SystemExit("Dogfood routing gate requires exactly one materialized managed OpenSpec change.")
+    try:
+        provenance = json.loads(changes[0].read_text(encoding="utf-8"))
+        change = provenance["change"]
+    except (OSError, KeyError, TypeError, json.JSONDecodeError) as exc:
+        raise SystemExit("Dogfood routing gate cannot read managed OpenSpec provenance.") from exc
+    if not isinstance(change, str) or not change:
+        raise SystemExit("Dogfood routing gate has invalid managed OpenSpec provenance.")
+    record = root / ".claude" / "model-routing" / f"{change}.json"
+    try:
+        route = json.loads(record.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise SystemExit(
+            "Dogfood routing gate blocked publication: run route-codex after semantic preflight before implementation."
+        ) from exc
+    if route.get("change") != change or route.get("provider") != "codex":
+        raise SystemExit("Dogfood routing gate found routing provenance that does not match the managed task.")
+    profile = route.get("profile")
+    if profile == "complex":
+        return
+    execution = route.get("execution")
+    if profile not in {"routine", "standard"} or not isinstance(execution, dict):
+        raise SystemExit("Dogfood routing gate requires a valid routine, standard, or complex route record.")
+    if not execution.get("launched") or execution.get("returncode") != 0 or execution.get("violation"):
+        raise SystemExit("Dogfood routing gate requires a clean successful native Codex executor launch for routine/standard work.")
+
+
+def route_codex(args: argparse.Namespace) -> int:
+    """Run the mandatory dogfood routing hand-off after supervisor preflight.
+
+    This command is intentionally source-only: it keeps the user entrypoint
+    simple while making the supervisor's chosen standard/routine profile launch
+    the configured Codex executor through the existing native containment path.
+    """
+    root = current_root()
+    verify_source_contract(root)
+    command = [
+        "python3",
+        "scripts/model_routing.py",
+        "dispatch-codex",
+        "--profile",
+        args.profile,
+        "--rationale",
+        args.rationale,
+        "--prompt",
+        args.prompt or CODEX_EXECUTOR_PROMPT,
+    ]
+    for item in args.evidence:
+        command += ["--evidence", item]
     run(command, root)
     return 0
 
@@ -172,6 +238,15 @@ def main() -> int:
     finish_parser.add_argument("--title")
     finish_parser.add_argument("--body")
     finish_parser.set_defaults(func=finish)
+    route_parser = sub.add_parser(
+        "route-codex",
+        help="Record the Sol supervisor's semantic route and dispatch routine/standard work.",
+    )
+    route_parser.add_argument("--profile", choices=("routine", "standard", "complex"), required=True)
+    route_parser.add_argument("--rationale", required=True)
+    route_parser.add_argument("--evidence", action="append", default=[])
+    route_parser.add_argument("--prompt")
+    route_parser.set_defaults(func=route_codex)
     args = parser.parse_args()
     return args.func(args)
 

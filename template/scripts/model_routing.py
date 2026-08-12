@@ -55,6 +55,7 @@ class Route:
     evidence: tuple[str, ...]
     prepared_at: str
     pre_snapshot: dict[str, Any]
+    execution: dict[str, Any] | None = None
     escalations: tuple[dict[str, str], ...] = ()
 
 
@@ -102,7 +103,8 @@ def _read_route(root: Path) -> tuple[Route, Path]:
     path = _record_path(root, change)
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
-        route = Route(source_issue=payload["source_issue"], change=payload["change"], task_worktree=payload["task_worktree"], integration_root=payload["integration_root"], provider=payload["provider"], profile=payload["profile"], executor_model=payload["executor_model"], rationale=payload["rationale"], evidence=tuple(payload.get("evidence", [])), prepared_at=payload["prepared_at"], pre_snapshot=payload["pre_snapshot"], escalations=tuple(payload.get("escalations", [])))
+        execution = payload.get("execution")
+        route = Route(source_issue=payload["source_issue"], change=payload["change"], task_worktree=payload["task_worktree"], integration_root=payload["integration_root"], provider=payload["provider"], profile=payload["profile"], executor_model=payload["executor_model"], rationale=payload["rationale"], evidence=tuple(payload.get("evidence", [])), prepared_at=payload["prepared_at"], pre_snapshot=payload["pre_snapshot"], execution=execution if isinstance(execution, dict) else None, escalations=tuple(payload.get("escalations", [])))
     except (OSError, KeyError, TypeError, json.JSONDecodeError) as exc:
         raise RoutingError(f"no readable routing record for managed change {change}; run prepare first") from exc
     if route.source_issue != source_issue or route.change != change:
@@ -157,7 +159,41 @@ def run_codex(route: Route, prompt: str, codex_bin: str | None = None) -> dict[s
     # validates the assignment and observes/records the required post-check.
     decision = determine_codex_tier(codex_bin=codex_bin, require_hard=True, integration_root=Path(route.integration_root), assigned_worktree=Path(route.task_worktree))
     result = run_observed_delegation(integration_root=Path(route.integration_root), assigned_worktree=Path(route.task_worktree), argv=argv, tier_decision=decision, task=route.source_issue)
-    return {"mechanism": mechanism, "returncode": result.returncode, "violation": result.violation}
+    return {
+        "mechanism": mechanism,
+        "launched": result.launched,
+        "returncode": result.returncode,
+        "violation": result.violation,
+    }
+
+
+def dispatch_codex(
+    root: Path,
+    *,
+    profile: str,
+    rationale: str,
+    evidence: list[str],
+    prompt: str,
+    codex_bin: str | None = None,
+) -> dict[str, Any]:
+    """Atomically record a Codex route and launch only lower-cost profiles.
+
+    The supervisor supplies the bounded semantic assessment.  Keeping prepare
+    and the native child launch in one operation prevents dogfood guidance from
+    degrading into a recorded-but-never-executed routine/standard route.
+    """
+    route = prepare(root, provider="codex", profile=profile, rationale=rationale, evidence=evidence)
+    output: dict[str, Any] = {"route": asdict(route), "delegated": False}
+    if route.profile == "complex":
+        output["reason"] = "complex profile remains on the strong Codex supervisor"
+        return output
+    execution = run_codex(route, prompt, codex_bin)
+    route = Route(**{**asdict(route), "execution": execution})
+    _write_route(_record_path(root, route.change), route)
+    output["route"] = asdict(route)
+    output["delegated"] = True
+    output["execution"] = execution
+    return output
 
 
 def claude_agent(route: Route) -> dict[str, Any]:
@@ -192,6 +228,15 @@ def main() -> int:
     run_parser = subparsers.add_parser("run-codex", help="launch a prepared Codex route with native containment and post-check")
     run_parser.add_argument("--prompt", required=True)
     run_parser.add_argument("--codex-bin")
+    dispatch_parser = subparsers.add_parser(
+        "dispatch-codex",
+        help="record a Codex route and launch routine/standard work through the native child path",
+    )
+    dispatch_parser.add_argument("--profile", choices=PROFILES, required=True)
+    dispatch_parser.add_argument("--rationale", required=True)
+    dispatch_parser.add_argument("--evidence", action="append", default=[])
+    dispatch_parser.add_argument("--prompt", required=True)
+    dispatch_parser.add_argument("--codex-bin")
     subparsers.add_parser("claude-agent", help="emit a native Claude Code worktree-agent definition")
     subparsers.add_parser("postcheck", help="verify the prepared native worktree route did not mutate integration")
     args = parser.parse_args()
@@ -203,6 +248,15 @@ def main() -> int:
         elif args.command == "codex-argv":
             argv, mechanism = codex_argv(_read_route(root)[0], args.prompt, args.codex_bin); output = {"argv": argv, "mechanism": mechanism}
         elif args.command == "run-codex": output = run_codex(_read_route(root)[0], args.prompt, args.codex_bin)
+        elif args.command == "dispatch-codex":
+            output = dispatch_codex(
+                root,
+                profile=args.profile,
+                rationale=args.rationale,
+                evidence=args.evidence,
+                prompt=args.prompt,
+                codex_bin=args.codex_bin,
+            )
         elif args.command == "claude-agent": output = claude_agent(_read_route(root)[0])
         else: output = postcheck(_read_route(root)[0])
     except (ContainmentError, RoutingError) as exc:

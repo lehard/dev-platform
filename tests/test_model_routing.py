@@ -7,6 +7,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 
@@ -100,6 +101,59 @@ class ModelRoutingTests(unittest.TestCase):
         self.assertIn("workspace-write", argv)
         self.assertIn("cheap-codex", argv)
         self.assertEqual(argv[-1], "implement")
+
+    def test_dogfood_standard_dispatch_records_terra_and_launches_executor(self) -> None:
+        (self.task / ".dev-platform.toml").write_text(
+            "[model_routing.codex]\nstandard_model = \"gpt-5.6-terra\"\ncomplex_model = \"gpt-5.6-sol\"\n",
+            encoding="utf-8",
+        )
+        hard = guard.EnforcementDecision(guard.EnforcementTier.HARD, "codex-workspace-write-sandbox", "safe")
+        with (
+            patch.object(routing, "main_root", return_value=self.integration),
+            patch.object(routing, "determine_codex_tier", return_value=hard),
+            patch.object(
+                routing,
+                "run_observed_delegation",
+                return_value=SimpleNamespace(launched=True, returncode=0, violation=False),
+            ) as launched,
+        ):
+            result = routing.dispatch_codex(
+                self.task,
+                profile="standard",
+                rationale="Sol supervisor completed bounded current-spec preflight",
+                evidence=["openspec/changes/routing-change"],
+                prompt="implement the materialized managed task",
+            )
+
+        self.assertTrue(result["delegated"])
+        self.assertEqual(result["route"]["executor_model"], "gpt-5.6-terra")
+        saved = json.loads((self.task / ".claude" / "model-routing" / "routing-change.json").read_text(encoding="utf-8"))
+        self.assertEqual(saved["profile"], "standard")
+        self.assertEqual(saved["executor_model"], "gpt-5.6-terra")
+        self.assertTrue(saved["execution"]["launched"])
+        self.assertEqual(launched.call_count, 1)
+        self.assertIn("gpt-5.6-terra", launched.call_args.kwargs["argv"])
+
+    def test_dogfood_complex_dispatch_remains_on_sol(self) -> None:
+        (self.task / ".dev-platform.toml").write_text(
+            "[model_routing.codex]\nstandard_model = \"gpt-5.6-terra\"\ncomplex_model = \"gpt-5.6-sol\"\n",
+            encoding="utf-8",
+        )
+        with patch.object(routing, "main_root", return_value=self.integration), patch.object(
+            routing, "run_observed_delegation"
+        ) as launched:
+            result = routing.dispatch_codex(
+                self.task,
+                profile="complex",
+                rationale="Sol supervisor found a material cross-cutting contract boundary",
+                evidence=["openspec/specs/model-routing/spec.md"],
+                prompt="unused",
+            )
+
+        self.assertFalse(result["delegated"])
+        self.assertEqual(result["route"]["executor_model"], "gpt-5.6-sol")
+        self.assertIn("remains on the strong", result["reason"])
+        launched.assert_not_called()
 
     def test_postcheck_reports_native_worktree_escape(self) -> None:
         route = self.prepare(provider="claude", profile="standard")

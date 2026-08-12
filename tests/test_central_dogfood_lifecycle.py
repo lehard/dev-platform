@@ -94,6 +94,52 @@ class CentralDogfoodLifecycleTests(unittest.TestCase):
             ],
         )
 
+    def test_route_codex_dispatches_the_supervisor_selected_profile(self) -> None:
+        args = dogfood_task.argparse.Namespace(
+            profile="standard",
+            rationale="Sol supervisor completed semantic preflight",
+            evidence=["openspec/changes/central-task"],
+            prompt=None,
+        )
+        with mock.patch.object(dogfood_task, "current_root", return_value=self.root), mock.patch.object(
+            dogfood_task, "run"
+        ) as run:
+            self.assertEqual(dogfood_task.route_codex(args), 0)
+
+        command = run.call_args.args[0]
+        self.assertEqual(command[:5], ["python3", "scripts/model_routing.py", "dispatch-codex", "--profile", "standard"])
+        self.assertIn("--rationale", command)
+        self.assertIn("--evidence", command)
+        self.assertIn(dogfood_task.CODEX_EXECUTOR_PROMPT, command)
+        self.assertEqual(run.call_args.args[1], self.root)
+
+    def test_finish_blocks_managed_delivery_without_routing_gate(self) -> None:
+        self.add_managed_change()
+        args = dogfood_task.argparse.Namespace(title=None, body=None)
+        with mock.patch.object(dogfood_task, "current_root", return_value=self.root), mock.patch.object(
+            dogfood_task, "run"
+        ) as run:
+            with self.assertRaisesRegex(SystemExit, "routing gate blocked publication"):
+                dogfood_task.finish(args)
+        run.assert_not_called()
+
+    def test_routing_gate_accepts_successful_standard_route(self) -> None:
+        self.add_managed_change()
+        record = self.root / ".claude" / "model-routing" / "central-task.json"
+        record.parent.mkdir(parents=True)
+        record.write_text(
+            json.dumps(
+                {
+                    "change": "central-task",
+                    "provider": "codex",
+                    "profile": "standard",
+                    "execution": {"launched": True, "returncode": 0, "violation": False},
+                }
+            ),
+            encoding="utf-8",
+        )
+        dogfood_task.require_routing_gate(self.root)
+
     def test_source_contract_is_explicit_and_adapter_paths_are_present(self) -> None:
         import tomllib
 
