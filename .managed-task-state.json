@@ -1,6 +1,0 @@
-{
-  "change": "enforce-managed-task-provenance-completeness",
-  "source_issue": "lehard/development-backlog#15",
-  "target_repository": "lehard/dev-platform",
-  "version": 1
-}

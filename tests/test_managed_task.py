@@ -160,6 +160,85 @@ class ManagedPackageTests(unittest.TestCase):
             for forbidden in ("apply", "start_task", "finish_task", "project_publish", "gh-aw"):
                 self.assertNotIn(forbidden, joined)
 
+    def test_fresh_import_ignores_only_a_legacy_tracked_state_for_another_task(self) -> None:
+        package = managed_task.parse_package([package_body()], "lehard/development-backlog#1")
+        schema = {
+            "artifactPaths": {
+                "proposal": {"outputPath": "proposal.md"},
+                "specs": {"outputPath": "specs/**/*.md"},
+                "design": {"outputPath": "design.md"},
+                "tasks": {"outputPath": "tasks.md"},
+            }
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".managed-task-state.json").write_text(
+                json.dumps({"source_issue": "lehard/development-backlog#2", "change": "other-task"}), encoding="utf-8"
+            )
+
+            def fake_json(command: list[str], cwd: Path, env=None):
+                self.assertEqual(command[:3], ["openspec", "new", "change"])
+                (root / "openspec" / "changes" / package.change).mkdir(parents=True)
+                return {"change": {"id": package.change}}
+
+            with (
+                patch.object(managed_task, "discover_task", return_value=package),
+                patch.object(managed_task, "target_main", return_value="b" * 40),
+                patch.object(managed_task, "openspec_status", return_value=schema),
+                patch.object(managed_task, "validate_change"),
+                patch.object(managed_task, "run_json", side_effect=fake_json),
+                patch.object(managed_task, "task_state_is_tracked", return_value=True),
+                patch.object(managed_task.shutil, "which", return_value="/usr/bin/openspec"),
+            ):
+                _, _, reused = managed_task.import_task(root, "lehard/development-backlog#1")
+            self.assertFalse(reused)
+            self.assertEqual(managed_task.read_task_state(root)["source_issue"], package.source_issue)
+
+    def test_fresh_import_rejects_conflicting_untracked_task_state(self) -> None:
+        package = managed_task.parse_package([package_body()], "lehard/development-backlog#1")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".managed-task-state.json").write_text(
+                json.dumps({"source_issue": "lehard/development-backlog#2", "change": "other-task"}), encoding="utf-8"
+            )
+            with (
+                patch.object(managed_task, "discover_task", return_value=package),
+                patch.object(managed_task, "target_main", return_value="b" * 40),
+                patch.object(managed_task, "task_state_is_tracked", return_value=False),
+            ):
+                with self.assertRaisesRegex(managed_task.ManagedTaskError, "conflicts with requested package"):
+                    managed_task.import_task(root, "lehard/development-backlog#1")
+
+    def test_terminal_cross_check_never_adopts_integration_state(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            integration = Path(tmp)
+            (integration / ".managed-task-state.json").write_text(
+                json.dumps({"source_issue": "lehard/development-backlog#2", "change": "other-task"}), encoding="utf-8"
+            )
+            identity = managed_task.ManagedTaskIdentity("lehard/development-backlog#1", "add-managed-backlog-intake")
+            with self.assertRaisesRegex(managed_task.ManagedTaskError, "exact task=lehard/development-backlog#1.*integration state=lehard/development-backlog#2"):
+                managed_task.assert_integration_identity_cross_check(integration, identity)
+
+    def test_terminal_cross_check_accepts_matching_or_absent_integration_state(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            integration = Path(tmp)
+            identity = managed_task.ManagedTaskIdentity("lehard/development-backlog#1", "add-managed-backlog-intake")
+            managed_task.assert_integration_identity_cross_check(integration, identity)
+            (integration / ".managed-task-state.json").write_text(
+                json.dumps({"source_issue": identity.source_issue, "change": identity.change}), encoding="utf-8"
+            )
+            managed_task.assert_integration_identity_cross_check(integration, identity)
+
+    def test_task_checkout_import_cli_accepts_an_issue_reference(self) -> None:
+        package = managed_task.parse_package([package_body()], "lehard/development-backlog#1")
+        with (
+            patch.object(sys, "argv", ["managed_task.py", "lehard/development-backlog#1"]),
+            patch.object(managed_task, "current_worktree_root", return_value=Path("/tmp/task")),
+            patch.object(managed_task, "import_task", return_value=(package, "b" * 40, False)) as imported,
+        ):
+            self.assertEqual(managed_task.main(), 0)
+        imported.assert_called_once_with(Path("/tmp/task"), "lehard/development-backlog#1")
+
     def test_canonical_provenance_fails_closed_when_state_loses_its_change(self) -> None:
         package = managed_task.parse_package([package_body()], "lehard/development-backlog#1")
         with tempfile.TemporaryDirectory() as tmp:

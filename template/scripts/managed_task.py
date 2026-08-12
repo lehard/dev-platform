@@ -9,6 +9,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -56,6 +57,14 @@ class CanonicalProvenance:
     change: str
     path: Path
     lifecycle: str  # ``active`` or ``archived``
+
+
+@dataclass(frozen=True)
+class ManagedTaskIdentity:
+    """The task-local identity allowed to drive managed side effects."""
+
+    source_issue: str
+    change: str
 
 
 @dataclass(frozen=True)
@@ -598,6 +607,17 @@ def write_task_state(root: Path, package: Package) -> None:
     )
 
 
+def task_state_is_tracked(root: Path) -> bool:
+    """Whether a state marker was inherited from repository content.
+
+    Task state is intentionally local and ignored.  This compatibility probe
+    identifies only the historical tracked marker so a fresh checkout can
+    avoid treating another task's integration state as a resume receipt.
+    """
+    result = run_git(["ls-files", "--error-unmatch", "--", TASK_STATE], cwd=root, check=False)
+    return result.returncode == 0
+
+
 def _provenance_for(path: Path, lifecycle: str) -> CanonicalProvenance:
     payload = read_provenance(path)
     source = payload.get("source_issue")
@@ -723,6 +743,47 @@ def require_delivery_provenance(root: Path) -> CanonicalProvenance | None:
     return provenance
 
 
+def delivery_identity(root: Path) -> ManagedTaskIdentity | None:
+    """Return the exact task-local identity eligible for terminal effects."""
+    provenance = require_delivery_provenance(root)
+    if provenance is None:
+        return None
+    state = read_task_state(root)
+    if state is None:
+        raise ManagedTaskError(
+            f"managed source {provenance.source_issue} has no task-local state for terminal reconciliation"
+        )
+    if state["source_issue"].lower() != provenance.source_issue.lower() or state["change"] != provenance.change:
+        raise ManagedTaskError(
+            "managed task-local state disagrees with canonical delivery provenance: "
+            f"state={state['source_issue']} ({state['change']}), "
+            f"canonical={provenance.source_issue} ({provenance.change})"
+        )
+    return ManagedTaskIdentity(provenance.source_issue, provenance.change)
+
+
+def assert_integration_identity_cross_check(
+    integration: Path, identity: ManagedTaskIdentity | None
+) -> None:
+    """Reject shared state that conflicts with an exact task-local identity.
+
+    Integration state is never used to select a task.  It can only corroborate
+    the identity already bound to the delivered task.
+    """
+    if identity is None:
+        return
+    state = read_task_state(integration)
+    if state is None:
+        return
+    if state["source_issue"].lower() != identity.source_issue.lower() or state["change"] != identity.change:
+        raise ManagedTaskError(
+            "managed terminal provenance mismatch: "
+            f"exact task={identity.source_issue} ({identity.change}), "
+            f"integration state={state['source_issue']} ({state['change']}); "
+            "Project status was not changed"
+        )
+
+
 def write_provenance(root: Path, package: Package) -> None:
     atomic_write(
         root / PROVENANCE,
@@ -771,12 +832,23 @@ def import_task(root: Path, reference: str, *, expected_revision: str | None = N
     # An archived task remains canonical for publication/reconciliation.  Do
     # not create a second active package when an operator resumes it.
     existing_state = read_task_state(root)
-    if existing_state is not None:
+    destination_exists = destination.exists()
+    state_matches_package = existing_state is not None and (
+        existing_state["source_issue"].lower() == package.source_issue.lower()
+        and existing_state["change"] == package.change
+    )
+    if existing_state is not None and not state_matches_package and (destination_exists or not task_state_is_tracked(root)):
+        raise ManagedTaskError(
+            "task-local managed state conflicts with requested package: "
+            f"state={existing_state['source_issue']} ({existing_state['change']}), "
+            f"requested={package.source_issue} ({package.change})"
+        )
+    if state_matches_package:
         archived = resolve_canonical_provenance(root, source_issue=package.source_issue, change=package.change)
         if archived is not None and archived.lifecycle == "archived":
             write_task_state(root, package)
             return package, current_main, True
-    if destination.exists():
+    if destination_exists:
         provenance = read_provenance(destination)
         if provenance.get("source_issue", "").lower() != package.source_issue.lower():
             raise ManagedTaskError("same-name OpenSpec change belongs to a different source issue")
@@ -810,14 +882,16 @@ def import_task(root: Path, reference: str, *, expected_revision: str | None = N
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Import or author one managed OpenSpec task without starting implementation.")
-    subcommands = parser.add_subparsers(dest="command")
-    create = subcommands.add_parser("create", help="publish a prepared managed-task bundle and stop")
-    create.add_argument("--bundle", required=True, help="directory containing manifest.json, issue.md and declared OpenSpec artifacts")
-    create.add_argument("--priority", help="override configured priority (P0, P1, P2 or P3)")
-    create.add_argument("--confirm-distinct", action="store_true", help="confirm that bounded same-project/target candidates are separate work")
-    parser.add_argument("issue", nargs="?", help="owner/repo#N or GitHub issue URL to import")
+    creating = sys.argv[1:2] == ["create"]
+    if creating:
+        parser.add_argument("command", choices=("create",))
+        parser.add_argument("--bundle", required=True, help="directory containing manifest.json, issue.md and declared OpenSpec artifacts")
+        parser.add_argument("--priority", help="override configured priority (P0, P1, P2 or P3)")
+        parser.add_argument("--confirm-distinct", action="store_true", help="confirm that bounded same-project/target candidates are separate work")
+    else:
+        parser.add_argument("issue", help="owner/repo#N or GitHub issue URL to import")
     args = parser.parse_args()
-    if args.command == "create":
+    if creating:
         try:
             package, resumed, already_published = create_task(
                 current_worktree_root(), args.bundle, args.priority, args.confirm_distinct
@@ -831,8 +905,6 @@ def main() -> int:
         print(f"Managed OpenSpec package {package_state}: {PACKAGE}")
         print("Authoring stops here; import the task later only when the user explicitly requests execution.")
         return 0
-    if not args.issue:
-        parser.error("an issue is required for import, or use create --bundle <directory>")
     try:
         package, current_main, reused = import_task(current_worktree_root(), args.issue)
     except ManagedTaskError as exc:
