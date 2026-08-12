@@ -70,11 +70,13 @@ class ModelRoutingTests(unittest.TestCase):
         self.assertIn("Escalate", " ".join(context["required_parent_actions"]))
         self.assertEqual(routing.postcheck(route)["containment"], "clean")
 
-    def test_claude_route_uses_native_worktree_agent(self) -> None:
+    def test_claude_agent_hand_off_has_no_isolation_and_runs_in_place(self) -> None:
         route = self.prepare(provider="claude", profile="routine")
         agent = routing.claude_agent(route)
-        self.assertEqual(agent["isolation"], "worktree")
+        self.assertNotIn("isolation", agent)
         self.assertEqual(agent["model"], "haiku")
+        self.assertIn("current working directory", agent["prompt"])
+        self.assertIn(str(self.task.resolve()), agent["prompt"])
 
     def test_escalation_preserves_task_context_and_uses_strong_policy(self) -> None:
         self.prepare()
@@ -154,6 +156,104 @@ class ModelRoutingTests(unittest.TestCase):
         self.assertEqual(result["route"]["executor_model"], "gpt-5.6-sol")
         self.assertIn("remains on the strong", result["reason"])
         launched.assert_not_called()
+
+    def test_claude_handoff_emits_in_place_spec_for_standard(self) -> None:
+        detection_only = guard.EnforcementDecision(guard.EnforcementTier.DETECTION_ONLY, "detection-only:claude-shell-capable", "no proven sandbox")
+        with (
+            patch.object(routing, "main_root", return_value=self.integration),
+            patch.object(routing, "determine_claude_tier", return_value=detection_only),
+        ):
+            result = routing.prepare_claude_handoff(
+                self.task,
+                profile="standard",
+                rationale="Sol supervisor completed bounded current-spec preflight",
+                evidence=["openspec/changes/routing-change"],
+            )
+        self.assertEqual(result["delegated"], "pending_supervisor_invocation")
+        self.assertEqual(result["tier"], "detection-only")
+        self.assertNotIn("isolation", result["handoff"])
+        self.assertEqual(result["handoff"]["model"], "sonnet")
+
+    def test_claude_handoff_refuses_to_start_over_dirty_integration(self) -> None:
+        (self.integration / "dirty.txt").write_text("uncommitted\n", encoding="utf-8")
+        detection_only = guard.EnforcementDecision(guard.EnforcementTier.DETECTION_ONLY, "detection-only:claude-shell-capable", "no proven sandbox")
+        with (
+            patch.object(routing, "main_root", return_value=self.integration),
+            patch.object(routing, "determine_claude_tier", return_value=detection_only),
+        ):
+            with self.assertRaisesRegex(routing.RoutingError, "already has uncommitted state"):
+                routing.prepare_claude_handoff(
+                    self.task,
+                    profile="standard",
+                    rationale="Sol supervisor completed bounded current-spec preflight",
+                    evidence=["openspec/changes/routing-change"],
+                )
+
+    def test_claude_handoff_complex_remains_on_sol(self) -> None:
+        with patch.object(routing, "main_root", return_value=self.integration):
+            result = routing.prepare_claude_handoff(
+                self.task,
+                profile="complex",
+                rationale="Sol supervisor found a material cross-cutting contract boundary",
+                evidence=["openspec/specs/model-routing/spec.md"],
+            )
+        self.assertFalse(result["delegated"])
+        self.assertNotIn("handoff", result)
+        self.assertIn("remains on the strong", result["reason"])
+
+    def test_record_claude_execution_persists_evidence_after_real_invocation(self) -> None:
+        detection_only = guard.EnforcementDecision(guard.EnforcementTier.DETECTION_ONLY, "detection-only:claude-shell-capable", "no proven sandbox")
+        with (
+            patch.object(routing, "main_root", return_value=self.integration),
+            patch.object(routing, "determine_claude_tier", return_value=detection_only),
+        ):
+            routing.prepare_claude_handoff(
+                self.task,
+                profile="standard",
+                rationale="Sol supervisor completed bounded current-spec preflight",
+                evidence=["openspec/changes/routing-change"],
+            )
+            # Simulate the supervisor having actually invoked the emitted hand-off
+            # and made a real change inside the assigned task worktree (not integration).
+            (self.task / "implemented.txt").write_text("real subagent work\n", encoding="utf-8")
+            execution = routing.record_claude_execution(self.task, agent_id="agent-abc123", summary="added implemented.txt")
+        self.assertTrue(execution["launched"])
+        self.assertEqual(execution["agent_id"], "agent-abc123")
+        self.assertEqual(execution["postcheck"]["containment"], "clean")
+        saved = json.loads((self.task / ".claude" / "model-routing" / "routing-change.json").read_text(encoding="utf-8"))
+        self.assertTrue(saved["execution"]["launched"])
+        self.assertEqual(saved["execution"]["postcheck"]["containment"], "clean")
+
+    def test_record_claude_execution_fails_closed_on_integration_mutation(self) -> None:
+        detection_only = guard.EnforcementDecision(guard.EnforcementTier.DETECTION_ONLY, "detection-only:claude-shell-capable", "no proven sandbox")
+        with (
+            patch.object(routing, "main_root", return_value=self.integration),
+            patch.object(routing, "determine_claude_tier", return_value=detection_only),
+        ):
+            routing.prepare_claude_handoff(
+                self.task,
+                profile="standard",
+                rationale="Sol supervisor completed bounded current-spec preflight",
+                evidence=["openspec/changes/routing-change"],
+            )
+            (self.integration / "escape.txt").write_text("unexpected\n", encoding="utf-8")
+            with patch.object(routing, "record_containment_friction") as recorded:
+                with self.assertRaisesRegex(routing.RoutingError, "containment violation"):
+                    routing.record_claude_execution(self.task, agent_id="agent-abc123")
+            recorded.assert_called_once()
+        saved = json.loads((self.task / ".claude" / "model-routing" / "routing-change.json").read_text(encoding="utf-8"))
+        self.assertIsNone(saved["execution"])
+
+    def test_record_claude_execution_rejects_complex_profile(self) -> None:
+        with patch.object(routing, "main_root", return_value=self.integration):
+            routing.prepare_claude_handoff(
+                self.task,
+                profile="complex",
+                rationale="Sol supervisor found a material cross-cutting contract boundary",
+                evidence=["openspec/specs/model-routing/spec.md"],
+            )
+            with self.assertRaisesRegex(routing.RoutingError, "not delegated"):
+                routing.record_claude_execution(self.task, agent_id="agent-abc123")
 
     def test_postcheck_reports_native_worktree_escape(self) -> None:
         route = self.prepare(provider="claude", profile="standard")

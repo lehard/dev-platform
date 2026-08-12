@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from _platform_common import atomic_write_text, current_worktree_root, main_root, read_platform_config, utc_now
-from delegated_write_guard import EnforcementTier, build_codex_argv, determine_codex_tier, run_observed_delegation
+from delegated_write_guard import EnforcementTier, build_codex_argv, determine_claude_tier, determine_codex_tier, run_observed_delegation
 from delegation_containment import (
     ContainmentError,
     GitSnapshot,
@@ -197,9 +197,82 @@ def dispatch_codex(
 
 
 def claude_agent(route: Route) -> dict[str, Any]:
+    """Emit the native Agent-tool call the supervisor must actually invoke.
+
+    Deliberately has no `isolation` key. Claude Code's `isolation: "worktree"`
+    creates a fresh worktree off the platform's main branch HEAD -- it cannot
+    see the materialized-but-uncommitted managed OpenSpec/task state that
+    exists in the assigned task worktree at routing-preflight time. The
+    supervisor must invoke this in place, with its own working directory
+    already the assigned task worktree, so the child shares that exact
+    filesystem/branch/uncommitted state instead of a divergent empty copy.
+    """
     if route.provider != "claude":
         raise RoutingError("the prepared route is not a Claude route")
-    return {"description": "Managed task executor; use only after supervisor routing preflight.", "model": route.executor_model, "effort": "medium" if route.profile == "routine" else "high", "isolation": "worktree", "maxTurns": 24, "prompt": "Work only in the native worktree assigned by Claude Code. Preserve the canonical OpenSpec and return the exact diff, checks run, uncertainty, and any escalation trigger to the supervisor. Managed source: " + route.source_issue + "; change: " + route.change + "; supervisor worktree: " + route.task_worktree + "."}
+    return {"description": "Managed task executor; use only after supervisor routing preflight.", "model": route.executor_model, "effort": "medium" if route.profile == "routine" else "high", "maxTurns": 24, "prompt": "Work only in the current working directory, which is already the assigned task worktree for this managed dev-platform task -- do not request isolation or create a separate worktree. Preserve the canonical OpenSpec and return the exact diff, checks run, uncertainty, and any escalation trigger to the supervisor. Managed source: " + route.source_issue + "; change: " + route.change + "; assigned worktree: " + route.task_worktree + "."}
+
+
+def prepare_claude_handoff(root: Path, *, profile: str, rationale: str, evidence: list[str]) -> dict[str, Any]:
+    """Atomically record a Claude route and, for lower-cost profiles, the hand-off to invoke.
+
+    A native Claude Code subagent can only be launched by the supervisor's own
+    Agent-tool call -- this module cannot spawn one as a subprocess the way
+    dispatch_codex spawns Codex. This records the route, performs the
+    detection-only dirty-start refusal up front, and returns the exact
+    hand-off spec; the supervisor must actually invoke it, then call
+    record_claude_execution with the result before finish's routing gate
+    accepts a routine/standard Claude route.
+    """
+    route = prepare(root, provider="claude", profile=profile, rationale=rationale, evidence=evidence)
+    output: dict[str, Any] = {"route": asdict(route), "delegated": False}
+    if route.profile == "complex":
+        output["reason"] = "complex profile remains on the strong Claude supervisor"
+        return output
+    tier_decision = determine_claude_tier(shell_enabled=True)
+    if tier_decision.tier is EnforcementTier.DETECTION_ONLY and route.pre_snapshot.get("paths"):
+        dirty = ", ".join(sorted(route.pre_snapshot["paths"]))
+        raise RoutingError(
+            f"detection-only Claude delegation ({tier_decision.mechanism}) refused to start: integration "
+            f"checkout already has uncommitted state ({dirty}). A detection-only writer cannot prove it did "
+            "not touch pre-existing dirty state, so it must not launch until integration is clean."
+        )
+    output["handoff"] = claude_agent(route)
+    output["tier"] = tier_decision.tier.value
+    output["mechanism"] = tier_decision.mechanism
+    output["delegated"] = "pending_supervisor_invocation"
+    return output
+
+
+def record_claude_execution(root: Path, *, agent_id: str, summary: str | None = None) -> dict[str, Any]:
+    """Record that the supervisor actually invoked the emitted Claude hand-off.
+
+    Must run after the real Agent-tool call returns. Runs the mandatory
+    content-aware postcheck (fails closed on any integration/main mutation)
+    and persists the resulting execution evidence so finish's routing gate
+    can verify a routine/standard route was truly executed, not just
+    recorded.
+    """
+    route, path = _read_route(root)
+    if route.provider != "claude":
+        raise RoutingError("the prepared route is not a Claude route")
+    if route.profile == "complex":
+        raise RoutingError("complex Claude routes are not delegated; there is no execution to record")
+    if not agent_id.strip():
+        raise RoutingError("recording Claude execution requires a non-empty agent id")
+    tier_decision = determine_claude_tier(shell_enabled=True)
+    check = postcheck(route)
+    execution = {
+        "launched": True,
+        "agent_id": agent_id.strip(),
+        "summary": summary.strip() if summary else None,
+        "tier": tier_decision.tier.value,
+        "mechanism": tier_decision.mechanism,
+        "postcheck": check,
+        "recorded_at": utc_now(),
+    }
+    next_route = Route(**{**asdict(route), "execution": execution})
+    _write_route(path, next_route)
+    return execution
 
 
 def postcheck(route: Route) -> dict[str, Any]:
@@ -238,6 +311,19 @@ def main() -> int:
     dispatch_parser.add_argument("--prompt", required=True)
     dispatch_parser.add_argument("--codex-bin")
     subparsers.add_parser("claude-agent", help="emit a native Claude Code worktree-agent definition")
+    dispatch_claude_parser = subparsers.add_parser(
+        "dispatch-claude",
+        help="record a Claude route and, for routine/standard, emit the in-place native subagent hand-off",
+    )
+    dispatch_claude_parser.add_argument("--profile", choices=PROFILES, required=True)
+    dispatch_claude_parser.add_argument("--rationale", required=True)
+    dispatch_claude_parser.add_argument("--evidence", action="append", default=[])
+    record_claude_parser = subparsers.add_parser(
+        "record-claude-execution",
+        help="record that the supervisor actually invoked the Claude hand-off, and verify containment",
+    )
+    record_claude_parser.add_argument("--agent-id", required=True)
+    record_claude_parser.add_argument("--summary")
     subparsers.add_parser("postcheck", help="verify the prepared native worktree route did not mutate integration")
     args = parser.parse_args()
     root = current_worktree_root()
@@ -258,6 +344,10 @@ def main() -> int:
                 codex_bin=args.codex_bin,
             )
         elif args.command == "claude-agent": output = claude_agent(_read_route(root)[0])
+        elif args.command == "dispatch-claude":
+            output = prepare_claude_handoff(root, profile=args.profile, rationale=args.rationale, evidence=args.evidence)
+        elif args.command == "record-claude-execution":
+            output = record_claude_execution(root, agent_id=args.agent_id, summary=args.summary)
         else: output = postcheck(_read_route(root)[0])
     except (ContainmentError, RoutingError) as exc:
         print(f"Model routing blocked: {exc}", file=sys.stderr); return 2
