@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from _platform_common import current_worktree_root, read_platform_config, run_git
+from _platform_common import TaskFreshnessError, current_worktree_root, read_platform_config, require_fresh_task_base, run_git
 
 
 def load_config(root: Path) -> dict[str, Any]:
@@ -121,6 +121,14 @@ def commands_for(checks: list[dict[str, Any]]) -> list[str]:
             if command not in commands:
                 commands.append(command)
     return commands
+
+
+def requires_task_freshness(checks: list[dict[str, Any]]) -> bool:
+    """Whether this selection will start the configured full validation set."""
+    return any(
+        str(check.get("selection_reason", "")) in {"protected-full", "high-impact-path", "unknown-path"}
+        for check in checks
+    )
 
 
 def selection_status(checks: list[dict[str, Any]]) -> dict[str, Any]:
@@ -273,6 +281,14 @@ def main() -> int:
     print("DEV_PLATFORM_CHECK_SELECTION: " + json.dumps(status, ensure_ascii=False, sort_keys=True), flush=True)
 
     if args.execute:
+        if harness == "platform" and requires_task_freshness(checks):
+            try:
+                observed = require_fresh_task_base(root, "origin", str(read_platform_config(root).get("main_branch", "main")))
+            except TaskFreshnessError as exc:
+                raise SystemExit(
+                    "Task freshness gate blocked full/protected validation before any expensive command started: " + str(exc)
+                ) from exc
+            print(f"Task freshness gate passed: HEAD contains freshly observed origin/{read_platform_config(root).get('main_branch', 'main')} ({observed}).")
         evidence_path = (root / args.evidence).resolve() if args.evidence else None
         return execute(root, checks, evidence_path)
     return 0

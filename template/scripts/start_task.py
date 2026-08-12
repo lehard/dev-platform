@@ -6,7 +6,16 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from _platform_common import current_worktree_root, github_cli_env, harness_mode, preflight, profile, read_platform_config, run_git
+from _platform_common import (
+    current_worktree_root,
+    github_cli_env,
+    harness_mode,
+    preflight,
+    profile,
+    read_platform_config,
+    require_fresh_task_base,
+    run_git,
+)
 from rollout_preflight import NONE, RECONCILED, reconcile_pending_rollout
 from start_worktree import StartedWorktree, create_worktree
 
@@ -46,6 +55,8 @@ def start_task(root: Path, slug_value: str, task: str, scope: str = "") -> Start
             print(f"Dev Platform rollout reconciliation skipped: {rollout_outcome.detail}")
     else:
         raise RuntimeError(f"Dev Platform rollout reconciliation blocked task start: {rollout_outcome.detail}")
+    observed = require_fresh_task_base(root, "origin", main_branch, task_ref=main_branch)
+    print(f"Task-start freshness observation: {main_branch} contains freshly observed origin/{main_branch} ({observed}).")
     if prof == "light":
         checked_out = run_git(["branch", "--show-current"], cwd=root).stdout.strip()
         if checked_out != main_branch:

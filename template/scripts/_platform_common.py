@@ -132,6 +132,58 @@ def relation(root: Path, left: str, right: str) -> str:
     return "diverged"
 
 
+class TaskFreshnessError(RuntimeError):
+    """Authoritative remote ancestry could not prove a task safe to validate."""
+
+
+def observe_task_base_freshness(
+    root: Path,
+    remote: str,
+    main_branch: str,
+    *,
+    task_ref: str = "HEAD",
+) -> tuple[str, str]:
+    """Refresh and compare an exact task ref with authoritative remote main.
+
+    A task is fresh when its exact head equals or contains the freshly fetched
+    integration head.  This helper never reconciles branches; callers decide
+    whether the observation is a start preflight or a validation blocker.
+    """
+    authoritative = f"{remote}/{main_branch}"
+    try:
+        remote_sha = fetch_main(root, remote, main_branch)
+    except (OSError, subprocess.CalledProcessError) as exc:
+        detail = exc.stderr.strip() if isinstance(exc, subprocess.CalledProcessError) and exc.stderr else str(exc)
+        raise TaskFreshnessError(
+            f"unable to refresh authoritative {authoritative} before validation ({detail or 'git fetch failed'}); retry after remote access is restored"
+        ) from exc
+
+    state = relation(root, task_ref, authoritative)
+    if state == "missing":
+        raise TaskFreshnessError(
+            f"unable to compare task ref {task_ref!r} with freshly observed {authoritative} ({remote_sha}); retry after repairing local Git refs"
+        )
+    return state, remote_sha
+
+
+def require_fresh_task_base(
+    root: Path,
+    remote: str,
+    main_branch: str,
+    *,
+    task_ref: str = "HEAD",
+) -> str:
+    """Fail closed unless the task contains freshly observed remote main."""
+    authoritative = f"{remote}/{main_branch}"
+    state, remote_sha = observe_task_base_freshness(root, remote, main_branch, task_ref=task_ref)
+    if state not in {"equal", "ahead"}:
+        raise TaskFreshnessError(
+            f"task {task_ref!r} is {state} relative to freshly observed {authoritative} ({remote_sha}); "
+            "rebase/reconcile first, then retry"
+        )
+    return remote_sha
+
+
 def require_origin(root: Path, remote: str = "origin") -> None:
     result = run_git(["remote", "get-url", remote], cwd=root, check=False)
     if result.returncode != 0:

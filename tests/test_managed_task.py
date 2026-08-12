@@ -481,7 +481,9 @@ class ManagedPackageTests(unittest.TestCase):
             scripts.mkdir()
             for name in ("agent_doctor.py", "project_sync.py"):
                 (scripts / name).write_text("#!/usr/bin/env python3\n", encoding="utf-8")
-            started = task_start.start_task(root, "managed-intake", "Managed task")
+            with patch.object(task_start, "require_fresh_task_base", return_value="a" * 40) as freshness:
+                started = task_start.start_task(root, "managed-intake", "Managed task")
+            freshness.assert_called_once_with(root.resolve(), "origin", "main", task_ref="main")
             self.assertEqual(started.branch, "agent/managed-intake")
             self.assertEqual(started.task_root, root.resolve())
             self.assertEqual(subprocess.run(["git", "branch", "--show-current"], cwd=root, text=True, capture_output=True, check=True).stdout.strip(), started.branch)
@@ -508,7 +510,9 @@ class ManagedPackageTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = self._bare_platform_repo(tmp)
             reconciled = rollout_preflight.RolloutPreflightResult(rollout_preflight.RECONCILED, detail="merged and synchronized rollout PR #7 (v1.2.3)")
-            with patch.object(task_start, "reconcile_pending_rollout", return_value=reconciled) as reconcile:
+            with patch.object(task_start, "reconcile_pending_rollout", return_value=reconciled) as reconcile, patch.object(
+                task_start, "require_fresh_task_base", return_value="a" * 40
+            ):
                 started = task_start.start_task(root, "managed-intake", "Managed task")
             reconcile.assert_called_once()
             self.assertEqual(started.branch, "agent/managed-intake")

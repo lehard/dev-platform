@@ -1,0 +1,15 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "specs/platform-lifecycle/spec.md",
+    "design.md",
+    "tasks.md"
+  ],
+  "change": "preflight-task-freshness-before-validation",
+  "imported_at": "2026-08-12T11:30:01+00:00",
+  "package_revision": "ba1eb8df75314b07387c21488bf6f45e69b4b59c059f10d4586b5260981b1bf1",
+  "prepared_against": "5eb43498ec0ba996932adf9d0a46d1df5993e29a",
+  "source_issue": "lehard/development-backlog#19",
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
