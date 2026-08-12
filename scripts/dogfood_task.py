@@ -185,7 +185,8 @@ def require_routing_gate(root: Path) -> None:
         raise SystemExit(
             "Dogfood routing gate blocked publication: run route-codex after semantic preflight before implementation."
         ) from exc
-    if route.get("change") != change or route.get("provider") != "codex":
+    provider = route.get("provider")
+    if route.get("change") != change or provider not in {"codex", "claude"}:
         raise SystemExit("Dogfood routing gate found routing provenance that does not match the managed task.")
     profile = route.get("profile")
     if profile == "complex":
@@ -193,8 +194,15 @@ def require_routing_gate(root: Path) -> None:
     execution = route.get("execution")
     if profile not in {"routine", "standard"} or not isinstance(execution, dict):
         raise SystemExit("Dogfood routing gate requires a valid routine, standard, or complex route record.")
-    if not execution.get("launched") or execution.get("returncode") != 0 or execution.get("violation"):
-        raise SystemExit("Dogfood routing gate requires a clean successful native Codex executor launch for routine/standard work.")
+    if not execution.get("launched"):
+        raise SystemExit(f"Dogfood routing gate requires a clean successful native {provider} executor launch for routine/standard work.")
+    if provider == "codex":
+        if execution.get("returncode") != 0 or execution.get("violation"):
+            raise SystemExit("Dogfood routing gate requires a clean successful native Codex executor launch for routine/standard work.")
+    else:
+        postcheck_result = execution.get("postcheck")
+        if not isinstance(postcheck_result, dict) or postcheck_result.get("containment") != "clean":
+            raise SystemExit("Dogfood routing gate requires a clean successful native Claude executor postcheck for routine/standard work.")
 
 
 def route_codex(args: argparse.Namespace) -> int:
@@ -223,6 +231,49 @@ def route_codex(args: argparse.Namespace) -> int:
     return 0
 
 
+def route_claude(args: argparse.Namespace) -> int:
+    """Run the mandatory dogfood routing hand-off after supervisor preflight.
+
+    Unlike route_codex, this cannot itself launch the child: a native Claude
+    Code subagent can only be started by the supervisor's own Agent-tool
+    call, in place in the current working directory. This records the route
+    and prints the exact hand-off the supervisor must invoke;
+    report-claude-execution records the result afterward.
+    """
+    root = current_root()
+    verify_source_contract(root)
+    command = [
+        "python3",
+        "scripts/model_routing.py",
+        "dispatch-claude",
+        "--profile",
+        args.profile,
+        "--rationale",
+        args.rationale,
+    ]
+    for item in args.evidence:
+        command += ["--evidence", item]
+    run(command, root)
+    return 0
+
+
+def report_claude_execution(args: argparse.Namespace) -> int:
+    """Record that the supervisor actually invoked the Claude hand-off, and verify containment."""
+    root = current_root()
+    verify_source_contract(root)
+    command = [
+        "python3",
+        "scripts/model_routing.py",
+        "record-claude-execution",
+        "--agent-id",
+        args.agent_id,
+    ]
+    if args.summary:
+        command += ["--summary", args.summary]
+    run(command, root)
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run the supported central dev-platform task lifecycle.")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -247,6 +298,21 @@ def main() -> int:
     route_parser.add_argument("--evidence", action="append", default=[])
     route_parser.add_argument("--prompt")
     route_parser.set_defaults(func=route_codex)
+    route_claude_parser = sub.add_parser(
+        "route-claude",
+        help="Record the Sol supervisor's semantic route for the Claude Code path; prints the hand-off to invoke.",
+    )
+    route_claude_parser.add_argument("--profile", choices=("routine", "standard", "complex"), required=True)
+    route_claude_parser.add_argument("--rationale", required=True)
+    route_claude_parser.add_argument("--evidence", action="append", default=[])
+    route_claude_parser.set_defaults(func=route_claude)
+    report_claude_parser = sub.add_parser(
+        "report-claude-execution",
+        help="Record that the supervisor actually invoked the Claude hand-off, and verify containment.",
+    )
+    report_claude_parser.add_argument("--agent-id", required=True)
+    report_claude_parser.add_argument("--summary")
+    report_claude_parser.set_defaults(func=report_claude_execution)
     args = parser.parse_args()
     return args.func(args)
 
