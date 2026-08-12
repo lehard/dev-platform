@@ -37,6 +37,9 @@ jobs:
       - name: Validate agentic workflow sources and generated locks
         run: python3 scripts/validate_agentic_workflows.py
 
+      - name: Install Jinja2 for docs-semantic checks
+        run: python3 -m pip install jinja2
+
       - name: Unit tests
         shell: bash
         run: |

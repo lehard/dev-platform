@@ -44,6 +44,10 @@ Reconciling this by hand was a real (not fabricated) exercise of the new mechani
 - No runtime/provider currently has a configured `[behavioral_evidence.<runtime>]` table, so `instruction-behavior-change` is exercised today only through fabricated-config unit tests, not a real declared change; it fails closed to full validation until a real targeted smoke command is configured for a runtime, which is the intended conservative default (see design.md non-goals).
 - Group wall-clock is sensitive to concurrent CPU load on the machine (observed 60s–152s across runs at `jobs=7` on an 8-core host); this is expected and documented, not a hidden regression, and the required aggregate result is unaffected by it.
 
+## Post-archive CI fix
+
+The published PR's `validate` job failed on GitHub Actions (`ubuntu-latest`) with `ModuleNotFoundError: No module named 'jinja2'` from `test_docs_semantic_checks` and, transitively, `test_module_isolation` (which standalone-imports every test module, including that one). `jinja2` was present locally only as a side effect of this machine already having `copier` installed; the CI workflow's own "Install tested Copier" step (which would have supplied it transitively) runs *after* "Unit tests", and nothing installed `jinja2` before that point. Fixed by adding an explicit `Install Jinja2 for docs-semantic checks` step (`python3 -m pip install jinja2`) to `.github/workflows/ci.yml` immediately before "Unit tests". Local `python3 -m compileall` and YAML-parse checks passed; the corrected workflow was pushed to the same PR for CI to re-validate.
+
 ## Automated checks
 
 - Automated-Checks-Evidence: automated-checks.json
