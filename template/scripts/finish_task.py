@@ -36,7 +36,7 @@ from managed_project_status import (
 )
 try:
     from agent_board import warn_current_worktree_scope_overlap
-except ModuleNotFoundError:  # Compatibility while older rendered projects are upgraded.
+except (ImportError, ModuleNotFoundError):  # Compatibility while older rendered projects are upgraded.
     def warn_current_worktree_scope_overlap(root: Path, worktree: Path, branch: str) -> None:
         return None
 try:
