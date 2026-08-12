@@ -12,6 +12,41 @@ The platform exposes one lifecycle with profile-specific capabilities:
 
 Profiles select capabilities; they are not separate forks of the platform.
 
+## Start of task
+
+Before implementation, use the common entrypoint:
+
+```bash
+python3 scripts/agent_doctor.py
+python3 scripts/start_task.py <slug> --task "<task>" --scope "<files/modules>"
+```
+
+`start_task.py` fetches `origin`, safely synchronizes the local integration branch, and then applies this project's profile. It never auto-merges divergent histories.
+
+`agent_doctor.py` is also publication preflight. It must surface an invalid protected-main/direct configuration and, for platform-owned PR publication, missing GitHub PR API authentication before the task reaches its final merge step. Existing GitHub HTTPS credentials may be reused non-persistently by the platform; otherwise authenticate once with `gh auth login` or a supported `GH_TOKEN`/`GITHUB_TOKEN`.
+
+In the `multi-agent` profile the platform atomically admits concrete file claims before implementation. Supply exact files through `--scope`; a hard claim conflict returns `WAIT` with bounded task/path diagnostics. Shared directories, subsystems and globs are warnings only, so independent tasks can still run in parallel. Do not use another agent's worktree or modify another active entry's scope without resolving the overlap.
+
+## Shared workspace permissions
+
+Managed platform state and Git metadata are shared with the POSIX group owning the integration checkout. Use `python3 scripts/shared_workspace.py check` for a read-only diagnosis and `python3 scripts/shared_workspace.py fix` for bounded repair. The helper only touches registered `.claude` coordination paths and required Git common-directory metadata; it never traverses application files, credentials, home directories or other repositories. Set `DEV_PLATFORM_SHARED_GROUP` locally only when a reviewed deployment requires a group other than the checkout's group. Filesystems without POSIX modes report a non-mutating compatibility warning.
+
+## Worktree hygiene
+
+This section applies to the `multi-agent` profile, where agents develop in isolated Git worktrees and register scope ownership in the machine-local agent board. The integration copy stays clean and acts only as the integration point.
+
+`agent_doctor.py` is the normal hygiene entrypoint: it diagnoses the board, safely removes board entries that are provably obsolete, scans managed worktrees, and refreshes `.claude/pending-worktrees.md`. Dirty or unmerged inactive work is surfaced rather than deleted. Old worktrees are cleanup candidates only when they are managed, clean, inactive, already merged and not used by a live process.
+
+Before manual worktree operations run:
+
+```bash
+python3 scripts/agent_board.py doctor --fix
+python3 scripts/worktree_cleanup.py scan
+git worktree list
+```
+
+If the pending-worktree report shows forgotten work in the same area, resolve that overlap before starting another worktree. Safe old merged worktrees can be removed with `python3 scripts/worktree_cleanup.py cleanup`; never manually delete another agent's dirty or unmerged tree.
+
 ## Task intake
 
 `AGENTS.md` owns the cross-agent task protocol. For an explicitly accepted non-trivial change that the user asks to record in Backlog, prepare a contained authoring bundle and run:
@@ -34,7 +69,15 @@ If Prepared against differs from the fetched integration commit, semantic prefli
 
 Small direct requests remain quick tasks: use the normal start/check/finish lifecycle without creating a central issue. Escalate rather than silently expanding a quick task into a material behavior, architecture, compatibility, data-contract, or scope change.
 
-Goal definition is a selective refinement layer before this intake, not a new task state. Use it for explicit goal-backed requests or when a non-trivial request lacks a reliable outcome or validator; concrete quick and implementation requests proceed directly. A refined goal names the outcome, evidence and threshold, scope bounds, and clarification stop. Use supported native `/goal` or runtime goal tools only for explicit goal-backed work. Fuzzy managed intake remains transient and must not claim native goal state. The refinement creates no durable authoring artifact: once managed authoring completes, the Issue/OpenSpec package is authoritative.
+### Selective goal definition
+
+Goal definition is a selective refinement layer before this intake, not a new task state. Refine a goal before OpenSpec or managed-task authoring only when the user explicitly requests goal-backed work, or when a non-trivial request is materially unclear about its intended outcome or success evidence. Do not require goal creation for an ordinary concrete quick or implementation task.
+
+A usable goal states the concrete outcome, verification evidence, a meaningful quantitative or binary success threshold, relevant scope bounds, and the condition that should stop work for clarification. If a missing choice could change the intended result, ask one concise question instead of inventing the requirement.
+
+For an explicit goal-backed request, use supported native goal state through `/goal` or runtime-native goal tools when available, and inspect any active goal before creating a duplicate or conflicting one. Include a token budget only when the user explicitly requests one. A fuzzy request that the user did not ask to make goal-backed receives transient natural-language refinement, not implicit durable goal state. If native goal state was explicitly requested but is unavailable, perform an explicitly transient refinement or report the limitation; never claim that `create_goal` succeeded or that an active goal exists when the runtime cannot prove it.
+
+Goal refinement creates no goal file, backlog entry, decision log, resume artifact, or competing implementation plan. For managed work, the refined outcome informs the Issue/OpenSpec package; after materialization, that Issue/OpenSpec package is authoritative.
 
 Managed delivery projects lifecycle evidence onto the central board: an exact
 reviewable PR becomes `In review`, while `Done` is written only after confirmed
@@ -54,7 +97,7 @@ Bootstrap exception: Development Backlog issue lehard/development-backlog#1 intr
 
 After managed OpenSpec materialization, a strong parent/supervisor records its bounded semantic preflight with `scripts/model_routing.py prepare`. It selects `routine`, `standard`, or `complex` based on uncertainty, blast radius, failure cost, verification difficulty, contract conflicts and material unknowns; users do not choose an executor. Concrete provider-local model mappings are replaceable `[model_routing]` policy in `.dev-platform.toml`, not durable task artifacts.
 
-Codex routine/standard execution is launched only with proven native `workspace-write` containment; otherwise the parent retains the work or reports an actionable capability limit. Claude Code execution uses the emitted `claude-agent` definition with `isolation: worktree`, followed by the supervisor's `postcheck`. The parent always reviews the resulting diff and runs normal verification. Escalate routine/standard work on material conflicts, unexpected cross-cutting scope, low confidence or repeated substantive verification failures with `scripts/model_routing.py escalate --reason "..."`; preserve the existing task worktree and evidence.
+Codex routine/standard execution is launched only with proven native `workspace-write` containment; otherwise the parent retains the work or reports an actionable capability limit. Claude Code execution runs `dispatch-claude`, which records the route and, for routine/standard, emits the exact in-place Agent-tool call the supervisor must invoke -- no `isolation: worktree`, since that forks a fresh worktree off the platform's main branch and cannot see the assigned task worktree's materialized-but-uncommitted state. After the child returns, the supervisor runs `record-claude-execution --agent-id "<id>"`, which runs the mandatory `postcheck`. The parent always reviews the resulting diff and runs normal verification. Escalate routine/standard work on material conflicts, unexpected cross-cutting scope, low confidence or repeated substantive verification failures with `scripts/model_routing.py escalate --reason "..."`; preserve the existing task worktree and evidence.
 
 ## Publishing
 
@@ -97,6 +140,41 @@ Required selected and full checks run locally before publication. The self-conta
 For intentionally unprotected `publish_mode=direct` repositories, the published main state receives an automatic run that is deliberately lightweight: it validates platform/OpenSpec health without repeating the full project check set. Direct-mode repositories also retain the stable pull-request `platform-ci` gate for explicitly reviewed maintenance or rollout PRs so existing required-status protection can be satisfied if such a PR is used.
 
 Do not skip local verification because cloud CI is narrower, and do not use the compatibility PR gate as a reason to duplicate expensive full/browser suites without a reviewed repository-specific need.
+
+## Platform release and CI updates
+
+Platform-managed scripts, docs and the self-contained CI workflow are versioned inside this repository by Copier. Platform upgrades arrive only through reviewed Copier update PRs; downstream CI never executes mutable `dev-platform@main` logic and does not require private cross-repository Actions Access.
+
+`platform_ci_ref` in schema v2 is legacy compatibility metadata and is not executed by the self-contained CI workflow.
+
+Required GitHub checks are never bypassed. Do not add agent/admin bypass merely to make autonomous publication succeed. The human user must not be used as a routine Git courier between completed agent work and GitHub.
+
+## Friction and promotion
+
+Record only high-signal friction: user correction, repeated failure, safety near-miss, undocumented invariant or excessive retries. Separate observation, evidence, hypothesis and proposal; classify as `project` or `platform`. Do not record secrets or routine successful sessions.
+
+The normal path is `record -> sanitized GitHub process issue upsert -> cloud triage/review`. Recording retains raw evidence locally and automatically creates or updates a fingerprinted issue in the correct repository. Routing failure leaves the local event pending and never blocks safe delivery; supported lifecycle commands retry it. Process issues are evidence only: neither triage nor review may create a managed task, OpenSpec change, implementation PR, or code change.
+
+```bash
+python3 scripts/agent_friction.py record --category <category> --scope project --observation <sanitized-summary> --evidence <local-evidence-summary> --hypothesis <hypothesis> --proposal <proposal>
+```
+
+Legacy `pending`, `review`, `mark-reviewed`, and `promote` commands remain recovery surfaces; do not make them a routine completion ritual.
+
+## Completion
+
+Before reporting a non-trivial OpenSpec task as complete:
+
+- active OpenSpec artifacts still describe what was actually built;
+- required project checks pass or deviations are explicit;
+- semantic OpenSpec verification has been run and material findings resolved;
+- `verification.md` contains `OpenSpec-Verify: PASS` and a truthful `Verification-Method`;
+- the OpenSpec change has been archived through the lifecycle helper;
+- the task is published according to the configured mode;
+- temporary machine-local artifacts are not tracked;
+- the completion friction checkpoint is resolved: `python3 scripts/agent_friction.py checkpoint --result none`, or pass the id of a recorded meaningful friction event.
+
+If any required completion step is blocked, report the blocker instead of saying the task is done.
 
 ## Commands
 

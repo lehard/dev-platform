@@ -30,6 +30,7 @@ Process/friction issues SHALL remain evidence/inbox state. They SHALL NOT automa
 - **GIVEN** an open process issue already contains the stable sanitized fingerprint for the event class
 - **WHEN** the same friction class recurs
 - **THEN** routing updates that issue with a bounded sanitized occurrence rather than creating a duplicate issue
+- **AND** execution model/runtime MAY be recorded as occurrence provenance without splitting the same process problem into model-specific duplicate issues
 
 #### Scenario: Raw evidence contains sensitive context
 
@@ -52,77 +53,85 @@ Process/friction issues SHALL remain evidence/inbox state. They SHALL NOT automa
 
 ## ADDED Requirements
 
-### Requirement: Meaningful friction capture requires a post-task retrospective
+### Requirement: Meaningful friction capture is a completion invariant
 
-For a non-trivial platform-owned task, terminal completion SHALL require a bounded post-task process retrospective before the friction completion checkpoint is considered resolved. The retrospective SHALL be a distinct semantic review step over the substantive task execution, not merely a choice of `none` or one event id.
+For a non-trivial platform-owned task, terminal completion SHALL include a bounded post-task process retrospective so meaningful user corrections, repeated failures, safety near-misses, workarounds, false task premises, avoidable CI/lifecycle failures, excessive retries or other high-signal unresolved process problems cannot be omitted merely because the agent forgot to record them. The retrospective SHALL run before the final friction checkpoint and SHALL reuse the ordinary platform lifecycle rather than require a separate agent-specific hook or background state machine.
 
-The retrospective SHALL inspect available task-local evidence and the agent's execution context for high-signal process friction, including user corrections, repeated substantive failures/retries, manual workarounds, safety near-misses, false task premises, undocumented invariants, missing automation/documentation, tooling/auth/worktree/Git/OpenSpec/CI/lifecycle friction, avoidable repeated work, and problems noticed but left unresolved.
+The retrospective SHALL distinguish problems already fixed during the task, problems already represented by existing friction/process evidence, and new meaningful unresolved/unrecorded findings. One retrospective MAY legitimately produce `0..N` new friction events. `none` SHALL mean that this bounded retrospective ran and found no new meaningful unresolved/unrecorded findings; a bare checkpoint call without a current retrospective result is insufficient.
 
-For each candidate, the retrospective SHALL distinguish:
-- friction already resolved as part of the current task;
-- friction already represented by an existing recorded event/process issue;
-- new meaningful unresolved and unrecorded friction.
+The retrospective/checkpoint result SHALL be bound to current task execution state sufficiently to prevent a stale result from silently completing changed work. Supported machine-detectable lifecycle/process failures SHOULD continue recording friction directly without relying on model judgment.
 
-Only the third class SHALL create new friction evidence. A single retrospective result SHALL support zero or more recorded event references. `none` SHALL be valid only when the retrospective was actually completed and yielded zero new meaningful unresolved/unrecorded findings.
+#### Scenario: Several unresolved semantic frictions occurred
 
-The retrospective completion evidence SHALL be fresh for the current task execution state. The platform SHALL reuse existing task-local provenance/exact execution identity where possible so stale checkpoint state from earlier work cannot silently satisfy changed or new work. The implementation SHALL NOT introduce a parallel task database or second lifecycle state machine solely for this purpose.
+- **WHEN** a non-trivial platform-owned task reaches completion with two or more distinct high-signal semantic conditions that remain unresolved and unrecorded
+- **THEN** the retrospective records or links all corresponding new friction events before completion is reported
+- **AND** the completion result is not forced to choose only one event
 
-Supported machine-detectable lifecycle/process failures SHOULD continue to record friction directly when observed rather than waiting for the final retrospective.
+#### Scenario: No meaningful friction occurred
 
-#### Scenario: Multiple new semantic findings are discovered
-
-- **GIVEN** a non-trivial platform-owned task contains two or more distinct high-signal semantic friction conditions
-- **AND** those conditions are unresolved and not already recorded
-- **WHEN** the post-task retrospective runs
-- **THEN** each meaningful condition is recorded as structured friction evidence
-- **AND** the completion result can reference all resulting event ids
-- **AND** the agent is not forced to choose only one finding
-
-#### Scenario: Clean task completes retrospective with no findings
-
-- **WHEN** the required post-task retrospective runs
-- **AND** it finds no new meaningful unresolved/unrecorded friction
-- **THEN** the retrospective result records zero findings
-- **AND** `none` is accepted without creating process-issue noise
-
-#### Scenario: Candidate was already resolved or already recorded
-
-- **GIVEN** a candidate friction was fixed during the task or is already represented by existing friction/process evidence
-- **WHEN** the retrospective classifies the candidate
-- **THEN** it does not create a duplicate new event solely to satisfy completion
-- **AND** any remaining new unresolved candidates are still processed normally
+- **WHEN** the bounded retrospective completes with zero new meaningful unresolved/unrecorded findings
+- **THEN** the current completion checkpoint may resolve to `friction: none`
+- **AND** no friction issue is created merely for the clean result
 
 #### Scenario: Retrospective is omitted
 
-- **WHEN** a non-trivial platform-owned task reaches the authoritative completion boundary without a current retrospective result
-- **THEN** terminal completion is refused
-- **AND** the agent receives an actionable instruction to perform the retrospective
-- **AND** the lifecycle does not invent `none` on the agent's behalf
+- **WHEN** a non-trivial platform-owned task reaches the completion boundary without a current retrospective result
+- **THEN** the lifecycle refuses terminal completion with an actionable instruction to perform the bounded review
+- **AND** it does not invent a friction event on the agent's behalf
 
-#### Scenario: Retrospective evidence is stale
+#### Scenario: Stale retrospective is reused
 
-- **GIVEN** retrospective/checkpoint evidence belongs to an earlier task execution state
-- **AND** substantive task state has since changed according to the platform's supported freshness identity
-- **WHEN** terminal completion is attempted
-- **THEN** the stale evidence does not satisfy the completion invariant
-- **AND** a fresh retrospective is required
+- **GIVEN** a valid retrospective/checkpoint existed for an earlier task execution state
+- **WHEN** relevant task state changes before terminal completion
+- **THEN** the old result does not satisfy the completion invariant
+- **AND** a current retrospective is required
 
-#### Scenario: Deterministic lifecycle failure occurs before retrospective
+#### Scenario: Deterministic lifecycle failure occurs
 
 - **WHEN** a supported lifecycle component detects an allow-listed machine-classifiable process failure or safety near-miss
 - **THEN** it records the structured local friction event directly with bounded available context
-- **AND** the later retrospective may recognize that event as already recorded rather than duplicating it
+- **AND** does not depend on a later natural-language reminder to preserve the observation
 
-#### Scenario: Routing fails after positive retrospective
+#### Scenario: Routing fails after checkpoint resolution
 
-- **WHEN** the retrospective has valid local event references but GitHub routing is temporarily unavailable
-- **THEN** terminal completion may continue if all deterministic delivery requirements are otherwise satisfied
-- **AND** the events remain pending for later routing retry
-- **AND** the retrospective receipt remains truthful about the local findings
+- **WHEN** a valid positive friction checkpoint has recorded its local event but GitHub routing is temporarily unavailable
+- **THEN** completion may continue if all deterministic delivery requirements are otherwise satisfied
+- **AND** the event remains pending for later routing retry
 
-#### Scenario: Agent reports terminal completion
+### Requirement: Friction evidence carries truthful bounded execution provenance
 
-- **WHEN** a non-trivial platform-owned task reaches terminal completion
-- **THEN** the final agent report states that the post-task retrospective was completed
-- **AND** it either identifies the recorded findings/evidence or states that no new unresolved/unrecorded meaningful friction was found
-- **AND** the human user is not required to send a separate natural-language reminder to trigger this analysis
+For a non-trivial platform-owned task, the platform SHALL maintain bounded execution provenance sufficient to relate completion/friction evidence to the execution run and, when knowable, the relevant supervisor or delegated executor. Provenance SHALL prefer structured runtime metadata or platform-owned routing/launch evidence over free-form model self-identification.
+
+The provenance contract SHALL distinguish selected/configured model or reasoning-effort values from runtime-confirmed values. If the supported current runtime cannot establish a value truthfully, the value SHALL remain explicitly unknown rather than be inferred from a prompt, global default, model statement or unsupported assumption.
+
+Execution provenance SHALL remain bounded metadata, not a transcript or general tracing system. Public friction routing SHALL include only sanitized provenance needed for useful comparison; raw execution evidence and unnecessary machine-local identifiers SHALL remain local by default.
+
+#### Scenario: Friction is observed during a delegated execution
+
+- **GIVEN** a supervisor actually delegates work to a recorded child executor
+- **AND** a meaningful friction finding is attributable to that child
+- **WHEN** the finding is recorded
+- **THEN** it references the current execution/run and the child participant using available truthful runtime/routing evidence
+- **AND** the parent model is not presented as the sole executor of that finding
+
+#### Scenario: Route was prepared but child did not run
+
+- **GIVEN** a lower-cost route was selected or prepared
+- **BUT** delegation did not actually execute and the parent/fallback performed the work
+- **WHEN** completion provenance is recorded
+- **THEN** no executed child participant is fabricated
+- **AND** the actual fallback/parent route is represented truthfully
+
+#### Scenario: Effective reasoning effort cannot be confirmed
+
+- **GIVEN** the platform selected or configured a reasoning-effort value
+- **BUT** the current runtime does not reliably expose the effective value applied to the actual execution
+- **WHEN** provenance is persisted
+- **THEN** the selected/configured effort MAY be retained with that source/status
+- **AND** runtime-confirmed/effective effort remains unknown
+
+#### Scenario: Participant attribution is ambiguous
+
+- **WHEN** a meaningful friction finding cannot be reliably attributed to a specific supervisor or child participant
+- **THEN** the finding remains attached to the task execution/run with participant attribution unknown
+- **AND** the platform does not guess which model caused it

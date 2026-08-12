@@ -1,0 +1,107 @@
+# Agent workflow (central repository)
+
+This is the detailed operating guidance for working *in* `dev-platform` itself. `AGENTS.md` is the bounded always-on map and remains the canonical entrypoint; this document holds the workflow detail that is only needed once a task reaches the relevant concern.
+
+For the guidance rendered into downstream managed projects, see `template/docs/engineering/agent-workflow.md`.
+
+## Task intents
+
+Four intents stay distinct.
+
+**Discuss.** Inspect, design and compare options. A substantial discussion does not by itself create Backlog state.
+
+**Fix/add to Backlog.** When the user explicitly asks to record an accepted non-trivial change ("зафиксируй", "добавь в бэклог", "создай задачу" or equivalent), prepare a local authoring bundle and run:
+
+```bash
+python3 scripts/managed_task.py create --bundle <directory>
+```
+
+The bundle contains `manifest.json` (`title`, `change`, ordered `artifacts`), `issue.md`, and those artifacts. The helper validates the configured Backlog contract and the temporary OpenSpec change, performs bounded duplicate checking, publishes one `managed-openspec:v1` package, then stops. Review potential-overlap candidates and pass `--confirm-distinct` only after deciding the scopes are separate. Do not implement, apply, dispatch, publish, or change Project state after authoring; wait for a separate execution request.
+
+**Quick execution.** A small direct request may use the existing task/check/finish workflow without creating a backlog issue or ceremonial OpenSpec. If it expands into a material behavior, architecture, compatibility, data-contract, or scope change, stop and propose fixation as a managed task instead of broadening it silently.
+
+**Execute an existing managed task.** An explicitly supplied Development Backlog issue is a managed task. Run:
+
+```bash
+python3 scripts/start_managed_task.py owner/repo#N
+```
+
+It performs read-only package intake, creates the task branch/worktree, materializes the agreed package only in that task checkout, then reconciles the configured Development Backlog Project item to `In progress`. It does not start apply, dispatch, or publication. Missing Project configuration/permission is a resumable start blocker, not a silent stale `Ready` state. `managed_task.py` is a task-checkout-only importer for recovery and light-profile use; it must not materialize files in a feature-capable integration checkout.
+
+Then compare the materialized change with current specs and active changes. Repair formal/schema mismatches, but stop for user resolution if the product contract materially conflicts.
+
+After successful import, the local `openspec/changes/<change>/` artifacts are canonical for implementation, verification, and archive. The backlog issue remains the human-facing provenance item, not a competing implementation task list.
+
+## Development Backlog Project state
+
+For managed tasks, publication reconciles an exact reviewable PR to `In review`, and terminal finish reconciles `Done` only after GitHub merge/direct delivery plus required local synchronization. Ordinary CI waiting remains `In review`.
+
+Use `python3 scripts/managed_project_status.py block --reason "..."` only for a genuine external/human stop, `resume` after it clears, and `status --json` for read-only recovery evidence. These commands require GitHub Projects read/write authorization (`gh auth refresh -s project`). Quick tasks without managed provenance do not mutate the Development Backlog Project.
+
+## Selective goal definition
+
+Refine a goal before OpenSpec or managed-task authoring only when the user explicitly requests goal-backed work, or when a non-trivial request is materially unclear about its intended outcome or success evidence. Do not require goal creation for an ordinary concrete quick or implementation task.
+
+A usable goal states the concrete outcome, verification evidence, a meaningful quantitative or binary success threshold, relevant scope bounds, and the condition that should stop work for clarification. If a missing choice could change the intended result, ask one concise question instead of inventing the requirement.
+
+For an explicit goal-backed request, use supported native goal state through `/goal` or runtime-native goal tools when available, and inspect any active goal before creating a duplicate or conflicting one. Include a token budget only when the user explicitly requests one. A fuzzy request that the user did not ask to make goal-backed receives transient natural-language refinement, not implicit durable goal state. If native goal state was explicitly requested but is unavailable, perform an explicitly transient refinement or report the limitation; never claim that `create_goal` succeeded or that an active goal exists when the runtime cannot prove it.
+
+Goal refinement creates no goal file, backlog entry, decision log, resume artifact, or competing implementation plan. For managed work, the refined outcome informs the Issue/OpenSpec package; after materialization, that package remains canonical.
+
+## Central source dogfood lifecycle
+
+For ordinary work in this central repository, use the committed source contract in `.dev-platform.toml` and its lifecycle adapter. Do not assemble a manual branch/worktree/PR flow. A managed task is imported first, then its sole untracked package is transferred into the isolated task worktree:
+
+```bash
+python3 scripts/managed_task.py owner/repo#N
+python3 scripts/dogfood_task.py start <slug> --task "owner/repo#N" --scope "paths" --change <openspec-change>
+cd .claude/worktrees/<slug>
+python3 scripts/dogfood_task.py status
+python3 scripts/dogfood_task.py finish
+```
+
+`status` is read-only. `finish` delegates to the authoritative GitHub-backed publication/reconciliation lifecycle and is resumable; branch pushed, draft or open PR, and green checks are nonterminal states. Do not report source work as complete until GitHub reports the exact PR `MERGED` and local `main` has been reconciled (with cleanup warnings classified under the shared lifecycle policy).
+
+## Scope discipline and capabilities
+
+Promote a rule/tool only when it is reusable across projects or a defined workflow profile. Keep application-domain rules, credentials, machine-local paths and one-off workarounds in the owning project.
+
+A change to a downstream managed file must consider both new-project rendering and Copier update behavior for existing projects.
+
+The shared lifecycle is composable. `light`, `standard`, and `multi-agent` profiles select capabilities rather than forking the template. GitHub sync/publish, checks, OpenSpec policy and release pinning are core; worktrees/board are multi-agent capabilities.
+
+## Validation
+
+At minimum:
+
+```bash
+python3 -m compileall -q template/scripts scripts
+python3 scripts/managed_projects.py validate
+python3 -m unittest discover -s tests -v
+python3 template/scripts/openspec_lifecycle.py check
+```
+
+When Copier is available, render the template and compile/run the generated doctor. For Git lifecycle changes, exercise temporary local/bare remotes so fetch/sync/direct-publish safety is tested.
+
+## Friction routing
+
+Raw friction evidence stays machine-local. Record high-signal events through `scripts/agent_friction.py`; the normal path automatically upserts a bounded sanitized, fingerprinted process issue in the configured project or platform repository. Retry failure is durable and non-blocking for safe delivery. Process issues are evidence only: cloud triage/review must never create managed tasks, OpenSpec, implementation PRs, or code changes.
+
+Record only high-signal friction: user correction, repeated failure, safety near-miss, undocumented invariant or excessive retries. Separate observation, evidence, hypothesis and proposal. Do not record secrets or routine successful sessions.
+
+Before non-trivial completion, resolve the friction checkpoint with `python3 scripts/agent_friction.py checkpoint --result none` or a recorded event id.
+
+## Completion
+
+Before reporting a non-trivial platform task as complete:
+
+- active OpenSpec artifacts still describe what was actually built;
+- required checks pass or deviations are explicit;
+- semantic OpenSpec verification has been run and material findings resolved;
+- `verification.md` contains `OpenSpec-Verify: PASS` and a truthful `Verification-Method`;
+- the OpenSpec change has been archived through the lifecycle helper and the resulting spec/archive changes are committed;
+- the task is published according to the configured mode;
+- temporary machine-local artifacts are not tracked;
+- the completion friction checkpoint is resolved.
+
+If any required completion step is blocked, report the blocker instead of saying the task is done.

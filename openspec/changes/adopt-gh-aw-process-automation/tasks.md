@@ -22,16 +22,9 @@
 - [x] 3.3 Add direct automatic friction recording for a narrow allow-list of mechanically identifiable lifecycle/process failures and safety near-misses.
 - [x] 3.4 Keep model-observed friction semantic: user correction, repeated failure, workaround, safety near-miss, false premise, avoidable lifecycle failure or excessive retries must resolve through the checkpoint before completion is reported.
 - [x] 3.5 Update generated cross-agent guidance so Codex and Claude share the same completion contract and humans are not asked to remember a separate friction-maintenance ritual.
-- [x] 3.6 Add regression tests proving a non-trivial platform-owned task cannot silently skip the original checkpoint, while `friction: none` creates no issue and routing/telemetry failure does not redefine safe publication as failed.
-
-### 3A. Strengthen the checkpoint with an actual post-task retrospective
-
-- [x] 3.7 Define the minimal retrospective receipt/state extension so one review can represent `0..N` recorded friction event ids and so `none` is distinguishable from “review not performed”.
-- [x] 3.8 Reuse current task-local lifecycle/provenance identity to make retrospective evidence fresh for the current execution state; do not add a parallel task database. `lehard/development-backlog#18` is complete and may be relied on for managed-task identity isolation.
-- [x] 3.9 Add the bounded semantic retrospective flow before completion: inspect the agreed signal classes, classify candidates as resolved / already recorded / new unresolved, and record all new meaningful unresolved/unrecorded findings.
-- [x] 3.10 Make the authoritative `finish_task` boundary reject missing or stale retrospective evidence and validate referenced positive local events without inventing `none`.
-- [x] 3.11 Update generated Codex/Claude guidance and final-report expectations so the retrospective runs without a human reminder and reports either the recorded findings or an explicit clean result.
-- [x] 3.12 Add deterministic regression coverage for multiple findings in one review, clean zero-finding review, resolved/already-recorded filtering, stale receipt rejection, positive findings with temporary routing failure, and quick/non-applicable scope behavior.
+- [x] 3.6 Add regression tests proving a non-trivial platform-owned task cannot silently skip the checkpoint, while `friction: none` creates no issue and routing/telemetry failure does not redefine safe publication as failed.
+- [x] 3.7 Strengthen the checkpoint into a bounded post-task retrospective tied to current task execution state: classify candidates as fixed, already recorded, or new unresolved/unrecorded; support `0..N` new findings and reject a bare/stale `none` receipt. Implemented in `agent_friction.py` (`checkpoint --result none|--event <id>` repeatable; `require_checkpoint` binds to branch+head).
+- [x] 3.8 Update deterministic acceptance so two distinct unresolved semantic frictions are both preserved, while fixed/duplicate candidates create no new event and a clean retrospective produces a current `none` result. Evidence: `tests/test_friction_review.py` (see 5.8-5.11 below for specific cases).
 
 ## 4. Preserve the process-evidence / managed-task boundary
 
@@ -39,7 +32,7 @@
 - [x] 4.2 Ensure `gh-aw` triage/weekly review cannot create Development Backlog tasks, materialize OpenSpec, dispatch executors, modify code or create implementation PRs.
 - [x] 4.3 When review recommends remediation, require a later explicit human fixation intent to use the existing managed-task authoring path; do not add automatic conversion logic.
 
-## 5. Real acceptance
+## 5. Existing real acceptance
 
 - [x] 5.1 Verify real issue-event triage can read a controlled public process issue and produce exactly the declared safe output.
 - [x] 5.2 Create one controlled high-signal friction event through the normal lifecycle and verify it automatically creates the expected sanitized GitHub process issue without manual `promote`.
@@ -54,19 +47,36 @@
 - [x] 5.11 Missing or stale retrospective evidence prevents terminal completion with an actionable instruction, while a fresh result for the current task state succeeds. Evidence: `test_missing_checkpoint_blocks_non_trivial_completion`, `test_stale_checkpoint_head_blocks_completion`, `test_fresh_checkpoint_after_new_commit_satisfies_completion`.
 - [ ] 5.12 Final agent output truthfully reports retrospective completion and either the captured findings or the clean zero-finding result. Pending this task's own terminal report.
 
-## 6. Verify, archive and release centrally
+## 6. Add truthful bounded execution provenance
 
-- [ ] 6.1 Run platform tests, OpenSpec lifecycle checks, strict OpenSpec validation, semantic verification and applicable `gh-aw` compile/security validation against the final implementation.
-- [ ] 6.2 Record truthful `OpenSpec-Verify: PASS` plus real routing/dedupe/retrospective/scheduled-run evidence and archive `adopt-gh-aw-process-automation` through the lifecycle helper.
-- [ ] 6.3 Publish the next normal immutable platform release if runtime/template code changed after the currently published release; do not cut a release solely for archive/spec bookkeeping.
-- [x] 6.4 Do not roll `gh-aw` workflows into Cuby, Jara_Fin or Planner Agent Lab in this change. Any downstream cloud-workflow rollout remains a separate managed decision.
+- [ ] 6.1 At implementation preflight, verify the current supported Codex and Claude Code runtime surfaces for machine-readable parent-session model metadata, delegated execution identity and selected/effective reasoning effort. Record the proven surfaces and keep unsupported fields optional/unknown rather than designing against assumptions.
+- [ ] 6.2 Extend the existing bounded model-routing/completion evidence so a task run can represent supervisor and actually executed child participants with provider/runtime, role, profile, model, reasoning effort when available, provenance source/status, bounded execution identifier and parent/child relationship. Do not add transcript/tool-call storage or a second run database.
+- [ ] 6.3 Preserve the selected/configured vs runtime-confirmed distinction for model and reasoning effort. Never infer effective effort from a global config, prompt, model self-report or unsupported runtime behaviour; retain `unknown` where confirmation is unavailable.
+- [ ] 6.4 For Codex routing, reuse the current platform-owned route/launch evidence and record the actual child/fallback/escalation path. Add effort metadata only through a currently supported verified Codex surface, with truthful source/status.
+- [ ] 6.5 For Claude routing, reuse the existing native Agent hand-off model/effort and post-call `agent_id` evidence; represent a child as executed only after the real Agent invocation is recorded. Verify whether stronger runtime-confirmed model/effort metadata is available before claiming it.
+- [ ] 6.6 Link friction events and retrospective findings to the current run and, when evidence permits, the relevant supervisor or child participant. Ambiguous findings remain run-level/participant-unknown rather than assigning blame by guess.
+- [ ] 6.7 Include only bounded sanitized execution provenance in routed GitHub process evidence. Keep raw evidence, unnecessary machine-local identifiers, prompts/transcripts and other sensitive execution detail local by default.
+- [ ] 6.8 Keep friction deduplication based on the underlying process-problem fingerprint rather than model identity; model/runtime belongs to per-occurrence provenance so later review can compare patterns without issue proliferation.
+- [ ] 6.9 Update generated shared Codex/Claude guidance and final completion reporting so agents use the platform-owned provenance instead of free-form self-identification and explicitly report unknown fields truthfully.
+- [ ] 6.10 Add deterministic regression coverage for prepared-but-not-run delegation, actual child execution, parent fallback, escalation, unknown metadata, selected-vs-confirmed effort and participant attribution.
+- [ ] 6.11 Perform real controlled acceptance in both supported entrypoints: at least one Codex task and one Claude Code task with routed delegation must produce truthful bounded execution provenance and representative friction attribution; include at least one case where an unavailable/unconfirmed field remains `unknown` rather than being fabricated.
+
+## 7. Verify, archive and release centrally
+
+- [ ] 7.1 Run platform tests, OpenSpec lifecycle checks, strict OpenSpec validation, semantic verification and applicable `gh-aw` compile/security validation against the final implementation, including the new retrospective/provenance regression suite.
+- [ ] 7.2 Record truthful `OpenSpec-Verify: PASS` plus real routing/dedupe/retrospective/provenance/scheduled-run evidence and archive `adopt-gh-aw-process-automation` through the lifecycle helper.
+- [ ] 7.3 Publish the next normal immutable platform release if runtime/template code changed after the currently published release; do not cut a release solely for archive/spec bookkeeping.
+- [x] 7.4 Do not roll `gh-aw` workflows into Cuby, Jara_Fin or Planner Agent Lab in this change. Any downstream cloud-workflow rollout remains a separate managed decision.
 
 ## Explicitly avoided in this change
 
 - No local scheduler/daemon/cron/launchd process.
-- No transcript warehouse, MemoryOps or second durable AI memory beside GitHub Issues/local raw evidence.
-- No per-agent Claude/Codex hook as the authoritative correctness boundary.
-- No full Repo Assist or Process Analyzer adoption.
+- No MemoryOps or second durable AI memory beside GitHub Issues/local raw evidence.
+- No transcript, prompt, chain-of-thought or full tool-call warehouse.
+- No general-purpose distributed tracing/observability backend.
+- No per-agent Claude/Codex hook as the correctness boundary.
+- No fragile UI scraping solely to discover model/effort metadata.
 - No automatic process-issue -> Development Backlog conversion.
 - No autonomous code remediation, OpenSpec acceptance or executor dispatch.
+- No model-specific behavioural fixes until evidence justifies a separate managed change.
 - No heavy retrospective ceremony for tiny quick tasks outside the non-trivial platform-owned completion contract.

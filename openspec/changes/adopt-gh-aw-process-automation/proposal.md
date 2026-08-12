@@ -1,29 +1,34 @@
 ## Why
 
 Source backlog issue: `lehard/development-backlog#5`  
-Originally prepared against: `lehard/dev-platform@c89a809123265e842187aa5b14959533f995416e`  
-Refined against: `lehard/dev-platform@07ab9565909996bf710d56bd5903a5fe709139ff`
+Prepared against: `lehard/dev-platform@6d2629db8b5f4e6ed6dbdcdaa5dba8a0ddd14d8a`
 
-The `gh-aw` cloud pilot is already proven, sanitized friction routing/deduplication/retry is implemented, and the platform-owned completion lifecycle already requires an explicit friction checkpoint. Real use exposed a narrower remaining gap: the checkpoint can become ceremony. An agent may resolve it as `none` without first performing a separate analysis of the work that just happened, while a later human reminder to review process friction still regularly surfaces additional unresolved findings.
+The `gh-aw` cloud pilot and automatic process-friction routing are already proven, and the platform-owned completion lifecycle now has an explicit friction checkpoint. Real use has exposed two remaining gaps.
 
-The contract therefore needs to distinguish **having a checkpoint value** from **having performed a post-task process retrospective**. For non-trivial platform-owned work, terminal completion should require a bounded retrospective pass that reviews the task for high-signal unresolved/unrecorded friction, records every meaningful new finding, and only then produces the completion result. `none` is valid only after that review finds no new meaningful unresolved/unrecorded friction.
+First, a model can still satisfy the checkpoint mechanically without performing a separate bounded retrospective over the work that just happened. A clean completion therefore needs an explicit post-task review that can produce `0..N` unresolved findings rather than relying on model memory or a human reminder.
 
-This refinement stays inside the existing friction/completion architecture. Process issues remain evidence, not managed tasks; the working cloud pilot remains advisory; no new scheduler, memory subsystem, transcript warehouse, autonomous remediation loop, or parallel lifecycle state machine is introduced.
+Second, friction evidence currently does not say which execution participant actually did the work. That matters now that the platform supports provider-local routing: Codex and Claude Code have different observable behaviours, and a strong supervisor may delegate implementation to a cheaper subagent. Without bounded execution provenance, later review can incorrectly attribute a blocker, retry pattern or unnecessary human interaction to the parent, the child, or even the wrong runtime.
+
+This provenance must be truthful rather than conversational self-identification. The current model-routing path already records provider, execution profile, selected executor model and actual delegation evidence; the Claude hand-off also carries the selected child model/effort and records the returned agent id. Those machine-owned records are the preferred source. Interactive parent metadata and effective reasoning effort are recorded only when the current runtime exposes them reliably; otherwise the field remains explicitly unknown. A configured/selected value must not be silently relabelled as runtime-confirmed execution state.
+
+The platform has a separate managed-task authoring path through the Development Backlog, so the source-of-truth boundary stays unchanged: process/friction issues are evidence about how development went wrong; a Development Backlog issue plus OpenSpec is an explicitly accepted future change. Neither retrospective nor provenance may silently convert evidence into managed work.
+
+The remaining implementation should therefore stay small: complete the bounded retrospective, attach truthful bounded execution provenance to task/friction evidence using existing lifecycle and routing state, and preserve the working `capture -> sanitized GitHub issue upsert -> gh-aw triage/review` loop. No tracing backend, transcript warehouse, second scheduler, agent memory system, background daemon or autonomous remediation loop is needed.
 
 ## What Changes
 
-- Keep the accepted `gh-aw + Codex` process-triage and weekly-review pilot as the cloud advisory layer.
-- Keep the normal local path `capture -> sanitized GitHub issue upsert -> gh-aw triage/review`, including existing sanitization, deterministic dedupe and durable retry behavior.
-- Strengthen non-trivial platform-owned completion from a bare `none | event` checkpoint into a required bounded post-task process retrospective followed by a current-task completion receipt.
-- Require the retrospective to inspect semantic friction signals including user corrections, repeated failures/retries, manual workarounds, safety near-misses, false premises, undocumented invariants, missing automation/documentation, tooling/auth/worktree/Git/OpenSpec/CI/lifecycle friction, avoidable repeated work, and problems noticed but left unresolved.
-- Filter candidates before recording: findings already fixed in the task or already represented by existing friction/process evidence are not emitted again; new meaningful unresolved/unrecorded findings are recorded.
-- Support `0..N` retrospective findings/events. `none` means the retrospective ran and produced zero new meaningful unresolved/unrecorded findings; it no longer means merely that the agent chose not to record anything.
-- Make retrospective completion evidence fresh enough for the current task execution state that a stale checkpoint cannot silently satisfy changed/new work. The exact technical identity binding is implementation-owned after preflight, but should reuse existing task/branch/head lifecycle evidence rather than create a second state machine.
-- Make the authoritative `finish_task` completion boundary reject missing or stale retrospective evidence before terminal completion.
-- Keep machine-detectable lifecycle/process failures recorded directly where they are mechanically observable instead of waiting for the final retrospective.
-- Update generated cross-agent guidance so Codex and Claude perform this review without a human natural-language reminder and report its result concisely at the end.
-- Preserve the boundary between process evidence and managed work: neither retrospective nor `gh-aw` may create Development Backlog tasks, materialize OpenSpec, modify code, or dispatch executors automatically.
-- Keep the pilot central to `dev-platform`; downstream `gh-aw` rollout remains separate.
+- Keep the accepted `gh-aw + Codex` process-triage and weekly-review pilot as the cloud advisory layer; do not redesign it without a demonstrated compatibility/security need.
+- Keep the normal local friction path `capture -> sanitized GitHub issue upsert -> gh-aw triage/review` and the existing routing/dedupe/sanitization/offline-retry guarantees.
+- Require a bounded post-task process retrospective before terminal completion of a non-trivial platform-owned task. It may produce `0..N` unresolved findings; `none` is valid only after that retrospective ran.
+- Bind the retrospective/checkpoint to the current task execution state so a stale receipt cannot close changed work.
+- Add bounded execution provenance sufficient to distinguish the runtime/provider, supervisor vs delegated executor, execution profile, selected/confirmed model, reasoning effort when truthfully knowable, and the parent-child identity of a real delegated run.
+- Prefer machine-owned runtime/routing evidence over free-form model self-identification. Distinguish selected/configured metadata from runtime-confirmed metadata, and record `unknown` when a value cannot be proven by the supported current runtime.
+- Reuse existing model-routing and friction/lifecycle records rather than build a parallel tracing or observability subsystem.
+- Link model-observed friction and retrospective findings to the relevant execution participant/run when that attribution is known. Do not claim a subagent executed work merely because a route was prepared.
+- Record supported deterministic lifecycle/process failures directly where they are mechanically observable instead of relying on model memory.
+- Route only bounded sanitized provenance with public friction evidence; raw evidence and any machine-local execution detail that is not needed publicly stay local by default.
+- Explicitly separate process evidence from managed work: `gh-aw` may triage, summarize, compare recurring model/runtime patterns and recommend remediation, but SHALL NOT create Development Backlog tasks, materialize OpenSpec changes, modify code or dispatch executors. A managed task appears only after explicit human fixation intent.
+- Keep the cloud-workflow pilot central to `dev-platform` in this change. Do not roll `gh-aw` workflows into Cuby, Jara_Fin or Planner Agent Lab here.
 
 ## Capabilities
 
@@ -33,10 +38,11 @@ This refinement stays inside the existing friction/completion architecture. Proc
 
 ### Modified Capabilities
 
-- `platform-lifecycle`: Make post-task friction discovery, multi-finding capture, freshness-aware completion evidence, and sanitized routing part of the normal Definition of Done for non-trivial platform-owned work.
+- `platform-lifecycle`: Make a real post-task retrospective, meaningful friction capture, truthful execution provenance and sanitized routing normal completion evidence instead of a remembered manual ritual.
+- `model-routing`: Preserve bounded truthful evidence of the route that actually executed so downstream friction can be attributed to the supervisor/executor without inventing model or effort metadata.
 
 ## Impact
 
-The remaining implementation should stay focused on the friction helper/checkpoint representation, authoritative completion lifecycle, generated agent guidance, deterministic tests, and final OpenSpec evidence. The existing routing/cloud-workflow implementation should change only where required by the stronger retrospective contract.
+The remaining implementation is expected to touch the friction helper, model-routing execution record, the stable platform-owned completion lifecycle, generated cross-agent guidance, deterministic tests and OpenSpec evidence. Provider-specific code should remain a thin edge adapter around the shared contract and must be validated against the currently supported Codex and Claude Code runtime surfaces during implementation preflight.
 
-The change does not own Development Backlog authoring, autonomous remediation, a general transcript-analysis product, or a second implementation planner. Repository-local `openspec/changes/adopt-gh-aw-process-automation/` remains the canonical implementation contract once this revision is materialized/reconciled.
+The change does not own model-specific behavioural fixes, a generic analytics warehouse, Development Backlog authoring, managed-task execution/publication, or autonomous remediation. Those remain separate concerns; this change creates trustworthy evidence on which later model/runtime-specific corrections can be based.

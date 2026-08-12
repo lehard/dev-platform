@@ -113,6 +113,45 @@ class CentralDogfoodLifecycleTests(unittest.TestCase):
         self.assertIn(dogfood_task.CODEX_EXECUTOR_PROMPT, command)
         self.assertEqual(run.call_args.args[1], self.root)
 
+    def test_route_claude_records_route_and_cannot_itself_launch(self) -> None:
+        args = dogfood_task.argparse.Namespace(
+            profile="standard",
+            rationale="Sol supervisor completed semantic preflight",
+            evidence=["openspec/changes/central-task"],
+        )
+        with mock.patch.object(dogfood_task, "current_root", return_value=self.root), mock.patch.object(
+            dogfood_task, "run"
+        ) as run:
+            self.assertEqual(dogfood_task.route_claude(args), 0)
+
+        command = run.call_args.args[0]
+        self.assertEqual(command[:5], ["python3", "scripts/model_routing.py", "dispatch-claude", "--profile", "standard"])
+        self.assertIn("--rationale", command)
+        self.assertIn("--evidence", command)
+        self.assertNotIn("--prompt", command)
+        self.assertEqual(run.call_args.args[1], self.root)
+
+    def test_report_claude_execution_dispatches_with_agent_id(self) -> None:
+        args = dogfood_task.argparse.Namespace(agent_id="agent-abc123", summary="added implemented.txt")
+        with mock.patch.object(dogfood_task, "current_root", return_value=self.root), mock.patch.object(
+            dogfood_task, "run"
+        ) as run:
+            self.assertEqual(dogfood_task.report_claude_execution(args), 0)
+
+        command = run.call_args.args[0]
+        self.assertEqual(
+            command,
+            [
+                "python3",
+                "scripts/model_routing.py",
+                "record-claude-execution",
+                "--agent-id",
+                "agent-abc123",
+                "--summary",
+                "added implemented.txt",
+            ],
+        )
+
     def test_finish_blocks_managed_delivery_without_routing_gate(self) -> None:
         self.add_managed_change()
         args = dogfood_task.argparse.Namespace(title=None, body=None)
@@ -139,6 +178,46 @@ class CentralDogfoodLifecycleTests(unittest.TestCase):
             encoding="utf-8",
         )
         dogfood_task.require_routing_gate(self.root)
+
+    def test_routing_gate_accepts_successful_standard_claude_route(self) -> None:
+        self.add_managed_change()
+        record = self.root / ".claude" / "model-routing" / "central-task.json"
+        record.parent.mkdir(parents=True)
+        record.write_text(
+            json.dumps(
+                {
+                    "change": "central-task",
+                    "provider": "claude",
+                    "profile": "standard",
+                    "execution": {
+                        "launched": True,
+                        "agent_id": "agent-abc123",
+                        "tier": "detection-only",
+                        "postcheck": {"containment": "clean", "pre_existing_changes": []},
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        dogfood_task.require_routing_gate(self.root)
+
+    def test_routing_gate_rejects_claude_route_without_clean_postcheck(self) -> None:
+        self.add_managed_change()
+        record = self.root / ".claude" / "model-routing" / "central-task.json"
+        record.parent.mkdir(parents=True)
+        record.write_text(
+            json.dumps(
+                {
+                    "change": "central-task",
+                    "provider": "claude",
+                    "profile": "standard",
+                    "execution": {"launched": True, "agent_id": "agent-abc123"},
+                }
+            ),
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(SystemExit, "clean successful native Claude executor postcheck"):
+            dogfood_task.require_routing_gate(self.root)
 
     def test_source_contract_is_explicit_and_adapter_paths_are_present(self) -> None:
         import tomllib

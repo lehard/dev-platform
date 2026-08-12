@@ -1,148 +1,181 @@
 ## Context
 
-The change began with three gaps: no cloud review runtime, a manual friction-promotion path, and no structural completion trigger forcing an agent to decide whether meaningful friction occurred. The first two are now largely implemented and proven: pinned `gh-aw` workflows provide bounded cloud advisory review, and local high-signal friction can be routed as sanitized deduplicated GitHub process evidence with durable retry.
+The change started when `dev-platform` had three gaps at once: no cloud review runtime, a manual friction-promotion path, and no structural completion trigger that forced an agent to decide whether meaningful friction had occurred. The first gap is solved and proven in production-like acceptance: pinned `gh-aw` workflows run Codex inside GitHub Actions with bounded cost/runtime, read-only analysis and constrained `safe-outputs`. The local routing/checkpoint path is also largely implemented.
 
-The first implementation of the completion guard also landed: a non-trivial platform-owned task must resolve a friction checkpoint as `none` or one recorded event reference. Real usage exposed that this guard is structurally present but semantically too weak. An agent can satisfy `none` without performing a separate retrospective analysis, while a later human prompt to inspect unresolved process problems still surfaces additional findings. The checkpoint therefore risks becoming exactly the ceremony the design intended to avoid.
+Three other platform capabilities materially shape the remaining design:
 
-`bind-terminal-reconciliation-to-managed-task-provenance` (`lehard/development-backlog#18`) is now completed, so task-local/exact managed-task identity is available as the safe basis for freshness-aware retrospective evidence. The refinement should reuse that lifecycle provenance rather than introduce another task identity system.
+- `durable-publication-recovery` provides the stable platform-owned `finish_task`/publication boundary and resumable GitHub-backed lifecycle.
+- managed-task authoring provides a separate intentional path from an accepted human decision to `lehard/development-backlog` plus OpenSpec. Process/friction issues therefore remain evidence, not a second managed-task queue.
+- provider-local `model-routing` now records semantic execution profile, selected executor model and delegation evidence for managed tasks. Codex lower-cost execution is launched through the platform path; Claude lower-cost execution is handed to a native Agent call and later records the returned agent id.
 
-The remaining design goal is not a generalized self-improving agent framework. It is a small but explicit two-phase completion contract:
+Real operation exposed two remaining quality gaps. A friction checkpoint can be mechanically closed without a separate retrospective, and friction evidence has no bounded execution provenance. The latter makes it impossible to reliably distinguish a behaviour of Codex from Claude Code, a parent from a delegated child, or a configured route from the route that actually ran.
 
-`post-task retrospective -> 0..N friction findings -> current completion receipt -> finish`
+The design should optimize for truthful evidence and few moving parts, not for a generalized tracing or self-improving-agent framework.
 
 ## Goals
 
-- Make the agent perform a real bounded process review before non-trivial platform-owned terminal completion without requiring a human reminder.
-- Make `none` mean “review completed with zero new meaningful unresolved/unrecorded findings,” not “nothing was entered.”
-- Allow one retrospective to surface multiple independent findings.
-- Avoid duplicate/noisy friction by filtering findings already resolved or already recorded.
-- Bind retrospective completion evidence to current task execution identity strongly enough to reject stale reuse.
-- Keep existing sanitized routing, dedupe, retry, and advisory cloud review unchanged where possible.
-- Keep a deliberate human decision between process evidence and a managed implementation task.
+- Make significant process friction hard to forget at the ordinary platform-owned completion boundary through a bounded post-task retrospective.
+- Preserve `0..N` unresolved findings from one retrospective without requiring a human follow-up prompt.
+- Attach enough truthful execution provenance to task/friction evidence to distinguish runtime/provider, supervisor vs delegated executor, execution profile and model where those values are provable.
+- Preserve the difference between selected/configured execution metadata and runtime-confirmed metadata; never fabricate unknown model/effort values.
+- Attribute a finding to a delegated child only when the platform has evidence that the child actually ran.
+- Route useful sanitized evidence to the correct GitHub issue backlog without a remembered `promote` command.
+- Prevent duplicate issue spam with deterministic, non-secret identity.
+- Preserve raw evidence locally and survive temporary GitHub/auth/network failure without blocking safe publication.
+- Reuse the working model-routing, friction and `gh-aw` layers rather than add another scheduler, memory system, transcript store or review daemon.
+- Keep an explicit human decision between process evidence and a managed implementation task.
 
 ## Non-goals
 
-- Autonomous code fixes, OpenSpec acceptance, Development Backlog creation, or executor dispatch from process evidence.
-- Transcript warehousing, a generic conversation-analysis database, MemoryOps, or a background daemon.
-- Per-agent hooks as the authoritative correctness boundary.
-- A second lifecycle state machine or task identity database.
-- Heavy retrospective ceremony for ordinary tiny quick tasks outside the existing non-trivial platform-owned completion contract.
-- Downstream `gh-aw` rollout in this change.
+- A general-purpose distributed tracing/observability backend for agents.
+- Transcript, prompt, chain-of-thought or full tool-call warehousing.
+- Autonomous code fixes, OpenSpec creation/acceptance, Development Backlog creation or executor dispatch from process issues.
+- Model-specific behavioural corrections in the same change; provenance is the evidence base for later corrections.
+- A local cron/launchd daemon, new background service or MemoryOps state.
+- Per-agent Claude/Codex hooks as the primary completion enforcement mechanism.
+- Claiming effective reasoning effort from a configuration value when the runtime cannot confirm that it was actually applied.
+- Cross-provider delegation or a unified vendor telemetry API.
+- Full Repo Assist or Process Analyzer adoption in this change.
+- Downstream rollout of `gh-aw` cloud workflows to managed consumer repositories.
 
 ## Decisions
 
 ### 1. Preserve the working cloud pilot
 
-`Process Issue Triage` and `Weekly Process Backlog Review` remain the cloud advisory layer. Their safe-output, public-data, runtime, and cost boundaries remain unchanged unless acceptance exposes a concrete defect.
+`Process Issue Triage` and `Weekly Process Backlog Review` remain the cloud advisory layer. Their existing engine, safe-output boundary, public-only MCP constraints, gateway compatibility pinning, timeout and AI-credit limits are retained unless a concrete acceptance or maintenance failure requires adjustment.
 
-Cloud agent success remains independent from deterministic CI/publication/release correctness.
+Cloud workflow success is not part of deterministic CI/publication/release correctness.
 
-### 2. Keep one normal friction path
+### 2. One normal local path: record, then route
 
-The normal evidence path remains:
+The normal friction flow remains:
 
 `structured local event -> sanitized candidate -> deterministic GitHub issue upsert -> gh-aw triage/review`
 
-Raw evidence remains machine-local. Routing failure remains durable and non-blocking for otherwise safe delivery.
+The existing local JSONL remains useful as raw evidence and retry storage. The separate batch-review cursor is not part of normal operator completion work.
 
-### 3. Process issues and managed tasks stay separate
+`pending`, `review`, `mark-reviewed` and `promote` MAY remain temporarily for recovery/backward compatibility, but generated guidance SHALL not present them as routine completion work.
 
-A process issue is evidence/inbox state. A Development Backlog issue plus OpenSpec is an explicit human decision to manage a change. Retrospective, routing, triage, and weekly review SHALL NOT cross that boundary automatically.
+### 3. Process issues and managed tasks are different state machines
 
-### 4. Completion becomes explicitly two-phase
+A friction/process issue represents evidence: something went wrong, repeated, required a workaround, exposed an invariant, or may justify process improvement.
 
-For non-trivial platform-owned work, the old bare checkpoint is no longer sufficient by itself.
+A Development Backlog issue represents an explicit human decision to manage and later implement a change. `gh-aw` triage/review SHALL NOT cross this boundary automatically.
 
-Before terminal completion, the agent performs one bounded post-task semantic retrospective. Only after this pass may completion evidence be resolved.
+If review says a process issue is ready for remediation, the output is advisory. Only explicit human fixation intent invokes managed-task authoring.
 
-The retrospective reviews meaningful execution signals, including:
-- user corrections or changed understanding caused by an avoidable miss;
-- repeated substantive failures or excessive retries;
-- manual workaround or unsupported detour;
-- safety near-miss;
-- false premise;
-- undocumented invariant;
-- missing automation or documentation that materially slowed/repeated work;
-- auth/tool/worktree/Git/OpenSpec/CI/lifecycle friction;
-- avoidable repeated actions;
-- problems noticed but intentionally left unresolved.
+### 4. Completion enforcement lives at the platform lifecycle boundary
 
-The retrospective is not expected to catalog routine successful work.
+For a non-trivial platform-owned task, terminal completion requires a bounded post-task retrospective tied to the current task execution state. The retrospective examines material work history available to the agent and produces `0..N` unresolved/unrecorded high-signal findings after excluding problems already fixed in the task and existing recorded duplicates.
 
-### 5. Classify before recording
+A clean retrospective resolves to `none`; a positive retrospective resolves to all newly recorded event references. A bare `checkpoint --result none` without evidence that the retrospective ran is insufficient.
 
-Each retrospective candidate is classified as one of:
-1. resolved in this task;
-2. already recorded/represented;
-3. new meaningful unresolved and unrecorded friction.
+The exact minimal receipt shape is implementation-owned and should reuse `finish_task` rather than introduce a parallel state machine. Per-agent hooks may remain compatible helpers, but correctness belongs to the shared repository lifecycle so Codex and Claude follow the same contract.
 
-Only class 3 is newly recorded. This preserves signal quality while still allowing several distinct new findings from one task.
+### 5. Deterministic failures record themselves
 
-Existing issue/event dedupe remains a second safety layer after this semantic classification.
+When a lifecycle component can mechanically classify a high-signal failure or safety near-miss, it should create the structured local friction event directly with bounded context. Model judgment is reserved for semantic friction such as user correction, false premise or repeated workaround.
 
-### 6. Retrospective result supports 0..N findings
+Do not instrument every exception. Only supported high-signal lifecycle/process categories belong in automatic capture.
 
-The completion representation must support:
-- zero new findings (`none`, but only after the review ran);
-- one finding;
-- multiple findings/events.
+### 6. Routing is deterministic and sanitized
 
-The current single-event checkpoint shape is therefore an implementation detail to evolve, not a product constraint.
+The router resolves destination from event scope:
 
-A likely minimal shape is one task-local retrospective receipt containing a list of event ids plus review metadata. The exact CLI/storage schema is implementation-owned during preflight, provided it remains small, machine-checkable, and compatible with the existing friction state.
+- `project` -> normalized current GitHub repository;
+- `platform` -> configured platform promotion repository.
 
-### 7. Freshness reuses task-local provenance
+The public issue representation contains only bounded sanitized fields such as source repository/project, category/key, severity, occurrence metadata, concise observation/proposal and the minimum useful execution provenance. Raw arbitrary evidence and unnecessary machine-local details stay local by default.
 
-A retrospective receipt must not be silently reusable after substantive task execution changes.
+The router uses existing authenticated GitHub access. It does not invoke an LLM to decide where or how to write the issue.
 
-Use the smallest existing identity already made reliable by managed-task provenance and publication lifecycle — for example task source/change plus branch/head or an equivalent exact execution marker. Do not invent another global task database.
+### 7. Stable fingerprint owns deduplication
 
-For quick tasks that still use the non-trivial platform-owned completion contract but have no Development Backlog provenance, use the existing task/branch/head lifecycle identity available to `finish_task`.
+Each routable event has a stable non-secret fingerprint derived only from normalized machine-safe identity fields such as destination scope/repository plus category/key. Execution model/version MUST NOT be added to the canonical friction fingerprint merely to split the same underlying process problem by model; model/runtime is occurrence provenance for later comparison.
 
-### 8. `finish_task` remains authoritative
+The canonical issue stores a machine-readable marker containing that fingerprint. Repeated occurrences update the same open issue with bounded occurrence metadata rather than create one issue per model/run.
 
-The authoritative completion boundary verifies:
-- a retrospective result exists for work that requires it;
-- the result is fresh for the current task execution state;
-- referenced positive findings exist locally;
-- routing failure alone does not invalidate otherwise safe completion.
+### 8. Routing failure is durable and non-blocking
 
-Missing/stale evidence produces an actionable blocker asking the agent to run the retrospective. `finish_task` must never auto-create `none`.
+A recorded event has explicit local routing state sufficient to distinguish pending from successfully routed. If GitHub auth/network/API access is unavailable, the event remains pending and a concise non-secret warning is emitted.
 
-### 9. Deterministic failures still record themselves
+A later supported lifecycle invocation retries pending routing. Telemetry failure alone does not turn an otherwise safely delivered task into failed publication. No retry daemon is introduced.
 
-Machine-classifiable lifecycle/process failures should be recorded when observed, not delayed until retrospective time. The final retrospective treats those events as already-recorded evidence and avoids duplicates.
+### 9. Weekly review remains advisory and bounded
 
-### 10. Cross-agent guidance owns the semantic pass
+The scheduled weekly workflow summarizes process issues, likely duplicates, stale/already-resolved candidates, missing evidence and items ready for a human decision. Once provenance exists it MAY compare repeated occurrences by runtime/model, but it cannot infer causality from one observation or auto-create model-specific fixes.
 
-Generated `AGENTS.md` guidance for Codex/Claude must explicitly require the separate retrospective reasoning pass and candidate classification before resolving completion. The final response should include a compact retrospective result.
+The acceptance requirement remains at least one genuine scheduled run; a manual `workflow_dispatch` does not substitute for that evidence.
 
-This guidance plus the deterministic receipt gate is the correctness model. Agent-specific shell hooks are not required as the primary boundary.
+### 10. Keep the central pilot boundary
 
-### 11. Weekly review remains advisory and bounded
+This change completes the central `dev-platform` loop only. Consumer cloud-workflow rollout is a separate future managed change after the central behavior proves useful over real work.
 
-The scheduled weekly workflow keeps summarizing open process issues for human decisions. The existing acceptance requirement for a genuine scheduled run remains.
+### 11. Execution provenance is bounded metadata, not a trace warehouse
 
-### 12. Keep the central pilot boundary
+The platform needs a small execution record sufficient for attribution, not a transcript. A run/participant record should carry only fields that are useful and supportable, such as:
 
-This change completes the central `dev-platform` loop only. Consumer workflow rollout remains a separate managed decision.
+- runtime/provider (`codex`, `claude` or another explicitly supported value);
+- participant role (`supervisor` or delegated `executor`);
+- execution profile (`routine`, `standard`, `complex`) when routing owns one;
+- model identity when selected or confirmed;
+- reasoning effort when selected or confirmed;
+- provenance source/status for model and effort, distinguishing at least platform-selected/configured, runtime-confirmed and unknown;
+- actual delegation evidence such as execution status and a bounded runtime agent/thread identifier when the supported runtime returns one;
+- parent/child relationship when a delegated participant actually ran.
+
+The platform SHOULD reuse the current model-routing record and friction/lifecycle state instead of creating a second persistent run database. The exact normalized field names are implementation-owned.
+
+### 12. Machine-owned evidence wins over model self-identification
+
+Free-form statements such as “I am model X” are not authoritative provenance. The evidence hierarchy is:
+
+1. structured metadata returned by the supported runtime for the actual session/turn/agent, when available;
+2. platform-owned routing/launch metadata for a value the platform explicitly selected and passed to the runtime;
+3. explicit `unknown` when neither source can truthfully establish the value.
+
+Selected/configured and runtime-confirmed are different states. In particular, a configured reasoning effort is not evidence that the runtime actually honored it. If the runtime only proves the selected effort, store it as selected/configured; if it exposes the effective value for the actual execution, it may additionally be marked runtime-confirmed.
+
+A missing field does not block otherwise valid work merely to force the model to invent it.
+
+### 13. Provider adapters stay thin and are verified against the current runtime
+
+The shared contract is provider-neutral, while data acquisition may differ at the runtime edge.
+
+For routed Codex children, the current platform already owns the selected executor model and launch outcome. Implementation preflight must verify the current supported Codex surface for selected/effective reasoning effort and parent-session metadata before adding those fields. If a stable surface is unavailable, the corresponding value remains unknown rather than being inferred from global config or a model response.
+
+For routed Claude children, the current hand-off already selects a child model/effort and `record_claude_execution` records a real returned agent id after the Agent call. Those facts can seed child provenance, while implementation preflight still verifies whether the current runtime exposes stronger runtime-confirmed session/model metadata.
+
+For strong interactive supervisors in either runtime, use structured runtime metadata only where a supported current surface exists. The platform does not add fragile UI scraping or transcript parsing solely to fill optional provenance fields.
+
+### 14. Friction points to the participant that observed/caused it when knowable
+
+A friction event or retrospective finding should reference the current execution/run and, when evidence permits, the relevant participant. This lets later analysis distinguish “Claude supervisor asked for an unnecessary confirmation” from “delegated Sonnet executor hit a verification blocker” without attributing both to the task as a whole.
+
+If the locus is ambiguous, the finding attaches to the run with participant unknown rather than inventing blame. Orchestrator/handoff problems may correctly belong to the supervisor even when symptoms appear during child work.
+
+Prepared-but-not-executed routes are never represented as executed child participants. Fallback and escalation must preserve the actual route that ran.
 
 ## Updated execution shape
 
-1. Preserve current routing/cloud behavior and validation.
-2. Extend friction state/CLI with a compact post-task retrospective receipt that supports 0..N event references and current-task freshness.
-3. Make `finish_task` require the fresh receipt.
-4. Update cross-agent completion guidance to perform the semantic review and classification before writing the receipt.
-5. Add regression tests for multi-finding, clean `none`, resolved/already-recorded filtering, stale evidence, and routing failure.
-6. Observe the still-required genuine scheduled weekly review.
-7. Run semantic verification, archive, and release only when all acceptance evidence is truthful.
+1. Preserve current cloud pilot and its validation.
+2. Keep local friction routing/deduplication and completion checkpoint semantics.
+3. Add the bounded post-task retrospective tied to current task execution state.
+4. Extend the existing route/completion evidence with truthful bounded participants and provenance source/status.
+5. Attach retrospective/friction findings to that run/participant evidence and expose only bounded sanitized provenance publicly.
+6. Prove the contract on real supported Codex and Claude Code runs, including delegation and an unknown/unavailable metadata case.
+7. Observe the required real scheduled weekly review.
+8. Perform semantic verification, archive and release only when all acceptance evidence is truthful.
 
 ## Risks and mitigations
 
-- **Retrospective becomes another checkbox:** separate it from the old checkpoint semantically, require explicit review guidance, support multiple findings, and reject a stale/missing receipt.
-- **Model still claims `none` too casually:** make the required reviewed signal classes explicit and require a dedicated pass in shared agent guidance; the platform cannot prove hidden reasoning without adding an unwanted transcript-analysis system.
-- **Issue spam:** semantic resolved/already-recorded filtering plus existing deterministic fingerprint dedupe.
-- **Stale receipt satisfies later work:** bind evidence to current task execution identity using existing lifecycle provenance.
-- **Sensitive leakage:** raw evidence stays local; existing sanitization remains authoritative for GitHub output.
-- **GitHub outage:** positive findings remain pending locally and do not redefine safe publication as failed.
+- **Checkpoint becomes ceremony:** require a bounded retrospective result rather than a bare remembered `none` call.
+- **False model attribution:** machine-owned evidence hierarchy; explicit `unknown`; prepared routes do not count as executions.
+- **Configured effort mistaken for effective effort:** persist provenance source/status and never upgrade configured to runtime-confirmed without evidence.
+- **Provider/runtime drift:** verify actual supported Codex/Claude surfaces at implementation preflight; keep provider adapters thin and fail truthfully.
+- **Overengineering:** reuse model-routing/friction/lifecycle state; no tracing backend, transcript store, daemon or general telemetry service.
+- **Issue spam:** deterministic fingerprint remains process-problem based rather than model based; model/runtime is occurrence metadata.
+- **Sensitive leakage:** raw evidence local by default; strict sanitization and bounded public provenance.
+- **GitHub outage:** local pending state and later lifecycle retry; no daemon.
 - **AI self-modification:** process review cannot create Development Backlog tasks or implementation PRs.
+- **Preview churn in `gh-aw`:** retain exact tested pins and existing deterministic source/lock validation.

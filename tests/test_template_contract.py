@@ -114,12 +114,17 @@ class TemplateContractTests(unittest.TestCase):
 
     def test_no_silent_divergence_and_verify_are_in_agent_contract(self) -> None:
         text = (ROOT / "template" / "AGENTS.md.jinja").read_text(encoding="utf-8")
+        openspec_doc = (ROOT / "template" / "docs" / "engineering" / "openspec-workflow.md").read_text(encoding="utf-8")
         lower = text.lower()
+        # Root guidance keeps the always-on invariants and the entrypoints; the
+        # verification/archive mechanics live in the linked canonical document.
         self.assertIn("no silent divergence", lower)
-        self.assertIn("/opsx:verify", text)
-        self.assertIn("OpenSpec-Verify: PASS", text)
         self.assertIn("scripts/openspec_lifecycle.py archive", text)
         self.assertIn("scripts/managed_task.py", text)
+        self.assertIn("docs/engineering/openspec-workflow.md", text)
+        self.assertIn("/opsx:verify", openspec_doc)
+        self.assertIn("OpenSpec-Verify: PASS", openspec_doc)
+        self.assertIn("scripts/openspec_lifecycle.py archive", openspec_doc)
 
     def test_managed_task_intake_is_universal_and_quick_tasks_remain_lightweight(self) -> None:
         agents = (ROOT / "template" / "AGENTS.md.jinja").read_text(encoding="utf-8")
@@ -137,8 +142,17 @@ class TemplateContractTests(unittest.TestCase):
         root_agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         agents = (ROOT / "template" / "AGENTS.md.jinja").read_text(encoding="utf-8")
         workflow = (ROOT / "template" / "docs" / "engineering" / "agent-workflow.md").read_text(encoding="utf-8")
+        central_workflow = (ROOT / "docs" / "engineering" / "agent-workflow.md").read_text(encoding="utf-8")
+        # Root guidance states that refinement is selective and creates no durable
+        # state, then routes to the canonical contract; the full goal contract is
+        # detailed guidance loaded when a request actually needs refining.
         for contract, text in (("root", root_agents), ("template", agents)):
             with self.subTest(contract=contract):
+                self.assertIn("Goal refinement is a selective layer", text)
+                self.assertIn("creates no durable goal, backlog or plan artifact", text)
+                self.assertIn("docs/engineering/agent-workflow.md", text)
+        for destination, text in (("central", central_workflow), ("template", workflow)):
+            with self.subTest(destination=destination):
                 self.assertIn("## Selective goal definition", text)
                 self.assertIn("materially unclear about its intended outcome or success evidence", text)
                 self.assertIn("ordinary concrete quick or implementation task", text)
@@ -155,13 +169,16 @@ class TemplateContractTests(unittest.TestCase):
         copier = (ROOT / "copier.yml").read_text(encoding="utf-8")
         config = (ROOT / "template" / ".dev-platform.toml.jinja").read_text(encoding="utf-8")
         agents = (ROOT / "template" / "AGENTS.md.jinja").read_text(encoding="utf-8")
+        workflow = (ROOT / "template" / "docs" / "engineering" / "agent-workflow.md").read_text(encoding="utf-8")
         claude = (ROOT / "template" / "CLAUDE.md.jinja").read_text(encoding="utf-8")
         helper = (ROOT / "template" / "scripts" / "managed_task.py").read_text(encoding="utf-8")
         for value in ("development_backlog_repository", "development_backlog_project_label", "development_backlog_default_priority", "development_backlog_project_owner", "development_backlog_project_number"):
             self.assertIn(value, copier)
         self.assertIn("[development_backlog]", config)
         self.assertIn("create --bundle", agents)
-        self.assertIn("--confirm-distinct", agents)
+        # The overlap-confirmation flag is authoring detail: root guidance names
+        # the entrypoint, the workflow doc owns how to answer a candidate list.
+        self.assertIn("--confirm-distinct", workflow)
         self.assertEqual(claude.count("managed"), 0)
         self.assertIn("Authoring stops here", helper)
 
@@ -199,8 +216,10 @@ class TemplateContractTests(unittest.TestCase):
         doctor_text = (ROOT / "template" / "scripts" / "agent_doctor.py").read_text(encoding="utf-8")
         self.assertIn("report_publication_status", doctor_text)
         agents_text = (ROOT / "template" / "AGENTS.md.jinja").read_text(encoding="utf-8")
+        workflow_text = (ROOT / "template" / "docs" / "engineering" / "agent-workflow.md").read_text(encoding="utf-8")
         self.assertIn("--status", agents_text)
-        self.assertIn("exact validated head", agents_text)
+        # Exact-head matching is publication mechanics, not always-on context.
+        self.assertIn("exact validated head", workflow_text)
 
     def test_multi_agent_git_guards_and_hygiene_are_platform_managed(self) -> None:
         doctor = (ROOT / "template" / "scripts" / "agent_doctor.py").read_text(encoding="utf-8")
