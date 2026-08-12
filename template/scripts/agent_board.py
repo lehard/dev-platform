@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
+import sys
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -19,10 +21,11 @@ from _platform_common import (
 
 
 DEFAULT_STALE_HOURS = 72
+MAX_OVERLAP_DIAGNOSTICS = 5
 
 
-def board_path() -> Path:
-    return machine_path("agent_board", main_root())
+def board_path(root: Path | None = None) -> Path:
+    return machine_path("agent_board", root or main_root())
 
 
 def _branch_exists(branch: str, root: Path) -> bool:
@@ -47,6 +50,133 @@ def _checked_out_branch(worktree: Path) -> str | None:
     if result.returncode != 0:
         return None
     return result.stdout.strip() or None
+
+
+def _registered_worktrees(root: Path) -> set[Path]:
+    """Return only the exact roots Git considers registered worktrees."""
+    result = run_git(["worktree", "list", "--porcelain"], cwd=root, check=False)
+    if result.returncode != 0:
+        raise SystemExit("Agent board registration blocked: unable to inspect registered Git worktrees.")
+    registered: set[Path] = set()
+    for line in result.stdout.splitlines():
+        if line.startswith("worktree "):
+            registered.add(Path(line.removeprefix("worktree ")).resolve())
+    return registered
+
+
+def validate_worktree_identity(raw_worktree: str, branch: str, root: Path) -> Path:
+    """Prove a board entry names one non-integration registered worktree.
+
+    The absolute-path check deliberately happens before any Git subprocess or
+    board-file access, so an ambiguous CLI value has no side effects.
+    """
+    supplied = Path(raw_worktree).expanduser()
+    if not supplied.is_absolute():
+        raise SystemExit(
+            "Agent board registration blocked: --worktree must be an absolute registered worktree path; "
+            "relative paths are ambiguous."
+        )
+    worktree = supplied.resolve()
+    integration = root.resolve()
+    if worktree == integration:
+        raise SystemExit("Agent board registration blocked: integration main cannot be registered as an agent worktree.")
+    if not worktree.exists():
+        raise SystemExit(f"Agent board registration blocked: worktree does not exist: {worktree}")
+    if worktree not in _registered_worktrees(integration):
+        raise SystemExit(
+            "Agent board registration blocked: --worktree must name an exact registered Git worktree root, "
+            f"not {worktree}."
+        )
+    actual_branch = _checked_out_branch(worktree)
+    if actual_branch != branch:
+        raise SystemExit(
+            "Agent board registration blocked: declared branch/worktree mismatch; "
+            f"declared {branch!r}, worktree has {actual_branch!r}."
+        )
+    if not _branch_exists(branch, integration):
+        raise SystemExit(f"Agent board registration blocked: declared branch does not exist: {branch!r}.")
+    return worktree
+
+
+def _normalized_scope_paths(scope: str, root: Path) -> set[str]:
+    """Normalize declared repository paths without exposing external paths."""
+    paths: set[str] = set()
+    for raw in re.split(r"[,\n]", scope):
+        value = raw.strip()
+        if not value:
+            continue
+        candidate = Path(value).expanduser()
+        resolved = candidate.resolve() if candidate.is_absolute() else (root / candidate).resolve()
+        try:
+            relative = resolved.relative_to(root.resolve())
+        except ValueError:
+            # A board diagnostic must never turn an external machine path into
+            # shared coordination state or output.
+            continue
+        normalized = relative.as_posix()
+        if normalized and normalized != ".":
+            paths.add(normalized)
+    return paths
+
+
+def _factual_scope_paths(worktree: Path, root: Path, main_branch: str) -> set[str]:
+    result = run_git(["diff", "--name-only", f"{main_branch}...HEAD"], cwd=worktree, check=False)
+    if result.returncode != 0:
+        return set()
+    return _normalized_scope_paths(result.stdout, root)
+
+
+def _overlap_path(left: str, right: str) -> str | None:
+    if left == right:
+        return left
+    if left.startswith(right + "/"):
+        return left
+    if right.startswith(left + "/"):
+        return right
+    return None
+
+
+def scope_overlap_diagnostics(
+    root: Path,
+    worktree: Path,
+    branch: str,
+    scope: str,
+    items: list[dict],
+) -> list[tuple[str, str, str]]:
+    """Return bounded repo-relative conflicts with valid other board entries."""
+    config = read_platform_config(root)
+    main_branch = str(config.get("main_branch", "main"))
+    current_paths = _normalized_scope_paths(scope, root) | _factual_scope_paths(worktree, root, main_branch)
+    if not current_paths:
+        return []
+
+    conflicts: list[tuple[str, str, str]] = []
+    for item in items:
+        item_worktree = Path(str(item.get("worktree", ""))).expanduser().resolve()
+        if item_worktree == worktree.resolve() or item.get("branch") == branch:
+            continue
+        if _status(item, root, main_branch=main_branch, stale_hours=DEFAULT_STALE_HOURS):
+            continue
+        other_paths = _normalized_scope_paths(str(item.get("scope", "")), root)
+        other_paths |= _factual_scope_paths(item_worktree, root, main_branch)
+        for current in sorted(current_paths):
+            for other in sorted(other_paths):
+                overlap = _overlap_path(current, other)
+                if overlap is not None:
+                    conflict = (str(item.get("id", "unknown")), str(item.get("task", "active task")), overlap)
+                    if conflict not in conflicts:
+                        conflicts.append(conflict)
+                    if len(conflicts) >= MAX_OVERLAP_DIAGNOSTICS:
+                        return conflicts
+    return conflicts
+
+
+def _print_overlap_warning(conflicts: list[tuple[str, str, str]]) -> None:
+    if not conflicts:
+        return
+    print("Scope-overlap warning: coordinate or serialize work before costly validation or publication.", file=sys.stderr)
+    for item_id, task, path in conflicts:
+        print(f"- {item_id} ({task}): {path}", file=sys.stderr)
 
 
 def _worktree_clean(worktree: Path) -> bool:
@@ -99,8 +229,8 @@ def cmd_list(_: argparse.Namespace) -> int:
 
 def cmd_start(args: argparse.Namespace) -> int:
     root = main_root()
-    worktree = Path(args.worktree).resolve()
     branch = args.branch
+    worktree = validate_worktree_identity(args.worktree, branch, root)
     path = board_path()
 
     with locked_json(path) as data:
@@ -110,6 +240,7 @@ def cmd_start(args: argparse.Namespace) -> int:
                 raise SystemExit(f"Worktree already registered: {worktree}")
             if item.get("branch") == branch:
                 raise SystemExit(f"Branch already registered: {branch}")
+        conflicts = scope_overlap_diagnostics(root, worktree, branch, args.scope or "", items)
         item_id = args.id or uuid.uuid4().hex[:10]
         items.append(
             {
@@ -123,6 +254,7 @@ def cmd_start(args: argparse.Namespace) -> int:
                 "heartbeat": utc_now(),
             }
         )
+    _print_overlap_warning(conflicts)
     print(item_id)
     return 0
 
@@ -208,6 +340,26 @@ def find_id_for_current_worktree() -> str | None:
         if Path(item.get("worktree", "")).resolve() == worktree:
             return item.get("id")
     return None
+
+
+def warn_current_worktree_scope_overlap(root: Path, worktree: Path, branch: str) -> None:
+    """Emit an advisory conflict diagnostic at the pre-publication boundary."""
+    path = board_path(root)
+    if not path.exists():
+        return
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return
+    items = data.get("items", [])
+    if not isinstance(items, list):
+        return
+    scope = ""
+    for item in items:
+        if Path(str(item.get("worktree", ""))).expanduser().resolve() == worktree.resolve():
+            scope = str(item.get("scope", ""))
+            break
+    _print_overlap_warning(scope_overlap_diagnostics(root, worktree, branch, scope, items))
 
 
 def build_parser() -> argparse.ArgumentParser:

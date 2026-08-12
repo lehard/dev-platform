@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import subprocess
 import sys
 import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
+from argparse import Namespace
+from contextlib import redirect_stderr, redirect_stdout
+from io import StringIO
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_ROOT = ROOT / "template" / "scripts"
@@ -183,6 +188,112 @@ class AgentBoardDoctorTests(WorktreeHarnessCase):
         problems = agent_board._status(item, self.root, main_branch="main", stale_hours=72)
         self.assertIn("branch-path-mismatch", problems)
         self.assertIn("branch-missing", problems)
+
+
+class AgentBoardRegistrationTests(WorktreeHarnessCase):
+    def test_relative_worktree_is_rejected_before_board_file_or_git_lookup(self) -> None:
+        board = self.root / ".claude" / "agents-board.json"
+        with mock.patch.object(agent_board, "_registered_worktrees") as registered:
+            with self.assertRaisesRegex(SystemExit, "absolute registered worktree path"):
+                agent_board.validate_worktree_identity(".claude/worktrees/agent", "agent/example", self.root)
+        registered.assert_not_called()
+        self.assertFalse(board.exists())
+
+    def test_main_and_branch_mismatch_are_rejected(self) -> None:
+        path = self.add_worktree("actual")
+        with self.assertRaisesRegex(SystemExit, "integration main"):
+            agent_board.validate_worktree_identity(str(self.root), "main", self.root)
+        nested = path / "nested"
+        nested.mkdir()
+        with self.assertRaisesRegex(SystemExit, "exact registered Git worktree root"):
+            agent_board.validate_worktree_identity(str(nested), "agent/actual", self.root)
+        with self.assertRaisesRegex(SystemExit, "branch/worktree mismatch"):
+            agent_board.validate_worktree_identity(str(path), "agent/not-actual", self.root)
+
+    def test_registration_warns_for_declared_overlap_without_blocking(self) -> None:
+        first = self.add_worktree("first")
+        second = self.add_worktree("second")
+        board = self.root / ".claude" / "agents-board.json"
+        board.parent.mkdir(parents=True, exist_ok=True)
+        board.write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "items": [
+                        {
+                            "id": "first-id",
+                            "task": "first task",
+                            "scope": "template/scripts/agent_board.py",
+                            "branch": "agent/first",
+                            "worktree": str(first),
+                            "heartbeat": datetime.now(timezone.utc).isoformat(),
+                        }
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        args = Namespace(
+            task="second task",
+            scope="template/scripts/agent_board.py",
+            branch="agent/second",
+            worktree=str(second),
+            id="second-id",
+        )
+        stdout, stderr = StringIO(), StringIO()
+        with mock.patch.object(agent_board, "main_root", return_value=self.root), mock.patch.object(agent_board, "board_path", return_value=board):
+            with redirect_stdout(stdout), redirect_stderr(stderr):
+                self.assertEqual(agent_board.cmd_start(args), 0)
+        self.assertEqual(stdout.getvalue().strip(), "second-id")
+        self.assertIn("Scope-overlap warning", stderr.getvalue())
+        self.assertIn("first-id (first task): template/scripts/agent_board.py", stderr.getvalue())
+        items = json.loads(board.read_text(encoding="utf-8"))["items"]
+        self.assertEqual(len(items), 2)
+
+    def test_factual_non_overlap_has_no_diagnostic(self) -> None:
+        first = self.add_worktree("first")
+        second = self.add_worktree("second")
+        first_file = first / "first.txt"
+        first_file.write_text("changed\n", encoding="utf-8")
+        git(first, "add", "first.txt")
+        git(first, "commit", "-m", "first factual scope")
+        second_file = second / "second.txt"
+        second_file.write_text("changed\n", encoding="utf-8")
+        git(second, "add", "second.txt")
+        git(second, "commit", "-m", "second factual scope")
+        item = {
+            "id": "first-id",
+            "task": "first task",
+            "scope": "",
+            "branch": "agent/first",
+            "worktree": str(first),
+            "heartbeat": datetime.now(timezone.utc).isoformat(),
+        }
+        conflicts = agent_board.scope_overlap_diagnostics(
+            self.root, second, "agent/second", "", [item]
+        )
+        self.assertEqual(conflicts, [])
+
+    def test_factual_overlap_is_reported(self) -> None:
+        first = self.add_worktree("first")
+        second = self.add_worktree("second")
+        for worktree, content in ((first, "first\n"), (second, "second\n")):
+            shared = worktree / "shared.txt"
+            shared.write_text(content, encoding="utf-8")
+            git(worktree, "add", "shared.txt")
+            git(worktree, "commit", "-m", f"{worktree.name} factual scope")
+        item = {
+            "id": "first-id",
+            "task": "first task",
+            "scope": "",
+            "branch": "agent/first",
+            "worktree": str(first),
+            "heartbeat": datetime.now(timezone.utc).isoformat(),
+        }
+        conflicts = agent_board.scope_overlap_diagnostics(
+            self.root, second, "agent/second", "", [item]
+        )
+        self.assertEqual(conflicts, [("first-id", "first task", "shared.txt")])
 
 
 if __name__ == "__main__":

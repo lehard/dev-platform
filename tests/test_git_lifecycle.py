@@ -79,6 +79,12 @@ class GitLifecycleTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("DEV_PLATFORM_ALLOW_NO_CHECKS", result.stderr + result.stdout)
 
+    def test_finish_task_tolerates_legacy_agent_board_without_overlap_helper(self) -> None:
+        """Copier updates can retain an older conflicting board script."""
+        (self.repo / "scripts" / "agent_board.py").write_text("# legacy board\n", encoding="utf-8")
+        result = run("python3", "scripts/finish_task.py", "--status", cwd=self.repo, check=False)
+        self.assertNotIn("cannot import name 'warn_current_worktree_scope_overlap'", result.stderr + result.stdout)
+
     def test_standard_direct_finish_integrates_and_pushes(self) -> None:
         (self.repo / ".dev-platform.toml").write_text('main_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\npublish_mode = "direct"\n', encoding="utf-8"); git("add", ".dev-platform.toml", cwd=self.repo); git("commit", "-m", "standard profile", cwd=self.repo); git("push", cwd=self.repo)
         git("switch", "-c", "agent/test", cwd=self.repo); (self.repo / "feature.txt").write_text("feature\n", encoding="utf-8"); git("add", "feature.txt", cwd=self.repo); git("commit", "-m", "feature", cwd=self.repo)
