@@ -35,6 +35,11 @@ from managed_project_status import (
     reconcile as reconcile_managed_project,
 )
 try:
+    from agent_board import warn_current_worktree_scope_overlap
+except ModuleNotFoundError:  # Compatibility while older rendered projects are upgraded.
+    def warn_current_worktree_scope_overlap(root: Path, worktree: Path, branch: str) -> None:
+        return None
+try:
     from managed_task import (
         ManagedTaskError,
         assert_integration_identity_cross_check,
@@ -415,6 +420,7 @@ def main() -> int:
     if mode == "pr" and branch != main_branch:
         exact_open_pr = find_existing_exact_open_pr(work, branch, main_branch)
 
+    warn_current_worktree_scope_overlap(integration, work, branch)
     run_checks(work, remote_main, args.no_checks)
     if mode == "pr":
         if branch == main_branch:

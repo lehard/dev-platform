@@ -1,0 +1,15 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "specs/worktree-coordination/spec.md",
+    "design.md",
+    "tasks.md"
+  ],
+  "change": "harden-worktree-context-coordination",
+  "imported_at": "2026-08-12T11:31:49+00:00",
+  "package_revision": "04fe63500ee6bef578c56ecc71dc397c9c0c229c8f743a763d030219480ca10a",
+  "prepared_against": "5eb43498ec0ba996932adf9d0a46d1df5993e29a",
+  "source_issue": "lehard/development-backlog#23",
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

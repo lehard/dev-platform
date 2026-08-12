@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import re
 import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -54,6 +55,8 @@ def create_worktree(root: Path, slug_value: str, task: str, scope: str = "", *, 
         run_git(["worktree", "remove", "--force", str(worktree)], cwd=root, check=False)
         run_git(["branch", "-D", branch], cwd=root, check=False)
         raise
+    if result.stderr:
+        print(result.stderr, end="", file=sys.stderr)
     return StartedWorktree(worktree=worktree, branch=branch, board_id=result.stdout.strip())
 
 
