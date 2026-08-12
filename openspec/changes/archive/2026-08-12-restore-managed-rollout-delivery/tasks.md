@@ -19,12 +19,12 @@
 - [x] 3.2 Prove unresolved Copier/ownership conflicts still fail closed.
 - [x] 3.3 Cover the permitted Cuby workflow formatting normalization and its byte-sensitive boundaries.
 - [x] 3.4 Cover pre-validation staging and failure-closed staged-diff inspection.
-- [ ] 3.5 Prove successful retry uses the existing exact-version reviewable-PR path and tracker reset semantics.
+- [x] 3.5 Prove successful retry uses the existing exact-version reviewable-PR path and tracker reset semantics.
 
 ## 4. Acceptance and delivery
 
 - [x] 4.1 Run full applicable platform/OpenSpec/rollout validation.
-- [ ] 4.2 Retry the current cumulative immutable release across all managed inventory entries.
-- [ ] 4.3 Confirm Cuby, Jara_Fin and planner-agent-lab each reach successful preparation/PR-or-already-current state; any leg dependent on #12 must use its shipped result.
-- [ ] 4.4 Confirm rollout-failure trackers close through normal successful automation.
-- [ ] 4.5 Record truthful semantic verification, archive the change and publish any required cumulative platform release through protected main.
+- [x] 4.2 Retry the current cumulative immutable release across all managed inventory entries.
+- [x] 4.3 Confirm Cuby, Jara_Fin and planner-agent-lab each reach successful preparation/PR-or-already-current state; any leg dependent on #12 must use its shipped result.
+- [x] 4.4 Confirm rollout-failure trackers close through normal successful automation.
+- [x] 4.5 Record truthful semantic verification, archive the change and publish any required cumulative platform release through protected main.
