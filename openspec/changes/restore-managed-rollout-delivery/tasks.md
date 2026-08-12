@@ -10,12 +10,14 @@
 - [x] 2.2 Repair any independently confirmed platform-owned failure behind Jara_Fin/planner-agent-lab `exit 2`.
 - [x] 2.3 Improve terminal classification where structured state can replace an avoidable `unknown` result.
 - [x] 2.4 For permission-owned failures, record the #12 dependency and do not duplicate its implementation.
+- [x] 2.5 Repair the residual Cuby formatting-only baseline proof without admitting content-level ownership drift.
 
 ## 3. Regression coverage
 
 - [x] 3.1 Reproduce each platform-owned failure class with deterministic rollout tests/fixtures.
 - [x] 3.2 Prove unresolved Copier/ownership conflicts still fail closed.
-- [ ] 3.3 Prove successful retry uses the existing exact-version reviewable-PR path and tracker reset semantics.
+- [x] 3.3 Cover the permitted Cuby workflow formatting normalization and its byte-sensitive boundaries.
+- [ ] 3.4 Prove successful retry uses the existing exact-version reviewable-PR path and tracker reset semantics.
 
 ## 4. Acceptance and delivery
 

@@ -18,6 +18,15 @@ cached-diff whitespace guard, whose `SystemExit` escaped the `ValueError`
 blocker boundary and therefore produced `unknown`; command failures must remain
 fail-closed while being emitted as structured blockers.
 
+The v1.4.27 retry found one residual Cuby-only formatting drift: its committed
+platform-owned `dev-platform.yml` removes one redundant blank separator from the
+v1.4.24 rendering.  Baseline equivalence may collapse repeated blank separators
+only for that generated workflow, and only while it has no YAML block scalar
+where blank lines are content.  Comments, non-empty lines, all other paths, and
+block-scalar workflows stay byte-sensitive.  The post-recopy target comparison
+remains exact bytes, so the recovery writes the candidate rendering rather than
+preserving formatting drift.
+
 ### Keep permission ownership with backlog #12
 
 `enforce-shared-workspace-permissions` owns cross-user filesystem/Git permission semantics. This change may identify that a rollout failed because of those semantics, but must not fork their implementation. Such a leg becomes an acceptance dependency; other rollout causes remain independently actionable.

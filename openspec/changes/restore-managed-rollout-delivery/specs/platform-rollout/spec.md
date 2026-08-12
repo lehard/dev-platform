@@ -38,3 +38,11 @@ Repairing a failed rollout SHALL NOT turn unresolved Copier conflicts, project-o
 - **WHEN** a retry still contains a non-ignored `.rej` or unresolved ownership conflict
 - **THEN** rollout remains blocked
 - **AND** no downstream default-branch mutation or silent overwrite occurs
+
+#### Scenario: Historical platform workflow differs only in redundant blank separators
+
+- **GIVEN** a platform-owned `.github/workflows/dev-platform.yml` has no YAML block scalar content
+- **AND** its committed historical rendering differs from its recorded immutable baseline only by repeated blank separators
+- **WHEN** Copier reports a conflict for that workflow during guarded recovery
+- **THEN** rollout MAY treat that formatting-only difference as baseline-equivalent and recopy the platform-owned workflow
+- **AND** comments, non-empty content, all other paths, and workflows containing YAML block scalars SHALL remain byte-sensitive ownership checks

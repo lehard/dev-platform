@@ -155,14 +155,16 @@ class GuardedRecopyTests(unittest.TestCase):
             "src/runtime.py": ("missing", ""),
         }
 
-        def fake_git_tree(root, treeish, relative):
+        def fake_git_tree(root, treeish, relative, *, normalize_baseline=False):
             self.assertEqual(treeish, "HEAD")
+            self.assertTrue(normalize_baseline)
             return downstream[relative]
 
-        def fake_baseline(tag, answers_text, relatives, *, env):
+        def fake_baseline(tag, answers_text, relatives, *, env, baseline_equivalence=False):
             self.assertEqual(tag, "v1.2.3")
             self.assertIn("_commit: v1.2.3", answers_text)
             self.assertEqual(relatives, set(downstream))
+            self.assertTrue(baseline_equivalence)
             return baseline
 
         with (
@@ -179,6 +181,42 @@ class GuardedRecopyTests(unittest.TestCase):
         self.assertEqual(
             proven,
             {"scripts/finish_task.py", "tests/test_git_lifecycle.py"},
+        )
+
+    def test_baseline_format_equivalence_allows_only_redundant_workflow_blank_lines(self) -> None:
+        relative = ".github/workflows/dev-platform.yml"
+        rendered = self.root / "rendered.yml"
+        downstream = self.root / "downstream.yml"
+        rendered.write_text("jobs:\n\n\n  platform-ci:\n    runs-on: ubuntu-latest\n", encoding="utf-8")
+        downstream.write_text("jobs:\n\n  platform-ci:\n    runs-on: ubuntu-latest\n", encoding="utf-8")
+        self.assertEqual(
+            rollout_project.baseline_path_fingerprint(rendered, relative),
+            rollout_project.baseline_path_fingerprint(downstream, relative),
+        )
+
+        comment_changed = self.root / "comment-changed.yml"
+        comment_changed.write_text(
+            "jobs:\n\n  # downstream customization\n  platform-ci:\n    runs-on: ubuntu-latest\n",
+            encoding="utf-8",
+        )
+        self.assertNotEqual(
+            rollout_project.baseline_path_fingerprint(rendered, relative),
+            rollout_project.baseline_path_fingerprint(comment_changed, relative),
+        )
+        self.assertNotEqual(
+            rollout_project.baseline_path_fingerprint(rendered, ".github/workflows/ci.yml"),
+            rollout_project.baseline_path_fingerprint(downstream, ".github/workflows/ci.yml"),
+        )
+
+    def test_baseline_format_equivalence_does_not_normalize_yaml_block_scalars(self) -> None:
+        relative = ".github/workflows/dev-platform.yml"
+        with_extra_blank = self.root / "with-extra-blank.yml"
+        with_extra_blank.write_text("jobs:\n  run: |\n    first\n\n\n    second\n", encoding="utf-8")
+        without_extra_blank = self.root / "without-extra-blank.yml"
+        without_extra_blank.write_text("jobs:\n  run: |\n    first\n\n    second\n", encoding="utf-8")
+        self.assertNotEqual(
+            rollout_project.baseline_path_fingerprint(with_extra_blank, relative),
+            rollout_project.baseline_path_fingerprint(without_extra_blank, relative),
         )
 
     def test_baseline_renderer_uses_isolated_task_free_copier_copy(self) -> None:

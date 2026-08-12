@@ -66,6 +66,14 @@ RECLAIMED_PLATFORM_ROLLOUT_PATHS = {
     "scripts/project_publish.py",
 }
 
+# One historical managed project removed a redundant blank separator from the
+# platform-owned workflow.  That formatting-only drift is safe to replace, but
+# the exception must not become a general ownership bypass: it is limited to
+# this generated workflow and is disabled if its YAML later gains block scalar
+# content, where blank lines can carry meaning.
+BASELINE_FORMAT_EQUIVALENT_PATHS = {".github/workflows/dev-platform.yml"}
+YAML_BLOCK_SCALAR_RE = re.compile(rb":\s*[>|][+-]?\s*(?:#.*)?$", re.MULTILINE)
+
 
 def run(
     command: list[str],
@@ -289,7 +297,38 @@ def path_fingerprint(path: Path) -> tuple[str, str]:
     return ("missing", "")
 
 
-def git_tree_path_fingerprint(root: Path, treeish: str, relative: str) -> tuple[str, str]:
+def normalize_baseline_bytes(relative: str, content: bytes) -> bytes:
+    """Normalize the narrowly allowed formatting-only baseline drift."""
+    if relative not in BASELINE_FORMAT_EQUIVALENT_PATHS:
+        return content
+    if YAML_BLOCK_SCALAR_RE.search(content):
+        return content
+    lines = content.splitlines()
+    normalized: list[bytes] = []
+    previous_blank = False
+    for line in lines:
+        blank = not line.strip()
+        if blank and previous_blank:
+            continue
+        normalized.append(line)
+        previous_blank = blank
+    return b"\n".join(normalized) + (b"\n" if content.endswith((b"\n", b"\r")) else b"")
+
+
+def baseline_path_fingerprint(path: Path, relative: str) -> tuple[str, str]:
+    if path.is_file():
+        content = normalize_baseline_bytes(relative, path.read_bytes())
+        return ("file", hashlib.sha256(content).hexdigest())
+    return path_fingerprint(path)
+
+
+def git_tree_path_fingerprint(
+    root: Path,
+    treeish: str,
+    relative: str,
+    *,
+    normalize_baseline: bool = False,
+) -> tuple[str, str]:
     """Fingerprint one committed path without depending on the mutated worktree."""
     pathspec = relative.replace("\\", "/")
     listing = subprocess.run(
@@ -323,7 +362,10 @@ def git_tree_path_fingerprint(root: Path, treeish: str, relative: str) -> tuple[
         raise ValueError(f"could not read {treeish}:{pathspec}: {detail}")
     if mode == "120000":
         return ("symlink", content.stdout.decode(errors="surrogateescape"))
-    return ("file", hashlib.sha256(content.stdout).hexdigest())
+    raw_content = content.stdout
+    if normalize_baseline:
+        raw_content = normalize_baseline_bytes(relative, raw_content)
+    return ("file", hashlib.sha256(raw_content).hexdigest())
 
 
 def ensure_platform_tag_available(tag: str, *, env: dict[str, str]) -> None:
@@ -355,6 +397,7 @@ def rendered_template_fingerprints(
     relatives: set[str],
     *,
     env: dict[str, str],
+    baseline_equivalence: bool = False,
 ) -> dict[str, tuple[str, str]]:
     """Render an immutable template revision with the downstream's recorded answers.
 
@@ -386,7 +429,12 @@ def rendered_template_fingerprints(
             PLATFORM_ROOT,
             env=env,
         )
-        return {relative: path_fingerprint(rendered / relative) for relative in relatives}
+        return {
+            relative: baseline_path_fingerprint(rendered / relative, relative)
+            if baseline_equivalence
+            else path_fingerprint(rendered / relative)
+            for relative in relatives
+        }
 
 
 def baseline_equivalent_conflict_paths(
@@ -403,10 +451,21 @@ def baseline_equivalent_conflict_paths(
     Missing/missing is a valid equivalence: there was no downstream customization
     at that path in the recorded baseline, so guarded recopy cannot erase one.
     """
-    baseline = rendered_template_fingerprints(current_tag, answers_text, relatives, env=env)
+    baseline = rendered_template_fingerprints(
+        current_tag,
+        answers_text,
+        relatives,
+        env=env,
+        baseline_equivalence=True,
+    )
     proven: set[str] = set()
     for relative in relatives:
-        downstream = git_tree_path_fingerprint(project_root, "HEAD", relative)
+        downstream = git_tree_path_fingerprint(
+            project_root,
+            "HEAD",
+            relative,
+            normalize_baseline=True,
+        )
         if downstream == baseline[relative]:
             proven.add(relative)
     return proven
