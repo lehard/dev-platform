@@ -44,6 +44,7 @@ try:
         ManagedTaskError,
         assert_integration_identity_cross_check,
         delivery_identity,
+        observe_source_issue_drift,
         require_delivery_provenance,
     )
 except ModuleNotFoundError:  # Compatibility while a pre-managed-intake render is being upgraded.
@@ -57,6 +58,9 @@ except ModuleNotFoundError:  # Compatibility while a pre-managed-intake render i
         return None
 
     def assert_integration_identity_cross_check(integration: Path, identity) -> None:
+        return None
+
+    def observe_source_issue_drift(root: Path):
         return None
 
 
@@ -227,10 +231,21 @@ def run_status(work: Path, integration: Path, config: dict, *, as_json: bool) ->
     env = github_cli_env(work)
     obs = publication_state.observe_publication(work, integration, env, branch, main_branch)
     durability = publication_state.merge_durability_capability(config, env, work)
+    try:
+        drift = observe_source_issue_drift(work)
+    except Exception:
+        drift = None
     if as_json:
-        print(json.dumps(publication_state.status_payload(obs, durability), indent=2))
+        payload = publication_state.status_payload(obs, durability)
+        payload["source_issue_drift"] = drift
+        print(json.dumps(payload, indent=2))
     else:
         print(publication_state.status_text(obs, durability))
+        if isinstance(drift, dict) and drift.get("drifted"):
+            print(
+                f"source_issue_drift: {drift['source_issue']} changed since this package was authored "
+                "(rerun with --json for hashes)"
+            )
     return 0
 
 
@@ -393,6 +408,16 @@ def main() -> int:
         require_delivery_provenance(work)
     except ManagedTaskError as exc:
         raise SystemExit("Managed task publication blocked: " + str(exc)) from exc
+    try:
+        drift = observe_source_issue_drift(work)
+    except Exception:
+        drift = None
+    if isinstance(drift, dict) and drift.get("drifted"):
+        print(
+            f"source_issue_drift: {drift['source_issue']} changed since this package was authored; "
+            "canonical OpenSpec is unaffected -- reconcile explicitly if the new scope should be adopted "
+            "(managed_task.py supersede --bundle <dir> " + drift["source_issue"] + ")"
+        )
     run_openspec_hygiene(work)
     run_friction_retry_and_checkpoint(work, branch)
     if not clean(work):

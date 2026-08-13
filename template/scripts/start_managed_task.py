@@ -23,7 +23,9 @@ class ManagedAdmissionWait(RuntimeError):
     """Managed package/worktree are preserved while a hard claim is active."""
 
 
-def start_managed_task(root: Path, reference: str, scope: str = "") -> tuple[StartedTask, str, bool]:
+def start_managed_task(
+    root: Path, reference: str, scope: str = "", *, acknowledge_source_issue_revision: str | None = None
+) -> tuple[StartedTask, str, bool]:
     """Discover before task creation, then materialize in the task checkout only."""
     package = discover_task(root, reference)
     config = read_platform_config(root)
@@ -69,6 +71,7 @@ def start_managed_task(root: Path, reference: str, scope: str = "") -> tuple[Sta
             started.task_root,
             reference,
             expected_revision=package.revision,
+            acknowledge_source_issue_revision=acknowledge_source_issue_revision,
         )
         decision = admit_task(root, started, scope if scope else None)
         desired_status = "Blocked" if decision["decision"] == "WAIT" else "In progress"
@@ -99,10 +102,19 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Start a managed backlog task without writing to integration main.")
     parser.add_argument("issue", help="owner/repo#N or GitHub issue URL")
     parser.add_argument("--scope", default="", help="optional task scope for multi-agent board registration")
+    parser.add_argument(
+        "--acknowledge-source-issue-revision",
+        metavar="BODY_SHA256",
+        help="explicitly keep this package's existing scope despite source-Issue drift; "
+        "value must equal the currently observed body_sha256 from the blocking diagnostic",
+    )
     args = parser.parse_args()
     root = current_worktree_root()
     try:
-        started, current_main, reused = start_managed_task(root, args.issue, args.scope)
+        started, current_main, reused = start_managed_task(
+            root, args.issue, args.scope,
+            acknowledge_source_issue_revision=args.acknowledge_source_issue_revision,
+        )
     except ManagedAdmissionWait as exc:
         print(f"Managed task waiting: {exc}")
         return 3
