@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import stat
 import subprocess
 import sys
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -348,6 +350,16 @@ class GuardedDelegationTests(unittest.TestCase):
         self.assertFalse(result.violation)
         self.assertTrue((self.worktree / "native.txt").is_file())
 
+    def test_writer_ownership_receipt_does_not_dirty_assigned_worktree(self) -> None:
+        result = guard.run_observed_delegation(
+            integration_root=self.integration,
+            assigned_worktree=self.worktree,
+            argv=[sys.executable, "-c", "pass"],
+            tier_decision=self.hard_tier,
+        )
+        self.assertTrue(result.launched)
+        self.assertEqual(git("status", "--porcelain", cwd=self.worktree).stdout, "")
+
     def test_stdout_line_hook_receives_child_output_and_launch_still_succeeds(self) -> None:
         captured: list[str] = []
         result = guard.run_observed_delegation(
@@ -476,6 +488,104 @@ class GuardedDelegationTests(unittest.TestCase):
         self.assertIsNone(result.returncode)
         self.assertFalse(result.violation)
         self.assertIsNotNone(result.containment)
+
+    def test_streaming_timeout_cleans_up_a_silent_writer(self) -> None:
+        script = self.worktree / "silent_sleep.py"
+        script.write_text("import time\ntime.sleep(30)\n", encoding="utf-8")
+        with self.assertRaises(guard.GuardedChildError) as ctx:
+            guard.run_observed_delegation(
+                integration_root=self.integration,
+                assigned_worktree=self.worktree,
+                argv=[sys.executable, str(script)],
+                tier_decision=self.hard_tier,
+                timeout=0.2,
+                stdout_line_hook=lambda _line: None,
+            )
+        self.assertEqual(ctx.exception.result.writer_state, "released")
+
+    def test_second_writer_is_refused_while_first_writer_owns_worktree(self) -> None:
+        script = self.worktree / "wait_for_release.py"
+        started = self.worktree / "writer-started"
+        release = self.worktree / "writer-release"
+        script.write_text(
+            "from pathlib import Path\n"
+            "import time\n"
+            "Path('writer-started').write_text('started')\n"
+            "while not Path('writer-release').exists():\n"
+            "    time.sleep(0.01)\n",
+            encoding="utf-8",
+        )
+        completed: list[object] = []
+
+        def launch_first() -> None:
+            completed.append(
+                guard.run_observed_delegation(
+                    integration_root=self.integration,
+                    assigned_worktree=self.worktree,
+                    argv=[sys.executable, str(script)],
+                    tier_decision=self.hard_tier,
+                )
+            )
+
+        thread = threading.Thread(target=launch_first)
+        thread.start()
+        for _ in range(100):
+            if started.exists():
+                break
+            threading.Event().wait(0.01)
+        self.assertTrue(started.exists(), "first writer never reached its assigned worktree")
+        with self.assertRaisesRegex(guard.WriterOwnershipError, "refusing a second write-capable launch"):
+            guard.run_observed_delegation(
+                integration_root=self.integration,
+                assigned_worktree=self.worktree,
+                argv=[sys.executable, "-c", "raise SystemExit('second writer ran')"],
+                tier_decision=self.hard_tier,
+            )
+        self.assertFalse(release.exists())
+        release.write_text("release", encoding="utf-8")
+        thread.join(timeout=5)
+        self.assertFalse(thread.is_alive())
+        self.assertEqual(len(completed), 1)
+
+    def test_ambiguous_stale_writer_receipt_fails_closed_before_launch(self) -> None:
+        _lock, state = guard._writer_paths(self.worktree)
+        state.parent.mkdir(parents=True, exist_ok=True)
+        state.write_text('{"state": "launching"}\n', encoding="utf-8")
+        marker = self.worktree / "ambiguous-state-child-ran"
+        with self.assertRaisesRegex(guard.WriterOwnershipError, "ownership .* ambiguous"):
+            guard.run_observed_delegation(
+                integration_root=self.integration,
+                assigned_worktree=self.worktree,
+                argv=[sys.executable, "-c", f"from pathlib import Path; Path({str(marker)!r}).write_text('ran')"],
+                tier_decision=self.hard_tier,
+            )
+        self.assertFalse(marker.exists())
+
+    def test_timeout_reaps_writer_process_group_before_releasing_ownership(self) -> None:
+        script = self.worktree / "spawn_descendant.py"
+        descendant_pid = self.worktree / "descendant.pid"
+        script.write_text(
+            "import subprocess\n"
+            "import sys\n"
+            "import time\n"
+            "from pathlib import Path\n"
+            "child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(30)'])\n"
+            "Path('descendant.pid').write_text(str(child.pid), encoding='utf-8')\n"
+            "time.sleep(30)\n",
+            encoding="utf-8",
+        )
+        with self.assertRaises(guard.GuardedChildError) as ctx:
+            guard.run_observed_delegation(
+                integration_root=self.integration,
+                assigned_worktree=self.worktree,
+                argv=[sys.executable, str(script)],
+                tier_decision=self.hard_tier,
+                timeout=0.2,
+            )
+        self.assertEqual(ctx.exception.result.writer_state, "released")
+        pid = int(descendant_pid.read_text(encoding="utf-8"))
+        with self.assertRaises(ProcessLookupError):
+            os.kill(pid, 0)
 
     def test_child_exec_failure_never_launched_still_runs_post_check(self) -> None:
         with self.assertRaises(guard.GuardedChildError) as ctx:
