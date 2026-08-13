@@ -42,19 +42,29 @@ directory files, never a project-tracked path.
 from __future__ import annotations
 
 import argparse
+import errno
 import json
 import os
 import platform
+import select
 import shutil
+import signal
 import stat
 import subprocess
 import sys
 import tempfile
 import textwrap
+import time
+import uuid
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from typing import Callable
+
+try:  # Codex's proven workspace-write boundary is currently POSIX-only.
+    import fcntl
+except ImportError:  # pragma: no cover - exercised only on unsupported Windows hosts.
+    fcntl = None  # type: ignore[assignment]
 
 from delegation_containment import (
     ContainmentError,
@@ -88,6 +98,7 @@ class GuardedRunResult:
     containment: ContainmentResult
     violation: bool
     message: str | None
+    writer_state: str = "released"
 
 
 class GuardedChildError(ContainmentError):
@@ -101,6 +112,242 @@ class GuardedChildError(ContainmentError):
     def __init__(self, message: str, result: GuardedRunResult) -> None:
         super().__init__(message)
         self.result = result
+
+
+class WriterOwnershipError(ContainmentError):
+    """A local worktree already has a live or ambiguous delegated writer."""
+
+
+_WRITER_LOCK_NAME = "delegated-writer.lock"
+_WRITER_STATE_NAME = "delegated-writer.json"
+_CLEANUP_GRACE_SECONDS = 2.0
+
+
+def _writer_paths(assigned_worktree: Path) -> tuple[Path, Path]:
+    """Keep lifecycle metadata in this worktree's Git admin area, not its tree.
+
+    A lock/receipt is runtime state.  Leaving it below ``.claude`` would make
+    every successful delegated run create an untracked task change and could
+    itself interfere with a task's clean-state checks.
+    """
+    dot_git = assigned_worktree / ".git"
+    if dot_git.is_dir():
+        git_dir = dot_git.resolve()
+    else:
+        try:
+            marker = dot_git.read_text(encoding="utf-8").strip()
+            prefix, location = marker.split(":", 1)
+            if prefix != "gitdir" or not location.strip():
+                raise ValueError("missing gitdir marker")
+            candidate = Path(location.strip())
+            git_dir = (dot_git.parent / candidate).resolve() if not candidate.is_absolute() else candidate.resolve()
+        except (OSError, ValueError) as exc:
+            raise WriterOwnershipError(
+                f"cannot locate Git admin directory for assigned worktree {assigned_worktree}; refusing writer launch"
+            ) from exc
+    directory = git_dir / "dev-platform"
+    return directory / _WRITER_LOCK_NAME, directory / _WRITER_STATE_NAME
+
+
+def _write_writer_state(path: Path, payload: dict[str, object]) -> None:
+    """Replace the small ownership receipt while its advisory lock is held."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")
+    try:
+        with temporary.open("w", encoding="utf-8") as handle:
+            json.dump(payload, handle, sort_keys=True)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    finally:
+        try:
+            temporary.unlink()
+        except FileNotFoundError:
+            pass
+
+
+def _process_group_state(pgid: int) -> str:
+    """Return absent, live, or ambiguous without ever guessing from a PID reuse."""
+    try:
+        os.killpg(pgid, 0)
+    except ProcessLookupError:
+        return "absent"
+    except PermissionError:
+        return "ambiguous"
+    except OSError as exc:
+        return "absent" if exc.errno == errno.ESRCH else "ambiguous"
+    return "live"
+
+
+@dataclass
+class _WriterOwnership:
+    """A per-worktree, process-lifetime lock plus a crash-visible receipt.
+
+    ``flock`` serializes local launchers while they are alive.  The receipt is
+    deliberately retained if a launcher dies between spawning and reaping its
+    child: a later launcher must fail closed rather than treating a vanished
+    parent as proof that the writer also vanished.
+    """
+
+    assigned_worktree: Path
+    lock_path: Path
+    state_path: Path
+    handle: object
+    launch_id: str
+    released: bool = False
+
+    @classmethod
+    def acquire(cls, assigned_worktree: Path) -> "_WriterOwnership":
+        if fcntl is None:
+            raise WriterOwnershipError(
+                "local single-writer ownership requires a POSIX advisory lock; refusing write-capable delegation"
+            )
+        lock_path, state_path = _writer_paths(assigned_worktree)
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+        handle = lock_path.open("a+", encoding="utf-8")
+        try:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            handle.close()
+            raise WriterOwnershipError(
+                f"delegated writer for assigned worktree {assigned_worktree} is already active; "
+                "refusing a second write-capable launch"
+            ) from exc
+
+        try:
+            if state_path.exists():
+                try:
+                    prior = json.loads(state_path.read_text(encoding="utf-8"))
+                    prior_pgid = prior["process_group"]
+                except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+                    raise WriterOwnershipError(
+                        f"delegated writer ownership for {assigned_worktree} is ambiguous; inspect "
+                        f"{state_path} before another launch"
+                    ) from exc
+                if not isinstance(prior_pgid, int) or prior_pgid <= 0:
+                    raise WriterOwnershipError(
+                        f"delegated writer ownership for {assigned_worktree} is ambiguous; inspect "
+                        f"{state_path} before another launch"
+                    )
+                prior_state = _process_group_state(prior_pgid)
+                if prior_state != "absent":
+                    adjective = "still active" if prior_state == "live" else "ambiguous"
+                    raise WriterOwnershipError(
+                        f"previous delegated writer for {assigned_worktree} is {adjective} "
+                        f"(process group {prior_pgid}); refusing a second write-capable launch"
+                    )
+                state_path.unlink()
+
+            ownership = cls(assigned_worktree, lock_path, state_path, handle, uuid.uuid4().hex)
+            # A crash in the small interval before a spawned child's pid is
+            # recorded remains intentionally ambiguous rather than unsafe.
+            ownership._write({"state": "launching", "launch_id": ownership.launch_id})
+            return ownership
+        except Exception:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+            handle.close()
+            raise
+
+    def _write(self, values: dict[str, object]) -> None:
+        _write_writer_state(
+            self.state_path,
+            {
+                "version": 1,
+                "assigned_worktree": str(self.assigned_worktree),
+                "launcher_pid": os.getpid(),
+                "launch_id": self.launch_id,
+                **values,
+            },
+        )
+
+    def mark_running(self, process: subprocess.Popen[str]) -> int:
+        # New sessions make the known child pid the process-group id, so an
+        # abnormal path can terminate its relevant descendants as one unit.
+        pgid = process.pid
+        self._write({"state": "running", "child_pid": process.pid, "process_group": pgid})
+        return pgid
+
+    def mark_ambiguous(self, pgid: int | None, reason: str) -> None:
+        values: dict[str, object] = {"state": "ambiguous", "reason": reason}
+        if pgid is not None:
+            values["process_group"] = pgid
+        self._write(values)
+        self._unlock()
+
+    def release(self) -> None:
+        try:
+            self.state_path.unlink()
+        except FileNotFoundError:
+            pass
+        self._unlock()
+
+    def _unlock(self) -> None:
+        if not self.released:
+            fcntl.flock(self.handle.fileno(), fcntl.LOCK_UN)
+            self.handle.close()
+            self.released = True
+
+
+def _terminate_and_reap(process: subprocess.Popen[str], pgid: int) -> bool:
+    """Boundedly terminate the launched process tree and prove its group is gone."""
+    if _process_group_state(pgid) == "absent":
+        try:
+            process.wait(timeout=0)
+        except subprocess.TimeoutExpired:
+            pass
+        return True
+
+    for sig, grace in ((signal.SIGTERM, _CLEANUP_GRACE_SECONDS), (signal.SIGKILL, _CLEANUP_GRACE_SECONDS)):
+        try:
+            os.killpg(pgid, sig)
+        except ProcessLookupError:
+            pass
+        except PermissionError:
+            return False
+        deadline = time.monotonic() + grace
+        while time.monotonic() < deadline:
+            # Reap our direct child as soon as it exits.  Otherwise its zombie
+            # can keep the process group observable and turn successful
+            # cleanup into a needless ambiguous ownership record.
+            try:
+                process.wait(timeout=0)
+            except subprocess.TimeoutExpired:
+                pass
+            if _process_group_state(pgid) == "absent":
+                return True
+            time.sleep(0.05)
+    return _process_group_state(pgid) == "absent"
+
+
+def _stream_output(
+    process: subprocess.Popen[str], stdout_line_hook: Callable[[str], None], timeout: float | None
+) -> int:
+    """Forward complete output lines while enforcing the launch deadline.
+
+    Codex's structured event stream is newline-delimited.  Polling its pipe
+    keeps a silent/stalled stream from bypassing the timeout while preserving
+    the single observed child path used for provenance extraction.
+    """
+    assert process.stdout is not None
+    deadline = time.monotonic() + timeout if timeout is not None else None
+    while True:
+        if deadline is not None:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise subprocess.TimeoutExpired(process.args, timeout)
+            wait_for = min(remaining, 0.1)
+        else:
+            wait_for = 0.1
+        readable, _, _ = select.select([process.stdout], [], [], wait_for)
+        if readable:
+            line = process.stdout.readline()
+            if line:
+                stdout_line_hook(line.rstrip("\n"))
+                continue
+            return process.wait(timeout=0)
+        if process.poll() is not None:
+            return process.wait(timeout=0)
 
 
 # --------------------------------------------------------------------------
@@ -131,9 +378,7 @@ def run_observed_delegation(
     of letting the child inherit the parent's stdout directly. Callers use
     this to both forward output for live visibility and opportunistically
     parse structured runtime events (for example Codex's ``--json`` event
-    stream) without adding a second execution path. Note: with this hook set,
-    ``timeout`` is only enforced after the child closes stdout (i.e. once it
-    exits), not while blocked reading a line -- unused by any current caller.
+    stream) without adding a second execution path.
     """
     resolved_worktree = resolve_assigned_worktree(integration_root, assigned_worktree)
 
@@ -151,36 +396,61 @@ def run_observed_delegation(
     else:
         before = snapshot(integration_root)
 
+    ownership = _WriterOwnership.acquire(resolved_worktree)
     child_launched = False
-    launch_exception: Exception | None = None
+    launch_exception: BaseException | None = None
     completed: subprocess.CompletedProcess[str] | None = None
     process: subprocess.Popen[str] | None = None
+    process_group: int | None = None
+    writer_state = "released"
     try:
         if stdout_line_hook is not None:
             process = subprocess.Popen(
                 argv, cwd=resolved_worktree, env=env, text=True,
-                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1,
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, start_new_session=True,
             )
             child_launched = True
-            assert process.stdout is not None
-            for line in process.stdout:
-                stdout_line_hook(line.rstrip("\n"))
+            process_group = ownership.mark_running(process)
+            returncode = _stream_output(process, stdout_line_hook, timeout)
             process.stdout.close()
-            returncode = process.wait(timeout=timeout)
             completed = subprocess.CompletedProcess(argv, returncode)
         else:
-            process = subprocess.Popen(argv, cwd=resolved_worktree, env=env, text=True)
+            process = subprocess.Popen(argv, cwd=resolved_worktree, env=env, text=True, start_new_session=True)
             child_launched = True
+            process_group = ownership.mark_running(process)
             returncode = process.wait(timeout=timeout)
             completed = subprocess.CompletedProcess(argv, returncode)
-    except subprocess.TimeoutExpired as exc:
-        # The child was cancelled: it did start, so child_launched stays True.
-        process.kill()
-        process.wait()
+        # A completed leader alone is not enough: a descendant holding its
+        # session/process group remains a write-capable orphan.  Treat that as
+        # abnormal and resolve it before this worktree is reusable.
+        if process_group is not None and _process_group_state(process_group) != "absent":
+            launch_exception = RuntimeError(
+                f"delegated child exited but writer process group {process_group} is still live"
+            )
+            if _terminate_and_reap(process, process_group):
+                ownership.release()
+            else:
+                writer_state = "ambiguous"
+                ownership.mark_ambiguous(process_group, "process group survived normal child return")
+        else:
+            ownership.release()
+    except BaseException as exc:
+        # Timeout, cancellation, a streaming failure, or another abnormal
+        # parent return after Popen must resolve the whole launched tree, not
+        # merely the immediate child.  If resolution cannot be proven, keep a
+        # durable ambiguous receipt so later launchers fail closed.
         launch_exception = exc
-    except Exception as exc:  # exec/spawn failure -- child never actually started
-        launch_exception = exc
+        if child_launched and process is not None and process_group is not None:
+            if _terminate_and_reap(process, process_group):
+                ownership.release()
+            else:
+                writer_state = "ambiguous"
+                ownership.mark_ambiguous(process_group, f"abnormal return: {exc!r}")
+        else:
+            ownership.release()
     finally:
+        if process is not None and process.stdout is not None:
+            process.stdout.close()
         after = snapshot(integration_root)
         containment = check_containment(before, after)
 
@@ -199,12 +469,14 @@ def run_observed_delegation(
         containment=containment,
         violation=violation,
         message=message,
+        writer_state=writer_state,
     )
 
     if launch_exception is not None:
         raise GuardedChildError(
             f"delegated child did not complete normally ({launch_exception!r}); "
-            f"containment {'VIOLATION' if violation else 'clean'} recorded before this error was raised.",
+            f"containment {'VIOLATION' if violation else 'clean'} and writer lifecycle {writer_state} "
+            "recorded before this error was raised.",
             result,
         ) from launch_exception
 

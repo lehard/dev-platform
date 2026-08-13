@@ -17,7 +17,14 @@ from pathlib import Path
 from typing import Any
 
 from _platform_common import atomic_write_text, current_worktree_root, main_root, read_platform_config, utc_now
-from delegated_write_guard import EnforcementTier, build_codex_argv, determine_claude_tier, determine_codex_tier, run_observed_delegation
+from delegated_write_guard import (
+    EnforcementTier,
+    GuardedChildError,
+    build_codex_argv,
+    determine_claude_tier,
+    determine_codex_tier,
+    run_observed_delegation,
+)
 from delegation_containment import (
     ContainmentError,
     GitSnapshot,
@@ -311,16 +318,32 @@ def run_codex(route: Route, prompt: str, codex_bin: str | None = None) -> dict[s
         if thread_id is not None:
             captured["thread_id"] = thread_id
 
-    result = run_observed_delegation(
-        integration_root=Path(route.integration_root), assigned_worktree=Path(route.task_worktree),
-        argv=argv, tier_decision=decision, task=route.source_issue, stdout_line_hook=_on_line,
-    )
+    abnormal_error: str | None = None
+    try:
+        result = run_observed_delegation(
+            integration_root=Path(route.integration_root), assigned_worktree=Path(route.task_worktree),
+            argv=argv, tier_decision=decision, task=route.source_issue, stdout_line_hook=_on_line,
+        )
+    except GuardedChildError as exc:
+        # The guard has already attempted process-tree cleanup and always ran
+        # the containment comparison. Persist that known failure instead of
+        # letting a parent-side exception make the route look clean/unrun.
+        result = exc.result
+        abnormal_error = str(exc)
     output = {
         "mechanism": mechanism,
         "launched": result.launched,
         "returncode": result.returncode,
         "violation": result.violation,
+        "writer_state": getattr(result, "writer_state", "released"),
     }
+    if abnormal_error is not None:
+        output["outcome"] = "abnormal"
+        output["error"] = abnormal_error
+    elif result.returncode not in (0, None) or result.violation:
+        output["outcome"] = "failed"
+    else:
+        output["outcome"] = "completed"
     if result.launched:
         # A route that was merely prepared must never look executed; only
         # attach participant provenance once the child actually launched.
@@ -330,6 +353,10 @@ def run_codex(route: Route, prompt: str, codex_bin: str | None = None) -> dict[s
             execution_id=captured["thread_id"], execution_id_kind="codex-thread" if captured["thread_id"] else None,
         )
     return output
+
+
+def _failed_codex_execution(execution: dict[str, Any]) -> bool:
+    return execution.get("outcome") in {"abnormal", "failed"} or execution.get("writer_state") == "ambiguous"
 
 
 def dispatch_codex(
@@ -358,6 +385,10 @@ def dispatch_codex(
     output["route"] = asdict(route)
     output["delegated"] = True
     output["execution"] = execution
+    if _failed_codex_execution(execution):
+        raise RoutingError(
+            "delegated Codex execution did not complete cleanly; its real outcome was persisted in routing provenance"
+        )
     return output
 
 
@@ -531,7 +562,10 @@ def main() -> int:
         elif args.command == "escalate": output = asdict(escalate(root, args.reason))
         elif args.command == "codex-argv":
             argv, mechanism = codex_argv(_read_route(root)[0], args.prompt, args.codex_bin); output = {"argv": argv, "mechanism": mechanism}
-        elif args.command == "run-codex": output = run_codex(_read_route(root)[0], args.prompt, args.codex_bin)
+        elif args.command == "run-codex":
+            route, path = _read_route(root)
+            output = run_codex(route, args.prompt, args.codex_bin)
+            _write_route(path, Route(**{**asdict(route), "execution": output}))
         elif args.command == "dispatch-codex":
             output = dispatch_codex(
                 root,
@@ -549,7 +583,10 @@ def main() -> int:
         else: output = postcheck(_read_route(root)[0])
     except (ContainmentError, RoutingError) as exc:
         print(f"Model routing blocked: {exc}", file=sys.stderr); return 2
-    print(json.dumps(output, indent=2, sort_keys=True)); return 0
+    print(json.dumps(output, indent=2, sort_keys=True))
+    if args.command == "run-codex" and _failed_codex_execution(output):
+        return 2
+    return 0
 
 
 if __name__ == "__main__": raise SystemExit(main())

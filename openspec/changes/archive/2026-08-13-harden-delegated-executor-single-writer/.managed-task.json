@@ -1,0 +1,32 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/model-routing/spec.md",
+    "specs/platform-delegation/spec.md"
+  ],
+  "change": "harden-delegated-executor-single-writer",
+  "imported_at": "2026-08-13T10:56:56+00:00",
+  "package_revision": "b370997ed714a715be45669d3cff1d15ca22847191fd09dd89b4226cc20048a5",
+  "prepared_against": "62370f4c7520b0b01157519c90f6dc522c635ea1",
+  "process_evidence": [
+    "lehard/dev-platform#249"
+  ],
+  "routing_receipt": {
+    "assurance": "high",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "platform-reliability"
+  },
+  "source_issue": "lehard/development-backlog#39",
+  "source_issue_evidence": {
+    "body_sha256": "1c45ec4dfc0739446b1e76fdffadb8c6c497c1d131da563f919e9bdad78583fe",
+    "updated_at": "2026-08-13T10:41:38Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

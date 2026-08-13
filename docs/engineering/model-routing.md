@@ -41,7 +41,7 @@ python3 scripts/dogfood_task.py route-codex --profile <routine|standard|complex>
 
 The command records the decision through `scripts/model_routing.py`. `routine` and `standard` (whether derived from an authored `R2` tier or passed explicitly) immediately launch the configured lower-cost Codex executor through native `workspace-write` containment, while `complex` (derived from `R3`, or passed explicitly) records the route and remains on the current session without a cheap-model attempt.
 
-The child path is truthful: if native Codex containment cannot be proven, it reports that limit and the parent retains the work rather than claiming a delegation.
+The child path is truthful: if native Codex containment cannot be proven, it reports that limit and the parent retains the work rather than claiming a delegation. A local single-writer receipt and advisory lock are held for the exact assigned worktree throughout a launched Codex writer's lifecycle. A second writer is refused while that writer is live, and a stale or incomplete receipt fails closed rather than assuming the earlier writer disappeared.
 
 ## Claude Code entrypoint
 
@@ -69,7 +69,7 @@ Platform-controlled write-capable delegation is platform-contained only with a v
 
 Native Claude Code subagents execute in place in the assigned task worktree, not through `isolation: worktree`: that mechanism forks a fresh worktree off the platform's main branch and cannot see the materialized-but-uncommitted managed OpenSpec/task state a routing preflight hands off, and settings-driven native sandboxing does not apply live to a subagent spawned mid-session. The invariant that governs a delegation is containment, not the specific child-worktree mechanism.
 
-The supervisor records the integration pre-snapshot, refuses to start a detection-only child while the integration checkout is already dirty, and runs the required post-check after the child returns. A detection-only writer (no proven OS sandbox or hook boundary, for example shell-capable Claude delegation) must not start while the integration checkout is already dirty. No containment path stashes, resets, cleans, or deletes integration state.
+The supervisor records the integration pre-snapshot, refuses to start a detection-only child while the integration checkout is already dirty, and runs the required post-check after the child returns. A detection-only writer (no proven OS sandbox or hook boundary, for example shell-capable Claude delegation) must not start while the integration checkout is already dirty. No containment path stashes, resets, cleans, or deletes integration state. After a launched Codex writer times out, is cancelled, encounters stream failure, or otherwise returns abnormally, the launcher terminates and reaps its process group before releasing ownership; if absence cannot be proven, the retained receipt blocks any later writer for that worktree.
 
 ## Execution provenance
 
@@ -81,5 +81,7 @@ Every model/effort value carries a `source`: `selected` (platform-chosen, passed
 - **Claude Code**: after the supervisor invokes the native Agent-tool hand-off and it returns, `record-claude-execution --agent-id "<id>"` records that id as the executor's bounded execution identifier (`kind: "claude-agent-id"`). The Agent tool's current parameters are `description`, `isolation`, `model`, `prompt`, `run_in_background`, `subagent_type` -- there is no `effort` parameter, so a Claude child's reasoning effort is always recorded as `unknown`, never fabricated as selected.
 
 A route that was only prepared -- containment unprovable, integration dirty, or the supervisor never actually invoked the hand-off -- has no `execution.participant`. Fallback (parent retains the work) and escalation both preserve the actual path that ran, not the preferred path that was requested.
+
+For Codex, `execution.outcome` is `completed`, `failed`, or `abnormal`; an abnormal result records the cleanup/ownership state and error text and remains a failed route even when containment itself was clean. It is never presented as a clean handoff merely because the parent launcher returned.
 
 `python3 scripts/agent_friction.py record --participant-role <supervisor|executor|unknown>` links a finding to the current run. The caller only asserts *which* participant a finding concerns; the identity itself is read back from this routing record, not self-reported. `unknown` (the default) is correct whenever attribution is genuinely ambiguous -- do not guess. Routed public GitHub evidence includes only a bounded `provider`/`model`/`source` line; execution identifiers and other machine-local detail stay in the local friction log. Friction deduplication (`fingerprint_for`) never includes model/provider -- the fingerprint identifies the underlying process problem, and provenance is per-occurrence metadata layered on top, so the same recurring issue across different models still updates one issue instead of splitting by model.
