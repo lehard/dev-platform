@@ -15,6 +15,7 @@ PLATFORM_VERSION_RE = re.compile(r'^platform_version\s*=\s*"[^"]*"\s*$', re.MULT
 PROJECT_SLUG_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
 PROJECT_OWNER_RE = re.compile(r"^[A-Za-z0-9-]+$")
 BACKLOG_HEADER_RE = re.compile(r"(?m)^\[development_backlog\]\s*$")
+PROCESS_HEALTH_HEADER_RE = re.compile(r"(?m)^\[process_health\]\s*$")
 TABLE_HEADER_RE = re.compile(r"(?m)^\[[^\n]+\]\s*$")
 ALL_OPENSPEC_WORKFLOWS = ["propose", "explore", "new", "continue", "apply", "ff", "sync", "archive", "bulk-archive", "verify", "onboard"]
 
@@ -124,6 +125,37 @@ def sync_development_backlog_config(root: Path) -> None:
     print("Added Development Backlog Project workflow locator configuration.")
 
 
+def sync_process_health_config(root: Path) -> None:
+    """Add the bounded process-health labels without rewriting project config."""
+    config = load_config(root)
+    existing = config.get("process_health")
+    if existing is not None and not isinstance(existing, dict):
+        raise RuntimeError("process_health must be a TOML table")
+    config_path = root / ".dev-platform.toml"
+    text = config_path.read_text(encoding="utf-8")
+    if existing is None:
+        addition = "\n\n[process_health]\nprocess_label = \"process\"\nmanaged_label = \"process:managed\"\n"
+        config_path.write_text(text.rstrip() + addition, encoding="utf-8")
+        print("Added process-health label configuration.")
+        return
+    missing = []
+    if "process_label" not in existing:
+        missing.append('process_label = "process"')
+    if "managed_label" not in existing:
+        missing.append('managed_label = "process:managed"')
+    if not missing:
+        return
+    header = PROCESS_HEALTH_HEADER_RE.search(text)
+    if header is None:
+        raise RuntimeError("process_health configuration has no readable TOML table header")
+    next_header = TABLE_HEADER_RE.search(text, header.end())
+    end = next_header.start() if next_header else len(text)
+    section = text[header.start():end].rstrip()
+    updated = text[:header.start()] + section + "\n" + "\n".join(missing) + "\n" + text[end:].lstrip("\n")
+    config_path.write_text(updated, encoding="utf-8")
+    print("Added missing process-health label configuration.")
+
+
 def openspec_profile() -> dict[str, object]:
     return {"featureFlags": {}, "profile": "custom", "delivery": "both", "workflows": ALL_OPENSPEC_WORKFLOWS}
 
@@ -142,6 +174,7 @@ def main() -> int:
     root = Path.cwd().resolve()
     sync_platform_version(root)
     sync_development_backlog_config(root)
+    sync_process_health_config(root)
     config = load_config(root)
     main_branch = str(config.get("main_branch", "main"))
     tools = str(config.get("agent_tools", "claude,codex"))

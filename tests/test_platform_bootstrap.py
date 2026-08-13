@@ -91,6 +91,19 @@ class PlatformBootstrapTests(unittest.TestCase):
             self.assertEqual(loaded["development_backlog"]["project_owner"], "example-owner")
             self.assertEqual(loaded["development_backlog"]["project_number"], 42)
 
+    def test_process_health_migration_adds_and_preserves_bounded_labels(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config = root / ".dev-platform.toml"
+            config.write_text('project_slug = "existing-project"\ncustom_value = "preserve"\n', encoding="utf-8")
+            platform_bootstrap.sync_process_health_config(root)
+            loaded = platform_bootstrap.load_config(root)
+            self.assertEqual(loaded["process_health"], {"process_label": "process", "managed_label": "process:managed"})
+            self.assertEqual(loaded["custom_value"], "preserve")
+            before = config.read_text(encoding="utf-8")
+            platform_bootstrap.sync_process_health_config(root)
+            self.assertEqual(before, config.read_text(encoding="utf-8"))
+
 
 if __name__ == "__main__":
     unittest.main()

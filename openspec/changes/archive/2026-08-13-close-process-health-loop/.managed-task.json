@@ -1,0 +1,26 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/platform-lifecycle/spec.md",
+    "specs/agentic-maintenance/spec.md",
+    "specs/project-factory/spec.md"
+  ],
+  "change": "close-process-health-loop",
+  "imported_at": "2026-08-13T07:07:37+00:00",
+  "package_revision": "fb2e7bbb057f1284aba91d81aeb08a40a6c997c22a50b7455160d56d3f623aa2",
+  "prepared_against": "f27b6f75388a8f67964902ad52ce1ac990cdc0c1",
+  "routing_receipt": {
+    "assurance": "high",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "platform-process-maintenance"
+  },
+  "source_issue": "lehard/development-backlog#38",
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

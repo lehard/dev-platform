@@ -214,6 +214,35 @@ def expected_development_backlog_migration(
     return migrated
 
 
+def expected_process_health_migration(before: dict[str, Any]) -> dict[str, Any] | None:
+    if "process_health" in before:
+        return None
+    migrated = dict(before)
+    migrated["process_health"] = {
+        "process_label": "process",
+        "managed_label": "process:managed",
+    }
+    return migrated
+
+
+def expected_platform_config_migrations(
+    before: dict[str, Any], *, project_owner: str, project_number: int
+) -> list[dict[str, Any]]:
+    """Return every bounded, bootstrap-owned config migration from ``before``."""
+    candidates = [before]
+    for migrate in (
+        lambda config: expected_development_backlog_migration(
+            config, project_owner=project_owner, project_number=project_number
+        ),
+        expected_process_health_migration,
+    ):
+        for candidate in list(candidates):
+            migrated = migrate(candidate)
+            if migrated is not None:
+                candidates.append(migrated)
+    return candidates
+
+
 def require_platform_config_contract(
     before: dict[str, Any],
     after: dict[str, Any],
@@ -221,14 +250,12 @@ def require_platform_config_contract(
     project_owner: str = "lehard",
     project_number: int = 1,
 ) -> None:
-    if after == before or after == expected_development_backlog_migration(
-        before,
-        project_owner=project_owner,
-        project_number=project_number,
+    if after in expected_platform_config_migrations(
+        before, project_owner=project_owner, project_number=project_number
     ):
         return
     raise ValueError(
-        "project-owned .dev-platform.toml changed beyond platform_version or the expected Development Backlog migration during guarded recopy"
+        "project-owned .dev-platform.toml changed beyond platform_version or the expected bounded platform migrations during guarded recopy"
     )
 
 
