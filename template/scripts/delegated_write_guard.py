@@ -345,7 +345,12 @@ def _stream_output(
             if line:
                 stdout_line_hook(line.rstrip("\n"))
                 continue
-            return process.wait(timeout=0)
+            # EOF proves every writer of the merged pipe has closed it, but
+            # the direct child can still need one scheduler turn to become
+            # waitable.  The configured deadline has already been enforced
+            # while reading; waiting here avoids turning that benign reaping
+            # race into a false abnormal return.
+            return process.wait()
         if process.poll() is not None:
             return process.wait(timeout=0)
 
