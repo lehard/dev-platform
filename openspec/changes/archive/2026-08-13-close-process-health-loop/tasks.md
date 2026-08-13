@@ -25,7 +25,7 @@
 
 - [x] 4.1 Add the accepted process-health workflow/labels/config to the managed-project template without per-project forks.
 - [x] 4.2 Preserve project-local friction routing and central `scope=platform` routing.
-- [x] 4.3 Validate template rendering/adoption and ordinary platform rollout compatibility.
+- [x] 4.3 Validate template rendering/adoption and ordinary platform rollout compatibility. Evidence: the guarded-recopy contract permits only the deterministic missing `[process_health]` migration and its smoke-test regression passes.
 - [x] 4.4 Update `docs/engineering/chatgpt-project-protocol.md` with the concise shared Process Health Review contract; keep project-specific instructions as thin trigger/parameter adapters.
 
 ## 5. Reconcile current evidence and verify

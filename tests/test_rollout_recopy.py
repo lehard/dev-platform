@@ -101,6 +101,15 @@ class GuardedRecopyTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "beyond platform_version"):
             rollout_project.require_platform_config_contract(before, after)
 
+    def test_platform_config_contract_allows_process_health_migration_only_when_missing(self) -> None:
+        before = rollout_project.platform_config_contract(self.root)
+        after = rollout_project.expected_process_health_migration(before)
+        assert after is not None
+        rollout_project.require_platform_config_contract(before, after)
+        after["process_health"]["managed_label"] = "custom"
+        with self.assertRaisesRegex(ValueError, "bounded platform migrations"):
+            rollout_project.require_platform_config_contract(before, after)
+
     def test_platform_config_contract_uses_reviewed_copier_locator_answers(self) -> None:
         before = rollout_project.platform_config_contract(self.root)
         after = rollout_project.expected_development_backlog_migration(

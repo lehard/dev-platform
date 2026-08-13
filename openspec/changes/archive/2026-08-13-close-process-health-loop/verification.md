@@ -11,6 +11,7 @@ Automated-Checks-Evidence: automated-checks.json
 - The weekly review source records its current-state boundary, reads only bounded GitHub context, performs no source-evidence mutation, and instructs root-cause clustering and stale-evidence checking.
 - The managed-project template supplies the same workflow, label provisioning and bounded configuration while preserving project-local versus central platform routing.
 - The acceptance review in `process-health-review.md` is based on the exact current `main` SHA and makes no unsupported historical backfill or remote mutation.
+- The protected rollout smoke initially exposed that guarded Copier recopy rejected the newly supported missing `[process_health]` migration. The contract now permits exactly that deterministic bootstrap migration (and no edits to an existing table); the focused regression and rollout smoke pass.
 
 ## Executed checks
 
