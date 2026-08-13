@@ -2,6 +2,7 @@
 
 OpenSpec-Verify: PASS
 Verification-Method: manual equivalent completeness/correctness/coherence review (no `/opsx:verify` tool integration available in this environment) plus `openspec validate harden-managed-package-revision-integrity --strict --no-interactive` and the full platform test suite
+Automated-Checks-Evidence: automated-checks.json
 
 ## Completeness
 
