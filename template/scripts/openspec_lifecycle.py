@@ -7,7 +7,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from _platform_common import current_worktree_root, harness_mode, read_platform_config
+from _platform_common import current_worktree_root, harness_mode, read_platform_config, run_git
 
 TASK_RE = re.compile(r"^\s*-\s*\[([ xX])\]\s+")
 VERIFY_MARKER = "OpenSpec-Verify: PASS"
@@ -112,6 +112,40 @@ def require_ready(change: Path, *, platform_owned: bool = False) -> None:
         require_automated_evidence(change)
 
 
+def require_static_archive_readiness(change: Path, *, platform_owned: bool = False) -> None:
+    """Check deterministic archive prerequisites before checks mutate evidence."""
+    if not change.exists() or not change.is_dir():
+        raise SystemExit(f"Active OpenSpec change not found: {change.name}")
+    total, incomplete = task_state(change)
+    if total == 0:
+        raise SystemExit(f"{change.name}: tasks.md has no task checkboxes; refusing automatic archive")
+    if incomplete:
+        raise SystemExit(f"{change.name}: {incomplete} of {total} task(s) remain incomplete")
+    if not verification_passed(change):
+        raise SystemExit(
+            f"{change.name}: missing successful semantic verification receipt. "
+            f"Run /opsx:verify when available (or an equivalent documented OpenSpec verification), resolve material findings, "
+            f"then record '{VERIFY_MARKER}' and a '{VERIFY_METHOD_PREFIX} <method>' line in verification.md."
+        )
+    if platform_owned:
+        expected = f"{AUTOMATED_EVIDENCE_PREFIX} {AUTOMATED_EVIDENCE_FILE}"
+        lines = [line.strip() for line in (change / "verification.md").read_text(encoding="utf-8").splitlines()]
+        if expected not in lines:
+            raise SystemExit(f"{change.name}: platform-owned verification must cite '{expected}' before archive can run checks")
+
+
+def require_applicable_committed_diff(root: Path) -> None:
+    """Reject uncommitted-only packages before selecting checks or writing evidence."""
+    result = run_git(["diff", "--quiet", "origin/main...HEAD"], cwd=root, check=False)
+    if result.returncode == 0:
+        raise SystemExit(
+            "OpenSpec archive requires an applicable committed diff against origin/main; "
+            "uncommitted or untracked-only package state is not archiveable."
+        )
+    if result.returncode != 1:
+        raise SystemExit("OpenSpec archive could not determine committed diff against origin/main.")
+
+
 def run_checked(command: list[str], root: Path) -> None:
     print("+ " + " ".join(command), flush=True)
     result = subprocess.run(command, cwd=root)
@@ -122,6 +156,9 @@ def run_checked(command: list[str], root: Path) -> None:
 def archive_change(root: Path, name: str) -> int:
     change = root / "openspec" / "changes" / name
     platform_owned = harness_mode(read_platform_config(root)) == "platform"
+    require_static_archive_readiness(change, platform_owned=platform_owned)
+    if platform_owned:
+        require_applicable_committed_diff(root)
     if platform_owned:
         evidence = change / AUTOMATED_EVIDENCE_FILE
         run_checked(

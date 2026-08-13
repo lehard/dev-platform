@@ -262,6 +262,31 @@ def command_result(command: str, result: subprocess.CompletedProcess[str], durat
     }
 
 
+def failure_descriptor(checks: list[dict[str, Any]], command: str, result: subprocess.CompletedProcess[str]) -> dict[str, Any]:
+    """Return a bounded, log-free description of a selected-check failure."""
+    descriptor: dict[str, Any] = {
+        "failure_class": "selected-command-failure",
+        "selected_checks": sorted(
+            str(check.get("id", "unknown")) for check in checks if command in check.get("commands", [])
+        ),
+        "command": command,
+        "exit_code": result.returncode,
+    }
+    for line in ((result.stdout or "") + (result.stderr or "")).splitlines():
+        if not line.startswith("DEV_PLATFORM_TEST_AGGREGATE: "):
+            continue
+        try:
+            aggregate = json.loads(line.split(": ", 1)[1])
+        except (IndexError, json.JSONDecodeError):
+            break
+        failed = aggregate.get("failed_groups")
+        if isinstance(failed, list) and all(isinstance(item, str) for item in failed):
+            descriptor["failure_class"] = "test-group-failure"
+            descriptor["failed_groups"] = sorted(failed)[:20]
+        break
+    return descriptor
+
+
 def execute(root: Path, checks: list[dict[str, Any]], evidence_path: Path | None = None) -> int:
     commands = commands_for(checks)
     records: list[dict[str, Any]] = []
@@ -290,6 +315,7 @@ def execute(root: Path, checks: list[dict[str, Any]], evidence_path: Path | None
             outcome = "failure"
             if evidence_path is not None:
                 write_evidence(evidence_path, checks, selection_status(checks), records, outcome)
+            print("DEV_PLATFORM_CHECK_FAILURE: " + json.dumps(failure_descriptor(checks, command, result), ensure_ascii=False, sort_keys=True), flush=True)
             detail = diagnostic_tail((result.stdout or "") + (result.stderr or ""))
             if detail:
                 print("DEV_PLATFORM_CHECK_DIAGNOSTIC:\n" + detail.rstrip(), flush=True)
