@@ -209,4 +209,4 @@ Start here when you need more than the README:
 
 ## License
 
-No software license has been selected yet. Public visibility alone does not grant reuse rights; licensing remains an explicit owner decision and is intentionally not inferred by this repository packaging change.
+Licensed under the [Apache License, Version 2.0](LICENSE).
