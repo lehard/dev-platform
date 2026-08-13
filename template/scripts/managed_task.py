@@ -57,6 +57,9 @@ AUTHORING_RECEIPT_RE = re.compile(r"<!--\s*managed-task:authoring:([0-9a-f]{64})
 ISSUE_TARGET_RE = re.compile(r"^\*\*Target repository:\*\*\s*`([^`]+)`", re.MULTILINE)
 ISSUE_CHANGE_RE = re.compile(r"^\*\*OpenSpec change:\*\*\s*`([^`]+)`", re.MULTILINE)
 PRIORITY_RE = re.compile(r"^P[0-3]$")
+PROCESS_LABEL = "process"
+PROCESS_MANAGED_LABEL = "process:managed"
+PROCESS_BACKLINK_PREFIX = "dev-platform-process-managed"
 
 
 class ManagedTaskError(RuntimeError):
@@ -75,6 +78,7 @@ class Package:
     routing_receipt: dict[str, Any] | None = None
     source_issue_evidence: dict[str, str] | None = None
     supersedes: str | None = None
+    process_evidence: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -85,6 +89,7 @@ class CanonicalProvenance:
     change: str
     path: Path
     lifecycle: str  # ``active`` or ``archived``
+    process_evidence: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -93,6 +98,7 @@ class ManagedTaskIdentity:
 
     source_issue: str
     change: str
+    process_evidence: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -130,6 +136,20 @@ def issue_ref(value: str) -> tuple[str, int]:
     if not match:
         raise ManagedTaskError("issue must be owner/repo#N or https://github.com/owner/repo/issues/N")
     return repo(match.group(1)), int(match.group(2))
+
+
+def normalized_process_evidence(values: list[str] | tuple[str, ...] | None) -> tuple[str, ...]:
+    """Validate the canonical, bounded source-evidence representation."""
+    if values is None:
+        return ()
+    if not isinstance(values, (list, tuple)) or not all(isinstance(value, str) for value in values):
+        raise ManagedTaskError("process_evidence must be a list of owner/repo#N references")
+    if len(values) > 20:
+        raise ManagedTaskError("process_evidence may contain at most 20 source issues")
+    normalized = tuple(f"{repository}#{number}" for repository, number in (issue_ref(value) for value in values))
+    if len(set(value.lower() for value in normalized)) != len(normalized):
+        raise ManagedTaskError("process_evidence must not contain duplicate source issues")
+    return normalized
 
 
 def origin_repository(root: Path) -> str:
@@ -298,6 +318,8 @@ def revision(manifest: dict[str, Any], artifacts: tuple[str, ...], contents: dic
     # source_issue_evidence is deliberately excluded: its updated_at moves every time a
     # comment posts to the Issue -- including this platform's own package/supersede
     # comment -- which would otherwise make retries/no-op supersede spuriously "differ".
+    if "process_evidence" in manifest:
+        normalized["process_evidence"] = manifest["process_evidence"]
     digest = hashlib.sha256(json.dumps(normalized, sort_keys=True, separators=(",", ":")).encode())
     for path in artifacts:
         digest.update(bytes([0]))
@@ -315,6 +337,7 @@ def content_fingerprint(
     artifacts: tuple[str, ...],
     contents: dict[str, str],
     routing_receipt: dict[str, Any] | None,
+    process_evidence: tuple[str, ...] = (),
 ) -> str:
     """revision() with `supersedes` always excluded, for supersede's retry-convergence check.
 
@@ -330,6 +353,8 @@ def content_fingerprint(
     }
     if routing_receipt is not None:
         manifest["routing_receipt"] = routing_receipt
+    if process_evidence:
+        manifest["process_evidence"] = list(process_evidence)
     return revision(manifest, artifacts, contents)
 
 
@@ -399,9 +424,13 @@ def parse_package(bodies: list[str], requested: str) -> Package:
         if not isinstance(supersedes, str) or not SHA256_RE.fullmatch(supersedes):
             raise ManagedTaskError("managed package has an invalid supersedes revision")
         supersedes = supersedes.lower()
+    try:
+        process_evidence = normalized_process_evidence(manifest.get("process_evidence"))
+    except ManagedTaskError as exc:
+        raise ManagedTaskError(f"managed package has invalid process_evidence: {exc}") from exc
     return Package(
         source_issue, target, manifest["change"], prepared, artifacts, contents,
-        revision(manifest, artifacts, contents), routing_receipt, source_issue_evidence, supersedes,
+        revision(manifest, artifacts, contents), routing_receipt, source_issue_evidence, supersedes, process_evidence,
     )
 
 
@@ -435,6 +464,7 @@ def package_for_bundle(
     routing_receipt: dict[str, Any] | None = None,
     source_issue_evidence: dict[str, str] | None = None,
     supersedes: str | None = None,
+    process_evidence: tuple[str, ...] = (),
 ) -> Package:
     manifest = {
         "version": 1,
@@ -448,6 +478,8 @@ def package_for_bundle(
         manifest["routing_receipt"] = routing_receipt
     if supersedes is not None:
         manifest["supersedes"] = supersedes
+    if process_evidence:
+        manifest["process_evidence"] = list(process_evidence)
     return Package(
         source_issue=source_issue,
         target_repository=target_repository,
@@ -459,6 +491,7 @@ def package_for_bundle(
         routing_receipt=routing_receipt,
         source_issue_evidence=source_issue_evidence,
         supersedes=supersedes,
+        process_evidence=process_evidence,
     )
 
 
@@ -477,6 +510,8 @@ def serialize_package(package: Package) -> str:
         manifest["source_issue_evidence"] = package.source_issue_evidence
     if package.supersedes is not None:
         manifest["supersedes"] = package.supersedes
+    if package.process_evidence:
+        manifest["process_evidence"] = list(package.process_evidence)
     fence = "`" * 3
     parts = [f"<!-- {PACKAGE} -->\n\n## Managed OpenSpec package\n\n{fence}json\n", json.dumps(manifest, indent=2), f"\n{fence}\n"]
     for path in package.artifacts:
@@ -484,7 +519,9 @@ def serialize_package(package: Package) -> str:
     return "".join(parts)
 
 
-def authoring_receipt(bundle: AuthoringBundle, target_repository: str, prepared_against: str) -> str:
+def authoring_receipt(
+    bundle: AuthoringBundle, target_repository: str, prepared_against: str, process_evidence: tuple[str, ...] = ()
+) -> str:
     digest = hashlib.sha256()
     for value in (target_repository, prepared_against, bundle.title, bundle.issue_body, bundle.change):
         digest.update(value.encode())
@@ -493,6 +530,9 @@ def authoring_receipt(bundle: AuthoringBundle, target_repository: str, prepared_
         digest.update(path.encode())
         digest.update(bytes([0]))
         digest.update(bundle.contents[path].encode())
+        digest.update(bytes([0]))
+    for reference in process_evidence:
+        digest.update(reference.encode())
         digest.update(bytes([0]))
     return digest.hexdigest()
 
@@ -592,6 +632,77 @@ def validate_backlog_labels(root: Path, config: AuthoringConfig, priority: str) 
         value = run_json(["gh", "api", f"repos/{config.repository}/labels/{quote(label, safe='')}"], root, env)
         if not isinstance(value, dict) or value.get("name") != label:
             raise ManagedTaskError(f"configured Development Backlog label is unavailable: {label}")
+
+
+def issue_labels(issue: dict[str, Any]) -> set[str]:
+    labels = issue.get("labels")
+    if not isinstance(labels, list):
+        return set()
+    return {str(label.get("name", "")).lower() for label in labels if isinstance(label, dict)}
+
+
+def process_evidence_issue(root: Path, reference: str) -> dict[str, Any]:
+    repository, number = issue_ref(reference)
+    env = github_cli_env(root)
+    if env is None:
+        raise ManagedTaskError("GitHub CLI authentication is required; run gh auth login and retry")
+    value = run_json(["gh", "api", f"repos/{repository}/issues/{number}"], root, env)
+    if not isinstance(value, dict) or value.get("pull_request"):
+        raise ManagedTaskError(f"process evidence {reference} is not an accessible GitHub issue")
+    if value.get("state") != "open":
+        raise ManagedTaskError(f"process evidence {reference} must be open when linked")
+    if PROCESS_LABEL not in issue_labels(value):
+        raise ManagedTaskError(f"process evidence {reference} must carry the {PROCESS_LABEL!r} label")
+    return value
+
+
+def validate_process_evidence(root: Path, references: tuple[str, ...]) -> None:
+    for reference in references:
+        process_evidence_issue(root, reference)
+
+
+def process_backlink(package: Package) -> str:
+    return "\n".join(
+        (
+            f"<!-- {PROCESS_BACKLINK_PREFIX}:{package.source_issue}:{package.change} -->",
+            f"Managed as evidence for [{package.source_issue}](https://github.com/{package.source_issue.replace('#', '/issues/')}) "
+            f"(`{package.change}`). The evidence remains open until terminal managed delivery succeeds.",
+        )
+    )
+
+
+def reconcile_process_evidence_linkage(root: Path, package: Package) -> None:
+    """Mark each still-open linked source issue once the canonical task exists.
+
+    A failure intentionally leaves the same authored task resumable.  The
+    deterministic package relation is already published, so retrying authoring
+    cannot manufacture another managed task merely to repair GitHub metadata.
+    """
+    if not package.process_evidence:
+        return
+    env = github_cli_env(root)
+    if env is None:
+        raise ManagedTaskError("GitHub CLI authentication is required to reconcile process evidence")
+    for reference in package.process_evidence:
+        repository, number = issue_ref(reference)
+        issue = process_evidence_issue(root, reference)
+        if issue.get("state") != "open":
+            continue
+        labels = issue_labels(issue)
+        if PROCESS_MANAGED_LABEL not in labels:
+            run(
+                ["gh", "api", "--method", "POST", f"repos/{repository}/issues/{number}/labels", "-f", f"labels[]={PROCESS_MANAGED_LABEL}"],
+                root,
+                env,
+            )
+        comments = run_json(["gh", "api", "--paginate", f"repos/{repository}/issues/{number}/comments"], root, env)
+        marker = f"<!-- {PROCESS_BACKLINK_PREFIX}:{package.source_issue}:{package.change} -->"
+        if not isinstance(comments, list) or not any(marker in str(comment.get("body", "")) for comment in comments if isinstance(comment, dict)):
+            run(
+                ["gh", "api", "--method", "POST", f"repos/{repository}/issues/{number}/comments", "--raw-field", "body=" + process_backlink(package)],
+                root,
+                env,
+            )
 
 
 def issue_metadata(issue: dict[str, Any]) -> tuple[str | None, str | None]:
@@ -728,6 +839,7 @@ def supersede_task(
     routing_confidence: str = "medium",
     assurance: str = "standard",
     effort_hint: str | None = None,
+    process_evidence_values: list[str] | None = None,
 ) -> tuple[Package, bool]:
     """Replace the active managed package for an existing Development Backlog Issue.
 
@@ -786,24 +898,33 @@ def supersede_task(
                 )
             predecessor_revision = predecessor_package.revision
 
+    process_evidence = (
+        predecessor_package.process_evidence
+        if process_evidence_values is None and predecessor_package is not None
+        else normalized_process_evidence(process_evidence_values)
+    )
+    validate_process_evidence(root, process_evidence)
+
     observation = managed_project_status.observe(root, source_issue=requested)
     if observation is not None and observation.current_status in {"In review", "Done"}:
         raise ManagedTaskError(f"{requested} already reached {observation.current_status!r}; supersede only applies before execution")
 
     evidence = issue_revision_evidence(issue)
-    package = package_for_bundle(bundle, requested, target_repository, prepared_against, routing_receipt, evidence, predecessor_revision)
+    package = package_for_bundle(
+        bundle, requested, target_repository, prepared_against, routing_receipt, evidence, predecessor_revision, process_evidence
+    )
     if predecessor_package is not None:
         # A well-formed predecessor's own revision always differs from a fresh
         # candidate's (the candidate's `supersedes` field points at it, so their
         # manifests can never hash equal) -- compare content excluding `supersedes`
         # on both sides so a byte-identical retry still converges as a no-op.
         candidate_fingerprint = content_fingerprint(
-            requested, target_repository, bundle.change, prepared_against, bundle.artifacts, bundle.contents, routing_receipt
+            requested, target_repository, bundle.change, prepared_against, bundle.artifacts, bundle.contents, routing_receipt, process_evidence
         )
         predecessor_fingerprint = content_fingerprint(
             predecessor_package.source_issue, predecessor_package.target_repository, predecessor_package.change,
             predecessor_package.prepared_against, predecessor_package.artifacts, predecessor_package.contents,
-            predecessor_package.routing_receipt,
+            predecessor_package.routing_receipt, predecessor_package.process_evidence,
         )
         if candidate_fingerprint == predecessor_fingerprint:
             return predecessor_package, False  # retried with identical content: converge as a no-op
@@ -824,6 +945,7 @@ def create_task(
     routing_confidence: str = "medium",
     assurance: str = "standard",
     effort_hint: str | None = None,
+    process_evidence_values: list[str] | None = None,
 ) -> tuple[Package, bool, bool]:
     config = authoring_config(root)
     bundle = load_authoring_bundle(bundle_path)
@@ -840,18 +962,23 @@ def create_task(
     bundle = replace(bundle, title=f"{title_prefix(routing_receipt['recommended_start_tier'])} {bundle.title}")
     priority = requested_priority or config.default_priority
     priority_label(priority)
+    process_evidence = normalized_process_evidence(process_evidence_values)
     target_repository = origin_repository(root)
     prepared_against = target_main(root)
     validate_backlog_labels(root, config, priority)
+    validate_process_evidence(root, process_evidence)
     validate_authoring_bundle(root, bundle, target_repository, prepared_against)
-    receipt = authoring_receipt(bundle, target_repository, prepared_against)
+    receipt = authoring_receipt(bundle, target_repository, prepared_against, process_evidence)
     issues = open_backlog_issues(root, config)
     exact, candidates, resumed = candidate_summary(issues, target_repository, bundle.change, receipt)
     if resumed is not None:
         number = issue_number(resumed)
-        evidence = issue_revision_evidence(fetch_issue(root, config.repository, number))
-        package = package_for_bundle(bundle, f"{config.repository}#{number}", target_repository, prepared_against, routing_receipt, evidence)
+        package = package_for_bundle(
+            bundle, f"{config.repository}#{number}", target_repository, prepared_against, routing_receipt,
+            issue_revision_evidence(fetch_issue(root, config.repository, number)), None, process_evidence,
+        )
         already_published = publish_package(root, config, package)
+        reconcile_process_evidence_linkage(root, package)
         return package, True, already_published
     if exact is not None:
         raise ManagedTaskError(f"clear duplicate already exists: {config.repository}#{issue_number(exact)}; no issue was created")
@@ -862,9 +989,12 @@ def create_task(
             + "; review them, then rerun with --confirm-distinct if this is a separate change"
         )
     number = create_issue(root, config, bundle, target_repository, priority, receipt)
-    evidence = issue_revision_evidence(fetch_issue(root, config.repository, number))
-    package = package_for_bundle(bundle, f"{config.repository}#{number}", target_repository, prepared_against, routing_receipt, evidence)
+    package = package_for_bundle(
+        bundle, f"{config.repository}#{number}", target_repository, prepared_against,
+        routing_receipt, issue_revision_evidence(fetch_issue(root, config.repository, number)), None, process_evidence,
+    )
     already_published = publish_package(root, config, package)
+    reconcile_process_evidence_linkage(root, package)
     return package, False, already_published
 
 
@@ -949,7 +1079,11 @@ def _provenance_for(path: Path, lifecycle: str) -> CanonicalProvenance:
     valid_path = path.name == change if lifecycle == "active" else path.name == change or path.name.endswith(f"-{change}")
     if not valid_path or not CHANGE_RE.fullmatch(change):
         raise ManagedTaskError(f"managed-task provenance does not match its OpenSpec change path: {path}")
-    return CanonicalProvenance(f"{repository}#{number}", change, path, lifecycle)
+    try:
+        process_evidence = normalized_process_evidence(payload.get("process_evidence"))
+    except ManagedTaskError as exc:
+        raise ManagedTaskError(f"managed-task provenance has invalid process_evidence: {exc}") from exc
+    return CanonicalProvenance(f"{repository}#{number}", change, path, lifecycle, process_evidence)
 
 
 def canonical_provenance_candidates(root: Path, change: str) -> list[CanonicalProvenance]:
@@ -1080,7 +1214,67 @@ def delivery_identity(root: Path) -> ManagedTaskIdentity | None:
             f"state={state['source_issue']} ({state['change']}), "
             f"canonical={provenance.source_issue} ({provenance.change})"
         )
-    return ManagedTaskIdentity(provenance.source_issue, provenance.change)
+    return ManagedTaskIdentity(provenance.source_issue, provenance.change, provenance.process_evidence)
+
+
+def process_resolution_note(identity: ManagedTaskIdentity, implementation_sha: str) -> str:
+    return "\n".join(
+        (
+            process_resolution_marker(identity),
+            f"Resolved after terminal delivery of [{identity.source_issue}](https://github.com/{identity.source_issue.replace('#', '/issues/')}) "
+            f"for `{identity.change}` at implementation `{implementation_sha}`.",
+        )
+    )
+
+
+def process_resolution_marker(identity: ManagedTaskIdentity) -> str:
+    return f"<!-- {PROCESS_BACKLINK_PREFIX}:resolved:{identity.source_issue}:{identity.change} -->"
+
+
+def resolve_process_evidence_after_delivery(root: Path, identity: ManagedTaskIdentity | None, implementation_sha: str) -> None:
+    """Close only still-open explicitly linked evidence after terminal success.
+
+    This deliberately runs after the existing authoritative merge, local-main,
+    and Project-Done path.  Re-running terminal reconciliation observes closed
+    issues and leaves their historical closure reason untouched.
+    """
+    if identity is None or not getattr(identity, "process_evidence", ()):
+        return
+    if not SHA_RE.fullmatch(implementation_sha):
+        raise ManagedTaskError("terminal process-evidence resolution needs an exact 40-character implementation SHA")
+    env = github_cli_env(root)
+    if env is None:
+        raise ManagedTaskError("GitHub CLI authentication is required to resolve linked process evidence")
+    for reference in identity.process_evidence:
+        repository, number = issue_ref(reference)
+        issue = run_json(["gh", "api", f"repos/{repository}/issues/{number}"], root, env)
+        if not isinstance(issue, dict) or issue.get("pull_request"):
+            raise ManagedTaskError(f"linked process evidence {reference} is no longer a readable GitHub issue")
+        if issue.get("state") != "open":
+            continue
+        if PROCESS_LABEL not in issue_labels(issue):
+            raise ManagedTaskError(f"linked process evidence {reference} no longer carries the {PROCESS_LABEL!r} label")
+        comments = run_json(["gh", "api", "--paginate", f"repos/{repository}/issues/{number}/comments"], root, env)
+        if not isinstance(comments, list):
+            raise ManagedTaskError("GitHub returned an unexpected issue-comment payload")
+        marker = process_resolution_marker(identity)
+        if not any(marker in str(comment.get("body", "")) for comment in comments if isinstance(comment, dict)):
+            run(
+                [
+                    "gh", "api", "--method", "POST", f"repos/{repository}/issues/{number}/comments",
+                    "--raw-field", "body=" + process_resolution_note(identity, implementation_sha),
+                ],
+                root,
+                env,
+            )
+        run(
+            [
+                "gh", "api", "--method", "PATCH", f"repos/{repository}/issues/{number}",
+                "-f", "state=closed", "-f", "state_reason=completed",
+            ],
+            root,
+            env,
+        )
 
 
 def assert_integration_identity_cross_check(
@@ -1118,6 +1312,8 @@ def write_provenance(root: Path, package: Package) -> None:
         payload["source_issue_evidence"] = package.source_issue_evidence
     if package.supersedes is not None:
         payload["supersedes"] = package.supersedes
+    if package.process_evidence:
+        payload["process_evidence"] = list(package.process_evidence)
     atomic_write(root / PROVENANCE, json.dumps(payload, sort_keys=True, indent=2) + "\n")
 
 
@@ -1290,6 +1486,10 @@ def main() -> int:
             parser.add_argument("--confirm-distinct", action="store_true", help="confirm that bounded same-project/target candidates are separate work")
         else:
             parser.add_argument("issue", help="owner/repo#N or GitHub issue URL whose published package should be superseded")
+        parser.add_argument(
+            "--process-evidence", action="append", metavar="OWNER/REPO#N",
+            help="repeatable open process issue explicitly motivating this managed task",
+        )
     else:
         parser.add_argument("issue", help="owner/repo#N or GitHub issue URL to import")
         parser.add_argument(
@@ -1310,6 +1510,7 @@ def main() -> int:
                 routing_confidence=args.routing_confidence,
                 assurance=args.assurance,
                 effort_hint=args.effort_hint,
+                process_evidence_values=args.process_evidence,
             )
         except ManagedTaskError as exc:
             print(f"Managed task supersede blocked: {exc}")
@@ -1332,6 +1533,7 @@ def main() -> int:
                 routing_confidence=args.routing_confidence,
                 assurance=args.assurance,
                 effort_hint=args.effort_hint,
+                process_evidence_values=args.process_evidence,
             )
         except ManagedTaskError as exc:
             print(f"Managed task authoring blocked: {exc}")

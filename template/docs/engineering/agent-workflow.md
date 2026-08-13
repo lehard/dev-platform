@@ -159,6 +159,16 @@ Record only high-signal friction: user correction, repeated failure, safety near
 
 The normal path is `record -> sanitized GitHub process issue upsert -> cloud triage/review`. Recording retains raw evidence locally and automatically creates or updates a fingerprinted issue in the correct repository. Routing failure leaves the local event pending and never blocks safe delivery; supported lifecycle commands retry it. Process issues are evidence only: neither triage nor review may create a managed task, OpenSpec change, implementation PR, or code change.
 
+When a human explicitly fixes accepted evidence into a managed task, author it
+with repeatable `--process-evidence owner/repo#N` references. The managed
+package keeps the canonical relation; linked open evidence gets the bounded
+`process:managed` label/backlink and remains open until terminal delivery. A
+Process Health Review is read-only: its dated report records the exact `main`
+SHA and previous-review boundary, checks bounded current managed work and
+merged changes, clusters symptoms by likely root cause, and verifies
+likely-resolved candidates against current repository evidence. It never creates
+managed work or closes/relabels source evidence.
+
 ```bash
 python3 scripts/agent_friction.py record --category <category> --scope project --observation <sanitized-summary> --evidence <local-evidence-summary> --hypothesis <hypothesis> --proposal <proposal>
 ```

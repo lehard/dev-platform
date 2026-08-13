@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.487,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/managed_projects.py validate",
+      "duration_seconds": 0.092,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 75.04,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        ".dev-platform.toml",
+        ".github/workflows/weekly-process-backlog-review.lock.yml",
+        ".github/workflows/weekly-process-backlog-review.md",
+        "template/.github/workflows/process-health-labels.yml.jinja",
+        "template/.github/workflows/weekly-process-backlog-review.md.jinja",
+        "template/scripts/finish_task.py",
+        "template/scripts/managed_task.py",
+        "template/scripts/platform_bootstrap.py",
+        "tests/test_agentic_workflows.py",
+        "tests/test_managed_status_lifecycle.py",
+        "tests/test_managed_task.py",
+        "tests/test_platform_bootstrap.py",
+        "tests/test_template_contract.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/managed_projects.py validate",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ]
+}

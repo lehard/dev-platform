@@ -63,6 +63,7 @@ try:
         delivery_identity,
         observe_source_issue_drift,
         require_delivery_provenance,
+        resolve_process_evidence_after_delivery,
     )
 except ModuleNotFoundError:  # Compatibility while a pre-managed-intake render is being upgraded.
     class ManagedTaskError(RuntimeError):
@@ -78,6 +79,9 @@ except ModuleNotFoundError:  # Compatibility while a pre-managed-intake render i
         return None
 
     def observe_source_issue_drift(root: Path):
+        return None
+
+    def resolve_process_evidence_after_delivery(root: Path, identity, implementation_sha: str) -> None:
         return None
 
 
@@ -449,6 +453,15 @@ def reconcile_confirmed_remote_pr_merge(
                 f"Managed Project status {'updated' if project.changed else 'already current'}: "
                 f"{project.source_issue} -> Done"
             )
+        if getattr(identity, "process_evidence", ()):
+            try:
+                implementation_sha = run_git(["rev-parse", "HEAD"], cwd=integration).stdout.strip()
+                resolve_process_evidence_after_delivery(work, identity, implementation_sha)
+            except ManagedTaskError as exc:
+                raise SystemExit(
+                    "GitHub confirms the task PR is merged, local main is synchronized, and Project reconciliation succeeded, "
+                    "but linked process-evidence resolution is pending: " + str(exc)
+                ) from exc
         if prof == "multi-agent":
             finish_board(integration, work, config)
         if cleanup:
@@ -614,6 +627,14 @@ def main() -> int:
                 f"Managed Project status {'updated' if project.changed else 'already current'}: "
                 f"{project.source_issue} -> Done"
             )
+        if getattr(identity, "process_evidence", ()):
+            try:
+                implementation_sha = run_git(["rev-parse", "HEAD"], cwd=integration).stdout.strip()
+                resolve_process_evidence_after_delivery(work, identity, implementation_sha)
+            except ManagedTaskError as exc:
+                raise SystemExit(
+                    "Direct publication and Project reconciliation succeeded, but linked process-evidence resolution is pending: " + str(exc)
+                ) from exc
         if prof == "multi-agent" and work != integration:
             finish_board(integration, work, config)
     if args.cleanup:

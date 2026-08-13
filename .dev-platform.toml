@@ -67,6 +67,10 @@ default_priority = "P2"
 project_owner = "lehard"
 project_number = 1
 
+[process_health]
+process_label = "process"
+managed_label = "process:managed"
+
 [paths]
 worktrees = ".claude/worktrees"
 agent_board = ".claude/agents-board.json"

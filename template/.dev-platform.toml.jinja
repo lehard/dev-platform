@@ -55,6 +55,10 @@ default_priority = "{{ development_backlog_default_priority }}"
 project_owner = "{{ development_backlog_project_owner }}"
 project_number = {{ development_backlog_project_number }}
 
+[process_health]
+process_label = "process"
+managed_label = "process:managed"
+
 [paths]
 worktrees = ".claude/worktrees"
 agent_board = ".claude/agents-board.json"

@@ -28,6 +28,12 @@ python3 scripts/managed_task.py supersede --bundle <directory> owner/repo#N
 
 `supersede` validates the replacement against the exact current target state before activating it, rewrites the predecessor comment with a bounded `supersedes` link rather than leaving two ambiguous active packages, and is refused once the task has already reached `In review`/`Done` Project status. Retrying with an unchanged bundle converges as a no-op.
 
+When accepted process evidence explicitly motivates the work, pass a repeatable
+`--process-evidence owner/repo#N` for each source issue. The package, not a
+full-text comment search, is canonical. Eligible evidence is marked
+`process:managed` with one bounded backlink after the task exists, then remains
+open until terminal managed success.
+
 Authoring also records a provider-neutral recommended start tier (`R2` balanced by default) and prefixes the created Issue title with `[R2]`. Pass `--strong-trigger <category>` only when a concrete hard trigger applies (see [docs/engineering/model-routing.md](model-routing.md)) to recommend `R3` instead; diff size, file count or blast radius alone are never a valid reason to pass it.
 
 **Quick execution.** A small direct request may use the existing task/check/finish workflow without creating a backlog issue or ceremonial OpenSpec. If it expands into a material behavior, architecture, compatibility, data-contract, or scope change, stop and propose fixation as a managed task instead of broadening it silently.
@@ -104,6 +110,15 @@ For a bounded local change, prefer `python3 scripts/select_checks.py --base orig
 ## Friction routing
 
 Raw friction evidence stays machine-local. Record high-signal events through `scripts/agent_friction.py`; the normal path automatically upserts a bounded sanitized, fingerprinted process issue in the configured project or platform repository. Retry failure is durable and non-blocking for safe delivery. Process issues are evidence only: cloud triage/review must never create managed tasks, OpenSpec, implementation PRs, or code changes.
+
+The periodic Process Health Review is advisory and read-only. Its dated report
+records `reviewed_at`, the exact `main` SHA, and its previous-review boundary;
+it reads bounded current managed-work and merged-change context, clusters
+symptoms by likely root cause, and verifies likely-resolved candidates against
+current repository evidence. It does not add ritual source-issue comments,
+create work, or resolve source issues. Explicitly linked evidence is closed
+only after the existing terminal merge, local reconciliation, and Project-Done
+path succeeds.
 
 Record only high-signal friction: user correction, repeated failure, safety near-miss, undocumented invariant or excessive retries. Separate observation, evidence, hypothesis and proposal. Do not record secrets or routine successful sessions. When a finding concerns a specific participant, pass `--participant-role supervisor|executor`; the identity is read back from the current routing record rather than self-reported (see `docs/engineering/model-routing.md#execution-provenance`). Friction fingerprinting never includes model/provider, so the same recurring problem across different models still updates one issue.
 
