@@ -11,7 +11,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -27,6 +27,16 @@ from _platform_common import (
     profile,
     read_platform_config,
     run_git,
+)
+from start_tier_routing import (
+    ASSURANCE_VALUES,
+    EFFORT_HINT_VALUES,
+    ROUTING_CONFIDENCE_VALUES,
+    STRONG_TRIGGERS,
+    StartTierError,
+    recommend_start_tier,
+    title_prefix,
+    validate_routing_receipt,
 )
 
 PACKAGE = "managed-openspec:v1"
@@ -57,6 +67,7 @@ class Package:
     artifacts: tuple[str, ...]
     contents: dict[str, str]
     revision: str
+    routing_receipt: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -241,6 +252,8 @@ def load_authoring_bundle(value: str) -> AuthoringBundle:
 def revision(manifest: dict[str, Any], artifacts: tuple[str, ...], contents: dict[str, str]) -> str:
     normalized = {key: manifest[key] for key in ("version", "source_issue", "target_repository", "change", "prepared_against")}
     normalized["artifacts"] = list(artifacts)
+    if "routing_receipt" in manifest:
+        normalized["routing_receipt"] = manifest["routing_receipt"]
     digest = hashlib.sha256(json.dumps(normalized, sort_keys=True, separators=(",", ":")).encode())
     for path in artifacts:
         digest.update(bytes([0]))
@@ -295,7 +308,11 @@ def parse_package(bodies: list[str], requested: str) -> Package:
     contents = {match.group(1): match.group(2) for match in blocks}
     if len(contents) != len(blocks) or set(contents) != set(artifacts) or any(not contents[path].strip() for path in artifacts):
         raise ManagedTaskError("declared artifacts and explicit non-empty artifact blocks must match exactly")
-    return Package(source_issue, target, manifest["change"], prepared, artifacts, contents, revision(manifest, artifacts, contents))
+    try:
+        routing_receipt = validate_routing_receipt(manifest.get("routing_receipt"))
+    except StartTierError as exc:
+        raise ManagedTaskError(f"managed package has an invalid routing_receipt: {exc}") from exc
+    return Package(source_issue, target, manifest["change"], prepared, artifacts, contents, revision(manifest, artifacts, contents), routing_receipt)
 
 
 def openspec_status(root: Path, change: str) -> dict[str, Any]:
@@ -320,7 +337,13 @@ def check_schema(root: Path, package: Package) -> None:
         raise ManagedTaskError("managed package cannot satisfy the current OpenSpec schema")
 
 
-def package_for_bundle(bundle: AuthoringBundle, source_issue: str, target_repository: str, prepared_against: str) -> Package:
+def package_for_bundle(
+    bundle: AuthoringBundle,
+    source_issue: str,
+    target_repository: str,
+    prepared_against: str,
+    routing_receipt: dict[str, Any] | None = None,
+) -> Package:
     manifest = {
         "version": 1,
         "source_issue": source_issue,
@@ -329,6 +352,8 @@ def package_for_bundle(bundle: AuthoringBundle, source_issue: str, target_reposi
         "prepared_against": prepared_against,
         "artifacts": list(bundle.artifacts),
     }
+    if routing_receipt is not None:
+        manifest["routing_receipt"] = routing_receipt
     return Package(
         source_issue=source_issue,
         target_repository=target_repository,
@@ -337,6 +362,7 @@ def package_for_bundle(bundle: AuthoringBundle, source_issue: str, target_reposi
         artifacts=bundle.artifacts,
         contents=bundle.contents,
         revision=revision(manifest, bundle.artifacts, bundle.contents),
+        routing_receipt=routing_receipt,
     )
 
 
@@ -349,6 +375,8 @@ def serialize_package(package: Package) -> str:
         "prepared_against": package.prepared_against,
         "artifacts": list(package.artifacts),
     }
+    if package.routing_receipt is not None:
+        manifest["routing_receipt"] = package.routing_receipt
     fence = "`" * 3
     parts = [f"<!-- {PACKAGE} -->\n\n## Managed OpenSpec package\n\n{fence}json\n", json.dumps(manifest, indent=2), f"\n{fence}\n"]
     for path in package.artifacts:
@@ -526,9 +554,31 @@ def publish_package(root: Path, config: AuthoringConfig, package: Package) -> bo
     return False
 
 
-def create_task(root: Path, bundle_path: str, requested_priority: str | None, confirm_distinct: bool) -> tuple[Package, bool, bool]:
+def create_task(
+    root: Path,
+    bundle_path: str,
+    requested_priority: str | None,
+    confirm_distinct: bool,
+    *,
+    strong_trigger: str | None = None,
+    task_family: str = "general",
+    routing_confidence: str = "medium",
+    assurance: str = "standard",
+    effort_hint: str | None = None,
+) -> tuple[Package, bool, bool]:
     config = authoring_config(root)
     bundle = load_authoring_bundle(bundle_path)
+    try:
+        routing_receipt = recommend_start_tier(
+            strong_trigger=strong_trigger,
+            task_family=task_family,
+            routing_confidence=routing_confidence,
+            assurance=assurance,
+            effort_hint=effort_hint,
+        )
+    except StartTierError as exc:
+        raise ManagedTaskError(str(exc)) from exc
+    bundle = replace(bundle, title=f"{title_prefix(routing_receipt['recommended_start_tier'])} {bundle.title}")
     priority = requested_priority or config.default_priority
     priority_label(priority)
     target_repository = origin_repository(root)
@@ -540,7 +590,7 @@ def create_task(root: Path, bundle_path: str, requested_priority: str | None, co
     exact, candidates, resumed = candidate_summary(issues, target_repository, bundle.change, receipt)
     if resumed is not None:
         number = issue_number(resumed)
-        package = package_for_bundle(bundle, f"{config.repository}#{number}", target_repository, prepared_against)
+        package = package_for_bundle(bundle, f"{config.repository}#{number}", target_repository, prepared_against, routing_receipt)
         already_published = publish_package(root, config, package)
         return package, True, already_published
     if exact is not None:
@@ -552,7 +602,7 @@ def create_task(root: Path, bundle_path: str, requested_priority: str | None, co
             + "; review them, then rerun with --confirm-distinct if this is a separate change"
         )
     number = create_issue(root, config, bundle, target_repository, priority, receipt)
-    package = package_for_bundle(bundle, f"{config.repository}#{number}", target_repository, prepared_against)
+    package = package_for_bundle(bundle, f"{config.repository}#{number}", target_repository, prepared_against, routing_receipt)
     already_published = publish_package(root, config, package)
     return package, False, already_published
 
@@ -795,18 +845,15 @@ def assert_integration_identity_cross_check(
 
 
 def write_provenance(root: Path, package: Package) -> None:
-    atomic_write(
-        root / PROVENANCE,
-        json.dumps(
-            {
-                "version": 1, "source_issue": package.source_issue, "target_repository": package.target_repository,
-                "change": package.change, "prepared_against": package.prepared_against,
-                "package_revision": package.revision, "artifacts": list(package.artifacts),
-                "imported_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
-            },
-            sort_keys=True, indent=2,
-        ) + "\n",
-    )
+    payload = {
+        "version": 1, "source_issue": package.source_issue, "target_repository": package.target_repository,
+        "change": package.change, "prepared_against": package.prepared_against,
+        "package_revision": package.revision, "artifacts": list(package.artifacts),
+        "imported_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+    }
+    if package.routing_receipt is not None:
+        payload["routing_receipt"] = package.routing_receipt
+    atomic_write(root / PROVENANCE, json.dumps(payload, sort_keys=True, indent=2) + "\n")
 
 
 def discover_task(root: Path, reference: str) -> Package:
@@ -898,13 +945,30 @@ def main() -> int:
         parser.add_argument("--bundle", required=True, help="directory containing manifest.json, issue.md and declared OpenSpec artifacts")
         parser.add_argument("--priority", help="override configured priority (P0, P1, P2 or P3)")
         parser.add_argument("--confirm-distinct", action="store_true", help="confirm that bounded same-project/target candidates are separate work")
+        parser.add_argument(
+            "--strong-trigger",
+            choices=STRONG_TRIGGERS,
+            help="concrete R3 hard-trigger rationale category; omit for the R2 default (diff size/blast radius alone do not qualify)",
+        )
+        parser.add_argument("--task-family", default="general", help="bounded task-family label for the routing receipt")
+        parser.add_argument("--routing-confidence", choices=ROUTING_CONFIDENCE_VALUES, default="medium")
+        parser.add_argument("--assurance", choices=ASSURANCE_VALUES, default="standard")
+        parser.add_argument("--effort-hint", choices=EFFORT_HINT_VALUES, help="defaults to high for R3, medium otherwise")
     else:
         parser.add_argument("issue", help="owner/repo#N or GitHub issue URL to import")
     args = parser.parse_args()
     if creating:
         try:
             package, resumed, already_published = create_task(
-                current_worktree_root(), args.bundle, args.priority, args.confirm_distinct
+                current_worktree_root(),
+                args.bundle,
+                args.priority,
+                args.confirm_distinct,
+                strong_trigger=args.strong_trigger,
+                task_family=args.task_family,
+                routing_confidence=args.routing_confidence,
+                assurance=args.assurance,
+                effort_hint=args.effort_hint,
             )
         except ManagedTaskError as exc:
             print(f"Managed task authoring blocked: {exc}")
@@ -913,6 +977,11 @@ def main() -> int:
         package_state = "already present" if already_published else "published"
         print(f"Managed task {state}: {package.source_issue} ({package.change})")
         print(f"Managed OpenSpec package {package_state}: {PACKAGE}")
+        if package.routing_receipt is not None:
+            print(
+                f"Recommended start tier: {package.routing_receipt['recommended_start_tier']} "
+                f"(rubric {package.routing_receipt['rubric_version']})"
+            )
         print("Authoring stops here; import the task later only when the user explicitly requests execution.")
         return 0
     try:

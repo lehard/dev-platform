@@ -214,12 +214,10 @@ def route_codex(args: argparse.Namespace) -> int:
     """
     root = current_root()
     verify_source_contract(root)
-    command = [
-        "python3",
-        "scripts/model_routing.py",
-        "dispatch-codex",
-        "--profile",
-        args.profile,
+    command = ["python3", "scripts/model_routing.py", "dispatch-codex"]
+    if args.profile:
+        command += ["--profile", args.profile]
+    command += [
         "--rationale",
         args.rationale,
         "--prompt",
@@ -242,15 +240,10 @@ def route_claude(args: argparse.Namespace) -> int:
     """
     root = current_root()
     verify_source_contract(root)
-    command = [
-        "python3",
-        "scripts/model_routing.py",
-        "dispatch-claude",
-        "--profile",
-        args.profile,
-        "--rationale",
-        args.rationale,
-    ]
+    command = ["python3", "scripts/model_routing.py", "dispatch-claude"]
+    if args.profile:
+        command += ["--profile", args.profile]
+    command += ["--rationale", args.rationale]
     for item in args.evidence:
         command += ["--evidence", item]
     run(command, root)
@@ -293,7 +286,12 @@ def main() -> int:
         "route-codex",
         help="Record the Sol supervisor's semantic route and dispatch routine/standard work.",
     )
-    route_parser.add_argument("--profile", choices=("routine", "standard", "complex"), required=True)
+    route_parser.add_argument(
+        "--profile",
+        choices=("routine", "standard", "complex"),
+        default=None,
+        help="omit to confirm the tier already authored with the managed task (bounded freshness check)",
+    )
     route_parser.add_argument("--rationale", required=True)
     route_parser.add_argument("--evidence", action="append", default=[])
     route_parser.add_argument("--prompt")
@@ -302,7 +300,12 @@ def main() -> int:
         "route-claude",
         help="Record the strong Claude parent's semantic route for the Claude Code path; prints the hand-off to invoke.",
     )
-    route_claude_parser.add_argument("--profile", choices=("routine", "standard", "complex"), required=True)
+    route_claude_parser.add_argument(
+        "--profile",
+        choices=("routine", "standard", "complex"),
+        default=None,
+        help="omit to confirm the tier already authored with the managed task (bounded freshness check)",
+    )
     route_claude_parser.add_argument("--rationale", required=True)
     route_claude_parser.add_argument("--evidence", action="append", default=[])
     route_claude_parser.set_defaults(func=route_claude)

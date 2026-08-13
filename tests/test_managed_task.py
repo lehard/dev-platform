@@ -6,6 +6,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -29,7 +30,7 @@ task_start = sys.modules["start_task"]
 import rollout_preflight  # noqa: E402
 
 
-def package_body(*, target: str = "lehard/dev-platform", artifact: str = "proposal.md", version: str = "v1") -> str:
+def package_body(*, target: str = "lehard/dev-platform", artifact: str = "proposal.md", version: str = "v1", routing_receipt: dict | None = None) -> str:
     fence = chr(96) * 3
     manifest = {
         "version": 1,
@@ -39,6 +40,8 @@ def package_body(*, target: str = "lehard/dev-platform", artifact: str = "propos
         "prepared_against": "a" * 40,
         "artifacts": [artifact, "specs/intake/spec.md", "design.md", "tasks.md"],
     }
+    if routing_receipt is not None:
+        manifest["routing_receipt"] = routing_receipt
     blocks = {
         artifact: "## Why\n",
         "specs/intake/spec.md": "## ADDED Requirements\n\n### Requirement: Intake\n\n#### Scenario: Valid\n\n- **WHEN** valid\n- **THEN** import\n",
@@ -96,6 +99,21 @@ class ManagedPackageTests(unittest.TestCase):
         second = managed_task.parse_package([body], "lehard/development-backlog#1")
         self.assertEqual(first.revision, second.revision)
         self.assertEqual(first.artifacts[0], "proposal.md")
+
+    def test_parse_package_without_routing_receipt_stays_importable(self) -> None:
+        package = managed_task.parse_package([package_body()], "lehard/development-backlog#1")
+        self.assertIsNone(package.routing_receipt)
+
+    def test_parse_package_round_trips_a_well_formed_routing_receipt(self) -> None:
+        receipt = managed_task.recommend_start_tier(strong_trigger=None)
+        package = managed_task.parse_package([package_body(routing_receipt=receipt)], "lehard/development-backlog#1")
+        self.assertEqual(package.routing_receipt, receipt)
+
+    def test_parse_package_rejects_a_forged_r3_receipt_without_trigger(self) -> None:
+        forged = managed_task.recommend_start_tier(strong_trigger=None)
+        forged["recommended_start_tier"] = "R3"
+        with self.assertRaisesRegex(managed_task.ManagedTaskError, "invalid routing_receipt"):
+            managed_task.parse_package([package_body(routing_receipt=forged)], "lehard/development-backlog#1")
 
     def test_rejects_missing_duplicate_unsupported_and_unsafe_packages(self) -> None:
         valid = package_body()
@@ -736,8 +754,11 @@ class ManagedPackageTests(unittest.TestCase):
             labels.assert_called_once()
             publish.assert_called_once()
 
-            receipt = managed_task.authoring_receipt(bundle, "lehard/dev-platform", "f" * 40)
-            partial = {"number": 8, "title": bundle.title, "body": f"<!-- managed-task:authoring:{receipt} -->"}
+            # create_task prefixes the title with the recommended start tier
+            # ([R2] by default) before computing the authoring receipt.
+            prefixed = replace(bundle, title=f"{managed_task.title_prefix('R2')} {bundle.title}")
+            receipt = managed_task.authoring_receipt(prefixed, "lehard/dev-platform", "f" * 40)
+            partial = {"number": 8, "title": prefixed.title, "body": f"<!-- managed-task:authoring:{receipt} -->"}
             with (
                 patch.object(managed_task, "origin_repository", return_value="lehard/dev-platform"),
                 patch.object(managed_task, "target_main", return_value="f" * 40),
@@ -751,6 +772,60 @@ class ManagedPackageTests(unittest.TestCase):
             self.assertEqual(package.source_issue, "lehard/development-backlog#8")
             self.assertTrue(resumed); self.assertFalse(already)
             create.assert_not_called(); publish.assert_called_once()
+
+    def test_create_task_prefixes_title_and_embeds_r2_receipt_by_default(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            authoring_config(root)
+            bundle_root = root / "bundle"
+            authoring_bundle(bundle_root, title="Rebalance the routing rubric")
+            with (
+                patch.object(managed_task, "origin_repository", return_value="lehard/dev-platform"),
+                patch.object(managed_task, "target_main", return_value="f" * 40),
+                patch.object(managed_task, "validate_backlog_labels"),
+                patch.object(managed_task, "validate_authoring_bundle"),
+                patch.object(managed_task, "open_backlog_issues", return_value=[]),
+                patch.object(managed_task, "create_issue", return_value=9) as create,
+                patch.object(managed_task, "publish_package", return_value=False),
+            ):
+                package, _, _ = managed_task.create_task(root, str(bundle_root), "P1", False)
+            self.assertEqual(create.call_args.args[2].title, "[R2] Rebalance the routing rubric")
+            self.assertEqual(package.routing_receipt["recommended_start_tier"], "R2")
+            self.assertIsNone(package.routing_receipt["strong_trigger"])
+
+    def test_create_task_r3_requires_a_supported_trigger_and_prefixes_title(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            authoring_config(root)
+            bundle_root = root / "bundle"
+            authoring_bundle(bundle_root, title="Rework the escalation state machine")
+            with (
+                patch.object(managed_task, "origin_repository", return_value="lehard/dev-platform"),
+                patch.object(managed_task, "target_main", return_value="f" * 40),
+                patch.object(managed_task, "validate_backlog_labels"),
+                patch.object(managed_task, "validate_authoring_bundle"),
+                patch.object(managed_task, "open_backlog_issues", return_value=[]),
+                patch.object(managed_task, "create_issue", return_value=9) as create,
+                patch.object(managed_task, "publish_package", return_value=False),
+            ):
+                package, _, _ = managed_task.create_task(
+                    root, str(bundle_root), "P1", False, strong_trigger="unresolved_architecture"
+                )
+            self.assertEqual(create.call_args.args[2].title, "[R3] Rework the escalation state machine")
+            self.assertEqual(package.routing_receipt["recommended_start_tier"], "R3")
+            self.assertEqual(package.routing_receipt["strong_trigger"], "unresolved_architecture")
+
+            with (
+                patch.object(managed_task, "origin_repository", return_value="lehard/dev-platform"),
+                patch.object(managed_task, "target_main", return_value="f" * 40),
+                patch.object(managed_task, "validate_backlog_labels"),
+                patch.object(managed_task, "validate_authoring_bundle"),
+                patch.object(managed_task, "open_backlog_issues", return_value=[]),
+                patch.object(managed_task, "create_issue"),
+                patch.object(managed_task, "publish_package", return_value=False),
+            ):
+                with self.assertRaisesRegex(managed_task.ManagedTaskError, "unsupported frontier hard trigger"):
+                    managed_task.create_task(root, str(bundle_root), "P1", False, strong_trigger="big diff")
 
     def test_create_resumes_partial_issue_after_main_advances(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

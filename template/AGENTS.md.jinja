@@ -52,7 +52,7 @@ Goal refinement is a selective layer before authoring, used only for explicit go
 {% else %}
 `multi-agent`: agents develop in isolated Git worktrees and register scope ownership in the machine-local agent board, while the integration copy on `{{ main_branch }}` stays clean and acts only as the integration point. Supply exact intended files through `--scope`; a hard claim conflict returns `WAIT`, and directories/subsystems/globs stay advisory.
 
-Managed work is routed by a strong parent that records a bounded semantic preflight through `scripts/model_routing.py` before implementation. The user does not choose an executor, and a delegation is claimed only when its write containment is actually proven.
+Managed work carries a provider-neutral recommended start tier (`R2` balanced by default, `R3` frontier only with a recorded hard trigger) authored with the task. Execution records a bounded routing decision through `scripts/model_routing.py` that confirms the authored tier or escalates on newly discovered evidence, rather than requiring a strong parent to redo full routing before every task starts. The user does not choose an executor, and a delegation is claimed only when its write containment is actually proven.
 {% endif %}
 ## Entrypoints
 
