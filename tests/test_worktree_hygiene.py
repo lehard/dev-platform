@@ -31,6 +31,7 @@ def load(name: str):
 
 agent_board = load("agent_board")
 worktree_cleanup = load("worktree_cleanup")
+finish_task = load("finish_task")
 
 
 def git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -169,6 +170,42 @@ class WorktreeCleanupTests(WorktreeHarnessCase):
         )
         self.assertFalse(decision.eligible)
         self.assertEqual(decision.reason, "process-check-unavailable")
+
+
+class DeferredCompletedWorktreeCleanupTests(WorktreeHarnessCase):
+    def _merged_task(self, slug: str) -> Path:
+        worktree = self.add_worktree(slug)
+        git(self.root, "merge", "--ff-only", f"agent/{slug}")
+        return worktree
+
+    def test_caller_worktree_cleanup_is_deferred_then_recovered_idempotently(self) -> None:
+        worktree = self._merged_task("caller-cwd")
+        with mock.patch.dict(finish_task.os.environ, {"PWD": str(worktree)}, clear=False), redirect_stdout(StringIO()) as output:
+            finish_task.cleanup_completed_task(worktree, self.root, "agent/caller-cwd", squash_merged=True)
+        self.assertIn("deferred cleanup", output.getvalue())
+        self.assertTrue(worktree.exists())
+        record = worktree_cleanup.deferred_cleanup_path(self.root, worktree_cleanup.read_platform_config(self.root))
+        self.assertTrue(record.exists())
+
+        with mock.patch.object(worktree_cleanup, "_active_cwds", return_value={worktree}):
+            blocked = worktree_cleanup.cleanup(self.root, older_than_days=7)
+        self.assertTrue(worktree.exists())
+        self.assertIn({"path": str(worktree.resolve()), "error": "active-process"}, blocked["errors"])
+
+        with mock.patch.object(worktree_cleanup, "_active_cwds", return_value=set()):
+            recovered = worktree_cleanup.cleanup(self.root, older_than_days=7)
+            repeated = worktree_cleanup.cleanup(self.root, older_than_days=7)
+        self.assertIn(str(worktree.resolve()), recovered["removed"])
+        self.assertFalse(worktree.exists())
+        self.assertFalse(record.exists())
+        self.assertEqual(repeated["removed"], [])
+
+    def test_cleanup_stays_synchronous_when_the_caller_uses_integration(self) -> None:
+        worktree = self._merged_task("safe-caller")
+        with mock.patch.dict(finish_task.os.environ, {"PWD": str(self.root)}, clear=False), redirect_stdout(StringIO()) as output:
+            finish_task.cleanup_completed_task(worktree, self.root, "agent/safe-caller", squash_merged=True)
+        self.assertIn("Removed completed worktree", output.getvalue())
+        self.assertFalse(worktree.exists())
 
 
 class AgentBoardDoctorTests(WorktreeHarnessCase):

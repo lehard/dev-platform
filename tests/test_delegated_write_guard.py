@@ -8,6 +8,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -102,6 +103,17 @@ class CodexTierTests(unittest.TestCase):
         decision = guard.determine_codex_tier(codex_bin=str(codex), platform_system="Linux")
         self.assertEqual(decision.tier, guard.EnforcementTier.DETECTION_ONLY)
         self.assertIn("sandbox-flag-unsupported", decision.mechanism)
+
+    def test_codex_help_probe_uses_a_contention_tolerant_bounded_deadline(self) -> None:
+        completed = SimpleNamespace(stdout="--sandbox workspace-write", stderr="")
+        with patch.object(guard.subprocess, "run", return_value=completed) as run:
+            self.assertEqual(guard._codex_help_text("codex"), "--sandbox workspace-write")
+        self.assertEqual(run.call_args.kwargs["timeout"], 30)
+
+    def test_codex_help_probe_classifies_a_genuine_hang_without_retrying(self) -> None:
+        with patch.object(guard.subprocess, "run", side_effect=subprocess.TimeoutExpired(["codex"], 30)) as run:
+            self.assertEqual(guard._codex_help_text("codex"), "")
+        run.assert_called_once()
 
     def test_require_hard_fails_closed_when_unavailable(self) -> None:
         with self.assertRaises(delegation_containment.ContainmentError):

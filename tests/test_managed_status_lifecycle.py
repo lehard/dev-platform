@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 import sys
 import tempfile
+import types
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -252,6 +254,18 @@ class SourceIssueDriftStatusTests(unittest.TestCase):
         [output] = outputs
         payload = json.loads(output)
         self.assertIsNone(payload["source_issue_drift"])
+
+
+class FinishTaskLegacyCleanupCompatibilityTests(unittest.TestCase):
+    def test_legacy_worktree_cleanup_without_defer_helper_keeps_finish_importable(self) -> None:
+        legacy_cleanup = types.ModuleType("worktree_cleanup")
+        module_name = "finish_task_legacy_worktree_cleanup"
+        spec = importlib.util.spec_from_file_location(module_name, SCRIPTS / "finish_task.py")
+        assert spec and spec.loader
+        module = importlib.util.module_from_spec(spec)
+        with mock.patch.dict(sys.modules, {"worktree_cleanup": legacy_cleanup, module_name: module}):
+            spec.loader.exec_module(module)
+        self.assertIsNone(module.defer_completed_task)
 
 
 if __name__ == "__main__":

@@ -35,6 +35,7 @@ LIFECYCLE_PATH_DEFAULTS = {
     "agent_board": ".claude/agents-board.json",
     "main_merge_lock": ".claude/main-merge.lock",
     "pending_worktrees": ".claude/pending-worktrees.md",
+    "pending_completed_worktree_cleanup": ".claude/pending-completed-worktree-cleanup.json",
     "friction_log": ".claude/agent-friction.jsonl",
     "friction_state": ".claude/agent-friction-state.json",
     "friction_reports": ".claude/reports/process-improvement",

@@ -156,6 +156,7 @@ Platform operating guidance SHALL describe local agent verification as the place
 
 - **WHEN** a clean cloud rerun of the configured full platform-managed checks is intentionally needed
 - **THEN** the maintainer can use manual workflow dispatch rather than relying on every direct main push to run the full suite
+
 ### Requirement: Platform validation subprocesses are isolated from parent repository overrides
 
 Platform-owned validation/check commands SHALL NOT inherit parent Git environment overrides that bind the subprocess to a specific repository, worktree, index, common directory or object store unless that exact validation operation explicitly requires and scopes the override.
@@ -179,3 +180,21 @@ Platform-owned validation/check commands SHALL NOT inherit parent Git environmen
 - **WHEN** that operation completes
 - **THEN** the override is limited to that operation
 - **AND** subsequent validation subprocesses do not inherit it by default
+
+### Requirement: Concurrent validation tests do not depend on fragile startup timing
+
+Platform-owned concurrency/lock tests SHALL synchronize on explicit readiness where process startup order is part of the assertion and SHALL use bounded deadlines tolerant of normal concurrent test-group scheduling. The test contract SHALL continue to fail a genuinely hung subprocess and SHALL NOT rely on automatic retry to hide timing flakiness.
+
+#### Scenario: Concurrent suite delays a helper process
+
+- **GIVEN** multiple supported test groups run concurrently under normal host contention
+- **WHEN** a lock-holder or capability-probe helper starts more slowly than in isolated execution
+- **THEN** the test waits for its explicit supported readiness condition within a bounded deadline
+- **AND** does not change the semantic test result solely because scheduler latency exceeded an unrealistically short startup assumption
+
+#### Scenario: Helper genuinely hangs
+
+- **WHEN** the controlled helper never reaches its required readiness/completion condition
+- **THEN** the bounded deadline expires
+- **AND** the test fails with a useful diagnostic
+- **AND** no retry loop converts the hang into success

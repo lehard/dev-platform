@@ -14,6 +14,7 @@ from _platform_common import atomic_write_text, machine_path, main_root, read_pl
 
 DEFAULT_AGE_DAYS = 7
 PENDING_REASONS = {"dirty", "not-merged"}
+DEFERRED_CLEANUP_VERSION = 1
 
 
 @dataclass(frozen=True)
@@ -220,6 +221,142 @@ def pending_report_path(root: Path, config: dict) -> Path:
     return root / relative
 
 
+def deferred_cleanup_path(root: Path, config: dict) -> Path:
+    relative = str(
+        config.get("paths", {}).get(
+            "pending_completed_worktree_cleanup", ".claude/pending-completed-worktree-cleanup.json"
+        )
+    )
+    return root / relative
+
+
+def _read_deferred_cleanup(root: Path, config: dict) -> list[dict[str, str]]:
+    path = deferred_cleanup_path(root, config)
+    if not path.exists():
+        return []
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise SystemExit(f"Refusing deferred worktree cleanup because {path} is invalid JSON: {exc}") from exc
+    if payload.get("version") != DEFERRED_CLEANUP_VERSION or not isinstance(payload.get("entries"), list):
+        raise SystemExit(f"Refusing deferred worktree cleanup because {path} has an unsupported format.")
+    entries: list[dict[str, str]] = []
+    for entry in payload["entries"]:
+        if not isinstance(entry, dict) or not all(isinstance(entry.get(key), str) and entry[key] for key in ("path", "branch", "head")):
+            raise SystemExit(f"Refusing deferred worktree cleanup because {path} contains an invalid entry.")
+        entries.append({key: entry[key] for key in ("path", "branch", "head")})
+    return entries
+
+
+def _write_deferred_cleanup(root: Path, config: dict, entries: Sequence[dict[str, str]]) -> None:
+    path = deferred_cleanup_path(root, config)
+    if not entries:
+        try:
+            path.unlink()
+        except FileNotFoundError:
+            pass
+        return
+    payload = {"version": DEFERRED_CLEANUP_VERSION, "entries": list(entries)}
+    atomic_write_text(path, json.dumps(payload, indent=2, sort_keys=True) + "\n")
+
+
+def defer_completed_task(root: Path, worktree: Path, branch: str) -> Path:
+    """Persist one exact, terminally-delivered worktree for later safe cleanup.
+
+    This is called only after finish has established remote merge, local main
+    reconciliation, and managed-project completion.  It records the current
+    Git identity so recovery never turns a generic path into a deletion target.
+    """
+    config = read_platform_config(root)
+    resolved_worktree = worktree.resolve()
+    managed_root = machine_path("worktrees", root)
+    if not _path_within(resolved_worktree, managed_root):
+        raise SystemExit(f"Refusing to defer cleanup outside the managed worktree directory: {resolved_worktree}")
+    match = next((item for item in _list_worktrees(root) if item.path == resolved_worktree), None)
+    if match is None or match.branch != branch:
+        raise SystemExit(f"Refusing to defer cleanup for an unregistered or branch-mismatched worktree: {resolved_worktree}")
+    entries = _read_deferred_cleanup(root, config)
+    entry = {"path": str(resolved_worktree), "branch": branch, "head": match.head}
+    retained = [item for item in entries if item["path"] != entry["path"]]
+    retained.append(entry)
+    _write_deferred_cleanup(root, config, retained)
+    return deferred_cleanup_path(root, config)
+
+
+def _deferred_entry_is_safe(
+    root: Path,
+    entry: dict[str, str],
+    *,
+    managed_root: Path,
+    active_board: set[Path],
+    active_cwds: set[Path] | None,
+) -> tuple[Worktree | None, str | None]:
+    path = Path(entry["path"]).resolve()
+    if not _path_within(path, managed_root):
+        return None, "outside-managed-directory"
+    if active_cwds is None:
+        return None, "process-check-unavailable"
+    if any(_path_within(cwd, path) for cwd in active_cwds):
+        return None, "active-process"
+    if path in active_board:
+        return None, "active-board"
+    match = next((item for item in _list_worktrees(root) if item.path == path), None)
+    if match is None:
+        return None, None
+    if match.branch != entry["branch"] or match.head != entry["head"]:
+        return None, "identity-mismatch"
+    if match.locked or match.prunable:
+        return None, "locked" if match.locked else "prunable-metadata"
+    status = _worktree_status(match)
+    if status.returncode != 0:
+        return None, "status-check-failed"
+    if status.stdout.strip():
+        return None, "dirty"
+    return match, None
+
+
+def _cleanup_deferred_completed_tasks(root: Path, config: dict) -> tuple[list[str], list[dict[str, str]]]:
+    entries = _read_deferred_cleanup(root, config)
+    if not entries:
+        return [], []
+    managed_root = machine_path("worktrees", root)
+    active_board = _active_board_paths(root, config)
+    active_cwds = _active_cwds()
+    removed: list[str] = []
+    errors: list[dict[str, str]] = []
+    retained: list[dict[str, str]] = []
+    for entry in entries:
+        worktree, unsafe_reason = _deferred_entry_is_safe(
+            root, entry, managed_root=managed_root, active_board=active_board, active_cwds=active_cwds
+        )
+        if unsafe_reason is not None:
+            errors.append({"path": entry["path"], "error": unsafe_reason})
+            retained.append(entry)
+            continue
+        if worktree is not None:
+            result = run_git(["worktree", "remove", str(worktree.path)], cwd=root, check=False)
+            if result.returncode != 0:
+                errors.append({"path": entry["path"], "error": (result.stderr.strip() or result.stdout.strip() or "worktree remove failed")[-500:]})
+                retained.append(entry)
+                continue
+        current = run_git(["rev-parse", "--verify", f"refs/heads/{entry['branch']}"], cwd=root, check=False)
+        if current.returncode == 0:
+            if current.stdout.strip() != entry["head"]:
+                errors.append({"path": entry["path"], "error": "branch-identity-mismatch"})
+                retained.append(entry)
+                continue
+            deleted = run_git(["branch", "-D", entry["branch"]], cwd=root, check=False)
+            if deleted.returncode != 0:
+                errors.append({"path": entry["path"], "error": (deleted.stderr.strip() or deleted.stdout.strip() or "branch cleanup failed")[-500:]})
+                retained.append(entry)
+                continue
+        removed.append(entry["path"])
+    _write_deferred_cleanup(root, config, retained)
+    if removed:
+        run_git(["worktree", "prune"], cwd=root, check=False)
+    return removed, errors
+
+
 def write_pending_report(root: Path, decisions: Sequence[Decision]) -> Path:
     config = read_platform_config(root)
     path = pending_report_path(root, config)
@@ -260,6 +397,10 @@ def summary(decisions: Sequence[Decision]) -> dict[str, object]:
 def cleanup(root: Path, older_than_days: int) -> dict[str, object]:
     removed: list[str] = []
     errors: list[dict[str, str]] = []
+    config = read_platform_config(root)
+    deferred_removed, deferred_errors = _cleanup_deferred_completed_tasks(root, config)
+    removed.extend(deferred_removed)
+    errors.extend(deferred_errors)
     initial = scan(root, older_than_days)
     for candidate in initial:
         if not candidate.eligible:
