@@ -383,6 +383,7 @@ class GuardedDelegationTests(unittest.TestCase):
             argv=[sys.executable, "-c", f"from pathlib import Path; print('writing'); Path({str(escape_target)!r}).write_text('escaped')"],
             tier_decision=self.detection_tier,
             stdout_line_hook=captured.append,
+            route_containment_friction=False,
         )
         self.assertTrue(result.launched)
         self.assertTrue(result.violation)
@@ -395,12 +396,35 @@ class GuardedDelegationTests(unittest.TestCase):
             f"from pathlib import Path\nPath({str(escape_target)!r}).write_text('escaped\\n', encoding='utf-8')\n",
             encoding="utf-8",
         )
-        result = guard.run_guarded_delegation(
-            integration_root=self.integration,
-            assigned_worktree=self.worktree,
-            argv=[sys.executable, str(script)],
-            tier_decision=self.hard_tier,
-            task="test escape",
+
+        # A stub `gh` first on PATH proves the isolation structurally: even if it
+        # would be the first `gh` resolved (as a real, host-authenticated `gh`
+        # could be), it must never be invoked -- `route_containment_friction=False`
+        # is what must prevent the GitHub call, not an accidental PATH/HOME miss.
+        stub_bin = Path(self.tmp.name) / "stub-bin"
+        stub_bin.mkdir()
+        stub_gh = stub_bin / "gh"
+        stub_invocation_log = stub_bin / "gh-invoked.log"
+        stub_gh.write_text(f'#!/bin/sh\necho "$@" >> "{stub_invocation_log}"\nexit 1\n', encoding="utf-8")
+        stub_gh.chmod(0o755)
+        original_environ = dict(os.environ)
+        try:
+            os.environ["PATH"] = f"{stub_bin}{os.pathsep}{original_environ.get('PATH', '')}"
+            result = guard.run_guarded_delegation(
+                integration_root=self.integration,
+                assigned_worktree=self.worktree,
+                argv=[sys.executable, str(script)],
+                tier_decision=self.hard_tier,
+                task="test escape",
+                route_containment_friction=False,
+            )
+        finally:
+            os.environ.clear()
+            os.environ.update(original_environ)
+
+        self.assertFalse(
+            stub_invocation_log.exists(),
+            "hermetic synthetic containment friction must never invoke gh, even when gh is resolvable",
         )
         self.assertTrue(result.violation)
         self.assertIn("escaped.txt", result.message)
@@ -467,6 +491,7 @@ class GuardedDelegationTests(unittest.TestCase):
             assigned_worktree=self.worktree,
             argv=[sys.executable, str(script)],
             tier_decision=self.hard_tier,
+            route_containment_friction=False,
         )
         self.assertEqual(result.returncode, 3)
         self.assertTrue(result.violation)
@@ -612,6 +637,7 @@ class GuardedDelegationTests(unittest.TestCase):
             assigned_worktree=self.worktree,
             argv=[sys.executable, str(script)],
             tier_decision=self.hard_tier,
+            route_containment_friction=False,
         )
         status = git("status", "--porcelain", cwd=self.integration).stdout
         self.assertIn("someone-elses-work.txt", status)

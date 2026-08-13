@@ -184,6 +184,9 @@ def cmd_record(args: argparse.Namespace) -> int:
             fh.flush()
             os.fsync(fh.fileno())
     print(f"Recorded friction candidate {event['id']}: {args.scope}/{args.category} severity={args.severity}")
+    if getattr(args, "no_route", False):
+        print(f"GitHub routing skipped for {event['id']} (--no-route): local record only.")
+        return 0
     result = route_event(event)
     if result["status"] == "pending":
         print(f"WARNING: friction routing is pending for {event['id']}: {result['detail']}")
@@ -866,6 +869,10 @@ def main() -> int:
     p.add_argument(
         "--participant-role", choices=("supervisor", "executor", "unknown"), default="unknown",
         help="which participant this finding concerns; identity is read back from the current routing record, not self-reported",
+    )
+    p.add_argument(
+        "--no-route", action="store_true",
+        help="record the local event only and skip GitHub routing entirely; for hermetic synthetic/test fixtures, never for real runtime events",
     )
     p.set_defaults(func=cmd_record)
 

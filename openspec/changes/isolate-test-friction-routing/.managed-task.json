@@ -1,0 +1,27 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/platform-lifecycle/spec.md"
+  ],
+  "change": "isolate-test-friction-routing",
+  "imported_at": "2026-08-13T18:54:57+00:00",
+  "package_revision": "e08578a6f195c3753f36b34a18603c16f3523913f08b9defec9196e030a83a50",
+  "prepared_against": "fbb23f5bbbc0c6772e5ef4c48014f1a16f47f9d6",
+  "process_evidence": [
+    "lehard/dev-platform#137"
+  ],
+  "routing_receipt": {
+    "assurance": "high",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "platform-reliability"
+  },
+  "source_issue": "lehard/development-backlog#43",
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
