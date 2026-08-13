@@ -814,6 +814,7 @@ class ManagedPackageTests(unittest.TestCase):
                 patch.object(managed_task, "validate_authoring_bundle"),
                 patch.object(managed_task, "open_backlog_issues", return_value=[]),
                 patch.object(managed_task, "create_issue", return_value=9) as create,
+                patch.object(managed_task, "fetch_issue", return_value={"updated_at": "2026-01-01T00:00:00Z", "title": "t", "body": "b"}),
                 patch.object(managed_task, "publish_package", return_value=False),
             ):
                 package, _, _ = managed_task.create_task(root, str(bundle_root), "P1", False)
@@ -834,6 +835,7 @@ class ManagedPackageTests(unittest.TestCase):
                 patch.object(managed_task, "validate_authoring_bundle"),
                 patch.object(managed_task, "open_backlog_issues", return_value=[]),
                 patch.object(managed_task, "create_issue", return_value=9) as create,
+                patch.object(managed_task, "fetch_issue", return_value={"updated_at": "2026-01-01T00:00:00Z", "title": "t", "body": "b"}),
                 patch.object(managed_task, "publish_package", return_value=False),
             ):
                 package, _, _ = managed_task.create_task(
