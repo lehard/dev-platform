@@ -113,6 +113,23 @@ class CentralDogfoodLifecycleTests(unittest.TestCase):
         self.assertIn(dogfood_task.CODEX_EXECUTOR_PROMPT, command)
         self.assertEqual(run.call_args.args[1], self.root)
 
+    def test_route_codex_omits_profile_when_confirming_authored_tier(self) -> None:
+        args = dogfood_task.argparse.Namespace(
+            profile=None,
+            rationale="freshness check: no new hard trigger found",
+            evidence=[],
+            prompt=None,
+        )
+        with mock.patch.object(dogfood_task, "current_root", return_value=self.root), mock.patch.object(
+            dogfood_task, "run"
+        ) as run:
+            self.assertEqual(dogfood_task.route_codex(args), 0)
+
+        command = run.call_args.args[0]
+        self.assertEqual(command[:3], ["python3", "scripts/model_routing.py", "dispatch-codex"])
+        self.assertNotIn("--profile", command)
+        self.assertIn("--rationale", command)
+
     def test_route_claude_records_route_and_cannot_itself_launch(self) -> None:
         args = dogfood_task.argparse.Namespace(
             profile="standard",
@@ -130,6 +147,22 @@ class CentralDogfoodLifecycleTests(unittest.TestCase):
         self.assertIn("--evidence", command)
         self.assertNotIn("--prompt", command)
         self.assertEqual(run.call_args.args[1], self.root)
+
+    def test_route_claude_omits_profile_when_confirming_authored_tier(self) -> None:
+        args = dogfood_task.argparse.Namespace(
+            profile=None,
+            rationale="freshness check: no new hard trigger found",
+            evidence=[],
+        )
+        with mock.patch.object(dogfood_task, "current_root", return_value=self.root), mock.patch.object(
+            dogfood_task, "run"
+        ) as run:
+            self.assertEqual(dogfood_task.route_claude(args), 0)
+
+        command = run.call_args.args[0]
+        self.assertEqual(command[:3], ["python3", "scripts/model_routing.py", "dispatch-claude"])
+        self.assertNotIn("--profile", command)
+        self.assertIn("--rationale", command)
 
     def test_report_claude_execution_dispatches_with_agent_id(self) -> None:
         args = dogfood_task.argparse.Namespace(agent_id="agent-abc123", summary="added implemented.txt")

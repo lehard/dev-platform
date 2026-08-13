@@ -59,6 +59,27 @@ class ModelRoutingTests(unittest.TestCase):
         with patch.object(routing, "main_root", return_value=self.integration):
             return routing.prepare(self.task, provider=provider, profile=profile, rationale="bounded current-spec preflight", evidence=["openspec/changes/routing-change"])
 
+    def write_routing_receipt(self, tier: str, *, strong_trigger: str | None = None) -> None:
+        provenance = self.task / "openspec" / "changes" / "routing-change" / ".managed-task.json"
+        provenance.write_text(
+            json.dumps(
+                {
+                    "source_issue": "owner/backlog#7",
+                    "change": "routing-change",
+                    "routing_receipt": {
+                        "recommended_start_tier": tier,
+                        "rubric_version": "v1",
+                        "task_family": "general",
+                        "routing_confidence": "medium",
+                        "assurance": "standard",
+                        "effort_hint": "medium",
+                        "strong_trigger": strong_trigger,
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+
     def test_prepare_persists_replaceable_policy_and_context(self) -> None:
         route = self.prepare()
         self.assertEqual(route.executor_model, "cheap-codex")
@@ -69,6 +90,42 @@ class ModelRoutingTests(unittest.TestCase):
         self.assertEqual(context["source_issue"], "owner/backlog#7")
         self.assertIn("Escalate", " ".join(context["required_parent_actions"]))
         self.assertEqual(routing.postcheck(route)["containment"], "clean")
+
+    def test_prepare_without_profile_confirms_authored_r2_tier(self) -> None:
+        self.write_routing_receipt("R2")
+        with patch.object(routing, "main_root", return_value=self.integration):
+            route = routing.prepare(self.task, provider="codex", profile=None, rationale="freshness check: no new trigger found", evidence=[])
+        self.assertEqual(route.profile, "standard")
+        self.assertEqual(route.start_tier, "R2")
+        self.assertEqual(route.freshness, "confirmed")
+
+    def test_prepare_without_profile_confirms_authored_r3_tier(self) -> None:
+        self.write_routing_receipt("R3", strong_trigger="unresolved_architecture")
+        with patch.object(routing, "main_root", return_value=self.integration):
+            route = routing.prepare(self.task, provider="codex", profile=None, rationale="freshness check: trigger still holds", evidence=[])
+        self.assertEqual(route.profile, "complex")
+        self.assertEqual(route.start_tier, "R3")
+
+    def test_prepare_without_profile_and_without_receipt_requires_explicit_profile(self) -> None:
+        with patch.object(routing, "main_root", return_value=self.integration):
+            with self.assertRaisesRegex(routing.RoutingError, "pass --profile explicitly"):
+                routing.prepare(self.task, provider="codex", profile=None, rationale="no receipt available", evidence=[])
+
+    def test_explicit_profile_override_still_records_authored_tier(self) -> None:
+        self.write_routing_receipt("R2")
+        with patch.object(routing, "main_root", return_value=self.integration):
+            route = routing.prepare(self.task, provider="codex", profile="complex", rationale="override to strong on new evidence", evidence=[])
+        self.assertEqual(route.profile, "complex")
+        self.assertEqual(route.start_tier, "R2")
+
+    def test_escalate_marks_route_as_freshness_escalated(self) -> None:
+        self.write_routing_receipt("R2")
+        with patch.object(routing, "main_root", return_value=self.integration):
+            routing.prepare(self.task, provider="codex", profile=None, rationale="freshness check: no new trigger found", evidence=[])
+            escalated = routing.escalate(self.task, "freshness check found a new unresolved architecture trigger")
+        self.assertEqual(escalated.profile, "complex")
+        self.assertEqual(escalated.freshness, "escalated")
+        self.assertEqual(escalated.start_tier, "R2")
 
     def test_claude_agent_hand_off_has_no_isolation_and_runs_in_place(self) -> None:
         route = self.prepare(provider="claude", profile="routine")

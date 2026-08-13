@@ -18,6 +18,8 @@ python3 scripts/managed_task.py create --bundle <directory>
 
 The bundle contains `manifest.json` (`title`, `change`, ordered `artifacts`), `issue.md`, and those artifacts. The helper validates the configured Backlog contract and the temporary OpenSpec change, performs bounded duplicate checking, publishes one `managed-openspec:v1` package, then stops. Review potential-overlap candidates and pass `--confirm-distinct` only after deciding the scopes are separate. Do not implement, apply, dispatch, publish, or change Project state after authoring; wait for a separate execution request.
 
+Authoring also records a provider-neutral recommended start tier (`R2` balanced by default) and prefixes the created Issue title with `[R2]`. Pass `--strong-trigger <category>` only when a concrete hard trigger applies (see [docs/engineering/model-routing.md](model-routing.md)) to recommend `R3` instead; diff size, file count or blast radius alone are never a valid reason to pass it.
+
 **Quick execution.** A small direct request may use the existing task/check/finish workflow without creating a backlog issue or ceremonial OpenSpec. If it expands into a material behavior, architecture, compatibility, data-contract, or scope change, stop and propose fixation as a managed task instead of broadening it silently.
 
 **Execute an existing managed task.** An explicitly supplied Development Backlog issue is a managed task. Run:

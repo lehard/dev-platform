@@ -163,7 +163,7 @@ Prepared-but-not-executed routes are never represented as executed child partici
 3. Add the bounded post-task retrospective tied to current task execution state.
 4. Extend the existing route/completion evidence with truthful bounded participants and provenance source/status.
 5. Attach retrospective/friction findings to that run/participant evidence and expose only bounded sanitized provenance publicly.
-6. Prove the contract on real supported Codex and Claude Code runs, including delegation and an unknown/unavailable metadata case.
+6. Prove the contract on a real supported Claude Code run, including delegation and an unknown/unavailable metadata case (done: real `route-claude` -> Agent-tool -> `record-claude-execution` delegation). The equivalent real Codex run is deliberately split into a small dedicated follow-up (`lehard/development-backlog#33`) rather than holding this change open for an external account rate-limit reset; the Codex path itself is implemented and unit-tested here against realistic captured `--json` event lines.
 7. Observe the required real scheduled weekly review.
 8. Perform semantic verification, archive and release only when all acceptance evidence is truthful.
 

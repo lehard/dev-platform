@@ -1,0 +1,15 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/model-routing/spec.md"
+  ],
+  "change": "adopt-upstream-start-tier-routing",
+  "imported_at": "2026-08-13T01:39:35+00:00",
+  "package_revision": "47131d23902ae7ab9b1af9532b015bda0630a708ce0750b9d1458252a1859904",
+  "prepared_against": "517885fe4e14c865d9146bbe74fb4a51d22cd044",
+  "source_issue": "lehard/development-backlog#29",
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

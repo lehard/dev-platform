@@ -28,6 +28,7 @@ from delegation_containment import (
     resolve_assigned_worktree,
     snapshot,
 )
+from start_tier_routing import tier_to_profile
 
 
 PROFILES = ("routine", "standard", "complex")
@@ -57,6 +58,15 @@ class Route:
     pre_snapshot: dict[str, Any]
     execution: dict[str, Any] | None = None
     escalations: tuple[dict[str, str], ...] = ()
+    # The provider-neutral start tier authored with the managed task (`R1`,
+    # `R2` or `R3`), when a routing receipt is available; `None` for a
+    # legacy managed package authored before this rubric existed, in which
+    # case an explicit --profile is required instead of tier derivation.
+    start_tier: str | None = None
+    # "confirmed": the freshness check found no new hard trigger and kept the
+    # authored tier/profile. "escalated": execution discovered new evidence
+    # and escalate() promoted the route to the strong profile.
+    freshness: str = "confirmed"
     # Bounded, truthful execution provenance (task 6.2-6.6 of
     # adopt-gh-aw-process-automation). Reuses this existing routing record
     # instead of a second run/trace database. ``supervisor`` is the
@@ -81,7 +91,7 @@ def _snapshot_from_dict(value: dict[str, Any]) -> GitSnapshot:
         raise RoutingError("routing record has an invalid containment snapshot") from exc
 
 
-def _managed_identity(root: Path) -> tuple[str, str]:
+def _managed_provenance(root: Path) -> dict[str, Any]:
     candidates = list((root / "openspec" / "changes").glob("*/.managed-task.json"))
     if len(candidates) != 1:
         raise RoutingError(f"model routing requires exactly one materialized managed OpenSpec change in this task checkout; found {len(candidates)}")
@@ -92,7 +102,25 @@ def _managed_identity(root: Path) -> tuple[str, str]:
         raise RoutingError(f"cannot read managed-task provenance at {candidates[0]}") from exc
     if not isinstance(source_issue, str) or not isinstance(change, str):
         raise RoutingError("managed-task provenance has invalid source_issue/change values")
-    return source_issue, change
+    return payload
+
+
+def _managed_identity(root: Path) -> tuple[str, str]:
+    payload = _managed_provenance(root)
+    return payload["source_issue"], payload["change"]
+
+
+def _authored_start_tier(root: Path) -> str | None:
+    """The provider-neutral start tier authored with this managed task, if any.
+
+    Absent for a legacy managed package authored before this rubric existed;
+    callers fall back to requiring an explicit --profile in that case.
+    """
+    receipt = _managed_provenance(root).get("routing_receipt")
+    if not isinstance(receipt, dict):
+        return None
+    tier = receipt.get("recommended_start_tier")
+    return tier if isinstance(tier, str) else None
 
 
 def _record_path(root: Path, change: str) -> Path:
@@ -174,7 +202,7 @@ def _read_route(root: Path) -> tuple[Route, Path]:
         payload = json.loads(path.read_text(encoding="utf-8"))
         execution = payload.get("execution")
         supervisor = payload.get("supervisor")
-        route = Route(source_issue=payload["source_issue"], change=payload["change"], task_worktree=payload["task_worktree"], integration_root=payload["integration_root"], provider=payload["provider"], profile=payload["profile"], executor_model=payload["executor_model"], rationale=payload["rationale"], evidence=tuple(payload.get("evidence", [])), prepared_at=payload["prepared_at"], pre_snapshot=payload["pre_snapshot"], execution=execution if isinstance(execution, dict) else None, escalations=tuple(payload.get("escalations", [])), supervisor=supervisor if isinstance(supervisor, dict) else {})
+        route = Route(source_issue=payload["source_issue"], change=payload["change"], task_worktree=payload["task_worktree"], integration_root=payload["integration_root"], provider=payload["provider"], profile=payload["profile"], executor_model=payload["executor_model"], rationale=payload["rationale"], evidence=tuple(payload.get("evidence", [])), prepared_at=payload["prepared_at"], pre_snapshot=payload["pre_snapshot"], execution=execution if isinstance(execution, dict) else None, escalations=tuple(payload.get("escalations", [])), start_tier=payload.get("start_tier"), freshness=payload.get("freshness", "confirmed"), supervisor=supervisor if isinstance(supervisor, dict) else {})
     except (OSError, KeyError, TypeError, json.JSONDecodeError) as exc:
         raise RoutingError(f"no readable routing record for managed change {change}; run prepare first") from exc
     if route.source_issue != source_issue or route.change != change:
@@ -186,8 +214,26 @@ def _write_route(path: Path, route: Route) -> None:
     atomic_write_text(path, json.dumps(asdict(route), indent=2, sort_keys=True) + "\n")
 
 
-def prepare(root: Path, *, provider: str, profile: str, rationale: str, evidence: list[str]) -> Route:
-    if provider not in PROVIDERS or profile not in PROFILES:
+def prepare(root: Path, *, provider: str, profile: str | None, rationale: str, evidence: list[str]) -> Route:
+    """Record a route: confirm the authored start tier, or accept an explicit override.
+
+    When ``profile`` is omitted, this is the bounded execution-time freshness
+    check -- it confirms the tier already recommended at managed-task
+    authoring (mapped to the existing profile vocabulary) rather than
+    requiring a strong parent to redo full semantic routing. A managed
+    package authored before the start-tier rubric existed has no receipt to
+    confirm, so an explicit ``profile`` is still required for it.
+    """
+    if provider not in PROVIDERS:
+        raise RoutingError("unknown provider or execution profile")
+    start_tier = _authored_start_tier(root)
+    if profile is None:
+        if start_tier is None:
+            raise RoutingError(
+                "no authored start-tier routing receipt is available for this managed task; pass --profile explicitly"
+            )
+        profile = tier_to_profile(start_tier)
+    if profile not in PROFILES:
         raise RoutingError("unknown provider or execution profile")
     if not rationale.strip():
         raise RoutingError("semantic routing preflight requires a non-empty rationale")
@@ -195,22 +241,30 @@ def prepare(root: Path, *, provider: str, profile: str, rationale: str, evidence
     integration = main_root().resolve()
     assigned = resolve_assigned_worktree(integration, root)
     config = read_platform_config(root)
-    route = Route(source_issue=source_issue, change=change, task_worktree=str(assigned), integration_root=str(integration), provider=provider, profile=profile, executor_model=_model_for(config, provider, profile), rationale=rationale.strip(), evidence=tuple(evidence), prepared_at=utc_now(), pre_snapshot=_snapshot_to_dict(snapshot(integration)), supervisor=_supervisor_provenance(config, provider))
+    route = Route(source_issue=source_issue, change=change, task_worktree=str(assigned), integration_root=str(integration), provider=provider, profile=profile, executor_model=_model_for(config, provider, profile), rationale=rationale.strip(), evidence=tuple(evidence), prepared_at=utc_now(), pre_snapshot=_snapshot_to_dict(snapshot(integration)), start_tier=start_tier, freshness="confirmed", supervisor=_supervisor_provenance(config, provider))
     _write_route(_record_path(root, change), route)
     return route
 
 
 def escalation_context(route: Route) -> dict[str, Any]:
-    return {"source_issue": route.source_issue, "change": route.change, "task_worktree": route.task_worktree, "profile": route.profile, "executor_model": route.executor_model, "rationale": route.rationale, "evidence": list(route.evidence), "escalations": list(route.escalations), "required_parent_actions": ["Review the child diff and all required check evidence in the assigned task worktree.", "Run postcheck after native Claude worktree delegation before reporting containment success.", "Escalate rather than broaden routine/standard work on material contract conflict, cross-cutting scope, low confidence, or bounded substantive verification failures."]}
+    return {"source_issue": route.source_issue, "change": route.change, "task_worktree": route.task_worktree, "profile": route.profile, "executor_model": route.executor_model, "rationale": route.rationale, "evidence": list(route.evidence), "escalations": list(route.escalations), "start_tier": route.start_tier, "freshness": route.freshness, "required_parent_actions": ["Review the child diff and all required check evidence in the assigned task worktree.", "Run postcheck after native Claude worktree delegation before reporting containment success.", "Escalate rather than broaden routine/standard work on material contract conflict, cross-cutting scope, low confidence, or bounded substantive verification failures."]}
 
 
 def escalate(root: Path, reason: str) -> Route:
+    """Promote a route to the strong profile: the freshness-check escalate path.
+
+    Used both for classic under-routing escalation and for a bounded
+    execution-time freshness check that discovers a new hard trigger absent
+    from the authored recommendation. Either way this only rewrites the
+    routing record; the canonical OpenSpec, assigned worktree/diff and prior
+    findings/check evidence are untouched.
+    """
     route, path = _read_route(root)
     if route.profile == "complex":
         raise RoutingError("the route is already complex; retain the strong parent instead of escalating again")
     if not reason.strip():
         raise RoutingError("escalation requires a concrete reason")
-    next_route = Route(**{**asdict(route), "profile": "complex", "executor_model": _model_for(read_platform_config(root), route.provider, "complex"), "escalations": route.escalations + ({"at": utc_now(), "from": route.profile, "reason": reason.strip()},)})
+    next_route = Route(**{**asdict(route), "profile": "complex", "executor_model": _model_for(read_platform_config(root), route.provider, "complex"), "freshness": "escalated", "escalations": route.escalations + ({"at": utc_now(), "from": route.profile, "reason": reason.strip()},)})
     _write_route(path, next_route)
     return next_route
 
@@ -281,7 +335,7 @@ def run_codex(route: Route, prompt: str, codex_bin: str | None = None) -> dict[s
 def dispatch_codex(
     root: Path,
     *,
-    profile: str,
+    profile: str | None,
     rationale: str,
     evidence: list[str],
     prompt: str,
@@ -331,7 +385,7 @@ def claude_agent(route: Route) -> dict[str, Any]:
     return {"description": "Managed task executor; use only after supervisor routing preflight.", "model": route.executor_model, "prompt": "Work only in the current working directory, which is already the assigned task worktree for this managed dev-platform task -- do not request isolation or create a separate worktree. Preserve the canonical OpenSpec and return the exact diff, checks run, uncertainty, and any escalation trigger to the supervisor. Managed source: " + route.source_issue + "; change: " + route.change + "; assigned worktree: " + route.task_worktree + "."}
 
 
-def prepare_claude_handoff(root: Path, *, profile: str, rationale: str, evidence: list[str]) -> dict[str, Any]:
+def prepare_claude_handoff(root: Path, *, profile: str | None, rationale: str, evidence: list[str]) -> dict[str, Any]:
     """Atomically record a Claude route and, for lower-cost profiles, the hand-off to invoke.
 
     A native Claude Code subagent can only be launched by the supervisor's own
@@ -418,7 +472,12 @@ def main() -> int:
     subparsers = parser.add_subparsers(dest="command", required=True)
     prepare_parser = subparsers.add_parser("prepare", help="record the supervisor's bounded semantic routing decision")
     prepare_parser.add_argument("--provider", choices=PROVIDERS, required=True)
-    prepare_parser.add_argument("--profile", choices=PROFILES, required=True)
+    prepare_parser.add_argument(
+        "--profile",
+        choices=PROFILES,
+        default=None,
+        help="omit to confirm the tier already authored with the managed task (bounded freshness check)",
+    )
     prepare_parser.add_argument("--rationale", required=True)
     prepare_parser.add_argument("--evidence", action="append", default=[])
     subparsers.add_parser("context", help="emit bounded executor/supervisor hand-off context")
@@ -434,7 +493,12 @@ def main() -> int:
         "dispatch-codex",
         help="record a Codex route and launch routine/standard work through the native child path",
     )
-    dispatch_parser.add_argument("--profile", choices=PROFILES, required=True)
+    dispatch_parser.add_argument(
+        "--profile",
+        choices=PROFILES,
+        default=None,
+        help="omit to confirm the tier already authored with the managed task (bounded freshness check)",
+    )
     dispatch_parser.add_argument("--rationale", required=True)
     dispatch_parser.add_argument("--evidence", action="append", default=[])
     dispatch_parser.add_argument("--prompt", required=True)
@@ -444,7 +508,12 @@ def main() -> int:
         "dispatch-claude",
         help="record a Claude route and, for routine/standard, emit the in-place native subagent hand-off",
     )
-    dispatch_claude_parser.add_argument("--profile", choices=PROFILES, required=True)
+    dispatch_claude_parser.add_argument(
+        "--profile",
+        choices=PROFILES,
+        default=None,
+        help="omit to confirm the tier already authored with the managed task (bounded freshness check)",
+    )
     dispatch_claude_parser.add_argument("--rationale", required=True)
     dispatch_claude_parser.add_argument("--evidence", action="append", default=[])
     record_claude_parser = subparsers.add_parser(
