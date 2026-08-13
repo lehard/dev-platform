@@ -24,13 +24,23 @@ If implementation reveals that the plan must change, update the relevant artifac
 
 Do not knowingly make code and OpenSpec disagree and plan to repair the docs later.
 
+## Author the outcome contract
+
+For non-trivial changes, make the expected outcome and concrete success criteria or verification evidence explicit in `proposal.md`. Use a quantitative threshold when it meaningfully measures the result; documentation, workflow, instruction, UX, and similar qualitative work may instead use binary or directly observable evidence. Do not invent a KPI merely to fill a section.
+
+State relevant constraints and non-goals to bound the accepted iteration. When a proposed change materially alters an existing workflow, UX, behavior, contract, or architecture path and the transition would otherwise be unclear, add a concise current-to-target description. Do not add an empty AS-IS/TO-BE section for a self-contained additive change.
+
+In `design.md`, record concrete risks and mitigations when the work materially affects data or migrations, security/privacy, CI or release lifecycle, external integrations, backwards compatibility, cross-project rollout, or a comparable high-consequence boundary. Low-risk work does not need a ceremonial risk table.
+
+Keep this context in the existing proposal, specs, design, and tasks artifacts. Do not create a mandatory `intent.md`, Must/Should/Could layer, or manual status/date/expiry/artifact ledger; lifecycle state and receipts already have authoritative sources.
+
 ## Verify, archive, then publish
 
 For non-trivial changes:
 
 `plan review -> implementation -> project tests/QA -> semantic OpenSpec verify -> verification receipt -> archive -> publish`
 
-Prefer `/opsx:verify` when the installed agent integration exposes it. If the current environment cannot invoke that workflow, OpenSpec allows the agent to re-read the change and implementation and perform the equivalent review. The equivalent review must cover the same three dimensions: **completeness, correctness, and coherence**.
+Prefer `/opsx:verify` when the installed agent integration exposes it. If the current environment cannot invoke that workflow, OpenSpec allows the agent to re-read the change and implementation and perform the equivalent review. The equivalent review must cover the authored outcome and success evidence plus **completeness, correctness, and coherence**.
 
 Semantic verification and `openspec validate` are different. The former checks implementation against intent; the latter checks OpenSpec structure. Neither replaces project-specific tests, E2E, browser/render QA, migrations or operational checks.
 

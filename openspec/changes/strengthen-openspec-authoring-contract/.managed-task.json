@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/openspec-authoring/spec.md"
+  ],
+  "change": "strengthen-openspec-authoring-contract",
+  "imported_at": "2026-08-13T18:15:30+00:00",
+  "package_revision": "a6ca8a4f57a012f18bb22d69fff3c20c929eb93236d398ffce46747a25aba08f",
+  "prepared_against": "fbb23f5bbbc0c6772e5ef4c48014f1a16f47f9d6",
+  "routing_receipt": {
+    "assurance": "high",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "process-contract"
+  },
+  "source_issue": "lehard/development-backlog#44",
+  "source_issue_evidence": {
+    "body_sha256": "6e7da7eb329a76ae0daa351f87b092f433af7286d1569be38e3902101f5806ef",
+    "updated_at": "2026-08-13T16:59:28Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
