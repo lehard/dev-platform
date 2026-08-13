@@ -197,20 +197,12 @@ def validate_publication_config(root: Path, config: dict, prof: str, mode: str) 
         )
 
 
-def _local_head(root: Path, branch: str) -> str | None:
-    result = run_git(["rev-parse", branch], cwd=root, check=False)
-    return result.stdout.strip() if result.returncode == 0 else None
-
-
 def task_pr_is_already_merged(root: Path, branch: str, main_branch: str) -> bool:
     """Return true only when GitHub merged the exact-head PR for this local branch."""
     env = github_cli_env(root)
     if env is None:
         return False
-    local_head = _local_head(root, branch)
-    if local_head is None:
-        return False
-    lookup = publication_state.find_exact_head_pr(root, env, branch, main_branch, local_head)
+    lookup = publication_state.find_exact_local_branch_pr(root, env, branch, main_branch)
     return lookup.available and lookup.exact_merged is not None
 
 
@@ -226,10 +218,7 @@ def find_existing_exact_open_pr(root: Path, branch: str, main_branch: str) -> di
     env = github_cli_env(root)
     if env is None:
         return None
-    local_head = _local_head(root, branch)
-    if local_head is None:
-        return None
-    lookup = publication_state.find_exact_head_pr(root, env, branch, main_branch, local_head)
+    lookup = publication_state.find_exact_local_branch_pr(root, env, branch, main_branch)
     return lookup.exact_open if lookup.available else None
 
 

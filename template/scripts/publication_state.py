@@ -245,6 +245,23 @@ def find_exact_head_pr(root: Path, env: dict[str, str], branch: str, base_branch
     return ExactHeadPrLookup(available=True, stale_open=pr)
 
 
+def find_exact_local_branch_pr(root: Path, env: dict[str, str], branch: str, base_branch: str) -> ExactHeadPrLookup:
+    """Find the exact PR for the branch currently registered by a local task.
+
+    This binds the existing branch/base/exact-head publication identity in one
+    place for callers that coordinate a task without checking out or changing
+    its worktree.  A missing local branch is unavailable rather than an
+    inferred terminal state, so consumers can retain their fail-closed claim.
+    """
+    local_head = run_git(["rev-parse", f"refs/heads/{branch}"], cwd=root, check=False)
+    if local_head.returncode != 0:
+        return ExactHeadPrLookup(available=False, detail=f"local task branch {branch!r} is unavailable")
+    head = local_head.stdout.strip()
+    if not head:
+        return ExactHeadPrLookup(available=False, detail=f"local task branch {branch!r} has no readable head")
+    return find_exact_head_pr(root, env, branch, base_branch, head)
+
+
 def current_pr_head(root: Path, env: dict[str, str], branch: str) -> str | None:
     """Best-effort read of the PR's current headRefOid, for exact-head guards.
 

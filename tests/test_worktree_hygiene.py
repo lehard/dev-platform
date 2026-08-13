@@ -30,6 +30,7 @@ def load(name: str):
 
 
 agent_board = load("agent_board")
+publication_state = agent_board.publication_state
 worktree_cleanup = load("worktree_cleanup")
 finish_task = load("finish_task")
 
@@ -595,6 +596,105 @@ class AgentBoardAcknowledgmentTests(WorktreeHarnessCase):
         )
         self.assertEqual(self.hard_conflicts(board, second), [])
         self.enforce_gate(board, second)  # Does not raise.
+
+    def test_hard_scope_gate_reconciles_exact_squash_merged_sibling_claim(self) -> None:
+        """An exact merged PR releases scope even when its branch is not in main."""
+        first = self.add_worktree("first")
+        second = self.add_worktree("second")
+        for worktree in (first, second):
+            shared = worktree / "shared.py"
+            shared.write_text(f"{worktree.name}\n", encoding="utf-8")
+            git(worktree, "add", "shared.py")
+            git(worktree, "commit", "-m", f"{worktree.name} touches shared.py")
+        self.assertNotEqual(
+            subprocess.run(
+                ["git", "merge-base", "--is-ancestor", "agent/first", "main"],
+                cwd=self.root,
+                text=True,
+                capture_output=True,
+                check=False,
+            ).returncode,
+            0,
+            "fixture must model squash merge's missing branch ancestry",
+        )
+        board = self.register_board(
+            self.board_item("first-id", "first task", first),
+            self.board_item("second-id", "second task", second),
+        )
+        merged = publication_state.ExactHeadPrLookup(
+            available=True,
+            exact_merged={"number": 9, "state": "MERGED"},
+        )
+        with mock.patch.object(agent_board, "github_cli_env", return_value={}), mock.patch.object(
+            agent_board.publication_state, "find_exact_local_branch_pr", return_value=merged
+        ) as lookup:
+            self.assertEqual(self.hard_conflicts(board, second), [])
+            self.enforce_gate(board, second)
+        lookup.assert_called_with(self.root, {}, "agent/first", "main")
+        self.assertEqual(lookup.call_count, 2)
+
+    def test_hard_scope_gate_keeps_active_or_unavailable_sibling_claims_fail_closed(self) -> None:
+        first = self.add_worktree("first")
+        second = self.add_worktree("second")
+        for worktree in (first, second):
+            shared = worktree / "shared.py"
+            shared.write_text(f"{worktree.name}\n", encoding="utf-8")
+            git(worktree, "add", "shared.py")
+            git(worktree, "commit", "-m", f"{worktree.name} touches shared.py")
+        board = self.register_board(
+            self.board_item("first-id", "first task", first),
+            self.board_item("second-id", "second task", second),
+        )
+        for lookup_result in (
+            publication_state.ExactHeadPrLookup(available=True, exact_open={"number": 9, "state": "OPEN"}),
+            publication_state.ExactHeadPrLookup(available=True, stale_open={"number": 10, "state": "OPEN"}),
+            publication_state.ExactHeadPrLookup(available=False, detail="GitHub unavailable"),
+        ):
+            with self.subTest(lookup=lookup_result), mock.patch.object(agent_board, "github_cli_env", return_value={}), mock.patch.object(
+                agent_board.publication_state, "find_exact_local_branch_pr", return_value=lookup_result
+            ):
+                self.assertEqual(self.hard_conflicts(board, second), [("first-id", "first task", "shared.py")])
+                with self.assertRaises(agent_board.HardScopeOverlap):
+                    self.enforce_gate(board, second)
+
+    def test_squash_merge_scope_reconciliation_leaves_dirty_sibling_worktree_untouched(self) -> None:
+        first = self.add_worktree("first")
+        second = self.add_worktree("second")
+        for worktree in (first, second):
+            shared = worktree / "shared.py"
+            shared.write_text(f"{worktree.name}\n", encoding="utf-8")
+            git(worktree, "add", "shared.py")
+            git(worktree, "commit", "-m", f"{worktree.name} touches shared.py")
+        dirty = first / "keep-me.txt"
+        dirty.write_text("local sibling state\n", encoding="utf-8")
+        board = self.register_board(
+            self.board_item("first-id", "first task", first),
+            self.board_item("second-id", "second task", second),
+        )
+        merged = publication_state.ExactHeadPrLookup(available=True, exact_merged={"number": 9})
+        with mock.patch.object(agent_board, "github_cli_env", return_value={}), mock.patch.object(
+            agent_board.publication_state, "find_exact_local_branch_pr", return_value=merged
+        ):
+            self.enforce_gate(board, second)
+        self.assertEqual(dirty.read_text(encoding="utf-8"), "local sibling state\n")
+        self.assertTrue((first / ".git").exists())
+        self.assertIn("?? keep-me.txt", git(first, "status", "--short").stdout)
+        self.assertEqual(len(json.loads(board.read_text(encoding="utf-8"))["items"]), 2)
+
+    def test_doctor_releases_clean_exact_merged_claim_idempotently(self) -> None:
+        first = self.add_worktree("first")
+        board = self.register_board(self.board_item("first-id", "first task", first, scope="shared.py"))
+        merged = publication_state.ExactHeadPrLookup(available=True, exact_merged={"number": 9})
+        args = Namespace(fix=True, stale_hours=agent_board.DEFAULT_STALE_HOURS)
+        with mock.patch.object(agent_board, "main_root", return_value=self.root), mock.patch.object(
+            agent_board, "board_path", return_value=board
+        ), mock.patch.object(agent_board, "github_cli_env", return_value={}), mock.patch.object(
+            agent_board.publication_state, "find_exact_local_branch_pr", return_value=merged
+        ):
+            self.assertEqual(agent_board.cmd_doctor(args), 0)
+            self.assertEqual(agent_board.cmd_doctor(args), 0)
+        self.assertTrue(first.exists())
+        self.assertEqual(json.loads(board.read_text(encoding="utf-8"))["items"], [])
 
     def test_hard_scope_gate_is_clean_when_no_active_overlap_exists(self) -> None:
         first = self.add_worktree("first")

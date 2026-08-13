@@ -1,0 +1,32 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/worktree-coordination/spec.md",
+    "specs/platform-lifecycle/spec.md"
+  ],
+  "change": "reconcile-squash-merged-scope-claims",
+  "imported_at": "2026-08-13T10:57:51+00:00",
+  "package_revision": "f91d44e915c8b977be70110192ae7bcfd794410d81adcc63772e264f16e34d3f",
+  "prepared_against": "62370f4c7520b0b01157519c90f6dc522c635ea1",
+  "process_evidence": [
+    "lehard/dev-platform#236"
+  ],
+  "routing_receipt": {
+    "assurance": "high",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "platform-reliability"
+  },
+  "source_issue": "lehard/development-backlog#42",
+  "source_issue_evidence": {
+    "body_sha256": "581f361dddde72e9c7de10c17bacc765a8c9b51b076e891c7a369869a5492a47",
+    "updated_at": "2026-08-13T10:45:42Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

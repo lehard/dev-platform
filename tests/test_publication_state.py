@@ -55,6 +55,24 @@ class PublicationStateTestCase(unittest.TestCase):
 
 
 class FindExactHeadPrTests(PublicationStateTestCase):
+    def test_exact_local_branch_lookup_uses_registered_branch_head(self) -> None:
+        env = self.fake_gh(
+            'if [ "$1" = "pr" ] && [ "$2" = "view" ]; then\n'
+            f'  if [ "$5" = "state,headRefOid" ]; then printf \'{{"state":"MERGED","headRefOid":"{self.head}"}}\'; exit 0; fi\n'
+            '  if [ "$5" = "url,number,autoMergeRequest,baseRefName" ]; then printf \'{"url":"https://example.invalid/pr/9","number":9,"baseRefName":"main"}\'; exit 0; fi\n'
+            '  exit 1\n'
+            'fi\n'
+            'exit 1'
+        )
+        lookup = publication_state.find_exact_local_branch_pr(self.root, env, "agent/task", "main")
+        self.assertTrue(lookup.available)
+        self.assertIsNotNone(lookup.exact_merged)
+
+    def test_exact_local_branch_lookup_fails_closed_when_branch_is_missing(self) -> None:
+        lookup = publication_state.find_exact_local_branch_pr(self.root, self.no_pr_gh(), "agent/missing", "main")
+        self.assertFalse(lookup.available)
+        self.assertIn("unavailable", lookup.detail)
+
     def test_no_pr_reports_no_match(self) -> None:
         lookup = publication_state.find_exact_head_pr(self.root, self.no_pr_gh(), "agent/task", "main", self.head)
         self.assertTrue(lookup.available)
