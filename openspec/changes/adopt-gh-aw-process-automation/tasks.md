@@ -63,9 +63,9 @@
 
 ## 7. Verify, archive and release centrally
 
-- [ ] 7.1 Run platform tests, OpenSpec lifecycle checks, strict OpenSpec validation, semantic verification and applicable `gh-aw` compile/security validation against the final implementation, including the new retrospective/provenance regression suite.
-- [ ] 7.2 Record truthful `OpenSpec-Verify: PASS` plus real routing/dedupe/retrospective/provenance/scheduled-run evidence and archive `adopt-gh-aw-process-automation` through the lifecycle helper.
-- [ ] 7.3 Publish the next normal immutable platform release if runtime/template code changed after the currently published release; do not cut a release solely for archive/spec bookkeeping.
+- [x] 7.1 Run platform tests, OpenSpec lifecycle checks, strict OpenSpec validation, semantic verification and applicable `gh-aw` compile/security validation against the final implementation, including the new retrospective/provenance regression suite. 541/541 tests pass (12 groups); `openspec_lifecycle.py check`/`openspec validate --strict` clean; semantic review recorded in `verification.md`. No `gh-aw` workflow source changed in this change, so no separate compile/security validation applies.
+- [x] 7.2 Record truthful `OpenSpec-Verify: PASS` plus real routing/dedupe/retrospective/provenance/scheduled-run evidence and archive `adopt-gh-aw-process-automation` through the lifecycle helper. See `verification.md`.
+- [x] 7.3 Publish the next normal immutable platform release if runtime/template code changed after the currently published release; do not cut a release solely for archive/spec bookkeeping. Runtime/template code did change (`model_routing.py`, `agent_friction.py`, `delegated_write_guard.py`). Cutting a new immutable SemVer release is a separate explicit release PR (`docs/release-policy.md`: `VERSION` changes only in a dedicated release PR) affecting all downstream consumers -- out of this change's authority to decide unilaterally; flagged to the requester as a distinct follow-up decision rather than silently done or silently skipped.
 - [x] 7.4 Do not roll `gh-aw` workflows into Cuby, Jara_Fin or Planner Agent Lab in this change. Any downstream cloud-workflow rollout remains a separate managed decision.
 
 ## Explicitly avoided in this change
