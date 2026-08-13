@@ -213,6 +213,19 @@ class AgentBoardRegistrationTests(WorktreeHarnessCase):
         with mock.patch.object(agent_board, "main_root", return_value=self.root), mock.patch.object(agent_board, "board_path", return_value=board):
             return agent_board.cmd_admit(args)
 
+    def acknowledge(self, board: Path, worktree: Path, *, with_id: str, paths: list[str], reason: str) -> int:
+        args = Namespace(branch=f"agent/{worktree.name}", worktree=str(worktree), with_id=with_id, path=paths, reason=reason)
+        with mock.patch.object(agent_board, "main_root", return_value=self.root), mock.patch.object(agent_board, "board_path", return_value=board):
+            return agent_board.cmd_acknowledge(args)
+
+    def hard_conflicts(self, board: Path, worktree: Path):
+        with mock.patch.object(agent_board, "board_path", return_value=board):
+            return agent_board.hard_scope_conflicts(self.root, worktree, f"agent/{worktree.name}")
+
+    def enforce_gate(self, board: Path, worktree: Path) -> None:
+        with mock.patch.object(agent_board, "board_path", return_value=board):
+            agent_board.enforce_scope_gate(self.root, worktree, f"agent/{worktree.name}")
+
     def test_relative_worktree_is_rejected_before_board_file_or_git_lookup(self) -> None:
         board = self.root / ".claude" / "agents-board.json"
         with mock.patch.object(agent_board, "_registered_worktrees") as registered:
@@ -388,6 +401,173 @@ class AgentBoardRegistrationTests(WorktreeHarnessCase):
             self.assertEqual(sorted(pool.map(claim, (first, second))), ["RUN", "WAIT"])
         decisions = [item["admission"]["decision"] for item in json.loads(board.read_text(encoding="utf-8"))["items"]]
         self.assertEqual(sorted(decisions), ["RUN", "WAIT"])
+
+
+class AgentBoardAcknowledgmentTests(WorktreeHarnessCase):
+    """Regression coverage for dev-platform#203, #220 and #224."""
+
+    def register_board(self, *items: dict) -> Path:
+        board = self.root / ".claude" / "agents-board.json"
+        board.parent.mkdir(parents=True, exist_ok=True)
+        board.write_text(json.dumps({"version": 1, "items": list(items)}), encoding="utf-8")
+        return board
+
+    def board_item(self, item_id: str, task: str, worktree: Path, *, scope: str = "", heartbeat: str | None = None) -> dict:
+        return {
+            "id": item_id,
+            "task": task,
+            "scope": scope,
+            "branch": f"agent/{worktree.name}",
+            "worktree": str(worktree),
+            "heartbeat": heartbeat or datetime.now(timezone.utc).isoformat(),
+        }
+
+    def admit(self, board: Path, worktree: Path, scope: str | None = None) -> int:
+        args = Namespace(branch=f"agent/{worktree.name}", worktree=str(worktree), scope=scope)
+        with mock.patch.object(agent_board, "main_root", return_value=self.root), mock.patch.object(agent_board, "board_path", return_value=board):
+            return agent_board.cmd_admit(args)
+
+    def acknowledge(self, board: Path, worktree: Path, *, with_id: str, paths: list[str], reason: str) -> int:
+        args = Namespace(branch=f"agent/{worktree.name}", worktree=str(worktree), with_id=with_id, path=paths, reason=reason)
+        with mock.patch.object(agent_board, "main_root", return_value=self.root), mock.patch.object(agent_board, "board_path", return_value=board):
+            return agent_board.cmd_acknowledge(args)
+
+    def hard_conflicts(self, board: Path, worktree: Path):
+        with mock.patch.object(agent_board, "board_path", return_value=board):
+            return agent_board.hard_scope_conflicts(self.root, worktree, f"agent/{worktree.name}")
+
+    def enforce_gate(self, board: Path, worktree: Path) -> None:
+        with mock.patch.object(agent_board, "board_path", return_value=board):
+            agent_board.enforce_scope_gate(self.root, worktree, f"agent/{worktree.name}")
+
+    def test_acknowledged_overlap_allows_run_without_narrowing_declared_scope(self) -> None:
+        """dev-platform#203: a verified-safe same-file overlap must not force a narrower --scope."""
+        first = self.add_worktree("first")
+        second = self.add_worktree("second")
+        board = self.register_board(
+            self.board_item("first-id", "first task", first, scope="shared.py"),
+            self.board_item("second-id", "second task", second, scope="shared.py"),
+        )
+        self.assertEqual(self.admit(board, first), 0)
+        self.assertEqual(self.admit(board, second), 0)
+        items = {item["id"]: item for item in json.loads(board.read_text(encoding="utf-8"))["items"]}
+        self.assertEqual(items["second-id"]["admission"]["decision"], "WAIT")
+
+        self.assertEqual(
+            self.acknowledge(board, second, with_id="first-id", paths=["shared.py"], reason="verified independent edits"),
+            0,
+        )
+        self.assertEqual(self.admit(board, second), 0)
+        items = {item["id"]: item for item in json.loads(board.read_text(encoding="utf-8"))["items"]}
+        self.assertEqual(items["second-id"]["admission"]["decision"], "RUN")
+        # The truthful declared/factual scope is preserved -- the path is still claimed.
+        self.assertIn("shared.py", items["second-id"]["claims"])
+
+    def test_acknowledge_rejects_paths_that_are_not_currently_conflicting(self) -> None:
+        first = self.add_worktree("first")
+        second = self.add_worktree("second")
+        board = self.register_board(
+            self.board_item("first-id", "first task", first, scope="shared.py"),
+            self.board_item("second-id", "second task", second, scope=""),
+        )
+        self.assertEqual(self.admit(board, first), 0)
+        self.assertEqual(self.admit(board, second), 0)  # No overlap -> RUN.
+        with self.assertRaisesRegex(SystemExit, "not a currently conflicting path"):
+            self.acknowledge(board, second, with_id="first-id", paths=["shared.py"], reason="premature")
+
+    def test_acknowledge_requires_bounded_reason_and_at_least_one_path(self) -> None:
+        first = self.add_worktree("first")
+        second = self.add_worktree("second")
+        board = self.register_board(
+            self.board_item("first-id", "first task", first, scope="shared.py"),
+            self.board_item("second-id", "second task", second, scope="shared.py"),
+        )
+        self.assertEqual(self.admit(board, first), 0)
+        self.assertEqual(self.admit(board, second), 0)
+        with self.assertRaisesRegex(SystemExit, "non-empty bounded justification"):
+            self.acknowledge(board, second, with_id="first-id", paths=["shared.py"], reason="   ")
+        with self.assertRaisesRegex(SystemExit, "at least one --path"):
+            self.acknowledge(board, second, with_id="first-id", paths=[], reason="fine")
+
+    def test_acknowledge_rejects_unknown_or_inactive_conflicting_task(self) -> None:
+        first = self.add_worktree("first")
+        second = self.add_worktree("second")
+        stale = (datetime.now(timezone.utc) - timedelta(days=5)).isoformat()
+        board = self.register_board(
+            self.board_item("first-id", "first task", first, scope="shared.py", heartbeat=stale),
+            self.board_item("second-id", "second task", second, scope="shared.py"),
+        )
+        with self.assertRaisesRegex(SystemExit, "unknown conflicting board id"):
+            self.acknowledge(board, second, with_id="ghost-id", paths=["shared.py"], reason="fine")
+        with self.assertRaisesRegex(SystemExit, "not a currently active task"):
+            self.acknowledge(board, second, with_id="first-id", paths=["shared.py"], reason="fine")
+
+    def test_acknowledgment_does_not_cover_a_later_unacknowledged_path(self) -> None:
+        """Spec scenario: an acknowledgment for file x does not authorize new file y."""
+        first = self.add_worktree("first")
+        second = self.add_worktree("second")
+        for worktree in (first, second):
+            shared = worktree / "shared.py"
+            shared.write_text(f"{worktree.name}\n", encoding="utf-8")
+            git(worktree, "add", "shared.py")
+            git(worktree, "commit", "-m", f"{worktree.name} touches shared.py")
+        (first / "other.py").write_text("first other\n", encoding="utf-8")
+        git(first, "add", "other.py")
+        git(first, "commit", "-m", "first also touches other.py")
+
+        board = self.register_board(
+            self.board_item("first-id", "first task", first),
+            self.board_item("second-id", "second task", second),
+        )
+        self.assertEqual(self.admit(board, first), 0)
+        self.assertEqual(self.admit(board, second), 0)
+        items = {item["id"]: item for item in json.loads(board.read_text(encoding="utf-8"))["items"]}
+        self.assertEqual(items["second-id"]["admission"]["decision"], "WAIT")
+
+        self.assertEqual(
+            self.acknowledge(board, second, with_id="first-id", paths=["shared.py"], reason="verified shared.py is safe"),
+            0,
+        )
+        self.assertEqual(self.admit(board, second), 0)
+        items = {item["id"]: item for item in json.loads(board.read_text(encoding="utf-8"))["items"]}
+        self.assertEqual(items["second-id"]["admission"]["decision"], "RUN")
+
+        # Scope evolves after admission: second's factual diff now also touches
+        # other.py, which the earlier shared.py acknowledgment never covered.
+        (second / "other.py").write_text("second other\n", encoding="utf-8")
+        git(second, "add", "other.py")
+        git(second, "commit", "-m", "second scope evolved onto other.py")
+
+        conflicts = self.hard_conflicts(board, second)
+        self.assertEqual(conflicts, [("first-id", "first task", "other.py")])
+        with self.assertRaises(agent_board.HardScopeOverlap):
+            self.enforce_gate(board, second)
+
+    def test_hard_scope_gate_ignores_completed_sibling_claim(self) -> None:
+        first = self.add_worktree("first")
+        second = self.add_worktree("second")
+        for worktree in (first, second):
+            shared = worktree / "shared.py"
+            shared.write_text(f"{worktree.name}\n", encoding="utf-8")
+            git(worktree, "add", "shared.py")
+            git(worktree, "commit", "-m", f"{worktree.name} touches shared.py")
+        stale = (datetime.now(timezone.utc) - timedelta(days=5)).isoformat()
+        board = self.register_board(
+            self.board_item("first-id", "first task", first, heartbeat=stale),
+            self.board_item("second-id", "second task", second),
+        )
+        self.assertEqual(self.hard_conflicts(board, second), [])
+        self.enforce_gate(board, second)  # Does not raise.
+
+    def test_hard_scope_gate_is_clean_when_no_active_overlap_exists(self) -> None:
+        first = self.add_worktree("first")
+        second = self.add_worktree("second")
+        board = self.register_board(
+            self.board_item("first-id", "first task", first, scope="only_first.py"),
+            self.board_item("second-id", "second task", second, scope="only_second.py"),
+        )
+        self.assertEqual(self.hard_conflicts(board, second), [])
+        self.enforce_gate(board, second)  # Does not raise.
 
 
 if __name__ == "__main__":

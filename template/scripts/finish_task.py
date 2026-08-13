@@ -36,12 +36,20 @@ except ModuleNotFoundError:  # Compatibility while an existing project is being 
     task_reconciliation = None
 from managed_project_status import (
     ManagedProjectStatusError,
+    block_for_scope_conflict,
     reconcile as reconcile_managed_project,
+    resume_from_scope_conflict,
 )
 try:
-    from agent_board import warn_current_worktree_scope_overlap
+    from agent_board import HardScopeOverlap, enforce_scope_gate, warn_current_worktree_scope_overlap
 except (ImportError, ModuleNotFoundError):  # Compatibility while older rendered projects are upgraded.
+    class HardScopeOverlap(RuntimeError):
+        pass
+
     def warn_current_worktree_scope_overlap(root: Path, worktree: Path, branch: str) -> None:
+        return None
+
+    def enforce_scope_gate(root: Path, worktree: Path, branch: str) -> None:
         return None
 try:
     from managed_task import (
@@ -486,6 +494,16 @@ def main() -> int:
 
     warn_current_worktree_scope_overlap(integration, work, branch)
     run_checks(work, remote_main, args.no_checks)
+
+    # Immediately-before-publication recheck: factual scope can have grown
+    # since admission (or since the pre-validation recheck inside
+    # select_checks.py) even when checks themselves passed.
+    try:
+        enforce_scope_gate(integration, work, branch)
+    except HardScopeOverlap as exc:
+        block_for_scope_conflict(work, str(exc))
+        raise SystemExit(str(exc)) from exc
+    resume_from_scope_conflict(work)
     if mode == "pr":
         if branch == main_branch:
             raise SystemExit("publish_mode=pr requires a feature branch. Use standard/multi-agent profile or switch publish_mode deliberately.")

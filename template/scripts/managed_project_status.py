@@ -313,6 +313,38 @@ def reconcile(
     return ProjectObservation(source.reference, locator.owner, locator.number, title, desired_status, desired_status, True)
 
 
+def block_for_scope_conflict(root: Path, reason: str) -> ProjectObservation | None:
+    """Best-effort: reflect a genuine scope-coordination WAIT as Blocked.
+
+    Silently a no-op for a quick/non-managed task (no discoverable source
+    issue) or when GitHub Project access is unavailable -- the actual block
+    is the caller's raised error, not this reflection.
+    """
+    try:
+        observation = reconcile(root, "Blocked")
+    except ManagedProjectStatusError:
+        return None
+    if observation is not None:
+        action = "updated" if observation.changed else "already current"
+        print(f"Managed Project status {action}: {observation.source_issue} -> Blocked ({reason})")
+    return observation
+
+
+def resume_from_scope_conflict(root: Path) -> ProjectObservation | None:
+    """Best-effort: return a scope-coordination Blocked to its truthful state."""
+    try:
+        current = observe(root)
+        if current is None or current.current_status != "Blocked":
+            return None
+        observation = reconcile(root, derive_resume_status(root), source_issue=current.source_issue)
+    except ManagedProjectStatusError:
+        return None
+    if observation is not None:
+        action = "updated" if observation.changed else "already current"
+        print(f"Managed Project status {action}: {observation.source_issue} -> {observation.current_status}")
+    return observation
+
+
 def derive_resume_status(root: Path) -> str:
     """Return the truthful nonterminal state for a resumable managed task."""
     import publication_state

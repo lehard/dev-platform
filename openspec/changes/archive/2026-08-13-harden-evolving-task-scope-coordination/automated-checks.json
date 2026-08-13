@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.085,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/managed_projects.py validate",
+      "duration_seconds": 0.08,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 113.599,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/agent_board.py",
+        "template/scripts/finish_task.py",
+        "template/scripts/managed_project_status.py",
+        "template/scripts/select_checks.py",
+        "template/scripts/start_task.py",
+        "tests/test_git_lifecycle.py",
+        "tests/test_managed_project_status.py",
+        "tests/test_worktree_hygiene.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/managed_projects.py validate",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ]
+}
