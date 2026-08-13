@@ -29,6 +29,9 @@ SOURCES = {
         "schedule: weekly",
         "workflow_dispatch:",
         "create-issue:",
+        "Review context (`reviewed_at`, exact `main` SHA, previous-review boundary)",
+        "Root-cause candidates",
+        "Likely resolved/superseded",
     },
 }
 
@@ -78,6 +81,13 @@ class AgenticWorkflowTests(unittest.TestCase):
         for tool in ("`issue_read`", "`list_label`", "`search_issues`"):
             self.assertIn(tool, text)
         self.assertIn("Do not use `search_repositories`", text)
+
+    def test_weekly_review_requires_freshness_and_preserves_source_issue_read_only_boundary(self) -> None:
+        text = (ROOT / ".github" / "workflows" / "weekly-process-backlog-review.md").read_text(encoding="utf-8")
+        for value in ("exact current commit SHA", "previous-review boundary", "root cause", "inspect current default-branch"):
+            with self.subTest(value=value):
+                self.assertIn(value, text)
+        self.assertIn("or close/relabel/comment on source evidence", text)
 
 
 if __name__ == "__main__":

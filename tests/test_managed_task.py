@@ -117,6 +117,112 @@ class ManagedPackageTests(unittest.TestCase):
         package = managed_task.parse_package([package_body()], "lehard/development-backlog#1")
         self.assertIsNone(package.routing_receipt)
 
+    def test_package_preserves_explicit_process_evidence_and_rejects_bad_reference(self) -> None:
+        body = package_body().replace(
+            '"artifacts":',
+            '"process_evidence": ["lehard/dev-platform#17", "example/project#2"], "artifacts":',
+            1,
+        )
+        package = managed_task.parse_package([body], "lehard/development-backlog#1")
+        self.assertEqual(package.process_evidence, ("lehard/dev-platform#17", "example/project#2"))
+        invalid = package_body().replace('"artifacts":', '"process_evidence": ["not-an-issue"], "artifacts":', 1)
+        with self.assertRaisesRegex(managed_task.ManagedTaskError, "invalid process_evidence"):
+            managed_task.parse_package([invalid], "lehard/development-backlog#1")
+
+    def test_linkage_marks_open_evidence_and_uses_one_marked_backlink(self) -> None:
+        package = replace(
+            managed_task.parse_package([package_body()], "lehard/development-backlog#1"),
+            process_evidence=("lehard/dev-platform#17",),
+        )
+        issue = {"state": "open", "labels": [{"name": "process"}]}
+        commands: list[list[str]] = []
+        with (
+            patch.object(managed_task, "github_cli_env", return_value={}),
+            patch.object(managed_task, "process_evidence_issue", return_value=issue),
+            patch.object(managed_task, "run_json", return_value=[]),
+            patch.object(managed_task, "run", side_effect=lambda command, *_args, **_kwargs: commands.append(command)),
+        ):
+            managed_task.reconcile_process_evidence_linkage(Path("/tmp/task"), package)
+        self.assertEqual(len(commands), 2)
+        self.assertIn("labels", commands[0][4])
+        self.assertIn("comments", commands[1][4])
+        self.assertIn(managed_task.PROCESS_BACKLINK_PREFIX, commands[1][-1])
+
+    def test_linkage_handles_multiple_evidence_and_skips_existing_backlink(self) -> None:
+        package = replace(
+            managed_task.parse_package([package_body()], "lehard/development-backlog#1"),
+            process_evidence=("lehard/dev-platform#17", "example/project#2"),
+        )
+        marker = f"<!-- {managed_task.PROCESS_BACKLINK_PREFIX}:{package.source_issue}:{package.change} -->"
+        commands: list[list[str]] = []
+        with (
+            patch.object(managed_task, "github_cli_env", return_value={}),
+            patch.object(
+                managed_task,
+                "process_evidence_issue",
+                side_effect=[
+                    {"state": "open", "labels": [{"name": "process"}, {"name": "process:managed"}]},
+                    {"state": "open", "labels": [{"name": "process"}]},
+                ],
+            ),
+            patch.object(managed_task, "run_json", side_effect=[[{"body": marker}], []]),
+            patch.object(managed_task, "run", side_effect=lambda command, *_args, **_kwargs: commands.append(command)),
+        ):
+            managed_task.reconcile_process_evidence_linkage(Path("/tmp/task"), package)
+        self.assertEqual(len(commands), 2)
+        self.assertIn("repos/example/project/issues/2/labels", commands[0])
+        self.assertIn("repos/example/project/issues/2/comments", commands[1])
+
+    def test_terminal_resolution_closes_only_open_linked_process_evidence(self) -> None:
+        identity = managed_task.ManagedTaskIdentity(
+            "lehard/development-backlog#1", "add-managed-backlog-intake", ("lehard/dev-platform#17",)
+        )
+        commands: list[list[str]] = []
+        with (
+            patch.object(managed_task, "github_cli_env", return_value={}),
+            patch.object(
+                managed_task,
+                "run_json",
+                side_effect=[{"state": "open", "labels": [{"name": "process"}]}, []],
+            ),
+            patch.object(managed_task, "run", side_effect=lambda command, *_args, **_kwargs: commands.append(command)),
+        ):
+            managed_task.resolve_process_evidence_after_delivery(Path("/tmp/task"), identity, "b" * 40)
+        self.assertEqual(len(commands), 2)
+        self.assertIn("comments", commands[0][4])
+        self.assertEqual(commands[1][2:5], ["--method", "PATCH", "repos/lehard/dev-platform/issues/17"])
+
+    def test_terminal_resolution_reuses_existing_note_after_partial_completion(self) -> None:
+        identity = managed_task.ManagedTaskIdentity(
+            "lehard/development-backlog#1", "add-managed-backlog-intake", ("lehard/dev-platform#17",)
+        )
+        marker = managed_task.process_resolution_marker(identity)
+        commands: list[list[str]] = []
+        with (
+            patch.object(managed_task, "github_cli_env", return_value={}),
+            patch.object(
+                managed_task,
+                "run_json",
+                side_effect=[{"state": "open", "labels": [{"name": "process"}]}, [{"body": marker}]],
+            ),
+            patch.object(managed_task, "run", side_effect=lambda command, *_args, **_kwargs: commands.append(command)),
+        ):
+            managed_task.resolve_process_evidence_after_delivery(Path("/tmp/task"), identity, "b" * 40)
+        self.assertEqual(len(commands), 1)
+        self.assertEqual(commands[0][2:5], ["--method", "PATCH", "repos/lehard/dev-platform/issues/17"])
+
+    def test_terminal_resolution_does_not_rewrite_already_closed_evidence(self) -> None:
+        identity = managed_task.ManagedTaskIdentity(
+            "lehard/development-backlog#1", "add-managed-backlog-intake", ("lehard/dev-platform#17",)
+        )
+        with (
+            patch.object(managed_task, "github_cli_env", return_value={}),
+            patch.object(managed_task, "run_json", return_value={"state": "closed", "state_reason": "completed"}),
+            patch.object(managed_task, "run") as run,
+        ):
+            managed_task.resolve_process_evidence_after_delivery(Path("/tmp/task"), identity, "b" * 40)
+        run.assert_not_called()
+
     def test_parse_package_round_trips_a_well_formed_routing_receipt(self) -> None:
         receipt = managed_task.recommend_start_tier(strong_trigger=None)
         package = managed_task.parse_package([package_body(routing_receipt=receipt)], "lehard/development-backlog#1")

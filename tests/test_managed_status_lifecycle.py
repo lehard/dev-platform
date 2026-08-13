@@ -121,6 +121,26 @@ class ManagedStatusLifecycleTests(unittest.TestCase):
             sync.assert_called_once()
             cleanup.assert_not_called()
 
+    def test_linked_evidence_resolves_only_after_project_done(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            events: list[str] = []
+            identity = SimpleNamespace(
+                source_issue="lehard/development-backlog#8", change="managed", process_evidence=("lehard/dev-platform#17",)
+            )
+            with (
+                mock.patch.object(finish_task, "delivery_identity", return_value=identity),
+                mock.patch.object(finish_task, "sync_after_remote_pr_merge", side_effect=lambda *args: events.append("sync")),
+                mock.patch.object(finish_task, "assert_integration_identity_cross_check"),
+                mock.patch.object(finish_task, "reconcile_managed_project", side_effect=lambda *args, **kwargs: events.append("done")),
+                mock.patch.object(finish_task, "run_git", return_value=SimpleNamespace(stdout="a" * 40)),
+                mock.patch.object(finish_task, "resolve_process_evidence_after_delivery", side_effect=lambda *args: events.append("resolve")),
+            ):
+                finish_task.reconcile_confirmed_remote_pr_merge(
+                    root, root, {"paths": {"main_merge_lock": ".lock"}}, "agent/managed", "main", "standard", cleanup=False, timeout_seconds=1
+                )
+            self.assertEqual(events, ["sync", "done", "resolve"])
+
     def test_terminal_identity_mismatch_blocks_project_mutation_after_sync(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

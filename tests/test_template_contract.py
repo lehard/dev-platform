@@ -13,6 +13,15 @@ class TemplateContractTests(unittest.TestCase):
         for relative in required:
             with self.subTest(relative=relative): self.assertTrue((ROOT / relative).exists(), relative)
 
+    def test_template_exposes_process_health_review_and_label_provisioning(self) -> None:
+        config = (ROOT / "template" / ".dev-platform.toml.jinja").read_text(encoding="utf-8")
+        review = (ROOT / "template" / ".github" / "workflows" / "weekly-process-backlog-review.md.jinja").read_text(encoding="utf-8")
+        labels = (ROOT / "template" / ".github" / "workflows" / "process-health-labels.yml.jinja").read_text(encoding="utf-8")
+        self.assertIn("[process_health]", config)
+        self.assertIn('managed_label = "process:managed"', config)
+        self.assertIn("exact default-branch SHA", review)
+        self.assertIn("process:managed", labels)
+
     def test_platform_does_not_vendor_openspec_generated_skills(self) -> None:
         self.assertFalse((ROOT / "template" / ".agents" / "skills").exists()); self.assertFalse((ROOT / "template" / ".claude" / "skills").exists())
 

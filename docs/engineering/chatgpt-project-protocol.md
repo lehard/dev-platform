@@ -53,6 +53,32 @@ Verification should be proportional to actual risk.
 
 Do not create test ceremony that does not reduce the real risk of the change.
 
+## Process Health Review
+
+Process issues are durable, sanitized evidence rather than a second task
+system. A review is advisory and read-only until a human explicitly fixes a
+candidate into managed work.
+
+Each dated review report records `reviewed_at`, the exact current `main` SHA,
+and the previous-review boundary. It reads a bounded current set of open
+process issues plus relevant managed tasks and recently merged/closed work
+since that boundary. It classifies source evidence as unmanaged, managed,
+likely resolved/superseded, needs more evidence, or ready for human decision.
+Before calling an older issue resolved or superseded, inspect current repository
+evidence; stale issue prose alone is insufficient.
+
+Cluster related symptoms by likely root cause before recommending work. Cite
+the contributing issue numbers, but do not treat issue count as change count.
+The review may write its dated report, but it must not create a managed task,
+close or relabel a source process issue, or implement a fix.
+
+When a human explicitly fixes accepted process evidence into a managed task,
+include each exact `owner/repo#N` reference in the task's canonical
+process-evidence linkage. Those issues remain open while delivery is in
+progress and are resolved only by the terminal managed lifecycle. Project
+Instructions should only provide the repository/label parameters and a trigger
+to use this contract; they should not copy the procedure.
+
 ## Sources of truth
 
 - Target repository `AGENTS.md` and engineering docs: current repository workflow and safety rules.

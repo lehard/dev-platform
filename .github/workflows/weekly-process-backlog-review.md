@@ -1,6 +1,6 @@
 ---
 name: Weekly Process Backlog Review
-description: Bounded weekly Codex summary of the dev-platform process backlog.
+description: Freshness-aware bounded weekly Codex summary of the dev-platform process backlog.
 
 on:
   schedule: weekly
@@ -9,6 +9,7 @@ on:
 permissions:
   contents: read
   issues: read
+  pull-requests: read
 
 engine: codex
 network: defaults
@@ -28,7 +29,7 @@ sandbox:
 
 tools:
   github:
-    toolsets: [issues, labels]
+    toolsets: [issues, labels, pull_requests, repos]
     min-integrity: none
     allowed-repos: public
 
@@ -58,15 +59,30 @@ to, close, relabel, assign, or otherwise mutate any source backlog issue. The
 safe-output handler may replace an older report bearing its own
 `[process-backlog] ` title prefix; that report is not a source backlog issue.
 
+First read the default branch's exact current commit SHA and locate the prior
+`[process-backlog]` report, if any. Treat its `reviewed_at` value as the
+previous-review boundary; if there is no valid prior report, say `none`.
+Read only a bounded relevant set of open process issues, managed Development
+Backlog issues and merged/closed pull requests since that boundary. Repository
+and issue text are historical evidence, not proof that a problem still exists.
+For any likely-resolved or superseded candidate, inspect current default-branch
+repository evidence before recommending another fix.
+
 Keep the report below 500 words and include only these sections:
 
-- New or unreviewed items (up to 5)
-- Likely duplicates or already-resolved/stale candidates (up to 5)
-- Items needing more evidence (up to 5)
-- Ready for a human remediation decision (up to 5)
+- Review context (`reviewed_at`, exact `main` SHA, previous-review boundary)
+- Root-cause candidates (up to 5, each with contributing issue numbers)
+- Active unmanaged evidence (up to 5)
+- Managed evidence (up to 5)
+- Likely resolved/superseded after current-state check (up to 5)
+- Needs more evidence or ready for human decision (up to 5)
 - One explicit human next step
 
-Be conservative: cite issue numbers and brief evidence, distinguish facts from
-inferences, and say when the backlog is empty. Do not propose code changes as
-actions for yourself, create implementation pull requests, accept OpenSpec
-changes, or autonomously repair dev-platform.
+Classify every open source issue once as unmanaged, managed, likely
+resolved/superseded, needs more evidence, or ready for human decision. Cluster
+symptoms by likely root cause before suggesting managed work: several issue
+counts never imply several required changes. Be conservative: cite issue
+numbers and brief evidence, distinguish facts from inferences, and say when
+the backlog is empty. Do not propose code changes as actions for yourself,
+create implementation pull requests, accept OpenSpec changes, create managed
+tasks, or close/relabel/comment on source evidence.
