@@ -10,10 +10,14 @@ context: |
 
 rules:
   proposal:
+    - State the expected outcome and concrete success criteria or verification evidence. Use quantitative thresholds when meaningful; otherwise use binary or directly observable evidence instead of inventing KPIs.
+    - State relevant constraints and explicit non-goals that bound the accepted iteration.
+    - For a change to existing behavior, workflow, UX, contract, or architecture whose transition is not otherwise clear, include a concise current-to-target description.
     - State whether the change affects new projects, existing-project updates, or both.
     - Separate universal platform behavior from project/profile-specific behavior.
     - Identify downstream managed files and compatibility risks.
   design:
+    - When a change materially affects data or migrations, security/privacy, CI or release lifecycle, external integrations, backwards compatibility, cross-project rollout, or a comparable high-consequence boundary, record concrete risks and mitigations. Do not add generic risk boilerplate for low-risk work.
     - Define ownership boundaries and upgrade/rollback behavior.
     - Prefer dependency-light, deterministic tooling.
     - Avoid requiring secrets or machine-specific absolute paths.
@@ -35,6 +39,6 @@ operations:
       - Confirm durable platform behavior is represented in docs/template before archiving.
       - Ensure completed task checkboxes reflect validated implementation.
       - For non-trivial changes, require project/platform checks plus semantic OpenSpec verification before archive; structural openspec validate alone is insufficient.
-      - Prefer /opsx:verify when available; otherwise document the equivalent completeness/correctness/coherence review.
+      - Prefer /opsx:verify when available; otherwise document the equivalent review of outcome/success evidence, completeness, correctness, and coherence.
       - 'After material findings are resolved, record `OpenSpec-Verify: PASS` and `Verification-Method: <method>` in the active change verification.md.'
       - Archive central platform changes through `python3 template/scripts/openspec_lifecycle.py archive <change>` so completion requirements are mechanically checked.

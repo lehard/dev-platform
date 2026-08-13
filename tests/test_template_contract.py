@@ -4,6 +4,8 @@ import re
 import unittest
 from pathlib import Path
 
+import jinja2
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -32,6 +34,37 @@ class TemplateContractTests(unittest.TestCase):
     def test_root_openspec_receipt_guidance_is_yaml_safe(self) -> None:
         config = (ROOT / "openspec" / "config.yaml").read_text(encoding="utf-8")
         self.assertIn("'After material findings are resolved, record `OpenSpec-Verify: PASS`", config)
+
+    def test_outcome_oriented_openspec_authoring_contract_is_shared(self) -> None:
+        central_config = (ROOT / "openspec" / "config.yaml").read_text(encoding="utf-8")
+        generated_template = (ROOT / "template" / "openspec" / "config.yaml.jinja").read_text(encoding="utf-8")
+        generated_config = jinja2.Environment(undefined=jinja2.StrictUndefined).from_string(generated_template).render(
+            project_name="Example Project",
+            project_description="Template render coverage",
+        )
+        central_workflow = (ROOT / "docs" / "engineering" / "openspec-workflow.md").read_text(encoding="utf-8")
+        generated_workflow = (ROOT / "template" / "docs" / "engineering" / "openspec-workflow.md").read_text(encoding="utf-8")
+
+        for policy_name, policy in (("central", central_config), ("generated", generated_config)):
+            with self.subTest(policy=policy_name):
+                self.assertIn("expected outcome", policy)
+                self.assertIn("success criteria or verification evidence", policy)
+                self.assertIn("quantitative thresholds when meaningful", policy)
+                self.assertIn("binary or directly observable evidence", policy)
+                self.assertIn("relevant constraints and explicit non-goals", policy)
+                self.assertIn("current-to-target description", policy)
+                self.assertIn("concrete risks and mitigations", policy)
+                self.assertIn("Do not add generic risk boilerplate for low-risk work", policy)
+                self.assertIn("outcome/success evidence, completeness, correctness, and coherence", policy)
+
+        for workflow_name, workflow in (("central", central_workflow), ("generated", generated_workflow)):
+            with self.subTest(workflow=workflow_name):
+                self.assertIn("## Author the outcome contract", workflow)
+                self.assertIn("Do not invent a KPI", workflow)
+                self.assertIn("Do not create a mandatory `intent.md`", workflow)
+                self.assertIn("Must/Should/Could", workflow)
+                self.assertIn("manual status/date/expiry/artifact ledger", workflow)
+                self.assertIn("authored outcome and success evidence", workflow)
 
     def test_downstream_platform_ci_is_self_contained_and_does_not_own_project_ci_name(self) -> None:
         workflow = (ROOT / "template" / ".github" / "workflows" / "dev-platform.yml.jinja").read_text(encoding="utf-8")

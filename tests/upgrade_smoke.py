@@ -109,6 +109,9 @@ def main() -> int:
             raise SystemExit("Copier update did not materialize provider-local model routing")
         if not (target / "docs" / "engineering" / "model-routing.md").is_file():
             raise SystemExit("Copier update did not materialize model-routing guidance")
+        openspec_workflow = (target / "docs" / "engineering" / "openspec-workflow.md").read_text(encoding="utf-8")
+        if "## Author the outcome contract" not in openspec_workflow:
+            raise SystemExit("Copier update did not propagate outcome-oriented OpenSpec guidance")
         updated_config = platform_config.read_text(encoding="utf-8")
         if (
             "[development_backlog]" not in updated_config

@@ -11,10 +11,13 @@ context: |
 
 rules:
   proposal:
-    - State goals and non-goals explicitly.
+    - State the expected outcome and concrete success criteria or verification evidence. Use quantitative thresholds when meaningful; otherwise use binary or directly observable evidence instead of inventing KPIs.
+    - State relevant constraints and explicit non-goals that bound the accepted iteration.
+    - For a change to existing behavior, workflow, UX, contract, or architecture whose transition is not otherwise clear, include a concise current-to-target description.
     - Identify affected existing domains, integrations, contracts and source-of-truth ownership.
     - Prefer evolving the existing system over creating parallel canonical sources.
   design:
+    - When a change materially affects data or migrations, security/privacy, CI or release lifecycle, external integrations, backwards compatibility, cross-project rollout, or a comparable high-consequence boundary, record concrete risks and mitigations. Do not add generic risk boilerplate for low-risk work.
     - Document migration/backfill, compatibility, audit/history, rollback/cutover and performance implications when relevant.
     - Resolve shared contracts before declaring workstreams safe to run in parallel.
   tasks:
@@ -33,6 +36,6 @@ operations:
       - Preserve durable architecture/runbook information in docs/ when it is operational context rather than product behavior.
       - Confirm task checkboxes and verification reflect implemented state before archive.
       - For non-trivial changes, require project-specific checks/QA and semantic OpenSpec verification before archive.
-      - Prefer /opsx:verify when available; otherwise document the equivalent completeness/correctness/coherence review.
+      - Prefer /opsx:verify when available; otherwise document the equivalent review of outcome/success evidence, completeness, correctness, and coherence.
       - 'After material findings are resolved, record `OpenSpec-Verify: PASS` and `Verification-Method: <method>` in the active change verification.md.'
       - Use `python3 scripts/openspec_lifecycle.py archive <change>` as the normal project archive entrypoint so completion requirements are mechanically checked.

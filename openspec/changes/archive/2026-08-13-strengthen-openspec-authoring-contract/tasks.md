@@ -1,0 +1,10 @@
+- [x] Reconcile the current central and generated OpenSpec proposal/design rules and the accepted lifecycle/spec boundaries.
+- [x] Add outcome-oriented proposal guidance requiring expected outcome, concrete success evidence, relevant constraints and non-goals without mandating numeric KPIs.
+- [x] Add conditional current-to-target guidance for changes to existing behavior/workflows where the transition is not otherwise clear.
+- [x] Add proportional design guidance for concrete risks and mitigations in materially risky changes while explicitly avoiding boilerplate risk ceremony.
+- [x] Preserve the existing proposal/specs/design/tasks artifact model and keep `intent.md`, manual lifecycle metadata and mandatory MoSCoW out of the platform contract.
+- [x] Update `openspec/config.yaml` and `template/openspec/config.yaml.jinja` consistently.
+- [x] Update central/generated OpenSpec workflow documentation so semantic verification checks the authored outcome/success evidence as well as specs completeness/correctness/coherence.
+- [x] Add focused structure/render/parity coverage or representative fixtures sufficient to catch central/template authoring-policy drift.
+- [x] Validate both new-project rendering and existing-project Copier update implications.
+- [x] Run semantic OpenSpec verification and the risk-proportional relevant platform checks before archive/publication.
