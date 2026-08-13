@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -84,6 +86,154 @@ class GitLifecycleTests(unittest.TestCase):
         (self.repo / "scripts" / "agent_board.py").write_text("# legacy board\n", encoding="utf-8")
         result = run("python3", "scripts/finish_task.py", "--status", cwd=self.repo, check=False)
         self.assertNotIn("cannot import name 'warn_current_worktree_scope_overlap'", result.stderr + result.stdout)
+
+    def test_multi_agent_direct_finish_blocks_then_resolves_new_hard_overlap(self) -> None:
+        """Reproduces dev-platform#220/#224: a hard overlap discovered after admission
+
+        must gate publication instead of only printing an advisory warning, and an
+        explicit acknowledgment (dev-platform#203) resolves it without narrowing scope.
+        """
+        shutil.copy2(SCRIPT_SOURCE / "agent_board.py", self.repo / "scripts" / "agent_board.py")
+        config = (
+            'main_branch = "main"\n'
+            'workflow_profile = "multi-agent"\n'
+            'harness_mode = "platform"\n'
+            'protected_main = false\n'
+            'publish_mode = "direct"\n'
+            '[paths]\n'
+            'agent_board = ".claude/agents-board.json"\n'
+        )
+        (self.repo / ".dev-platform.toml").write_text(config, encoding="utf-8")
+        git("add", ".", cwd=self.repo)
+        git("commit", "-m", "multi-agent direct + board script", cwd=self.repo)
+        git("push", cwd=self.repo)
+
+        first = self.repo / ".claude" / "worktrees" / "first"
+        first.parent.mkdir(parents=True, exist_ok=True)
+        git("worktree", "add", "-b", "agent/first", str(first), "main", cwd=self.repo)
+        configure(first)
+        (first / "shared.py").write_text("first change\n", encoding="utf-8")
+        git("add", "shared.py", cwd=first)
+        git("commit", "-m", "first touches shared", cwd=first)
+
+        second = self.repo / ".claude" / "worktrees" / "second"
+        git("worktree", "add", "-b", "agent/second", str(second), "main", cwd=self.repo)
+        configure(second)
+        (second / "shared.py").write_text("second change\n", encoding="utf-8")
+        git("add", "shared.py", cwd=second)
+        git("commit", "-m", "second scope evolved onto shared.py after admission", cwd=second)
+
+        board = self.repo / ".claude" / "agents-board.json"
+        board.parent.mkdir(parents=True, exist_ok=True)
+        heartbeat = datetime.now(timezone.utc).isoformat()
+        board.write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "items": [
+                        {
+                            "id": "first-id", "task": "first task", "scope": "shared.py",
+                            "branch": "agent/first", "worktree": str(first),
+                            "heartbeat": heartbeat, "claims": ["shared.py"],
+                        },
+                        {
+                            "id": "second-id", "task": "second task", "scope": "",
+                            "branch": "agent/second", "worktree": str(second),
+                            "heartbeat": heartbeat, "claims": [],
+                        },
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        blocked = run("python3", "scripts/finish_task.py", "--no-checks", cwd=second, check=False, env=explicit_bypass_env())
+        self.assertNotEqual(blocked.returncode, 0)
+        blocked_output = blocked.stderr + blocked.stdout
+        self.assertIn("Unacknowledged hard scope overlap", blocked_output)
+        self.assertIn("first-id", blocked_output)
+        self.assertIn("shared.py", blocked_output)
+
+        acknowledged = run(
+            "python3", "scripts/agent_board.py", "acknowledge",
+            "--branch", "agent/second", "--worktree", str(second),
+            "--with-id", "first-id", "--path", "shared.py",
+            "--reason", "verified independent edits to distinct functions in shared.py",
+            cwd=self.repo,
+        )
+        self.assertEqual(acknowledged.returncode, 0, acknowledged.stderr)
+
+        published = run("python3", "scripts/finish_task.py", "--no-checks", cwd=second, check=False, env=explicit_bypass_env())
+        self.assertEqual(published.returncode, 0, published.stderr + published.stdout)
+        self.assertIn("Task published directly.", published.stdout)
+        self.assertNotIn("Unacknowledged hard scope overlap", published.stderr + published.stdout)
+
+    def test_protected_full_validation_blocks_before_costly_commands_run(self) -> None:
+        """dev-platform#220: the gate must trigger before costly validation runs, not only at finish."""
+        for name in ("agent_board.py", "select_checks.py"):
+            shutil.copy2(SCRIPT_SOURCE / name, self.repo / "scripts" / name)
+        config = (
+            'main_branch = "main"\n'
+            'workflow_profile = "multi-agent"\n'
+            'harness_mode = "platform"\n'
+            '[paths]\n'
+            'agent_board = ".claude/agents-board.json"\n'
+            'checks = "dev-platform/checks.toml"\n'
+        )
+        (self.repo / ".dev-platform.toml").write_text(config, encoding="utf-8")
+        (self.repo / "dev-platform").mkdir(exist_ok=True)
+        (self.repo / "dev-platform" / "checks.toml").write_text(
+            '[settings]\nfull_commands = ["python3 -c \\"import sys; sys.exit(1)\\""]\n', encoding="utf-8"
+        )
+        git("add", ".", cwd=self.repo)
+        git("commit", "-m", "multi-agent full-validation fixture", cwd=self.repo)
+        git("push", cwd=self.repo)
+
+        first = self.repo / ".claude" / "worktrees" / "gate-first"
+        first.parent.mkdir(parents=True, exist_ok=True)
+        git("worktree", "add", "-b", "agent/gate-first", str(first), "main", cwd=self.repo)
+        configure(first)
+        (first / "shared.py").write_text("first\n", encoding="utf-8")
+        git("add", "shared.py", cwd=first)
+        git("commit", "-m", "first shared", cwd=first)
+
+        second = self.repo / ".claude" / "worktrees" / "gate-second"
+        git("worktree", "add", "-b", "agent/gate-second", str(second), "main", cwd=self.repo)
+        configure(second)
+        (second / "shared.py").write_text("second\n", encoding="utf-8")
+        git("add", "shared.py", cwd=second)
+        git("commit", "-m", "second scope evolved onto shared.py", cwd=second)
+
+        board = self.repo / ".claude" / "agents-board.json"
+        board.parent.mkdir(parents=True, exist_ok=True)
+        heartbeat = datetime.now(timezone.utc).isoformat()
+        board.write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "items": [
+                        {
+                            "id": "first-id", "task": "first task", "scope": "shared.py",
+                            "branch": "agent/gate-first", "worktree": str(first),
+                            "heartbeat": heartbeat, "claims": ["shared.py"],
+                        },
+                        {
+                            "id": "second-id", "task": "second task", "scope": "",
+                            "branch": "agent/gate-second", "worktree": str(second),
+                            "heartbeat": heartbeat, "claims": [],
+                        },
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        result = run("python3", "scripts/select_checks.py", "--mode", "protected-full", "--execute", cwd=second, check=False)
+        self.assertNotEqual(result.returncode, 0)
+        output = result.stderr + result.stdout
+        self.assertIn("Unacknowledged hard scope overlap", output)
+        # The costly command (which would exit 1 if it ran) was never started.
+        self.assertNotIn("DEV_PLATFORM_CHECK_COMMAND", output)
 
     def test_standard_direct_finish_integrates_and_pushes(self) -> None:
         (self.repo / ".dev-platform.toml").write_text('main_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\npublish_mode = "direct"\n', encoding="utf-8"); git("add", ".dev-platform.toml", cwd=self.repo); git("commit", "-m", "standard profile", cwd=self.repo); git("push", cwd=self.repo)

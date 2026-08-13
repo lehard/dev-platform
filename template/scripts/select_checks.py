@@ -11,11 +11,27 @@ from typing import Any
 from _platform_common import (
     TaskFreshnessError,
     current_worktree_root,
+    main_root,
     read_platform_config,
     require_fresh_task_base,
     run_git,
     validation_subprocess_env,
 )
+
+try:
+    from agent_board import HardScopeOverlap, enforce_scope_gate
+except (ImportError, ModuleNotFoundError):  # Compatibility while an older rendered project is being upgraded.
+    class HardScopeOverlap(RuntimeError):
+        pass
+
+    def enforce_scope_gate(root: Path, worktree: Path, branch: str) -> None:
+        return None
+
+try:
+    from managed_project_status import block_for_scope_conflict
+except (ImportError, ModuleNotFoundError):  # Compatibility while an older rendered project is being upgraded.
+    def block_for_scope_conflict(root: Path, reason: str):
+        return None
 
 
 def load_config(root: Path) -> dict[str, Any]:
@@ -358,6 +374,12 @@ def main() -> int:
                     "Task freshness gate blocked full/protected validation before any expensive command started: " + str(exc)
                 ) from exc
             print(f"Task freshness gate passed: HEAD contains freshly observed origin/{read_platform_config(root).get('main_branch', 'main')} ({observed}).")
+            branch = run_git(["branch", "--show-current"], cwd=root).stdout.strip()
+            try:
+                enforce_scope_gate(main_root(), root, branch)
+            except HardScopeOverlap as exc:
+                block_for_scope_conflict(root, str(exc))
+                raise SystemExit(str(exc)) from exc
         evidence_path = (root / args.evidence).resolve() if args.evidence else None
         return execute(root, checks, evidence_path)
     return 0

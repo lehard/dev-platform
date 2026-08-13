@@ -145,6 +145,56 @@ class ManagedProjectStatusTests(unittest.TestCase):
             git.return_value.stdout = ""
             self.assertIsNone(managed_project_status.reconcile(self.root, "In progress"))
 
+    def test_block_for_scope_conflict_sets_blocked_status(self) -> None:
+        calls: list[dict[str, object]] = []
+
+        def graphql(root, env, query, variables):
+            calls.append(variables)
+            return project_payload(current="In progress") if len(calls) == 1 else {"data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "item-1"}}}}
+
+        with (
+            patch.object(managed_project_status, "github_cli_env", return_value={}),
+            patch.object(managed_project_status, "_graphql", side_effect=graphql),
+        ):
+            observation = managed_project_status.block_for_scope_conflict(self.root, "hard overlap with sibling-id: shared.py")
+        assert observation is not None
+        self.assertTrue(observation.changed)
+        self.assertEqual(observation.current_status, "Blocked")
+
+    def test_block_for_scope_conflict_is_noop_for_a_quick_task_without_provenance(self) -> None:
+        (self.root / "openspec" / "changes" / "managed" / ".managed-task.json").unlink()
+        with patch.object(managed_project_status, "run_git") as git:
+            git.return_value.returncode = 1
+            git.return_value.stdout = ""
+            self.assertIsNone(managed_project_status.block_for_scope_conflict(self.root, "reason"))
+
+    def test_resume_from_scope_conflict_is_noop_when_not_blocked(self) -> None:
+        with (
+            patch.object(managed_project_status, "github_cli_env", return_value={}),
+            patch.object(managed_project_status, "_graphql", return_value=project_payload(current="In progress")) as graphql,
+        ):
+            self.assertIsNone(managed_project_status.resume_from_scope_conflict(self.root))
+        self.assertEqual(graphql.call_count, 1)  # Only observe() ran; no mutation was attempted.
+
+    def test_resume_from_scope_conflict_returns_blocked_to_derived_status(self) -> None:
+        calls: list[dict[str, object]] = []
+
+        def graphql(root, env, query, variables):
+            calls.append(variables)
+            # observe() and reconcile() each re-query project state before the
+            # mutation call, so the query payload must be returned twice.
+            return project_payload(current="Blocked") if len(calls) <= 2 else {"data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "item-1"}}}}
+
+        with (
+            patch.object(managed_project_status, "github_cli_env", return_value={}),
+            patch.object(managed_project_status, "_graphql", side_effect=graphql),
+            patch.object(managed_project_status, "derive_resume_status", return_value="In progress"),
+        ):
+            observation = managed_project_status.resume_from_scope_conflict(self.root)
+        assert observation is not None
+        self.assertTrue(observation.changed)
+        self.assertEqual(observation.current_status, "In progress")
+
     def test_graphql_keeps_numeric_looking_option_id_as_string(self) -> None:
         completed = SimpleNamespace(returncode=0, stdout='{"data": {}}', stderr="")
         with patch.object(managed_project_status.subprocess, "run", return_value=completed) as run:
