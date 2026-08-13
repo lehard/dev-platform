@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 import tempfile
 import unittest
@@ -183,6 +184,54 @@ class ManagedStatusLifecycleTests(unittest.TestCase):
         ):
             with self.assertRaisesRegex(managed_project_status.ManagedProjectStatusError, "rerun finish_task"):
                 managed_project_status.derive_resume_status(root)
+
+
+class SourceIssueDriftStatusTests(unittest.TestCase):
+    """--status surfaces bounded source-Issue drift evidence without ever blocking."""
+
+    def run_status(self, *, as_json: bool, drift):
+        root = Path("/tmp/managed-drift-status")
+        config = {}
+        drift_patch = (
+            mock.patch.object(finish_task, "observe_source_issue_drift", side_effect=drift)
+            if isinstance(drift, Exception)
+            else mock.patch.object(finish_task, "observe_source_issue_drift", return_value=drift)
+        )
+        with (
+            mock.patch.object(finish_task, "current_branch", return_value="agent/managed"),
+            mock.patch.object(finish_task, "github_cli_env", return_value={}),
+            mock.patch.object(finish_task.publication_state, "observe_publication", return_value=SimpleNamespace()),
+            mock.patch.object(finish_task.publication_state, "merge_durability_capability", return_value="full"),
+            mock.patch.object(finish_task.publication_state, "status_payload", return_value={"status": "in_review"}),
+            mock.patch.object(finish_task.publication_state, "status_text", return_value="status: in_review"),
+            drift_patch,
+            mock.patch("builtins.print") as printed,
+        ):
+            code = finish_task.run_status(root, root, config, as_json=as_json)
+        self.assertEqual(code, 0)
+        return [call.args[0] for call in printed.call_args_list]
+
+    def test_status_json_includes_source_issue_drift_field(self) -> None:
+        drift = {"source_issue": "lehard/development-backlog#8", "drifted": True, "recorded_body_sha256": "a" * 64, "current_body_sha256": "b" * 64}
+        [output] = self.run_status(as_json=True, drift=drift)
+        payload = json.loads(output)
+        self.assertEqual(payload["source_issue_drift"], drift)
+
+    def test_status_text_prints_drift_note_only_when_drifted(self) -> None:
+        drifted = {"source_issue": "lehard/development-backlog#8", "drifted": True}
+        outputs = self.run_status(as_json=False, drift=drifted)
+        self.assertIn("status: in_review", outputs)
+        self.assertTrue(any("source_issue_drift" in line and "lehard/development-backlog#8" in line for line in outputs))
+
+        not_drifted = {"source_issue": "lehard/development-backlog#8", "drifted": False}
+        outputs = self.run_status(as_json=False, drift=not_drifted)
+        self.assertFalse(any("source_issue_drift" in line for line in outputs))
+
+    def test_status_survives_github_unavailable_during_drift_check(self) -> None:
+        outputs = self.run_status(as_json=True, drift=RuntimeError("gh unavailable"))
+        [output] = outputs
+        payload = json.loads(output)
+        self.assertIsNone(payload["source_issue_drift"])
 
 
 if __name__ == "__main__":

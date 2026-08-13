@@ -16,7 +16,17 @@ Four intents stay distinct.
 python3 scripts/managed_task.py create --bundle <directory>
 ```
 
-The bundle contains `manifest.json` (`title`, `change`, ordered `artifacts`), `issue.md`, and those artifacts. The helper validates the configured Backlog contract and the temporary OpenSpec change, performs bounded duplicate checking, publishes one `managed-openspec:v1` package, then stops. Review potential-overlap candidates and pass `--confirm-distinct` only after deciding the scopes are separate. Do not implement, apply, dispatch, publish, or change Project state after authoring; wait for a separate execution request.
+The bundle contains `manifest.json` (`title`, `change`, ordered `artifacts`), `issue.md`, and those artifacts. The helper validates the configured Backlog contract and the temporary OpenSpec change against a short-lived checkout of the exact `prepared_against` revision it records (never a possibly-stale local working tree), performs bounded duplicate checking, publishes one `managed-openspec:v1` package carrying bounded source-Issue revision evidence (`updated_at` plus a normalized title/body hash), then stops. Review potential-overlap candidates and pass `--confirm-distinct` only after deciding the scopes are separate. Do not implement, apply, dispatch, publish, or change Project state after authoring; wait for a separate execution request.
+
+If the source Issue is edited after authoring but before `start_managed_task.py`/`managed_task.py` materializes it, start stops with an actionable diagnostic naming the recorded and current body hashes; either author a superseding package or rerun with `--acknowledge-source-issue-revision <current_body_sha256>` to explicitly keep the existing package's scope. Once a package is materialized, local OpenSpec stays canonical -- later Issue edits never rewrite it automatically; `dogfood_task.py status`/`finish_task.py --status --json` instead expose a bounded `source_issue_drift` field for the human/agent to notice.
+
+A published package that fails supported intake validation, or whose pre-execution scope needs revising, is replaced with:
+
+```bash
+python3 scripts/managed_task.py supersede --bundle <directory> owner/repo#N
+```
+
+`supersede` validates the replacement against the exact current target state before activating it, rewrites the predecessor comment with a bounded `supersedes` link rather than leaving two ambiguous active packages, and is refused once the task has already reached `In review`/`Done` Project status. Retrying with an unchanged bundle converges as a no-op.
 
 Authoring also records a provider-neutral recommended start tier (`R2` balanced by default) and prefixes the created Issue title with `[R2]`. Pass `--strong-trigger <category>` only when a concrete hard trigger applies (see [docs/engineering/model-routing.md](model-routing.md)) to recommend `R3` instead; diff size, file count or blast radius alone are never a valid reason to pass it.
 
@@ -64,7 +74,7 @@ python3 scripts/dogfood_task.py finish
 
 `managed_task.py owner/repo#N` alone refuses to run directly on this repository's own integration checkout (`harness_mode=platform`, `workflow_profile=multi-agent`) and points here instead; `start_managed_task.py` performs the same read-only package intake from outside that checkout, then creates/reuses the task worktree/branch itself. For a change lacking `.managed-task.json` provenance from before that enforcement existed, see the recovery evidence in `lehard/dev-platform#204`.
 
-`status` is read-only and reports task-vs-authoritative-main freshness before costly validation. If it reports `behind` or `diverged`, run `reconcile`: the explicit operation refuses dirty/provenance-ambiguous/changed-remote state and uses a normal merge only, never a rebase, force-push, reset or automatic stash. A reconciled head must rerun validation before `finish`, which delegates to the authoritative GitHub-backed publication/reconciliation lifecycle and is resumable; branch pushed, draft or open PR, and green checks are nonterminal states. Do not report source work as complete until GitHub reports the exact PR `MERGED` and local `main` has been reconciled (with cleanup warnings classified under the shared lifecycle policy).
+`status` is read-only and reports task-vs-authoritative-main freshness before costly validation; for a managed task it also carries a bounded, best-effort `source_issue_drift` field (whether the source Issue's title/body changed since authoring) as evidence only -- local OpenSpec stays canonical and is never rewritten from it. If `status` reports `behind` or `diverged`, run `reconcile`: the explicit operation refuses dirty/provenance-ambiguous/changed-remote state and uses a normal merge only, never a rebase, force-push, reset or automatic stash. A reconciled head must rerun validation before `finish`, which delegates to the authoritative GitHub-backed publication/reconciliation lifecycle and is resumable; branch pushed, draft or open PR, and green checks are nonterminal states. Do not report source work as complete until GitHub reports the exact PR `MERGED` and local `main` has been reconciled (with cleanup warnings classified under the shared lifecycle policy).
 
 ## Scope discipline and capabilities
 
