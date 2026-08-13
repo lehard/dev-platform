@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "selection": {
+    "state": "ready",
+    "command_count": 2,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "git diff --check",
+      "duration_seconds": 0.148,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_docs_links.py",
+      "duration_seconds": 2.152,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "docs",
+      "paths": [
+        "openspec/changes/verify-codex-live-execution-provenance/.managed-task.json",
+        "openspec/changes/verify-codex-live-execution-provenance/.openspec.yaml",
+        "openspec/changes/verify-codex-live-execution-provenance/design.md",
+        "openspec/changes/verify-codex-live-execution-provenance/pilot-evidence.md",
+        "openspec/changes/verify-codex-live-execution-provenance/proposal.md",
+        "openspec/changes/verify-codex-live-execution-provenance/specs/model-routing/spec.md",
+        "openspec/changes/verify-codex-live-execution-provenance/tasks.md",
+        "openspec/changes/verify-codex-live-execution-provenance/verification.md"
+      ],
+      "commands": [
+        "git diff --check",
+        "python3 scripts/check_docs_links.py"
+      ],
+      "evidence_types": [
+        "configuration",
+        "configuration"
+      ]
+    }
+  ]
+}
