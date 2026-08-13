@@ -11,6 +11,7 @@ from pathlib import Path
 
 from _platform_common import (
     current_worktree_root,
+    github_cli_env,
     locked_json,
     machine_path,
     main_root,
@@ -18,6 +19,7 @@ from _platform_common import (
     run_git,
     utc_now,
 )
+import publication_state
 
 
 DEFAULT_STALE_HOURS = 72
@@ -317,6 +319,22 @@ def _merged_into(root: Path, branch: str, main_branch: str) -> bool:
     return result.returncode == 0
 
 
+def _exact_task_pr_is_merged(root: Path, branch: str, main_branch: str) -> bool:
+    """Whether GitHub proves this registered task branch was terminally merged.
+
+    Local ancestry is insufficient after a squash merge.  The publication
+    lookup binds the registered branch, configured base, and current local
+    branch head; it deliberately treats missing authentication, unreadable
+    responses, and every non-exact result as non-terminal.  That keeps scope
+    ownership fail-closed whenever terminal completion is not authoritative.
+    """
+    env = github_cli_env(root)
+    if env is None:
+        return False
+    lookup = publication_state.find_exact_local_branch_pr(root, env, branch, main_branch)
+    return lookup.available and lookup.exact_merged is not None
+
+
 def _status(item: dict, root: Path, *, main_branch: str, stale_hours: int) -> list[str]:
     problems: list[str] = []
     raw_worktree = item.get("worktree", "")
@@ -330,8 +348,13 @@ def _status(item: dict, root: Path, *, main_branch: str, stale_hours: int) -> li
             problems.append("branch-path-mismatch")
     if not branch or not _branch_exists(branch, root):
         problems.append("branch-missing")
-    elif branch != main_branch and _merged_into(root, branch, main_branch):
-        problems.append("merged-branch")
+    elif branch != main_branch:
+        if _merged_into(root, branch, main_branch):
+            problems.append("merged-branch")
+        elif _exact_task_pr_is_merged(root, branch, main_branch):
+            # A squash merge leaves this branch outside main's ancestry, but
+            # the exact GitHub PR is authoritative for scope ownership.
+            problems.append("merged-pr")
     if _heartbeat_is_stale(item.get("heartbeat"), stale_hours):
         problems.append("stale-heartbeat")
     return problems
@@ -501,7 +524,7 @@ def cmd_finish(args: argparse.Namespace) -> int:
 def _safe_to_remove(item: dict, problems: list[str]) -> bool:
     if "worktree-missing" in problems:
         return True
-    if "merged-branch" not in problems:
+    if "merged-branch" not in problems and "merged-pr" not in problems:
         return False
     raw = item.get("worktree")
     if not raw:
