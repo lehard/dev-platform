@@ -74,6 +74,7 @@ except ModuleNotFoundError:  # Compatibility while a pre-managed-intake render i
         return None
 
     def observe_source_issue_drift(root: Path):
+        return None
 
     def resolve_process_evidence_after_delivery(root: Path, identity, implementation_sha: str) -> None:
         return None

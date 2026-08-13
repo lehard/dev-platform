@@ -1224,6 +1224,28 @@ class SupersedeTaskTests(unittest.TestCase):
             self.assertEqual(package.supersedes, predecessor.revision)
             self.assertNotEqual(package.revision, predecessor.revision)
 
+    def test_supersede_preserves_predecessor_process_evidence_by_default(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            predecessor_body = package_body().replace(
+                '"artifacts":', '"process_evidence": ["lehard/dev-platform#17"], "artifacts":', 1
+            )
+            root, bundle_root, _bundle, issue, comments = self.setup_supersede(tmp, predecessor_body=predecessor_body)
+            with (
+                patch.object(managed_task, "origin_repository", return_value="lehard/dev-platform"),
+                patch.object(managed_task, "target_main", return_value="f" * 40),
+                patch.object(managed_task, "validate_authoring_bundle"),
+                patch.object(managed_task, "validate_process_evidence") as validate_evidence,
+                patch.object(managed_task, "fetch_issue", return_value=issue),
+                patch.object(managed_task, "issue_comments", return_value=comments),
+                patch.object(managed_task.managed_project_status, "observe", return_value=None),
+                patch.object(managed_task, "patch_comment_superseded"),
+                patch.object(managed_task, "publish_package", return_value=False),
+            ):
+                package, activated = managed_task.supersede_task(root, str(bundle_root), "lehard/development-backlog#1")
+            self.assertTrue(activated)
+            self.assertEqual(package.process_evidence, ("lehard/dev-platform#17",))
+            validate_evidence.assert_called_once_with(root, package.process_evidence)
+
     def test_supersede_requires_matching_change_for_a_well_formed_predecessor(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             predecessor_body = package_body()  # change=add-managed-backlog-intake
