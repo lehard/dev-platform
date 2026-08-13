@@ -14,6 +14,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
@@ -29,6 +30,16 @@ DIRECTORY_MODE = stat.S_IRWXG | stat.S_ISGID
 FILE_MODE = stat.S_IRGRP | stat.S_IWGRP
 GIT_TREES = ("objects", "refs", "logs", "worktrees")
 GIT_FILES = ("config", "FETCH_HEAD", "HEAD", "index", "ORIG_HEAD", "packed-refs", "shallow")
+LIFECYCLE_PATH_DEFAULTS = {
+    "worktrees": ".claude/worktrees",
+    "agent_board": ".claude/agents-board.json",
+    "main_merge_lock": ".claude/main-merge.lock",
+    "pending_worktrees": ".claude/pending-worktrees.md",
+    "friction_log": ".claude/agent-friction.jsonl",
+    "friction_state": ".claude/agent-friction-state.json",
+    "friction_reports": ".claude/reports/process-improvement",
+}
+RECURSIVE_LIFECYCLE_PATHS = {"friction_reports", "model_routing"}
 
 
 class SharedWorkspaceError(RuntimeError):
@@ -138,6 +149,53 @@ def _walk_tree(path: Path, boundary: Path) -> Iterable[Path]:
     return entries
 
 
+def _registered_claude_path(integration: Path, relative: str) -> Path:
+    """Resolve one configured platform path without trusting foreign entries.
+
+    The configuration may register lifecycle state only below ``.claude``.
+    Unknown siblings are deliberately never resolved or enumerated: tool
+    runtimes are free to use that ignored directory for their own state.
+    """
+    candidate = integration / relative
+    try:
+        local = candidate.relative_to(integration)
+    except ValueError as exc:
+        raise SharedWorkspaceError(f"registered lifecycle path is outside the integration checkout: {relative}") from exc
+    if not local.parts or local.parts[0] != ".claude":
+        raise SharedWorkspaceError(f"registered lifecycle path is outside .claude: {relative}")
+    if candidate.is_symlink() or not _within(candidate, integration):
+        raise SharedWorkspaceError(f"refusing symlink or boundary escape in registered lifecycle path: {candidate}")
+    return candidate
+
+
+def _lifecycle_paths(integration: Path) -> list[tuple[str, Path]]:
+    """Return the reviewed lifecycle allowlist, never all ``.claude`` children."""
+    configured: dict[str, object] = {}
+    config_path = integration / ".dev-platform.toml"
+    if config_path.is_file():
+        try:
+            with config_path.open("rb") as handle:
+                loaded = tomllib.load(handle)
+            paths = loaded.get("paths", {})
+            configured = paths if isinstance(paths, dict) else {}
+        except (OSError, tomllib.TOMLDecodeError):
+            # Configuration validation supplies the actionable diagnostic. The
+            # permission helper remains safely bounded to its defaults.
+            configured = {}
+    result: list[tuple[str, Path]] = []
+    for key, default in LIFECYCLE_PATH_DEFAULTS.items():
+        value = configured.get(key, default)
+        if not isinstance(value, str) or not value:
+            value = default
+        path = _registered_claude_path(integration, value)
+        result.append((key, path))
+        # ``locked_json`` and friction logging create these sidecar locks.
+        if key in {"agent_board", "friction_log"}:
+            result.append((key, _registered_claude_path(integration, value + ".lock")))
+    result.append(("model_routing", _registered_claude_path(integration, ".claude/model-routing")))
+    return result
+
+
 def registered_paths(root: Path) -> tuple[Path, Path, list[Path]]:
     """Return only the roots that platform operations are permitted to repair."""
     integration = _safe_root(integration_root(root))
@@ -147,16 +205,18 @@ def registered_paths(root: Path) -> tuple[Path, Path, list[Path]]:
     paths: list[Path] = [integration]
     claude = integration / ".claude"
     if claude.exists():
-        # Worktree *directories* are platform coordination paths, but their
-        # contents are full project checkouts and are not ours to chmod.
+        if claude.is_symlink() or not _within(claude, integration):
+            raise SharedWorkspaceError(f"refusing symlink or boundary escape in registered lifecycle path: {claude}")
         paths.append(claude)
-        for child in claude.iterdir():
-            if child.name == "worktrees":
-                if child.is_symlink():
-                    raise SharedWorkspaceError(f"refusing symlink in shared metadata: {child}")
-                paths.append(child)
-            else:
-                paths.extend(_walk_tree(child, integration))
+    for key, path in _lifecycle_paths(integration):
+        if not path.exists():
+            continue
+        # Worktree directories are platform administration state, but their
+        # contents are complete project checkouts and remain out of scope.
+        if key in RECURSIVE_LIFECYCLE_PATHS:
+            paths.extend(_walk_tree(path, integration))
+        else:
+            paths.append(path)
     paths.append(common)
     for name in GIT_TREES:
         paths.extend(_walk_tree(common / name, common))
