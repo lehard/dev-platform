@@ -1,0 +1,15 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "specs/shared-workspace-safety/spec.md",
+    "design.md",
+    "tasks.md"
+  ],
+  "change": "bound-shared-workspace-metadata",
+  "imported_at": "2026-08-13T06:34:07+00:00",
+  "package_revision": "c70d31830919ec02d70c0f3f770805fe41437901924a282599f150d64b4f12d9",
+  "prepared_against": "5eb43498ec0ba996932adf9d0a46d1df5993e29a",
+  "source_issue": "lehard/development-backlog#22",
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
