@@ -20,6 +20,7 @@ source_required_paths = [
   "scripts/start_task.py",
   "scripts/managed_project_status.py",
   "scripts/finish_task.py",
+  "scripts/reconcile_task.py",
   "scripts/openspec_lifecycle.py",
 ]
 

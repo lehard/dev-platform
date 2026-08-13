@@ -94,6 +94,11 @@ class CentralDogfoodLifecycleTests(unittest.TestCase):
             ],
         )
 
+    def test_reconcile_delegates_to_the_explicit_shared_lifecycle_operation(self) -> None:
+        with mock.patch.object(dogfood_task, "current_root", return_value=self.root), mock.patch.object(dogfood_task, "run") as run:
+            self.assertEqual(dogfood_task.reconcile(dogfood_task.argparse.Namespace()), 0)
+        self.assertEqual(run.call_args.args[0], ["python3", "scripts/finish_task.py", "--reconcile"])
+
     def test_route_codex_dispatches_the_supervisor_selected_profile(self) -> None:
         args = dogfood_task.argparse.Namespace(
             profile="standard",
@@ -266,7 +271,7 @@ class CentralDogfoodLifecycleTests(unittest.TestCase):
         self.assertIn("scripts/managed_project_status.py", config["source_required_paths"])
         self.assertIn("scripts/shared_workspace.py", config["source_required_paths"])
         for name in (
-            "agent_board.py", "agent_doctor.py", "agent_friction.py", "finish_task.py", "managed_project_status.py", "openspec_lifecycle.py", "shared_workspace.py",
+            "agent_board.py", "agent_doctor.py", "agent_friction.py", "finish_task.py", "reconcile_task.py", "managed_project_status.py", "openspec_lifecycle.py", "shared_workspace.py",
             "project_publish.py", "project_sync.py", "select_checks.py", "start_task.py", "start_worktree.py", "worktree_cleanup.py",
         ):
             with self.subTest(name=name):

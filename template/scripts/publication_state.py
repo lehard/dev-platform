@@ -266,6 +266,27 @@ def current_pr_head(root: Path, env: dict[str, str], branch: str) -> str | None:
     return value or None
 
 
+def pr_head_repository_owner(root: Path, env: dict[str, str], branch: str) -> str | None:
+    """Read the exact PR head repository owner for reconciliation ownership checks."""
+    result = subprocess.run(
+        ["gh", "pr", "view", branch, "--json", "headRepositoryOwner"],
+        cwd=root,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+    try:
+        payload = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return None
+    owner = payload.get("headRepositoryOwner") if isinstance(payload, dict) else None
+    login = owner.get("login") if isinstance(owner, dict) else None
+    return str(login).strip() if isinstance(login, str) and login.strip() else None
+
+
 def github_repo_name(root: Path, env: dict[str, str]) -> str | None:
     result = subprocess.run(
         ["gh", "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"],
