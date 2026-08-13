@@ -205,6 +205,29 @@ class ModelRoutingTests(unittest.TestCase):
 
         self.assertEqual(execution["participant"]["execution_id"], {"value": None, "kind": None})
 
+    def test_abnormal_codex_return_is_truthfully_recorded_and_dispatch_fails(self) -> None:
+        hard = guard.EnforcementDecision(guard.EnforcementTier.HARD, "codex-workspace-write-sandbox", "safe")
+        observed = SimpleNamespace(launched=True, returncode=None, violation=False, writer_state="released")
+        abnormal = guard.GuardedChildError("timed out after cleanup", observed)
+        with (
+            patch.object(routing, "main_root", return_value=self.integration),
+            patch.object(routing, "determine_codex_tier", return_value=hard),
+            patch.object(routing, "run_observed_delegation", side_effect=abnormal),
+        ):
+            with self.assertRaisesRegex(routing.RoutingError, "did not complete cleanly"):
+                routing.dispatch_codex(
+                    self.task,
+                    profile="standard",
+                    rationale="bounded current-spec preflight",
+                    evidence=["openspec/changes/routing-change"],
+                    prompt="implement",
+                )
+
+        saved = json.loads((self.task / ".claude" / "model-routing" / "routing-change.json").read_text(encoding="utf-8"))
+        self.assertEqual(saved["execution"]["outcome"], "abnormal")
+        self.assertEqual(saved["execution"]["writer_state"], "released")
+        self.assertIn("timed out after cleanup", saved["execution"]["error"])
+
     def test_escalation_preserves_task_context_and_uses_strong_policy(self) -> None:
         self.prepare()
         escalated = routing.escalate(self.task, "unexpected cross-cutting contract")
