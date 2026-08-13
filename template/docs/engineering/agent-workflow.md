@@ -47,6 +47,8 @@ git worktree list
 
 If the pending-worktree report shows forgotten work in the same area, resolve that overlap before starting another worktree. Safe old merged worktrees can be removed with `python3 scripts/worktree_cleanup.py cleanup`; never manually delete another agent's dirty or unmerged tree.
 
+After terminal task delivery, `finish_task.py --cleanup` records cleanup for a task worktree that is also the caller's cwd instead of deleting it synchronously. This preserves the truthful success exit. From a surviving integration checkout, run `python3 scripts/worktree_cleanup.py cleanup`; it removes only the recorded exact worktree/branch after verifying it is clean, inactive and still identity-matched, and repeated runs are safe.
+
 ## Task intake
 
 `AGENTS.md` owns the cross-agent task protocol. For an explicitly accepted non-trivial change that the user asks to record in Backlog, prepare a contained authoring bundle and run:

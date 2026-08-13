@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -40,6 +41,10 @@ from managed_project_status import (
     reconcile as reconcile_managed_project,
     resume_from_scope_conflict,
 )
+try:
+    from worktree_cleanup import defer_completed_task
+except ModuleNotFoundError:  # Compatibility while an existing project is being upgraded by Copier.
+    defer_completed_task = None
 try:
     from agent_board import HardScopeOverlap, enforce_scope_gate, warn_current_worktree_scope_overlap
 except (ImportError, ModuleNotFoundError):  # Compatibility while older rendered projects are upgraded.
@@ -328,8 +333,63 @@ def sync_after_remote_pr_merge(work: Path, integration: Path, config: dict, main
         raise SystemExit(f"Remote PR merged, but local {main_branch} vs {remote_main} is {state}. Refusing automatic reconciliation.")
 
 
+def _caller_cwd_is_within(worktree: Path) -> bool:
+    """Tell whether removing ``worktree`` would invalidate the invoking runner.
+
+    ``os.chdir(integration)`` only changes this Python child.  The shell or
+    wrapper that launched it keeps its own cwd, normally exposed as inherited
+    ``PWD``.  On hosts where that environment is unavailable, inspect the
+    immediate parent when ``lsof`` can provide the same evidence.  Unknown is
+    deliberately treated as unsafe: cleanup is housekeeping after authority,
+    so a deferred warning is preferable to a false terminal failure.
+    """
+    raw_pwd = os.environ.get("PWD")
+    if raw_pwd:
+        try:
+            return Path(raw_pwd).resolve().is_relative_to(worktree.resolve())
+        except OSError:
+            return True
+    lsof = shutil.which("lsof")
+    if lsof:
+        try:
+            observed = subprocess.run(
+                [lsof, "-a", "-p", str(os.getppid()), "-d", "cwd", "-Fn"],
+                text=True,
+                capture_output=True,
+                check=False,
+                timeout=5,
+            )
+            for line in observed.stdout.splitlines():
+                if line.startswith("n"):
+                    return Path(line[1:]).resolve().is_relative_to(worktree.resolve())
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+    return True
+
+
 def cleanup_completed_task(work: Path, integration: Path, branch: str, *, squash_merged: bool) -> None:
     if work == integration:
+        return
+
+    if _caller_cwd_is_within(work):
+        if defer_completed_task is None:
+            print(
+                f"WARNING: task is integrated, but cleanup is deferred because the caller cwd is inside {work}; "
+                "the installed worktree cleanup recovery helper is unavailable."
+            )
+            return
+        try:
+            record = defer_completed_task(integration, work, branch)
+        except (OSError, SystemExit) as exc:
+            print(
+                f"WARNING: task is integrated, but cleanup is deferred because the caller cwd is inside {work}; "
+                f"the deferred cleanup record could not be updated: {exc}"
+            )
+            return
+        print(
+            f"WARNING: task is integrated; deferred cleanup of caller worktree {work} is recorded at {record}. "
+            "Run scripts/worktree_cleanup.py cleanup later from a surviving integration context."
+        )
         return
 
     # The running process must leave the task worktree before asking Git to

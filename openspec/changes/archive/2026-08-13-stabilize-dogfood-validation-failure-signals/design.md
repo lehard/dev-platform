@@ -14,6 +14,6 @@ Terminal delivery remains GitHub `MERGED` plus required local reconciliation/Pro
 
 A child process calling `chdir(integration)` does not move the parent shell/runner out of the task worktree. Therefore synchronous deletion of the caller's cwd can still poison the wrapper after a successful Python exit.
 
-The safe design should detect when the invocation/caller context is rooted in the worktree that would be removed. In that case, do not make successful delivery depend on deleting that directory immediately. Reuse an existing pending-worktree cleanup mechanism or add the smallest idempotent deferred-cleanup record/entrypoint, executed later from a surviving integration context. If cleanup can safely happen synchronously, keep the current direct cleanup path.
+The safe design should detect when the invocation/caller context is rooted in the worktree that would be removed. In that case, do not make successful delivery depend on deleting that directory immediately. Persist one machine-local deferred-cleanup record bound to the exact worktree path, branch and Git head, then let `worktree_cleanup.py cleanup` remove it only from a surviving integration context after checking that it is inactive, board-free, clean and identity-matched. Repeated cleanup must converge after deleting the record. If cleanup can safely happen synchronously, keep the current direct cleanup path.
 
 A real merge, reconciliation or required-check failure remains terminally non-zero. Only post-authority housekeeping may be downgraded to a truthful cleanup-pending warning/state.
