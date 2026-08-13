@@ -135,6 +135,76 @@ class ModelRoutingTests(unittest.TestCase):
         self.assertIn("current working directory", agent["prompt"])
         self.assertIn(str(self.task.resolve()), agent["prompt"])
 
+    def test_claude_agent_hand_off_has_no_fictional_effort_or_maxturns(self) -> None:
+        # The current Agent tool schema accepts only description/isolation/
+        # model/prompt/run_in_background/subagent_type; effort and maxTurns
+        # are not real parameters and must not be emitted as if selectable.
+        route = self.prepare(provider="claude", profile="routine")
+        agent = routing.claude_agent(route)
+        self.assertNotIn("effort", agent)
+        self.assertNotIn("maxTurns", agent)
+
+    def test_prepare_records_supervisor_provenance_as_policy_selected(self) -> None:
+        route = self.prepare(provider="codex")
+        self.assertEqual(
+            route.supervisor,
+            {"role": "supervisor", "provider": "codex", "model": {"value": "strong-codex", "source": "selected"}},
+        )
+
+    def test_read_route_tolerates_missing_supervisor_field(self) -> None:
+        # Pre-provenance route records (written before this field existed)
+        # must not break resume/escalation for other in-flight tasks.
+        route = self.prepare()
+        saved_path = self.task / ".claude" / "model-routing" / "routing-change.json"
+        payload = json.loads(saved_path.read_text(encoding="utf-8"))
+        del payload["supervisor"]
+        saved_path.write_text(json.dumps(payload), encoding="utf-8")
+        reread, _ = routing._read_route(self.task)
+        self.assertEqual(reread.supervisor, {})
+
+    def test_run_codex_extracts_thread_id_from_json_event_stream(self) -> None:
+        route = self.prepare()
+        hard = guard.EnforcementDecision(guard.EnforcementTier.HARD, "codex-workspace-write-sandbox", "safe")
+
+        def fake_run_observed_delegation(*, stdout_line_hook, **_kwargs):
+            stdout_line_hook('{"type":"thread.started","thread_id":"019ff7be-6e9d-7110-98bb-2591886d55d1"}')
+            stdout_line_hook('{"type":"turn.started"}')
+            return SimpleNamespace(launched=True, returncode=0, violation=False)
+
+        with (
+            patch.object(routing, "determine_codex_tier", return_value=hard),
+            patch.object(routing, "run_observed_delegation", side_effect=fake_run_observed_delegation),
+        ):
+            execution = routing.run_codex(route, "implement")
+
+        self.assertEqual(
+            execution["participant"],
+            {
+                "role": "executor",
+                "provider": "codex",
+                "profile": "standard",
+                "model": {"value": "cheap-codex", "source": "selected"},
+                "reasoning_effort": {"value": None, "source": "unknown"},
+                "execution_id": {"value": "019ff7be-6e9d-7110-98bb-2591886d55d1", "kind": "codex-thread"},
+            },
+        )
+
+    def test_run_codex_without_thread_started_event_leaves_execution_id_unknown(self) -> None:
+        route = self.prepare()
+        hard = guard.EnforcementDecision(guard.EnforcementTier.HARD, "codex-workspace-write-sandbox", "safe")
+
+        def fake_run_observed_delegation(*, stdout_line_hook, **_kwargs):
+            stdout_line_hook("plain text output, not a json event")
+            return SimpleNamespace(launched=True, returncode=0, violation=False)
+
+        with (
+            patch.object(routing, "determine_codex_tier", return_value=hard),
+            patch.object(routing, "run_observed_delegation", side_effect=fake_run_observed_delegation),
+        ):
+            execution = routing.run_codex(route, "implement")
+
+        self.assertEqual(execution["participant"]["execution_id"], {"value": None, "kind": None})
+
     def test_escalation_preserves_task_context_and_uses_strong_policy(self) -> None:
         self.prepare()
         escalated = routing.escalate(self.task, "unexpected cross-cutting contract")
@@ -144,12 +214,23 @@ class ModelRoutingTests(unittest.TestCase):
         with self.assertRaisesRegex(routing.RoutingError, "already complex"):
             routing.escalate(self.task, "again")
 
+    def test_escalation_preserves_supervisor_provenance_unchanged(self) -> None:
+        # Escalation changes the executor's profile/model, not who the
+        # strong parent supervisor is or how its identity was established.
+        prepared = self.prepare()
+        escalated = routing.escalate(self.task, "unexpected cross-cutting contract")
+        self.assertEqual(escalated.supervisor, prepared.supervisor)
+
     def test_codex_route_refuses_unproven_native_boundary(self) -> None:
         route = self.prepare()
         decision = guard.EnforcementDecision(guard.EnforcementTier.DETECTION_ONLY, "detection-only:test", "no sandbox")
         with patch.object(routing, "determine_codex_tier", return_value=decision):
             with self.assertRaisesRegex(routing.RoutingError, "retain execution on the parent"):
                 routing.codex_argv(route, "implement")
+        # The unavailable route must not be recorded as an executed
+        # participant; the record on disk stays exactly as prepared.
+        reread, _ = routing._read_route(self.task)
+        self.assertIsNone(reread.execution)
 
     def test_codex_route_uses_native_sandbox_with_selected_model(self) -> None:
         route = self.prepare()
@@ -230,6 +311,11 @@ class ModelRoutingTests(unittest.TestCase):
         self.assertEqual(result["tier"], "detection-only")
         self.assertNotIn("isolation", result["handoff"])
         self.assertEqual(result["handoff"]["model"], "sonnet")
+        # "pending_supervisor_invocation" means exactly that: the hand-off was
+        # emitted but not yet actually invoked, so there is no participant
+        # to report until record_claude_execution confirms a real Agent call.
+        reread, _ = routing._read_route(self.task)
+        self.assertIsNone(reread.execution)
 
     def test_claude_handoff_refuses_to_start_over_dirty_integration(self) -> None:
         (self.integration / "dirty.txt").write_text("uncommitted\n", encoding="utf-8")
@@ -277,6 +363,17 @@ class ModelRoutingTests(unittest.TestCase):
         self.assertTrue(execution["launched"])
         self.assertEqual(execution["agent_id"], "agent-abc123")
         self.assertEqual(execution["postcheck"]["containment"], "clean")
+        self.assertEqual(
+            execution["participant"],
+            {
+                "role": "executor",
+                "provider": "claude",
+                "profile": "standard",
+                "model": {"value": "sonnet", "source": "selected"},
+                "reasoning_effort": {"value": None, "source": "unknown"},
+                "execution_id": {"value": "agent-abc123", "kind": "claude-agent-id"},
+            },
+        )
         saved = json.loads((self.task / ".claude" / "model-routing" / "routing-change.json").read_text(encoding="utf-8"))
         self.assertTrue(saved["execution"]["launched"])
         self.assertEqual(saved["execution"]["postcheck"]["containment"], "clean")

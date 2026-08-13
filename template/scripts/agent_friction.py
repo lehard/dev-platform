@@ -101,6 +101,50 @@ def current_branch() -> str:
     return result.stdout.strip() if result.returncode == 0 and result.stdout.strip() else "unknown"
 
 
+def current_head(root: Path) -> str | None:
+    result = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, text=True, capture_output=True)
+    return result.stdout.strip() if result.returncode == 0 and result.stdout.strip() else None
+
+
+def _unknown_run_provenance(role: str) -> dict:
+    return {"source_issue": None, "change": None, "role": role, "supervisor": None, "participant": None}
+
+
+def _current_run_provenance(participant_role: str) -> dict:
+    """Bounded, truthful execution provenance for one friction event.
+
+    Reuses the existing model-routing record instead of a second run
+    database (adopt-gh-aw-process-automation, tasks 6.2/6.6). ``participant_role``
+    is the only thing the caller asserts (which participant this finding is
+    about); the actual provider/model identity is read back from the
+    machine-owned routing record, not trusted as free-form self-identification.
+    A missing/unreadable route, or an executor role with no confirmed
+    execution yet, degrades to an explicit unknown rather than a guess.
+    """
+    if participant_role not in ("supervisor", "executor", "unknown"):
+        participant_role = "unknown"
+    if participant_role == "unknown":
+        return _unknown_run_provenance("unknown")
+    try:
+        import model_routing
+    except ImportError:
+        return _unknown_run_provenance(participant_role)
+    try:
+        route, _ = model_routing._read_route(current_worktree_root())
+    except Exception:
+        return _unknown_run_provenance(participant_role)
+    participant = None
+    if participant_role == "executor" and isinstance(route.execution, dict):
+        participant = route.execution.get("participant")
+    return {
+        "source_issue": route.source_issue,
+        "change": route.change,
+        "role": participant_role,
+        "supervisor": route.supervisor or None,
+        "participant": participant,
+    }
+
+
 def cmd_record(args: argparse.Namespace) -> int:
     path = log_path()
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -120,6 +164,7 @@ def cmd_record(args: argparse.Namespace) -> int:
         "hypothesis": normalize_text(args.hypothesis, "hypothesis"),
         "scope": args.scope,
         "proposal": normalize_text(args.proposal, "proposal"),
+        "run": _current_run_provenance(args.participant_role),
     }
     encoded = json.dumps(event, ensure_ascii=False, sort_keys=True)
     with friction_lock():
@@ -151,6 +196,7 @@ def read_events(days: int | None = None) -> list[dict]:
             event.setdefault("id", f"legacy-{index}")
             event.setdefault("severity", "medium")
             event.setdefault("triggers", [event.get("category", "legacy")])
+            event.setdefault("run", _unknown_run_provenance("unknown"))
             if cutoff is None or parse_time(event["at"]) >= cutoff:
                 events.append(event)
         except (json.JSONDecodeError, KeyError, ValueError, TypeError):
@@ -362,7 +408,28 @@ def gh_json(command: list[str]) -> object:
         raise RuntimeError("GitHub CLI returned invalid JSON") from exc
 
 
+def _provenance_line(event: dict) -> str | None:
+    """One bounded, sanitized line naming the participant a finding concerns.
+
+    Deliberately omits the execution identifier (thread/agent id) and any
+    other machine-local detail -- those stay in the local friction log only
+    (adopt-gh-aw-process-automation, task 6.7). This is occurrence metadata,
+    not part of the dedupe identity (see fingerprint_for).
+    """
+    run = event.get("run") or {}
+    role = run.get("role")
+    if role not in ("supervisor", "executor"):
+        return None
+    who = (run.get("participant") if role == "executor" else run.get("supervisor")) or {}
+    model = who.get("model") or {}
+    provider = sanitize_for_route(who.get("provider"), 32)
+    model_value = sanitize_for_route(model.get("value"), 64)
+    model_source = sanitize_for_route(model.get("source"), 32)
+    return f"- Participant: `{role}` / provider `{provider}` / model `{model_value}` ({model_source})"
+
+
 def route_body(event: dict, fingerprint: str, *, occurrence: bool) -> str:
+    provenance_line = _provenance_line(event)
     lines = [
         marker_for(fingerprint),
         "## Sanitized process friction occurrence" if occurrence else "## Sanitized process friction",
@@ -372,6 +439,7 @@ def route_body(event: dict, fingerprint: str, *, occurrence: bool) -> str:
         f"- Severity: `{sanitize_for_route(event.get('severity', 'medium'), 20)}`",
         f"- Fingerprint: `{fingerprint}`",
         f"- Recorded at: `{sanitize_for_route(event.get('at'), 64)}`",
+        *([provenance_line] if provenance_line else []),
         "",
         "### Observation",
         sanitize_for_route(event.get("observation")),
@@ -459,11 +527,35 @@ def cmd_route_pending(_: argparse.Namespace) -> int:
 
 
 def cmd_checkpoint(args: argparse.Namespace) -> int:
+    """Record the post-task retrospective result: zero or more findings.
+
+    ``--result none`` means the retrospective actually ran and found no new
+    meaningful unresolved/unrecorded friction. ``--result <id>``/``--event
+    <id>`` (repeatable) reference existing recorded friction events this
+    retrospective classified as new meaningful findings; already-resolved or
+    already-recorded candidates are simply not referenced here.
+    """
     branch = current_branch()
-    event_id = None if args.result == "none" else args.result
-    if event_id is not None and not any(str(event.get("id")) == event_id for event in read_events(None)):
-        raise SystemExit(f"Friction event not found: {event_id}")
-    checkpoint = {"result": args.result, "event_id": event_id, "at": utc_now(), "branch": branch}
+    root = current_worktree_root()
+    explicit_none = args.result == "none"
+    event_ids: list[str] = list(dict.fromkeys([*args.events, *([args.result] if args.result not in (None, "none") else [])]))
+    if explicit_none and event_ids:
+        raise SystemExit("--result none cannot be combined with recorded findings; a clean retrospective references zero events")
+    if not explicit_none and not event_ids:
+        raise SystemExit(
+            "checkpoint requires --result none for a clean retrospective, or --result/--event with one or more recorded finding ids"
+        )
+    known_ids = {str(event.get("id")) for event in read_events(None)}
+    missing = [event_id for event_id in event_ids if event_id not in known_ids]
+    if missing:
+        raise SystemExit(f"Friction event not found: {', '.join(missing)}")
+    checkpoint = {
+        "result": "events" if event_ids else "none",
+        "event_ids": event_ids,
+        "at": utc_now(),
+        "branch": branch,
+        "head": current_head(root),
+    }
     with friction_lock():
         state = read_state()
         state["checkpoints"][branch] = checkpoint
@@ -473,16 +565,43 @@ def cmd_checkpoint(args: argparse.Namespace) -> int:
 
 
 def cmd_assert_checkpoint(args: argparse.Namespace) -> int:
-    require_checkpoint(args.branch or current_branch())
+    require_checkpoint(args.branch or current_branch(), current_worktree_root())
     return 0
 
 
-def require_checkpoint(branch: str) -> None:
+def require_checkpoint(branch: str, root: Path | None = None) -> None:
+    """Reject a missing, malformed or stale post-task retrospective receipt.
+
+    Freshness reuses the task's own branch/head instead of a second identity
+    system: a retrospective recorded against an earlier head no longer
+    satisfies completion once the branch has moved on.
+    """
     checkpoint = read_state().get("checkpoints", {}).get(branch)
-    if not isinstance(checkpoint, dict) or checkpoint.get("result") in (None, ""):
+    if not isinstance(checkpoint, dict) or checkpoint.get("result") not in ("none", "events"):
         raise SystemExit(
-            "Completion friction checkpoint is required for this non-trivial platform task. "
-            "Run `python3 scripts/agent_friction.py checkpoint --result none` or provide a recorded event id."
+            "Completion friction retrospective is required for this non-trivial platform task. "
+            "Run `python3 scripts/agent_friction.py checkpoint --result none` after reviewing the task for "
+            "unresolved friction, or `--event <id>` (repeatable) for each recorded meaningful finding."
+        )
+    if checkpoint.get("result") == "events":
+        event_ids = checkpoint.get("event_ids") or []
+        if not event_ids:
+            raise SystemExit("Retrospective checkpoint declares findings but records no event ids; rerun the retrospective.")
+        known_ids = {str(event.get("id")) for event in read_events(None)}
+        missing = [event_id for event_id in event_ids if event_id not in known_ids]
+        if missing:
+            raise SystemExit(
+                f"Retrospective checkpoint references unknown friction event id(s): {', '.join(missing)}; rerun the retrospective."
+            )
+    resolved_root = root if root is not None else current_worktree_root()
+    current = current_head(resolved_root)
+    if current is None:
+        raise SystemExit("Could not determine the current task head to verify retrospective freshness.")
+    if checkpoint.get("head") != current:
+        raise SystemExit(
+            "Completion friction retrospective is stale for the current task execution state "
+            f"(recorded head {checkpoint.get('head')!r}, current head {current!r}). "
+            "Run a fresh `python3 scripts/agent_friction.py checkpoint ...` after reviewing the latest changes."
         )
 
 
@@ -568,13 +687,18 @@ def main() -> int:
     p.add_argument("--scope", choices=["project", "platform"], required=True)
     p.add_argument("--proposal", required=True)
     p.add_argument("--task")
+    p.add_argument(
+        "--participant-role", choices=("supervisor", "executor", "unknown"), default="unknown",
+        help="which participant this finding concerns; identity is read back from the current routing record, not self-reported",
+    )
     p.set_defaults(func=cmd_record)
 
     p = sub.add_parser("route-pending", help="retry locally retained friction events without failing the caller")
     p.set_defaults(func=cmd_route_pending)
 
-    p = sub.add_parser("checkpoint", help="resolve the required completion friction checkpoint")
-    p.add_argument("--result", required=True, help="'none' or a recorded friction event id")
+    p = sub.add_parser("checkpoint", help="resolve the required post-task friction retrospective")
+    p.add_argument("--result", help="'none' for a clean retrospective, or a recorded friction event id")
+    p.add_argument("--event", dest="events", action="append", default=[], help="repeatable: another recorded finding id from this retrospective")
     p.set_defaults(func=cmd_checkpoint)
 
     p = sub.add_parser("assert-checkpoint", help="fail unless the current task checkpoint is resolved")

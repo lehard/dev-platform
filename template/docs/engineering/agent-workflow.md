@@ -159,7 +159,18 @@ The normal path is `record -> sanitized GitHub process issue upsert -> cloud tri
 python3 scripts/agent_friction.py record --category <category> --scope project --observation <sanitized-summary> --evidence <local-evidence-summary> --hypothesis <hypothesis> --proposal <proposal>
 ```
 
-Legacy `pending`, `review`, `mark-reviewed`, and `promote` commands remain recovery surfaces; do not make them a routine completion ritual.
+Legacy `pending`, `review`, `mark-reviewed`, and `promote` commands remain recovery surfaces; do not make them a routine completion ritual. Pass `--participant-role supervisor|executor` when a finding concerns a specific participant; identity is read back from the current model-routing record rather than self-reported (see `docs/engineering/model-routing.md#execution-provenance`). Fingerprinting never includes model/provider, so the same recurring problem across different models updates one issue instead of splitting by model.
+
+### Post-task retrospective
+
+Before non-trivial completion, run a distinct post-task retrospective -- not merely picking a checkpoint value. Review the task for user corrections, repeated substantive failures/retries, manual workarounds, safety near-misses, false premises, undocumented invariants, missing automation/documentation, tooling/auth/worktree/Git/OpenSpec/CI/lifecycle friction, avoidable repeated work, and problems noticed but left unresolved. Classify each candidate as already resolved in this task, already represented by an existing recorded event, or new and meaningful; record only the last class.
+
+```bash
+python3 scripts/agent_friction.py checkpoint --result none
+python3 scripts/agent_friction.py checkpoint --event <id> [--event <id> ...]
+```
+
+`--result none` is valid only after the retrospective actually ran and found nothing new. The checkpoint binds to the current branch and Git head; a fresh retrospective is required once new commits land. A missing or stale checkpoint blocks completion with an actionable instruction -- it never invents `none`.
 
 ## Completion
 
@@ -172,9 +183,9 @@ Before reporting a non-trivial OpenSpec task as complete:
 - the OpenSpec change has been archived through the lifecycle helper;
 - the task is published according to the configured mode;
 - temporary machine-local artifacts are not tracked;
-- the completion friction checkpoint is resolved: `python3 scripts/agent_friction.py checkpoint --result none`, or pass the id of a recorded meaningful friction event.
+- the post-task retrospective ran and the friction checkpoint reflects its current result (`--result none`, or every `--event <id>` it produced).
 
-If any required completion step is blocked, report the blocker instead of saying the task is done.
+The final report states that the retrospective ran and either lists its findings or says explicitly that none were found. If any required completion step is blocked, report the blocker instead of saying the task is done.
 
 ## Commands
 

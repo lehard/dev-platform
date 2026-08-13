@@ -12,7 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -67,6 +67,14 @@ class Route:
     # authored tier/profile. "escalated": execution discovered new evidence
     # and escalate() promoted the route to the strong profile.
     freshness: str = "confirmed"
+    # Bounded, truthful execution provenance (task 6.2-6.6 of
+    # adopt-gh-aw-process-automation). Reuses this existing routing record
+    # instead of a second run/trace database. ``supervisor`` is the
+    # policy-selected identity of the strong parent that recorded this route;
+    # ``execution["participant"]`` (set only once a child actually ran) is the
+    # delegated executor's provenance. Both distinguish selected/configured
+    # from runtime-confirmed values and use "unknown" rather than a guess.
+    supervisor: dict[str, Any] = field(default_factory=dict)
 
 
 def _snapshot_to_dict(value: GitSnapshot) -> dict[str, Any]:
@@ -126,13 +134,75 @@ def _model_for(config: dict[str, Any], provider: str, profile: str) -> str:
     return model.strip() if isinstance(model, str) and model.strip() else DEFAULT_MODELS[provider][profile]
 
 
+# Provenance source/status vocabulary. Exactly the three states the spec asks
+# for (openspec/changes/adopt-gh-aw-process-automation/specs/model-routing) --
+# no richer taxonomy, so a missing/unconfirmable value degrades to "unknown"
+# rather than inventing a fourth state.
+SOURCE_SELECTED = "selected"
+SOURCE_RUNTIME_CONFIRMED = "runtime-confirmed"
+SOURCE_UNKNOWN = "unknown"
+
+
+def _model_provenance(model: str | None, source: str) -> dict[str, Any]:
+    return {"value": model, "source": source}
+
+
+def _effort_provenance(value: str | None, source: str) -> dict[str, Any]:
+    return {"value": value, "source": source}
+
+
+def _supervisor_provenance(config: dict[str, Any], provider: str) -> dict[str, Any]:
+    """The policy-selected identity of the strong parent recording this route.
+
+    There is no supported runtime surface (Codex or Claude Code) that lets a
+    plain script introspect "which model am I actually running as" -- only
+    the caller's own harness-provided session context could state that, and
+    free-form self-identification is explicitly not authoritative evidence
+    (see the model-routing spec). So the supervisor's own model is recorded
+    as policy-selected, exactly like an executor's, never runtime-confirmed.
+    """
+    return {
+        "role": "supervisor",
+        "provider": provider,
+        "model": _model_provenance(_model_for(config, provider, "complex"), SOURCE_SELECTED),
+    }
+
+
+def _participant(
+    *,
+    role: str,
+    provider: str,
+    profile: str,
+    model: str,
+    effort_value: str | None,
+    effort_source: str,
+    execution_id: str | None,
+    execution_id_kind: str | None,
+) -> dict[str, Any]:
+    """Bounded provenance for one actually-executed participant.
+
+    Only called once launch is confirmed; a merely prepared/unrun route must
+    never be represented as an executed participant (model-routing spec,
+    "Preferred delegated executor is unavailable").
+    """
+    return {
+        "role": role,
+        "provider": provider,
+        "profile": profile,
+        "model": _model_provenance(model, SOURCE_SELECTED),
+        "reasoning_effort": _effort_provenance(effort_value, effort_source),
+        "execution_id": {"value": execution_id, "kind": execution_id_kind},
+    }
+
+
 def _read_route(root: Path) -> tuple[Route, Path]:
     source_issue, change = _managed_identity(root)
     path = _record_path(root, change)
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
         execution = payload.get("execution")
-        route = Route(source_issue=payload["source_issue"], change=payload["change"], task_worktree=payload["task_worktree"], integration_root=payload["integration_root"], provider=payload["provider"], profile=payload["profile"], executor_model=payload["executor_model"], rationale=payload["rationale"], evidence=tuple(payload.get("evidence", [])), prepared_at=payload["prepared_at"], pre_snapshot=payload["pre_snapshot"], execution=execution if isinstance(execution, dict) else None, escalations=tuple(payload.get("escalations", [])), start_tier=payload.get("start_tier"), freshness=payload.get("freshness", "confirmed"))
+        supervisor = payload.get("supervisor")
+        route = Route(source_issue=payload["source_issue"], change=payload["change"], task_worktree=payload["task_worktree"], integration_root=payload["integration_root"], provider=payload["provider"], profile=payload["profile"], executor_model=payload["executor_model"], rationale=payload["rationale"], evidence=tuple(payload.get("evidence", [])), prepared_at=payload["prepared_at"], pre_snapshot=payload["pre_snapshot"], execution=execution if isinstance(execution, dict) else None, escalations=tuple(payload.get("escalations", [])), start_tier=payload.get("start_tier"), freshness=payload.get("freshness", "confirmed"), supervisor=supervisor if isinstance(supervisor, dict) else {})
     except (OSError, KeyError, TypeError, json.JSONDecodeError) as exc:
         raise RoutingError(f"no readable routing record for managed change {change}; run prepare first") from exc
     if route.source_issue != source_issue or route.change != change:
@@ -170,7 +240,8 @@ def prepare(root: Path, *, provider: str, profile: str | None, rationale: str, e
     source_issue, change = _managed_identity(root)
     integration = main_root().resolve()
     assigned = resolve_assigned_worktree(integration, root)
-    route = Route(source_issue=source_issue, change=change, task_worktree=str(assigned), integration_root=str(integration), provider=provider, profile=profile, executor_model=_model_for(read_platform_config(root), provider, profile), rationale=rationale.strip(), evidence=tuple(evidence), prepared_at=utc_now(), pre_snapshot=_snapshot_to_dict(snapshot(integration)), start_tier=start_tier, freshness="confirmed")
+    config = read_platform_config(root)
+    route = Route(source_issue=source_issue, change=change, task_worktree=str(assigned), integration_root=str(integration), provider=provider, profile=profile, executor_model=_model_for(config, provider, profile), rationale=rationale.strip(), evidence=tuple(evidence), prepared_at=utc_now(), pre_snapshot=_snapshot_to_dict(snapshot(integration)), start_tier=start_tier, freshness="confirmed", supervisor=_supervisor_provenance(config, provider))
     _write_route(_record_path(root, change), route)
     return route
 
@@ -204,7 +275,27 @@ def codex_argv(route: Route, prompt: str, codex_bin: str | None = None) -> tuple
     decision = determine_codex_tier(codex_bin=codex_bin, integration_root=Path(route.integration_root), assigned_worktree=Path(route.task_worktree))
     if decision.tier is not EnforcementTier.HARD:
         raise RoutingError("native Codex containment is not provable for this route; retain execution on the parent or use an explicitly reviewed fallback: " + decision.detail)
-    return build_codex_argv(codex_bin or "codex", Path(route.task_worktree), decision.tier, ["--model", route.executor_model, prompt]), decision.mechanism
+    # --json is the documented structured-event stream (verified at
+    # implementation preflight: codex exec --json emits a "thread.started"
+    # event carrying a real runtime thread_id). It is the only currently
+    # supported source of a confirmed bounded execution identifier; no
+    # documented surface confirms effective model/reasoning-effort, so those
+    # remain policy-selected only (see _participant call sites).
+    return build_codex_argv(codex_bin or "codex", Path(route.task_worktree), decision.tier, ["--json", "--model", route.executor_model, prompt]), decision.mechanism
+
+
+def _codex_thread_id_from_line(line: str) -> str | None:
+    if not line.lstrip().startswith("{"):
+        return None
+    try:
+        event = json.loads(line)
+    except json.JSONDecodeError:
+        return None
+    if isinstance(event, dict) and event.get("type") == "thread.started":
+        thread_id = event.get("thread_id")
+        if isinstance(thread_id, str) and thread_id:
+            return thread_id
+    return None
 
 
 def run_codex(route: Route, prompt: str, codex_bin: str | None = None) -> dict[str, Any]:
@@ -212,13 +303,33 @@ def run_codex(route: Route, prompt: str, codex_bin: str | None = None) -> dict[s
     # Codex workspace-write is the prevention layer. The legacy helper only
     # validates the assignment and observes/records the required post-check.
     decision = determine_codex_tier(codex_bin=codex_bin, require_hard=True, integration_root=Path(route.integration_root), assigned_worktree=Path(route.task_worktree))
-    result = run_observed_delegation(integration_root=Path(route.integration_root), assigned_worktree=Path(route.task_worktree), argv=argv, tier_decision=decision, task=route.source_issue)
-    return {
+    captured: dict[str, str | None] = {"thread_id": None}
+
+    def _on_line(line: str) -> None:
+        print(line)
+        thread_id = _codex_thread_id_from_line(line)
+        if thread_id is not None:
+            captured["thread_id"] = thread_id
+
+    result = run_observed_delegation(
+        integration_root=Path(route.integration_root), assigned_worktree=Path(route.task_worktree),
+        argv=argv, tier_decision=decision, task=route.source_issue, stdout_line_hook=_on_line,
+    )
+    output = {
         "mechanism": mechanism,
         "launched": result.launched,
         "returncode": result.returncode,
         "violation": result.violation,
     }
+    if result.launched:
+        # A route that was merely prepared must never look executed; only
+        # attach participant provenance once the child actually launched.
+        output["participant"] = _participant(
+            role="executor", provider="codex", profile=route.profile, model=route.executor_model,
+            effort_value=None, effort_source=SOURCE_UNKNOWN,
+            execution_id=captured["thread_id"], execution_id_kind="codex-thread" if captured["thread_id"] else None,
+        )
+    return output
 
 
 def dispatch_codex(
@@ -260,10 +371,18 @@ def claude_agent(route: Route) -> dict[str, Any]:
     supervisor must invoke this in place, with its own working directory
     already the assigned task worktree, so the child shares that exact
     filesystem/branch/uncommitted state instead of a divergent empty copy.
+
+    Deliberately has no `effort`/`maxTurns` key either: verified at
+    implementation preflight against the currently supported Agent tool,
+    neither is an accepted parameter of that tool today (only description,
+    isolation, model, prompt, run_in_background, subagent_type are). Emitting
+    them would imitate a selection the runtime cannot actually honor, so
+    reasoning effort for a Claude child is recorded as unknown rather than
+    fabricated as selected/configured (see _participant call sites).
     """
     if route.provider != "claude":
         raise RoutingError("the prepared route is not a Claude route")
-    return {"description": "Managed task executor; use only after supervisor routing preflight.", "model": route.executor_model, "effort": "medium" if route.profile == "routine" else "high", "maxTurns": 24, "prompt": "Work only in the current working directory, which is already the assigned task worktree for this managed dev-platform task -- do not request isolation or create a separate worktree. Preserve the canonical OpenSpec and return the exact diff, checks run, uncertainty, and any escalation trigger to the supervisor. Managed source: " + route.source_issue + "; change: " + route.change + "; assigned worktree: " + route.task_worktree + "."}
+    return {"description": "Managed task executor; use only after supervisor routing preflight.", "model": route.executor_model, "prompt": "Work only in the current working directory, which is already the assigned task worktree for this managed dev-platform task -- do not request isolation or create a separate worktree. Preserve the canonical OpenSpec and return the exact diff, checks run, uncertainty, and any escalation trigger to the supervisor. Managed source: " + route.source_issue + "; change: " + route.change + "; assigned worktree: " + route.task_worktree + "."}
 
 
 def prepare_claude_handoff(root: Path, *, profile: str | None, rationale: str, evidence: list[str]) -> dict[str, Any]:
@@ -323,6 +442,16 @@ def record_claude_execution(root: Path, *, agent_id: str, summary: str | None = 
         "mechanism": tier_decision.mechanism,
         "postcheck": check,
         "recorded_at": utc_now(),
+        # A real Agent-tool invocation returned, so this participant actually
+        # executed. Model is what the supervisor selected via claude_agent();
+        # reasoning effort has no supported selection/confirmation surface on
+        # the current Agent tool (see claude_agent docstring), so it stays
+        # unknown rather than reusing the discarded profile-implied guess.
+        "participant": _participant(
+            role="executor", provider="claude", profile=route.profile, model=route.executor_model,
+            effort_value=None, effort_source=SOURCE_UNKNOWN,
+            execution_id=agent_id.strip(), execution_id_kind="claude-agent-id",
+        ),
     }
     next_route = Route(**{**asdict(route), "execution": execution})
     _write_route(path, next_route)

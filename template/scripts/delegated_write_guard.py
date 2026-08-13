@@ -54,6 +54,7 @@ import textwrap
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
+from typing import Callable
 
 from delegation_containment import (
     ContainmentError,
@@ -116,6 +117,7 @@ def run_observed_delegation(
     env: dict[str, str] | None = None,
     task: str | None = None,
     timeout: float | None = None,
+    stdout_line_hook: Callable[[str], None] | None = None,
 ) -> GuardedRunResult:
     """Run one delegated child under a native/fallback containment contract.
 
@@ -123,6 +125,15 @@ def run_observed_delegation(
     snapshots before launch, always launches with cwd=assigned_worktree, and always
     snapshots again -- even if the child raises, times out, or is cancelled -- before
     returning or raising. Never mutates integration_root itself.
+
+    ``stdout_line_hook``, when given, receives each stdout/stderr line as the
+    child produces it (merged, so live output ordering is preserved) instead
+    of letting the child inherit the parent's stdout directly. Callers use
+    this to both forward output for live visibility and opportunistically
+    parse structured runtime events (for example Codex's ``--json`` event
+    stream) without adding a second execution path. Note: with this hook set,
+    ``timeout`` is only enforced after the child closes stdout (i.e. once it
+    exits), not while blocked reading a line -- unused by any current caller.
     """
     resolved_worktree = resolve_assigned_worktree(integration_root, assigned_worktree)
 
@@ -145,10 +156,23 @@ def run_observed_delegation(
     completed: subprocess.CompletedProcess[str] | None = None
     process: subprocess.Popen[str] | None = None
     try:
-        process = subprocess.Popen(argv, cwd=resolved_worktree, env=env, text=True)
-        child_launched = True
-        returncode = process.wait(timeout=timeout)
-        completed = subprocess.CompletedProcess(argv, returncode)
+        if stdout_line_hook is not None:
+            process = subprocess.Popen(
+                argv, cwd=resolved_worktree, env=env, text=True,
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1,
+            )
+            child_launched = True
+            assert process.stdout is not None
+            for line in process.stdout:
+                stdout_line_hook(line.rstrip("\n"))
+            process.stdout.close()
+            returncode = process.wait(timeout=timeout)
+            completed = subprocess.CompletedProcess(argv, returncode)
+        else:
+            process = subprocess.Popen(argv, cwd=resolved_worktree, env=env, text=True)
+            child_launched = True
+            returncode = process.wait(timeout=timeout)
+            completed = subprocess.CompletedProcess(argv, returncode)
     except subprocess.TimeoutExpired as exc:
         # The child was cancelled: it did start, so child_launched stays True.
         process.kill()

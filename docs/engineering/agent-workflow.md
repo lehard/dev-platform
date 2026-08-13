@@ -55,12 +55,13 @@ Goal refinement creates no goal file, backlog entry, decision log, resume artifa
 For ordinary work in this central repository, use the committed source contract in `.dev-platform.toml` and its lifecycle adapter. Do not assemble a manual branch/worktree/PR flow. A managed task is imported first, then its sole untracked package is transferred into the isolated task worktree:
 
 ```bash
-python3 scripts/managed_task.py owner/repo#N
-python3 scripts/dogfood_task.py start <slug> --task "owner/repo#N" --scope "paths" --change <openspec-change>
-cd .claude/worktrees/<slug>
+python3 scripts/start_managed_task.py owner/repo#N
+cd .claude/worktrees/<change>
 python3 scripts/dogfood_task.py status
 python3 scripts/dogfood_task.py finish
 ```
+
+`managed_task.py owner/repo#N` alone refuses to run directly on this repository's own integration checkout (`harness_mode=platform`, `workflow_profile=multi-agent`) and points here instead; `start_managed_task.py` performs the same read-only package intake from outside that checkout, then creates/reuses the task worktree/branch itself. For a change lacking `.managed-task.json` provenance from before that enforcement existed, see the recovery evidence in `lehard/dev-platform#204`.
 
 `status` is read-only. `finish` delegates to the authoritative GitHub-backed publication/reconciliation lifecycle and is resumable; branch pushed, draft or open PR, and green checks are nonterminal states. Do not report source work as complete until GitHub reports the exact PR `MERGED` and local `main` has been reconciled (with cleanup warnings classified under the shared lifecycle policy).
 
@@ -91,9 +92,18 @@ For a bounded local change, prefer `python3 scripts/select_checks.py --base orig
 
 Raw friction evidence stays machine-local. Record high-signal events through `scripts/agent_friction.py`; the normal path automatically upserts a bounded sanitized, fingerprinted process issue in the configured project or platform repository. Retry failure is durable and non-blocking for safe delivery. Process issues are evidence only: cloud triage/review must never create managed tasks, OpenSpec, implementation PRs, or code changes.
 
-Record only high-signal friction: user correction, repeated failure, safety near-miss, undocumented invariant or excessive retries. Separate observation, evidence, hypothesis and proposal. Do not record secrets or routine successful sessions.
+Record only high-signal friction: user correction, repeated failure, safety near-miss, undocumented invariant or excessive retries. Separate observation, evidence, hypothesis and proposal. Do not record secrets or routine successful sessions. When a finding concerns a specific participant, pass `--participant-role supervisor|executor`; the identity is read back from the current routing record rather than self-reported (see `docs/engineering/model-routing.md#execution-provenance`). Friction fingerprinting never includes model/provider, so the same recurring problem across different models still updates one issue.
 
-Before non-trivial completion, resolve the friction checkpoint with `python3 scripts/agent_friction.py checkpoint --result none` or a recorded event id.
+### Post-task retrospective
+
+Before non-trivial completion, run a distinct post-task retrospective -- not merely picking a checkpoint value. Review the task for user corrections, repeated substantive failures/retries, manual workarounds, safety near-misses, false premises, undocumented invariants, missing automation/documentation, tooling/auth/worktree/Git/OpenSpec/CI/lifecycle friction, avoidable repeated work, and problems noticed but left unresolved. Classify each candidate as already resolved in this task, already represented by an existing recorded event, or new and meaningful; record only the last class.
+
+```bash
+python3 scripts/agent_friction.py checkpoint --result none
+python3 scripts/agent_friction.py checkpoint --event <id> [--event <id> ...]
+```
+
+`--result none` is valid only after the retrospective actually ran and found nothing new. The checkpoint binds to the current branch and Git head; `require_checkpoint` rejects it as stale once new commits land (a fresh retrospective is then required), and rejects a checkpoint referencing an unknown event id. A missing/stale checkpoint blocks `finish_task.py` with an actionable instruction -- it never invents `none`.
 
 ## Completion
 
@@ -106,6 +116,6 @@ Before reporting a non-trivial platform task as complete:
 - the OpenSpec change has been archived through the lifecycle helper and the resulting spec/archive changes are committed;
 - the task is published according to the configured mode;
 - temporary machine-local artifacts are not tracked;
-- the completion friction checkpoint is resolved.
+- the post-task retrospective ran and the friction checkpoint reflects its current result.
 
-If any required completion step is blocked, report the blocker instead of saying the task is done.
+The final report states that the retrospective ran and either lists its findings or says explicitly that none were found. If any required completion step is blocked, report the blocker instead of saying the task is done.

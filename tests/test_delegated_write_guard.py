@@ -336,6 +336,34 @@ class GuardedDelegationTests(unittest.TestCase):
         self.assertFalse(result.violation)
         self.assertTrue((self.worktree / "native.txt").is_file())
 
+    def test_stdout_line_hook_receives_child_output_and_launch_still_succeeds(self) -> None:
+        captured: list[str] = []
+        result = guard.run_observed_delegation(
+            integration_root=self.integration,
+            assigned_worktree=self.worktree,
+            argv=[sys.executable, "-c", "print('line-one'); print('line-two')"],
+            tier_decision=self.hard_tier,
+            stdout_line_hook=captured.append,
+        )
+        self.assertTrue(result.launched)
+        self.assertEqual(result.returncode, 0)
+        self.assertFalse(result.violation)
+        self.assertEqual(captured, ["line-one", "line-two"])
+
+    def test_stdout_line_hook_still_records_containment_violation(self) -> None:
+        escape_target = self.integration / "hooked-escape.txt"
+        captured: list[str] = []
+        result = guard.run_observed_delegation(
+            integration_root=self.integration,
+            assigned_worktree=self.worktree,
+            argv=[sys.executable, "-c", f"from pathlib import Path; print('writing'); Path({str(escape_target)!r}).write_text('escaped')"],
+            tier_decision=self.detection_tier,
+            stdout_line_hook=captured.append,
+        )
+        self.assertTrue(result.launched)
+        self.assertTrue(result.violation)
+        self.assertIn("writing", captured)
+
     def test_writer_escaping_into_integration_root_is_a_violation_and_records_friction(self) -> None:
         escape_target = self.integration / "escaped.txt"
         script = self.worktree / "escape.py"
