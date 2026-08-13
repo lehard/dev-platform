@@ -76,7 +76,15 @@ def admission_reason(decision: dict[str, object]) -> str:
     for conflict in conflicts[:5]:
         if isinstance(conflict, list) and len(conflict) == 3:
             rendered.append(f"{conflict[0]} ({conflict[1]}): {conflict[2]}")
-    return "hard overlap with " + "; ".join(rendered) if rendered else "hard overlap with another active task"
+    if not rendered:
+        return "hard overlap with another active task"
+    return (
+        "hard overlap with "
+        + "; ".join(rendered)
+        + ". If the overlap is verified safe, record `agent_board.py acknowledge --with-id <id> --path <path> "
+        "--reason <bounded reason>` for the conflicting id/path(s) above, then retry; otherwise wait for the "
+        "sibling task to finish."
+    )
 
 
 def start_task(root: Path, slug_value: str, task: str, scope: str = "", *, admission: bool = True) -> StartedTask:
