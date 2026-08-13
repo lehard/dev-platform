@@ -33,5 +33,5 @@
 - [x] 5.1 Run one bounded current-state review of the existing dev-platform process backlog against exact current `main`. Evidence: `process-health-review.md` records the exact SHA, boundary and bounded query.
 - [x] 5.2 Backfill only unambiguous current managed relations; leave ambiguous historical evidence untouched. Evidence: no open source process evidence was found, so no issue was mutated.
 - [x] 5.3 Confirm already-completed linked work can be represented/resolved without creating duplicate remediation tasks. Evidence: no linked source evidence exists in the current bounded backlog; terminal resolution is covered by focused idempotency tests.
-- [ ] 5.4 Run the authoritative risk-selected lifecycle/agentic workflow checks and strict OpenSpec validation once for the final behavior change.
-- [ ] 5.5 Archive through the normal managed lifecycle with the review report as acceptance evidence.
+- [x] 5.4 Run the authoritative risk-selected lifecycle/agentic workflow checks and strict OpenSpec validation once for the final behavior change. Evidence: `automated-checks.json`, `verification.md` and strict validation.
+- [x] 5.5 Archive through the normal managed lifecycle with the review report as acceptance evidence. The archive command follows this completion record and includes `process-health-review.md`.
