@@ -175,18 +175,29 @@ class FrictionReviewTests(unittest.TestCase):
                 return subprocess.CompletedProcess(command, 0, "", "")
             if command[:2] == ["api", "repos/lehard/dev-platform/issues?state=open&per_page=100"]:
                 return subprocess.CompletedProcess(command, 0, "[]", "")
+            if command[:2] == ["api", "repos/lehard/dev-platform/issues/17"]:
+                return subprocess.CompletedProcess(command, 0, json.dumps({"number": 17, "labels": [{"name": "process"}]}), "")
             return subprocess.CompletedProcess(command, 0, json.dumps({"number": 17}), "")
 
         agent_friction.gh = fake_gh
         result = agent_friction.route_event(self.event())
         self.assertEqual(result["status"], "routed")
         self.assertEqual(result["issue_number"], 17)
-        request = calls[-1]
+        request = next(command for command in calls if command[:3] == ["api", "--method", "POST"] and command[3] == "repos/lehard/dev-platform/issues")
         body = next(item for item in request if item.startswith("body="))
         self.assertIn("dev-platform-friction:", body)
         self.assertIn("[REDACTED]", body)
         self.assertNotIn("local-only-secret", body)
         self.assertNotIn("Evidence", body)
+        self.assertIn("labels[]=process", request)
+        self.assertIn(["api", "--method", "POST", "repos/lehard/dev-platform/issues/17/labels", "-f", "labels[]=process"], calls)
+        self.assertIn(["api", "repos/lehard/dev-platform/issues/17"], calls)
+
+    def test_router_created_issue_matches_weekly_process_selection(self) -> None:
+        """The router's verified label is exactly the weekly workflow source filter."""
+        workflow = (ROOT / ".github" / "workflows" / "weekly-process-backlog-review.md").read_text(encoding="utf-8")
+        self.assertIn("labels: [process]", workflow)
+        self.assertEqual(agent_friction.process_label(), "process")
 
     def test_open_fingerprint_is_updated_instead_of_creating_duplicate(self) -> None:
         event = self.event(scope="project")
@@ -200,12 +211,15 @@ class FrictionReviewTests(unittest.TestCase):
                 return subprocess.CompletedProcess(command, 0, "", "")
             if command[:2] == ["api", "repos/example/project/issues?state=open&per_page=100"]:
                 return subprocess.CompletedProcess(command, 0, json.dumps([{"number": 31, "body": marker}]), "")
+            if command[:2] == ["api", "repos/example/project/issues/31"]:
+                return subprocess.CompletedProcess(command, 0, json.dumps({"number": 31, "labels": [{"name": "process"}]}), "")
             return subprocess.CompletedProcess(command, 0, "{}", "")
 
         agent_friction.gh = fake_gh
         result = agent_friction.route_event(event)
         self.assertEqual(result["issue_number"], 31)
-        self.assertIn("repos/example/project/issues/31/comments", calls[-1])
+        self.assertTrue(any("repos/example/project/issues/31/comments" in command for command in calls))
+        self.assertIn(["api", "--method", "POST", "repos/example/project/issues/31/labels", "-f", "labels[]=process"], calls)
         self.assertFalse(any(command[:3] == ["api", "--method", "POST"] and command[3] == "repos/example/project/issues" for command in calls))
 
     def test_unavailable_routing_stays_pending_then_retries(self) -> None:
@@ -221,12 +235,94 @@ class FrictionReviewTests(unittest.TestCase):
                 return subprocess.CompletedProcess(command, 0, "", "")
             if command[:2] == ["api", "repos/lehard/dev-platform/issues?state=open&per_page=100"]:
                 return subprocess.CompletedProcess(command, 0, "[]", "")
+            if command[:2] == ["api", "repos/lehard/dev-platform/issues/44"]:
+                return subprocess.CompletedProcess(command, 0, json.dumps({"number": 44, "labels": [{"name": "process"}]}), "")
             return subprocess.CompletedProcess(command, 0, json.dumps({"number": 44}), "")
 
         agent_friction.gh = fake_gh
         retry = agent_friction.route_pending()
         self.assertEqual(retry, {"pending": 1, "routed": 1, "failures": 0})
         self.assertEqual(agent_friction.read_state()["routes"]["route-me"]["status"], "routed")
+
+    def test_open_fingerprint_beyond_first_page_is_updated(self) -> None:
+        event = self.event(scope="project")
+        marker = agent_friction.marker_for(agent_friction.fingerprint_for(event, "example/project"))
+        calls: list[list[str]] = []
+        agent_friction.shutil.which = lambda _: "/usr/bin/gh"
+
+        def fake_gh(command: list[str]) -> subprocess.CompletedProcess[str]:
+            calls.append(command)
+            if command[:2] == ["auth", "status"]:
+                return subprocess.CompletedProcess(command, 0, "", "")
+            if command[:2] == ["api", "repos/example/project/issues?state=open&per_page=100"]:
+                return subprocess.CompletedProcess(command, 0, json.dumps([{"number": index, "body": ""} for index in range(1, 101)]), "")
+            if command[:2] == ["api", "repos/example/project/issues?state=open&per_page=100&page=2"]:
+                return subprocess.CompletedProcess(command, 0, json.dumps([{"number": 131, "body": marker}]), "")
+            if command[:2] == ["api", "repos/example/project/issues/131"]:
+                return subprocess.CompletedProcess(command, 0, json.dumps({"number": 131, "labels": [{"name": "process"}]}), "")
+            return subprocess.CompletedProcess(command, 0, "{}", "")
+
+        agent_friction.gh = fake_gh
+        result = agent_friction.route_event(event)
+        self.assertEqual(result["issue_number"], 131)
+        self.assertIn(["api", "repos/example/project/issues?state=open&per_page=100&page=2"], calls)
+        self.assertTrue(any("repos/example/project/issues/131/comments" in command for command in calls))
+        self.assertFalse(any(command[:3] == ["api", "--method", "POST"] and command[3] == "repos/example/project/issues" for command in calls))
+
+    def test_different_category_with_matching_root_cause_surfaces_candidate(self) -> None:
+        event = self.event(scope="project")
+        event["category"] = "label-eligibility"
+        existing = {
+            "number": 32,
+            "body": "\n".join(
+                [
+                    agent_friction.marker_for("a" * 24), "- Category: `review-label`", "",
+                    "### Hypothesis", event["hypothesis"], "", "### Proposed change", "add label verification",
+                ]
+            ),
+        }
+        calls: list[list[str]] = []
+        agent_friction.shutil.which = lambda _: "/usr/bin/gh"
+
+        def fake_gh(command: list[str]) -> subprocess.CompletedProcess[str]:
+            calls.append(command)
+            if command[:2] == ["auth", "status"]:
+                return subprocess.CompletedProcess(command, 0, "", "")
+            if command[:2] == ["api", "repos/example/project/issues?state=open&per_page=100"]:
+                return subprocess.CompletedProcess(command, 0, json.dumps([existing]), "")
+            return subprocess.CompletedProcess(command, 0, "{}", "")
+
+        agent_friction.gh = fake_gh
+        result = agent_friction.route_event(event)
+        self.assertEqual(result["status"], "candidate")
+        self.assertEqual(result["candidates"], [{"issue_number": 32, "category": "review-label", "reason": "matching-root-cause-hypothesis"}])
+        self.assertFalse(any(command[:3] == ["api", "--method", "POST"] for command in calls))
+
+    def test_reconcile_repairs_only_unambiguously_generated_unlabeled_issues(self) -> None:
+        generated = {
+            "number": 50, "title": "[process-friction] labels",
+            "body": agent_friction.marker_for("b" * 24), "labels": [],
+        }
+        unrelated = {"number": 51, "title": "[process-friction] labels", "body": "no marker", "labels": []}
+        calls: list[list[str]] = []
+        agent_friction.shutil.which = lambda _: "/usr/bin/gh"
+
+        def fake_gh(command: list[str]) -> subprocess.CompletedProcess[str]:
+            calls.append(command)
+            if command[:2] == ["auth", "status"]:
+                return subprocess.CompletedProcess(command, 0, "", "")
+            if command[:2] == ["api", "repos/lehard/dev-platform/issues?state=open&per_page=100"]:
+                return subprocess.CompletedProcess(command, 0, json.dumps([generated, unrelated]), "")
+            if command[:2] == ["api", "repos/lehard/dev-platform/issues/50"]:
+                return subprocess.CompletedProcess(command, 0, json.dumps({"number": 50, "labels": [{"name": "process"}]}), "")
+            return subprocess.CompletedProcess(command, 0, "[]", "")
+
+        agent_friction.gh = fake_gh
+        result = agent_friction.reconcile_process_labels()
+        self.assertEqual(result["repaired"], 1)
+        self.assertEqual(result["scanned"], 1)
+        self.assertIn(["api", "--method", "POST", "repos/lehard/dev-platform/issues/50/labels", "-f", "labels[]=process"], calls)
+        self.assertFalse(any("/51/labels" in command for command in calls))
 
     def test_checkpoint_none_is_explicit_and_creates_no_route(self) -> None:
         agent_friction.cmd_checkpoint(self.checkpoint_args(result="none"))

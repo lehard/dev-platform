@@ -1,0 +1,34 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/agentic-maintenance/spec.md",
+    "specs/platform-lifecycle/spec.md"
+  ],
+  "change": "repair-process-friction-routing-integrity",
+  "imported_at": "2026-08-13T12:25:23+00:00",
+  "package_revision": "9d5f358ac54d2639d61bea2876e0c155e556c27c038350bd6d3be1a567ad6fe1",
+  "prepared_against": "62370f4c7520b0b01157519c90f6dc522c635ea1",
+  "process_evidence": [
+    "lehard/dev-platform#250",
+    "lehard/dev-platform#246",
+    "lehard/dev-platform#247"
+  ],
+  "routing_receipt": {
+    "assurance": "high",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "platform-process-maintenance"
+  },
+  "source_issue": "lehard/development-backlog#40",
+  "source_issue_evidence": {
+    "body_sha256": "0677dd98bb392f90b6b09482e31d2ed5b3d3c4bf352c0592d181456d675b98d9",
+    "updated_at": "2026-08-13T10:42:36Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
