@@ -370,6 +370,7 @@ def run_observed_delegation(
     task: str | None = None,
     timeout: float | None = None,
     stdout_line_hook: Callable[[str], None] | None = None,
+    route_containment_friction: bool = True,
 ) -> GuardedRunResult:
     """Run one delegated child under a native/fallback containment contract.
 
@@ -384,6 +385,11 @@ def run_observed_delegation(
     this to both forward output for live visibility and opportunistically
     parse structured runtime events (for example Codex's ``--json`` event
     stream) without adding a second execution path.
+
+    ``route_containment_friction`` defaults to True and must stay that way for
+    every production caller, so a real containment violation still routes through
+    agent_friction.py's normal GitHub gate. Pass False only from hermetic test
+    fixtures that intentionally provoke a synthetic violation.
     """
     resolved_worktree = resolve_assigned_worktree(integration_root, assigned_worktree)
 
@@ -463,7 +469,8 @@ def run_observed_delegation(
     message = format_violation_message(resolved_worktree, containment) if violation else None
     if violation:
         record_containment_friction(
-            integration_root, resolved_worktree, containment, task=task, enforcement_tier=tier_decision.tier.value
+            integration_root, resolved_worktree, containment, task=task, enforcement_tier=tier_decision.tier.value,
+            route=route_containment_friction,
         )
 
     result = GuardedRunResult(
@@ -497,6 +504,7 @@ def run_guarded_delegation(
     env: dict[str, str] | None = None,
     task: str | None = None,
     timeout: float | None = None,
+    route_containment_friction: bool = True,
 ) -> GuardedRunResult:
     """Compatibility alias for callers that still use the former guard name."""
     return run_observed_delegation(
@@ -507,6 +515,7 @@ def run_guarded_delegation(
         env=env,
         task=task,
         timeout=timeout,
+        route_containment_friction=route_containment_friction,
     )
 
 

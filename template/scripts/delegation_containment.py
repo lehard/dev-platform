@@ -232,11 +232,18 @@ def record_containment_friction(
     *,
     task: str | None = None,
     enforcement_tier: str | None = None,
+    route: bool = True,
 ) -> None:
     """Record a local friction event for a containment violation.
 
     Must only be called after check_containment has already produced a definitive
     result (never before). Local JSONL append; does not require GitHub auth.
+
+    `route` defaults to True and must stay that way for every production call site,
+    so a real violation still routes through agent_friction.py's normal GitHub gate.
+    Pass `route=False` only from hermetic test fixtures that intentionally create a
+    synthetic violation; it appends `--no-route` so the event is recorded locally and
+    never attempts a GitHub call, regardless of what `gh` the host resolves.
     """
     observation = format_violation_message(assigned_worktree, result)
     evidence = (
@@ -268,6 +275,8 @@ def record_containment_friction(
     ]
     if task:
         arguments.extend(["--task", task])
+    if not route:
+        arguments.append("--no-route")
     completed = subprocess.run(arguments, cwd=integration_root, text=True, capture_output=True, check=False)
     if completed.returncode != 0:
         detail = completed.stderr.strip() or completed.stdout.strip()

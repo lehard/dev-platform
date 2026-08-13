@@ -252,18 +252,33 @@ class DelegationContainmentTests(unittest.TestCase):
         result = delegation_containment.check_containment(before, after)
         self.assertTrue(result.violated)
 
-        env_without_github = {"PATH": "/usr/bin:/bin:/usr/local/bin", "HOME": str(Path(self.temporary.name))}
+        # A stub `gh` placed first on PATH proves isolation structurally: even if this
+        # stub would be the *first* `gh` resolved (as a real, host-authenticated `gh`
+        # could be -- e.g. Homebrew's /usr/local/bin on Intel Macs, with credentials
+        # in the OS keychain rather than $HOME), it must never be invoked. Scrubbing
+        # PATH/HOME to merely hide a real `gh` was host-dependent and is not relied on
+        # here; `route=False` is what must prevent the GitHub call.
+        stub_bin = Path(self.temporary.name) / "stub-bin"
+        stub_bin.mkdir()
+        stub_gh = stub_bin / "gh"
+        stub_invocation_log = stub_bin / "gh-invoked.log"
+        stub_gh.write_text(f'#!/bin/sh\necho "$@" >> "{stub_invocation_log}"\nexit 1\n', encoding="utf-8")
+        stub_gh.chmod(0o755)
 
         original_environ = dict(os.environ)
         try:
-            os.environ.clear()
-            os.environ.update(env_without_github)
+            os.environ["PATH"] = f"{stub_bin}{os.pathsep}{original_environ.get('PATH', '')}"
             delegation_containment.record_containment_friction(
-                self.integration, Path("/agent-a"), result, task="verify containment", enforcement_tier="hard"
+                self.integration, Path("/agent-a"), result, task="verify containment", enforcement_tier="hard", route=False,
             )
         finally:
             os.environ.clear()
             os.environ.update(original_environ)
+
+        self.assertFalse(
+            stub_invocation_log.exists(),
+            "hermetic synthetic containment friction must never invoke gh, even when gh is resolvable",
+        )
 
         log_file = self.integration / ".claude" / "agent-friction.jsonl"
         self.assertTrue(log_file.exists())

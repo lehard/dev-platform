@@ -1,0 +1,5 @@
+- [x] Reproduce the delegation/containment fixture path that records synthetic friction.
+- [x] Isolate the external GitHub routing boundary in tests without disabling local friction recording.
+- [x] Add regression proving synthetic tests cannot mutate live GitHub even when `gh` is available/authenticated.
+- [x] Keep production routing/dedupe behavior unchanged.
+- [x] Run focused delegation/friction tests, required platform validation and semantic OpenSpec verification.
