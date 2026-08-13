@@ -38,6 +38,16 @@ SECRET_PATTERNS = (
     re.compile(r"(?i)\b(?:password|passwd|api[_-]?key|access[_-]?token|secret)\s*[:=]\s*\S+"),
 )
 FINGERPRINT_PREFIX = "dev-platform-friction"
+DEFAULT_PROCESS_LABEL = "process"
+MAX_OPEN_ISSUE_PAGES = 10
+MAX_DUPLICATE_CANDIDATES = 5
+GENERATED_FRICTION_TITLE_PREFIX = "[process-friction] "
+FINGERPRINT_MARKER_RE = re.compile(r"<!-- dev-platform-friction:[a-f0-9]{24} -->")
+ROOT_CAUSE_STOP_WORDS = {
+    "about", "after", "agent", "and", "are", "been", "before", "being", "but", "can", "cause", "change",
+    "could", "does", "event", "for", "from", "have", "into", "issue", "its", "missing", "new", "not",
+    "platform", "process", "proposal", "should", "that", "the", "their", "then", "this", "under", "when", "with",
+}
 
 
 def local_path(key: str, default: str) -> Path:
@@ -177,6 +187,9 @@ def cmd_record(args: argparse.Namespace) -> int:
     result = route_event(event)
     if result["status"] == "pending":
         print(f"WARNING: friction routing is pending for {event['id']}: {result['detail']}")
+    elif result["status"] == "candidate":
+        numbers = ", ".join(f"#{candidate['issue_number']}" for candidate in result.get("candidates", []))
+        print(f"Friction candidate {event['id']} needs an explicit duplicate decision before creating a new issue: {numbers}")
     else:
         print(f"Routed friction candidate {event['id']} to {result['repository']}#{result['issue_number']}")
     return 0
@@ -394,6 +407,117 @@ def marker_for(fingerprint: str) -> str:
     return f"<!-- {FINGERPRINT_PREFIX}:{fingerprint} -->"
 
 
+def process_label() -> str:
+    """Read the configured review label, retaining a safe legacy default."""
+    try:
+        configured = read_platform_config(main_root()).get("process_health", {}).get("process_label", DEFAULT_PROCESS_LABEL)
+    except (FileNotFoundError, OSError, ValueError):
+        configured = DEFAULT_PROCESS_LABEL
+    label = " ".join(str(configured).split())
+    return label or DEFAULT_PROCESS_LABEL
+
+
+def platform_repository() -> str:
+    try:
+        configured = read_platform_config(main_root()).get("promotion", {}).get("repo", "lehard/dev-platform")
+    except (FileNotFoundError, OSError, ValueError):
+        configured = "lehard/dev-platform"
+    return str(configured).lower()
+
+
+def issue_labels(issue: dict) -> set[str]:
+    labels = issue.get("labels")
+    if not isinstance(labels, list):
+        return set()
+    return {str(label.get("name", "")).casefold() for label in labels if isinstance(label, dict)}
+
+
+def list_open_issues(repository: str) -> list[dict]:
+    """Read the complete supported bounded issue window, never one API page."""
+    issues: list[dict] = []
+    for page in range(1, MAX_OPEN_ISSUE_PAGES + 1):
+        endpoint = f"repos/{repository}/issues?state=open&per_page=100"
+        if page > 1:
+            endpoint += f"&page={page}"
+        listed = gh_json(["api", endpoint])
+        if not isinstance(listed, list):
+            raise RuntimeError("GitHub returned an invalid open issue list")
+        issues.extend(issue for issue in listed if isinstance(issue, dict))
+        if len(listed) < 100:
+            return issues
+    raise RuntimeError(
+        f"bounded open issue scan reached its {MAX_OPEN_ISSUE_PAGES * 100}-issue limit; refusing an incomplete dedupe decision"
+    )
+
+
+def ensure_process_label(repository: str, issue_number: int) -> None:
+    """Idempotently apply and then verify the label used by weekly review."""
+    label = process_label()
+    applied = gh([
+        "api", "--method", "POST", f"repos/{repository}/issues/{issue_number}/labels",
+        "-f", f"labels[]={label}",
+    ])
+    if applied.returncode:
+        raise RuntimeError((applied.stderr or applied.stdout or "GitHub process-label update failed").strip())
+    issue = gh_json(["api", f"repos/{repository}/issues/{issue_number}"])
+    if not isinstance(issue, dict) or label.casefold() not in issue_labels(issue):
+        raise RuntimeError(f"GitHub did not verify required {label!r} label on routed issue #{issue_number}")
+
+
+def _section_text(body: object, heading: str) -> str:
+    match = re.search(rf"(?ms)^### {re.escape(heading)}\s*\n(.*?)(?=^### |\Z)", str(body or ""))
+    return " ".join(match.group(1).split()) if match else ""
+
+
+def _cause_tokens(value: object) -> set[str]:
+    return {
+        token for token in re.findall(r"[a-z0-9][a-z0-9_-]{2,}", str(value).casefold())
+        if token not in ROOT_CAUSE_STOP_WORDS
+    }
+
+
+def likely_duplicate_candidates(event: dict, issues: list[dict]) -> list[dict]:
+    """Expose deterministic root-cause candidates without automatically merging them."""
+    event_category = sanitize_for_route(event.get("category"), 100).casefold()
+    event_hypothesis = sanitize_for_route(event.get("hypothesis"))
+    event_proposal = sanitize_for_route(event.get("proposal"))
+    event_hypothesis_normalized = " ".join(event_hypothesis.casefold().split())
+    event_terms = _cause_tokens(event_hypothesis) | _cause_tokens(event_proposal)
+    candidates: list[dict] = []
+    for issue in issues:
+        body = str(issue.get("body", ""))
+        category_match = re.search(r"(?m)^- Category:\s*`?([^`\n]+)`?\s*$", body)
+        category = " ".join(category_match.group(1).split()) if category_match else "unknown"
+        if category.casefold() == event_category or not FINGERPRINT_MARKER_RE.search(body):
+            continue
+        hypothesis = _section_text(body, "Hypothesis")
+        proposal = _section_text(body, "Proposed change")
+        normalized = " ".join(hypothesis.casefold().split())
+        terms = _cause_tokens(hypothesis) | _cause_tokens(proposal)
+        shared = event_terms & terms
+        if event_hypothesis_normalized and normalized == event_hypothesis_normalized:
+            reason = "matching-root-cause-hypothesis"
+        elif len(shared) >= 3 and len(shared) * 2 >= min(len(event_terms), len(terms)):
+            reason = "overlapping-root-cause-evidence"
+        else:
+            continue
+        number = issue.get("number")
+        if isinstance(number, int):
+            candidates.append({"issue_number": number, "category": category, "reason": reason})
+        if len(candidates) == MAX_DUPLICATE_CANDIDATES:
+            break
+    return candidates
+
+
+def is_generated_friction_issue(issue: dict) -> bool:
+    """Restrict reconciliation to records this router unmistakably owns."""
+    return (
+        str(issue.get("title", "")).startswith(GENERATED_FRICTION_TITLE_PREFIX)
+        and FINGERPRINT_MARKER_RE.search(str(issue.get("body", ""))) is not None
+        and isinstance(issue.get("number"), int)
+    )
+
+
 def gh(command: list[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(["gh", *command], cwd=current_worktree_root(), text=True, capture_output=True)
 
@@ -470,15 +594,17 @@ def route_event(event: dict) -> dict:
         fingerprint = fingerprint_for(event, repository)
         marker = marker_for(fingerprint)
         # HTML comments are intentionally not reliably indexed by GitHub search.
-        # Read the bounded open-issue set and inspect the exact marker ourselves.
-        listed = gh_json(["api", f"repos/{repository}/issues?state=open&per_page=100"])
+        # Read the complete supported bounded open-issue set and inspect the
+        # exact marker ourselves. A full bounded scan is required before a new
+        # issue can be safely created.
+        listed = list_open_issues(repository)
         issue_number = None
-        if isinstance(listed, list):
-            for issue in listed:
-                if isinstance(issue, dict) and marker in str(issue.get("body", "")):
-                    issue_number = issue.get("number")
-                    break
+        for issue in listed:
+            if marker in str(issue.get("body", "")):
+                issue_number = issue.get("number")
+                break
         if isinstance(issue_number, int):
+            ensure_process_label(repository, issue_number)
             result = gh([
                 "api", "--method", "POST", f"repos/{repository}/issues/{issue_number}/comments",
                 "-f", f"body={route_body(event, fingerprint, occurrence=True)}",
@@ -486,14 +612,28 @@ def route_event(event: dict) -> dict:
             if result.returncode:
                 raise RuntimeError((result.stderr or result.stdout or "GitHub issue update failed").strip())
         else:
+            candidates = likely_duplicate_candidates(event, listed)
+            if candidates:
+                route = {
+                    "status": "candidate", "repository": repository, "fingerprint": fingerprint,
+                    "candidates": candidates, "last_attempt_at": utc_now(),
+                    "detail": "possible existing process-friction root cause needs an explicit decision before creating another issue",
+                }
+                with friction_lock():
+                    state = read_state()
+                    state["routes"][event_id] = route
+                    atomic_write_json(state_path(), state)
+                return route
             created = gh_json([
                 "api", "--method", "POST", f"repos/{repository}/issues",
-                "-f", f"title=[process-friction] {sanitize_for_route(event.get('category'), 100)}",
+                "-f", f"title={GENERATED_FRICTION_TITLE_PREFIX}{sanitize_for_route(event.get('category'), 100)}",
                 "-f", f"body={route_body(event, fingerprint, occurrence=False)}",
+                "-f", f"labels[]={process_label()}",
             ])
             if not isinstance(created, dict) or not isinstance(created.get("number"), int):
                 raise RuntimeError("GitHub did not return a created issue number")
             issue_number = created["number"]
+            ensure_process_label(repository, issue_number)
         route = {
             "status": "routed", "repository": repository, "issue_number": issue_number,
             "fingerprint": fingerprint, "routed_at": utc_now(),
@@ -522,6 +662,42 @@ def route_pending() -> dict:
 
 def cmd_route_pending(_: argparse.Namespace) -> int:
     result = route_pending()
+    print(json.dumps(result, ensure_ascii=False))
+    return 0
+
+
+def reconcile_process_labels() -> dict:
+    """Repair only clearly router-generated open source issues, idempotently."""
+    if shutil.which("gh") is None:
+        raise RuntimeError("GitHub CLI is unavailable")
+    auth = gh(["auth", "status"])
+    if auth.returncode:
+        raise RuntimeError("GitHub CLI is not authenticated")
+    # A platform record can be targeted directly; project records belong to the
+    # current origin and are covered when that project's helper is run there.
+    repository = platform_repository()
+    label = process_label().casefold()
+    scanned = repaired = eligible = 0
+    for issue in list_open_issues(repository):
+        if not is_generated_friction_issue(issue):
+            continue
+        scanned += 1
+        if label in issue_labels(issue):
+            eligible += 1
+            continue
+        ensure_process_label(repository, issue["number"])
+        repaired += 1
+    return {
+        "status": "reconciled", "repository": repository, "scanned": scanned,
+        "repaired": repaired, "already_eligible": eligible, "label": process_label(),
+    }
+
+
+def cmd_reconcile_process_labels(_: argparse.Namespace) -> int:
+    try:
+        result = reconcile_process_labels()
+    except RuntimeError as exc:
+        result = {"status": "pending", "detail": sanitize_for_route(str(exc), 240), "last_attempt_at": utc_now()}
     print(json.dumps(result, ensure_ascii=False))
     return 0
 
@@ -695,6 +871,9 @@ def main() -> int:
 
     p = sub.add_parser("route-pending", help="retry locally retained friction events without failing the caller")
     p.set_defaults(func=cmd_route_pending)
+
+    p = sub.add_parser("reconcile-process-labels", help="repair labels on bounded clearly router-generated open friction issues")
+    p.set_defaults(func=cmd_reconcile_process_labels)
 
     p = sub.add_parser("checkpoint", help="resolve the required post-task friction retrospective")
     p.add_argument("--result", help="'none' for a clean retrospective, or a recorded friction event id")

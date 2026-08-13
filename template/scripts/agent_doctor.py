@@ -143,11 +143,11 @@ def run_friction_review_status(integration: Path) -> None:
     pending = int(payload.get("pending_count", 0))
     if payload.get("ready"):
         report(
-            "warn",
-            f"agent friction review is ready ({pending} pending; reason={payload.get('reason')}); review with `python3 scripts/agent_friction.py pending --format markdown`",
+            "ok",
+            f"weekly cloud Process Health Review is the routine cadence; {pending} locally retained event(s) are available for recovery/diagnostic inspection with `python3 scripts/agent_friction.py pending --format markdown` (reason={payload.get('reason')})",
         )
     elif pending:
-        report("ok", f"agent friction review not ready yet ({pending}/5 pending events)")
+        report("ok", f"{pending} locally retained friction event(s) are below the recovery/diagnostic batch threshold (5); weekly cloud Process Health Review remains the routine cadence")
     else:
         report("ok", "no unreviewed agent friction events")
 
