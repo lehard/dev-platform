@@ -124,6 +124,16 @@ class TaskFreshnessTests(unittest.TestCase):
             _platform_common.require_fresh_task_base(self.task, "origin", "main")
         self.assertEqual(git("log", "-1", "--format=%s", cwd=self.task).stdout.strip(), "task diverges")
 
+    def test_issue_219_readonly_observation_reports_new_main_without_updating_tracking_refs(self) -> None:
+        before = git("rev-parse", "origin/main", cwd=self.task).stdout.strip()
+        self.advance_main()
+
+        state, observed = _platform_common.observe_task_base_freshness_readonly(self.task, "origin", "main")
+
+        self.assertEqual(state, "behind")
+        self.assertNotEqual(observed, before)
+        self.assertEqual(git("rev-parse", "origin/main", cwd=self.task).stdout.strip(), before)
+
 
 if __name__ == "__main__":
     unittest.main()

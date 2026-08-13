@@ -61,11 +61,12 @@ python3 scripts/agent_doctor.py
 python3 scripts/start_task.py <slug> --task "<task>" --scope "<files/modules>"
 python3 scripts/select_checks.py --execute
 python3 scripts/openspec_lifecycle.py archive <change>
+python3 scripts/finish_task.py --reconcile
 python3 scripts/finish_task.py
 python3 scripts/finish_task.py --status
 ```
 
-`agent_doctor.py` is start-of-task hygiene and publication preflight. `start_task.py` synchronizes `origin` safely and never auto-merges divergent histories. `finish_task.py` enforces OpenSpec lifecycle hygiene, re-fetches immediately before publication, refuses stale/diverged integration, never force-pushes, and is a resumable reconciler: rerunning it after any interruption is the correct next step. `--status` is strictly read-only.
+`agent_doctor.py` is start-of-task hygiene and publication preflight. `start_task.py` synchronizes `origin` safely and never auto-merges divergent histories. `finish_task.py --reconcile` is the explicit managed-task recovery operation: it reports/merges current authoritative main only through normal Git history, refuses dirty/provenance-ambiguous/changed-remote state, and requires validation to be rerun. `finish_task.py` enforces OpenSpec lifecycle hygiene, re-fetches immediately before publication, refuses stale/diverged integration, never force-pushes, and is resumable: rerunning it after any interruption is the correct next step. `--status` never publishes, merges, or mutates task content; it freshly observes task/main ancestry so it can point to `--reconcile` before expensive validation.
 {% if publish_mode == 'pr' %}
 `publish_mode=pr`: validated work is pushed and a GitHub PR is created/reused by exact head SHA. With `pr_merge_mode=auto` the platform arms GitHub's native auto-merge for that exact head before any long wait, then fast-forwards local `{{ main_branch }}` only after the remote merge succeeds. With `pr_merge_mode=manual` publication stops at the PR for review.
 {% else %}

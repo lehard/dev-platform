@@ -30,7 +30,7 @@ def configure(repo: Path) -> None:
 def install_scripts(repo: Path) -> None:
     target = repo / "scripts"
     target.mkdir(exist_ok=True)
-    for name in ("_platform_common.py", "integration_state.py", "project_publish.py", "publication_state.py", "managed_project_status.py", "finish_task.py", "openspec_lifecycle.py"):
+    for name in ("_platform_common.py", "integration_state.py", "project_publish.py", "publication_state.py", "task_reconciliation.py", "managed_project_status.py", "finish_task.py", "openspec_lifecycle.py"):
         shutil.copy2(SCRIPT_SOURCE / name, target / name)
 
 
@@ -171,7 +171,7 @@ class PublicationRecoveryCliTests(unittest.TestCase):
 
     # -- Recovery is checked before first-publication stale-base rejection --
 
-    def test_existing_exact_head_pr_resumes_after_base_advances_without_forced_rebase(self) -> None:
+    def test_existing_exact_head_pr_requires_reconciliation_after_base_advances(self) -> None:
         head = self.make_feature("agent/base-advances")
         git("push", "-u", "origin", "agent/base-advances", cwd=self.repo)
         self.advance_remote_main()
@@ -192,10 +192,9 @@ class PublicationRecoveryCliTests(unittest.TestCase):
             'exit 1'
         )
         result = run("python3", "scripts/finish_task.py", "--no-checks", cwd=self.repo, check=False, env=env)
-        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
-        self.assertNotIn("is stale relative to", result.stdout + result.stderr)
-        self.assertIn("Resuming existing exact-head PR", result.stdout)
-        self.assertIn("merged through GitHub", result.stdout)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Reconcile before expensive validation", result.stdout + result.stderr)
+        self.assertNotIn("Resuming existing exact-head PR", result.stdout)
 
     def test_new_unpublished_stale_branch_is_still_rejected(self) -> None:
         self.make_feature("agent/never-published-stale")
@@ -203,7 +202,7 @@ class PublicationRecoveryCliTests(unittest.TestCase):
         env = self.fake_gh('if [ "$1" = "auth" ] && [ "$2" = "status" ]; then exit 0; fi\nexit 1\n')
         result = run("python3", "scripts/finish_task.py", "--no-checks", cwd=self.repo, check=False, env=env)
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("is stale relative to", result.stdout + result.stderr)
+        self.assertIn("Reconcile before expensive validation", result.stdout + result.stderr)
 
     # -- Closed-unmerged PR does not block a fresh publication --
 

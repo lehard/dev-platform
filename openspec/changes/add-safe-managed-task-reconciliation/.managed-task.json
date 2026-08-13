@@ -1,0 +1,24 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/platform-lifecycle/spec.md"
+  ],
+  "change": "add-safe-managed-task-reconciliation",
+  "imported_at": "2026-08-13T06:35:12+00:00",
+  "package_revision": "6771b3da861d710b1ccf12c7c86e6d8042f22b41d5b7a11e34e6b10a0ae67d95",
+  "prepared_against": "4658a92a011df0a16ea474085fa82dcc65893203",
+  "routing_receipt": {
+    "assurance": "high",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "publication-lifecycle"
+  },
+  "source_issue": "lehard/development-backlog#35",
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
