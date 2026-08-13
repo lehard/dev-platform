@@ -1,6 +1,6 @@
 ## MODIFIED Requirements
 
-### Requirement: Existing exact-head PRs reconcile safely before authoritative validation
+### Requirement: Existing exact-head PRs resume before first-publication stale-base rejection
 
 A supported finish invocation SHALL distinguish a current task branch from one that is behind or diverged from freshly observed authoritative main before starting expensive validation. A first publication still obeys the platform's fresh-base safety preconditions. An existing exact-head PR whose base has advanced SHALL remain the one publication object, but delivery SHALL stop with the supported reconciliation operation before validation/publishing resumes.
 

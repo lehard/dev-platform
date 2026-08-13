@@ -2,6 +2,7 @@
 
 OpenSpec-Verify: PASS
 Verification-Method: Manual semantic review of proposal, design, task checklist, current specifications and active deltas, plus structural OpenSpec validation and focused/full lifecycle regression tests.
+Automated-Checks-Evidence: automated-checks.json
 
 ## Semantic review
 
