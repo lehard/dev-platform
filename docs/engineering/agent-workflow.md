@@ -120,6 +120,12 @@ create work, or resolve source issues. Explicitly linked evidence is closed
 only after the existing terminal merge, local reconciliation, and Project-Done
 path succeeds.
 
+The weekly cloud Process Health Review is the routine cadence. Local friction
+`pending`/`review` commands remain recovery and diagnostic surfaces rather than
+actions required from each current task agent. `reconcile-process-labels` is a
+bounded, idempotent recovery operation: it restores the configured `process`
+label only on unmistakably router-generated open source issues.
+
 Record only high-signal friction: user correction, repeated failure, safety near-miss, undocumented invariant or excessive retries. Separate observation, evidence, hypothesis and proposal. Do not record secrets or routine successful sessions. When a finding concerns a specific participant, pass `--participant-role supervisor|executor`; the identity is read back from the current routing record rather than self-reported (see `docs/engineering/model-routing.md#execution-provenance`). Friction fingerprinting never includes model/provider, so the same recurring problem across different models still updates one issue.
 
 ### Post-task retrospective

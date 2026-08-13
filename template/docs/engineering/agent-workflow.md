@@ -173,7 +173,7 @@ managed work or closes/relabels source evidence.
 python3 scripts/agent_friction.py record --category <category> --scope project --observation <sanitized-summary> --evidence <local-evidence-summary> --hypothesis <hypothesis> --proposal <proposal>
 ```
 
-Legacy `pending`, `review`, `mark-reviewed`, and `promote` commands remain recovery surfaces; do not make them a routine completion ritual. Pass `--participant-role supervisor|executor` when a finding concerns a specific participant; identity is read back from the current model-routing record rather than self-reported (see `docs/engineering/model-routing.md#execution-provenance`). Fingerprinting never includes model/provider, so the same recurring problem across different models updates one issue instead of splitting by model.
+The weekly cloud Process Health Review is the routine review cadence. Local `pending`, `review`, `mark-reviewed`, and `promote` commands remain recovery/diagnostic surfaces, not per-task actions or completion ritual. `reconcile-process-labels` is a bounded idempotent recovery operation that restores the configured `process` label only on unmistakably router-generated open source issues. Pass `--participant-role supervisor|executor` when a finding concerns a specific participant; identity is read back from the current model-routing record rather than self-reported (see `docs/engineering/model-routing.md#execution-provenance`). Fingerprinting never includes model/provider, so the same recurring problem across different models updates one issue instead of splitting by model.
 
 ### Post-task retrospective
 

@@ -7,6 +7,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_ROOT = ROOT / "template" / "scripts"
@@ -78,6 +79,19 @@ with serialized_integration(Path(%r), {"paths": {"main_merge_lock": ".claude/mai
             dirty, conflicted = agent_doctor.main_copy_status(root)
             self.assertEqual(conflicted, [])
             self.assertIn("tracked.txt", dirty)
+
+    def test_agent_doctor_describes_local_friction_review_as_recovery_surface(self) -> None:
+        completed = subprocess.CompletedProcess(
+            ["python3", "scripts/agent_friction.py"], 0,
+            '{"ready": true, "pending_count": 5, "reason": "minimum-events"}', "",
+        )
+        with patch.object(agent_doctor.subprocess, "run", return_value=completed), patch.object(agent_doctor, "report") as report:
+            agent_doctor.run_friction_review_status(ROOT)
+        kind, message = report.call_args.args
+        self.assertEqual(kind, "ok")
+        self.assertIn("weekly cloud Process Health Review is the routine cadence", message)
+        self.assertIn("recovery/diagnostic", message)
+        self.assertNotIn("review is ready", message)
 
 
 if __name__ == "__main__":
