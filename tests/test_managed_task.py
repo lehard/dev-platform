@@ -524,10 +524,10 @@ class ManagedPackageTests(unittest.TestCase):
             ):
                 started, _, reused = start_managed_task.start_managed_task(root, "lehard/development-backlog#1")
             self.assertTrue(reused)
-            self.assertEqual(started.task_root, task_root)
+            self.assertEqual(started.task_root, task_root.resolve())
             self.assertEqual(started.branch, "agent/resumed")
             fresh_start.assert_not_called()
-            reconcile.assert_called_once_with(task_root, "In progress", source_issue=package.source_issue)
+            reconcile.assert_called_once_with(task_root.resolve(), "In progress", source_issue=package.source_issue)
             self.assertTrue((task_root / ".managed-task-state.json").is_file())
 
     def test_managed_wait_preserves_materialized_worktree_and_blocks_project(self) -> None:
@@ -580,10 +580,10 @@ class ManagedPackageTests(unittest.TestCase):
                     start_managed_task.start_managed_task(root, "lehard/development-backlog#1")
                 started, _, reused = start_managed_task.start_managed_task(root, "lehard/development-backlog#1")
             self.assertTrue(reused)
-            self.assertEqual(started.task_root, task_root)
+            self.assertEqual(started.task_root, task_root.resolve())
             fresh_start.assert_not_called()
             self.assertEqual(admit.call_count, 2)
-            self.assertEqual([call.args[1].task_root for call in admit.call_args_list], [task_root, task_root])
+            self.assertEqual([call.args[1].task_root for call in admit.call_args_list], [task_root.resolve(), task_root.resolve()])
             self.assertEqual([call.args[1] for call in reconcile.call_args_list], ["Blocked", "In progress"])
 
     def test_managed_start_cleans_only_new_task_when_materialization_fails(self) -> None:
