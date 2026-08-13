@@ -43,7 +43,7 @@ from managed_project_status import (
 )
 try:
     from worktree_cleanup import defer_completed_task
-except ModuleNotFoundError:  # Compatibility while an existing project is being upgraded by Copier.
+except ImportError:  # Compatibility while an existing project is being upgraded by Copier.
     defer_completed_task = None
 try:
     from agent_board import HardScopeOverlap, enforce_scope_gate, warn_current_worktree_scope_overlap

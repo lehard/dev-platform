@@ -9,19 +9,19 @@
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
-      "duration_seconds": 0.133,
+      "duration_seconds": 0.122,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/managed_projects.py validate",
-      "duration_seconds": 0.13,
+      "duration_seconds": 0.095,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
-      "duration_seconds": 86.166,
+      "duration_seconds": 91.91,
       "outcome": "success",
       "exit_code": 0
     }
@@ -35,6 +35,7 @@
         "template/scripts/shared_workspace.py",
         "template/scripts/worktree_cleanup.py",
         "tests/test_delegated_write_guard.py",
+        "tests/test_managed_status_lifecycle.py",
         "tests/test_pr_reconciliation_concurrency.py",
         "tests/test_worktree_hygiene.py"
       ],
