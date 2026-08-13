@@ -92,6 +92,10 @@ mode = "parallel"
 targets = ["test_model_routing", "test_start_tier_routing"]
 mode = "parallel"
 
+[test_groups.managed_task_exact_state]
+targets = ["test_managed_task_exact_state"]
+mode = "parallel"
+
 [test_groups.fast-a]
 targets = [
   "test_adopt_project",

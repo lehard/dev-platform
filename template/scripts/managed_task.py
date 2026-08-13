@@ -11,6 +11,8 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
@@ -27,7 +29,9 @@ from _platform_common import (
     profile,
     read_platform_config,
     run_git,
+    utc_now,
 )
+import managed_project_status
 from start_tier_routing import (
     ASSURANCE_VALUES,
     EFFORT_HINT_VALUES,
@@ -46,6 +50,7 @@ FILE_RE = re.compile(r"<!--\s*managed-openspec:file:([^\s]+)\s*-->\n([\s\S]*?)<!
 REF_RE = re.compile(r"^([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)#([1-9][0-9]*)$")
 CHANGE_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
+SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 PROVENANCE = ".managed-task.json"
 TASK_STATE = ".managed-task-state.json"
 AUTHORING_RECEIPT_RE = re.compile(r"<!--\s*managed-task:authoring:([0-9a-f]{64})\s*-->")
@@ -68,6 +73,8 @@ class Package:
     contents: dict[str, str]
     revision: str
     routing_receipt: dict[str, Any] | None = None
+    source_issue_evidence: dict[str, str] | None = None
+    supersedes: str | None = None
 
 
 @dataclass(frozen=True)
@@ -163,17 +170,49 @@ def run_json(command: list[str], root: Path, env: dict[str, str] | None = None) 
         raise ManagedTaskError(f"{' '.join(command[:2])} did not return structured JSON")
 
 
-def issue_bodies(root: Path, repository: str, number: int) -> list[str]:
+def fetch_issue(root: Path, repository: str, number: int) -> dict[str, Any]:
     env = github_cli_env(root)
     if env is None:
         raise ManagedTaskError("GitHub CLI authentication is required; run gh auth login and retry")
     issue = run_json(["gh", "api", f"repos/{repository}/issues/{number}"], root, env)
-    comments = run_json(["gh", "api", "--paginate", f"repos/{repository}/issues/{number}/comments"], root, env)
-    if not isinstance(issue, dict) or not isinstance(comments, list):
+    if not isinstance(issue, dict):
         raise ManagedTaskError("GitHub returned an unexpected issue payload")
-    if any(not isinstance(comment, dict) for comment in comments):
-        raise ManagedTaskError("GitHub returned an invalid issue comment")
+    return issue
+
+
+def issue_comments(root: Path, repository: str, number: int) -> list[dict[str, Any]]:
+    env = github_cli_env(root)
+    if env is None:
+        raise ManagedTaskError("GitHub CLI authentication is required; run gh auth login and retry")
+    comments = run_json(["gh", "api", "--paginate", f"repos/{repository}/issues/{number}/comments"], root, env)
+    if not isinstance(comments, list) or any(not isinstance(comment, dict) for comment in comments):
+        raise ManagedTaskError("GitHub returned an invalid issue comment list")
+    return comments
+
+
+def issue_bodies(root: Path, repository: str, number: int) -> list[str]:
+    issue = fetch_issue(root, repository, number)
+    comments = issue_comments(root, repository, number)
     return [str(issue.get("body") or "")] + [str(comment.get("body") or "") for comment in comments]
+
+
+def issue_revision_evidence(issue: dict[str, Any]) -> dict[str, str]:
+    """Bounded, machine-comparable evidence of an Issue's revision.
+
+    Deliberately keyed off title+body content (``body_sha256``), never ``updated_at``
+    alone: GitHub bumps an Issue's ``updated_at`` whenever a comment is posted to it --
+    including the platform's own package/supersede comment -- so an ``updated_at``-based
+    comparison would make every already-published task look drifted the moment its own
+    package comment posted.
+    """
+    updated_at = issue.get("updated_at")
+    if not isinstance(updated_at, str) or not updated_at:
+        raise ManagedTaskError("GitHub issue payload is missing updated_at")
+    digest = hashlib.sha256()
+    for value in (str(issue.get("title") or ""), str(issue.get("body") or "")):
+        digest.update(value.encode())
+        digest.update(bytes([0]))
+    return {"updated_at": updated_at, "body_sha256": digest.hexdigest()}
 
 
 def safe_artifact(value: str) -> str:
@@ -254,6 +293,11 @@ def revision(manifest: dict[str, Any], artifacts: tuple[str, ...], contents: dic
     normalized["artifacts"] = list(artifacts)
     if "routing_receipt" in manifest:
         normalized["routing_receipt"] = manifest["routing_receipt"]
+    if "supersedes" in manifest:
+        normalized["supersedes"] = manifest["supersedes"]
+    # source_issue_evidence is deliberately excluded: its updated_at moves every time a
+    # comment posts to the Issue -- including this platform's own package/supersede
+    # comment -- which would otherwise make retries/no-op supersede spuriously "differ".
     digest = hashlib.sha256(json.dumps(normalized, sort_keys=True, separators=(",", ":")).encode())
     for path in artifacts:
         digest.update(bytes([0]))
@@ -261,6 +305,32 @@ def revision(manifest: dict[str, Any], artifacts: tuple[str, ...], contents: dic
         digest.update(bytes([0]))
         digest.update(contents[path].encode())
     return digest.hexdigest()
+
+
+def content_fingerprint(
+    source_issue: str,
+    target_repository: str,
+    change: str,
+    prepared_against: str,
+    artifacts: tuple[str, ...],
+    contents: dict[str, str],
+    routing_receipt: dict[str, Any] | None,
+) -> str:
+    """revision() with `supersedes` always excluded, for supersede's retry-convergence check.
+
+    A well-formed predecessor's own `revision` always differs from a freshly built
+    candidate's, because the candidate's `supersedes` points at the predecessor --
+    two manifests that reference each other can never hash equal. Comparing content
+    with `supersedes` stripped from both sides is what lets a byte-identical retry
+    converge as a no-op instead of always minting a new revision.
+    """
+    manifest: dict[str, Any] = {
+        "version": 1, "source_issue": source_issue, "target_repository": target_repository,
+        "change": change, "prepared_against": prepared_against,
+    }
+    if routing_receipt is not None:
+        manifest["routing_receipt"] = routing_receipt
+    return revision(manifest, artifacts, contents)
 
 
 def parse_package(bodies: list[str], requested: str) -> Package:
@@ -312,7 +382,27 @@ def parse_package(bodies: list[str], requested: str) -> Package:
         routing_receipt = validate_routing_receipt(manifest.get("routing_receipt"))
     except StartTierError as exc:
         raise ManagedTaskError(f"managed package has an invalid routing_receipt: {exc}") from exc
-    return Package(source_issue, target, manifest["change"], prepared, artifacts, contents, revision(manifest, artifacts, contents), routing_receipt)
+    source_issue_evidence = None
+    raw_evidence = manifest.get("source_issue_evidence")
+    if raw_evidence is not None:
+        if (
+            not isinstance(raw_evidence, dict)
+            or not isinstance(raw_evidence.get("updated_at"), str)
+            or not raw_evidence["updated_at"]
+            or not isinstance(raw_evidence.get("body_sha256"), str)
+            or not SHA256_RE.fullmatch(raw_evidence["body_sha256"])
+        ):
+            raise ManagedTaskError("managed package has an invalid source_issue_evidence")
+        source_issue_evidence = {"updated_at": raw_evidence["updated_at"], "body_sha256": raw_evidence["body_sha256"].lower()}
+    supersedes = manifest.get("supersedes")
+    if supersedes is not None:
+        if not isinstance(supersedes, str) or not SHA256_RE.fullmatch(supersedes):
+            raise ManagedTaskError("managed package has an invalid supersedes revision")
+        supersedes = supersedes.lower()
+    return Package(
+        source_issue, target, manifest["change"], prepared, artifacts, contents,
+        revision(manifest, artifacts, contents), routing_receipt, source_issue_evidence, supersedes,
+    )
 
 
 def openspec_status(root: Path, change: str) -> dict[str, Any]:
@@ -343,6 +433,8 @@ def package_for_bundle(
     target_repository: str,
     prepared_against: str,
     routing_receipt: dict[str, Any] | None = None,
+    source_issue_evidence: dict[str, str] | None = None,
+    supersedes: str | None = None,
 ) -> Package:
     manifest = {
         "version": 1,
@@ -354,6 +446,8 @@ def package_for_bundle(
     }
     if routing_receipt is not None:
         manifest["routing_receipt"] = routing_receipt
+    if supersedes is not None:
+        manifest["supersedes"] = supersedes
     return Package(
         source_issue=source_issue,
         target_repository=target_repository,
@@ -363,6 +457,8 @@ def package_for_bundle(
         contents=bundle.contents,
         revision=revision(manifest, bundle.artifacts, bundle.contents),
         routing_receipt=routing_receipt,
+        source_issue_evidence=source_issue_evidence,
+        supersedes=supersedes,
     )
 
 
@@ -377,6 +473,10 @@ def serialize_package(package: Package) -> str:
     }
     if package.routing_receipt is not None:
         manifest["routing_receipt"] = package.routing_receipt
+    if package.source_issue_evidence is not None:
+        manifest["source_issue_evidence"] = package.source_issue_evidence
+    if package.supersedes is not None:
+        manifest["supersedes"] = package.supersedes
     fence = "`" * 3
     parts = [f"<!-- {PACKAGE} -->\n\n## Managed OpenSpec package\n\n{fence}json\n", json.dumps(manifest, indent=2), f"\n{fence}\n"]
     for path in package.artifacts:
@@ -397,27 +497,61 @@ def authoring_receipt(bundle: AuthoringBundle, target_repository: str, prepared_
     return digest.hexdigest()
 
 
+@contextmanager
+def exact_target_context(root: Path, sha: str) -> Iterator[Path]:
+    """Yield a short-lived detached worktree checked out at ``sha``.
+
+    Authoring records ``sha`` (a freshly fetched ``origin/main``) as ``prepared_against``,
+    but ``root``'s working tree can be behind or ahead of it. Validating against ``root``
+    directly would let a stale local checkout pass while the package claims to have been
+    checked against a newer revision it never inspected (process friction #208). This
+    context never touches ``root``'s branch pointer or working tree -- only worktree
+    metadata is added/removed -- and is used solely for authoring/supersede validation,
+    never for task materialization (which already gets a fresh checkout from start_task.py).
+    """
+    if not SHA_RE.fullmatch(sha):
+        raise ManagedTaskError(f"prepared_against must be a 40-character Git SHA, got {sha!r}")
+    if run_git(["cat-file", "-e", f"{sha}^{{commit}}"], cwd=root, check=False).returncode != 0:
+        raise ManagedTaskError(
+            f"target revision {sha} is not available in this checkout; fetch the target repository and retry"
+        )
+    tmp_parent = Path(tempfile.mkdtemp(prefix="dev-platform-authoring-validate-"))
+    worktree = tmp_parent / "exact-target"
+    added = run_git(["worktree", "add", "--detach", "--quiet", str(worktree), sha], cwd=root, check=False)
+    if added.returncode != 0:
+        shutil.rmtree(tmp_parent, ignore_errors=True)
+        detail = (added.stderr or added.stdout).strip()
+        raise ManagedTaskError(f"unable to establish an exact validation context for {sha}: {detail or 'git worktree add failed'}")
+    try:
+        yield worktree
+    finally:
+        run_git(["worktree", "remove", "--force", str(worktree)], cwd=root, check=False)
+        shutil.rmtree(tmp_parent, ignore_errors=True)
+
+
 def validate_authoring_bundle(root: Path, bundle: AuthoringBundle, target_repository: str, prepared_against: str) -> None:
-    """Validate in a short-lived real change root so the current CLI owns syntax checks."""
+    """Validate against the exact ``prepared_against`` revision, not whatever is on disk in ``root``."""
     if shutil.which("openspec") is None:
         raise ManagedTaskError("installed OpenSpec CLI is required")
     destination = change_root(root, bundle.change)
     if destination.exists():
         raise ManagedTaskError(f"OpenSpec change {bundle.change!r} already exists; authoring must not overwrite active local planning")
     package = package_for_bundle(bundle, "placeholder/issue#1", target_repository, prepared_against)
-    created = False
-    try:
-        run_json(["openspec", "new", "change", bundle.change, "--json"], root)
-        created = True
-        if not destination.is_dir():
-            raise ManagedTaskError("OpenSpec CLI did not create the expected temporary change root")
-        check_schema(root, package)
-        for relative in package.artifacts:
-            atomic_write((destination / relative).resolve(), package.contents[relative])
-        validate_change(root, bundle.change)
-    finally:
-        if created and destination.is_dir():
-            shutil.rmtree(destination)
+    with exact_target_context(root, prepared_against) as worktree:
+        worktree_destination = change_root(worktree, bundle.change)
+        created = False
+        try:
+            run_json(["openspec", "new", "change", bundle.change, "--json"], worktree)
+            created = True
+            if not worktree_destination.is_dir():
+                raise ManagedTaskError("OpenSpec CLI did not create the expected temporary change root")
+            check_schema(worktree, package)
+            for relative in package.artifacts:
+                atomic_write((worktree_destination / relative).resolve(), package.contents[relative])
+            validate_change(worktree, bundle.change)
+        finally:
+            if created and worktree_destination.is_dir():
+                shutil.rmtree(worktree_destination)
 
 
 def change_root(root: Path, change: str) -> Path:
@@ -554,6 +688,131 @@ def publish_package(root: Path, config: AuthoringConfig, package: Package) -> bo
     return False
 
 
+def serialize_superseded_marker(predecessor_revision: str | None, superseded_by: str) -> str:
+    """Rewrite a predecessor comment to a marker MARKER_RE deliberately does not match.
+
+    "managed-openspec-superseded:v1" is not a substring match for
+    "managed-openspec:v[0-9]+" (the "-superseded" break makes the literal
+    "managed-openspec:v" prefix absent), so a superseded comment is invisible to
+    parse_package's "exactly one active marker" scan -- the importer sees exactly
+    one active package, never an ambiguity, once supersede has run.
+    """
+    manifest: dict[str, Any] = {"version": 1, "superseded_by": superseded_by, "superseded_at": utc_now()}
+    if predecessor_revision is not None:
+        manifest["predecessor_revision"] = predecessor_revision
+    else:
+        manifest["predecessor_malformed"] = True
+    fence = "`" * 3
+    return f"<!-- managed-openspec-superseded:v1 -->\n\n## Managed OpenSpec package (superseded)\n\n{fence}json\n{json.dumps(manifest, indent=2)}\n{fence}\n"
+
+
+def patch_comment_superseded(root: Path, repository: str, comment_id: int, predecessor_revision: str | None, superseded_by: str) -> None:
+    env = github_cli_env(root)
+    if env is None:
+        raise ManagedTaskError("GitHub CLI authentication is required; run gh auth login and retry")
+    endpoint = f"repos/{repository}/issues/comments/{comment_id}"
+    run(
+        ["gh", "api", "--method", "PATCH", endpoint, "--raw-field", "body=" + serialize_superseded_marker(predecessor_revision, superseded_by)],
+        root,
+        env,
+    )
+
+
+def supersede_task(
+    root: Path,
+    bundle_path: str,
+    issue_reference: str,
+    *,
+    strong_trigger: str | None = None,
+    task_family: str = "general",
+    routing_confidence: str = "medium",
+    assurance: str = "standard",
+    effort_hint: str | None = None,
+) -> tuple[Package, bool]:
+    """Replace the active managed package for an existing Development Backlog Issue.
+
+    Validates the replacement against exact current target state before it becomes
+    active, preserves a bounded predecessor-revision link, and leaves exactly one
+    active package revision -- the supported repair path for process-friction #210
+    (a structurally invalid published package with no supported repair).
+    """
+    config = authoring_config(root)
+    bundle = load_authoring_bundle(bundle_path)
+    try:
+        routing_receipt = recommend_start_tier(
+            strong_trigger=strong_trigger,
+            task_family=task_family,
+            routing_confidence=routing_confidence,
+            assurance=assurance,
+            effort_hint=effort_hint,
+        )
+    except StartTierError as exc:
+        raise ManagedTaskError(str(exc)) from exc
+    issue_repository, number = issue_ref(issue_reference)
+    requested = f"{issue_repository}#{number}"
+    if issue_repository != config.repository:
+        raise ManagedTaskError(f"supersede issue {requested} is not in the configured Development Backlog repository {config.repository}")
+    target_repository = origin_repository(root)
+    prepared_against = target_main(root)
+    validate_authoring_bundle(root, bundle, target_repository, prepared_against)
+
+    issue = fetch_issue(root, issue_repository, number)
+    if issue.get("state") != "open":
+        raise ManagedTaskError(f"supersede refuses a closed source Issue: {requested}")
+    if MARKER_RE.search(str(issue.get("body") or "")):
+        raise ManagedTaskError(
+            f"an active managed package marker is embedded in the Issue body itself for {requested}; "
+            "automated supersede only rewrites comment-based packages, resolve manually"
+        )
+    comments = issue_comments(root, issue_repository, number)
+    marker_comments = [comment for comment in comments if MARKER_RE.search(str(comment.get("body") or ""))]
+    if len(marker_comments) > 1:
+        raise ManagedTaskError(f"cannot supersede {requested}: {len(marker_comments)} active managed package markers found; resolve the ambiguity before repair")
+
+    predecessor_comment = marker_comments[0] if marker_comments else None
+    predecessor_package: Package | None = None
+    predecessor_revision: str | None = None
+    if predecessor_comment is not None:
+        bodies = [str(issue.get("body") or "")] + [str(comment.get("body") or "") for comment in comments]
+        try:
+            predecessor_package = parse_package(bodies, requested)
+        except ManagedTaskError:
+            pass  # existing package is malformed; that is exactly what supersede repairs
+        else:
+            if predecessor_package.change != bundle.change:
+                raise ManagedTaskError(
+                    f"supersede bundle change {bundle.change!r} does not match the existing package's change "
+                    f"{predecessor_package.change!r}; renaming the OpenSpec change is not a supported repair"
+                )
+            predecessor_revision = predecessor_package.revision
+
+    observation = managed_project_status.observe(root, source_issue=requested)
+    if observation is not None and observation.current_status in {"In review", "Done"}:
+        raise ManagedTaskError(f"{requested} already reached {observation.current_status!r}; supersede only applies before execution")
+
+    evidence = issue_revision_evidence(issue)
+    package = package_for_bundle(bundle, requested, target_repository, prepared_against, routing_receipt, evidence, predecessor_revision)
+    if predecessor_package is not None:
+        # A well-formed predecessor's own revision always differs from a fresh
+        # candidate's (the candidate's `supersedes` field points at it, so their
+        # manifests can never hash equal) -- compare content excluding `supersedes`
+        # on both sides so a byte-identical retry still converges as a no-op.
+        candidate_fingerprint = content_fingerprint(
+            requested, target_repository, bundle.change, prepared_against, bundle.artifacts, bundle.contents, routing_receipt
+        )
+        predecessor_fingerprint = content_fingerprint(
+            predecessor_package.source_issue, predecessor_package.target_repository, predecessor_package.change,
+            predecessor_package.prepared_against, predecessor_package.artifacts, predecessor_package.contents,
+            predecessor_package.routing_receipt,
+        )
+        if candidate_fingerprint == predecessor_fingerprint:
+            return predecessor_package, False  # retried with identical content: converge as a no-op
+    if predecessor_comment is not None:
+        patch_comment_superseded(root, config.repository, int(predecessor_comment["id"]), predecessor_revision, package.revision)
+    publish_package(root, config, package)
+    return package, True
+
+
 def create_task(
     root: Path,
     bundle_path: str,
@@ -590,7 +849,8 @@ def create_task(
     exact, candidates, resumed = candidate_summary(issues, target_repository, bundle.change, receipt)
     if resumed is not None:
         number = issue_number(resumed)
-        package = package_for_bundle(bundle, f"{config.repository}#{number}", target_repository, prepared_against, routing_receipt)
+        evidence = issue_revision_evidence(fetch_issue(root, config.repository, number))
+        package = package_for_bundle(bundle, f"{config.repository}#{number}", target_repository, prepared_against, routing_receipt, evidence)
         already_published = publish_package(root, config, package)
         return package, True, already_published
     if exact is not None:
@@ -602,7 +862,8 @@ def create_task(
             + "; review them, then rerun with --confirm-distinct if this is a separate change"
         )
     number = create_issue(root, config, bundle, target_repository, priority, receipt)
-    package = package_for_bundle(bundle, f"{config.repository}#{number}", target_repository, prepared_against, routing_receipt)
+    evidence = issue_revision_evidence(fetch_issue(root, config.repository, number))
+    package = package_for_bundle(bundle, f"{config.repository}#{number}", target_repository, prepared_against, routing_receipt, evidence)
     already_published = publish_package(root, config, package)
     return package, False, already_published
 
@@ -853,7 +1114,45 @@ def write_provenance(root: Path, package: Package) -> None:
     }
     if package.routing_receipt is not None:
         payload["routing_receipt"] = package.routing_receipt
+    if package.source_issue_evidence is not None:
+        payload["source_issue_evidence"] = package.source_issue_evidence
+    if package.supersedes is not None:
+        payload["supersedes"] = package.supersedes
     atomic_write(root / PROVENANCE, json.dumps(payload, sort_keys=True, indent=2) + "\n")
+
+
+def observe_source_issue_drift(root: Path) -> dict[str, Any] | None:
+    """Bounded, best-effort post-materialization signal: never raises, never mutates
+    OpenSpec or GitHub. Per design.md, local OpenSpec stays canonical after
+    materialization -- this only surfaces evidence for status/finish to display.
+    """
+    try:
+        provenance = resolve_canonical_provenance(root)
+    except ManagedTaskError:
+        return None
+    if provenance is None:
+        return None
+    try:
+        payload = read_provenance(provenance.path)
+    except ManagedTaskError:
+        return None
+    evidence = payload.get("source_issue_evidence")
+    if not isinstance(evidence, dict) or not isinstance(evidence.get("body_sha256"), str):
+        return {"source_issue": provenance.source_issue, "evidence_available": False}
+    try:
+        issue_repository, number = issue_ref(provenance.source_issue)
+        current = issue_revision_evidence(fetch_issue(root, issue_repository, number))
+    except ManagedTaskError as exc:
+        return {"source_issue": provenance.source_issue, "evidence_available": True, "checked": False, "detail": str(exc)}
+    return {
+        "source_issue": provenance.source_issue,
+        "evidence_available": True,
+        "checked": True,
+        "drifted": current["body_sha256"] != evidence["body_sha256"],
+        "recorded_body_sha256": evidence["body_sha256"],
+        "current_body_sha256": current["body_sha256"],
+        "current_updated_at": current["updated_at"],
+    }
 
 
 def discover_task(root: Path, reference: str) -> Package:
@@ -863,6 +1162,32 @@ def discover_task(root: Path, reference: str) -> Package:
     if package.target_repository != origin_repository(root):
         raise ManagedTaskError(f"package targets {package.target_repository}, not this checkout; no files changed")
     return package
+
+
+def require_no_unacknowledged_source_issue_drift(
+    root: Path, reference: str, package: Package, acknowledge_source_issue_revision: str | None
+) -> None:
+    """Stop before materialization if the source Issue changed since authoring.
+
+    Only called on the genuinely-not-yet-materialized path in import_task: resuming
+    an already-materialized task (archived, or an existing local change directory)
+    never runs this, matching design.md's "canonical-after-materialization" rule that
+    status/finish surface later drift but never block an already-agreed implementation.
+    """
+    if package.source_issue_evidence is None:
+        return
+    issue_repository, number = issue_ref(reference)
+    current = issue_revision_evidence(fetch_issue(root, issue_repository, number))
+    recorded_hash = package.source_issue_evidence["body_sha256"]
+    if current["body_sha256"] == recorded_hash or acknowledge_source_issue_revision == current["body_sha256"]:
+        return
+    raise ManagedTaskError(
+        f"source Issue {package.source_issue} changed since package authoring "
+        f"(recorded body_sha256={recorded_hash}, current body_sha256={current['body_sha256']}); "
+        f"author a superseding package to reconcile scope (managed_task.py supersede --bundle <dir> {package.source_issue}), "
+        f"or rerun with --acknowledge-source-issue-revision {current['body_sha256']} "
+        "to explicitly keep this package's existing scope"
+    )
 
 
 def direct_materialization_is_forbidden(root: Path) -> bool:
@@ -878,7 +1203,13 @@ def direct_materialization_is_forbidden(root: Path) -> bool:
     return root.resolve() == integration.resolve() and branch == str(config.get("main_branch", "main"))
 
 
-def import_task(root: Path, reference: str, *, expected_revision: str | None = None) -> tuple[Package, str, bool]:
+def import_task(
+    root: Path,
+    reference: str,
+    *,
+    expected_revision: str | None = None,
+    acknowledge_source_issue_revision: str | None = None,
+) -> tuple[Package, str, bool]:
     package = discover_task(root, reference)
     if expected_revision is not None and package.revision != expected_revision:
         raise ManagedTaskError("managed package changed after discovery; refusing to materialize a different revision")
@@ -915,6 +1246,7 @@ def import_task(root: Path, reference: str, *, expected_revision: str | None = N
         return package, current_main, True
     if shutil.which("openspec") is None:
         raise ManagedTaskError("installed OpenSpec CLI is required")
+    require_no_unacknowledged_source_issue_drift(root, reference, package, acknowledge_source_issue_revision)
     created = False
     try:
         run_json(["openspec", "new", "change", package.change, "--json"], root)
@@ -938,13 +1270,12 @@ def import_task(root: Path, reference: str, *, expected_revision: str | None = N
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Import or author one managed OpenSpec task without starting implementation.")
+    parser = argparse.ArgumentParser(description="Import, author or supersede one managed OpenSpec task without starting implementation.")
     creating = sys.argv[1:2] == ["create"]
-    if creating:
-        parser.add_argument("command", choices=("create",))
+    superseding = sys.argv[1:2] == ["supersede"]
+    if creating or superseding:
+        parser.add_argument("command", choices=("create",) if creating else ("supersede",))
         parser.add_argument("--bundle", required=True, help="directory containing manifest.json, issue.md and declared OpenSpec artifacts")
-        parser.add_argument("--priority", help="override configured priority (P0, P1, P2 or P3)")
-        parser.add_argument("--confirm-distinct", action="store_true", help="confirm that bounded same-project/target candidates are separate work")
         parser.add_argument(
             "--strong-trigger",
             choices=STRONG_TRIGGERS,
@@ -954,9 +1285,41 @@ def main() -> int:
         parser.add_argument("--routing-confidence", choices=ROUTING_CONFIDENCE_VALUES, default="medium")
         parser.add_argument("--assurance", choices=ASSURANCE_VALUES, default="standard")
         parser.add_argument("--effort-hint", choices=EFFORT_HINT_VALUES, help="defaults to high for R3, medium otherwise")
+        if creating:
+            parser.add_argument("--priority", help="override configured priority (P0, P1, P2 or P3)")
+            parser.add_argument("--confirm-distinct", action="store_true", help="confirm that bounded same-project/target candidates are separate work")
+        else:
+            parser.add_argument("issue", help="owner/repo#N or GitHub issue URL whose published package should be superseded")
     else:
         parser.add_argument("issue", help="owner/repo#N or GitHub issue URL to import")
+        parser.add_argument(
+            "--acknowledge-source-issue-revision",
+            metavar="BODY_SHA256",
+            help="explicitly keep this package's existing scope despite source-Issue drift; "
+            "value must equal the currently observed body_sha256 from the blocking diagnostic",
+        )
     args = parser.parse_args()
+    if superseding:
+        try:
+            package, activated = supersede_task(
+                current_worktree_root(),
+                args.bundle,
+                args.issue,
+                strong_trigger=args.strong_trigger,
+                task_family=args.task_family,
+                routing_confidence=args.routing_confidence,
+                assurance=args.assurance,
+                effort_hint=args.effort_hint,
+            )
+        except ManagedTaskError as exc:
+            print(f"Managed task supersede blocked: {exc}")
+            return 2
+        print(f"Managed package {'activated' if activated else 'already active (no-op)'}: {package.source_issue} ({package.change})")
+        print(f"Package revision: {package.revision}")
+        if package.supersedes is not None:
+            print(f"Supersedes: {package.supersedes}")
+        print("Supersede stops here; import the task later only when the user explicitly requests execution.")
+        return 0
     if creating:
         try:
             package, resumed, already_published = create_task(
@@ -985,7 +1348,10 @@ def main() -> int:
         print("Authoring stops here; import the task later only when the user explicitly requests execution.")
         return 0
     try:
-        package, current_main, reused = import_task(current_worktree_root(), args.issue)
+        package, current_main, reused = import_task(
+            current_worktree_root(), args.issue,
+            acknowledge_source_issue_revision=args.acknowledge_source_issue_revision,
+        )
     except ManagedTaskError as exc:
         print(f"Managed task import blocked: {exc}")
         return 2

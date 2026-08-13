@@ -1,0 +1,24 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/managed-task-intake/spec.md"
+  ],
+  "change": "harden-managed-package-revision-integrity",
+  "imported_at": "2026-08-13T06:34:35+00:00",
+  "package_revision": "103b8e0edf594caf1692133ec985284a0236f83cf3ecf3010460311374cb3a07",
+  "prepared_against": "4658a92a011df0a16ea474085fa82dcc65893203",
+  "routing_receipt": {
+    "assurance": "high",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "managed-task-lifecycle"
+  },
+  "source_issue": "lehard/development-backlog#34",
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

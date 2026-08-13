@@ -6,6 +6,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from contextlib import contextmanager
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
@@ -30,7 +31,15 @@ task_start = sys.modules["start_task"]
 import rollout_preflight  # noqa: E402
 
 
-def package_body(*, target: str = "lehard/dev-platform", artifact: str = "proposal.md", version: str = "v1", routing_receipt: dict | None = None) -> str:
+def package_body(
+    *,
+    target: str = "lehard/dev-platform",
+    artifact: str = "proposal.md",
+    version: str = "v1",
+    routing_receipt: dict | None = None,
+    source_issue_evidence: dict | None = None,
+    supersedes: str | None = None,
+) -> str:
     fence = chr(96) * 3
     manifest = {
         "version": 1,
@@ -42,6 +51,10 @@ def package_body(*, target: str = "lehard/dev-platform", artifact: str = "propos
     }
     if routing_receipt is not None:
         manifest["routing_receipt"] = routing_receipt
+    if source_issue_evidence is not None:
+        manifest["source_issue_evidence"] = source_issue_evidence
+    if supersedes is not None:
+        manifest["supersedes"] = supersedes
     blocks = {
         artifact: "## Why\n",
         "specs/intake/spec.md": "## ADDED Requirements\n\n### Requirement: Intake\n\n#### Scenario: Valid\n\n- **WHEN** valid\n- **THEN** import\n",
@@ -255,7 +268,7 @@ class ManagedPackageTests(unittest.TestCase):
             patch.object(managed_task, "import_task", return_value=(package, "b" * 40, False)) as imported,
         ):
             self.assertEqual(managed_task.main(), 0)
-        imported.assert_called_once_with(Path("/tmp/task"), "lehard/development-backlog#1")
+        imported.assert_called_once_with(Path("/tmp/task"), "lehard/development-backlog#1", acknowledge_source_issue_revision=None)
 
     def test_canonical_provenance_fails_closed_when_state_loses_its_change(self) -> None:
         package = managed_task.parse_package([package_body()], "lehard/development-backlog#1")
@@ -365,7 +378,7 @@ class ManagedPackageTests(unittest.TestCase):
             task_root.mkdir()
             started = start_managed_task.StartedTask(profile="multi-agent", branch="agent/add-managed-backlog-intake", task_root=task_root, board_id="board-1")
 
-            def materialize(destination: Path, reference: str, *, expected_revision: str):
+            def materialize(destination: Path, reference: str, *, expected_revision: str, acknowledge_source_issue_revision: str | None = None):
                 self.assertEqual(destination, task_root)
                 self.assertEqual(reference, "lehard/development-backlog#1")
                 self.assertEqual(expected_revision, package.revision)
@@ -420,7 +433,7 @@ class ManagedPackageTests(unittest.TestCase):
             task_root.mkdir()
             started = start_managed_task.StartedTask(profile="multi-agent", branch="agent/add-managed-backlog-intake", task_root=task_root, board_id="board-1")
 
-            def materialize(destination: Path, reference: str, *, expected_revision: str):
+            def materialize(destination: Path, reference: str, *, expected_revision: str, acknowledge_source_issue_revision: str | None = None):
                 canonical_change(destination, package)
                 return package, "b" * 40, False
 
@@ -500,7 +513,7 @@ class ManagedPackageTests(unittest.TestCase):
             task_root.mkdir()
             started = start_managed_task.StartedTask(profile="multi-agent", branch="agent/fresh-managed-task", task_root=task_root)
 
-            def materialize(destination: Path, reference: str, *, expected_revision: str):
+            def materialize(destination: Path, reference: str, *, expected_revision: str, acknowledge_source_issue_revision: str | None = None):
                 self.assertEqual(destination, task_root)
                 self.assertEqual(reference, "lehard/development-backlog#1")
                 self.assertEqual(expected_revision, package.revision)
@@ -675,6 +688,9 @@ class ManagedPackageTests(unittest.TestCase):
                     managed_task.validate_backlog_labels(root, config, "P2")
 
     def test_authoring_validation_removes_its_temporary_change(self) -> None:
+        # exact_target_context's real-git worktree behavior has its own dedicated
+        # coverage in tests/test_managed_task_exact_state.py; here it is faked out
+        # so this test can focus on validate_authoring_bundle's own logic.
         schema = {
             "artifactPaths": {
                 "proposal": {"outputPath": "proposal.md"}, "specs": {"outputPath": "specs/**/*.md"},
@@ -684,21 +700,31 @@ class ManagedPackageTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             bundle = authoring_bundle(root / "bundle")
+            worktree = Path(tempfile.mkdtemp())
+            self.addCleanup(lambda: shutil.rmtree(worktree, ignore_errors=True))
+
+            @contextmanager
+            def fake_exact_target_context(target_root, sha):
+                self.assertEqual(target_root, root)
+                self.assertEqual(sha, "d" * 40)
+                yield worktree
 
             def fake_json(command: list[str], cwd: Path, env=None):
                 self.assertEqual(command[:3], ["openspec", "new", "change"])
-                (root / "openspec" / "changes" / bundle.change).mkdir(parents=True)
+                self.assertEqual(cwd, worktree)
+                (worktree / "openspec" / "changes" / bundle.change).mkdir(parents=True)
                 return {"change": {"id": bundle.change}}
 
             with (
+                patch.object(managed_task, "exact_target_context", fake_exact_target_context),
                 patch.object(managed_task, "run_json", side_effect=fake_json),
                 patch.object(managed_task, "openspec_status", return_value=schema),
                 patch.object(managed_task, "validate_change") as validate,
                 patch.object(managed_task.shutil, "which", return_value="/usr/bin/openspec"),
             ):
                 managed_task.validate_authoring_bundle(root, bundle, "lehard/dev-platform", "d" * 40)
-            validate.assert_called_once_with(root, bundle.change)
-            self.assertFalse((root / "openspec" / "changes" / bundle.change).exists())
+            validate.assert_called_once_with(worktree, bundle.change)
+            self.assertFalse((worktree / "openspec" / "changes" / bundle.change).exists())
 
     def test_create_rejects_exact_duplicate_and_requires_confirmation_for_candidates(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -745,6 +771,7 @@ class ManagedPackageTests(unittest.TestCase):
                 patch.object(managed_task, "validate_authoring_bundle"),
                 patch.object(managed_task, "open_backlog_issues", return_value=[]),
                 patch.object(managed_task, "create_issue", return_value=7) as create,
+                patch.object(managed_task, "fetch_issue", return_value={"updated_at": "2026-01-01T00:00:00Z", "title": "t", "body": "b"}),
                 patch.object(managed_task, "publish_package", return_value=False) as publish,
             ):
                 package, resumed, already = managed_task.create_task(root, str(bundle_root), "P1", False)
@@ -766,6 +793,7 @@ class ManagedPackageTests(unittest.TestCase):
                 patch.object(managed_task, "validate_authoring_bundle"),
                 patch.object(managed_task, "open_backlog_issues", return_value=[partial]),
                 patch.object(managed_task, "create_issue") as create,
+                patch.object(managed_task, "fetch_issue", return_value={"updated_at": "2026-01-01T00:00:00Z", "title": "t", "body": "b"}),
                 patch.object(managed_task, "publish_package", return_value=False) as publish,
             ):
                 package, resumed, already = managed_task.create_task(root, str(bundle_root), None, False)
@@ -786,6 +814,7 @@ class ManagedPackageTests(unittest.TestCase):
                 patch.object(managed_task, "validate_authoring_bundle"),
                 patch.object(managed_task, "open_backlog_issues", return_value=[]),
                 patch.object(managed_task, "create_issue", return_value=9) as create,
+                patch.object(managed_task, "fetch_issue", return_value={"updated_at": "2026-01-01T00:00:00Z", "title": "t", "body": "b"}),
                 patch.object(managed_task, "publish_package", return_value=False),
             ):
                 package, _, _ = managed_task.create_task(root, str(bundle_root), "P1", False)
@@ -806,6 +835,7 @@ class ManagedPackageTests(unittest.TestCase):
                 patch.object(managed_task, "validate_authoring_bundle"),
                 patch.object(managed_task, "open_backlog_issues", return_value=[]),
                 patch.object(managed_task, "create_issue", return_value=9) as create,
+                patch.object(managed_task, "fetch_issue", return_value={"updated_at": "2026-01-01T00:00:00Z", "title": "t", "body": "b"}),
                 patch.object(managed_task, "publish_package", return_value=False),
             ):
                 package, _, _ = managed_task.create_task(
@@ -849,12 +879,410 @@ class ManagedPackageTests(unittest.TestCase):
                 patch.object(managed_task, "validate_authoring_bundle"),
                 patch.object(managed_task, "open_backlog_issues", return_value=[partial]),
                 patch.object(managed_task, "create_issue") as create,
+                patch.object(managed_task, "fetch_issue", return_value={"updated_at": "2026-01-01T00:00:00Z", "title": "t", "body": "b"}),
                 patch.object(managed_task, "publish_package", return_value=False) as publish,
             ):
                 package, resumed, already = managed_task.create_task(root, str(bundle_root), None, False)
             self.assertEqual(package.source_issue, "lehard/development-backlog#8")
             self.assertTrue(resumed); self.assertFalse(already)
             create.assert_not_called(); publish.assert_called_once()
+
+    def test_parse_package_round_trips_source_issue_evidence_and_supersedes(self) -> None:
+        evidence = {"updated_at": "2026-01-01T00:00:00Z", "body_sha256": "a" * 64}
+        package = managed_task.parse_package(
+            [package_body(source_issue_evidence=evidence, supersedes="b" * 64)], "lehard/development-backlog#1"
+        )
+        self.assertEqual(package.source_issue_evidence, evidence)
+        self.assertEqual(package.supersedes, "b" * 64)
+
+    def test_parse_package_rejects_malformed_source_issue_evidence(self) -> None:
+        with self.assertRaisesRegex(managed_task.ManagedTaskError, "invalid source_issue_evidence"):
+            managed_task.parse_package(
+                [package_body(source_issue_evidence={"updated_at": "", "body_sha256": "a" * 64})],
+                "lehard/development-backlog#1",
+            )
+        with self.assertRaisesRegex(managed_task.ManagedTaskError, "invalid source_issue_evidence"):
+            managed_task.parse_package(
+                [package_body(source_issue_evidence={"updated_at": "2026-01-01T00:00:00Z", "body_sha256": "not-hex"})],
+                "lehard/development-backlog#1",
+            )
+
+    def test_parse_package_rejects_malformed_supersedes(self) -> None:
+        with self.assertRaisesRegex(managed_task.ManagedTaskError, "invalid supersedes revision"):
+            managed_task.parse_package([package_body(supersedes="short")], "lehard/development-backlog#1")
+
+    def test_revision_excludes_source_issue_evidence_but_includes_supersedes(self) -> None:
+        baseline = managed_task.parse_package([package_body()], "lehard/development-backlog#1")
+        with_evidence_a = managed_task.parse_package(
+            [package_body(source_issue_evidence={"updated_at": "2026-01-01T00:00:00Z", "body_sha256": "a" * 64})],
+            "lehard/development-backlog#1",
+        )
+        with_evidence_b = managed_task.parse_package(
+            [package_body(source_issue_evidence={"updated_at": "2026-06-01T00:00:00Z", "body_sha256": "a" * 64})],
+            "lehard/development-backlog#1",
+        )
+        self.assertEqual(baseline.revision, with_evidence_a.revision)
+        self.assertEqual(with_evidence_a.revision, with_evidence_b.revision)
+
+        with_supersedes = managed_task.parse_package([package_body(supersedes="c" * 64)], "lehard/development-backlog#1")
+        self.assertNotEqual(baseline.revision, with_supersedes.revision)
+
+    def test_issue_revision_evidence_hashes_title_and_body_deterministically(self) -> None:
+        issue = {"updated_at": "2026-01-01T00:00:00Z", "title": "Same title", "body": "Same body"}
+        first = managed_task.issue_revision_evidence(issue)
+        second = managed_task.issue_revision_evidence(dict(issue, updated_at="2026-06-01T00:00:00Z"))
+        self.assertEqual(first["body_sha256"], second["body_sha256"])
+        changed = managed_task.issue_revision_evidence(dict(issue, body="Different body"))
+        self.assertNotEqual(first["body_sha256"], changed["body_sha256"])
+
+    def test_issue_revision_evidence_requires_updated_at(self) -> None:
+        with self.assertRaisesRegex(managed_task.ManagedTaskError, "missing updated_at"):
+            managed_task.issue_revision_evidence({"title": "t", "body": "b"})
+
+    def test_create_task_captures_source_issue_evidence_for_new_and_resumed_issues(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            authoring_config(root)
+            bundle_root = root / "bundle"
+            bundle = authoring_bundle(bundle_root)
+            fresh_issue = {"updated_at": "2026-02-01T00:00:00Z", "title": "fresh", "body": "fresh body"}
+            with (
+                patch.object(managed_task, "origin_repository", return_value="lehard/dev-platform"),
+                patch.object(managed_task, "target_main", return_value="f" * 40),
+                patch.object(managed_task, "validate_backlog_labels"),
+                patch.object(managed_task, "validate_authoring_bundle"),
+                patch.object(managed_task, "open_backlog_issues", return_value=[]),
+                patch.object(managed_task, "create_issue", return_value=11),
+                patch.object(managed_task, "fetch_issue", return_value=fresh_issue) as fetch,
+                patch.object(managed_task, "publish_package", return_value=False),
+            ):
+                package, resumed, _ = managed_task.create_task(root, str(bundle_root), "P1", False)
+            self.assertFalse(resumed)
+            fetch.assert_called_once_with(root, "lehard/development-backlog", 11)
+            self.assertEqual(package.source_issue_evidence, managed_task.issue_revision_evidence(fresh_issue))
+
+    def test_discover_task_skips_drift_check_for_legacy_packages_without_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with (
+                patch.object(managed_task, "issue_bodies", return_value=[package_body()]),
+                patch.object(managed_task, "origin_repository", return_value="lehard/dev-platform"),
+                patch.object(managed_task, "fetch_issue") as fetch,
+            ):
+                package = managed_task.discover_task(root, "lehard/development-backlog#1")
+            self.assertIsNone(package.source_issue_evidence)
+            fetch.assert_not_called()
+
+    def test_import_blocks_on_drift_and_unblocks_with_matching_acknowledge_value(self) -> None:
+        recorded = {"updated_at": "2026-01-01T00:00:00Z", "body_sha256": "a" * 64}
+        current_issue = {"updated_at": "2026-06-01T00:00:00Z", "title": "changed", "body": "changed body"}
+        current_hash = managed_task.issue_revision_evidence(current_issue)["body_sha256"]
+        self.assertNotEqual(current_hash, recorded["body_sha256"])
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with (
+                patch.object(managed_task, "issue_bodies", return_value=[package_body(source_issue_evidence=recorded)]),
+                patch.object(managed_task, "origin_repository", return_value="lehard/dev-platform"),
+                patch.object(managed_task, "target_main", return_value="b" * 40),
+                patch.object(managed_task, "fetch_issue", return_value=current_issue),
+                patch.object(managed_task, "run_json") as run_json,
+                patch.object(managed_task.shutil, "which", return_value="/usr/bin/openspec"),
+            ):
+                with self.assertRaisesRegex(managed_task.ManagedTaskError, "changed since package authoring"):
+                    managed_task.import_task(root, "lehard/development-backlog#1")
+                run_json.assert_not_called()
+
+                schema = {
+                    "artifactPaths": {
+                        "proposal": {"outputPath": "proposal.md"}, "specs": {"outputPath": "specs/**/*.md"},
+                        "design": {"outputPath": "design.md"}, "tasks": {"outputPath": "tasks.md"},
+                    }
+                }
+
+                def fake_json(command: list[str], cwd: Path, env=None):
+                    self.assertEqual(command[:3], ["openspec", "new", "change"])
+                    (root / "openspec" / "changes" / "add-managed-backlog-intake").mkdir(parents=True)
+                    return {"change": {"id": "add-managed-backlog-intake"}}
+
+                with (
+                    patch.object(managed_task, "openspec_status", return_value=schema),
+                    patch.object(managed_task, "validate_change"),
+                    patch.object(managed_task, "run_json", side_effect=fake_json),
+                ):
+                    imported, _, _ = managed_task.import_task(
+                        root, "lehard/development-backlog#1", acknowledge_source_issue_revision=current_hash
+                    )
+                self.assertEqual(imported.change, "add-managed-backlog-intake")
+
+    def test_import_rejects_a_stale_or_wrong_acknowledge_value(self) -> None:
+        recorded = {"updated_at": "2026-01-01T00:00:00Z", "body_sha256": "a" * 64}
+        current_issue = {"updated_at": "2026-06-01T00:00:00Z", "title": "changed", "body": "changed body"}
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with (
+                patch.object(managed_task, "issue_bodies", return_value=[package_body(source_issue_evidence=recorded)]),
+                patch.object(managed_task, "origin_repository", return_value="lehard/dev-platform"),
+                patch.object(managed_task, "target_main", return_value="b" * 40),
+                patch.object(managed_task, "fetch_issue", return_value=current_issue),
+                patch.object(managed_task.shutil, "which", return_value="/usr/bin/openspec"),
+            ):
+                with self.assertRaisesRegex(managed_task.ManagedTaskError, "changed since package authoring"):
+                    managed_task.import_task(
+                        root, "lehard/development-backlog#1", acknowledge_source_issue_revision="f" * 64
+                    )
+
+    def test_import_never_blocks_on_drift_when_resuming_an_already_materialized_change(self) -> None:
+        # Canonical-after-materialization: resuming an existing local change directory
+        # must not re-run the drift check, per design.md.
+        recorded = {"updated_at": "2026-01-01T00:00:00Z", "body_sha256": "a" * 64}
+        current_issue = {"updated_at": "2026-06-01T00:00:00Z", "title": "changed", "body": "changed body"}
+        package = managed_task.parse_package(
+            [package_body(source_issue_evidence=recorded)], "lehard/development-backlog#1"
+        )
+        schema = {
+            "artifactPaths": {
+                "proposal": {"outputPath": "proposal.md"}, "specs": {"outputPath": "specs/**/*.md"},
+                "design": {"outputPath": "design.md"}, "tasks": {"outputPath": "tasks.md"},
+            }
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            canonical_change(root, package)
+            with (
+                patch.object(managed_task, "issue_bodies", return_value=[package_body(source_issue_evidence=recorded)]),
+                patch.object(managed_task, "origin_repository", return_value="lehard/dev-platform"),
+                patch.object(managed_task, "target_main", return_value="b" * 40),
+                patch.object(managed_task, "openspec_status", return_value=schema),
+                patch.object(managed_task, "validate_change"),
+                patch.object(managed_task, "fetch_issue", return_value=current_issue) as fetch,
+            ):
+                imported, _, reused = managed_task.import_task(root, "lehard/development-backlog#1")
+            self.assertTrue(reused)
+            fetch.assert_not_called()
+
+    def test_start_managed_task_threads_acknowledge_flag_through_import(self) -> None:
+        package = managed_task.parse_package([package_body()], "lehard/development-backlog#1")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "integration"
+            task_root = Path(tmp) / "task"
+            root.mkdir()
+            task_root.mkdir()
+            started = start_managed_task.StartedTask(profile="multi-agent", branch="agent/add-managed-backlog-intake", task_root=task_root, board_id="board-1")
+
+            def materialize(destination, reference, *, expected_revision, acknowledge_source_issue_revision=None):
+                self.assertEqual(acknowledge_source_issue_revision, "deadbeef")
+                (destination / "openspec" / "changes" / package.change).mkdir(parents=True)
+                return package, "b" * 40, False
+
+            with (
+                patch.object(start_managed_task, "discover_task", return_value=package),
+                patch.object(start_managed_task, "start_task", return_value=started),
+                patch.object(start_managed_task, "import_task", side_effect=materialize),
+                patch.object(start_managed_task, "admit_task", return_value={"decision": "RUN", "claims": []}),
+                patch.object(start_managed_task, "reconcile", return_value=SimpleNamespace(changed=True)),
+            ):
+                start_managed_task.start_managed_task(
+                    root, "lehard/development-backlog#1", acknowledge_source_issue_revision="deadbeef"
+                )
+
+
+class SupersedeTaskTests(unittest.TestCase):
+    def setup_supersede(self, tmp: str, *, predecessor_body: str | None, issue_state: str = "open", issue_body: str = ""):
+        root = Path(tmp)
+        authoring_config(root)
+        bundle_root = root / "bundle"
+        bundle = authoring_bundle(bundle_root, change="add-managed-backlog-intake")
+        issue = {"number": 1, "state": issue_state, "title": "t", "body": issue_body, "updated_at": "2026-06-01T00:00:00Z"}
+        comments = [{"id": 555, "body": predecessor_body}] if predecessor_body is not None else []
+        return root, bundle_root, bundle, issue, comments
+
+    def test_supersede_rewrites_predecessor_comment_and_posts_new_active_package(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            predecessor_body = package_body()
+            predecessor = managed_task.parse_package([predecessor_body], "lehard/development-backlog#1")
+            root, bundle_root, bundle, issue, comments = self.setup_supersede(tmp, predecessor_body=predecessor_body)
+            with (
+                patch.object(managed_task, "origin_repository", return_value="lehard/dev-platform"),
+                patch.object(managed_task, "target_main", return_value="f" * 40),
+                patch.object(managed_task, "validate_authoring_bundle"),
+                patch.object(managed_task, "fetch_issue", return_value=issue),
+                patch.object(managed_task, "issue_comments", return_value=comments),
+                patch.object(managed_task.managed_project_status, "observe", return_value=None),
+                patch.object(managed_task, "patch_comment_superseded") as patch_comment,
+                patch.object(managed_task, "publish_package", return_value=False) as publish,
+            ):
+                package, activated = managed_task.supersede_task(root, str(bundle_root), "lehard/development-backlog#1")
+            self.assertTrue(activated)
+            patch_comment.assert_called_once_with(root, "lehard/development-backlog", 555, predecessor.revision, package.revision)
+            publish.assert_called_once_with(root, managed_task.authoring_config(root), package)
+            self.assertEqual(package.supersedes, predecessor.revision)
+            self.assertNotEqual(package.revision, predecessor.revision)
+
+    def test_supersede_requires_matching_change_for_a_well_formed_predecessor(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            predecessor_body = package_body()  # change=add-managed-backlog-intake
+            root = Path(tmp)
+            authoring_config(root)
+            bundle_root = root / "bundle"
+            bundle = authoring_bundle(bundle_root, change="a-different-change")
+            issue = {"number": 1, "state": "open", "title": "t", "body": "", "updated_at": "2026-06-01T00:00:00Z"}
+            comments = [{"id": 555, "body": predecessor_body}]
+            with (
+                patch.object(managed_task, "origin_repository", return_value="lehard/dev-platform"),
+                patch.object(managed_task, "target_main", return_value="f" * 40),
+                patch.object(managed_task, "validate_authoring_bundle"),
+                patch.object(managed_task, "fetch_issue", return_value=issue),
+                patch.object(managed_task, "issue_comments", return_value=comments),
+                patch.object(managed_task.managed_project_status, "observe", return_value=None),
+            ):
+                with self.assertRaisesRegex(managed_task.ManagedTaskError, "does not match the existing package's change"):
+                    managed_task.supersede_task(root, str(bundle_root), "lehard/development-backlog#1")
+
+    def test_supersede_repairs_a_malformed_predecessor_without_a_change_name_check(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            malformed = "<!-- managed-openspec:v1 -->\n```json\nnot json\n```\n"
+            root, bundle_root, bundle, issue, comments = self.setup_supersede(tmp, predecessor_body=malformed)
+            with (
+                patch.object(managed_task, "origin_repository", return_value="lehard/dev-platform"),
+                patch.object(managed_task, "target_main", return_value="f" * 40),
+                patch.object(managed_task, "validate_authoring_bundle"),
+                patch.object(managed_task, "fetch_issue", return_value=issue),
+                patch.object(managed_task, "issue_comments", return_value=comments),
+                patch.object(managed_task.managed_project_status, "observe", return_value=None),
+                patch.object(managed_task, "patch_comment_superseded") as patch_comment,
+                patch.object(managed_task, "publish_package", return_value=False),
+            ):
+                package, activated = managed_task.supersede_task(root, str(bundle_root), "lehard/development-backlog#1")
+            self.assertTrue(activated)
+            self.assertIsNone(package.supersedes)
+            patch_comment.assert_called_once_with(root, "lehard/development-backlog", 555, None, package.revision)
+
+    def test_supersede_retried_with_identical_bundle_converges_as_noop_without_duplicate_comment(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root, bundle_root, bundle, issue, _ = self.setup_supersede(tmp, predecessor_body=None)
+            with (
+                patch.object(managed_task, "origin_repository", return_value="lehard/dev-platform"),
+                patch.object(managed_task, "target_main", return_value="f" * 40),
+                patch.object(managed_task, "validate_authoring_bundle"),
+                patch.object(managed_task, "fetch_issue", return_value=issue),
+                patch.object(managed_task, "issue_comments", return_value=[]),
+                patch.object(managed_task.managed_project_status, "observe", return_value=None),
+                patch.object(managed_task, "publish_package", return_value=False),
+            ):
+                first, first_activated = managed_task.supersede_task(root, str(bundle_root), "lehard/development-backlog#1")
+            self.assertTrue(first_activated)
+
+            comments = [{"id": 999, "body": managed_task.serialize_package(first)}]
+            with (
+                patch.object(managed_task, "origin_repository", return_value="lehard/dev-platform"),
+                patch.object(managed_task, "target_main", return_value="f" * 40),
+                patch.object(managed_task, "validate_authoring_bundle"),
+                patch.object(managed_task, "fetch_issue", return_value=issue),
+                patch.object(managed_task, "issue_comments", return_value=comments),
+                patch.object(managed_task.managed_project_status, "observe", return_value=None),
+                patch.object(managed_task, "patch_comment_superseded") as patch_comment,
+                patch.object(managed_task, "publish_package") as publish,
+            ):
+                second, second_activated = managed_task.supersede_task(root, str(bundle_root), "lehard/development-backlog#1")
+            self.assertFalse(second_activated)
+            self.assertEqual(second.revision, first.revision)
+            patch_comment.assert_not_called()
+            publish.assert_not_called()
+
+    def test_supersede_fails_closed_on_multiple_active_markers(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            body = package_body()
+            root, bundle_root, bundle, issue, _ = self.setup_supersede(tmp, predecessor_body=None)
+            comments = [{"id": 1, "body": body}, {"id": 2, "body": body}]
+            with (
+                patch.object(managed_task, "origin_repository", return_value="lehard/dev-platform"),
+                patch.object(managed_task, "target_main", return_value="f" * 40),
+                patch.object(managed_task, "validate_authoring_bundle"),
+                patch.object(managed_task, "fetch_issue", return_value=issue),
+                patch.object(managed_task, "issue_comments", return_value=comments),
+            ):
+                with self.assertRaisesRegex(managed_task.ManagedTaskError, "active managed package markers found"):
+                    managed_task.supersede_task(root, str(bundle_root), "lehard/development-backlog#1")
+
+    def test_supersede_fails_closed_when_marker_is_in_the_issue_body(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root, bundle_root, bundle, issue, comments = self.setup_supersede(
+                tmp, predecessor_body=None, issue_body=package_body()
+            )
+            with (
+                patch.object(managed_task, "origin_repository", return_value="lehard/dev-platform"),
+                patch.object(managed_task, "target_main", return_value="f" * 40),
+                patch.object(managed_task, "validate_authoring_bundle"),
+                patch.object(managed_task, "fetch_issue", return_value=issue),
+            ):
+                with self.assertRaisesRegex(managed_task.ManagedTaskError, "embedded in the Issue body itself"):
+                    managed_task.supersede_task(root, str(bundle_root), "lehard/development-backlog#1")
+
+    def test_supersede_validates_replacement_against_exact_current_target_state(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root, bundle_root, bundle, issue, comments = self.setup_supersede(tmp, predecessor_body=None)
+            with (
+                patch.object(managed_task, "origin_repository", return_value="lehard/dev-platform"),
+                patch.object(managed_task, "target_main", return_value="f" * 40),
+                patch.object(managed_task, "validate_authoring_bundle") as validate,
+                patch.object(managed_task, "fetch_issue", return_value=issue),
+                patch.object(managed_task, "issue_comments", return_value=comments),
+                patch.object(managed_task.managed_project_status, "observe", return_value=None),
+                patch.object(managed_task, "publish_package", return_value=False),
+            ):
+                managed_task.supersede_task(root, str(bundle_root), "lehard/development-backlog#1")
+            validate.assert_called_once_with(root, bundle, "lehard/dev-platform", "f" * 40)
+
+    def test_supersede_refuses_a_task_already_in_review_or_done(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root, bundle_root, bundle, issue, comments = self.setup_supersede(tmp, predecessor_body=None)
+            with (
+                patch.object(managed_task, "origin_repository", return_value="lehard/dev-platform"),
+                patch.object(managed_task, "target_main", return_value="f" * 40),
+                patch.object(managed_task, "validate_authoring_bundle"),
+                patch.object(managed_task, "fetch_issue", return_value=issue),
+                patch.object(managed_task, "issue_comments", return_value=comments),
+                patch.object(managed_task.managed_project_status, "observe", return_value=SimpleNamespace(current_status="In review")),
+            ):
+                with self.assertRaisesRegex(managed_task.ManagedTaskError, "already reached 'In review'"):
+                    managed_task.supersede_task(root, str(bundle_root), "lehard/development-backlog#1")
+
+    def test_supersede_refuses_a_closed_issue(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root, bundle_root, bundle, issue, comments = self.setup_supersede(tmp, predecessor_body=None, issue_state="closed")
+            with (
+                patch.object(managed_task, "origin_repository", return_value="lehard/dev-platform"),
+                patch.object(managed_task, "target_main", return_value="f" * 40),
+                patch.object(managed_task, "validate_authoring_bundle"),
+                patch.object(managed_task, "fetch_issue", return_value=issue),
+            ):
+                with self.assertRaisesRegex(managed_task.ManagedTaskError, "refuses a closed source Issue"):
+                    managed_task.supersede_task(root, str(bundle_root), "lehard/development-backlog#1")
+
+    def test_supersede_rejects_an_issue_outside_the_configured_backlog_repository(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            authoring_config(root)
+            bundle_root = root / "bundle"
+            authoring_bundle(bundle_root, change="add-managed-backlog-intake")
+            with self.assertRaisesRegex(managed_task.ManagedTaskError, "not in the configured Development Backlog repository"):
+                managed_task.supersede_task(root, str(bundle_root), "other/repo#9")
+
+    def test_content_fingerprint_ignores_supersedes_but_not_content(self) -> None:
+        base = managed_task.content_fingerprint(
+            "lehard/development-backlog#1", "lehard/dev-platform", "add-managed-backlog-intake", "a" * 40,
+            ("proposal.md",), {"proposal.md": "content"}, None,
+        )
+        with_receipt = managed_task.content_fingerprint(
+            "lehard/development-backlog#1", "lehard/dev-platform", "add-managed-backlog-intake", "a" * 40,
+            ("proposal.md",), {"proposal.md": "content"}, {"recommended_start_tier": "R2"},
+        )
+        different_content = managed_task.content_fingerprint(
+            "lehard/development-backlog#1", "lehard/dev-platform", "add-managed-backlog-intake", "a" * 40,
+            ("proposal.md",), {"proposal.md": "different"}, None,
+        )
+        self.assertNotEqual(base, with_receipt)
+        self.assertNotEqual(base, different_content)
 
 
 if __name__ == "__main__":

@@ -208,6 +208,7 @@ class TemplateContractTests(unittest.TestCase):
         self.assertIn("--status", finish_text)
         self.assertIn("run_status", finish_text)
         self.assertIn("find_existing_exact_open_pr", finish_text)
+        self.assertIn("observe_source_issue_drift", finish_text)
         publish_text = (ROOT / "template" / "scripts" / "project_publish.py").read_text(encoding="utf-8")
         self.assertIn("request_protected_merge", publish_text)
         self.assertIn("--match-head-commit", publish_text)
