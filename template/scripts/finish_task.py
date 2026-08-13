@@ -5,6 +5,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 from _platform_common import (
@@ -124,10 +125,32 @@ def finish_board(main: Path, worktree: Path, config: dict) -> None:
 def run_checks(root: Path, base: str, no_checks: bool) -> None:
     if no_checks:
         return
-    result = subprocess.run(["python3", str(root / "scripts" / "select_checks.py"), "--base", base, "--execute"], cwd=root)
+    result = subprocess.run(
+        ["python3", str(root / "scripts" / "select_checks.py"), "--base", base, "--execute"],
+        cwd=root, text=True, capture_output=True,
+    )
+    if result.stdout:
+        print(result.stdout, end="")
+    if result.stderr:
+        print(result.stderr, end="", file=sys.stderr)
     if result.returncode != 0:
-        record_lifecycle_friction(root, "lifecycle-validation-failure", "required platform validation failed", "select_checks returned a non-zero exit status")
+        record_lifecycle_friction(root, "lifecycle-validation-failure", "required platform validation failed", validation_failure_evidence(result.stdout, result.returncode))
         raise SystemExit(result.returncode)
+
+
+def validation_failure_evidence(output: str, returncode: int) -> str:
+    """Extract the selector's bounded descriptor without forwarding raw logs."""
+    prefix = "DEV_PLATFORM_CHECK_FAILURE: "
+    for line in output.splitlines():
+        if not line.startswith(prefix):
+            continue
+        try:
+            descriptor = json.loads(line[len(prefix):])
+        except json.JSONDecodeError:
+            break
+        if isinstance(descriptor, dict):
+            return json.dumps(descriptor, ensure_ascii=False, sort_keys=True)
+    return json.dumps({"failure_class": "selector-exit", "exit_code": returncode}, sort_keys=True)
 
 
 def run_openspec_hygiene(root: Path) -> None:

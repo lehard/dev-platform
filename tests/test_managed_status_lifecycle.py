@@ -20,6 +20,22 @@ import project_publish  # noqa: E402
 
 
 class ManagedStatusLifecycleTests(unittest.TestCase):
+    def test_validation_failure_evidence_uses_bounded_selector_descriptor(self) -> None:
+        output = (
+            'DEV_PLATFORM_CHECK_FAILURE: {"command":"python3 scripts/run_test_groups.py --all",'
+            '"failure_class":"test-group-failure","failed_groups":["fast-b"]}\nraw test output'
+        )
+        evidence = json.loads(finish_task.validation_failure_evidence(output, 1))
+        self.assertEqual(evidence["failure_class"], "test-group-failure")
+        self.assertEqual(evidence["failed_groups"], ["fast-b"])
+        self.assertNotIn("raw test output", json.dumps(evidence))
+
+    def test_validation_failure_evidence_falls_back_without_selector_descriptor(self) -> None:
+        self.assertEqual(
+            json.loads(finish_task.validation_failure_evidence("unstructured failure", 7)),
+            {"failure_class": "selector-exit", "exit_code": 7},
+        )
+
     def test_reviewable_pr_reconciles_in_review_before_manual_stop(self) -> None:
         root = Path("/tmp/managed-review")
         lookup = SimpleNamespace(available=True, exact_open={"number": 12}, exact_merged=None)

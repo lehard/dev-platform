@@ -5,6 +5,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "template" / "scripts"
@@ -96,6 +97,58 @@ class OpenSpecLifecycleTests(unittest.TestCase):
                 encoding="utf-8",
             )
             lifecycle.require_ready(change, platform_owned=True)
+
+    def test_static_platform_readiness_rejects_missing_evidence_marker_before_checks(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            change = self.make_change(
+                Path(tmp), "done", "- [x] one\n", "OpenSpec-Verify: PASS\nVerification-Method: equivalent-review\n"
+            )
+            with self.assertRaisesRegex(SystemExit, "Automated-Checks-Evidence"):
+                lifecycle.require_static_archive_readiness(change, platform_owned=True)
+
+    def test_uncommitted_only_state_is_not_an_applicable_archive_diff(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(
+            lifecycle, "run_git", return_value=mock.Mock(returncode=0)
+        ):
+            with self.assertRaisesRegex(SystemExit, "committed diff"):
+                lifecycle.require_applicable_committed_diff(Path(tmp))
+
+    def test_archive_rejects_static_receipt_before_running_checks_or_rewriting_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            change = self.make_change(
+                root, "done", "- [x] one\n", "OpenSpec-Verify: PASS\nVerification-Method: equivalent-review\n"
+            )
+            stale = change / "automated-checks.json"
+            stale.write_text('{"outcome":"stale"}\n', encoding="utf-8")
+            with (
+                mock.patch.object(lifecycle, "read_platform_config", return_value={}),
+                mock.patch.object(lifecycle, "harness_mode", return_value="platform"),
+                mock.patch.object(lifecycle, "run_checked") as run_checked,
+            ):
+                with self.assertRaisesRegex(SystemExit, "Automated-Checks-Evidence"):
+                    lifecycle.archive_change(root, "done")
+            run_checked.assert_not_called()
+            self.assertEqual(stale.read_text(encoding="utf-8"), '{"outcome":"stale"}\n')
+
+    def test_archive_rejects_no_committed_diff_before_running_checks(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.make_change(
+                root,
+                "done",
+                "- [x] one\n",
+                "OpenSpec-Verify: PASS\nVerification-Method: equivalent-review\nAutomated-Checks-Evidence: automated-checks.json\n",
+            )
+            with (
+                mock.patch.object(lifecycle, "read_platform_config", return_value={}),
+                mock.patch.object(lifecycle, "harness_mode", return_value="platform"),
+                mock.patch.object(lifecycle, "run_git", return_value=mock.Mock(returncode=0)),
+                mock.patch.object(lifecycle, "run_checked") as run_checked,
+            ):
+                with self.assertRaisesRegex(SystemExit, "committed diff"):
+                    lifecycle.archive_change(root, "done")
+            run_checked.assert_not_called()
 
     def test_archive_directory_is_not_scanned_as_active(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

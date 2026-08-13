@@ -208,6 +208,20 @@ class SelectChecksTests(unittest.TestCase):
         self.assertIn('"outcome": "failure"', lines)
         self.assertIn("DEV_PLATFORM_CHECK_DIAGNOSTIC:\nfailure-detail", lines)
 
+    def test_failed_group_command_emits_selected_group_descriptor_without_raw_output(self) -> None:
+        with tempfile.TemporaryDirectory() as directory, mock.patch("sys.stdout") as stdout:
+            output = 'DEV_PLATFORM_TEST_AGGREGATE: {"failed_groups":["fast-b"],"outcome":"failure"}\nsecret failure detail'
+            result = subprocess.CompletedProcess("test", 1, stdout=output, stderr="")
+            with mock.patch.object(select_checks.subprocess, "run", return_value=result):
+                outcome = select_checks.execute(Path(directory), [{"id": "python", "commands": ["test"]}])
+        self.assertEqual(outcome, 1)
+        lines = "".join(call.args[0] for call in stdout.write.call_args_list)
+        descriptor = json.loads(next(line.split(": ", 1)[1] for line in lines.splitlines() if line.startswith("DEV_PLATFORM_CHECK_FAILURE: ")))
+        self.assertEqual(descriptor["failure_class"], "test-group-failure")
+        self.assertEqual(descriptor["selected_checks"], ["python"])
+        self.assertEqual(descriptor["failed_groups"], ["fast-b"])
+        self.assertNotIn("secret failure detail", json.dumps(descriptor))
+
     def test_validation_environment_removes_only_repository_scoped_git_overrides(self) -> None:
         parent = {
             "PATH": "/tool/bin",

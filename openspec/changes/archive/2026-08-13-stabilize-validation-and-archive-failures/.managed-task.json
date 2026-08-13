@@ -1,0 +1,35 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/platform-ci/spec.md",
+    "specs/completion-lifecycle/spec.md"
+  ],
+  "change": "stabilize-validation-and-archive-failures",
+  "imported_at": "2026-08-13T12:26:03+00:00",
+  "package_revision": "4945fa11a960e05fe76892e9d1131a93b3d91eb73115c1f9e1130445497cf810",
+  "prepared_against": "62370f4c7520b0b01157519c90f6dc522c635ea1",
+  "process_evidence": [
+    "lehard/dev-platform#252",
+    "lehard/dev-platform#253",
+    "lehard/dev-platform#248",
+    "lehard/dev-platform#175"
+  ],
+  "routing_receipt": {
+    "assurance": "high",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "platform-reliability"
+  },
+  "source_issue": "lehard/development-backlog#41",
+  "source_issue_evidence": {
+    "body_sha256": "33bb354461083304f68ed8e81ad8c86d6296ec7ba5e10225bdca1c7ec38d2c2d",
+    "updated_at": "2026-08-13T10:44:03Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
