@@ -89,7 +89,7 @@ targets = ["test_worktree_hygiene"]
 mode = "parallel"
 
 [test_groups.model_routing]
-targets = ["test_model_routing"]
+targets = ["test_model_routing", "test_start_tier_routing"]
 mode = "parallel"
 
 [test_groups.fast-a]
