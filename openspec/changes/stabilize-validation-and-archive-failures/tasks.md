@@ -21,4 +21,4 @@
 - [x] 4.1 Cover concurrent success and controlled real shared-workspace failure.
 - [x] 4.2 Cover actionable validation failure classification.
 - [x] 4.3 Cover archive fail-fast ordering and ready single-pass archive.
-- [ ] 4.4 Run relevant platform-ci/completion/OpenSpec checks and strict OpenSpec validation.
+- [x] 4.4 Run relevant platform-ci/completion/OpenSpec checks and strict OpenSpec validation.
