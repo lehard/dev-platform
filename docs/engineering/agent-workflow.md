@@ -68,12 +68,13 @@ For ordinary work in this central repository, use the committed source contract 
 python3 scripts/start_managed_task.py owner/repo#N
 cd .claude/worktrees/<change>
 python3 scripts/dogfood_task.py status
+python3 scripts/dogfood_task.py reconcile
 python3 scripts/dogfood_task.py finish
 ```
 
 `managed_task.py owner/repo#N` alone refuses to run directly on this repository's own integration checkout (`harness_mode=platform`, `workflow_profile=multi-agent`) and points here instead; `start_managed_task.py` performs the same read-only package intake from outside that checkout, then creates/reuses the task worktree/branch itself. For a change lacking `.managed-task.json` provenance from before that enforcement existed, see the recovery evidence in `lehard/dev-platform#204`.
 
-`status` is read-only; for a managed task it also carries a bounded, best-effort `source_issue_drift` field (whether the source Issue's title/body changed since authoring) as evidence only -- local OpenSpec stays canonical and is never rewritten from it. `finish` delegates to the authoritative GitHub-backed publication/reconciliation lifecycle and is resumable; branch pushed, draft or open PR, and green checks are nonterminal states. Do not report source work as complete until GitHub reports the exact PR `MERGED` and local `main` has been reconciled (with cleanup warnings classified under the shared lifecycle policy).
+`status` is read-only and reports task-vs-authoritative-main freshness before costly validation; for a managed task it also carries a bounded, best-effort `source_issue_drift` field (whether the source Issue's title/body changed since authoring) as evidence only -- local OpenSpec stays canonical and is never rewritten from it. If `status` reports `behind` or `diverged`, run `reconcile`: the explicit operation refuses dirty/provenance-ambiguous/changed-remote state and uses a normal merge only, never a rebase, force-push, reset or automatic stash. A reconciled head must rerun validation before `finish`, which delegates to the authoritative GitHub-backed publication/reconciliation lifecycle and is resumable; branch pushed, draft or open PR, and green checks are nonterminal states. Do not report source work as complete until GitHub reports the exact PR `MERGED` and local `main` has been reconciled (with cleanup warnings classified under the shared lifecycle policy).
 
 ## Scope discipline and capabilities
 

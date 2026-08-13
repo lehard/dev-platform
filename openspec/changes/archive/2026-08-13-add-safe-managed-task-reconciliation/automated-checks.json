@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.747,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/managed_projects.py validate",
+      "duration_seconds": 0.094,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 74.89,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        ".dev-platform.toml",
+        "dev-platform/checks.toml",
+        "scripts/dogfood_task.py",
+        "scripts/reconcile_task.py",
+        "template/scripts/_platform_common.py",
+        "template/scripts/finish_task.py",
+        "template/scripts/platform_doctor.py",
+        "template/scripts/publication_state.py",
+        "template/scripts/reconcile_task.py",
+        "template/scripts/task_reconciliation.py",
+        "tests/test_central_dogfood_lifecycle.py",
+        "tests/test_git_lifecycle.py",
+        "tests/test_merge_lifecycle_resilience.py",
+        "tests/test_protected_main_zero_handoff.py",
+        "tests/test_publication_recovery_cli.py",
+        "tests/test_task_freshness.py",
+        "tests/test_task_reconciliation.py",
+        "tests/test_template_contract.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/managed_projects.py validate",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ]
+}

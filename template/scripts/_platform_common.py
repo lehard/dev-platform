@@ -241,6 +241,39 @@ def observe_task_base_freshness(
     return state, remote_sha
 
 
+def observe_task_base_freshness_readonly(
+    root: Path,
+    remote: str,
+    main_branch: str,
+    *,
+    task_ref: str = "HEAD",
+) -> tuple[str, str]:
+    """Observe task/main ancestry without updating task checkout refs.
+
+    Status deliberately uses ``ls-remote`` rather than fetch.  If the
+    advertised main commit is absent locally, the task cannot contain it, so
+    reporting ``behind`` is safe without mutating remote-tracking refs.
+    """
+    authoritative = f"{remote}/{main_branch}"
+    result = run_git(["ls-remote", "--heads", remote, main_branch], cwd=root, check=False)
+    if result.returncode != 0:
+        raise TaskFreshnessError(
+            f"unable to observe authoritative {authoritative} without updating local refs; retry after remote access is restored"
+        )
+    fields = result.stdout.split()
+    if not fields:
+        raise TaskFreshnessError(f"authoritative branch {authoritative} was not found during read-only freshness observation")
+    remote_sha = fields[0]
+    if run_git(["cat-file", "-e", f"{remote_sha}^{{commit}}"], cwd=root, check=False).returncode != 0:
+        return "behind", remote_sha
+    state = relation(root, task_ref, remote_sha)
+    if state == "missing":
+        raise TaskFreshnessError(
+            f"unable to compare task ref {task_ref!r} with observed {authoritative} ({remote_sha}); retry after repairing local Git refs"
+        )
+    return state, remote_sha
+
+
 def require_fresh_task_base(
     root: Path,
     remote: str,

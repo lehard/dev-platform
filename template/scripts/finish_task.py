@@ -30,6 +30,10 @@ from integration_state import (
     serialized_integration,
 )
 import publication_state
+try:
+    import task_reconciliation
+except ModuleNotFoundError:  # Compatibility while an existing project is being upgraded by Copier.
+    task_reconciliation = None
 from managed_project_status import (
     ManagedProjectStatusError,
     reconcile as reconcile_managed_project,
@@ -213,7 +217,7 @@ def find_existing_exact_open_pr(root: Path, branch: str, main_branch: str) -> di
 
 
 def run_status(work: Path, integration: Path, config: dict, *, as_json: bool) -> int:
-    """Strictly read-only publication status: no push/PR/merge/board/cleanup/main mutation."""
+    """Read publication state plus freshly observed task/main freshness; never publish or merge."""
     main_branch = str(config.get("main_branch", "main"))
     mode = publish_mode(config)
     branch = current_branch(work)
@@ -232,15 +236,30 @@ def run_status(work: Path, integration: Path, config: dict, *, as_json: bool) ->
     obs = publication_state.observe_publication(work, integration, env, branch, main_branch)
     durability = publication_state.merge_durability_capability(config, env, work)
     try:
+        if task_reconciliation is None:
+            raise RuntimeError("task reconciliation helper is not installed")
+        freshness = task_reconciliation.status_payload(work)
+    except Exception as exc:
+        freshness = {"task_freshness": "unavailable", "reconcile_required": False, "freshness_detail": str(exc)}
+    try:
         drift = observe_source_issue_drift(work)
     except Exception:
         drift = None
     if as_json:
-        payload = publication_state.status_payload(obs, durability)
+        payload = {**publication_state.status_payload(obs, durability), **freshness}
         payload["source_issue_drift"] = drift
         print(json.dumps(payload, indent=2))
     else:
         print(publication_state.status_text(obs, durability))
+        if freshness["task_freshness"] == "unavailable":
+            print("task freshness: unavailable (authoritative main could not be observed)")
+        else:
+            print(f"task freshness: {freshness['task_freshness']} relative to origin/{main_branch}")
+            if freshness["reconcile_required"]:
+                print("reconcile required before expensive validation: python3 scripts/finish_task.py --reconcile")
+        provenance = freshness.get("managed_provenance")
+        if provenance:
+            print(f"managed provenance: {provenance}")
         if isinstance(drift, dict) and drift.get("drifted"):
             print(
                 f"source_issue_drift: {drift['source_issue']} changed since this package was authored "
@@ -376,10 +395,13 @@ def main() -> int:
     parser.add_argument("--body")
     parser.add_argument("--merge-timeout", type=float, default=60.0)
     parser.add_argument("--status", action="store_true", help="Read-only publication status; makes no mutations.")
+    parser.add_argument("--reconcile", action="store_true", help="Safely merge authoritative main into the current managed task before validation.")
     parser.add_argument("--json", action="store_true", help="Emit --status output as JSON.")
     args = parser.parse_args()
     if args.json and not args.status:
         parser.error("--json requires --status")
+    if args.status and args.reconcile:
+        parser.error("--status and --reconcile are mutually exclusive")
     if args.merge_timeout < 0:
         parser.error("--merge-timeout must be non-negative")
     if args.no_checks and os.environ.get(ALLOW_NO_CHECKS_ENV) != "1":
@@ -392,6 +414,11 @@ def main() -> int:
     config = read_platform_config(work)
     if args.status:
         return run_status(work, integration, config, as_json=args.json)
+    if args.reconcile:
+        if task_reconciliation is None:
+            raise SystemExit("Task reconciliation helper is unavailable; update the rendered platform lifecycle before using --reconcile.")
+        task_reconciliation.reconcile(work)
+        return 0
     if harness_mode(config) != "platform":
         raise SystemExit("harness_mode=project: use the repository-owned Git/worktree publication workflow instead of scripts/finish_task.py.")
     prof = profile(config)
@@ -436,11 +463,23 @@ def main() -> int:
         print("Task PR was already merged through GitHub; local main and task state were reconciled without republishing.")
         return 0
 
-    # An already-open exact-head PR is a resumable remote object: detect it
-    # before the first-publication fresh-base precondition below, so recovery
-    # of an existing PR is not blocked merely because origin/main advanced
-    # after that PR was opened. GitHub required checks/protection/auto-merge/
-    # merge queue remain authoritative for whether it can actually integrate.
+    if task_reconciliation is None:
+        stale_state = relation(work, "HEAD", remote_main)
+        freshness = {"task_freshness": stale_state, "reconcile_required": stale_state in {"behind", "diverged"}}
+    else:
+        freshness_observation = task_reconciliation.observe(work)
+        freshness = {
+            "task_freshness": freshness_observation.state,
+            "reconcile_required": freshness_observation.reconcile_required,
+        }
+    if freshness["reconcile_required"]:
+        raise SystemExit(
+            f"{branch} is {freshness['task_freshness']} relative to freshly observed {remote_main}. "
+            "Reconcile before expensive validation: python3 scripts/finish_task.py --reconcile"
+        )
+
+    # An exact PR remains the publication object after reconciliation, but its
+    # old validation cannot apply to the newly reconciled head.
     exact_open_pr = None
     if mode == "pr" and branch != main_branch:
         exact_open_pr = find_existing_exact_open_pr(work, branch, main_branch)

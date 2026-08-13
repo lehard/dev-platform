@@ -1,0 +1,24 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/model-routing/spec.md"
+  ],
+  "change": "verify-codex-live-execution-provenance",
+  "imported_at": "2026-08-13T06:20:03+00:00",
+  "package_revision": "426ef9aea45e819a696c6237487f6b7bf558432926133bc32687549a10eb25a0",
+  "prepared_against": "70c3526419320609f330a1aca4ab62590648da52",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "verification"
+  },
+  "source_issue": "lehard/development-backlog#33",
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

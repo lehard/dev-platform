@@ -50,11 +50,12 @@ Ordinary work in this repository uses the committed source contract in `.dev-pla
 python3 scripts/start_managed_task.py owner/repo#N
 python3 scripts/dogfood_task.py route-claude --profile <routine|standard|complex> --rationale "..." --evidence "..."
 python3 scripts/dogfood_task.py status
+python3 scripts/dogfood_task.py reconcile
 python3 template/scripts/openspec_lifecycle.py archive <change>
 python3 scripts/dogfood_task.py finish
 ```
 
-`status` is read-only. `finish` delegates to the authoritative GitHub-backed publication/reconciliation lifecycle and is resumable; branch pushed, draft or open PR, and green checks are nonterminal states. Do not report source work as complete until GitHub reports the exact PR `MERGED` and local `main` has been reconciled.
+`status` is read-only and reports task freshness before expensive validation. If it requires reconciliation, run `python3 scripts/dogfood_task.py reconcile`; it refuses dirty or ambiguous state, merges current main without history rewrite, and a published exact PR is fast-forward pushed on the same branch. Rerun validation before `finish`, which delegates to the authoritative GitHub-backed publication lifecycle and is resumable. Do not report source work as complete until GitHub reports the exact PR `MERGED` and local `main` has been reconciled.
 
 Minimum validation before finishing:
 

@@ -164,6 +164,13 @@ def finish(args: argparse.Namespace) -> int:
     return 0
 
 
+def reconcile(_: argparse.Namespace) -> int:
+    root = current_root()
+    verify_source_contract(root)
+    run(["python3", "scripts/finish_task.py", "--reconcile"], root)
+    return 0
+
+
 def require_routing_gate(root: Path) -> None:
     """Prevent managed dogfood delivery without the required routed execution."""
     changes = list((root / "openspec" / "changes").glob("*/.managed-task.json"))
@@ -282,6 +289,8 @@ def main() -> int:
     finish_parser.add_argument("--title")
     finish_parser.add_argument("--body")
     finish_parser.set_defaults(func=finish)
+    reconcile_parser = sub.add_parser("reconcile", help="Safely incorporate current authoritative main before validation.")
+    reconcile_parser.set_defaults(func=reconcile)
     route_parser = sub.add_parser(
         "route-codex",
         help="Record the Sol supervisor's semantic route and dispatch routine/standard work.",

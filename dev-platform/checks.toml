@@ -65,7 +65,7 @@ targets = ["test_publication_recovery_cli"]
 mode = "parallel"
 
 [test_groups.git_lifecycle]
-targets = ["test_git_lifecycle"]
+targets = ["test_git_lifecycle", "test_task_reconciliation"]
 mode = "parallel"
 
 [test_groups.publication_state]
