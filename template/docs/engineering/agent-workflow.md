@@ -29,7 +29,7 @@ In the `multi-agent` profile the platform atomically admits concrete file claims
 
 ## Shared workspace permissions
 
-Managed platform state and Git metadata are shared with the POSIX group owning the integration checkout. Use `python3 scripts/shared_workspace.py check` for a read-only diagnosis and `python3 scripts/shared_workspace.py fix` for bounded repair. The helper only touches registered `.claude` coordination paths and required Git common-directory metadata; it never traverses application files, credentials, home directories or other repositories. Set `DEV_PLATFORM_SHARED_GROUP` locally only when a reviewed deployment requires a group other than the checkout's group. Filesystems without POSIX modes report a non-mutating compatibility warning.
+Managed platform state and Git metadata are shared with the POSIX group owning the integration checkout. Use `python3 scripts/shared_workspace.py check` for a read-only diagnosis and `python3 scripts/shared_workspace.py fix` for bounded repair. The helper only touches the registered lifecycle allowlist under `.claude` and required Git common-directory metadata; unknown tool-managed symlinks and transient caches below `.claude` are foreign and untouched. It never traverses application files, credentials, home directories or other repositories. Set `DEV_PLATFORM_SHARED_GROUP` locally only when a reviewed deployment requires a group other than the checkout's group. Filesystems without POSIX modes report a non-mutating compatibility warning.
 
 ## Worktree hygiene
 

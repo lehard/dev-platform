@@ -65,7 +65,7 @@ class SharedWorkspaceTests(unittest.TestCase):
             shared_workspace.audit(root, fix=True)
             self.assertEqual(stat.S_IMODE(application_file.stat().st_mode), 0o600)
 
-    def test_symlink_escape_is_rejected(self) -> None:
+    def test_foreign_claude_symlink_is_ignored_while_owned_state_is_repaired(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary) / "project"
             root.mkdir()
@@ -74,9 +74,42 @@ class SharedWorkspaceTests(unittest.TestCase):
             outside.mkdir()
             claude = root / ".claude"
             claude.mkdir()
-            (claude / "escape").symlink_to(outside, target_is_directory=True)
-            with self.assertRaises(shared_workspace.SharedWorkspaceError):
-                shared_workspace.audit(root)
+            foreign = claude / "tool-state"
+            foreign.symlink_to(outside, target_is_directory=True)
+            owned = claude / "agents-board.json"
+            owned.write_text("{}\n", encoding="utf-8")
+            owned.chmod(0o600)
+            group, findings = shared_workspace.audit(root, fix=True)
+            self.assertIsNotNone(group)
+            self.assertTrue(foreign.is_symlink())
+            self.assertEqual(foreign.resolve(), outside.resolve())
+            self.assertFalse(any(finding.path == foreign for finding in findings))
+            self.assertEqual(owned.stat().st_mode & 0o060, 0o060)
+
+    def test_foreign_transient_cache_is_ignored_during_audit(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "project"
+            root.mkdir()
+            self.init_repo(root)
+            cache = root / ".claude" / "node_modules.partial.while-another-worktree-writes"
+            cache.mkdir(parents=True)
+            cache_file = cache / "package.json"
+            cache_file.write_text('{"partial": true}\n', encoding="utf-8")
+            cache_file.chmod(0o600)
+            shared_workspace.audit(root, fix=True)
+            self.assertEqual(stat.S_IMODE(cache_file.stat().st_mode), 0o600)
+
+    def test_restrictive_git_metadata_is_still_repaired(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "project"
+            root.mkdir()
+            self.init_repo(root)
+            config = root / ".git" / "config"
+            config.chmod(0o600)
+            group, findings = shared_workspace.audit(root, fix=True)
+            self.assertIsNotNone(group)
+            self.assertFalse(any(finding.path == config for finding in findings))
+            self.assertEqual(config.stat().st_mode & 0o060, 0o060)
 
     def test_foreign_owned_path_reports_minimal_owner_action(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
