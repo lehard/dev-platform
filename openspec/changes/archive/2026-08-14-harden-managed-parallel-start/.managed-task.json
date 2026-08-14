@@ -1,0 +1,31 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/managed-task-intake/spec.md"
+  ],
+  "change": "harden-managed-parallel-start",
+  "imported_at": "2026-08-13T21:44:35+00:00",
+  "package_revision": "fa330f5efd980017e4a5bf74a61e3fb7464a4b1089c866d85f44cdb9e5c067a7",
+  "prepared_against": "172a007da1b29cab359c85e1de83566c9bc6660d",
+  "process_evidence": [
+    "lehard/dev-platform#262"
+  ],
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue": "lehard/development-backlog#45",
+  "source_issue_evidence": {
+    "body_sha256": "703557406ece72a0493bbd50ae1429e62ec1ad1804ef4636cc5340034a1aeae2",
+    "updated_at": "2026-08-13T21:41:09Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
