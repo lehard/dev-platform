@@ -26,12 +26,25 @@ TASK_INTAKE_REFERENCE = "docs/engineering/task-intake.md"
 
 # Files that remain downstream-owned for every harness mode.
 ALWAYS_PROJECT_OWNED_ROLLOUT_PATHS = {
+    ".gitignore",
     "AGENTS.md",
     "CLAUDE.md",
     "README.md",
     "dev-platform/checks.toml",
     "openspec/config.yaml",
     "docs/engineering/project-rules.md",
+}
+
+# These are names only: rollout never creates, reads, stages, or commits the
+# corresponding artifacts. They exercise the effective ignore behavior that a
+# Cuby-like repository commonly needs to keep local.
+REPRESENTATIVE_IGNORE_PATHS = {
+    ".env": "environment secrets",
+    "config/provider-credentials.json": "provider credentials",
+    "var/app.sqlite3": "database files",
+    "node_modules/.package-lock.json": "dependency directories",
+    "dist/assets/app.js": "build products",
+    "tsconfig.tsbuildinfo": "TypeScript state",
 }
 
 # Paths that a mature project-owned harness may keep while still receiving the
@@ -296,6 +309,47 @@ def find_reject_files(project_root: Path) -> list[str]:
             continue
         found.append(str(relative))
     return sorted(found)
+
+
+def is_ignored(project_root: Path, relative: str) -> bool:
+    """Return Git's effective ignore decision for a synthetic relative path."""
+    result = run(
+        ["git", "check-ignore", "--quiet", "--no-index", "--", relative],
+        project_root,
+        capture=True,
+        check=False,
+    )
+    if result.returncode == 0:
+        return True
+    if result.returncode == 1:
+        return False
+    detail = (result.stderr or result.stdout or f"exit {result.returncode}").strip()
+    raise ValueError(f"could not evaluate ignore coverage for {relative}: {detail}")
+
+
+def snapshot_effective_ignore_coverage(project_root: Path) -> set[str]:
+    """Capture only representative paths already ignored before rendering."""
+    return {
+        relative
+        for relative in REPRESENTATIVE_IGNORE_PATHS
+        if is_ignored(project_root, relative)
+    }
+
+
+def require_effective_ignore_coverage(
+    project_root: Path, coverage_before: set[str]
+) -> None:
+    """Fail closed if rendering exposed an artifact class previously ignored."""
+    lost = sorted(relative for relative in coverage_before if not is_ignored(project_root, relative))
+    if lost:
+        descriptions = ", ".join(
+            f"{relative} ({REPRESENTATIVE_IGNORE_PATHS[relative]})" for relative in lost
+        )
+        raise ValueError(
+            "managed rendering removed effective ignore coverage for: "
+            + descriptions
+            + "; inspect the project-owned .gitignore. No local artifacts were read, staged, or modified."
+        )
 
 
 def reject_target(reject_path: str) -> str:
@@ -710,6 +764,7 @@ def copier_update_with_guarded_recopy(
     answers_before = (project_root / ".copier-answers.yml").read_text(encoding="utf-8")
     config_before = platform_config_contract(project_root)
     protected_before = snapshot_existing_project_owned(project_root)
+    ignore_coverage_before = snapshot_effective_ignore_coverage(project_root)
     agents_before = (
         (project_root / "AGENTS.md").read_text(encoding="utf-8")
         if (project_root / "AGENTS.md").is_file()
@@ -739,6 +794,7 @@ def copier_update_with_guarded_recopy(
     rejects = find_reject_files(project_root)
     if not rejects:
         require_project_owned_snapshot(project_root, protected_before)
+        require_effective_ignore_coverage(project_root, ignore_coverage_before)
         reconcile_task_intake_reference(project_root)
         run_rendered_platform_bootstrap(project_root, env=env)
         require_project_owned_snapshot(
@@ -829,6 +885,7 @@ def copier_update_with_guarded_recopy(
             + ", ".join(recopy_rejects[:10])
         )
     require_project_owned_snapshot(project_root, protected_before)
+    require_effective_ignore_coverage(project_root, ignore_coverage_before)
     reconcile_task_intake_reference(project_root)
     run_rendered_platform_bootstrap(project_root, env=env)
     require_project_owned_snapshot(

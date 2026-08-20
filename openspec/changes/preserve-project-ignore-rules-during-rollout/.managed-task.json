@@ -1,0 +1,31 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/platform-rollout/spec.md"
+  ],
+  "change": "preserve-project-ignore-rules-during-rollout",
+  "imported_at": "2026-08-20T15:05:32+00:00",
+  "package_revision": "91f400886f4310575e52f5ebb7085e10159ef47e76d9ee5a8941fbe0f3bf914d",
+  "prepared_against": "0a0f7e6b11347361337fbfedaee0e319d045d4c8",
+  "process_evidence": [
+    "lehard/dev-platform#290"
+  ],
+  "routing_receipt": {
+    "assurance": "high",
+    "effort_hint": "high",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "rollout-safety-bugfix"
+  },
+  "source_issue": "lehard/development-backlog#50",
+  "source_issue_evidence": {
+    "body_sha256": "a7bb6605a7d76c820e46f15bb7d488f3e66b89eb28c413902da7f830b1de5acc",
+    "updated_at": "2026-08-20T15:00:29Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

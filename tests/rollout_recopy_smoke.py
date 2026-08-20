@@ -109,6 +109,29 @@ def main() -> int:
             product_ci.parent.mkdir(parents=True, exist_ok=True)
             product_ci.write_text("name: Project-owned product CI\n", encoding="utf-8")
 
+            # Synthetic Cuby-like artifacts: only names and harmless fixtures,
+            # never real credentials. The rollout guard uses the same paths with
+            # `git check-ignore --no-index` and must not materialize or stage them.
+            gitignore = project / ".gitignore"
+            gitignore.write_text(
+                gitignore.read_text(encoding="utf-8")
+                + "\n# Project-owned Cuby runtime ignores\n"
+                + ".env\nconfig/*credentials.json\nvar/*.sqlite3\nnode_modules/\ndist/\n*.tsbuildinfo\n",
+                encoding="utf-8",
+            )
+            synthetic_artifacts = {
+                ".env": "synthetic environment fixture\n",
+                "config/provider-credentials.json": "{\"synthetic\": true}\n",
+                "var/app.sqlite3": "synthetic database fixture\n",
+                "node_modules/.package-lock.json": "synthetic dependency fixture\n",
+                "dist/assets/app.js": "synthetic build fixture\n",
+                "tsconfig.tsbuildinfo": "synthetic TypeScript fixture\n",
+            }
+            for relative, content in synthetic_artifacts.items():
+                artifact = project / relative
+                artifact.parent.mkdir(parents=True, exist_ok=True)
+                artifact.write_text(content, encoding="utf-8")
+
             run(["git", "add", "-A"], project)
             run(["git", "commit", "-m", "Simulate customized v1.2.3 project harness"], project)
 
@@ -156,6 +179,14 @@ def main() -> int:
                 raise SystemExit("Safe harness transition did not add the non-colliding platform CI workflow")
             if rollout_project.find_reject_files(project):
                 raise SystemExit("Safe harness transition left .rej files")
+            rollout_project.require_effective_ignore_coverage(
+                project,
+                set(synthetic_artifacts),
+            )
+            status = run(["git", "status", "--porcelain"], project).stdout
+            visible = [relative for relative in synthetic_artifacts if relative in status]
+            if visible:
+                raise SystemExit("Cuby-like synthetic artifacts became visible to Git: " + ", ".join(visible))
 
             print(f"Safe project-harness transition smoke passed via {strategy}.")
     finally:
