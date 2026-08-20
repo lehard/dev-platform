@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/platform-rollout/spec.md"
+  ],
+  "change": "activate-exact-head-harness-migration",
+  "imported_at": "2026-08-20T19:59:36+00:00",
+  "package_revision": "593cd55fe7d049e5b3ee08eab170a6808550370c634830c2353d14c2ac927f11",
+  "prepared_against": "94fb3e570331ed843a808c9a49f12f37279f0db7",
+  "routing_receipt": {
+    "assurance": "high",
+    "effort_hint": "high",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "publication-safety-bugfix"
+  },
+  "source_issue": "lehard/development-backlog#52",
+  "source_issue_evidence": {
+    "body_sha256": "e35f046ad0589ad48cf4bcf3439aa3bf6bb5db5a5952cb25596e6016cfa9be3c",
+    "updated_at": "2026-08-20T19:58:52Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

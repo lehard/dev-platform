@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import hashlib
 import json
 import os
@@ -411,6 +412,89 @@ def require_project_publication_safety_conformance(project_root: Path) -> None:
         )
 
 
+def is_cli_guard(test: ast.expr) -> bool:
+    """Return whether ``test`` is the conventional direct-script guard."""
+    if not isinstance(test, ast.Compare) or len(test.ops) != 1 or not isinstance(test.ops[0], ast.Eq):
+        return False
+    if len(test.comparators) != 1:
+        return False
+
+    left, right = test.left, test.comparators[0]
+    return (
+        isinstance(left, ast.Name)
+        and left.id == "__name__"
+        and isinstance(right, ast.Constant)
+        and right.value == "__main__"
+    ) or (
+        isinstance(right, ast.Name)
+        and right.id == "__name__"
+        and isinstance(left, ast.Constant)
+        and left.value == "__main__"
+    )
+
+
+def unique_top_level_cli_guard_offset(source: str) -> int:
+    """Find the one module-level CLI guard before which an override may run."""
+    try:
+        module = ast.parse(source)
+    except SyntaxError as exc:
+        raise ValueError(
+            "project-owned publication-safety compatibility blocker: harness has invalid Python syntax; "
+            "preserving harness bytes"
+        ) from exc
+    guards = [node for node in module.body if isinstance(node, ast.If) and is_cli_guard(node.test)]
+    if len(guards) != 1:
+        raise ValueError(
+            "project-owned publication-safety compatibility blocker: harness has no unique top-level CLI guard; "
+            "preserving harness bytes"
+        )
+    return sum(len(line) for line in source.splitlines(keepends=True)[: guards[0].lineno - 1])
+
+
+def install_pre_entrypoint_override(source: str, override: str) -> str:
+    """Insert the reviewed override before, rather than after, the CLI guard."""
+    offset = unique_top_level_cli_guard_offset(source)
+    return source[:offset] + override + source[offset:]
+
+
+def reviewed_legacy_source(
+    source: str,
+    expected_sha256: str,
+    override: str,
+) -> tuple[str, str]:
+    """Return a reviewed source and its migration state without accepting drift.
+
+    Version 1.4.34 wrote ``source.rstrip("\\n") + override``.  Recover the
+    exact prior source only when the known suffix and one of the two possible
+    original newline forms re-hash to the reviewed predicate.
+    """
+    if hashlib.sha256(source.encode("utf-8")).hexdigest() == expected_sha256:
+        return source, "unmigrated"
+    if EXACT_HEAD_MARKER not in source:
+        raise ValueError(
+            "project-owned publication-safety compatibility blocker: unrecognized harness bytes; "
+            "preserving harness bytes"
+        )
+    if source.count(EXACT_HEAD_MARKER) != 1 or not source.endswith(override):
+        raise ValueError(
+            "project-owned publication-safety compatibility blocker: incomplete migrated surface; "
+            "preserving harness bytes"
+        )
+    stripped = source[: -len(override)]
+    candidates = (stripped, stripped + "\n")
+    matches = [
+        candidate
+        for candidate in candidates
+        if hashlib.sha256(candidate.encode("utf-8")).hexdigest() == expected_sha256
+    ]
+    if len(matches) != 1:
+        raise ValueError(
+            "project-owned publication-safety compatibility blocker: unrecognized harness bytes; "
+            "preserving harness bytes"
+        )
+    return matches[0], "v1.4.34-append"
+
+
 def migrate_project_publication_safety(project_root: Path, repository: str) -> bool:
     """Apply only reviewed Jara/Planner overrides, guarded by exact bytes."""
     if harness_mode(project_root) != "project":
@@ -423,14 +507,49 @@ def migrate_project_publication_safety(project_root: Path, repository: str) -> b
         return False
     helper = project_root / "scripts/exact_head_safety.py"
     current = target.read_text(encoding="utf-8") if target.is_file() else ""
-    if EXACT_HEAD_MARKER in current:
-        if helper.is_file() and helper.read_text(encoding="utf-8") == EXACT_HEAD_HELPER:
+    helper_current = helper.read_text(encoding="utf-8") if helper.is_file() else None
+
+    if EXACT_HEAD_MARKER in current and not current.endswith(override):
+        # This can only be the deterministic active form if removing the exact
+        # known block reconstructs the reviewed source byte-for-byte.
+        if helper_current != EXACT_HEAD_HELPER or current.count(override) != 1:
+            raise ValueError(
+                "project-owned publication-safety compatibility blocker: incomplete migrated surface; "
+                "preserving harness bytes"
+            )
+        active = current.index(override)
+        legacy = current[:active] + current[active + len(override):]
+        if (
+            hashlib.sha256(legacy.encode("utf-8")).hexdigest() == expected
+            and current == install_pre_entrypoint_override(legacy, override)
+        ):
             return False
-        raise ValueError("project-owned publication-safety compatibility blocker: incomplete migrated surface; preserving harness bytes")
-    if hashlib.sha256(current.encode("utf-8")).hexdigest() != expected:
-        raise ValueError("project-owned publication-safety compatibility blocker: unrecognized harness bytes; preserving harness bytes")
+        raise ValueError(
+            "project-owned publication-safety compatibility blocker: unrecognized harness bytes; "
+            "preserving harness bytes"
+        )
+
+    if helper_current is not None and helper_current != EXACT_HEAD_HELPER:
+        raise ValueError(
+            "project-owned publication-safety compatibility blocker: incomplete migrated surface; "
+            "preserving harness bytes"
+        )
+    legacy, state = reviewed_legacy_source(current, expected, override)
+    if helper_current is not None and state == "unmigrated":
+        raise ValueError(
+            "project-owned publication-safety compatibility blocker: incomplete migrated surface; "
+            "preserving harness bytes"
+        )
+    if state == "v1.4.34-append" and helper_current != EXACT_HEAD_HELPER:
+        raise ValueError(
+            "project-owned publication-safety compatibility blocker: incomplete migrated surface; "
+            "preserving harness bytes"
+        )
+    migrated = install_pre_entrypoint_override(legacy, override)
+    # All failure-prone proof has completed before either downstream-owned
+    # harness bytes or the helper is written.
     helper.write_text(EXACT_HEAD_HELPER, encoding="utf-8")
-    target.write_text(current.rstrip("\n") + override, encoding="utf-8")
+    target.write_text(migrated, encoding="utf-8")
     return True
 
 
