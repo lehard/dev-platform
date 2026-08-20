@@ -69,7 +69,16 @@ class ProtectedMainZeroHandoffTests(unittest.TestCase):
         fake_bin = self.base / "fake-bin"
         fake_bin.mkdir(exist_ok=True)
         gh = fake_bin / "gh"
-        gh.write_text("#!/bin/sh\n" + body + "\n", encoding="utf-8")
+        gh.write_text(
+            "#!/bin/sh\n"
+            'if [ "$1" = "pr" ] && [ "$2" = "list" ]; then\n'
+            '  branch=$(git branch --show-current) || exit 1; head_sha=$(git rev-parse "$branch") || exit 1;\n'
+            '  printf \'[{"number":1,"url":"https://example.invalid/pr/1","state":"OPEN","headRefOid":"%s","baseRefName":"main","headRefName":"%s"}]\\n\' "$head_sha" "$branch"; exit 0;\n'
+            'fi\n'
+            + body
+            + "\n",
+            encoding="utf-8",
+        )
         gh.chmod(0o755)
         env = bypass_env()
         env["PATH"] = str(fake_bin) + os.pathsep + env.get("PATH", "")
@@ -104,20 +113,22 @@ class ProtectedMainZeroHandoffTests(unittest.TestCase):
         env = self.fake_gh(
             'if [ "$1" = "auth" ] && [ "$2" = "status" ]; then exit 0; fi\n'
             'if [ "$1" = "pr" ] && [ "$2" = "view" ]; then\n'
+            '  branch=$(git branch --show-current) || exit 1;\n'
             '  if [ "$4" = "--json" ] && [ "$5" = "state,headRefOid" ]; then\n'
-            '    head_sha=$(git rev-parse "$3" 2>/dev/null) || exit 1;\n'
-            '    printf \'{"state":"OPEN","headRefOid":"%s"}\\n\' "$head_sha"; exit 0;\n'
+            '    head_sha=$(git rev-parse "$branch" 2>/dev/null) || exit 1;\n'
+            '    main_sha=$(git --git-dir "$FAKE_REMOTE" rev-parse refs/heads/main 2>/dev/null) || exit 1; branch_sha=$(git --git-dir "$FAKE_REMOTE" rev-parse "refs/heads/$branch" 2>/dev/null) || exit 1;\n'
+            '    if [ "$main_sha" = "$branch_sha" ]; then state=MERGED; else state=OPEN; fi; printf \'{"state":"%s","headRefOid":"%s"}\\n\' "$state" "$head_sha"; exit 0;\n'
             '  fi;\n'
             '  if [ "$4" = "--json" ] && [ "$5" = "state,mergedAt" ]; then\n'
             '    main_sha=$(git --git-dir "$FAKE_REMOTE" rev-parse refs/heads/main 2>/dev/null) || exit 1;\n'
-            '    branch_sha=$(git --git-dir "$FAKE_REMOTE" rev-parse "refs/heads/$3" 2>/dev/null) || exit 1;\n'
+            '    branch_sha=$(git --git-dir "$FAKE_REMOTE" rev-parse "refs/heads/$branch" 2>/dev/null) || exit 1;\n'
             '    if [ "$main_sha" = "$branch_sha" ]; then echo MERGED; else echo OPEN; fi; exit 0;\n'
             '  fi;\n'
             '  exit 1;\n'
             'fi\n'
             'if [ "$1" = "pr" ] && [ "$2" = "create" ]; then echo "https://example.invalid/pr/1"; exit 0; fi\n'
             'if [ "$1" = "pr" ] && [ "$2" = "checks" ]; then echo \'[{"name":"platform-ci","state":"SUCCESS","workflow":"platform-ci","link":""}]\'; exit 0; fi\n'
-            'if [ "$1" = "pr" ] && [ "$2" = "merge" ]; then sha=$(git --git-dir "$FAKE_REMOTE" rev-parse "refs/heads/$3") || exit 1; git --git-dir "$FAKE_REMOTE" update-ref refs/heads/main "$sha" || exit 1; exit 0; fi\n'
+            'if [ "$1" = "pr" ] && [ "$2" = "merge" ]; then branch=$(git branch --show-current) || exit 1; sha=$(git --git-dir "$FAKE_REMOTE" rev-parse "refs/heads/$branch") || exit 1; git --git-dir "$FAKE_REMOTE" update-ref refs/heads/main "$sha" || exit 1; exit 0; fi\n'
             'exit 1'
         )
         result = run("python3", "scripts/finish_task.py", "--no-checks", cwd=self.repo, env=env)
