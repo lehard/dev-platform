@@ -12,8 +12,11 @@ Automated checks run before archive:
 - `python3 scripts/run_test_groups.py --all`
 - `git diff --check`
 
-Post-archive CI regression resolution: the rollout migration now runs before
-the rendered bootstrap/doctor. The exact CI upgrade matrix passed afterwards:
+Post-archive CI regression resolution: managed rollout runs the migration before
+the rendered bootstrap/doctor. A direct, unreviewed Copier update reports a
+missing marker diagnostically until that migration is applied, so the normal
+Copier upgrade remains usable without overwriting project-owned guidance. The
+exact CI upgrade matrix passed after that adjustment:
 
 - `python3 tests/upgrade_smoke.py --profile light --publish-mode direct`
 - `python3 tests/upgrade_smoke.py --profile standard --publish-mode pr`
