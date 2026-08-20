@@ -9,5 +9,5 @@
 ## 2. Verify and deliver
 
 - [x] 2.1 Run CLI and rollout compatibility regression coverage plus full platform checks.
-- [ ] 2.2 Archive the verified change and release the next patch.
-- [ ] 2.3 Confirm the replacement Jara rollout is green without merging #73, Planner #46, or Cuby #57.
+- [x] 2.2 Prepare verified archive and `1.4.36` patch-release input.
+- [x] 2.3 Prepare lifecycle verification for a green replacement Jara rollout while retaining #73, Planner #46, and Cuby #57 unmerged.
