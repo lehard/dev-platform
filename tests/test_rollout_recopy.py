@@ -105,7 +105,9 @@ class GuardedRecopyTests(unittest.TestCase):
             "def wait_for_pr_checks(worktree, branch, env):\n"
             "    return branch\n\n"
             "def merge_pr(worktree, branch, env):\n"
-            "    return branch\n"
+            "    return branch\n\n"
+            "if __name__ == '__main__':\n"
+            "    pass\n"
         )
         target.write_text(original, encoding="utf-8")
         fingerprint = hashlib.sha256(original.encode("utf-8")).hexdigest()
@@ -134,7 +136,9 @@ class GuardedRecopyTests(unittest.TestCase):
             "def push_feature_branch(root, remote, main_branch):\n"
             "    return 'planner-specific-clone-flow'\n\n"
             "def publish_pr(root, remote, main_branch, title, body, merge_mode):\n"
-            "    return 0\n"
+            "    return 0\n\n"
+            "if __name__ == '__main__':\n"
+            "    pass\n"
         )
         target.write_text(original, encoding="utf-8")
         fingerprint = hashlib.sha256(original.encode("utf-8")).hexdigest()
@@ -156,6 +160,167 @@ class GuardedRecopyTests(unittest.TestCase):
         self.assertIn("ensure_exact_pr(root, current, main_branch", migrated)
         self.assertIn("merge_exact_pr(root, pr, head, env)", migrated)
         rollout_project.require_project_publication_safety_conformance(self.root)
+
+    def write_stale_pr_tools(self) -> dict[str, str]:
+        """Make CLI fixtures see old merged PR A while the branch resolves to B."""
+        tools = self.root / "fake-tools"
+        tools.mkdir()
+        head_a = "a" * 40
+        head_b = "b" * 40
+        (tools / "git").write_text(
+            "#!/bin/sh\n"
+            f"printf '%s\\n' '{head_b}'\n",
+            encoding="utf-8",
+        )
+        (tools / "gh").write_text(
+            "#!/bin/sh\n"
+            "if [ \"$1\" = \"pr\" ] && [ \"$2\" = \"list\" ]; then\n"
+            "  printf '%s\\n' '"
+            f"[{{\"number\":41,\"url\":\"https://example.test/pr/41\",\"state\":\"MERGED\",\"headRefOid\":\"{head_a}\",\"baseRefName\":\"main\",\"headRefName\":\"task\"}}]"
+            "'\n"
+            "fi\n"
+            "exit 0\n",
+            encoding="utf-8",
+        )
+        for command in (tools / "git", tools / "gh"):
+            command.chmod(0o755)
+        env = os.environ.copy()
+        env["PATH"] = str(tools) + os.pathsep + env.get("PATH", "")
+        return env
+
+    def test_jara_cli_activates_exact_head_override_before_guard(self) -> None:
+        target = self.root / "scripts" / "merge_to_main.py"
+        source = '''class MergeError(RuntimeError):
+    pass
+
+def preserve_board_worktree_and_serialized_integration():
+    print("board-worktree-serialized")
+
+def run_git(*args):
+    return type("Result", (), {"stdout": "fixture title\\n"})()
+
+def delete_remote_branch(worktree, branch):
+    print("remote-cleanup")
+
+def publish_branch_and_pr(worktree, branch, env):
+    print("legacy-publish")
+
+def wait_for_pr_checks(worktree, branch, env):
+    print("legacy-check")
+
+def merge_pr(worktree, branch, env):
+    print("legacy-merge")
+
+def main():
+    preserve_board_worktree_and_serialized_integration()
+    publish_branch_and_pr(".", "task", {})
+    wait_for_pr_checks(".", "task", {})
+    merge_pr(".", "task", {})
+    print("terminal-success")
+
+if __name__ == "__main__":
+    main()
+'''
+        target.write_text(source, encoding="utf-8")
+        fingerprint = hashlib.sha256(source.encode("utf-8")).hexdigest()
+
+        with patch.object(rollout_project, "JARA_MERGE_TO_MAIN_SHA256", fingerprint):
+            self.assertTrue(rollout_project.migrate_project_publication_safety(self.root, "lehard/Jara_Fin"))
+
+        migrated = target.read_text(encoding="utf-8")
+        self.assertLess(
+            migrated.index(rollout_project.EXACT_HEAD_MARKER),
+            migrated.index('if __name__ == "__main__":'),
+        )
+        result = subprocess.run(
+            [sys.executable, str(target)],
+            text=True,
+            capture_output=True,
+            env=self.write_stale_pr_tools(),
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("board-worktree-serialized", result.stdout)
+        self.assertNotIn("legacy-publish", result.stdout)
+        self.assertNotIn("remote-cleanup", result.stdout)
+        self.assertNotIn("terminal-success", result.stdout)
+
+    def test_planner_cli_activates_exact_head_override_before_guard(self) -> None:
+        target = self.root / "scripts" / "project_publish.py"
+        source = '''def require_gh_env(root):
+    return {}
+
+def push_feature_branch(root, remote, main_branch):
+    print("standalone-integration-clone")
+    return "task"
+
+def run_git(*args, **kwargs):
+    return type("Result", (), {"stdout": "fixture title\\n"})()
+
+def publish_pr(root, remote, main_branch, title, body, merge_mode):
+    print("legacy-publish")
+    return 0
+
+def main():
+    publish_pr(".", "origin", "main", None, None, "auto")
+    print("terminal-success")
+
+if __name__ == "__main__":
+    main()
+'''
+        target.write_text(source, encoding="utf-8")
+        fingerprint = hashlib.sha256(source.encode("utf-8")).hexdigest()
+
+        with patch.object(rollout_project, "PLANNER_PROJECT_PUBLISH_SHA256", fingerprint):
+            self.assertTrue(
+                rollout_project.migrate_project_publication_safety(
+                    self.root, "lehard/planner-agent-lab"
+                )
+            )
+
+        migrated = target.read_text(encoding="utf-8")
+        self.assertLess(
+            migrated.index(rollout_project.EXACT_HEAD_MARKER),
+            migrated.index('if __name__ == "__main__":'),
+        )
+        result = subprocess.run(
+            [sys.executable, str(target)],
+            text=True,
+            capture_output=True,
+            env=self.write_stale_pr_tools(),
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("standalone-integration-clone", result.stdout)
+        self.assertNotIn("legacy-publish", result.stdout)
+        self.assertNotIn("terminal-success", result.stdout)
+
+    def test_v1_4_34_append_is_relocated_only_when_its_legacy_bytes_are_reviewed(self) -> None:
+        target = self.root / "scripts" / "merge_to_main.py"
+        source = "def main():\n    pass\n\nif __name__ == '__main__':\n    main()\n"
+        target.write_text(source.rstrip("\n") + rollout_project.JARA_OVERRIDE, encoding="utf-8")
+        helper = self.root / "scripts" / "exact_head_safety.py"
+        helper.write_text(rollout_project.EXACT_HEAD_HELPER, encoding="utf-8")
+        fingerprint = hashlib.sha256(source.encode("utf-8")).hexdigest()
+
+        with patch.object(rollout_project, "JARA_MERGE_TO_MAIN_SHA256", fingerprint):
+            self.assertTrue(rollout_project.migrate_project_publication_safety(self.root, "lehard/Jara_Fin"))
+            self.assertFalse(rollout_project.migrate_project_publication_safety(self.root, "lehard/Jara_Fin"))
+
+        migrated = target.read_text(encoding="utf-8")
+        self.assertLess(migrated.index(rollout_project.EXACT_HEAD_MARKER), migrated.index("if __name__"))
+
+    def test_recognized_source_without_a_unique_cli_guard_fails_closed(self) -> None:
+        target = self.root / "scripts" / "merge_to_main.py"
+        source = "def publish_branch_and_pr(worktree, branch, env):\n    return branch\n"
+        target.write_text(source, encoding="utf-8")
+        fingerprint = hashlib.sha256(source.encode("utf-8")).hexdigest()
+
+        with patch.object(rollout_project, "JARA_MERGE_TO_MAIN_SHA256", fingerprint), self.assertRaisesRegex(
+            ValueError, "no unique top-level CLI guard"
+        ):
+            rollout_project.migrate_project_publication_safety(self.root, "lehard/Jara_Fin")
+
+        self.assertEqual(target.read_text(encoding="utf-8"), source)
+        self.assertFalse((self.root / "scripts" / "exact_head_safety.py").exists())
 
     def test_drifted_recognized_harness_fails_closed_without_writing_a_helper(self) -> None:
         target = self.root / "scripts" / "merge_to_main.py"
