@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "template" / "scripts" / "platform_doctor.py"
@@ -55,6 +57,32 @@ class ConflictGuardTests(unittest.TestCase):
     def test_doctor_does_not_require_project_owned_selector_api(self) -> None:
         source = SCRIPT.read_text(encoding="utf-8")
         self.assertNotIn("from select_checks import", source)
+
+    def test_github_hosted_runner_makes_workspace_permissions_advisory(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(
+            os.environ,
+            {"GITHUB_ACTIONS": "true", "RUNNER_ENVIRONMENT": "github-hosted"},
+            clear=False,
+        ), mock.patch.object(self.module, "audit_shared_workspace") as audit:
+            failures = [0]
+            self.module.check_shared_workspace(Path(tmp), failures)
+        self.assertEqual(failures, [0])
+        audit.assert_not_called()
+
+    def test_self_hosted_actions_runner_keeps_workspace_permissions_strict(self) -> None:
+        group = type("Group", (), {"name": "local-team", "source": "checkout owner"})()
+        finding = type("Finding", (), {"path": Path("shared-state"), "message": "missing group rwx"})()
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(
+            os.environ,
+            {"GITHUB_ACTIONS": "true", "RUNNER_ENVIRONMENT": "self-hosted"},
+            clear=False,
+        ), mock.patch.object(
+            self.module, "audit_shared_workspace", return_value=(group, [finding])
+        ) as audit:
+            failures = [0]
+            self.module.check_shared_workspace(Path(tmp), failures)
+        self.assertEqual(failures, [1])
+        audit.assert_called_once()
 
 
 if __name__ == "__main__":

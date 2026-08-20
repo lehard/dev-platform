@@ -152,6 +152,83 @@ class GuardedRecopyTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "project-owned files changed"):
             rollout_project.require_project_owned_snapshot(self.root, snapshot)
 
+    def test_cuby_task_intake_migration_is_the_only_allowed_agents_change(self) -> None:
+        self.root.joinpath(".dev-platform.toml").write_text(
+            self.root.joinpath(".dev-platform.toml").read_text(encoding="utf-8")
+            + '\n[development_backlog]\nrepository = "lehard/development-backlog"\n',
+            encoding="utf-8",
+        )
+        contract = self.root / rollout_project.TASK_INTAKE_REFERENCE
+        contract.parent.mkdir(parents=True)
+        contract.write_text("# task intake\n", encoding="utf-8")
+        before = rollout_project.snapshot_existing_project_owned(self.root)
+        agents_before = (self.root / "AGENTS.md").read_text(encoding="utf-8")
+
+        self.assertTrue(rollout_project.reconcile_task_intake_reference(self.root))
+        rollout_project.require_project_owned_snapshot(
+            self.root,
+            before,
+            permitted_fingerprints=rollout_project.permitted_task_intake_migration(
+                self.root, agents_before
+            ),
+        )
+        self.assertFalse(rollout_project.reconcile_task_intake_reference(self.root))
+
+        (self.root / "AGENTS.md").write_text(
+            (self.root / "AGENTS.md").read_text(encoding="utf-8") + "\nproject drift\n",
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(ValueError, "project-owned files changed"):
+            rollout_project.require_project_owned_snapshot(
+                self.root,
+                before,
+                permitted_fingerprints=rollout_project.permitted_task_intake_migration(
+                    self.root, agents_before
+                ),
+            )
+
+    def test_cuby_guarded_recopy_accepts_the_task_intake_migration(self) -> None:
+        self.root.joinpath(".dev-platform.toml").write_text(
+            self.root.joinpath(".dev-platform.toml").read_text(encoding="utf-8")
+            + '\n[development_backlog]\nrepository = "lehard/development-backlog"\n',
+            encoding="utf-8",
+        )
+        contract = self.root / rollout_project.TASK_INTAKE_REFERENCE
+        contract.parent.mkdir(parents=True)
+        contract.write_text("# task intake\n", encoding="utf-8")
+
+        with (
+            patch.object(
+                rollout_project,
+                "run",
+                return_value=type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})(),
+            ),
+            patch.object(
+                rollout_project,
+                "find_reject_files",
+                side_effect=[["scripts/start_task.py.rej"], []],
+            ),
+            patch.object(rollout_project, "reset_failed_copier_update"),
+        ):
+            strategy = rollout_project.copier_update_with_guarded_recopy(
+                self.root, "v1.4.31", env=os.environ.copy()
+            )
+
+        self.assertEqual(strategy, "guarded-recopy")
+        migrated = (self.root / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertEqual(migrated.count(rollout_project.TASK_INTAKE_REFERENCE_MARKER), 1)
+        self.assertIn("project agents", migrated)
+
+    def test_task_intake_migration_rejects_duplicate_marker(self) -> None:
+        text = (
+            "project agents\n"
+            + rollout_project.TASK_INTAKE_REFERENCE_MARKER
+            + "\n"
+            + rollout_project.TASK_INTAKE_REFERENCE_MARKER
+        )
+        with self.assertRaisesRegex(ValueError, "duplicate task-intake"):
+            rollout_project.canonical_task_intake_reference_text(text)
+
     def test_baseline_equivalence_accepts_unchanged_and_missing_paths_only(self) -> None:
         downstream = {
             "scripts/finish_task.py": ("file", "same"),

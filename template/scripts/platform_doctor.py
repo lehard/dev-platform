@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import subprocess
@@ -154,8 +155,23 @@ def check_task_intake_reference(root: Path, config: dict, failures: list[int]) -
         ok("shared managed task-intake reference is present")
 
 
+def github_hosted_actions_runner(environ: dict[str, str] | None = None) -> bool:
+    """Recognize only the Actions environment without local group topology."""
+    environ = os.environ if environ is None else environ
+    return (
+        environ.get("GITHUB_ACTIONS", "").lower() == "true"
+        and environ.get("RUNNER_ENVIRONMENT", "").lower() == "github-hosted"
+    )
+
+
 def check_shared_workspace(root: Path, failures: list[int]) -> None:
     """Doctor is diagnostic-only; lifecycle preflights perform bounded repair."""
+    if github_hosted_actions_runner():
+        warn(
+            "GitHub-hosted Actions runner detected; shared-workspace group/setgid "
+            "topology is unavailable, so permission enforcement is advisory"
+        )
+        return
     try:
         group, findings = audit_shared_workspace(root, fix=False)
     except SharedWorkspaceError as exc:
