@@ -693,8 +693,8 @@ def copier_update_with_guarded_recopy(
     )
     rejects = find_reject_files(project_root)
     if not rejects:
-        run_rendered_platform_bootstrap(project_root, env=env)
         reconcile_task_intake_reference(project_root)
+        run_rendered_platform_bootstrap(project_root, env=env)
         project_owner, project_number = development_backlog_locator_answers(project_root)
         require_platform_config_contract(
             config_before,
@@ -777,6 +777,7 @@ def copier_update_with_guarded_recopy(
             "guarded Copier recopy still left unresolved .rej files: "
             + ", ".join(recopy_rejects[:10])
         )
+    reconcile_task_intake_reference(project_root)
     run_rendered_platform_bootstrap(project_root, env=env)
     require_project_owned_snapshot(project_root, protected_before)
     require_reclaimed_platform_paths_match_template(project_root, reclaimed_conflicts)
@@ -794,7 +795,6 @@ def copier_update_with_guarded_recopy(
         project_owner=project_owner,
         project_number=project_number,
     )
-    reconcile_task_intake_reference(project_root)
     if harness_mode(project_root) != mode:
         raise ValueError(f"guarded recopy changed harness_mode away from {mode}")
     return "guarded-recopy"
