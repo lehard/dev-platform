@@ -218,6 +218,12 @@ class RolloutWorkflowContractTests(unittest.TestCase):
         self.assertIn("require_version_coherence", script)
         self.assertNotIn("--force", script.lower())
 
+    def test_copier_preserves_existing_gitignore_for_every_harness_mode(self) -> None:
+        copier = (ROOT / "copier.yml").read_text(encoding="utf-8")
+        self.assertIn("  - .gitignore\n", copier)
+        self.assertNotIn("{{ '.gitignore' if harness_mode == 'project'", copier)
+        self.assertIn('".gitignore",', inspect.getsource(rollout_project))
+
 
 if __name__ == "__main__":
     unittest.main()

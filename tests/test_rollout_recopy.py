@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -33,6 +34,7 @@ class GuardedRecopyTests(unittest.TestCase):
             rollout_project.PLATFORM_ROOT / "template" / "scripts" / "_platform_common.py"
         ).read_text(encoding="utf-8")
         for relative, content in {
+            ".gitignore": ".env\nconfig/*credentials.json\nvar/*.sqlite3\nnode_modules/\ndist/\n*.tsbuildinfo\n",
             "AGENTS.md": "project agents\n",
             "scripts/start_task.py": "print('project start')\n",
             "scripts/platform_bootstrap.py": "print('candidate bootstrap')\n",
@@ -136,10 +138,32 @@ class GuardedRecopyTests(unittest.TestCase):
     def test_platform_snapshot_excludes_platform_harness_scripts(self) -> None:
         self.use_platform_mode()
         snapshot = rollout_project.snapshot_existing_project_owned(self.root)
+        self.assertIn(".gitignore", snapshot)
         self.assertIn("AGENTS.md", snapshot)
         self.assertIn("scripts/project_helper.py", snapshot)
         self.assertIn(".github/workflows/ci.yml", snapshot)
         self.assertNotIn("scripts/start_task.py", snapshot)
+
+    def test_ignore_coverage_guard_detects_only_lost_previously_ignored_paths(self) -> None:
+        subprocess.run(["git", "init"], cwd=self.root, check=True, capture_output=True, text=True)
+        coverage = rollout_project.snapshot_effective_ignore_coverage(self.root)
+        self.assertEqual(coverage, set(rollout_project.REPRESENTATIVE_IGNORE_PATHS))
+        self.assertFalse(any((self.root / relative).exists() for relative in coverage))
+
+        (self.root / ".gitignore").write_text("# coverage was accidentally removed\n", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "managed rendering removed effective ignore coverage") as error:
+            rollout_project.require_effective_ignore_coverage(self.root, coverage)
+        self.assertIn(".env (environment secrets)", str(error.exception))
+
+        # The read-only guard does not stage or materialize any of the paths it checks.
+        staged = subprocess.run(
+            ["git", "diff", "--cached", "--quiet", "--"],
+            cwd=self.root,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(staged.returncode, 0)
+        self.assertFalse(any((self.root / relative).exists() for relative in coverage))
 
     def test_snapshot_preserves_symlink_identity(self) -> None:
         agents = self.root / "AGENTS.md"

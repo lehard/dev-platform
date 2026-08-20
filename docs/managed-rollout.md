@@ -39,7 +39,7 @@ Copier creates the initial repository contract, but not every generated file rem
 
 The following files are **project-owned after initial creation** and are preserved on later Copier updates:
 
-- `.gitignore` — repository-specific generated/runtime/editor ignores; mature projects keep their existing rules;
+- `.gitignore` — repository-specific generated/runtime/editor ignores. The template seeds the baseline only at initial creation; every existing `.gitignore` is preserved byte-for-byte on later Copier updates, regardless of harness mode;
 - `AGENTS.md` — project/root agent contract and any project-specific workflow additions;
 - `README.md` — product/repository documentation;
 - `dev-platform/checks.toml` — project-specific check selection and acceptance commands;

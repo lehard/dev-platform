@@ -61,6 +61,7 @@ def main() -> int:
         run(["git", "commit", "-m", "Baseline generated project"], target)
 
         sentinels = {
+            ".gitignore": "# project-owned-cuby-ignore-sentinel",
             ".dev-platform.toml": "# project-owned-platform-config-sentinel",
             "AGENTS.md": "<!-- project-owned-agents-sentinel -->",
             "CLAUDE.md": "<!-- project-owned-claude-sentinel -->",
@@ -71,6 +72,28 @@ def main() -> int:
         }
         for relative, sentinel in sentinels.items():
             append_sentinel(target / relative, sentinel)
+
+        # Cuby-like names with harmless fixture text only. They prove that a
+        # platform-harness update keeps the project's effective ignore rules.
+        cuby_like_artifacts = {
+            ".env": "synthetic environment fixture\n",
+            "config/provider-credentials.json": "{\"synthetic\": true}\n",
+            "var/app.sqlite3": "synthetic database fixture\n",
+            "node_modules/.package-lock.json": "synthetic dependency fixture\n",
+            "dist/assets/app.js": "synthetic build fixture\n",
+            "tsconfig.tsbuildinfo": "synthetic TypeScript fixture\n",
+        }
+        gitignore = target / ".gitignore"
+        gitignore.write_text(
+            gitignore.read_text(encoding="utf-8")
+            + "\n# Project-owned Cuby runtime ignores\n"
+            + ".env\nconfig/*credentials.json\nvar/*.sqlite3\nnode_modules/\ndist/\n*.tsbuildinfo\n",
+            encoding="utf-8",
+        )
+        for relative, content in cuby_like_artifacts.items():
+            artifact = target / relative
+            artifact.parent.mkdir(parents=True, exist_ok=True)
+            artifact.write_text(content, encoding="utf-8")
 
         platform_config = target / ".dev-platform.toml"
         config_text = platform_config.read_text(encoding="utf-8")
@@ -93,6 +116,14 @@ def main() -> int:
         for relative, sentinel in sentinels.items():
             if sentinel not in (target / relative).read_text(encoding="utf-8"):
                 raise SystemExit(f"Copier update removed project-owned content from {relative}")
+        for relative in cuby_like_artifacts:
+            ignored = subprocess.run(
+                ["git", "check-ignore", "--quiet", "--no-index", "--", relative],
+                cwd=target,
+                text=True,
+            )
+            if ignored.returncode != 0:
+                raise SystemExit(f"Copier update removed ignore coverage for {relative}")
         if 'project_required_files = ["scripts/project_required_helper.py"]' not in platform_config.read_text(encoding="utf-8"):
             raise SystemExit("Copier update removed project-owned platform configuration")
         if not local_doc.exists():
@@ -129,6 +160,12 @@ def main() -> int:
             raise SystemExit(doctor.returncode)
 
         status = run(["git", "status", "--porcelain"], target, capture=True).stdout
+        visible_artifacts = [relative for relative in cuby_like_artifacts if relative in status]
+        if visible_artifacts:
+            raise SystemExit(
+                "Copier update made Cuby-like synthetic artifacts visible to Git: "
+                + ", ".join(visible_artifacts)
+            )
         print(f"Upgrade smoke passed: base={base_ref} profile={args.profile} publish={args.publish_mode}")
         if status.strip():
             print("Expected post-update diff is present and reviewable.")
