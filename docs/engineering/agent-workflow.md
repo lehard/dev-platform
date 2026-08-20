@@ -36,7 +36,9 @@ open until terminal managed success.
 
 Authoring also records a provider-neutral recommended start tier (`R2` balanced by default) and prefixes the created Issue title with `[R2]`. Pass `--strong-trigger <category>` only when a concrete hard trigger applies (see [docs/engineering/model-routing.md](model-routing.md)) to recommend `R3` instead; diff size, file count or blast radius alone are never a valid reason to pass it.
 
-**Quick execution.** A small direct request may use the existing task/check/finish workflow without creating a backlog issue or ceremonial OpenSpec. If it expands into a material behavior, architecture, compatibility, data-contract, or scope change, stop and propose fixation as a managed task instead of broadening it silently.
+**Quick execution.** A small direct request may use the existing task/check/finish workflow without creating a backlog issue or ceremonial OpenSpec. If it expands into a material behavior, architecture, compatibility, data-contract, or scope change (or needs a full active OpenSpec contract), stop implementation and enter managed intake before continuing instead of broadening it silently.
+
+**Fresh non-trivial execution.** An explicit request to implement material work creates or reuses the managed task and starts that same task before implementation. Prepare the normal authoring bundle, then run `python3 scripts/execute_managed_task.py --bundle <directory>`. The composed helper is idempotent across authoring and start interruptions. The detailed shared intent contract lives in [task-intake.md](task-intake.md).
 
 **Execute an existing managed task.** An explicitly supplied Development Backlog issue is a managed task. Run:
 

@@ -63,6 +63,38 @@ class ManagedProjectRegistryTests(unittest.TestCase):
 
 
 class RolloutProjectTests(unittest.TestCase):
+    def test_jara_fin_style_guidance_migration_preserves_project_rules(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".dev-platform.toml").write_text(
+                'project_name = "Jara_Fin"\n\n[development_backlog]\nrepository = "lehard/development-backlog"\n',
+                encoding="utf-8",
+            )
+            (root / "AGENTS.md").write_text(
+                "# Agent Notes\n\n- `frontend/AGENTS.md` — Next.js rules.\n"
+                "- `backend/AGENTS.md` — FastAPI/SQLite rules.\n",
+                encoding="utf-8",
+            )
+            contract = root / "docs" / "engineering" / "task-intake.md"
+            contract.parent.mkdir(parents=True)
+            contract.write_text("# Intake\n", encoding="utf-8")
+            self.assertTrue(rollout_project.reconcile_task_intake_reference(root))
+            migrated = (root / "AGENTS.md").read_text(encoding="utf-8")
+            self.assertIn("`frontend/AGENTS.md` — Next.js rules.", migrated)
+            self.assertIn("`backend/AGENTS.md` — FastAPI/SQLite rules.", migrated)
+            self.assertIn(rollout_project.TASK_INTAKE_REFERENCE_MARKER, migrated)
+            self.assertFalse(rollout_project.reconcile_task_intake_reference(root))
+            self.assertEqual(migrated, (root / "AGENTS.md").read_text(encoding="utf-8"))
+
+    def test_candidate_guidance_is_not_migrated(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".dev-platform.toml").write_text("platform_version = '1.0.0'\n", encoding="utf-8")
+            agents = root / "AGENTS.md"
+            agents.write_text("# Candidate local rules\n", encoding="utf-8")
+            self.assertFalse(rollout_project.reconcile_task_intake_reference(root))
+            self.assertEqual(agents.read_text(encoding="utf-8"), "# Candidate local rules\n")
+
     def test_rollout_skips_historical_copier_tasks_then_runs_candidate_bootstrap(self) -> None:
         source = inspect.getsource(rollout_project.copier_update_with_guarded_recopy)
         bootstrap = inspect.getsource(rollout_project.run_rendered_platform_bootstrap)

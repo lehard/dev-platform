@@ -117,6 +117,7 @@ targets = [
   "test_managed_rollout",
   "test_managed_status_lifecycle",
   "test_managed_task",
+  "test_managed_execution_intake",
   "test_openspec_lifecycle",
   "test_platform_bootstrap",
   "test_platform_common",

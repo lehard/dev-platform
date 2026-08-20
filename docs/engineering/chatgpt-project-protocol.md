@@ -40,7 +40,16 @@ If the existing task clearly covers the same change, update it instead of creati
 
 A small, clear request that the user wants performed immediately may be handled as a quick task without creating a Backlog Issue or ceremonial OpenSpec.
 
-If the work expands into a material behavior, architecture, compatibility, data-contract, safety, or cross-session change, stop treating it as quick work and propose managed fixation instead of broadening scope silently.
+If the work expands into a material behavior, architecture, compatibility, data-contract, safety, or cross-session change, stop treating it as quick work and enter managed intake before further implementation instead of broadening scope silently.
+
+### Fresh non-trivial execution
+
+When the user explicitly asks to execute a fresh material change, follow the
+target repository's platform-owned
+[managed task-intake contract](task-intake.md): author or reuse one managed
+task and immediately start that exact task before implementation. Do not ask
+the user for a second fixation phrase after they have already asked to execute.
+An explicit fixation-only instruction still authors and stops.
 
 ## Verification
 

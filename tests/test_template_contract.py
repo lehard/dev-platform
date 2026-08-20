@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class TemplateContractTests(unittest.TestCase):
     def test_required_template_files_exist(self) -> None:
-        required = ["copier.yml", "template/AGENTS.md.jinja", "template/CLAUDE.md.jinja", "template/.dev-platform.toml.jinja", "template/dev-platform/checks.toml", "template/.github/workflows/dev-platform.yml.jinja", "template/scripts/shared_workspace.py", "template/scripts/agent_board.py", "template/scripts/start_worktree.py", "template/scripts/worktree_cleanup.py", "template/scripts/start_task.py", "template/scripts/managed_task.py", "template/scripts/managed_project_status.py", "template/scripts/start_managed_task.py", "template/scripts/select_checks.py", "template/scripts/project_sync.py", "template/scripts/project_publish.py", "template/scripts/finish_task.py", "template/scripts/reconcile_task.py", "template/scripts/task_reconciliation.py", "template/scripts/openspec_lifecycle.py", "template/scripts/merge_to_main.py", "template/scripts/agent_friction.py", "template/scripts/agent_doctor.py", "template/scripts/model_routing.py", "template/scripts/platform_bootstrap.py", "template/scripts/platform_doctor.py", "template/scripts/git_hooks/pre-commit", "template/scripts/git_hooks/pre-merge-commit"]
+        required = ["copier.yml", "template/AGENTS.md.jinja", "template/CLAUDE.md.jinja", "template/.dev-platform.toml.jinja", "template/dev-platform/checks.toml", "template/.github/workflows/dev-platform.yml.jinja", "template/scripts/shared_workspace.py", "template/scripts/agent_board.py", "template/scripts/start_worktree.py", "template/scripts/worktree_cleanup.py", "template/scripts/start_task.py", "template/scripts/managed_task.py", "template/scripts/managed_project_status.py", "template/scripts/start_managed_task.py", "template/scripts/execute_managed_task.py", "template/scripts/select_checks.py", "template/scripts/project_sync.py", "template/scripts/project_publish.py", "template/scripts/finish_task.py", "template/scripts/reconcile_task.py", "template/scripts/task_reconciliation.py", "template/scripts/openspec_lifecycle.py", "template/scripts/merge_to_main.py", "template/scripts/agent_friction.py", "template/scripts/agent_doctor.py", "template/scripts/model_routing.py", "template/scripts/platform_bootstrap.py", "template/scripts/platform_doctor.py", "template/scripts/git_hooks/pre-commit", "template/scripts/git_hooks/pre-merge-commit"]
         for relative in required:
             with self.subTest(relative=relative): self.assertTrue((ROOT / relative).exists(), relative)
 
@@ -163,6 +163,7 @@ class TemplateContractTests(unittest.TestCase):
         self.assertIn("no silent divergence", lower)
         self.assertIn("scripts/openspec_lifecycle.py archive", text)
         self.assertIn("scripts/managed_task.py", text)
+        self.assertIn("scripts/execute_managed_task.py", text)
         self.assertIn("docs/engineering/openspec-workflow.md", text)
         self.assertIn("/opsx:verify", openspec_doc)
         self.assertIn("OpenSpec-Verify: PASS", openspec_doc)
@@ -175,10 +176,28 @@ class TemplateContractTests(unittest.TestCase):
         self.assertIn("quick task", agents)
         self.assertIn("Development Backlog Project item to `In progress`", agents)
         self.assertIn("scripts/start_managed_task.py", agents)
+        self.assertIn("scripts/execute_managed_task.py", agents)
         self.assertIn("scripts/start_managed_task.py", workflow)
+        self.assertIn("scripts/execute_managed_task.py", workflow)
         doctor = (ROOT / "template" / "scripts" / "platform_doctor.py").read_text(encoding="utf-8")
         self.assertIn("scripts/start_managed_task.py", doctor)
         self.assertIn("stops before OpenSpec apply", workflow)
+        self.assertIn("check_task_intake_reference", doctor)
+
+    def test_shared_task_intake_contract_covers_direct_execution_and_fixation(self) -> None:
+        for relative in ("docs/engineering/task-intake.md", "template/docs/engineering/task-intake.md"):
+            with self.subTest(relative=relative):
+                text = (ROOT / relative).read_text(encoding="utf-8")
+                self.assertIn("Fresh non-trivial execution", text)
+                self.assertIn("execute_managed_task.py", text)
+                self.assertIn("fixation-only", text)
+                self.assertIn("Quick execution", text)
+
+    def test_chatgpt_adapter_defers_to_shared_task_intake_contract(self) -> None:
+        text = (ROOT / "docs" / "engineering" / "chatgpt-project-protocol.md").read_text(encoding="utf-8")
+        self.assertIn("Fresh non-trivial execution", text)
+        self.assertIn("managed task-intake contract", text)
+        self.assertIn("second fixation phrase", text)
 
     def test_goal_definition_is_selective_measurable_and_transient(self) -> None:
         root_agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")

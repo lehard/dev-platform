@@ -1,0 +1,14 @@
+- [x] Reconcile current `managed-task-intake` spec, central/generated agent guidance, authoring helper, managed start, and quick-task semantics against the new direct-execution requirement.
+- [x] Define the canonical intent transition for fresh non-trivial execution: explicit execution intent -> find/author managed task -> managed start -> implementation, while fixation-only continues to stop after authoring.
+- [x] Implement one idempotent orchestration entry path by composing existing managed authoring and managed-start primitives; do not introduce a competing lifecycle state machine or package format.
+- [x] Reuse bounded duplicate checking and exact managed identity so retries after Issue creation, package publication, worktree creation, or materialization converge on the same task.
+- [x] Add the quick-to-managed escalation rule: material scope or need for a full active OpenSpec contract blocks further quick implementation until managed intake succeeds.
+- [x] Add a mechanical orphan-OpenSpec/provenance guard on ordinary platform-owned execution/completion/publication paths, with an explicit bounded recovery/legacy path and no fabricated provenance.
+- [x] Move mutable shared task-intake detail into a platform-owned canonical thematic contract/document and keep central/generated root agent guidance as a compact stable map/reference.
+- [x] Add an ownership-safe one-time migration path for existing managed repositories whose project-owned root guidance lacks the required shared intake reference; preserve project/domain/module rules.
+- [x] Exercise `Jara_Fin` as the representative mature-project migration case and prove its existing Development Backlog configuration/scripts are used without replacing its domain-specific instructions.
+- [x] Update ChatGPT Project adapter only as needed so explicit execution intent and explicit fixation remain consistent with repository-local shared semantics without duplicating the full procedure.
+- [x] Add focused contract/unit/integration coverage for discuss, fixation-only, quick execution, quick->managed escalation, fresh non-trivial author+start, retry/resume, existing managed start, and orphan-provenance blocking.
+- [x] Add targeted Codex and Claude behavioral evidence that the same fresh non-trivial “сделай” scenario reaches managed task + materialized OpenSpec before implementation.
+- [x] Validate new-project render plus existing-project Copier rollout/migration behavior, including project-owned guidance preservation.
+- [x] Run semantic OpenSpec verification and risk-proportional relevant platform checks before archive/publication.
