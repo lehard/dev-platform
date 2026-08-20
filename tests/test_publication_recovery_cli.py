@@ -116,7 +116,11 @@ class PublicationRecoveryCliTests(unittest.TestCase):
     def test_status_makes_zero_mutations_when_not_yet_published(self) -> None:
         self.make_feature("agent/status-fresh")
         before_head = git("rev-parse", "main", cwd=self.repo).stdout.strip()
-        env = self.fake_gh('if [ "$1" = "auth" ] && [ "$2" = "status" ]; then exit 0; fi\nexit 1\n')
+        env = self.fake_gh(
+            'if [ "$1" = "auth" ] && [ "$2" = "status" ]; then exit 0; fi\n'
+            'if [ "$1" = "pr" ] && [ "$2" = "list" ]; then echo "[]"; exit 0; fi\n'
+            'exit 1\n'
+        )
         result = run("python3", "scripts/finish_task.py", "--status", cwd=self.repo, env=env)
         self.assertIn("not_published", result.stdout)
         self.assertEqual(git("rev-parse", "main", cwd=self.repo).stdout.strip(), before_head)
@@ -130,11 +134,8 @@ class PublicationRecoveryCliTests(unittest.TestCase):
         env = self.fake_gh(
             f"echo \"$*\" >> '{gh_log}'\n"
             'if [ "$1" = "auth" ] && [ "$2" = "status" ]; then exit 0; fi\n'
-            'if [ "$1" = "pr" ] && [ "$2" = "view" ]; then\n'
-            f'  if [ "$5" = "state,headRefOid" ]; then printf \'{{"state":"OPEN","headRefOid":"{head}"}}\'; exit 0; fi\n'
-            '  if [ "$5" = "url,number,autoMergeRequest,baseRefName" ]; then printf \'{"url":"https://example.invalid/pr/5","number":5,"baseRefName":"main"}\'; exit 0; fi\n'
-            '  exit 1\n'
-            'fi\n'
+            'if [ "$1" = "pr" ] && [ "$2" = "list" ]; then\n'
+            f'  printf \'[{{"number":5,"url":"https://example.invalid/pr/5","state":"OPEN","headRefOid":"{head}","baseRefName":"main","headRefName":"agent/status-open"}}]\'; exit 0; fi\n'
             'if [ "$1" = "pr" ] && [ "$2" = "checks" ]; then echo "[]"; exit 0; fi\n'
             'exit 1'
         )
@@ -143,7 +144,7 @@ class PublicationRecoveryCliTests(unittest.TestCase):
         self.assertIn("#5", result.stdout)
         log_text = gh_log.read_text(encoding="utf-8") if gh_log.exists() else ""
         self.assertNotIn("create", log_text)
-        self.assertNotIn("merge", log_text)
+        self.assertNotIn("pr merge", log_text)
         remote_has_branch = run("git", "ls-remote", "--exit-code", "--heads", "origin", "agent/status-open", cwd=self.repo, check=False)
         self.assertNotEqual(remote_has_branch.returncode, 0, "status must not push the branch")
 
@@ -159,7 +160,11 @@ class PublicationRecoveryCliTests(unittest.TestCase):
 
     def test_status_json_is_sanitized_and_valid(self) -> None:
         self.make_feature("agent/status-json")
-        env = self.fake_gh('if [ "$1" = "auth" ] && [ "$2" = "status" ]; then exit 0; fi\nexit 1\n')
+        env = self.fake_gh(
+            'if [ "$1" = "auth" ] && [ "$2" = "status" ]; then exit 0; fi\n'
+            'if [ "$1" = "pr" ] && [ "$2" = "list" ]; then echo "[]"; exit 0; fi\n'
+            'exit 1\n'
+        )
         result = run("python3", "scripts/finish_task.py", "--status", "--json", cwd=self.repo, env=env)
         import json as jsonlib
 
@@ -208,20 +213,18 @@ class PublicationRecoveryCliTests(unittest.TestCase):
 
     def test_closed_unmerged_pr_does_not_block_new_publication(self) -> None:
         head = self.make_feature("agent/reopen")
+        created = self.base / "reopen-created"
         env = self.fake_gh(
             'if [ "$1" = "auth" ] && [ "$2" = "status" ]; then exit 0; fi\n'
-            'if [ "$1" = "pr" ] && [ "$2" = "view" ]; then\n'
-            f'  if [ "$5" = "state,headRefOid" ]; then printf \'{{"state":"CLOSED","headRefOid":"{head}"}}\'; exit 0; fi\n'
-            '  if [ "$5" = "state,mergedAt" ]; then\n'
-            f'    remote_head=$(git --git-dir "$FAKE_REMOTE" rev-parse refs/heads/main 2>/dev/null)\n'
-            f'    if [ "$remote_head" = "{head}" ]; then echo MERGED; else echo OPEN; fi\n'
-            '    exit 0\n'
-            '  fi\n'
-            '  exit 1\n'
+            'if [ "$1" = "pr" ] && [ "$2" = "list" ]; then\n'
+            f'  if [ -d "{created}" ]; then printf \'[{{"number":11,"url":"https://example.invalid/pr/11","state":"OPEN","headRefOid":"{head}","baseRefName":"main","headRefName":"agent/reopen"}}]\'; else printf \'[{{"number":10,"url":"https://example.invalid/pr/10","state":"CLOSED","headRefOid":"{head}","baseRefName":"main","headRefName":"agent/reopen"}}]\'; fi; exit 0\n'
             'fi\n'
-            'if [ "$1" = "pr" ] && [ "$2" = "create" ]; then echo "https://example.invalid/pr/11"; exit 0; fi\n'
+            'if [ "$1" = "pr" ] && [ "$2" = "view" ]; then\n'
+            f'  remote_head=$(git --git-dir "$FAKE_REMOTE" rev-parse refs/heads/main 2>/dev/null); if [ "$remote_head" = "{head}" ]; then printf \'{{"state":"MERGED","headRefOid":"{head}"}}\'; else printf \'{{"state":"OPEN","headRefOid":"{head}"}}\'; fi; exit 0\n'
+            'fi\n'
+            f'if [ "$1" = "pr" ] && [ "$2" = "create" ]; then mkdir "{created}"; echo "https://example.invalid/pr/11"; exit 0; fi\n'
             'if [ "$1" = "pr" ] && [ "$2" = "checks" ]; then echo \'[{"name":"platform-ci","state":"SUCCESS","workflow":"platform-ci","link":""}]\'; exit 0; fi\n'
-            'if [ "$1" = "pr" ] && [ "$2" = "merge" ]; then sha=$(git --git-dir "$FAKE_REMOTE" rev-parse "refs/heads/$3") || exit 1; git --git-dir "$FAKE_REMOTE" update-ref refs/heads/main "$sha" || exit 1; exit 0; fi\n'
+            f'if [ "$1" = "pr" ] && [ "$2" = "merge" ]; then git --git-dir "$FAKE_REMOTE" update-ref refs/heads/main "{head}" || exit 1; exit 0; fi\n'
             'exit 1'
         )
         result = run("python3", "scripts/finish_task.py", "--no-checks", cwd=self.repo, check=False, env=env)
@@ -239,20 +242,23 @@ class PublicationRecoveryCliTests(unittest.TestCase):
         git("add", ".dev-platform.toml", cwd=self.repo)
         git("commit", "-m", "manual mode", cwd=self.repo)
         git("push", cwd=self.repo)
-        self.make_feature("agent/manual-mode")
+        head = self.make_feature("agent/manual-mode")
         gh_log = self.base / "gh-manual.log"
+        created = self.base / "manual-created"
         env = self.fake_gh(
             f"echo \"$*\" >> '{gh_log}'\n"
             'if [ "$1" = "auth" ] && [ "$2" = "status" ]; then exit 0; fi\n'
-            'if [ "$1" = "pr" ] && [ "$2" = "view" ]; then exit 1; fi\n'
-            'if [ "$1" = "pr" ] && [ "$2" = "create" ]; then echo "https://example.invalid/pr/21"; exit 0; fi\n'
+            'if [ "$1" = "pr" ] && [ "$2" = "list" ]; then\n'
+            f'  if [ -d "{created}" ]; then printf \'[{{"number":21,"url":"https://example.invalid/pr/21","state":"OPEN","headRefOid":"{head}","baseRefName":"main","headRefName":"agent/manual-mode"}}]\'; else echo "[]"; fi; exit 0\n'
+            'fi\n'
+            f'if [ "$1" = "pr" ] && [ "$2" = "create" ]; then mkdir "{created}"; echo "https://example.invalid/pr/21"; exit 0; fi\n'
             'exit 1'
         )
         result = run("python3", "scripts/finish_task.py", "--no-checks", cwd=self.repo, check=False, env=env)
         self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
         self.assertIn("manual review", result.stdout)
         log_text = gh_log.read_text(encoding="utf-8") if gh_log.exists() else ""
-        self.assertNotIn("merge", log_text)
+        self.assertNotIn("pr merge", log_text)
 
     # -- harness_mode=project is unaffected outside of --status --
 
@@ -303,6 +309,9 @@ class PublicationRecoveryConcurrencyTests(unittest.TestCase):
         # and reuse the winner's PR rather than producing a duplicate.
         marker = self.base / "created-lock"
         env = self.fake_gh(
+            'if [ "$1" = "pr" ] && [ "$2" = "list" ]; then\n'
+            f'  if [ -d "{marker}" ]; then printf \'[{{"number":42,"url":"https://example.invalid/pr/42","state":"OPEN","headRefOid":"{self.head}","baseRefName":"main","headRefName":"agent/race"}}]\'; else printf "[]"; fi; exit 0\n'
+            'fi\n'
             'if [ "$1" = "pr" ] && [ "$2" = "view" ]; then\n'
             f'  if [ "$5" = "state,headRefOid" ]; then\n'
             f'    if [ -d "{marker}" ]; then printf \'{{"state":"OPEN","headRefOid":"{self.head}"}}\'; exit 0; fi\n'
@@ -356,9 +365,9 @@ class PublicationRecoveryConcurrencyTests(unittest.TestCase):
         git("push", "-u", "origin", "agent/race", cwd=self.root)
         env = self.fake_gh(
             'if [ "$1" = "pr" ] && [ "$2" = "view" ]; then\n'
-            f'  if [ "$5" = "state,mergedAt" ] || [ "$5" = "state,headRefOid" ]; then\n'
+            f'  if [ "$5" = "state,headRefOid" ]; then\n'
             f'    remote_head=$(git --git-dir "{remote}" rev-parse refs/heads/main 2>/dev/null)\n'
-            f'    if [ "$remote_head" = "{self.head}" ]; then echo MERGED; else echo OPEN; fi\n'
+            f'    if [ "$remote_head" = "{self.head}" ]; then printf \'{{"state":"MERGED","headRefOid":"{self.head}"}}\'; else printf \'{{"state":"OPEN","headRefOid":"{self.head}"}}\'; fi\n'
             '    exit 0\n'
             '  fi\n'
             '  exit 1\n'
@@ -375,7 +384,7 @@ class PublicationRecoveryConcurrencyTests(unittest.TestCase):
             "import sys; from pathlib import Path; sys.path.insert(0, sys.argv[1]); "
             "import os; import project_publish; "
             "root = Path(sys.argv[2]); env = os.environ.copy(); "
-            "outcome = project_publish.request_protected_merge(root, env, 'agent/race', 'origin', sys.argv[3]); "
+            "outcome = project_publish.request_protected_merge(root, env, 'agent/race', project_publish.PrRef(42, 'https://example.invalid/pr/42'), 'origin', sys.argv[3]); "
             "print(outcome)"
         )
         procs = [
@@ -437,14 +446,16 @@ class ExactHeadMergeGuardTests(unittest.TestCase):
         env = self.fake_gh(
             'if [ "$1" = "pr" ] && [ "$2" = "merge" ]; then echo "rejected" >&2; exit 1; fi\n'
             'if [ "$1" = "pr" ] && [ "$2" = "view" ]; then\n'
-            f'  if [ "$4" = "--json" ] && [ "$5" = "headRefOid" ]; then echo "{changed_head}"; exit 0; fi\n'
-            '  if [ "$4" = "--json" ] && [ "$5" = "state,mergedAt" ]; then echo OPEN; exit 0; fi\n'
+            f'  if [ "$4" = "--json" ] && [ "$5" = "headRefOid" ]; then printf \'{{"headRefOid":"{changed_head}"}}\'; exit 0; fi\n'
+            f'  if [ "$4" = "--json" ] && [ "$5" = "state,headRefOid" ]; then printf \'{{"state":"OPEN","headRefOid":"{changed_head}"}}\'; exit 0; fi\n'
             '  exit 1\n'
             'fi\n'
             'exit 1'
         )
         with self.assertRaisesRegex(SystemExit, "PR head changed"):
-            project_publish.request_protected_merge(self.root, env, "agent/guard", "origin", self.head)
+            project_publish.request_protected_merge(
+                self.root, env, "agent/guard", project_publish.PrRef(8, "https://example.invalid/pr/8"), "origin", self.head
+            )
 
     def test_merge_unavailable_without_head_change_falls_back_gracefully(self) -> None:
         import project_publish
@@ -455,7 +466,9 @@ class ExactHeadMergeGuardTests(unittest.TestCase):
             'exit 1'
         )
         with mock.patch.object(project_publish, "MERGE_FAILURE_CONFIRM_TIMEOUT_SECONDS", 0):
-            outcome = project_publish.request_protected_merge(self.root, env, "agent/guard", "origin", self.head)
+            outcome = project_publish.request_protected_merge(
+                self.root, env, "agent/guard", project_publish.PrRef(8, "https://example.invalid/pr/8"), "origin", self.head
+            )
         self.assertEqual(outcome, "unavailable")
 
 

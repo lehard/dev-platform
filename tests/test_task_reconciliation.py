@@ -123,7 +123,12 @@ class TaskReconciliationTests(unittest.TestCase):
         self.advance_main()
         exact = publication_state.ExactHeadPrLookup(
             available=True,
-            exact_open={"baseRefName": "main", "headRepositoryOwner": "owner"},
+            exact_open={
+                "number": 190,
+                "url": "https://example.invalid/pr/190",
+                "baseRefName": "main",
+                "headRepositoryOwner": "owner",
+            },
         )
         with (
             mock.patch.object(task_reconciliation, "_require_managed_lineage"),

@@ -63,6 +63,9 @@ class StructuredRequiredCheckStateTests(unittest.TestCase):
         gh = self.bin / "gh"
         gh.write_text(
             "#!/bin/sh\n"
+            "if [ \"$1\" = pr ] && [ \"$2\" = list ]; then\n"
+            f"  printf '%s\\n' '[{{\"number\":7,\"url\":\"https://example.invalid/pr/7\",\"state\":\"OPEN\",\"headRefOid\":\"{head or self.head}\",\"baseRefName\":\"main\",\"headRefName\":\"agent/checks\"}}]'; exit 0\n"
+            "fi\n"
             "if [ \"$1\" = pr ] && [ \"$2\" = view ]; then\n"
             f"  printf '%s\\n' '{{\"state\":\"OPEN\",\"headRefOid\":\"{head or self.head}\"}}'; exit 0\n"
             "fi\n"
@@ -75,7 +78,7 @@ class StructuredRequiredCheckStateTests(unittest.TestCase):
         gh.chmod(0o755)
         env = os.environ.copy()
         env["PATH"] = str(self.bin) + os.pathsep + env["PATH"]
-        return project_publish.required_check_state(self.root, env, "agent/checks")
+        return project_publish.required_check_state_for_ref(self.root, env, "7", self.head)
 
     def test_classifies_structured_required_check_states_for_current_head(self) -> None:
         cases = {
@@ -96,12 +99,13 @@ class StructuredRequiredCheckStateTests(unittest.TestCase):
         self.assertEqual(self.state("[]", head="0" * 40).kind, "unknown")
 
     def test_registration_and_pending_timeouts_are_explicitly_resumable(self) -> None:
-        with mock.patch.object(project_publish, "required_check_state", return_value=project_publish.RequiredCheckState("not_registered")), mock.patch.object(project_publish, "CHECK_REGISTRATION_TIMEOUT_SECONDS", 0):
+        pr = project_publish.PrRef(7, "https://example.invalid/pr/7")
+        with mock.patch.object(project_publish, "required_check_state_for_ref", return_value=project_publish.RequiredCheckState("not_registered")), mock.patch.object(project_publish, "CHECK_REGISTRATION_TIMEOUT_SECONDS", 0):
             with self.assertRaisesRegex(SystemExit, "resumable"):
-                project_publish.wait_for_pr_checks(self.root, {}, "agent/checks")
-        with mock.patch.object(project_publish, "required_check_state", return_value=project_publish.RequiredCheckState("pending")), mock.patch.object(project_publish, "CHECK_COMPLETION_TIMEOUT_SECONDS", 0):
+                project_publish.wait_for_pr_checks(self.root, {}, pr, self.head)
+        with mock.patch.object(project_publish, "required_check_state_for_ref", return_value=project_publish.RequiredCheckState("pending")), mock.patch.object(project_publish, "CHECK_COMPLETION_TIMEOUT_SECONDS", 0):
             with self.assertRaisesRegex(SystemExit, "resumable"):
-                project_publish.wait_for_pr_checks(self.root, {}, "agent/checks")
+                project_publish.wait_for_pr_checks(self.root, {}, pr, self.head)
 
 
 class ReconciliationLockTests(unittest.TestCase):

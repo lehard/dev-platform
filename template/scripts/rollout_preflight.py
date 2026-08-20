@@ -16,8 +16,8 @@ from pathlib import Path
 from typing import Any
 
 from finish_task import serialized_integration, sync_after_remote_pr_merge
-from project_publish import request_protected_merge
-from publication_state import current_pr_head, github_repo_name, required_check_state_for_ref
+from project_publish import PrRef, request_protected_merge
+from publication_state import github_repo_name, required_check_state_for_ref
 from rollout_identity import RolloutPR, authoritative_pending_rollout, candidate_rollout_prs, list_open_prs
 
 # Structured pre-task rollout states (see openspec/changes/reconcile-pending-rollout-before-task).
@@ -91,7 +91,7 @@ def observe_pending_rollout(root: Path, config: dict[str, Any], env: dict[str, s
             ),
         )
 
-    check_state = required_check_state_for_ref(root, env, authoritative.branch, authoritative.head_sha)
+    check_state = required_check_state_for_ref(root, env, str(authoritative.number), authoritative.head_sha)
     if check_state.kind == "failed":
         return RolloutPreflightResult(
             BLOCKED, detail=f"rollout PR #{authoritative.number} required checks failed: {check_state.detail}", pr=authoritative,
@@ -112,11 +112,10 @@ def observe_pending_rollout(root: Path, config: dict[str, Any], env: dict[str, s
 
 
 def _merge_rollout_pr(root: Path, env: dict[str, str], pr: RolloutPR, remote: str = "origin") -> tuple[str, str]:
-    expected_head = current_pr_head(root, env, pr.branch)
-    if expected_head is None:
-        return "unavailable", f"could not read rollout PR #{pr.number}'s current head from GitHub"
+    if not pr.head_sha:
+        return "unavailable", f"rollout PR #{pr.number} has no observed head SHA"
     try:
-        result = request_protected_merge(root, env, pr.branch, remote, expected_head)
+        result = request_protected_merge(root, env, pr.branch, PrRef(pr.number, pr.url), remote, pr.head_sha)
     except SystemExit as exc:
         return "unavailable", str(exc)
     return result, ""

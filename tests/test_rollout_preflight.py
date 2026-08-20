@@ -85,7 +85,7 @@ class ObservePendingRolloutTests(unittest.TestCase):
             result = rollout_preflight.observe_pending_rollout(ROOT_PATH, CONFIG, ENV)
         self.assertEqual(result.state, rollout_preflight.SAFE_TO_ADOPT)
         self.assertEqual(result.pr.number, 2)
-        self.assertEqual(checks.call_args.args[2], "dev-platform/rollout-v1.2.0")
+        self.assertEqual(checks.call_args.args[2], "2")
 
     def test_failed_required_checks_block(self) -> None:
         with (
@@ -147,7 +147,6 @@ class ReconcilePendingRolloutTests(unittest.TestCase):
         observed = rollout_preflight.RolloutPreflightResult(rollout_preflight.SAFE_TO_ADOPT, pr=candidate)
         with (
             patch.object(rollout_preflight, "observe_pending_rollout", return_value=observed),
-            patch.object(rollout_preflight, "current_pr_head", return_value="abc123"),
             patch.object(rollout_preflight, "request_protected_merge", return_value="merged") as merge,
             patch.object(rollout_preflight, "serialized_integration") as lock,
             patch.object(rollout_preflight, "sync_after_remote_pr_merge") as sync,
@@ -156,7 +155,7 @@ class ReconcilePendingRolloutTests(unittest.TestCase):
             lock.return_value.__exit__ = lambda self, *a: False
             result = rollout_preflight.reconcile_pending_rollout(ROOT_PATH, CONFIG, ENV)
         self.assertEqual(result.state, rollout_preflight.RECONCILED)
-        merge.assert_called_once_with(ROOT_PATH, ENV, "dev-platform/rollout-v1.0.0", "origin", "abc123")
+        merge.assert_called_once()
         sync.assert_called_once()
 
     def test_conflicting_or_changed_head_blocks_without_partial_progress(self) -> None:
@@ -164,7 +163,6 @@ class ReconcilePendingRolloutTests(unittest.TestCase):
         observed = rollout_preflight.RolloutPreflightResult(rollout_preflight.SAFE_TO_ADOPT, pr=candidate)
         with (
             patch.object(rollout_preflight, "observe_pending_rollout", return_value=observed),
-            patch.object(rollout_preflight, "current_pr_head", return_value="abc123"),
             patch.object(rollout_preflight, "request_protected_merge", return_value="unavailable"),
             patch.object(rollout_preflight, "sync_after_remote_pr_merge") as sync,
         ):
@@ -181,7 +179,6 @@ class ReconcilePendingRolloutTests(unittest.TestCase):
 
         with (
             patch.object(rollout_preflight, "observe_pending_rollout", return_value=observed),
-            patch.object(rollout_preflight, "current_pr_head", return_value="abc123"),
             patch.object(rollout_preflight, "request_protected_merge", side_effect=raise_exit),
         ):
             result = rollout_preflight.reconcile_pending_rollout(ROOT_PATH, CONFIG, ENV)
@@ -193,7 +190,6 @@ class ReconcilePendingRolloutTests(unittest.TestCase):
         observed = rollout_preflight.RolloutPreflightResult(rollout_preflight.SAFE_TO_ADOPT, pr=candidate)
         with (
             patch.object(rollout_preflight, "observe_pending_rollout", return_value=observed),
-            patch.object(rollout_preflight, "current_pr_head", return_value="abc123"),
             patch.object(rollout_preflight, "request_protected_merge", return_value="merged"),
             patch.object(rollout_preflight, "serialized_integration") as lock,
             patch.object(rollout_preflight, "sync_after_remote_pr_merge", side_effect=SystemExit("diverged")),

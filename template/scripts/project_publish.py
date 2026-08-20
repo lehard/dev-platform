@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import subprocess
 import time
@@ -27,9 +28,10 @@ from integration_state import guard_before_protected_merge
 from publication_state import (
     ExactHeadPrLookup,
     RequiredCheckState,
-    current_pr_head,
     find_exact_head_pr,
     required_check_state,
+    required_check_state_for_ref,
+    stable_pr_ref,
 )
 from managed_project_status import ManagedProjectStatusError, reconcile as reconcile_managed_project
 try:
@@ -58,6 +60,21 @@ class PrRef:
     number: int | None
     url: str
     already_merged: bool = False
+
+    @property
+    def ref(self) -> str:
+        if self.number is not None:
+            return str(self.number)
+        if self.url.startswith(("https://", "http://")):
+            return self.url
+        raise SystemExit("Exact PR discovery did not return a stable PR number or URL; refusing branch-name fallback.")
+
+
+def _pr_ref(pr: dict, *, already_merged: bool = False) -> PrRef:
+    # Validate the candidate before retaining it as a publication cursor.
+    stable_pr_ref(pr)
+    number = pr.get("number")
+    return PrRef(number if isinstance(number, int) else None, str(pr.get("url", "")), already_merged)
 
 
 def clean(root: Path) -> bool:
@@ -163,11 +180,11 @@ def ensure_pr(
     if lookup.exact_open is not None:
         url = str(lookup.exact_open.get("url", ""))
         print(f"PR already exists for exact task head: {url}")
-        return PrRef(lookup.exact_open.get("number"), url)
+        return _pr_ref(lookup.exact_open)
     if lookup.exact_merged is not None:
         url = str(lookup.exact_merged.get("url", ""))
         print(f"PR already merged on GitHub for exact task head: {url}")
-        return PrRef(lookup.exact_merged.get("number"), url, already_merged=True)
+        return _pr_ref(lookup.exact_merged, already_merged=True)
 
     if not title:
         title = run_git(["log", "-1", "--pretty=%s"], cwd=root).stdout.strip() or current
@@ -182,9 +199,14 @@ def ensure_pr(
         check=False,
     )
     if created.returncode == 0:
-        url = created.stdout.strip()
-        print(url)
-        return PrRef(None, url)
+        # The create command's URL is not yet proof that it names the current
+        # head. Re-enumerate the full tuple and retain only the stable exact PR.
+        created_lookup = find_exact_head_pr(root, env, current, main_branch, expected_head)
+        if created_lookup.available and created_lookup.exact_open is not None:
+            pr = _pr_ref(created_lookup.exact_open)
+            print(pr.url)
+            return pr
+        raise SystemExit("PR creation returned success, but GitHub did not expose one stable exact-head PR; refusing to continue.")
 
     # A concurrent publisher may have created the exact PR between our lookup
     # and this create attempt. Re-observe and reuse it instead of treating the
@@ -193,17 +215,17 @@ def ensure_pr(
     if retry.available and retry.exact_open is not None:
         url = str(retry.exact_open.get("url", ""))
         print(f"PR creation lost a race with a concurrent publisher; reusing exact PR: {url}")
-        return PrRef(retry.exact_open.get("number"), url)
+        return _pr_ref(retry.exact_open)
     detail = created.stderr.strip() or created.stdout.strip() or f"exit {created.returncode}"
     raise SystemExit(f"gh pr create failed: {detail}")
 
 
-def wait_for_pr_checks(root: Path, env: dict[str, str], current: str) -> None:
+def wait_for_pr_checks(root: Path, env: dict[str, str], pr: PrRef, expected_head: str) -> None:
     print("Waiting for GitHub required PR checks from structured PR state...")
     registration_deadline = time.monotonic() + CHECK_REGISTRATION_TIMEOUT_SECONDS
     completion_deadline: float | None = None
     while True:
-        state = required_check_state(root, env, current)
+        state = required_check_state_for_ref(root, env, pr.ref, expected_head)
         if state.kind == "passed":
             return
         if state.kind == "not_registered":
@@ -238,9 +260,10 @@ def wait_for_pr_checks(root: Path, env: dict[str, str], current: str) -> None:
         )
 
 
-def pr_state(root: Path, env: dict[str, str], current: str) -> str | None:
+def exact_merged_state(root: Path, env: dict[str, str], pr: PrRef, expected_head: str) -> bool:
+    """Return true only for the previously selected PR at the validated head."""
     result = subprocess.run(
-        ["gh", "pr", "view", current, "--json", "state,mergedAt", "--jq", ".state"],
+        ["gh", "pr", "view", pr.ref, "--json", "state,headRefOid"],
         cwd=root,
         env=env,
         text=True,
@@ -248,15 +271,22 @@ def pr_state(root: Path, env: dict[str, str], current: str) -> str | None:
         check=False,
     )
     if result.returncode != 0:
-        return None
-    value = result.stdout.strip().upper()
-    return value or None
+        return False
+    try:
+        payload = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return False
+    return (
+        isinstance(payload, dict)
+        and str(payload.get("state", "")).upper() == "MERGED"
+        and str(payload.get("headRefOid", "")).strip() == expected_head
+    )
 
 
-def wait_for_pr_merged(root: Path, env: dict[str, str], current: str, *, timeout_seconds: float) -> bool:
+def wait_for_pr_merged(root: Path, env: dict[str, str], pr: PrRef, expected_head: str, *, timeout_seconds: float) -> bool:
     deadline = time.monotonic() + max(timeout_seconds, 0.0)
     while True:
-        if pr_state(root, env, current) == "MERGED":
+        if exact_merged_state(root, env, pr, expected_head):
             return True
         if time.monotonic() >= deadline:
             return False
@@ -280,6 +310,7 @@ def request_protected_merge(
     root: Path,
     env: dict[str, str],
     current: str,
+    pr: PrRef,
     remote: str,
     expected_head: str,
     *,
@@ -303,9 +334,9 @@ def request_protected_merge(
     existing terminal/resumable SystemExit convention.
     """
     attempts = [
-        ("ordinary squash merge", ["gh", "pr", "merge", current, "--squash", "--match-head-commit", expected_head]),
-        ("GitHub auto-merge with squash", ["gh", "pr", "merge", current, "--auto", "--squash", "--match-head-commit", expected_head]),
-        ("GitHub auto/queue enrollment", ["gh", "pr", "merge", current, "--auto", "--match-head-commit", expected_head]),
+        ("ordinary squash merge", ["gh", "pr", "merge", pr.ref, "--squash", "--match-head-commit", expected_head]),
+        ("GitHub auto-merge with squash", ["gh", "pr", "merge", pr.ref, "--auto", "--squash", "--match-head-commit", expected_head]),
+        ("GitHub auto/queue enrollment", ["gh", "pr", "merge", pr.ref, "--auto", "--match-head-commit", expected_head]),
     ]
     last_detail = "merge command was not attempted"
 
@@ -325,7 +356,7 @@ def request_protected_merge(
 
         if result.returncode == 0:
             print(f"GitHub accepted {label} for exact validated head {expected_head}.")
-            if wait_for_pr_merged(root, env, current, timeout_seconds=MERGE_CONFIRM_TIMEOUT_SECONDS):
+            if wait_for_pr_merged(root, env, pr, expected_head, timeout_seconds=MERGE_CONFIRM_TIMEOUT_SECONDS):
                 delete_remote_branch(root, remote, current)
                 print(f"Merged PR for {current} through GitHub ({label}).")
                 return "merged"
@@ -335,22 +366,32 @@ def request_protected_merge(
                 "process; rerun finish or finish --status later to reconcile once it completes. Local main was not changed."
             )
 
-        # gh can report a convenience/cleanup error after GitHub already accepted
-        # the merge. Confirm remote state before interpreting a non-zero exit as
-        # a failed merge request.
-        if wait_for_pr_merged(root, env, current, timeout_seconds=MERGE_FAILURE_CONFIRM_TIMEOUT_SECONDS):
-            print(f"WARNING: {label} exited non-zero, but GitHub confirms the PR is MERGED; continuing reconciliation: {detail}")
-            delete_remote_branch(root, remote, current)
-            print(f"Merged PR for {current} through GitHub ({label}).")
-            return "merged"
-
-        actual_head = current_pr_head(root, env, current)
+        # A stable PR reference avoids branch ambiguity. Any readable state
+        # other than the validated head is a hard stop.  This direct first
+        # read avoids spending the bounded recovery wait on a PR we already
+        # know cannot authorize the validated task head.
+        observed = subprocess.run(
+            ["gh", "pr", "view", pr.ref, "--json", "headRefOid"],
+            cwd=root, env=env, text=True, capture_output=True, check=False,
+        )
+        try:
+            actual_head = str(json.loads(observed.stdout).get("headRefOid", "")).strip() if observed.returncode == 0 else None
+        except json.JSONDecodeError:
+            actual_head = None
         if actual_head is not None and actual_head != expected_head:
             raise SystemExit(
                 f"PR head changed from validated {expected_head} to {actual_head} before a merge request was "
                 "accepted; refusing to merge a different head under this validation. Revalidate the new head and "
                 "finish again. Local main was not changed."
             )
+
+        # gh can report a convenience/cleanup error after GitHub already
+        # accepted the merge. Only exact MERGED confirmation permits cleanup.
+        if wait_for_pr_merged(root, env, pr, expected_head, timeout_seconds=MERGE_FAILURE_CONFIRM_TIMEOUT_SECONDS):
+            print(f"WARNING: {label} exited non-zero, but GitHub confirms the PR is MERGED; continuing reconciliation: {detail}")
+            delete_remote_branch(root, remote, current)
+            print(f"Merged PR for {current} through GitHub ({label}).")
+            return "merged"
 
         last_detail = detail
         print(f"{label} was not accepted for the unchanged validated head ({detail}); trying the next protected GitHub merge mode...")
@@ -393,6 +434,8 @@ def publish_pr(
 
     pr = ensure_pr(root, env, current, main_branch, title, body, expected_head, lookup=lookup)
     if pr.already_merged:
+        if not exact_merged_state(root, env, pr, expected_head):
+            raise SystemExit("Previously discovered merged PR no longer proves MERGED at the exact validated head; refusing cleanup.")
         delete_remote_branch(root, remote, current)
         print(f"PR for {current} was already merged on GitHub for the exact validated head; nothing further to merge.")
         return 0
@@ -424,7 +467,7 @@ def publish_pr(
     # Prefer to persist merge intent in native GitHub auto-merge/merge-queue
     # state before any long local wait, so an accepted remote request survives
     # loss of this process.
-    outcome = request_protected_merge(root, env, current, remote, expected_head, merge_guard=merge_guard)
+    outcome = request_protected_merge(root, env, current, pr, remote, expected_head, merge_guard=merge_guard)
     if outcome == "merged":
         return 0
 
@@ -432,8 +475,8 @@ def publish_pr(
         "WARNING: falling back to the bounded foreground required-check wait; remote durability is degraded "
         "until this process (or a resumed one) completes it."
     )
-    wait_for_pr_checks(root, env, current)
-    fallback_outcome = request_protected_merge(root, env, current, remote, expected_head, merge_guard=merge_guard)
+    wait_for_pr_checks(root, env, pr, expected_head)
+    fallback_outcome = request_protected_merge(root, env, current, pr, remote, expected_head, merge_guard=merge_guard)
     if fallback_outcome == "merged":
         return 0
     raise SystemExit(

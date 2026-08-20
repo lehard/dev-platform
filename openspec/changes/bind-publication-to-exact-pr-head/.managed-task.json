@@ -1,0 +1,30 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/publication-recovery/spec.md",
+    "specs/platform-rollout/spec.md"
+  ],
+  "change": "bind-publication-to-exact-pr-head",
+  "imported_at": "2026-08-20T16:34:19+00:00",
+  "package_revision": "7992061f93e1cbff5725643ce1527930839c49f7a49cc4aa6b87527d18d21c9e",
+  "prepared_against": "822e9a0119ab361deec2a544655ff13aeaf8fc5f",
+  "routing_receipt": {
+    "assurance": "high",
+    "effort_hint": "high",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "publication-safety-bugfix"
+  },
+  "source_issue": "lehard/development-backlog#51",
+  "source_issue_evidence": {
+    "body_sha256": "e022e6051f1de00026321426e684ad5730db92a3026230d6b8e97790db9275f5",
+    "updated_at": "2026-08-20T16:15:26Z"
+  },
+  "supersedes": "4e2523976cdb112b119fac6ec8cdac709677513ac0f072566dc2b901d320f299",
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

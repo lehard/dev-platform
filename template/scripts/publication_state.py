@@ -9,7 +9,7 @@ from typing import Any
 from _platform_common import pr_merge_mode, run_git
 
 
-PR_VIEW_FIELDS = "number,url,state,headRefOid,baseRefName,headRefName,autoMergeRequest,mergeStateStatus"
+PR_VIEW_FIELDS = "number,url,state,headRefOid,baseRefName,headRefName,headRepositoryOwner,autoMergeRequest,mergeStateStatus"
 
 PASSED_CHECK_STATES = {"SUCCESS", "NEUTRAL", "SKIPPING", "SKIPPED"}
 FAILED_CHECK_STATES = {"FAILURE", "CANCELLED", "TIMED_OUT", "ACTION_REQUIRED", "STALE", "ERROR"}
@@ -32,44 +32,17 @@ def required_check_state(root: Path, env: dict[str, str], current: str) -> Requi
     GitHub, and the preceding PR query proves those contexts belong to this
     local task head.  An unreadable API response is intentionally `unknown`.
     """
-    pr = subprocess.run(
-        ["gh", "pr", "view", current, "--json", "state,headRefOid"],
-        cwd=root,
-        env=env,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    if pr.returncode != 0:
-        return RequiredCheckState("unknown", "GitHub PR state is unavailable")
-    try:
-        pr_payload = json.loads(pr.stdout)
-    except json.JSONDecodeError:
-        return RequiredCheckState("unknown", "GitHub PR state was not structured JSON")
     local_head = run_git(["rev-parse", current], cwd=root, check=False)
     if local_head.returncode != 0:
         return RequiredCheckState("unknown", f"local task branch {current!r} is unavailable")
-    remote_head = str(pr_payload.get("headRefOid", "")).strip()
-    if remote_head != local_head.stdout.strip():
-        return RequiredCheckState("unknown", "GitHub PR head does not match the local task head")
-
-    checks = subprocess.run(
-        ["gh", "pr", "checks", current, "--required", "--json", "name,state,workflow,link"],
-        cwd=root,
-        env=env,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    if checks.returncode != 0:
-        return RequiredCheckState("unknown", "GitHub required-check state is unavailable")
-    try:
-        payload = json.loads(checks.stdout)
-    except json.JSONDecodeError:
-        return RequiredCheckState("unknown", "GitHub required-check state was not structured JSON")
-    if not isinstance(payload, list):
-        return RequiredCheckState("unknown", "GitHub required-check response was not a list")
-    return _classify_required_checks(payload)
+    lookup = find_exact_head_pr(root, env, current, "main", local_head.stdout.strip())
+    # This compatibility helper has no base parameter. Publication paths use
+    # required_check_state_for_ref directly; callers that need another base
+    # must do the same rather than letting a branch name become proof.
+    pr = lookup.exact_open
+    if not lookup.available or pr is None:
+        return RequiredCheckState("unknown", "GitHub exact PR state is unavailable")
+    return required_check_state_for_ref(root, env, stable_pr_ref(pr), local_head.stdout.strip())
 
 
 def _classify_required_checks(payload: list[Any]) -> RequiredCheckState:
@@ -153,96 +126,79 @@ class ExactHeadPrLookup:
     detail: str = ""
 
 
-ENRICHMENT_FIELDS = "url,number,autoMergeRequest,baseRefName"
+def stable_pr_ref(pr: dict[str, Any]) -> str:
+    """Return the immutable PR handle required after exact-head discovery."""
+    number = pr.get("number")
+    if isinstance(number, int) and number > 0:
+        return str(number)
+    url = str(pr.get("url", "")).strip()
+    if url.startswith(("https://", "http://")):
+        return url
+    raise ValueError("exact PR candidate has no stable number or URL")
 
 
-def _pr_state_and_head(root: Path, env: dict[str, str], branch: str) -> tuple[bool, dict[str, Any] | None]:
-    """Read state+headRefOid via the platform's established `gh pr view` shape.
+def _pr_candidates(root: Path, env: dict[str, str], branch: str, base_branch: str) -> tuple[bool, list[dict[str, Any]], str]:
+    """Enumerate structured PRs; branch filtering only narrows discovery.
 
-    Returns `(available, payload)`. `payload` is None both when gh reports no
-    PR for this branch and when the call otherwise exits non-zero -- this
-    mirrors the established convention used throughout this codebase (see
-    `required_check_state` above), where a non-zero exit is treated as
-    absence and the caller's own next step (typically `gh pr create`) is what
-    actually fails loudly on a genuine outage. `available=False` only when gh
-    succeeded but returned a response this platform cannot parse, which is a
-    structural GitHub-unavailable signal.
+    `gh pr view <branch>` is deliberately not used here: when a branch name is
+    reused GitHub can select a historical merged PR.  The list response gives
+    every candidate that must be compared against the full identity tuple.
     """
     result = subprocess.run(
-        ["gh", "pr", "view", branch, "--json", "state,headRefOid"],
-        cwd=root,
-        env=env,
-        text=True,
-        capture_output=True,
-        check=False,
+        ["gh", "pr", "list", "--state", "all", "--head", branch, "--base", base_branch,
+         "--limit", "100", "--json", PR_VIEW_FIELDS],
+        cwd=root, env=env, text=True, capture_output=True, check=False,
     )
     if result.returncode != 0:
-        return True, None
+        return False, [], "GitHub PR candidate list is unavailable"
     try:
         payload = json.loads(result.stdout)
     except json.JSONDecodeError:
-        return False, None
-    if not isinstance(payload, dict):
-        return False, None
-    return True, payload
-
-
-def _pr_enrichment(root: Path, env: dict[str, str], branch: str) -> dict[str, Any]:
-    """Best-effort url/number/autoMergeRequest/baseRefName for an already-identified PR.
-
-    Failure here never blocks identity: it only means url/number fall back to
-    the branch name, auto-merge is reported unarmed, and base-branch
-    validation is skipped rather than rejected.
-    """
-    result = subprocess.run(
-        ["gh", "pr", "view", branch, "--json", ENRICHMENT_FIELDS],
-        cwd=root,
-        env=env,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        return {}
-    try:
-        payload = json.loads(result.stdout)
-    except json.JSONDecodeError:
-        return {}
-    return payload if isinstance(payload, dict) else {}
+        return False, [], "GitHub PR candidate list was not structured JSON"
+    if not isinstance(payload, list) or any(not isinstance(item, dict) for item in payload):
+        return False, [], "GitHub PR candidate list was not a structured list"
+    return True, payload, ""
 
 
 def find_exact_head_pr(root: Path, env: dict[str, str], branch: str, base_branch: str, local_head: str) -> ExactHeadPrLookup:
-    available, payload = _pr_state_and_head(root, env, branch)
+    available, candidates, detail = _pr_candidates(root, env, branch, base_branch)
     if not available:
-        return ExactHeadPrLookup(available=False, detail="GitHub PR state was not structured JSON")
-    if payload is None:
-        return ExactHeadPrLookup(available=True)
-    head = str(payload.get("headRefOid", "")).strip()
-    state = str(payload.get("state", "")).strip().upper()
-    is_open = state == "OPEN"
-    is_merged = state == "MERGED"
-    if not ((head == local_head and (is_open or is_merged)) or (head != local_head and is_open)):
-        return ExactHeadPrLookup(available=True)
-
-    enrichment = _pr_enrichment(root, env, branch)
-    base = enrichment.get("baseRefName")
-    if base is not None and str(base).strip() != base_branch:
-        # A PR for this head branch exists but targets a different base; it is
-        # not a match for this repository/base/head identity at all.
-        return ExactHeadPrLookup(available=True)
-    pr = {
-        "url": enrichment.get("url") or branch,
-        "number": enrichment.get("number"),
-        "headRefOid": head,
-        "state": state,
-        "baseRefName": base,
-        "autoMergeRequest": enrichment.get("autoMergeRequest"),
-    }
-    if head == local_head and is_open:
-        return ExactHeadPrLookup(available=True, exact_open=pr)
-    if head == local_head and is_merged:
-        return ExactHeadPrLookup(available=True, exact_merged=pr)
-    return ExactHeadPrLookup(available=True, stale_open=pr)
+        return ExactHeadPrLookup(available=False, detail=detail)
+    exact_open: dict[str, Any] | None = None
+    exact_merged: dict[str, Any] | None = None
+    stale_open: dict[str, Any] | None = None
+    for candidate in candidates:
+        # Validate filter fields in the payload as well; command-line filters
+        # are an optimisation, never identity proof.
+        if str(candidate.get("baseRefName", "")).strip() != base_branch:
+            continue
+        if str(candidate.get("headRefName", "")).strip() != branch:
+            continue
+        state = str(candidate.get("state", "")).strip().upper()
+        head = str(candidate.get("headRefOid", "")).strip()
+        pr = dict(candidate)
+        pr["state"] = state
+        pr["headRefOid"] = head
+        try:
+            stable_pr_ref(pr)
+        except ValueError:
+            return ExactHeadPrLookup(available=False, detail="GitHub exact PR candidate lacks a stable number or URL")
+        if head == local_head and state == "OPEN":
+            if exact_open is not None:
+                return ExactHeadPrLookup(available=False, detail="multiple exact open PR candidates were returned")
+            exact_open = pr
+        elif head == local_head and state == "MERGED":
+            if exact_merged is not None:
+                return ExactHeadPrLookup(available=False, detail="multiple exact merged PR candidates were returned")
+            exact_merged = pr
+        elif state == "OPEN" and stale_open is None:
+            stale_open = pr
+    if exact_open is not None and exact_merged is not None:
+        return ExactHeadPrLookup(
+            available=False,
+            detail="both open and merged PRs match the same branch/base/head identity",
+        )
+    return ExactHeadPrLookup(available=True, exact_open=exact_open, exact_merged=exact_merged, stale_open=stale_open)
 
 
 def find_exact_local_branch_pr(root: Path, env: dict[str, str], branch: str, base_branch: str) -> ExactHeadPrLookup:
@@ -262,7 +218,7 @@ def find_exact_local_branch_pr(root: Path, env: dict[str, str], branch: str, bas
     return find_exact_head_pr(root, env, branch, base_branch, head)
 
 
-def current_pr_head(root: Path, env: dict[str, str], branch: str) -> str | None:
+def current_pr_head(root: Path, env: dict[str, str], ref: str) -> str | None:
     """Best-effort read of the PR's current headRefOid, for exact-head guards.
 
     Returns None on any unreadable response so callers do not fail closed on a
@@ -270,7 +226,7 @@ def current_pr_head(root: Path, env: dict[str, str], branch: str) -> str | None:
     authoritative signal for whether the request was accepted.
     """
     result = subprocess.run(
-        ["gh", "pr", "view", branch, "--json", "headRefOid", "--jq", ".headRefOid"],
+        ["gh", "pr", "view", ref, "--json", "headRefOid", "--jq", ".headRefOid"],
         cwd=root,
         env=env,
         text=True,
@@ -283,10 +239,10 @@ def current_pr_head(root: Path, env: dict[str, str], branch: str) -> str | None:
     return value or None
 
 
-def pr_head_repository_owner(root: Path, env: dict[str, str], branch: str) -> str | None:
+def pr_head_repository_owner(root: Path, env: dict[str, str], ref: str) -> str | None:
     """Read the exact PR head repository owner for reconciliation ownership checks."""
     result = subprocess.run(
-        ["gh", "pr", "view", branch, "--json", "headRepositoryOwner"],
+        ["gh", "pr", "view", ref, "--json", "headRepositoryOwner"],
         cwd=root,
         env=env,
         text=True,
@@ -389,6 +345,9 @@ class PublicationObservation:
 
 def _remote_ref_head(root: Path, remote: str, branch: str) -> str | None:
     """Observe a remote ref's head SHA via ls-remote, without mutating local refs."""
+    configured = run_git(["remote", "get-url", remote], cwd=root, check=False)
+    if configured.returncode != 0 or not configured.stdout.strip():
+        return None
     result = run_git(["ls-remote", remote, branch], cwd=root, check=False)
     if result.returncode != 0 or not result.stdout.strip():
         return None
@@ -409,19 +368,19 @@ def observe_publication(
     """
     local_head_result = run_git(["rev-parse", "--verify", branch], cwd=work_root, check=False)
     local_head = local_head_result.stdout.strip() if local_head_result.returncode == 0 else None
-    remote_branch_head = _remote_ref_head(work_root, remote, branch)
 
     if env is None:
         return PublicationObservation(
             branch=branch,
             base_branch=base_branch,
             local_head=local_head,
-            remote_branch_head=remote_branch_head,
             github_available=False,
             pr_relationship="unavailable",
             bucket=GITHUB_UNAVAILABLE,
             detail="GitHub CLI/API authentication is unavailable",
         )
+
+    remote_branch_head = _remote_ref_head(work_root, remote, branch)
 
     if local_head is None:
         return PublicationObservation(
@@ -468,7 +427,9 @@ def observe_publication(
 
     if lookup.exact_open is not None:
         armed = lookup.exact_open.get("autoMergeRequest") is not None
-        check_state = required_check_state(work_root, env, branch)
+        check_state = required_check_state_for_ref(
+            work_root, env, stable_pr_ref(lookup.exact_open), local_head
+        )
         if check_state.kind == "failed":
             bucket = BLOCKED
         elif armed:

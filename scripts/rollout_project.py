@@ -71,6 +71,100 @@ PROJECT_OWNED_ROLLOUT_PATHS = (
     ALWAYS_PROJECT_OWNED_ROLLOUT_PATHS | PROJECT_HARNESS_ROLLOUT_PATHS
 )
 
+# Project harnesses are intentionally not replaced by Copier.  A rollout may
+# nevertheless advance a platform version only when the project-owned
+# publication surface can prove the same exact-head invariant as the platform
+# lifecycle.  This is a conformance gate, not an ownership grab: it never
+# rewrites a project-owned harness whose shape it cannot prove safe.
+PROJECT_PUBLICATION_SURFACE = (
+    "scripts/project_publish.py",
+    "scripts/finish_task.py",
+    "scripts/merge_to_main.py",
+    "scripts/exact_head_safety.py",
+)
+EXACT_HEAD_MARKER = "dev-platform:exact-head-publication-v1"
+UNSAFE_BRANCH_PR_VIEW_RE = re.compile(
+    r"(?:gh\s+pr\s+view|[\[\(]\s*[\"']gh[\"']\s*,\s*[\"']pr[\"']\s*,\s*[\"']view[\"']\s*,\s*(?:branch|current|head_branch))"
+)
+
+# Reviewed live project-harness shapes.  These fingerprints deliberately make
+# compatibility opt-in by bytes, so a downstream edit cannot be overwritten by
+# an apparently similar migration.
+JARA_MERGE_TO_MAIN_SHA256 = "a201795ddc3785630e789e409e510a471a8b848699014a815f461a0a2a38d91d"
+PLANNER_PROJECT_PUBLISH_SHA256 = "0bc3a4d169f41c6c8565e8f740ff92db51c7b8400a1aeaaa5bbcf5cbe1f1dfcb"
+
+EXACT_HEAD_HELPER = '''# dev-platform:exact-head-publication-v1
+from __future__ import annotations
+import json
+import subprocess
+import time
+
+def exact_pr(root, branch, base, env):
+    head = subprocess.run(["git", "rev-parse", branch], cwd=root, text=True, capture_output=True, check=False)
+    if head.returncode or not head.stdout.strip(): raise RuntimeError("local task head is unavailable")
+    expected = head.stdout.strip()
+    listed = subprocess.run(["gh", "pr", "list", "--state", "all", "--head", branch, "--base", base, "--limit", "100", "--json", "number,url,state,headRefOid,baseRefName,headRefName"], cwd=root, env=env, text=True, capture_output=True, check=False)
+    if listed.returncode: raise RuntimeError("GitHub exact PR candidate list is unavailable")
+    try: candidates = json.loads(listed.stdout)
+    except json.JSONDecodeError as exc: raise RuntimeError("GitHub exact PR candidate list is invalid") from exc
+    matches = [p for p in candidates if isinstance(p, dict) and p.get("baseRefName") == base and p.get("headRefName") == branch and p.get("headRefOid") == expected and p.get("state") in ("OPEN", "MERGED") and isinstance(p.get("number"), int)]
+    if len(matches) > 1: raise RuntimeError("GitHub returned multiple exact PR candidates")
+    return (matches[0] if matches else None), expected
+
+def ensure_exact_pr(root, branch, base, env, title, body):
+    current, expected = exact_pr(root, branch, base, env)
+    if current: return current, expected
+    made = subprocess.run(["gh", "pr", "create", "--base", base, "--head", branch, "--title", title, "--body", body], cwd=root, env=env, text=True, capture_output=True, check=False)
+    current, expected = exact_pr(root, branch, base, env)
+    if current and current.get("state") == "OPEN": return current, expected
+    detail = made.stderr.strip() or made.stdout.strip() or "exact PR was not observable after creation"
+    raise RuntimeError(detail)
+
+ensure_exact_pr.exact_pr = exact_pr
+
+def exact_state(root, pr, expected, env):
+    view = subprocess.run(["gh", "pr", "view", str(pr["number"]), "--json", "state,headRefOid"], cwd=root, env=env, text=True, capture_output=True, check=False)
+    try: payload = json.loads(view.stdout) if view.returncode == 0 else {}
+    except json.JSONDecodeError: payload = {}
+    return payload.get("state") == "MERGED" and payload.get("headRefOid") == expected
+
+def wait_for_exact_merge(root, pr, expected, env, timeout):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if exact_state(root, pr, expected, env): return True
+        time.sleep(2)
+    return exact_state(root, pr, expected, env)
+
+def check_exact_pr(root, pr, expected, env):
+    state = subprocess.run(["gh", "pr", "view", str(pr["number"]), "--json", "headRefOid"], cwd=root, env=env, text=True, capture_output=True, check=False)
+    try: head = json.loads(state.stdout).get("headRefOid") if state.returncode == 0 else None
+    except json.JSONDecodeError: head = None
+    if head != expected: raise RuntimeError("PR head changed from the validated exact head")
+    checks = subprocess.run(["gh", "pr", "checks", str(pr["number"]), "--required", "--watch", "--fail-fast", "--interval", "5"], cwd=root, env=env, text=True, capture_output=True, check=False)
+    if checks.returncode: raise RuntimeError(checks.stderr.strip() or checks.stdout.strip() or "required checks did not pass")
+
+def merge_exact_pr(root, pr, expected, env, timeout=600):
+    if exact_state(root, pr, expected, env): return
+    attempts = (
+        ["gh", "pr", "merge", str(pr["number"]), "--squash", "--match-head-commit", expected],
+        ["gh", "pr", "merge", str(pr["number"]), "--auto", "--squash", "--match-head-commit", expected],
+    )
+    detail = "merge did not confirm exact head"
+    for command in attempts:
+        result = subprocess.run(command, cwd=root, env=env, text=True, capture_output=True, check=False)
+        detail = result.stderr.strip() or result.stdout.strip() or detail
+        if wait_for_exact_merge(root, pr, expected, env, timeout if result.returncode == 0 else min(timeout, 15)):
+            return
+        _, observed = exact_pr(root, pr["headRefName"], pr["baseRefName"], env)
+        if observed != expected:
+            raise RuntimeError("local task head changed while merge was being confirmed")
+    raise RuntimeError(detail)
+'''
+
+JARA_OVERRIDE = '''\n# dev-platform:exact-head-publication-v1\nfrom exact_head_safety import exact_pr, exact_state, ensure_exact_pr, check_exact_pr, merge_exact_pr\ndef publish_branch_and_pr(worktree, branch, env):\n    run_git(worktree, "push", "-u", "origin", branch)\n    title = run_git(worktree, "log", "-1", "--pretty=%s").stdout.strip() or branch\n    try: ensure_exact_pr(worktree, branch, "main", env, title, "Published by Jara_Fin protected-main agent lifecycle after local validation.")\n    except RuntimeError as exc: raise MergeError(f"Could not create exact PR for {branch!r}: {exc}") from exc\ndef wait_for_pr_checks(worktree, branch, env):\n    try:\n        pr, head = exact_pr(worktree, branch, "main", env)\n        if not pr: raise RuntimeError("exact PR is absent")\n        if pr.get("state") != "MERGED": check_exact_pr(worktree, pr, head, env)\n        elif not exact_state(worktree, pr, head, env): raise RuntimeError("merged PR no longer proves the exact head")\n    except RuntimeError as exc: raise MergeError(f"Required exact PR checks did not pass: {exc}") from exc\ndef merge_pr(worktree, branch, env):\n    try:\n        pr, head = exact_pr(worktree, branch, "main", env)\n        if not pr: raise RuntimeError("exact PR is absent")\n        merge_exact_pr(worktree, pr, head, env)\n        delete_remote_branch(worktree, branch)\n    except RuntimeError as exc: raise MergeError(f"Exact protected merge failed: {exc}") from exc\n'''
+
+PLANNER_OVERRIDE = '''\n# dev-platform:exact-head-publication-v1\nfrom exact_head_safety import ensure_exact_pr, check_exact_pr, merge_exact_pr\ndef publish_pr(root, remote, main_branch, title, body, merge_mode):\n    env = require_gh_env(root)\n    current = push_feature_branch(root, remote, main_branch)\n    title = title or run_git(["log", "-1", "--pretty=%s"], cwd=root).stdout.strip() or current\n    body = body or "Published by Planner Agent Lab after local validation and a fresh origin/main check."\n    try: pr, head = ensure_exact_pr(root, current, main_branch, env, title, body)\n    except RuntimeError as exc: raise SystemExit(f"Could not create exact Planner PR: {exc}") from exc\n    if merge_mode == "manual":\n        print("PR published for manual review; no merge attempted.")\n        return 0\n    try:\n        check_exact_pr(root, pr, head, env)\n        merge_exact_pr(root, pr, head, env)\n    except RuntimeError as exc: raise SystemExit(f"Exact Planner merge failed: {exc}") from exc\n    return 0\n'''
+
 # A very small migration-only allowlist for files that used to carry downstream
 # customization but have since been deliberately reclaimed by the platform.
 # They are NEVER treated as project-owned for recovery. A Copier conflict is
@@ -276,6 +370,68 @@ def require_platform_config_contract(
 
 def harness_mode(project_root: Path) -> str:
     return str(load_platform_config(project_root).get("harness_mode", "platform"))
+
+
+def require_project_publication_safety_conformance(project_root: Path) -> None:
+    """Fail closed unless a project harness proves exact-head publication safety.
+
+    The gate is deliberately narrow and read-only.  It accepts the explicit
+    conformance marker only together with the three mechanical safety signals:
+    structured `headRefOid` verification, server-side expected-head guard, and
+    a stable PR number/URL cursor.  A branch-name `gh pr view` shape remains a
+    blocker even when those words appear elsewhere.  Unknown harnesses retain
+    their bytes and receive an actionable rollout failure instead of a
+    version-only PR that would falsely claim safety adoption.
+    """
+    if harness_mode(project_root) != "project":
+        return
+    found: list[tuple[str, str]] = []
+    for relative in PROJECT_PUBLICATION_SURFACE:
+        path = project_root / relative
+        if path.is_file():
+            found.append((relative, path.read_text(encoding="utf-8")))
+    if not found:
+        raise ValueError(
+            "project-owned publication-safety compatibility blocker: no recognized publication surface was found; "
+            "preserving project harness bytes"
+        )
+    combined = "\n".join(text for _, text in found)
+    if EXACT_HEAD_MARKER not in combined and UNSAFE_BRANCH_PR_VIEW_RE.search(combined):
+        raise ValueError(
+            "project-owned publication-safety compatibility blocker: branch-name-only PR lookup remains; "
+            "preserving project harness bytes for an explicit exact-head migration"
+        )
+    signals = (EXACT_HEAD_MARKER, "headRefOid", "--match-head-commit")
+    missing = [signal for signal in signals if signal not in combined]
+    if missing:
+        raise ValueError(
+            "project-owned publication-safety compatibility blocker: unrecognized harness shape (missing "
+            + ", ".join(missing)
+            + "); preserving project harness bytes"
+        )
+
+
+def migrate_project_publication_safety(project_root: Path, repository: str) -> bool:
+    """Apply only reviewed Jara/Planner overrides, guarded by exact bytes."""
+    if harness_mode(project_root) != "project":
+        return False
+    if repository == "lehard/Jara_Fin":
+        target, expected, override = project_root / "scripts/merge_to_main.py", JARA_MERGE_TO_MAIN_SHA256, JARA_OVERRIDE
+    elif repository == "lehard/planner-agent-lab":
+        target, expected, override = project_root / "scripts/project_publish.py", PLANNER_PROJECT_PUBLISH_SHA256, PLANNER_OVERRIDE
+    else:
+        return False
+    helper = project_root / "scripts/exact_head_safety.py"
+    current = target.read_text(encoding="utf-8") if target.is_file() else ""
+    if EXACT_HEAD_MARKER in current:
+        if helper.is_file() and helper.read_text(encoding="utf-8") == EXACT_HEAD_HELPER:
+            return False
+        raise ValueError("project-owned publication-safety compatibility blocker: incomplete migrated surface; preserving harness bytes")
+    if hashlib.sha256(current.encode("utf-8")).hexdigest() != expected:
+        raise ValueError("project-owned publication-safety compatibility blocker: unrecognized harness bytes; preserving harness bytes")
+    helper.write_text(EXACT_HEAD_HELPER, encoding="utf-8")
+    target.write_text(current.rstrip("\n") + override, encoding="utf-8")
+    return True
 
 
 def require_version_coherence(project_root: Path, copier_tag: str) -> None:
@@ -1015,6 +1171,8 @@ def apply_rollout(
             f"Copier recorded {updated['_commit']!r}, expected exact target {version!r}"
         )
     require_version_coherence(project_root, version)
+    migrate_project_publication_safety(project_root, repository)
+    require_project_publication_safety_conformance(project_root)
 
     stage_rollout_changes(project_root)
     run_project_validation(project_root, base_branch)
