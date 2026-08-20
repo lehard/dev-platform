@@ -44,6 +44,14 @@ def validated_direct_env() -> dict[str, str]:
     return env
 
 
+EXACT_OPEN_PR_LIST_SHIM = (
+    'if [ "$1" = "pr" ] && [ "$2" = "list" ]; then\n'
+    '  branch=$(git branch --show-current) || exit 1; head_sha=$(git rev-parse "$branch") || exit 1;\n'
+    '  printf \'[{"number":2,"url":"https://example.invalid/pr/2","state":"OPEN","headRefOid":"%s","baseRefName":"main","headRefName":"%s"}]\\n\' "$head_sha" "$branch"; exit 0;\n'
+    'fi\n'
+)
+
+
 class GitLifecycleTests(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory(); self.base = Path(self.tmp.name); self.remote = self.base / "remote.git"
@@ -245,7 +253,7 @@ class GitLifecycleTests(unittest.TestCase):
         (self.repo / ".dev-platform.toml").write_text('main_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\npublish_mode = "pr"\n', encoding="utf-8"); git("add", ".dev-platform.toml", cwd=self.repo); git("commit", "-m", "pr profile", cwd=self.repo); git("push", cwd=self.repo)
         git("switch", "-c", "agent/pr-test", cwd=self.repo); (self.repo / "feature.txt").write_text("feature\n", encoding="utf-8"); git("add", "feature.txt", cwd=self.repo); git("commit", "-m", "feature pr", cwd=self.repo)
         fake_bin = self.base / "fake-bin"; fake_bin.mkdir(); fake_gh = fake_bin / "gh"
-        fake_gh.write_text('#!/bin/sh\nif [ "$1" = "auth" ] && [ "$2" = "status" ]; then exit 0; fi\nif [ "$1" = "pr" ] && [ "$2" = "view" ]; then exit 1; fi\nif [ "$1" = "pr" ] && [ "$2" = "create" ]; then echo "https://example.invalid/pr/1"; exit 0; fi\nexit 1\n', encoding="utf-8"); fake_gh.chmod(0o755)
+        fake_gh.write_text('#!/bin/sh\n' + EXACT_OPEN_PR_LIST_SHIM + 'if [ "$1" = "auth" ] && [ "$2" = "status" ]; then exit 0; fi\nif [ "$1" = "pr" ] && [ "$2" = "view" ]; then exit 1; fi\nif [ "$1" = "pr" ] && [ "$2" = "create" ]; then echo "https://example.invalid/pr/1"; exit 0; fi\nexit 1\n', encoding="utf-8"); fake_gh.chmod(0o755)
         env = explicit_bypass_env(); env["PATH"] = str(fake_bin) + os.pathsep + env.get("PATH", "")
         result = run("python3", "scripts/finish_task.py", "--no-checks", cwd=self.repo, env=env)
         self.assertIn("Returned integration copy to main", result.stdout); self.assertEqual(git("branch", "--show-current", cwd=self.repo).stdout.strip(), "main")
@@ -281,11 +289,12 @@ class GitLifecycleTests(unittest.TestCase):
         fake_gh.write_text(
             "#!/bin/sh\n"
             f"echo \"$*\" >> '{gh_log}'\n"
-            "if [ \"$1\" = \"auth\" ] && [ \"$2\" = \"status\" ]; then exit 0; fi\n"
+            + EXACT_OPEN_PR_LIST_SHIM
+            + "if [ \"$1\" = \"auth\" ] && [ \"$2\" = \"status\" ]; then exit 0; fi\n"
             "if [ \"$1\" = \"pr\" ] && [ \"$2\" = \"view\" ]; then\n"
             "  case \" $* \" in\n"
             "    *\" state,headRefOid \"*)\n"
-            "      head_sha=$(git rev-parse \"$3\") || exit 1; printf '{\"state\":\"OPEN\",\"headRefOid\":\"%s\"}\\n' \"$head_sha\"; exit 0;;\n"
+            f"      head_sha=$(git rev-parse \"$(git branch --show-current)\") || exit 1; if [ -f '{merged_marker}' ]; then state=MERGED; else state=OPEN; fi; printf '{{\"state\":\"%s\",\"headRefOid\":\"%s\"}}\\n' \"$state\" \"$head_sha\"; exit 0;;\n"
             "    *\" state,mergedAt \"*)\n"
             f"      if [ -f '{merged_marker}' ]; then echo MERGED; else echo OPEN; fi; exit 0;;\n"
             "    *)\n"
@@ -320,7 +329,7 @@ class GitLifecycleTests(unittest.TestCase):
         self.assertNotEqual(run("git", "--git-dir", str(self.remote), "show-ref", "--verify", "refs/heads/agent/pr-reconcile", cwd=self.base, check=False).returncode, 0)
         logged = gh_log.read_text(encoding="utf-8")
         self.assertNotIn("--delete-branch", logged)
-        self.assertIn("pr view agent/pr-reconcile --json state,mergedAt", logged)
+        self.assertIn("pr view 2 --json state,headRefOid", logged)
 
     def _protected_pr_worktree(self, name: str) -> Path:
         config = (
@@ -355,10 +364,11 @@ class GitLifecycleTests(unittest.TestCase):
         fake_gh.write_text(
             "#!/bin/sh\n"
             f"echo \"$*\" >> '{log}'\n"
-            "if [ \"$1\" = \"auth\" ] && [ \"$2\" = \"status\" ]; then exit 0; fi\n"
+            + EXACT_OPEN_PR_LIST_SHIM
+            + "if [ \"$1\" = \"auth\" ] && [ \"$2\" = \"status\" ]; then exit 0; fi\n"
             "if [ \"$1\" = \"pr\" ] && [ \"$2\" = \"view\" ]; then\n"
             "  case \" $* \" in\n"
-            "    *\" state,headRefOid \"*) head_sha=$(git rev-parse \"$3\") || exit 1; printf '{\"state\":\"OPEN\",\"headRefOid\":\"%s\"}\\n' \"$head_sha\"; exit 0;;\n"
+            "    *\" state,headRefOid \"*) head_sha=$(git rev-parse \"$(git branch --show-current)\") || exit 1; printf '{\"state\":\"OPEN\",\"headRefOid\":\"%s\"}\\n' \"$head_sha\"; exit 0;;\n"
             "    *\" state,mergedAt \"*) echo OPEN; exit 0;;\n"
             "    *) exit 1;;\n"
             "  esac\n"

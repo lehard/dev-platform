@@ -113,7 +113,13 @@ def _require_exact_open_pr(root: Path, branch: str, main_branch: str, local_head
         raise SystemExit("Managed task reconciliation blocked: the exact PR base is unreadable or no longer targets authoritative main.")
     expected_owner = publication_state.github_repo_name(root, env)
     expected_owner = expected_owner.split("/", 1)[0] if expected_owner else None
-    actual_owner = pr.get("headRepositoryOwner") or publication_state.pr_head_repository_owner(root, env, branch)
+    owner_payload = pr.get("headRepositoryOwner")
+    actual_owner = owner_payload.get("login") if isinstance(owner_payload, dict) else None
+    if isinstance(owner_payload, str) and owner_payload.strip():
+        actual_owner = owner_payload.strip()
+    actual_owner = actual_owner or publication_state.pr_head_repository_owner(
+        root, env, publication_state.stable_pr_ref(pr)
+    )
     if not expected_owner or actual_owner != expected_owner:
         raise SystemExit("Managed task reconciliation blocked: the exact PR head owner is unreadable or differs from the authoritative repository owner.")
 

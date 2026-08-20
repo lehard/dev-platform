@@ -76,6 +76,98 @@ class GuardedRecopyTests(unittest.TestCase):
         after = rollout_project.platform_config_contract(self.root)
         self.assertEqual(before, after)
 
+    def test_project_publication_conformance_accepts_exact_head_surface_without_rewriting_it(self) -> None:
+        publication = self.root / "scripts" / "project_publish.py"
+        original = (
+            "# dev-platform:exact-head-publication-v1\n"
+            "FIELDS = 'headRefOid'\n"
+            "COMMAND = ['gh', 'pr', 'merge', '17', '--match-head-commit', expected_head]\n"
+        )
+        publication.write_text(original, encoding="utf-8")
+        rollout_project.require_project_publication_safety_conformance(self.root)
+        self.assertEqual(publication.read_text(encoding="utf-8"), original)
+
+    def test_project_publication_conformance_rejects_unsafe_or_unknown_shape_without_overwrite(self) -> None:
+        publication = self.root / "scripts" / "project_publish.py"
+        original = "subprocess.run(['gh', 'pr', 'view', branch])\n"
+        publication.write_text(original, encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "branch-name-only PR lookup"):
+            rollout_project.require_project_publication_safety_conformance(self.root)
+        self.assertEqual(publication.read_text(encoding="utf-8"), original)
+
+    def test_recognized_jara_fixture_gets_a_narrow_idempotent_exact_head_override(self) -> None:
+        target = self.root / "scripts" / "merge_to_main.py"
+        original = (
+            "def preserve_board_worktree_and_serialized_integration():\n"
+            "    return 'jara-specific-flow'\n\n"
+            "def publish_branch_and_pr(worktree, branch, env):\n"
+            "    return branch\n\n"
+            "def wait_for_pr_checks(worktree, branch, env):\n"
+            "    return branch\n\n"
+            "def merge_pr(worktree, branch, env):\n"
+            "    return branch\n"
+        )
+        target.write_text(original, encoding="utf-8")
+        fingerprint = hashlib.sha256(original.encode("utf-8")).hexdigest()
+
+        with patch.object(rollout_project, "JARA_MERGE_TO_MAIN_SHA256", fingerprint):
+            self.assertTrue(
+                rollout_project.migrate_project_publication_safety(self.root, "lehard/Jara_Fin")
+            )
+            self.assertFalse(
+                rollout_project.migrate_project_publication_safety(self.root, "lehard/Jara_Fin")
+            )
+
+        migrated = target.read_text(encoding="utf-8")
+        self.assertIn("preserve_board_worktree_and_serialized_integration", migrated)
+        self.assertIn("from exact_head_safety import exact_pr", migrated)
+        self.assertLess(migrated.index("merge_exact_pr(worktree, pr, head, env)"), migrated.index("delete_remote_branch(worktree, branch)"))
+        self.assertEqual(
+            (self.root / "scripts" / "exact_head_safety.py").read_text(encoding="utf-8"),
+            rollout_project.EXACT_HEAD_HELPER,
+        )
+        rollout_project.require_project_publication_safety_conformance(self.root)
+
+    def test_recognized_planner_fixture_preserves_its_standalone_clone_entrypoint(self) -> None:
+        target = self.root / "scripts" / "project_publish.py"
+        original = (
+            "def push_feature_branch(root, remote, main_branch):\n"
+            "    return 'planner-specific-clone-flow'\n\n"
+            "def publish_pr(root, remote, main_branch, title, body, merge_mode):\n"
+            "    return 0\n"
+        )
+        target.write_text(original, encoding="utf-8")
+        fingerprint = hashlib.sha256(original.encode("utf-8")).hexdigest()
+
+        with patch.object(rollout_project, "PLANNER_PROJECT_PUBLISH_SHA256", fingerprint):
+            self.assertTrue(
+                rollout_project.migrate_project_publication_safety(
+                    self.root, "lehard/planner-agent-lab"
+                )
+            )
+            self.assertFalse(
+                rollout_project.migrate_project_publication_safety(
+                    self.root, "lehard/planner-agent-lab"
+                )
+            )
+
+        migrated = target.read_text(encoding="utf-8")
+        self.assertIn("push_feature_branch(root, remote, main_branch)", migrated)
+        self.assertIn("ensure_exact_pr(root, current, main_branch", migrated)
+        self.assertIn("merge_exact_pr(root, pr, head, env)", migrated)
+        rollout_project.require_project_publication_safety_conformance(self.root)
+
+    def test_drifted_recognized_harness_fails_closed_without_writing_a_helper(self) -> None:
+        target = self.root / "scripts" / "merge_to_main.py"
+        original = "def downstream_change():\n    return True\n"
+        target.write_text(original, encoding="utf-8")
+
+        with self.assertRaisesRegex(ValueError, "unrecognized harness bytes"):
+            rollout_project.migrate_project_publication_safety(self.root, "lehard/Jara_Fin")
+
+        self.assertEqual(target.read_text(encoding="utf-8"), original)
+        self.assertFalse((self.root / "scripts" / "exact_head_safety.py").exists())
+
     def test_platform_config_contract_allows_only_the_expected_backlog_migration(self) -> None:
         before = rollout_project.platform_config_contract(self.root)
         self.root.joinpath(".dev-platform.toml").write_text(

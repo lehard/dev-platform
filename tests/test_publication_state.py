@@ -44,7 +44,23 @@ class PublicationStateTestCase(unittest.TestCase):
 
     def fake_gh(self, body: str) -> dict[str, str]:
         gh = self.bin / "gh"
-        gh.write_text("#!/bin/sh\n" + body + "\n", encoding="utf-8")
+        gh.write_text(
+            "#!/bin/sh\n"
+            # Keep older response snippets focused on the stable PR read while
+            # adapting their fake transport to the production candidate list.
+            "if [ \"$1\" = pr ] && [ \"$2\" = list ] && ! grep -q '^DIRECT_LIST_FIXTURE=1$' \"$0\"; then\n"
+            "  payload=$(\"$0\" pr view \"$6\" --json state,headRefOid); rc=$?\n"
+            "  if [ $rc -ne 0 ]; then printf '[]'; exit 0; fi\n"
+            "  payload=${payload%?}\n"
+            "  base=main\n"
+            "  auto=null\n"
+            "  printf '[%s,\"number\":9,\"url\":\"https://example.invalid/pr/9\",\"baseRefName\":\"%s\",\"headRefName\":\"%s\",\"autoMergeRequest\":%s}]' \"$payload\" \"$base\" \"$6\" \"$auto\"\n"
+            "  exit 0\n"
+            "fi\n"
+            + body
+            + "\n",
+            encoding="utf-8",
+        )
         gh.chmod(0o755)
         env = os.environ.copy()
         env["PATH"] = str(self.bin) + os.pathsep + env["PATH"]
@@ -122,6 +138,20 @@ class FindExactHeadPrTests(PublicationStateTestCase):
         self.assertIsNotNone(lookup.exact_merged)
         self.assertIsNone(lookup.exact_open)
 
+    def test_reused_branch_selects_current_exact_pr_not_historical_merged_pr(self) -> None:
+        old_head = "a" * 40
+        env = self.fake_gh(
+            'DIRECT_LIST_FIXTURE=1\n'
+            'if [ "$1" = "pr" ] && [ "$2" = "list" ]; then\n'
+            f'  printf \'[{{"number":3,"url":"https://example.invalid/pr/3","state":"MERGED","headRefOid":"{old_head}","baseRefName":"main","headRefName":"agent/task"}},{{"number":4,"url":"https://example.invalid/pr/4","state":"OPEN","headRefOid":"{self.head}","baseRefName":"main","headRefName":"agent/task"}}]\'; exit 0;\n'
+            'fi\n'
+            'exit 1'
+        )
+        lookup = publication_state.find_exact_head_pr(self.root, env, "agent/task", "main", self.head)
+        self.assertTrue(lookup.available)
+        self.assertEqual(lookup.exact_open["number"], 4)
+        self.assertIsNone(lookup.exact_merged)
+
     def test_open_pr_with_different_head_is_reported_as_stale_not_exact(self) -> None:
         other_head = "0" * 40
         env = self.fake_gh(
@@ -140,11 +170,9 @@ class FindExactHeadPrTests(PublicationStateTestCase):
 
     def test_open_pr_targeting_a_different_base_is_not_a_match(self) -> None:
         env = self.fake_gh(
-            'if [ "$1" = "pr" ] && [ "$2" = "view" ]; then\n'
-            f'  if [ "$5" = "state,headRefOid" ]; then printf \'{{"state":"OPEN","headRefOid":"{self.head}"}}\'; exit 0; fi\n'
-            '  if [ "$5" = "url,number,autoMergeRequest,baseRefName" ]; then printf \'{"url":"https://example.invalid/pr/9","number":9,"baseRefName":"release/1.0"}\'; exit 0; fi\n'
-            '  exit 1\n'
-            'fi\n'
+            'DIRECT_LIST_FIXTURE=1\n'
+            'if [ "$1" = "pr" ] && [ "$2" = "list" ]; then\n'
+            f'  printf \'[{{"number":9,"url":"https://example.invalid/pr/9","state":"OPEN","headRefOid":"{self.head}","baseRefName":"release/1.0","headRefName":"agent/task"}}]\'; exit 0; fi\n'
             'exit 1'
         )
         lookup = publication_state.find_exact_head_pr(self.root, env, "agent/task", "main", self.head)
@@ -192,11 +220,9 @@ class ObservePublicationTests(PublicationStateTestCase):
 
     def test_open_pr_with_auto_merge_request_is_remote_armed(self) -> None:
         env = self.fake_gh(
-            'if [ "$1" = "pr" ] && [ "$2" = "view" ]; then\n'
-            f'  if [ "$5" = "state,headRefOid" ]; then printf \'{{"state":"OPEN","headRefOid":"{self.head}"}}\'; exit 0; fi\n'
-            '  if [ "$5" = "url,number,autoMergeRequest,baseRefName" ]; then printf \'{"url":"https://example.invalid/pr/9","number":9,"baseRefName":"main","autoMergeRequest":{"enabledBy":"agent"}}\'; exit 0; fi\n'
-            '  exit 1\n'
-            'fi\n'
+            'DIRECT_LIST_FIXTURE=1\n'
+            'if [ "$1" = "pr" ] && [ "$2" = "list" ]; then\n'
+            f'  printf \'[{{"number":9,"url":"https://example.invalid/pr/9","state":"OPEN","headRefOid":"{self.head}","baseRefName":"main","headRefName":"agent/task","autoMergeRequest":{{"enabledBy":"agent"}}}}]\'; exit 0; fi\n'
             'if [ "$1" = "pr" ] && [ "$2" = "checks" ]; then echo "[]"; exit 0; fi\n'
             'exit 1'
         )

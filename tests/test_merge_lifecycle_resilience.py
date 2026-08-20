@@ -38,15 +38,25 @@ def bypass_env() -> dict[str, str]:
 
 
 COMMON_PR_BODY = r'''
+if [ "$1" = "pr" ] && [ "$2" = "list" ]; then
+  branch=$(git branch --show-current) || exit 1
+  head_sha=$(git rev-parse "$branch") || exit 1
+  printf '[{"number":1,"url":"https://example.invalid/pr/1","state":"OPEN","headRefOid":"%s","baseRefName":"main","headRefName":"%s"}]\n' "$head_sha" "$branch"
+  exit 0
+fi
 if [ "$1" = "pr" ] && [ "$2" = "view" ]; then
+  branch=$(git branch --show-current) || exit 1
   if [ "$4" = "--json" ] && [ "$5" = "state,headRefOid" ]; then
-    head_sha=$(git rev-parse "$3" 2>/dev/null) || exit 1
-    printf '{"state":"OPEN","headRefOid":"%s"}\n' "$head_sha"
+    head_sha=$(git rev-parse "$branch" 2>/dev/null) || exit 1
+    main_sha=$(git --git-dir "$FAKE_REMOTE" rev-parse refs/heads/main 2>/dev/null) || exit 1
+    branch_sha=$(git --git-dir "$FAKE_REMOTE" rev-parse "refs/heads/$branch" 2>/dev/null) || exit 1
+    if [ "$main_sha" = "$branch_sha" ]; then state=MERGED; else state=OPEN; fi
+    printf '{"state":"%s","headRefOid":"%s"}\n' "$state" "$head_sha"
     exit 0
   fi
   if [ "$4" = "--json" ] && [ "$5" = "state,mergedAt" ]; then
     main_sha=$(git --git-dir "$FAKE_REMOTE" rev-parse refs/heads/main 2>/dev/null) || exit 1
-    branch_sha=$(git --git-dir "$FAKE_REMOTE" rev-parse "refs/heads/$3" 2>/dev/null) || exit 1
+    branch_sha=$(git --git-dir "$FAKE_REMOTE" rev-parse "refs/heads/$branch" 2>/dev/null) || exit 1
     if [ "$main_sha" = "$branch_sha" ]; then echo MERGED; else echo OPEN; fi
     exit 0
   fi
@@ -111,7 +121,7 @@ class MergeLifecycleResilienceTests(unittest.TestCase):
             'fi\n'
             + COMMON_PR_BODY
             + 'if [ "$1" = "pr" ] && [ "$2" = "checks" ]; then echo \'[{"name":"platform-ci","state":"SUCCESS","workflow":"platform-ci","link":""}]\'; exit 0; fi\n'
-            + 'if [ "$1" = "pr" ] && [ "$2" = "merge" ]; then sha=$(git --git-dir "$FAKE_REMOTE" rev-parse "refs/heads/$3") || exit 1; git --git-dir "$FAKE_REMOTE" update-ref refs/heads/main "$sha" || exit 1; exit 0; fi\n'
+            + 'if [ "$1" = "pr" ] && [ "$2" = "merge" ]; then branch=$(git branch --show-current) || exit 1; sha=$(git --git-dir "$FAKE_REMOTE" rev-parse "refs/heads/$branch") || exit 1; git --git-dir "$FAKE_REMOTE" update-ref refs/heads/main "$sha" || exit 1; exit 0; fi\n'
             + 'exit 1'
         )
         env = self.fake_gh(body)
@@ -135,7 +145,7 @@ class MergeLifecycleResilienceTests(unittest.TestCase):
             + 'if [ "$1" = "pr" ] && [ "$2" = "merge" ]; then\n'
             + '  count=0; if [ -f "$FAKE_CHECK_STATE" ]; then count=$(cat "$FAKE_CHECK_STATE"); fi\n'
             + '  if [ "$count" -lt 2 ]; then echo "required status check is expected" >&2; exit 1; fi\n'
-            + '  sha=$(git --git-dir "$FAKE_REMOTE" rev-parse "refs/heads/$3") || exit 1; git --git-dir "$FAKE_REMOTE" update-ref refs/heads/main "$sha" || exit 1; exit 0\n'
+            + '  branch=$(git branch --show-current) || exit 1; sha=$(git --git-dir "$FAKE_REMOTE" rev-parse "refs/heads/$branch") || exit 1; git --git-dir "$FAKE_REMOTE" update-ref refs/heads/main "$sha" || exit 1; exit 0\n'
             + 'fi\n'
             + 'exit 1'
         )
@@ -157,7 +167,7 @@ class MergeLifecycleResilienceTests(unittest.TestCase):
             + COMMON_PR_BODY
             + 'if [ "$1" = "pr" ] && [ "$2" = "checks" ]; then echo \'[{"name":"platform-ci","state":"SUCCESS","workflow":"platform-ci","link":""}]\'; exit 0; fi\n'
             + 'if [ "$1" = "pr" ] && [ "$2" = "merge" ]; then\n'
-            + '  case " $* " in *" --auto "*) sha=$(git --git-dir "$FAKE_REMOTE" rev-parse "refs/heads/$3") || exit 1; git --git-dir "$FAKE_REMOTE" update-ref refs/heads/main "$sha" || exit 1; exit 0;; esac;\n'
+            + '  case " $* " in *" --auto "*) branch=$(git branch --show-current) || exit 1; sha=$(git --git-dir "$FAKE_REMOTE" rev-parse "refs/heads/$branch") || exit 1; git --git-dir "$FAKE_REMOTE" update-ref refs/heads/main "$sha" || exit 1; exit 0;; esac;\n'
             + '  echo "merge queue required" >&2; exit 1;\n'
             + 'fi\n'
             + 'exit 1'
@@ -176,6 +186,9 @@ class MergeLifecycleResilienceTests(unittest.TestCase):
 
         body = (
             'if [ "$1" = "auth" ] && [ "$2" = "status" ]; then exit 0; fi\n'
+            + 'if [ "$1" = "pr" ] && [ "$2" = "list" ]; then\n'
+            + f'  printf \'[{{"number":1,"url":"https://example.invalid/pr/1","state":"MERGED","headRefOid":"{feature_sha}","baseRefName":"main","headRefName":"agent/already-merged"}}]\\n\'; exit 0;\n'
+            + 'fi\n'
             + 'if [ "$1" = "pr" ] && [ "$2" = "view" ] && [ "$4" = "--json" ] && [ "$5" = "state,headRefOid" ]; then\n'
             + f'  printf \'{{"state":"MERGED","headRefOid":"{feature_sha}"}}\\n\'; exit 0;\n'
             + 'fi\n'
