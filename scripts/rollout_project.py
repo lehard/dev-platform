@@ -92,6 +92,7 @@ UNSAFE_BRANCH_PR_VIEW_RE = re.compile(
 # compatibility opt-in by bytes, so a downstream edit cannot be overwritten by
 # an apparently similar migration.
 JARA_MERGE_TO_MAIN_SHA256 = "a201795ddc3785630e789e409e510a471a8b848699014a815f461a0a2a38d91d"
+JARA_TEST_MERGE_TO_MAIN_SHA256 = "756c1b87df8c4abb2e4539785998e07e87bd6bf8f617cb3234908db5368537a4"
 PLANNER_PROJECT_PUBLISH_SHA256 = "0bc3a4d169f41c6c8565e8f740ff92db51c7b8400a1aeaaa5bbcf5cbe1f1dfcb"
 
 EXACT_HEAD_HELPER = '''# dev-platform:exact-head-publication-v1
@@ -165,6 +166,109 @@ def merge_exact_pr(root, pr, expected, env, timeout=600):
 JARA_OVERRIDE = '''\n# dev-platform:exact-head-publication-v1\nfrom exact_head_safety import exact_pr, exact_state, ensure_exact_pr, check_exact_pr, merge_exact_pr\ndef publish_branch_and_pr(worktree, branch, env):\n    run_git(worktree, "push", "-u", "origin", branch)\n    title = run_git(worktree, "log", "-1", "--pretty=%s").stdout.strip() or branch\n    try: ensure_exact_pr(worktree, branch, "main", env, title, "Published by Jara_Fin protected-main agent lifecycle after local validation.")\n    except RuntimeError as exc: raise MergeError(f"Could not create exact PR for {branch!r}: {exc}") from exc\ndef wait_for_pr_checks(worktree, branch, env):\n    try:\n        pr, head = exact_pr(worktree, branch, "main", env)\n        if not pr: raise RuntimeError("exact PR is absent")\n        if pr.get("state") != "MERGED": check_exact_pr(worktree, pr, head, env)\n        elif not exact_state(worktree, pr, head, env): raise RuntimeError("merged PR no longer proves the exact head")\n    except RuntimeError as exc: raise MergeError(f"Required exact PR checks did not pass: {exc}") from exc\ndef merge_pr(worktree, branch, env):\n    try:\n        pr, head = exact_pr(worktree, branch, "main", env)\n        if not pr: raise RuntimeError("exact PR is absent")\n        merge_exact_pr(worktree, pr, head, env)\n        delete_remote_branch(worktree, branch)\n    except RuntimeError as exc: raise MergeError(f"Exact protected merge failed: {exc}") from exc\n'''
 
 PLANNER_OVERRIDE = '''\n# dev-platform:exact-head-publication-v1\nfrom exact_head_safety import ensure_exact_pr, check_exact_pr, merge_exact_pr\ndef publish_pr(root, remote, main_branch, title, body, merge_mode):\n    env = require_gh_env(root)\n    current = push_feature_branch(root, remote, main_branch)\n    title = title or run_git(["log", "-1", "--pretty=%s"], cwd=root).stdout.strip() or current\n    body = body or "Published by Planner Agent Lab after local validation and a fresh origin/main check."\n    try: pr, head = ensure_exact_pr(root, current, main_branch, env, title, body)\n    except RuntimeError as exc: raise SystemExit(f"Could not create exact Planner PR: {exc}") from exc\n    if merge_mode == "manual":\n        print("PR published for manual review; no merge attempted.")\n        return 0\n    try:\n        check_exact_pr(root, pr, head, env)\n        merge_exact_pr(root, pr, head, env)\n    except RuntimeError as exc: raise SystemExit(f"Exact Planner merge failed: {exc}") from exc\n    return 0\n'''
+
+# These are the three strict subprocess mocks in the reviewed Jara regression
+# source.  They are deliberately complete, exact replacements rather than a
+# heuristic rewrite: removing the generated blocks must reconstruct the
+# reviewed legacy bytes before a rerun is accepted.
+JARA_TEST_MOCK_REPLACEMENTS = (
+    (
+        '''        def fake_run(command, cwd=None, env=None, text=True, capture_output=True, check=False):
+            calls.append(command)
+            if command[:3] == ["gh", "pr", "merge"]:
+                if "--auto" in command:
+                    state["merged"] = True
+                    return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+                return subprocess.CompletedProcess(command, 1, stdout="", stderr="Merge commits are not allowed on this repository")
+            if command[:3] == ["gh", "pr", "view"]:
+                payload = {"state": "MERGED", "mergedAt": "now"} if state["merged"] else {"state": "OPEN"}
+                return subprocess.CompletedProcess(command, 0, stdout=__import__("json").dumps(payload), stderr="")
+''',
+        '''        def fake_run(command, cwd=None, env=None, text=True, capture_output=True, check=False):
+            calls.append(command)
+            exact_head = "a" * 40
+            exact_pr = {"number": 41, "url": "https://example.test/pr/41", "state": "OPEN", "headRefOid": exact_head, "baseRefName": "main", "headRefName": branch}
+            if command[:2] == ["git", "rev-parse"]:
+                return subprocess.CompletedProcess(command, 0, stdout=exact_head + "\\n", stderr="")
+            if command[:3] == ["gh", "pr", "list"]:
+                return subprocess.CompletedProcess(command, 0, stdout=__import__("json").dumps([exact_pr]), stderr="")
+            if command[:3] == ["gh", "pr", "merge"]:
+                if "--auto" in command:
+                    state["merged"] = True
+                    return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+                return subprocess.CompletedProcess(command, 1, stdout="", stderr="Merge commits are not allowed on this repository")
+            if command[:3] == ["gh", "pr", "view"]:
+                payload = {"state": "MERGED", "mergedAt": "now", "headRefOid": exact_head} if state["merged"] else {"state": "OPEN", "headRefOid": exact_head}
+                return subprocess.CompletedProcess(command, 0, stdout=__import__("json").dumps(payload), stderr="")
+''',
+    ),
+    (
+        '''    def test_non_zero_merge_exit_confirmed_as_merged_is_not_treated_as_failure(self) -> None:
+        branch = "ready"
+        calls: list[list[str]] = []
+
+        def fake_run(command, cwd=None, env=None, text=True, capture_output=True, check=False):
+            calls.append(command)
+            if command[:3] == ["gh", "pr", "merge"]:
+                # gh reports a convenience/API error even though GitHub already merged server-side.
+                return subprocess.CompletedProcess(command, 1, stdout="", stderr="unexpected EOF")
+            if command[:3] == ["gh", "pr", "view"]:
+                payload = {"state": "MERGED", "mergedAt": "now"}
+                return subprocess.CompletedProcess(command, 0, stdout=__import__("json").dumps(payload), stderr="")
+''',
+        '''    def test_non_zero_merge_exit_confirmed_as_merged_is_not_treated_as_failure(self) -> None:
+        branch = "ready"
+        calls: list[list[str]] = []
+        state = {"merged": False}
+
+        def fake_run(command, cwd=None, env=None, text=True, capture_output=True, check=False):
+            calls.append(command)
+            exact_head = "b" * 40
+            exact_pr = {"number": 42, "url": "https://example.test/pr/42", "state": "OPEN", "headRefOid": exact_head, "baseRefName": "main", "headRefName": branch}
+            if command[:2] == ["git", "rev-parse"]:
+                return subprocess.CompletedProcess(command, 0, stdout=exact_head + "\\n", stderr="")
+            if command[:3] == ["gh", "pr", "list"]:
+                return subprocess.CompletedProcess(command, 0, stdout=__import__("json").dumps([exact_pr]), stderr="")
+            if command[:3] == ["gh", "pr", "merge"]:
+                # gh reports a convenience/API error even though GitHub already merged server-side.
+                state["merged"] = True
+                return subprocess.CompletedProcess(command, 1, stdout="", stderr="unexpected EOF")
+            if command[:3] == ["gh", "pr", "view"]:
+                payload = {"state": "MERGED", "mergedAt": "now", "headRefOid": exact_head} if state["merged"] else {"state": "OPEN", "headRefOid": exact_head}
+                return subprocess.CompletedProcess(command, 0, stdout=__import__("json").dumps(payload), stderr="")
+''',
+    ),
+    (
+        '''    def test_cleanup_failure_after_confirmed_merge_is_a_warning_not_a_failure(self) -> None:
+        branch = "ready"
+
+        def fake_run(command, cwd=None, env=None, text=True, capture_output=True, check=False):
+            if command[:3] == ["gh", "pr", "merge"]:
+                return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+            if command[:3] == ["gh", "pr", "view"]:
+                payload = {"state": "MERGED", "mergedAt": "now"}
+                return subprocess.CompletedProcess(command, 0, stdout=__import__("json").dumps(payload), stderr="")
+''',
+        '''    def test_cleanup_failure_after_confirmed_merge_is_a_warning_not_a_failure(self) -> None:
+        branch = "ready"
+        state = {"merged": False}
+
+        def fake_run(command, cwd=None, env=None, text=True, capture_output=True, check=False):
+            exact_head = "c" * 40
+            exact_pr = {"number": 43, "url": "https://example.test/pr/43", "state": "OPEN", "headRefOid": exact_head, "baseRefName": "main", "headRefName": branch}
+            if command[:2] == ["git", "rev-parse"]:
+                return subprocess.CompletedProcess(command, 0, stdout=exact_head + "\\n", stderr="")
+            if command[:3] == ["gh", "pr", "list"]:
+                return subprocess.CompletedProcess(command, 0, stdout=__import__("json").dumps([exact_pr]), stderr="")
+            if command[:3] == ["gh", "pr", "merge"]:
+                state["merged"] = True
+                return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+            if command[:3] == ["gh", "pr", "view"]:
+                payload = {"state": "MERGED", "mergedAt": "now", "headRefOid": exact_head} if state["merged"] else {"state": "OPEN", "headRefOid": exact_head}
+                return subprocess.CompletedProcess(command, 0, stdout=__import__("json").dumps(payload), stderr="")
+''',
+    ),
+)
 
 # A very small migration-only allowlist for files that used to carry downstream
 # customization but have since been deliberately reclaimed by the platform.
@@ -495,6 +599,43 @@ def reviewed_legacy_source(
     return matches[0], "v1.4.34-append"
 
 
+def reviewed_jara_test_source(source: str) -> tuple[str, str]:
+    """Return the reviewed Jara test source and migration state.
+
+    The companion test is project-owned.  Its active form is therefore
+    accepted only when all three known generated replacements occur exactly
+    once and reversing them recreates the reviewed legacy fingerprint.
+    """
+    if hashlib.sha256(source.encode("utf-8")).hexdigest() == JARA_TEST_MERGE_TO_MAIN_SHA256:
+        return source, "unmigrated"
+    legacy = source
+    for original, migrated in JARA_TEST_MOCK_REPLACEMENTS:
+        if legacy.count(migrated) != 1:
+            raise ValueError(
+                "project-owned publication-safety compatibility blocker: incomplete migrated regression test surface; "
+                "preserving harness and test bytes"
+            )
+        legacy = legacy.replace(migrated, original)
+    if hashlib.sha256(legacy.encode("utf-8")).hexdigest() != JARA_TEST_MERGE_TO_MAIN_SHA256:
+        raise ValueError(
+            "project-owned publication-safety compatibility blocker: unrecognized regression test bytes; "
+            "preserving harness and test bytes"
+        )
+    return legacy, "migrated"
+
+
+def migrate_jara_test_source(source: str) -> str:
+    migrated = source
+    for original, replacement in JARA_TEST_MOCK_REPLACEMENTS:
+        if migrated.count(original) != 1:
+            raise ValueError(
+                "project-owned publication-safety compatibility blocker: unrecognized regression test blocks; "
+                "preserving harness and test bytes"
+            )
+        migrated = migrated.replace(original, replacement)
+    return migrated
+
+
 def migrate_project_publication_safety(project_root: Path, repository: str) -> bool:
     """Apply only reviewed Jara/Planner overrides, guarded by exact bytes."""
     if harness_mode(project_root) != "project":
@@ -508,7 +649,10 @@ def migrate_project_publication_safety(project_root: Path, repository: str) -> b
     helper = project_root / "scripts/exact_head_safety.py"
     current = target.read_text(encoding="utf-8") if target.is_file() else ""
     helper_current = helper.read_text(encoding="utf-8") if helper.is_file() else None
+    test_target = project_root / "scripts/tests/test_merge_to_main.py" if repository == "lehard/Jara_Fin" else None
+    test_current = test_target.read_text(encoding="utf-8") if test_target and test_target.is_file() else ""
 
+    harness_active = False
     if EXACT_HEAD_MARKER in current and not current.endswith(override):
         # This can only be the deterministic active form if removing the exact
         # known block reconstructs the reviewed source byte-for-byte.
@@ -523,34 +667,51 @@ def migrate_project_publication_safety(project_root: Path, repository: str) -> b
             hashlib.sha256(legacy.encode("utf-8")).hexdigest() == expected
             and current == install_pre_entrypoint_override(legacy, override)
         ):
-            return False
-        raise ValueError(
-            "project-owned publication-safety compatibility blocker: unrecognized harness bytes; "
-            "preserving harness bytes"
-        )
+            harness_active = True
+        else:
+            raise ValueError(
+                "project-owned publication-safety compatibility blocker: unrecognized harness bytes; "
+                "preserving harness bytes"
+            )
 
     if helper_current is not None and helper_current != EXACT_HEAD_HELPER:
         raise ValueError(
             "project-owned publication-safety compatibility blocker: incomplete migrated surface; "
             "preserving harness bytes"
         )
-    legacy, state = reviewed_legacy_source(current, expected, override)
-    if helper_current is not None and state == "unmigrated":
-        raise ValueError(
-            "project-owned publication-safety compatibility blocker: incomplete migrated surface; "
-            "preserving harness bytes"
-        )
-    if state == "v1.4.34-append" and helper_current != EXACT_HEAD_HELPER:
-        raise ValueError(
-            "project-owned publication-safety compatibility blocker: incomplete migrated surface; "
-            "preserving harness bytes"
-        )
-    migrated = install_pre_entrypoint_override(legacy, override)
+    if not harness_active:
+        legacy, state = reviewed_legacy_source(current, expected, override)
+        if helper_current is not None and state == "unmigrated":
+            raise ValueError(
+                "project-owned publication-safety compatibility blocker: incomplete migrated surface; "
+                "preserving harness bytes"
+            )
+        if state == "v1.4.34-append" and helper_current != EXACT_HEAD_HELPER:
+            raise ValueError(
+                "project-owned publication-safety compatibility blocker: incomplete migrated surface; "
+                "preserving harness bytes"
+            )
+        migrated = install_pre_entrypoint_override(legacy, override)
+    else:
+        migrated = current
+
+    test_migrated = test_current
+    test_active = True
+    if test_target is not None:
+        _, test_state = reviewed_jara_test_source(test_current)
+        test_active = test_state == "migrated"
+        if not test_active:
+            test_migrated = migrate_jara_test_source(test_current)
+
     # All failure-prone proof has completed before either downstream-owned
-    # harness bytes or the helper is written.
-    helper.write_text(EXACT_HEAD_HELPER, encoding="utf-8")
-    target.write_text(migrated, encoding="utf-8")
-    return True
+    # harness/test bytes or the helper is written.
+    changed = not harness_active or not test_active
+    if changed:
+        helper.write_text(EXACT_HEAD_HELPER, encoding="utf-8")
+        target.write_text(migrated, encoding="utf-8")
+        if test_target is not None:
+            test_target.write_text(test_migrated, encoding="utf-8")
+    return changed
 
 
 def require_version_coherence(project_root: Path, copier_tag: str) -> None:

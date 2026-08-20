@@ -69,6 +69,13 @@ class GuardedRecopyTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.tmp.cleanup()
 
+    def write_recognized_jara_test(self) -> str:
+        source = "\n\n".join(original.rstrip() for original, _ in rollout_project.JARA_TEST_MOCK_REPLACEMENTS) + "\n"
+        target = self.root / "scripts" / "tests" / "test_merge_to_main.py"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(source, encoding="utf-8")
+        return hashlib.sha256(source.encode("utf-8")).hexdigest()
+
     def test_platform_config_contract_ignores_only_release_version(self) -> None:
         before = rollout_project.platform_config_contract(self.root)
         path = self.root / ".dev-platform.toml"
@@ -111,8 +118,12 @@ class GuardedRecopyTests(unittest.TestCase):
         )
         target.write_text(original, encoding="utf-8")
         fingerprint = hashlib.sha256(original.encode("utf-8")).hexdigest()
+        test_fingerprint = self.write_recognized_jara_test()
 
-        with patch.object(rollout_project, "JARA_MERGE_TO_MAIN_SHA256", fingerprint):
+        with (
+            patch.object(rollout_project, "JARA_MERGE_TO_MAIN_SHA256", fingerprint),
+            patch.object(rollout_project, "JARA_TEST_MERGE_TO_MAIN_SHA256", test_fingerprint),
+        ):
             self.assertTrue(
                 rollout_project.migrate_project_publication_safety(self.root, "lehard/Jara_Fin")
             )
@@ -128,7 +139,49 @@ class GuardedRecopyTests(unittest.TestCase):
             (self.root / "scripts" / "exact_head_safety.py").read_text(encoding="utf-8"),
             rollout_project.EXACT_HEAD_HELPER,
         )
+        migrated_test = (self.root / "scripts" / "tests" / "test_merge_to_main.py").read_text(encoding="utf-8")
+        self.assertEqual(migrated_test.count('["git", "rev-parse"]'), 3)
+        self.assertEqual(migrated_test.count('["gh", "pr", "list"]'), 3)
+        self.assertIn('"headRefOid": exact_head', migrated_test)
         rollout_project.require_project_publication_safety_conformance(self.root)
+
+    def test_jara_active_harness_recovers_only_the_reviewed_legacy_test_surface(self) -> None:
+        target = self.root / "scripts" / "merge_to_main.py"
+        original = "def main():\n    pass\n\nif __name__ == '__main__':\n    main()\n"
+        target.write_text(original, encoding="utf-8")
+        test_fingerprint = self.write_recognized_jara_test()
+        harness_fingerprint = hashlib.sha256(original.encode("utf-8")).hexdigest()
+
+        with (
+            patch.object(rollout_project, "JARA_MERGE_TO_MAIN_SHA256", harness_fingerprint),
+            patch.object(rollout_project, "JARA_TEST_MERGE_TO_MAIN_SHA256", test_fingerprint),
+        ):
+            self.assertTrue(rollout_project.migrate_project_publication_safety(self.root, "lehard/Jara_Fin"))
+            legacy_test, _ = rollout_project.reviewed_jara_test_source(
+                (self.root / "scripts" / "tests" / "test_merge_to_main.py").read_text(encoding="utf-8")
+            )
+            (self.root / "scripts" / "tests" / "test_merge_to_main.py").write_text(legacy_test, encoding="utf-8")
+            self.assertTrue(rollout_project.migrate_project_publication_safety(self.root, "lehard/Jara_Fin"))
+            self.assertFalse(rollout_project.migrate_project_publication_safety(self.root, "lehard/Jara_Fin"))
+
+    def test_jara_unknown_or_partial_test_surface_fails_before_any_write(self) -> None:
+        target = self.root / "scripts" / "merge_to_main.py"
+        original = "def main():\n    pass\n\nif __name__ == '__main__':\n    main()\n"
+        target.write_text(original, encoding="utf-8")
+        test_fingerprint = self.write_recognized_jara_test()
+        test_target = self.root / "scripts" / "tests" / "test_merge_to_main.py"
+        test_target.write_text(test_target.read_text(encoding="utf-8").replace('return subprocess.CompletedProcess', '# partial migration\n                return subprocess.CompletedProcess', 1), encoding="utf-8")
+        harness_fingerprint = hashlib.sha256(original.encode("utf-8")).hexdigest()
+
+        with (
+            patch.object(rollout_project, "JARA_MERGE_TO_MAIN_SHA256", harness_fingerprint),
+            patch.object(rollout_project, "JARA_TEST_MERGE_TO_MAIN_SHA256", test_fingerprint),
+            self.assertRaisesRegex(ValueError, "regression test"),
+        ):
+            rollout_project.migrate_project_publication_safety(self.root, "lehard/Jara_Fin")
+
+        self.assertEqual(target.read_text(encoding="utf-8"), original)
+        self.assertFalse((self.root / "scripts" / "exact_head_safety.py").exists())
 
     def test_recognized_planner_fixture_preserves_its_standalone_clone_entrypoint(self) -> None:
         target = self.root / "scripts" / "project_publish.py"
@@ -223,8 +276,12 @@ if __name__ == "__main__":
 '''
         target.write_text(source, encoding="utf-8")
         fingerprint = hashlib.sha256(source.encode("utf-8")).hexdigest()
+        test_fingerprint = self.write_recognized_jara_test()
 
-        with patch.object(rollout_project, "JARA_MERGE_TO_MAIN_SHA256", fingerprint):
+        with (
+            patch.object(rollout_project, "JARA_MERGE_TO_MAIN_SHA256", fingerprint),
+            patch.object(rollout_project, "JARA_TEST_MERGE_TO_MAIN_SHA256", test_fingerprint),
+        ):
             self.assertTrue(rollout_project.migrate_project_publication_safety(self.root, "lehard/Jara_Fin"))
 
         migrated = target.read_text(encoding="utf-8")
@@ -300,8 +357,12 @@ if __name__ == "__main__":
         helper = self.root / "scripts" / "exact_head_safety.py"
         helper.write_text(rollout_project.EXACT_HEAD_HELPER, encoding="utf-8")
         fingerprint = hashlib.sha256(source.encode("utf-8")).hexdigest()
+        test_fingerprint = self.write_recognized_jara_test()
 
-        with patch.object(rollout_project, "JARA_MERGE_TO_MAIN_SHA256", fingerprint):
+        with (
+            patch.object(rollout_project, "JARA_MERGE_TO_MAIN_SHA256", fingerprint),
+            patch.object(rollout_project, "JARA_TEST_MERGE_TO_MAIN_SHA256", test_fingerprint),
+        ):
             self.assertTrue(rollout_project.migrate_project_publication_safety(self.root, "lehard/Jara_Fin"))
             self.assertFalse(rollout_project.migrate_project_publication_safety(self.root, "lehard/Jara_Fin"))
 

@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/platform-rollout/spec.md"
+  ],
+  "change": "adapt-jara-exact-head-regression-tests",
+  "imported_at": "2026-08-20T20:38:43+00:00",
+  "package_revision": "ff2e54c1645d2a9094e3076e29a7dd9ed19b10e5df5172842419974de9a5dcfa",
+  "prepared_against": "a66f10c912fe8b2f8f204d537fb9817b0df79bdc",
+  "routing_receipt": {
+    "assurance": "high",
+    "effort_hint": "high",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "publication-safety-bugfix"
+  },
+  "source_issue": "lehard/development-backlog#53",
+  "source_issue_evidence": {
+    "body_sha256": "f7c31791e1bb0af21dff9ea830920d4102d306d11778fcb466a9de2c539f2c1c",
+    "updated_at": "2026-08-20T20:37:57Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
