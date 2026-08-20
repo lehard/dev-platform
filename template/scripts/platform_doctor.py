@@ -10,7 +10,7 @@ from pathlib import Path
 from _platform_common import SharedWorkspaceError, harness_mode, read_platform_config
 from shared_workspace import audit as audit_shared_workspace
 
-REQUIRED_COMMON = ["AGENTS.md", "CLAUDE.md", ".dev-platform.toml", "dev-platform/checks.toml", "docs/engineering/openspec-workflow.md", "scripts/dev.py", "scripts/shared_workspace.py", "scripts/managed_task.py", "scripts/managed_project_status.py", "scripts/start_managed_task.py", "scripts/select_checks.py", "scripts/project_sync.py", "scripts/project_publish.py", "scripts/start_task.py", "scripts/finish_task.py", "scripts/reconcile_task.py", "scripts/openspec_lifecycle.py", "scripts/agent_friction.py", "scripts/agent_doctor.py", "scripts/model_routing.py"]
+REQUIRED_COMMON = ["AGENTS.md", "CLAUDE.md", ".dev-platform.toml", "dev-platform/checks.toml", "docs/engineering/openspec-workflow.md", "docs/engineering/task-intake.md", "scripts/dev.py", "scripts/shared_workspace.py", "scripts/managed_task.py", "scripts/managed_project_status.py", "scripts/start_managed_task.py", "scripts/execute_managed_task.py", "scripts/select_checks.py", "scripts/project_sync.py", "scripts/project_publish.py", "scripts/start_task.py", "scripts/finish_task.py", "scripts/reconcile_task.py", "scripts/openspec_lifecycle.py", "scripts/agent_friction.py", "scripts/agent_doctor.py", "scripts/model_routing.py"]
 REQUIRED_MULTI_AGENT_PLATFORM = ["scripts/agent_board.py", "scripts/start_worktree.py", "scripts/worktree_cleanup.py", "scripts/git_hooks/pre-commit", "scripts/git_hooks/pre-merge-commit"]
 VERIFY_CANDIDATES = [".codex/skills/openspec-verify-change/SKILL.md", ".claude/skills/openspec-verify-change/SKILL.md", ".cursor/skills/openspec-verify-change/SKILL.md"]
 IGNORED_CONFLICT_DIRS = {".git", ".claude", ".codex", "node_modules", ".venv", "venv"}
@@ -139,6 +139,21 @@ def check_development_backlog_config(config: dict, failures: list[int]) -> None:
         ok("Development Backlog authoring configuration is valid")
 
 
+def check_task_intake_reference(root: Path, config: dict, failures: list[int]) -> None:
+    """Require managed repositories to expose the updateable intake contract."""
+    if not isinstance(config.get("development_backlog"), dict):
+        return
+    agents = root / "AGENTS.md"
+    try:
+        text = agents.read_text(encoding="utf-8")
+    except OSError:
+        return
+    if "docs/engineering/task-intake.md" not in text:
+        warn("managed repository AGENTS.md lacks the shared docs/engineering/task-intake.md reference; run a reviewed platform rollout migration")
+    else:
+        ok("shared managed task-intake reference is present")
+
+
 def check_shared_workspace(root: Path, failures: list[int]) -> None:
     """Doctor is diagnostic-only; lifecycle preflights perform bounded repair."""
     try:
@@ -190,6 +205,7 @@ def main() -> int:
     failures = [0]
     config = read_platform_config(root)
     check_development_backlog_config(config, failures)
+    check_task_intake_reference(root, config, failures)
     workflow_profile = str(config.get("workflow_profile", "standard"))
     harness = harness_mode(config)
     if harness not in {"platform", "project"}:

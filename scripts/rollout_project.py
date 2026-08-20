@@ -21,6 +21,8 @@ EXPECTED_SOURCES = {
     "git@github.com:lehard/dev-platform.git",
 }
 BACKLOG_PROJECT_OWNER_RE = re.compile(r"^[A-Za-z0-9-]+$")
+TASK_INTAKE_REFERENCE_MARKER = "<!-- dev-platform:task-intake-reference -->"
+TASK_INTAKE_REFERENCE = "docs/engineering/task-intake.md"
 
 # Files that remain downstream-owned for every harness mode.
 ALWAYS_PROJECT_OWNED_ROLLOUT_PATHS = {
@@ -563,6 +565,40 @@ def require_project_owned_snapshot(
         )
 
 
+def reconcile_task_intake_reference(project_root: Path) -> bool:
+    """Add the one stable shared-intake pointer without replacing local rules.
+
+    Root guidance is intentionally project-owned, so Copier cannot be expected
+    to rewrite it during normal releases.  This migration is applicable only to
+    already managed projects (those with a Development Backlog table), appends
+    a bounded marked block once, and preserves every existing byte otherwise.
+    """
+    config = load_platform_config(project_root)
+    if not isinstance(config.get("development_backlog"), dict):
+        return False
+    contract = project_root / TASK_INTAKE_REFERENCE
+    if not contract.is_file():
+        raise ValueError(f"updated managed project is missing {TASK_INTAKE_REFERENCE}")
+    agents = project_root / "AGENTS.md"
+    if not agents.is_file():
+        raise ValueError("updated managed project is missing project-owned AGENTS.md")
+    text = agents.read_text(encoding="utf-8")
+    if TASK_INTAKE_REFERENCE_MARKER in text:
+        return False
+    block = (
+        "\n\n"
+        + TASK_INTAKE_REFERENCE_MARKER
+        + "\n## Shared managed-task intake\n\n"
+        + "For task authoring or execution, follow the platform-owned "
+        + f"[managed task-intake contract]({TASK_INTAKE_REFERENCE}). "
+        + "Fresh non-trivial execution establishes managed provenance before implementation; "
+        + "explicit fixation remains authoring-only. Project/domain and module rules above remain in force.\n"
+    )
+    agents.write_text(text.rstrip("\n") + block, encoding="utf-8")
+    print(f"Reconciled stable shared task-intake reference in {agents}")
+    return True
+
+
 def ensure_clean(project_root: Path) -> None:
     status = run(["git", "status", "--porcelain"], project_root, capture=True)
     if status.stdout.strip():
@@ -657,6 +693,7 @@ def copier_update_with_guarded_recopy(
     )
     rejects = find_reject_files(project_root)
     if not rejects:
+        reconcile_task_intake_reference(project_root)
         run_rendered_platform_bootstrap(project_root, env=env)
         project_owner, project_number = development_backlog_locator_answers(project_root)
         require_platform_config_contract(
@@ -740,6 +777,7 @@ def copier_update_with_guarded_recopy(
             "guarded Copier recopy still left unresolved .rej files: "
             + ", ".join(recopy_rejects[:10])
         )
+    reconcile_task_intake_reference(project_root)
     run_rendered_platform_bootstrap(project_root, env=env)
     require_project_owned_snapshot(project_root, protected_before)
     require_reclaimed_platform_paths_match_template(project_root, reclaimed_conflicts)

@@ -1198,6 +1198,32 @@ def require_delivery_provenance(root: Path) -> CanonicalProvenance | None:
     return provenance
 
 
+def require_no_orphan_active_openspec(root: Path) -> None:
+    """Fail terminal lifecycle for active OpenSpec work without managed lineage.
+
+    A quick task has no active change and remains valid.  An explicit legacy
+    recovery state is represented by a task-local identity and is therefore
+    resolved by the existing provenance checks; this guard never invents that
+    identity or deletes an orphaned change.
+    """
+    active_root = root / "openspec" / "changes"
+    if not active_root.is_dir():
+        return
+    orphaned = sorted(
+        path.name
+        for path in active_root.iterdir()
+        if path.is_dir() and path.name != "archive" and not (path / PROVENANCE).is_file()
+    )
+    if orphaned:
+        rendered = ", ".join(orphaned[:5])
+        raise ManagedTaskError(
+            "active OpenSpec change lacks managed-task provenance: " + rendered
+            + "; do not publish it through the ordinary lifecycle. Create/reuse and start the managed task "
+            "with scripts/execute_managed_task.py --bundle <directory>, or use reviewed legacy recovery that "
+            "records the real source Issue without fabricating history."
+        )
+
+
 def delivery_identity(root: Path) -> ManagedTaskIdentity | None:
     """Return the exact task-local identity eligible for terminal effects."""
     provenance = require_delivery_provenance(root)

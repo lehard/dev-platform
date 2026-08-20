@@ -23,7 +23,8 @@ Keep these four intents distinct:
 
 - **Discuss** a change: inspect, design and compare options; do not create Backlog state merely because the discussion is substantial.
 - **Fix/add to Backlog** when the user explicitly asks to record an accepted non-trivial change (for example "зафиксируй", "добавь в бэклог", "создай задачу"): prepare a local authoring bundle, run `python3 scripts/managed_task.py create --bundle <directory>`, and stop. Authoring never starts apply, implementation, dispatch, Project-status changes or publication.
-- **Quick execution**: a small direct request is a quick task and uses the normal start/check/finish path with no Backlog issue and no ceremonial OpenSpec.
+- **Quick execution**: a small direct request is a quick task and uses the normal start/check/finish path with no Backlog issue and no ceremonial OpenSpec. If it becomes material or needs a full active OpenSpec contract, enter managed intake before further implementation.
+- **Fresh non-trivial execution**: explicit execution intent first creates/reuses the managed task and starts that same task before implementation; use `python3 scripts/execute_managed_task.py --bundle <directory>`.
 - **Execute an existing managed task**: an explicitly supplied Development Backlog issue is imported with `python3 scripts/start_managed_task.py owner/repo#N` before implementation.
 
 Managed start validates the package without writing, creates the task branch/worktree, materializes the OpenSpec contract only in that task checkout, and reconciles the Development Backlog Project item to `In progress`. After import, `openspec/changes/<change>/` is canonical for implementation, verification and archive; the backlog issue stays a human-facing provenance item, not a competing task list.
@@ -59,6 +60,7 @@ Managed work carries a provider-neutral recommended start tier (`R2` balanced by
 ```bash
 python3 scripts/agent_doctor.py
 python3 scripts/start_task.py <slug> --task "<task>" --scope "<files/modules>"
+python3 scripts/execute_managed_task.py --bundle <directory>
 python3 scripts/select_checks.py --execute
 python3 scripts/openspec_lifecycle.py archive <change>
 python3 scripts/finish_task.py --reconcile
@@ -76,6 +78,7 @@ python3 scripts/finish_task.py --status
 
 | Concern | Canonical document |
 | --- | --- |
+| Task intake and intent transitions | [docs/engineering/task-intake.md](docs/engineering/task-intake.md) |
 | Task intake, goal refinement, start/publish lifecycle, worktrees, shared workspace, friction, completion | [docs/engineering/agent-workflow.md](docs/engineering/agent-workflow.md) |
 | OpenSpec contract model, semantic verification, receipts, archive, version policy | [docs/engineering/openspec-workflow.md](docs/engineering/openspec-workflow.md) |
 | Provider-local executor selection, escalation, delegated write containment | [docs/engineering/model-routing.md](docs/engineering/model-routing.md) |

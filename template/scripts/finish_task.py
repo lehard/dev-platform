@@ -63,6 +63,7 @@ try:
         assert_integration_identity_cross_check,
         delivery_identity,
         observe_source_issue_drift,
+        require_no_orphan_active_openspec,
         require_delivery_provenance,
         resolve_process_evidence_after_delivery,
     )
@@ -71,6 +72,9 @@ except ModuleNotFoundError:  # Compatibility while a pre-managed-intake render i
         pass
 
     def require_delivery_provenance(root: Path):
+        return None
+
+    def require_no_orphan_active_openspec(root: Path) -> None:
         return None
 
     def delivery_identity(root: Path):
@@ -525,6 +529,7 @@ def main() -> int:
         raise SystemExit("Detached HEAD is not publishable through the platform lifecycle.")
     validate_publication_config(work, config, prof, mode)
     try:
+        require_no_orphan_active_openspec(work)
         require_delivery_provenance(work)
     except ManagedTaskError as exc:
         raise SystemExit("Managed task publication blocked: " + str(exc)) from exc

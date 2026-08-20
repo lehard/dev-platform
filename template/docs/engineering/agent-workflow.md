@@ -61,7 +61,15 @@ The helper validates the configured `development_backlog` contract, target origi
 
 If the source Issue is edited after authoring but before start materializes it, start stops with an actionable diagnostic naming the recorded and current body hashes; either author a superseding package with `managed_task.py supersede --bundle <directory> owner/repo#N` or rerun start with `--acknowledge-source-issue-revision <current_body_sha256>` to explicitly keep the existing package's scope. `supersede` validates the replacement against exact current target state before activating it, rewrites the predecessor comment with a bounded `supersedes` link instead of leaving two ambiguous active packages, is refused once the task already reached `In review`/`Done`, and converges as a no-op on an unchanged retry. Legacy packages authored before this evidence existed skip the drift check entirely.
 
-Use the managed execution path only when the user explicitly supplies a Development Backlog task:
+For an explicit fresh non-trivial execution request, prepare the same bundle and use the composed path:
+
+~~~
+python3 scripts/execute_managed_task.py --bundle <directory> --scope "<files/modules>"
+~~~
+
+It creates/reuses the exact managed Issue and immediately starts it before implementation; retries converge on the same authoring/start identity. An explicit fixation-only request still uses `managed_task.py create` and stops. The canonical cross-project intent contract is [task-intake.md](task-intake.md).
+
+Use the managed execution path for an explicitly supplied Development Backlog task:
 
 ~~~
 python3 scripts/start_managed_task.py owner/repo#N
@@ -71,7 +79,7 @@ The managed-start entrypoint reads one versioned package through existing GitHub
 
 If Prepared against differs from the fetched integration commit, semantic preflight against current specs and active changes is mandatory. Formal/schema reconciliation is allowed; a material product-contract conflict must return to the user. After import, repository-local OpenSpec is the implementation contract and the backlog issue is provenance only.
 
-Small direct requests remain quick tasks: use the normal start/check/finish lifecycle without creating a central issue. Escalate rather than silently expanding a quick task into a material behavior, architecture, compatibility, data-contract, or scope change.
+Small direct requests remain quick tasks: use the normal start/check/finish lifecycle without creating a central issue. If one becomes a material behavior, architecture, compatibility, data-contract, or scope change — or requires a full active OpenSpec contract — stop implementation and enter managed intake before continuing.
 
 ### Selective goal definition
 

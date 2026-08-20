@@ -1,0 +1,24 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/managed-task-intake/spec.md"
+  ],
+  "change": "enforce-managed-intake-before-nontrivial-execution",
+  "imported_at": "2026-08-20T11:42:30+00:00",
+  "package_revision": "f8572f04e303a1bd7d1986e22c852246e71aa4e6497c7de29c912e33434c4ba5",
+  "prepared_against": "7454ab64dee9bf37eb43a03b73efabb0ff7d1728",
+  "routing_receipt": {
+    "assurance": "high",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "process-contract"
+  },
+  "source_issue": "lehard/development-backlog#46",
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
