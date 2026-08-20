@@ -551,18 +551,66 @@ def snapshot_existing_project_owned(project_root: Path) -> dict[str, tuple[str, 
 
 
 def require_project_owned_snapshot(
-    project_root: Path, snapshot: dict[str, tuple[str, str]]
+    project_root: Path,
+    snapshot: dict[str, tuple[str, str]],
+    *,
+    permitted_fingerprints: dict[str, tuple[str, str]] | None = None,
 ) -> None:
+    permitted_fingerprints = permitted_fingerprints or {}
     changed = [
         relative
         for relative, expected in snapshot.items()
-        if path_fingerprint(project_root / relative) != expected
+        if path_fingerprint(project_root / relative)
+        not in {expected, permitted_fingerprints.get(relative)}
     ]
     if changed:
         raise ValueError(
             "project-owned files changed during guarded Copier recopy: "
             + ", ".join(changed[:10])
         )
+
+
+def canonical_task_intake_reference_text(text: str) -> str:
+    """Return the sole permitted platform-owned addition to root guidance.
+
+    The migration deliberately owns only its marked trailing block.  A marker
+    in any other shape is not normalized in place because that would rewrite
+    project-owned guidance; it must instead be resolved explicitly downstream.
+    """
+    marker_count = text.count(TASK_INTAKE_REFERENCE_MARKER)
+    block = (
+        "\n\n"
+        + TASK_INTAKE_REFERENCE_MARKER
+        + "\n## Shared managed-task intake\n\n"
+        + "For task authoring or execution, follow the platform-owned "
+        + f"[managed task-intake contract]({TASK_INTAKE_REFERENCE}). "
+        + "Fresh non-trivial execution establishes managed provenance before implementation; "
+        + "explicit fixation remains authoring-only. Project/domain and module rules above remain in force.\n"
+    )
+    if marker_count == 0:
+        return text.rstrip("\n") + block
+    if marker_count != 1:
+        raise ValueError("project-owned AGENTS.md contains duplicate task-intake migration markers")
+    marker_start = text.index(TASK_INTAKE_REFERENCE_MARKER)
+    canonical = text[:marker_start].rstrip("\n") + block
+    if text != canonical:
+        raise ValueError("project-owned AGENTS.md contains a non-canonical task-intake migration block")
+    return text
+
+
+def task_intake_reference_fingerprint(text: str) -> tuple[str, str]:
+    return ("file", hashlib.sha256(canonical_task_intake_reference_text(text).encode("utf-8")).hexdigest())
+
+
+def permitted_task_intake_migration(
+    project_root: Path, agents_before: str | None
+) -> dict[str, tuple[str, str]]:
+    """Allow exactly the deterministic migration, and only for managed projects."""
+    if agents_before is None:
+        return {}
+    if not isinstance(load_platform_config(project_root).get("development_backlog"), dict):
+        return {}
+    return {"AGENTS.md": task_intake_reference_fingerprint(agents_before)}
 
 
 def reconcile_task_intake_reference(project_root: Path) -> bool:
@@ -583,18 +631,10 @@ def reconcile_task_intake_reference(project_root: Path) -> bool:
     if not agents.is_file():
         raise ValueError("updated managed project is missing project-owned AGENTS.md")
     text = agents.read_text(encoding="utf-8")
-    if TASK_INTAKE_REFERENCE_MARKER in text:
+    reconciled = canonical_task_intake_reference_text(text)
+    if reconciled == text:
         return False
-    block = (
-        "\n\n"
-        + TASK_INTAKE_REFERENCE_MARKER
-        + "\n## Shared managed-task intake\n\n"
-        + "For task authoring or execution, follow the platform-owned "
-        + f"[managed task-intake contract]({TASK_INTAKE_REFERENCE}). "
-        + "Fresh non-trivial execution establishes managed provenance before implementation; "
-        + "explicit fixation remains authoring-only. Project/domain and module rules above remain in force.\n"
-    )
-    agents.write_text(text.rstrip("\n") + block, encoding="utf-8")
+    agents.write_text(reconciled, encoding="utf-8")
     print(f"Reconciled stable shared task-intake reference in {agents}")
     return True
 
@@ -670,6 +710,11 @@ def copier_update_with_guarded_recopy(
     answers_before = (project_root / ".copier-answers.yml").read_text(encoding="utf-8")
     config_before = platform_config_contract(project_root)
     protected_before = snapshot_existing_project_owned(project_root)
+    agents_before = (
+        (project_root / "AGENTS.md").read_text(encoding="utf-8")
+        if (project_root / "AGENTS.md").is_file()
+        else None
+    )
     reclaimed_before = {
         relative
         for relative in RECLAIMED_PLATFORM_ROLLOUT_PATHS
@@ -693,8 +738,14 @@ def copier_update_with_guarded_recopy(
     )
     rejects = find_reject_files(project_root)
     if not rejects:
+        require_project_owned_snapshot(project_root, protected_before)
         reconcile_task_intake_reference(project_root)
         run_rendered_platform_bootstrap(project_root, env=env)
+        require_project_owned_snapshot(
+            project_root,
+            protected_before,
+            permitted_fingerprints=permitted_task_intake_migration(project_root, agents_before),
+        )
         project_owner, project_number = development_backlog_locator_answers(project_root)
         require_platform_config_contract(
             config_before,
@@ -777,9 +828,14 @@ def copier_update_with_guarded_recopy(
             "guarded Copier recopy still left unresolved .rej files: "
             + ", ".join(recopy_rejects[:10])
         )
+    require_project_owned_snapshot(project_root, protected_before)
     reconcile_task_intake_reference(project_root)
     run_rendered_platform_bootstrap(project_root, env=env)
-    require_project_owned_snapshot(project_root, protected_before)
+    require_project_owned_snapshot(
+        project_root,
+        protected_before,
+        permitted_fingerprints=permitted_task_intake_migration(project_root, agents_before),
+    )
     require_reclaimed_platform_paths_match_template(project_root, reclaimed_conflicts)
     expected_target = rendered_template_fingerprints(
         version,

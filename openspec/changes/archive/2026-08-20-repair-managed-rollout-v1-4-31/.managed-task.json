@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/managed-rollout/spec.md",
+    "specs/platform-doctor/spec.md"
+  ],
+  "change": "repair-managed-rollout-v1-4-31",
+  "imported_at": "2026-08-20T13:25:09+00:00",
+  "package_revision": "50f707bc3b6af941c7a14a451bed2c84395e10992ad32d3230bbde99336cf74f",
+  "prepared_against": "388bc0156da7c09dffd1aae7428f38043e110510",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue": "lehard/development-backlog#47",
+  "source_issue_evidence": {
+    "body_sha256": "7e887327c3db38553d475b5711d316831281edb7cb6545b06c9cdb96a0f69363",
+    "updated_at": "2026-08-20T13:21:35Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

@@ -119,6 +119,7 @@ def main() -> int:
             rollout_project.EXPECTED_SOURCES.add(str(ROOT))
 
             before = rollout_project.snapshot_existing_project_owned(project)
+            agents_before = (project / "AGENTS.md").read_text(encoding="utf-8")
             config_before = rollout_project.platform_config_contract(project)
             strategy = rollout_project.copier_update_with_guarded_recopy(
                 project,
@@ -140,7 +141,13 @@ def main() -> int:
                 )
             except ValueError as exc:
                 raise SystemExit(str(exc)) from exc
-            rollout_project.require_project_owned_snapshot(project, before)
+            rollout_project.require_project_owned_snapshot(
+                project,
+                before,
+                permitted_fingerprints=rollout_project.permitted_task_intake_migration(
+                    project, agents_before
+                ),
+            )
             if not rollout_project.reclaimed_platform_path_matches_template(
                 project, "scripts/_platform_common.py"
             ):
