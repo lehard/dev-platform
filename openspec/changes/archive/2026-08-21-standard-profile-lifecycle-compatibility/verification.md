@@ -3,6 +3,7 @@
 OpenSpec-Verify: PASS
 Verification-Method: Equivalent semantic review (completeness, correctness, coherence) against the spec deltas plus targeted profile-matrix/doctor/routing tests and the complete platform test matrix.
 Automated-Checks-Evidence: automated-checks.json
+Correction (lehard/dev-platform#308): the "Automated evidence" test-count line originally read 703, computed by arithmetic rather than read from actual tool output; the real number is 695, corrected here.
 
 ## Completeness
 
@@ -102,6 +103,6 @@ regression test added:
 
 - `python3 scripts/select_checks.py --base origin/main --execute --evidence automated-checks.json --json` — selected the full-trigger check (this change touches `template/scripts/**` and `dev-platform/checks.toml`); all 3 commands passed, evidence in `automated-checks.json`.
 - `python3 -m unittest tests.test_model_routing tests.test_platform_doctor tests.test_standard_profile_lifecycle_compatibility -v` — 51 passed.
-- `python3 scripts/run_test_groups.py --all` — 703 tests across 13 groups passed (via `select_checks.py` above).
+- `python3 scripts/run_test_groups.py --all` — 695 tests across 13 groups passed (via `select_checks.py` above; also independently confirmed by the merged PR's own GitHub Actions "Unit tests" step, which reported the same `declared_test_count: 695`).
 - `python3 scripts/managed_projects.py validate` — OK.
 - `python3 template/scripts/openspec_lifecycle.py check` — OK before archive.
