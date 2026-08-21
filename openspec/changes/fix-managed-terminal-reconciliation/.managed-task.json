@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/platform-lifecycle/spec.md",
+    "specs/platform-rollout/spec.md"
+  ],
+  "change": "fix-managed-terminal-reconciliation",
+  "imported_at": "2026-08-21T12:37:12+00:00",
+  "package_revision": "6f56ee33253922cd811b057609baed82548e736f81536dba0beceab873552202",
+  "prepared_against": "d038425fd679f1a255a5aa97141747fda3f3d85d",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue": "lehard/development-backlog#67",
+  "source_issue_evidence": {
+    "body_sha256": "72219634dd77c3ec5d4a73c21b87707b10cd7bc39947c2e032236c2a576a7267",
+    "updated_at": "2026-08-21T12:35:07Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

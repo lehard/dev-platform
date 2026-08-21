@@ -116,6 +116,7 @@ targets = [
   "test_managed_project_status",
   "test_managed_rollout",
   "test_managed_status_lifecycle",
+  "test_project_terminal_reconciliation",
   "test_managed_task",
   "test_managed_execution_intake",
   "test_openspec_lifecycle",
