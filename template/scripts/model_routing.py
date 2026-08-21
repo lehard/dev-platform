@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from _platform_common import atomic_write_text, current_worktree_root, main_root, read_platform_config, utc_now
+from _platform_common import profile as workflow_profile_of
 from delegated_write_guard import (
     EnforcementTier,
     GuardedChildError,
@@ -40,6 +41,15 @@ from start_tier_routing import tier_to_profile
 
 PROFILES = ("routine", "standard", "complex")
 PROVIDERS = ("codex", "claude")
+# Route root topology. LINKED_WORKTREE is the multi-agent shape: task_worktree
+# is a distinct, registered `git worktree` of integration_root, so a
+# write-capable child can be safely assigned there. STANDALONE_CLONE is the
+# standard-profile shape: the supervisor's own isolated full clone *is*
+# task_worktree and integration_root at once (no linked worktree exists), so
+# this route root is parent-only -- it must never be treated as a proven
+# child-writer boundary (see dispatch_codex/prepare_claude_handoff).
+LINKED_WORKTREE = "linked-worktree"
+STANDALONE_CLONE = "standalone-clone"
 DEFAULT_MODELS = {
     "codex": {"routine": "gpt-5.6-terra", "standard": "gpt-5.6-terra", "complex": "gpt-5.6-sol"},
     "claude": {"routine": "haiku", "standard": "sonnet", "complex": "opus"},
@@ -74,6 +84,11 @@ class Route:
     # authored tier/profile. "escalated": execution discovered new evidence
     # and escalate() promoted the route to the strong profile.
     freshness: str = "confirmed"
+    # LINKED_WORKTREE or STANDALONE_CLONE (see the module-level constants).
+    # Defaults to LINKED_WORKTREE so a routing record written before this
+    # field existed is read back as the strict topology it was always
+    # recorded under.
+    topology: str = LINKED_WORKTREE
     # Bounded, truthful execution provenance (task 6.2-6.6 of
     # adopt-gh-aw-process-automation). Reuses this existing routing record
     # instead of a second run/trace database. ``supervisor`` is the
@@ -209,7 +224,7 @@ def _read_route(root: Path) -> tuple[Route, Path]:
         payload = json.loads(path.read_text(encoding="utf-8"))
         execution = payload.get("execution")
         supervisor = payload.get("supervisor")
-        route = Route(source_issue=payload["source_issue"], change=payload["change"], task_worktree=payload["task_worktree"], integration_root=payload["integration_root"], provider=payload["provider"], profile=payload["profile"], executor_model=payload["executor_model"], rationale=payload["rationale"], evidence=tuple(payload.get("evidence", [])), prepared_at=payload["prepared_at"], pre_snapshot=payload["pre_snapshot"], execution=execution if isinstance(execution, dict) else None, escalations=tuple(payload.get("escalations", [])), start_tier=payload.get("start_tier"), freshness=payload.get("freshness", "confirmed"), supervisor=supervisor if isinstance(supervisor, dict) else {})
+        route = Route(source_issue=payload["source_issue"], change=payload["change"], task_worktree=payload["task_worktree"], integration_root=payload["integration_root"], provider=payload["provider"], profile=payload["profile"], executor_model=payload["executor_model"], rationale=payload["rationale"], evidence=tuple(payload.get("evidence", [])), prepared_at=payload["prepared_at"], pre_snapshot=payload["pre_snapshot"], execution=execution if isinstance(execution, dict) else None, escalations=tuple(payload.get("escalations", [])), start_tier=payload.get("start_tier"), freshness=payload.get("freshness", "confirmed"), topology=payload.get("topology", LINKED_WORKTREE), supervisor=supervisor if isinstance(supervisor, dict) else {})
     except (OSError, KeyError, TypeError, json.JSONDecodeError) as exc:
         raise RoutingError(f"no readable routing record for managed change {change}; run prepare first") from exc
     if route.source_issue != source_issue or route.change != change:
@@ -246,9 +261,22 @@ def prepare(root: Path, *, provider: str, profile: str | None, rationale: str, e
         raise RoutingError("semantic routing preflight requires a non-empty rationale")
     source_issue, change = _managed_identity(root)
     integration = main_root().resolve()
-    assigned = resolve_assigned_worktree(integration, root)
     config = read_platform_config(root)
-    route = Route(source_issue=source_issue, change=change, task_worktree=str(assigned), integration_root=str(integration), provider=provider, profile=profile, executor_model=_model_for(config, provider, profile), rationale=rationale.strip(), evidence=tuple(evidence), prepared_at=utc_now(), pre_snapshot=_snapshot_to_dict(snapshot(integration)), start_tier=start_tier, freshness="confirmed", supervisor=_supervisor_provenance(config, provider))
+    task_root = root.resolve()
+    if workflow_profile_of(config) == "standard" and task_root == integration:
+        # The standard profile has no linked worktree: the supervisor's own
+        # isolated full clone is both the assigned task root and the
+        # integration copy. Recording that clone as a parent-only route root
+        # is the point (see the standard-profile-lifecycle-compatibility
+        # spec) -- it must never be reinterpreted as a proven child-writer
+        # boundary, so dispatch_codex/prepare_claude_handoff refuse to launch
+        # an actual child writer on a STANDALONE_CLONE route.
+        assigned = integration
+        topology = STANDALONE_CLONE
+    else:
+        assigned = resolve_assigned_worktree(integration, root)
+        topology = LINKED_WORKTREE
+    route = Route(source_issue=source_issue, change=change, task_worktree=str(assigned), integration_root=str(integration), provider=provider, profile=profile, executor_model=_model_for(config, provider, profile), rationale=rationale.strip(), evidence=tuple(evidence), prepared_at=utc_now(), pre_snapshot=_snapshot_to_dict(snapshot(integration)), start_tier=start_tier, freshness="confirmed", topology=topology, supervisor=_supervisor_provenance(config, provider))
     _write_route(_record_path(root, change), route)
     return route
 
@@ -276,9 +304,19 @@ def escalate(root: Path, reason: str) -> Route:
     return next_route
 
 
+def _refuse_child_writer_on_standalone_clone(route: Route) -> None:
+    if route.topology == STANDALONE_CLONE:
+        raise RoutingError(
+            "a write-capable delegated child cannot be launched from a standalone standard-profile clone: "
+            "there is no distinct assigned worktree to prove a containment boundary against. Parent-only "
+            "route recording is not child containment evidence -- retain this work on the supervisor."
+        )
+
+
 def codex_argv(route: Route, prompt: str, codex_bin: str | None = None) -> tuple[list[str], str]:
     if route.provider != "codex":
         raise RoutingError("the prepared route is not a Codex route")
+    _refuse_child_writer_on_standalone_clone(route)
     decision = determine_codex_tier(codex_bin=codex_bin, integration_root=Path(route.integration_root), assigned_worktree=Path(route.task_worktree))
     if decision.tier is not EnforcementTier.HARD:
         raise RoutingError("native Codex containment is not provable for this route; retain execution on the parent or use an explicitly reviewed fallback: " + decision.detail)
@@ -379,6 +417,7 @@ def dispatch_codex(
     if route.profile == "complex":
         output["reason"] = "complex profile remains on the strong Codex supervisor"
         return output
+    _refuse_child_writer_on_standalone_clone(route)
     execution = run_codex(route, prompt, codex_bin)
     route = Route(**{**asdict(route), "execution": execution})
     _write_route(_record_path(root, route.change), route)
@@ -413,6 +452,7 @@ def claude_agent(route: Route) -> dict[str, Any]:
     """
     if route.provider != "claude":
         raise RoutingError("the prepared route is not a Claude route")
+    _refuse_child_writer_on_standalone_clone(route)
     return {"description": "Managed task executor; use only after supervisor routing preflight.", "model": route.executor_model, "prompt": "Work only in the current working directory, which is already the assigned task worktree for this managed dev-platform task -- do not request isolation or create a separate worktree. Preserve the canonical OpenSpec and return the exact diff, checks run, uncertainty, and any escalation trigger to the supervisor. Managed source: " + route.source_issue + "; change: " + route.change + "; assigned worktree: " + route.task_worktree + "."}
 
 
@@ -432,6 +472,7 @@ def prepare_claude_handoff(root: Path, *, profile: str | None, rationale: str, e
     if route.profile == "complex":
         output["reason"] = "complex profile remains on the strong Claude supervisor"
         return output
+    _refuse_child_writer_on_standalone_clone(route)
     tier_decision = determine_claude_tier(shell_enabled=True)
     if tier_decision.tier is EnforcementTier.DETECTION_ONLY and route.pre_snapshot.get("paths"):
         dirty = ", ".join(sorted(route.pre_snapshot["paths"]))
@@ -461,6 +502,7 @@ def record_claude_execution(root: Path, *, agent_id: str, summary: str | None = 
         raise RoutingError("the prepared route is not a Claude route")
     if route.profile == "complex":
         raise RoutingError("complex Claude routes are not delegated; there is no execution to record")
+    _refuse_child_writer_on_standalone_clone(route)
     if not agent_id.strip():
         raise RoutingError("recording Claude execution requires a non-empty agent id")
     tier_decision = determine_claude_tier(shell_enabled=True)

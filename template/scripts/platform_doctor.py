@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import os
 import re
 import shutil
@@ -155,6 +156,90 @@ def check_task_intake_reference(root: Path, config: dict, failures: list[int]) -
         ok("shared managed task-intake reference is present")
 
 
+REQUIRED_TASK_START_SYMBOLS = ("StartedTask", "start_task", "cleanup_started_task", "admit_task", "admission_reason")
+REQUIRED_STARTED_TASK_FIELDS = {"profile", "branch", "task_root", "board_id"}
+# start_task.py's own transitive imports. A real doctor process only ever
+# probes one project's scripts/ directory, so relying on whatever these
+# happen to already be in sys.modules is harmless there -- but the probe
+# itself must not silently reuse a stale/foreign copy cached from a
+# different scripts/ directory (for example under repeated in-process
+# testing), so they are forced to reimport fresh from this exact root.
+TASK_START_DEPENDENCY_MODULES = ("_platform_common", "rollout_preflight", "start_worktree")
+
+
+def check_task_start_contract(root: Path, config: dict, harness: str, failures: list[int]) -> None:
+    """Import the rendered scripts/start_task.py and probe its public surface.
+
+    File-presence checking alone lets a downstream project keep a stale or
+    hand-patched start_task.py that still exists on disk but no longer
+    satisfies the callable interface (StartedTask, start_task,
+    cleanup_started_task, admit_task, admission_reason) that
+    scripts/start_managed_task.py imports directly. That mismatch used to
+    surface as a crash mid managed-intake, before package discovery, instead
+    of here.
+    """
+    if harness != "platform":
+        return  # the contract only governs the platform-owned managed-intake entrypoint
+    if str(config.get("platform_version", "")) == "source":
+        return  # source checkout re-executes the template module as a CLI shim, not an importable API
+    path = root / "scripts" / "start_task.py"
+    if not path.exists():
+        return  # already reported by the required-files presence check
+    scripts_dir = str(path.parent)
+    module_name = "_platform_doctor_start_task_probe"
+    probe_module_names = (module_name, *TASK_START_DEPENDENCY_MODULES)
+    saved_modules = {name: sys.modules.pop(name) for name in probe_module_names if name in sys.modules}
+    path_inserted = scripts_dir not in sys.path
+    if path_inserted:
+        sys.path.insert(0, scripts_dir)
+    try:
+        spec = importlib.util.spec_from_file_location(module_name, path)
+        if spec is None or spec.loader is None:
+            fail("scripts/start_task.py could not be loaded for a task-start contract probe"); failures[0] += 1
+            return
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = module
+        try:
+            spec.loader.exec_module(module)
+        except Exception as exc:
+            fail(f"scripts/start_task.py failed to import: {exc}"); failures[0] += 1
+            return
+        missing = [name for name in REQUIRED_TASK_START_SYMBOLS if not hasattr(module, name)]
+        if missing:
+            fail("scripts/start_task.py is missing the managed-intake task-start contract: " + ", ".join(missing))
+            failures[0] += 1
+            return
+        uncallable = [name for name in REQUIRED_TASK_START_SYMBOLS[1:] if not callable(getattr(module, name))]
+        if uncallable:
+            fail("scripts/start_task.py task-start contract symbol(s) are not callable: " + ", ".join(uncallable))
+            failures[0] += 1
+            return
+        # Probe the real keyword contract managed intake relies on (for
+        # example scripts/start_task.py's own `StartedTask(profile=prof,
+        # branch=main_branch, task_root=root)` with no board_id for
+        # light/standard) rather than requiring StartedTask to literally be
+        # a @dataclass -- an equally compatible plain class or namedtuple
+        # must not be flagged incompatible.
+        try:
+            probe = module.StartedTask(profile="probe", branch="probe", task_root=Path("/probe"))
+        except TypeError as exc:
+            fail(f"scripts/start_task.py's StartedTask does not accept the managed-intake keyword contract (profile, branch, task_root, optional board_id): {exc}")
+            failures[0] += 1
+            return
+        missing_fields = sorted(name for name in REQUIRED_STARTED_TASK_FIELDS if not hasattr(probe, name))
+        if missing_fields:
+            fail("scripts/start_task.py's StartedTask is missing field(s): " + ", ".join(missing_fields))
+            failures[0] += 1
+            return
+        ok("scripts/start_task.py satisfies the managed-intake task-start contract")
+    finally:
+        if path_inserted:
+            sys.path.remove(scripts_dir)
+        for name in probe_module_names:
+            sys.modules.pop(name, None)
+        sys.modules.update(saved_modules)
+
+
 def github_hosted_actions_runner(environ: dict[str, str] | None = None) -> bool:
     """Recognize only the Actions environment without local group topology."""
     environ = os.environ if environ is None else environ
@@ -254,6 +339,7 @@ def main() -> int:
         else:
             fail(f"missing {relative}"); failures[0] += 1
 
+    check_task_start_contract(root, config, harness, failures)
     check_rendered_workflow_mode(root, config, failures)
 
     commit = copier_commit(root)

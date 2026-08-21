@@ -89,7 +89,7 @@ targets = ["test_worktree_hygiene"]
 mode = "parallel"
 
 [test_groups.model_routing]
-targets = ["test_model_routing", "test_start_tier_routing"]
+targets = ["test_model_routing", "test_start_tier_routing", "test_standard_profile_lifecycle_compatibility"]
 mode = "parallel"
 
 [test_groups.managed_task_exact_state]

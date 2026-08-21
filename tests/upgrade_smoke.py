@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import subprocess
 import tempfile
@@ -158,6 +159,35 @@ def main() -> int:
         doctor = subprocess.run(["python3", "scripts/platform_doctor.py"], cwd=target, text=True)
         if doctor.returncode != 0:
             raise SystemExit(doctor.returncode)
+
+        if args.profile == "standard":
+            # Consumer canary for dev-platform#300: a standard-profile
+            # checkout has no linked worktree, so routing preflight must
+            # still be able to record a parent-only route against a real
+            # rendered project (not only the central template module).
+            change = target / "openspec" / "changes" / "upgrade-smoke-routing-canary"
+            change.mkdir(parents=True)
+            (change / ".managed-task.json").write_text(
+                json.dumps({"source_issue": "lehard/development-backlog#0", "change": "upgrade-smoke-routing-canary"}),
+                encoding="utf-8",
+            )
+            probe = subprocess.run(
+                [
+                    "python3", "scripts/model_routing.py", "prepare",
+                    "--provider", "codex", "--profile", "standard",
+                    "--rationale", "upgrade smoke: prove standard-profile routing preflight composes",
+                ],
+                cwd=target, text=True, capture_output=True,
+            )
+            if probe.returncode != 0:
+                raise SystemExit(f"standard-profile routing preflight canary failed: {probe.stderr or probe.stdout}")
+            recorded = json.loads(probe.stdout)
+            if recorded.get("topology") != "standalone-clone":
+                raise SystemExit(
+                    "standard-profile routing preflight did not record a standalone-clone parent-only route: "
+                    f"{recorded.get('topology')!r}"
+                )
+            print("Standard-profile routing preflight canary passed: parent-only standalone-clone route recorded.")
 
         status = run(["git", "status", "--porcelain"], target, capture=True).stdout
         visible_artifacts = [relative for relative in cuby_like_artifacts if relative in status]

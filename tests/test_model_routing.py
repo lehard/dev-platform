@@ -440,6 +440,10 @@ class ModelRoutingTests(unittest.TestCase):
                 routing.postcheck(route)
         recorded.assert_called_once()
 
+    def test_prepare_records_linked_worktree_topology(self) -> None:
+        route = self.prepare()
+        self.assertEqual(route.topology, routing.LINKED_WORKTREE)
+
     def test_cli_reports_missing_active_managed_change_without_traceback(self) -> None:
         completed = subprocess.run(
             [sys.executable, str(SCRIPTS / "model_routing.py"), "context"],
@@ -450,6 +454,116 @@ class ModelRoutingTests(unittest.TestCase):
         self.assertNotEqual(completed.returncode, 0)
         self.assertIn("Model routing blocked:", completed.stderr)
         self.assertNotIn("Traceback", completed.stderr)
+
+
+class StandaloneStandardCloneRoutingTests(unittest.TestCase):
+    """Standard-profile projects have no linked worktree: the task checkout
+
+    and the integration copy are the same directory. Routing preflight must
+    still be able to record a parent-only route there (spec scenario
+    "Supervisor records standard-clone preflight"), but must refuse to ever
+    launch a write-capable child from it (spec scenario "Child writer is
+    requested from a standard clone").
+    """
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.clone = Path(self.tmp.name) / "clone"
+        self.clone.mkdir()
+        git(self.clone, "init", "-q", "-b", "main")
+        git(self.clone, "config", "user.email", "routing@example.test")
+        git(self.clone, "config", "user.name", "Routing Test")
+        (self.clone / "README.md").write_text("base\n", encoding="utf-8")
+        git(self.clone, "add", "README.md")
+        git(self.clone, "commit", "-qm", "base")
+        git(self.clone, "switch", "-c", "agent/routing")
+        change = self.clone / "openspec" / "changes" / "routing-change"
+        change.mkdir(parents=True)
+        (change / ".managed-task.json").write_text(json.dumps({"source_issue": "owner/backlog#7", "change": "routing-change"}), encoding="utf-8")
+        (self.clone / ".dev-platform.toml").write_text(
+            "workflow_profile = \"standard\"\n"
+            "[model_routing.codex]\nstandard_model = \"cheap-codex\"\ncomplex_model = \"strong-codex\"\n",
+            encoding="utf-8",
+        )
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def prepare(self, provider: str = "codex", profile: str = "standard"):
+        with patch.object(routing, "main_root", return_value=self.clone):
+            return routing.prepare(self.clone, provider=provider, profile=profile, rationale="bounded current-spec preflight", evidence=["openspec/changes/routing-change"])
+
+    def test_prepare_records_the_standalone_clone_as_a_truthful_parent_only_route(self) -> None:
+        route = self.prepare()
+        self.assertEqual(route.topology, routing.STANDALONE_CLONE)
+        self.assertEqual(route.task_worktree, str(self.clone.resolve()))
+        self.assertEqual(route.integration_root, str(self.clone.resolve()))
+
+    def test_dispatch_codex_refuses_child_writer_from_standalone_clone(self) -> None:
+        with patch.object(routing, "main_root", return_value=self.clone):
+            with self.assertRaisesRegex(routing.RoutingError, "standalone standard-profile clone"):
+                routing.dispatch_codex(
+                    self.clone, profile="standard", rationale="bounded current-spec preflight",
+                    evidence=["openspec/changes/routing-change"], prompt="implement",
+                )
+        # The route was still recorded (parent-only), just never delegated.
+        reread, _ = routing._read_route(self.clone)
+        self.assertEqual(reread.topology, routing.STANDALONE_CLONE)
+        self.assertIsNone(reread.execution)
+
+    def test_dispatch_codex_complex_profile_is_unaffected_by_standalone_topology(self) -> None:
+        with patch.object(routing, "main_root", return_value=self.clone):
+            result = routing.dispatch_codex(
+                self.clone, profile="complex", rationale="material cross-cutting contract boundary",
+                evidence=["openspec/changes/routing-change"], prompt="unused",
+            )
+        self.assertFalse(result["delegated"])
+        self.assertIn("remains on the strong", result["reason"])
+
+    def test_claude_handoff_refuses_child_writer_from_standalone_clone(self) -> None:
+        with patch.object(routing, "main_root", return_value=self.clone):
+            with self.assertRaisesRegex(routing.RoutingError, "standalone standard-profile clone"):
+                routing.prepare_claude_handoff(
+                    self.clone, profile="standard", rationale="bounded current-spec preflight",
+                    evidence=["openspec/changes/routing-change"],
+                )
+
+    def test_codex_argv_refuses_a_standalone_clone_route_read_back_from_disk(self) -> None:
+        # Covers the raw `codex-argv`/`run-codex` CLI paths, which read an
+        # already-prepared route from disk instead of going through
+        # dispatch_codex's own early refusal.
+        self.prepare()
+        reread, _ = routing._read_route(self.clone)
+        with self.assertRaisesRegex(routing.RoutingError, "standalone standard-profile clone"):
+            routing.codex_argv(reread, "implement")
+
+    def test_claude_agent_refuses_a_standalone_clone_route_read_back_from_disk(self) -> None:
+        self.prepare(provider="claude")
+        reread, _ = routing._read_route(self.clone)
+        with self.assertRaisesRegex(routing.RoutingError, "standalone standard-profile clone"):
+            routing.claude_agent(reread)
+
+    def test_record_claude_execution_refuses_a_standalone_clone_route_prepared_directly(self) -> None:
+        # A caller could prepare a route through the raw `prepare` CLI/API
+        # (not `prepare_claude_handoff`) and then try to mark it executed
+        # directly -- this must be refused too, not only the hand-off emit.
+        self.prepare(provider="claude")
+        with self.assertRaisesRegex(routing.RoutingError, "standalone standard-profile clone"):
+            routing.record_claude_execution(self.clone, agent_id="agent-abc123")
+        reread, _ = routing._read_route(self.clone)
+        self.assertIsNone(reread.execution)
+
+    def test_read_route_defaults_missing_topology_to_linked_worktree(self) -> None:
+        # A routing record written before this field existed must be read
+        # back as the strict topology it was always recorded under, not
+        # silently reinterpreted as a standalone parent-only route.
+        route = self.prepare()
+        saved_path = self.clone / ".claude" / "model-routing" / "routing-change.json"
+        payload = json.loads(saved_path.read_text(encoding="utf-8"))
+        del payload["topology"]
+        saved_path.write_text(json.dumps(payload), encoding="utf-8")
+        reread, _ = routing._read_route(self.clone)
+        self.assertEqual(reread.topology, routing.LINKED_WORKTREE)
 
 
 if __name__ == "__main__":
