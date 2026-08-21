@@ -2,6 +2,7 @@
 
 OpenSpec-Verify: PASS
 Verification-Method: Equivalent semantic review (completeness, correctness, coherence) plus targeted terminal-reconciliation tests and the complete platform test matrix.
+Automated-Checks-Evidence: automated-checks.json
 
 ## Completeness
 
