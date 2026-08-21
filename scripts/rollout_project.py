@@ -82,8 +82,10 @@ PROJECT_PUBLICATION_SURFACE = (
     "scripts/finish_task.py",
     "scripts/merge_to_main.py",
     "scripts/exact_head_safety.py",
+    "scripts/project_terminal_reconciliation.py",
 )
 EXACT_HEAD_MARKER = "dev-platform:exact-head-publication-v1"
+TERMINAL_RECONCILIATION_MARKER = "dev-platform:terminal-reconciliation-v1"
 UNSAFE_BRANCH_PR_VIEW_RE = re.compile(
     r"(?:gh\s+pr\s+view|[\[\(]\s*[\"']gh[\"']\s*,\s*[\"']pr[\"']\s*,\s*[\"']view[\"']\s*,\s*(?:branch|current|head_branch))"
 )
@@ -94,6 +96,7 @@ UNSAFE_BRANCH_PR_VIEW_RE = re.compile(
 JARA_MERGE_TO_MAIN_SHA256 = "a201795ddc3785630e789e409e510a471a8b848699014a815f461a0a2a38d91d"
 JARA_TEST_MERGE_TO_MAIN_SHA256 = "756c1b87df8c4abb2e4539785998e07e87bd6bf8f617cb3234908db5368537a4"
 PLANNER_PROJECT_PUBLISH_SHA256 = "0bc3a4d169f41c6c8565e8f740ff92db51c7b8400a1aeaaa5bbcf5cbe1f1dfcb"
+PLANNER_FINISH_TASK_SHA256 = "7f10a5f605becb5cfa77d32dfbe2a4987b69d52d78ad777cc6ae515f7142385c"
 
 EXACT_HEAD_HELPER = '''# dev-platform:exact-head-publication-v1
 from __future__ import annotations
@@ -166,6 +169,7 @@ def merge_exact_pr(root, pr, expected, env, timeout=600):
 JARA_OVERRIDE = '''\n# dev-platform:exact-head-publication-v1\nfrom exact_head_safety import exact_pr, exact_state, ensure_exact_pr, check_exact_pr, merge_exact_pr\ndef publish_branch_and_pr(worktree, branch, env):\n    run_git(worktree, "push", "-u", "origin", branch)\n    title = run_git(worktree, "log", "-1", "--pretty=%s").stdout.strip() or branch\n    try: ensure_exact_pr(worktree, branch, "main", env, title, "Published by Jara_Fin protected-main agent lifecycle after local validation.")\n    except RuntimeError as exc: raise MergeError(f"Could not create exact PR for {branch!r}: {exc}") from exc\ndef wait_for_pr_checks(worktree, branch, env):\n    try:\n        pr, head = exact_pr(worktree, branch, "main", env)\n        if not pr: raise RuntimeError("exact PR is absent")\n        if pr.get("state") != "MERGED": check_exact_pr(worktree, pr, head, env)\n        elif not exact_state(worktree, pr, head, env): raise RuntimeError("merged PR no longer proves the exact head")\n    except RuntimeError as exc: raise MergeError(f"Required exact PR checks did not pass: {exc}") from exc\ndef merge_pr(worktree, branch, env):\n    try:\n        pr, head = exact_pr(worktree, branch, "main", env)\n        if not pr: raise RuntimeError("exact PR is absent")\n        merge_exact_pr(worktree, pr, head, env)\n        delete_remote_branch(worktree, branch)\n    except RuntimeError as exc: raise MergeError(f"Exact protected merge failed: {exc}") from exc\n'''
 
 PLANNER_OVERRIDE = '''\n# dev-platform:exact-head-publication-v1\nfrom exact_head_safety import ensure_exact_pr, check_exact_pr, merge_exact_pr\ndef publish_pr(root, remote, main_branch, title, body, merge_mode):\n    env = require_gh_env(root)\n    current = push_feature_branch(root, remote, main_branch)\n    title = title or run_git(["log", "-1", "--pretty=%s"], cwd=root).stdout.strip() or current\n    body = body or "Published by Planner Agent Lab after local validation and a fresh origin/main check."\n    try: pr, head = ensure_exact_pr(root, current, main_branch, env, title, body)\n    except RuntimeError as exc: raise SystemExit(f"Could not create exact Planner PR: {exc}") from exc\n    if merge_mode == "manual":\n        print("PR published for manual review; no merge attempted.")\n        return 0\n    try:\n        check_exact_pr(root, pr, head, env)\n        merge_exact_pr(root, pr, head, env)\n    except RuntimeError as exc: raise SystemExit(f"Exact Planner merge failed: {exc}") from exc\n    return 0\n'''
+PLANNER_TERMINAL_OVERRIDE = '''\n# dev-platform:terminal-reconciliation-v1\nfrom managed_project_status import discover_source_issue\nfrom project_terminal_reconciliation import reconcile_if_exact_merged\n_legacy_main = main\ndef main():\n    root = current_worktree_root()\n    branch = current_branch(root)\n    source = discover_source_issue(root)\n    source_issue = source.reference if source is not None else None\n    try:\n        if reconcile_if_exact_merged(root, branch, source_issue):\n            print("Planner task terminal reconciliation completed without republishing.")\n            return 0\n        result = _legacy_main()\n        if reconcile_if_exact_merged(root, branch, source_issue):\n            print("Planner task terminal reconciliation completed after exact merge.")\n        return result\n    except Exception as exc:\n        raise SystemExit("Managed terminal reconciliation pending; rerun finish_task.py after restoring GitHub Project/Issue access: " + str(exc)) from exc\n'''
 
 # These are the three strict subprocess mocks in the reviewed Jara regression
 # source.  They are deliberately complete, exact replacements rather than a
@@ -507,6 +511,8 @@ def require_project_publication_safety_conformance(project_root: Path) -> None:
             "preserving project harness bytes for an explicit exact-head migration"
         )
     signals = (EXACT_HEAD_MARKER, "headRefOid", "--match-head-commit")
+    if (project_root / "scripts" / "finish_task.py").is_file():
+        signals += (TERMINAL_RECONCILIATION_MARKER, "reconcile_if_exact_merged")
     missing = [signal for signal in signals if signal not in combined]
     if missing:
         raise ValueError(
@@ -647,6 +653,7 @@ def migrate_project_publication_safety(project_root: Path, repository: str) -> b
     else:
         return False
     helper = project_root / "scripts/exact_head_safety.py"
+    terminal_helper = project_root / "scripts/project_terminal_reconciliation.py"
     current = target.read_text(encoding="utf-8") if target.is_file() else ""
     helper_current = helper.read_text(encoding="utf-8") if helper.is_file() else None
     test_target = project_root / "scripts/tests/test_merge_to_main.py" if repository == "lehard/Jara_Fin" else None
@@ -703,14 +710,39 @@ def migrate_project_publication_safety(project_root: Path, repository: str) -> b
         if not test_active:
             test_migrated = migrate_jara_test_source(test_current)
 
+    terminal_changed = False
+    finish_target = None
+    finish_migrated = None
+    if repository == "lehard/planner-agent-lab":
+        finish_target = project_root / "scripts/finish_task.py"
+        finish_current = finish_target.read_text(encoding="utf-8") if finish_target.is_file() else ""
+        if TERMINAL_RECONCILIATION_MARKER not in finish_current:
+            if hashlib.sha256(finish_current.encode("utf-8")).hexdigest() != PLANNER_FINISH_TASK_SHA256:
+                raise ValueError(
+                    "project-owned terminal-reconciliation compatibility blocker: unrecognized Planner finish_task bytes; "
+                    "preserving harness bytes"
+                )
+            finish_migrated = install_pre_entrypoint_override(finish_current, PLANNER_TERMINAL_OVERRIDE)
+            terminal_changed = True
+        elif finish_current.count(PLANNER_TERMINAL_OVERRIDE) != 1:
+            raise ValueError(
+                "project-owned terminal-reconciliation compatibility blocker: incomplete migrated finish_task surface; "
+                "preserving harness bytes"
+            )
+
     # All failure-prone proof has completed before either downstream-owned
     # harness/test bytes or the helper is written.
-    changed = not harness_active or not test_active
+    changed = not harness_active or not test_active or terminal_changed
     if changed:
         helper.write_text(EXACT_HEAD_HELPER, encoding="utf-8")
         target.write_text(migrated, encoding="utf-8")
         if test_target is not None:
             test_target.write_text(test_migrated, encoding="utf-8")
+        if terminal_changed and finish_target is not None and finish_migrated is not None:
+            finish_target.write_text(finish_migrated, encoding="utf-8")
+            terminal_helper.write_bytes(
+                (PLATFORM_ROOT / "template" / "scripts" / "project_terminal_reconciliation.py").read_bytes()
+            )
     return changed
 
 

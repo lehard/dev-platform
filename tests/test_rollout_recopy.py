@@ -185,6 +185,7 @@ class GuardedRecopyTests(unittest.TestCase):
 
     def test_recognized_planner_fixture_preserves_its_standalone_clone_entrypoint(self) -> None:
         target = self.root / "scripts" / "project_publish.py"
+        finish_target = self.root / "scripts" / "finish_task.py"
         original = (
             "def push_feature_branch(root, remote, main_branch):\n"
             "    return 'planner-specific-clone-flow'\n\n"
@@ -195,8 +196,19 @@ class GuardedRecopyTests(unittest.TestCase):
         )
         target.write_text(original, encoding="utf-8")
         fingerprint = hashlib.sha256(original.encode("utf-8")).hexdigest()
+        finish_original = (
+            "def current_worktree_root():\n    return '.'\n\n"
+            "def current_branch(root):\n    return 'agent/task'\n\n"
+            "def main():\n    return 0\n\n"
+            "if __name__ == '__main__':\n    main()\n"
+        )
+        finish_target.write_text(finish_original, encoding="utf-8")
+        finish_fingerprint = hashlib.sha256(finish_original.encode("utf-8")).hexdigest()
 
-        with patch.object(rollout_project, "PLANNER_PROJECT_PUBLISH_SHA256", fingerprint):
+        with (
+            patch.object(rollout_project, "PLANNER_PROJECT_PUBLISH_SHA256", fingerprint),
+            patch.object(rollout_project, "PLANNER_FINISH_TASK_SHA256", finish_fingerprint),
+        ):
             self.assertTrue(
                 rollout_project.migrate_project_publication_safety(
                     self.root, "lehard/planner-agent-lab"
@@ -212,6 +224,8 @@ class GuardedRecopyTests(unittest.TestCase):
         self.assertIn("push_feature_branch(root, remote, main_branch)", migrated)
         self.assertIn("ensure_exact_pr(root, current, main_branch", migrated)
         self.assertIn("merge_exact_pr(root, pr, head, env)", migrated)
+        self.assertIn(rollout_project.TERMINAL_RECONCILIATION_MARKER, finish_target.read_text(encoding="utf-8"))
+        self.assertTrue((self.root / "scripts" / "project_terminal_reconciliation.py").is_file())
         rollout_project.require_project_publication_safety_conformance(self.root)
 
     def write_stale_pr_tools(self) -> dict[str, str]:
@@ -303,6 +317,7 @@ if __name__ == "__main__":
 
     def test_planner_cli_activates_exact_head_override_before_guard(self) -> None:
         target = self.root / "scripts" / "project_publish.py"
+        finish_target = self.root / "scripts" / "finish_task.py"
         source = '''def require_gh_env(root):
     return {}
 
@@ -326,8 +341,19 @@ if __name__ == "__main__":
 '''
         target.write_text(source, encoding="utf-8")
         fingerprint = hashlib.sha256(source.encode("utf-8")).hexdigest()
+        finish_source = (
+            "def current_worktree_root():\n    return '.'\n\n"
+            "def current_branch(root):\n    return 'task'\n\n"
+            "def main():\n    return 0\n\n"
+            "if __name__ == \"__main__\":\n    main()\n"
+        )
+        finish_target.write_text(finish_source, encoding="utf-8")
+        finish_fingerprint = hashlib.sha256(finish_source.encode("utf-8")).hexdigest()
 
-        with patch.object(rollout_project, "PLANNER_PROJECT_PUBLISH_SHA256", fingerprint):
+        with (
+            patch.object(rollout_project, "PLANNER_PROJECT_PUBLISH_SHA256", fingerprint),
+            patch.object(rollout_project, "PLANNER_FINISH_TASK_SHA256", finish_fingerprint),
+        ):
             self.assertTrue(
                 rollout_project.migrate_project_publication_safety(
                     self.root, "lehard/planner-agent-lab"
