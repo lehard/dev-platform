@@ -9,19 +9,19 @@
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
-      "duration_seconds": 0.561,
+      "duration_seconds": 0.303,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/managed_projects.py validate",
-      "duration_seconds": 0.138,
+      "duration_seconds": 0.104,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
-      "duration_seconds": 111.307,
+      "duration_seconds": 119.488,
       "outcome": "success",
       "exit_code": 0
     }
