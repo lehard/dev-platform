@@ -18,6 +18,12 @@ Platform-controlled write-capable delegation is platform-contained only with a v
 
 Native Claude Code subagents execute in place in the assigned task worktree, not through `isolation: worktree`. The invariant that governs a delegation is containment, not the specific child-worktree mechanism. The supervisor records the integration pre-snapshot, refuses to start a detection-only child while the integration checkout is already dirty, and runs the required post-check after the child returns. No containment path stashes, resets, cleans, or deletes integration state.
 
+## Standard profile: parent-only routing in a standalone clone
+
+The `standard` workflow profile has no linked worktree -- the supervisor's own isolated project clone is both the assigned task checkout and the integration copy. `prepare` detects this (task checkout resolves to the same path as `main_root()`) and records the route with `topology: "standalone-clone"` instead of requiring a distinct registered `git worktree`. This is what lets routing preflight run at all for `standard` (there is nothing else for it to point at); the record still truthfully identifies parent-only execution.
+
+That exception never extends to a write-capable child: `dispatch-codex`, `dispatch-claude`, `run-codex`, `codex-argv` and `claude-agent` all refuse to launch on a `standalone-clone` route, because there is no distinct worktree to prove a containment boundary against. A `standard`-profile task keeps `routine`/`standard` work on the supervisor itself; only `multi-agent`'s linked worktrees can host an actual delegated child writer.
+
 ## Execution provenance
 
 The routing record is also the bounded execution-provenance record; there is no separate tracing/observability system. `prepare` records a `supervisor` field for the strong parent; once a child actually launches (never merely prepared), the execution record gains a `participant` object with role, provider, profile, model, reasoning effort and a bounded execution identifier.
