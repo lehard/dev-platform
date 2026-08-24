@@ -3,7 +3,7 @@
 - [x] Add an exact pinned DSH dependency/configuration and an opt-in disabled-by-default experimental backend/profile.
 - [x] Keep all DSH/Cordis-specific types, session/plugin concepts and compatibility logic inside the adapter layer.
 - [x] Map assigned workspace and containment requirements into the DSH run; fail closed when write containment cannot be proven.
-- [ ] Map bounded terminal result, cancellation/cleanup, timing and available DSH usage evidence; after #68 reaches `main`, consume its canonical runtime-neutral provenance without creating a competing schema.
+- [x] Map bounded terminal result, cancellation/cleanup, timing and available DSH usage evidence; after #68 reaches `main`, consume its canonical runtime-neutral provenance without creating a competing schema.
 - [x] Add keyless contract tests with controlled fixtures for start/result, failure, cancellation/cleanup, missing capability/version and partial/unknown usage.
 - [x] Add a safe host-level real DSH smoke path that does not rely on nested Codex-in-Codex execution from an active writer.
 - [x] Verify that current native Codex/Claude routing remains the default and that managed downstream projects are not switched by installing the adapter.

@@ -203,16 +203,19 @@ EFFICIENCY_MIN_BASELINE_EXECUTIONS = 15
 EFFICIENCY_MIN_PERCENTILE_OBSERVATIONS = 5
 
 
-def _unknown_measurement() -> dict[str, Any]:
+def efficiency_unknown_measurement() -> dict[str, Any]:
+    """Return the canonical representation of unavailable runtime evidence."""
     return {"value": None, "source": SOURCE_UNKNOWN, "status": "unknown"}
 
 
-def _runtime_measurement(value: int) -> dict[str, Any]:
+def efficiency_runtime_measurement(value: int) -> dict[str, Any]:
+    """Return one canonical runtime-confirmed efficiency measurement."""
     return {"value": value, "source": SOURCE_RUNTIME_CONFIRMED, "status": "measured"}
 
 
-def _unknown_usage() -> dict[str, dict[str, Any]]:
-    return {field: _unknown_measurement() for field in EFFICIENCY_USAGE_FIELDS}
+def efficiency_unknown_usage() -> dict[str, dict[str, Any]]:
+    """Return all canonical usage fields as unknown, never fabricated zeroes."""
+    return {field: efficiency_unknown_measurement() for field in EFFICIENCY_USAGE_FIELDS}
 
 
 def _platform_timestamp() -> str:
@@ -220,7 +223,8 @@ def _platform_timestamp() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _efficiency_timing(started_at: str, elapsed_ms: int) -> dict[str, Any]:
+def efficiency_timing(started_at: str, elapsed_ms: int) -> dict[str, Any]:
+    """Return canonical platform-owned execution timing evidence."""
     return {
         "started_at": started_at,
         "ended_at": _platform_timestamp(),
@@ -452,12 +456,12 @@ def _codex_usage_evidence(usage_events: list[dict[str, int]], turn_count: int) -
     is an independently countable structured runtime event, so its count is
     safe to record when present.
     """
-    usage = _unknown_usage()
+    usage = efficiency_unknown_usage()
     if turn_count:
-        usage["request_count"] = _runtime_measurement(turn_count)
+        usage["request_count"] = efficiency_runtime_measurement(turn_count)
     if len(usage_events) == 1:
         for field, value in usage_events[0].items():
-            usage[field] = _runtime_measurement(value)
+            usage[field] = efficiency_runtime_measurement(value)
     return usage
 
 
@@ -522,7 +526,7 @@ def run_codex(route: Route, prompt: str, codex_bin: str | None = None) -> dict[s
         "violation": result.violation,
         "writer_state": getattr(result, "writer_state", "released"),
         "efficiency": {
-            "timing": _efficiency_timing(started_at, elapsed_ms),
+            "timing": efficiency_timing(started_at, elapsed_ms),
             "usage": _codex_usage_evidence(usage_events, int(captured["turn_count"] or 0)),
         },
     }
@@ -747,7 +751,7 @@ def _measurement_from_execution(execution: dict[str, Any], field: str) -> dict[s
         value = timing.get("elapsed_ms")
         if isinstance(value, int) and not isinstance(value, bool) and value >= 0 and timing.get("status") == "measured":
             return {"value": value, "source": timing.get("source", "unknown"), "status": "measured"}
-        return _unknown_measurement()
+        return efficiency_unknown_measurement()
     usage = efficiency.get("usage")
     if not isinstance(usage, dict):
         return None

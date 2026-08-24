@@ -110,12 +110,17 @@ with the exact capability diagnostic instead of fabricating success.
 
 ## Evidence dependency and non-goals
 
-The adapter extracts DSH-provided disjoint fresh-input, cache-read/cache-write,
-output and reasoning token samples only where present; missing or sparse fields
-remain unknown/partial rather than zero. The canonical runtime-neutral evidence
-schema is owned by `lehard/development-backlog#68`. This adapter must consume
-that schema after it reaches `main`, not establish a competing provenance
-format.
+The adapter emits the canonical runtime-neutral `execution.efficiency` shape
+delivered by `lehard/development-backlog#68` / `lehard/dev-platform#312`. Its
+platform timing uses the shared measured timing helper, and every usage field
+uses the shared `{value, source, status}` vocabulary. DSH `inputTokens` maps to
+disjoint `fresh_input_tokens`, `cacheReadTokens` to `cache_read_tokens`,
+`outputTokens` to `output_tokens`, and counted root assistant-message events to
+`request_count`. A token field is measured only when every counted request
+contains a valid value; partial or malformed evidence stays `unknown`, never
+zero. `input_tokens` and `total_tokens` remain unknown because the pinned DSH
+surface does not expose those exact aggregate identities. No second DSH-local
+usage schema is retained.
 
 This change does not authorize comparative evaluation, automatic runtime
 selection, a production switch, Agent Teams, skill migration, or removal of

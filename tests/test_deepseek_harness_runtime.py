@@ -142,13 +142,17 @@ class DeepSeekHarnessUsageTests(unittest.TestCase):
                 },
             ]
         )
-        self.assertEqual(usage["status"], "available")
-        self.assertEqual(usage["model_requests"]["value"], 2)
-        self.assertEqual(usage["measurements"]["fresh_input_tokens"]["value"], 12)
-        self.assertEqual(usage["measurements"]["cache_read_tokens"]["value"], 24)
-        self.assertEqual(usage["measurements"]["output_tokens"]["value"], 7)
-        self.assertEqual(usage["measurements"]["reasoning_tokens"]["status"], "partial")
-        self.assertNotIn("value", usage["measurements"]["reasoning_tokens"])
+        self.assertEqual(
+            set(usage),
+            {"input_tokens", "cache_read_tokens", "fresh_input_tokens", "output_tokens", "total_tokens", "request_count"},
+        )
+        self.assertEqual(usage["request_count"]["value"], 2)
+        self.assertEqual(usage["fresh_input_tokens"]["value"], 12)
+        self.assertEqual(usage["cache_read_tokens"]["value"], 24)
+        self.assertEqual(usage["output_tokens"]["value"], 7)
+        self.assertEqual(usage["input_tokens"]["status"], "unknown")
+        self.assertEqual(usage["total_tokens"]["status"], "unknown")
+        self.assertTrue(all(measurement["source"] in {"runtime-confirmed", "unknown"} for measurement in usage.values()))
 
     def test_partial_and_unknown_usage_never_become_zero(self) -> None:
         partial = dsh.normalize_usage(
@@ -158,11 +162,9 @@ class DeepSeekHarnessUsageTests(unittest.TestCase):
             ]
         )
         unknown = dsh.normalize_usage([])
-        self.assertEqual(partial["status"], "partial")
-        self.assertEqual(partial["measurements"]["output_tokens"]["observed_value"], 4)
-        self.assertNotIn("value", partial["measurements"]["output_tokens"])
-        self.assertEqual(unknown["status"], "unknown")
-        self.assertEqual(unknown["measurements"], {})
+        self.assertEqual(partial["request_count"]["value"], 2)
+        self.assertEqual(partial["output_tokens"], {"value": None, "source": "unknown", "status": "unknown"})
+        self.assertTrue(all(measurement["status"] == "unknown" for measurement in unknown.values()))
 
     def test_invalid_boolean_or_negative_usage_is_not_accepted_as_a_count(self) -> None:
         usage = dsh.normalize_usage(
@@ -173,8 +175,9 @@ class DeepSeekHarnessUsageTests(unittest.TestCase):
                 }
             ]
         )
-        self.assertEqual(usage["status"], "available")
-        self.assertEqual(usage["measurements"], {})
+        self.assertEqual(usage["request_count"]["value"], 1)
+        self.assertEqual(usage["fresh_input_tokens"]["status"], "unknown")
+        self.assertEqual(usage["output_tokens"]["status"], "unknown")
 
 
 class DeepSeekHarnessHandleTests(unittest.TestCase):
@@ -243,6 +246,12 @@ class DeepSeekHarnessHandleTests(unittest.TestCase):
         self.assertEqual(result["terminal"]["status"], "cancelled")
         self.assertEqual(result["cleanup"]["status"], "clean")
         self.assertTrue(result["cleanup"]["process_group_reaped"])
+        efficiency = result["execution"]["efficiency"]
+        self.assertEqual(efficiency["timing"]["source"], "platform")
+        self.assertEqual(efficiency["timing"]["status"], "measured")
+        self.assertTrue(all(measurement["status"] == "unknown" for measurement in efficiency["usage"].values()))
+        self.assertNotIn("timing", result)
+        self.assertNotIn("usage", result)
 
     def test_workspace_write_refuses_before_worker_launch(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

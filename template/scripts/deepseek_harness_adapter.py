@@ -30,6 +30,11 @@ from typing import Any
 
 from _platform_common import current_worktree_root, main_root, read_platform_config
 from delegation_containment import check_containment, snapshot
+from model_routing import (
+    efficiency_runtime_measurement,
+    efficiency_timing,
+    efficiency_unknown_usage,
+)
 
 BACKEND = "deepseek-harness"
 SDK_DISTRIBUTION = "deepseek-harness-sdk"
@@ -38,11 +43,8 @@ PINNED_SDK_VERSION = "0.1.1rc1"
 PINNED_LICENSE = "MIT"
 SUPPORTED_PROFILE = "observation"
 WRITE_PROFILE = "workspace-write"
-SOURCE_RUNTIME_CONFIRMED = "runtime-confirmed"
-SOURCE_PLATFORM_MEASURED = "platform-measured"
 SOURCE_PLATFORM_SELECTED = "platform-selected"
 SOURCE_INSTALLED_PACKAGE = "installed-package"
-SOURCE_UNKNOWN = "unknown"
 
 ASSET_ROOT = Path(__file__).resolve().parents[1]
 OBSERVATION_CONFIG = ASSET_ROOT / "dev-platform" / "deepseek-harness-observation.cordis.yml"
@@ -267,66 +269,31 @@ def _resolved_workspace(workspace: Path, session_root: Path) -> tuple[Path, Path
     return resolved_workspace, resolved_sessions
 
 
-def _measurement(value: int, observed: int, total: int) -> dict[str, Any]:
-    if observed == total:
-        return {"status": "available", "value": value, "source": SOURCE_RUNTIME_CONFIRMED}
-    return {
-        "status": "partial",
-        "observed_value": value,
-        "observed_requests": observed,
-        "total_requests": total,
-        "source": SOURCE_RUNTIME_CONFIRMED,
-    }
-
-
 def normalize_usage(events: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
-    """Normalize authoritative DSH assistant-message usage without fabricating zeros."""
-    samples: list[Mapping[str, Any]] = []
-    request_count = 0
-    for event in events:
-        if event.get("type") != "assistant/message":
-            continue
-        request_count += 1
-        data = event.get("data")
-        usage = data.get("usage") if isinstance(data, dict) else None
-        if isinstance(usage, dict):
-            samples.append(usage)
-
+    """Map complete DSH samples into the canonical runtime-neutral usage schema."""
+    requests = [event for event in events if event.get("type") == "assistant/message"]
+    usage_evidence = efficiency_unknown_usage()
+    if not requests:
+        return usage_evidence
+    usage_evidence["request_count"] = efficiency_runtime_measurement(len(requests))
     fields = {
         "inputTokens": "fresh_input_tokens",
         "cacheReadTokens": "cache_read_tokens",
-        "cacheWriteTokens": "cache_write_tokens",
         "outputTokens": "output_tokens",
-        "reasoningTokens": "reasoning_tokens",
     }
-    measurements: dict[str, Any] = {}
     for source_name, target_name in fields.items():
-        values = [
-            sample[source_name]
-            for sample in samples
-            if type(sample.get(source_name)) is int and sample[source_name] >= 0
-        ]
-        if values:
-            measurements[target_name] = _measurement(sum(values), len(values), request_count)
-
-    if request_count == 0:
-        return {
-            "status": "unknown",
-            "source": SOURCE_UNKNOWN,
-            "model_requests": {"status": "unknown", "source": SOURCE_UNKNOWN},
-            "measurements": {},
-        }
-    return {
-        "status": "available" if len(samples) == request_count else "partial",
-        "source": SOURCE_RUNTIME_CONFIRMED if samples else SOURCE_UNKNOWN,
-        "model_requests": {
-            "status": "available",
-            "value": request_count,
-            "source": SOURCE_RUNTIME_CONFIRMED,
-        },
-        "usage_samples": len(samples),
-        "measurements": measurements,
-    }
+        values: list[int] = []
+        for event in requests:
+            data = event.get("data")
+            sample = data.get("usage") if isinstance(data, dict) else None
+            value = sample.get(source_name) if isinstance(sample, dict) else None
+            if type(value) is not int or value < 0:
+                values = []
+                break
+            values.append(value)
+        if len(values) == len(requests):
+            usage_evidence[target_name] = efficiency_runtime_measurement(sum(values))
+    return usage_evidence
 
 
 def _base_result(started_at: str, started_monotonic: float, *, status: str, reason: str) -> dict[str, Any]:
@@ -339,11 +306,14 @@ def _base_result(started_at: str, started_monotonic: float, *, status: str, reas
             "version": PINNED_SDK_VERSION,
             "source": SOURCE_INSTALLED_PACKAGE,
         },
-        "timing": {
-            "started_at": started_at,
-            "ended_at": _utc_now(),
-            "elapsed_ms": max(0, round((time.monotonic() - started_monotonic) * 1000)),
-            "source": SOURCE_PLATFORM_MEASURED,
+        "execution": {
+            "efficiency": {
+                "timing": efficiency_timing(
+                    started_at,
+                    max(0, round((time.monotonic() - started_monotonic) * 1000)),
+                ),
+                "usage": efficiency_unknown_usage(),
+            },
         },
         "terminal": {"status": status, "reason": reason},
         "containment": {
@@ -441,11 +411,6 @@ class RuntimeHandle:
             status="timed-out" if reason == "timeout" else "cancelled",
             reason=reason,
         )
-        result["usage"] = {
-            "status": "unknown",
-            "source": SOURCE_UNKNOWN,
-            "measurements": {},
-        }
         result["cleanup"] = {
             "status": "clean" if group_reaped else "unproven",
             "method": "process-group-term-kill-reap",
@@ -549,23 +514,24 @@ def _worker_result(request: Mapping[str, Any]) -> dict[str, Any]:
             status=terminal_status,
             reason=run_result.finish_reason or "unknown",
         )
-        result["execution"] = {
-            "id": run_result.session_id,
-            "kind": "dsh-session",
-            "source": SOURCE_PLATFORM_SELECTED,
-        }
+        result["execution"].update(
+            {
+                "id": run_result.session_id,
+                "kind": "runtime-execution",
+                "source": SOURCE_PLATFORM_SELECTED,
+            }
+        )
         response = run_result.final_response
         result["result"] = {
             "text": response[:16000],
             "truncated": len(response) > 16000,
         }
-        result["usage"] = normalize_usage(run_result.events)
+        result["execution"]["efficiency"]["usage"] = normalize_usage(run_result.events)
         result["cleanup"] = {"status": "clean", "method": "sdk-context-close"}
         return result
     except Exception as exc:  # noqa: BLE001 - worker boundary must return a bounded terminal failure
         result = _base_result(started_at, started_monotonic, status="failed", reason=type(exc).__name__)
         result["diagnostic"] = _sanitize_diagnostic(str(exc))
-        result["usage"] = {"status": "unknown", "source": SOURCE_UNKNOWN, "measurements": {}}
         result["cleanup"] = {"status": "attempted", "method": "sdk-worker-finalization"}
         return result
 

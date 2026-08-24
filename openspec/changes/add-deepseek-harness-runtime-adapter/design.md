@@ -84,9 +84,23 @@ or a separately proven platform containment wrapper.
 
 ## Relationship to execution-efficiency evidence
 
-`lehard/development-backlog#68` is still in progress at implementation
-preflight.  The adapter may implement and test DSH-local extraction of
-authoritative usage samples now, but it must consume the canonical
-runtime-neutral evidence schema from that change after the dependency reaches
-`main`; it must not create a competing schema.  Comparative pilots and runtime
-selection remain blocked regardless of adapter capability.
+`lehard/development-backlog#68` reached `main` in `lehard/dev-platform#312`
+before this change entered final verification.  Its canonical representation
+is `execution.efficiency`: platform-owned timing carries
+`started_at`/`ended_at`/`elapsed_ms` with `source: platform` and
+`status: measured`, while every runtime usage field is a
+`{value, source, status}` measurement over the fixed runtime-neutral field set.
+
+The adapter reuses that vocabulary and helper implementation from
+`model_routing.py`; it does not retain its earlier DSH-local partial/status
+shape.  DSH `inputTokens` is the runtime's disjoint fresh-input count,
+`cacheReadTokens` maps to cache-read, `outputTokens` maps to output, and one
+root `assistant/message` event is one countable model request.  A token field is
+measured only when every counted request supplies a non-negative integer for
+that field; partial/malformed samples remain canonical `unknown`.  Canonical
+`input_tokens` and `total_tokens` remain unknown because the pinned supported
+surface does not expose those exact aggregate identities.  Cancellation and
+failure records still carry platform timing with unknown usage.
+
+Comparative pilots and runtime selection remain blocked regardless of adapter
+capability.
