@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -14,7 +15,7 @@ TEMPLATE_SCRIPTS = ROOT / "template" / "scripts"
 sys.path.insert(0, str(TEMPLATE_SCRIPTS))
 SPEC = importlib.util.spec_from_file_location(
     "deepseek_harness_runtime_under_test",
-    TEMPLATE_SCRIPTS / "deepseek_harness_runtime.py",
+    TEMPLATE_SCRIPTS / "deepseek_harness_adapter.py",
 )
 assert SPEC and SPEC.loader
 dsh = importlib.util.module_from_spec(SPEC)
@@ -278,6 +279,41 @@ class DeepSeekHarnessHandleTests(unittest.TestCase):
 
 
 class DeepSeekHarnessDistributionTests(unittest.TestCase):
+    def test_adapter_entrypoint_does_not_shadow_upstream_runtime_carrier(self) -> None:
+        probe = textwrap.dedent(
+            f"""\
+            import importlib.util
+            import sys
+            from pathlib import Path
+
+            path = Path({str(TEMPLATE_SCRIPTS / 'deepseek_harness_adapter.py')!r})
+            spec = importlib.util.spec_from_file_location("adapter_shadow_probe", path)
+            module = importlib.util.module_from_spec(spec)
+            sys.modules[spec.name] = module
+            spec.loader.exec_module(module)
+            print(module._resolve_bundled_runtime())
+            """
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            fake_package = Path(temporary) / "deepseek_harness_runtime"
+            fake_package.mkdir()
+            (fake_package / "__init__.py").write_text(
+                "def resolve_bundled_launch_args():\n    return ('/fake-bundled-runtime',)\n",
+                encoding="utf-8",
+            )
+            env = os.environ.copy()
+            env["PYTHONPATH"] = os.pathsep.join((str(TEMPLATE_SCRIPTS), temporary))
+            result = subprocess.run(
+                [sys.executable, "-c", probe],
+                cwd=ROOT,
+                env=env,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("/fake-bundled-runtime", result.stdout)
+
     def test_dependency_profile_and_config_are_exact_and_disabled(self) -> None:
         requirements = (ROOT / "template" / "requirements" / "deepseek-harness.txt").read_text(encoding="utf-8")
         central_config = (ROOT / ".dev-platform.toml").read_text(encoding="utf-8")
@@ -309,7 +345,7 @@ class DeepSeekHarnessDistributionTests(unittest.TestCase):
 
     def test_source_entrypoint_reports_current_host_capability_as_json(self) -> None:
         result = subprocess.run(
-            [sys.executable, str(ROOT / "scripts" / "deepseek_harness_runtime.py"), "capability"],
+            [sys.executable, str(ROOT / "scripts" / "deepseek_harness_adapter.py"), "capability"],
             cwd=ROOT,
             text=True,
             capture_output=True,

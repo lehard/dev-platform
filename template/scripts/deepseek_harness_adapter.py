@@ -110,6 +110,8 @@ def _installed_version(distribution: str) -> str | None:
 
 
 def _resolve_bundled_runtime() -> tuple[str, ...]:
+    # Keep this adapter's module name distinct from the upstream
+    # ``deepseek_harness_runtime`` carrier imported here and by the SDK.
     from deepseek_harness_runtime import resolve_bundled_launch_args
 
     return tuple(str(part) for part in resolve_bundled_launch_args())

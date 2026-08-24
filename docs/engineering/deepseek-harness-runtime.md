@@ -43,7 +43,7 @@ Existing projects that predate the section use the same disabled defaults.
 Inspect capability without enabling a run:
 
 ```bash
-python3 scripts/deepseek_harness_runtime.py capability
+python3 scripts/deepseek_harness_adapter.py capability
 ```
 
 For a temporary experiment, create a dedicated virtual environment and install
@@ -56,7 +56,7 @@ local configuration enablement), an assigned workspace, and a session directory
 inside that workspace:
 
 ```bash
-python3 scripts/deepseek_harness_runtime.py run \
+python3 scripts/deepseek_harness_adapter.py run \
   --enable-experimental \
   --workspace /absolute/assigned/worktree \
   --session-root /absolute/assigned/worktree/.claude/dsh-sessions \
@@ -79,7 +79,7 @@ friction/calibration. DSH session logs remain adapter-local runtime evidence;
 they are not another task database or completion authority.
 
 DSH/Cordis types and event names are confined to
-`scripts/deepseek_harness_runtime.py` and the private Cordis profile. No
+`scripts/deepseek_harness_adapter.py` and the private Cordis profile. No
 task-intake, routing-policy, verification, publication or rollout public type
 depends on them.
 
@@ -102,7 +102,7 @@ group, proves workspace-write refusal, and compares the protected integration
 checkout before/after:
 
 ```bash
-python3 scripts/deepseek_harness_runtime.py smoke --enable-experimental
+python3 scripts/deepseek_harness_adapter.py smoke --enable-experimental
 ```
 
 If the pinned wheel is unavailable on the host, the smoke returns `blocked`
