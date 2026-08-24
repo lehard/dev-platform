@@ -197,8 +197,19 @@ EFFICIENCY_USAGE_FIELDS = (
     "fresh_input_tokens",
     "output_tokens",
     "total_tokens",
-    "request_count",
+    # This field is deliberately distinct from a runtime-local turn, message,
+    # or step count.  An adapter may only populate it when its published event
+    # contract proves that one counted event is exactly one model request.
+    "model_request_count",
 )
+# Records created before decision-quality comparability used ``request_count``
+# for several incompatible runtime events.  Keep it readable as historical
+# evidence, but never present it as a canonical cross-runtime metric again.
+LEGACY_AMBIGUOUS_USAGE_FIELDS = ("request_count",)
+# Platform-owned elapsed time has one measurement boundary across runtimes. A
+# canonical model-request count joins it only if an adapter later proves the
+# event identity. Token accounting remains provider/runtime-generation local.
+CROSS_RUNTIME_EFFICIENCY_FIELDS = ("elapsed_ms", "model_request_count")
 EFFICIENCY_MIN_BASELINE_EXECUTIONS = 15
 EFFICIENCY_MIN_PERCENTILE_OBSERVATIONS = 5
 
@@ -447,22 +458,28 @@ def _codex_usage_from_line(line: str) -> dict[str, int] | None:
     return captured
 
 
-def _codex_usage_evidence(usage_events: list[dict[str, int]], turn_count: int) -> dict[str, dict[str, Any]]:
+def _codex_usage_evidence(usage_events: list[dict[str, int]]) -> dict[str, dict[str, Any]]:
     """Normalize one unambiguous structured Codex completion observation.
 
     Multiple completion payloads may be incremental or cumulative depending on
     a future runtime contract.  We therefore leave token values unknown rather
-    than summing or selecting one without an explicit identity.  `turn.started`
-    is an independently countable structured runtime event, so its count is
-    safe to record when present.
+    than summing or selecting one without an explicit identity.  A Codex
+    `turn.started` event is useful local evidence, but its published contract
+    does not prove one event equals one model request, so it is stored outside
+    this canonical usage shape by ``_codex_runtime_counters``.
     """
     usage = efficiency_unknown_usage()
-    if turn_count:
-        usage["request_count"] = efficiency_runtime_measurement(turn_count)
     if len(usage_events) == 1:
         for field, value in usage_events[0].items():
             usage[field] = efficiency_runtime_measurement(value)
     return usage
+
+
+def _codex_runtime_counters(turn_count: int) -> dict[str, dict[str, Any]]:
+    """Keep countable Codex events without promoting them to model requests."""
+    if not turn_count:
+        return {}
+    return {"codex_turn_started": efficiency_runtime_measurement(turn_count)}
 
 
 def run_codex(route: Route, prompt: str, codex_bin: str | None = None) -> dict[str, Any]:
@@ -527,7 +544,8 @@ def run_codex(route: Route, prompt: str, codex_bin: str | None = None) -> dict[s
         "writer_state": getattr(result, "writer_state", "released"),
         "efficiency": {
             "timing": efficiency_timing(started_at, elapsed_ms),
-            "usage": _codex_usage_evidence(usage_events, int(captured["turn_count"] or 0)),
+            "usage": _codex_usage_evidence(usage_events),
+            "runtime_counters": _codex_runtime_counters(int(captured["turn_count"] or 0)),
         },
     }
     if abnormal_error is not None:
@@ -773,13 +791,31 @@ def _summary(values: list[int], missing: int, unknown: int) -> dict[str, Any]:
     return summary
 
 
+def _verification_roots(root: Path, record: dict[str, Any]) -> list[Path]:
+    """Find lifecycle-owned locations that can outlive a task worktree."""
+    roots: list[Path] = []
+    integration_root = record.get("integration_root")
+    if isinstance(integration_root, str) and integration_root:
+        candidate = Path(integration_root).expanduser()
+        if candidate.is_dir():
+            roots.append(candidate.resolve())
+    try:
+        roots.append(main_root().resolve())
+    except Exception:  # pragma: no cover - reporting stays useful outside Git
+        pass
+    roots.append(root.resolve())
+    return list(dict.fromkeys(roots))
+
+
 def _verification_outcome(root: Path, record: dict[str, Any]) -> str:
     """Read the existing OpenSpec receipt; never create another status field."""
     change = record.get("change")
     if not isinstance(change, str) or not change:
         return "missing"
-    candidates = [root / "openspec" / "changes" / change / "verification.md"]
-    candidates.extend(sorted((root / "openspec" / "changes" / "archive").glob(f"*-{change}/verification.md")))
+    candidates: list[Path] = []
+    for lifecycle_root in _verification_roots(root, record):
+        candidates.append(lifecycle_root / "openspec" / "changes" / change / "verification.md")
+        candidates.extend(sorted((lifecycle_root / "openspec" / "changes" / "archive").glob(f"*-{change}/verification.md")))
     for receipt in candidates:
         try:
             lines = {line.strip() for line in receipt.read_text(encoding="utf-8").splitlines()}
@@ -787,6 +823,75 @@ def _verification_outcome(root: Path, record: dict[str, Any]) -> str:
             continue
         return "passed" if "OpenSpec-Verify: PASS" in lines else "recorded_without_pass"
     return "missing"
+
+
+def _summarize_measurements(executions: list[dict[str, Any]], field: str) -> dict[str, Any]:
+    values: list[int] = []
+    missing = 0
+    unknown = 0
+    for execution in executions:
+        measurement = _measurement_from_execution(execution, field)
+        if measurement is None:
+            missing += 1
+            continue
+        value = measurement.get("value")
+        if measurement.get("status") == "measured" and isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+            values.append(value)
+        else:
+            unknown += 1
+    return _summary(values, missing, unknown)
+
+
+def _runtime_counter_summaries(executions: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """Summarize each runtime-local counter independently, never together."""
+    names: set[str] = set()
+    for execution in executions:
+        efficiency = execution.get("efficiency")
+        counters = efficiency.get("runtime_counters") if isinstance(efficiency, dict) else None
+        if isinstance(counters, dict):
+            names.update(name for name in counters if isinstance(name, str))
+    summaries: dict[str, dict[str, Any]] = {}
+    for name in sorted(names):
+        values: list[int] = []
+        missing = 0
+        unknown = 0
+        for execution in executions:
+            efficiency = execution.get("efficiency")
+            counters = efficiency.get("runtime_counters") if isinstance(efficiency, dict) else None
+            measurement = counters.get(name) if isinstance(counters, dict) else None
+            if not isinstance(measurement, dict):
+                missing += 1
+                continue
+            value = measurement.get("value")
+            if measurement.get("status") == "measured" and isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+                values.append(value)
+            else:
+                unknown += 1
+        summaries[name] = _summary(values, missing, unknown)
+    return summaries
+
+
+def _runtime_identity(record: dict[str, Any]) -> str:
+    """Keep provider/runtime-generation local metrics out of cross-runtime sums."""
+    provider = record.get("provider")
+    model = record.get("executor_model")
+    if isinstance(provider, str) and provider and isinstance(model, str) and model:
+        return f"{provider}:{model}"
+    if isinstance(provider, str) and provider:
+        return provider
+    return "unknown"
+
+
+def _runtime_local_metric_summaries(records: list[dict[str, Any]]) -> dict[str, dict[str, dict[str, Any]]]:
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for record in records:
+        execution = record.get("execution")
+        if isinstance(execution, dict):
+            grouped.setdefault(_runtime_identity(record), []).append(execution)
+    return {
+        identity: {field: _summarize_measurements(executions, field) for field in EFFICIENCY_USAGE_FIELDS if field != "model_request_count"}
+        for identity, executions in sorted(grouped.items())
+    }
 
 
 def efficiency_baseline(root: Path) -> dict[str, Any]:
@@ -797,56 +902,59 @@ def efficiency_baseline(root: Path) -> dict[str, Any]:
     records remain observations with missing efficiency fields.
     """
     records = _local_routing_records(root)
-    launched = [record.get("execution") for record in records if isinstance(record.get("execution"), dict) and record["execution"].get("launched")]
-    executions = [execution for execution in launched if isinstance(execution, dict)]
-    metrics: dict[str, dict[str, Any]] = {}
-    for field in ("elapsed_ms", *EFFICIENCY_USAGE_FIELDS):
-        values: list[int] = []
-        missing = 0
-        unknown = 0
-        for execution in executions:
-            measurement = _measurement_from_execution(execution, field)
-            if measurement is None:
-                missing += 1
-                continue
-            value = measurement.get("value")
-            if measurement.get("status") == "measured" and isinstance(value, int) and not isinstance(value, bool) and value >= 0:
-                values.append(value)
-            else:
-                unknown += 1
-        metrics[field] = _summary(values, missing, unknown)
+    launched_records = [record for record in records if isinstance(record.get("execution"), dict) and record["execution"].get("launched")]
+    executions = [record["execution"] for record in launched_records if isinstance(record.get("execution"), dict)]
+    verification_by_record = [(record, _verification_outcome(root, record)) for record in records]
+    verified_records = [record for record, outcome in verification_by_record if outcome == "passed" and isinstance(record.get("execution"), dict) and record["execution"].get("launched")]
+    verified_executions = [record["execution"] for record in verified_records if isinstance(record.get("execution"), dict)]
+    metrics = {field: _summarize_measurements(executions, field) for field in CROSS_RUNTIME_EFFICIENCY_FIELDS}
+    comparable_coverage = {field: _summarize_measurements(verified_executions, field) for field in CROSS_RUNTIME_EFFICIENCY_FIELDS}
     outcomes: dict[str, int] = {}
     for execution in executions:
         outcome = execution.get("outcome")
         label = outcome if isinstance(outcome, str) and outcome else "unknown"
         outcomes[label] = outcomes.get(label, 0) + 1
     verification: dict[str, int] = {}
-    for record in records:
-        label = _verification_outcome(root, record)
+    for _record, label in verification_by_record:
         verification[label] = verification.get(label, 0) + 1
     escalated = sum(1 for record in records if isinstance(record.get("escalations"), list) and record["escalations"])
-    sufficient = len(executions) >= EFFICIENCY_MIN_BASELINE_EXECUTIONS
+    qualified_comparable_fields = [
+        field for field, coverage in comparable_coverage.items() if coverage["measured"] >= EFFICIENCY_MIN_BASELINE_EXECUTIONS
+    ]
+    enough_verified = len(verified_executions) >= EFFICIENCY_MIN_BASELINE_EXECUTIONS
+    sufficient = enough_verified and bool(qualified_comparable_fields)
+    if not enough_verified:
+        detail = "Collect roughly 15–30 verified managed executions before drawing an efficiency conclusion; launched-only, missing, and unknown evidence are not zero."
+    elif not qualified_comparable_fields:
+        detail = "The verified sample meets the count guideline but has no comparable metric measured across that eligible sample."
+    else:
+        detail = "Verified sample meets the initial decision-quality guideline; compare only the listed qualified canonical fields."
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "generated_at": utc_now(),
         "scope": "local routing/execution provenance",
         "observations": {
             "routing_records": len(records),
             "launched_executions": len(executions),
+            "verified_eligible_executions": len(verified_executions),
+            "missing_verification_executions": len(executions) - len(verified_executions),
             "historical_or_unlaunched_records": len(records) - len(executions),
             "escalated_routes": escalated,
             "outcomes": outcomes,
             "verification": verification,
         },
         "metrics": metrics,
+        "verified_comparable_metric_coverage": comparable_coverage,
+        "qualified_comparable_fields": qualified_comparable_fields,
+        "runtime_local_metrics": _runtime_local_metric_summaries(launched_records),
+        "runtime_local_counters": _runtime_counter_summaries(executions),
+        "legacy_ambiguous_counters": {
+            field: _summarize_measurements(executions, field) for field in LEGACY_AMBIGUOUS_USAGE_FIELDS
+        },
         "evidence": {
             "status": "sufficient" if sufficient else "insufficient",
             "minimum_decision_quality_executions": EFFICIENCY_MIN_BASELINE_EXECUTIONS,
-            "detail": (
-                "Local sample meets the initial execution-count guideline; compare only compatible populated fields."
-                if sufficient
-                else "Collect roughly 15–30 verified managed executions before drawing an efficiency conclusion; missing and unknown measurements are not zero."
-            ),
+            "detail": detail,
         },
     }
 

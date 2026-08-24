@@ -238,7 +238,8 @@ class ModelRoutingTests(unittest.TestCase):
         self.assertEqual(usage["cache_read_tokens"]["value"], 80)
         self.assertEqual(usage["output_tokens"]["value"], 30)
         self.assertEqual(usage["total_tokens"]["value"], 150)
-        self.assertEqual(usage["request_count"]["value"], 1)
+        self.assertEqual(usage["model_request_count"]["status"], "unknown")
+        self.assertEqual(execution["efficiency"]["runtime_counters"]["codex_turn_started"]["value"], 1)
         self.assertEqual(usage["fresh_input_tokens"]["status"], "unknown")
 
     def test_run_codex_keeps_partial_usage_unknown_without_deriving_values(self) -> None:
@@ -334,11 +335,84 @@ class ModelRoutingTests(unittest.TestCase):
         self.assertEqual(report["evidence"]["status"], "insufficient")
         self.assertEqual(report["observations"]["routing_records"], 2)
         self.assertEqual(report["observations"]["launched_executions"], 2)
+        self.assertEqual(report["observations"]["verified_eligible_executions"], 1)
+        self.assertEqual(report["observations"]["missing_verification_executions"], 1)
         self.assertEqual(report["observations"]["escalated_routes"], 1)
         self.assertEqual(report["observations"]["verification"], {"missing": 1, "passed": 1})
         self.assertEqual(report["metrics"]["elapsed_ms"], {"measured": 1, "unknown": 0, "missing": 1, "median": 42})
-        self.assertEqual(report["metrics"]["output_tokens"], {"measured": 1, "unknown": 0, "missing": 1, "median": 7})
-        self.assertEqual(report["metrics"]["input_tokens"], {"measured": 0, "unknown": 0, "missing": 2})
+        self.assertEqual(report["metrics"]["model_request_count"], {"measured": 0, "unknown": 0, "missing": 2})
+        self.assertEqual(report["runtime_local_metrics"]["unknown"]["output_tokens"], {"measured": 1, "unknown": 0, "missing": 1, "median": 7})
+        self.assertEqual(report["runtime_local_metrics"]["unknown"]["input_tokens"], {"measured": 0, "unknown": 0, "missing": 2})
+
+    def test_efficiency_baseline_requires_verified_eligible_executions(self) -> None:
+        records = [
+            {
+                "change": "eligible-sample",
+                "execution": {
+                    "launched": True,
+                    "outcome": "completed",
+                    "efficiency": {"timing": {"elapsed_ms": 40 + index, "source": "platform", "status": "measured"}},
+                },
+            }
+            for index in range(routing.EFFICIENCY_MIN_BASELINE_EXECUTIONS)
+        ]
+        with patch.object(routing, "_local_routing_records", return_value=records):
+            unverified = routing.efficiency_baseline(self.task)
+            receipt = self.task / "openspec" / "changes" / "eligible-sample" / "verification.md"
+            receipt.parent.mkdir(parents=True)
+            receipt.write_text("OpenSpec-Verify: PASS\nVerification-Method: equivalent-review\n", encoding="utf-8")
+            verified = routing.efficiency_baseline(self.task)
+
+        self.assertEqual(unverified["evidence"]["status"], "insufficient")
+        self.assertEqual(unverified["observations"]["launched_executions"], 15)
+        self.assertEqual(unverified["observations"]["verified_eligible_executions"], 0)
+        self.assertEqual(unverified["observations"]["missing_verification_executions"], 15)
+        self.assertEqual(verified["evidence"]["status"], "sufficient")
+        self.assertEqual(verified["observations"]["verified_eligible_executions"], 15)
+        self.assertEqual(verified["qualified_comparable_fields"], ["elapsed_ms"])
+
+    def test_efficiency_baseline_separates_legacy_and_runtime_local_counters(self) -> None:
+        legacy = {
+            "change": "legacy",
+            "execution": {
+                "launched": True,
+                "efficiency": {"usage": {"request_count": {"value": 2, "source": "runtime-confirmed", "status": "measured"}}},
+            },
+        }
+        current = {
+            "change": "current",
+            "execution": {
+                "launched": True,
+                "efficiency": {
+                    "usage": {"model_request_count": {"value": None, "source": "unknown", "status": "unknown"}},
+                    "runtime_counters": {"codex_turn_started": {"value": 3, "source": "runtime-confirmed", "status": "measured"}},
+                },
+            },
+        }
+        with patch.object(routing, "_local_routing_records", return_value=[legacy, current]):
+            report = routing.efficiency_baseline(self.task)
+
+        self.assertNotIn("request_count", report["metrics"])
+        self.assertEqual(report["legacy_ambiguous_counters"]["request_count"]["measured"], 1)
+        self.assertEqual(report["runtime_local_counters"]["codex_turn_started"], {"measured": 1, "unknown": 0, "missing": 1, "median": 3})
+
+    def test_efficiency_baseline_uses_durable_integration_receipt(self) -> None:
+        record = {
+            "change": "durable-receipt",
+            "integration_root": str(self.integration),
+            "execution": {
+                "launched": True,
+                "efficiency": {"timing": {"elapsed_ms": 7, "source": "platform", "status": "measured"}},
+            },
+        }
+        receipt = self.integration / "openspec" / "changes" / "archive" / "2026-08-24-durable-receipt" / "verification.md"
+        receipt.parent.mkdir(parents=True)
+        receipt.write_text("OpenSpec-Verify: PASS\nVerification-Method: equivalent-review\n", encoding="utf-8")
+        with patch.object(routing, "_local_routing_records", return_value=[record]):
+            report = routing.efficiency_baseline(self.task)
+
+        self.assertEqual(report["observations"]["verification"], {"passed": 1})
+        self.assertEqual(report["observations"]["verified_eligible_executions"], 1)
 
     def test_escalation_preserves_task_context_and_uses_strong_policy(self) -> None:
         self.prepare()
