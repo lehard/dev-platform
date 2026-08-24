@@ -216,23 +216,62 @@ def issue_bodies(root: Path, repository: str, number: int) -> list[str]:
     return [str(issue.get("body") or "")] + [str(comment.get("body") or "") for comment in comments]
 
 
-def issue_revision_evidence(issue: dict[str, Any]) -> dict[str, str]:
-    """Bounded, machine-comparable evidence of an Issue's revision.
+def normalized_issue_body(body: object) -> str:
+    """Remove only deterministic platform-owned authoring receipt material.
 
-    Deliberately keyed off title+body content (``body_sha256``), never ``updated_at``
-    alone: GitHub bumps an Issue's ``updated_at`` whenever a comment is posted to it --
-    including the platform's own package/supersede comment -- so an ``updated_at``-based
-    comparison would make every already-published task look drifted the moment its own
-    package comment posted.
+    The receipt is appended to an Issue body by managed-task authoring.  It
+    identifies an idempotent authoring attempt, rather than user-selected task
+    scope, so it must not by itself make the authored package look stale.  Trim
+    its now-trailing whitespace as well: authoring adds blank lines around the
+    receipt, while GitHub's body representation can preserve or normalize its
+    final newline.
     """
+    return AUTHORING_RECEIPT_RE.sub("", str(body or "")).rstrip()
+
+
+def _issue_revision_evidence(issue: dict[str, Any], body: str) -> dict[str, str]:
     updated_at = issue.get("updated_at")
     if not isinstance(updated_at, str) or not updated_at:
         raise ManagedTaskError("GitHub issue payload is missing updated_at")
     digest = hashlib.sha256()
-    for value in (str(issue.get("title") or ""), str(issue.get("body") or "")):
+    for value in (str(issue.get("title") or ""), body):
         digest.update(value.encode())
         digest.update(bytes([0]))
     return {"updated_at": updated_at, "body_sha256": digest.hexdigest()}
+
+
+def issue_revision_evidence(issue: dict[str, Any]) -> dict[str, str]:
+    """Bounded, machine-comparable evidence of an Issue's revision.
+
+    Deliberately keyed off title plus normalized body content (``body_sha256``),
+    never ``updated_at`` alone: GitHub bumps an Issue's ``updated_at`` whenever a
+    comment is posted to it -- including the platform's own package/supersede
+    comment.  The deterministic authoring receipt in the Issue body is also
+    excluded because it is platform metadata, not user scope.
+    """
+    return _issue_revision_evidence(issue, normalized_issue_body(issue.get("body")))
+
+
+def legacy_issue_revision_evidence(issue: dict[str, Any]) -> dict[str, str]:
+    """Return the pre-receipt-normalization v1 revision evidence.
+
+    v1 packages did not record which normalization rule produced their
+    ``body_sha256``.  Accepting this bounded legacy comparison preserves start
+    compatibility for packages published before receipt normalization, while
+    new packages always record the normalized form above.
+    """
+    return _issue_revision_evidence(issue, str(issue.get("body") or ""))
+
+
+def source_issue_revision_matches(recorded_hash: str, current_issue: dict[str, Any]) -> tuple[dict[str, str], bool]:
+    """Compare new normalized evidence while honoring historical v1 packages."""
+    current = issue_revision_evidence(current_issue)
+    if current["body_sha256"] == recorded_hash:
+        return current, True
+    legacy = legacy_issue_revision_evidence(current_issue)
+    if legacy["body_sha256"] == recorded_hash:
+        return legacy, True
+    return current, False
 
 
 def safe_artifact(value: str) -> str:
@@ -1363,14 +1402,16 @@ def observe_source_issue_drift(root: Path) -> dict[str, Any] | None:
         return {"source_issue": provenance.source_issue, "evidence_available": False}
     try:
         issue_repository, number = issue_ref(provenance.source_issue)
-        current = issue_revision_evidence(fetch_issue(root, issue_repository, number))
+        current, matches_recorded = source_issue_revision_matches(
+            evidence["body_sha256"], fetch_issue(root, issue_repository, number)
+        )
     except ManagedTaskError as exc:
         return {"source_issue": provenance.source_issue, "evidence_available": True, "checked": False, "detail": str(exc)}
     return {
         "source_issue": provenance.source_issue,
         "evidence_available": True,
         "checked": True,
-        "drifted": current["body_sha256"] != evidence["body_sha256"],
+        "drifted": not matches_recorded,
         "recorded_body_sha256": evidence["body_sha256"],
         "current_body_sha256": current["body_sha256"],
         "current_updated_at": current["updated_at"],
@@ -1399,9 +1440,11 @@ def require_no_unacknowledged_source_issue_drift(
     if package.source_issue_evidence is None:
         return
     issue_repository, number = issue_ref(reference)
-    current = issue_revision_evidence(fetch_issue(root, issue_repository, number))
+    current, matches_recorded = source_issue_revision_matches(
+        package.source_issue_evidence["body_sha256"], fetch_issue(root, issue_repository, number)
+    )
     recorded_hash = package.source_issue_evidence["body_sha256"]
-    if current["body_sha256"] == recorded_hash or acknowledge_source_issue_revision == current["body_sha256"]:
+    if matches_recorded or acknowledge_source_issue_revision == current["body_sha256"]:
         return
     raise ManagedTaskError(
         f"source Issue {package.source_issue} changed since package authoring "

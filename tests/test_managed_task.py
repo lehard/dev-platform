@@ -1033,13 +1033,19 @@ class ManagedPackageTests(unittest.TestCase):
         with_supersedes = managed_task.parse_package([package_body(supersedes="c" * 64)], "lehard/development-backlog#1")
         self.assertNotEqual(baseline.revision, with_supersedes.revision)
 
-    def test_issue_revision_evidence_hashes_title_and_body_deterministically(self) -> None:
+    def test_issue_revision_evidence_normalizes_authoring_receipt_but_detects_title_and_body_edits(self) -> None:
         issue = {"updated_at": "2026-01-01T00:00:00Z", "title": "Same title", "body": "Same body"}
         first = managed_task.issue_revision_evidence(issue)
         second = managed_task.issue_revision_evidence(dict(issue, updated_at="2026-06-01T00:00:00Z"))
         self.assertEqual(first["body_sha256"], second["body_sha256"])
-        changed = managed_task.issue_revision_evidence(dict(issue, body="Different body"))
-        self.assertNotEqual(first["body_sha256"], changed["body_sha256"])
+        after_authoring_receipt = managed_task.issue_revision_evidence(
+            dict(issue, body=issue["body"] + "\n\n<!-- managed-task:authoring:" + "a" * 64 + " -->\n")
+        )
+        self.assertEqual(first["body_sha256"], after_authoring_receipt["body_sha256"])
+        changed_body = managed_task.issue_revision_evidence(dict(issue, body="Different body"))
+        changed_title = managed_task.issue_revision_evidence(dict(issue, title="Different title"))
+        self.assertNotEqual(first["body_sha256"], changed_body["body_sha256"])
+        self.assertNotEqual(first["body_sha256"], changed_title["body_sha256"])
 
     def test_issue_revision_evidence_requires_updated_at(self) -> None:
         with self.assertRaisesRegex(managed_task.ManagedTaskError, "missing updated_at"):
@@ -1067,6 +1073,95 @@ class ManagedPackageTests(unittest.TestCase):
             fetch.assert_called_once_with(root, "lehard/development-backlog", 11)
             self.assertEqual(package.source_issue_evidence, managed_task.issue_revision_evidence(fresh_issue))
 
+    def test_legacy_package_evidence_still_accepts_an_unchanged_authoring_receipt(self) -> None:
+        issue = {
+            "updated_at": "2026-02-01T00:00:00Z",
+            "title": "[R2] Existing managed task",
+            "body": "Scope before receipt\n\n<!-- managed-task:authoring:" + "a" * 64 + " -->\n",
+        }
+        legacy = managed_task.legacy_issue_revision_evidence(issue)
+        package = managed_task.parse_package(
+            [package_body(source_issue_evidence=legacy)], "lehard/development-backlog#1"
+        )
+        with tempfile.TemporaryDirectory() as tmp, patch.object(managed_task, "fetch_issue", return_value=issue):
+            managed_task.require_no_unacknowledged_source_issue_drift(
+                Path(tmp), package.source_issue, package, acknowledge_source_issue_revision=None
+            )
+
+    def test_newly_authored_task_starts_after_authoring_receipt_without_acknowledgement(self) -> None:
+        """Exercise authoring through first materialization across receipt mutation."""
+        schema = {
+            "artifactPaths": {
+                "proposal": {"outputPath": "proposal.md"},
+                "specs": {"outputPath": "specs/**/*.md"},
+                "design": {"outputPath": "design.md"},
+                "tasks": {"outputPath": "tasks.md"},
+            }
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "integration"
+            task_root = Path(tmp) / "task"
+            root.mkdir()
+            task_root.mkdir()
+            authoring_config(root)
+            bundle_root = root / "bundle"
+            bundle = authoring_bundle(bundle_root)
+            pre_receipt = {
+                "updated_at": "2026-02-01T00:00:00Z",
+                "title": "[R2] " + bundle.title,
+                "body": "Managed scope before the platform receipt.",
+            }
+            post_receipt = dict(
+                pre_receipt,
+                updated_at="2026-02-01T00:00:01Z",
+                body=pre_receipt["body"] + "\n\n<!-- managed-task:authoring:" + "a" * 64 + " -->\n",
+            )
+            started = start_managed_task.StartedTask(
+                profile="standard", branch="agent/author-managed-task", task_root=task_root
+            )
+
+            with (
+                patch.object(managed_task, "origin_repository", return_value="lehard/dev-platform"),
+                patch.object(managed_task, "target_main", return_value="f" * 40),
+                patch.object(managed_task, "validate_backlog_labels"),
+                patch.object(managed_task, "validate_authoring_bundle"),
+                patch.object(managed_task, "open_backlog_issues", return_value=[]),
+                patch.object(managed_task, "create_issue", return_value=11),
+                patch.object(managed_task, "fetch_issue", return_value=pre_receipt),
+                patch.object(managed_task, "publish_package", return_value=False),
+            ):
+                package, _, _ = managed_task.create_task(root, str(bundle_root), None, False)
+
+            def create_change(command: list[str], cwd: Path, env=None):
+                self.assertEqual(command[:3], ["openspec", "new", "change"])
+                self.assertEqual(cwd, task_root)
+                (cwd / "openspec" / "changes" / package.change).mkdir(parents=True)
+                return {"change": {"id": package.change}}
+
+            with (
+                patch.object(
+                    managed_task,
+                    "issue_bodies",
+                    return_value=[post_receipt["body"], managed_task.serialize_package(package)],
+                ),
+                patch.object(managed_task, "origin_repository", return_value="lehard/dev-platform"),
+                patch.object(managed_task, "target_main", return_value="f" * 40),
+                patch.object(managed_task, "fetch_issue", return_value=post_receipt),
+                patch.object(managed_task.shutil, "which", return_value="/usr/bin/openspec"),
+                patch.object(managed_task, "run_json", side_effect=create_change),
+                patch.object(managed_task, "openspec_status", return_value=schema),
+                patch.object(managed_task, "validate_change"),
+                patch.object(start_managed_task, "read_platform_config", return_value={"workflow_profile": "standard"}),
+                patch.object(start_managed_task, "start_task", return_value=started),
+                patch.object(start_managed_task, "admit_task", return_value={"decision": "RUN", "claims": []}),
+                patch.object(start_managed_task, "reconcile", return_value=SimpleNamespace(changed=True)),
+            ):
+                actual_started, _, reused = start_managed_task.start_managed_task(root, package.source_issue)
+
+            self.assertEqual(actual_started, started)
+            self.assertFalse(reused)
+            self.assertTrue((task_root / "openspec" / "changes" / package.change / ".managed-task.json").is_file())
+
     def test_discover_task_skips_drift_check_for_legacy_packages_without_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -1080,8 +1175,9 @@ class ManagedPackageTests(unittest.TestCase):
             fetch.assert_not_called()
 
     def test_import_blocks_on_drift_and_unblocks_with_matching_acknowledge_value(self) -> None:
-        recorded = {"updated_at": "2026-01-01T00:00:00Z", "body_sha256": "a" * 64}
-        current_issue = {"updated_at": "2026-06-01T00:00:00Z", "title": "changed", "body": "changed body"}
+        authored_issue = {"updated_at": "2026-01-01T00:00:00Z", "title": "original title", "body": "original scope"}
+        recorded = managed_task.issue_revision_evidence(authored_issue)
+        current_issue = {"updated_at": "2026-06-01T00:00:00Z", "title": "changed title", "body": "changed body"}
         current_hash = managed_task.issue_revision_evidence(current_issue)["body_sha256"]
         self.assertNotEqual(current_hash, recorded["body_sha256"])
         with tempfile.TemporaryDirectory() as tmp:

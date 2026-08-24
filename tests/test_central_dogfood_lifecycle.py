@@ -94,6 +94,43 @@ class CentralDogfoodLifecycleTests(unittest.TestCase):
             ],
         )
 
+    def test_status_json_delegates_to_the_supported_machine_readable_child_command(self) -> None:
+        args = dogfood_task.argparse.Namespace(json=True)
+        with mock.patch.object(dogfood_task, "current_root", return_value=self.root), mock.patch.object(dogfood_task, "run") as run:
+            self.assertEqual(dogfood_task.status(args), 0)
+        self.assertEqual(run.call_args.args[0], ["python3", "scripts/finish_task.py", "--status", "--json"])
+
+    def test_status_json_recovery_instruction_is_executable_and_returns_drift_hashes(self) -> None:
+        recorded = "a" * 64
+        current = "b" * 64
+        payload = json.dumps(
+            {
+                "source_issue_drift": {
+                    "source_issue": "lehard/development-backlog#2",
+                    "recorded_body_sha256": recorded,
+                    "current_body_sha256": current,
+                }
+            }
+        )
+        (self.root / "scripts" / "finish_task.py").write_text(
+            "import sys\n"
+            "if sys.argv[1:] != ['--status', '--json']:\n"
+            "    raise SystemExit('expected --status --json')\n"
+            f"print({payload!r})\n",
+            encoding="utf-8",
+        )
+        result = subprocess.run(
+            [sys.executable, str(SOURCE), "status", "--json"],
+            cwd=self.root,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        drift = json.loads(result.stdout)["source_issue_drift"]
+        self.assertEqual(drift["recorded_body_sha256"], recorded)
+        self.assertEqual(drift["current_body_sha256"], current)
+
     def test_reconcile_delegates_to_the_explicit_shared_lifecycle_operation(self) -> None:
         with mock.patch.object(dogfood_task, "current_root", return_value=self.root), mock.patch.object(dogfood_task, "run") as run:
             self.assertEqual(dogfood_task.reconcile(dogfood_task.argparse.Namespace()), 0)
