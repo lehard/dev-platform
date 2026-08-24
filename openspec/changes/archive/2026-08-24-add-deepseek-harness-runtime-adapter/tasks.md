@@ -9,4 +9,4 @@
 - [x] Verify that current native Codex/Claude routing remains the default and that managed downstream projects are not switched by installing the adapter.
 - [x] Document exact-version update procedure and compatibility gates; do not enable automatic upstream promotion.
 - [x] Verify that no DSH-specific public type/state leaks into task-intake, OpenSpec, routing policy, verification, publication or rollout contracts.
-- [ ] Perform semantic OpenSpec verification and relevant platform validation/regression checks.
+- [x] Perform semantic OpenSpec verification and relevant platform validation/regression checks.
