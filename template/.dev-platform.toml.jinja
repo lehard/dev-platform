@@ -45,6 +45,14 @@ routine_model = "haiku"
 standard_model = "sonnet"
 complex_model = "opus"
 
+# Optional developer-preview backend. Merely rendering this configuration does
+# not install or select DeepSeek Harness; the separate adapter entrypoint still
+# requires an explicit opt-in for every experimental run.
+[experimental_runtime.deepseek_harness]
+enabled = false
+sdk_version = "0.1.1rc1"
+profile = "observation"
+
 [promotion]
 repo = "lehard/dev-platform"
 

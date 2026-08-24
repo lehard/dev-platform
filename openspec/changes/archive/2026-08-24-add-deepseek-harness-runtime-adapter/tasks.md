@@ -1,0 +1,12 @@
+- [x] Re-check the current DeepSeek Harness developer-preview version, license, package/distribution and supported headless/SDK/CLI integration surfaces at implementation time.
+- [x] Define the smallest Dev Platform runtime-adapter interface needed for experimental execution without changing task/OpenSpec/verification/publication semantics.
+- [x] Add an exact pinned DSH dependency/configuration and an opt-in disabled-by-default experimental backend/profile.
+- [x] Keep all DSH/Cordis-specific types, session/plugin concepts and compatibility logic inside the adapter layer.
+- [x] Map assigned workspace and containment requirements into the DSH run; fail closed when write containment cannot be proven.
+- [x] Map bounded terminal result, cancellation/cleanup, timing and available DSH usage evidence; after #68 reaches `main`, consume its canonical runtime-neutral provenance without creating a competing schema.
+- [x] Add keyless contract tests with controlled fixtures for start/result, failure, cancellation/cleanup, missing capability/version and partial/unknown usage.
+- [x] Add a safe host-level real DSH smoke path that does not rely on nested Codex-in-Codex execution from an active writer.
+- [x] Verify that current native Codex/Claude routing remains the default and that managed downstream projects are not switched by installing the adapter.
+- [x] Document exact-version update procedure and compatibility gates; do not enable automatic upstream promotion.
+- [x] Verify that no DSH-specific public type/state leaks into task-intake, OpenSpec, routing policy, verification, publication or rollout contracts.
+- [x] Perform semantic OpenSpec verification and relevant platform validation/regression checks.

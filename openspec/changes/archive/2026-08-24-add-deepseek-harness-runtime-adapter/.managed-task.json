@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/agent-runtime/spec.md"
+  ],
+  "change": "add-deepseek-harness-runtime-adapter",
+  "imported_at": "2026-08-24T11:16:48+00:00",
+  "package_revision": "d9c89418962c93fbaad8aca41c1690ad63b6f6ac3d93cbbfc91ac52f90944f4b",
+  "prepared_against": "d2f4d533cd9092e868c1f2e19bad8345d7a9c08d",
+  "routing_receipt": {
+    "assurance": "high",
+    "effort_hint": "high",
+    "recommended_start_tier": "R3",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": "novel_cross_system",
+    "task_family": "runtime-integration"
+  },
+  "source_issue": "lehard/development-backlog#69",
+  "source_issue_evidence": {
+    "body_sha256": "eebd8f9d09b975f12eb3eceee040e026a106d7b013a758108847e859eede4ec8",
+    "updated_at": "2026-08-24T11:03:03Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

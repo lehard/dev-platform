@@ -57,6 +57,11 @@ routine_model = "haiku"
 standard_model = "sonnet"
 complex_model = "opus"
 
+[experimental_runtime.deepseek_harness]
+enabled = false
+sdk_version = "0.1.1rc1"
+profile = "observation"
+
 [promotion]
 repo = "lehard/dev-platform"
 

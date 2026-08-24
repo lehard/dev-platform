@@ -1,0 +1,43 @@
+# Dev Platform-owned observation-only composition for the optional pinned
+# DeepSeek Harness Python SDK runtime. Keep DSH/Cordis vocabulary in this
+# adapter profile; no lifecycle layer consumes this file.
+
+- id: sdk-jsonrpc-server
+  name: '@deepseek-ai/dsh-sdk-jsonrpc-server'
+  config:
+    maxTokensAsSuccess: false
+
+- id: llm-deepseek
+  name: '@deepseek-ai/dsh-llm-deepseek'
+  config:
+    apiKeyEnv: DEEPSEEK_API_KEY
+    models:
+      - id: !!js process.env.DSH_MODEL ?? 'deepseek-v4-flash'
+        contextWindow: !!js Number(process.env.DSH_CONTEXT_WINDOW ?? 1000000)
+
+# This spine deliberately exposes no filesystem, shell, subprocess, subagent,
+# MCP, skills, goals, workflow, or other write-capable model tool. The first
+# adapter iteration can therefore prove transport/result/usage/cancellation
+# without pretending the Python SDK exposes sandbox enforcement attestation.
+- id: agent-spine
+  name: '@deepseek-ai/dsh-agent-spine-demo'
+  config:
+    agents: []
+    includeHarnessIdentity: false
+    includeRuntimeContext: false
+    persona: !!js process.env.DSH_SYSTEM_PROMPT ?? 'Return a concise answer without using tools.'
+    workspaceContext: false
+    skills:
+      enabled: false
+    toolBash: false
+    toolJobs: false
+    goals: false
+
+- id: sessions
+  name: '@deepseek-ai/dsh-session-persistence-jsonl'
+  config:
+    root: !!js process.env.DSH_SESSION_ROOT
+    compression: none
+
+- id: session-checkpoints
+  name: '@deepseek-ai/dsh-session-checkpoint-policy'
