@@ -1,0 +1,10 @@
+- [x] Reproduce the current false `sufficient` case with launched-but-unverified fixtures.
+- [x] Define the smallest backward-compatible verified/eligible observation contract.
+- [x] Make baseline sufficiency depend on verified managed executions and expose missing-verification coverage.
+- [x] Audit Codex and DSH counter events and define which, if any, can truthfully populate a canonical model-request counter.
+- [x] Preserve incompatible/runtime-local counters without presenting them as cross-runtime comparable.
+- [x] Keep historical records readable without treating missing/legacy fields as zero or upgraded semantics.
+- [x] Make verification receipt resolution work from durable integration provenance after task-worktree cleanup.
+- [x] Update runtime/baseline documentation with comparable-vs-local metric semantics.
+- [x] Add regression tests for verified gating, sparse coverage, legacy counters and DSH/native compatibility.
+- [x] Run semantic OpenSpec verification and relevant platform regression checks.

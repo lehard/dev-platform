@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/model-routing/spec.md"
+  ],
+  "change": "tighten-execution-baseline-comparability",
+  "imported_at": "2026-08-24T17:07:52+00:00",
+  "package_revision": "a326a6d98be909f52c039c37401fff6650e04d254de84826a7d7dbbbf0d3b3e5",
+  "prepared_against": "5e63614b18e24433dddbef51a992e2b7eae319d1",
+  "routing_receipt": {
+    "assurance": "high",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "execution-observability"
+  },
+  "source_issue": "lehard/development-backlog#70",
+  "source_issue_evidence": {
+    "body_sha256": "6fa2a7e9928fb58f9a3a57581538f988b18972fa79c746f0e3e2e18e43127aa7",
+    "updated_at": "2026-08-24T16:58:25Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

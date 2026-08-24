@@ -144,9 +144,16 @@ class DeepSeekHarnessUsageTests(unittest.TestCase):
         )
         self.assertEqual(
             set(usage),
-            {"input_tokens", "cache_read_tokens", "fresh_input_tokens", "output_tokens", "total_tokens", "request_count"},
+            {"input_tokens", "cache_read_tokens", "fresh_input_tokens", "output_tokens", "total_tokens", "model_request_count"},
         )
-        self.assertEqual(usage["request_count"]["value"], 2)
+        self.assertEqual(usage["model_request_count"]["status"], "unknown")
+        counters = dsh.normalize_runtime_counters(
+            [
+                {"type": "assistant/message", "data": {}},
+                {"type": "assistant/message", "data": {}},
+            ]
+        )
+        self.assertEqual(counters["deepseek_harness_assistant_message"]["value"], 2)
         self.assertEqual(usage["fresh_input_tokens"]["value"], 12)
         self.assertEqual(usage["cache_read_tokens"]["value"], 24)
         self.assertEqual(usage["output_tokens"]["value"], 7)
@@ -162,7 +169,15 @@ class DeepSeekHarnessUsageTests(unittest.TestCase):
             ]
         )
         unknown = dsh.normalize_usage([])
-        self.assertEqual(partial["request_count"]["value"], 2)
+        self.assertEqual(
+            dsh.normalize_runtime_counters(
+                [
+                    {"type": "assistant/message", "data": {}},
+                    {"type": "assistant/message", "data": {}},
+                ]
+            )["deepseek_harness_assistant_message"]["value"],
+            2,
+        )
         self.assertEqual(partial["output_tokens"], {"value": None, "source": "unknown", "status": "unknown"})
         self.assertTrue(all(measurement["status"] == "unknown" for measurement in unknown.values()))
 
@@ -175,7 +190,10 @@ class DeepSeekHarnessUsageTests(unittest.TestCase):
                 }
             ]
         )
-        self.assertEqual(usage["request_count"]["value"], 1)
+        self.assertEqual(
+            dsh.normalize_runtime_counters([{"type": "assistant/message", "data": {}}])["deepseek_harness_assistant_message"]["value"],
+            1,
+        )
         self.assertEqual(usage["fresh_input_tokens"]["status"], "unknown")
         self.assertEqual(usage["output_tokens"]["status"], "unknown")
 
