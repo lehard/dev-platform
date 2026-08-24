@@ -102,6 +102,7 @@ targets = [
   "test_agentic_workflows",
   "test_central_dogfood_lifecycle",
   "test_ci_trigger_compatibility",
+  "test_deepseek_harness_runtime",
   "test_delegation_containment",
   "test_dev_entrypoint",
   "test_direct_main_health",
