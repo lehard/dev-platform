@@ -82,6 +82,13 @@ class AgenticWorkflowTests(unittest.TestCase):
             self.assertIn(tool, text)
         self.assertIn("Do not use `search_repositories`", text)
 
+    def test_triage_safe_output_cli_is_the_only_shell_exception(self) -> None:
+        text = (ROOT / ".github" / "workflows" / "process-issue-triage.md").read_text(encoding="utf-8")
+        self.assertIn("`safeoutputs`\nCLI is the sole shell exception", text)
+        self.assertIn("direct schema-derived\n`safeoutputs` command", text)
+        self.assertIn("do not wrap it in `bash`, `sh`, or a login shell", text)
+        self.assertIn("Do not report that a comment was posted unless that command confirms", text)
+
     def test_weekly_review_requires_freshness_and_preserves_source_issue_read_only_boundary(self) -> None:
         text = (ROOT / ".github" / "workflows" / "weekly-process-backlog-review.md").read_text(encoding="utf-8")
         for value in ("exact current commit SHA", "previous-review boundary", "root cause", "inspect current default-branch"):
