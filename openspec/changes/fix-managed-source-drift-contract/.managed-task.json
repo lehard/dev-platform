@@ -1,0 +1,33 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/managed-task-intake/spec.md",
+    "specs/central-dogfood-lifecycle/spec.md"
+  ],
+  "change": "fix-managed-source-drift-contract",
+  "imported_at": "2026-08-24T17:07:35+00:00",
+  "package_revision": "9407ba015f0792b32cb19dd17682aa0967643859a9f294409e7eb90ef4b23dd5",
+  "prepared_against": "5e63614b18e24433dddbef51a992e2b7eae319d1",
+  "process_evidence": [
+    "lehard/dev-platform#314",
+    "lehard/dev-platform#318"
+  ],
+  "routing_receipt": {
+    "assurance": "high",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "managed-lifecycle"
+  },
+  "source_issue": "lehard/development-backlog#71",
+  "source_issue_evidence": {
+    "body_sha256": "a0f96009fc5e20779101339f945b4fb1f57dc1b4ba2f1ae3905cc5cd0a0f569f",
+    "updated_at": "2026-08-24T16:58:35Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

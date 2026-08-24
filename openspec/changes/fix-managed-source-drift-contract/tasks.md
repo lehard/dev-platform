@@ -1,0 +1,8 @@
+- [x] Reproduce #314 against current managed authoring and identify the exact pre/post receipt revision difference.
+- [x] Normalize the deterministic authoring receipt or capture the final post-receipt revision without weakening real scope-drift detection.
+- [x] Add end-to-end create → immediate start regression with no acknowledgement requirement.
+- [x] Add a real human title/body edit regression that still blocks start fail-closed.
+- [x] Make `dogfood_task.py status --json` work or change diagnostics to an exact supported recovery command.
+- [x] Add a wrapper-level regression that executes the emitted JSON recovery instruction and observes recorded/current hashes.
+- [x] Preserve central/template parity and historical package compatibility.
+- [x] Run semantic OpenSpec verification and relevant managed-lifecycle regression checks.

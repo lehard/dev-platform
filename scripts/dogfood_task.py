@@ -144,10 +144,13 @@ def current_root() -> Path:
     return Path(git(Path.cwd(), "rev-parse", "--show-toplevel")).resolve()
 
 
-def status(_: argparse.Namespace) -> int:
+def status(args: argparse.Namespace) -> int:
     root = current_root()
     verify_source_contract(root)
-    run(["python3", "scripts/finish_task.py", "--status"], root)
+    command = ["python3", "scripts/finish_task.py", "--status"]
+    if getattr(args, "json", False):
+        command.append("--json")
+    run(command, root)
     return 0
 
 
@@ -284,6 +287,7 @@ def main() -> int:
     start_parser.add_argument("--change", help="Transfer this already-imported managed OpenSpec package into the new worktree.")
     start_parser.set_defaults(func=lambda args: start(integration_root(Path.cwd()), args))
     status_parser = sub.add_parser("status", help="Read the authoritative publication state without mutation.")
+    status_parser.add_argument("--json", action="store_true", help="Emit the read-only status payload as JSON.")
     status_parser.set_defaults(func=status)
     finish_parser = sub.add_parser("finish", help="Validate, publish/resume, merge, reconcile, and clean up a source task.")
     finish_parser.add_argument("--title")
