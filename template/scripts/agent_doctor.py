@@ -121,7 +121,11 @@ def run_multi_agent_hygiene(integration: Path) -> None:
     else:
         report("ok", "no forgotten dirty/unmerged managed worktrees detected")
     if eligible:
-        report("warn", f"{eligible} old merged worktree(s) are safe cleanup candidates; use scripts/worktree_cleanup.py cleanup")
+        report(
+            "warn",
+            f"{eligible} old merged worktree(s) are safe cleanup candidates; "
+            "preview with scripts/worktree_cleanup.py cleanup --all, then use --all --apply to remove them",
+        )
 
 
 def run_friction_review_status(integration: Path) -> None:

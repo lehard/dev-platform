@@ -1,0 +1,31 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/completion-lifecycle/spec.md"
+  ],
+  "change": "scope-deferred-worktree-cleanup",
+  "imported_at": "2026-08-24T17:56:40+00:00",
+  "package_revision": "0231b13992dd6ae57f0b8168c4ded0e7ee9f52da4045c179f2fd42f3879c4827",
+  "prepared_against": "5e63614b18e24433dddbef51a992e2b7eae319d1",
+  "process_evidence": [
+    "lehard/dev-platform#317"
+  ],
+  "routing_receipt": {
+    "assurance": "high",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "worktree-cleanup"
+  },
+  "source_issue": "lehard/development-backlog#72",
+  "source_issue_evidence": {
+    "body_sha256": "aa3e1e68f640179df06d71beeb302ec7e7ebd668fb574d5dc782ff00be8d6b24",
+    "updated_at": "2026-08-24T16:58:44Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

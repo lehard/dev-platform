@@ -1,0 +1,9 @@
+- [x] Reproduce #317 with multiple deferred records and identify the current global-default call path.
+- [x] Add an exact task/worktree selector for deferred cleanup and make it the normal finish recovery contract.
+- [x] Require explicit `--all` for global cleanup and add a bounded preview/plan.
+- [x] Preserve current identity, process, board, branch/head and cleanliness safety checks for targeted/global modes.
+- [x] Make finish/recovery diagnostics print the exact targeted cleanup command for the current task.
+- [x] Add regressions proving targeted cleanup cannot remove unrelated deferred worktrees.
+- [x] Add stale/mismatched/idempotent recovery tests and explicit global-mode tests.
+- [x] Update central/template workflow documentation consistently.
+- [x] Run semantic OpenSpec verification and relevant lifecycle/containment checks.
