@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -59,14 +60,19 @@ class WorktreeHarnessCase(unittest.TestCase):
         self.managed.mkdir(parents=True)
 
     def tearDown(self) -> None:
+        # finish_task cleanup intentionally changes its own process cwd to the
+        # surviving integration checkout.  Restore a durable location before
+        # removing this temporary repository so later cases never inherit a
+        # deleted cwd.
+        os.chdir(ROOT)
         self.tmp.cleanup()
 
-    def add_worktree(self, slug: str) -> Path:
+    def add_worktree(self, slug: str, *, content: str | None = None) -> Path:
         path = self.managed / slug
         git(self.root, "worktree", "add", "-b", f"agent/{slug}", str(path), "main")
         git(path, "config", "user.name", "Test")
         git(path, "config", "user.email", "test@example.invalid")
-        (path / f"{slug}.txt").write_text(f"{slug}\n", encoding="utf-8")
+        (path / f"{slug}.txt").write_text(f"{content or slug}\n", encoding="utf-8")
         git(path, "add", ".")
         git(path, "commit", "-m", slug)
         return path
@@ -174,8 +180,8 @@ class WorktreeCleanupTests(WorktreeHarnessCase):
 
 
 class DeferredCompletedWorktreeCleanupTests(WorktreeHarnessCase):
-    def _merged_task(self, slug: str) -> Path:
-        worktree = self.add_worktree(slug)
+    def _merged_task(self, slug: str, *, content: str | None = None) -> Path:
+        worktree = self.add_worktree(slug, content=content)
         git(self.root, "merge", "--ff-only", f"agent/{slug}")
         return worktree
 
@@ -184,22 +190,127 @@ class DeferredCompletedWorktreeCleanupTests(WorktreeHarnessCase):
         with mock.patch.dict(finish_task.os.environ, {"PWD": str(worktree)}, clear=False), redirect_stdout(StringIO()) as output:
             finish_task.cleanup_completed_task(worktree, self.root, "agent/caller-cwd", squash_merged=True)
         self.assertIn("deferred cleanup", output.getvalue())
+        self.assertIn("--worktree", output.getvalue())
+        self.assertIn(str(worktree.resolve()), output.getvalue())
+        self.assertIn("--branch agent/caller-cwd", output.getvalue())
+        self.assertIn(git(self.root, "rev-parse", "agent/caller-cwd").stdout.strip(), output.getvalue())
         self.assertTrue(worktree.exists())
         record = worktree_cleanup.deferred_cleanup_path(self.root, worktree_cleanup.read_platform_config(self.root))
         self.assertTrue(record.exists())
+        target = worktree_cleanup.DeferredCleanupTarget.from_entry(
+            worktree_cleanup._read_deferred_cleanup(self.root, worktree_cleanup.read_platform_config(self.root))[0]
+        )
 
         with mock.patch.object(worktree_cleanup, "_active_cwds", return_value={worktree}):
-            blocked = worktree_cleanup.cleanup(self.root, older_than_days=7)
+            blocked = worktree_cleanup.cleanup(self.root, older_than_days=7, target=target)
         self.assertTrue(worktree.exists())
         self.assertIn({"path": str(worktree.resolve()), "error": "active-process"}, blocked["errors"])
 
         with mock.patch.object(worktree_cleanup, "_active_cwds", return_value=set()):
-            recovered = worktree_cleanup.cleanup(self.root, older_than_days=7)
-            repeated = worktree_cleanup.cleanup(self.root, older_than_days=7)
+            recovered = worktree_cleanup.cleanup(self.root, older_than_days=7, target=target)
+            repeated = worktree_cleanup.cleanup(self.root, older_than_days=7, target=target)
         self.assertIn(str(worktree.resolve()), recovered["removed"])
         self.assertFalse(worktree.exists())
         self.assertFalse(record.exists())
         self.assertEqual(repeated["removed"], [])
+        self.assertEqual(repeated["status"], "already-cleaned")
+
+    def test_targeted_cleanup_cannot_remove_another_deferred_worktree(self) -> None:
+        first = self._merged_task("first-deferred")
+        second = self._merged_task("second-deferred")
+        config = worktree_cleanup.read_platform_config(self.root)
+        worktree_cleanup.defer_completed_task(self.root, first, "agent/first-deferred")
+        worktree_cleanup.defer_completed_task(self.root, second, "agent/second-deferred")
+        first_target = worktree_cleanup.DeferredCleanupTarget.from_entry(
+            next(entry for entry in worktree_cleanup._read_deferred_cleanup(self.root, config) if entry["path"] == str(first.resolve()))
+        )
+
+        with mock.patch.object(worktree_cleanup, "_active_cwds", return_value=set()):
+            result = worktree_cleanup.cleanup(self.root, older_than_days=7, target=first_target)
+
+        self.assertEqual(result["removed"], [str(first.resolve())])
+        self.assertFalse(first.exists())
+        self.assertTrue(second.exists())
+        self.assertEqual(
+            worktree_cleanup._read_deferred_cleanup(self.root, config),
+            [
+                {
+                    "path": str(second.resolve()),
+                    "branch": "agent/second-deferred",
+                    "head": git(self.root, "rev-parse", "agent/second-deferred").stdout.strip(),
+                }
+            ],
+        )
+
+        replacement = self._merged_task("first-deferred", content="replacement")
+        worktree_cleanup.defer_completed_task(self.root, replacement, "agent/first-deferred")
+        with mock.patch.object(worktree_cleanup, "_active_cwds", return_value=set()):
+            repeated = worktree_cleanup.cleanup(self.root, older_than_days=7, target=first_target)
+        self.assertEqual(repeated["status"], "already-cleaned")
+        self.assertTrue(replacement.exists())
+
+    def test_global_cleanup_requires_explicit_preview_then_apply(self) -> None:
+        first = self._merged_task("global-first")
+        second = self._merged_task("global-second")
+        worktree_cleanup.defer_completed_task(self.root, first, "agent/global-first")
+        worktree_cleanup.defer_completed_task(self.root, second, "agent/global-second")
+
+        with self.assertRaisesRegex(SystemExit, "exact deferred target or --all"):
+            worktree_cleanup.cleanup(self.root, older_than_days=7)
+        with mock.patch.object(worktree_cleanup, "_active_cwds", return_value=set()):
+            preview = worktree_cleanup.cleanup(self.root, older_than_days=7, all=True)
+        self.assertEqual(preview["status"], "preview")
+        self.assertEqual(preview["candidate_count"], 2)
+        self.assertEqual({item["path"] for item in preview["deferred"]["candidates"]}, {str(first.resolve()), str(second.resolve())})
+        self.assertTrue(first.exists())
+        self.assertTrue(second.exists())
+
+        with mock.patch.object(worktree_cleanup, "_active_cwds", return_value=set()):
+            applied = worktree_cleanup.cleanup(self.root, older_than_days=7, all=True, apply=True)
+        self.assertEqual(set(applied["removed"]), {str(first.resolve()), str(second.resolve())})
+        self.assertFalse(first.exists())
+        self.assertFalse(second.exists())
+
+    def test_mismatched_target_record_fails_closed_without_removal(self) -> None:
+        worktree = self._merged_task("identity-mismatch")
+        config = worktree_cleanup.read_platform_config(self.root)
+        worktree_cleanup.defer_completed_task(self.root, worktree, "agent/identity-mismatch")
+        mismatched = worktree_cleanup._read_deferred_cleanup(self.root, config)
+        mismatched[0]["head"] = "0" * 40
+        worktree_cleanup._write_deferred_cleanup(self.root, config, mismatched)
+        target = worktree_cleanup.DeferredCleanupTarget.from_entry(mismatched[0])
+
+        with mock.patch.object(worktree_cleanup, "_active_cwds", return_value=set()):
+            result = worktree_cleanup.cleanup(self.root, older_than_days=7, target=target)
+
+        self.assertEqual(result["removed"], [])
+        self.assertIn({"path": str(worktree.resolve()), "error": "identity-mismatch"}, result["errors"])
+        self.assertTrue(worktree.exists())
+
+        # A stale deferred record must remain protected from the generic
+        # old-worktree pass even when global cleanup was explicitly requested.
+        # This makes the failure closed rather than silently reclassifying it.
+        with (
+            mock.patch.object(worktree_cleanup, "_active_cwds", return_value=set()),
+            mock.patch.object(worktree_cleanup, "_activity_timestamp", return_value=0),
+        ):
+            global_result = worktree_cleanup.cleanup(self.root, older_than_days=7, all=True, apply=True)
+        self.assertIn({"path": str(worktree.resolve()), "error": "identity-mismatch"}, global_result["errors"])
+        self.assertNotIn(str(worktree.resolve()), global_result["removed"])
+        self.assertTrue(worktree.exists())
+        self.assertEqual(worktree_cleanup._read_deferred_cleanup(self.root, config), mismatched)
+
+    def test_ambiguous_deferred_records_fail_closed(self) -> None:
+        worktree = self._merged_task("ambiguous-record")
+        config = worktree_cleanup.read_platform_config(self.root)
+        worktree_cleanup.defer_completed_task(self.root, worktree, "agent/ambiguous-record")
+        record_path = worktree_cleanup.deferred_cleanup_path(self.root, config)
+        entry = worktree_cleanup._read_deferred_cleanup(self.root, config)[0]
+        record_path.write_text(json.dumps({"version": 1, "entries": [entry, entry]}), encoding="utf-8")
+
+        with self.assertRaisesRegex(SystemExit, "ambiguous duplicate"):
+            worktree_cleanup.cleanup(self.root, older_than_days=7, all=True, apply=True)
+        self.assertTrue(worktree.exists())
 
     def test_cleanup_stays_synchronous_when_the_caller_uses_integration(self) -> None:
         worktree = self._merged_task("safe-caller")

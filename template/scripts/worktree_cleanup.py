@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shlex
 import shutil
 import subprocess
 import time
@@ -13,6 +14,7 @@ from _platform_common import atomic_write_text, machine_path, main_root, read_pl
 
 
 DEFAULT_AGE_DAYS = 7
+MAX_GLOBAL_CLEANUP_CANDIDATES = 50
 PENDING_REASONS = {"dirty", "not-merged"}
 DEFERRED_CLEANUP_VERSION = 1
 
@@ -35,6 +37,22 @@ class Decision:
     reason: str
     age_days: float | None = None
     detail: str | None = None
+
+
+@dataclass(frozen=True)
+class DeferredCleanupTarget:
+    """The immutable Git identity required to recover one deferred worktree."""
+
+    path: str
+    branch: str
+    head: str
+
+    @classmethod
+    def from_entry(cls, entry: dict[str, str]) -> "DeferredCleanupTarget":
+        return cls(path=entry["path"], branch=entry["branch"], head=entry["head"])
+
+    def as_entry(self) -> dict[str, str]:
+        return {"path": self.path, "branch": self.branch, "head": self.head}
 
 
 def _path_within(path: Path, parent: Path) -> bool:
@@ -241,10 +259,15 @@ def _read_deferred_cleanup(root: Path, config: dict) -> list[dict[str, str]]:
     if payload.get("version") != DEFERRED_CLEANUP_VERSION or not isinstance(payload.get("entries"), list):
         raise SystemExit(f"Refusing deferred worktree cleanup because {path} has an unsupported format.")
     entries: list[dict[str, str]] = []
+    paths: set[str] = set()
     for entry in payload["entries"]:
         if not isinstance(entry, dict) or not all(isinstance(entry.get(key), str) and entry[key] for key in ("path", "branch", "head")):
             raise SystemExit(f"Refusing deferred worktree cleanup because {path} contains an invalid entry.")
-        entries.append({key: entry[key] for key in ("path", "branch", "head")})
+        normalized = {key: entry[key] for key in ("path", "branch", "head")}
+        if normalized["path"] in paths:
+            raise SystemExit(f"Refusing deferred worktree cleanup because {path} contains ambiguous duplicate worktree entries.")
+        paths.add(normalized["path"])
+        entries.append(normalized)
     return entries
 
 
@@ -260,7 +283,7 @@ def _write_deferred_cleanup(root: Path, config: dict, entries: Sequence[dict[str
     atomic_write_text(path, json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
 
-def defer_completed_task(root: Path, worktree: Path, branch: str) -> Path:
+def defer_completed_task(root: Path, worktree: Path, branch: str) -> tuple[Path, DeferredCleanupTarget]:
     """Persist one exact, terminally-delivered worktree for later safe cleanup.
 
     This is called only after finish has established remote merge, local main
@@ -280,7 +303,23 @@ def defer_completed_task(root: Path, worktree: Path, branch: str) -> Path:
     retained = [item for item in entries if item["path"] != entry["path"]]
     retained.append(entry)
     _write_deferred_cleanup(root, config, retained)
-    return deferred_cleanup_path(root, config)
+    return deferred_cleanup_path(root, config), DeferredCleanupTarget.from_entry(entry)
+
+
+def targeted_cleanup_command(target: DeferredCleanupTarget) -> str:
+    return shlex.join(
+        [
+            "python3",
+            "scripts/worktree_cleanup.py",
+            "cleanup",
+            "--worktree",
+            target.path,
+            "--branch",
+            target.branch,
+            "--head",
+            target.head,
+        ]
+    )
 
 
 def _deferred_entry_is_safe(
@@ -315,18 +354,70 @@ def _deferred_entry_is_safe(
     return match, None
 
 
-def _cleanup_deferred_completed_tasks(root: Path, config: dict) -> tuple[list[str], list[dict[str, str]]]:
+def _deferred_entry_cleanup_candidate(
+    root: Path,
+    entry: dict[str, str],
+    *,
+    managed_root: Path,
+    active_board: set[Path],
+    active_cwds: set[Path] | None,
+) -> tuple[Worktree | None, str | None]:
+    worktree, unsafe_reason = _deferred_entry_is_safe(
+        root, entry, managed_root=managed_root, active_board=active_board, active_cwds=active_cwds
+    )
+    if unsafe_reason is not None:
+        return None, unsafe_reason
+    current = run_git(["rev-parse", "--verify", f"refs/heads/{entry['branch']}"], cwd=root, check=False)
+    if current.returncode == 0 and current.stdout.strip() != entry["head"]:
+        return None, "branch-identity-mismatch"
+    if worktree is not None and current.returncode != 0:
+        return None, "branch-missing"
+    return worktree, None
+
+
+def _deferred_cleanup_plan(root: Path, config: dict) -> dict[str, list[dict[str, str]]]:
     entries = _read_deferred_cleanup(root, config)
-    if not entries:
-        return [], []
+    managed_root = machine_path("worktrees", root)
+    active_board = _active_board_paths(root, config)
+    active_cwds = _active_cwds()
+    candidates: list[dict[str, str]] = []
+    blocked: list[dict[str, str]] = []
+    for entry in entries:
+        _, unsafe_reason = _deferred_entry_cleanup_candidate(
+            root, entry, managed_root=managed_root, active_board=active_board, active_cwds=active_cwds
+        )
+        if unsafe_reason is None:
+            candidates.append(entry)
+        else:
+            blocked.append({"path": entry["path"], "error": unsafe_reason})
+    return {"candidates": candidates, "blocked": blocked}
+
+
+def _cleanup_deferred_completed_tasks(
+    root: Path,
+    config: dict,
+    *,
+    target: DeferredCleanupTarget | None = None,
+    prune: bool = False,
+) -> tuple[list[str], list[dict[str, str]], bool]:
+    entries = _read_deferred_cleanup(root, config)
+    if target is not None:
+        entries = [entry for entry in entries if entry == target.as_entry()]
+        if not entries:
+            return [], [], False
     managed_root = machine_path("worktrees", root)
     active_board = _active_board_paths(root, config)
     active_cwds = _active_cwds()
     removed: list[str] = []
     errors: list[dict[str, str]] = []
     retained: list[dict[str, str]] = []
-    for entry in entries:
-        worktree, unsafe_reason = _deferred_entry_is_safe(
+    all_entries = _read_deferred_cleanup(root, config)
+    selected_entries = {tuple(sorted(entry.items())) for entry in entries}
+    for entry in all_entries:
+        if tuple(sorted(entry.items())) not in selected_entries:
+            retained.append(entry)
+            continue
+        worktree, unsafe_reason = _deferred_entry_cleanup_candidate(
             root, entry, managed_root=managed_root, active_board=active_board, active_cwds=active_cwds
         )
         if unsafe_reason is not None:
@@ -352,9 +443,9 @@ def _cleanup_deferred_completed_tasks(root: Path, config: dict) -> tuple[list[st
                 continue
         removed.append(entry["path"])
     _write_deferred_cleanup(root, config, retained)
-    if removed:
+    if removed and prune:
         run_git(["worktree", "prune"], cwd=root, check=False)
-    return removed, errors
+    return removed, errors, True
 
 
 def write_pending_report(root: Path, decisions: Sequence[Decision]) -> Path:
@@ -394,15 +485,57 @@ def summary(decisions: Sequence[Decision]) -> dict[str, object]:
     }
 
 
-def cleanup(root: Path, older_than_days: int) -> dict[str, object]:
+def _normalized_target(target: DeferredCleanupTarget) -> DeferredCleanupTarget:
+    raw_path = Path(target.path)
+    if not raw_path.is_absolute():
+        raise SystemExit("Targeted deferred cleanup requires an absolute --worktree path.")
+    return DeferredCleanupTarget(path=str(raw_path.resolve()), branch=target.branch, head=target.head)
+
+
+def global_cleanup_preview(root: Path, older_than_days: int) -> dict[str, object]:
+    config = read_platform_config(root)
+    deferred = _deferred_cleanup_plan(root, config)
+    deferred_paths = {entry["path"] for entry in _read_deferred_cleanup(root, config)}
+    decisions = scan(root, older_than_days)
+    # A deferred record owns its exact path until it is safely removed or
+    # deliberately repaired.  Do not let the generic old-worktree pass
+    # reinterpret a stale or otherwise blocked deferred identity as an
+    # unrelated candidate.
+    ordinary_candidates = [asdict(item) for item in decisions if item.eligible and item.path not in deferred_paths]
+    candidate_count = len(deferred["candidates"]) + len(ordinary_candidates)
+    if candidate_count > MAX_GLOBAL_CLEANUP_CANDIDATES:
+        return {
+            "status": "refused",
+            "scope": "all",
+            "candidate_count": candidate_count,
+            "maximum_candidates": MAX_GLOBAL_CLEANUP_CANDIDATES,
+            "error": "too-many-candidates",
+        }
+    apply_command = ["python3", "scripts/worktree_cleanup.py", "cleanup", "--all", "--apply"]
+    if older_than_days != DEFAULT_AGE_DAYS:
+        apply_command += ["--older-than-days", str(older_than_days)]
+    return {
+        "status": "preview",
+        "scope": "all",
+        "candidate_count": candidate_count,
+        "deferred": deferred,
+        "ordinary_candidates": ordinary_candidates,
+        "apply_command": shlex.join(apply_command),
+    }
+
+
+def _cleanup_all(root: Path, older_than_days: int) -> dict[str, object]:
     removed: list[str] = []
     errors: list[dict[str, str]] = []
     config = read_platform_config(root)
-    deferred_removed, deferred_errors = _cleanup_deferred_completed_tasks(root, config)
+    deferred_removed, deferred_errors, _ = _cleanup_deferred_completed_tasks(root, config, prune=True)
     removed.extend(deferred_removed)
     errors.extend(deferred_errors)
+    protected_deferred_paths = {entry["path"] for entry in _read_deferred_cleanup(root, config)}
     initial = scan(root, older_than_days)
     for candidate in initial:
+        if candidate.path in protected_deferred_paths:
+            continue
         if not candidate.eligible:
             continue
         refreshed = scan(root, older_than_days)
@@ -421,6 +554,7 @@ def cleanup(root: Path, older_than_days: int) -> dict[str, object]:
     report = write_pending_report(root, final)
     return {
         "status": "completed" if not errors else "completed-with-errors",
+        "scope": "all",
         **summary(final),
         "removed": removed,
         "errors": errors,
@@ -428,16 +562,68 @@ def cleanup(root: Path, older_than_days: int) -> dict[str, object]:
     }
 
 
+def _cleanup_target(root: Path, target: DeferredCleanupTarget) -> dict[str, object]:
+    config = read_platform_config(root)
+    target = _normalized_target(target)
+    removed, errors, matched = _cleanup_deferred_completed_tasks(root, config, target=target)
+    return {
+        "status": "completed" if errors else ("already-cleaned" if not matched else "completed"),
+        "scope": "target",
+        "target": target.as_entry(),
+        "matched": matched,
+        "removed": removed,
+        "errors": errors,
+    }
+
+
+def cleanup(
+    root: Path,
+    older_than_days: int,
+    *,
+    target: DeferredCleanupTarget | None = None,
+    all: bool = False,
+    apply: bool = False,
+) -> dict[str, object]:
+    if target is not None and all:
+        raise SystemExit("Choose either one exact deferred target or --all, not both.")
+    if target is not None and apply:
+        raise SystemExit("--apply is only valid with --all.")
+    if target is not None:
+        return _cleanup_target(root, target)
+    if not all:
+        raise SystemExit("Refusing global cleanup without one exact deferred target or --all.")
+    preview = global_cleanup_preview(root, older_than_days)
+    if not apply or preview["status"] == "refused":
+        return preview
+    return _cleanup_all(root, older_than_days)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Safely diagnose and clean platform-managed agent worktrees.")
     sub = parser.add_subparsers(dest="command", required=True)
-    for name in ("scan", "cleanup"):
-        command = sub.add_parser(name)
-        command.add_argument("--older-than-days", type=int, default=DEFAULT_AGE_DAYS)
+    scan_command = sub.add_parser("scan")
+    scan_command.add_argument("--older-than-days", type=int, default=DEFAULT_AGE_DAYS)
+    cleanup_command = sub.add_parser("cleanup")
+    cleanup_command.add_argument("--older-than-days", type=int, default=DEFAULT_AGE_DAYS)
+    cleanup_command.add_argument("--worktree", help="Exact absolute worktree path from finish recovery output.")
+    cleanup_command.add_argument("--branch", help="Exact branch identity from finish recovery output.")
+    cleanup_command.add_argument("--head", help="Exact Git head identity from finish recovery output.")
+    cleanup_command.add_argument("--all", action="store_true", help="Preview all global cleanup candidates.")
+    cleanup_command.add_argument("--apply", action="store_true", help="Apply a previously reviewed --all cleanup plan.")
     args = parser.parse_args()
     root = main_root()
     if args.command == "cleanup":
-        payload = cleanup(root, args.older_than_days)
+        target_values = (args.worktree, args.branch, args.head)
+        if any(target_values) and not all(target_values):
+            parser.error("targeted cleanup requires --worktree, --branch, and --head together")
+        if args.all and any(target_values):
+            parser.error("choose either --all or one exact --worktree/--branch/--head target")
+        if args.apply and not args.all:
+            parser.error("--apply requires --all")
+        if not args.all and not all(target_values):
+            parser.error("cleanup requires one exact --worktree/--branch/--head target or --all")
+        target = DeferredCleanupTarget(*target_values) if all(target_values) else None
+        payload = cleanup(root, args.older_than_days, target=target, all=args.all, apply=args.apply)
     else:
         decisions = scan(root, args.older_than_days)
         report = write_pending_report(root, decisions)

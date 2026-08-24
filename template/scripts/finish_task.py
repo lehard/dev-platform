@@ -43,9 +43,10 @@ from managed_project_status import (
     resume_from_scope_conflict,
 )
 try:
-    from worktree_cleanup import defer_completed_task
+    from worktree_cleanup import defer_completed_task, targeted_cleanup_command
 except ImportError:  # Compatibility while an existing project is being upgraded by Copier.
     defer_completed_task = None
+    targeted_cleanup_command = None
 try:
     from agent_board import HardScopeOverlap, enforce_scope_gate, warn_current_worktree_scope_overlap
 except (ImportError, ModuleNotFoundError):  # Compatibility while older rendered projects are upgraded.
@@ -399,7 +400,7 @@ def cleanup_completed_task(work: Path, integration: Path, branch: str, *, squash
             )
             return
         try:
-            record = defer_completed_task(integration, work, branch)
+            record, target = defer_completed_task(integration, work, branch)
         except (OSError, SystemExit) as exc:
             print(
                 f"WARNING: task is integrated, but cleanup is deferred because the caller cwd is inside {work}; "
@@ -408,7 +409,8 @@ def cleanup_completed_task(work: Path, integration: Path, branch: str, *, squash
             return
         print(
             f"WARNING: task is integrated; deferred cleanup of caller worktree {work} is recorded at {record}. "
-            "Run scripts/worktree_cleanup.py cleanup later from a surviving integration context."
+            "From a surviving integration context, run exactly: "
+            f"{targeted_cleanup_command(target) if targeted_cleanup_command else 'the recorded targeted cleanup command'}."
         )
         return
 
