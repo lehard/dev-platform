@@ -1,0 +1,33 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/completion-lifecycle/spec.md",
+    "specs/openspec-authoring/spec.md"
+  ],
+  "change": "harden-completion-feedback-contract",
+  "imported_at": "2026-08-24T18:33:15+00:00",
+  "package_revision": "f85fd7475e2862061e8531457ea919e6369c07aaf9427dc1ef2d37c020fffa23",
+  "prepared_against": "5e63614b18e24433dddbef51a992e2b7eae319d1",
+  "process_evidence": [
+    "lehard/dev-platform#315",
+    "lehard/dev-platform#316"
+  ],
+  "routing_receipt": {
+    "assurance": "high",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "completion-lifecycle"
+  },
+  "source_issue": "lehard/development-backlog#73",
+  "source_issue_evidence": {
+    "body_sha256": "f4ac87c2500e43bd8d9ca23933d574b819b14a0aedb86ad9885b70d3ba70712e",
+    "updated_at": "2026-08-24T16:58:55Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

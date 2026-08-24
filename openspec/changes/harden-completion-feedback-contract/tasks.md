@@ -1,0 +1,10 @@
+- [x] Reconcile #315 against current central/template OpenSpec workflow and archive preflight implementation.
+- [x] Document the enforced `Automated-Checks-Evidence: automated-checks.json` requirement in the canonical central workflow and preserve template parity.
+- [x] Make archive preflight fail before mutation with an actionable pointer to the canonical requirement.
+- [x] Add parity/regression coverage so central/template verification-receipt contracts cannot silently diverge.
+- [x] Reproduce #316 and identify the smallest existing lifecycle evidence that can drive retrospective review.
+- [x] Require explicit disposition of meaningful start/archive/publication/check failures before allowing `checkpoint --result none`.
+- [x] Preserve already-recorded friction deduplication and clean-task `none` behavior.
+- [x] Add acceptance tests for unresolved, resolved-in-task, already-recorded and clean retrospective cases.
+- [x] Update workflow documentation without introducing per-task ceremony beyond the bounded retrospective.
+- [x] Run semantic OpenSpec verification and relevant OpenSpec/friction/finish regression checks.

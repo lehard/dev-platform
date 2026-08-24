@@ -103,7 +103,10 @@ class OpenSpecLifecycleTests(unittest.TestCase):
             change = self.make_change(
                 Path(tmp), "done", "- [x] one\n", "OpenSpec-Verify: PASS\nVerification-Method: equivalent-review\n"
             )
-            with self.assertRaisesRegex(SystemExit, "Automated-Checks-Evidence"):
+            with self.assertRaisesRegex(
+                SystemExit,
+                "Automated-Checks-Evidence.*docs/engineering/openspec-workflow.md#verify-archive-then-publish",
+            ):
                 lifecycle.require_static_archive_readiness(change, platform_owned=True)
 
     def test_uncommitted_only_state_is_not_an_applicable_archive_diff(self) -> None:
@@ -126,7 +129,10 @@ class OpenSpecLifecycleTests(unittest.TestCase):
                 mock.patch.object(lifecycle, "harness_mode", return_value="platform"),
                 mock.patch.object(lifecycle, "run_checked") as run_checked,
             ):
-                with self.assertRaisesRegex(SystemExit, "Automated-Checks-Evidence"):
+                with self.assertRaisesRegex(
+                    SystemExit,
+                    "Automated-Checks-Evidence.*docs/engineering/openspec-workflow.md#verify-archive-then-publish",
+                ):
                     lifecycle.archive_change(root, "done")
             run_checked.assert_not_called()
             self.assertEqual(stale.read_text(encoding="utf-8"), '{"outcome":"stale"}\n')

@@ -43,6 +43,8 @@ MAX_OPEN_ISSUE_PAGES = 10
 MAX_DUPLICATE_CANDIDATES = 5
 GENERATED_FRICTION_TITLE_PREFIX = "[process-friction] "
 FINGERPRINT_MARKER_RE = re.compile(r"<!-- dev-platform-friction:[a-f0-9]{24} -->")
+LIFECYCLE_FAILURE_PREFIX = "lifecycle-"
+LIFECYCLE_DISPOSITIONS = ("resolved-in-task", "already-recorded")
 ROOT_CAUSE_STOP_WORDS = {
     "about", "after", "agent", "and", "are", "been", "before", "being", "but", "can", "cause", "change",
     "could", "does", "event", "for", "from", "have", "into", "issue", "its", "missing", "new", "not",
@@ -705,14 +707,95 @@ def cmd_reconcile_process_labels(_: argparse.Namespace) -> int:
     return 0
 
 
+def current_lifecycle_failures(branch: str | None = None) -> list[dict]:
+    """Read current-task high-signal lifecycle failures from the existing log.
+
+    Lifecycle helpers already write their bounded failures through ``record``.
+    The retrospective deliberately consumes those records rather than creating
+    a second task-outcome database.  A branch-scoped task field keeps old or
+    unrelated process evidence from adding ceremony to a clean task.
+    """
+    branch = branch or current_branch()
+    return [
+        event
+        for event in read_events(None)
+        if event.get("task") == branch
+        and str(event.get("category", "")).startswith(LIFECYCLE_FAILURE_PREFIX)
+        and event.get("severity") in {"high", "critical"}
+    ]
+
+
+def parse_lifecycle_dispositions(values: list[str], failures: list[dict]) -> dict[str, str]:
+    """Validate concise resolved/already-recorded retrospective dispositions."""
+    known = {str(event.get("id")) for event in failures}
+    dispositions: dict[str, str] = {}
+    for value in values:
+        event_id, separator, disposition = value.partition("=")
+        if not separator or not event_id or not disposition:
+            raise SystemExit(
+                "--lifecycle-disposition must use <event-id>=resolved-in-task|already-recorded"
+            )
+        if event_id not in known:
+            raise SystemExit(f"Lifecycle outcome is not a current-task high-signal failure: {event_id}")
+        if disposition not in LIFECYCLE_DISPOSITIONS:
+            raise SystemExit(
+                f"Unsupported lifecycle disposition {disposition!r}; use resolved-in-task or already-recorded."
+            )
+        if event_id in dispositions:
+            raise SystemExit(f"Lifecycle outcome is classified more than once: {event_id}")
+        dispositions[event_id] = disposition
+    return dispositions
+
+
+def checkpoint_lifecycle_dispositions(checkpoint: dict, failures: list[dict]) -> dict[str, str]:
+    """Read a checkpoint's classifications without introducing new state."""
+    raw = checkpoint.get("lifecycle_dispositions", [])
+    if raw is None:
+        raw = []
+    if not isinstance(raw, list):
+        raise SystemExit("Retrospective checkpoint has invalid lifecycle dispositions; rerun the retrospective.")
+    values: list[str] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            raise SystemExit("Retrospective checkpoint has invalid lifecycle dispositions; rerun the retrospective.")
+        event_id = item.get("event_id")
+        disposition = item.get("disposition")
+        if not isinstance(event_id, str) or not isinstance(disposition, str):
+            raise SystemExit("Retrospective checkpoint has invalid lifecycle dispositions; rerun the retrospective.")
+        values.append(f"{event_id}={disposition}")
+    return parse_lifecycle_dispositions(values, failures)
+
+
+def unclassified_lifecycle_failures(
+    failures: list[dict], event_ids: list[str], dispositions: dict[str, str]
+) -> list[dict]:
+    """Treat a referenced finding as the concise ``new-recorded`` disposition."""
+    classified = set(event_ids) | set(dispositions)
+    return [event for event in failures if str(event.get("id")) not in classified]
+
+
+def lifecycle_checkpoint_instruction(failures: list[dict]) -> str:
+    rendered = ", ".join(
+        f"{event.get('id')} ({event.get('category')})" for event in failures[:5]
+    )
+    return (
+        "Post-task retrospective has unclassified high-signal lifecycle outcome(s): "
+        + rendered
+        + ". Classify each with `checkpoint --result none --lifecycle-disposition "
+        "<event-id>=resolved-in-task|already-recorded`, or reference its recorded finding with "
+        "`checkpoint --event <event-id>` (new-recorded)."
+    )
+
+
 def cmd_checkpoint(args: argparse.Namespace) -> int:
     """Record the post-task retrospective result: zero or more findings.
 
     ``--result none`` means the retrospective actually ran and found no new
     meaningful unresolved/unrecorded friction. ``--result <id>``/``--event
     <id>`` (repeatable) reference existing recorded friction events this
-    retrospective classified as new meaningful findings; already-resolved or
-    already-recorded candidates are simply not referenced here.
+    retrospective classified as new meaningful findings. Existing high-signal
+    lifecycle outcomes are classified with a compact explicit disposition when
+    they were resolved in this task or already represented.
     """
     branch = current_branch()
     root = current_worktree_root()
@@ -728,9 +811,20 @@ def cmd_checkpoint(args: argparse.Namespace) -> int:
     missing = [event_id for event_id in event_ids if event_id not in known_ids]
     if missing:
         raise SystemExit(f"Friction event not found: {', '.join(missing)}")
+    lifecycle_failures = current_lifecycle_failures(branch)
+    lifecycle_dispositions = parse_lifecycle_dispositions(
+        list(getattr(args, "lifecycle_dispositions", []) or []), lifecycle_failures
+    )
+    unresolved = unclassified_lifecycle_failures(lifecycle_failures, event_ids, lifecycle_dispositions)
+    if unresolved:
+        raise SystemExit(lifecycle_checkpoint_instruction(unresolved))
     checkpoint = {
         "result": "events" if event_ids else "none",
         "event_ids": event_ids,
+        "lifecycle_dispositions": [
+            {"event_id": event_id, "disposition": disposition}
+            for event_id, disposition in lifecycle_dispositions.items()
+        ],
         "at": utc_now(),
         "branch": branch,
         "head": current_head(root),
@@ -772,6 +866,11 @@ def require_checkpoint(branch: str, root: Path | None = None) -> None:
             raise SystemExit(
                 f"Retrospective checkpoint references unknown friction event id(s): {', '.join(missing)}; rerun the retrospective."
             )
+    lifecycle_failures = current_lifecycle_failures(branch)
+    lifecycle_dispositions = checkpoint_lifecycle_dispositions(checkpoint, lifecycle_failures)
+    unresolved = unclassified_lifecycle_failures(lifecycle_failures, list(checkpoint.get("event_ids") or []), lifecycle_dispositions)
+    if unresolved:
+        raise SystemExit(lifecycle_checkpoint_instruction(unresolved))
     resolved_root = root if root is not None else current_worktree_root()
     current = current_head(resolved_root)
     if current is None:
@@ -885,6 +984,10 @@ def main() -> int:
     p = sub.add_parser("checkpoint", help="resolve the required post-task friction retrospective")
     p.add_argument("--result", help="'none' for a clean retrospective, or a recorded friction event id")
     p.add_argument("--event", dest="events", action="append", default=[], help="repeatable: another recorded finding id from this retrospective")
+    p.add_argument(
+        "--lifecycle-disposition", dest="lifecycle_dispositions", action="append", default=[],
+        help="repeatable: <event-id>=resolved-in-task|already-recorded for a current-task lifecycle failure",
+    )
     p.set_defaults(func=cmd_checkpoint)
 
     p = sub.add_parser("assert-checkpoint", help="fail unless the current task checkpoint is resolved")

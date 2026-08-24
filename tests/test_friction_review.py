@@ -52,8 +52,21 @@ class FrictionReviewTests(unittest.TestCase):
         agent_friction.current_head = self.original_current_head
         self.tmp.cleanup()
 
-    def checkpoint_args(self, *, result: str | None = None, events: list[str] | None = None) -> object:
-        return type("Args", (), {"result": result, "events": events or []})()
+    def checkpoint_args(
+        self,
+        *,
+        result: str | None = None,
+        events: list[str] | None = None,
+        lifecycle_dispositions: list[str] | None = None,
+    ) -> object:
+        return type(
+            "Args", (),
+            {
+                "result": result,
+                "events": events or [],
+                "lifecycle_dispositions": lifecycle_dispositions or [],
+            },
+        )()
 
     def write_events(self, count: int, *, severity: str = "medium") -> list[str]:
         ids: list[str] = []
@@ -79,6 +92,29 @@ class FrictionReviewTests(unittest.TestCase):
                     + "\n"
                 )
         return ids
+
+    def write_lifecycle_failure(self, event_id: str = "lifecycle-1") -> str:
+        self.log.write_text(
+            json.dumps(
+                {
+                    "id": event_id,
+                    "at": "2026-08-24T10:00:00+00:00",
+                    "branch": "test-branch",
+                    "task": "test-branch",
+                    "category": "lifecycle-validation-failure",
+                    "triggers": ["repeated-error"],
+                    "severity": "high",
+                    "observation": "required platform validation failed",
+                    "evidence": "bounded selected check failure",
+                    "hypothesis": "a deterministic lifecycle guard needs operator review",
+                    "scope": "platform",
+                    "proposal": "review the lifecycle failure and its guard",
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        return event_id
 
     def test_secret_like_values_are_rejected_before_recording(self) -> None:
         with self.assertRaisesRegex(SystemExit, "appears to contain a secret"):
@@ -330,6 +366,53 @@ class FrictionReviewTests(unittest.TestCase):
         self.assertEqual(agent_friction.read_state()["checkpoints"]["test-branch"]["result"], "none")
         self.assertEqual(agent_friction.read_state()["checkpoints"]["test-branch"]["head"], self.head)
         self.assertEqual(agent_friction.read_state()["routes"], {})
+
+    def test_lifecycle_failure_rejects_none_without_explicit_disposition(self) -> None:
+        self.write_lifecycle_failure()
+        with self.assertRaisesRegex(SystemExit, "unclassified high-signal lifecycle outcome"):
+            agent_friction.cmd_checkpoint(self.checkpoint_args(result="none"))
+
+    def test_checkpoint_rechecks_lifecycle_failure_recorded_after_none(self) -> None:
+        agent_friction.cmd_checkpoint(self.checkpoint_args(result="none"))
+        self.write_lifecycle_failure()
+        with self.assertRaisesRegex(SystemExit, "unclassified high-signal lifecycle outcome"):
+            agent_friction.require_checkpoint("test-branch")
+
+    def test_lifecycle_failure_resolved_in_task_allows_none(self) -> None:
+        event_id = self.write_lifecycle_failure()
+        agent_friction.cmd_checkpoint(
+            self.checkpoint_args(
+                result="none",
+                lifecycle_dispositions=[f"{event_id}=resolved-in-task"],
+            )
+        )
+        checkpoint = agent_friction.read_state()["checkpoints"]["test-branch"]
+        self.assertEqual(checkpoint["result"], "none")
+        self.assertEqual(
+            checkpoint["lifecycle_dispositions"],
+            [{"event_id": event_id, "disposition": "resolved-in-task"}],
+        )
+        agent_friction.require_checkpoint("test-branch")
+
+    def test_already_recorded_lifecycle_friction_needs_no_duplicate(self) -> None:
+        event_id = self.write_lifecycle_failure()
+        before = len(agent_friction.read_events(None))
+        agent_friction.cmd_checkpoint(
+            self.checkpoint_args(
+                result="none",
+                lifecycle_dispositions=[f"{event_id}=already-recorded"],
+            )
+        )
+        self.assertEqual(len(agent_friction.read_events(None)), before)
+        agent_friction.require_checkpoint("test-branch")
+
+    def test_lifecycle_failure_can_be_classified_as_new_recorded_finding(self) -> None:
+        event_id = self.write_lifecycle_failure()
+        agent_friction.cmd_checkpoint(self.checkpoint_args(events=[event_id]))
+        checkpoint = agent_friction.read_state()["checkpoints"]["test-branch"]
+        self.assertEqual(checkpoint["result"], "events")
+        self.assertEqual(checkpoint["event_ids"], [event_id])
+        agent_friction.require_checkpoint("test-branch")
 
     def test_missing_checkpoint_blocks_non_trivial_completion(self) -> None:
         with self.assertRaisesRegex(SystemExit, "retrospective is required"):
