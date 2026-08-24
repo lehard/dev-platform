@@ -1,0 +1,11 @@
+- [x] Inspect the current Codex and Claude execution surfaces and document which timing/usage/request-count facts are authoritative versus unavailable.
+- [x] Define the minimal runtime-neutral efficiency fields inside the existing execution provenance schema, including explicit unknown/source semantics and backward compatibility.
+- [x] Record platform-controlled execution start/end/elapsed time for managed executions.
+- [x] Capture token/cache/output/request-count evidence from supported runtimes only where the current interface exposes it truthfully.
+- [x] Reuse existing verification, retry/escalation/fallback, human-intervention, containment and abnormal/recovery evidence instead of duplicating lifecycle state.
+- [x] Add compatibility handling for historical records that have no efficiency fields.
+- [x] Add a bounded baseline report with sample-size counts, insufficient-evidence state, and useful medians/percentiles for populated fields.
+- [x] Add tests for complete usage, partial usage, unknown usage, historical records, abnormal execution and small-sample reporting.
+- [x] Run at least one real supported managed execution to prove platform duration capture and any available runtime usage evidence; keep unavailable fields truthfully unknown.
+- [x] Document how the baseline is used by routing calibration and later external-runtime comparison without changing routing policy.
+- [x] Perform semantic OpenSpec verification and the relevant platform lifecycle/regression checks.

@@ -1,0 +1,31 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/model-routing/spec.md"
+  ],
+  "change": "capture-execution-efficiency-baseline",
+  "imported_at": "2026-08-24T11:12:48+00:00",
+  "package_revision": "b3ef63e1d9c41411990b49195f7266a748e74b1c7b55d2e3610a2038b614eb32",
+  "prepared_against": "d2f4d533cd9092e868c1f2e19bad8345d7a9c08d",
+  "process_evidence": [
+    "lehard/dev-platform#255"
+  ],
+  "routing_receipt": {
+    "assurance": "high",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "execution-observability"
+  },
+  "source_issue": "lehard/development-backlog#68",
+  "source_issue_evidence": {
+    "body_sha256": "c8dc794bdbd3872299b7a8270edbf5ec31a148d8ef3742b4453c987b8d97c10a",
+    "updated_at": "2026-08-24T11:00:37Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
