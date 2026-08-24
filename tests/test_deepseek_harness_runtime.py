@@ -205,6 +205,25 @@ class DeepSeekHarnessHandleTests(unittest.TestCase):
         self.assertEqual(result["terminal"]["status"], "completed")
         self.assertEqual(result["result"]["text"], "bounded result")
 
+    def test_failed_worker_is_normalized_without_treating_it_as_success(self) -> None:
+        worker = "import json,sys; json.load(sys.stdin); sys.stderr.write('runtime failed'); raise SystemExit(7)"
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            workspace = root / "workspace"
+            workspace.mkdir()
+            result = dsh.start_runtime(
+                root,
+                workspace=workspace,
+                session_root=workspace / ".sessions",
+                prompt="fail",
+                capability_override=available_capability(),
+                worker_command=(sys.executable, "-c", worker),
+            ).wait(timeout_seconds=5)
+        self.assertEqual(result["terminal"]["status"], "failed")
+        self.assertEqual(result["terminal"]["reason"], "invalid-worker-output")
+        self.assertIn("runtime failed", result["diagnostic"])
+        self.assertEqual(result["cleanup"]["status"], "clean")
+
     def test_cancel_terminates_and_reaps_the_worker_process_group(self) -> None:
         worker = "import json,sys,time; json.load(sys.stdin); time.sleep(30)"
         with tempfile.TemporaryDirectory() as temporary:
