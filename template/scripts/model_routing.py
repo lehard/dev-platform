@@ -11,9 +11,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
+import statistics
+import subprocess
 import sys
+import time
 from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 from _platform_common import atomic_write_text, current_worktree_root, main_root, read_platform_config, utc_now
@@ -149,6 +155,22 @@ def _record_path(root: Path, change: str) -> Path:
     return root / ".claude" / "model-routing" / f"{change}.json"
 
 
+def _durable_record_path(route: Route) -> Path:
+    """Return the integration-owned copy of an executed routing record.
+
+    The task-local copy remains the active route and containment receipt while
+    a child runs. Once execution evidence is final, mirror that same record
+    into existing integration lifecycle state so normal worktree cleanup does
+    not discard a baseline observation.
+    """
+    return Path(route.integration_root) / ".claude" / "model-routing" / f"{route.change}.json"
+
+
+def _persist_completed_execution(route: Route) -> None:
+    if isinstance(route.execution, dict):
+        _write_route(_durable_record_path(route), route)
+
+
 def _model_for(config: dict[str, Any], provider: str, profile: str) -> str:
     routing = config.get("model_routing", {})
     provider_policy = routing.get(provider, {}) if isinstance(routing, dict) else {}
@@ -163,6 +185,49 @@ def _model_for(config: dict[str, Any], provider: str, profile: str) -> str:
 SOURCE_SELECTED = "selected"
 SOURCE_RUNTIME_CONFIRMED = "runtime-confirmed"
 SOURCE_UNKNOWN = "unknown"
+
+# Runtime-neutral efficiency vocabulary.  A measurement is deliberately a
+# small value/source/status tuple rather than a bare number: missing runtime
+# data must remain distinguishable from a real zero.  The platform owns the
+# timing boundary; optional usage values are only populated by a runtime
+# adapter when its structured event contract exposes that exact value.
+EFFICIENCY_USAGE_FIELDS = (
+    "input_tokens",
+    "cache_read_tokens",
+    "fresh_input_tokens",
+    "output_tokens",
+    "total_tokens",
+    "request_count",
+)
+EFFICIENCY_MIN_BASELINE_EXECUTIONS = 15
+EFFICIENCY_MIN_PERCENTILE_OBSERVATIONS = 5
+
+
+def _unknown_measurement() -> dict[str, Any]:
+    return {"value": None, "source": SOURCE_UNKNOWN, "status": "unknown"}
+
+
+def _runtime_measurement(value: int) -> dict[str, Any]:
+    return {"value": value, "source": SOURCE_RUNTIME_CONFIRMED, "status": "measured"}
+
+
+def _unknown_usage() -> dict[str, dict[str, Any]]:
+    return {field: _unknown_measurement() for field in EFFICIENCY_USAGE_FIELDS}
+
+
+def _platform_timestamp() -> str:
+    """An ISO timestamp with enough precision to explain a duration sample."""
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _efficiency_timing(started_at: str, elapsed_ms: int) -> dict[str, Any]:
+    return {
+        "started_at": started_at,
+        "ended_at": _platform_timestamp(),
+        "elapsed_ms": elapsed_ms,
+        "source": "platform",
+        "status": "measured",
+    }
 
 
 def _model_provenance(model: str | None, source: str) -> dict[str, Any]:
@@ -343,18 +408,89 @@ def _codex_thread_id_from_line(line: str) -> str | None:
     return None
 
 
+def _codex_usage_from_line(line: str) -> dict[str, int] | None:
+    """Read only the exact structured completion usage shape we support.
+
+    The adapter intentionally does not scrape terminal text or derive totals.
+    A future runtime can add another explicit adapter once it has an equally
+    authoritative contract.  An incomplete payload is still useful: each
+    present non-negative integer is measured and every other field remains
+    explicitly unknown.
+    """
+    if not line.lstrip().startswith("{"):
+        return None
+    try:
+        event = json.loads(line)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(event, dict) or event.get("type") != "turn.completed":
+        return None
+    usage = event.get("usage")
+    if not isinstance(usage, dict):
+        return None
+    fields = {
+        "input_tokens": "input_tokens",
+        "cache_read_tokens": "cached_input_tokens",
+        "output_tokens": "output_tokens",
+        "total_tokens": "total_tokens",
+    }
+    captured: dict[str, int] = {}
+    for normalized, runtime_name in fields.items():
+        value = usage.get(runtime_name)
+        # bool is an int subclass but is not a meaningful token count.
+        if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+            captured[normalized] = value
+    return captured
+
+
+def _codex_usage_evidence(usage_events: list[dict[str, int]], turn_count: int) -> dict[str, dict[str, Any]]:
+    """Normalize one unambiguous structured Codex completion observation.
+
+    Multiple completion payloads may be incremental or cumulative depending on
+    a future runtime contract.  We therefore leave token values unknown rather
+    than summing or selecting one without an explicit identity.  `turn.started`
+    is an independently countable structured runtime event, so its count is
+    safe to record when present.
+    """
+    usage = _unknown_usage()
+    if turn_count:
+        usage["request_count"] = _runtime_measurement(turn_count)
+    if len(usage_events) == 1:
+        for field, value in usage_events[0].items():
+            usage[field] = _runtime_measurement(value)
+    return usage
+
+
 def run_codex(route: Route, prompt: str, codex_bin: str | None = None) -> dict[str, Any]:
     argv, mechanism = codex_argv(route, prompt, codex_bin)
     # Codex workspace-write is the prevention layer. The legacy helper only
     # validates the assignment and observes/records the required post-check.
     decision = determine_codex_tier(codex_bin=codex_bin, require_hard=True, integration_root=Path(route.integration_root), assigned_worktree=Path(route.task_worktree))
-    captured: dict[str, str | None] = {"thread_id": None}
+    captured: dict[str, str | int | list[dict[str, int]] | None] = {
+        "thread_id": None,
+        "turn_count": 0,
+        "usage_events": [],
+    }
+    started_at = _platform_timestamp()
+    started_tick = time.perf_counter_ns()
 
     def _on_line(line: str) -> None:
         print(line)
         thread_id = _codex_thread_id_from_line(line)
         if thread_id is not None:
             captured["thread_id"] = thread_id
+        if line.lstrip().startswith("{"):
+            try:
+                event = json.loads(line)
+            except json.JSONDecodeError:
+                event = None
+            if isinstance(event, dict) and event.get("type") == "turn.started":
+                captured["turn_count"] = int(captured["turn_count"] or 0) + 1
+        usage = _codex_usage_from_line(line)
+        if usage is not None:
+            events = captured["usage_events"]
+            assert isinstance(events, list)
+            events.append(usage)
 
     abnormal_error: str | None = None
     try:
@@ -368,12 +504,27 @@ def run_codex(route: Route, prompt: str, codex_bin: str | None = None) -> dict[s
         # letting a parent-side exception make the route look clean/unrun.
         result = exc.result
         abnormal_error = str(exc)
+    except OSError as exc:
+        # A platform-owned launch boundary (for example the local writer
+        # receipt) can itself be unavailable before a child process exists.
+        # Persist that attempted-but-unlaunched abnormal outcome, including
+        # timing, instead of emitting a traceback that leaves a prepared route
+        # looking like it has no meaningful execution evidence.
+        result = SimpleNamespace(launched=False, returncode=None, violation=True, writer_state="unavailable")
+        abnormal_error = f"unable to launch delegated Codex execution: {exc}"
+    usage_events = captured["usage_events"]
+    assert isinstance(usage_events, list)
+    elapsed_ms = max(0, round((time.perf_counter_ns() - started_tick) / 1_000_000))
     output = {
         "mechanism": mechanism,
         "launched": result.launched,
         "returncode": result.returncode,
         "violation": result.violation,
         "writer_state": getattr(result, "writer_state", "released"),
+        "efficiency": {
+            "timing": _efficiency_timing(started_at, elapsed_ms),
+            "usage": _codex_usage_evidence(usage_events, int(captured["turn_count"] or 0)),
+        },
     }
     if abnormal_error is not None:
         output["outcome"] = "abnormal"
@@ -421,6 +572,7 @@ def dispatch_codex(
     execution = run_codex(route, prompt, codex_bin)
     route = Route(**{**asdict(route), "execution": execution})
     _write_route(_record_path(root, route.change), route)
+    _persist_completed_execution(route)
     output["route"] = asdict(route)
     output["delegated"] = True
     output["execution"] = execution
@@ -528,6 +680,7 @@ def record_claude_execution(root: Path, *, agent_id: str, summary: str | None = 
     }
     next_route = Route(**{**asdict(route), "execution": execution})
     _write_route(path, next_route)
+    _persist_completed_execution(next_route)
     return execution
 
 
@@ -538,6 +691,160 @@ def postcheck(route: Route) -> dict[str, Any]:
         record_containment_friction(Path(route.integration_root), assigned, result, task=route.source_issue, enforcement_tier="native-worktree")
         raise RoutingError(format_violation_message(assigned, result))
     return {"containment": "clean", "pre_existing_changes": list(result.pre_existing_changes)}
+
+
+def _worktree_roots(root: Path) -> list[Path]:
+    """Return local worktrees without requiring a network or mutating Git state."""
+    roots = {root.resolve()}
+    result = subprocess.run(
+        ["git", "worktree", "list", "--porcelain"], cwd=root, text=True, capture_output=True, check=False
+    )
+    if result.returncode:
+        return sorted(roots)
+    for line in result.stdout.splitlines():
+        if line.startswith("worktree "):
+            candidate = Path(line.removeprefix("worktree ")).resolve()
+            if candidate.is_dir():
+                roots.add(candidate)
+    return sorted(roots)
+
+
+def _local_routing_records(root: Path) -> list[dict[str, Any]]:
+    """Read ignored local provenance conservatively; malformed records are skipped."""
+    records: list[dict[str, Any]] = []
+    seen: set[Path] = set()
+    seen_routes: set[tuple[str, str]] = set()
+    for worktree in _worktree_roots(root):
+        for path in sorted((worktree / ".claude" / "model-routing").glob("*.json")):
+            resolved = path.resolve()
+            if resolved in seen:
+                continue
+            seen.add(resolved)
+            try:
+                payload = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            if isinstance(payload, dict):
+                source_issue = payload.get("source_issue")
+                change = payload.get("change")
+                identity = (source_issue, change) if isinstance(source_issue, str) and isinstance(change, str) else None
+                if identity is not None and identity in seen_routes:
+                    continue
+                if identity is not None:
+                    seen_routes.add(identity)
+                records.append(payload)
+    return records
+
+
+def _measurement_from_execution(execution: dict[str, Any], field: str) -> dict[str, Any] | None:
+    efficiency = execution.get("efficiency")
+    if not isinstance(efficiency, dict):
+        return None
+    if field == "elapsed_ms":
+        timing = efficiency.get("timing")
+        if not isinstance(timing, dict):
+            return None
+        value = timing.get("elapsed_ms")
+        if isinstance(value, int) and not isinstance(value, bool) and value >= 0 and timing.get("status") == "measured":
+            return {"value": value, "source": timing.get("source", "unknown"), "status": "measured"}
+        return _unknown_measurement()
+    usage = efficiency.get("usage")
+    if not isinstance(usage, dict):
+        return None
+    measurement = usage.get(field)
+    return measurement if isinstance(measurement, dict) else None
+
+
+def _summary(values: list[int], missing: int, unknown: int) -> dict[str, Any]:
+    summary: dict[str, Any] = {
+        "measured": len(values),
+        "unknown": unknown,
+        "missing": missing,
+    }
+    if values:
+        ordered = sorted(values)
+        summary["median"] = statistics.median(ordered)
+        if len(ordered) >= EFFICIENCY_MIN_PERCENTILE_OBSERVATIONS:
+            summary["p95"] = ordered[max(0, math.ceil(len(ordered) * 0.95) - 1)]
+    return summary
+
+
+def _verification_outcome(root: Path, record: dict[str, Any]) -> str:
+    """Read the existing OpenSpec receipt; never create another status field."""
+    change = record.get("change")
+    if not isinstance(change, str) or not change:
+        return "missing"
+    candidates = [root / "openspec" / "changes" / change / "verification.md"]
+    candidates.extend(sorted((root / "openspec" / "changes" / "archive").glob(f"*-{change}/verification.md")))
+    for receipt in candidates:
+        try:
+            lines = {line.strip() for line in receipt.read_text(encoding="utf-8").splitlines()}
+        except OSError:
+            continue
+        return "passed" if "OpenSpec-Verify: PASS" in lines else "recorded_without_pass"
+    return "missing"
+
+
+def efficiency_baseline(root: Path) -> dict[str, Any]:
+    """Produce a bounded local baseline from routing/execution provenance.
+
+    This is deliberately analysis-only.  It neither changes a route nor tries
+    to infer a token total from a partial provider response.  Historical route
+    records remain observations with missing efficiency fields.
+    """
+    records = _local_routing_records(root)
+    launched = [record.get("execution") for record in records if isinstance(record.get("execution"), dict) and record["execution"].get("launched")]
+    executions = [execution for execution in launched if isinstance(execution, dict)]
+    metrics: dict[str, dict[str, Any]] = {}
+    for field in ("elapsed_ms", *EFFICIENCY_USAGE_FIELDS):
+        values: list[int] = []
+        missing = 0
+        unknown = 0
+        for execution in executions:
+            measurement = _measurement_from_execution(execution, field)
+            if measurement is None:
+                missing += 1
+                continue
+            value = measurement.get("value")
+            if measurement.get("status") == "measured" and isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+                values.append(value)
+            else:
+                unknown += 1
+        metrics[field] = _summary(values, missing, unknown)
+    outcomes: dict[str, int] = {}
+    for execution in executions:
+        outcome = execution.get("outcome")
+        label = outcome if isinstance(outcome, str) and outcome else "unknown"
+        outcomes[label] = outcomes.get(label, 0) + 1
+    verification: dict[str, int] = {}
+    for record in records:
+        label = _verification_outcome(root, record)
+        verification[label] = verification.get(label, 0) + 1
+    escalated = sum(1 for record in records if isinstance(record.get("escalations"), list) and record["escalations"])
+    sufficient = len(executions) >= EFFICIENCY_MIN_BASELINE_EXECUTIONS
+    return {
+        "schema_version": 1,
+        "generated_at": utc_now(),
+        "scope": "local routing/execution provenance",
+        "observations": {
+            "routing_records": len(records),
+            "launched_executions": len(executions),
+            "historical_or_unlaunched_records": len(records) - len(executions),
+            "escalated_routes": escalated,
+            "outcomes": outcomes,
+            "verification": verification,
+        },
+        "metrics": metrics,
+        "evidence": {
+            "status": "sufficient" if sufficient else "insufficient",
+            "minimum_decision_quality_executions": EFFICIENCY_MIN_BASELINE_EXECUTIONS,
+            "detail": (
+                "Local sample meets the initial execution-count guideline; compare only compatible populated fields."
+                if sufficient
+                else "Collect roughly 15–30 verified managed executions before drawing an efficiency conclusion; missing and unknown measurements are not zero."
+            ),
+        },
+    }
 
 
 def main() -> int:
@@ -596,6 +903,7 @@ def main() -> int:
     record_claude_parser.add_argument("--agent-id", required=True)
     record_claude_parser.add_argument("--summary")
     subparsers.add_parser("postcheck", help="verify the prepared native worktree route did not mutate integration")
+    subparsers.add_parser("efficiency-baseline", help="report bounded local execution-efficiency evidence without changing routing")
     args = parser.parse_args()
     root = current_worktree_root()
     try:
@@ -607,7 +915,9 @@ def main() -> int:
         elif args.command == "run-codex":
             route, path = _read_route(root)
             output = run_codex(route, args.prompt, args.codex_bin)
-            _write_route(path, Route(**{**asdict(route), "execution": output}))
+            completed_route = Route(**{**asdict(route), "execution": output})
+            _write_route(path, completed_route)
+            _persist_completed_execution(completed_route)
         elif args.command == "dispatch-codex":
             output = dispatch_codex(
                 root,
@@ -622,6 +932,8 @@ def main() -> int:
             output = prepare_claude_handoff(root, profile=args.profile, rationale=args.rationale, evidence=args.evidence)
         elif args.command == "record-claude-execution":
             output = record_claude_execution(root, agent_id=args.agent_id, summary=args.summary)
+        elif args.command == "efficiency-baseline":
+            output = efficiency_baseline(root)
         else: output = postcheck(_read_route(root)[0])
     except (ContainmentError, RoutingError) as exc:
         print(f"Model routing blocked: {exc}", file=sys.stderr); return 2

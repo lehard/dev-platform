@@ -52,6 +52,12 @@ class ModelRoutingTests(unittest.TestCase):
         (change / ".managed-task.json").write_text(json.dumps({"source_issue": "owner/backlog#7", "change": "routing-change"}), encoding="utf-8")
         (self.task / ".dev-platform.toml").write_text("[model_routing.codex]\nstandard_model = \"cheap-codex\"\ncomplex_model = \"strong-codex\"\n", encoding="utf-8")
 
+    def record_path(self) -> Path:
+        return self.task / ".claude" / "model-routing" / "routing-change.json"
+
+    def durable_record_path(self) -> Path:
+        return self.integration / ".claude" / "model-routing" / "routing-change.json"
+
     def tearDown(self) -> None:
         self.tmp.cleanup()
 
@@ -84,7 +90,7 @@ class ModelRoutingTests(unittest.TestCase):
         route = self.prepare()
         self.assertEqual(route.executor_model, "cheap-codex")
         self.assertEqual(route.task_worktree, str(self.task.resolve()))
-        saved = self.task / ".claude" / "model-routing" / "routing-change.json"
+        saved = self.record_path()
         self.assertTrue(saved.is_file())
         context = routing.escalation_context(routing._read_route(self.task)[0])
         self.assertEqual(context["source_issue"], "owner/backlog#7")
@@ -155,7 +161,7 @@ class ModelRoutingTests(unittest.TestCase):
         # Pre-provenance route records (written before this field existed)
         # must not break resume/escalation for other in-flight tasks.
         route = self.prepare()
-        saved_path = self.task / ".claude" / "model-routing" / "routing-change.json"
+        saved_path = self.record_path()
         payload = json.loads(saved_path.read_text(encoding="utf-8"))
         del payload["supervisor"]
         saved_path.write_text(json.dumps(payload), encoding="utf-8")
@@ -205,6 +211,69 @@ class ModelRoutingTests(unittest.TestCase):
 
         self.assertEqual(execution["participant"]["execution_id"], {"value": None, "kind": None})
 
+    def test_run_codex_records_complete_structured_usage_and_platform_timing(self) -> None:
+        route = self.prepare()
+        hard = guard.EnforcementDecision(guard.EnforcementTier.HARD, "codex-workspace-write-sandbox", "safe")
+
+        def fake_run_observed_delegation(*, stdout_line_hook, **_kwargs):
+            stdout_line_hook('{"type":"turn.started"}')
+            stdout_line_hook(
+                '{"type":"turn.completed","usage":{"input_tokens":120,"cached_input_tokens":80,'
+                '"output_tokens":30,"total_tokens":150}}'
+            )
+            return SimpleNamespace(launched=True, returncode=0, violation=False)
+
+        with (
+            patch.object(routing, "determine_codex_tier", return_value=hard),
+            patch.object(routing, "run_observed_delegation", side_effect=fake_run_observed_delegation),
+        ):
+            execution = routing.run_codex(route, "implement")
+
+        timing = execution["efficiency"]["timing"]
+        self.assertEqual(timing["source"], "platform")
+        self.assertEqual(timing["status"], "measured")
+        self.assertGreaterEqual(timing["elapsed_ms"], 0)
+        usage = execution["efficiency"]["usage"]
+        self.assertEqual(usage["input_tokens"], {"value": 120, "source": "runtime-confirmed", "status": "measured"})
+        self.assertEqual(usage["cache_read_tokens"]["value"], 80)
+        self.assertEqual(usage["output_tokens"]["value"], 30)
+        self.assertEqual(usage["total_tokens"]["value"], 150)
+        self.assertEqual(usage["request_count"]["value"], 1)
+        self.assertEqual(usage["fresh_input_tokens"]["status"], "unknown")
+
+    def test_run_codex_keeps_partial_usage_unknown_without_deriving_values(self) -> None:
+        route = self.prepare()
+        hard = guard.EnforcementDecision(guard.EnforcementTier.HARD, "codex-workspace-write-sandbox", "safe")
+
+        def fake_run_observed_delegation(*, stdout_line_hook, **_kwargs):
+            stdout_line_hook('{"type":"turn.completed","usage":{"output_tokens":9}}')
+            return SimpleNamespace(launched=True, returncode=0, violation=False)
+
+        with (
+            patch.object(routing, "determine_codex_tier", return_value=hard),
+            patch.object(routing, "run_observed_delegation", side_effect=fake_run_observed_delegation),
+        ):
+            execution = routing.run_codex(route, "implement")
+
+        usage = execution["efficiency"]["usage"]
+        self.assertEqual(usage["output_tokens"]["value"], 9)
+        self.assertEqual(usage["input_tokens"], {"value": None, "source": "unknown", "status": "unknown"})
+        self.assertEqual(usage["total_tokens"]["status"], "unknown")
+
+    def test_run_codex_marks_usage_unknown_when_runtime_emits_no_supported_usage(self) -> None:
+        route = self.prepare()
+        hard = guard.EnforcementDecision(guard.EnforcementTier.HARD, "codex-workspace-write-sandbox", "safe")
+        with (
+            patch.object(routing, "determine_codex_tier", return_value=hard),
+            patch.object(
+                routing,
+                "run_observed_delegation",
+                return_value=SimpleNamespace(launched=True, returncode=0, violation=False),
+            ),
+        ):
+            execution = routing.run_codex(route, "implement")
+        self.assertTrue(all(value["status"] == "unknown" for value in execution["efficiency"]["usage"].values()))
+
     def test_abnormal_codex_return_is_truthfully_recorded_and_dispatch_fails(self) -> None:
         hard = guard.EnforcementDecision(guard.EnforcementTier.HARD, "codex-workspace-write-sandbox", "safe")
         observed = SimpleNamespace(launched=True, returncode=None, violation=False, writer_state="released")
@@ -223,10 +292,53 @@ class ModelRoutingTests(unittest.TestCase):
                     prompt="implement",
                 )
 
-        saved = json.loads((self.task / ".claude" / "model-routing" / "routing-change.json").read_text(encoding="utf-8"))
+        saved = json.loads(self.record_path().read_text(encoding="utf-8"))
         self.assertEqual(saved["execution"]["outcome"], "abnormal")
         self.assertEqual(saved["execution"]["writer_state"], "released")
         self.assertIn("timed out after cleanup", saved["execution"]["error"])
+        self.assertEqual(saved["execution"]["efficiency"]["timing"]["source"], "platform")
+
+    def test_codex_launcher_boundary_failure_is_recorded_without_a_traceback(self) -> None:
+        route = self.prepare()
+        hard = guard.EnforcementDecision(guard.EnforcementTier.HARD, "codex-workspace-write-sandbox", "safe")
+        with (
+            patch.object(routing, "determine_codex_tier", return_value=hard),
+            patch.object(routing, "run_observed_delegation", side_effect=PermissionError("writer receipt is unavailable")),
+        ):
+            execution = routing.run_codex(route, "implement")
+        self.assertFalse(execution["launched"])
+        self.assertEqual(execution["outcome"], "abnormal")
+        self.assertEqual(execution["writer_state"], "unavailable")
+        self.assertIn("writer receipt is unavailable", execution["error"])
+        self.assertEqual(execution["efficiency"]["timing"]["status"], "measured")
+
+    def test_efficiency_baseline_keeps_historical_records_missing_and_labels_small_samples_insufficient(self) -> None:
+        historical = {"change": "historical", "execution": {"launched": True, "outcome": "completed"}}
+        measured = {
+            "change": "measured",
+            "escalations": [{"reason": "bounded finding"}],
+            "execution": {
+                "launched": True,
+                "outcome": "completed",
+                "efficiency": {
+                    "timing": {"elapsed_ms": 42, "source": "platform", "status": "measured"},
+                    "usage": {"output_tokens": {"value": 7, "source": "runtime-confirmed", "status": "measured"}},
+                },
+            },
+        }
+        with patch.object(routing, "_local_routing_records", return_value=[historical, measured]):
+            receipt = self.task / "openspec" / "changes" / "measured" / "verification.md"
+            receipt.parent.mkdir(parents=True)
+            receipt.write_text("OpenSpec-Verify: PASS\nVerification-Method: equivalent-review\n", encoding="utf-8")
+            report = routing.efficiency_baseline(self.task)
+        self.assertEqual(report["evidence"]["status"], "insufficient")
+        self.assertEqual(report["observations"]["routing_records"], 2)
+        self.assertEqual(report["observations"]["launched_executions"], 2)
+        self.assertEqual(report["observations"]["escalated_routes"], 1)
+        self.assertEqual(report["observations"]["verification"], {"missing": 1, "passed": 1})
+        self.assertEqual(report["metrics"]["elapsed_ms"], {"measured": 1, "unknown": 0, "missing": 1, "median": 42})
+        self.assertEqual(report["metrics"]["output_tokens"], {"measured": 1, "unknown": 0, "missing": 1, "median": 7})
+        self.assertEqual(report["metrics"]["input_tokens"], {"measured": 0, "unknown": 0, "missing": 2})
 
     def test_escalation_preserves_task_context_and_uses_strong_policy(self) -> None:
         self.prepare()
@@ -290,7 +402,7 @@ class ModelRoutingTests(unittest.TestCase):
 
         self.assertTrue(result["delegated"])
         self.assertEqual(result["route"]["executor_model"], "gpt-5.6-terra")
-        saved = json.loads((self.task / ".claude" / "model-routing" / "routing-change.json").read_text(encoding="utf-8"))
+        saved = json.loads(self.record_path().read_text(encoding="utf-8"))
         self.assertEqual(saved["profile"], "standard")
         self.assertEqual(saved["executor_model"], "gpt-5.6-terra")
         self.assertTrue(saved["execution"]["launched"])
@@ -397,9 +509,10 @@ class ModelRoutingTests(unittest.TestCase):
                 "execution_id": {"value": "agent-abc123", "kind": "claude-agent-id"},
             },
         )
-        saved = json.loads((self.task / ".claude" / "model-routing" / "routing-change.json").read_text(encoding="utf-8"))
+        saved = json.loads(self.record_path().read_text(encoding="utf-8"))
         self.assertTrue(saved["execution"]["launched"])
         self.assertEqual(saved["execution"]["postcheck"]["containment"], "clean")
+        self.assertEqual(json.loads(self.durable_record_path().read_text(encoding="utf-8"))["execution"], saved["execution"])
 
     def test_record_claude_execution_fails_closed_on_integration_mutation(self) -> None:
         detection_only = guard.EnforcementDecision(guard.EnforcementTier.DETECTION_ONLY, "detection-only:claude-shell-capable", "no proven sandbox")
@@ -418,7 +531,7 @@ class ModelRoutingTests(unittest.TestCase):
                 with self.assertRaisesRegex(routing.RoutingError, "containment violation"):
                     routing.record_claude_execution(self.task, agent_id="agent-abc123")
             recorded.assert_called_once()
-        saved = json.loads((self.task / ".claude" / "model-routing" / "routing-change.json").read_text(encoding="utf-8"))
+        saved = json.loads(self.record_path().read_text(encoding="utf-8"))
         self.assertIsNone(saved["execution"])
 
     def test_record_claude_execution_rejects_complex_profile(self) -> None:
