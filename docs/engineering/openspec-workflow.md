@@ -46,6 +46,14 @@ A platform change is not done merely because its task checkboxes are complete. A
 3. commit the resulting current-spec/archive changes;
 4. only then publish.
 
+For a platform-owned harness, the verification receipt must also contain:
+
+```text
+Automated-Checks-Evidence: automated-checks.json
+```
+
+Archive preflight checks this exact marker before it runs selected checks or writes evidence, so a missing receipt is actionable before archive mutation. Add the marker only when the generated evidence will truthfully name the checks the helper ran. This requirement does not apply to `harness_mode=project`, where repository CI remains the product-verification authority.
+
 For the central repository, the lifecycle helper is invoked as:
 
 ```bash

@@ -66,6 +66,22 @@ class TemplateContractTests(unittest.TestCase):
                 self.assertIn("manual status/date/expiry/artifact ledger", workflow)
                 self.assertIn("authored outcome and success evidence", workflow)
 
+    def test_platform_verification_receipt_contract_stays_in_central_template_parity(self) -> None:
+        required = (
+            "Automated-Checks-Evidence: automated-checks.json",
+            "platform-owned harness",
+            "before it runs selected checks or writes evidence",
+            "harness_mode=project",
+        )
+        for name, relative in (
+            ("central", "docs/engineering/openspec-workflow.md"),
+            ("template", "template/docs/engineering/openspec-workflow.md"),
+        ):
+            text = (ROOT / relative).read_text(encoding="utf-8")
+            with self.subTest(contract=name):
+                for marker in required:
+                    self.assertIn(marker, text)
+
     def test_downstream_platform_ci_is_self_contained_and_does_not_own_project_ci_name(self) -> None:
         workflow = (ROOT / "template" / ".github" / "workflows" / "dev-platform.yml.jinja").read_text(encoding="utf-8")
         agents = (ROOT / "template" / "AGENTS.md.jinja").read_text(encoding="utf-8")

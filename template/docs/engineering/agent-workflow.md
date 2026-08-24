@@ -187,12 +187,15 @@ The weekly cloud Process Health Review is the routine review cadence. Local `pen
 
 Before non-trivial completion, run a distinct post-task retrospective -- not merely picking a checkpoint value. Review the task for user corrections, repeated substantive failures/retries, manual workarounds, safety near-misses, false premises, undocumented invariants, missing automation/documentation, tooling/auth/worktree/Git/OpenSpec/CI/lifecycle friction, avoidable repeated work, and problems noticed but left unresolved. Classify each candidate as already resolved in this task, already represented by an existing recorded event, or new and meaningful; record only the last class.
 
+The retrospective also reads the current task's existing high-signal `lifecycle-*` failure records from the friction log. It does not add a task-outcome database: a lifecycle failure must be classified as `resolved-in-task`, `already-recorded`, or `new-recorded` before the checkpoint can succeed. Clean tasks have no such records and retain the one-command `none` path.
+
 ```bash
 python3 scripts/agent_friction.py checkpoint --result none
 python3 scripts/agent_friction.py checkpoint --event <id> [--event <id> ...]
+python3 scripts/agent_friction.py checkpoint --result none --lifecycle-disposition <event-id>=resolved-in-task|already-recorded
 ```
 
-`--result none` is valid only after the retrospective actually ran and found nothing new. The checkpoint binds to the current branch and Git head; a fresh retrospective is required once new commits land. A missing or stale checkpoint blocks completion with an actionable instruction -- it never invents `none`.
+`--result none` is valid only after the retrospective actually ran and found nothing new and every current-task high-signal lifecycle failure has an explicit disposition. Referencing its recorded event is the `new-recorded` disposition; `--lifecycle-disposition` is for the resolved/already-recorded cases. The checkpoint binds to the current branch and Git head; a fresh retrospective is required once new commits land, and completion rechecks for newly unclassified lifecycle failures. A missing, stale, or unclassified checkpoint blocks completion with an actionable instruction -- it never invents `none`.
 
 ## Completion
 

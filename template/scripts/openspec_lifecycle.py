@@ -14,6 +14,7 @@ VERIFY_MARKER = "OpenSpec-Verify: PASS"
 VERIFY_METHOD_PREFIX = "Verification-Method:"
 AUTOMATED_EVIDENCE_PREFIX = "Automated-Checks-Evidence:"
 AUTOMATED_EVIDENCE_FILE = "automated-checks.json"
+VERIFICATION_RECEIPT_CONTRACT = "docs/engineering/openspec-workflow.md#verify-archive-then-publish"
 
 
 def active_changes(root: Path) -> list[Path]:
@@ -54,7 +55,8 @@ def require_automated_evidence(change: Path) -> None:
     expected_marker = f"{AUTOMATED_EVIDENCE_PREFIX} {AUTOMATED_EVIDENCE_FILE}"
     if expected_marker not in lines:
         raise SystemExit(
-            f"{change.name}: platform-owned verification must cite '{expected_marker}' so the receipt cannot claim checks that did not run"
+            f"{change.name}: platform-owned verification must cite '{expected_marker}' so the receipt cannot claim checks that did not run. "
+            f"Add that exact line to verification.md; see {VERIFICATION_RECEIPT_CONTRACT}."
         )
     path = change / AUTOMATED_EVIDENCE_FILE
     try:
@@ -131,7 +133,10 @@ def require_static_archive_readiness(change: Path, *, platform_owned: bool = Fal
         expected = f"{AUTOMATED_EVIDENCE_PREFIX} {AUTOMATED_EVIDENCE_FILE}"
         lines = [line.strip() for line in (change / "verification.md").read_text(encoding="utf-8").splitlines()]
         if expected not in lines:
-            raise SystemExit(f"{change.name}: platform-owned verification must cite '{expected}' before archive can run checks")
+            raise SystemExit(
+                f"{change.name}: platform-owned verification must cite '{expected}' before archive can run checks. "
+                f"Add that exact line to verification.md; see {VERIFICATION_RECEIPT_CONTRACT}."
+            )
 
 
 def require_applicable_committed_diff(root: Path) -> None:
