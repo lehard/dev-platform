@@ -270,12 +270,11 @@ def _resolved_workspace(workspace: Path, session_root: Path) -> tuple[Path, Path
 
 
 def normalize_usage(events: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
-    """Map complete DSH samples into the canonical runtime-neutral usage schema."""
+    """Map complete DSH samples into canonical usage fields only."""
     requests = [event for event in events if event.get("type") == "assistant/message"]
     usage_evidence = efficiency_unknown_usage()
     if not requests:
         return usage_evidence
-    usage_evidence["request_count"] = efficiency_runtime_measurement(len(requests))
     fields = {
         "inputTokens": "fresh_input_tokens",
         "cacheReadTokens": "cache_read_tokens",
@@ -296,6 +295,14 @@ def normalize_usage(events: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     return usage_evidence
 
 
+def normalize_runtime_counters(events: Sequence[Mapping[str, Any]]) -> dict[str, dict[str, Any]]:
+    """Retain DSH message events as local evidence, not model requests."""
+    count = sum(1 for event in events if event.get("type") == "assistant/message")
+    if not count:
+        return {}
+    return {"deepseek_harness_assistant_message": efficiency_runtime_measurement(count)}
+
+
 def _base_result(started_at: str, started_monotonic: float, *, status: str, reason: str) -> dict[str, Any]:
     return {
         "schema_version": 1,
@@ -313,6 +320,7 @@ def _base_result(started_at: str, started_monotonic: float, *, status: str, reas
                     max(0, round((time.monotonic() - started_monotonic) * 1000)),
                 ),
                 "usage": efficiency_unknown_usage(),
+                "runtime_counters": {},
             },
         },
         "terminal": {"status": status, "reason": reason},
@@ -527,6 +535,7 @@ def _worker_result(request: Mapping[str, Any]) -> dict[str, Any]:
             "truncated": len(response) > 16000,
         }
         result["execution"]["efficiency"]["usage"] = normalize_usage(run_result.events)
+        result["execution"]["efficiency"]["runtime_counters"] = normalize_runtime_counters(run_result.events)
         result["cleanup"] = {"status": "clean", "method": "sdk-context-close"}
         return result
     except Exception as exc:  # noqa: BLE001 - worker boundary must return a bounded terminal failure

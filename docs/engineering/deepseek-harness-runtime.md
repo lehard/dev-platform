@@ -114,13 +114,16 @@ The adapter emits the canonical runtime-neutral `execution.efficiency` shape
 delivered by `lehard/development-backlog#68` / `lehard/dev-platform#312`. Its
 platform timing uses the shared measured timing helper, and every usage field
 uses the shared `{value, source, status}` vocabulary. DSH `inputTokens` maps to
-disjoint `fresh_input_tokens`, `cacheReadTokens` to `cache_read_tokens`,
-`outputTokens` to `output_tokens`, and counted root assistant-message events to
-`request_count`. A token field is measured only when every counted request
+disjoint `fresh_input_tokens`, `cacheReadTokens` to `cache_read_tokens`, and
+`outputTokens` to `output_tokens`. Counted root assistant-message events are
+retained only as the runtime-local
+`deepseek_harness_assistant_message` counter: the adapter does not claim they
+are one-to-one model requests. A token field is measured only when every counted request
 contains a valid value; partial or malformed evidence stays `unknown`, never
 zero. `input_tokens` and `total_tokens` remain unknown because the pinned DSH
 surface does not expose those exact aggregate identities. No second DSH-local
-usage schema is retained.
+usage schema is retained. Its token fields are comparable only inside a
+compatible DSH/provider generation, not directly with another runtime.
 
 This change does not authorize comparative evaluation, automatic runtime
 selection, a production switch, Agent Teams, skill migration, or removal of
