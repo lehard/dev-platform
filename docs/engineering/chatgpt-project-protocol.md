@@ -22,6 +22,24 @@ For a multi-repository project, use an explicit mapping `repository -> project l
 
 Discussion, design, comparison, and repo inspection do not create Backlog state by themselves.
 
+### Incubate / park an idea
+
+When the user explicitly wants an idea preserved for later but does **not** yet
+accept it as work, follow the canonical Incubator contract in
+[task-intake.md](task-intake.md). Use a Development Backlog Project **draft
+issue** with `Status=Incubator`; do not create a normal Development Backlog
+Issue, managed OpenSpec package, routing decision, or execution state.
+
+Keep the draft bounded to the idea/hypothesis, why or source, and a revisit
+condition. If the current ChatGPT/GitHub surface cannot mutate Project draft
+items or the Project has no `Incubator` option, state the exact manual Project
+action required instead of substituting a normal Backlog task.
+
+Promotion from Incubator requires a later explicit human decision to accept the
+idea as work. Then use the ordinary managed-task authoring flow and leave the
+new task in `Backlog`; never move an incubated idea directly to `Ready` or start
+implementation merely because it was parked.
+
 ### Fix / add to Backlog
 
 When the user explicitly asks to record accepted work — for example «зафиксируй», «добавь в бэклог», «создай задачу», «отправь в бэклог», or equivalent — follow the current Dev Platform managed-task authoring contract.
@@ -93,6 +111,6 @@ to use this contract; they should not copy the procedure.
 - Target repository `AGENTS.md` and engineering docs: current repository workflow and safety rules.
 - Materialized OpenSpec package: implementation contract for a managed change.
 - Development Backlog Issue: human-facing task/provenance record.
-- Development Backlog Project: managed-task workflow status.
+- Development Backlog Project: managed-task workflow status plus optional pre-commitment Incubator draft items.
 
 For actual implementation of an existing managed task, hand off to the target repository's current lifecycle instead of continuing from this adapter as a parallel implementation plan.
