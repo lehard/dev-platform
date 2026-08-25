@@ -9,8 +9,8 @@ work.
 
 - **Discuss**: inspect, design and compare. Do not create durable Backlog state.
 - **Incubate / park**: preserve a potentially useful idea without accepting it
-  for delivery. Use the optional Development Backlog Project incubator contract
-  below; do not create a managed Issue or OpenSpec package.
+  for delivery. Use the repository-backed Incubator contract below; do not
+  create a managed task or OpenSpec package.
 - **Fix / add to Backlog**: an explicit recording request (for example
   `зафиксируй`, `добавь в бэклог`, `создай задачу`) authors or updates the
   managed package and stops. It never starts implementation or changes Project
@@ -29,30 +29,38 @@ execution.
 
 ## Incubator
 
-`Incubator` is an optional pre-commitment planning layer inside the configured
-Development Backlog GitHub Project. It is deliberately outside the managed-task
-lifecycle: incubated ideas are Project **draft issues** with `Status=Incubator`,
-not repository Issues. They have no managed OpenSpec package, routing tier,
-priority requirement, task workspace, or execution entitlement.
+`Incubator` is an optional pre-commitment planning layer backed by ordinary open
+Issues in the configured Development Backlog repository. An incubated Issue
+carries the dedicated `incubator` label but SHALL NOT carry a `project:*` label,
+a priority label, managed authoring receipt, OpenSpec package, routing decision,
+task workspace, or execution entitlement. Managed authoring discovers bounded
+same-project candidates through the configured `project:*` label, so an
+incubated Issue remains outside the managed-task lifecycle until a human accepts
+it as work.
 
-Keep an incubated item small. Record the idea or hypothesis, why it is worth
-remembering (including a source when useful), and a **revisit condition**. Prefer
-an evidence/event trigger such as “after enough routing executions exist” or
-“if this friction repeats” over an arbitrary calendar date unless the decision
-is genuinely time-driven. Incubator items must not promote themselves or create
-managed work automatically.
+Keep an incubated item small and machine-editable. Record the target repository,
+the idea or hypothesis, why it is worth remembering (including a source when
+useful), and a **revisit condition**. Prefer an evidence/event trigger such as
+“after enough routing executions exist” or “if this friction repeats” over an
+arbitrary calendar date unless the decision is genuinely time-driven.
 
-Promotion requires explicit human acceptance of the idea as work. At that point
-use the normal managed-task authoring path to create or reuse the Development
-Backlog Issue and OpenSpec package in `Backlog`. Only after that managed identity
-exists should the old draft item be archived/removed or clearly marked as
-promoted and linked to the managed task. Never move an incubated idea directly
-to `Ready` or treat the draft as implementation provenance.
+GitHub Project placement is a visualization layer, not the source of truth. A
+Project may auto-add Issues matching `label:incubator` and expose a dedicated
+`Incubator` view filtered by that label. Managed Backlog views should exclude
+`label:incubator`. Do not add a `project:*` label merely to make an incubated
+Issue appear in a Project. A Project `Status` value on an incubated Issue is
+non-authoritative; managed lifecycle status begins only after promotion.
 
-If the configured Project does not expose `Incubator`, or the current agent
-surface cannot create/update Project draft items, report that capability limit
-and the exact manual Project action required. Do not substitute a normal Backlog
-Issue merely to persist the idea.
+Promotion requires explicit human acceptance of the idea as work. Create or
+reuse the ordinary managed Development Backlog Issue and OpenSpec package through
+the normal authoring path and leave that managed task in `Backlog`. After the
+managed identity exists, close the incubated Issue with a link to the promoted
+task. Never move an incubated idea directly to `Ready` or start implementation
+merely because it was parked.
+
+If the current agent surface cannot mutate GitHub Project views or fields, that
+must not block durable incubation: create or update the repository Issue and let
+the configured Project automation/view surface it when available.
 
 ## Evidence-first execution
 
