@@ -40,5 +40,6 @@ operations:
       - Ensure completed task checkboxes reflect validated implementation.
       - For non-trivial changes, require project/platform checks plus semantic OpenSpec verification before archive; structural openspec validate alone is insufficient.
       - Prefer /opsx:verify when available; otherwise document the equivalent review of outcome/success evidence, completeness, correctness, and coherence.
+      - When a verification check fails, classify it as introduced, pre-existing, or unknown relative to the authoritative base; claim pre-existing only with trustworthy baseline evidence, otherwise leave it unknown.
       - 'After material findings are resolved, record `OpenSpec-Verify: PASS` and `Verification-Method: <method>` in the active change verification.md.'
       - Archive central platform changes through `python3 template/scripts/openspec_lifecycle.py archive <change>` so completion requirements are mechanically checked.

@@ -44,6 +44,8 @@ Prefer `/opsx:verify` when the installed agent integration exposes it. If the cu
 
 Semantic verification and `openspec validate` are different. The former checks implementation against intent; the latter checks OpenSpec structure. Neither replaces project-specific tests, E2E, browser/render QA, migrations or operational checks.
 
+When a verification check fails, classify the failure relative to the authoritative base as `introduced`, `pre-existing`, or `unknown`. Claim `pre-existing` only when reproducible baseline evidence or another trustworthy unchanged-base signal proves it; missing evidence remains `unknown`, not a guess. A pre-existing failure does not excuse new regressions: report the baseline condition separately from failures introduced by the current change.
+
 After material semantic findings are resolved, record the result in the active change's `verification.md` with:
 
 ```text

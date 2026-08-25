@@ -39,6 +39,8 @@ Keep this context in the existing proposal, specs, design, and tasks artifacts. 
 
 Before archiving a non-trivial platform change, run relevant tests plus semantic OpenSpec verification. Prefer `/opsx:verify` when the installed tool integration exposes it. If the current agent environment cannot invoke that workflow, perform and document the equivalent OpenSpec review across the authored outcome and success evidence, completeness, correctness, and coherence. Structural `openspec validate` is useful but is not a substitute for semantic verification or project-specific checks.
 
+When a verification check fails, classify the failure relative to the authoritative base as `introduced`, `pre-existing`, or `unknown`. Claim `pre-existing` only when reproducible baseline evidence or another trustworthy unchanged-base signal proves it; missing evidence remains `unknown`, not a guess. A pre-existing failure does not excuse new regressions: the verification report must distinguish the baseline condition from failures introduced by the current change.
+
 A platform change is not done merely because its task checkboxes are complete. After semantic verification succeeds and material findings are resolved:
 
 1. record `OpenSpec-Verify: PASS` and `Verification-Method: <method>` in the active change's `verification.md`;
