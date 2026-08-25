@@ -26,19 +26,22 @@ Discussion, design, comparison, and repo inspection do not create Backlog state 
 
 When the user explicitly wants an idea preserved for later but does **not** yet
 accept it as work, follow the canonical Incubator contract in
-[task-intake.md](task-intake.md). Use a Development Backlog Project **draft
-issue** with `Status=Incubator`; do not create a normal Development Backlog
-Issue, managed OpenSpec package, routing decision, or execution state.
+[task-intake.md](task-intake.md). Create or update an ordinary Issue in
+`BACKLOG_REPOSITORY` with the dedicated `incubator` label and record the target
+repository in its body. Do **not** add the target `project:*` label, priority,
+managed OpenSpec package, routing decision, or execution state.
 
-Keep the draft bounded to the idea/hypothesis, why or source, and a revisit
-condition. If the current ChatGPT/GitHub surface cannot mutate Project draft
-items or the Project has no `Incubator` option, state the exact manual Project
-action required instead of substituting a normal Backlog task.
+Keep the Issue bounded to the idea/hypothesis, why or source, and a revisit
+condition. Project placement is optional visualization: if configured, an
+auto-add workflow may surface `label:incubator` Issues in an `Incubator` view.
+Lack of Project-field mutation must not force a manual copy/paste step or block
+saving the idea.
 
 Promotion from Incubator requires a later explicit human decision to accept the
 idea as work. Then use the ordinary managed-task authoring flow and leave the
-new task in `Backlog`; never move an incubated idea directly to `Ready` or start
-implementation merely because it was parked.
+new managed task in `Backlog`. After the managed identity exists, close the
+incubator Issue with a link to the promoted task; never move an incubated idea
+directly to `Ready` or start implementation merely because it was parked.
 
 ### Fix / add to Backlog
 
@@ -110,7 +113,8 @@ to use this contract; they should not copy the procedure.
 
 - Target repository `AGENTS.md` and engineering docs: current repository workflow and safety rules.
 - Materialized OpenSpec package: implementation contract for a managed change.
-- Development Backlog Issue: human-facing task/provenance record.
-- Development Backlog Project: managed-task workflow status plus optional pre-commitment Incubator draft items.
+- Development Backlog Issue with `incubator` and no `project:*` label: durable pre-commitment idea record.
+- Managed Development Backlog Issue: human-facing task/provenance record.
+- Development Backlog Project: visualization and managed-task workflow status; Project placement alone does not promote an incubated idea.
 
 For actual implementation of an existing managed task, hand off to the target repository's current lifecycle instead of continuing from this adapter as a parallel implementation plan.
