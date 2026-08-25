@@ -10,6 +10,7 @@ context: |
 
 rules:
   proposal:
+    - Keep one intent per OpenSpec change. Apply the split test before authoring: if a substantial part could be accepted, delivered, verified, or rolled back independently while the remainder waits, split it unless the parts are jointly required for one observable outcome; touching multiple files/components/capabilities alone does not require a split.
     - State the expected outcome and concrete success criteria or verification evidence. Use quantitative thresholds when meaningful; otherwise use binary or directly observable evidence instead of inventing KPIs.
     - State relevant constraints and explicit non-goals that bound the accepted iteration.
     - For a change to existing behavior, workflow, UX, contract, or architecture whose transition is not otherwise clear, include a concise current-to-target description.
