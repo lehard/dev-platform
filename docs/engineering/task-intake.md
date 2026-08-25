@@ -8,6 +8,9 @@ work.
 ## Intent boundary
 
 - **Discuss**: inspect, design and compare. Do not create durable Backlog state.
+- **Incubate / park**: preserve a potentially useful idea without accepting it
+  for delivery. Use the optional Development Backlog Project incubator contract
+  below; do not create a managed Issue or OpenSpec package.
 - **Fix / add to Backlog**: an explicit recording request (for example
   `зафиксируй`, `добавь в бэклог`, `создай задачу`) authors or updates the
   managed package and stops. It never starts implementation or changes Project
@@ -23,6 +26,33 @@ User wording is evidence of the current intent, not a magic keyword. Direct
 execution does not require a second `зафиксируй` instruction. A fixation-only
 request remains authoring-only unless the same request also clearly authorizes
 execution.
+
+## Incubator
+
+`Incubator` is an optional pre-commitment planning layer inside the configured
+Development Backlog GitHub Project. It is deliberately outside the managed-task
+lifecycle: incubated ideas are Project **draft issues** with `Status=Incubator`,
+not repository Issues. They have no managed OpenSpec package, routing tier,
+priority requirement, task workspace, or execution entitlement.
+
+Keep an incubated item small. Record the idea or hypothesis, why it is worth
+remembering (including a source when useful), and a **revisit condition**. Prefer
+an evidence/event trigger such as “after enough routing executions exist” or
+“if this friction repeats” over an arbitrary calendar date unless the decision
+is genuinely time-driven. Incubator items must not promote themselves or create
+managed work automatically.
+
+Promotion requires explicit human acceptance of the idea as work. At that point
+use the normal managed-task authoring path to create or reuse the Development
+Backlog Issue and OpenSpec package in `Backlog`. Only after that managed identity
+exists should the old draft item be archived/removed or clearly marked as
+promoted and linked to the managed task. Never move an incubated idea directly
+to `Ready` or treat the draft as implementation provenance.
+
+If the configured Project does not expose `Incubator`, or the current agent
+surface cannot create/update Project draft items, report that capability limit
+and the exact manual Project action required. Do not substitute a normal Backlog
+Issue merely to persist the idea.
 
 ## Evidence-first execution
 
