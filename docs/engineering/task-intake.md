@@ -24,6 +24,20 @@ execution does not require a second `зафиксируй` instruction. A fixati
 request remains authoring-only unless the same request also clearly authorizes
 execution.
 
+## Evidence-first execution
+
+Use repository evidence to narrow work before broad reading or unnecessary
+human interruption. If the relevant file, symbol, owner, or contract is not
+known, search first; then read only the likely evidence-bearing files needed to
+make the next decision or act safely. If the canonical path is already known,
+read it directly rather than performing a ceremonial search.
+
+Resolve factual ambiguity from repository evidence when the repository can
+answer it. Ask the user when a material product, intent, or scope choice remains
+rather than turning a repository lookup into a question. Once enough evidence
+exists to act safely inside the agreed scope, proceed instead of continuing
+open-ended exploration by default.
+
 ## Commands
 
 Prepare the normal managed authoring bundle (`manifest.json`, `issue.md`, and
