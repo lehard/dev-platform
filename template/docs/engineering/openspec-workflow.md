@@ -28,6 +28,8 @@ Do not knowingly make code and OpenSpec disagree and plan to repair the docs lat
 
 For non-trivial changes, make the expected outcome and concrete success criteria or verification evidence explicit in `proposal.md`. Use a quantitative threshold when it meaningfully measures the result; documentation, workflow, instruction, UX, and similar qualitative work may instead use binary or directly observable evidence. Do not invent a KPI merely to fill a section.
 
+Right-size the change before committing to its artifacts. One OpenSpec change should have one intent that can be stated in a sentence. Apply a **split test**: if a substantial part could be accepted, delivered, verified, or rolled back independently while the remainder waits, split it into a separate change unless those parts are jointly required to produce one observable outcome. Touching several files, components, or capabilities is not by itself a reason to split when they are inseparable for that outcome.
+
 State relevant constraints and non-goals to bound the accepted iteration. When a proposed change materially alters an existing workflow, UX, behavior, contract, or architecture path and the transition would otherwise be unclear, add a concise current-to-target description. Do not add an empty AS-IS/TO-BE section for a self-contained additive change.
 
 In `design.md`, record concrete risks and mitigations when the work materially affects data or migrations, security/privacy, CI or release lifecycle, external integrations, backwards compatibility, cross-project rollout, or a comparable high-consequence boundary. Low-risk work does not need a ceremonial risk table.
