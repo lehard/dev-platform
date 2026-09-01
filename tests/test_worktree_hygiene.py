@@ -338,6 +338,10 @@ class AgentBoardDoctorTests(WorktreeHarnessCase):
         problems = agent_board._status(item, self.root, main_branch="main", stale_hours=72)
         self.assertIn("branch-path-mismatch", problems)
         self.assertIn("branch-missing", problems)
+        self.assertEqual(
+            agent_board.claim_eligibility(item, self.root, main_branch="main", stale_hours=72)[0],
+            "degraded",
+        )
 
 
 class AgentBoardRegistrationTests(WorktreeHarnessCase):
@@ -528,6 +532,66 @@ class AgentBoardRegistrationTests(WorktreeHarnessCase):
         items = {item["id"]: item for item in json.loads(board.read_text(encoding="utf-8"))["items"]}
         self.assertEqual(items["first-id"]["admission"]["decision"], "RUN")
         self.assertEqual(items["second-id"]["admission"]["decision"], "WAIT")
+
+    def test_degraded_branch_path_sibling_is_diagnostic_only_and_untouched(self) -> None:
+        first = self.add_worktree("first")
+        second = self.add_worktree("second")
+        degraded = self.board_item("first-id", "first task", first, scope="shared.py")
+        degraded["branch"] = "agent/not-first"
+        original = dict(degraded)
+        board = self.register_board(degraded, self.board_item("second-id", "second task", second))
+
+        self.assertEqual(self.admit(board, second, "shared.py"), 0)
+        items = {item["id"]: item for item in json.loads(board.read_text(encoding="utf-8"))["items"]}
+        self.assertEqual(items["second-id"]["admission"]["decision"], "RUN")
+        self.assertEqual(items["first-id"], original)
+
+        output = StringIO()
+        with mock.patch.object(agent_board, "main_root", return_value=self.root), mock.patch.object(
+            agent_board, "board_path", return_value=board
+        ), redirect_stdout(output):
+            self.assertEqual(agent_board.cmd_doctor(Namespace(fix=True, stale_hours=72, format="json")), 1)
+        diagnostic = json.loads(output.getvalue())
+        self.assertEqual(diagnostic["entries"], [{"id": "first-id", "eligibility": "degraded", "problems": ["branch-path-mismatch", "branch-missing"]}])
+
+    def test_terminal_dirty_sibling_is_diagnostic_only_and_untouched(self) -> None:
+        first = self.add_worktree("first")
+        second = self.add_worktree("second")
+        git(self.root, "merge", "--ff-only", "agent/first")
+        (first / "keep-sibling-state.txt").write_text("do not alter\n", encoding="utf-8")
+        terminal = self.board_item("first-id", "first task", first, scope="shared.py")
+        original = dict(terminal)
+        board = self.register_board(terminal, self.board_item("second-id", "second task", second))
+
+        self.assertEqual(self.admit(board, second, "shared.py"), 0)
+        items = {item["id"]: item for item in json.loads(board.read_text(encoding="utf-8"))["items"]}
+        self.assertEqual(items["second-id"]["admission"]["decision"], "RUN")
+        self.assertEqual(items["first-id"], original)
+        self.assertEqual((first / "keep-sibling-state.txt").read_text(encoding="utf-8"), "do not alter\n")
+        self.assertEqual(
+            agent_board.claim_eligibility(items["first-id"], self.root, main_branch="main", stale_hours=72)[0],
+            "terminal",
+        )
+
+    def test_unreadable_board_fails_admission_closed(self) -> None:
+        first = self.add_worktree("first")
+        board = self.root / ".claude" / "agents-board.json"
+        board.parent.mkdir(parents=True, exist_ok=True)
+        board.write_text("{not json", encoding="utf-8")
+        with mock.patch.object(agent_board, "main_root", return_value=self.root), mock.patch.object(
+            agent_board, "board_path", return_value=board
+        ), self.assertRaisesRegex(RuntimeError, "Invalid JSON"):
+            self.admit(board, first, "shared.py")
+
+    def test_lock_failure_fails_admission_closed(self) -> None:
+        first = self.add_worktree("first")
+        board = self.register_board(self.board_item("first-id", "first task", first))
+        with mock.patch.object(agent_board, "main_root", return_value=self.root), mock.patch.object(
+            agent_board, "board_path", return_value=board
+        ), mock.patch.object(agent_board, "locked_json", side_effect=OSError("board lock unavailable")), self.assertRaisesRegex(
+            OSError, "board lock unavailable"
+        ):
+            self.admit(board, first, "shared.py")
 
     def test_concurrent_exact_claims_cannot_both_run(self) -> None:
         first = self.add_worktree("first")

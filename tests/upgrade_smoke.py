@@ -141,6 +141,10 @@ def main() -> int:
             raise SystemExit("Copier update did not materialize provider-local model routing")
         if not (target / "docs" / "engineering" / "model-routing.md").is_file():
             raise SystemExit("Copier update did not materialize model-routing guidance")
+        if args.profile == "multi-agent":
+            rendered_workflow = (target / "docs" / "engineering" / "agent-workflow.md").read_text(encoding="utf-8")
+            if "unreadable or un-lockable board" not in rendered_workflow:
+                raise SystemExit("Copier update did not preserve fail-closed board guidance")
         openspec_workflow = (target / "docs" / "engineering" / "openspec-workflow.md").read_text(encoding="utf-8")
         if "## Author the outcome contract" not in openspec_workflow:
             raise SystemExit("Copier update did not propagate outcome-oriented OpenSpec guidance")

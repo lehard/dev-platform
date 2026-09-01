@@ -93,6 +93,26 @@ with serialized_integration(Path(%r), {"paths": {"main_merge_lock": ".claude/mai
         self.assertIn("recovery/diagnostic", message)
         self.assertNotIn("review is ready", message)
 
+    def test_agent_doctor_distinguishes_degraded_board_warning_from_a_blocked_error(self) -> None:
+        board = subprocess.CompletedProcess(
+            ["python3", "scripts/agent_board.py", "doctor"],
+            1,
+            '{"status":"diagnostic","entries":[{"id":"sibling","eligibility":"degraded","problems":["branch-path-mismatch"]}]}',
+            "",
+        )
+        cleanup = subprocess.CompletedProcess(
+            ["python3", "scripts/worktree_cleanup.py", "scan"],
+            0,
+            '{"pending":0,"eligible":0}',
+            "",
+        )
+        with patch.object(agent_doctor.subprocess, "run", side_effect=[board, cleanup]), patch.object(agent_doctor, "report") as report:
+            self.assertEqual(agent_doctor.run_multi_agent_hygiene(ROOT), 0)
+        warnings = [call.args for call in report.call_args_list if call.args[0] == "warn"]
+        self.assertEqual(len(warnings), 1)
+        self.assertIn("contribute no blocking scope claim", warnings[0][1])
+        self.assertIn("sibling (degraded: branch-path-mismatch)", warnings[0][1])
+
 
 if __name__ == "__main__":
     unittest.main()

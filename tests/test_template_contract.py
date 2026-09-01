@@ -323,6 +323,16 @@ class TemplateContractTests(unittest.TestCase):
         self.assertIn("DEV_PLATFORM_ALLOW_MAIN_COMMIT", pre_commit)
         self.assertIn("DEV_PLATFORM_ALLOW_MERGE_COMMIT", pre_merge)
 
+    def test_multi_agent_template_keeps_degraded_board_guidance_in_render_and_upgrade_smokes(self) -> None:
+        agents = (ROOT / "template" / "AGENTS.md.jinja").read_text(encoding="utf-8")
+        workflow = (ROOT / "template" / "docs" / "engineering" / "agent-workflow.md").read_text(encoding="utf-8")
+        render = (ROOT / "tests" / "test_root_guidance_contract.py").read_text(encoding="utf-8")
+        upgrade = (ROOT / "tests" / "upgrade_smoke.py").read_text(encoding="utf-8")
+        self.assertIn("degraded or terminal sibling", agents)
+        self.assertIn("unreadable or un-lockable board", workflow)
+        self.assertIn("degraded or terminal sibling", render)
+        self.assertIn("fail-closed board guidance", upgrade)
+
     def test_copier_version_is_explicitly_tested(self) -> None:
         copier = (ROOT / "copier.yml").read_text(encoding="utf-8")
         config = (ROOT / "template" / ".dev-platform.toml.jinja").read_text(encoding="utf-8")
