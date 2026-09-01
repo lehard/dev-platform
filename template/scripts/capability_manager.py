@@ -6,6 +6,9 @@ Project selection is deliberately separate and project-owned in
 ``dev-platform/capabilities.toml``.  Provider skill files are derived only for
 selected capabilities and carry a marker so removal cannot touch unrelated
 skills (including OpenSpec-generated integrations).
+
+Lifecycle eval statuses delegated to the shared core are ``run``,
+``skip-with-reason``, and ``blocked/unavailable``.
 """
 from __future__ import annotations
 
