@@ -197,6 +197,9 @@ class RenderedRootGuidanceTests(unittest.TestCase):
         self.assertLessEqual(count, MAX_ROOT_GUIDANCE_LINES, f"{profile} render is {count} lines")
         for anchor in REQUIRED_ANCHORS:
             self.assertIn(anchor, text, f"{profile} render lost `{anchor}`")
+        if profile == "multi-agent":
+            self.assertIn("degraded or terminal sibling", text)
+            self.assertIn("unreadable or un-lockable board", text)
         for link in LINK.findall(text):
             if not link.startswith(("http", "#")):
                 self.assertTrue((target / link).exists(), f"{profile} render links to missing {link}")

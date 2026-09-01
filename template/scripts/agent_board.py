@@ -26,6 +26,7 @@ DEFAULT_STALE_HOURS = 72
 MAX_OVERLAP_DIAGNOSTICS = 5
 MAX_ADMISSION_DIAGNOSTICS = 5
 MAX_ACKNOWLEDGED_PATHS = 20
+TERMINAL_BOARD_PROBLEMS = frozenset({"merged-branch", "merged-pr"})
 
 
 class HardScopeOverlap(RuntimeError):
@@ -210,7 +211,8 @@ def scope_overlap_diagnostics(
         item_worktree = Path(str(item.get("worktree", ""))).expanduser().resolve()
         if item_worktree == worktree.resolve() or item.get("branch") == branch:
             continue
-        if _status(item, root, main_branch=main_branch, stale_hours=DEFAULT_STALE_HOURS):
+        eligibility, _ = claim_eligibility(item, root, main_branch=main_branch, stale_hours=DEFAULT_STALE_HOURS)
+        if eligibility != "valid-active":
             continue
         other_paths = _normalized_scope_paths(str(item.get("scope", "")), root)
         other_paths |= _factual_scope_paths(item_worktree, root, main_branch)
@@ -284,7 +286,8 @@ def _admission_conflicts(
             continue
         if str(item.get("branch", "")) == current_branch:
             continue
-        if _status(item, root, main_branch=main_branch, stale_hours=DEFAULT_STALE_HOURS):
+        eligibility, _ = claim_eligibility(item, root, main_branch=main_branch, stale_hours=DEFAULT_STALE_HOURS)
+        if eligibility != "valid-active":
             continue
         item_id = str(item.get("id", "unknown"))
         for path in sorted(current_claims & _owned_claim_paths(item, root, main_branch)):
@@ -358,6 +361,22 @@ def _status(item: dict, root: Path, *, main_branch: str, stale_hours: int) -> li
     if _heartbeat_is_stale(item.get("heartbeat"), stale_hours):
         problems.append("stale-heartbeat")
     return problems
+
+
+def claim_eligibility(item: dict, root: Path, *, main_branch: str, stale_hours: int) -> tuple[str, list[str]]:
+    """Classify whether an entry can prove an active concrete-file claim.
+
+    Registration proves identity up front, but board state is machine-local and
+    can outlive a task or be manually damaged. Only a problem-free entry is
+    evidence of an active owner. Other classifications remain diagnostic only;
+    they never assert that their declared paths are safe to share.
+    """
+    problems = _status(item, root, main_branch=main_branch, stale_hours=stale_hours)
+    if not problems:
+        return "valid-active", problems
+    if TERMINAL_BOARD_PROBLEMS.intersection(problems):
+        return "terminal", problems
+    return "degraded", problems
 
 
 def cmd_list(_: argparse.Namespace) -> int:
@@ -485,7 +504,8 @@ def cmd_acknowledge(args: argparse.Namespace) -> int:
         other = next((item for item in items if str(item.get("id", "")) == args.with_id and item is not current), None)
         if other is None:
             raise SystemExit(f"Agent board acknowledgment blocked: unknown conflicting board id {args.with_id!r}.")
-        if _status(other, root, main_branch=main_branch, stale_hours=DEFAULT_STALE_HOURS):
+        eligibility, _ = claim_eligibility(other, root, main_branch=main_branch, stale_hours=DEFAULT_STALE_HOURS)
+        if eligibility != "valid-active":
             raise SystemExit(f"Agent board acknowledgment blocked: {args.with_id} is not a currently active task.")
         overlap = _claim_candidates(current, root, main_branch) & _owned_claim_paths(other, root, main_branch)
         unproven = [value for value in requested if value not in overlap]
@@ -536,32 +556,49 @@ def _safe_to_remove(item: dict, problems: list[str]) -> bool:
 def cmd_doctor(args: argparse.Namespace) -> int:
     root = main_root()
     path = board_path()
+    output_format = getattr(args, "format", "text")
     if not path.exists():
-        print("agent-board: ok (empty)")
+        if output_format == "json":
+            print(json.dumps({"status": "ok", "entries": []}, ensure_ascii=False, sort_keys=True))
+        else:
+            print("agent-board: ok (empty)")
         return 0
     config = read_platform_config(root)
     main_branch = str(config.get("main_branch", "main"))
 
     with locked_json(path) as data:
         items = data.setdefault("items", [])
-        bad: list[tuple[dict, list[str]]] = []
+        bad: list[tuple[dict, str, list[str]]] = []
         for item in items:
-            problems = _status(item, root, main_branch=main_branch, stale_hours=args.stale_hours)
+            eligibility, problems = claim_eligibility(item, root, main_branch=main_branch, stale_hours=args.stale_hours)
             if problems:
-                bad.append((item, problems))
+                bad.append((item, eligibility, problems))
 
         if args.fix and bad:
-            removable = {item["id"] for item, problems in bad if _safe_to_remove(item, problems)}
+            removable = {item["id"] for item, _, problems in bad if _safe_to_remove(item, problems)}
             items[:] = [item for item in items if item.get("id") not in removable]
-            if removable:
+            if removable and output_format == "text":
                 print("Removed safely stale entries:", ", ".join(sorted(removable)))
-            bad = [(item, problems) for item, problems in bad if item.get("id") not in removable]
+            bad = [(item, eligibility, problems) for item, eligibility, problems in bad if item.get("id") not in removable]
 
     if not bad:
-        print("agent-board: ok")
+        if output_format == "json":
+            print(json.dumps({"status": "ok", "entries": []}, ensure_ascii=False, sort_keys=True))
+        else:
+            print("agent-board: ok")
         return 0
-    for item, problems in bad:
-        print(f"{item.get('id')}: {', '.join(problems)}")
+    entries = [
+        {"id": str(item.get("id", "unknown")), "eligibility": eligibility, "problems": problems}
+        for item, eligibility, problems in bad
+    ]
+    if output_format == "json":
+        print(json.dumps({"status": "diagnostic", "entries": entries}, ensure_ascii=False, sort_keys=True))
+    else:
+        for entry in entries:
+            print(
+                f"{entry['id']}: {entry['eligibility']} diagnostic "
+                f"({', '.join(entry['problems'])}); contributes no blocking scope claim"
+            )
     return 1
 
 
@@ -653,6 +690,7 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("doctor")
     p.add_argument("--fix", action="store_true")
     p.add_argument("--stale-hours", type=int, default=DEFAULT_STALE_HOURS)
+    p.add_argument("--format", choices=("text", "json"), default="text")
     p.set_defaults(func=cmd_doctor)
 
     p = sub.add_parser("start")
