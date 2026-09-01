@@ -156,6 +156,17 @@ def sync_process_health_config(root: Path) -> None:
     print("Added missing process-health label configuration.")
 
 
+def sync_engineering_capabilities(root: Path) -> None:
+    """Materialize only project-selected, platform-owned capability surfaces."""
+    manager = root / "scripts" / "capability_manager.py"
+    selection = root / "dev-platform" / "capabilities.toml"
+    if not manager.is_file() or not selection.is_file():
+        return
+    result = run(["python3", str(manager), "--quiet", "sync"], root, check=False)
+    if result.returncode:
+        raise RuntimeError("optional engineering capability synchronization failed")
+
+
 def openspec_profile() -> dict[str, object]:
     return {"featureFlags": {}, "profile": "custom", "delivery": "both", "workflows": ALL_OPENSPEC_WORKFLOWS}
 
@@ -175,6 +186,7 @@ def main() -> int:
     sync_platform_version(root)
     sync_development_backlog_config(root)
     sync_process_health_config(root)
+    sync_engineering_capabilities(root)
     config = load_config(root)
     main_branch = str(config.get("main_branch", "main"))
     tools = str(config.get("agent_tools", "claude,codex"))

@@ -1,0 +1,20 @@
+- [x] Inventory current core `[capabilities]`, `workflow_profile`, Project Factory rendering, agent-tool surfaces, Claude/Codex native skill invocation controls, and OpenSpec external-skill ownership.
+- [x] Define the minimal provider-neutral optional-capability descriptor/schema: identity, kind, applicability/trigger, invocation intent, visibility intent, source/provenance, owner, safety boundary, dependencies, materialization, and update/removal metadata.
+- [x] Define provider mappings for `auto+explicit`, `explicit-only`, and `agent-only`, including truthful support-matrix behavior when a provider cannot represent a mode natively.
+- [x] Define schema-owned project opt-in without expanding `workflow_profile` into capability combinations.
+- [x] Implement one canonical storage/materialization path for instruction-only capabilities and deterministic provider-local generation/parity checks where Codex/Claude need different surfaces.
+- [x] Implement the bounded tool-backed capability path so development tooling/runtime can be installed or referenced without becoming an application production dependency.
+- [x] Add exact upstream provenance/pinning and reject mutable-at-runtime external instruction fetches for retained external content.
+- [x] Add a discoverable capability-management/authoring entrypoint that matches generic create/update/remove/list/audit intents without requiring the user to name an internal tool.
+- [x] Integrate #79 eval decision into authoring: structural validation always; live eval decision `run | skip-with-reason | blocked/unavailable` based on material behavior/trigger change, objective verifiability, cost and safety.
+- [x] Generate a human-readable catalog/list/show surface from canonical descriptors and project opt-in state; do not maintain a separate hand-edited catalog.
+- [x] Add Project Factory fresh-render and reviewed Copier update/remove behavior, preserving project-owned files and current OpenSpec-generated integrations.
+- [x] Extend platform health/doctor checks for configured capability identity, invocation support, materialization parity, missing dependencies, malformed pins, and stale generated surfaces without requiring external network access.
+- [x] Create a small instruction-only fixture and exercise declare → opt-in → implicit discovery → explicit invocation → update → remove.
+- [x] Exercise invocation-intent fixtures on Claude and Codex; verify the explicit unsupported result where the provider has no documented native control.
+- [x] Verify generic user intent to add/update/list a capability triggers the management path and automatically emits an eval decision.
+- [x] Create a bounded tool-backed fixture and prove installation does not change application production dependencies or grant production/write/credential entitlement.
+- [x] Add negative/control coverage showing a project without opt-in receives no capability files/context/runtime.
+- [x] Verify existing core capability/profile semantics and OpenSpec external-skill generation remain backward-compatible.
+- [x] Document how #79 and concrete capabilities #82–#86 consume this foundation instead of defining parallel stores/config/update/invocation mechanisms.
+- [x] Run semantic OpenSpec verification and relevant Project Factory/Copier/config/doctor regression checks; record evidence and archive/publish normally.

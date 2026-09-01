@@ -93,3 +93,7 @@ Platform-managed scripts, docs and the self-contained CI workflow are versioned 
 Platform-owned files carry the shared lifecycle and are updated by Copier. Project-owned files carry this repository's domain, stack and operational rules. Keep subtree-specific rules in a module-level `AGENTS.md` next to the code they govern, and keep project-domain rules in project-owned docs rather than promoting them into this map.
 
 OpenSpec-generated Claude/Codex skills are produced by the OpenSpec CLI; do not hand-edit them or treat them as platform-owned source.
+
+## Optional engineering capabilities
+
+Optional engineering capabilities are independent of `workflow_profile`. Use `python3 scripts/capability_manager.py list` to discover them and the same entrypoint for `create`, `enable`, `update`, `remove`, `audit`, and `sync`. `dev-platform/capabilities.toml` is the project opt-in; descriptors under `dev-platform/capabilities/` are canonical. Generated `.claude/.codex` skill surfaces are derived and must not be edited. OpenSpec-generated skills remain external to this lifecycle.

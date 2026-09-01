@@ -1,0 +1,3 @@
+# Project-owned optional engineering capability selection.
+version = 1
+enabled = []
