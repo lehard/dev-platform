@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
 import re
 import shutil
@@ -12,7 +13,7 @@ from pathlib import Path
 from _platform_common import SharedWorkspaceError, harness_mode, read_platform_config
 from shared_workspace import audit as audit_shared_workspace
 
-REQUIRED_COMMON = ["AGENTS.md", "CLAUDE.md", ".dev-platform.toml", "dev-platform/checks.toml", "docs/engineering/openspec-workflow.md", "docs/engineering/task-intake.md", "scripts/dev.py", "scripts/shared_workspace.py", "scripts/managed_task.py", "scripts/managed_project_status.py", "scripts/start_managed_task.py", "scripts/execute_managed_task.py", "scripts/select_checks.py", "scripts/project_sync.py", "scripts/project_publish.py", "scripts/start_task.py", "scripts/finish_task.py", "scripts/reconcile_task.py", "scripts/openspec_lifecycle.py", "scripts/agent_friction.py", "scripts/agent_doctor.py", "scripts/model_routing.py"]
+REQUIRED_COMMON = ["AGENTS.md", "CLAUDE.md", ".dev-platform.toml", "dev-platform/checks.toml", "dev-platform/capabilities.toml", "docs/engineering/openspec-workflow.md", "docs/engineering/task-intake.md", "docs/engineering/engineering-capabilities.md", "scripts/dev.py", "scripts/shared_workspace.py", "scripts/managed_task.py", "scripts/managed_project_status.py", "scripts/start_managed_task.py", "scripts/execute_managed_task.py", "scripts/select_checks.py", "scripts/project_sync.py", "scripts/project_publish.py", "scripts/start_task.py", "scripts/finish_task.py", "scripts/reconcile_task.py", "scripts/openspec_lifecycle.py", "scripts/agent_friction.py", "scripts/agent_doctor.py", "scripts/model_routing.py", "scripts/capability_manager.py"]
 REQUIRED_MULTI_AGENT_PLATFORM = ["scripts/agent_board.py", "scripts/start_worktree.py", "scripts/worktree_cleanup.py", "scripts/git_hooks/pre-commit", "scripts/git_hooks/pre-merge-commit"]
 VERIFY_CANDIDATES = [".codex/skills/openspec-verify-change/SKILL.md", ".claude/skills/openspec-verify-change/SKILL.md", ".cursor/skills/openspec-verify-change/SKILL.md"]
 IGNORED_CONFLICT_DIRS = {".git", ".claude", ".codex", "node_modules", ".venv", "venv"}
@@ -301,6 +302,32 @@ def check_platform_check_contract(root: Path, config: dict, harness: str) -> Non
         ok("platform check mappings have executable commands")
 
 
+def check_engineering_capabilities(root: Path, failures: list[int]) -> None:
+    """Run the canonical capability audit without any network or mutation."""
+    manager = root / "scripts" / "capability_manager.py"
+    selection = root / "dev-platform" / "capabilities.toml"
+    descriptors = root / "dev-platform" / "capabilities"
+    if not manager.is_file() or not selection.is_file() or not descriptors.is_dir():
+        return
+    result = subprocess.run(
+        [sys.executable, str(manager), "--json", "audit"],
+        cwd=root,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    detail = (result.stdout or result.stderr).strip()
+    try:
+        payload = json.loads(result.stdout) if result.stdout.strip() else {}
+    except json.JSONDecodeError:
+        payload = {}
+    if result.returncode == 0 and payload.get("status") == "ok":
+        ok("optional engineering capability descriptors and derived surfaces are valid")
+        return
+    fail("optional engineering capability audit failed: " + (detail[:500] or f"exit {result.returncode}"))
+    failures[0] += 1
+
+
 def main() -> int:
     root = Path.cwd().resolve()
     failures = [0]
@@ -338,6 +365,8 @@ def main() -> int:
         if (root / relative).exists(): ok(relative)
         else:
             fail(f"missing {relative}"); failures[0] += 1
+
+    check_engineering_capabilities(root, failures)
 
     check_task_start_contract(root, config, harness, failures)
     check_rendered_workflow_mode(root, config, failures)

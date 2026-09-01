@@ -5,6 +5,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_ROOT = ROOT / "template" / "scripts"
@@ -103,6 +104,21 @@ class PlatformBootstrapTests(unittest.TestCase):
             before = config.read_text(encoding="utf-8")
             platform_bootstrap.sync_process_health_config(root)
             self.assertEqual(before, config.read_text(encoding="utf-8"))
+
+    def test_capability_sync_runs_only_when_the_rendered_contract_exists(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with mock.patch.object(platform_bootstrap, "run") as run:
+                platform_bootstrap.sync_engineering_capabilities(root)
+            run.assert_not_called()
+            (root / "scripts").mkdir()
+            (root / "dev-platform").mkdir()
+            (root / "scripts" / "capability_manager.py").write_text("# fixture\n", encoding="utf-8")
+            (root / "dev-platform" / "capabilities.toml").write_text("version = 1\nenabled = []\n", encoding="utf-8")
+            result = type("Result", (), {"returncode": 0})()
+            with mock.patch.object(platform_bootstrap, "run", return_value=result) as run:
+                platform_bootstrap.sync_engineering_capabilities(root)
+            self.assertIn("--quiet", run.call_args.args[0])
 
 
 if __name__ == "__main__":
