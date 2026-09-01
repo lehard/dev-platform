@@ -1,0 +1,19 @@
+# Design: One composable lifecycle for optional engineering capabilities
+
+## Decisions
+
+1. **Orthogonal to workflow profiles.** `light`, `standard`, and `multi-agent` continue to express core lifecycle composition. Optional engineering capabilities are independent opt-ins and do not create combinatorial workflow-profile names.
+2. **Canonical descriptor, provider-local materialization.** Each capability has one platform-owned provider-neutral descriptor containing identity, kind, applicability/trigger, ownership, provenance, safety boundary, dependency requirements, invocation intent, visibility intent, and materialization/update policy. Provider-local files are generated/adapted from that source or explicitly declared unsupported/provider-specific.
+3. **Native discovery first.** Default reusable capabilities use standard semantic discovery from `name + description` plus explicit invocation where supported. The platform does not add a second semantic router when Claude/Codex native skill discovery is sufficient.
+4. **Invocation intent is explicit.** The descriptor represents at least `auto+explicit`, `explicit-only`, and `agent-only`. Provider adapters map this intent to native controls when available and expose unsupported combinations truthfully.
+5. **One human catalog, derived not duplicated.** A catalog/list/show view is generated from descriptors and project configuration. It shows purpose, invocation mode, scope, provider support, provenance, dependencies/safety, and available eval evidence. Provider-native skill menus remain runtime views, not competing sources of truth.
+6. **One discoverable management path.** Requests to add/create/update/remove/list/audit skills or capabilities should naturally trigger a platform-owned management/authoring capability. Humans should not need to remember internal lifecycle/eval tool names.
+7. **Eval decision is automatic, live eval is selective.** The management path always performs static validation and classifies a candidate change as `run`, `skip-with-reason`, or `blocked/unavailable` for #79. New/material behavior or trigger changes are evaluated when appropriate; trivial non-behavioral changes need not run expensive live evals.
+8. **Reproducible external provenance.** External content records exact source revision/version, path, license, and content hash. Runtime behavior never depends on mutable upstream `main` unless a later explicit reviewed update changes the pin.
+9. **Minimal capability kinds.** The first contract supports instruction-only and tool-backed capabilities. More kinds require evidence; the foundation does not encode browser/design/debug semantics.
+10. **Opt-in is project state.** Project Factory/schema-owned configuration records selected capabilities. A project that does not opt in receives no extra agent context, generated skill surface, or tool runtime.
+11. **Development tooling stays outside application runtime.** Tool-backed capabilities use an isolated development/tooling path where possible. Installation alone never grants production access, credentials, origin permissions, or write authority.
+12. **Project contracts win.** Project/domain `AGENTS.md`, active OpenSpec, safety and verification rules override additive capability guidance.
+13. **Reviewable lifecycle.** Fresh render, Copier update, capability update and removal are deterministic/reviewable and converge idempotently. Downstream normal use remains self-contained without runtime access to `dev-platform@main`.
+14. **OpenSpec remains external.** OpenSpec-generated Claude/Codex skills remain owned by the external OpenSpec integration and are not absorbed into the optional-capability store.
+15. **Evals are an extension point, not a runtime prerequisite.** Ordinary capability use does not depend on live model-eval runtime, but capability authoring automatically decides whether #79 should run.

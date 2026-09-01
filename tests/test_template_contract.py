@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class TemplateContractTests(unittest.TestCase):
     def test_required_template_files_exist(self) -> None:
-        required = ["copier.yml", "template/AGENTS.md.jinja", "template/CLAUDE.md.jinja", "template/.dev-platform.toml.jinja", "template/dev-platform/checks.toml", "template/dev-platform/deepseek-harness-observation.cordis.yml", "template/requirements/deepseek-harness.txt", "template/.github/workflows/dev-platform.yml.jinja", "template/scripts/shared_workspace.py", "template/scripts/agent_board.py", "template/scripts/start_worktree.py", "template/scripts/worktree_cleanup.py", "template/scripts/start_task.py", "template/scripts/managed_task.py", "template/scripts/managed_project_status.py", "template/scripts/start_managed_task.py", "template/scripts/execute_managed_task.py", "template/scripts/deepseek_harness_adapter.py", "template/scripts/select_checks.py", "template/scripts/project_sync.py", "template/scripts/project_publish.py", "template/scripts/finish_task.py", "template/scripts/reconcile_task.py", "template/scripts/task_reconciliation.py", "template/scripts/openspec_lifecycle.py", "template/scripts/merge_to_main.py", "template/scripts/agent_friction.py", "template/scripts/agent_doctor.py", "template/scripts/model_routing.py", "template/scripts/platform_bootstrap.py", "template/scripts/platform_doctor.py", "template/scripts/git_hooks/pre-commit", "template/scripts/git_hooks/pre-merge-commit"]
+        required = ["copier.yml", "template/AGENTS.md.jinja", "template/CLAUDE.md.jinja", "template/.dev-platform.toml.jinja", "template/dev-platform/checks.toml", "template/dev-platform/capabilities.toml", "template/dev-platform/capabilities/repository-hygiene.toml", "template/dev-platform/capabilities/repository-hygiene.md", "template/docs/engineering/engineering-capabilities.md", "template/dev-platform/deepseek-harness-observation.cordis.yml", "template/requirements/deepseek-harness.txt", "template/.github/workflows/dev-platform.yml.jinja", "template/scripts/shared_workspace.py", "template/scripts/capability_manager.py", "template/scripts/agent_board.py", "template/scripts/start_worktree.py", "template/scripts/worktree_cleanup.py", "template/scripts/start_task.py", "template/scripts/managed_task.py", "template/scripts/managed_project_status.py", "template/scripts/start_managed_task.py", "template/scripts/execute_managed_task.py", "template/scripts/deepseek_harness_adapter.py", "template/scripts/select_checks.py", "template/scripts/project_sync.py", "template/scripts/project_publish.py", "template/scripts/finish_task.py", "template/scripts/reconcile_task.py", "template/scripts/task_reconciliation.py", "template/scripts/openspec_lifecycle.py", "template/scripts/merge_to_main.py", "template/scripts/agent_friction.py", "template/scripts/agent_doctor.py", "template/scripts/model_routing.py", "template/scripts/platform_bootstrap.py", "template/scripts/platform_doctor.py", "template/scripts/git_hooks/pre-commit", "template/scripts/git_hooks/pre-merge-commit"]
         for relative in required:
             with self.subTest(relative=relative): self.assertTrue((ROOT / relative).exists(), relative)
 
@@ -26,6 +26,17 @@ class TemplateContractTests(unittest.TestCase):
 
     def test_platform_does_not_vendor_openspec_generated_skills(self) -> None:
         self.assertFalse((ROOT / "template" / ".agents" / "skills").exists()); self.assertFalse((ROOT / "template" / ".claude" / "skills").exists())
+
+    def test_optional_capability_contract_is_separate_from_profiles_and_openspec(self) -> None:
+        agents = (ROOT / "template" / "AGENTS.md.jinja").read_text(encoding="utf-8")
+        manager = (ROOT / "template" / "scripts" / "capability_manager.py").read_text(encoding="utf-8")
+        descriptor = (ROOT / "template" / "dev-platform" / "capabilities" / "repository-hygiene.toml").read_text(encoding="utf-8")
+        self.assertIn("dev-platform/capabilities.toml", (ROOT / "copier.yml").read_text(encoding="utf-8"))
+        self.assertIn("Optional engineering capabilities", agents)
+        self.assertIn("OpenSpec-generated skills remain external", agents)
+        self.assertIn("auto+explicit", descriptor)
+        self.assertIn("blocked/unavailable", manager)
+        self.assertIn("refusing to remove unowned provider skill", manager)
 
     def test_generic_openspec_template_has_no_finance_domain_contract(self) -> None:
         text = (ROOT / "template" / "openspec" / "config.yaml.jinja").read_text(encoding="utf-8").lower()

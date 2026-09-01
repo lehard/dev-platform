@@ -1,0 +1,26 @@
+[capability]
+id = "capability-catalog"
+name = "Capability catalog"
+description = "Inspect canonical optional engineering capability descriptors and their current project support."
+kind = "tool-backed"
+applicability = "Discovering, listing, and auditing optional engineering capabilities."
+invocation = "auto+explicit"
+visibility = "project"
+owner = "dev-platform"
+safety_boundary = "Repository-local development adapter only; it installs nothing and grants no production dependency, credential, origin, or write entitlement."
+dependencies = []
+materialization = "provider-skill-markdown"
+tool_adapter = "scripts/capability_manager.py"
+update_policy = "replace-derived"
+removal_policy = "remove-derived-only"
+
+[provenance]
+source = "dev-platform"
+revision = "platform-managed"
+path = "dev-platform/capabilities/capability-catalog.md"
+license = "Apache-2.0"
+content_sha256 = "0fcf31950ff9725464a47fd95a5631c40a7d81504fb21744b52e555af317bf8d"
+
+[eval]
+evidence = "none"
+live_eval = "not-required-for-fixture"

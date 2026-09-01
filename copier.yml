@@ -11,6 +11,7 @@ _skip_if_exists:
   - openspec/config.yaml
   - docs/engineering/project-rules.md
   - .gitignore
+  - dev-platform/capabilities.toml
   - "{{ 'docs/engineering/openspec-workflow.md' if harness_mode == 'project' else '.copier-managed-harness' }}"
   - "{{ 'docs/engineering/agent-workflow.md' if harness_mode == 'project' else '.copier-managed-harness' }}"
   - "{{ 'scripts/agent_board.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
