@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/agent-instructions/spec.md"
+  ],
+  "change": "harden-agent-instruction-architecture",
+  "imported_at": "2026-09-01T14:18:05+00:00",
+  "package_revision": "f8936b00eec25f18813800bc6b83c158993416c4859b1949720099f59ea4457b",
+  "prepared_against": "e6b207fd63e77a99d868892f7f8e0c0a2210c8ec",
+  "routing_receipt": {
+    "assurance": "high",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "agent-tooling"
+  },
+  "source_issue": "lehard/development-backlog#80",
+  "source_issue_evidence": {
+    "body_sha256": "7032461e921025cfc5e35c821f7e15576e6c6c83dc74caae6bf58632ccb5e543",
+    "updated_at": "2026-09-01T07:14:49Z"
+  },
+  "supersedes": "f4d8a969d45d32417c1de3316df834bd7d7c9a0cbc59566fa2f6587a377553db",
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

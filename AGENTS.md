@@ -21,7 +21,7 @@ Target behavior during an active change is `current specs + active delta`, subje
 Keep these four intents distinct:
 
 - **Discuss** a change: inspect, design and compare options; a substantial discussion does not by itself create Backlog state.
-- **Fix/add to Backlog** when the user explicitly asks to record an accepted non-trivial change ("зафиксируй", "добавь в бэклог", "создай задачу" or equivalent): prepare a local authoring bundle, run `python3 scripts/managed_task.py create --bundle <directory>`, and stop. Authoring never starts apply, implementation, dispatch, Project-status changes or publication.
+- **Fix/add to Backlog** from a repository checkout when the user explicitly asks to record an accepted non-trivial change ("зафиксируй", "добавь в бэклог", "создай задачу" or equivalent): prepare a local authoring bundle, run `python3 scripts/managed_task.py create --bundle <directory>`, and stop. Authoring never starts apply, implementation, dispatch, Project-status changes or delivery publication. ChatGPT Project uses its dedicated adapter for the same semantics when it has no checkout.
 - **Quick execution**: a small direct request is a quick task and uses the existing task/check/finish workflow with no backlog issue and no ceremonial OpenSpec. If it becomes material or needs a full active OpenSpec contract, enter managed intake before further implementation.
 - **Fresh non-trivial execution**: explicit execution intent first creates/reuses the managed task and starts that same task before implementation; use `python3 scripts/execute_managed_task.py --bundle <directory>`.
 - **Execute an existing managed task**: an explicitly supplied Development Backlog issue is imported with `python3 scripts/start_managed_task.py owner/repo#N` before implementation.
@@ -72,7 +72,9 @@ python3 template/scripts/openspec_lifecycle.py check
 
 | Concern | Canonical document |
 | --- | --- |
+| Maintaining agent-facing instructions, pointers and surface ownership | [docs/engineering/agent-instructions.md](docs/engineering/agent-instructions.md) |
 | Task intake and intent transitions | [docs/engineering/task-intake.md](docs/engineering/task-intake.md) |
+| ChatGPT Project authoring through connected GitHub | [docs/engineering/chatgpt-project-protocol.md](docs/engineering/chatgpt-project-protocol.md) |
 | Goal refinement, dogfood lifecycle, scope discipline, validation, friction, completion | [docs/engineering/agent-workflow.md](docs/engineering/agent-workflow.md) |
 | OpenSpec contract model, semantic verification, receipts, archive, dependency policy | [docs/engineering/openspec-workflow.md](docs/engineering/openspec-workflow.md) |
 | Provider-local executor selection, escalation, delegated write containment | [docs/engineering/model-routing.md](docs/engineering/model-routing.md) |

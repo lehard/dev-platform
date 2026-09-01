@@ -1,0 +1,14 @@
+- [x] Re-check the current upstream `writing-for-agents` guidance and record only principles relevant to Dev Platform.
+- [x] Inventory central, rendered, tool-specific, and ChatGPT Project instruction surfaces and identify the authoritative owner of each shared rule.
+- [x] Define the bounded-map/context-pointer/single-owner quality contract without introducing a parallel hierarchy.
+- [x] Audit `AGENTS.md`, `template/AGENTS.md.jinja`, `CLAUDE.md`/tool-specific pointers, `docs/engineering/task-intake.md`, `docs/engineering/chatgpt-project-protocol.md`, and related canonical docs.
+- [x] Repair the cross-surface authoring ambiguity: shared intent/representation/STOP semantics, ChatGPT connector publication mechanics, and repo-local `managed_task.py` mechanics must be explicit and non-conflicting.
+- [x] Ensure the ChatGPT adapter contains enough managed-package invariants to author a task through supported connected GitHub mutations without copying the repo-local shell workflow.
+- [x] Ensure repo-local guidance continues to direct Codex/Claude to the deterministic authoring helper rather than generic manual GitHub reconstruction.
+- [x] Add focused checks for pointer destinations, render coherence, semantic duplication, and cross-surface contradictions where practical.
+- [x] Add one positive and one negative behavioral instruction-discovery case.
+- [x] Add a controlled ChatGPT Project fixation fixture/evidence that produces one managed Issue/package, remains Backlog-only, and is importable by the normal managed start path without local shell during authoring.
+- [x] Add the equivalent repo-local fixation fixture/evidence through `managed_task.py create --bundle ...` and compare the resulting canonical representation/intent semantics.
+- [x] Verify ordinary lifecycle does not depend on the external reference skill or on a ChatGPT-only remote service.
+- [x] Run semantic OpenSpec verification and relevant instruction/template/managed-task regression checks.
+- [x] Record verification evidence and archive/publish through the normal Dev Platform lifecycle.
