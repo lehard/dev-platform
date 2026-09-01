@@ -142,10 +142,7 @@ def main() -> int:
         if not (target / "docs" / "engineering" / "model-routing.md").is_file():
             raise SystemExit("Copier update did not materialize model-routing guidance")
         if args.profile == "multi-agent":
-            rendered_agents = (target / "AGENTS.md").read_text(encoding="utf-8")
             rendered_workflow = (target / "docs" / "engineering" / "agent-workflow.md").read_text(encoding="utf-8")
-            if "degraded or terminal sibling" not in rendered_agents:
-                raise SystemExit("Copier update did not preserve degraded-board admission guidance")
             if "unreadable or un-lockable board" not in rendered_workflow:
                 raise SystemExit("Copier update did not preserve fail-closed board guidance")
         openspec_workflow = (target / "docs" / "engineering" / "openspec-workflow.md").read_text(encoding="utf-8")

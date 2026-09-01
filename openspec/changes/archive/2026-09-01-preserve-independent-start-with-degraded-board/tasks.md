@@ -18,6 +18,7 @@
 - [x] 3.2 Add fixtures proving terminal sibling entries do not serialize unrelated starts.
 - [x] 3.3 Add fixtures proving valid same-file overlap still produces `WAIT`, and unreadable/lock-failing board state still blocks safely.
 - [x] 3.4 Add/extend fresh-render and Copier-update coverage for platform-owned multi-agent projects.
+  - CI follow-up: the fresh-render assertion owns root `AGENTS.md`; the Copier-update smoke asserts the platform-owned rendered workflow rather than treating project-owned root guidance as an updatable Copier file.
 
 ## 4. Verification and rollout readiness
 

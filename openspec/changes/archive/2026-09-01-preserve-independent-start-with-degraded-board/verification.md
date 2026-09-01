@@ -24,3 +24,7 @@ Automated-Checks-Evidence: automated-checks.json
 ## Coherence
 
 The change extends the existing agent board and doctor surfaces rather than creating a second scheduler or coordination store. It keeps release rollout as an explicit later immutable-release operation: the present platform PR establishes tested rollout readiness and does not mutate a downstream default branch. No unresolved material findings remain.
+
+## CI follow-up
+
+PR #346 initially exposed an incorrect Copier smoke assertion: root `AGENTS.md` is project-owned and intentionally preserves local additions during update. The follow-up keeps the fresh-render assertion for root multi-agent guidance and checks the platform-owned rendered workflow in the Copier-update smoke. This corrects test ownership without changing the admitted-board behavior or the accepted specification.
