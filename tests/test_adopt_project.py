@@ -121,14 +121,15 @@ class AdoptProjectTests(unittest.TestCase):
             self.assertTrue(any("ambiguous lifecycle ownership" in blocker for blocker in plan["blockers"]))
 
     def test_existing_platform_owned_path_without_metadata_blocks(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            path = root / "scripts" / "platform_doctor.py"
-            path.parent.mkdir(parents=True)
-            path.write_text("# unknown owner\n", encoding="utf-8")
-            kind, reasons = adopt_project.classify_repository(root)
-            plan = adopt_project.plan_adoption(root, kind, reasons)
-            self.assertTrue(any("platform-owned path" in blocker for blocker in plan["blockers"]))
+        for relative in ("scripts/platform_doctor.py", "scripts/independent_review.py"):
+            with self.subTest(relative=relative), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                path = root / relative
+                path.parent.mkdir(parents=True)
+                path.write_text("# unknown owner\n", encoding="utf-8")
+                kind, reasons = adopt_project.classify_repository(root)
+                plan = adopt_project.plan_adoption(root, kind, reasons)
+                self.assertTrue(any("platform-owned path" in blocker for blocker in plan["blockers"]))
 
     def test_defaults_hide_platform_choices_from_human(self) -> None:
         self.assertEqual(

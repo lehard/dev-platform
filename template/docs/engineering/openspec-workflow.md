@@ -46,6 +46,42 @@ Prefer `/opsx:verify` when the installed agent integration exposes it. If the cu
 
 Semantic verification and `openspec validate` are different. The former checks implementation against intent; the latter checks OpenSpec structure. Neither replaces project-specific tests, E2E, browser/render QA, migrations or operational checks.
 
+### Independent review evidence
+
+For a material managed change, a repository may opt into independent review with
+`[independent_review] enabled = true`. Prepare a provider-neutral review
+request against the exact committed candidate before asking an independently
+started, read-only runtime to review it:
+
+```bash
+python3 scripts/independent_review.py prepare <change> --base origin/main
+```
+
+The request binds two reports (`spec-fidelity` and `engineering-quality`) to
+the base SHA, candidate SHA and binary diff hash. The runtime records each
+report with `scripts/independent_review.py record <change> --report <path>`;
+it must identify its fresh context, attest to no write access, and report a
+limitation rather than invent findings if review was unavailable.
+The platform intentionally does not launch a provider: the generated request
+is the replaceable runtime integration, and report validation is the lifecycle
+boundary. Review execution is evidence-only and must not publish code, mutate
+Backlog/Project state, archive, or set completion state.
+
+Before PASS/archive, check the reports with:
+
+```bash
+python3 scripts/independent_review.py check <change>
+```
+
+When enabled, archive readiness requires both current reports. A candidate
+change invalidates old evidence. A material finding must be fixed or explicitly
+rejected with rationale; a blocker, missing disposition, or unavailable report
+blocks the archive rather than letting passing deterministic tests claim
+independent verification. The corresponding `verification.md` must cite
+`Independent-Review-Evidence: independent-review-request.json` alongside its
+PASS receipt. The capability is opt-in so quick or bounded work is not forced
+into a heavy review by default.
+
 When a verification check fails, classify the failure relative to the authoritative base as `introduced`, `pre-existing`, or `unknown`. Claim `pre-existing` only when reproducible baseline evidence or another trustworthy unchanged-base signal proves it; missing evidence remains `unknown`, not a guess. A pre-existing failure does not excuse new regressions: report the baseline condition separately from failures introduced by the current change.
 
 After material semantic findings are resolved, record the result in the active change's `verification.md` with:
