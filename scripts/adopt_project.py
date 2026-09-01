@@ -22,6 +22,7 @@ PROCESS_MARKERS = (
     ".github/workflows",
     "dev-platform",
     "scripts/platform_doctor.py",
+    "scripts/independent_review.py",
     "scripts/start_task.py",
 )
 PROJECT_HARNESS_MARKERS = (
@@ -49,6 +50,7 @@ PLATFORM_OWNED_COLLISION_MARKERS = (
     "scripts/dev.py",
     "scripts/platform_doctor.py",
     "scripts/openspec_lifecycle.py",
+    "scripts/independent_review.py",
 )
 PROJECT_GUIDANCE_MARKERS = ("docs/engineering/openspec-workflow.md",)
 CODE_SUFFIXES = {

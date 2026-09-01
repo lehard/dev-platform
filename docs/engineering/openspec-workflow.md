@@ -41,6 +41,42 @@ Keep this context in the existing proposal, specs, design, and tasks artifacts. 
 
 Before archiving a non-trivial platform change, run relevant tests plus semantic OpenSpec verification. Prefer `/opsx:verify` when the installed tool integration exposes it. If the current agent environment cannot invoke that workflow, perform and document the equivalent OpenSpec review across the authored outcome and success evidence, completeness, correctness, and coherence. Structural `openspec validate` is useful but is not a substitute for semantic verification or project-specific checks.
 
+### Independent review evidence
+
+For a material managed change, a repository may opt into independent review with
+`[independent_review] enabled = true`. Prepare a provider-neutral review
+request against the exact committed candidate before asking an independently
+started, read-only runtime to review it:
+
+```bash
+python3 scripts/independent_review.py prepare <change> --base origin/main
+```
+
+The request binds two reports (`spec-fidelity` and `engineering-quality`) to
+the base SHA, candidate SHA and binary diff hash. The runtime records each
+report with `scripts/independent_review.py record <change> --report <path>`;
+it must identify its fresh context, attest to no write access, and report a
+limitation rather than invent findings if review was unavailable.
+The platform intentionally does not launch a provider: the generated request
+is the replaceable runtime integration, and report validation is the lifecycle
+boundary. Review execution is evidence-only and must not publish code, mutate
+Backlog/Project state, archive, or set completion state.
+
+Before PASS/archive, check the reports with:
+
+```bash
+python3 scripts/independent_review.py check <change>
+```
+
+When enabled, archive readiness requires both current reports. A candidate
+change invalidates old evidence. A material finding must be fixed or explicitly
+rejected with rationale; a blocker, missing disposition, or unavailable report
+blocks the archive rather than letting passing deterministic tests claim
+independent verification. The corresponding `verification.md` must cite
+`Independent-Review-Evidence: independent-review-request.json` alongside its
+PASS receipt. The capability is opt-in so quick or bounded work is not forced
+into a heavy review by default.
+
 When a verification check fails, classify the failure relative to the authoritative base as `introduced`, `pre-existing`, or `unknown`. Claim `pre-existing` only when reproducible baseline evidence or another trustworthy unchanged-base signal proves it; missing evidence remains `unknown`, not a guess. A pre-existing failure does not excuse new regressions: the verification report must distinguish the baseline condition from failures introduced by the current change.
 
 A platform change is not done merely because its task checkboxes are complete. After semantic verification succeeds and material findings are resolved:

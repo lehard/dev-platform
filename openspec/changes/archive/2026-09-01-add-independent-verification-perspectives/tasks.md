@@ -1,0 +1,10 @@
+- [x] Review the current OpenSpec semantic verification/completion path and identify the minimal integration point for independent review evidence.
+- [x] Define the spec-fidelity reviewer contract, inputs, immutable candidate identity and bounded output schema.
+- [x] Define the engineering-quality reviewer contract with repository/architecture guidance inputs and bounded output schema.
+- [x] Add runtime integration that prefers fresh independent context without hard-coding one provider/model.
+- [x] Add disposition rules for material findings before `OpenSpec-Verify: PASS`.
+- [x] Create a controlled spec-mismatch scenario that passes ordinary tests but is caught by spec-fidelity review.
+- [x] Create a controlled engineering-quality issue that does not directly violate the spec and is caught by quality review.
+- [x] Verify reviewer execution cannot publish code, mutate backlog/Project state, or become a second completion lifecycle.
+- [x] Verify quick/bounded work remains proportional and does not receive mandatory heavy review by default.
+- [x] Run semantic verification, regression checks, record evidence, archive and publish normally.

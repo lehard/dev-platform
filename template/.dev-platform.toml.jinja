@@ -45,6 +45,11 @@ routine_model = "haiku"
 standard_model = "sonnet"
 complex_model = "opus"
 
+[independent_review]
+# Opt in only where a runtime can supply a separate fresh, read-only review
+# context. The platform validates its evidence but never launches a provider.
+enabled = false
+
 # Optional developer-preview backend. Merely rendering this configuration does
 # not install or select DeepSeek Harness; the separate adapter entrypoint still
 # requires an explicit opt-in for every experimental run.

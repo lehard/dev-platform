@@ -113,4 +113,3 @@ Optional engineering capability support SHALL NOT vendor or claim ownership of O
 - **WHEN** local readiness refreshes OpenSpec-generated agent integrations
 - **THEN** optional-capability state remains distinct
 - **AND** the platform does not reinterpret generated OpenSpec skills as platform-owned capability source
-
