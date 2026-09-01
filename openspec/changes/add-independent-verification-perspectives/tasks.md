@@ -7,4 +7,4 @@
 - [x] Create a controlled engineering-quality issue that does not directly violate the spec and is caught by quality review.
 - [x] Verify reviewer execution cannot publish code, mutate backlog/Project state, or become a second completion lifecycle.
 - [x] Verify quick/bounded work remains proportional and does not receive mandatory heavy review by default.
-- [ ] Run semantic verification, regression checks, record evidence, archive and publish normally.
+- [x] Run semantic verification, regression checks, record evidence, archive and publish normally.
