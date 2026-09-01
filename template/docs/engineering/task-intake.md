@@ -5,6 +5,12 @@ This is the platform-owned contract for turning a user request into work.
 project-owned. Read this document before authoring or executing non-trivial
 work.
 
+Its intent boundaries, managed representation, source-of-truth model, and
+authoring STOP rules apply across conversation surfaces. Repository-local
+agents use the commands below; ChatGPT Project follows the connected-GitHub
+mechanics in [chatgpt-project-protocol.md](chatgpt-project-protocol.md) without
+creating a separate task format.
+
 ## Intent boundary
 
 - **Discuss**: inspect, design and compare. Do not create durable Backlog state.
@@ -26,6 +32,35 @@ User wording is evidence of the current intent, not a magic keyword. Direct
 execution does not require a second `зафиксируй` instruction. A fixation-only
 request remains authoring-only unless the same request also clearly authorizes
 execution.
+
+## Cross-surface authoring
+
+The shared managed-task semantics are:
+
+- **Discuss**, **Fix / add to Backlog**, quick execution, and fresh non-trivial
+  execution retain the intent boundaries above on every surface.
+- A fixation creates or updates one Development Backlog Issue with one active
+  `managed-openspec:v1` package: its manifest identifies the source Issue, target
+  repository, change, prepared-against revision, routing receipt, and declared
+  non-empty OpenSpec artifacts. The Issue is human-facing provenance; after
+  materialization, local OpenSpec is canonical for implementation.
+- Fixation stops in `Backlog`: it does not implement, start the managed task,
+  dispatch an executor, move Project status, or publish a delivery. A missing
+  supported authoring mechanic is a blocker, not permission to change intent.
+
+The mechanics are deliberately surface-specific:
+
+- A repository-local Codex or Claude agent with the platform helper uses the
+  deterministic `managed_task.py create --bundle ...` command below. It does
+  not manually reconstruct GitHub Issue/package mutations when that helper is
+  available.
+- A ChatGPT Project with connected GitHub mutation access but no target
+  checkout creates the same Issue/package through the bounded adapter contract.
+  It does not need local shell access and must not claim that lack of
+  `managed_task.py` itself blocks authorized ChatGPT authoring.
+- A later repository-local agent imports either result through the ordinary
+  `start_managed_task.py owner/repo#N` path. There is no ChatGPT-specific
+  importer or translation layer.
 
 ## Incubator
 
