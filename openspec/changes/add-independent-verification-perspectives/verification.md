@@ -40,12 +40,20 @@ The final implementation retains compatibility only while review is disabled
 explicitly enables independent review. The targeted publication/lifecycle
 regressions covering this path pass after the repair.
 
+After the task was reconciled with `origin/main` at
+`04773307625b545e51587f6a4e75f1709d381e1d`, the merged upstream change was
+reviewed: it affects the agent-instruction architecture and does not overlap
+the independent-review request/report or lifecycle-gate behavior. Strict
+OpenSpec validation and the targeted lifecycle/publication regression set were
+rerun on the reconciled head.
+
 ## Checks actually run before archive
 
 - `python3 -m compileall -q template/scripts scripts`
 - `python3 scripts/managed_projects.py validate`
 - `python3 -m unittest tests/test_independent_review.py tests/test_openspec_lifecycle.py tests/test_adopt_project.py tests/test_central_dogfood_lifecycle.py tests/test_template_contract.py` — 86 passed before the compatibility repair.
 - `python3 -m unittest tests/test_openspec_lifecycle.py tests/test_independent_review.py tests/test_git_lifecycle.py tests/test_merge_lifecycle_resilience.py tests/test_protected_main_zero_handoff.py tests/test_publication_recovery_cli.py` — 65 passed after the repair.
+- The same 65-test lifecycle/publication set — 65 passed after reconciliation with the current authoritative main.
 - `openspec validate add-independent-verification-perspectives --strict --no-interactive`
 - `python3 template/scripts/openspec_lifecycle.py check`
 
