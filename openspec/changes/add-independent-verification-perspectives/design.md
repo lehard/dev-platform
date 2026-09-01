@@ -59,5 +59,6 @@ change, or set completion state.
 | --- | --- |
 | A review report is reused after code or its comparison base changes. | Bind reports to a request id, resolved base/candidate SHAs, and binary-diff hash; recompute the identity during record and readiness checks. |
 | A missing runtime is mistaken for independent evidence. | Make the feature opt-in and require an explicit unavailable limitation, which blocks readiness when the gate is enabled. |
+| A legacy or minimal checkout receives the lifecycle update before the new helper. | Keep the disabled default compatible with that checkout; if independent review is explicitly enabled without its helper, fail closed with an actionable repair message. |
 | Independent review creates a second lifecycle or receives delivery authority. | Keep the platform surface to request preparation, report recording, validation, and archive gating; accept only read-only context attestations and expose no publish, Project, archive, or completion commands. |
 | A shared template change silently conflicts with an existing project-owned file. | Register the new script in doctor and adoption collision checks, and retain the existing ownership-safe template update path. |

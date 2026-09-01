@@ -8,7 +8,23 @@ import subprocess
 from pathlib import Path
 
 from _platform_common import current_worktree_root, harness_mode, read_platform_config, run_git
-from independent_review import require_review_evidence, review_is_required
+
+try:
+    from independent_review import require_review_evidence, review_is_required
+except ModuleNotFoundError as exc:
+    if exc.name != "independent_review":
+        raise
+
+    def review_is_required(root: Path, change: Path) -> bool:
+        settings = read_platform_config(root).get("independent_review", {})
+        return isinstance(settings, dict) and settings.get("enabled") is True and (change / ".managed-task.json").is_file()
+
+    def require_review_evidence(root: Path, change: Path) -> None:
+        if review_is_required(root, change):
+            raise SystemExit(
+                f"{change.name}: independent review is enabled but scripts/independent_review.py is missing; "
+                "repair the incomplete platform update before archive readiness."
+            )
 
 TASK_RE = re.compile(r"^\s*-\s*\[([ xX])\]\s+")
 VERIFY_MARKER = "OpenSpec-Verify: PASS"

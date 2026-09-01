@@ -32,11 +32,20 @@ No material findings remained after the supervisor review. The lack of a
 provider launch is intentional: selecting or operating a review runtime is a
 documented non-goal, while the request/report boundary remains replaceable.
 
+The first archive attempt exposed an **introduced** compatibility defect: a
+minimal/legacy checkout could contain the updated lifecycle without the new
+helper module, so import failed before the lifecycle's existing safety checks.
+The final implementation retains compatibility only while review is disabled
+(the default), and fails closed with a repair instruction if that checkout
+explicitly enables independent review. The targeted publication/lifecycle
+regressions covering this path pass after the repair.
+
 ## Checks actually run before archive
 
 - `python3 -m compileall -q template/scripts scripts`
 - `python3 scripts/managed_projects.py validate`
-- `python3 -m unittest tests/test_independent_review.py tests/test_openspec_lifecycle.py tests/test_adopt_project.py tests/test_central_dogfood_lifecycle.py tests/test_template_contract.py` — 86 passed.
+- `python3 -m unittest tests/test_independent_review.py tests/test_openspec_lifecycle.py tests/test_adopt_project.py tests/test_central_dogfood_lifecycle.py tests/test_template_contract.py` — 86 passed before the compatibility repair.
+- `python3 -m unittest tests/test_openspec_lifecycle.py tests/test_independent_review.py tests/test_git_lifecycle.py tests/test_merge_lifecycle_resilience.py tests/test_protected_main_zero_handoff.py tests/test_publication_recovery_cli.py` — 65 passed after the repair.
 - `openspec validate add-independent-verification-perspectives --strict --no-interactive`
 - `python3 template/scripts/openspec_lifecycle.py check`
 
