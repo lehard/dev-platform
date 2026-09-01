@@ -1,0 +1,39 @@
+{
+  "surface": "chatgpt-project",
+  "local_shell_used": false,
+  "intent": "fix/add-to-backlog",
+  "authoring_stops": true,
+  "project_status": "Backlog",
+  "issue": {
+    "repository": "lehard/development-backlog",
+    "number": 80,
+    "title": "[R2] Fixture managed authoring",
+    "labels": ["project:dev-platform", "priority:P2"]
+  },
+  "package": {
+    "version": 1,
+    "source_issue": "lehard/development-backlog#80",
+    "target_repository": "lehard/dev-platform",
+    "change": "fixture-managed-authoring",
+    "prepared_against": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "routing_receipt": {
+      "recommended_start_tier": "R2",
+      "rubric_version": "v1",
+      "task_family": "general",
+      "routing_confidence": "medium",
+      "assurance": "standard",
+      "effort_hint": "medium",
+      "strong_trigger": null
+    },
+    "source_issue_evidence": {
+      "updated_at": "2026-09-01T00:00:00Z",
+      "body_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "artifacts": {
+      "proposal.md": "# Proposal\n\n## Why\n\nFixture evidence.\n",
+      "design.md": "# Design\n\nFixture evidence.\n",
+      "tasks.md": "- [ ] Fixture evidence\n",
+      "specs/authoring/spec.md": "## ADDED Requirements\n\n### Requirement: Fixture authoring\n\n#### Scenario: Fixture is valid\n\n- **WHEN** fixture authoring runs\n- **THEN** it stops\n"
+    }
+  }
+}
