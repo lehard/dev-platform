@@ -8,12 +8,15 @@ import subprocess
 from pathlib import Path
 
 from _platform_common import current_worktree_root, harness_mode, read_platform_config, run_git
+from independent_review import require_review_evidence, review_is_required
 
 TASK_RE = re.compile(r"^\s*-\s*\[([ xX])\]\s+")
 VERIFY_MARKER = "OpenSpec-Verify: PASS"
 VERIFY_METHOD_PREFIX = "Verification-Method:"
 AUTOMATED_EVIDENCE_PREFIX = "Automated-Checks-Evidence:"
 AUTOMATED_EVIDENCE_FILE = "automated-checks.json"
+INDEPENDENT_REVIEW_EVIDENCE_PREFIX = "Independent-Review-Evidence:"
+INDEPENDENT_REVIEW_EVIDENCE_FILE = "independent-review-request.json"
 VERIFICATION_RECEIPT_CONTRACT = "docs/engineering/openspec-workflow.md#verify-archive-then-publish"
 
 
@@ -75,6 +78,19 @@ def require_automated_evidence(change: Path) -> None:
         raise SystemExit(f"{change.name}: automated evidence contains a failed command")
 
 
+def require_independent_review_receipt(change: Path) -> None:
+    """Keep enabled independent-review evidence visible from verification.md."""
+    root = change.parents[2]
+    if not review_is_required(root, change):
+        return
+    expected = f"{INDEPENDENT_REVIEW_EVIDENCE_PREFIX} {INDEPENDENT_REVIEW_EVIDENCE_FILE}"
+    lines = [line.strip() for line in (change / "verification.md").read_text(encoding="utf-8").splitlines()]
+    if expected not in lines:
+        raise SystemExit(
+            f"{change.name}: independent review must cite '{expected}' in verification.md so the PASS receipt names its evidence."
+        )
+
+
 def completed_active_changes(root: Path) -> list[str]:
     stale: list[str] = []
     for change in active_changes(root):
@@ -110,6 +126,8 @@ def require_ready(change: Path, *, platform_owned: bool = False) -> None:
             f"Run /opsx:verify when available (or an equivalent documented OpenSpec verification), resolve material findings, "
             f"then record '{VERIFY_MARKER}' and a '{VERIFY_METHOD_PREFIX} <method>' line in verification.md."
         )
+    require_review_evidence(change.parents[2], change)
+    require_independent_review_receipt(change)
     if platform_owned:
         require_automated_evidence(change)
 
@@ -129,6 +147,8 @@ def require_static_archive_readiness(change: Path, *, platform_owned: bool = Fal
             f"Run /opsx:verify when available (or an equivalent documented OpenSpec verification), resolve material findings, "
             f"then record '{VERIFY_MARKER}' and a '{VERIFY_METHOD_PREFIX} <method>' line in verification.md."
         )
+    require_review_evidence(change.parents[2], change)
+    require_independent_review_receipt(change)
     if platform_owned:
         expected = f"{AUTOMATED_EVIDENCE_PREFIX} {AUTOMATED_EVIDENCE_FILE}"
         lines = [line.strip() for line in (change / "verification.md").read_text(encoding="utf-8").splitlines()]

@@ -73,6 +73,33 @@ class OpenSpecLifecycleTests(unittest.TestCase):
             )
             lifecycle.require_ready(change)
 
+    def test_archive_readiness_checks_enabled_independent_review_before_accepting_pass(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            change = self.make_change(
+                Path(tmp),
+                "done",
+                "- [x] one\n",
+                "OpenSpec-Verify: PASS\nVerification-Method: equivalent-review\n",
+            )
+            with mock.patch.object(lifecycle, "require_review_evidence") as require_review:
+                lifecycle.require_ready(change)
+            require_review.assert_called_once_with(Path(tmp), change)
+
+    def test_enabled_independent_review_requires_a_receipt_evidence_marker(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            change = self.make_change(
+                Path(tmp),
+                "done",
+                "- [x] one\n",
+                "OpenSpec-Verify: PASS\nVerification-Method: equivalent-review\n",
+            )
+            with (
+                mock.patch.object(lifecycle, "require_review_evidence"),
+                mock.patch.object(lifecycle, "review_is_required", return_value=True),
+            ):
+                with self.assertRaisesRegex(SystemExit, "Independent-Review-Evidence: independent-review-request.json"):
+                    lifecycle.require_ready(change)
+
     def test_platform_archive_readiness_requires_generated_automated_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             change = self.make_change(

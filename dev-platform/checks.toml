@@ -120,6 +120,7 @@ targets = [
   "test_project_terminal_reconciliation",
   "test_managed_task",
   "test_managed_execution_intake",
+  "test_independent_review",
   "test_openspec_lifecycle",
   "test_platform_bootstrap",
   "test_platform_common",
