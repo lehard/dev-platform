@@ -25,7 +25,7 @@ python3 scripts/start_task.py <slug> --task "<task>" --scope "<files/modules>"
 
 `agent_doctor.py` is also publication preflight. It must surface an invalid protected-main/direct configuration and, for platform-owned PR publication, missing GitHub PR API authentication before the task reaches its final merge step. Existing GitHub HTTPS credentials may be reused non-persistently by the platform; otherwise authenticate once with `gh auth login` or a supported `GH_TOKEN`/`GITHUB_TOKEN`.
 
-In the `multi-agent` profile the platform atomically admits concrete file claims before implementation. Supply exact files through `--scope`; a hard claim conflict returns `WAIT` with bounded task/path diagnostics. Shared directories, subsystems and globs are warnings only, so independent tasks can still run in parallel. Do not use another agent's worktree or modify another active entry's scope without resolving the overlap.
+In the `multi-agent` profile the platform atomically admits concrete file claims before implementation. Supply exact files through `--scope`; a hard claim conflict with a valid active worktree/branch identity returns `WAIT` with bounded task/path diagnostics. A branch/path-mismatched, stale, or terminal sibling record is bounded hygiene information only and must not serialize an otherwise independent start; it is never evidence that sharing the same path is safe. An unreadable or un-lockable board remains a blocked error and fails closed. Shared directories, subsystems and globs are warnings only, so independent tasks can still run in parallel. Do not use another agent's worktree or modify another active entry's scope without resolving the overlap.
 
 ## Shared workspace permissions
 
@@ -35,7 +35,7 @@ Managed platform state and Git metadata are shared with the POSIX group owning t
 
 This section applies to the `multi-agent` profile, where agents develop in isolated Git worktrees and register scope ownership in the machine-local agent board. The integration copy stays clean and acts only as the integration point.
 
-`agent_doctor.py` is the normal hygiene entrypoint: it diagnoses the board, safely removes board entries that are provably obsolete, scans managed worktrees, and refreshes `.claude/pending-worktrees.md`. Dirty or unmerged inactive work is surfaced rather than deleted. Old worktrees are cleanup candidates only when they are managed, clean, inactive, already merged and not used by a live process.
+`agent_doctor.py` is the normal hygiene entrypoint: it diagnoses the board, safely removes board entries that are provably obsolete, scans managed worktrees, and refreshes `.claude/pending-worktrees.md`. Its explicit degraded/terminal board warning is separate from `WAIT`, blocked admission errors, and successful managed-task materialization. It never repairs a sibling's branch/path mismatch merely to start another task. Dirty or unmerged inactive work is surfaced rather than deleted. Old worktrees are cleanup candidates only when they are managed, clean, inactive, already merged and not used by a live process.
 
 Before manual worktree operations run:
 

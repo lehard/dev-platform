@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/worktree-coordination/spec.md"
+  ],
+  "change": "preserve-independent-start-with-degraded-board",
+  "imported_at": "2026-09-01T16:24:09+00:00",
+  "package_revision": "60d002dd760dce6ced998af270407031e80f9c573ca3ba49b1ee88ca6bbadc7d",
+  "prepared_against": "04773307625b545e51587f6a4e75f1709d381e1d",
+  "routing_receipt": {
+    "assurance": "high",
+    "effort_hint": "high",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "multi-agent-lifecycle"
+  },
+  "source_issue": "lehard/development-backlog#88",
+  "source_issue_evidence": {
+    "body_sha256": "e9dbd00c2956ce886b984aab698cd09611373d30004fe68f7823389180a78b4d",
+    "updated_at": "2026-09-01T16:21:08Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

@@ -84,9 +84,16 @@ def ensure_git_hooks(root: Path) -> tuple[dict[str, str], int]:
     return results, failures
 
 
-def run_multi_agent_hygiene(integration: Path) -> None:
+def run_multi_agent_hygiene(integration: Path) -> int:
+    """Report recoverable board debt without hiding an unreadable board.
+
+    A board entry that is degraded or terminal has no proven active claim, so
+    it is not a reason to serialize an otherwise independent task. A board
+    doctor failure without that explicit diagnostic envelope is different:
+    admission cannot safely establish what it would be comparing against.
+    """
     board = subprocess.run(
-        ["python3", str(integration / "scripts" / "agent_board.py"), "doctor", "--fix"],
+        ["python3", str(integration / "scripts" / "agent_board.py"), "doctor", "--fix", "--format", "json"],
         cwd=integration,
         text=True,
         capture_output=True,
@@ -94,9 +101,30 @@ def run_multi_agent_hygiene(integration: Path) -> None:
     )
     board_detail = (board.stdout + "\n" + board.stderr).strip()
     if board.returncode == 0:
-        report("ok", board_detail or "agent board is healthy")
+        report("ok", "agent board is healthy")
+        board_failures = 0
     else:
-        report("warn", "agent board needs attention: " + (board_detail or f"exit {board.returncode}"))
+        try:
+            board_payload = json.loads(board.stdout)
+        except json.JSONDecodeError:
+            board_payload = None
+        if board.returncode == 1 and isinstance(board_payload, dict) and board_payload.get("status") == "diagnostic":
+            entries = board_payload.get("entries", [])
+            rendered = "; ".join(
+                f"{entry.get('id', 'unknown')} ({entry.get('eligibility', 'degraded')}: "
+                f"{', '.join(entry.get('problems', []))})"
+                for entry in entries[:5]
+                if isinstance(entry, dict)
+            )
+            report(
+                "warn",
+                "agent board hygiene warning; degraded/terminal entries contribute no blocking scope claim, "
+                "so independent admission may continue: " + (rendered or "board entry diagnostics available"),
+            )
+            board_failures = 0
+        else:
+            report("fail", "agent board hygiene could not be read or locked safely: " + (board_detail or f"exit {board.returncode}"))
+            board_failures = 1
 
     cleanup = subprocess.run(
         ["python3", str(integration / "scripts" / "worktree_cleanup.py"), "scan"],
@@ -126,6 +154,7 @@ def run_multi_agent_hygiene(integration: Path) -> None:
             f"{eligible} old merged worktree(s) are safe cleanup candidates; "
             "preview with scripts/worktree_cleanup.py cleanup --all, then use --all --apply to remove them",
         )
+    return board_failures
 
 
 def run_friction_review_status(integration: Path) -> None:
@@ -360,7 +389,7 @@ def main() -> int:
             failures += 1
         else:
             report("ok", "integration copy is clean")
-        run_multi_agent_hygiene(integration)
+        failures += run_multi_agent_hygiene(integration)
     if harness == "platform":
         retry_friction_routing(integration)
         run_friction_review_status(integration)
