@@ -1,19 +1,19 @@
-- [ ] Pin the reviewed Anthropic `skill-creator` upstream revision and record license/provenance for every reused or adapted component.
-- [ ] Document the upstream UX pattern: skill-creator itself is discoverable by create/update/optimize/eval intent and recommends testing based on skill type rather than requiring a separate remembered lab command.
-- [ ] Produce a component map: `reuse as-is / adapt / provider-reference / reject`, including `quick_validate`, packaging, aggregation/reporting, description improvement, and runtime eval scripts.
-- [ ] Reuse the capability identity/content provenance/invocation contract delivered by #87; do not create a second skill registry or materialization store.
-- [ ] Define an automatic eval-decision contract consumed by #87 with statuses `run`, `skip-with-reason`, and `blocked/unavailable`.
-- [ ] Define default decision inputs: new/adopted capability, material trigger/description/instruction/tool/safety change, objective verifiability, runtime availability, bounded cost and safety.
-- [ ] Define the minimal provider-neutral eval-case and result schema, including expectation, run status, sample size, evidence and runtime/provider provenance.
-- [ ] Define status semantics that distinguish `triggered`, `not-triggered`, `timeout`, `runtime-error`, `unsupported`, and `blocked/unavailable`.
-- [ ] Map current supported Claude and Codex execution/containment surfaces and document why upstream nested `claude -p` cannot be the default platform core.
-- [ ] Implement or prototype the smallest supported provider adapters; if one provider lacks truthful trigger evidence, report explicit unsupported/unknown rather than fabricating parity.
-- [ ] Build a representative positive and hard-negative trigger fixture set (target at least 10 + 10 prompts with multiple live runs per prompt, or a documented smaller deterministic CI fixture plus separate live sample).
-- [ ] Add aggregation/reporting that exposes trigger rate, sample size and execution-status distribution.
-- [ ] Run at least one objective capability-enabled versus baseline/no-capability behavior comparison.
-- [ ] Test lifecycle integration: new capability → automatic eval decision; material behavior/trigger change → automatic decision; metadata-only change → explicit skip-with-reason.
-- [ ] Test direct explicit request to evaluate/compare an existing capability without going through adoption/update.
-- [ ] Verify eval execution respects current single-writer/worktree containment and cannot mutate integration/main or unrelated worktrees.
-- [ ] Verify stored evidence excludes secrets, private transcripts and chain-of-thought and that eval completion cannot create Issues/OpenSpec, publish, or roll out capability state.
-- [ ] Verify ordinary managed-task/capability lifecycle remains usable when optional eval runtime or credentials are unavailable.
-- [ ] Run relevant routing/containment/capability/verification regression checks, semantic OpenSpec verification, record evidence, archive and publish normally.
+- [x] Pin the reviewed Anthropic `skill-creator` upstream revision and record license/provenance for every reused or adapted component.
+- [x] Document the upstream UX pattern: skill-creator itself is discoverable by create/update/optimize/eval intent and recommends testing based on skill type rather than requiring a separate remembered lab command.
+- [x] Produce a component map: `reuse as-is / adapt / provider-reference / reject`, including `quick_validate`, packaging, aggregation/reporting, description improvement, and runtime eval scripts.
+- [x] Reuse the capability identity/content provenance/invocation contract delivered by #87; do not create a second skill registry or materialization store.
+- [x] Define an automatic eval-decision contract consumed by #87 with statuses `run`, `skip-with-reason`, and `blocked/unavailable`.
+- [x] Define default decision inputs: new/adopted capability, material trigger/description/instruction/tool/safety change, objective verifiability, runtime availability, bounded cost and safety.
+- [x] Define the minimal provider-neutral eval-case and result schema, including expectation, run status, sample size, evidence and runtime/provider provenance.
+- [x] Define status semantics that distinguish `triggered`, `not-triggered`, `timeout`, `runtime-error`, `unsupported`, and `blocked/unavailable`.
+- [x] Map current supported Claude and Codex execution/containment surfaces and document why upstream nested `claude -p` cannot be the default platform core.
+- [x] Implement or prototype the smallest supported provider adapters; if one provider lacks truthful trigger evidence, report explicit unsupported/unknown rather than fabricating parity.
+- [x] Build a representative positive and hard-negative trigger fixture set (target at least 10 + 10 prompts with multiple live runs per prompt, or a documented smaller deterministic CI fixture plus separate live sample).
+- [x] Add aggregation/reporting that exposes trigger rate, sample size and execution-status distribution.
+- [x] Run at least one objective capability-enabled versus baseline/no-capability behavior comparison.
+- [x] Test lifecycle integration: new capability → automatic eval decision; material behavior/trigger change → automatic decision; metadata-only change → explicit skip-with-reason.
+- [x] Test direct explicit request to evaluate/compare an existing capability without going through adoption/update.
+- [x] Verify eval execution respects current single-writer/worktree containment and cannot mutate integration/main or unrelated worktrees.
+- [x] Verify stored evidence excludes secrets, private transcripts and chain-of-thought and that eval completion cannot create Issues/OpenSpec, publish, or roll out capability state.
+- [x] Verify ordinary managed-task/capability lifecycle remains usable when optional eval runtime or credentials are unavailable.
+- [x] Run relevant routing/containment/capability/verification regression checks, semantic OpenSpec verification, record evidence, archive and publish normally.

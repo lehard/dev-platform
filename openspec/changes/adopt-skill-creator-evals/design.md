@@ -14,3 +14,13 @@
 10. **Outcome value matters.** For objectively verifiable workflows, representative evaluation compares capability-enabled behavior against baseline/no-capability. Subjective output skills may use lighter qualitative evidence when a meaningful objective verifier does not exist.
 11. **Sanitized evidence only.** Evals retain the smallest prompts/results/provenance needed for review and never require secrets, private full transcripts, or chain-of-thought.
 12. **No autonomous promotion.** Eval output can support a later managed change but cannot publish, roll out, rewrite durable capabilities, or create managed work automatically.
+
+## Implemented bounded surface
+
+`scripts/capability_evals.py` is a stateless CLI/library layer over the canonical capability id supplied by #87. It has no descriptor registry, provider materialization store, daemon, task orchestrator, provider command path, or automatic durable output. Its report schema records only the candidate id, case id, expectation, prompt digest, repeated status distribution, sample size, adapter provenance, and an optional objective baseline/candidate comparison.
+
+The lifecycle decision surface accepts `new`, `metadata`, `material`, `trigger`, `behavior`, `tool`, and `safety` changes. Metadata returns `skip-with-reason`; a material change returns `run` only when an explicitly selected bounded fixture adapter is available, otherwise `blocked/unavailable`. `capability_manager.py` delegates to this surface for create/update decisions and for the direct `evaluate` request, so it reuses #87 identity rather than maintaining a second store.
+
+The first adapter is a deterministic synthetic fixture for reproducible CI. It supports three samples per case and retains no prompt text in reports. The pilot has ten positive and ten hard-negative cases plus an objective capability-enabled-versus-baseline comparison. Codex and Claude adapter requests return `unsupported` because no current supported runtime surface can prove trigger evidence; timeout, runtime-error, unsupported, unknown and not-triggered remain distinct values.
+
+The reviewed upstream is `anthropics/skills` commit `53048666b05b4799081517d00e09e0a2dd688678`, `skills/skill-creator/`, licensed Apache-2.0. Dev Platform vendors no upstream file. Its discoverable authoring UX, structural-validation emphasis, and aggregation ideas are adapted independently; `run_eval.py`/`run_loop.py` are rejected as core because their nested `claude -p`, temporary `.claude/commands`, and Claude stream-event detection conflict with provider neutrality and active-writer containment.

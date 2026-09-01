@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import re
 import shutil
@@ -19,6 +20,22 @@ import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+
+def _eval_module():
+    """Load the sibling provider-neutral eval surface in source and test copies."""
+    try:
+        import capability_evals
+        return capability_evals
+    except ModuleNotFoundError:
+        source = Path(__file__).with_name("capability_evals.py")
+        spec = importlib.util.spec_from_file_location("capability_evals", source)
+        if spec is None or spec.loader is None:
+            raise CapabilityError("provider-neutral capability eval surface is unavailable")
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
+        spec.loader.exec_module(module)
+        return module
 
 
 ID_RE = re.compile(r"^[a-z][a-z0-9-]{1,63}$")
@@ -303,10 +320,31 @@ def catalog_entry(capability: Capability, providers: list[str], enabled: list[st
     }
 
 
-def eval_decision(change_kind: str) -> dict[str, str]:
-    if change_kind == "metadata":
-        return {"decision": "skip-with-reason", "reason": "declared metadata-only change; structural validation remains required"}
-    return {"decision": "blocked/unavailable", "reason": "live capability eval runner from Development Backlog #79 is not available in this lifecycle"}
+def eval_decision(change_kind: str, *, runtime: str = "unavailable", explicit: bool = False) -> dict[str, str]:
+    """Delegate lifecycle decisions to #79 without creating a second registry."""
+    normalized = "material" if change_kind == "material" else change_kind
+    try:
+        return _eval_module().decision_for(normalized, runtime=runtime, explicit=explicit)
+    except Exception as exc:
+        raise CapabilityError(f"capability eval decision is unavailable: {exc}") from exc
+
+
+def evaluate_existing(capability: Capability, fixture: Path, *, runtime: str, runs: int) -> dict[str, Any]:
+    """Execute a direct audit through the shared #79 core, never a provider subprocess."""
+    try:
+        evals = _eval_module()
+        loaded = evals.load_fixture(fixture)
+        if loaded["capability"] != capability.identifier:
+            raise CapabilityError(
+                f"eval fixture targets {loaded['capability']!r}, not requested capability {capability.identifier!r}"
+            )
+        if loaded["content_sha256"] != capability.provenance["content_sha256"]:
+            raise CapabilityError("eval fixture content hash does not match the canonical capability descriptor")
+        return evals.run_fixture(loaded, runtime=runtime, runs=runs)
+    except CapabilityError:
+        raise
+    except Exception as exc:
+        raise CapabilityError(f"capability eval could not run: {exc}") from exc
 
 
 def create_from_descriptor(root: Path, source: Path, enable: bool) -> dict[str, Any]:
@@ -380,15 +418,25 @@ def main() -> int:
     update = sub.add_parser("update", help="synchronize a reviewed descriptor change and emit its eval decision")
     update.add_argument("id")
     update.add_argument("--change-kind", choices=("metadata", "material", "trigger"), default="material")
+    update.add_argument("--fixture", help="run the shared eval immediately when its decision is run")
+    update.add_argument("--runtime", choices=("unavailable", "fixture", "codex", "claude"), default="unavailable")
+    update.add_argument("--runs", type=int, default=3)
     remove = sub.add_parser("remove", help="alias for disable; preserves canonical descriptor for review/history")
     remove.add_argument("id")
     decision = sub.add_parser("eval-decision", help="classify whether a capability authoring change needs live eval")
-    decision.add_argument("--change-kind", choices=("metadata", "material", "trigger"), required=True)
+    decision.add_argument("--change-kind", choices=("new", "metadata", "material", "trigger", "behavior", "tool", "safety"), required=True)
+    decision.add_argument("--runtime", choices=("unavailable", "fixture"), default="unavailable")
+    decision.add_argument("--explicit", action="store_true")
+    evaluate = sub.add_parser("evaluate", help="directly evaluate an existing capability through the shared #79 core")
+    evaluate.add_argument("id")
+    evaluate.add_argument("--fixture", required=True)
+    evaluate.add_argument("--runtime", choices=("fixture", "codex", "claude"), default="fixture")
+    evaluate.add_argument("--runs", type=int, default=3)
     args = parser.parse_args()
     root = Path.cwd().resolve()
     try:
         if args.command == "eval-decision":
-            emit(eval_decision(args.change_kind), args.json)
+            emit(eval_decision(args.change_kind, runtime=args.runtime, explicit=args.explicit), args.json)
             return 0
         if args.command == "create":
             emit(create_from_descriptor(root, Path(args.descriptor), args.enable), args.json)
@@ -423,7 +471,17 @@ def main() -> int:
             if args.id not in registry:
                 raise CapabilityError(f"unknown capability: {args.id}")
             payload = sync(root, registry, enabled)
-            payload["eval"] = eval_decision(args.change_kind)
+            payload["eval"] = eval_decision(args.change_kind, runtime=args.runtime)
+            if payload["eval"]["decision"] == "run":
+                if not args.fixture:
+                    raise CapabilityError("a run decision requires --fixture so the bounded #79 eval path can execute")
+                payload["eval"]["report"] = evaluate_existing(
+                    registry[args.id], Path(args.fixture), runtime=args.runtime, runs=args.runs,
+                )
+        elif args.command == "evaluate":
+            if args.id not in registry:
+                raise CapabilityError(f"unknown capability: {args.id}")
+            payload = evaluate_existing(registry[args.id], Path(args.fixture), runtime=args.runtime, runs=args.runs)
         elif args.command == "sync":
             payload = sync(root, registry, enabled)
         else:

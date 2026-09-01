@@ -29,6 +29,11 @@ Dev Platform SHALL support evaluation of a pinned candidate skill/capability usi
 - **THEN** results record the candidate identity/hash, expectation, number of runs, trigger outcome/status, and bounded runtime provenance
 - **AND** provider-local mechanics remain behind the adapter boundary
 
+#### Scenario: Deterministic fixture provides bounded CI evidence
+- **WHEN** a canonical capability is evaluated through the deterministic fixture adapter
+- **THEN** the report contains positive and hard-negative case expectations, repeated sample sizes, status distributions, prompt digests, and bounded adapter provenance
+- **AND** it does not present fixture evidence as live Claude or Codex behavior
+
 #### Scenario: Provider cannot expose truthful trigger evidence
 - **WHEN** a configured provider/runtime cannot prove whether the candidate triggered
 - **THEN** the result is recorded as `unsupported` or `unknown` according to the defined contract
@@ -42,6 +47,11 @@ Evaluation SHALL distinguish a successful run in which a capability did not trig
 - **WHEN** a trigger-eval run exceeds its supported timeout
 - **THEN** that run is recorded as `timeout`
 - **AND** it is not counted as evidence that the candidate correctly did not trigger
+
+#### Scenario: Provider adapter is unsupported
+- **WHEN** a selected provider cannot expose supported truthful trigger evidence
+- **THEN** every affected sample is reported as `unsupported`
+- **AND** it is excluded from trigger-rate calculation rather than counted as `not-triggered`
 
 ### Requirement: Capability value can be compared to a baseline
 

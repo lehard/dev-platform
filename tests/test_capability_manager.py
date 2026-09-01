@@ -16,6 +16,12 @@ manager = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = manager
 SPEC.loader.exec_module(manager)
 
+EVAL_SPEC = importlib.util.spec_from_file_location("capability_evals", ROOT / "template" / "scripts" / "capability_evals.py")
+assert EVAL_SPEC and EVAL_SPEC.loader
+evals = importlib.util.module_from_spec(EVAL_SPEC)
+sys.modules[EVAL_SPEC.name] = evals
+EVAL_SPEC.loader.exec_module(evals)
+
 
 class CapabilityManagerTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -24,10 +30,15 @@ class CapabilityManagerTests(unittest.TestCase):
         (self.root / "dev-platform" / "capabilities").mkdir(parents=True)
         (self.root / "scripts").mkdir()
         (self.root / "scripts" / "capability_manager.py").write_text("# isolated adapter fixture\n", encoding="utf-8")
+        (self.root / "dev-platform" / "evals").mkdir()
         (self.root / ".dev-platform.toml").write_text('agent_tools = "claude,codex"\n', encoding="utf-8")
         shutil.copyfile(ROOT / "dev-platform" / "capabilities.toml", self.root / "dev-platform" / "capabilities.toml")
         for name in ("repository-hygiene.toml", "repository-hygiene.md", "capability-catalog.toml", "capability-catalog.md"):
             shutil.copyfile(ROOT / "dev-platform" / "capabilities" / name, self.root / "dev-platform" / "capabilities" / name)
+        shutil.copyfile(
+            ROOT / "dev-platform" / "evals" / "capability-catalog-pilot.json",
+            self.root / "dev-platform" / "evals" / "capability-catalog-pilot.json",
+        )
 
     def tearDown(self) -> None:
         self.temporary.cleanup()
@@ -99,6 +110,53 @@ class CapabilityManagerTests(unittest.TestCase):
         instruction.write_text("tampered\n", encoding="utf-8")
         with self.assertRaisesRegex(manager.CapabilityError, "instruction hash"):
             self.registry()
+
+    def test_eval_decisions_cover_new_material_and_metadata_lifecycle_cases(self) -> None:
+        self.assertEqual(manager.eval_decision("new"), {
+            "decision": "blocked/unavailable",
+            "reason": "material capability change requires live eval, but no supported provider adapter/runtime is available",
+        })
+        self.assertEqual(manager.eval_decision("trigger"), {
+            "decision": "blocked/unavailable",
+            "reason": "material capability change requires live eval, but no supported provider adapter/runtime is available",
+        })
+        self.assertEqual(manager.eval_decision("metadata")["decision"], "skip-with-reason")
+        self.assertEqual(manager.eval_decision("material", runtime="fixture")["decision"], "run")
+
+    def test_direct_deterministic_eval_has_positive_negative_and_quality_evidence(self) -> None:
+        report = manager.evaluate_existing(
+            self.registry()["capability-catalog"],
+            self.root / "dev-platform" / "evals" / "capability-catalog-pilot.json",
+            runtime="fixture",
+            runs=3,
+        )
+        self.assertEqual(report["adapter"]["runtime"], "deterministic-fixture")
+        self.assertEqual(report["candidate"]["content_sha256"], self.registry()["capability-catalog"].provenance["content_sha256"])
+        self.assertEqual(report["summary"], {
+            "case_count": 20,
+            "passed": 20,
+            "failed": 0,
+            "incomplete": 0,
+            "status_distribution": {"not-triggered": 30, "triggered": 30},
+        })
+        self.assertNotIn("prompt", report["results"][0])
+        self.assertEqual(report["quality_comparisons"][0]["improved"], True)
+
+    def test_unsupported_provider_is_not_counted_as_negative_trigger(self) -> None:
+        fixture = evals.load_fixture(self.root / "dev-platform" / "evals" / "capability-catalog-pilot.json")
+        report = evals.run_fixture(fixture, runtime="codex", runs=3)
+        self.assertEqual(report["adapter"]["status"], "unsupported")
+        self.assertEqual(report["summary"]["incomplete"], 20)
+        self.assertEqual(report["summary"]["status_distribution"], {"unsupported": 60})
+        self.assertTrue(all(result["trigger_rate"] is None for result in report["results"]))
+
+    def test_timeout_remains_incomplete_not_a_negative_trigger(self) -> None:
+        fixture = evals.load_fixture(self.root / "dev-platform" / "evals" / "capability-catalog-pilot.json")
+        fixture["cases"][0]["samples"] = ["timeout", "timeout", "timeout"]
+        report = evals.run_fixture(fixture, runtime="fixture", runs=3)
+        self.assertEqual(report["results"][0]["status_distribution"], {"timeout": 3})
+        self.assertIsNone(report["results"][0]["trigger_rate"])
+        self.assertIsNone(report["results"][0]["passed"])
 
 
 if __name__ == "__main__":
