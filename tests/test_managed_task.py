@@ -6,9 +6,10 @@ import shutil
 import sys
 import tempfile
 import unittest
-from contextlib import contextmanager
+from contextlib import contextmanager, redirect_stdout
 from dataclasses import replace
 from pathlib import Path
+from io import StringIO
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -557,6 +558,32 @@ class ManagedPackageTests(unittest.TestCase):
             self.assertTrue((task_root / "openspec" / "changes" / package.change / ".managed-task.json").is_file())
             cleanup.assert_not_called()
             reconcile.assert_called_once_with(task_root, "Blocked", source_issue=package.source_issue)
+
+    def test_managed_start_output_keeps_hygiene_warning_distinct_from_wait_and_failure(self) -> None:
+        root = Path("/tmp/integration")
+        started = start_managed_task.StartedTask(
+            profile="multi-agent", branch="agent/add-managed-backlog-intake", task_root=Path("/tmp/task"), board_id="board-1"
+        )
+
+        def invoke(result=None, error=None) -> tuple[int, str]:
+            output = StringIO()
+            with patch.object(sys, "argv", ["start_managed_task.py", "lehard/development-backlog#1"]), patch.object(
+                start_managed_task, "current_worktree_root", return_value=root
+            ), patch.object(start_managed_task, "start_managed_task", return_value=result, side_effect=error), redirect_stdout(output):
+                return start_managed_task.main(), output.getvalue()
+
+        code, output = invoke(result=(started, "a" * 40, False))
+        self.assertEqual(code, 0)
+        self.assertIn("Managed task materialized", output)
+
+        code, output = invoke(error=start_managed_task.ManagedAdmissionWait("hard overlap"))
+        self.assertEqual(code, 3)
+        self.assertIn("Managed task waiting: hard overlap", output)
+        self.assertNotIn("blocked", output.lower())
+
+        code, output = invoke(error=managed_task.ManagedTaskError("board cannot be read"))
+        self.assertEqual(code, 2)
+        self.assertIn("Managed task start blocked: board cannot be read", output)
 
     def test_managed_resume_rechecks_wait_then_restores_in_progress_without_reimport(self) -> None:
         package = managed_task.parse_package([package_body()], "lehard/development-backlog#1")
