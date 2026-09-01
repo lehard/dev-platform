@@ -89,3 +89,7 @@ Promote a rule/tool only when it is reusable across projects or a defined workfl
 A change to a downstream managed file must consider both new-project rendering and Copier update behavior for existing projects. The shared lifecycle is composable: `light`, `standard`, and `multi-agent` profiles select capabilities rather than forking the template.
 
 OpenSpec is external; do not vendor generated Claude/Codex skills.
+
+## Optional engineering capabilities
+
+Optional engineering capabilities are independent of `workflow_profile`. Use `python3 scripts/capability_manager.py list` to discover them and the same entrypoint for `create`, `enable`, `update`, `remove`, `audit`, and `sync`. `dev-platform/capabilities.toml` is the project opt-in; descriptors under `dev-platform/capabilities/` are canonical. Generated `.claude/.codex` skill surfaces are derived and must not be edited. OpenSpec-generated skills remain external to this lifecycle.

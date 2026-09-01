@@ -105,6 +105,13 @@ def main() -> int:
                 )
             config_path.write_text(config_text, encoding="utf-8")
 
+            # Capability selection is project-owned opt-in.  The platform may
+            # add descriptors/manager code on update, but must not reset this
+            # explicit project decision.
+            capability_selection = project / "dev-platform" / "capabilities.toml"
+            capability_selection.write_text("version = 1\nenabled = [\"repository-hygiene\"]\n", encoding="utf-8")
+            capability_selection_before = capability_selection.read_text(encoding="utf-8")
+
             product_ci = project / ".github" / "workflows" / "ci.yml"
             product_ci.parent.mkdir(parents=True, exist_ok=True)
             product_ci.write_text("name: Project-owned product CI\n", encoding="utf-8")
@@ -179,6 +186,10 @@ def main() -> int:
                 raise SystemExit("Safe harness transition did not add the non-colliding platform CI workflow")
             if rollout_project.find_reject_files(project):
                 raise SystemExit("Safe harness transition left .rej files")
+            if capability_selection.read_text(encoding="utf-8") != capability_selection_before:
+                raise SystemExit("Copier update overwrote project-owned capability selection")
+            if not (project / "scripts" / "capability_manager.py").exists():
+                raise SystemExit("Copier update did not materialize the capability lifecycle manager")
             rollout_project.require_effective_ignore_coverage(
                 project,
                 set(synthetic_artifacts),

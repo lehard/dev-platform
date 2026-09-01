@@ -1,0 +1,5 @@
+# Project-owned optional engineering capability selection.
+# Use `python3 scripts/capability_manager.py list` to inspect supported ids and
+# `enable`/`disable` to update this selection and derived provider surfaces.
+version = 1
+enabled = []

@@ -84,6 +84,22 @@ class ConflictGuardTests(unittest.TestCase):
         self.assertEqual(failures, [1])
         audit.assert_called_once()
 
+    def test_capability_audit_is_read_only_and_fails_on_invalid_report(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            scripts = root / "scripts"
+            scripts.mkdir()
+            (root / "dev-platform" / "capabilities").mkdir(parents=True)
+            (root / "dev-platform" / "capabilities.toml").write_text("version = 1\nenabled = []\n", encoding="utf-8")
+            manager = scripts / "capability_manager.py"
+            manager.write_text("import json\nprint(json.dumps({'status': 'ok'}))\n", encoding="utf-8")
+            failures = [0]
+            self.module.check_engineering_capabilities(root, failures)
+            self.assertEqual(failures, [0])
+            manager.write_text("import json\nprint(json.dumps({'status': 'error', 'issues': ['bad pin']}))\nraise SystemExit(1)\n", encoding="utf-8")
+            self.module.check_engineering_capabilities(root, failures)
+            self.assertEqual(failures, [1])
+
 
 class TaskStartContractTests(unittest.TestCase):
     """File-presence alone let a stale rendered start_task.py pass doctor while

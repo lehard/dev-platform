@@ -9,7 +9,13 @@ import tempfile
 from pathlib import Path
 
 ALL_OPENSPEC_WORKFLOWS = ["propose", "explore", "new", "continue", "apply", "ff", "sync", "archive", "bulk-archive", "verify", "onboard"]
-LOCAL_GENERATED_EXCLUDES = [".claude/", ".codex/skills/openspec-*/", "AGENTS.local.md"]
+LOCAL_GENERATED_EXCLUDES = [
+    ".claude/",
+    ".codex/skills/openspec-*/",
+    ".codex/skills/dev-platform-*/",
+    ".claude/skills/dev-platform-*/",
+    "AGENTS.local.md",
+]
 
 
 def run(command: list[str], root: Path, *, env: dict[str, str] | None = None) -> None:
