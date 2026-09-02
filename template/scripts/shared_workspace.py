@@ -17,7 +17,7 @@ import tempfile
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
+from typing import Callable, ContextManager, Iterable
 
 try:
     import grp
@@ -41,6 +41,18 @@ LIFECYCLE_PATH_DEFAULTS = {
     "friction_reports": ".claude/reports/process-improvement",
 }
 RECURSIVE_LIFECYCLE_PATHS = {"friction_reports", "model_routing"}
+
+# Stable, rarely-changing shared-repository configuration. Bootstrap/adoption
+# and explicit repair own the write; ordinary lifecycle preflight only verifies
+# it so that independent tasks never contend on ``.git/config.lock``.
+SHARED_REPOSITORY_KEY = "core.sharedRepository"
+SHARED_REPOSITORY_VALUE = "group"
+MAIN_MERGE_LOCK_DEFAULT = ".claude/main-merge.lock"
+# A registered path can disappear between discovery and inspection when Git runs
+# ephemeral maintenance (lock files, temporary packs). Re-scan a bounded number
+# of times before giving up rather than reporting a false persistent failure.
+EPHEMERAL_RESCAN_ATTEMPTS = 3
+_REPAIR_LOCK_TIMEOUT_SECONDS = 30.0
 
 
 class SharedWorkspaceError(RuntimeError):
@@ -169,20 +181,31 @@ def _registered_claude_path(integration: Path, relative: str) -> Path:
     return candidate
 
 
+def _configured_paths_table(integration: Path) -> dict[str, object]:
+    config_path = integration / ".dev-platform.toml"
+    if not config_path.is_file():
+        return {}
+    try:
+        with config_path.open("rb") as handle:
+            loaded = tomllib.load(handle)
+    except (OSError, tomllib.TOMLDecodeError):
+        # Configuration validation supplies the actionable diagnostic. Callers
+        # here remain safely bounded to their defaults.
+        return {}
+    paths = loaded.get("paths", {})
+    return paths if isinstance(paths, dict) else {}
+
+
+def _configured_relative_path(integration: Path, key: str, default: str) -> str:
+    value = _configured_paths_table(integration).get(key, default)
+    if not isinstance(value, str) or not value:
+        return default
+    return value
+
+
 def _lifecycle_paths(integration: Path) -> list[tuple[str, Path]]:
     """Return the reviewed lifecycle allowlist, never all ``.claude`` children."""
-    configured: dict[str, object] = {}
-    config_path = integration / ".dev-platform.toml"
-    if config_path.is_file():
-        try:
-            with config_path.open("rb") as handle:
-                loaded = tomllib.load(handle)
-            paths = loaded.get("paths", {})
-            configured = paths if isinstance(paths, dict) else {}
-        except (OSError, tomllib.TOMLDecodeError):
-            # Configuration validation supplies the actionable diagnostic. The
-            # permission helper remains safely bounded to its defaults.
-            configured = {}
+    configured = _configured_paths_table(integration)
     result: list[tuple[str, Path]] = []
     for key, default in LIFECYCLE_PATH_DEFAULTS.items():
         value = configured.get(key, default)
@@ -290,31 +313,154 @@ def ensure_shared_path(path: Path, *, group: SharedGroup | None = None) -> None:
     _repair(path, group)
 
 
-def audit(root: Path, *, fix: bool = False) -> tuple[SharedGroup | None, list[Finding]]:
-    if not posix_available():
-        return None, [Finding(root, "POSIX group-mode enforcement unavailable; no changes made", False)]
-    integration, common, paths = registered_paths(root)
-    group = resolve_shared_group(integration)
+def read_shared_repository(integration: Path) -> str | None:
+    """Return the configured ``core.sharedRepository`` value, or ``None`` when unset."""
+    result = subprocess.run(
+        ["git", "config", "--get", SHARED_REPOSITORY_KEY],
+        cwd=integration,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode:
+        return None
+    return result.stdout.strip() or None
+
+
+def shared_repository_grants_group(value: str | None) -> bool:
+    """True when the configured value gives the sharing group read/write access.
+
+    Git accepts symbolic names, a small integer alias or an explicit octal mode.
+    """
+    if value is None:
+        return False
+    token = value.strip().lower()
+    if token in {"group", "true", "1", "all", "world", "everybody", "2"}:
+        return True
+    try:
+        mode = int(token, 8)
+    except ValueError:
+        return False
+    return mode & 0o060 == 0o060
+
+
+def configure_shared_repository(integration: Path) -> None:
+    """Persist the stable shared-repository mode.
+
+    Only bootstrap/adoption and an explicit repair path mutate this value; the
+    ordinary lifecycle verifies it without rewriting an already-correct setting.
+    """
+    result = subprocess.run(
+        ["git", "config", SHARED_REPOSITORY_KEY, SHARED_REPOSITORY_VALUE],
+        cwd=integration,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode:
+        detail = (result.stderr or result.stdout).strip() or "git failed"
+        raise SharedWorkspaceError(f"could not set {SHARED_REPOSITORY_KEY}={SHARED_REPOSITORY_VALUE}: {detail}")
+
+
+def verify_shared_repository(integration: Path) -> Finding | None:
+    """Read-only check that the shared-repository mode grants group access."""
+    value = read_shared_repository(integration)
+    if shared_repository_grants_group(value):
+        return None
+    observed = value if value is not None else "unset"
+    return Finding(
+        git_common_dir(integration) / "config",
+        f"{SHARED_REPOSITORY_KEY}={observed}; expected a value granting group access (e.g. {SHARED_REPOSITORY_VALUE})",
+        True,
+    )
+
+
+def _audit_permissions(root: Path, *, fix: bool) -> tuple[SharedGroup, list[Finding]]:
+    """Audit registered POSIX permissions, tolerating an ephemeral path vanishing.
+
+    A registered path that disappears between discovery and inspection triggers a
+    bounded re-scan.  A permission, ownership, symlink or foreign-state finding on
+    a path that still exists is durable and is always reported.
+    """
+    group: SharedGroup | None = None
     findings: list[Finding] = []
-    for path in paths:
-        detail = _describe(path, group)
-        if detail is None:
-            continue
-        if fix:
-            _repair(path, group)
-            detail = _describe(path, group)
-            if detail is None:
+    for attempt in range(EPHEMERAL_RESCAN_ATTEMPTS):
+        last_attempt = attempt == EPHEMERAL_RESCAN_ATTEMPTS - 1
+        _integration, _common, paths = registered_paths(root)
+        group = resolve_shared_group(_integration)
+        findings = []
+        restart = False
+        for path in paths:
+            try:
+                detail = _describe(path, group)
+                if detail is None:
+                    continue
+                if fix:
+                    _repair(path, group)
+                    detail = _describe(path, group)
+                    if detail is None:
+                        continue
+            except FileNotFoundError:
+                # The path is gone.  Re-scan from a fresh allowlist unless this is
+                # the last attempt, where a still-missing path constrains nothing.
+                if not last_attempt:
+                    restart = True
+                    break
                 continue
-        findings.append(Finding(path, detail, True))
-    if fix:
-        result = subprocess.run(["git", "config", "core.sharedRepository", "group"], cwd=integration, text=True, capture_output=True)
-        if result.returncode:
-            findings.append(Finding(common / "config", "could not set core.sharedRepository=group: " + (result.stderr.strip() or "git failed"), True))
+            findings.append(Finding(path, detail, True))
+        if not restart:
+            break
+    assert group is not None
     return group, findings
 
 
-def preflight(root: Path, *, fix: bool = True) -> None:
-    """Repair platform-owned collaboration state before a mutating lifecycle step."""
+def audit(root: Path, *, fix: bool = False) -> tuple[SharedGroup | None, list[Finding]]:
+    if not posix_available():
+        return None, [Finding(root, "POSIX group-mode enforcement unavailable; no changes made", False)]
+    return _audit_permissions(root, fix=fix)
+
+
+def _default_integration_serializer(integration: Path) -> ContextManager[object]:
+    """Reuse the existing serialized integration boundary for a rare repair."""
+    from integration_state import serialized_integration
+
+    relative = _configured_relative_path(integration, "main_merge_lock", MAIN_MERGE_LOCK_DEFAULT)
+    return serialized_integration(
+        integration, {"paths": {"main_merge_lock": relative}}, _REPAIR_LOCK_TIMEOUT_SECONDS
+    )
+
+
+def _repair_shared_repository(
+    integration: Path,
+    serializer: Callable[[Path], ContextManager[object]] | None,
+) -> None:
+    factory = serializer or _default_integration_serializer
+    with factory(integration):
+        # Re-check under serialization: a concurrent holder may already have
+        # repaired the value, in which case this task must not rewrite it.
+        if verify_shared_repository(integration) is None:
+            return
+        configure_shared_repository(integration)
+        remaining = verify_shared_repository(integration)
+    if remaining is not None:
+        raise SharedWorkspaceError(
+            f"shared-repository repair did not take effect: {remaining.path}: {remaining.message}"
+        )
+
+
+def preflight(
+    root: Path,
+    *,
+    fix: bool = True,
+    serializer: Callable[[Path], ContextManager[object]] | None = None,
+) -> None:
+    """Verify platform-owned collaboration state before a mutating lifecycle step.
+
+    POSIX permissions on registered paths are repaired in place when ``fix`` is
+    set.  Stable ``core.sharedRepository`` configuration is only verified; a
+    required repair is serialized through the existing integration boundary and
+    rechecked before the lifecycle continues.
+    """
     cooperative_umask()
     group, findings = audit(root, fix=fix)
     if group is None:
@@ -322,6 +468,16 @@ def preflight(root: Path, *, fix: bool = True) -> None:
     if findings:
         details = "; ".join(f"{item.path}: {item.message}" for item in findings[:5])
         raise SharedWorkspaceError(f"shared-workspace preflight failed for group {group.name}: {details}")
+    integration = _safe_root(integration_root(root))
+    repository_finding = verify_shared_repository(integration)
+    if repository_finding is None:
+        return
+    if not fix:
+        raise SharedWorkspaceError(
+            f"shared-workspace preflight failed for group {group.name}: "
+            f"{repository_finding.path}: {repository_finding.message}"
+        )
+    _repair_shared_repository(integration, serializer)
 
 
 def atomic_write_text(path: Path, text: str, *, group: SharedGroup | None = None) -> None:
@@ -351,14 +507,28 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Check or repair bounded dev-platform shared-workspace permissions.")
     parser.add_argument("command", choices=("check", "fix"))
     args = parser.parse_args()
+    fix = args.command == "fix"
     try:
-        group, findings = audit(Path.cwd(), fix=args.command == "fix")
+        group, findings = audit(Path.cwd(), fix=fix)
     except SharedWorkspaceError as exc:
         print(f"[fail] {exc}", file=sys.stderr)
         return 2
     if group is None:
         print("[warn] POSIX group-mode enforcement unavailable; no changes made")
         return 0
+    findings = list(findings)
+    try:
+        integration = _safe_root(integration_root(Path.cwd()))
+        repository_finding = verify_shared_repository(integration)
+        if repository_finding is not None and fix:
+            # An explicit operator repair may configure the stable value directly.
+            configure_shared_repository(integration)
+            repository_finding = verify_shared_repository(integration)
+        if repository_finding is not None:
+            findings.append(repository_finding)
+    except SharedWorkspaceError as exc:
+        print(f"[fail] {exc}", file=sys.stderr)
+        return 2
     if findings:
         for finding in findings:
             print(f"[fail] {finding.path}: {finding.message}")

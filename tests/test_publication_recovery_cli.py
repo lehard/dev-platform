@@ -12,6 +12,9 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_SOURCE = ROOT / "template" / "scripts"
 sys.path.insert(0, str(SCRIPT_SOURCE))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from _concurrent_lifecycle import communicate_within_deadline  # noqa: E402
 
 
 def run(*args: str, cwd: Path, check: bool = True, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
@@ -344,8 +347,8 @@ class PublicationRecoveryConcurrencyTests(unittest.TestCase):
             for _ in range(2)
         ]
         outputs = []
-        for proc in procs:
-            stdout, stderr = proc.communicate(timeout=10)
+        for index, proc in enumerate(procs):
+            stdout, stderr = communicate_within_deadline(proc, description=f"pr-create worker {index}")
             self.assertEqual(proc.returncode, 0, stderr)
             outputs.append(stdout.strip().splitlines()[-1])
         import json as jsonlib
@@ -398,8 +401,8 @@ class PublicationRecoveryConcurrencyTests(unittest.TestCase):
             for _ in range(2)
         ]
         outcomes = []
-        for proc in procs:
-            stdout, stderr = proc.communicate(timeout=10)
+        for index, proc in enumerate(procs):
+            stdout, stderr = communicate_within_deadline(proc, description=f"merge worker {index}")
             self.assertEqual(proc.returncode, 0, stderr)
             outcomes.append(stdout.strip().splitlines()[-1])
         self.assertEqual(outcomes, ["merged", "merged"])
@@ -470,6 +473,51 @@ class ExactHeadMergeGuardTests(unittest.TestCase):
                 self.root, env, "agent/guard", project_publish.PrRef(8, "https://example.invalid/pr/8"), "origin", self.head
             )
         self.assertEqual(outcome, "unavailable")
+
+
+class BoundedTestDeadlineHelperTests(unittest.TestCase):
+    """The shared helper backing the concurrency tests' subprocess waits."""
+
+    def test_completed_helper_returns_its_output(self) -> None:
+        proc = subprocess.Popen(
+            [sys.executable, "-c", "print('done')"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+        )
+        out, _err = communicate_within_deadline(proc, description="fast helper")
+        self.assertEqual(out.strip(), "done")
+        self.assertEqual(proc.returncode, 0)
+
+    def test_expired_helper_fails_with_process_identity_and_retained_output(self) -> None:
+        import _concurrent_lifecycle
+
+        proc = subprocess.Popen(
+            [sys.executable, "-c", "import sys,time; print('partial', flush=True); time.sleep(30)"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        try:
+            with mock.patch.object(_concurrent_lifecycle, "process_deadline_seconds", return_value=0.3):
+                with self.assertRaises(_concurrent_lifecycle.HelperTimeout) as ctx:
+                    communicate_within_deadline(proc, description="hung recovery helper")
+            message = str(ctx.exception)
+            self.assertIn("hung recovery helper", message)
+            self.assertIn(f"pid={proc.pid}", message)
+            self.assertIn("partial", message)
+        finally:
+            if proc.poll() is None:
+                proc.kill()
+                proc.wait()
+
+    def test_operator_override_env_var_changes_the_deadline(self) -> None:
+        import _concurrent_lifecycle
+
+        with mock.patch.dict(os.environ, {"DEV_PLATFORM_TEST_PROCESS_TIMEOUT": "7.5"}):
+            self.assertEqual(_concurrent_lifecycle.process_deadline_seconds(), 7.5)
+        with mock.patch.dict(os.environ, {"DEV_PLATFORM_TEST_PROCESS_TIMEOUT": "not-a-number"}):
+            self.assertEqual(
+                _concurrent_lifecycle.process_deadline_seconds(),
+                _concurrent_lifecycle._DEFAULT_PROCESS_DEADLINE_SECONDS,
+            )
 
 
 if __name__ == "__main__":

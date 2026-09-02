@@ -12,6 +12,7 @@ from pathlib import Path
 
 from _platform_common import SharedWorkspaceError, harness_mode, read_platform_config
 from shared_workspace import audit as audit_shared_workspace
+from shared_workspace import verify_shared_repository
 
 REQUIRED_COMMON = ["AGENTS.md", "CLAUDE.md", ".dev-platform.toml", "dev-platform/checks.toml", "dev-platform/capabilities.toml", "docs/engineering/openspec-workflow.md", "docs/engineering/task-intake.md", "docs/engineering/engineering-capabilities.md", "scripts/dev.py", "scripts/shared_workspace.py", "scripts/managed_task.py", "scripts/managed_project_status.py", "scripts/start_managed_task.py", "scripts/execute_managed_task.py", "scripts/select_checks.py", "scripts/project_sync.py", "scripts/project_publish.py", "scripts/start_task.py", "scripts/finish_task.py", "scripts/reconcile_task.py", "scripts/openspec_lifecycle.py", "scripts/independent_review.py", "scripts/agent_friction.py", "scripts/agent_doctor.py", "scripts/model_routing.py", "scripts/capability_manager.py", "scripts/capability_evals.py", "scripts/browser_verification.py"]
 REQUIRED_MULTI_AGENT_PLATFORM = ["scripts/agent_board.py", "scripts/start_worktree.py", "scripts/worktree_cleanup.py", "scripts/git_hooks/pre-commit", "scripts/git_hooks/pre-merge-commit"]
@@ -274,6 +275,21 @@ def check_shared_workspace(root: Path, failures: list[int]) -> None:
         failures[0] += 1
     else:
         ok(f"shared workspace group contract is valid for {group.name} ({group.source})")
+    # Stable shared-repository config is owned by bootstrap/adoption and explicit
+    # repair; doctor only reports drift so a lifecycle preflight can heal it.
+    try:
+        repository_finding = verify_shared_repository(root)
+    except SharedWorkspaceError as exc:
+        warn(f"shared-repository mode could not be inspected: {exc}")
+        return
+    if repository_finding is not None:
+        fail(
+            f"shared workspace {repository_finding.path}: {repository_finding.message}; "
+            "run `python3 scripts/shared_workspace.py fix` or re-run platform bootstrap"
+        )
+        failures[0] += 1
+    else:
+        ok("shared-repository mode grants group access")
 
 
 def check_platform_check_contract(root: Path, config: dict, harness: str) -> None:

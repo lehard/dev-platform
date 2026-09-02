@@ -1,0 +1,6 @@
+- [x] Add an explicit readiness handshake to the delegated-writer timeout fixture.
+- [x] Centralize the publication-recovery test timeout and diagnostics.
+- [x] Cap default test-group concurrency while preserving `DEV_PLATFORM_TEST_JOBS`.
+- [x] Add delayed-start and loaded-run regression cases.
+- [x] Prove real hung processes still fail within the bounded timeout.
+- [x] Run semantic verification and required checks, record evidence, archive and publish.

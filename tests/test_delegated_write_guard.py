@@ -595,7 +595,41 @@ class GuardedDelegationTests(unittest.TestCase):
             "import time\n"
             "from pathlib import Path\n"
             "child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(30)'])\n"
-            "Path('descendant.pid').write_text(str(child.pid), encoding='utf-8')\n"
+            "Path('descendant.pid.tmp').write_text(str(child.pid), encoding='utf-8')\n"
+            "Path('descendant.pid.tmp').replace('descendant.pid')\n"
+            "time.sleep(30)\n",
+            encoding="utf-8",
+        )
+        # Synchronize on the descendant identity the assertion needs, then let
+        # the steady-state timeout measure a running process -- not a race with
+        # interpreter startup under a loaded parallel suite.
+        with self.assertRaises(guard.GuardedChildError) as ctx:
+            guard.run_observed_delegation(
+                integration_root=self.integration,
+                assigned_worktree=self.worktree,
+                argv=[sys.executable, str(script)],
+                tier_decision=self.hard_tier,
+                ready_probe=descendant_pid.exists,
+                ready_deadline=10.0,
+                timeout=0.2,
+            )
+        self.assertEqual(ctx.exception.result.writer_state, "released")
+        pid = int(descendant_pid.read_text(encoding="utf-8"))
+        with self.assertRaises(ProcessLookupError):
+            os.kill(pid, 0)
+
+    def test_delayed_child_startup_still_passes_the_readiness_handshake(self) -> None:
+        # The child sleeps well past a naive fixed-sleep assumption before it
+        # publishes its descendant identity; the bounded handshake must wait.
+        script = self.worktree / "delayed_spawn.py"
+        descendant_pid = self.worktree / "descendant.pid"
+        script.write_text(
+            "import subprocess, sys, time\n"
+            "from pathlib import Path\n"
+            "time.sleep(1.0)\n"
+            "child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(30)'])\n"
+            "Path('descendant.pid.tmp').write_text(str(child.pid), encoding='utf-8')\n"
+            "Path('descendant.pid.tmp').replace('descendant.pid')\n"
             "time.sleep(30)\n",
             encoding="utf-8",
         )
@@ -605,12 +639,30 @@ class GuardedDelegationTests(unittest.TestCase):
                 assigned_worktree=self.worktree,
                 argv=[sys.executable, str(script)],
                 tier_decision=self.hard_tier,
+                ready_probe=descendant_pid.exists,
+                ready_deadline=10.0,
                 timeout=0.2,
             )
         self.assertEqual(ctx.exception.result.writer_state, "released")
         pid = int(descendant_pid.read_text(encoding="utf-8"))
         with self.assertRaises(ProcessLookupError):
             os.kill(pid, 0)
+
+    def test_child_that_never_becomes_ready_fails_with_diagnostics(self) -> None:
+        script = self.worktree / "never_ready.py"
+        script.write_text("import time\ntime.sleep(30)\n", encoding="utf-8")
+        with self.assertRaises(guard.GuardedChildError) as ctx:
+            guard.run_observed_delegation(
+                integration_root=self.integration,
+                assigned_worktree=self.worktree,
+                argv=[sys.executable, str(script)],
+                tier_decision=self.hard_tier,
+                ready_probe=lambda: False,
+                ready_deadline=0.3,
+                timeout=30,
+            )
+        self.assertEqual(ctx.exception.result.writer_state, "released")
+        self.assertIn("did not signal readiness", str(ctx.exception))
 
     def test_child_exec_failure_never_launched_still_runs_post_check(self) -> None:
         with self.assertRaises(guard.GuardedChildError) as ctx:

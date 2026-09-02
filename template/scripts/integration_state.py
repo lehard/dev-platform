@@ -20,6 +20,12 @@ def _lock_path(config: dict) -> str:
     return str(config.get("paths", {}).get("main_merge_lock", ".claude/main-merge.lock")).replace("\\", "/")
 
 
+# Lock paths this process already holds. ``flock`` on a second descriptor for the
+# same file from the same process would self-deadlock, so a nested request simply
+# runs inside the already-serialized region.
+_HELD_INTEGRATION_LOCKS: set[str] = set()
+
+
 def _status_records(root: Path) -> list[tuple[str, tuple[str, ...]]]:
     """Return porcelain-v1 records without losing paths containing whitespace."""
     raw = run_git(["status", "--porcelain=v1", "-z", "--untracked-files=all"], cwd=root).stdout
@@ -66,13 +72,22 @@ def _format_paths(paths: list[str]) -> str:
 def serialized_integration(root: Path, config: dict, timeout_seconds: float) -> Iterator[None]:
     relative = _lock_path(config)
     path = (root / relative).resolve()
+    key = str(path)
+    if key in _HELD_INTEGRATION_LOCKS:
+        # Already serialized in this process; run the nested section directly.
+        yield
+        return
     path.parent.mkdir(parents=True, exist_ok=True)
     group = resolve_shared_group(root)
     ensure_shared_path(path.parent, group=group)
     with path.open("a+", encoding="utf-8") as lock_file:
         ensure_shared_path(path, group=group)
         if fcntl is None:
-            yield
+            _HELD_INTEGRATION_LOCKS.add(key)
+            try:
+                yield
+            finally:
+                _HELD_INTEGRATION_LOCKS.discard(key)
             return
         deadline = time.monotonic() + timeout_seconds
         while True:
@@ -83,9 +98,11 @@ def serialized_integration(root: Path, config: dict, timeout_seconds: float) -> 
                 if time.monotonic() >= deadline:
                     raise SystemExit("Another agent is still integrating into the main branch. Retry after it finishes.") from None
                 time.sleep(0.1)
+        _HELD_INTEGRATION_LOCKS.add(key)
         try:
             yield
         finally:
+            _HELD_INTEGRATION_LOCKS.discard(key)
             fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
 

@@ -5,6 +5,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_ROOT = ROOT / "template" / "scripts"
@@ -158,6 +159,23 @@ class GroupConfigValidationTests(unittest.TestCase):
     def test_no_groups_configured_is_rejected(self) -> None:
         with self.assertRaises(run_test_groups.TestGroupError):
             run_test_groups.read_groups({})
+
+
+class DefaultParallelismTests(unittest.TestCase):
+    def test_auto_parallelism_is_capped_on_a_many_cpu_host(self) -> None:
+        env = {key: value for key, value in run_test_groups.os.environ.items() if key != "DEV_PLATFORM_TEST_JOBS"}
+        with mock.patch.object(run_test_groups.os, "cpu_count", return_value=64), \
+                mock.patch.dict(run_test_groups.os.environ, env, clear=True):
+            jobs, source = run_test_groups.resolve_jobs()
+        self.assertLessEqual(jobs, run_test_groups._DEFAULT_JOBS_CEILING)
+        self.assertGreaterEqual(jobs, 1)
+        self.assertEqual(source, "auto-capped")
+
+    def test_explicit_operator_job_count_is_honoured_verbatim(self) -> None:
+        with mock.patch.object(run_test_groups.os, "cpu_count", return_value=2), \
+                mock.patch.dict(run_test_groups.os.environ, {"DEV_PLATFORM_TEST_JOBS": "9"}):
+            jobs, source = run_test_groups.resolve_jobs()
+        self.assertEqual((jobs, source), (9, "DEV_PLATFORM_TEST_JOBS"))
 
 
 if __name__ == "__main__":

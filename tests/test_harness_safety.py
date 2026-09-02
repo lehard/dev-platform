@@ -42,6 +42,22 @@ with serialized_integration(Path(%r), {"paths": {"main_merge_lock": ".claude/mai
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("Another agent is still integrating", result.stderr)
 
+    def test_serialized_integration_is_reentrant_within_one_process(self) -> None:
+        if finish_task.fcntl is None:
+            self.skipTest("fcntl is unavailable on this platform")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config = {"paths": {"main_merge_lock": ".claude/main-merge.lock"}}
+            # A nested acquisition on the same lock path must not self-deadlock:
+            # e.g. finish preflight repairs shared config while finish already
+            # holds the integration lock for a direct publish.
+            with finish_task.serialized_integration(root, config, 1.0):
+                with finish_task.serialized_integration(root, config, 0.05):
+                    pass
+            # The lock is fully released afterwards, so a fresh acquisition works.
+            with finish_task.serialized_integration(root, config, 0.05):
+                pass
+
     def test_agent_doctor_installs_managed_hooks_and_preserves_foreign_hook(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
