@@ -40,6 +40,8 @@ class CapabilityManagerTests(unittest.TestCase):
             "capability-catalog.md",
             "architecture-health-review.toml",
             "architecture-health-review.md",
+            "systematic-bug-diagnosis.toml",
+            "systematic-bug-diagnosis.md",
         ):
             shutil.copyfile(ROOT / "dev-platform" / "capabilities" / name, self.root / "dev-platform" / "capabilities" / name)
         shutil.copyfile(
@@ -49,6 +51,10 @@ class CapabilityManagerTests(unittest.TestCase):
         shutil.copyfile(
             ROOT / "dev-platform" / "evals" / "architecture-health-review-pilot.json",
             self.root / "dev-platform" / "evals" / "architecture-health-review-pilot.json",
+        )
+        shutil.copyfile(
+            ROOT / "dev-platform" / "evals" / "systematic-bug-diagnosis-pilot.json",
+            self.root / "dev-platform" / "evals" / "systematic-bug-diagnosis-pilot.json",
         )
 
     def tearDown(self) -> None:
@@ -203,6 +209,44 @@ class CapabilityManagerTests(unittest.TestCase):
         self.assertEqual(report["results"][0]["status_distribution"], {"timeout": 3})
         self.assertIsNone(report["results"][0]["trigger_rate"])
         self.assertIsNone(report["results"][0]["passed"])
+
+    def test_systematic_diagnosis_records_evidence_without_forcing_quick_corrections(self) -> None:
+        capability = self.registry()["systematic-bug-diagnosis"]
+        self.assertEqual(capability.kind, "instruction-only")
+        self.assertEqual(capability.invocation, "auto+explicit")
+        manager.write_selection(self.root, [capability.identifier])
+        materialized = manager.sync(self.root, self.registry(), manager.load_selection(self.root))
+        self.assertEqual(len(materialized["changes"]), 2)
+        self.assertIn(
+            "dev-platform-capability:id=systematic-bug-diagnosis",
+            (self.root / ".codex" / "skills" / "dev-platform-systematic-bug-diagnosis" / "SKILL.md").read_text(encoding="utf-8"),
+        )
+        self.assertEqual(manager.audit(self.root, self.registry(), manager.load_selection(self.root))["status"], "ok")
+        for required in (
+            "unknown** defect",
+            "report the diagnosis as **unconfirmed**",
+            "Hypothesis | A concise possible cause.",
+            "test would be disproportionate",
+            "Re-run the original failure condition",
+            "does not create a parallel bug tracker or hidden-reasoning log",
+            "rejects a suspected timeout",
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, capability.instruction)
+        report = manager.evaluate_existing(
+            capability,
+            self.root / "dev-platform" / "evals" / "systematic-bug-diagnosis-pilot.json",
+            runtime="fixture",
+            runs=3,
+        )
+        self.assertEqual(report["summary"], {
+            "case_count": 20,
+            "passed": 20,
+            "failed": 0,
+            "incomplete": 0,
+            "status_distribution": {"not-triggered": 30, "triggered": 30},
+        })
+        self.assertTrue(all(item["improved"] for item in report["quality_comparisons"]))
 
 
 if __name__ == "__main__":
