@@ -1,0 +1,33 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/platform-ci/spec.md"
+  ],
+  "change": "stabilize-concurrent-lifecycle-tests",
+  "imported_at": "2026-09-02T11:45:43+00:00",
+  "package_revision": "461206555b2a9c7c6f0a719800ba907ca48b6f568dde65b6b89413ee9700ed54",
+  "prepared_against": "645a81f29a375b50379cd889f1741cb967fdb47a",
+  "process_evidence": [
+    "lehard/dev-platform#349",
+    "lehard/dev-platform#367",
+    "lehard/dev-platform#215"
+  ],
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "test-infrastructure"
+  },
+  "source_issue": "lehard/development-backlog#96",
+  "source_issue_evidence": {
+    "body_sha256": "9646f705ea8d97da0012de2f07253ad66415e33fbf6b9b4c65c711620880deec",
+    "updated_at": "2026-09-02T10:43:00Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
