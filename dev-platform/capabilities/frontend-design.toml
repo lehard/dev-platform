@@ -1,0 +1,25 @@
+[capability]
+id = "frontend-design"
+name = "Frontend design"
+description = "General guidance for intentional, non-templated UI when creating a new surface, doing a substantial redesign, or running a dedicated UI-quality pass."
+kind = "instruction-only"
+applicability = "UI creation, substantial visual redesign, or a dedicated UI-quality pass; not routine frontend edits and not backend or other non-UI work."
+invocation = "auto+explicit"
+visibility = "project"
+owner = "dev-platform"
+safety_boundary = "Instruction-only; subordinate to project product requirements, the project design system, accessibility rules, and accepted OpenSpec. It cannot change product intent, create managed work, or add an application runtime dependency."
+dependencies = []
+materialization = "provider-skill-markdown"
+update_policy = "replace-derived"
+removal_policy = "remove-derived-only"
+
+[provenance]
+source = "anthropics/skills · skills/frontend-design/SKILL.md"
+revision = "53048666b05b4799081517d00e09e0a2dd688678"
+path = "dev-platform/capabilities/frontend-design.md"
+license = "Apache-2.0"
+content_sha256 = "4c4c3583526c65993e67f713380a9983ca31d5f15ab39bed3043d2f9e2bb26e6"
+
+[eval]
+evidence = "deterministic-fixture"
+live_eval = "not-required-for-fixture"

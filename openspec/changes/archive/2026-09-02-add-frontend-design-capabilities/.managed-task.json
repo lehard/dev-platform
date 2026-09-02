@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/frontend-design/spec.md"
+  ],
+  "change": "add-frontend-design-capabilities",
+  "imported_at": "2026-09-02T05:00:40+00:00",
+  "package_revision": "922dc76eb726cbd28a2e6d1b24ac3fb4dcf8a6c5bc5d43baefb9cfdd46f885e7",
+  "prepared_against": "e6b207fd63e77a99d868892f7f8e0c0a2210c8ec",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "agent-tooling"
+  },
+  "source_issue": "lehard/development-backlog#85",
+  "source_issue_evidence": {
+    "body_sha256": "c5feec9109e038ac779ebbd24d9c765eee21c6ee63b0d283f2272811ba24162c",
+    "updated_at": "2026-09-01T07:29:04Z"
+  },
+  "supersedes": "483072375730f84806be0f1a79a7b263964df3f3ca402dfb2c8a0be9d1376f63",
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

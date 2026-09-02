@@ -95,6 +95,16 @@ The reviewed upstream is [`mattpocock/skills`](https://github.com/mattpocock/ski
 | Mandatory display of ranked hypotheses to a user | Reject as a platform requirement | User interaction can be useful, but making it a required checkpoint would create an unrelated execution gate. |
 | Captured command/output workflow | Adapt with existing evidence safety | Evidence is bounded and redacted; raw prompts, secrets, sensitive payloads, and hidden reasoning are not retained. |
 
+## Frontend design capabilities
+
+Opt-in frontend design help (`frontend-design` general guidance plus the
+`high-end-visual-design` specialized profile) rides this same lifecycle — one
+descriptor each, project-owned opt-in, derived provider skills only when
+selected. Their design-specific applicability, non-applicability, precedence over
+and under a project design system, triggering discipline, and bounded-adaptation
+provenance are documented in
+[Frontend design capabilities](frontend-design-capabilities.md).
+
 ## Delivery
 
 The manager, descriptors and guidance are Copier-managed platform surfaces. Fresh renders and reviewed Copier updates are deterministic; an immutable platform release produces ordinary rollout PRs for managed projects. Project-owned harnesses retain their lifecycle implementation.
