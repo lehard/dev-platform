@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "capability": "interoperable-agent-handoff",
+  "content_sha256": "3438efe82641326f0ba0a1a441cd7665e4c1e3b6da69c8023dd845d4ce1063d6",
+  "cases": [
+    {"id": "positive-claude-to-codex", "expectation": "trigger", "prompt": "I have to stop; continue this managed task in Codex from where I left off.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-codex-to-claude", "expectation": "trigger", "prompt": "Hand this back to a Claude session so it can resolve the ambiguous spec scenario before coding.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-agent-to-human", "expectation": "trigger", "prompt": "Write up where this work stands so a teammate can take it over tomorrow.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-fresh-session-continuation", "expectation": "trigger", "prompt": "Start a fresh context on this branch and pick up the in-progress change; give it what it needs to orient.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-cross-provider-blocker", "expectation": "trigger", "prompt": "Pass the current blocker and next step to another agent that will keep going on this feature branch.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-separate-facts-from-assumptions", "expectation": "trigger", "prompt": "Prepare a compact handoff that separates what we confirmed from what we are only assuming for the next context.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-navigation-envelope-request", "expectation": "trigger", "prompt": "Give the next agent a navigation envelope: repository, exact revision, managed task, canonical evidence.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-receiver-validates-freshness", "expectation": "trigger", "prompt": "I am picking up someone's handoff; help me check it against current HEAD and the managed task before trusting it.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-end-of-session-managed-task", "expectation": "trigger", "prompt": "End of session on this managed OpenSpec change; produce the continuation context for whoever resumes it.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-stale-handoff-detected", "expectation": "trigger", "prompt": "The handoff I was given references an old commit; walk me through treating it as stale and re-reading canonical sources.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "negative-same-context-compact", "expectation": "not-trigger", "prompt": "The conversation is getting long; just compact and keep going in this same session.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-existing-task-state-enough", "expectation": "not-trigger", "prompt": "The managed OpenSpec change and routing record already have everything; no separate summary needed.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-quick-bugfix", "expectation": "not-trigger", "prompt": "Fix the off-by-one in this pagination offset; cause and expected result are established.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-run-tests", "expectation": "not-trigger", "prompt": "Run the focused unit tests for the parser module.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-format-module", "expectation": "not-trigger", "prompt": "Format this module with the repository formatter.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-add-specified-field", "expectation": "not-trigger", "prompt": "Add the already specified created_at ISO-8601 field to this DTO and its serializer.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-start-managed-task", "expectation": "not-trigger", "prompt": "Start managed task lehard/development-backlog#123 and begin implementation.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-route-executor", "expectation": "not-trigger", "prompt": "Record the routing decision and launch the balanced Codex executor for this task.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-review-change", "expectation": "not-trigger", "prompt": "Review this authentication change for security issues.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-dependency-bump", "expectation": "not-trigger", "prompt": "Apply the known one-line version bump requested in the release checklist.", "samples": ["not-triggered", "not-triggered", "not-triggered"]}
+  ],
+  "quality_comparisons": [
+    {
+      "id": "envelope-separates-facts-from-assumptions",
+      "objective_verifier": "The capability instruction requires verified facts, unresolved assumptions, blockers, and next intent to be recorded as separate fields and forbids promoting an unsupported claim to a fact.",
+      "baseline": "not-verified",
+      "candidate": "verified"
+    },
+    {
+      "id": "receiver-validates-revision-and-task-identity",
+      "objective_verifier": "The capability instruction requires the receiver to compare repository, exact revision, and managed task/OpenSpec identity first and to treat a mismatch (moved HEAD, rebase, superseded task) as stale, re-reading canonical sources.",
+      "baseline": "not-verified",
+      "candidate": "verified"
+    },
+    {
+      "id": "handoff-grants-no-authority-and-does-not-duplicate-routing",
+      "objective_verifier": "The capability instruction states that creating or receiving a handoff performs no GitHub/Backlog/Project/OpenSpec/worktree mutation and grants no execution authority, and that it composes with the existing provider routing record rather than duplicating executor selection or containment.",
+      "baseline": "not-verified",
+      "candidate": "verified"
+    },
+    {
+      "id": "same-context-compaction-needs-no-handoff",
+      "objective_verifier": "The deterministic fixture contains ten hard-negative prompts (same-context compact, existing task state, ordinary quick tasks, executor routing) and verifies that none trigger a handoff envelope.",
+      "baseline": "not-verified",
+      "candidate": "verified"
+    }
+  ]
+}

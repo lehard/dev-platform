@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/agent-workflow/spec.md"
+  ],
+  "change": "add-interoperable-agent-handoff",
+  "imported_at": "2026-09-02T10:42:50+00:00",
+  "package_revision": "8709407d1bde43e51e2166609a31976b4e5ab3e26527b2c082a9075720f82e3d",
+  "prepared_against": "645a81f29a375b50379cd889f1741cb967fdb47a",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "planning"
+  },
+  "source_issue": "lehard/development-backlog#90",
+  "source_issue_evidence": {
+    "body_sha256": "869e6611b9c15e26c0751e48546e36e39b2a824b3987109e01a4809c3ae7d401",
+    "updated_at": "2026-09-02T08:53:47Z"
+  },
+  "supersedes": "5f5e7c9ff5b7dae3338ea9af7c54ea2d2bf347ab6d01fa71c68ac205b8c61c81",
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

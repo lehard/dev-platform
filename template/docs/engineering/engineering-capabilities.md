@@ -149,6 +149,39 @@ The capability is independently authored. It is informed by common "spike" and
 "tracer bullet" practice; no upstream skill file is vendored or fetched at
 runtime, and no external content is adapted.
 
+## Interoperable agent handoff
+
+`interoperable-agent-handoff` is an opt-in, instruction-only capability for
+continuing live work in another context — a fresh session, Codex or another
+agent, or a person — when the current context cannot simply be compacted in
+place. Enable it only where a repository expects cross-session or cross-provider
+continuation:
+
+```bash
+python3 scripts/capability_manager.py enable interoperable-agent-handoff
+python3 scripts/capability_manager.py evaluate interoperable-agent-handoff --fixture dev-platform/evals/interoperable-agent-handoff-pilot.json --runtime fixture
+```
+
+It produces or consumes one compact provider-neutral navigation envelope that
+points at canonical state: repository, exact revision, branch/worktree, managed
+task/OpenSpec, the provider routing record when one exists, and the canonical
+evidence to read. Verified facts, unresolved assumptions, blockers and next
+intent are kept separate; an unsupported claim stays an assumption. The receiver
+validates repository, revision and managed-task identity first and treats a
+mismatch (moved `HEAD`, rebase, superseded task) as stale, re-reading canonical
+sources.
+
+The capability composes with the existing provider routing handoff
+([model routing](model-routing.md)) rather than duplicating it: the routing
+record owns executor selection and delegated write containment, while this
+envelope carries only the uncovered cross-session/cross-provider/agent-to-human
+navigation context. It starts no work, grants no write access or execution
+authority, and performs no GitHub, Development Backlog, Project, OpenSpec or
+worktree mutation. Ordinary same-context continuation needs a normal compact and
+no envelope. Secrets, raw prompts, chain-of-thought and large diff/spec copies
+are never carried — the envelope references canonical sources at their revision
+instead.
+
 ## Frontend design capabilities
 
 Opt-in frontend design help (`frontend-design` general guidance plus the
