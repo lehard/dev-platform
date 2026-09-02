@@ -95,6 +95,29 @@ The reviewed upstream is [`mattpocock/skills`](https://github.com/mattpocock/ski
 | Mandatory display of ranked hypotheses to a user | Reject as a platform requirement | User interaction can be useful, but making it a required checkpoint would create an unrelated execution gate. |
 | Captured command/output workflow | Adapt with existing evidence safety | Evidence is bounded and redacted; raw prompts, secrets, sensitive payloads, and hidden reasoning are not retained. |
 
+## Selective domain interrogation
+
+`selective-domain-interrogation` is an opt-in, instruction-only refinement pass for materially ambiguous or explicitly domain-heavy managed work. Enable it only where a repository wants an evidence-first pre-design clarification step:
+
+```bash
+python3 scripts/capability_manager.py enable selective-domain-interrogation
+python3 scripts/capability_manager.py evaluate selective-domain-interrogation --fixture dev-platform/evals/selective-domain-interrogation-pilot.json --runtime fixture
+```
+
+The pass reads bounded repository and provided domain evidence first, resolves repository-answerable ambiguity from that evidence without a user question, and surfaces only the unresolved choices that would materially change the intended outcome. Accepted decisions are folded back into the existing `proposal.md`/delta specs/`design.md`/`tasks.md`; the materialized OpenSpec package stays the single canonical implementation contract. A sufficiently clear task gets no interrogation step, and the capability cannot invent product requirements, create a `CONTEXT.md`/ADR/status ledger, or open a second backlog or plan.
+
+The reviewed upstream is [`mattpocock/skills`](https://github.com/mattpocock/skills) commit `6654f6b60cd9d5be8b54c6fafe44346dabeb3b76`, under `skills/engineering/grill-with-docs/SKILL.md`, under its MIT license. The reviewed file blob is `62b9efb6f991d1b229adee7506962f13ced0c499`. Dev Platform vendors none of its files and fetches none at runtime; the pin records review provenance for the independently authored capability.
+
+| Upstream behavior | Dev Platform treatment | Reason |
+| --- | --- | --- |
+| Interview loop that stress-tests a plan before acting on ambiguous domain work | Adapt | The capability is a bounded pre-design pass for materially ambiguous or domain-heavy work only. |
+| Resolve terminology and hidden decisions before implementation | Adapt | Candidate ambiguities are classified and material ones are resolved before code is written. |
+| Ask the human to settle open questions | Narrow | The agent resolves repository-answerable facts from evidence first and asks only for unresolved choices that materially change the outcome. |
+| Inline `CONTEXT.md` and ADR ledger updates | Reject | Accepted decisions update the existing OpenSpec artifacts; no parallel context, ADR, or status ledger is created. |
+| Tracked design-tree / decision-tree document | Reject as a platform requirement | The materialized OpenSpec package remains the sole canonical implementation contract; no second plan or backlog. |
+| Delegate the grilling loop to a subagent that answers on the user's behalf | Reject | Product/intent choices are surfaced to the human, not auto-answered; the capability never invents requirements. |
+| Mandatory grilling before every task | Reject | A sufficiently clear request proceeds with no interrogation ceremony. |
+
 ## Frontend design capabilities
 
 Opt-in frontend design help (`frontend-design` general guidance plus the

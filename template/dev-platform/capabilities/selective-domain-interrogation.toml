@@ -1,0 +1,25 @@
+[capability]
+id = "selective-domain-interrogation"
+name = "Selective domain interrogation"
+description = "Resolve materially ambiguous or domain-heavy managed work from evidence first and surface only unresolved product choices before design."
+kind = "instruction-only"
+applicability = "Materially ambiguous or explicitly domain-heavy managed work where a misread domain model would yield a clean implementation of the wrong thing; not a request whose outcome and domain model are already clear enough for safe authoring or execution."
+invocation = "auto+explicit"
+visibility = "project"
+owner = "dev-platform"
+safety_boundary = "Instruction-only refinement pass; reads bounded repository/domain evidence, asks the human only for unresolved material choices, and routes decisions into existing OpenSpec artifacts without creating a second backlog, plan, or authoritative context/ADR ledger."
+dependencies = []
+materialization = "provider-skill-markdown"
+update_policy = "replace-derived"
+removal_policy = "remove-derived-only"
+
+[provenance]
+source = "dev-platform"
+revision = "platform-managed"
+path = "dev-platform/capabilities/selective-domain-interrogation.md"
+license = "Apache-2.0"
+content_sha256 = "cbd44878ec92bba5f2cc2cb88e9a04d6176ad1c9d153690327eff0d95197deca"
+
+[eval]
+evidence = "dev-platform/evals/selective-domain-interrogation-pilot.json"
+live_eval = "deterministic-fixture"

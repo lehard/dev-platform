@@ -42,6 +42,8 @@ class CapabilityManagerTests(unittest.TestCase):
             "architecture-health-review.md",
             "systematic-bug-diagnosis.toml",
             "systematic-bug-diagnosis.md",
+            "selective-domain-interrogation.toml",
+            "selective-domain-interrogation.md",
             "frontend-design.toml",
             "frontend-design.md",
             "high-end-visual-design.toml",
@@ -52,6 +54,7 @@ class CapabilityManagerTests(unittest.TestCase):
             "capability-catalog-pilot.json",
             "architecture-health-review-pilot.json",
             "systematic-bug-diagnosis-pilot.json",
+            "selective-domain-interrogation-pilot.json",
             "frontend-design-pilot.json",
             "high-end-visual-design-pilot.json",
         ):
@@ -298,6 +301,44 @@ class CapabilityManagerTests(unittest.TestCase):
         report = manager.evaluate_existing(
             capability,
             self.root / "dev-platform" / "evals" / "systematic-bug-diagnosis-pilot.json",
+            runtime="fixture",
+            runs=3,
+        )
+        self.assertEqual(report["summary"], {
+            "case_count": 20,
+            "passed": 20,
+            "failed": 0,
+            "incomplete": 0,
+            "status_distribution": {"not-triggered": 30, "triggered": 30},
+        })
+        self.assertTrue(all(item["improved"] for item in report["quality_comparisons"]))
+
+    def test_selective_domain_interrogation_is_evidence_first_and_optional(self) -> None:
+        capability = self.registry()["selective-domain-interrogation"]
+        self.assertEqual(capability.kind, "instruction-only")
+        self.assertEqual(capability.invocation, "auto+explicit")
+        manager.write_selection(self.root, [capability.identifier])
+        materialized = manager.sync(self.root, self.registry(), manager.load_selection(self.root))
+        self.assertEqual(len(materialized["changes"]), 2)
+        self.assertIn(
+            "dev-platform-capability:id=selective-domain-interrogation",
+            (self.root / ".claude" / "skills" / "dev-platform-selective-domain-interrogation" / "SKILL.md").read_text(encoding="utf-8"),
+        )
+        self.assertEqual(manager.audit(self.root, self.registry(), manager.load_selection(self.root))["status"], "ok")
+        for required in (
+            "materially ambiguous",
+            "grill-with-docs` pattern informs this approach; it is a reference",
+            "A clear task does not get an interrogation ceremony.",
+            "Do not turn it into a user question.",
+            "invent new product requirements",
+            "Do not create a `CONTEXT.md`, an ADR ledger",
+            "remains the single canonical implementation contract",
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, capability.instruction)
+        report = manager.evaluate_existing(
+            capability,
+            self.root / "dev-platform" / "evals" / "selective-domain-interrogation-pilot.json",
             runtime="fixture",
             runs=3,
         )
