@@ -15,9 +15,9 @@
 
 ## 3. Verification and delivery
 
-- [ ] Run the mapped managed-task and rollout test groups plus required
+- [x] Run the mapped managed-task and rollout test groups plus required
   platform validation; record actual evidence.
-- [ ] Update the managed OpenSpec contract, archive only after semantic
+- [x] Update the managed OpenSpec contract, archive only after semantic
   verification, and deliver through the ordinary protected-main lifecycle.
 
 ## Implementation notes
