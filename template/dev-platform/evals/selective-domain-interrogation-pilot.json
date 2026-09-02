@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "capability": "selective-domain-interrogation",
+  "content_sha256": "cbd44878ec92bba5f2cc2cb88e9a04d6176ad1c9d153690327eff0d95197deca",
+  "cases": [
+    {"id": "positive-tiered-pricing", "expectation": "trigger", "prompt": "Add tiered pricing to billing; the issue does not say whether tiers stack with per-seat charges.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-ambiguous-term-entitlement", "expectation": "trigger", "prompt": "Implement entitlement checks. The term entitlement is used differently in two parts of the codebase.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-domain-heavy-settlement", "expectation": "trigger", "prompt": "Build the trade settlement reconciliation flow described at a high level in this domain doc.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-hidden-assumption-timezone", "expectation": "trigger", "prompt": "Add recurring reminders. It is unstated whether the recurrence anchors to the user timezone or UTC.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-unstated-rounding", "expectation": "trigger", "prompt": "Compute tax on invoices; the spec does not define the rounding rule and it changes reported totals.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-domain-model-inventory", "expectation": "trigger", "prompt": "Model warehouse inventory. Whether a reservation decrements available stock immediately is not specified.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-ambiguous-scope-refund", "expectation": "trigger", "prompt": "Support partial refunds. It is unclear whether a partial refund can exceed the captured amount minus prior refunds.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-domain-heavy-eligibility", "expectation": "trigger", "prompt": "Implement benefit eligibility rules from this policy PDF before writing the calculator.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-conflicting-sources", "expectation": "trigger", "prompt": "Add the loan amortization schedule; the design doc and the existing code disagree on the day-count convention.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-explicit-grill-request", "expectation": "trigger", "prompt": "This is domain-heavy; interrogate the ambiguous terms and hidden decisions before you design the schema.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "negative-specified-field", "expectation": "not-trigger", "prompt": "Add the already specified created_at ISO-8601 field to this DTO and its serializer.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-mechanical-rename", "expectation": "not-trigger", "prompt": "Rename this helper to match the established naming convention across its three call sites.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-format", "expectation": "not-trigger", "prompt": "Format this module with the repository formatter.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-confirmed-copy-fix", "expectation": "not-trigger", "prompt": "Replace the confirmed outdated product name in this documentation sentence.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-bounded-bugfix", "expectation": "not-trigger", "prompt": "Fix the off-by-one in this pagination offset; the cause and expected result are already established.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-clear-endpoint", "expectation": "not-trigger", "prompt": "Add a GET /health endpoint that returns 200 and the build SHA, exactly as described in the task.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-test-run", "expectation": "not-trigger", "prompt": "Run the focused unit tests for the parser module.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-dependency-bump", "expectation": "not-trigger", "prompt": "Apply the known one-line version bump requested in the release checklist.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-clear-config", "expectation": "not-trigger", "prompt": "Change the already identified staging URL from http to https in this one config value.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-review", "expectation": "not-trigger", "prompt": "Review this authentication change for security issues.", "samples": ["not-triggered", "not-triggered", "not-triggered"]}
+  ],
+  "quality_comparisons": [
+    {
+      "id": "material-choice-surfaced-before-implementation",
+      "objective_verifier": "The capability test validates a representative ambiguous domain record: at least one materially consequential ambiguity is identified before implementation, is not silently assumed, and is routed into an existing OpenSpec artifact rather than a new context or ADR file.",
+      "baseline": "not-verified",
+      "candidate": "verified"
+    },
+    {
+      "id": "repository-resolvable-ambiguity-needs-no-question",
+      "objective_verifier": "The capability instruction requires a repository-resolvable ambiguity to be closed by reading authoritative evidence and its source recorded, without raising a user question.",
+      "baseline": "not-verified",
+      "candidate": "verified"
+    },
+    {
+      "id": "clear-task-has-no-interrogation-ceremony",
+      "objective_verifier": "The deterministic fixture contains ten hard-negative prompts for sufficiently clear tasks and verifies that none trigger the interrogation pass.",
+      "baseline": "not-verified",
+      "candidate": "verified"
+    }
+  ]
+}

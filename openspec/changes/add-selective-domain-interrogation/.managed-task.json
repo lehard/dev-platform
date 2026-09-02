@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/agent-workflow/spec.md"
+  ],
+  "change": "add-selective-domain-interrogation",
+  "imported_at": "2026-09-02T06:30:43+00:00",
+  "package_revision": "b3457165a032df5cec016ab6d8ffd2d1117368676e331b8b34bd1803403fe3b5",
+  "prepared_against": "c7b36f427de6cbac283adfa994d0801809e850b3",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "planning"
+  },
+  "source_issue": "lehard/development-backlog#86",
+  "source_issue_evidence": {
+    "body_sha256": "3ae8beef3a2c6ae81b61023a892c2560a08fee0cd5ed8f1e72e831a337b8b773",
+    "updated_at": "2026-09-01T07:36:07Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

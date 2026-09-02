@@ -1,0 +1,12 @@
+- [x] Require the optional engineering capability contract delivered by #87 and reuse its lifecycle/materialization surfaces.
+- [x] Re-check current `grill-with-docs`/related upstream guidance and extract the useful selective interrogation pattern.
+- [x] Define clear triggers for materially ambiguous/domain-heavy work versus ordinary concrete tasks on top of #87 applicability mechanics.
+- [x] Define evidence-first lookup behavior and the boundary for escalating a remaining ambiguity to the human.
+- [x] Integrate refinement output into existing proposal/spec/design artifacts without mandatory new context/ADR/status files.
+- [x] Create a representative ambiguous domain scenario where one consequential choice is detected before implementation and routed into OpenSpec.
+- [x] Add a control scenario where repository evidence resolves the uncertainty without a user question.
+- [x] Add a clear-task negative scenario showing no mandatory interrogation ceremony.
+- [x] Verify the capability cannot create a second backlog, plan or authoritative implementation source.
+- [x] Verify accepted refinement leaves materialized OpenSpec canonical for execution and verification.
+- [x] Verify no domain-interrogation-specific registry/config/update lifecycle was introduced.
+- [x] Run semantic OpenSpec verification, relevant platform/capability checks, record evidence, archive and publish normally.
