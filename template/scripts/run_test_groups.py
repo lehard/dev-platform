@@ -193,18 +193,31 @@ def execute(root: Path, start_dir: str, groups: dict[str, dict[str, Any]], jobs:
     return records
 
 
-def default_jobs() -> int:
+# A conservative host-independent ceiling for *automatically* selected
+# parallelism. Every group already shells out to a `unittest` process that
+# itself spawns helper subprocesses, so matching `cpu_count` oversubscribes a
+# busy machine and turns process-start scheduling delay into flaky timeouts. An
+# explicit `DEV_PLATFORM_TEST_JOBS` is always honoured as-is.
+_DEFAULT_JOBS_CEILING = 4
+
+
+def resolve_jobs() -> tuple[int, str]:
+    """Return the automatic parallelism and whether an operator selected it."""
     configured = os.environ.get("DEV_PLATFORM_TEST_JOBS")
     if configured and configured.isdigit() and int(configured) > 0:
-        return int(configured)
-    return max(1, (os.cpu_count() or 2) - 1)
+        return int(configured), "DEV_PLATFORM_TEST_JOBS"
+    return max(1, min(_DEFAULT_JOBS_CEILING, (os.cpu_count() or 2) - 1)), "auto-capped"
+
+
+def default_jobs() -> int:
+    return resolve_jobs()[0]
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run canonical unit-test groups with proven mandatory coverage.")
     parser.add_argument("--all", action="store_true", help="Run every declared group as the mandatory suite.")
     parser.add_argument("--group", action="append", default=[], help="Run only this group (repeatable); never claims full coverage.")
-    parser.add_argument("--jobs", type=int, default=default_jobs(), help="Maximum concurrent parallel groups.")
+    parser.add_argument("--jobs", type=int, default=None, help="Maximum concurrent parallel groups.")
     parser.add_argument("--list", action="store_true", help="Print the declared groups and their coverage, then exit.")
     parser.add_argument("--verify-coverage", action="store_true", help="Only prove group/discovery equivalence, then exit.")
     parser.add_argument("--evidence", help="Write group-level result and duration evidence to this JSON file.")
@@ -248,7 +261,15 @@ def main() -> int:
         print(f"Test group configuration blocked execution: {exc}", file=sys.stderr)
         return 2
 
-    records = execute(root, start_dir, selected, args.jobs, not args.quiet)
+    if args.jobs is not None and args.jobs > 0:
+        jobs, jobs_source = args.jobs, "cli"
+    elif args.jobs is not None:
+        print("--jobs must be a positive integer", file=sys.stderr)
+        return 2
+    else:
+        jobs, jobs_source = resolve_jobs()
+
+    records = execute(root, start_dir, selected, jobs, not args.quiet)
     failed = [record["group"] for record in records if record["outcome"] == "failure"]
     total = round(sum(record["duration_seconds"] for record in records), 3)
     slowest = max((record["duration_seconds"] for record in records), default=0.0)
@@ -259,6 +280,8 @@ def main() -> int:
         "outcome": "failure" if failed else "success",
         "group_seconds_total": total,
         "slowest_group_seconds": slowest,
+        "jobs": jobs,
+        "jobs_source": jobs_source,
     }
     print("DEV_PLATFORM_TEST_AGGREGATE: " + json.dumps(aggregate, ensure_ascii=False, sort_keys=True), flush=True)
 

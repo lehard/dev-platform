@@ -355,6 +355,47 @@ def _stream_output(
             return process.wait(timeout=0)
 
 
+class _ReadinessError(RuntimeError):
+    """The launched child never reached its declared ready state in time."""
+
+
+def _await_readiness(
+    process: subprocess.Popen[str],
+    ready_probe: Callable[[], bool] | None,
+    ready_deadline: float | None,
+) -> None:
+    """Block until the child signals readiness, bounded by its own deadline.
+
+    A steady-state ``timeout`` measures how long a *running, ready* child may
+    take.  Some children (and every deterministic test of the cleanup path)
+    need a distinct, bounded window to publish the state a later assertion
+    depends on -- a spawned descendant, a pid file, an open port.  Measuring
+    the steady-state deadline from launch instead conflates process-start
+    scheduling delay with a real stall.  When ``ready_probe`` is supplied the
+    steady-state clock only starts after it returns true.
+
+    The probe is expected to become true quickly and before the child emits
+    more than a pipe buffer of output; that holds for the pid/descendant
+    handshakes this is used for.
+    """
+    if ready_probe is None:
+        return
+    deadline = time.monotonic() + (ready_deadline if ready_deadline is not None else _CLEANUP_GRACE_SECONDS)
+    while True:
+        if ready_probe():
+            return
+        if process.poll() is not None:
+            raise _ReadinessError(
+                f"delegated child exited (returncode {process.returncode}) before signalling readiness"
+            )
+        if time.monotonic() >= deadline:
+            raise _ReadinessError(
+                f"delegated child (pid {process.pid}) did not signal readiness within "
+                f"{deadline if ready_deadline is None else ready_deadline:g}s"
+            )
+        time.sleep(0.02)
+
+
 # --------------------------------------------------------------------------
 # Core guarded entrypoint -- runtime-agnostic.
 # --------------------------------------------------------------------------
@@ -370,6 +411,8 @@ def run_observed_delegation(
     task: str | None = None,
     timeout: float | None = None,
     stdout_line_hook: Callable[[str], None] | None = None,
+    ready_probe: Callable[[], bool] | None = None,
+    ready_deadline: float | None = None,
     route_containment_friction: bool = True,
 ) -> GuardedRunResult:
     """Run one delegated child under a native/fallback containment contract.
@@ -385,6 +428,13 @@ def run_observed_delegation(
     this to both forward output for live visibility and opportunistically
     parse structured runtime events (for example Codex's ``--json`` event
     stream) without adding a second execution path.
+
+    ``ready_probe``, when given, is polled after launch until it returns true;
+    the steady-state ``timeout`` is only measured from that point, and a child
+    that never becomes ready within ``ready_deadline`` (default: the cleanup
+    grace window) is reaped and reported as an abnormal return. This keeps a
+    slow process start from being misread as a stall and lets cleanup-path
+    tests synchronize on the descendant state they assert about.
 
     ``route_containment_friction`` defaults to True and must stay that way for
     every production caller, so a real containment violation still routes through
@@ -422,6 +472,7 @@ def run_observed_delegation(
             )
             child_launched = True
             process_group = ownership.mark_running(process)
+            _await_readiness(process, ready_probe, ready_deadline)
             returncode = _stream_output(process, stdout_line_hook, timeout)
             process.stdout.close()
             completed = subprocess.CompletedProcess(argv, returncode)
@@ -429,6 +480,7 @@ def run_observed_delegation(
             process = subprocess.Popen(argv, cwd=resolved_worktree, env=env, text=True, start_new_session=True)
             child_launched = True
             process_group = ownership.mark_running(process)
+            _await_readiness(process, ready_probe, ready_deadline)
             returncode = process.wait(timeout=timeout)
             completed = subprocess.CompletedProcess(argv, returncode)
         # A completed leader alone is not enough: a descendant holding its
@@ -504,6 +556,8 @@ def run_guarded_delegation(
     env: dict[str, str] | None = None,
     task: str | None = None,
     timeout: float | None = None,
+    ready_probe: Callable[[], bool] | None = None,
+    ready_deadline: float | None = None,
     route_containment_friction: bool = True,
 ) -> GuardedRunResult:
     """Compatibility alias for callers that still use the former guard name."""
@@ -515,6 +569,8 @@ def run_guarded_delegation(
         env=env,
         task=task,
         timeout=timeout,
+        ready_probe=ready_probe,
+        ready_deadline=ready_deadline,
         route_containment_friction=route_containment_friction,
     )
 
