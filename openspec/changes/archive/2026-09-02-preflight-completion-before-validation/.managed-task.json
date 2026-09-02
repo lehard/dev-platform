@@ -1,0 +1,36 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/completion-lifecycle/spec.md"
+  ],
+  "change": "preflight-completion-before-validation",
+  "imported_at": "2026-09-02T17:18:57+00:00",
+  "package_revision": "2a49445ce1875839b7d19489dcd6a56ae6b31dd393762058b04a492c95b7102d",
+  "prepared_against": "645a81f29a375b50379cd889f1741cb967fdb47a",
+  "process_evidence": [
+    "lehard/dev-platform#368",
+    "lehard/dev-platform#370",
+    "lehard/dev-platform#374",
+    "lehard/dev-platform#199",
+    "lehard/dev-platform#219",
+    "lehard/dev-platform#224"
+  ],
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "completion-lifecycle"
+  },
+  "source_issue": "lehard/development-backlog#99",
+  "source_issue_evidence": {
+    "body_sha256": "247c9e824fd9f417b5285fa4464e002fe1dbe67d70abb7928a6e391979f2d277",
+    "updated_at": "2026-09-02T10:43:47Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

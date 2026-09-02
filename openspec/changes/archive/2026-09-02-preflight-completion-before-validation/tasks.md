@@ -1,0 +1,7 @@
+- [x] Define the ordered set of existing cheap completion gates.
+- [x] Move the hard scope gate and other observable blockers before `run_checks`.
+- [x] Aggregate independent blocker diagnostics without mutating state.
+- [x] Retain immediately-before-publication race rechecks.
+- [x] Emit lifecycle-stage and test-group progress.
+- [x] Add regressions proving blockers skip expensive checks and clean runs retain behavior.
+- [x] Run semantic verification and required checks, record evidence, archive and publish.
