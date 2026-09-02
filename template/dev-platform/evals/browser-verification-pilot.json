@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "capability": "browser-verification",
+  "content_sha256": "f11dd6ef8b09baaaa0f49f89c836de8fa7ddfce32430dade3fe593b77e109e10",
+  "cases": [
+    {"id": "positive-local-flow", "expectation": "trigger", "prompt": "Check that the checkout flow works end to end in the local dev server.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-ui-regression", "expectation": "trigger", "prompt": "A user says the confirmation message stopped showing after submit; verify it in the browser.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-exploratory-evidence", "expectation": "trigger", "prompt": "Gather exploratory browser evidence that the sign-up page reaches the success state.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-accessibility", "expectation": "trigger", "prompt": "Run an accessibility snapshot of the settings screen with the browser agent.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-screenshot-evidence", "expectation": "trigger", "prompt": "Drive the localhost app and capture bounded screenshot evidence of the final page.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-origin-boundary", "expectation": "trigger", "prompt": "Which origins is browser verification allowed to visit for this project?", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-promote-regression", "expectation": "trigger", "prompt": "Turn this exploratory browser finding into a deterministic regression scaffold.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-flow-file", "expectation": "trigger", "prompt": "Write a browser verification flow file for the password reset journey.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-evidence-lifecycle", "expectation": "trigger", "prompt": "How does browser evidence fit into the change verification receipt?", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-backend-install", "expectation": "trigger", "prompt": "Set up the pinned agent-browser backend for exploratory verification here.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "negative-unit-test", "expectation": "not-trigger", "prompt": "Run the focused unit test for this reducer.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-playwright-suite", "expectation": "not-trigger", "prompt": "Add a new assertion to the existing Playwright acceptance suite.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-format", "expectation": "not-trigger", "prompt": "Format this stylesheet with the project formatter.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-commit", "expectation": "not-trigger", "prompt": "Write a conventional commit message for my staged diff.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-sql", "expectation": "not-trigger", "prompt": "Explain why this SQL join is slow.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-deploy", "expectation": "not-trigger", "prompt": "Deploy the approved release to production.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-api-debug", "expectation": "not-trigger", "prompt": "Diagnose the 500 from this JSON API endpoint.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-copy", "expectation": "not-trigger", "prompt": "Rewrite this onboarding paragraph to be shorter.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-dependency-upgrade", "expectation": "not-trigger", "prompt": "Bump the lockfile for the transitive CVE.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-infra", "expectation": "not-trigger", "prompt": "Add a new environment variable to the Terraform module.", "samples": ["not-triggered", "not-triggered", "not-triggered"]}
+  ],
+  "quality_comparisons": [
+    {
+      "id": "browser-verification-opt-in-materialization",
+      "objective_verifier": "The deterministic fixture test verifies that an opt-out project has no derived browser-verification skill surface and that enabling the capability materializes exactly the marker generated from its canonical descriptor.",
+      "baseline": "not-verified",
+      "candidate": "verified"
+    },
+    {
+      "id": "browser-verification-origin-fail-closed",
+      "objective_verifier": "The deterministic adapter test verifies that a non-allowlisted origin and an ungranted production origin both fail closed with no navigation, while localhost and an allowlisted origin succeed.",
+      "baseline": "not-verified",
+      "candidate": "verified"
+    }
+  ]
+}

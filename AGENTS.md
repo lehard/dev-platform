@@ -77,6 +77,7 @@ python3 template/scripts/openspec_lifecycle.py check
 | ChatGPT Project authoring through connected GitHub | [docs/engineering/chatgpt-project-protocol.md](docs/engineering/chatgpt-project-protocol.md) |
 | Goal refinement, dogfood lifecycle, scope discipline, validation, friction, completion | [docs/engineering/agent-workflow.md](docs/engineering/agent-workflow.md) |
 | OpenSpec contract model, semantic verification, receipts, archive, dependency policy | [docs/engineering/openspec-workflow.md](docs/engineering/openspec-workflow.md) |
+| Optional engineering capability lifecycle and the browser verification adapter | [docs/engineering/engineering-capabilities.md](docs/engineering/engineering-capabilities.md), [docs/engineering/browser-verification.md](docs/engineering/browser-verification.md) |
 | Provider-local executor selection, escalation, delegated write containment | [docs/engineering/model-routing.md](docs/engineering/model-routing.md) |
 | Release identity, downstream CI ownership, rollout registry, upgrade safety | [docs/release-policy.md](docs/release-policy.md) |
 | Rollout registry ownership, GitHub App credentials, recovery | [docs/managed-rollout.md](docs/managed-rollout.md) |
@@ -92,4 +93,4 @@ OpenSpec is external; do not vendor generated Claude/Codex skills.
 
 ## Optional engineering capabilities
 
-Optional engineering capabilities are independent of `workflow_profile`. Use `python3 scripts/capability_manager.py list` to discover them and the same entrypoint for `create`, `enable`, `update`, `remove`, `audit`, and `sync`. `dev-platform/capabilities.toml` is the project opt-in; descriptors under `dev-platform/capabilities/` are canonical. Generated `.claude/.codex` skill surfaces are derived and must not be edited. OpenSpec-generated skills remain external to this lifecycle.
+Optional engineering capabilities are independent of `workflow_profile`. Use `python3 scripts/capability_manager.py list` to discover them and the same entrypoint for `create`, `enable`, `update`, `remove`, `audit`, and `sync`. `dev-platform/capabilities.toml` is the project opt-in; descriptors under `dev-platform/capabilities/` are canonical. Generated `.claude/.codex` skill surfaces are derived and must not be edited. OpenSpec-generated skills remain external to this lifecycle. The opt-in `browser-verification` capability adds bounded exploratory browser checks for web projects; see [docs/engineering/browser-verification.md](docs/engineering/browser-verification.md).
