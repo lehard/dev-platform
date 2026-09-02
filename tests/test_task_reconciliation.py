@@ -141,6 +141,96 @@ class TaskReconciliationTests(unittest.TestCase):
         self.assertEqual(result.state, "ahead")
         self.assertEqual(git("rev-parse", "origin/agent/task", cwd=self.task).stdout.strip(), git("rev-parse", "HEAD", cwd=self.task).stdout.strip())
 
+    def test_issue_97_local_ci_fix_descendant_continues_same_exact_pr_after_main_advance(self) -> None:
+        (self.task / "task.txt").write_text("task\n", encoding="utf-8")
+        git("add", "task.txt", cwd=self.task); git("commit", "-m", "task work", cwd=self.task)
+        git("push", "-u", "origin", "agent/task", cwd=self.task)
+        published_head = git("rev-parse", "HEAD", cwd=self.task).stdout.strip()
+        # A local CI fix lands on top of the already-published exact PR head.
+        (self.task / "task.txt").write_text("task fixed\n", encoding="utf-8")
+        git("add", "task.txt", cwd=self.task); git("commit", "-m", "ci fix", cwd=self.task)
+        ci_fix_head = git("rev-parse", "HEAD", cwd=self.task).stdout.strip()
+        self.advance_main()
+        exact = publication_state.ExactHeadPrLookup(
+            available=True,
+            exact_open={
+                "number": 97,
+                "url": "https://example.invalid/pr/97",
+                "baseRefName": "main",
+                "headRepositoryOwner": "owner",
+            },
+        )
+        with (
+            mock.patch.object(task_reconciliation, "_require_managed_lineage"),
+            mock.patch.object(task_reconciliation, "github_cli_env", return_value={}),
+            mock.patch.object(task_reconciliation.publication_state, "find_exact_head_pr", return_value=exact),
+            mock.patch.object(task_reconciliation.publication_state, "github_repo_name", return_value="owner/repo"),
+        ):
+            result = task_reconciliation.reconcile(self.task)
+
+        self.assertEqual(result.state, "ahead")
+        head = git("rev-parse", "HEAD", cwd=self.task).stdout.strip()
+        # Same branch fast-forwarded to the descendant, then to the reconciled head.
+        self.assertEqual(git("rev-parse", "origin/agent/task", cwd=self.task).stdout.strip(), head)
+        self.assertEqual(git("merge-base", "--is-ancestor", ci_fix_head, head, cwd=self.task).returncode, 0)
+        self.assertEqual(git("merge-base", "--is-ancestor", published_head, head, cwd=self.task).returncode, 0)
+        self.assertEqual(git("merge-base", "--is-ancestor", "origin/main", head, cwd=self.task).returncode, 0)
+
+    def test_issue_97_squash_merged_exact_pr_routes_to_terminal_finish_without_new_head(self) -> None:
+        (self.task / "task.txt").write_text("task\n", encoding="utf-8")
+        git("add", "task.txt", cwd=self.task); git("commit", "-m", "task work", cwd=self.task)
+        git("push", "-u", "origin", "agent/task", cwd=self.task)
+        before = git("rev-parse", "HEAD", cwd=self.task).stdout.strip()
+        # The remote branch has been deleted after a squash merge.
+        run("git", "--git-dir", str(self.remote), "branch", "-D", "agent/task", cwd=self.base, check=False)
+        self.advance_main()
+        merged = publication_state.ExactHeadPrLookup(
+            available=True,
+            exact_merged={
+                "number": 97,
+                "url": "https://example.invalid/pr/97",
+                "baseRefName": "main",
+                "state": "MERGED",
+            },
+        )
+        with (
+            mock.patch.object(task_reconciliation, "_require_managed_lineage"),
+            mock.patch.object(task_reconciliation, "github_cli_env", return_value={}),
+            mock.patch.object(task_reconciliation.publication_state, "find_exact_head_pr", return_value=merged),
+        ):
+            with self.assertRaisesRegex(SystemExit, "already merged.*finish_task.py"):
+                task_reconciliation.reconcile(self.task)
+
+        self.assertEqual(git("rev-parse", "HEAD", cwd=self.task).stdout.strip(), before)
+        self.assertEqual(git("rev-parse", "-q", "--verify", "MERGE_HEAD", cwd=self.task, check=False).returncode, 1)
+
+    def test_issue_97_diverged_local_head_is_still_refused(self) -> None:
+        (self.task / "task.txt").write_text("task\n", encoding="utf-8")
+        git("add", "task.txt", cwd=self.task); git("commit", "-m", "task work", cwd=self.task)
+        git("push", "-u", "origin", "agent/task", cwd=self.task)
+        self.advance_main()
+        # Remote task branch gains a commit that the local head does not contain.
+        remote = self.base / "remote-writer"
+        run("git", "clone", str(self.remote), str(remote), cwd=self.base); configure(remote)
+        git("switch", "agent/task", cwd=remote)
+        (remote / "remote.txt").write_text("changed\n", encoding="utf-8")
+        git("add", "remote.txt", cwd=remote); git("commit", "-m", "remote changed task", cwd=remote); git("push", cwd=remote)
+        # And the local head also diverges with its own commit.
+        (self.task / "local.txt").write_text("local\n", encoding="utf-8")
+        git("add", "local.txt", cwd=self.task); git("commit", "-m", "local only", cwd=self.task)
+
+        with (
+            mock.patch.object(task_reconciliation, "_require_managed_lineage"),
+            mock.patch.object(task_reconciliation, "github_cli_env", return_value={}),
+            mock.patch.object(
+                task_reconciliation.publication_state,
+                "find_exact_head_pr",
+                return_value=publication_state.ExactHeadPrLookup(available=True),
+            ),
+        ):
+            with self.assertRaisesRegex(SystemExit, "remote task branch head differs"):
+                task_reconciliation.reconcile(self.task)
+
     def test_read_only_status_detects_advanced_main_without_updating_origin_main(self) -> None:
         observed_before = git("rev-parse", "origin/main", cwd=self.task).stdout.strip()
         self.advance_main()

@@ -1,0 +1,7 @@
+- [x] Add a guarded fast-forward continuation for a proven local descendant of exact open PR head.
+- [x] Revalidate remote branch and PR identity around the mutation.
+- [x] Continue with existing current-main reconciliation and validation rules.
+- [x] Route exact merged PR state directly to terminal reconciliation.
+- [x] Add CI-fix-plus-main-advance and squash-merged recovery regressions.
+- [x] Preserve remote-divergence and non-fast-forward refusal cases.
+- [x] Run semantic verification and required checks, record evidence, archive and publish.

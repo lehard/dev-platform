@@ -94,12 +94,17 @@ def _remote_branch_head(root: Path, branch: str) -> str | None:
     return result.stdout.split()[0].strip()
 
 
-def _require_exact_open_pr(root: Path, branch: str, main_branch: str, local_head: str) -> None:
-    """Prove a published branch still belongs to its exact managed PR."""
+def _require_exact_open_pr(root: Path, branch: str, main_branch: str, proof_head: str) -> None:
+    """Prove a published branch still belongs to its exact managed open PR.
+
+    ``proof_head`` is the SHA the exact open PR head must currently equal. It is
+    the local task head for an unchanged branch, or the unchanged remote branch
+    head when a proven local descendant is about to continue the same PR.
+    """
     env = github_cli_env(root)
     if env is None:
         raise SystemExit("Managed task reconciliation cannot verify the existing remote task branch without GitHub authentication.")
-    lookup = publication_state.find_exact_head_pr(root, env, branch, main_branch, local_head)
+    lookup = publication_state.find_exact_head_pr(root, env, branch, main_branch, proof_head)
     if not lookup.available:
         raise SystemExit("Managed task reconciliation cannot read exact PR state; retry after GitHub access is restored.")
     if lookup.stale_open is not None:
@@ -122,6 +127,52 @@ def _require_exact_open_pr(root: Path, branch: str, main_branch: str, local_head
     )
     if not expected_owner or actual_owner != expected_owner:
         raise SystemExit("Managed task reconciliation blocked: the exact PR head owner is unreadable or differs from the authoritative repository owner.")
+
+
+def _require_exact_merged_is_terminal(root: Path, branch: str, main_branch: str) -> None:
+    """Route an already merged exact PR to terminal finish, never to a new head.
+
+    This runs before any authoritative-main merge so a squash-merged delivery
+    whose remote branch is already deleted is not reconciled into a fresh task
+    head that a later finish would republish.
+    """
+    env = github_cli_env(root)
+    if env is None:
+        return
+    lookup = publication_state.find_exact_local_branch_pr(root, env, branch, main_branch)
+    if lookup.available and lookup.exact_merged is not None:
+        raise SystemExit(
+            "Managed task reconciliation found the exact task PR already merged; run "
+            "python3 scripts/finish_task.py to perform terminal local-main reconciliation without republishing."
+        )
+
+
+def _continue_exact_pr_from_local_descendant(
+    root: Path, branch: str, main_branch: str, remote_branch_head: str, local_head: str
+) -> None:
+    """Fast-forward the exact open PR branch to a proven local CI-fix descendant.
+
+    Only a strict fast-forward is attempted: the exact open PR is proven at the
+    unchanged remote head first, the descendant is pushed without force, and PR
+    identity is re-proven at the new head. Any non-fast-forward or changed
+    remote/PR identity keeps the strict refusal.
+    """
+    if relation(root, remote_branch_head, local_head) != "behind":
+        raise SystemExit("Managed task reconciliation blocked: remote task branch head differs from the local exact task head.")
+    _require_exact_open_pr(root, branch, main_branch, remote_branch_head)
+    pushed = run_git(["push", "origin", f"{local_head}:refs/heads/{branch}"], cwd=root, check=False)
+    if pushed.returncode != 0:
+        detail = pushed.stderr.strip() or pushed.stdout.strip() or f"exit {pushed.returncode}"
+        raise SystemExit(
+            "Managed task reconciliation could not fast-forward the exact PR branch to the local descendant: " + detail
+        )
+    if _remote_branch_head(root, branch) != local_head:
+        raise SystemExit("Remote task branch head changed while continuing the exact PR; refusing to proceed without re-observation.")
+    _require_exact_open_pr(root, branch, main_branch, local_head)
+    print(
+        f"Fast-forwarded exact PR branch {branch} to the local descendant {local_head}; "
+        "the same pull request continues."
+    )
 
 
 def _conflict_paths(root: Path) -> list[str]:
@@ -147,14 +198,20 @@ def reconcile(root: Path | None = None) -> Freshness:
     if not clean(root):
         raise SystemExit("Managed task reconciliation blocked: the task worktree is dirty. Commit or resolve it explicitly; automatic stash/reset is forbidden.")
 
+    _require_exact_merged_is_terminal(root, branch, main_branch)
+
     before = observe(root)
     local_head = run_git(["rev-parse", "HEAD"], cwd=root).stdout.strip()
     remote_branch_head = _remote_branch_head(root, branch)
     published = remote_branch_head is not None
     if published:
         if remote_branch_head != local_head:
-            raise SystemExit("Managed task reconciliation blocked: remote task branch head differs from the local exact task head.")
-        _require_exact_open_pr(root, branch, main_branch, local_head)
+            _continue_exact_pr_from_local_descendant(
+                root, branch, main_branch, remote_branch_head, local_head
+            )
+            remote_branch_head = local_head
+        else:
+            _require_exact_open_pr(root, branch, main_branch, local_head)
 
     if not before.reconcile_required:
         print(f"Task branch is already current relative to origin/{main_branch} ({before.state}); reconcile is a no-op.")
