@@ -66,23 +66,222 @@ class ManagedStartTransactionTests(unittest.TestCase):
                 managed_start.start_managed_task(root, pkg.source_issue)
             self.assertFalse(receipt.exists())
 
-    def test_interrupted_start_keeps_retry_receipt(self) -> None:
+    def test_interrupted_start_after_partial_mutation_keeps_retry_receipt(self) -> None:
         pkg = package()
         with tempfile.TemporaryDirectory() as tmp:
             root, worktrees = Path(tmp) / "root", Path(tmp) / "worktrees"
             root.mkdir(); worktrees.mkdir()
             receipt = worktrees / managed_start.START_TRANSACTION_DIR / f"{pkg.change}.json"
+            task_root = (worktrees / pkg.change).resolve()
+
+            def fake_start(*_args, **_kwargs):
+                task_root.mkdir(parents=True)
+                raise RuntimeError("interrupted after worktree creation")
+
             with (
                 patch.object(managed_start, "discover_task", return_value=pkg),
                 patch.object(managed_start, "read_platform_config", return_value={"workflow_profile": "multi-agent", "main_branch": "main"}),
                 patch.object(managed_start, "machine_path", side_effect=lambda key, _root: worktrees if key == "worktrees" else Path(tmp) / "board.json"),
                 patch.object(managed_start, "_branch_exists", return_value=False),
                 patch.object(managed_start, "_board_item_for_identity", return_value=None),
-                patch.object(managed_start, "start_task", side_effect=RuntimeError("interrupted")),
+                patch.object(managed_start, "start_task", side_effect=fake_start),
             ):
                 with self.assertRaisesRegex(RuntimeError, "interrupted"):
                     managed_start.start_managed_task(root, pkg.source_issue)
+            self.assertTrue(receipt.is_file())
             self.assertEqual(json.loads(receipt.read_text())["state"], "creating")
+
+    def test_failed_validation_before_mutation_rolls_back_transaction(self) -> None:
+        pkg = package()
+        with tempfile.TemporaryDirectory() as tmp:
+            root, worktrees = Path(tmp) / "root", Path(tmp) / "worktrees"
+            root.mkdir(); worktrees.mkdir()
+            receipt = worktrees / managed_start.START_TRANSACTION_DIR / f"{pkg.change}.json"
+            task_root = (worktrees / pkg.change).resolve()
+            branch = f"agent/{pkg.change}"
+
+            with (
+                patch.object(managed_start, "discover_task", return_value=pkg),
+                patch.object(managed_start, "read_platform_config", return_value={"workflow_profile": "multi-agent", "main_branch": "main"}),
+                patch.object(managed_start, "machine_path", side_effect=lambda key, _root: worktrees if key == "worktrees" else Path(tmp) / "board.json"),
+                patch.object(managed_start, "_branch_exists", return_value=False),
+                patch.object(managed_start, "_board_item_for_identity", return_value=None),
+                patch.object(managed_start, "start_task", side_effect=ValueError("package validation failed")),
+            ):
+                with self.assertRaisesRegex(ValueError, "package validation failed"):
+                    managed_start.start_managed_task(root, pkg.source_issue)
+            self.assertFalse(receipt.exists())
+            self.assertFalse(task_root.exists())
+            self.assertFalse(managed_start._branch_exists(root, branch))
+
+    def test_wait_admission_retains_transaction(self) -> None:
+        pkg = package()
+        with tempfile.TemporaryDirectory() as tmp:
+            root, worktrees = Path(tmp) / "root", Path(tmp) / "worktrees"
+            root.mkdir(); worktrees.mkdir()
+            receipt = worktrees / managed_start.START_TRANSACTION_DIR / f"{pkg.change}.json"
+            task_root = (worktrees / pkg.change).resolve()
+            started = managed_start.StartedTask("multi-agent", f"agent/{pkg.change}", task_root, "board-43")
+
+            def fake_start(*_args, **_kwargs):
+                task_root.mkdir(parents=True)
+                return started
+
+            with (
+                patch.object(managed_start, "discover_task", return_value=pkg),
+                patch.object(managed_start, "read_platform_config", return_value={"workflow_profile": "multi-agent", "main_branch": "main"}),
+                patch.object(managed_start, "machine_path", side_effect=lambda key, _root: worktrees if key == "worktrees" else Path(tmp) / "board.json"),
+                patch.object(managed_start, "_branch_exists", return_value=False),
+                patch.object(managed_start, "_board_item_for_identity", return_value=None),
+                patch.object(managed_start, "start_task", side_effect=fake_start),
+                patch.object(managed_start, "import_task", return_value=(pkg, "c" * 40, False)),
+                patch.object(managed_start, "admit_task", return_value={"decision": "WAIT", "claims": [{"branch": "agent/other"}]}),
+                patch.object(managed_start, "admission_reason", return_value="held by agent/other"),
+                patch.object(managed_start, "reconcile", return_value=SimpleNamespace(changed=True)),
+            ):
+                with self.assertRaises(managed_start.ManagedAdmissionWait):
+                    managed_start.start_managed_task(root, pkg.source_issue)
+            self.assertTrue(receipt.is_file())
+            self.assertEqual(json.loads(receipt.read_text())["state"], "creating")
+
+    def _stale_transaction(self, worktrees: Path, pkg, *, package_revision: str, attempt_id: str, state: str = "creating") -> Path:
+        receipt = worktrees / managed_start.START_TRANSACTION_DIR / f"{pkg.change}.json"
+        receipt.parent.mkdir(parents=True, exist_ok=True)
+        receipt.write_text(json.dumps({
+            "version": 1,
+            "state": state,
+            "attempt_id": attempt_id,
+            "source_issue": pkg.source_issue,
+            "target_repository": pkg.target_repository,
+            "change": pkg.change,
+            "package_revision": package_revision,
+            "branch": f"agent/{pkg.change}",
+            "worktree": str((worktrees / pkg.change).resolve()),
+            "created_at": "2026-08-01T00:00:00Z",
+        }, indent=2) + "\n")
+        return receipt
+
+    def test_corrected_package_revision_supersedes_proven_empty_transaction(self) -> None:
+        pkg = package()
+        with tempfile.TemporaryDirectory() as tmp:
+            root, worktrees = Path(tmp) / "root", Path(tmp) / "worktrees"
+            root.mkdir(); worktrees.mkdir()
+            receipt = self._stale_transaction(worktrees, pkg, package_revision="0" * 64, attempt_id="stale-attempt")
+            task_root = (worktrees / pkg.change).resolve()
+            started = managed_start.StartedTask("multi-agent", f"agent/{pkg.change}", task_root, "board-43")
+            seen: dict[str, str] = {}
+
+            def fake_start(*_args, **_kwargs):
+                body = json.loads(receipt.read_text())
+                seen["attempt_id"] = body["attempt_id"]
+                seen["package_revision"] = body["package_revision"]
+                task_root.mkdir(parents=True)
+                return started
+
+            with (
+                patch.object(managed_start, "discover_task", return_value=pkg),
+                patch.object(managed_start, "read_platform_config", return_value={"workflow_profile": "multi-agent", "main_branch": "main"}),
+                patch.object(managed_start, "machine_path", side_effect=lambda key, _root: worktrees if key == "worktrees" else Path(tmp) / "board.json"),
+                patch.object(managed_start, "_branch_exists", return_value=False),
+                patch.object(managed_start, "_board_item_for_identity", return_value=None),
+                patch.object(managed_start, "start_task", side_effect=fake_start),
+                patch.object(managed_start, "import_task", return_value=(pkg, "c" * 40, False)),
+                patch.object(managed_start, "admit_task", return_value={"decision": "RUN", "claims": []}),
+                patch.object(managed_start, "reconcile", return_value=SimpleNamespace(changed=True)),
+            ):
+                managed_start.start_managed_task(root, pkg.source_issue)
+            self.assertFalse(receipt.exists())
+            self.assertEqual(seen["package_revision"], pkg.revision)
+            self.assertNotEqual(seen["attempt_id"], "stale-attempt")
+
+    def test_supersession_fails_closed_when_branch_exists(self) -> None:
+        self._assert_supersession_refused(branch_exists=True)
+
+    def test_supersession_fails_closed_when_worktree_exists(self) -> None:
+        self._assert_supersession_refused(worktree_exists=True)
+
+    def test_supersession_fails_closed_when_board_entry_exists(self) -> None:
+        self._assert_supersession_refused(board_item={"id": "b1", "task": "x", "branch": "y", "worktree": "z"})
+
+    def _assert_supersession_refused(self, *, branch_exists=False, worktree_exists=False, board_item=None) -> None:
+        pkg = package()
+        with tempfile.TemporaryDirectory() as tmp:
+            root, worktrees = Path(tmp) / "root", Path(tmp) / "worktrees"
+            root.mkdir(); worktrees.mkdir()
+            receipt = self._stale_transaction(worktrees, pkg, package_revision="0" * 64, attempt_id="stale-attempt")
+            before = receipt.read_text()
+            if worktree_exists:
+                (worktrees / pkg.change).resolve().mkdir(parents=True)
+            with (
+                patch.object(managed_start, "discover_task", return_value=pkg),
+                patch.object(managed_start, "read_platform_config", return_value={"workflow_profile": "multi-agent", "main_branch": "main"}),
+                patch.object(managed_start, "machine_path", side_effect=lambda key, _root: worktrees if key == "worktrees" else Path(tmp) / "board.json"),
+                patch.object(managed_start, "_branch_exists", return_value=branch_exists),
+                patch.object(managed_start, "_board_item_for_identity", return_value=board_item),
+                patch.object(managed_start, "start_task", side_effect=AssertionError("start_task must not run when supersession is refused")),
+            ):
+                with self.assertRaisesRegex(managed_task.ManagedTaskError, "does not match the requested package"):
+                    managed_start.start_managed_task(root, pkg.source_issue)
+            self.assertEqual(receipt.read_text(), before)
+
+    def test_ambiguous_board_never_supersedes_transaction(self) -> None:
+        pkg = package()
+        with tempfile.TemporaryDirectory() as tmp:
+            root, worktrees = Path(tmp) / "root", Path(tmp) / "worktrees"
+            root.mkdir(); worktrees.mkdir()
+            receipt = self._stale_transaction(worktrees, pkg, package_revision="0" * 64, attempt_id="stale-attempt")
+            before = receipt.read_text()
+            with (
+                patch.object(managed_start, "discover_task", return_value=pkg),
+                patch.object(managed_start, "read_platform_config", return_value={"workflow_profile": "multi-agent", "main_branch": "main"}),
+                patch.object(managed_start, "machine_path", side_effect=lambda key, _root: worktrees if key == "worktrees" else Path(tmp) / "board.json"),
+                patch.object(managed_start, "_branch_exists", return_value=False),
+                patch.object(managed_start, "_board_item_for_identity", side_effect=managed_task.ManagedTaskError("multiple board entries")),
+                patch.object(managed_start, "start_task", side_effect=AssertionError("start_task must not run on ambiguous board")),
+            ):
+                with self.assertRaises(managed_task.ManagedTaskError):
+                    managed_start.start_managed_task(root, pkg.source_issue)
+            self.assertEqual(receipt.read_text(), before)
+
+    def test_supersession_leaves_sibling_state_untouched(self) -> None:
+        pkg = package()
+        with tempfile.TemporaryDirectory() as tmp:
+            root, worktrees = Path(tmp) / "root", Path(tmp) / "worktrees"
+            root.mkdir(); worktrees.mkdir()
+            receipt = self._stale_transaction(worktrees, pkg, package_revision="0" * 64, attempt_id="stale-attempt")
+            sibling_dir = worktrees / "sibling-change"
+            (sibling_dir / "openspec").mkdir(parents=True)
+            sibling_sentinel = sibling_dir / "keep.txt"; sibling_sentinel.write_text("sibling work\n")
+            sibling_receipt = self._stale_transaction(
+                worktrees,
+                SimpleNamespace(change="sibling-change", source_issue="lehard/development-backlog#99",
+                                target_repository=pkg.target_repository, revision="9" * 64),
+                package_revision="9" * 64,
+                attempt_id="sibling-attempt",
+            )
+            task_root = (worktrees / pkg.change).resolve()
+            started = managed_start.StartedTask("multi-agent", f"agent/{pkg.change}", task_root, "board-43")
+
+            def fake_start(*_args, **_kwargs):
+                task_root.mkdir(parents=True)
+                return started
+
+            with (
+                patch.object(managed_start, "discover_task", return_value=pkg),
+                patch.object(managed_start, "read_platform_config", return_value={"workflow_profile": "multi-agent", "main_branch": "main"}),
+                patch.object(managed_start, "machine_path", side_effect=lambda key, _root: worktrees if key == "worktrees" else Path(tmp) / "board.json"),
+                patch.object(managed_start, "_branch_exists", return_value=False),
+                patch.object(managed_start, "_board_item_for_identity", return_value=None),
+                patch.object(managed_start, "start_task", side_effect=fake_start),
+                patch.object(managed_start, "import_task", return_value=(pkg, "c" * 40, False)),
+                patch.object(managed_start, "admit_task", return_value={"decision": "RUN", "claims": []}),
+                patch.object(managed_start, "reconcile", return_value=SimpleNamespace(changed=True)),
+            ):
+                managed_start.start_managed_task(root, pkg.source_issue)
+            self.assertFalse(receipt.exists())
+            self.assertTrue(sibling_receipt.is_file())
+            self.assertEqual(json.loads(sibling_receipt.read_text())["attempt_id"], "sibling-attempt")
+            self.assertEqual(sibling_sentinel.read_text(), "sibling work\n")
 
     def test_recovery_preserves_unrelated_dirty_worktree(self) -> None:
         pkg = package()

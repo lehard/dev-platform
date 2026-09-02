@@ -60,24 +60,22 @@ def managed_start_transaction(root: Path, package: Package) -> Iterator[tuple[di
     path = _transaction_path(worktrees_root, package.change)
     completed = False
 
+    def _fresh_transaction() -> dict[str, object]:
+        return {
+            "version": 1,
+            "state": "creating",
+            "attempt_id": uuid.uuid4().hex,
+            "source_issue": package.source_issue,
+            "target_repository": package.target_repository,
+            "change": package.change,
+            "package_revision": package.revision,
+            "branch": branch,
+            "worktree": str(worktree),
+            "created_at": utc_now(),
+        }
+
     with locked_json(path) as data:
         created = "source_issue" not in data
-        if created:
-            data.clear()
-            data.update(
-                {
-                    "version": 1,
-                    "state": "creating",
-                    "attempt_id": uuid.uuid4().hex,
-                    "source_issue": package.source_issue,
-                    "target_repository": package.target_repository,
-                    "change": package.change,
-                    "package_revision": package.revision,
-                    "branch": branch,
-                    "worktree": str(worktree),
-                    "created_at": utc_now(),
-                }
-            )
 
         expected = {
             "version": 1,
@@ -89,6 +87,28 @@ def managed_start_transaction(root: Path, package: Package) -> Iterator[tuple[di
             "branch": branch,
             "worktree": str(worktree),
         }
+
+        if not created:
+            mismatches = [key for key, value in expected.items() if data.get(key) != value]
+            if (
+                mismatches == ["package_revision"]
+                and data.get("state") == "creating"
+                and _managed_start_left_no_task_state(root, worktree, branch)
+            ):
+                # The prior attempt failed before creating any task worktree,
+                # branch or board entry and only the package revision changed.
+                # Supersede the proven-empty stale transaction in place.
+                created = True
+            elif mismatches:
+                raise ManagedTaskError(
+                    "existing managed-start transaction does not match the requested package "
+                    f"({', '.join(mismatches)}); inspect {path} before retrying"
+                )
+
+        if created:
+            data.clear()
+            data.update(_fresh_transaction())
+
         mismatches = [key for key, value in expected.items() if data.get(key) != value]
         if mismatches:
             raise ManagedTaskError(
@@ -104,7 +124,20 @@ def managed_start_transaction(root: Path, package: Package) -> Iterator[tuple[di
         atomic_write_text(path, json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True) + "\n")
         try:
             yield data, created
+        except ManagedAdmissionWait:
+            # WAIT deliberately retains the worktree/package, so the owning
+            # transaction must stay too.
+            raise
         except Exception:
+            # Roll back only a transaction we can prove left no task state.
+            # If the proof itself is unreliable (e.g. ambiguous board), fail
+            # closed and keep the transaction for conservative recovery.
+            try:
+                empty = _managed_start_left_no_task_state(root, worktree, branch)
+            except Exception:
+                empty = False
+            if empty:
+                path.unlink(missing_ok=True)
             raise
         else:
             completed = True
@@ -183,6 +216,22 @@ def _board_item_for_identity(root: Path, worktree: Path, branch: str) -> dict[st
     if not isinstance(item_id, str) or not item_id:
         raise ManagedTaskError("managed-start recovery found a board entry without a usable id")
     return item
+
+
+def _managed_start_left_no_task_state(root: Path, worktree: Path, branch: str) -> bool:
+    """True only when the exact worktree path, branch ref and board entry are all absent.
+
+    Shared by transaction failure cleanup and stale-transaction retry supersession.
+    Any ambiguous board state raises through ``_board_item_for_identity`` rather than
+    reporting emptiness.
+    """
+    if worktree.exists():
+        return False
+    if _branch_exists(root, branch):
+        return False
+    if _board_item_for_identity(root, worktree, branch) is not None:
+        return False
+    return True
 
 
 def recover_incomplete_managed_start(

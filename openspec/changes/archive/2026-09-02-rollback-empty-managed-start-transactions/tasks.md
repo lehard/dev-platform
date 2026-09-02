@@ -1,0 +1,6 @@
+- [x] Add exact empty-transaction detection shared by exception cleanup and retry recovery.
+- [x] Roll back the transaction after pre-materialization package validation failure.
+- [x] Permit a corrected package revision to supersede a proven-empty transaction.
+- [x] Add empty, partial and ambiguous state regression cases.
+- [x] Prove sibling worktrees, branches and board entries remain untouched.
+- [x] Run semantic verification and required checks, record evidence, archive and publish.
