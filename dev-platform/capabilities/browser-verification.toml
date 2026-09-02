@@ -1,0 +1,26 @@
+[capability]
+id = "browser-verification"
+name = "Browser verification"
+description = "Gather bounded exploratory evidence that a real web UI flow works, without replacing deterministic Playwright/E2E."
+kind = "tool-backed"
+applicability = "Opt-in web projects confirming a controlled local/test user flow or investigating a UI regression after unit/integration checks pass."
+invocation = "auto+explicit"
+visibility = "project"
+owner = "dev-platform"
+safety_boundary = "Development tooling only. Default-deny origins (localhost/loopback/*.test); wider non-production origins need an explicit project allowlist entry and production origins need a per-run grant. Never authorizes production write-actions, credentials, or new application production dependencies; browser runtime state stays under an ignored directory."
+dependencies = ["scripts/capability_manager.py"]
+materialization = "provider-skill-markdown"
+tool_adapter = "scripts/browser_verification.py"
+update_policy = "replace-derived"
+removal_policy = "remove-derived-only"
+
+[provenance]
+source = "dev-platform"
+revision = "platform-managed"
+path = "dev-platform/capabilities/browser-verification.md"
+license = "Apache-2.0"
+content_sha256 = "f11dd6ef8b09baaaa0f49f89c836de8fa7ddfce32430dade3fe593b77e109e10"
+
+[eval]
+evidence = "deterministic-fixture"
+live_eval = "not-required-for-fixture"
