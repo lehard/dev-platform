@@ -1,0 +1,32 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/managed-task-intake/spec.md"
+  ],
+  "change": "rollback-empty-managed-start-transactions",
+  "imported_at": "2026-09-02T15:54:14+00:00",
+  "package_revision": "280990eaaa70844d8c04e408979040b843cb7909e13a4716f190a47f268d1358",
+  "prepared_against": "645a81f29a375b50379cd889f1741cb967fdb47a",
+  "process_evidence": [
+    "lehard/dev-platform#373",
+    "lehard/dev-platform#357"
+  ],
+  "routing_receipt": {
+    "assurance": "high",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "managed-task-intake"
+  },
+  "source_issue": "lehard/development-backlog#94",
+  "source_issue_evidence": {
+    "body_sha256": "e15776a45fd0720fae046278c645c1168890d67e9e613623dc5800656da6d911",
+    "updated_at": "2026-09-02T10:42:59Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
