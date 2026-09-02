@@ -161,6 +161,75 @@ and under a project design system, triggering discipline, and bounded-adaptation
 provenance are documented in
 [Frontend design capabilities](frontend-design-capabilities.md).
 
+## Web engineering capability pack
+
+Two independent opt-in capabilities cover stack-specific web engineering help and
+a separate read-only web/UI critic. They ride the same lifecycle — one descriptor
+each, project-owned opt-in, derived provider skills only when selected — and
+neither is enabled by default.
+
+| Capability | Role | Applies to | Does not apply to |
+| --- | --- | --- | --- |
+| `react-next-best-practices` | Stack guidance | Implementation and performance work in a compatible, opted-in React / Next.js (App Router) codebase | Non-React frontends, backend-only work, unsupported major versions; it never changes application dependencies |
+| `ui-quality-review` | Advisory critic | A requested UI / web-quality review, accessibility pass, or check that a user-facing change works for keyboard, assistive-technology, form, or small-screen users | Backend work, copy-only edits, and visual-redesign or aesthetic-preference requests |
+
+### `react-next-best-practices` is a slim index
+
+The materialized skill is a compact always-loaded index: applicability,
+precedence, and a routing table. The actual rules live in four bounded topic
+groups under `dev-platform/capabilities/react-next-best-practices/`
+(`server-client-components.md`, `data-fetching-and-waterfalls.md`,
+`bundle-and-code-splitting.md`, `rendering-and-re-renders.md`), and the index
+tells the agent to read only the group the task needs. The descriptor lists those
+group files as dependencies so `audit` fails if one is missing. Stack
+applicability is a guidance gate, not a dependency change: enabling the capability
+never edits `package.json` or a lockfile.
+
+### `ui-quality-review` is evidence-backed and advisory
+
+Every finding cites a category, a location, the evidence, a severity with who is
+affected, an uncertainty note, and the smallest recommended change. An honest
+"no findings" with a list of what was checked is a valid result, and the review
+lists at least one healthy check so a heuristic cannot over-report. It creates no
+code, commit, Issue, Backlog item, or managed task, never proposes a redesign or
+a new design language, and its findings do not by themselves block a merge.
+Repeated critical requirements become project tests only through a separate
+accepted project decision.
+
+### Precedence
+
+For both capabilities, in order of authority: (1) project product requirements
+and accepted OpenSpec behaviour; (2) the project-owned design system, brand
+guide, component library, or architecture decision; (3) accessibility,
+regulatory, and functional-testing requirements; (4) the capability's generic
+guidance or checks.
+
+### Triggering discipline
+
+`dev-platform/evals/react-next-best-practices-pilot.json` and
+`dev-platform/evals/ui-quality-review-pilot.json` each encode ten positive and
+ten hard-negative synthetic prompts, three samples each. The React negatives
+include Vue, Svelte, jQuery, plain CSS, and backend controls; the UI-review
+negatives include redesign requests, aesthetic-preference requests, and non-UI
+controls. They are deterministic CI evidence of the intended trigger boundary,
+not a claim about a provider's live routing.
+
+### Provenance — bounded adaptation
+
+Dev Platform vendors no upstream files and fetches none at runtime. Each
+instruction file is an independent, bounded adaptation of widely published,
+version-pinned guidance; the descriptor records `content_sha256` of the local
+file so the effective guidance cannot drift, and adopting newer upstream guidance
+is an explicit `python3 scripts/capability_manager.py update <id>` with a
+refreshed hash, reviewed like any other change.
+
+| Capability | Reviewed reference | Pinned revision | License | Treatment |
+| --- | --- | --- | --- | --- |
+| `react-next-best-practices` | [`vercel/next.js`](https://github.com/vercel/next.js) App Router documentation under `docs/` | `8ea76d64ca3931c1beccceb15d32df5d770f4957` (2026-09-02) | MIT | Adapt — Server/Client Component boundaries, request-waterfall and caching/streaming guidance, and dynamic-import code-splitting rewritten provider-neutrally as bounded topic groups. Framework internals, config specifics, and version-specific APIs are not vendored. |
+| `react-next-best-practices` | [`reactjs/react.dev`](https://github.com/reactjs/react.dev) learn/reference content | `24618e2ac310ef03b86e60c858a8dbe55869965d` (2026-08-31) | MIT (code) / CC-BY-4.0 (documentation prose) | Adapt — "you might not need an effect", derived state, stable `key`, and measured-memoisation guidance rewritten as the rendering topic group. |
+| `ui-quality-review` | W3C [WCAG 2.2](https://www.w3.org/TR/2023/REC-WCAG22-20231005/) | W3C Recommendation 05 October 2023 (immutable dated version) | W3C Document License | Adapt — success-criterion themes (name/role/value, focus visible and order, labels and error identification, reflow, reduced motion) as the review categories, not a conformance checklist. |
+| `ui-quality-review` | W3C [ARIA Authoring Practices Guide](https://github.com/w3c/aria-practices) | `7e4034b262bc0d25332e330d8a582aaf34113829` (2026-07-22) | W3C Document License | Reference-only — informs the "native element first, ARIA only where needed" and focus-management expectations. |
+
 ## Delivery
 
 The manager, descriptors and guidance are Copier-managed platform surfaces. Fresh renders and reviewed Copier updates are deterministic; an immutable platform release produces ordinary rollout PRs for managed projects. Project-owned harnesses retain their lifecycle implementation.

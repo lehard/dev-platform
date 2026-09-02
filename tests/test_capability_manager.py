@@ -50,8 +50,24 @@ class CapabilityManagerTests(unittest.TestCase):
             "frontend-design.md",
             "high-end-visual-design.toml",
             "high-end-visual-design.md",
+            "react-next-best-practices.toml",
+            "react-next-best-practices.md",
+            "ui-quality-review.toml",
+            "ui-quality-review.md",
         ):
             shutil.copyfile(ROOT / "dev-platform" / "capabilities" / name, self.root / "dev-platform" / "capabilities" / name)
+        react_group = self.root / "dev-platform" / "capabilities" / "react-next-best-practices"
+        react_group.mkdir()
+        for name in (
+            "server-client-components.md",
+            "data-fetching-and-waterfalls.md",
+            "bundle-and-code-splitting.md",
+            "rendering-and-re-renders.md",
+        ):
+            shutil.copyfile(
+                ROOT / "dev-platform" / "capabilities" / "react-next-best-practices" / name,
+                react_group / name,
+            )
         for name in (
             "capability-catalog-pilot.json",
             "architecture-health-review-pilot.json",
@@ -60,6 +76,8 @@ class CapabilityManagerTests(unittest.TestCase):
             "interoperable-agent-handoff-pilot.json",
             "frontend-design-pilot.json",
             "high-end-visual-design-pilot.json",
+            "react-next-best-practices-pilot.json",
+            "ui-quality-review-pilot.json",
         ):
             shutil.copyfile(ROOT / "dev-platform" / "evals" / name, self.root / "dev-platform" / "evals" / name)
 
@@ -392,6 +410,92 @@ class CapabilityManagerTests(unittest.TestCase):
             "status_distribution": {"not-triggered": 30, "triggered": 30},
         })
         self.assertTrue(all(item["improved"] for item in report["quality_comparisons"]))
+
+
+    def test_web_engineering_pack_is_declared_opt_in_and_bounded(self) -> None:
+        registry = self.registry()
+        for identifier in ("react-next-best-practices", "ui-quality-review"):
+            self.assertIn(identifier, registry)
+            self.assertEqual(registry[identifier].kind, "instruction-only")
+            self.assertEqual(registry[identifier].invocation, "auto+explicit")
+            self.assertEqual(registry[identifier].provenance["revision"], "platform-managed")
+        # Not selected by the default project selection file.
+        self.assertEqual(manager.load_selection(self.root), [])
+        self.assertEqual(manager.audit(self.root, registry, [])["status"], "ok")
+        self.assertEqual(manager.sync(self.root, registry, [])["changes"], [])
+        # The React index declares its bounded topic groups as dependencies.
+        react = registry["react-next-best-practices"]
+        self.assertEqual(
+            react.dependencies,
+            (
+                "dev-platform/capabilities/react-next-best-practices/server-client-components.md",
+                "dev-platform/capabilities/react-next-best-practices/data-fetching-and-waterfalls.md",
+                "dev-platform/capabilities/react-next-best-practices/bundle-and-code-splitting.md",
+                "dev-platform/capabilities/react-next-best-practices/rendering-and-re-renders.md",
+            ),
+        )
+        for required in ("Read only the group that matches the task", "adds no", "Precedence"):
+            self.assertIn(required, react.instruction)
+        # A missing topic group is an audit failure, not silent partial guidance.
+        (self.root / "dev-platform" / "capabilities" / "react-next-best-practices" / "bundle-and-code-splitting.md").unlink()
+        broken = manager.audit(self.root, self.registry(), [])
+        self.assertEqual(broken["status"], "error")
+        self.assertTrue(any("bundle-and-code-splitting.md" in issue for issue in broken["issues"]))
+
+    def test_react_guidance_only_materializes_for_an_opted_in_project(self) -> None:
+        registry = self.registry()
+        manager.write_selection(self.root, ["react-next-best-practices"])
+        result = manager.sync(self.root, registry, manager.load_selection(self.root))
+        self.assertEqual(result["unsupported"], [])
+        self.assertEqual(len(result["changes"]), 2)
+        self.assertEqual(manager.audit(self.root, registry, ["react-next-best-practices"])["status"], "ok")
+        for provider in ("claude", "codex"):
+            surface = self.root / f".{provider}" / "skills" / "dev-platform-react-next-best-practices" / "SKILL.md"
+            self.assertTrue(surface.exists())
+            self.assertIn("dev-platform-capability:id=react-next-best-practices", surface.read_text(encoding="utf-8"))
+        manager.write_selection(self.root, [])
+        removed = manager.sync(self.root, registry, [])
+        self.assertEqual(len(removed["changes"]), 2)
+        for provider in ("claude", "codex"):
+            self.assertFalse(
+                (self.root / f".{provider}" / "skills" / "dev-platform-react-next-best-practices" / "SKILL.md").exists()
+            )
+        self.assertEqual(manager.sync(self.root, registry, [])["changes"], [])
+
+    def test_ui_quality_review_is_evidence_backed_advisory_and_optional(self) -> None:
+        capability = self.registry()["ui-quality-review"]
+        self.assertEqual(capability.dependencies, ())
+        manager.write_selection(self.root, [capability.identifier])
+        materialized = manager.sync(self.root, self.registry(), manager.load_selection(self.root))
+        self.assertEqual(len(materialized["changes"]), 2)
+        self.assertEqual(manager.audit(self.root, self.registry(), manager.load_selection(self.root))["status"], "ok")
+        for required in (
+            "never redesigns the surface and never opens work items",
+            "recommendation: <smallest change that resolves it, no redesign>",
+            "## Healthy checks",
+            "do not manufacture cosmetic work to fill\nthe report",
+            "do not by themselves block a merge",
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, capability.instruction)
+
+    def test_web_engineering_pilots_have_positive_and_control_evidence(self) -> None:
+        registry = self.registry()
+        for identifier in ("react-next-best-practices", "ui-quality-review"):
+            report = manager.evaluate_existing(
+                registry[identifier],
+                self.root / "dev-platform" / "evals" / f"{identifier}-pilot.json",
+                runtime="fixture",
+                runs=3,
+            )
+            self.assertEqual(report["summary"], {
+                "case_count": 20,
+                "passed": 20,
+                "failed": 0,
+                "incomplete": 0,
+                "status_distribution": {"not-triggered": 30, "triggered": 30},
+            })
+            self.assertTrue(all(item["improved"] for item in report["quality_comparisons"]))
 
 
 if __name__ == "__main__":
