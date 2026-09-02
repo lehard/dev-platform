@@ -33,11 +33,22 @@ class CapabilityManagerTests(unittest.TestCase):
         (self.root / "dev-platform" / "evals").mkdir()
         (self.root / ".dev-platform.toml").write_text('agent_tools = "claude,codex"\n', encoding="utf-8")
         shutil.copyfile(ROOT / "dev-platform" / "capabilities.toml", self.root / "dev-platform" / "capabilities.toml")
-        for name in ("repository-hygiene.toml", "repository-hygiene.md", "capability-catalog.toml", "capability-catalog.md"):
+        for name in (
+            "repository-hygiene.toml",
+            "repository-hygiene.md",
+            "capability-catalog.toml",
+            "capability-catalog.md",
+            "architecture-health-review.toml",
+            "architecture-health-review.md",
+        ):
             shutil.copyfile(ROOT / "dev-platform" / "capabilities" / name, self.root / "dev-platform" / "capabilities" / name)
         shutil.copyfile(
             ROOT / "dev-platform" / "evals" / "capability-catalog-pilot.json",
             self.root / "dev-platform" / "evals" / "capability-catalog-pilot.json",
+        )
+        shutil.copyfile(
+            ROOT / "dev-platform" / "evals" / "architecture-health-review-pilot.json",
+            self.root / "dev-platform" / "evals" / "architecture-health-review-pilot.json",
         )
 
     def tearDown(self) -> None:
@@ -104,6 +115,41 @@ class CapabilityManagerTests(unittest.TestCase):
         self.assertTrue((self.root / ".claude" / "skills" / "dev-platform-capability-catalog" / "SKILL.md").exists())
         self.assertEqual((self.root / ".dev-platform.toml").read_text(encoding="utf-8"), config_before)
         self.assertFalse((self.root / "requirements.txt").exists())
+
+    def test_architecture_health_review_is_revision_bound_read_only_and_has_false_positive_control(self) -> None:
+        capability = self.registry()["architecture-health-review"]
+        self.assertEqual(capability.kind, "instruction-only")
+        self.assertEqual(capability.dependencies, ())
+        for required in (
+            "full immutable revision",
+            "## Observations",
+            "## Uncertainty and counter-evidence",
+            "## Advisory improvements",
+            "at least two materially distinct options",
+            "Do not modify repository files",
+        ):
+            self.assertIn(required, capability.instruction)
+        manager.write_selection(self.root, [capability.identifier])
+        result = manager.sync(self.root, self.registry(), [capability.identifier])
+        self.assertEqual(result["unsupported"], [])
+        derived = self.root / ".codex" / "skills" / "dev-platform-architecture-health-review" / "SKILL.md"
+        self.assertIn("Do not modify repository files", derived.read_text(encoding="utf-8"))
+        report = manager.evaluate_existing(
+            capability,
+            self.root / "dev-platform" / "evals" / "architecture-health-review-pilot.json",
+            runtime="fixture",
+            runs=3,
+        )
+        self.assertEqual(report["summary"], {
+            "case_count": 20,
+            "passed": 20,
+            "failed": 0,
+            "incomplete": 0,
+            "status_distribution": {"not-triggered": 30, "triggered": 30},
+        })
+        result_ids = {item["case_id"] for item in report["results"]}
+        self.assertIn("positive-controlled-shallow-smell", result_ids)
+        self.assertIn("positive-healthy-control", result_ids)
 
     def test_hash_tampering_is_rejected_before_materialization(self) -> None:
         instruction = self.root / "dev-platform" / "capabilities" / "repository-hygiene.md"

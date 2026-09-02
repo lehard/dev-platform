@@ -1,0 +1,12 @@
+- [x] Require the optional engineering capability contract delivered by #87 and reuse its lifecycle surfaces.
+- [x] Re-check the current upstream architecture skills and extract bounded reusable heuristics relevant to Dev Platform.
+- [x] Define the Architecture Health Review input boundary, exact revision identity and bounded report format.
+- [x] Define evidence categories for boundaries, interfaces, module depth/locality, coupling/leakage, seams and repeated abstractions without a universal vanity score.
+- [x] Implement the read-only review behavior through the #87 capability surface; do not create a second registry/config/materializer.
+- [x] Add observation/evidence/uncertainty/proposal separation to the report format.
+- [x] Add a selective alternative-design mode for reviewed high-consequence architecture triggers.
+- [x] Run a representative review on `dev-platform` and capture evidence-backed findings tied to exact files/modules.
+- [x] Add a controlled architecture-smell fixture/case and a healthy control area to check false-positive discipline.
+- [x] Verify review never creates managed tasks, Issues or refactor commits automatically.
+- [x] Document how a human-promoted finding enters the normal managed lifecycle.
+- [x] Run semantic OpenSpec verification, platform/capability checks, record evidence, archive and publish normally.
