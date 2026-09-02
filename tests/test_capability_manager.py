@@ -46,6 +46,8 @@ class CapabilityManagerTests(unittest.TestCase):
             "selective-domain-interrogation.md",
             "interoperable-agent-handoff.toml",
             "interoperable-agent-handoff.md",
+            "bounded-prototype.toml",
+            "bounded-prototype.md",
             "frontend-design.toml",
             "frontend-design.md",
             "high-end-visual-design.toml",
@@ -58,6 +60,7 @@ class CapabilityManagerTests(unittest.TestCase):
             "systematic-bug-diagnosis-pilot.json",
             "selective-domain-interrogation-pilot.json",
             "interoperable-agent-handoff-pilot.json",
+            "bounded-prototype-pilot.json",
             "frontend-design-pilot.json",
             "high-end-visual-design-pilot.json",
         ):
@@ -342,6 +345,45 @@ class CapabilityManagerTests(unittest.TestCase):
         report = manager.evaluate_existing(
             capability,
             self.root / "dev-platform" / "evals" / "selective-domain-interrogation-pilot.json",
+            runtime="fixture",
+            runs=3,
+        )
+        self.assertEqual(report["summary"], {
+            "case_count": 20,
+            "passed": 20,
+            "failed": 0,
+            "incomplete": 0,
+            "status_distribution": {"not-triggered": 30, "triggered": 30},
+        })
+        self.assertTrue(all(item["improved"] for item in report["quality_comparisons"]))
+
+    def test_bounded_prototype_is_isolated_optional_and_non_promoting(self) -> None:
+        capability = self.registry()["bounded-prototype"]
+        self.assertEqual(capability.kind, "instruction-only")
+        self.assertEqual(capability.invocation, "auto+explicit")
+        self.assertEqual(capability.dependencies, ())
+        manager.write_selection(self.root, [capability.identifier])
+        materialized = manager.sync(self.root, self.registry(), manager.load_selection(self.root))
+        self.assertEqual(len(materialized["changes"]), 2)
+        self.assertIn(
+            "dev-platform-capability:id=bounded-prototype",
+            (self.root / ".claude" / "skills" / "dev-platform-bounded-prototype" / "SKILL.md").read_text(encoding="utf-8"),
+        )
+        self.assertEqual(manager.audit(self.root, self.registry(), manager.load_selection(self.root))["status"], "ok")
+        for required in (
+            "**observable experiment** would resolve faster than more",
+            "clear task gets no prototype ceremony.",
+            "temporary throwaway workspace",
+            "refuse and report the boundary",
+            "Prototype code is disposable.",
+            "not a starting commit",
+            "second backlog",
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, capability.instruction)
+        report = manager.evaluate_existing(
+            capability,
+            self.root / "dev-platform" / "evals" / "bounded-prototype-pilot.json",
             runtime="fixture",
             runs=3,
         )
