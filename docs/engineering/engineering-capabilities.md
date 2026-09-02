@@ -82,15 +82,6 @@ The reviewed upstream is [`anthropics/skills`](https://github.com/anthropics/ski
 
 The rejected runner pattern is also a containment decision: temporary `.claude/commands` can collide with concurrent work, a nested CLI bypasses the platform's supported delegation path, and cleanup after timeout/failure is not the same as the active writer's process ownership. The provider-neutral core therefore has no provider command path, tool/event name, or second orchestration loop.
 
-## Capabilities
-
-| Capability | Kind | Guidance |
-| --- | --- | --- |
-| `capability-catalog` | tool-backed | This document |
-| `repository-hygiene` | instruction-only | This document |
-| `architecture-health-review` | instruction-only | This document |
-| `browser-verification` | tool-backed | [browser-verification.md](browser-verification.md) |
-
 ## Delivery
 
 The manager, descriptors and guidance are Copier-managed platform surfaces. Fresh renders and reviewed Copier updates are deterministic; an immutable platform release produces ordinary rollout PRs for managed projects. Project-owned harnesses retain their lifecycle implementation.
