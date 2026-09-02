@@ -99,3 +99,15 @@ python3 scripts/model_routing.py efficiency-baseline
 ```
 
 The report scans local routing records across registered worktrees, preserves historical records without efficiency fields as missing evidence, counts completed/failed/abnormal outcomes and escalated routes already owned by routing provenance, and reads the existing active/archived OpenSpec verification receipt from the integration-owned lifecycle (so task-worktree cleanup does not erase verification evidence). It reports launched, verified/eligible and missing-verification observations separately; `sufficient` requires at least 15 verified managed executions plus a canonical comparable field measured across that eligible sample. It reports coverage, runtime-local counters and legacy ambiguous `request_count` values separately rather than silently mixing them. Medians plus p95 appear only when a populated metric has at least five observations. This report informs later routing calibration or external-runtime comparisons only; it does not switch models, alter tiers, impose budgets, or cancel work.
+
+## Routing calibration
+
+```bash
+python3 scripts/model_routing.py routing-calibration
+```
+
+A bounded, read-only calibration view of the `R2`/`R3` rubric built from the same routing records and OpenSpec verification receipts as the efficiency baseline -- not a second execution store. It is stricter than the efficiency baseline on the routing facts a rubric review needs (an authored tier, a determinable actual path, a passed verification receipt) and does not require token/request comparability. A `usable` observation is a launched, verification-passed execution whose authored tier is known; `adequacy` is `insufficient` below 15 usable observations, and the report is still valid in that state.
+
+The report separates the authored route from what actually ran: authored tier distribution and frontier exposure, verified `R2` success without `R3` escalation, `R2`->`R3` escalation counts with recorded reasons (`unknown` when the record has none) and success-after-escalation, direct-`R3` records, and `completed`/`failed`/`abnormal`/`unknown`/`not_launched` outcomes kept distinct. First-pass-vs-retry and human-intervention signals are reported as unavailable because no current record field proves them. Breakdowns by `task_family`, `rubric_version` and provider/model generation each carry their own count and `adequacy`. A successful direct `R3` execution is never labelled over-routing and never treated as evidence that `R2` would have failed.
+
+`advice.candidate_decision` is a human-readable suggestion only -- `insufficient evidence / no policy change`, `no change`, `no confident change; monitor`, or a `review:` note pointing at frequent recorded escalations. `advice.requires_separate_managed_change` is always true: this command never edits `start_tier_routing.py`, `.dev-platform.toml`, the rubric or the model mapping, never creates a Development Backlog task, and never introduces a learned router.

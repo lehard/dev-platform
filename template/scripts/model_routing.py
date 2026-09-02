@@ -971,6 +971,320 @@ def efficiency_baseline(root: Path) -> dict[str, Any]:
     }
 
 
+# Routing calibration reuses the efficiency-baseline scanner and verification
+# lookup rather than a second execution store. Its eligibility is intentionally
+# looser on efficiency comparability (token/request fields) and stricter on the
+# routing facts a rubric review actually needs: an authored tier, a determinable
+# actual path, and a passed verification receipt.
+ROUTING_CALIBRATION_MIN_OBSERVATIONS = EFFICIENCY_MIN_BASELINE_EXECUTIONS
+# Bounded descriptive thresholds, not statistical confidence claims. They only
+# gate whether an *adequate* sample yields a concrete candidate decision or a
+# "monitor" hold; an inadequate sample never reaches them.
+ROUTING_CALIBRATION_LOW_ESCALATION_RATE = 0.15
+ROUTING_CALIBRATION_HIGH_ESCALATION_RATE = 0.30
+ROUTING_CALIBRATION_MIN_R2_SUCCESS_RATE = 0.60
+
+
+def _authored_tier_of(record: dict[str, Any]) -> str:
+    tier = record.get("start_tier")
+    return tier if isinstance(tier, str) and tier else "unknown"
+
+
+def _escalation_reasons(record: dict[str, Any]) -> list[str]:
+    escalations = record.get("escalations")
+    if not isinstance(escalations, list):
+        return []
+    reasons: list[str] = []
+    for entry in escalations:
+        if isinstance(entry, dict):
+            reason = entry.get("reason")
+            if isinstance(reason, str) and reason.strip():
+                reasons.append(reason.strip())
+    return reasons
+
+
+def _actual_route_of(record: dict[str, Any]) -> dict[str, Any]:
+    """Distinguish the authored route from what actually ran.
+
+    ``freshness == "escalated"`` and a non-empty ``escalations`` list both
+    signal an R2->R3 promotion; the final ``profile`` records where execution
+    actually landed. Nothing here is inferred when the record does not say it.
+    """
+    escalations = record.get("escalations")
+    has_escalation = isinstance(escalations, list) and bool(escalations)
+    escalated = has_escalation or record.get("freshness") == "escalated"
+    profile = record.get("profile")
+    final_profile = profile if isinstance(profile, str) and profile else "unknown"
+    return {
+        "final_profile": final_profile,
+        "escalated": escalated,
+        "frontier_profile": final_profile == "complex",
+        "escalation_reasons": _escalation_reasons(record),
+    }
+
+
+def _execution_outcome_label(record: dict[str, Any]) -> str:
+    execution = record.get("execution")
+    if not isinstance(execution, dict) or not execution.get("launched"):
+        return "not_launched"
+    outcome = execution.get("outcome")
+    if isinstance(outcome, str) and outcome:
+        return outcome
+    return "unknown"
+
+
+def _managed_receipt_for_change(root: Path, record: dict[str, Any]) -> dict[str, Any]:
+    """Read the authored routing receipt for a record's change, if it survives.
+
+    ``task_family``/``rubric_version`` live in the managed-task provenance, not
+    the routing record. They are available for an active change and for an
+    archived one that kept ``.managed-task.json``; otherwise they stay unknown
+    rather than being guessed.
+    """
+    change = record.get("change")
+    if not isinstance(change, str) or not change:
+        return {}
+    for lifecycle_root in _verification_roots(root, record):
+        candidates = [lifecycle_root / "openspec" / "changes" / change / ".managed-task.json"]
+        candidates.extend(sorted((lifecycle_root / "openspec" / "changes" / "archive").glob(f"*-{change}/.managed-task.json")))
+        for candidate in candidates:
+            try:
+                payload = json.loads(candidate.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            receipt = payload.get("routing_receipt")
+            if isinstance(receipt, dict):
+                return receipt
+    return {}
+
+
+def _calibration_observation(root: Path, record: dict[str, Any], verification: str) -> dict[str, Any]:
+    receipt = _managed_receipt_for_change(root, record)
+    task_family = receipt.get("task_family")
+    rubric_version = receipt.get("rubric_version")
+    return {
+        "change": record.get("change") if isinstance(record.get("change"), str) else "unknown",
+        "authored_tier": _authored_tier_of(record),
+        "actual": _actual_route_of(record),
+        "outcome": _execution_outcome_label(record),
+        "verification": verification,
+        "launched": bool(isinstance(record.get("execution"), dict) and record["execution"].get("launched")),
+        "task_family": task_family if isinstance(task_family, str) and task_family else "unknown",
+        "rubric_version": rubric_version if isinstance(rubric_version, str) and rubric_version else "unknown",
+        "provider_model_generation": _runtime_identity(record),
+    }
+
+
+def _tier_distribution(observations: list[dict[str, Any]]) -> dict[str, int]:
+    distribution: dict[str, int] = {}
+    for observation in observations:
+        tier = observation["authored_tier"]
+        distribution[tier] = distribution.get(tier, 0) + 1
+    return dict(sorted(distribution.items()))
+
+
+def _outcome_distribution(observations: list[dict[str, Any]]) -> dict[str, int]:
+    distribution: dict[str, int] = {}
+    for observation in observations:
+        label = observation["outcome"]
+        distribution[label] = distribution.get(label, 0) + 1
+    return dict(sorted(distribution.items()))
+
+
+def _is_verified_r2_success_without_escalation(observation: dict[str, Any]) -> bool:
+    return (
+        observation["authored_tier"] == "R2"
+        and not observation["actual"]["escalated"]
+        and not observation["actual"]["frontier_profile"]
+        and observation["outcome"] == "completed"
+        and observation["verification"] == "passed"
+    )
+
+
+def _calibration_slice(observations: list[dict[str, Any]]) -> dict[str, Any]:
+    """The bounded metric block shared by the global report and each breakdown."""
+    usable = [
+        observation
+        for observation in observations
+        if observation["launched"]
+        and observation["verification"] == "passed"
+        and observation["authored_tier"] != "unknown"
+    ]
+    r2_usable = [observation for observation in usable if observation["authored_tier"] == "R2"]
+    escalated_usable = [observation for observation in r2_usable if observation["actual"]["escalated"]]
+    escalated_success = [
+        observation
+        for observation in escalated_usable
+        if observation["outcome"] == "completed" and observation["verification"] == "passed"
+    ]
+    r2_verified_success = [observation for observation in r2_usable if _is_verified_r2_success_without_escalation(observation)]
+    frontier_exposure = [observation for observation in usable if observation["actual"]["frontier_profile"]]
+
+    reason_counts: dict[str, int] = {}
+    unknown_reason = 0
+    for observation in observations:
+        if not observation["actual"]["escalated"]:
+            continue
+        reasons = observation["actual"]["escalation_reasons"]
+        if not reasons:
+            unknown_reason += 1
+        for reason in reasons:
+            reason_counts[reason] = reason_counts.get(reason, 0) + 1
+
+    direct_r3 = [observation for observation in observations if observation["authored_tier"] == "R3"]
+    direct_r3_launched = [observation for observation in direct_r3 if observation["launched"]]
+    direct_r3_success = [
+        observation
+        for observation in direct_r3_launched
+        if not observation["actual"]["escalated"]
+        and observation["outcome"] == "completed"
+        and observation["verification"] == "passed"
+    ]
+
+    adequate = len(usable) >= ROUTING_CALIBRATION_MIN_OBSERVATIONS
+    return {
+        "usable_observations": len(usable),
+        "adequacy": "adequate" if adequate else "insufficient",
+        "authored_tier_distribution": _tier_distribution(observations),
+        "authored_tier_distribution_usable": _tier_distribution(usable),
+        "frontier_exposure_usable": len(frontier_exposure),
+        "authored_r2_verified_success_without_escalation": len(r2_verified_success),
+        "r2_to_r3_escalation": {
+            "usable_r2_observations": len(r2_usable),
+            "escalated_usable": len(escalated_usable),
+            "escalated_records_total": sum(1 for observation in observations if observation["authored_tier"] == "R2" and observation["actual"]["escalated"]),
+            "success_after_escalation": len(escalated_success),
+            "recorded_reasons": dict(sorted(reason_counts.items())),
+            "unknown_reason": unknown_reason,
+        },
+        "direct_frontier": {
+            "authored_r3_records": len(direct_r3),
+            "launched": len(direct_r3_launched),
+            "verified_success": len(direct_r3_success),
+            "counterfactual_note": (
+                "A successful direct R3 execution is not evidence that R2 would have failed; "
+                "it is not counted as over-routing."
+            ),
+        },
+        "outcomes_usable": _outcome_distribution(usable),
+    }
+
+
+def _breakdown(observations: list[dict[str, Any]], key: str) -> dict[str, dict[str, Any]]:
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for observation in observations:
+        grouped.setdefault(str(observation[key]), []).append(observation)
+    result: dict[str, dict[str, Any]] = {}
+    for name, group in sorted(grouped.items()):
+        slice_report = _calibration_slice(group)
+        result[name] = {
+            "usable_observations": slice_report["usable_observations"],
+            "adequacy": slice_report["adequacy"],
+            "authored_r2_verified_success_without_escalation": slice_report["authored_r2_verified_success_without_escalation"],
+            "escalated_usable": slice_report["r2_to_r3_escalation"]["escalated_usable"],
+            "frontier_exposure_usable": slice_report["frontier_exposure_usable"],
+            "outcomes_usable": slice_report["outcomes_usable"],
+        }
+    return result
+
+
+def _calibration_advice(report: dict[str, Any]) -> dict[str, Any]:
+    """A human-readable candidate decision. Never a policy mutation."""
+    slice_report = report["global"]
+    requires_managed_change = True
+    if slice_report["adequacy"] != "adequate":
+        return {
+            "candidate_decision": "insufficient evidence / no policy change",
+            "detail": (
+                "The usable routing sample is below the decision-quality guideline of "
+                f"{ROUTING_CALIBRATION_MIN_OBSERVATIONS} verified observations. The report is still valid: "
+                "let more verified managed executions accumulate before tuning the rubric. "
+                "Building this report is not blocked by the small sample."
+            ),
+            "requires_separate_managed_change": requires_managed_change,
+        }
+    escalation = slice_report["r2_to_r3_escalation"]
+    r2_usable = escalation["usable_r2_observations"]
+    escalation_rate = escalation["escalated_usable"] / r2_usable if r2_usable else 0.0
+    success_rate = slice_report["authored_r2_verified_success_without_escalation"] / r2_usable if r2_usable else 0.0
+    if escalation_rate <= ROUTING_CALIBRATION_LOW_ESCALATION_RATE and success_rate >= ROUTING_CALIBRATION_MIN_R2_SUCCESS_RATE:
+        candidate = "no change"
+        detail = (
+            "In the observed verified sample the authored R2 path completed required verification without "
+            "R3 escalation at a rate consistent with the current default. Keeping the R2 default and the "
+            "current R3 hard-trigger list is a defensible manual decision. This is not a counterfactual claim "
+            "about work that ran directly at R3."
+        )
+    elif escalation_rate >= ROUTING_CALIBRATION_HIGH_ESCALATION_RATE:
+        candidate = "review: recorded R2->R3 escalations are frequent"
+        detail = (
+            "Authored R2 observations escalated to R3 often enough to review manually whether a recorded "
+            "escalation reason should become an authored R3 hard trigger for the affected task families. "
+            "Inspect the recorded_reasons and per-family breakdown; escalation reasons without recorded text "
+            "are not evidence for a specific trigger."
+        )
+    else:
+        candidate = "no confident change; monitor"
+        detail = (
+            "The sample is adequate in size but the escalation and R2 success signals are mixed. Continue "
+            "accumulating verified observations and re-run before adjusting the rubric."
+        )
+    return {
+        "candidate_decision": candidate,
+        "detail": detail,
+        "requires_separate_managed_change": requires_managed_change,
+    }
+
+
+def routing_calibration(root: Path) -> dict[str, Any]:
+    """Bounded read-only calibration of the R2/R3 routing rubric.
+
+    Reuses the efficiency-baseline routing-record scanner and the existing
+    OpenSpec verification receipt lookup. It separates the authored route from
+    the actual execution path, never makes a counterfactual claim, and either
+    produces a concrete human-readable candidate policy decision or an honest
+    ``insufficient evidence`` result. It changes no routing policy.
+    """
+    records = _local_routing_records(root)
+    verification_by_record = [(record, _verification_outcome(root, record)) for record in records]
+    observations = [_calibration_observation(root, record, verification) for record, verification in verification_by_record]
+
+    launched = [observation for observation in observations if observation["launched"]]
+    verified = [observation for observation in observations if observation["verification"] == "passed"]
+    verification_signals: dict[str, int] = {}
+    for _record, label in verification_by_record:
+        verification_signals[label] = verification_signals.get(label, 0) + 1
+
+    global_slice = _calibration_slice(observations)
+    report: dict[str, Any] = {
+        "schema_version": 1,
+        "generated_at": utc_now(),
+        "scope": "local routing/execution provenance",
+        "sample": {
+            "routing_records": len(records),
+            "planned_only_routes": len(records) - len(launched),
+            "launched_executions": len(launched),
+            "verified_executions": len(verified),
+            "usable_observations": global_slice["usable_observations"],
+            "minimum_decision_quality_observations": ROUTING_CALIBRATION_MIN_OBSERVATIONS,
+            "adequacy": global_slice["adequacy"],
+        },
+        "verification_signals": verification_signals,
+        "unavailable_signals": {
+            "first_pass_verification": "No deterministic first-pass-vs-retry field exists in current routing records.",
+            "human_intervention": "No deterministic human-intervention field exists in current routing records.",
+        },
+        "global": global_slice,
+        "breakdowns": {
+            "task_family": _breakdown(observations, "task_family"),
+            "rubric_version": _breakdown(observations, "rubric_version"),
+            "provider_model_generation": _breakdown(observations, "provider_model_generation"),
+        },
+    }
+    report["advice"] = _calibration_advice(report)
+    return report
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Record, hand off, escalate and verify provider-local model routing.")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -1028,6 +1342,7 @@ def main() -> int:
     record_claude_parser.add_argument("--summary")
     subparsers.add_parser("postcheck", help="verify the prepared native worktree route did not mutate integration")
     subparsers.add_parser("efficiency-baseline", help="report bounded local execution-efficiency evidence without changing routing")
+    subparsers.add_parser("routing-calibration", help="report bounded read-only R2/R3 routing calibration evidence without changing routing")
     args = parser.parse_args()
     root = current_worktree_root()
     try:
@@ -1058,6 +1373,8 @@ def main() -> int:
             output = record_claude_execution(root, agent_id=args.agent_id, summary=args.summary)
         elif args.command == "efficiency-baseline":
             output = efficiency_baseline(root)
+        elif args.command == "routing-calibration":
+            output = routing_calibration(root)
         else: output = postcheck(_read_route(root)[0])
     except (ContainmentError, RoutingError) as exc:
         print(f"Model routing blocked: {exc}", file=sys.stderr); return 2
