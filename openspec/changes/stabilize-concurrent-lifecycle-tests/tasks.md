@@ -3,4 +3,4 @@
 - [x] Cap default test-group concurrency while preserving `DEV_PLATFORM_TEST_JOBS`.
 - [x] Add delayed-start and loaded-run regression cases.
 - [x] Prove real hung processes still fail within the bounded timeout.
-- [ ] Run semantic verification and required checks, record evidence, archive and publish.
+- [x] Run semantic verification and required checks, record evidence, archive and publish.
