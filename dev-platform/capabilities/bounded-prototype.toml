@@ -1,0 +1,25 @@
+[capability]
+id = "bounded-prototype"
+name = "Bounded prototype"
+description = "Run one disposable experiment to resolve material product, UI or technical uncertainty, returning a decision plus bounded evidence without touching production state or creating a second task lifecycle."
+kind = "instruction-only"
+applicability = "Managed work with material product, UI or technical uncertainty that available evidence cannot settle and that a small observable experiment would resolve faster than analysis; not a task whose outcome and approach are already clear enough to author or execute, a mechanical change, or a bug fix with an established cause."
+invocation = "auto+explicit"
+visibility = "project"
+owner = "dev-platform"
+safety_boundary = "Instruction-only. The experiment runs only in a temporary throwaway workspace or an explicitly declared prototype area; it never modifies production source, dependencies, credentials, CI or task state, is refused if it needs unapproved credentials, production writes, sensitive data or wider permissions, retains only a bounded decision record, cleans temporary state by default, and never promotes prototype code into production or opens a branch, issue, progress file, status or second backlog."
+dependencies = []
+materialization = "provider-skill-markdown"
+update_policy = "replace-derived"
+removal_policy = "remove-derived-only"
+
+[provenance]
+source = "dev-platform"
+revision = "platform-managed"
+path = "dev-platform/capabilities/bounded-prototype.md"
+license = "Apache-2.0"
+content_sha256 = "ea8268a6932947e9b9fccfdc3479f095f13c08439a27cee8d4c56b7a6988c64f"
+
+[eval]
+evidence = "dev-platform/evals/bounded-prototype-pilot.json"
+live_eval = "deterministic-fixture"

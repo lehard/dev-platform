@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "capability": "bounded-prototype",
+  "content_sha256": "ea8268a6932947e9b9fccfdc3479f095f13c08439a27cee8d4c56b7a6988c64f",
+  "cases": [
+    {"id": "positive-ui-dashboard-layout", "expectation": "trigger", "prompt": "We have two candidate dashboard layouts and no evidence which one gets users to the primary action faster. Build throwaway mockups and compare before we commit.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-technical-spike-parser", "expectation": "trigger", "prompt": "Unknown whether a streaming parser can hold the 10k-row page under 50ms. Spike it in a scratch benchmark before proposing the change.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-product-hypothesis-inline-edit", "expectation": "trigger", "prompt": "We think inline editing will cut form abandonment but have no data. Run a small observable experiment to decide.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-library-fit-charting", "expectation": "trigger", "prompt": "Not sure the new charting library can render 100k points at 60fps in our stack. Try it in a disposable prototype.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-interaction-pattern-reorder", "expectation": "trigger", "prompt": "Drag-to-reorder versus up/down buttons: unclear which our users understand. Prototype both and watch a quick session.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-architecture-feasibility-backpressure", "expectation": "trigger", "prompt": "It is untested whether we can consume the queue with backpressure under peak load. Build an isolated experiment to find out.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-data-shape-denormalization", "expectation": "trigger", "prompt": "Would denormalizing the events table actually speed the monthly report? Measure it on a scratch copy before deciding.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-explicit-spike-request", "expectation": "trigger", "prompt": "Spike whether we can swap the parser implementation without touching any call sites, then throw the spike away.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-onboarding-flow-steps", "expectation": "trigger", "prompt": "Two-step versus three-step onboarding: no evidence which completes better. Make a throwaway prototype of each and compare.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-render-approach-tti", "expectation": "trigger", "prompt": "Server-rendered or client-rendered for this page is an open question; prototype both and measure time-to-interactive.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "negative-specified-health-endpoint", "expectation": "not-trigger", "prompt": "Add a GET /health endpoint that returns 200 and the build SHA, exactly as described in the task.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-mechanical-rename", "expectation": "not-trigger", "prompt": "Rename this helper to match the established naming convention across its three call sites.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-format-module", "expectation": "not-trigger", "prompt": "Format this module with the repository formatter.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-bounded-bugfix", "expectation": "not-trigger", "prompt": "Fix the off-by-one in this pagination offset; the cause and expected result are already established.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-dependency-bump", "expectation": "not-trigger", "prompt": "Apply the known one-line version bump requested in the release checklist.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-specified-field", "expectation": "not-trigger", "prompt": "Add the already specified created_at ISO-8601 field to this DTO and its serializer.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-clear-config", "expectation": "not-trigger", "prompt": "Change the already identified staging URL from http to https in this one config value.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-test-run", "expectation": "not-trigger", "prompt": "Run the focused unit tests for the parser module.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-security-review", "expectation": "not-trigger", "prompt": "Review this authentication change for security issues.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-prohibited-live-payments", "expectation": "not-trigger", "prompt": "Prototype the checkout against the live Stripe account with real charges to see what breaks.", "samples": ["not-triggered", "not-triggered", "not-triggered"]}
+  ],
+  "quality_comparisons": [
+    {
+      "id": "ui-variant-and-technical-spike-are-bounded-experiments",
+      "objective_verifier": "The deterministic fixture includes a representative UI-variant comparison and a representative falsifiable technical spike as positive prompts, and the capability instruction requires each to declare a question, options/hypotheses and bounds, run in an isolated area, and end with a recorded decision plus evidence reference.",
+      "baseline": "not-verified",
+      "candidate": "verified"
+    },
+    {
+      "id": "clear-task-and-prohibited-authority-do-not-trigger",
+      "objective_verifier": "The fixture contains ten hard-negative prompts, including a fully specified task and an experiment that would require live production credentials and real charges, and none of them trigger the capability.",
+      "baseline": "not-verified",
+      "candidate": "verified"
+    },
+    {
+      "id": "no-automatic-promotion-and-default-cleanup",
+      "objective_verifier": "The capability instruction requires temporary state to be cleaned by default, retention to be explicit and policy-compatible, and prototype code never to be promoted into production source automatically; follow-on implementation enters the ordinary managed OpenSpec lifecycle.",
+      "baseline": "not-verified",
+      "candidate": "verified"
+    }
+  ]
+}
