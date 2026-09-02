@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/architecture-health/spec.md"
+  ],
+  "change": "add-architecture-health-review",
+  "imported_at": "2026-09-02T04:42:10+00:00",
+  "package_revision": "91d9d402c7611620fa9836a1b47f9f8840a60d8e281a8dd3ea82b9459d156d24",
+  "prepared_against": "e6b207fd63e77a99d868892f7f8e0c0a2210c8ec",
+  "routing_receipt": {
+    "assurance": "high",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "architecture"
+  },
+  "source_issue": "lehard/development-backlog#83",
+  "source_issue_evidence": {
+    "body_sha256": "b02cbf14e241ae48b6b07eb3f94a606fbd6f818d74de4e87665dcaf0542f30d1",
+    "updated_at": "2026-09-01T07:28:42Z"
+  },
+  "supersedes": "f70299c1a6039b554c5474d02a58554a783343221a3459c1a2f414dba825f962",
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
