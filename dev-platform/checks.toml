@@ -150,6 +150,7 @@ mode = "parallel"
 
 [test_groups.fast-d]
 targets = [
+  "test_managed_intake_project_harness_isolation",
   "test_rollout_preflight",
   "test_rollout_recopy",
   "test_rollout_supersession",

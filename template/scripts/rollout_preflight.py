@@ -15,10 +15,21 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from finish_task import serialized_integration, sync_after_remote_pr_merge
-from project_publish import PrRef, request_protected_merge
-from publication_state import github_repo_name, required_check_state_for_ref
+from _platform_common import harness_mode
+from integration_state import serialized_integration
+from publication_state import PrRef, github_repo_name, required_check_state_for_ref
 from rollout_identity import RolloutPR, authoritative_pending_rollout, candidate_rollout_prs, list_open_prs
+
+# Populated lazily, and only for a proven platform-harness-only reconciliation,
+# by `_load_platform_reconciliation_helpers`. They are never imported at module
+# load: `rollout_preflight` sits in the managed-start import graph, and a
+# `harness_mode=project` repository is allowed to keep `project_publish.py` /
+# `finish_task.py` project-owned without the platform publication API. The
+# read-only `observe_pending_rollout` path (used by `agent_doctor.py` for every
+# harness mode) needs none of this. Kept as module attributes so tests can
+# `patch.object(rollout_preflight, "request_protected_merge", ...)`.
+request_protected_merge = None
+sync_after_remote_pr_merge = None
 
 # Structured pre-task rollout states (see openspec/changes/reconcile-pending-rollout-before-task).
 NONE = "none"
@@ -38,6 +49,50 @@ class RolloutPreflightResult:
     pr: RolloutPR | None = None
 
 
+class PlatformPublicationUnavailable(RuntimeError):
+    """A platform-owned pending-rollout dependency could not be loaded.
+
+    Distinct from an ordinary project-owned harness that simply does not use
+    platform pending-rollout reconciliation: this is raised only in
+    `harness_mode=platform`, where `project_publish.py` / `finish_task.py` are
+    platform-managed and their absence is a platform regression to repair
+    through a reviewed rollout -- never a reason to fabricate a merge.
+    """
+
+
+def _load_platform_reconciliation_helpers() -> None:
+    """Import the platform-owned merge/sync helpers for a proven platform harness.
+
+    Called only after `reconcile_pending_rollout` has confirmed
+    `harness_mode=platform` and an unambiguously green rollout, i.e. inside a
+    proven platform-harness-only operation. Fails closed (before any mutation)
+    with an actionable diagnostic if a platform-managed dependency is missing.
+    """
+    global request_protected_merge, sync_after_remote_pr_merge
+    missing: list[str] = []
+    if request_protected_merge is None:
+        try:
+            from project_publish import request_protected_merge as _merge
+        except ImportError as exc:
+            missing.append(f"scripts/project_publish.py:request_protected_merge ({exc})")
+        else:
+            request_protected_merge = _merge
+    if sync_after_remote_pr_merge is None:
+        try:
+            from finish_task import sync_after_remote_pr_merge as _sync
+        except ImportError as exc:
+            missing.append(f"scripts/finish_task.py:sync_after_remote_pr_merge ({exc})")
+        else:
+            sync_after_remote_pr_merge = _sync
+    if missing:
+        raise PlatformPublicationUnavailable(
+            "platform-owned pending-rollout reconciliation cannot run: "
+            + "; ".join(missing)
+            + ". These are platform-managed modules; restore the platform publication contract "
+            "through a reviewed platform rollout rather than editing project-owned code."
+        )
+
+
 def rollout_bot_login(config: dict[str, Any]) -> str:
     tools = config.get("tools") if isinstance(config.get("tools"), dict) else {}
     rollout = tools.get("rollout") if isinstance(tools.get("rollout"), dict) else {}
@@ -49,9 +104,11 @@ def observe_pending_rollout(root: Path, config: dict[str, Any], env: dict[str, s
 
     Runs for every harness mode -- `agent_doctor.py` uses it to surface
     pending-rollout state even for `harness_mode=project`, which keeps its own
-    task/worktree entrypoint and never calls `reconcile_pending_rollout`
-    (the mutating merge-and-sync step, gated platform-owned-only by its sole
-    caller, `start_task.py`).
+    task/worktree entrypoint. Only `reconcile_pending_rollout` (the mutating
+    merge-and-sync step) is platform-harness-only: it self-gates on
+    `harness_mode` and imports the platform publication helpers lazily, so this
+    read-only path -- and the whole managed-start import graph -- stays
+    independent of a project-owned `project_publish.py` / `finish_task.py`.
     """
     main_branch = str(config.get("main_branch", "main"))
     # Unlike an observed candidate PR with ambiguous ownership, being unable to
@@ -137,11 +194,27 @@ def reconcile_pending_rollout(root: Path, config: dict[str, Any], env: dict[str,
     Never force-pushes, bypasses required checks/review, or merges a rollout
     whose head changed since observation -- `request_protected_merge` re-reads
     the PR's exact current head immediately before requesting the merge.
+
+    Platform-harness-only: a `harness_mode=project` repository owns its own
+    rollout adoption, so this returns `NONE` without importing the platform
+    publication helpers. When the harness is `platform` but a platform-managed
+    publication dependency cannot be loaded, it fails closed with an actionable
+    diagnostic and no worktree/board/status side effect.
     """
+    if harness_mode(config) != "platform":
+        return RolloutPreflightResult(
+            NONE,
+            detail="harness_mode=project: the project-owned harness owns pending-rollout adoption; skipped platform reconciliation",
+        )
     observed = observe_pending_rollout(root, config, env)
     if observed.state != SAFE_TO_ADOPT:
         return observed
     assert observed.pr is not None and env is not None
+
+    try:
+        _load_platform_reconciliation_helpers()
+    except PlatformPublicationUnavailable as exc:
+        return RolloutPreflightResult(BLOCKED, detail=str(exc), pr=observed.pr)
 
     merge_result, merge_detail = _merge_rollout_pr(root, env, observed.pr)
     if merge_result != "merged":

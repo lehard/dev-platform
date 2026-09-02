@@ -211,5 +211,68 @@ class ReconcilePendingRolloutTests(unittest.TestCase):
         merge.assert_not_called()
 
 
+PROJECT_CONFIG = {"main_branch": "main", "harness_mode": "project", "tools": {"rollout": {"bot_login": BOT}}}
+
+
+class HarnessModeGateTests(unittest.TestCase):
+    def test_project_harness_skips_platform_reconciliation_without_observing(self) -> None:
+        with (
+            patch.object(rollout_preflight, "observe_pending_rollout") as observe,
+            patch.object(rollout_preflight, "request_protected_merge") as merge,
+        ):
+            result = rollout_preflight.reconcile_pending_rollout(ROOT_PATH, PROJECT_CONFIG, ENV)
+        self.assertEqual(result.state, rollout_preflight.NONE)
+        self.assertIn("harness_mode=project", result.detail)
+        observe.assert_not_called()
+        merge.assert_not_called()
+
+    def test_platform_harness_missing_publication_helper_fails_closed_before_merge(self) -> None:
+        candidate = rollout_preflight.RolloutPR(1, "https://example.invalid/pr/1", "dev-platform/rollout-v1.0.0", "v1.0.0", "abc123")
+        observed = rollout_preflight.RolloutPreflightResult(rollout_preflight.SAFE_TO_ADOPT, pr=candidate)
+        unavailable = rollout_preflight.PlatformPublicationUnavailable(
+            "platform-owned pending-rollout reconciliation cannot run: scripts/project_publish.py:request_protected_merge (No module named ...)"
+        )
+        with (
+            patch.object(rollout_preflight, "observe_pending_rollout", return_value=observed),
+            patch.object(rollout_preflight, "_load_platform_reconciliation_helpers", side_effect=unavailable),
+            patch.object(rollout_preflight, "_merge_rollout_pr") as merge,
+            patch.object(rollout_preflight, "_synchronize_local_main") as sync,
+        ):
+            result = rollout_preflight.reconcile_pending_rollout(ROOT_PATH, CONFIG, ENV)
+        self.assertEqual(result.state, rollout_preflight.BLOCKED)
+        self.assertIn("project_publish.py", result.detail)
+        self.assertEqual(result.pr, candidate)
+        merge.assert_not_called()
+        sync.assert_not_called()
+
+    def test_loader_reports_every_missing_platform_dependency(self) -> None:
+        real_import = __import__
+
+        def deny(name, *args, **kwargs):
+            if name in {"project_publish", "finish_task"}:
+                raise ImportError(f"No module named {name!r}")
+            return real_import(name, *args, **kwargs)
+
+        with (
+            patch.object(rollout_preflight, "request_protected_merge", None),
+            patch.object(rollout_preflight, "sync_after_remote_pr_merge", None),
+            patch("builtins.__import__", side_effect=deny),
+        ):
+            with self.assertRaises(rollout_preflight.PlatformPublicationUnavailable) as caught:
+                rollout_preflight._load_platform_reconciliation_helpers()
+        message = str(caught.exception)
+        self.assertIn("scripts/project_publish.py:request_protected_merge", message)
+        self.assertIn("scripts/finish_task.py:sync_after_remote_pr_merge", message)
+
+    def test_loader_populates_real_helpers_when_platform_modules_are_present(self) -> None:
+        with (
+            patch.object(rollout_preflight, "request_protected_merge", None),
+            patch.object(rollout_preflight, "sync_after_remote_pr_merge", None),
+        ):
+            rollout_preflight._load_platform_reconciliation_helpers()
+            self.assertTrue(callable(rollout_preflight.request_protected_merge))
+            self.assertTrue(callable(rollout_preflight.sync_after_remote_pr_merge))
+
+
 if __name__ == "__main__":
     unittest.main()

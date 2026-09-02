@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/managed-task-intake/spec.md"
+  ],
+  "change": "isolate-managed-intake-project-harness",
+  "imported_at": "2026-09-02T17:01:14+00:00",
+  "package_revision": "67906dc26a5899df0df682d73bd9fa2a80843b8806261101d40b454b0ab492a0",
+  "prepared_against": "b325bdeafcdb18b86803c50ef8ce2ee6784584e3",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue": "lehard/development-backlog#101",
+  "source_issue_evidence": {
+    "body_sha256": "4b056d246af602981a095da9835e30b35b56f35cec728739c1ee8ef4fd8cfad1",
+    "updated_at": "2026-09-02T15:03:06Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
