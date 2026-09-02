@@ -178,6 +178,8 @@ def execute(root: Path, start_dir: str, groups: dict[str, dict[str, Any]], jobs:
 
     if parallel:
         workers = max(1, min(jobs, len(parallel)))
+        for group_id in sorted(parallel):
+            print(f"DEV_PLATFORM_TEST_GROUP_START: {group_id} (parallel)", flush=True)
         with ThreadPoolExecutor(max_workers=workers) as pool:
             futures = {gid: pool.submit(run_group, root, start_dir, gid, rule, verbose) for gid, rule in parallel.items()}
             for group_id in sorted(futures):
@@ -186,6 +188,7 @@ def execute(root: Path, start_dir: str, groups: dict[str, dict[str, Any]], jobs:
                 records.append(record)
 
     for group_id in sorted(serial):
+        print(f"DEV_PLATFORM_TEST_GROUP_START: {group_id} (serial)", flush=True)
         record = run_group(root, start_dir, group_id, serial[group_id], verbose)
         report_group(record)
         records.append(record)

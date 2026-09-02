@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import io
 import json
 import os
 import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
@@ -449,6 +451,185 @@ class GitLifecycleTests(unittest.TestCase):
         (self.repo / "local.txt").write_text("local\n", encoding="utf-8"); git("add", "local.txt", cwd=self.repo); git("commit", "-m", "local", cwd=self.repo)
         other = self.base / "other"; run("git", "clone", str(self.remote), str(other), cwd=self.base); configure(other); (other / "remote.txt").write_text("remote\n", encoding="utf-8"); git("add", "remote.txt", cwd=other); git("commit", "-m", "remote", cwd=other); git("push", cwd=other)
         result = run("python3", "scripts/project_publish.py", "--mode", "direct", cwd=self.repo, check=False, env=validated_direct_env()); self.assertNotEqual(result.returncode, 0); self.assertIn("diverged", result.stderr + result.stdout)
+
+    # -- Consolidated completion preflight before expensive validation --
+
+    def _multi_agent_overlap_worktrees(self, sentinel_exit: int = 1) -> Path:
+        """Two worktrees whose factual scope hard-overlaps after admission.
+
+        A ``dev-platform/checks.toml`` full command echoes ``COSTLY_SENTINEL``
+        and exits ``sentinel_exit`` so any test can prove whether expensive
+        validation was ever reached.
+        """
+        for name in ("agent_board.py", "select_checks.py"):
+            shutil.copy2(SCRIPT_SOURCE / name, self.repo / "scripts" / name)
+        (self.repo / ".dev-platform.toml").write_text(
+            'main_branch = "main"\n'
+            'workflow_profile = "multi-agent"\n'
+            'harness_mode = "platform"\n'
+            'protected_main = false\n'
+            'publish_mode = "direct"\n'
+            '[paths]\n'
+            'agent_board = ".claude/agents-board.json"\n'
+            'checks = "dev-platform/checks.toml"\n',
+            encoding="utf-8",
+        )
+        (self.repo / "dev-platform").mkdir(exist_ok=True)
+        (self.repo / "dev-platform" / "checks.toml").write_text(
+            "[settings]\n"
+            f'full_commands = ["echo COSTLY_SENTINEL; exit {sentinel_exit}"]\n',
+            encoding="utf-8",
+        )
+        git("add", ".", cwd=self.repo)
+        git("commit", "-m", "multi-agent overlap + costly-check fixture", cwd=self.repo)
+        git("push", cwd=self.repo)
+
+        first = self.repo / ".claude" / "worktrees" / "first"
+        first.parent.mkdir(parents=True, exist_ok=True)
+        git("worktree", "add", "-b", "agent/first", str(first), "main", cwd=self.repo)
+        configure(first)
+        (first / "shared.py").write_text("first change\n", encoding="utf-8")
+        git("add", "shared.py", cwd=first)
+        git("commit", "-m", "first touches shared", cwd=first)
+
+        second = self.repo / ".claude" / "worktrees" / "second"
+        git("worktree", "add", "-b", "agent/second", str(second), "main", cwd=self.repo)
+        configure(second)
+        (second / "shared.py").write_text("second change\n", encoding="utf-8")
+        git("add", "shared.py", cwd=second)
+        git("commit", "-m", "second scope evolved onto shared.py after admission", cwd=second)
+
+        board = self.repo / ".claude" / "agents-board.json"
+        board.parent.mkdir(parents=True, exist_ok=True)
+        heartbeat = datetime.now(timezone.utc).isoformat()
+        board.write_text(
+            json.dumps(
+                {
+                    "version": 1,
+                    "items": [
+                        {
+                            "id": "first-id", "task": "first task", "scope": "shared.py",
+                            "branch": "agent/first", "worktree": str(first),
+                            "heartbeat": heartbeat, "claims": ["shared.py"],
+                        },
+                        {
+                            "id": "second-id", "task": "second task", "scope": "",
+                            "branch": "agent/second", "worktree": str(second),
+                            "heartbeat": heartbeat, "claims": [],
+                        },
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+        return second
+
+    def test_preflight_hard_scope_overlap_blocks_before_expensive_validation(self) -> None:
+        """An already-observable hard overlap stops finish before run_checks starts."""
+        second = self._multi_agent_overlap_worktrees(sentinel_exit=1)
+        result = run("python3", "scripts/finish_task.py", cwd=second, check=False, env=explicit_bypass_env())
+        output = result.stdout + result.stderr
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Unacknowledged hard scope overlap", output)
+        self.assertIn("Completion preflight found", output)
+        # Expensive validation never began.
+        self.assertNotIn("DEV_PLATFORM_CHECK_COMMAND", output)
+        self.assertNotIn("COSTLY_SENTINEL", output)
+        self.assertNotIn("DEV_PLATFORM_FINISH_STAGE: preflight clear", output)
+
+    def test_preflight_reports_two_independent_blockers_in_one_invocation(self) -> None:
+        """A dirty worktree and a hard scope overlap are reported together, once."""
+        second = self._multi_agent_overlap_worktrees(sentinel_exit=1)
+        (second / "uncommitted.txt").write_text("scratch\n", encoding="utf-8")
+        result = run("python3", "scripts/finish_task.py", cwd=second, check=False, env=explicit_bypass_env())
+        output = result.stdout + result.stderr
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Completion preflight found 2 blocker(s)", output)
+        self.assertIn("[worktree-clean]", output)
+        self.assertIn("[scope-overlap]", output)
+        self.assertIn("Current worktree is dirty", output)
+        self.assertNotIn("DEV_PLATFORM_CHECK_COMMAND", output)
+
+    def test_clean_preflight_streams_stage_and_validation_progress_then_publishes(self) -> None:
+        """A clean preflight runs real checks and surfaces ordered stage progress."""
+        for name in ("select_checks.py",):
+            shutil.copy2(SCRIPT_SOURCE / name, self.repo / "scripts" / name)
+        (self.repo / ".dev-platform.toml").write_text(
+            'main_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\n'
+            'publish_mode = "direct"\n[paths]\nchecks = "dev-platform/checks.toml"\n',
+            encoding="utf-8",
+        )
+        (self.repo / "dev-platform").mkdir(exist_ok=True)
+        (self.repo / "dev-platform" / "checks.toml").write_text(
+            "[settings]\n"
+            'full_commands = ["echo VALIDATION_SENTINEL_TOKEN"]\n',
+            encoding="utf-8",
+        )
+        git("add", ".", cwd=self.repo)
+        git("commit", "-m", "standard direct + passing costly check", cwd=self.repo)
+        git("push", cwd=self.repo)
+
+        git("switch", "-c", "agent/preflight-green", cwd=self.repo)
+        (self.repo / "feature.txt").write_text("feature\n", encoding="utf-8")
+        git("add", "feature.txt", cwd=self.repo)
+        git("commit", "-m", "feature", cwd=self.repo)
+
+        result = run("python3", "scripts/finish_task.py", cwd=self.repo, check=False)
+        output = result.stdout + result.stderr
+        self.assertEqual(result.returncode, 0, output)
+        self.assertIn("Integrated agent/preflight-green -> main", result.stdout)
+        for marker in (
+            "DEV_PLATFORM_FINISH_STAGE: preflight: observing completion blockers",
+            "DEV_PLATFORM_FINISH_STAGE: preflight clear: starting required validation",
+            "DEV_PLATFORM_FINISH_STAGE: validation clear: starting publication/integration",
+            "DEV_PLATFORM_FINISH_STAGE: complete",
+        ):
+            self.assertIn(marker, output)
+        pre = output.index("DEV_PLATFORM_FINISH_STAGE: preflight clear: starting required validation")
+        token = output.index("VALIDATION_SENTINEL_TOKEN")
+        post = output.index("DEV_PLATFORM_FINISH_STAGE: validation clear: starting publication/integration")
+        self.assertLess(pre, token)
+        self.assertLess(token, post)
+
+    def test_run_checks_streams_child_output_incrementally(self) -> None:
+        """run_checks forwards child lines as they arrive, not buffered to exit."""
+        sandbox = self.base / "streambox"
+        (sandbox / "scripts").mkdir(parents=True)
+        (sandbox / "scripts" / "select_checks.py").write_text(
+            "import sys, time\n"
+            "print('EARLY_LINE', flush=True)\n"
+            "time.sleep(2)\n"
+            "print('LATE_LINE', flush=True)\n"
+            "sys.exit(0)\n",
+            encoding="utf-8",
+        )
+
+        class _TimedStream(io.StringIO):
+            def __init__(self) -> None:
+                super().__init__()
+                self.events: list[tuple[float, str]] = []
+
+            def write(self, s: str) -> int:  # type: ignore[override]
+                if s.strip():
+                    self.events.append((time.monotonic(), s))
+                return super().write(s)
+
+        recorder = _TimedStream()
+        original = sys.stdout
+        sys.stdout = recorder
+        try:
+            started = time.monotonic()
+            finish_task.run_checks(sandbox, "origin/main", False)
+            ended = time.monotonic()
+        finally:
+            sys.stdout = original
+
+        self.assertTrue(recorder.events, "run_checks produced no streamed output")
+        first_at, first_text = recorder.events[0]
+        self.assertIn("EARLY_LINE", first_text)
+        self.assertLess(first_at - started, 1.0, "first line was not forwarded promptly")
+        self.assertGreater(ended - first_at, 1.5, "output appears to have been buffered until child exit")
+        self.assertIn("LATE_LINE", recorder.getvalue())
 
 
 if __name__ == "__main__": unittest.main()

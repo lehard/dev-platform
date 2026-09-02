@@ -127,20 +127,39 @@ def finish_board(main: Path, worktree: Path, config: dict) -> None:
         subprocess.run(["python3", str(main / "scripts" / "agent_board.py"), "finish", "--id", board_id, "--quiet"], cwd=main, check=False)
 
 
+def emit_finish_stage(label: str) -> None:
+    """Emit one bounded lifecycle-stage marker for the synchronous finish.
+
+    This is a single flushed line per transition -- no loop, no polling, no
+    background process. It exists so a multi-minute synchronous finish reports
+    where it is without callers resorting to ad-hoc pollers.
+    """
+    print(f"DEV_PLATFORM_FINISH_STAGE: {label}", flush=True)
+
+
 def run_checks(root: Path, base: str, no_checks: bool) -> None:
     if no_checks:
         return
-    result = subprocess.run(
+    # Stream the child's combined output line-by-line so the per-command
+    # (DEV_PLATFORM_CHECK_COMMAND / _RESULT) and per-test-group
+    # (DEV_PLATFORM_TEST_GROUP*) progress lines reach the caller live during a
+    # multi-minute run, while still accumulating the full text for the bounded
+    # failure evidence descriptor.
+    proc = subprocess.Popen(
         ["python3", str(root / "scripts" / "select_checks.py"), "--base", base, "--execute"],
-        cwd=root, text=True, capture_output=True,
+        cwd=root, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
     )
-    if result.stdout:
-        print(result.stdout, end="")
-    if result.stderr:
-        print(result.stderr, end="", file=sys.stderr)
-    if result.returncode != 0:
-        record_lifecycle_friction(root, "lifecycle-validation-failure", "required platform validation failed", validation_failure_evidence(result.stdout, result.returncode))
-        raise SystemExit(result.returncode)
+    chunks: list[str] = []
+    assert proc.stdout is not None
+    with proc.stdout as stream:
+        for line in stream:
+            chunks.append(line)
+            print(line, end="", flush=True)
+    returncode = proc.wait()
+    output = "".join(chunks)
+    if returncode != 0:
+        record_lifecycle_friction(root, "lifecycle-validation-failure", "required platform validation failed", validation_failure_evidence(output, returncode))
+        raise SystemExit(returncode)
 
 
 def validation_failure_evidence(output: str, returncode: int) -> str:
@@ -158,12 +177,27 @@ def validation_failure_evidence(output: str, returncode: int) -> str:
     return json.dumps({"failure_class": "selector-exit", "exit_code": returncode}, sort_keys=True)
 
 
-def run_openspec_hygiene(root: Path) -> None:
+def run_openspec_hygiene(root: Path) -> str | None:
+    """Observe OpenSpec/provenance hygiene read-only.
+
+    Returns ``None`` when hygiene passes and an actionable blocker detail when
+    it does not. The narrow ``record_lifecycle_friction`` side effect on failure
+    is preserved so operator review still has the signal.
+    """
     script = root / "scripts" / "openspec_lifecycle.py"
-    result = subprocess.run(["python3", str(script), "check"], cwd=root)
+    result = subprocess.run(["python3", str(script), "check"], cwd=root, text=True, capture_output=True)
+    if result.stdout:
+        print(result.stdout, end="")
+    if result.stderr:
+        print(result.stderr, end="", file=sys.stderr)
     if result.returncode != 0:
         record_lifecycle_friction(root, "lifecycle-openspec-hygiene-failure", "OpenSpec lifecycle hygiene failed", "openspec_lifecycle check returned a non-zero exit status")
-        raise SystemExit(result.returncode)
+        return (
+            result.stderr.strip()
+            or result.stdout.strip()
+            or "openspec_lifecycle check returned a non-zero exit status"
+        )
+    return None
 
 
 def record_lifecycle_friction(root: Path, category: str, observation: str, evidence: str) -> None:
@@ -184,8 +218,13 @@ def record_lifecycle_friction(root: Path, category: str, observation: str, evide
     )
 
 
-def run_friction_retry_and_checkpoint(root: Path, branch: str) -> None:
-    """Telemetry is best effort; the explicit semantic checkpoint is not."""
+def run_friction_route_pending_retry(root: Path) -> None:
+    """Best-effort friction telemetry retry; never blocks publication.
+
+    This is intentionally separate from the friction checkpoint: the checkpoint
+    is an observable blocker aggregated with the other read-only completion
+    gates, while this retry only prints non-fatal WARNING lines.
+    """
     helper = root / "scripts" / "agent_friction.py"
     # Compatibility for minimal pre-friction renders used by older project
     # harnesses. Current platform renders always include this helper.
@@ -204,11 +243,19 @@ def run_friction_retry_and_checkpoint(root: Path, branch: str) -> None:
                 print(f"WARNING: {payload['failures']} friction event(s) remain pending GitHub routing; safe publication may continue.")
     else:
         print("WARNING: friction routing retry could not run; safe publication may continue.")
+
+
+def observe_friction_checkpoint_blocker(root: Path, branch: str) -> str | None:
+    """Return an actionable detail when the completion friction checkpoint is unresolved."""
+    helper = root / "scripts" / "agent_friction.py"
+    if not helper.is_file():
+        return None
     checkpoint = subprocess.run(
         ["python3", str(helper), "assert-checkpoint", "--branch", branch], cwd=root, text=True, capture_output=True, check=False,
     )
     if checkpoint.returncode:
-        raise SystemExit(checkpoint.stderr.strip() or checkpoint.stdout.strip() or "Completion friction checkpoint is required.")
+        return checkpoint.stderr.strip() or checkpoint.stdout.strip() or "Completion friction checkpoint is required."
+    return None
 
 
 def validate_publication_config(root: Path, config: dict, prof: str, mode: str) -> None:
@@ -486,6 +533,79 @@ def reconcile_confirmed_remote_pr_merge(
             cleanup_completed_task(work, integration, branch, squash_merged=True)
 
 
+def observe_completion_blockers(
+    work: Path,
+    integration: Path,
+    branch: str,
+    main_branch: str,
+    remote_main: str,
+    mode: str,
+    exact_open_pr: dict | None,
+) -> list[tuple[str, str]]:
+    """Evaluate every safely observable read-only completion gate.
+
+    Returns ``(stage_label, actionable_detail)`` pairs for each independently
+    observable blocker. This performs ONLY read-only observations -- it never
+    mutates task, board, project or git state -- so all currently visible
+    blockers can be reported together before expensive validation starts.
+    """
+    blockers: list[tuple[str, str]] = []
+
+    hygiene_detail = run_openspec_hygiene(work)
+    if hygiene_detail is not None:
+        blockers.append(("openspec-hygiene", hygiene_detail))
+
+    checkpoint_detail = observe_friction_checkpoint_blocker(work, branch)
+    if checkpoint_detail is not None:
+        blockers.append(("friction-checkpoint", checkpoint_detail))
+
+    if not clean(work):
+        blockers.append(("worktree-clean", "Current worktree is dirty. Commit or remove changes first."))
+
+    if task_reconciliation is None:
+        stale_state = relation(work, "HEAD", remote_main)
+        freshness_state = stale_state
+        reconcile_required = stale_state in {"behind", "diverged"}
+    else:
+        freshness_observation = task_reconciliation.observe(work)
+        freshness_state = freshness_observation.state
+        reconcile_required = freshness_observation.reconcile_required
+    if reconcile_required:
+        blockers.append((
+            "task-freshness",
+            f"{branch} is {freshness_state} relative to freshly observed {remote_main}. "
+            "Reconcile before expensive validation: python3 scripts/finish_task.py --reconcile",
+        ))
+
+    if (
+        mode == "pr"
+        and branch != main_branch
+        and exact_open_pr is None
+        and run_git(["merge-base", "--is-ancestor", remote_main, branch], cwd=work, check=False).returncode != 0
+    ):
+        blockers.append((
+            "branch-base",
+            f"{branch} is stale relative to {remote_main}. Rebase/update explicitly, rerun checks, then finish.",
+        ))
+
+    try:
+        enforce_scope_gate(integration, work, branch)
+    except HardScopeOverlap as exc:
+        blockers.append(("scope-overlap", str(exc)))
+
+    return blockers
+
+
+def report_completion_blockers(blockers: list[tuple[str, str]]) -> None:
+    print(
+        f"Completion preflight found {len(blockers)} blocker(s) that must be resolved "
+        "before expensive validation:",
+        flush=True,
+    )
+    for stage_label, detail in blockers:
+        print(f"  - [{stage_label}] {detail}", flush=True)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate, integrate when needed, and publish a completed task without a human git hand-off.")
     parser.add_argument("--no-checks", action="store_true")
@@ -545,38 +665,23 @@ def main() -> int:
             "canonical OpenSpec is unaffected -- reconcile explicitly if the new scope should be adopted "
             "(managed_task.py supersede --bundle <dir> " + drift["source_issue"] + ")"
         )
-    run_openspec_hygiene(work)
-    run_friction_retry_and_checkpoint(work, branch)
-    if not clean(work):
-        raise SystemExit("Current worktree is dirty. Commit or remove changes first.")
+    emit_finish_stage("preflight: observing completion blockers")
+    run_friction_route_pending_retry(work)
     fetch_main(integration, "origin", main_branch)
     remote_main = f"origin/{main_branch}"
 
     # Recovery is intentionally checked before local validation against the new
     # remote base. A squash-merged task branch is no longer an ancestor of main,
     # but if GitHub already merged this exact head there is nothing to rebase or
-    # republish; only local reconciliation remains.
+    # republish; only local reconciliation remains. This early-return stays
+    # ahead of freshness evaluation and the consolidated preflight.
     if mode == "pr" and branch != main_branch and task_pr_is_already_merged(work, branch, main_branch):
         reconcile_confirmed_remote_pr_merge(
             work, integration, config, branch, main_branch, prof, cleanup=args.cleanup, timeout_seconds=args.merge_timeout
         )
         print("Task PR was already merged through GitHub; local main and task state were reconciled without republishing.")
+        emit_finish_stage("complete")
         return 0
-
-    if task_reconciliation is None:
-        stale_state = relation(work, "HEAD", remote_main)
-        freshness = {"task_freshness": stale_state, "reconcile_required": stale_state in {"behind", "diverged"}}
-    else:
-        freshness_observation = task_reconciliation.observe(work)
-        freshness = {
-            "task_freshness": freshness_observation.state,
-            "reconcile_required": freshness_observation.reconcile_required,
-        }
-    if freshness["reconcile_required"]:
-        raise SystemExit(
-            f"{branch} is {freshness['task_freshness']} relative to freshly observed {remote_main}. "
-            "Reconcile before expensive validation: python3 scripts/finish_task.py --reconcile"
-        )
 
     # An exact PR remains the publication object after reconciliation, but its
     # old validation cannot apply to the newly reconciled head.
@@ -585,6 +690,20 @@ def main() -> int:
         exact_open_pr = find_existing_exact_open_pr(work, branch, main_branch)
 
     warn_current_worktree_scope_overlap(integration, work, branch)
+
+    # Consolidated read-only completion preflight. Every already-observable
+    # blocker (OpenSpec/provenance hygiene, friction checkpoint, worktree
+    # cleanliness, task freshness, branch-base staleness, hard scope overlap) is
+    # evaluated and reported together here, BEFORE expensive validation, so two
+    # independent blockers no longer cost two multi-minute finishes.
+    blockers = observe_completion_blockers(
+        work, integration, branch, main_branch, remote_main, mode, exact_open_pr
+    )
+    if blockers:
+        report_completion_blockers(blockers)
+        raise SystemExit(1)
+
+    emit_finish_stage("preflight clear: starting required validation")
     run_checks(work, remote_main, args.no_checks)
 
     # Immediately-before-publication recheck: factual scope can have grown
@@ -596,6 +715,7 @@ def main() -> int:
         block_for_scope_conflict(work, str(exc))
         raise SystemExit(str(exc)) from exc
     resume_from_scope_conflict(work)
+    emit_finish_stage("validation clear: starting publication/integration")
     if mode == "pr":
         if branch == main_branch:
             raise SystemExit("publish_mode=pr requires a feature branch. Use standard/multi-agent profile or switch publish_mode deliberately.")
@@ -621,6 +741,7 @@ def main() -> int:
             if prof == "multi-agent":
                 finish_board(integration, work, config)
             print("Task published as PR for manual review. OpenSpec lifecycle hygiene passed.")
+        emit_finish_stage("complete")
         return 0
     if mode != "direct":
         raise SystemExit(f"Unknown publish_mode: {mode}")
@@ -659,6 +780,7 @@ def main() -> int:
     if args.cleanup:
         cleanup_completed_task(work, integration, branch, squash_merged=False)
     print("Task published directly. OpenSpec lifecycle hygiene passed.")
+    emit_finish_stage("complete")
     return 0
 
 
