@@ -4,4 +4,4 @@
 - [x] Retain immediately-before-publication race rechecks.
 - [x] Emit lifecycle-stage and test-group progress.
 - [x] Add regressions proving blockers skip expensive checks and clean runs retain behavior.
-- [ ] Run semantic verification and required checks, record evidence, archive and publish.
+- [x] Run semantic verification and required checks, record evidence, archive and publish.
