@@ -13,30 +13,26 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "template" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 import finish_task  # noqa: E402
 import project_publish  # noqa: E402
+from _concurrent_lifecycle import process_deadline_seconds, wait_for_readiness  # noqa: E402
 
 
-# These are outer test-process deadlines, not lifecycle lock policy. They must
-# accommodate normal startup contention while the full suite runs groups in
-# parallel; the dedicated hung-lock case below still proves the real bounded
-# lock timeout deterministically.
-PROCESS_COMPLETION_TIMEOUT_SECONDS = 15.0
+# An outer test-process deadline, not lifecycle lock policy: it must accommodate
+# normal startup contention while the full suite runs groups in parallel, and is
+# shared with the other concurrency tests (override: DEV_PLATFORM_TEST_PROCESS_TIMEOUT).
+# The dedicated hung-lock case below still proves the real bounded lock timeout.
+PROCESS_COMPLETION_TIMEOUT_SECONDS = process_deadline_seconds()
 
 
 def git(*args: str, cwd: Path) -> str:
     return subprocess.run(["git", *args], cwd=cwd, text=True, capture_output=True, check=True).stdout.strip()
 
 
-def wait_for_ready(path: Path, process: subprocess.Popen[object], *, timeout: float = 3.0) -> None:
+def wait_for_ready(path: Path, process: subprocess.Popen[object], *, timeout: float = 10.0) -> None:
     """Wait for the helper's explicit startup signal, never scheduler timing."""
-    deadline = time.monotonic() + timeout
-    while not path.exists():
-        if process.poll() is not None:
-            raise AssertionError(f"lock-holder exited before signalling readiness (exit {process.returncode})")
-        if time.monotonic() >= deadline:
-            raise AssertionError(f"lock-holder did not signal readiness within {timeout:g} seconds")
-        time.sleep(0.01)
+    wait_for_readiness(path.exists, process, description="lock-holder", deadline_seconds=timeout)
 
 
 class StructuredRequiredCheckStateTests(unittest.TestCase):
