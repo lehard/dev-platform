@@ -44,24 +44,21 @@ class CapabilityManagerTests(unittest.TestCase):
             "systematic-bug-diagnosis.md",
             "selective-domain-interrogation.toml",
             "selective-domain-interrogation.md",
+            "frontend-design.toml",
+            "frontend-design.md",
+            "high-end-visual-design.toml",
+            "high-end-visual-design.md",
         ):
             shutil.copyfile(ROOT / "dev-platform" / "capabilities" / name, self.root / "dev-platform" / "capabilities" / name)
-        shutil.copyfile(
-            ROOT / "dev-platform" / "evals" / "capability-catalog-pilot.json",
-            self.root / "dev-platform" / "evals" / "capability-catalog-pilot.json",
-        )
-        shutil.copyfile(
-            ROOT / "dev-platform" / "evals" / "architecture-health-review-pilot.json",
-            self.root / "dev-platform" / "evals" / "architecture-health-review-pilot.json",
-        )
-        shutil.copyfile(
-            ROOT / "dev-platform" / "evals" / "systematic-bug-diagnosis-pilot.json",
-            self.root / "dev-platform" / "evals" / "systematic-bug-diagnosis-pilot.json",
-        )
-        shutil.copyfile(
-            ROOT / "dev-platform" / "evals" / "selective-domain-interrogation-pilot.json",
-            self.root / "dev-platform" / "evals" / "selective-domain-interrogation-pilot.json",
-        )
+        for name in (
+            "capability-catalog-pilot.json",
+            "architecture-health-review-pilot.json",
+            "systematic-bug-diagnosis-pilot.json",
+            "selective-domain-interrogation-pilot.json",
+            "frontend-design-pilot.json",
+            "high-end-visual-design-pilot.json",
+        ):
+            shutil.copyfile(ROOT / "dev-platform" / "evals" / name, self.root / "dev-platform" / "evals" / name)
 
     def tearDown(self) -> None:
         self.temporary.cleanup()
@@ -215,6 +212,68 @@ class CapabilityManagerTests(unittest.TestCase):
         self.assertEqual(report["results"][0]["status_distribution"], {"timeout": 3})
         self.assertIsNone(report["results"][0]["trigger_rate"])
         self.assertIsNone(report["results"][0]["passed"])
+
+    def test_frontend_design_capabilities_are_declared_and_opt_in(self) -> None:
+        registry = self.registry()
+        for identifier in ("frontend-design", "high-end-visual-design"):
+            self.assertIn(identifier, registry)
+            self.assertEqual(registry[identifier].kind, "instruction-only")
+            self.assertEqual(registry[identifier].invocation, "auto+explicit")
+        # Not selected by the default project selection file.
+        self.assertEqual(manager.load_selection(self.root), [])
+        audit = manager.audit(self.root, registry, manager.load_selection(self.root))
+        self.assertEqual(audit["status"], "ok")
+        self.assertEqual(manager.sync(self.root, registry, [])["changes"], [])
+
+    def test_specialized_profile_declares_general_dependency_and_records_provenance(self) -> None:
+        registry = self.registry()
+        specialized = registry["high-end-visual-design"]
+        self.assertIn("dev-platform/capabilities/frontend-design.toml", specialized.dependencies)
+        self.assertEqual(specialized.provenance["license"], "MIT")
+        self.assertEqual(registry["frontend-design"].provenance["license"], "Apache-2.0")
+        # Both provenance revisions are pinned, not a mutable branch name.
+        for identifier in ("frontend-design", "high-end-visual-design"):
+            self.assertRegex(registry[identifier].provenance["revision"], r"^[0-9a-f]{40}$")
+
+    def test_high_end_profile_only_materializes_when_a_project_opts_in(self) -> None:
+        registry = self.registry()
+        manager.write_selection(self.root, ["high-end-visual-design"])
+        result = manager.sync(self.root, registry, manager.load_selection(self.root))
+        self.assertEqual(result["unsupported"], [])
+        self.assertEqual(len(result["changes"]), 2)
+        self.assertEqual(manager.audit(self.root, registry, ["high-end-visual-design"])["status"], "ok")
+        for provider in ("claude", "codex"):
+            self.assertTrue(
+                (self.root / f".{provider}" / "skills" / "dev-platform-high-end-visual-design" / "SKILL.md").exists()
+            )
+        manager.write_selection(self.root, [])
+        removed = manager.sync(self.root, registry, [])
+        self.assertEqual(len(removed["changes"]), 2)
+        for provider in ("claude", "codex"):
+            self.assertFalse(
+                (self.root / f".{provider}" / "skills" / "dev-platform-high-end-visual-design" / "SKILL.md").exists()
+            )
+        self.assertEqual(manager.sync(self.root, registry, [])["changes"], [])
+
+    def test_frontend_design_pilots_have_positive_and_control_evidence(self) -> None:
+        registry = self.registry()
+        for identifier, triggered, not_triggered in (
+            ("frontend-design", 30, 30),
+            ("high-end-visual-design", 18, 24),
+        ):
+            report = manager.evaluate_existing(
+                registry[identifier],
+                self.root / "dev-platform" / "evals" / f"{identifier}-pilot.json",
+                runtime="fixture",
+                runs=3,
+            )
+            self.assertEqual(report["summary"]["failed"], 0)
+            self.assertEqual(report["summary"]["incomplete"], 0)
+            self.assertEqual(
+                report["summary"]["status_distribution"],
+                {"triggered": triggered, "not-triggered": not_triggered},
+            )
+            self.assertTrue(all(item["improved"] for item in report["quality_comparisons"]))
 
     def test_systematic_diagnosis_records_evidence_without_forcing_quick_corrections(self) -> None:
         capability = self.registry()["systematic-bug-diagnosis"]

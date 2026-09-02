@@ -118,6 +118,16 @@ The reviewed upstream is [`mattpocock/skills`](https://github.com/mattpocock/ski
 | Delegate the grilling loop to a subagent that answers on the user's behalf | Reject | Product/intent choices are surfaced to the human, not auto-answered; the capability never invents requirements. |
 | Mandatory grilling before every task | Reject | A sufficiently clear request proceeds with no interrogation ceremony. |
 
+## Frontend design capabilities
+
+Opt-in frontend design help (`frontend-design` general guidance plus the
+`high-end-visual-design` specialized profile) rides this same lifecycle — one
+descriptor each, project-owned opt-in, derived provider skills only when
+selected. Their design-specific applicability, non-applicability, precedence over
+and under a project design system, triggering discipline, and bounded-adaptation
+provenance are documented in
+[Frontend design capabilities](frontend-design-capabilities.md).
+
 ## Delivery
 
 The manager, descriptors and guidance are Copier-managed platform surfaces. Fresh renders and reviewed Copier updates are deterministic; an immutable platform release produces ordinary rollout PRs for managed projects. Project-owned harnesses retain their lifecycle implementation.
