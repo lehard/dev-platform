@@ -40,6 +40,32 @@ The included objective comparison verifies the capability lifecycle's observable
 
 Current Codex and Claude adapters intentionally return `unsupported` rather than launch nested CLIs or infer a trigger from provider-specific stream events. That preserves the existing single-writer routing and containment contracts. A future adapter may be added only when its runtime offers truthful, supported trigger evidence; timeouts and runtime failures must remain distinct from `not-triggered`.
 
+## Architecture Health Review
+
+`architecture-health-review` is an opt-in, instruction-only advisory capability. Enable it only when a repository wants a bounded architecture evidence surface:
+
+```bash
+python3 scripts/capability_manager.py enable architecture-health-review
+python3 scripts/capability_manager.py evaluate architecture-health-review --fixture dev-platform/evals/architecture-health-review-pilot.json --runtime fixture
+```
+
+The review is bound to a full revision, a declared path/question scope, and the evidence consulted. It considers interface depth, locality, coupling, leakage across boundaries, seams/adapters, and repeated abstractions, but deliberately has no universal score. Its report keeps observations, evidence, uncertainty/counter-evidence, and advisory improvements separate. A healthy control is required where a heuristic could otherwise over-report a smell.
+
+It cannot change code, create commits, Issues, Backlog items, or managed tasks, or publish a report. A human who accepts a candidate promotes it separately through the normal Discuss/Backlog/OpenSpec task-intake lifecycle. Alternative-design analysis is available only for an explicitly marked high-consequence trigger; it compares at least two materially different options as evidence for the current human/OpenSpec decision and never selects or implements one.
+
+### Upstream architecture-skill review
+
+On 2026-09-02, the independently reviewed references were Matt Pocock's [`codebase-design`](https://github.com/mattpocock/skills/blob/6654f6b60cd9d5be8b54c6fafe44346dabeb3b76/skills/engineering/codebase-design/SKILL.md) and [`improve-codebase-architecture`](https://github.com/mattpocock/skills/blob/6654f6b60cd9d5be8b54c6fafe44346dabeb3b76/skills/engineering/improve-codebase-architecture/SKILL.md), both at commit `6654f6b60cd9d5be8b54c6fafe44346dabeb3b76`. They are reference-only: Dev Platform vendors none of their files, fetches none at review time, and does not treat either as a workflow authority.
+
+| Reusable heuristic | Dev Platform treatment |
+| --- | --- |
+| Small caller-facing interface, leverage, locality, and the deletion test | Adapt as evidence lenses; require callers/tests or other concrete evidence before an advisory candidate. |
+| Scope a survey to a named concern or recent change hotspot | Adapt as a bounded-review rule; do not scan a repository by default. |
+| One adapter is a hypothesis; genuinely varying adapters make a seam stronger | Adapt as counter-evidence against speculative indirection. |
+| Shared design vocabulary | Adapt only where it clarifies an observation; Dev Platform preserves its own established terms, including boundary, rather than imposing a foreign glossary. |
+| HTML report, automatic sub-agent exploration, inline documentation/ADR updates, Issue creation, and a grilling loop | Reject. The capability must remain repository- and backlog-read-only, with no second task state machine or provider-specific orchestration. |
+| Parallel `design-it-twice` exploration | Adapt narrowly: a human must explicitly name a high-consequence trigger; the report compares at least two alternatives and remains evidence for the current decision. |
+
 ## Anthropic skill-creator review
 
 The reviewed upstream is [`anthropics/skills`](https://github.com/anthropics/skills) commit `53048666b05b4799081517d00e09e0a2dd688678`, under `skills/skill-creator/`. Its `LICENSE.txt` is Apache-2.0. Dev Platform vendors none of its files; the pin and component map are review provenance for the independent implementation below.
