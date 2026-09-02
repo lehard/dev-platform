@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from _platform_common import preflight
+from _platform_common import SharedWorkspaceError, configure_shared_repository, posix_available, preflight
 
 SEMVER_TAG_RE = re.compile(r"^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
 PLATFORM_VERSION_RE = re.compile(r'^platform_version\s*=\s*"[^"]*"\s*$', re.MULTILINE)
@@ -195,6 +195,13 @@ def main() -> int:
     if not was_git_repo:
         run(["git", "init", "-b", main_branch], root)
     (root / ".claude" / "worktrees").mkdir(parents=True, exist_ok=True)
+    # Bootstrap/adoption owns the initial stable shared-repository configuration;
+    # the ordinary lifecycle only verifies it afterwards.
+    if posix_available():
+        try:
+            configure_shared_repository(root)
+        except SharedWorkspaceError as exc:
+            print(f"[warn] could not configure {exc}")
     preflight(root)
     openspec = shutil.which("openspec")
     if openspec and (not was_git_repo or safe_fresh_adoption):

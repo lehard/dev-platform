@@ -13,7 +13,16 @@ from pathlib import Path
 from typing import Any, Iterator, Mapping
 
 try:
-    from shared_workspace import SharedWorkspaceError, atomic_write_text, cooperative_umask, ensure_shared_path, preflight, resolve_shared_group
+    from shared_workspace import (
+        SharedWorkspaceError,
+        atomic_write_text,
+        configure_shared_repository,
+        cooperative_umask,
+        ensure_shared_path,
+        posix_available,
+        preflight,
+        resolve_shared_group,
+    )
 except ModuleNotFoundError:  # Compatibility while an existing project is being upgraded by Copier.
     class SharedWorkspaceError(RuntimeError):
         pass
@@ -22,13 +31,24 @@ except ModuleNotFoundError:  # Compatibility while an existing project is being 
         if os.name == "posix":
             os.umask(0o002)
 
+    def posix_available() -> bool:
+        return False
+
     def ensure_shared_path(path: Path, *, group: object | None = None) -> None:
         return None
 
     def resolve_shared_group(root: Path) -> object | None:
         return None
 
-    def preflight(root: Path, *, fix: bool = True) -> None:
+    def configure_shared_repository(integration: Path) -> None:
+        subprocess.run(
+            ["git", "config", "core.sharedRepository", "group"],
+            cwd=integration,
+            capture_output=True,
+            check=False,
+        )
+
+    def preflight(root: Path, *, fix: bool = True, serializer: object | None = None) -> None:
         cooperative_umask()
 
     def atomic_write_text(path: Path, text: str) -> None:
