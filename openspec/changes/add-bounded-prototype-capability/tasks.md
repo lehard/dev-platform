@@ -1,0 +1,10 @@
+- [x] Review and pin (or explicitly record none) any upstream prototype/spike pattern actually adapted.
+- [x] Add the provider-neutral `bounded-prototype` descriptor and hash-pinned instruction with explicit triggers, negative controls and safety boundary.
+- [x] Define isolation (temporary workspace or declared prototype area) without a second branch/task lifecycle.
+- [x] Define the bounded decision record and cleanup/retention policy.
+- [x] Enforce no automatic promotion of prototype code into production source.
+- [x] Add the `engineering-capabilities` spec delta scoped to the `bounded-prototype` capability.
+- [x] Add the deterministic capability eval fixture: UI comparison and falsifiable technical spike positives, clear-task and prohibited-authority negatives.
+- [x] Run `capability_manager.py` structural validation/audit and the capability eval decision.
+- [x] Update `docs/engineering/engineering-capabilities.md` with the capability and its bounded-adaptation provenance.
+- [ ] Verify OpenSpec semantics, run platform checks, record `verification.md`, archive and publish.

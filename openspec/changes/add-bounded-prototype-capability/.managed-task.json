@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/engineering-capabilities/spec.md"
+  ],
+  "change": "add-bounded-prototype-capability",
+  "imported_at": "2026-09-02T10:42:21+00:00",
+  "package_revision": "9d7f3af651402469cbb19e1de0438ce7a7bb4c6aed59ce7d8159623f88a95feb",
+  "prepared_against": "645a81f29a375b50379cd889f1741cb967fdb47a",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "planning"
+  },
+  "source_issue": "lehard/development-backlog#89",
+  "source_issue_evidence": {
+    "body_sha256": "0524a866f5ca86e7f8dde0205dff9ac002771e9775092a356927cd32f3f94f81",
+    "updated_at": "2026-09-02T08:53:45Z"
+  },
+  "supersedes": "bf080ef77e0da44acd971356aca46e8095cfd2f0787f010a739d6883adb0b334",
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

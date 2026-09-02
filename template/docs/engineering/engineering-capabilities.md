@@ -118,6 +118,37 @@ The reviewed upstream is [`mattpocock/skills`](https://github.com/mattpocock/ski
 | Delegate the grilling loop to a subagent that answers on the user's behalf | Reject | Product/intent choices are surfaced to the human, not auto-answered; the capability never invents requirements. |
 | Mandatory grilling before every task | Reject | A sufficiently clear request proceeds with no interrogation ceremony. |
 
+## Bounded prototype
+
+`bounded-prototype` is an opt-in, instruction-only capability for running one
+disposable experiment when material product, UI or technical uncertainty cannot
+be settled from evidence and an observable experiment would resolve it faster
+than more analysis. Enable it only where a repository wants a sanctioned
+spike/prototype mode:
+
+```bash
+python3 scripts/capability_manager.py enable bounded-prototype
+python3 scripts/capability_manager.py evaluate bounded-prototype --fixture dev-platform/evals/bounded-prototype-pilot.json --runtime fixture
+```
+
+The experiment states its question, options/hypotheses and time/iteration/cost
+bounds up front, runs only in a temporary throwaway workspace or an explicitly
+declared prototype area, and never modifies production source, dependencies,
+credentials, CI or task state. It is refused when it would need unapproved
+credentials, production writes, sensitive data or wider permissions. It retains
+only a bounded decision record — question, options, bounds, observation, decision
+or remaining uncertainty, and an evidence reference — with no transcript or
+secrets, cleans temporary state by default, and never promotes prototype code
+into production automatically: a useful result is carried forward as a decision
+plus evidence, and real implementation enters the ordinary managed OpenSpec
+lifecycle. A sufficiently clear task, a mechanical change, or a bounded fix with
+an established cause gets no prototype step. The capability creates no branch,
+issue, progress file, status or second backlog.
+
+The capability is independently authored. It is informed by common "spike" and
+"tracer bullet" practice; no upstream skill file is vendored or fetched at
+runtime, and no external content is adapted.
+
 ## Frontend design capabilities
 
 Opt-in frontend design help (`frontend-design` general guidance plus the
