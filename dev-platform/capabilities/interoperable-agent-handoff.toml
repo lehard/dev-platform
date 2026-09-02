@@ -1,0 +1,25 @@
+[capability]
+id = "interoperable-agent-handoff"
+name = "Interoperable agent handoff"
+description = "Produce or consume one compact provider-neutral navigation envelope for continuing live work in another agent, provider, or human context."
+kind = "instruction-only"
+applicability = "Live work must continue in another context (fresh session, Codex or another agent, or a person) and cannot simply be compacted in place; not ordinary same-context continuation, which only needs a normal compact."
+invocation = "auto+explicit"
+visibility = "project"
+owner = "dev-platform"
+safety_boundary = "Instruction-only navigation envelope; references repository/revision/managed task/OpenSpec/routing/evidence and separates verified facts from assumptions, blockers, and next intent. Carries no secrets, raw prompts, chain-of-thought, or large diff/spec copies, performs no GitHub/Backlog/Project/OpenSpec/worktree mutation, and grants no execution authority. Composes with the existing provider routing handoff instead of duplicating it."
+dependencies = []
+materialization = "provider-skill-markdown"
+update_policy = "replace-derived"
+removal_policy = "remove-derived-only"
+
+[provenance]
+source = "dev-platform"
+revision = "platform-managed"
+path = "dev-platform/capabilities/interoperable-agent-handoff.md"
+license = "Apache-2.0"
+content_sha256 = "3438efe82641326f0ba0a1a441cd7665e4c1e3b6da69c8023dd845d4ce1063d6"
+
+[eval]
+evidence = "dev-platform/evals/interoperable-agent-handoff-pilot.json"
+live_eval = "deterministic-fixture"

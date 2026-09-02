@@ -44,6 +44,8 @@ class CapabilityManagerTests(unittest.TestCase):
             "systematic-bug-diagnosis.md",
             "selective-domain-interrogation.toml",
             "selective-domain-interrogation.md",
+            "interoperable-agent-handoff.toml",
+            "interoperable-agent-handoff.md",
             "frontend-design.toml",
             "frontend-design.md",
             "high-end-visual-design.toml",
@@ -55,6 +57,7 @@ class CapabilityManagerTests(unittest.TestCase):
             "architecture-health-review-pilot.json",
             "systematic-bug-diagnosis-pilot.json",
             "selective-domain-interrogation-pilot.json",
+            "interoperable-agent-handoff-pilot.json",
             "frontend-design-pilot.json",
             "high-end-visual-design-pilot.json",
         ):
@@ -339,6 +342,45 @@ class CapabilityManagerTests(unittest.TestCase):
         report = manager.evaluate_existing(
             capability,
             self.root / "dev-platform" / "evals" / "selective-domain-interrogation-pilot.json",
+            runtime="fixture",
+            runs=3,
+        )
+        self.assertEqual(report["summary"], {
+            "case_count": 20,
+            "passed": 20,
+            "failed": 0,
+            "incomplete": 0,
+            "status_distribution": {"not-triggered": 30, "triggered": 30},
+        })
+        self.assertTrue(all(item["improved"] for item in report["quality_comparisons"]))
+
+    def test_interoperable_agent_handoff_is_navigation_only_and_optional(self) -> None:
+        capability = self.registry()["interoperable-agent-handoff"]
+        self.assertEqual(capability.kind, "instruction-only")
+        self.assertEqual(capability.invocation, "auto+explicit")
+        self.assertEqual(capability.dependencies, ())
+        manager.write_selection(self.root, [capability.identifier])
+        materialized = manager.sync(self.root, self.registry(), manager.load_selection(self.root))
+        self.assertEqual(len(materialized["changes"]), 2)
+        self.assertIn(
+            "dev-platform-capability:id=interoperable-agent-handoff",
+            (self.root / ".claude" / "skills" / "dev-platform-interoperable-agent-handoff" / "SKILL.md").read_text(encoding="utf-8"),
+        )
+        self.assertEqual(manager.audit(self.root, self.registry(), manager.load_selection(self.root))["status"], "ok")
+        for required in (
+            "Do not produce a handoff for ordinary same-context continuation",
+            "does **not** duplicate or replace it and starts no executor",
+            "Verified facts, unresolved assumptions, blockers, and next intent are kept",
+            "chain-of-thought or private reasoning transcripts",
+            "is **stale**",
+            "grants no execution authority and no write access",
+            "**Changed HEAD.**",
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, capability.instruction)
+        report = manager.evaluate_existing(
+            capability,
+            self.root / "dev-platform" / "evals" / "interoperable-agent-handoff-pilot.json",
             runtime="fixture",
             runs=3,
         )
