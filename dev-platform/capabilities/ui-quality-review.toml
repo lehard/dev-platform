@@ -1,0 +1,25 @@
+[capability]
+id = "ui-quality-review"
+name = "UI quality review"
+description = "Read-only, evidence-backed review of accessibility, keyboard/focus, forms, responsive, and user-visible web quality. Produces findings with location, severity, uncertainty, and a recommendation; permits an honest no-findings result and never triggers a redesign."
+kind = "instruction-only"
+applicability = "A requested UI/web-quality review, accessibility pass, or check that a user-facing change works for keyboard, assistive-technology, form, or small-screen users; not backend work, not copy-only edits, and not a visual redesign request."
+invocation = "auto+explicit"
+visibility = "project"
+owner = "dev-platform"
+safety_boundary = "Instruction-only and read-only. Subordinate to project product requirements, the project design system, accessibility rules, and accepted OpenSpec. It creates no code, commit, Issue, Backlog item, or managed task, changes no design system, starts no redesign, and its findings do not by themselves block a merge."
+dependencies = []
+materialization = "provider-skill-markdown"
+update_policy = "replace-derived"
+removal_policy = "remove-derived-only"
+
+[provenance]
+source = "dev-platform"
+revision = "platform-managed"
+path = "dev-platform/capabilities/ui-quality-review.md"
+license = "Apache-2.0"
+content_sha256 = "da5ec12489970001c9177c9e9ea035c5aaa7060e4b8987822e20f7bef9c6db08"
+
+[eval]
+evidence = "deterministic-fixture"
+live_eval = "not-required-for-fixture"

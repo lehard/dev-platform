@@ -1,0 +1,25 @@
+[capability]
+id = "react-next-best-practices"
+name = "React / Next best practices"
+description = "Stack-specific React and Next.js App Router engineering guidance (implementation structure and runtime performance), delivered as a slim index that routes to bounded pinned rule groups. Only for compatible opted-in React/Next projects."
+kind = "instruction-only"
+applicability = "Implementation and performance work in a compatible React / Next.js (App Router) codebase that has opted in; not non-React frontends, backend-only work, or unsupported major versions."
+invocation = "auto+explicit"
+visibility = "project"
+owner = "dev-platform"
+safety_boundary = "Instruction-only; subordinate to project product requirements, the project design system and architecture decisions, accessibility rules, and accepted OpenSpec. It cannot change product intent, change application dependencies, create managed work, or become a merge gate by itself."
+dependencies = ["dev-platform/capabilities/react-next-best-practices/server-client-components.md", "dev-platform/capabilities/react-next-best-practices/data-fetching-and-waterfalls.md", "dev-platform/capabilities/react-next-best-practices/bundle-and-code-splitting.md", "dev-platform/capabilities/react-next-best-practices/rendering-and-re-renders.md"]
+materialization = "provider-skill-markdown"
+update_policy = "replace-derived"
+removal_policy = "remove-derived-only"
+
+[provenance]
+source = "dev-platform"
+revision = "platform-managed"
+path = "dev-platform/capabilities/react-next-best-practices.md"
+license = "Apache-2.0"
+content_sha256 = "bf9d8935ef53c9220b0fdfc6b83df0382d92850de210781c8c50f9f1ca0b3103"
+
+[eval]
+evidence = "deterministic-fixture"
+live_eval = "not-required-for-fixture"

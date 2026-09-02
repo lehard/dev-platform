@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "capability": "ui-quality-review",
+  "content_sha256": "da5ec12489970001c9177c9e9ea035c5aaa7060e4b8987822e20f7bef9c6db08",
+  "cases": [
+    {"id": "positive-a11y-pass", "expectation": "trigger", "prompt": "Do an accessibility review of the checkout flow and report what fails.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-keyboard-nav", "expectation": "trigger", "prompt": "Check that the new navigation menu is fully operable by keyboard and that focus is visible.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-focus-management", "expectation": "trigger", "prompt": "Review focus management when the dialog opens and closes on the settings page.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-form-labels", "expectation": "trigger", "prompt": "Review this sign-up form for label association and announced validation errors.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-responsive", "expectation": "trigger", "prompt": "Check the pricing page for horizontal scroll and unusable controls at mobile width.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-screenreader-names", "expectation": "trigger", "prompt": "Audit the icon-only buttons in the toolbar for accessible names.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-contrast", "expectation": "trigger", "prompt": "Review colour contrast and heading structure on the new marketing landing page.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-user-visible-behaviour", "expectation": "trigger", "prompt": "Verify the loading and error states of the project list behave correctly for a user.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-reduced-motion", "expectation": "trigger", "prompt": "Check that the onboarding animation respects prefers-reduced-motion.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-ui-quality-pass", "expectation": "trigger", "prompt": "Run a UI quality review over the dashboard and give me findings with severity.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "negative-redesign-request", "expectation": "not-trigger", "prompt": "Redesign the dashboard so it looks more modern and premium.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-make-it-pretty", "expectation": "not-trigger", "prompt": "Pick a nicer colour palette and font pairing for the marketing site.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-backend-review", "expectation": "not-trigger", "prompt": "Review this authentication token refresh change for security issues.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-api-perf", "expectation": "not-trigger", "prompt": "Profile and reduce the server response time for the search query.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-copy-only", "expectation": "not-trigger", "prompt": "Rewrite the empty-state copy to sound friendlier.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-db-migration", "expectation": "not-trigger", "prompt": "Write a database migration that adds a nullable column and backfills it.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-ci-split", "expectation": "not-trigger", "prompt": "Split the CI test job into two parallel groups.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-prop-rename", "expectation": "not-trigger", "prompt": "Rename the isActive prop to isEnabled across these components.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-dep-bump", "expectation": "not-trigger", "prompt": "Bump the build tooling to the latest minor version and fix the lockfile.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-logic-bug", "expectation": "not-trigger", "prompt": "Fix the off-by-one error in the pagination cursor calculation.", "samples": ["not-triggered", "not-triggered", "not-triggered"]}
+  ],
+  "quality_comparisons": [
+    {
+      "id": "opt-in-materializes-review-guidance",
+      "objective_verifier": "The deterministic fixture test verifies that a project that has not enabled ui-quality-review has no derived skill surface, and that enabling the canonical descriptor materializes exactly the marker generated from it for each supported provider.",
+      "baseline": "not-verified",
+      "candidate": "verified"
+    },
+    {
+      "id": "redesign-and-non-ui-controls-do-not-trigger-review",
+      "objective_verifier": "Every redesign, aesthetic-preference, backend, and non-UI control prompt in this fixture is labelled not-trigger, so the read-only review is not used to justify an unsolicited redesign or non-UI work.",
+      "baseline": "not-verified",
+      "candidate": "verified"
+    }
+  ]
+}

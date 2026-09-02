@@ -1,0 +1,11 @@
+- [x] Review and pin applicable React/Next and web-interface upstream sources/licenses.
+- [x] Add two descriptors and a support/applicability matrix.
+- [x] Build a slim progressive-disclosure React/Next index.
+- [x] Define stack applicability without changing app dependencies.
+- [x] Define evidence-backed UI report fields.
+- [x] Test waterfall, bundle, server/client and rerender cases.
+- [x] Test non-React/backend/incompatible negative controls.
+- [x] Test accessibility, keyboard/focus, forms/responsive and healthy controls.
+- [x] Verify project precedence and no unsolicited redesign.
+- [x] Verify pin/update/audit/removal and run eval decisions.
+- [x] Verify OpenSpec semantics, run checks, record evidence, archive and publish.

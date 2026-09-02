@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/engineering-capabilities/spec.md"
+  ],
+  "change": "add-web-engineering-capability-pack",
+  "imported_at": "2026-09-02T11:24:39+00:00",
+  "package_revision": "d33f2221302f8bfa9a59a54d81c7170556a969828d74a0e0a12853def84d249d",
+  "prepared_against": "a4c71a9c3a69d690abee9c5134f972802e4f9120",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "planning"
+  },
+  "source_issue": "lehard/development-backlog#91",
+  "source_issue_evidence": {
+    "body_sha256": "9e44afc11d686d6b7abcb6869dac20fd1c784ca4cb617db76a02166d81dda077",
+    "updated_at": "2026-09-02T08:53:49Z"
+  },
+  "supersedes": "1e40173970266d91962abe09a037c325116098c1adf60d87b9a601125212dd77",
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
