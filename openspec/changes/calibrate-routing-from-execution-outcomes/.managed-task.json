@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/model-routing/spec.md"
+  ],
+  "change": "calibrate-routing-from-execution-outcomes",
+  "imported_at": "2026-09-02T18:09:32+00:00",
+  "package_revision": "4088a0d9a1fcae8a6387794663a21324c33942fd5d3c1f92b9e8ef79bf7dad68",
+  "prepared_against": "5675efad50d483ba95110f68e3af04a59c4b7fd6",
+  "routing_receipt": {
+    "assurance": "high",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "model-routing"
+  },
+  "source_issue": "lehard/development-backlog#30",
+  "source_issue_evidence": {
+    "body_sha256": "2fba77a7bfcd04c3f7819ecae8589e853ee23d6f5f6e395c165aea828b707886",
+    "updated_at": "2026-09-02T17:57:09Z"
+  },
+  "supersedes": "b688a847967e38ad47727a4241a24be5807b15d2db1f87a5f36cf21faebdace6",
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

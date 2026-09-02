@@ -1,0 +1,12 @@
+- [x] Run the current real `python3 scripts/model_routing.py efficiency-baseline` and record launched, verified/eligible and missing-evidence coverage as implementation preflight.
+- [x] Reuse the existing routing-record/baseline scanner and identify the minimal routing facts already available; do not create another execution store or scanner.
+- [x] Define routing-calibration eligibility and sample-adequacy semantics separately from efficiency-field comparability.
+- [x] Implement a bounded read-only routing-calibration report under the existing `model_routing.py` surface.
+- [x] Report authored tier/frontier exposure, verified R2 success without R3 escalation, R2->R3 escalation path/reasons where known, success after escalation, fallback/abnormal/unknown outcomes, and available verification/human-intervention signals.
+- [x] Add task-family/rubric/provider-model-generation breakdowns only with explicit counts/coverage and insufficient-sample handling.
+- [x] Preserve planned-vs-actual route and source/unknown semantics; never infer a missing model, effort, escalation reason, first-pass result or human intervention.
+- [x] Keep direct R3 success counterfactually neutral; do not auto-label necessary/over-routed.
+- [x] Add regression fixtures for R2 success, R2 escalation+success, direct R3, fallback/abnormal, legacy/unknown metadata, mixed rubric/model generations, and insufficient global/family samples.
+- [x] Produce the first calibration report from current real executions as verification evidence and record either a concrete manual candidate policy decision or `insufficient evidence / no change`.
+- [x] Document that any actual rubric/hard-trigger/model-mapping change requires a separate explicit reviewed managed change.
+- [x] Run semantic OpenSpec verification and relevant routing/baseline/lifecycle checks.

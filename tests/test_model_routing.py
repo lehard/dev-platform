@@ -805,5 +805,226 @@ class StandaloneStandardCloneRoutingTests(unittest.TestCase):
         self.assertEqual(reread.topology, routing.LINKED_WORKTREE)
 
 
+class RoutingCalibrationTests(unittest.TestCase):
+    """Bounded read-only R2/R3 calibration over the existing routing records.
+
+    Every fixture is a routing record plus, where the case needs it, an
+    OpenSpec verification receipt and managed-task provenance under the task
+    checkout -- the same evidence path ``efficiency_baseline`` already reads.
+    """
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.task = Path(self.tmp.name) / "task"
+        self.task.mkdir()
+        git(self.task, "init", "-q", "-b", "main")
+        git(self.task, "config", "user.email", "routing@example.test")
+        git(self.task, "config", "user.name", "Routing Test")
+        (self.task / "openspec" / "changes").mkdir(parents=True)
+        (self.task / "README.md").write_text("base\n", encoding="utf-8")
+        git(self.task, "add", "README.md")
+        git(self.task, "commit", "-qm", "base")
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def seed(
+        self,
+        change: str,
+        *,
+        tier: str | None = "R2",
+        profile: str = "standard",
+        launched: bool = True,
+        outcome: str | None = "completed",
+        escalations: list[dict[str, str]] | None = None,
+        freshness: str = "confirmed",
+        verified: bool = True,
+        provider: str = "codex",
+        executor_model: str = "gpt-5.6-terra",
+        task_family: str | None = "model-routing",
+        rubric_version: str | None = "v1",
+    ) -> dict[str, object]:
+        record: dict[str, object] = {
+            "change": change,
+            "provider": provider,
+            "executor_model": executor_model,
+            "profile": profile,
+            "freshness": freshness,
+            "escalations": escalations or [],
+        }
+        if tier is not None:
+            record["start_tier"] = tier
+        if launched:
+            record["execution"] = {"launched": True, "outcome": outcome}
+        if verified:
+            receipt = self.task / "openspec" / "changes" / change / "verification.md"
+            receipt.parent.mkdir(parents=True, exist_ok=True)
+            receipt.write_text("OpenSpec-Verify: PASS\n", encoding="utf-8")
+        if task_family is not None or rubric_version is not None:
+            provenance = self.task / "openspec" / "changes" / change / ".managed-task.json"
+            provenance.parent.mkdir(parents=True, exist_ok=True)
+            provenance.write_text(
+                json.dumps(
+                    {
+                        "source_issue": f"owner/backlog#{abs(hash(change)) % 900 + 1}",
+                        "change": change,
+                        "routing_receipt": {"task_family": task_family, "rubric_version": rubric_version},
+                    }
+                ),
+                encoding="utf-8",
+            )
+        return record
+
+    def run_report(self, records: list[dict[str, object]]) -> dict[str, object]:
+        with patch.object(routing, "_local_routing_records", return_value=records), patch.object(
+            routing, "main_root", side_effect=RuntimeError("no integration root in test")
+        ):
+            return routing.routing_calibration(self.task)
+
+    def test_small_real_sample_is_insufficient_but_still_reported(self) -> None:
+        records = [self.seed(f"c{i}", outcome="completed") for i in range(4)]
+        records.append(self.seed("abn", outcome="abnormal"))
+        report = self.run_report(records)
+        self.assertEqual(report["sample"]["adequacy"], "insufficient")
+        self.assertEqual(report["sample"]["usable_observations"], 5)
+        self.assertEqual(report["global"]["authored_r2_verified_success_without_escalation"], 4)
+        self.assertEqual(report["global"]["outcomes_usable"], {"abnormal": 1, "completed": 4})
+        self.assertEqual(report["advice"]["candidate_decision"], "insufficient evidence / no policy change")
+        self.assertTrue(report["advice"]["requires_separate_managed_change"])
+
+    def test_authored_r2_success_without_escalation_is_positive_evidence(self) -> None:
+        report = self.run_report([self.seed("clean-r2", outcome="completed")])
+        self.assertEqual(report["global"]["authored_r2_verified_success_without_escalation"], 1)
+        self.assertEqual(report["global"]["frontier_exposure_usable"], 0)
+        self.assertEqual(report["global"]["r2_to_r3_escalation"]["escalated_usable"], 0)
+
+    def test_r2_escalation_then_success_keeps_both_paths_and_reason(self) -> None:
+        record = self.seed(
+            "escalated-r2",
+            profile="complex",
+            freshness="escalated",
+            outcome="completed",
+            escalations=[{"at": "t", "from": "standard", "reason": "bounded verification failure"}],
+        )
+        report = self.run_report([record])
+        escalation = report["global"]["r2_to_r3_escalation"]
+        self.assertEqual(escalation["escalated_usable"], 1)
+        self.assertEqual(escalation["success_after_escalation"], 1)
+        self.assertEqual(escalation["recorded_reasons"], {"bounded verification failure": 1})
+        self.assertEqual(escalation["unknown_reason"], 0)
+        # An escalated route is a real R2 attempt, not an R2 clean success.
+        self.assertEqual(report["global"]["authored_r2_verified_success_without_escalation"], 0)
+        self.assertEqual(report["global"]["frontier_exposure_usable"], 1)
+
+    def test_escalation_without_recorded_reason_stays_unknown(self) -> None:
+        record = self.seed(
+            "escalated-noreason",
+            profile="complex",
+            freshness="escalated",
+            outcome="completed",
+            escalations=[{"at": "t", "from": "standard"}],
+        )
+        report = self.run_report([record])
+        escalation = report["global"]["r2_to_r3_escalation"]
+        self.assertEqual(escalation["recorded_reasons"], {})
+        self.assertEqual(escalation["unknown_reason"], 1)
+
+    def test_direct_r3_success_is_not_labelled_over_routed(self) -> None:
+        record = self.seed("direct-r3", tier="R3", profile="complex", outcome="completed")
+        report = self.run_report([record])
+        direct = report["global"]["direct_frontier"]
+        self.assertEqual(direct["authored_r3_records"], 1)
+        self.assertEqual(direct["launched"], 1)
+        self.assertEqual(direct["verified_success"], 1)
+        self.assertIn("not evidence that R2 would have failed", direct["counterfactual_note"])
+        # A direct R3 record is not an R2 observation and not an escalation.
+        self.assertEqual(report["global"]["r2_to_r3_escalation"]["usable_r2_observations"], 0)
+        self.assertEqual(report["global"]["authored_r2_verified_success_without_escalation"], 0)
+
+    def test_abnormal_and_unknown_outcomes_are_not_folded_into_success_or_failure(self) -> None:
+        records = [
+            self.seed("ok", outcome="completed"),
+            self.seed("abn", outcome="abnormal"),
+            self.seed("unk", outcome=None),
+        ]
+        report = self.run_report(records)
+        self.assertEqual(report["global"]["outcomes_usable"], {"abnormal": 1, "completed": 1, "unknown": 1})
+        self.assertEqual(report["global"]["authored_r2_verified_success_without_escalation"], 1)
+
+    def test_planned_only_and_unverified_records_are_excluded_from_usable(self) -> None:
+        records = [
+            self.seed("verified-launched", outcome="completed"),
+            self.seed("planned-only", launched=False, outcome=None),
+            self.seed("launched-unverified", outcome="completed", verified=False),
+            self.seed("legacy-no-tier", tier=None, outcome="completed"),
+        ]
+        report = self.run_report(records)
+        self.assertEqual(report["sample"]["routing_records"], 4)
+        self.assertEqual(report["sample"]["planned_only_routes"], 1)
+        self.assertEqual(report["sample"]["usable_observations"], 1)
+        self.assertEqual(report["verification_signals"]["passed"], 3)
+        self.assertEqual(report["verification_signals"]["missing"], 1)
+
+    def test_missing_metadata_stays_unknown_not_defaulted(self) -> None:
+        record = self.seed("no-meta", task_family=None, rubric_version=None, outcome="completed")
+        report = self.run_report([record])
+        self.assertIn("unknown", report["breakdowns"]["task_family"])
+        self.assertIn("unknown", report["breakdowns"]["rubric_version"])
+        self.assertEqual(report["unavailable_signals"]["human_intervention"].startswith("No deterministic"), True)
+
+    def test_breakdowns_carry_counts_and_mixed_generations_are_not_merged(self) -> None:
+        records = [
+            self.seed("terra-a", executor_model="gpt-5.6-terra", task_family="model-routing", outcome="completed"),
+            self.seed("terra-b", executor_model="gpt-5.6-terra", task_family="model-routing", outcome="failed"),
+            self.seed("sonnet-a", provider="claude", executor_model="sonnet", task_family="lifecycle", outcome="completed"),
+        ]
+        report = self.run_report(records)
+        pmg = report["breakdowns"]["provider_model_generation"]
+        self.assertEqual(set(pmg), {"codex:gpt-5.6-terra", "claude:sonnet"})
+        self.assertEqual(pmg["codex:gpt-5.6-terra"]["usable_observations"], 2)
+        self.assertEqual(pmg["codex:gpt-5.6-terra"]["adequacy"], "insufficient")
+        self.assertEqual(report["breakdowns"]["task_family"]["model-routing"]["usable_observations"], 2)
+        self.assertEqual(report["breakdowns"]["task_family"]["lifecycle"]["usable_observations"], 1)
+
+    def test_adequate_low_escalation_sample_yields_no_change_candidate(self) -> None:
+        records = [self.seed(f"big{i}", outcome="completed") for i in range(routing.ROUTING_CALIBRATION_MIN_OBSERVATIONS)]
+        report = self.run_report(records)
+        self.assertEqual(report["sample"]["adequacy"], "adequate")
+        self.assertEqual(report["advice"]["candidate_decision"], "no change")
+        self.assertTrue(report["advice"]["requires_separate_managed_change"])
+
+    def test_adequate_high_escalation_sample_yields_review_candidate(self) -> None:
+        records = [self.seed(f"ok{i}", outcome="completed") for i in range(10)]
+        records += [
+            self.seed(
+                f"esc{i}",
+                profile="complex",
+                freshness="escalated",
+                outcome="completed",
+                escalations=[{"at": "t", "from": "standard", "reason": "recurring contract conflict"}],
+            )
+            for i in range(6)
+        ]
+        report = self.run_report(records)
+        self.assertEqual(report["sample"]["adequacy"], "adequate")
+        self.assertIn("review", report["advice"]["candidate_decision"])
+
+    def test_cli_routing_calibration_emits_json(self) -> None:
+        (self.task / "openspec" / "changes" / "routing-change").mkdir(parents=True)
+        (self.task / "openspec" / "changes" / "routing-change" / ".managed-task.json").write_text(
+            json.dumps({"source_issue": "owner/backlog#7", "change": "routing-change"}), encoding="utf-8"
+        )
+        completed = subprocess.run(
+            [sys.executable, str(SCRIPTS / "model_routing.py"), "routing-calibration"],
+            cwd=self.task,
+            text=True,
+            capture_output=True,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        payload = json.loads(completed.stdout)
+        self.assertEqual(payload["schema_version"], 1)
+        self.assertIn("advice", payload)
+
+
 if __name__ == "__main__":
     unittest.main()
