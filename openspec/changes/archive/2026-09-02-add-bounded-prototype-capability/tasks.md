@@ -7,4 +7,4 @@
 - [x] Add the deterministic capability eval fixture: UI comparison and falsifiable technical spike positives, clear-task and prohibited-authority negatives.
 - [x] Run `capability_manager.py` structural validation/audit and the capability eval decision.
 - [x] Update `docs/engineering/engineering-capabilities.md` with the capability and its bounded-adaptation provenance.
-- [ ] Verify OpenSpec semantics, run platform checks, record `verification.md`, archive and publish.
+- [x] Verify OpenSpec semantics, run platform checks, record `verification.md`, archive and publish.
