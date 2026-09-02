@@ -1,0 +1,14 @@
+- [x] Require the optional engineering capability contract (#87) and reuse its lifecycle/materialization surfaces.
+- [x] Map the existing provider routing handoff and state the uncovered cross-session/cross-provider/human boundary.
+- [x] Add a compact provider-neutral handoff schema/instruction as the capability instruction file.
+- [x] Define the envelope fields: repository, exact revision, workspace, managed task/OpenSpec, routing record, canonical evidence.
+- [x] Separate verified facts, unresolved assumptions, blockers, and next intent, and forbid promoting a claim to a fact.
+- [x] Require the receiver to validate repository/revision/managed-task identity and treat a mismatch as stale.
+- [x] State the authority boundary: no lifecycle, GitHub, Backlog, Project, OpenSpec, or worktree mutation and no execution grant.
+- [x] Exclude secrets, raw prompts, chain-of-thought, and large diff/spec copies.
+- [x] Add the deterministic fixture with Claude → Codex, Codex → Claude, and agent → human positives.
+- [x] Add hard negatives: ordinary compact, existing task state is enough, unconfirmed assumption, changed HEAD, and routine execution.
+- [x] Add the spec delta to `agent-workflow` and keep every requirement scenario-backed.
+- [x] Update `docs/engineering/engineering-capabilities.md` and its template mirror.
+- [x] Add capability-manager and template-contract test coverage.
+- [x] Run semantic OpenSpec verification and platform/capability checks, record evidence, archive, and publish.
