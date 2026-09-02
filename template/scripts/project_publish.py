@@ -6,7 +6,6 @@ import os
 import subprocess
 import time
 from contextlib import nullcontext
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, ContextManager
 
@@ -27,6 +26,7 @@ from _platform_common import (
 from integration_state import guard_before_protected_merge
 from publication_state import (
     ExactHeadPrLookup,
+    PrRef,  # re-exported: the canonical definition lives in the always-platform-owned publication_state
     RequiredCheckState,
     find_exact_head_pr,
     required_check_state,
@@ -53,21 +53,6 @@ MERGE_CONFIRM_TIMEOUT_SECONDS = 600.0
 MERGE_CONFIRM_INTERVAL_SECONDS = 2.0
 MERGE_FAILURE_CONFIRM_TIMEOUT_SECONDS = 3.0
 PRE_MERGE_GUARD_TIMEOUT_SECONDS = 60.0
-
-
-@dataclass(frozen=True)
-class PrRef:
-    number: int | None
-    url: str
-    already_merged: bool = False
-
-    @property
-    def ref(self) -> str:
-        if self.number is not None:
-            return str(self.number)
-        if self.url.startswith(("https://", "http://")):
-            return self.url
-        raise SystemExit("Exact PR discovery did not return a stable PR number or URL; refusing branch-name fallback.")
 
 
 def _pr_ref(pr: dict, *, already_merged: bool = False) -> PrRef:

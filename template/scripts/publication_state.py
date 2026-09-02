@@ -25,6 +25,31 @@ class RequiredCheckState:
     checks: tuple[dict[str, object], ...] = ()
 
 
+@dataclass(frozen=True)
+class PrRef:
+    """Stable pull-request cursor shared by platform publication and rollout code.
+
+    Defined here -- in the always-platform-owned publication-state module that
+    every harness renders -- rather than in ``project_publish.py`` so platform
+    lifecycle code (for example ``rollout_preflight.py``) can name the type
+    without importing a publication module that a ``harness_mode=project``
+    repository is allowed to keep project-owned. ``project_publish.py``
+    re-exports it for backwards compatibility.
+    """
+
+    number: int | None
+    url: str
+    already_merged: bool = False
+
+    @property
+    def ref(self) -> str:
+        if self.number is not None:
+            return str(self.number)
+        if self.url.startswith(("https://", "http://")):
+            return self.url
+        raise SystemExit("Exact PR discovery did not return a stable PR number or URL; refusing branch-name fallback.")
+
+
 def required_check_state(root: Path, env: dict[str, str], current: str) -> RequiredCheckState:
     """Read required-check state from gh JSON, never from rendered CLI wording.
 
