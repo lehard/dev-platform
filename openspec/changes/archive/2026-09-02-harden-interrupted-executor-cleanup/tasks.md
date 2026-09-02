@@ -1,0 +1,6 @@
+- [x] Add scoped external-signal handling around a live delegated writer.
+- [x] Reuse common process-group terminate-and-reap logic for signal interruption.
+- [x] Record classified abnormal and retained-work receipt fields.
+- [x] Add external-interrupt, failed-reap and normal-path regressions.
+- [x] Prove no second writer starts while ownership is ambiguous.
+- [x] Run semantic verification and required checks, record evidence, archive and publish.

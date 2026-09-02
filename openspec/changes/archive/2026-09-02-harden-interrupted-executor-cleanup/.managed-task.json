@@ -1,0 +1,36 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/platform-delegation/spec.md"
+  ],
+  "change": "harden-interrupted-executor-cleanup",
+  "imported_at": "2026-09-02T15:55:10+00:00",
+  "package_revision": "d1f31511bef21eeb46daa0bdb2b4a3d3e3acdfc03ac9c6ccce528815b36aa069",
+  "prepared_against": "645a81f29a375b50379cd889f1741cb967fdb47a",
+  "process_evidence": [
+    "lehard/dev-platform#343",
+    "lehard/dev-platform#359",
+    "lehard/dev-platform#360",
+    "lehard/dev-platform#320",
+    "lehard/dev-platform#322",
+    "lehard/dev-platform#255"
+  ],
+  "routing_receipt": {
+    "assurance": "high",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "delegated-execution"
+  },
+  "source_issue": "lehard/development-backlog#98",
+  "source_issue_evidence": {
+    "body_sha256": "f9dc39f9a95513127224ef565a87fb482e9225724026746a37cd454bb665ffc0",
+    "updated_at": "2026-09-02T10:43:36Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
