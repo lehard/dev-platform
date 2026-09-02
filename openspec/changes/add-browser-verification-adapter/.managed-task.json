@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/browser-verification/spec.md"
+  ],
+  "change": "add-browser-verification-adapter",
+  "imported_at": "2026-09-02T04:43:59+00:00",
+  "package_revision": "7928a7b2f9f8e1e789d87c263d0eed6c1ded1d816522cc1f7b41cad74408cb13",
+  "prepared_against": "e6b207fd63e77a99d868892f7f8e0c0a2210c8ec",
+  "routing_receipt": {
+    "assurance": "high",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "verification"
+  },
+  "source_issue": "lehard/development-backlog#84",
+  "source_issue_evidence": {
+    "body_sha256": "61834541de81f61545c7371c833397197195eebd605c05a1ab10692b3e7044c3",
+    "updated_at": "2026-09-01T07:28:53Z"
+  },
+  "supersedes": "1362dba6930bcb4cf7e6b92915536ff35f74e0fac7717d8a65b2b400ebf7bb38",
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

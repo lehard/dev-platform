@@ -126,6 +126,7 @@ targets = [
   "test_platform_common",
   "test_platform_doctor",
   "test_capability_manager",
+  "test_browser_verification",
   "test_docs_semantic_checks",
 ]
 mode = "parallel"

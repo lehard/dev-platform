@@ -1,0 +1,55 @@
+{
+  "backend": {
+    "dist_shasum": "e672393279a620fb6c79f6c00797908631450a04",
+    "license": "Apache-2.0",
+    "name": "agent-browser",
+    "package": "agent-browser",
+    "source": "vercel-labs/agent-browser",
+    "version": "0.36.0"
+  },
+  "deterministic_acceptance": "playwright-or-project-e2e-remains-authoritative",
+  "expected_end_state": "The checkout form shows the text 'Order confirmed' after placing an order.",
+  "finished_at": "2026-09-02T05:18:55.088871+00:00",
+  "flow": "checkout-regression",
+  "mode": "exploratory",
+  "observations": {
+    "assertions": [
+      {
+        "expected_present": true,
+        "observed_present": false,
+        "text": "Order confirmed"
+      }
+    ],
+    "final_url": "http://127.0.0.1:8091/regression.html"
+  },
+  "origin": "http://127.0.0.1:8091",
+  "origin_classification": "default-local",
+  "outcome": "regression-detected",
+  "runtime_state_dir": ".dev-platform/browser-verification/run-20260902T051849Z",
+  "sanitized": true,
+  "schema": "browser-verification/evidence@1",
+  "started_at": "2026-09-02T05:18:49.772519+00:00",
+  "steps": [
+    {
+      "action": "navigate",
+      "ok": true
+    },
+    {
+      "action": "fill",
+      "ok": true
+    },
+    {
+      "action": "click",
+      "ok": true
+    },
+    {
+      "action": "assert_text",
+      "ok": false
+    },
+    {
+      "action": "screenshot",
+      "ok": true,
+      "pointer": ".dev-platform/browser-verification/run-20260902T051849Z/checkout-regression-final.png"
+    }
+  ]
+}

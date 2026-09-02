@@ -1,0 +1,17 @@
+{
+  "applied": false,
+  "deterministic_seam": "reproduce the failed assertion(s) above with Playwright / the project E2E suite",
+  "failed_assertions": [
+    {
+      "expected_present": true,
+      "observed_present": false,
+      "text": "Order confirmed"
+    }
+  ],
+  "flow": "checkout-regression",
+  "note": "Reviewed work required: this describes a deterministic regression test; it is not written automatically.",
+  "origin": "http://127.0.0.1:8091",
+  "outcome": "regression-detected",
+  "schema": "browser-verification/regression-scaffold@1",
+  "suggested_test_path": "tests/e2e/test_checkout-regression_regression.py"
+}
