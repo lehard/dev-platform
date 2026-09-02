@@ -1,0 +1,6 @@
+- [x] Separate shared configuration verification from mutation.
+- [x] Route explicit repair through the existing serialized integration boundary.
+- [x] Tolerate a disappearing ephemeral Git lock with a bounded rescan.
+- [x] Add concurrent-preflight and disappearing-lock regressions.
+- [x] Preserve permission, symlink and foreign-state safety checks.
+- [x] Run semantic verification and required checks, record evidence, archive and publish.

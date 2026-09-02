@@ -1,0 +1,33 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/shared-workspace-safety/spec.md"
+  ],
+  "change": "remove-finish-git-config-mutation",
+  "imported_at": "2026-09-02T11:45:43+00:00",
+  "package_revision": "8dd9e5eed6d19029d93ada3a1d8283c8d141fb4f2080370c726593c9f9504931",
+  "prepared_against": "645a81f29a375b50379cd889f1741cb967fdb47a",
+  "process_evidence": [
+    "lehard/dev-platform#340",
+    "lehard/dev-platform#344",
+    "lehard/dev-platform#348"
+  ],
+  "routing_receipt": {
+    "assurance": "high",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "shared-workspace-lifecycle"
+  },
+  "source_issue": "lehard/development-backlog#95",
+  "source_issue_evidence": {
+    "body_sha256": "79c068d52148f877fc0b0b0760a5c5e75a91250d6e3df6d46f9988438bed2cbe",
+    "updated_at": "2026-09-02T10:42:59Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
