@@ -1,0 +1,25 @@
+[capability]
+id = "systematic-bug-diagnosis"
+name = "Systematic bug diagnosis"
+description = "Establish observable failure evidence and falsifiable probes before repairing an unknown bug, regression, or unexplained failure."
+kind = "instruction-only"
+applicability = "Unknown bugs, regressions, intermittent failures, unexplained performance degradation, and diagnosis requests; not obvious bounded corrections with a directly established cause."
+invocation = "auto+explicit"
+visibility = "project"
+owner = "dev-platform"
+safety_boundary = "Instruction-only; records bounded observable evidence only and grants no package installation, credentials, production access, or authority beyond the active task."
+dependencies = []
+materialization = "provider-skill-markdown"
+update_policy = "replace-derived"
+removal_policy = "remove-derived-only"
+
+[provenance]
+source = "dev-platform"
+revision = "platform-managed"
+path = "dev-platform/capabilities/systematic-bug-diagnosis.md"
+license = "Apache-2.0"
+content_sha256 = "87b64e6fbfb119888550a421cdbd04594c2a96d22835dcbf079412637ed748bf"
+
+[eval]
+evidence = "dev-platform/evals/systematic-bug-diagnosis-pilot.json"
+live_eval = "deterministic-fixture"

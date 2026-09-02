@@ -56,6 +56,19 @@ The reviewed upstream is [`anthropics/skills`](https://github.com/anthropics/ski
 
 The rejected runner pattern is also a containment decision: temporary `.claude/commands` can collide with concurrent work, a nested CLI bypasses the platform's supported delegation path, and cleanup after timeout/failure is not the same as the active writer's process ownership. The provider-neutral core therefore has no provider command path, tool/event name, or second orchestration loop.
 
+## Diagnosing-bugs review
+
+The reviewed upstream is [`mattpocock/skills`](https://github.com/mattpocock/skills) commit `6654f6b60cd9d5be8b54c6fafe44346dabeb3b76`, under `skills/engineering/diagnosing-bugs/SKILL.md`, under its MIT license. The reviewed file blob is `061c25a524acaa93d4534e9e08a793c0a5fe45fd`. Dev Platform vendors none of its files; the pin records review provenance for the independently authored `systematic-bug-diagnosis` capability.
+
+| Upstream behavior | Dev Platform treatment | Reason |
+| --- | --- | --- |
+| Specific, observable failure loop before causal claims | Adapt | The capability requires a confirmed reproducer or direct evidence and calls an unevidenced cause unconfirmed. |
+| Competing falsifiable hypotheses and targeted probes | Adapt | The capability records only concise hypothesis, prediction, probe, and result fields; it never requests chain-of-thought. |
+| Regression test before repair, original-reproducer rerun, and debug cleanup | Adapt when a reasonable seam exists | This is the bounded regression and post-fix verification contract; an invalid seam is recorded rather than fabricated. |
+| Broad failure-oriented trigger | Narrow | Dev Platform triggers the optional capability for unknown diagnosis only, preserving bounded quick corrections with an established cause. |
+| Mandatory display of ranked hypotheses to a user | Reject as a platform requirement | User interaction can be useful, but making it a required checkpoint would create an unrelated execution gate. |
+| Captured command/output workflow | Adapt with existing evidence safety | Evidence is bounded and redacted; raw prompts, secrets, sensitive payloads, and hidden reasoning are not retained. |
+
 ## Delivery
 
 The manager, descriptors and guidance are Copier-managed platform surfaces. Fresh renders and reviewed Copier updates are deterministic; an immutable platform release produces ordinary rollout PRs for managed projects. Project-owned harnesses retain their lifecycle implementation.

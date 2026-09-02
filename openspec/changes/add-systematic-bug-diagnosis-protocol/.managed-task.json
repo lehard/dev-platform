@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/agent-workflow/spec.md"
+  ],
+  "change": "add-systematic-bug-diagnosis-protocol",
+  "imported_at": "2026-09-02T04:42:10+00:00",
+  "package_revision": "f223445c8ef8ad8e0ad1dd9172098461cc9eeb9ab3519f350aeb3411d17aff9d",
+  "prepared_against": "e6b207fd63e77a99d868892f7f8e0c0a2210c8ec",
+  "routing_receipt": {
+    "assurance": "high",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "diagnosis"
+  },
+  "source_issue": "lehard/development-backlog#82",
+  "source_issue_evidence": {
+    "body_sha256": "87cf52d59aa82506ec4edf3914fe4412181c4b291c0a88ce634007e2497819ca",
+    "updated_at": "2026-09-01T07:28:30Z"
+  },
+  "supersedes": "236b39bf57d9534a1d0ff3fe66655589074649c1418df36b770357980e235fa4",
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
