@@ -56,6 +56,16 @@ The reviewed upstream is [`anthropics/skills`](https://github.com/anthropics/ski
 
 The rejected runner pattern is also a containment decision: temporary `.claude/commands` can collide with concurrent work, a nested CLI bypasses the platform's supported delegation path, and cleanup after timeout/failure is not the same as the active writer's process ownership. The provider-neutral core therefore has no provider command path, tool/event name, or second orchestration loop.
 
+## Frontend design capabilities
+
+Opt-in frontend design help (`frontend-design` general guidance plus the
+`high-end-visual-design` specialized profile) rides this same lifecycle — one
+descriptor each, project-owned opt-in, derived provider skills only when
+selected. Their design-specific applicability, non-applicability, precedence over
+and under a project design system, triggering discipline, and bounded-adaptation
+provenance are documented in
+[Frontend design capabilities](frontend-design-capabilities.md).
+
 ## Delivery
 
 The manager, descriptors and guidance are Copier-managed platform surfaces. Fresh renders and reviewed Copier updates are deterministic; an immutable platform release produces ordinary rollout PRs for managed projects. Project-owned harnesses retain their lifecycle implementation.
