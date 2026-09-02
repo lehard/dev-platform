@@ -54,6 +54,7 @@ import subprocess
 import sys
 import tempfile
 import textwrap
+import threading
 import time
 import uuid
 from dataclasses import dataclass
@@ -89,6 +90,33 @@ class EnforcementDecision:
     detail: str
 
 
+# Bounded classification of why a launched delegation ended abnormally. Kept as
+# a small closed vocabulary so a route receipt can distinguish an external
+# launcher interruption from a steady-state timeout or any other launcher-side
+# failure without carrying an unbounded exception blob.
+ABNORMAL_EXTERNAL_INTERRUPT = "external-interrupt"
+ABNORMAL_TIMEOUT = "timeout"
+ABNORMAL_OTHER = "other"
+
+
+@dataclass(frozen=True)
+class RetainedWork:
+    """Bounded state of the assigned worktree's own uncommitted work.
+
+    This never carries a diff or file contents: only whether partial work is
+    present and how many paths it touches, so an abnormal receipt can say that
+    an interrupted executor left recoverable work without leaking its content.
+    ``state`` is ``present``, ``absent`` or ``unknown`` (worktree status could
+    not be read); ``changed_path_count`` is ``-1`` when unknown.
+    """
+
+    state: str
+    changed_path_count: int
+
+    def as_dict(self) -> dict[str, object]:
+        return {"state": self.state, "changed_path_count": self.changed_path_count}
+
+
 @dataclass(frozen=True)
 class GuardedRunResult:
     launched: bool
@@ -99,6 +127,8 @@ class GuardedRunResult:
     violation: bool
     message: str | None
     writer_state: str = "released"
+    abnormal_kind: str | None = None
+    retained_work: RetainedWork | None = None
 
 
 class GuardedChildError(ContainmentError):
@@ -116,6 +146,82 @@ class GuardedChildError(ContainmentError):
 
 class WriterOwnershipError(ContainmentError):
     """A local worktree already has a live or ambiguous delegated writer."""
+
+
+class LauncherInterrupted(BaseException):
+    """An external termination/interruption signal reached the launcher while a
+    delegated writer was live.
+
+    Raised from a scoped signal handler so the interpreter does not exit
+    immediately on the default disposition; instead the signal is funnelled
+    through the same bounded process-group terminate-and-reap path used for
+    timeouts and cancellation, which is the only place writer ownership is
+    released or marked ambiguous. Subclasses ``BaseException`` (like
+    ``KeyboardInterrupt``) so an unrelated ``except Exception`` cannot swallow
+    it before cleanup runs.
+    """
+
+    def __init__(self, signum: int) -> None:
+        try:
+            name = signal.Signals(signum).name
+        except ValueError:  # pragma: no cover - non-standard signal number
+            name = f"signal {signum}"
+        self.signum = signum
+        self.signal_name = name
+        super().__init__(f"launcher received {name} while a delegated writer was live")
+
+
+# External interruptions the launcher converts into controlled cleanup while a
+# delegated writer is live. SIGINT is included so an interactive Ctrl-C is
+# classified the same way as an orchestrator-sent termination rather than
+# taking the default KeyboardInterrupt path with a different receipt shape.
+_LAUNCHER_INTERRUPT_SIGNALS: tuple[int, ...] = tuple(
+    getattr(signal, _name)
+    for _name in ("SIGTERM", "SIGHUP", "SIGINT", "SIGQUIT")
+    if hasattr(signal, _name)
+)
+
+
+class _ScopedInterruptHandlers:
+    """Install fail-safe signal handling only while a delegated writer is live.
+
+    Outside the armed window the launcher keeps its inherited signal
+    disposition. ``disarm`` restores the previous handlers and is safe to call
+    more than once. Signal handlers can only be installed from the main thread
+    of the main interpreter; when armed from any other thread this is a no-op
+    and the pre-existing ``except BaseException`` cleanup path remains the only
+    safety net (unchanged behavior for embedded/test callers).
+    """
+
+    def __init__(self, signals: tuple[int, ...] = _LAUNCHER_INTERRUPT_SIGNALS) -> None:
+        self._signals = signals
+        self._previous: dict[int, object] = {}
+
+    def arm(self) -> None:
+        if threading.current_thread() is not threading.main_thread():
+            return
+
+        def _handler(received: int, _frame: object) -> None:
+            raise LauncherInterrupted(received)
+
+        for signum in self._signals:
+            try:
+                self._previous[signum] = signal.signal(signum, _handler)
+            except (ValueError, OSError):  # pragma: no cover - signal slot unavailable on this host
+                self._previous.pop(signum, None)
+
+    def disarm(self) -> None:
+        while self._previous:
+            signum, handler = self._previous.popitem()
+            if handler is None:
+                # The prior handler was not installed from Python and cannot be
+                # reinstated; leave the interpreter default in place rather than
+                # raising during cleanup.
+                continue
+            try:
+                signal.signal(signum, handler)  # type: ignore[arg-type]
+            except (ValueError, OSError, TypeError):  # pragma: no cover - restoration best effort
+                pass
 
 
 _WRITER_LOCK_NAME = "delegated-writer.lock"
@@ -287,6 +393,38 @@ class _WriterOwnership:
             fcntl.flock(self.handle.fileno(), fcntl.LOCK_UN)
             self.handle.close()
             self.released = True
+
+
+def _classify_abnormal(exc: BaseException) -> str:
+    """Map an abnormal launcher return to the bounded receipt vocabulary."""
+    if isinstance(exc, LauncherInterrupted):
+        return ABNORMAL_EXTERNAL_INTERRUPT
+    if isinstance(exc, subprocess.TimeoutExpired):
+        return ABNORMAL_TIMEOUT
+    return ABNORMAL_OTHER
+
+
+def _assigned_worktree_retained_work(assigned_worktree: Path) -> RetainedWork:
+    """Summarize, without content, the partial work an interrupted writer left.
+
+    Read-only. A failed or unreadable ``git status`` is reported as ``unknown``
+    rather than silently treated as "no retained work", so a receipt never
+    understates what a later recovery step must consider.
+    """
+    try:
+        completed = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=assigned_worktree,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    except OSError:
+        return RetainedWork("unknown", -1)
+    if completed.returncode != 0:
+        return RetainedWork("unknown", -1)
+    changed = [line for line in completed.stdout.splitlines() if line.strip()]
+    return RetainedWork("present" if changed else "absent", len(changed))
 
 
 def _terminate_and_reap(process: subprocess.Popen[str], pgid: int) -> bool:
@@ -464,6 +602,11 @@ def run_observed_delegation(
     process: subprocess.Popen[str] | None = None
     process_group: int | None = None
     writer_state = "released"
+    # Fail-safe signal handling is armed only once a write-capable child is
+    # live and disarmed before this function returns, so an external
+    # termination of the launcher is funnelled through the same bounded
+    # terminate-and-reap path as a timeout instead of orphaning the writer.
+    interrupt_handlers = _ScopedInterruptHandlers()
     try:
         if stdout_line_hook is not None:
             process = subprocess.Popen(
@@ -472,6 +615,7 @@ def run_observed_delegation(
             )
             child_launched = True
             process_group = ownership.mark_running(process)
+            interrupt_handlers.arm()
             _await_readiness(process, ready_probe, ready_deadline)
             returncode = _stream_output(process, stdout_line_hook, timeout)
             process.stdout.close()
@@ -480,6 +624,7 @@ def run_observed_delegation(
             process = subprocess.Popen(argv, cwd=resolved_worktree, env=env, text=True, start_new_session=True)
             child_launched = True
             process_group = ownership.mark_running(process)
+            interrupt_handlers.arm()
             _await_readiness(process, ready_probe, ready_deadline)
             returncode = process.wait(timeout=timeout)
             completed = subprocess.CompletedProcess(argv, returncode)
@@ -512,6 +657,7 @@ def run_observed_delegation(
         else:
             ownership.release()
     finally:
+        interrupt_handlers.disarm()
         if process is not None and process.stdout is not None:
             process.stdout.close()
         after = snapshot(integration_root)
@@ -525,6 +671,16 @@ def run_observed_delegation(
             route=route_containment_friction,
         )
 
+    abnormal_kind = _classify_abnormal(launch_exception) if launch_exception is not None else None
+    # A bounded retained-work summary is only meaningful once a child actually
+    # ran and then ended abnormally; a clean completion or an unlaunched exec
+    # failure has no interrupted partial diff to hand off.
+    retained_work = (
+        _assigned_worktree_retained_work(resolved_worktree)
+        if launch_exception is not None and child_launched
+        else None
+    )
+
     result = GuardedRunResult(
         launched=child_launched,
         returncode=completed.returncode if completed is not None else None,
@@ -534,13 +690,18 @@ def run_observed_delegation(
         violation=violation,
         message=message,
         writer_state=writer_state,
+        abnormal_kind=abnormal_kind,
+        retained_work=retained_work,
     )
 
     if launch_exception is not None:
+        retained_note = (
+            f", retained work {retained_work.state}" if retained_work is not None else ""
+        )
         raise GuardedChildError(
             f"delegated child did not complete normally ({launch_exception!r}); "
-            f"containment {'VIOLATION' if violation else 'clean'} and writer lifecycle {writer_state} "
-            "recorded before this error was raised.",
+            f"abnormal kind {abnormal_kind}, containment {'VIOLATION' if violation else 'clean'} and "
+            f"writer lifecycle {writer_state}{retained_note} recorded before this error was raised.",
             result,
         ) from launch_exception
 

@@ -275,6 +275,58 @@ class ModelRoutingTests(unittest.TestCase):
             execution = routing.run_codex(route, "implement")
         self.assertTrue(all(value["status"] == "unknown" for value in execution["efficiency"]["usage"].values()))
 
+    def test_codex_receipt_classifies_external_interrupt_and_carries_retained_work(self) -> None:
+        route = self.prepare()
+        hard = guard.EnforcementDecision(guard.EnforcementTier.HARD, "codex-workspace-write-sandbox", "safe")
+        interrupted = SimpleNamespace(
+            launched=True, returncode=None, violation=False, writer_state="released",
+            abnormal_kind=guard.ABNORMAL_EXTERNAL_INTERRUPT,
+            retained_work=guard.RetainedWork("present", 3),
+        )
+        with (
+            patch.object(routing, "determine_codex_tier", return_value=hard),
+            patch.object(
+                routing,
+                "run_observed_delegation",
+                side_effect=guard.GuardedChildError("interrupted after cleanup", interrupted),
+            ),
+        ):
+            execution = routing.run_codex(route, "implement")
+        self.assertEqual(execution["outcome"], "abnormal")
+        self.assertEqual(execution["abnormal_kind"], "external-interrupt")
+        self.assertEqual(execution["retained_work"], {"state": "present", "changed_path_count": 3})
+
+    def test_codex_receipt_classifies_timeout_distinctly(self) -> None:
+        route = self.prepare()
+        hard = guard.EnforcementDecision(guard.EnforcementTier.HARD, "codex-workspace-write-sandbox", "safe")
+        timed_out = SimpleNamespace(
+            launched=True, returncode=None, violation=False, writer_state="released",
+            abnormal_kind=guard.ABNORMAL_TIMEOUT, retained_work=guard.RetainedWork("absent", 0),
+        )
+        with (
+            patch.object(routing, "determine_codex_tier", return_value=hard),
+            patch.object(
+                routing,
+                "run_observed_delegation",
+                side_effect=guard.GuardedChildError("timed out after cleanup", timed_out),
+            ),
+        ):
+            execution = routing.run_codex(route, "implement")
+        self.assertEqual(execution["abnormal_kind"], "timeout")
+        self.assertEqual(execution["retained_work"], {"state": "absent", "changed_path_count": 0})
+
+    def test_codex_launcher_boundary_failure_receipt_marks_launch_unavailable(self) -> None:
+        route = self.prepare()
+        hard = guard.EnforcementDecision(guard.EnforcementTier.HARD, "codex-workspace-write-sandbox", "safe")
+        with (
+            patch.object(routing, "determine_codex_tier", return_value=hard),
+            patch.object(routing, "run_observed_delegation", side_effect=PermissionError("writer receipt unavailable")),
+        ):
+            execution = routing.run_codex(route, "implement")
+        self.assertEqual(execution["outcome"], "abnormal")
+        self.assertEqual(execution["abnormal_kind"], "launch-unavailable")
+        self.assertNotIn("retained_work", execution)
+
     def test_abnormal_codex_return_is_truthfully_recorded_and_dispatch_fails(self) -> None:
         hard = guard.EnforcementDecision(guard.EnforcementTier.HARD, "codex-workspace-write-sandbox", "safe")
         observed = SimpleNamespace(launched=True, returncode=None, violation=False, writer_state="released")
