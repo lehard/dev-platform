@@ -1,0 +1,25 @@
+[capability]
+id = "architecture-health-review"
+name = "Architecture Health Review"
+description = "Produce a revision-bound, read-only architecture evidence report without creating work or refactoring."
+kind = "instruction-only"
+applicability = "Explicit architecture-health reviews and high-consequence interface/design decisions."
+invocation = "auto+explicit"
+visibility = "project"
+owner = "dev-platform"
+safety_boundary = "Instruction-only advisory review; no package installation, credentials, production access, repository mutation, task creation, Issue creation, or refactor authority."
+dependencies = []
+materialization = "provider-skill-markdown"
+update_policy = "replace-derived"
+removal_policy = "remove-derived-only"
+
+[provenance]
+source = "dev-platform"
+revision = "platform-managed"
+path = "dev-platform/capabilities/architecture-health-review.md"
+license = "Apache-2.0"
+content_sha256 = "2f447982067689d78c696a52234133b264e31048498c88ed6a5986049ad51a80"
+
+[eval]
+evidence = "dev-platform/evals/architecture-health-review-pilot.json"
+live_eval = "not-required-for-fixture"
