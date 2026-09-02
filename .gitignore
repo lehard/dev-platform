@@ -1,5 +1,6 @@
 .claude/
 .managed-task-state.json
+.dev-platform/browser-verification/
 .github/aw/logs/
 AGENTS.local.md
 __pycache__/

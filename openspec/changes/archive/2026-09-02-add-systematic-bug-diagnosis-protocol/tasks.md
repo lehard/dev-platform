@@ -1,0 +1,12 @@
+- [x] Require the optional engineering capability contract delivered by #87; reuse its identity/provenance/opt-in/materialization/update/remove mechanics.
+- [x] Re-check the current upstream `diagnosing-bugs` contract and extract reusable provider-neutral behavior.
+- [x] Define triggering rules for unknown bug/failure/regression versus bounded quick correction.
+- [x] Define bounded evidence fields for reproducer, hypotheses/experiments, regression test and post-fix verification without hidden reasoning capture.
+- [x] Integrate the diagnosis behavior with existing agent guidance/task lifecycle and the #87 capability materialization surface.
+- [x] Create a representative unknown-bug fixture and prove the failure condition before modification.
+- [x] Include a controlled false hypothesis and verify evidence rejects it before production-code changes.
+- [x] Add a regression test that fails before and passes after the fix where the fixture exposes a reasonable seam.
+- [x] Verify post-fix execution reruns the original reproducer and relevant checks and removes temporary instrumentation.
+- [x] Verify non-diagnosis quick work is not forced through the full protocol.
+- [x] Verify no parallel capability registry/config/update mechanism was introduced.
+- [x] Run semantic OpenSpec verification, platform/capability checks, record evidence, archive and publish normally.

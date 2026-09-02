@@ -84,6 +84,7 @@ python3 scripts/finish_task.py --status
 | Task intake, goal refinement, start/publish lifecycle, worktrees, shared workspace, friction, completion | [docs/engineering/agent-workflow.md](docs/engineering/agent-workflow.md) |
 | OpenSpec contract model, semantic verification, receipts, archive, version policy | [docs/engineering/openspec-workflow.md](docs/engineering/openspec-workflow.md) |
 | Provider-local executor selection, escalation, delegated write containment | [docs/engineering/model-routing.md](docs/engineering/model-routing.md) |
+| Optional engineering capability lifecycle and the browser verification adapter | [docs/engineering/engineering-capabilities.md](docs/engineering/engineering-capabilities.md), [docs/engineering/browser-verification.md](docs/engineering/browser-verification.md) |
 | Project-specific engineering, stack and domain rules | [docs/engineering/project-rules.md](docs/engineering/project-rules.md) |
 
 Platform-managed scripts, docs and the self-contained CI workflow are versioned in this repository by Copier; upgrades arrive only through reviewed Copier update PRs.
@@ -96,4 +97,4 @@ OpenSpec-generated Claude/Codex skills are produced by the OpenSpec CLI; do not 
 
 ## Optional engineering capabilities
 
-Optional engineering capabilities are independent of `workflow_profile`. Use `python3 scripts/capability_manager.py list` to discover them and the same entrypoint for `create`, `enable`, `update`, `remove`, `audit`, and `sync`. `dev-platform/capabilities.toml` is the project opt-in; descriptors under `dev-platform/capabilities/` are canonical. Generated `.claude/.codex` skill surfaces are derived and must not be edited. OpenSpec-generated skills remain external to this lifecycle.
+Optional engineering capabilities are independent of `workflow_profile`. Use `python3 scripts/capability_manager.py list` to discover them and the same entrypoint for `create`, `enable`, `update`, `remove`, `audit`, and `sync`. `dev-platform/capabilities.toml` is the project opt-in; descriptors under `dev-platform/capabilities/` are canonical. Generated `.claude/.codex` skill surfaces are derived and must not be edited. OpenSpec-generated skills remain external to this lifecycle. The opt-in `browser-verification` capability adds bounded exploratory browser checks for web projects; see [docs/engineering/browser-verification.md](docs/engineering/browser-verification.md).

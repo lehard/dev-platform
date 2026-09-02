@@ -1,0 +1,11 @@
+{
+  "name": "checkout",
+  "expected_end_state": "The checkout form shows the text 'Order confirmed' after placing an order.",
+  "steps": [
+    {"action": "navigate", "target": "/index.html"},
+    {"action": "fill", "ref": "#email", "value": "buyer@example.test"},
+    {"action": "click", "ref": "#place-order"},
+    {"action": "assert_text", "text": "Order confirmed"},
+    {"action": "screenshot", "name": "checkout-final"}
+  ]
+}

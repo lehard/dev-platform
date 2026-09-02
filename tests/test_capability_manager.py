@@ -40,6 +40,8 @@ class CapabilityManagerTests(unittest.TestCase):
             "capability-catalog.md",
             "architecture-health-review.toml",
             "architecture-health-review.md",
+            "systematic-bug-diagnosis.toml",
+            "systematic-bug-diagnosis.md",
             "frontend-design.toml",
             "frontend-design.md",
             "high-end-visual-design.toml",
@@ -49,6 +51,7 @@ class CapabilityManagerTests(unittest.TestCase):
         for name in (
             "capability-catalog-pilot.json",
             "architecture-health-review-pilot.json",
+            "systematic-bug-diagnosis-pilot.json",
             "frontend-design-pilot.json",
             "high-end-visual-design-pilot.json",
         ):
@@ -268,6 +271,44 @@ class CapabilityManagerTests(unittest.TestCase):
                 {"triggered": triggered, "not-triggered": not_triggered},
             )
             self.assertTrue(all(item["improved"] for item in report["quality_comparisons"]))
+
+    def test_systematic_diagnosis_records_evidence_without_forcing_quick_corrections(self) -> None:
+        capability = self.registry()["systematic-bug-diagnosis"]
+        self.assertEqual(capability.kind, "instruction-only")
+        self.assertEqual(capability.invocation, "auto+explicit")
+        manager.write_selection(self.root, [capability.identifier])
+        materialized = manager.sync(self.root, self.registry(), manager.load_selection(self.root))
+        self.assertEqual(len(materialized["changes"]), 2)
+        self.assertIn(
+            "dev-platform-capability:id=systematic-bug-diagnosis",
+            (self.root / ".codex" / "skills" / "dev-platform-systematic-bug-diagnosis" / "SKILL.md").read_text(encoding="utf-8"),
+        )
+        self.assertEqual(manager.audit(self.root, self.registry(), manager.load_selection(self.root))["status"], "ok")
+        for required in (
+            "unknown** defect",
+            "report the diagnosis as **unconfirmed**",
+            "Hypothesis | A concise possible cause.",
+            "test would be disproportionate",
+            "Re-run the original failure condition",
+            "does not create a parallel bug tracker or hidden-reasoning log",
+            "rejects a suspected timeout",
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, capability.instruction)
+        report = manager.evaluate_existing(
+            capability,
+            self.root / "dev-platform" / "evals" / "systematic-bug-diagnosis-pilot.json",
+            runtime="fixture",
+            runs=3,
+        )
+        self.assertEqual(report["summary"], {
+            "case_count": 20,
+            "passed": 20,
+            "failed": 0,
+            "incomplete": 0,
+            "status_distribution": {"not-triggered": 30, "triggered": 30},
+        })
+        self.assertTrue(all(item["improved"] for item in report["quality_comparisons"]))
 
 
 if __name__ == "__main__":
