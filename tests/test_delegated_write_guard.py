@@ -3,11 +3,13 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import signal
 import stat
 import subprocess
 import sys
 import tempfile
 import threading
+import time
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -513,6 +515,141 @@ class GuardedDelegationTests(unittest.TestCase):
         self.assertIsNone(result.returncode)
         self.assertFalse(result.violation)
         self.assertIsNotNone(result.containment)
+        # A steady-state timeout is a distinct abnormal class from an external
+        # launcher interruption, and the receipt must say which.
+        self.assertEqual(result.abnormal_kind, guard.ABNORMAL_TIMEOUT)
+
+    def _interrupt_self_when_ready(self, marker: Path, signum: int) -> threading.Thread:
+        """Deliver an external termination signal to this launcher process once
+        the delegated child has proven it is live, then let the test's own
+        default disposition be restored by the guard before we return."""
+
+        def _run() -> None:
+            for _ in range(500):
+                if marker.exists():
+                    break
+                time.sleep(0.01)
+            os.kill(os.getpid(), signum)
+
+        thread = threading.Thread(target=_run)
+        thread.start()
+        self.addCleanup(thread.join)
+        return thread
+
+    def test_external_interrupt_reaps_process_group_and_classifies_receipt(self) -> None:
+        before_term = signal.getsignal(signal.SIGTERM)
+        script = self.worktree / "interrupted_writer.py"
+        descendant_pid = self.worktree / "descendant.pid"
+        script.write_text(
+            "import subprocess, sys, time\n"
+            "from pathlib import Path\n"
+            "Path('partial-change.txt').write_text('partial work\\n', encoding='utf-8')\n"
+            "child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(30)'])\n"
+            "Path('descendant.pid.tmp').write_text(str(child.pid), encoding='utf-8')\n"
+            "Path('descendant.pid.tmp').replace('descendant.pid')\n"
+            "time.sleep(30)\n",
+            encoding="utf-8",
+        )
+        self._interrupt_self_when_ready(descendant_pid, signal.SIGTERM)
+        with self.assertRaises(guard.GuardedChildError) as ctx:
+            guard.run_observed_delegation(
+                integration_root=self.integration,
+                assigned_worktree=self.worktree,
+                argv=[sys.executable, str(script)],
+                tier_decision=self.hard_tier,
+                ready_probe=descendant_pid.exists,
+                ready_deadline=10.0,
+            )
+        result = ctx.exception.result
+        self.assertEqual(result.abnormal_kind, guard.ABNORMAL_EXTERNAL_INTERRUPT)
+        self.assertEqual(result.writer_state, "released")  # reap succeeded
+        # The whole process group is gone, not just the immediate child.
+        pid = int(descendant_pid.read_text(encoding="utf-8"))
+        with self.assertRaises(ProcessLookupError):
+            os.kill(pid, 0)
+        # Partial work the interrupted writer produced is preserved and reported
+        # as a bounded retained-work handoff (never a diff).
+        self.assertEqual(result.retained_work.state, "present")
+        self.assertGreaterEqual(result.retained_work.changed_path_count, 1)
+        self.assertTrue((self.worktree / "partial-change.txt").exists())
+        # The ownership receipt is released, so the worktree is reusable.
+        _lock, state = guard._writer_paths(self.worktree)
+        self.assertFalse(state.exists())
+        # The launcher's own signal disposition is restored afterwards.
+        self.assertEqual(signal.getsignal(signal.SIGTERM), before_term)
+
+    def test_failed_reap_after_interrupt_leaves_durable_ambiguous_state(self) -> None:
+        script = self.worktree / "unreapable_writer.py"
+        descendant_pid = self.worktree / "descendant.pid"
+        script.write_text(
+            "import subprocess, sys, time\n"
+            "from pathlib import Path\n"
+            "child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(30)'])\n"
+            "Path('descendant.pid.tmp').write_text(str(child.pid), encoding='utf-8')\n"
+            "Path('descendant.pid.tmp').replace('descendant.pid')\n"
+            "time.sleep(30)\n",
+            encoding="utf-8",
+        )
+
+        _lock, state = guard._writer_paths(self.worktree)
+
+        def _kill_group_after_test() -> None:
+            try:
+                payload = json.loads(state.read_text(encoding="utf-8"))
+                os.killpg(payload["process_group"], signal.SIGKILL)
+            except (OSError, ValueError, KeyError):
+                pass
+
+        self.addCleanup(_kill_group_after_test)
+        self._interrupt_self_when_ready(descendant_pid, signal.SIGTERM)
+        with (
+            patch.object(guard, "_terminate_and_reap", return_value=False),
+            self.assertRaises(guard.GuardedChildError) as ctx,
+        ):
+            guard.run_observed_delegation(
+                integration_root=self.integration,
+                assigned_worktree=self.worktree,
+                argv=[sys.executable, str(script)],
+                tier_decision=self.hard_tier,
+                ready_probe=descendant_pid.exists,
+                ready_deadline=10.0,
+            )
+        result = ctx.exception.result
+        self.assertEqual(result.abnormal_kind, guard.ABNORMAL_EXTERNAL_INTERRUPT)
+        self.assertEqual(result.writer_state, "ambiguous")
+        # The durable ambiguous receipt survives for the next launcher to see.
+        durable = json.loads(state.read_text(encoding="utf-8"))
+        self.assertEqual(durable["state"], "ambiguous")
+        self.assertIn("process_group", durable)
+        # A second write-capable launch is refused while ownership is unresolved.
+        with self.assertRaises(guard.WriterOwnershipError):
+            guard.run_observed_delegation(
+                integration_root=self.integration,
+                assigned_worktree=self.worktree,
+                argv=[sys.executable, "-c", "raise SystemExit('second writer ran')"],
+                tier_decision=self.hard_tier,
+            )
+
+    def test_normal_completion_is_unclassified_and_restores_signal_handlers(self) -> None:
+        before_term = signal.getsignal(signal.SIGTERM)
+        before_int = signal.getsignal(signal.SIGINT)
+        script = self.worktree / "quick_writer.py"
+        script.write_text(
+            "from pathlib import Path\nPath('output.txt').write_text('ok\\n', encoding='utf-8')\n",
+            encoding="utf-8",
+        )
+        result = guard.run_observed_delegation(
+            integration_root=self.integration,
+            assigned_worktree=self.worktree,
+            argv=[sys.executable, str(script)],
+            tier_decision=self.hard_tier,
+        )
+        self.assertEqual(result.returncode, 0)
+        self.assertFalse(result.violation)
+        self.assertIsNone(result.abnormal_kind)
+        self.assertIsNone(result.retained_work)
+        self.assertEqual(signal.getsignal(signal.SIGTERM), before_term)
+        self.assertEqual(signal.getsignal(signal.SIGINT), before_int)
 
     def test_streaming_timeout_cleans_up_a_silent_writer(self) -> None:
         script = self.worktree / "silent_sleep.py"

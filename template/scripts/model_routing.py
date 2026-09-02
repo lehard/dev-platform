@@ -531,7 +531,10 @@ def run_codex(route: Route, prompt: str, codex_bin: str | None = None) -> dict[s
         # Persist that attempted-but-unlaunched abnormal outcome, including
         # timing, instead of emitting a traceback that leaves a prepared route
         # looking like it has no meaningful execution evidence.
-        result = SimpleNamespace(launched=False, returncode=None, violation=True, writer_state="unavailable")
+        result = SimpleNamespace(
+            launched=False, returncode=None, violation=True, writer_state="unavailable",
+            abnormal_kind="launch-unavailable", retained_work=None,
+        )
         abnormal_error = f"unable to launch delegated Codex execution: {exc}"
     usage_events = captured["usage_events"]
     assert isinstance(usage_events, list)
@@ -551,6 +554,15 @@ def run_codex(route: Route, prompt: str, codex_bin: str | None = None) -> dict[s
     if abnormal_error is not None:
         output["outcome"] = "abnormal"
         output["error"] = abnormal_error
+        # Distinguish an external launcher interruption from a steady-state
+        # timeout or another launcher failure, and carry the bounded
+        # retained-work handoff so a later recovery step is not guessing.
+        output["abnormal_kind"] = getattr(result, "abnormal_kind", None) or "other"
+        retained_work = getattr(result, "retained_work", None)
+        if retained_work is not None:
+            output["retained_work"] = (
+                retained_work.as_dict() if hasattr(retained_work, "as_dict") else dict(retained_work)
+            )
     elif result.returncode not in (0, None) or result.violation:
         output["outcome"] = "failed"
     else:
