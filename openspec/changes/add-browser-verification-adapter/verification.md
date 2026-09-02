@@ -62,7 +62,7 @@ credential or profile bytes appear in any captured evidence; the Chrome profile 
 - `python3 scripts/capability_manager.py evaluate browser-verification --fixture dev-platform/evals/browser-verification-pilot.json --runtime fixture --runs 3` — 20/20 cases pass, 2 quality comparisons improved
 - `openspec validate add-browser-verification-adapter --strict` — valid
 - `python3 template/scripts/openspec_lifecycle.py check` — OK
-- `python3 scripts/run_test_groups.py --verify-coverage` — 791 declared == 791 discovered, no gaps/dupes
+- `python3 scripts/run_test_groups.py --verify-coverage` — 793 declared == 793 discovered, no gaps/dupes
 - `python3 scripts/run_test_groups.py --all` — see `automated-checks.json`
 
 An initial parallel full-suite run hit a 10s subprocess timeout inside

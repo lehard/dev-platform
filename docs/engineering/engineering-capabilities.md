@@ -88,6 +88,7 @@ The rejected runner pattern is also a containment decision: temporary `.claude/c
 | --- | --- | --- |
 | `capability-catalog` | tool-backed | This document |
 | `repository-hygiene` | instruction-only | This document |
+| `architecture-health-review` | instruction-only | This document |
 | `browser-verification` | tool-backed | [browser-verification.md](browser-verification.md) |
 
 ## Delivery
