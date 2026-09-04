@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/agent-runtime/spec.md"
+  ],
+  "change": "validate-ouroboros-execution-backend",
+  "imported_at": "2026-09-03T16:43:04+00:00",
+  "package_revision": "0e1701e48162717a7c92a9b7e2df523af502b442240642d690cd548afb62ca5b",
+  "prepared_against": "0a8f942b204fb55730c6d00a1693ea29b59ecf65",
+  "routing_receipt": {
+    "assurance": "high",
+    "effort_hint": "high",
+    "recommended_start_tier": "R3",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": "novel_cross_system",
+    "task_family": "runtime-integration"
+  },
+  "source_issue": "lehard/development-backlog#102",
+  "source_issue_evidence": {
+    "body_sha256": "8bc4810474730e805835c90aa4e9f47025b0396451a014f5d56bf0c12493bc3a",
+    "updated_at": "2026-09-03T15:25:06Z"
+  },
+  "supersedes": "c7f7c6aedcb59d4b79d924f383eb9cf32312c6713de0d5c8c6e5ff3acd21d1e6",
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

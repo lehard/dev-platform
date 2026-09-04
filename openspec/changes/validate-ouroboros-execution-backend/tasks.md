@@ -1,0 +1,12 @@
+- [x] Re-check the current Ouroboros stable release and relevant `main` fixes at execution time; record exact tested version/commit, license and supported CLI/SDK/MCP/plugin integration surface.
+- [x] Reconcile the current `agent-runtime` external-backend contract and runtime-neutral execution evidence from completed backlog #69/#68; do not introduce a second runtime framework.
+- [x] Identify the exact historical pre-change base and accepted OpenSpec/task package for backlog #94 and #30, plus their durable native verification/execution evidence.
+- [x] Define the smallest one-way translation from the exact OpenSpec/task contract to an Ouroboros execution input; fail the pilot if a second independently maintained spec/state is required.
+- [x] Build only the minimum isolated pilot adapter/glue needed to start, observe, cancel/cleanup and collect bounded terminal evidence without changing production default routing.
+- [x] Replay #94 through Ouroboros in an isolated historical-base workspace and verify the produced result with current Dev Platform acceptance; record terminal outcome, intervention, coupling and comparable efficiency evidence.
+- [x] Replay #30 through Ouroboros under the same rules and record the same evidence.
+- [x] Use existing native historical evidence as the comparison baseline where sufficient; perform a native replay only for a field that cannot otherwise be compared truthfully.
+- [x] Explicitly test negative boundaries: no writes to current main/integration/sibling worktrees, no Ouroboros-owned canonical task status, and no success claim based only on Ouroboros evaluation.
+- [x] Produce a bounded pilot report with one decision (`adopt-next-step`, `watch-only`, `reject-for-now`), the evidence behind it, and the exact Dev Platform code/maintenance that could be removed or the reason no substitution is justified.
+- [x] Remove disposable pilot glue unless the decision and report justify retaining one small isolated seam for the named next step.
+- [x] Perform semantic OpenSpec verification and the relevant risk-proportional platform checks; do not switch production execution or roll out Ouroboros downstream.
