@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "selection": {
+    "state": "ready",
+    "command_count": 2,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "git diff --check",
+      "duration_seconds": 0.069,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_docs_links.py",
+      "duration_seconds": 0.749,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "docs",
+      "paths": [
+        "openspec/changes/validate-ouroboros-execution-backend/.managed-task.json",
+        "openspec/changes/validate-ouroboros-execution-backend/.openspec.yaml",
+        "openspec/changes/validate-ouroboros-execution-backend/automated-checks.json",
+        "openspec/changes/validate-ouroboros-execution-backend/design.md",
+        "openspec/changes/validate-ouroboros-execution-backend/pilot-report.md",
+        "openspec/changes/validate-ouroboros-execution-backend/proposal.md",
+        "openspec/changes/validate-ouroboros-execution-backend/specs/agent-runtime/spec.md",
+        "openspec/changes/validate-ouroboros-execution-backend/tasks.md",
+        "openspec/changes/validate-ouroboros-execution-backend/verification.md"
+      ],
+      "commands": [
+        "git diff --check",
+        "python3 scripts/check_docs_links.py"
+      ],
+      "evidence_types": [
+        "configuration",
+        "configuration"
+      ]
+    }
+  ]
+}

@@ -21,11 +21,14 @@ Executed in the assigned worktree on branch
 - `python3 scripts/check_docs_links.py` — PASS.
 - `git diff --check` — PASS.
 
-The first three commands were selected and captured by the repository check
-selector in `automated-checks.json`. The remaining lifecycle, strict OpenSpec,
-documentation, and whitespace checks were run explicitly because the change is
-a durable experimental decision artifact even though it retains no runtime
-code.
+The archive helper's final affected-file selection captured the documentation
+and whitespace commands in `automated-checks.json`. Before archive, an explicit
+`--protected-full` selector execution captured and passed the first three
+commands above; the lifecycle, strict OpenSpec, documentation, and whitespace
+checks were also run explicitly. The broader pre-archive run was deliberately
+performed because the change is a durable experimental decision artifact even
+though it retains no runtime code; the archive helper then refreshed the
+canonical evidence receipt with its final risk-proportional selection.
 
 ## Completeness
 
