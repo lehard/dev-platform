@@ -1,0 +1,32 @@
+{
+  "archived_change_dir": "openspec/changes/archive/2026-09-02-support-exact-pr-continuation",
+  "case": "support-exact-pr-continuation",
+  "commit": "80c84afd9c44e93950152394c7746ceaa2136eda",
+  "commit_kind": "single squash-merge commit containing implementation + archive move",
+  "diff_files": [
+    "openspec/changes/archive/2026-09-02-support-exact-pr-continuation/.managed-task.json",
+    "openspec/changes/archive/2026-09-02-support-exact-pr-continuation/.openspec.yaml",
+    "openspec/changes/archive/2026-09-02-support-exact-pr-continuation/automated-checks.json",
+    "openspec/changes/archive/2026-09-02-support-exact-pr-continuation/design.md",
+    "openspec/changes/archive/2026-09-02-support-exact-pr-continuation/proposal.md",
+    "openspec/changes/archive/2026-09-02-support-exact-pr-continuation/specs/publication-recovery/spec.md",
+    "openspec/changes/archive/2026-09-02-support-exact-pr-continuation/tasks.md",
+    "openspec/changes/archive/2026-09-02-support-exact-pr-continuation/verification.md",
+    "openspec/specs/publication-recovery/spec.md",
+    "template/scripts/task_reconciliation.py",
+    "tests/test_task_reconciliation.py"
+  ],
+  "diff_shortstat": "11 files changed, 423 insertions(+), 5 deletions(-)",
+  "evidence_paths": {
+    ".managed-task.json": "openspec/changes/archive/2026-09-02-support-exact-pr-continuation/.managed-task.json",
+    "automated-checks.json": "openspec/changes/archive/2026-09-02-support-exact-pr-continuation/automated-checks.json",
+    "design.md": "openspec/changes/archive/2026-09-02-support-exact-pr-continuation/design.md",
+    "proposal.md": "openspec/changes/archive/2026-09-02-support-exact-pr-continuation/proposal.md",
+    "tasks.md": "openspec/changes/archive/2026-09-02-support-exact-pr-continuation/tasks.md",
+    "verification.md": "openspec/changes/archive/2026-09-02-support-exact-pr-continuation/verification.md"
+  },
+  "replay_category": "other",
+  "spec_delta_paths": [
+    "openspec/changes/archive/2026-09-02-support-exact-pr-continuation/specs/publication-recovery/spec.md"
+  ]
+}

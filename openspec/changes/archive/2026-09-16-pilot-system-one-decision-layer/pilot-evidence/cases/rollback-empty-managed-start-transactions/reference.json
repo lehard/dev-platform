@@ -1,0 +1,47 @@
+{
+  "case": "rollback-empty-managed-start-transactions",
+  "recorded_by": "orchestrating-session (independent reference, recorded before dispatching the model-adapter arm)",
+  "scope_note": "Covers only the 10 model-judged taxonomy items. The 5 deterministic items are scored against pilot-evidence/cases/<case>/deterministic.json instead, per design decision 2 (a deterministic-checkable judgment is never scored against a model or human opinion).",
+  "judgments": {
+    "scope_respected": {
+      "verdict": true,
+      "rationale": "Diff touches template/scripts/start_managed_task.py (the transaction logic described in proposal.md), tests/managed_start_transaction_cases.py, the OpenSpec change bundle, and openspec/specs/managed-task-intake/spec.md (the folded current-spec delta expected at archive time). Spot-checked the actual patch to template/scripts/start_managed_task.py: it adds _fresh_transaction()/mismatches-supersession logic exactly matching the described 'stale package_revision-only mismatch is superseded once emptiness is proven' behavior. No file outside this footprint."
+    },
+    "suspicious_scope_expansion": {
+      "verdict": false,
+      "rationale": "All 11 changed files are either the OpenSpec change bundle, the single implementation file, its test file, or the folded current spec. No unrelated directories or concerns touched."
+    },
+    "test_evidence_sufficient": {
+      "verdict": 5,
+      "rationale": "verification.md names 8 new regression tests mapped 1:1 to the 3 scenarios in the spec delta (empty rollback, revision supersession, and every fail-closed branch/worktree/board/ambiguous-board case), plus exact aggregate counts (declared_test_count == discovered_test_count == 830) proving the new tests are wired into the suite, not orphaned."
+    },
+    "regression_risk": {
+      "verdict": 3,
+      "rationale": "Touches a core, frequently-exercised lifecycle entrypoint (managed_start_transaction) used by every managed task start, not a leaf module. Mitigated by fail-closed design (falls back to the old raise on any mismatch besides package_revision, ambiguous board still raises) and 8 new regression cases, but the blast radius of a mistake here is every future managed-start call, which keeps risk above negligible."
+    },
+    "security_sensitive_surface_touch": {
+      "verdict": false,
+      "rationale": "No auth, credential, or permission-boundary code touched; this is internal transaction-state bookkeeping (a local JSON receipt file), not an access-control surface."
+    },
+    "migration_config_release_impact": {
+      "verdict": false,
+      "rationale": "No config schema, release ref, or rollout surface changed; behavior-only fix contained to the managed-start transaction helper."
+    },
+    "suspicious_large_or_unrelated_diff": {
+      "verdict": false,
+      "rationale": "473/18 lines across 11 files is proportionate for a bug fix plus 8 new regression tests plus the mandatory OpenSpec change bundle; file list matches the stated scope exactly."
+    },
+    "verification_contradiction": {
+      "verdict": false,
+      "rationale": "Spot-checked the real diff against verification.md's specific claims (the 'mismatches == [\"package_revision\"]' exact-list check, the _fresh_transaction() extraction, fail-closed ordering before yield) and they match what verification.md describes line-for-line."
+    },
+    "human_review_recommended": {
+      "verdict": true,
+      "rationale": "Any change to shared transactional/locking logic in a lifecycle entrypoint used by every managed task start is a reasonable candidate for mandatory human review before merge, independent of the automated evidence being strong -- the failure mode (an incorrectly superseded transaction) is not something automated tests alone can fully rule out for every future caller pattern."
+    },
+    "action_recommendation": {
+      "verdict": "accept",
+      "rationale": "Verification evidence is thorough and specific, the diff matches the stated scope with no expansion, and the fail-closed design bounds the risk of the one behavior change being wrong."
+    }
+  }
+}

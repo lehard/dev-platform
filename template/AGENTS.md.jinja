@@ -39,6 +39,7 @@ Goal refinement is a selective layer before authoring, used only for explicit go
 - **Managed contract conflicts stop.** Repair formal/schema mismatches in an imported package; a material product-contract conflict returns to the user.
 - **Quick tasks do not silently grow.** If one expands into a material behavior, architecture, compatibility, data-contract or scope change, stop and propose managed-task fixation.
 - **Required GitHub checks are never bypassed.** Do not add agent/admin bypass to make autonomous publication succeed, and do not use the human user as a routine Git courier between finished work and GitHub.
+- **Keep CI providers thin.** Put portable test, build, verification, release, and deploy behavior behind repository-owned executable entrypoints; use provider workflows for their native orchestration. See [docs/engineering/agent-workflow.md](docs/engineering/agent-workflow.md).
 - **Report blockers.** If a required completion step is blocked, say so instead of reporting the task as done.
 - **Resolve the friction checkpoint** before reporting a non-trivial task complete: `python3 scripts/agent_friction.py checkpoint --result none`, or the id of a recorded event.
 {% if workflow_profile == 'multi-agent' %}

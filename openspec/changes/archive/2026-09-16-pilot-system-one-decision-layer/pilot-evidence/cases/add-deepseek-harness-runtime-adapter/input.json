@@ -1,0 +1,42 @@
+{
+  "archived_change_dir": "openspec/changes/archive/2026-08-24-add-deepseek-harness-runtime-adapter",
+  "case": "add-deepseek-harness-runtime-adapter",
+  "commit": "5e63614b18e24433dddbef51a992e2b7eae319d1",
+  "commit_kind": "single squash-merge commit containing implementation + archive move",
+  "diff_files": [
+    ".dev-platform.toml",
+    "dev-platform/checks.toml",
+    "docs/engineering/deepseek-harness-runtime.md",
+    "openspec/changes/archive/2026-08-24-add-deepseek-harness-runtime-adapter/.managed-task.json",
+    "openspec/changes/archive/2026-08-24-add-deepseek-harness-runtime-adapter/.openspec.yaml",
+    "openspec/changes/archive/2026-08-24-add-deepseek-harness-runtime-adapter/automated-checks.json",
+    "openspec/changes/archive/2026-08-24-add-deepseek-harness-runtime-adapter/design.md",
+    "openspec/changes/archive/2026-08-24-add-deepseek-harness-runtime-adapter/proposal.md",
+    "openspec/changes/archive/2026-08-24-add-deepseek-harness-runtime-adapter/specs/agent-runtime/spec.md",
+    "openspec/changes/archive/2026-08-24-add-deepseek-harness-runtime-adapter/tasks.md",
+    "openspec/changes/archive/2026-08-24-add-deepseek-harness-runtime-adapter/verification.md",
+    "openspec/specs/agent-runtime/spec.md",
+    "scripts/deepseek_harness_adapter.py",
+    "template/.dev-platform.toml.jinja",
+    "template/dev-platform/deepseek-harness-observation.cordis.yml",
+    "template/docs/engineering/deepseek-harness-runtime.md",
+    "template/requirements/deepseek-harness.txt",
+    "template/scripts/deepseek_harness_adapter.py",
+    "template/scripts/model_routing.py",
+    "tests/test_deepseek_harness_runtime.py",
+    "tests/test_template_contract.py"
+  ],
+  "diff_shortstat": "21 files changed, 1909 insertions(+), 11 deletions(-)",
+  "evidence_paths": {
+    ".managed-task.json": "openspec/changes/archive/2026-08-24-add-deepseek-harness-runtime-adapter/.managed-task.json",
+    "automated-checks.json": "openspec/changes/archive/2026-08-24-add-deepseek-harness-runtime-adapter/automated-checks.json",
+    "design.md": "openspec/changes/archive/2026-08-24-add-deepseek-harness-runtime-adapter/design.md",
+    "proposal.md": "openspec/changes/archive/2026-08-24-add-deepseek-harness-runtime-adapter/proposal.md",
+    "tasks.md": "openspec/changes/archive/2026-08-24-add-deepseek-harness-runtime-adapter/tasks.md",
+    "verification.md": "openspec/changes/archive/2026-08-24-add-deepseek-harness-runtime-adapter/verification.md"
+  },
+  "replay_category": "other",
+  "spec_delta_paths": [
+    "openspec/changes/archive/2026-08-24-add-deepseek-harness-runtime-adapter/specs/agent-runtime/spec.md"
+  ]
+}
