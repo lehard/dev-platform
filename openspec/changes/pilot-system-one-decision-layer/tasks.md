@@ -10,4 +10,4 @@
 - [x] Record adapter coupling/maintenance burden (translation code, manual intervention, Jev-specific leakage) as adoption cost.
 - [x] Produce the bounded pilot report recording exactly one decision (`proceed-to-shadow`, `watch-only`, `reject-for-now`) with its evidence and, for `watch-only`/`reject-for-now`, a concrete activation/revisit criterion.
 - [x] Remove disposable pilot glue unless the decision is `proceed-to-shadow` and the retained seam is small, isolated, and justified for the named next step.
-- [ ] Perform semantic OpenSpec verification and the relevant risk-proportional platform checks; do not enable live gating, auto-merge on confidence, or any other production lifecycle change.
+- [x] Perform semantic OpenSpec verification and the relevant risk-proportional platform checks; do not enable live gating, auto-merge on confidence, or any other production lifecycle change.
