@@ -1,0 +1,8 @@
+- [x] Add the thin-CI/provider boundary to the canonical Platform CI contract, distinguishing portable repository execution from provider-native orchestration.
+- [x] Add a bounded root/rendered agent-facing invariant or pointer that tells agents to prefer repository-owned executable entrypoints over new GitHub-specific implementation logic.
+- [x] Update the existing canonical CI/release guidance as needed without duplicating the same rule across provider-specific instruction files.
+- [x] Audit `template/.github/workflows/dev-platform.yml.jinja` against the new invariant and preserve its existing repository-owned `platform_doctor.py`, `openspec_lifecycle.py` and `select_checks.py` paths.
+- [x] Inspect central `.github/workflows/ci.yml` only for concrete ownership violations; do not extract shell blocks solely to make YAML smaller.
+- [x] Add/adjust focused tests for rendered agent-instruction coherence and generated workflow ownership where current tests do not already cover the invariant.
+- [x] Verify representative portable CI logic can be invoked through a repository-owned command without GitHub Actions being the only execution environment.
+- [ ] Run relevant template, docs-link, agent-instruction, Platform CI and semantic OpenSpec checks.

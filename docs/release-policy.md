@@ -10,6 +10,17 @@ Copier releases use immutable SemVer Git tags such as `v1.0.0` and `v1.0.1`. Pub
 
 Starting with `v1.0.1`, generated project CI is self-contained: the Copier-managed workflow runs the Copier-managed `scripts/select_checks.py` from the downstream checkout using SHA-pinned GitHub Actions. It does not require private cross-repository reusable-workflow access.
 
+GitHub Actions is the current control plane, not the default implementation
+surface. Portable test, build, verification, release, and deploy behavior that
+can run from a checked-out repository belongs behind a repository-owned
+executable command or script, so developers and agents can invoke the same
+behavior locally. The workflow orchestrates those entrypoints. GitHub-native
+concerns -- events, permissions, concurrency, checkout/setup, secrets and
+environment wiring, artifacts, and check/status integration -- remain in the
+workflow. Do not introduce a generic provider abstraction merely to anticipate
+another CI provider, and do not extract working inline workflow logic solely to
+reduce YAML line count.
+
 This keeps the same review boundary:
 
 `dev-platform release -> exact-version Copier update PR -> downstream CI/review -> merge`

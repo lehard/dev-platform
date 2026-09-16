@@ -18,6 +18,7 @@ import managed_task  # noqa: E402
 
 FIXTURES = ROOT / "tests" / "fixtures"
 CONCERN_ROW = "Maintaining agent-facing instructions, pointers and surface ownership"
+CI_OWNERSHIP_INVARIANT = "Keep CI providers thin."
 
 
 def fixture(name: str) -> dict[str, object]:
@@ -78,6 +79,21 @@ class InstructionArchitectureTests(unittest.TestCase):
                     pointer_destination(text, "Task intake and intent transitions"),
                     pointer_destination(text, CONCERN_ROW),
                 )
+
+    def test_ci_work_reaches_thin_provider_guidance_without_repeating_it_in_adapters(self) -> None:
+        central = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+        rendered = (ROOT / "template" / "AGENTS.md.jinja").read_text(encoding="utf-8")
+        claude = (ROOT / "CLAUDE.md").read_text(encoding="utf-8")
+        rendered_claude = (ROOT / "template" / "CLAUDE.md.jinja").read_text(encoding="utf-8")
+
+        self.assertIn(CI_OWNERSHIP_INVARIANT, central)
+        self.assertIn("repository-owned executable entrypoints", central)
+        self.assertIn("docs/release-policy.md", central)
+        self.assertIn(CI_OWNERSHIP_INVARIANT, rendered)
+        self.assertIn("repository-owned executable entrypoints", rendered)
+        self.assertIn("docs/engineering/agent-workflow.md", rendered)
+        for text in (claude, rendered_claude):
+            self.assertNotIn(CI_OWNERSHIP_INVARIANT, text)
 
     def test_tool_specific_adapters_remain_pointers_not_shared_policy_copies(self) -> None:
         for relative in ("CLAUDE.md", "template/CLAUDE.md.jinja"):
