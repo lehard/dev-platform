@@ -1,7 +1,7 @@
 # browser-verification Specification
 
 ## Purpose
-TBD - created by archiving change add-browser-verification-adapter. Update Purpose after archive.
+Define the optional browser-verification capability and its bounded use in web-project validation.
 ## Requirements
 ### Requirement: Web projects can opt into browser verification
 
@@ -81,4 +81,3 @@ NOT be performed automatically.
 - **WHEN** a discovered regression cannot yet be reproduced deterministically
 - **THEN** the absence of a deterministic seam is explained explicitly in the change evidence
 - **AND** the exploratory finding is not silently dropped
-

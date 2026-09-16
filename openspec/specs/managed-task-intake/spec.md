@@ -1,7 +1,7 @@
 # managed-task-intake Specification
 
 ## Purpose
-TBD - created by archiving change add-managed-backlog-intake. Update Purpose after archive.
+Define how approved Development Backlog work is imported, materialized, and governed as a managed task.
 ## Requirements
 ### Requirement: Managed tasks use a versioned central intake package
 
@@ -661,4 +661,3 @@ only for isolated helpers or a project-specific recovery command.
 - **THEN** the fixture proves the standard entrypoint neither imports nor
   assumes the differing project-owned API
 - **AND** platform-harness exact-head pending-rollout coverage remains green
-

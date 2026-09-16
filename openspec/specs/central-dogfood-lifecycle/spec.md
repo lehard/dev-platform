@@ -1,7 +1,7 @@
 # central-dogfood-lifecycle Specification
 
 ## Purpose
-TBD - created by archiving change add-central-dogfood-lifecycle. Update Purpose after archive.
+Define the central dogfood lifecycle used to exercise and improve the platform's own managed-task process.
 ## Requirements
 ### Requirement: Central source lifecycle configuration is explicit
 
@@ -107,4 +107,3 @@ When central dogfood status reports source-Issue drift and recommends machine-re
 - **WHEN** `dogfood_task.py status` prints a JSON recovery instruction
 - **THEN** executing that exact instruction succeeds as a read-only status operation
 - **AND** it returns the bounded recorded/current revision evidence.
-

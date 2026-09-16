@@ -1,7 +1,7 @@
 # agentic-maintenance Specification
 
 ## Purpose
-TBD - created by archiving change adopt-gh-aw-process-automation. Update Purpose after archive.
+Define safe, repeatable maintenance practices for agent-operated platform repositories and workflows.
 ## Requirements
 ### Requirement: Cloud agentic maintenance is additive and bounded
 
@@ -184,4 +184,3 @@ The router SHALL search the complete bounded/paginated open source set required 
 - **WHEN** a new event uses a different category slug but materially matches an existing root-cause candidate
 - **THEN** the routing flow surfaces the bounded existing candidate before creating a distinct issue
 - **AND** it does not perform an unsupported opaque semantic merge
-

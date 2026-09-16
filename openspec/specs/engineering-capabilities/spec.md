@@ -1,7 +1,7 @@
 # engineering-capabilities Specification
 
 ## Purpose
-TBD - created by archiving change add-optional-engineering-capability-lifecycle. Update Purpose after archive.
+Define the lifecycle and ownership boundaries for optional engineering capabilities supplied by the platform.
 ## Requirements
 ### Requirement: Optional engineering capabilities use one provider-neutral lifecycle
 
@@ -199,4 +199,3 @@ Rules SHALL be pinned and updated only through reviewed capability lifecycle, an
 - **WHEN** capability guidance disagrees with a project design system or repository rule
 - **THEN** the project rule and its acceptance tests take precedence
 - **AND** the guidance does not trigger an unsolicited redesign or block merge on its own
-

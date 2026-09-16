@@ -1,7 +1,7 @@
 # architecture-health Specification
 
 ## Purpose
-TBD - created by archiving change add-architecture-health-review. Update Purpose after archive.
+Define how the platform evaluates and records architecture health without conflating it with product delivery.
 ## Requirements
 ### Requirement: Dev Platform can produce read-only architecture health evidence
 
@@ -30,4 +30,3 @@ Dev Platform SHALL permit bounded comparison of materially different design/inte
 - **WHEN** an explicitly configured architecture trigger requests alternative-design analysis
 - **THEN** at least two materially distinct designs can be compared against stated criteria
 - **AND** the comparison remains evidence for the existing OpenSpec design decision rather than a competing specification source
-

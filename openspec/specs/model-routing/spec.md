@@ -1,7 +1,7 @@
 # model-routing Specification
 
 ## Purpose
-TBD - created by archiving change adopt-native-model-routing. Update Purpose after archive.
+Define provider-neutral model routing, escalation, and evidence requirements for managed task execution.
 ## Requirements
 ### Requirement: The platform exposes abstract execution profiles
 
@@ -470,4 +470,3 @@ Calibration SHALL NOT automatically modify routing policy, enable R1, create Dev
 - **WHEN** the report is produced
 - **THEN** it records `no change` or `insufficient evidence / no policy change` as advisory output
 - **AND** any later policy change still requires a separate explicit reviewed managed change
-

@@ -1,7 +1,7 @@
 # standard-profile-lifecycle Specification
 
 ## Purpose
-TBD - created by archiving change standard-profile-lifecycle-compatibility. Update Purpose after archive.
+Define compatibility guarantees and lifecycle behavior for repositories using the standard workflow profile.
 ## Requirements
 ### Requirement: Standard profile exposes a managed task-start compatibility contract
 
@@ -64,4 +64,3 @@ preflight behavior through rendered or adopted downstream-compatible files.
 - **WHEN** the consumer compatibility suite runs
 - **THEN** light and multi-agent profile controls continue to pass their supported lifecycle contracts
 - **AND** the suite does not require real GitHub credentials, a model runtime, or a write-capable child agent.
-

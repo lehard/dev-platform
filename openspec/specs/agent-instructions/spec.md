@@ -1,7 +1,7 @@
 # agent-instructions Specification
 
 ## Purpose
-TBD - created by archiving change harden-agent-instruction-architecture. Update Purpose after archive.
+Define the durable, layered instruction contract that guides agents safely across the platform and its owned modules.
 ## Requirements
 ### Requirement: Agent-facing instructions use bounded discoverable context pointers
 
@@ -65,4 +65,3 @@ Dev Platform SHALL make the CI ownership boundary discoverable from applicable r
 #### Scenario: Task only needs GitHub-native orchestration
 - **WHEN** the task changes only triggers, permissions, concurrency, check/status integration or other provider-native control-plane behavior
 - **THEN** the instruction does not force creation of an unnecessary repository abstraction or wrapper
-

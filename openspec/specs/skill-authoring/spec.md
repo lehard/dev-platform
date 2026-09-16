@@ -1,7 +1,7 @@
 # skill-authoring Specification
 
 ## Purpose
-TBD - created by archiving change adopt-skill-creator-evals. Update Purpose after archive.
+Define how reusable agent skills are authored, evaluated, and maintained within platform ownership boundaries.
 ## Requirements
 ### Requirement: Capability authoring automatically decides whether to evaluate
 
@@ -130,4 +130,3 @@ When a supported provider exposes a native evaluation surface capable of supplyi
 - **WHEN** a native provider adapter produces a full report (prompts, per-message traces, an HTML report)
 - **THEN** Dev Platform SHALL retain only case identifiers, prompt digests, bounded statuses, and adapter provenance in the canonical report
 - **AND** SHALL NOT copy the native adapter's prompt text, trace files, or HTML report into platform-owned storage
-

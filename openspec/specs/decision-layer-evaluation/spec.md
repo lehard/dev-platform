@@ -1,7 +1,7 @@
 # decision-layer-evaluation Specification
 
 ## Purpose
-TBD - created by archiving change pilot-system-one-decision-layer. Update Purpose after archive.
+Define the evidence-based decision layer that evaluates candidate approaches for platform work.
 ## Requirements
 ### Requirement: Atomic-judgment pilots do not gain gating or write authority
 
@@ -56,4 +56,3 @@ A completed atomic-judgment decision-layer pilot SHALL record exactly one curren
 - **WHEN** the decision is recorded
 - **THEN** the decision SHALL NOT be `proceed-to-shadow` unless that error class is explicitly evaluated and found acceptable
 - **AND** the report identifies the concrete false-allow cases observed
-

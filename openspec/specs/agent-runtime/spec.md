@@ -1,7 +1,7 @@
 # agent-runtime Specification
 
 ## Purpose
-TBD - created by archiving change add-deepseek-harness-runtime-adapter. Update Purpose after archive.
+Define supported agent runtime integrations and their compatibility boundaries for platform-managed execution.
 ## Requirements
 ### Requirement: Dev Platform may expose optional external agent-runtime backends
 
@@ -141,4 +141,3 @@ The decision SHALL NOT itself switch the production runtime, remove the native p
 - **THEN** exactly one of `adopt-next-step`, `watch-only`, or `reject-for-now` is recorded with the required evidence
 - **AND** native execution remains the production default
 - **AND** no downstream runtime switch or rollout is performed by the pilot
-
