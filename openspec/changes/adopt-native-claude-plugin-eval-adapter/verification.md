@@ -16,6 +16,17 @@ Executed in the assigned worktree on branch `agent/adopt-native-claude-plugin-ev
 - `python3 scripts/check_docs_links.py` — PASS (`no problems found`).
 - `git diff --check` — PASS (no whitespace conflicts).
 
+`python3 scripts/dogfood_task.py route-claude` required the change to still be
+materialized (active, not yet archived); it was run before archiving, which
+meant reverting and redoing an initial too-early archive attempt (see the
+non-linear `Archive ...` / `Revert "Archive ..."` commits in this branch's
+history). Origin/main also advanced during this task
+(`953a19d`/`test: isolate thin CI coverage (#426)`); `dogfood_task.py
+reconcile` merged it in (normal merge, no rebase/force-push), and the full
+869-test `run_test_groups.py --all` was re-run to green
+(`group_seconds_total: 828.959`, `outcome: success`, zero failed groups)
+against the reconciled head before this second, final archive.
+
 The first `run_test_groups.py --all` run failed two `test_template_contract` cases
 (`test_architecture_health_capability_is_mirrored_in_the_template`,
 `test_web_engineering_capability_pack_is_mirrored_in_the_template`): I had edited
