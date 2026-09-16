@@ -1,0 +1,13 @@
+- [ ] Define the versioned, provider-neutral atomic-judgment schema and the bounded initial taxonomy (~15-25 judgments), documenting for each whether it is deterministic-checkable or requires model judgment.
+- [ ] Identify at least 5 already-completed representative managed tasks with preserved task/spec/diff/verification evidence, including at least one bounded bug/recovery case and one capability/process-change case; record their canonical input.
+- [ ] For each labelable judgment on each replay case, record an independent reference verdict or explicit `unknown/not-labelable`; never infer ground truth from a compared backend's own output.
+- [ ] Implement the deterministic/rule baseline arm for judgments that can be established directly (tests, file existence, exit status, exact version, changed paths).
+- [ ] Wire the existing cheap general-purpose model adapter as the second comparison arm against the canonical judgment schema.
+- [ ] Wire Jev/System One as the third comparison arm behind a bounded adapter that does not leak `Noul/Choice/Score` or other Jev-specific types above the adapter boundary; explicitly record (not silently skip) when this arm is unavailable.
+- [ ] Run every reachable arm on the same canonical input for every replay case; record judgment correctness, false-allow/false-safe errors separately from false-escalation errors, calibration/confidence quality where sample size allows, latency, and token/request cost from truthfully exposed provider fields only.
+- [ ] Record schema/typed-output reliability (parse/validation failure rate) per backend.
+- [ ] Identify which judgments performed as well or better as deterministic logic and should be removed from the AI layer.
+- [ ] Record adapter coupling/maintenance burden (translation code, manual intervention, Jev-specific leakage) as adoption cost.
+- [ ] Produce the bounded pilot report recording exactly one decision (`proceed-to-shadow`, `watch-only`, `reject-for-now`) with its evidence and, for `watch-only`/`reject-for-now`, a concrete activation/revisit criterion.
+- [ ] Remove disposable pilot glue unless the decision is `proceed-to-shadow` and the retained seam is small, isolated, and justified for the named next step.
+- [ ] Perform semantic OpenSpec verification and the relevant risk-proportional platform checks; do not enable live gating, auto-merge on confidence, or any other production lifecycle change.
