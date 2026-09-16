@@ -1,0 +1,26 @@
+{
+  "case": "preflight-completion-before-validation",
+  "computed_from": "programmatic read of tasks.md / verification.md / automated-checks.json / .managed-task.json / specs/**",
+  "judgments": {
+    "automated_checks_outcome_success": {
+      "evidence": "automated-checks.json['outcome'] == 'success'",
+      "verdict": true
+    },
+    "required_artifacts_present": {
+      "evidence": "declared artifacts: ['proposal.md', 'design.md', 'tasks.md', 'specs/completion-lifecycle/spec.md']",
+      "verdict": true
+    },
+    "spec_delta_present": {
+      "evidence": "spec delta file(s): ['specs/completion-lifecycle/spec.md']",
+      "verdict": true
+    },
+    "task_checklist_complete": {
+      "evidence": "7 checkbox line(s) in tasks.md, all checked",
+      "verdict": true
+    },
+    "verification_pass_recorded": {
+      "evidence": "exact standalone 'OpenSpec-Verify: PASS' line found",
+      "verdict": true
+    }
+  }
+}

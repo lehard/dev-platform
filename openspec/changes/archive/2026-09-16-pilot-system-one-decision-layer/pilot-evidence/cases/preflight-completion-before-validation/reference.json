@@ -1,0 +1,47 @@
+{
+  "case": "preflight-completion-before-validation",
+  "recorded_by": "orchestrating-session (independent reference, recorded before dispatching the model-adapter arm)",
+  "scope_note": "Covers only the 10 model-judged taxonomy items. The 5 deterministic items are scored against pilot-evidence/cases/<case>/deterministic.json instead.",
+  "judgments": {
+    "scope_respected": {
+      "verdict": true,
+      "rationale": "verification.md states implementation is confined to template/scripts/finish_task.py and template/scripts/run_test_groups.py, and the diff file list confirms exactly that plus tests/test_git_lifecycle.py, the OpenSpec bundle, and the folded completion-lifecycle spec -- matches proposal.md's 'What Changes' (observable blockers before expensive validation, bounded progress emission) exactly."
+    },
+    "suspicious_scope_expansion": {
+      "verdict": false,
+      "rationale": "No files outside the stated two implementation files, their test file, and the mandatory OpenSpec bundle."
+    },
+    "test_evidence_sufficient": {
+      "verdict": 5,
+      "rationale": "verification.md names the exact new tests per scenario (test_preflight_hard_scope_overlap_blocks_before_expensive_validation, test_preflight_reports_two_independent_blockers_in_one_invocation, test_clean_preflight_streams_stage_and_validation_progress_then_publishes, test_run_checks_streams_child_output_incrementally) with what each proves, plus full-suite pass and exact declared/discovered coverage equivalence."
+    },
+    "regression_risk": {
+      "verdict": 3,
+      "rationale": "Reorders control flow in the synchronous completion/finish path used by every managed-task finish invocation, and design.md decision 6 documents one deliberate behavioral consequence (the already-merged recovery path no longer runs OpenSpec hygiene/friction-checkpoint gates). That is a real, if consciously scoped and tested, change to a high-traffic lifecycle entrypoint -- moderate risk, not negligible."
+    },
+    "security_sensitive_surface_touch": {
+      "verdict": false,
+      "rationale": "No auth/credential/permission code touched; this is completion-flow ordering and progress-line emission."
+    },
+    "migration_config_release_impact": {
+      "verdict": false,
+      "rationale": "No config schema, CLI flag, or release-ref change; verification.md explicitly notes no new CLI flags/commands/config and unchanged docs entrypoints."
+    },
+    "suspicious_large_or_unrelated_diff": {
+      "verdict": false,
+      "rationale": "590/-35 across 12 files is proportionate for reordering two cooperating lifecycle files plus 4 new regression tests plus the OpenSpec bundle."
+    },
+    "verification_contradiction": {
+      "verdict": false,
+      "rationale": "The 'Lifecycle note' section transparently discloses an unrelated concurrent merge that broke the routing containment postcheck purely by moving integration HEAD, names the exact friction id and follow-up issue, and explains the reconciliation -- this is disclosed honestly rather than hidden, which is the opposite of a contradiction."
+    },
+    "human_review_recommended": {
+      "verdict": true,
+      "rationale": "A control-flow reordering of gates in the shared completion/finish entrypoint, with one explicitly acknowledged intentional behavior change (decision 6), is exactly the kind of shared-infrastructure change worth a human sanity check even with strong automated evidence."
+    },
+    "action_recommendation": {
+      "verdict": "accept",
+      "rationale": "Evidence is specific and complete, the one behavioral tradeoff is explicitly documented and justified rather than hidden, and the unrelated concurrent-merge friction was handled transparently through the existing friction/reconciliation process rather than papered over."
+    }
+  }
+}

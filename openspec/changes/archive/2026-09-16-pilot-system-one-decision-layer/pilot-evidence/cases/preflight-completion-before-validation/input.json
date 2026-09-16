@@ -1,0 +1,33 @@
+{
+  "archived_change_dir": "openspec/changes/archive/2026-09-02-preflight-completion-before-validation",
+  "case": "preflight-completion-before-validation",
+  "commit": "5675efad50d483ba95110f68e3af04a59c4b7fd6",
+  "commit_kind": "single squash-merge commit containing implementation + archive move",
+  "diff_files": [
+    "openspec/changes/archive/2026-09-02-preflight-completion-before-validation/.managed-task.json",
+    "openspec/changes/archive/2026-09-02-preflight-completion-before-validation/.openspec.yaml",
+    "openspec/changes/archive/2026-09-02-preflight-completion-before-validation/automated-checks.json",
+    "openspec/changes/archive/2026-09-02-preflight-completion-before-validation/design.md",
+    "openspec/changes/archive/2026-09-02-preflight-completion-before-validation/proposal.md",
+    "openspec/changes/archive/2026-09-02-preflight-completion-before-validation/specs/completion-lifecycle/spec.md",
+    "openspec/changes/archive/2026-09-02-preflight-completion-before-validation/tasks.md",
+    "openspec/changes/archive/2026-09-02-preflight-completion-before-validation/verification.md",
+    "openspec/specs/completion-lifecycle/spec.md",
+    "template/scripts/finish_task.py",
+    "template/scripts/run_test_groups.py",
+    "tests/test_git_lifecycle.py"
+  ],
+  "diff_shortstat": "12 files changed, 590 insertions(+), 35 deletions(-)",
+  "evidence_paths": {
+    ".managed-task.json": "openspec/changes/archive/2026-09-02-preflight-completion-before-validation/.managed-task.json",
+    "automated-checks.json": "openspec/changes/archive/2026-09-02-preflight-completion-before-validation/automated-checks.json",
+    "design.md": "openspec/changes/archive/2026-09-02-preflight-completion-before-validation/design.md",
+    "proposal.md": "openspec/changes/archive/2026-09-02-preflight-completion-before-validation/proposal.md",
+    "tasks.md": "openspec/changes/archive/2026-09-02-preflight-completion-before-validation/tasks.md",
+    "verification.md": "openspec/changes/archive/2026-09-02-preflight-completion-before-validation/verification.md"
+  },
+  "replay_category": "other",
+  "spec_delta_paths": [
+    "openspec/changes/archive/2026-09-02-preflight-completion-before-validation/specs/completion-lifecycle/spec.md"
+  ]
+}

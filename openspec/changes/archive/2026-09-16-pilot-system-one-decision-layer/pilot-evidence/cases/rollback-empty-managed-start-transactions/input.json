@@ -1,0 +1,32 @@
+{
+  "archived_change_dir": "openspec/changes/archive/2026-09-02-rollback-empty-managed-start-transactions",
+  "case": "rollback-empty-managed-start-transactions",
+  "commit": "8f286eca755cc75941ffdb2e620697ef03e3d537",
+  "commit_kind": "single squash-merge commit containing implementation + archive move",
+  "diff_files": [
+    "openspec/changes/archive/2026-09-02-rollback-empty-managed-start-transactions/.managed-task.json",
+    "openspec/changes/archive/2026-09-02-rollback-empty-managed-start-transactions/.openspec.yaml",
+    "openspec/changes/archive/2026-09-02-rollback-empty-managed-start-transactions/automated-checks.json",
+    "openspec/changes/archive/2026-09-02-rollback-empty-managed-start-transactions/design.md",
+    "openspec/changes/archive/2026-09-02-rollback-empty-managed-start-transactions/proposal.md",
+    "openspec/changes/archive/2026-09-02-rollback-empty-managed-start-transactions/specs/managed-task-intake/spec.md",
+    "openspec/changes/archive/2026-09-02-rollback-empty-managed-start-transactions/tasks.md",
+    "openspec/changes/archive/2026-09-02-rollback-empty-managed-start-transactions/verification.md",
+    "openspec/specs/managed-task-intake/spec.md",
+    "template/scripts/start_managed_task.py",
+    "tests/managed_start_transaction_cases.py"
+  ],
+  "diff_shortstat": "11 files changed, 473 insertions(+), 18 deletions(-)",
+  "evidence_paths": {
+    ".managed-task.json": "openspec/changes/archive/2026-09-02-rollback-empty-managed-start-transactions/.managed-task.json",
+    "automated-checks.json": "openspec/changes/archive/2026-09-02-rollback-empty-managed-start-transactions/automated-checks.json",
+    "design.md": "openspec/changes/archive/2026-09-02-rollback-empty-managed-start-transactions/design.md",
+    "proposal.md": "openspec/changes/archive/2026-09-02-rollback-empty-managed-start-transactions/proposal.md",
+    "tasks.md": "openspec/changes/archive/2026-09-02-rollback-empty-managed-start-transactions/tasks.md",
+    "verification.md": "openspec/changes/archive/2026-09-02-rollback-empty-managed-start-transactions/verification.md"
+  },
+  "replay_category": "bug_recovery",
+  "spec_delta_paths": [
+    "openspec/changes/archive/2026-09-02-rollback-empty-managed-start-transactions/specs/managed-task-intake/spec.md"
+  ]
+}

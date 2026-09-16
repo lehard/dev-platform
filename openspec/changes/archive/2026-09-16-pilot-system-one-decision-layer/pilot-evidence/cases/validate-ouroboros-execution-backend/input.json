@@ -1,0 +1,31 @@
+{
+  "archived_change_dir": "openspec/changes/archive/2026-09-04-validate-ouroboros-execution-backend",
+  "case": "validate-ouroboros-execution-backend",
+  "commit": "52699d6c7515027d0d075ab93b294e731b3c15e1",
+  "commit_kind": "single squash-merge commit containing implementation + archive move",
+  "diff_files": [
+    "openspec/changes/archive/2026-09-04-validate-ouroboros-execution-backend/.managed-task.json",
+    "openspec/changes/archive/2026-09-04-validate-ouroboros-execution-backend/.openspec.yaml",
+    "openspec/changes/archive/2026-09-04-validate-ouroboros-execution-backend/automated-checks.json",
+    "openspec/changes/archive/2026-09-04-validate-ouroboros-execution-backend/design.md",
+    "openspec/changes/archive/2026-09-04-validate-ouroboros-execution-backend/pilot-report.md",
+    "openspec/changes/archive/2026-09-04-validate-ouroboros-execution-backend/proposal.md",
+    "openspec/changes/archive/2026-09-04-validate-ouroboros-execution-backend/specs/agent-runtime/spec.md",
+    "openspec/changes/archive/2026-09-04-validate-ouroboros-execution-backend/tasks.md",
+    "openspec/changes/archive/2026-09-04-validate-ouroboros-execution-backend/verification.md",
+    "openspec/specs/agent-runtime/spec.md"
+  ],
+  "diff_shortstat": "10 files changed, 552 insertions(+)",
+  "evidence_paths": {
+    ".managed-task.json": "openspec/changes/archive/2026-09-04-validate-ouroboros-execution-backend/.managed-task.json",
+    "automated-checks.json": "openspec/changes/archive/2026-09-04-validate-ouroboros-execution-backend/automated-checks.json",
+    "design.md": "openspec/changes/archive/2026-09-04-validate-ouroboros-execution-backend/design.md",
+    "proposal.md": "openspec/changes/archive/2026-09-04-validate-ouroboros-execution-backend/proposal.md",
+    "tasks.md": "openspec/changes/archive/2026-09-04-validate-ouroboros-execution-backend/tasks.md",
+    "verification.md": "openspec/changes/archive/2026-09-04-validate-ouroboros-execution-backend/verification.md"
+  },
+  "replay_category": "capability_process_change",
+  "spec_delta_paths": [
+    "openspec/changes/archive/2026-09-04-validate-ouroboros-execution-backend/specs/agent-runtime/spec.md"
+  ]
+}

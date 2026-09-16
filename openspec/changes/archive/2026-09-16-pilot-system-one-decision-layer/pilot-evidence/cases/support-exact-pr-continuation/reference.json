@@ -1,0 +1,47 @@
+{
+  "case": "support-exact-pr-continuation",
+  "recorded_by": "orchestrating-session (independent reference, recorded before dispatching the model-adapter arm)",
+  "scope_note": "Covers only the 10 model-judged taxonomy items. The 5 deterministic items are scored against pilot-evidence/cases/<case>/deterministic.json instead.",
+  "judgments": {
+    "scope_respected": {
+      "verdict": true,
+      "rationale": "Confined to template/scripts/task_reconciliation.py and its tests plus the OpenSpec bundle and folded publication-recovery spec, exactly matching proposal.md's three bullets (fast-forward continuation, strict refusal preserved, terminal routing for merged PRs). Spot-checked the real diff: _require_exact_merged_is_terminal and _continue_exact_pr_from_local_descendant are present and called from reconcile() exactly as verification.md describes."
+    },
+    "suspicious_scope_expansion": {
+      "verdict": false,
+      "rationale": "No files outside the single implementation file, its test file, and the mandatory OpenSpec bundle."
+    },
+    "test_evidence_sufficient": {
+      "verdict": 5,
+      "rationale": "verification.md names three new regression tests with exact scenario coverage (descendant continuation, squash-merged terminal routing, diverged-head refusal), lists six targeted suites re-run individually, and reports a full 831/831 suite pass plus select_checks classifying the change as high-impact-path routed to the protected full suite rather than a bounded subset."
+    },
+    "regression_risk": {
+      "verdict": 3,
+      "rationale": "Touches live remote-branch push and PR-identity reconciliation logic in the publication path -- a mistake here could misroute a delivery. Mitigated by strict non-force pushes, re-proving PR identity after every mutation, and explicit fail-closed refusal for any ancestry/identity mismatch, but the operation class (remote git mutation) keeps risk above negligible."
+    },
+    "security_sensitive_surface_touch": {
+      "verdict": false,
+      "rationale": "Performs already-authorized git pushes to the task's own branch and GitHub PR API reads within the existing publication boundary; no new credential, auth, or permission surface is introduced beyond what finish/reconcile already had."
+    },
+    "migration_config_release_impact": {
+      "verdict": true,
+      "rationale": "Directly changes release/publication-lifecycle behavior (how an exact open PR continues after a local CI fix, how an exact merged PR is routed) -- this is release-lifecycle-relevant even without a config schema change, distinguishing it from cases 1 and 3."
+    },
+    "suspicious_large_or_unrelated_diff": {
+      "verdict": false,
+      "rationale": "423/-5 across 11 files is proportionate for one reconciliation function plus 3 new regression tests plus the OpenSpec bundle; file list matches the stated scope exactly."
+    },
+    "verification_contradiction": {
+      "verdict": false,
+      "rationale": "Spot-checked the actual diff: the two named guard functions (_require_exact_merged_is_terminal, _continue_exact_pr_from_local_descendant) exist and are wired into reconcile() exactly as verification.md's Completeness section describes."
+    },
+    "human_review_recommended": {
+      "verdict": true,
+      "rationale": "Remote branch push and PR-identity reconciliation logic sits in a class of change (shared git history / publication correctness) worth human review regardless of test coverage, since a subtle logic error could misroute a delivery even under a non-force-push guarantee."
+    },
+    "action_recommendation": {
+      "verdict": "accept",
+      "rationale": "Scope matches the proposal exactly, evidence is specific and independently spot-checked as accurate, and every stated negative boundary (no force-push, no rebase, no second delivery backlog) is reflected in the actual diff."
+    }
+  }
+}
