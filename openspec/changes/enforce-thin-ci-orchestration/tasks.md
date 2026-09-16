@@ -5,4 +5,4 @@
 - [x] Inspect central `.github/workflows/ci.yml` only for concrete ownership violations; do not extract shell blocks solely to make YAML smaller.
 - [x] Add/adjust focused tests for rendered agent-instruction coherence and generated workflow ownership where current tests do not already cover the invariant.
 - [x] Verify representative portable CI logic can be invoked through a repository-owned command without GitHub Actions being the only execution environment.
-- [ ] Run relevant template, docs-link, agent-instruction, Platform CI and semantic OpenSpec checks.
+- [x] Run relevant template, docs-link, agent-instruction, Platform CI and semantic OpenSpec checks.
