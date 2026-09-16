@@ -1,7 +1,7 @@
 # platform-doctor Specification
 
 ## Purpose
-TBD - created by archiving change repair-managed-rollout-v1-4-31. Update Purpose after archive.
+Define diagnostic checks and repair guidance for platform configuration, lifecycle, and rollout health.
 ## Requirements
 ### Requirement: Shared-workspace permission policy is environment-aware
 

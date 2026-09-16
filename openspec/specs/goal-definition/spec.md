@@ -1,7 +1,7 @@
 # goal-definition Specification
 
 ## Purpose
-TBD - created by archiving change adopt-define-goal-intake. Update Purpose after archive.
+Define lightweight goal refinement that clarifies material agent work before durable task authoring.
 ## Requirements
 ### Requirement: Goal definition is selective and outcome-oriented
 

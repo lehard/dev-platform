@@ -1,7 +1,7 @@
 # managed-rollout Specification
 
 ## Purpose
-TBD - created by archiving change repair-managed-rollout-v1-4-31. Update Purpose after archive.
+Define the managed rollout registry, release ownership, and recovery controls for downstream adoption.
 ## Requirements
 ### Requirement: Guarded recopy permits only its deterministic task-intake migration
 

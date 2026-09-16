@@ -1,7 +1,7 @@
 # shared-workspace-safety Specification
 
 ## Purpose
-TBD - created by archiving change bound-shared-workspace-metadata. Update Purpose after archive.
+Define safeguards that let concurrent agents share a workspace without overwriting or claiming each other's state.
 ## Requirements
 ### Requirement: Shared-workspace enforcement is limited to registered platform ownership
 
@@ -62,4 +62,3 @@ Dev Platform SHALL distinguish a path that disappears during observation from a 
 
 - **WHEN** a permission, symlink, ownership or foreign-state problem remains after re-observation
 - **THEN** lifecycle continues to fail closed with actionable diagnostics
-

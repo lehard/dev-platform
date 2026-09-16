@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 1.096,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/managed_projects.py validate",
+      "duration_seconds": 0.081,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 175.126,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        ".dev-platform.toml",
+        ".github/workflows/adopt-project.yml",
+        ".github/workflows/ci.yml",
+        "template/.github/workflows/dev-platform.yml.jinja",
+        "tests/openspec_1_13_regression.py",
+        "tests/project_harness_adoption_smoke.py",
+        "tests/test_template_contract.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/managed_projects.py validate",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ]
+}

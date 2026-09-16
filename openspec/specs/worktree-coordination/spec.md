@@ -1,7 +1,7 @@
 # worktree-coordination Specification
 
 ## Purpose
-TBD - created by archiving change harden-worktree-context-coordination. Update Purpose after archive.
+Define coordination rules for concurrent task worktrees, scope claims, and safe integration.
 ## Requirements
 ### Requirement: Worktree registration has canonical identity
 
@@ -187,4 +187,3 @@ Before a managed sibling claim blocks hard scope gating, the platform SHALL be a
 - **WHEN** the platform cannot prove the exact sibling PR is merged
 - **THEN** it retains the existing active claim
 - **AND** hard overlap remains fail-closed
-

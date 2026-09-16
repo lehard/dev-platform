@@ -1,7 +1,7 @@
 # platform-delegation Specification
 
 ## Purpose
-TBD - created by archiving change contain-delegated-write-scope. Update Purpose after archive.
+Define the safety contract for delegating bounded platform work while preserving ownership and auditability.
 ## Requirements
 ### Requirement: Write-capable delegation carries an assigned worktree
 
@@ -230,4 +230,3 @@ Dev Platform SHALL persist an abnormal route outcome that distinguishes external
 - **WHEN** cleanup succeeds after an interrupted executor changed files within its assigned worktree
 - **THEN** the receipt reports the interruption class and bounded retained-work state
 - **AND** no automatic retry or quality claim is made
-

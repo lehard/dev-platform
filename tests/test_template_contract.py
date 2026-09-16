@@ -409,6 +409,15 @@ class TemplateContractTests(unittest.TestCase):
         self.assertIn("npm install --global @fission-ai/openspec@1.13.0", onboarding)
         self.assertIn("tests/openspec_1_13_regression.py", ci)
 
+    def test_live_openspec_specs_have_authored_purposes(self) -> None:
+        for spec in (ROOT / "openspec" / "specs").glob("*/spec.md"):
+            text = spec.read_text(encoding="utf-8")
+            purpose = re.search(r"^## Purpose\n\n?(.+)$", text, flags=re.MULTILINE)
+            with self.subTest(spec=spec.parent.name):
+                self.assertIsNotNone(purpose)
+                self.assertNotIn("tbd", purpose.group(1).lower())
+                self.assertNotIn("todo", purpose.group(1).lower())
+
     def test_central_github_actions_are_sha_pinned(self) -> None:
         pattern = re.compile(r"uses:\s+actions/[\w-]+@([^\s#]+)")
         for workflow in (ROOT / ".github" / "workflows").glob("*.yml"):

@@ -16,7 +16,8 @@ Automated-Checks-Evidence: automated-checks.json
 - `python3 scripts/run_test_groups.py --all` passed: 863 tests across 13 groups.
 - `openspec validate upgrade-openspec-1-13 --strict --no-interactive` passed before archive using the available compatible local CLI; archive below uses the exact 1.13.0 CLI.
 - `python3 template/scripts/openspec_lifecycle.py check` passed before the change was marked complete.
+- `openspec validate --all --strict --no-interactive` passed with the exact 1.13.0 CLI after replacing the 20 legacy placeholder spec purposes that 1.13 promotes from warnings to strict-validation failures.
 
 ## Semantic review
 
-The implementation updates every live 1.6.0 policy pin in the central configuration, template configuration, central/rendered CI and adoption workflow, README, and adoption smoke fixture. The independent platform lifecycle guards and semantic verification requirements remain intact. The focused CI fixture is pinned to the exact tested release so protected CI repeats the upstream correctness checks.
+The implementation updates every live 1.6.0 policy pin in the central configuration, template configuration, central/rendered CI and adoption workflow, README, and adoption smoke fixture. It also replaces legacy placeholder Purpose text in every affected live specification and guards that baseline in the template-contract test, so OpenSpec 1.13 strict validation remains reproducible. The independent platform lifecycle guards and semantic verification requirements remain intact. The focused CI fixture is pinned to the exact tested release so protected CI repeats the upstream correctness checks.
