@@ -1,0 +1,47 @@
+{
+  "case": "add-deepseek-harness-runtime-adapter",
+  "recorded_by": "orchestrating-session (independent reference, recorded before dispatching the model-adapter arm)",
+  "scope_note": "Covers only the 10 model-judged taxonomy items. The 5 deterministic items are scored against pilot-evidence/cases/<case>/deterministic.json instead.",
+  "judgments": {
+    "scope_respected": {
+      "verdict": true,
+      "rationale": "proposal.md declares: adapter behind a minimal runtime boundary, pinned exact upstream version with tested upgrade path, disabled by default and outside automatic downstream execution, normalized evidence, preserved Dev Platform lifecycle ownership, contract tests, safe smoke path. The 21-file diff maps cleanly onto exactly those elements (adapter in scripts/ and template/scripts/, .dev-platform.toml + jinja template config, requirements pin, docs, contract tests, template-contract test) with nothing outside that footprint."
+    },
+    "suspicious_scope_expansion": {
+      "verdict": false,
+      "rationale": "Large (21 files) but every file maps to a declared element of the proposal's own wide-but-bounded scope (adapter + config + docs + tests + template rendering + requirements pin); no surprise directory or unrelated concern."
+    },
+    "test_evidence_sufficient": {
+      "verdict": 5,
+      "rationale": "verification.md cites 86 unittest cases plus a 716-test full-suite pass with exact declared/discovered coverage, a Copier render smoke proving the rendered downstream project stays adapter-disabled-by-default, and an explicit BLOCKED host-capability result for the live smoke on darwin/x86_64 reported honestly rather than hidden or reinterpreted as success."
+    },
+    "regression_risk": {
+      "verdict": 2,
+      "rationale": "The adapter is disabled by default, gated behind an explicit --enable-experimental flag, and verification.md confirms no task-intake/OpenSpec/routing/verification/publication/rollout/native-default semantics were replaced -- current production behavior is unaffected. Risk is not zero given the sheer surface added (1909 insertions), but it is contained and off-path by construction."
+    },
+    "security_sensitive_surface_touch": {
+      "verdict": true,
+      "rationale": "Introduces a new external process-execution surface (a pinned third-party runtime SDK) with explicit sandbox/write-capability reasoning in verification.md ('no write-capable tools', 'workspace-write refuses before process launch because the pinned SDK cannot attest sandbox enforcement') -- this is a genuinely security-relevant surface even though no credentials are touched, unlike the other four replay cases."
+    },
+    "migration_config_release_impact": {
+      "verdict": true,
+      "rationale": "Adds new config surface (.dev-platform.toml, template/.dev-platform.toml.jinja, dev-platform/checks.toml) and a new pinned requirements file rendered into downstream Copier-managed projects (a new capability entrypoint, disabled by default) -- a real config/release footprint distinct from the other four cases, which touch no config surface."
+    },
+    "suspicious_large_or_unrelated_diff": {
+      "verdict": false,
+      "rationale": "The largest of the five replay cases (1909/-11 across 21 files) but proposal.md explicitly scopes a wide surface, and every file maps to a declared plan element -- large and coherent, not suspicious."
+    },
+    "verification_contradiction": {
+      "verdict": false,
+      "rationale": "Verification is unusually careful to report the live-smoke BLOCKED outcome plainly ('no live-runtime success is claimed') rather than reframing it -- consistent with, not contradicting, the rest of the evidence."
+    },
+    "human_review_recommended": {
+      "verdict": true,
+      "rationale": "Introducing a brand-new external runtime adapter, a new third-party pinned dependency, and new config/release surface is exactly the class of change that should get human review regardless of strong automated evidence, given the security-adjacent process-launch reasoning involved."
+    },
+    "action_recommendation": {
+      "verdict": "accept",
+      "rationale": "Disabled by default, tightly gated, thoroughly and honestly verified (including reporting its own capability limitation rather than concealing it), and matches its declared scope exactly."
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "backend": "jev-system-one",
+  "availability": "unavailable",
+  "limitation": "No Jev/System One API credentials, SDK, or network reachability are configured in this execution environment. Jev is allowlist-gated for this session and was not granted for this task (confirmed explicitly by the requesting user rather than assumed). A repository-wide search (template/, scripts/, docs/, .dev-platform.toml) found zero existing references to Jev or System One, confirming there is no partial integration to fall back on.",
+  "checked_for": [
+    "environment variables or config sections naming Jev/System One",
+    "an installed SDK/package for Jev/System One",
+    "documented integration surface anywhere in this repository"
+  ],
+  "result_of_check": "none found",
+  "applies_to_all_cases": true,
+  "note": "Per design.md decision 3 and tasks.md, the Jev arm is explicitly optional ('only when its API/runtime is reachable') and its absence must be recorded honestly rather than fabricated or silently skipped. This file is that record. Consequently the pilot's decision about Jev specifically cannot be a real quality comparison -- see pilot-report.md."
+}

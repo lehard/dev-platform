@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "judgments": [
+    {
+      "id": "task_checklist_complete",
+      "question": "Are all task checklist items in this managed change's tasks.md marked complete?",
+      "type": "boolean",
+      "deterministic": true,
+      "deterministic_source": "tasks.md: every '- [ ]' line is '- [x]'"
+    },
+    {
+      "id": "verification_pass_recorded",
+      "question": "Does verification.md record an exact standalone OpenSpec-Verify: PASS line?",
+      "type": "boolean",
+      "deterministic": true,
+      "deterministic_source": "verification.md contains the literal line 'OpenSpec-Verify: PASS'"
+    },
+    {
+      "id": "automated_checks_outcome_success",
+      "question": "Does automated-checks.json report outcome == success?",
+      "type": "boolean",
+      "deterministic": true,
+      "deterministic_source": "automated-checks.json['outcome'] == 'success'"
+    },
+    {
+      "id": "required_artifacts_present",
+      "question": "Are all artifacts declared in .managed-task.json present on disk in the archived change?",
+      "type": "boolean",
+      "deterministic": true,
+      "deterministic_source": ".managed-task.json['artifacts'] all resolve to existing files under the change directory"
+    },
+    {
+      "id": "spec_delta_present",
+      "question": "Does the change include at least one non-empty specs/**/*.md delta file?",
+      "type": "boolean",
+      "deterministic": true,
+      "deterministic_source": "specs/**/*.md exists under the change directory and is non-empty"
+    },
+    {
+      "id": "scope_respected",
+      "question": "Does the actual diff stay within the scope stated in proposal.md's 'What Changes' section, without unrelated changes?",
+      "type": "boolean",
+      "deterministic": false
+    },
+    {
+      "id": "suspicious_scope_expansion",
+      "question": "Does the diff show suspicious scope expansion beyond what the proposal/tasks describe (new files, directories, or concerns not named in the plan)?",
+      "type": "boolean",
+      "deterministic": false
+    },
+    {
+      "id": "test_evidence_sufficient",
+      "question": "Is the test evidence in verification.md/automated-checks.json sufficient to support the claimed behavior change (1=clearly insufficient, 5=clearly sufficient)?",
+      "type": "score",
+      "scale": [1, 5],
+      "deterministic": false
+    },
+    {
+      "id": "regression_risk",
+      "question": "How much regression risk does this diff carry for the rest of the platform (1=negligible, 5=severe)?",
+      "type": "score",
+      "scale": [1, 5],
+      "deterministic": false
+    },
+    {
+      "id": "security_sensitive_surface_touch",
+      "question": "Does the diff touch a security- or credential-sensitive surface (auth, secrets, permissions, write-access boundaries)?",
+      "type": "boolean",
+      "deterministic": false
+    },
+    {
+      "id": "migration_config_release_impact",
+      "question": "Does the diff have migration, configuration-contract, or release/rollout impact for downstream managed projects?",
+      "type": "boolean",
+      "deterministic": false
+    },
+    {
+      "id": "suspicious_large_or_unrelated_diff",
+      "question": "Is the diff suspiciously large or does it include files unrelated to the stated change, relative to its stated scope?",
+      "type": "boolean",
+      "deterministic": false
+    },
+    {
+      "id": "verification_contradiction",
+      "question": "Does anything in verification.md contradict what the actual diff does?",
+      "type": "boolean",
+      "deterministic": false
+    },
+    {
+      "id": "human_review_recommended",
+      "question": "Should this change have received (or should a similar future change receive) mandatory human review before merge, independent of automated checks passing?",
+      "type": "boolean",
+      "deterministic": false
+    },
+    {
+      "id": "action_recommendation",
+      "question": "Given everything observed, what should the platform do with this candidate: accept it as-is, send it for human review, or ask the agent to retry?",
+      "type": "choice",
+      "choices": ["accept", "review", "retry"],
+      "deterministic": false
+    }
+  ]
+}
