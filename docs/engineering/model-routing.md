@@ -63,6 +63,20 @@ python3 scripts/dogfood_task.py route-claude --profile <routine|standard|complex
 
 The parent reviews the returned diff and required checks in the task worktree. Routine/standard work must escalate with `scripts/model_routing.py escalate --reason "..."` on a material OpenSpec/current-spec conflict, substantial unexpected scope or cross-cutting impact, low confidence, repeated substantive verification failure, or a freshness check that discovers a new hard trigger absent from the authored recommendation. Escalation preserves the canonical OpenSpec, current worktree/diff, findings and check evidence; do not restart useful work or enter an unbounded cheap-model retry loop. Downgrading a route below its authored tier is not supported in this version.
 
+## Read-only context delegation
+
+For a narrow question that would otherwise require bulk exploratory reading of bounded repository files, prefer the optional provider-local context worker before loading that bulk context into an R2/R3 session. It is not a task-route change: the worker always resolves through the existing `routine` profile, returns compact path/range/findings/uncertainty evidence, and direct targeted reads remain available for editing, debugging, architecture reasoning, and exact verification.
+
+The central `dev-platform` checkout enables this as soft dogfood only. Managed projects render it disabled and may opt in deliberately; nothing blocks or redirects an ordinary Read operation. Prepare a small JSON request with a `question` and a bounded `scope` list of repository-relative `{ "path", "start_line"?, "end_line"? }` objects, then run:
+
+```bash
+python3 scripts/model_routing.py context-codex --request /tmp/context-request.json
+```
+
+Codex runs only with its native `read-only` sandbox and the configured routine model. Its result is recorded in the existing local routing record with source/result/re-read payload volumes, timing, outcome and truthful selected/unknown provider-usage provenance; it stores the question length and path/range identity but no question text, generated prompt, transcript or source text. A malformed, failed, unavailable, or low-confidence worker result records the fallback and leaves direct reading available. `context-reread --id <observation-id> --scope /tmp/reread-scope.json` may record an attributable later direct reread when it is explicitly observable; otherwise that volume remains unknown.
+
+Claude Code's current native Agent handoff has no supported read-only permission boundary. `context-claude` therefore records `runtime-unavailable` and retains direct targeted reading rather than launching a child based on instructions alone.
+
 ## Delegated write containment
 
 Platform-controlled write-capable delegation is platform-contained only with a valid assigned worktree, a proven native or fallback write boundary, and a content-aware post-check against the integration copy. `scripts/delegated_write_guard.py` remains the compatibility/post-check helper: a proven Codex `workspace-write` sandbox is the primary prevention layer, not a second custom guard. For unsupported or unprovable native modes, retain work on the parent or use the smallest supported guarded fallback. For Codex, system temp roots such as `/tmp` and `$TMPDIR` are checked with realpath semantics; unsafe topology downgrades to detection-only, or fails before launch when hard containment is required.

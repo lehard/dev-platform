@@ -45,6 +45,10 @@ routine_model = "haiku"
 standard_model = "sonnet"
 complex_model = "opus"
 
+[context_delegation]
+# Soft opt-in only. Normal repository reads remain available everywhere.
+enabled = false
+
 [independent_review]
 # Opt in only where a runtime can supply a separate fresh, read-only review
 # context. The platform validates its evidence but never launches a provider.

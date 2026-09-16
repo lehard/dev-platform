@@ -694,6 +694,106 @@ class ModelRoutingTests(unittest.TestCase):
         self.assertIn("Model routing blocked:", completed.stderr)
         self.assertNotIn("Traceback", completed.stderr)
 
+    def enable_context_delegation(self) -> None:
+        (self.task / ".dev-platform.toml").write_text(
+            "[model_routing.codex]\nstandard_model = \"cheap-codex\"\ncomplex_model = \"strong-codex\"\n"
+            "[context_delegation]\nenabled = true\n",
+            encoding="utf-8",
+        )
+
+    def context_request(self) -> dict[str, object]:
+        return {"question": "Where is the routing model selected?", "scope": [{"path": "README.md"}]}
+
+    def test_codex_context_worker_uses_read_only_routine_profile_and_records_bounded_evidence(self) -> None:
+        self.enable_context_delegation()
+        route = self.prepare()
+        captured: list[str] = []
+
+        def fake_run(argv, **_kwargs):
+            captured.extend(argv)
+            destination = Path(argv[argv.index("--output-last-message") + 1])
+            destination.write_text(
+                json.dumps(
+                    {
+                        "confidence": "high",
+                        "synthesis": "The bounded file is only the test README.",
+                        "findings": [{"path": "README.md", "finding": "README exists", "uncertainty": "No symbol-level detail was requested."}],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            return SimpleNamespace(
+                returncode=0,
+                stderr="",
+                stdout='{"type":"turn.completed","usage":{"input_tokens":12,"cached_input_tokens":4,"output_tokens":3,"total_tokens":15}}',
+            )
+
+        with patch.object(routing.subprocess, "run", side_effect=fake_run):
+            observation = routing.delegate_codex_context(self.task, self.context_request(), codex_bin="codex-test")
+
+        self.assertEqual(observation["outcome"], "completed")
+        self.assertEqual(observation["profile"], "routine")
+        self.assertEqual(observation["model"], {"value": "gpt-5.6-terra", "source": "selected"})
+        self.assertEqual(observation["request"]["question_chars"], len(self.context_request()["question"]))
+        self.assertNotIn("question", observation["request"])
+        self.assertIn("read-only", captured)
+        self.assertNotIn("workspace-write", captured)
+        self.assertEqual(observation["source_payload"]["lines"], 1)
+        self.assertGreater(observation["source_payload"]["bytes"], 0)
+        self.assertEqual(observation["returned_payload"]["bytes"], len(json.dumps({"confidence": "high", "synthesis": "The bounded file is only the test README.", "findings": [{"path": "README.md", "finding": "README exists", "uncertainty": "No symbol-level detail was requested."}]}).encode("utf-8")))
+        self.assertEqual(observation["usage"]["input_tokens"], {"value": 12, "source": "runtime-confirmed", "status": "measured"})
+        self.assertEqual(observation["usage"]["cache_read_tokens"]["value"], 4)
+        self.assertEqual(observation["usage"]["fresh_input_tokens"]["status"], "unknown")
+        saved, _ = routing._read_route(self.task)
+        self.assertEqual(saved.context_delegations, (observation,))
+        durable = json.loads(self.durable_record_path().read_text(encoding="utf-8"))
+        self.assertEqual(durable["context_delegations"], [observation])
+        self.assertIsNone(route.execution)
+
+    def test_low_confidence_and_worker_unavailability_fall_open_to_direct_read(self) -> None:
+        self.enable_context_delegation()
+        self.prepare()
+
+        def low_confidence(argv, **_kwargs):
+            destination = Path(argv[argv.index("--output-last-message") + 1])
+            destination.write_text(json.dumps({"confidence": "low", "synthesis": "Uncertain.", "findings": []}), encoding="utf-8")
+            return SimpleNamespace(returncode=0, stderr="")
+
+        with patch.object(routing.subprocess, "run", side_effect=low_confidence):
+            low = routing.delegate_codex_context(self.task, self.context_request(), codex_bin="codex-test")
+        with patch.object(routing.subprocess, "run", side_effect=FileNotFoundError()):
+            unavailable = routing.delegate_codex_context(self.task, self.context_request(), codex_bin="missing-codex")
+
+        self.assertEqual(low["outcome"], "low-confidence")
+        self.assertTrue(low["fallback"]["direct_read_available"])
+        self.assertEqual(unavailable["outcome"], "runtime-unavailable")
+        self.assertTrue(unavailable["fallback"]["direct_read_available"])
+
+    def test_claude_context_honestly_reports_missing_read_only_agent_boundary(self) -> None:
+        self.enable_context_delegation()
+        self.prepare(provider="claude")
+        observation = routing.delegate_claude_context(self.task, self.context_request())
+        self.assertEqual(observation["outcome"], "runtime-unavailable")
+        self.assertIn("no supported read-only permission boundary", observation["fallback"]["reason"])
+        self.assertTrue(observation["fallback"]["direct_read_available"])
+
+    def test_context_reread_counts_explicit_targeted_follow_up_without_a_second_state_machine(self) -> None:
+        self.enable_context_delegation()
+        self.prepare()
+        with patch.object(routing.subprocess, "run", side_effect=FileNotFoundError()):
+            observation = routing.delegate_codex_context(self.task, self.context_request(), codex_bin="missing-codex")
+        updated = routing.record_context_reread(self.task, observation["id"], [{"path": "README.md"}])
+        self.assertEqual(updated["reread_payload"]["lines"], 1)
+        self.assertGreater(updated["reread_payload"]["bytes"], 0)
+        saved, _ = routing._read_route(self.task)
+        self.assertEqual(len(saved.context_delegations), 1)
+        self.assertEqual(saved.context_delegations[0]["reread_payload"], updated["reread_payload"])
+
+    def test_context_request_rejects_scope_outside_repository(self) -> None:
+        self.prepare()
+        with self.assertRaisesRegex(routing.ContextDelegationError, "inside the repository"):
+            routing.context_request(self.task, {"question": "Read elsewhere", "scope": [{"path": "../outside.txt"}]})
+
 
 class StandaloneStandardCloneRoutingTests(unittest.TestCase):
     """Standard-profile projects have no linked worktree: the task checkout

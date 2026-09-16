@@ -15,7 +15,9 @@ import math
 import statistics
 import subprocess
 import sys
+import tempfile
 import time
+import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -103,6 +105,10 @@ class Route:
     # delegated executor's provenance. Both distinguish selected/configured
     # from runtime-confirmed values and use "unknown" rather than a guess.
     supervisor: dict[str, Any] = field(default_factory=dict)
+    # Read-only context shunting is an auxiliary operation inside this route,
+    # not a second execution/routing state machine.  Keep only bounded
+    # observations here; never retain a prompt, transcript, or source text.
+    context_delegations: tuple[dict[str, Any], ...] = ()
 
 
 def _snapshot_to_dict(value: GitSnapshot) -> dict[str, Any]:
@@ -304,7 +310,8 @@ def _read_route(root: Path) -> tuple[Route, Path]:
         payload = json.loads(path.read_text(encoding="utf-8"))
         execution = payload.get("execution")
         supervisor = payload.get("supervisor")
-        route = Route(source_issue=payload["source_issue"], change=payload["change"], task_worktree=payload["task_worktree"], integration_root=payload["integration_root"], provider=payload["provider"], profile=payload["profile"], executor_model=payload["executor_model"], rationale=payload["rationale"], evidence=tuple(payload.get("evidence", [])), prepared_at=payload["prepared_at"], pre_snapshot=payload["pre_snapshot"], execution=execution if isinstance(execution, dict) else None, escalations=tuple(payload.get("escalations", [])), start_tier=payload.get("start_tier"), freshness=payload.get("freshness", "confirmed"), topology=payload.get("topology", LINKED_WORKTREE), supervisor=supervisor if isinstance(supervisor, dict) else {})
+        observations = payload.get("context_delegations", [])
+        route = Route(source_issue=payload["source_issue"], change=payload["change"], task_worktree=payload["task_worktree"], integration_root=payload["integration_root"], provider=payload["provider"], profile=payload["profile"], executor_model=payload["executor_model"], rationale=payload["rationale"], evidence=tuple(payload.get("evidence", [])), prepared_at=payload["prepared_at"], pre_snapshot=payload["pre_snapshot"], execution=execution if isinstance(execution, dict) else None, escalations=tuple(payload.get("escalations", [])), start_tier=payload.get("start_tier"), freshness=payload.get("freshness", "confirmed"), topology=payload.get("topology", LINKED_WORKTREE), supervisor=supervisor if isinstance(supervisor, dict) else {}, context_delegations=tuple(item for item in observations if isinstance(item, dict)))
     except (OSError, KeyError, TypeError, json.JSONDecodeError) as exc:
         raise RoutingError(f"no readable routing record for managed change {change}; run prepare first") from exc
     if route.source_issue != source_issue or route.change != change:
@@ -1285,6 +1292,407 @@ def routing_calibration(root: Path) -> dict[str, Any]:
     return report
 
 
+# --------------------------------------------------------------------------
+# Read-only context delegation
+# --------------------------------------------------------------------------
+# This is intentionally adjacent to, rather than inside, the writer launch
+# code above.  Context workers do not modify the repository and therefore do
+# not acquire writer ownership or run write-containment ceremony.  Their small
+# observations live on the existing Route record so calibration has one local
+# provenance lifecycle to inspect.
+CONTEXT_DELEGATION_SCHEMA_VERSION = 1
+CONTEXT_CONFIDENCES = ("high", "medium", "low")
+CONTEXT_OUTCOMES = ("completed", "fallback", "low-confidence", "runtime-unavailable")
+CONTEXT_MAX_SCOPE_ITEMS = 50
+CONTEXT_MAX_EVIDENCE_ITEMS = 25
+CONTEXT_MAX_QUESTION_CHARS = 4000
+CONTEXT_MAX_SYNTHESIS_CHARS = 2000
+CONTEXT_MAX_FINDING_CHARS = 1200
+CONTEXT_MAX_UNCERTAINTY_CHARS = 800
+
+
+class ContextDelegationError(RoutingError):
+    """A context request or worker result is not safe enough to trust."""
+
+
+def _context_enabled(root: Path) -> bool:
+    settings = read_platform_config(root).get("context_delegation", {})
+    return isinstance(settings, dict) and settings.get("enabled") is True
+
+
+def _context_nonempty_string(value: Any, label: str, *, limit: int = CONTEXT_MAX_FINDING_CHARS) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ContextDelegationError(f"context delegation {label} must be a non-empty string")
+    result = value.strip()
+    if len(result) > limit:
+        raise ContextDelegationError(f"context delegation {label} exceeds the {limit}-character bound")
+    return result
+
+
+def _context_scope(root: Path, value: Any) -> list[dict[str, Any]]:
+    """Validate a bounded list of repository-relative text ranges.
+
+    Resolving every path before the worker starts makes the passed scope
+    inspectable and prevents a symlink from quietly expanding the advertised
+    repository boundary.  The worker's read-only sandbox protects writes; the
+    explicit scope is the semantic/read budget supplied to the worker.
+    """
+    if not isinstance(value, list) or not value:
+        raise ContextDelegationError("context delegation request needs a non-empty scope list")
+    if len(value) > CONTEXT_MAX_SCOPE_ITEMS:
+        raise ContextDelegationError(f"context delegation scope exceeds {CONTEXT_MAX_SCOPE_ITEMS} items")
+    root_resolved = root.resolve()
+    normalized: list[dict[str, Any]] = []
+    seen: set[tuple[str, int | None, int | None]] = set()
+    for index, item in enumerate(value, start=1):
+        if not isinstance(item, dict):
+            raise ContextDelegationError(f"context delegation scope item {index} must be an object")
+        raw_path = item.get("path")
+        if not isinstance(raw_path, str) or not raw_path.strip():
+            raise ContextDelegationError(f"context delegation scope item {index} needs a relative path")
+        candidate = Path(raw_path)
+        if candidate.is_absolute() or ".." in candidate.parts:
+            raise ContextDelegationError(f"context delegation scope item {index} path must stay inside the repository")
+        resolved = (root / candidate).resolve()
+        try:
+            relative = resolved.relative_to(root_resolved)
+        except ValueError as exc:
+            raise ContextDelegationError(f"context delegation scope item {index} escapes the repository") from exc
+        if not resolved.is_file():
+            raise ContextDelegationError(f"context delegation scope item {index} is not a readable file: {relative}")
+        start = item.get("start_line")
+        end = item.get("end_line")
+        if start is not None and (not isinstance(start, int) or isinstance(start, bool) or start < 1):
+            raise ContextDelegationError(f"context delegation scope item {index} start_line must be a positive integer")
+        if end is not None and (not isinstance(end, int) or isinstance(end, bool) or end < 1):
+            raise ContextDelegationError(f"context delegation scope item {index} end_line must be a positive integer")
+        if start is not None and end is not None and end < start:
+            raise ContextDelegationError(f"context delegation scope item {index} end_line precedes start_line")
+        entry = {"path": relative.as_posix()}
+        if start is not None:
+            entry["start_line"] = start
+        if end is not None:
+            entry["end_line"] = end
+        identity = (entry["path"], entry.get("start_line"), entry.get("end_line"))
+        if identity not in seen:
+            normalized.append(entry)
+            seen.add(identity)
+    return normalized
+
+
+def context_request(root: Path, request: dict[str, Any]) -> dict[str, Any]:
+    """Normalize the provider-neutral, question-directed worker input."""
+    if not isinstance(request, dict):
+        raise ContextDelegationError("context delegation request must be a JSON object")
+    return {
+        "question": _context_nonempty_string(request.get("question"), "question", limit=CONTEXT_MAX_QUESTION_CHARS),
+        "scope": _context_scope(root, request.get("scope")),
+    }
+
+
+def _context_payload(root: Path, scope: list[dict[str, Any]]) -> dict[str, Any]:
+    """Count the exact selected source text without retaining any of it."""
+    files: list[dict[str, Any]] = []
+    total_lines = 0
+    total_bytes = 0
+    for entry in scope:
+        path = root / entry["path"]
+        try:
+            lines = path.read_bytes().splitlines(keepends=True)
+        except OSError as exc:
+            raise ContextDelegationError(f"cannot read delegated context source {entry['path']}: {exc}") from exc
+        start = entry.get("start_line", 1)
+        end = entry.get("end_line", len(lines))
+        assert isinstance(start, int) and isinstance(end, int)
+        selected = lines[start - 1 : end]
+        item = {
+            "path": entry["path"],
+            "start_line": start,
+            "end_line": min(end, len(lines)),
+            "lines": len(selected),
+            "bytes": sum(len(line) for line in selected),
+        }
+        files.append(item)
+        total_lines += item["lines"]
+        total_bytes += item["bytes"]
+    return {"lines": total_lines, "bytes": total_bytes, "files": files}
+
+
+def _context_unknown_reread() -> dict[str, Any]:
+    return {"lines": None, "bytes": None, "status": "unknown"}
+
+
+def _context_usage_unknown() -> dict[str, dict[str, Any]]:
+    return efficiency_unknown_usage()
+
+
+def _context_observation(
+    route: Route,
+    root: Path,
+    request: dict[str, Any],
+    *,
+    outcome: str,
+    limitation: str | None = None,
+    result: dict[str, Any] | None = None,
+    result_raw: bytes | None = None,
+    started_at: str | None = None,
+    elapsed_ms: int | None = None,
+    usage: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    if outcome not in CONTEXT_OUTCOMES:
+        raise ContextDelegationError(f"unsupported context delegation outcome: {outcome}")
+    observation: dict[str, Any] = {
+        "schema_version": CONTEXT_DELEGATION_SCHEMA_VERSION,
+        "id": str(uuid.uuid4()),
+        "recorded_at": utc_now(),
+        "provider": route.provider,
+        "profile": "routine",
+        "model": _model_provenance(_model_for(read_platform_config(root), route.provider, "routine"), SOURCE_SELECTED),
+        # The question is transient worker input and may itself contain
+        # sensitive repository context. Retain only its bounded size plus
+        # the scope identity needed for later aggregation; never the prompt
+        # text or a reconstruction of it.
+        "request": {"question_chars": len(request["question"]), "scope": request["scope"]},
+        "source_payload": _context_payload(root, request["scope"]),
+        "outcome": outcome,
+        "fallback": {"direct_read_available": True, "reason": limitation},
+        "reread_payload": _context_unknown_reread(),
+        "usage": usage if usage is not None else _context_usage_unknown(),
+    }
+    if started_at is not None and elapsed_ms is not None:
+        observation["timing"] = efficiency_timing(started_at, elapsed_ms)
+    else:
+        observation["timing"] = {"elapsed_ms": None, "source": SOURCE_UNKNOWN, "status": "unknown"}
+    if result is not None:
+        observation["result"] = result
+    if result_raw is not None:
+        observation["returned_payload"] = {
+            "lines": len(result_raw.splitlines()),
+            "bytes": len(result_raw),
+        }
+    else:
+        observation["returned_payload"] = {"lines": None, "bytes": None, "status": "unknown"}
+    return observation
+
+
+def _context_result(raw: bytes, scope: list[dict[str, Any]]) -> dict[str, Any]:
+    """Validate a compact worker answer, never an arbitrary transcript."""
+    try:
+        value = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ContextDelegationError("context worker did not return the required structured JSON evidence") from exc
+    if not isinstance(value, dict):
+        raise ContextDelegationError("context worker result must be a JSON object")
+    confidence = value.get("confidence")
+    if confidence not in CONTEXT_CONFIDENCES:
+        raise ContextDelegationError("context worker result confidence must be high, medium, or low")
+    synthesis = _context_nonempty_string(value.get("synthesis"), "result synthesis", limit=CONTEXT_MAX_SYNTHESIS_CHARS)
+    findings = value.get("findings")
+    if not isinstance(findings, list) or len(findings) > CONTEXT_MAX_EVIDENCE_ITEMS:
+        raise ContextDelegationError(f"context worker result needs at most {CONTEXT_MAX_EVIDENCE_ITEMS} findings")
+    allowed_paths = {item["path"] for item in scope}
+    normalized: list[dict[str, Any]] = []
+    for index, finding in enumerate(findings, start=1):
+        if not isinstance(finding, dict):
+            raise ContextDelegationError(f"context worker finding {index} must be an object")
+        path = finding.get("path")
+        if path not in allowed_paths:
+            raise ContextDelegationError(f"context worker finding {index} cites a path outside the requested scope")
+        item: dict[str, Any] = {
+            "path": path,
+            "finding": _context_nonempty_string(finding.get("finding"), f"finding {index}", limit=CONTEXT_MAX_FINDING_CHARS),
+            "uncertainty": _context_nonempty_string(finding.get("uncertainty"), f"finding {index} uncertainty", limit=CONTEXT_MAX_UNCERTAINTY_CHARS),
+        }
+        symbol = finding.get("symbol")
+        if symbol is not None:
+            item["symbol"] = _context_nonempty_string(symbol, f"finding {index} symbol", limit=500)
+        for field in ("start_line", "end_line"):
+            number = finding.get(field)
+            if number is not None:
+                if not isinstance(number, int) or isinstance(number, bool) or number < 1:
+                    raise ContextDelegationError(f"context worker finding {index} {field} must be a positive integer")
+                item[field] = number
+        if item.get("start_line") and item.get("end_line") and item["end_line"] < item["start_line"]:
+            raise ContextDelegationError(f"context worker finding {index} end_line precedes start_line")
+        normalized.append(item)
+    return {"confidence": confidence, "synthesis": synthesis, "findings": normalized}
+
+
+def _context_prompt(request: dict[str, Any]) -> str:
+    """Bound the worker's task and forbid source/transcript output explicitly."""
+    scope = "\n".join(
+        f"- {item['path']}"
+        + (f":{item['start_line']}-{item.get('end_line', 'EOF')}" if "start_line" in item else "")
+        for item in request["scope"]
+    )
+    return (
+        "You are a read-only repository context worker. Answer only the stated question from the bounded "
+        "repository scope. Do not edit files, run write commands, inspect paths outside the scope, or return "
+        "source excerpts/transcripts. Return compact JSON matching the supplied schema. Each finding must cite a "
+        "scoped path and state uncertainty.\n\nQuestion:\n"
+        f"{request['question']}\n\nAllowed scope:\n{scope}"
+    )
+
+
+def _context_result_schema() -> dict[str, Any]:
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["confidence", "synthesis", "findings"],
+        "properties": {
+            "confidence": {"type": "string", "enum": list(CONTEXT_CONFIDENCES)},
+            "synthesis": {"type": "string", "maxLength": CONTEXT_MAX_SYNTHESIS_CHARS},
+            "findings": {
+                "type": "array",
+                "maxItems": CONTEXT_MAX_EVIDENCE_ITEMS,
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": ["path", "finding", "uncertainty"],
+                    "properties": {
+                        "path": {"type": "string"}, "symbol": {"type": "string", "maxLength": 500},
+                        "start_line": {"type": "integer", "minimum": 1}, "end_line": {"type": "integer", "minimum": 1},
+                        "finding": {"type": "string", "maxLength": CONTEXT_MAX_FINDING_CHARS},
+                        "uncertainty": {"type": "string", "maxLength": CONTEXT_MAX_UNCERTAINTY_CHARS},
+                    },
+                },
+            },
+        },
+    }
+
+
+def _append_context_observation(root: Path, route: Route, observation: dict[str, Any]) -> None:
+    route_path = _record_path(root, route.change)
+    next_route = Route(**{**asdict(route), "context_delegations": route.context_delegations + (observation,)})
+    _write_route(route_path, next_route)
+    # Context observations may be useful after task-worktree cleanup just as
+    # execution evidence is. This is a mirror of the same record, not a new
+    # store, and it is safe even when no writer executor launched.
+    _write_route(_durable_record_path(next_route), next_route)
+
+
+def delegate_codex_context(root: Path, request_input: dict[str, Any], *, codex_bin: str | None = None) -> dict[str, Any]:
+    """Launch a routine-profile Codex worker with the native read-only sandbox.
+
+    Failure is intentionally represented as a completed local observation and
+    an available direct-read fallback. A missing executable, failed process,
+    malformed answer, or low confidence never masquerades as delegation.
+    """
+    route, _ = _read_route(root)
+    request = context_request(root, request_input)
+    if route.provider != "codex":
+        raise ContextDelegationError("a Codex context worker requires a Codex parent route")
+    if not _context_enabled(root):
+        observation = _context_observation(route, root, request, outcome="runtime-unavailable", limitation="context delegation is not enabled in this repository")
+        _append_context_observation(root, route, observation)
+        return observation
+    started_at = _platform_timestamp()
+    started_tick = time.perf_counter_ns()
+    worker = codex_bin or "codex"
+    try:
+        with tempfile.TemporaryDirectory(prefix="dev-platform-context-") as temporary:
+            temporary_root = Path(temporary)
+            schema_path = temporary_root / "context-result-schema.json"
+            result_path = temporary_root / "context-result.json"
+            schema_path.write_text(json.dumps(_context_result_schema()), encoding="utf-8")
+            argv = [
+                worker, "exec", "--sandbox", "read-only", "--cd", str(root.resolve()), "--ephemeral", "--json",
+                "--model", _model_for(read_platform_config(root), "codex", "routine"), "--output-schema", str(schema_path),
+                "--output-last-message", str(result_path), _context_prompt(request),
+            ]
+            completed = subprocess.run(argv, text=True, capture_output=True, check=False, timeout=120)
+            raw = result_path.read_bytes() if result_path.is_file() else None
+    except FileNotFoundError:
+        elapsed = max(0, round((time.perf_counter_ns() - started_tick) / 1_000_000))
+        observation = _context_observation(route, root, request, outcome="runtime-unavailable", limitation=f"Codex context runtime is unavailable: {worker}", started_at=started_at, elapsed_ms=elapsed)
+    except subprocess.TimeoutExpired:
+        elapsed = max(0, round((time.perf_counter_ns() - started_tick) / 1_000_000))
+        observation = _context_observation(route, root, request, outcome="fallback", limitation="Codex context worker timed out; use a direct targeted read", started_at=started_at, elapsed_ms=elapsed)
+    except OSError as exc:
+        elapsed = max(0, round((time.perf_counter_ns() - started_tick) / 1_000_000))
+        observation = _context_observation(route, root, request, outcome="runtime-unavailable", limitation=f"Codex context runtime could not start: {exc}", started_at=started_at, elapsed_ms=elapsed)
+    else:
+        elapsed = max(0, round((time.perf_counter_ns() - started_tick) / 1_000_000))
+        if completed.returncode != 0 or raw is None:
+            # Do not retain worker stdout/stderr: it can contain repository
+            # context or an echoed prompt. The bounded exit condition is
+            # sufficient to explain why the parent must read directly.
+            detail = (
+                f"Codex context worker exited with status {completed.returncode}"
+                if completed.returncode != 0
+                else "Codex context worker did not produce structured evidence"
+            )
+            observation = _context_observation(route, root, request, outcome="fallback", limitation=detail, started_at=started_at, elapsed_ms=elapsed)
+        else:
+            try:
+                result = _context_result(raw, request["scope"])
+            except ContextDelegationError as exc:
+                observation = _context_observation(route, root, request, outcome="fallback", limitation=str(exc), started_at=started_at, elapsed_ms=elapsed)
+            else:
+                outcome = "low-confidence" if result["confidence"] == "low" else "completed"
+                limitation = "worker evidence is low confidence; use a direct targeted read" if outcome == "low-confidence" else None
+                usage_events = [
+                    usage_event
+                    for line in getattr(completed, "stdout", "").splitlines()
+                    if (usage_event := _codex_usage_from_line(line)) is not None
+                ]
+                observation = _context_observation(route, root, request, outcome=outcome, limitation=limitation, result=result, result_raw=raw, started_at=started_at, elapsed_ms=elapsed, usage=_codex_usage_evidence(usage_events))
+    _append_context_observation(root, route, observation)
+    return observation
+
+
+def delegate_claude_context(root: Path, request_input: dict[str, Any]) -> dict[str, Any]:
+    """Record the current Claude Code limitation without inventing a boundary.
+
+    The native Agent handoff can run in place but does not expose a supported
+    read-only permission/sandbox parameter. An instruction alone is not a
+    write boundary, so this version deliberately falls back instead of
+    producing an unsafe handoff definition.
+    """
+    route, _ = _read_route(root)
+    request = context_request(root, request_input)
+    if route.provider != "claude":
+        raise ContextDelegationError("a Claude context worker requires a Claude parent route")
+    limitation = (
+        "Claude Code's current native Agent handoff has no supported read-only permission boundary; "
+        "the platform retained direct targeted reading rather than launching a write-capable child"
+    )
+    if not _context_enabled(root):
+        limitation = "context delegation is not enabled in this repository"
+    observation = _context_observation(route, root, request, outcome="runtime-unavailable", limitation=limitation)
+    _append_context_observation(root, route, observation)
+    return observation
+
+
+def record_context_reread(root: Path, observation_id: str, scope_input: list[dict[str, Any]]) -> dict[str, Any]:
+    """Attach an explicitly observable later direct-read volume to one observation."""
+    route, route_path = _read_route(root)
+    if not observation_id.strip():
+        raise ContextDelegationError("context reread recording requires a non-empty observation id")
+    scope = _context_scope(root, scope_input)
+    observations = list(route.context_delegations)
+    for index, observation in enumerate(observations):
+        if observation.get("id") != observation_id.strip():
+            continue
+        updated = dict(observation)
+        updated["reread_payload"] = _context_payload(root, scope)
+        observations[index] = updated
+        next_route = Route(**{**asdict(route), "context_delegations": tuple(observations)})
+        _write_route(route_path, next_route)
+        _write_route(_durable_record_path(next_route), next_route)
+        return updated
+    raise ContextDelegationError(f"no context delegation observation has id {observation_id!r}")
+
+
+def _context_json_file(path: Path, label: str) -> Any:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise ContextDelegationError(f"{label} file does not exist: {path}") from exc
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ContextDelegationError(f"{label} file is not readable JSON: {path}") from exc
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Record, hand off, escalate and verify provider-local model routing.")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -1340,6 +1748,23 @@ def main() -> int:
     )
     record_claude_parser.add_argument("--agent-id", required=True)
     record_claude_parser.add_argument("--summary")
+    codex_context_parser = subparsers.add_parser(
+        "context-codex",
+        help="softly delegate one bounded repository question to a routine read-only Codex worker",
+    )
+    codex_context_parser.add_argument("--request", type=Path, required=True, help="JSON object with question and bounded scope")
+    codex_context_parser.add_argument("--codex-bin")
+    claude_context_parser = subparsers.add_parser(
+        "context-claude",
+        help="record the native Claude read-only-context capability or its truthful direct-read fallback",
+    )
+    claude_context_parser.add_argument("--request", type=Path, required=True, help="JSON object with question and bounded scope")
+    reread_context_parser = subparsers.add_parser(
+        "context-reread",
+        help="attach an explicitly observed targeted direct re-read volume to a context observation",
+    )
+    reread_context_parser.add_argument("--id", required=True, help="context observation id")
+    reread_context_parser.add_argument("--scope", type=Path, required=True, help="JSON list of bounded path/range objects")
     subparsers.add_parser("postcheck", help="verify the prepared native worktree route did not mutate integration")
     subparsers.add_parser("efficiency-baseline", help="report bounded local execution-efficiency evidence without changing routing")
     subparsers.add_parser("routing-calibration", help="report bounded read-only R2/R3 routing calibration evidence without changing routing")
@@ -1371,6 +1796,12 @@ def main() -> int:
             output = prepare_claude_handoff(root, profile=args.profile, rationale=args.rationale, evidence=args.evidence)
         elif args.command == "record-claude-execution":
             output = record_claude_execution(root, agent_id=args.agent_id, summary=args.summary)
+        elif args.command == "context-codex":
+            output = delegate_codex_context(root, _context_json_file(args.request, "context request"), codex_bin=args.codex_bin)
+        elif args.command == "context-claude":
+            output = delegate_claude_context(root, _context_json_file(args.request, "context request"))
+        elif args.command == "context-reread":
+            output = record_context_reread(root, args.id, _context_json_file(args.scope, "context reread scope"))
         elif args.command == "efficiency-baseline":
             output = efficiency_baseline(root)
         elif args.command == "routing-calibration":
