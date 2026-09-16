@@ -395,6 +395,20 @@ class TemplateContractTests(unittest.TestCase):
         ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
         self.assertIn('_min_copier_version: "9.17.0"', copier); self.assertIn('[tools.copier]', config); self.assertIn('tested_version = "9.17.0"', config); self.assertIn('copier==9.17.0', ci)
 
+    def test_openspec_version_policy_and_regression_smoke_are_consistent(self) -> None:
+        config = (ROOT / ".dev-platform.toml").read_text(encoding="utf-8")
+        template = (ROOT / "template" / ".dev-platform.toml.jinja").read_text(encoding="utf-8")
+        ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        rendered_ci = (ROOT / "template" / ".github" / "workflows" / "dev-platform.yml.jinja").read_text(encoding="utf-8")
+        onboarding = (ROOT / ".github" / "workflows" / "adopt-project.yml").read_text(encoding="utf-8")
+        for text in (config, template):
+            self.assertIn('min_version = "1.13.0"', text)
+            self.assertIn('tested_version = "1.13.0"', text)
+        for text in (ci, rendered_ci):
+            self.assertIn("@fission-ai/openspec@1.13.0 validate --all --strict --no-interactive", text)
+        self.assertIn("npm install --global @fission-ai/openspec@1.13.0", onboarding)
+        self.assertIn("tests/openspec_1_13_regression.py", ci)
+
     def test_central_github_actions_are_sha_pinned(self) -> None:
         pattern = re.compile(r"uses:\s+actions/[\w-]+@([^\s#]+)")
         for workflow in (ROOT / ".github" / "workflows").glob("*.yml"):

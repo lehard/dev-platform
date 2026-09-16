@@ -41,7 +41,7 @@ jobs:
         run: python3 scripts/openspec_lifecycle.py check
 
       - name: Strict-validate OpenSpec
-        run: npx --yes @fission-ai/openspec@1.6.0 validate --all --strict --no-interactive
+        run: npx --yes @fission-ai/openspec@1.13.0 validate --all --strict --no-interactive
 {% if harness_mode == 'platform' %}
 
       - name: Run protected full platform-managed checks

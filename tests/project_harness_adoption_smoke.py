@@ -102,7 +102,7 @@ def main() -> int:
         for required_hygiene in (
             "scripts/platform_doctor.py",
             "scripts/openspec_lifecycle.py check",
-            "openspec@1.6.0 validate --all --strict --no-interactive",
+            "openspec@1.13.0 validate --all --strict --no-interactive",
         ):
             if required_hygiene not in workflow_text:
                 raise SystemExit(f"Project-harness platform CI is missing shared hygiene: {required_hygiene}")
@@ -145,7 +145,7 @@ def main() -> int:
         fake_bin.mkdir()
         fake_openspec = fake_bin / "openspec"
         fake_openspec.write_text(
-            "#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then echo '1.6.0'; exit 0; fi\nexit 0\n",
+            "#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then echo '1.13.0'; exit 0; fi\nexit 0\n",
             encoding="utf-8",
         )
         fake_openspec.chmod(0o755)

@@ -70,7 +70,7 @@ Profiles are capability compositions, not separate template forks.
 
 ## Quick start
 
-Use an **immutable release tag** from [Releases](https://github.com/lehard/dev-platform/releases), not mutable `main`. The current platform contract tests **Copier 9.17.0** and **OpenSpec CLI 1.6.0**. Generated lifecycle scripts also require a modern Python with `tomllib` support (Python 3.11+).
+Use an **immutable release tag** from [Releases](https://github.com/lehard/dev-platform/releases), not mutable `main`. The current platform contract tests **Copier 9.17.0** and **OpenSpec CLI 1.13.0**. Generated lifecycle scripts also require a modern Python with `tomllib` support (Python 3.11+).
 
 ### Try Dev Platform on a new project
 
