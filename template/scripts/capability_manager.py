@@ -332,8 +332,22 @@ def eval_decision(change_kind: str, *, runtime: str = "unavailable", explicit: b
         raise CapabilityError(f"capability eval decision is unavailable: {exc}") from exc
 
 
-def evaluate_existing(capability: Capability, fixture: Path, *, runtime: str, runs: int) -> dict[str, Any]:
-    """Execute a direct audit through the shared #79 core, never a provider subprocess."""
+def evaluate_existing(
+    capability: Capability,
+    fixture: Path,
+    *,
+    runtime: str,
+    runs: int,
+    target: Path | None = None,
+    claude_bin: str = "claude",
+    max_cost_usd: float | None = None,
+    timeout_seconds: int | None = None,
+) -> dict[str, Any]:
+    """Execute a direct audit through the shared #79/#108 core, never a bespoke provider subprocess.
+
+    ``target``/``claude_bin``/``max_cost_usd``/``timeout_seconds`` matter only for
+    ``runtime="claude"``; other runtimes ignore them exactly as the shared core does.
+    """
     try:
         evals = _eval_module()
         loaded = evals.load_fixture(fixture)
@@ -343,7 +357,12 @@ def evaluate_existing(capability: Capability, fixture: Path, *, runtime: str, ru
             )
         if loaded["content_sha256"] != capability.provenance["content_sha256"]:
             raise CapabilityError("eval fixture content hash does not match the canonical capability descriptor")
-        return evals.run_fixture(loaded, runtime=runtime, runs=runs)
+        kwargs: dict[str, Any] = {"target": target, "claude_bin": claude_bin}
+        if max_cost_usd is not None:
+            kwargs["max_cost_usd"] = max_cost_usd
+        if timeout_seconds is not None:
+            kwargs["timeout_seconds"] = timeout_seconds
+        return evals.run_fixture(loaded, runtime=runtime, runs=runs, **kwargs)
     except CapabilityError:
         raise
     except Exception as exc:
@@ -424,17 +443,25 @@ def main() -> int:
     update.add_argument("--fixture", help="run the shared eval immediately when its decision is run")
     update.add_argument("--runtime", choices=("unavailable", "fixture", "codex", "claude"), default="unavailable")
     update.add_argument("--runs", type=int, default=3)
+    update.add_argument("--target", help="on-disk eval suite (skills-dir plugin) for --runtime claude")
+    update.add_argument("--claude-bin", default="claude")
+    update.add_argument("--max-cost-usd", type=float)
+    update.add_argument("--timeout-seconds", type=int)
     remove = sub.add_parser("remove", help="alias for disable; preserves canonical descriptor for review/history")
     remove.add_argument("id")
     decision = sub.add_parser("eval-decision", help="classify whether a capability authoring change needs live eval")
     decision.add_argument("--change-kind", choices=("new", "metadata", "material", "trigger", "behavior", "tool", "safety"), required=True)
-    decision.add_argument("--runtime", choices=("unavailable", "fixture"), default="unavailable")
+    decision.add_argument("--runtime", choices=("unavailable", "fixture", "claude"), default="unavailable")
     decision.add_argument("--explicit", action="store_true")
     evaluate = sub.add_parser("evaluate", help="directly evaluate an existing capability through the shared #79 core")
     evaluate.add_argument("id")
     evaluate.add_argument("--fixture", required=True)
     evaluate.add_argument("--runtime", choices=("fixture", "codex", "claude"), default="fixture")
     evaluate.add_argument("--runs", type=int, default=3)
+    evaluate.add_argument("--target", help="on-disk eval suite (skills-dir plugin) for --runtime claude")
+    evaluate.add_argument("--claude-bin", default="claude")
+    evaluate.add_argument("--max-cost-usd", type=float)
+    evaluate.add_argument("--timeout-seconds", type=int)
     args = parser.parse_args()
     root = Path.cwd().resolve()
     try:
@@ -480,11 +507,17 @@ def main() -> int:
                     raise CapabilityError("a run decision requires --fixture so the bounded #79 eval path can execute")
                 payload["eval"]["report"] = evaluate_existing(
                     registry[args.id], Path(args.fixture), runtime=args.runtime, runs=args.runs,
+                    target=Path(args.target) if args.target else None, claude_bin=args.claude_bin,
+                    max_cost_usd=args.max_cost_usd, timeout_seconds=args.timeout_seconds,
                 )
         elif args.command == "evaluate":
             if args.id not in registry:
                 raise CapabilityError(f"unknown capability: {args.id}")
-            payload = evaluate_existing(registry[args.id], Path(args.fixture), runtime=args.runtime, runs=args.runs)
+            payload = evaluate_existing(
+                registry[args.id], Path(args.fixture), runtime=args.runtime, runs=args.runs,
+                target=Path(args.target) if args.target else None, claude_bin=args.claude_bin,
+                max_cost_usd=args.max_cost_usd, timeout_seconds=args.timeout_seconds,
+            )
         elif args.command == "sync":
             payload = sync(root, registry, enabled)
         else:

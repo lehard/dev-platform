@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import json
 import shutil
 import sys
 import tempfile
@@ -21,6 +22,111 @@ assert EVAL_SPEC and EVAL_SPEC.loader
 evals = importlib.util.module_from_spec(EVAL_SPEC)
 sys.modules[EVAL_SPEC.name] = evals
 EVAL_SPEC.loader.exec_module(evals)
+
+
+# A fake `claude` executable so the native-adapter tests stay keyless and
+# deterministic: it never contacts a real model, it only answers --version,
+# plugin eval --help, and plugin eval --json exactly as scripted below.
+_FAKE_CLAUDE_TEMPLATE = """#!/usr/bin/env python3
+import json, sys
+
+RESULT = {result!r}
+VERSION_OUTPUT = {version_output!r}
+
+args = sys.argv[1:]
+if args[:1] == ["--version"]:
+    sys.stdout.write(VERSION_OUTPUT)
+    sys.exit(0)
+if args[:2] == ["plugin", "eval"] and "--help" in args:
+    sys.stdout.write("Usage: claude plugin eval [options] [command] [target]\\n  eval\\n")
+    sys.exit(0)
+if args[:2] == ["plugin", "eval"]:
+    json_path = args[args.index("--json") + 1]
+    with open(json_path, "w", encoding="utf-8") as fh:
+        json.dump(RESULT, fh)
+    sys.exit(0)
+sys.exit(9)
+"""
+
+
+def _write_fake_claude(path: Path, *, version_output: str, result: dict) -> None:
+    path.write_text(_FAKE_CLAUDE_TEMPLATE.format(version_output=version_output, result=result), encoding="utf-8")
+    path.chmod(0o755)
+
+
+def _ping_fixture_payload() -> dict:
+    return {
+        "version": 1,
+        "capability": "ping-capability",
+        "content_sha256": hashlib.sha256(b"ping-capability-fixture").hexdigest(),
+        "cases": [
+            {
+                "id": "case-a",
+                "expectation": "trigger",
+                "prompt": "Ping the capability.",
+                "samples": ["triggered", "triggered", "triggered"],
+            },
+            {
+                "id": "case-b",
+                "expectation": "not-trigger",
+                "prompt": "Do nothing capability-related.",
+                "samples": ["not-triggered", "not-triggered", "not-triggered"],
+            },
+        ],
+        "quality_comparisons": [
+            {"id": "qc-1", "objective_verifier": "unit-test", "baseline": "not-verified", "candidate": "verified"},
+        ],
+    }
+
+
+def _native_arm(passed: bool) -> dict:
+    return {
+        "score": 1 if passed else 0,
+        "passed": passed,
+        "turns": 1,
+        "costUsd": 0,
+        "judgeCostUsd": 0,
+        "durationSeconds": 1,
+        "startedAt": "2026-09-16T00:00:00.000Z",
+        "error": None,
+        "tracePath": "/tmp/trace.jsonl",
+        "skippedPaidGraders": False,
+        "graders": [],
+    }
+
+
+def _native_result_payload(*, partial: bool = False, partial_reason: str | None = None, case_a_passed: bool = True, case_b_passed: bool = False, runs: int = 3) -> dict:
+    payload = {
+        "schemaVersion": 1,
+        "claudeVersion": "2.1.273",
+        "startedAt": "2026-09-16T00:00:00.000Z",
+        "durationSeconds": 2,
+        "costUsd": 0.01,
+        "partial": partial,
+        "suite": {"root": "/tmp", "ablation": "none", "threshold": 0, "concurrency": 1, "plugins": []},
+        "cases": [
+            {
+                "name": "case-a", "dir": "evals/case-a", "source": "prose",
+                "promptMarkdown": "Ping the capability.",
+                "runsPerCase": runs, "timeoutSeconds": 300, "maxTurns": 1,
+                "graders": [],
+                "arms": {"with": [_native_arm(case_a_passed) for _ in range(runs)]},
+                "aggregates": {"score": 1 if case_a_passed else 0, "passRate": 1 if case_a_passed else 0},
+            },
+            {
+                "name": "case-b", "dir": "evals/case-b", "source": "prose",
+                "promptMarkdown": "Do nothing capability-related.",
+                "runsPerCase": runs, "timeoutSeconds": 300, "maxTurns": 1,
+                "graders": [],
+                "arms": {"with": [_native_arm(case_b_passed) for _ in range(runs)]},
+                "aggregates": {"score": 1 if case_b_passed else 0, "passRate": 1 if case_b_passed else 0},
+            },
+        ],
+        "aggregates": {"casesTotal": 2, "casesPassed": 2, "overallScore": 1, "overallPassRate": 1},
+    }
+    if partial_reason is not None:
+        payload["partialReason"] = partial_reason
+    return payload
 
 
 class CapabilityManagerTests(unittest.TestCase):
@@ -236,6 +342,82 @@ class CapabilityManagerTests(unittest.TestCase):
         self.assertEqual(report["results"][0]["status_distribution"], {"timeout": 3})
         self.assertIsNone(report["results"][0]["trigger_rate"])
         self.assertIsNone(report["results"][0]["passed"])
+
+    def _ping_fixture(self):
+        path = self.root / "dev-platform" / "evals" / "ping-capability-pilot.json"
+        path.write_text(json.dumps(_ping_fixture_payload()), encoding="utf-8")
+        return evals.load_fixture(path)
+
+    def test_claude_native_adapter_requires_target(self) -> None:
+        with self.assertRaisesRegex(evals.EvalError, "requires --target"):
+            evals.run_fixture(self._ping_fixture(), runtime="claude", runs=3)
+
+    def test_claude_native_adapter_is_blocked_unavailable_without_binary(self) -> None:
+        report = evals.run_fixture(
+            self._ping_fixture(), runtime="claude", runs=3,
+            target=self.root, claude_bin="definitely-not-a-real-claude-binary-xyz",
+        )
+        self.assertEqual(report["adapter"]["status"], "blocked/unavailable")
+        self.assertIn("PATH", report["adapter"]["reason"])
+        self.assertEqual(report["summary"]["incomplete"], 2)
+        self.assertEqual(report["summary"]["status_distribution"], {"blocked/unavailable": 6})
+        self.assertTrue(all(result["trigger_rate"] is None for result in report["results"]))
+
+    def test_claude_native_adapter_is_blocked_unavailable_below_minimum_version(self) -> None:
+        fake_claude = self.root / "fake-claude"
+        _write_fake_claude(fake_claude, version_output="2.1.119 (Claude Code)\n", result=_native_result_payload())
+        report = evals.run_fixture(self._ping_fixture(), runtime="claude", runs=3, target=self.root, claude_bin=str(fake_claude))
+        self.assertEqual(report["adapter"]["status"], "blocked/unavailable")
+        self.assertIn("2.1.119", report["adapter"]["reason"])
+
+    def test_claude_native_adapter_maps_native_json_into_provider_neutral_report(self) -> None:
+        fake_claude = self.root / "fake-claude"
+        _write_fake_claude(
+            fake_claude, version_output="2.1.273 (Claude Code)\n",
+            result=_native_result_payload(case_a_passed=True, case_b_passed=False),
+        )
+        report = evals.run_fixture(self._ping_fixture(), runtime="claude", runs=3, target=self.root, claude_bin=str(fake_claude))
+        self.assertEqual(report["adapter"], {
+            "provider": "claude",
+            "runtime": "claude-plugin-eval",
+            "status": "supported",
+            "claude_version": "2.1.273",
+            "target": str(self.root),
+        })
+        self.assertEqual(report["summary"], {
+            "case_count": 2,
+            "passed": 2,
+            "failed": 0,
+            "incomplete": 0,
+            "status_distribution": {"not-triggered": 3, "triggered": 3},
+        })
+        self.assertNotIn("prompt", report["results"][0])
+        self.assertEqual(report["quality_comparisons"][0], {
+            "comparison_id": "qc-1",
+            "objective_verifier": "unit-test",
+            "baseline": "not-verified",
+            "candidate": "not-verified",
+            "improved": None,
+        })
+
+    def test_claude_native_adapter_reports_blocked_unavailable_on_auth_failure(self) -> None:
+        fake_claude = self.root / "fake-claude"
+        _write_fake_claude(
+            fake_claude, version_output="2.1.273 (Claude Code)\n",
+            result=_native_result_payload(partial=True, partial_reason="auth_failed"),
+        )
+        report = evals.run_fixture(self._ping_fixture(), runtime="claude", runs=3, target=self.root, claude_bin=str(fake_claude))
+        self.assertEqual(report["adapter"]["status"], "blocked/unavailable")
+        self.assertIn("auth_failed", report["adapter"]["reason"])
+        self.assertEqual(report["summary"]["incomplete"], 2)
+
+    def test_claude_native_adapter_rejects_drifted_eval_suite_prompt(self) -> None:
+        fake_claude = self.root / "fake-claude"
+        drifted = _native_result_payload()
+        drifted["cases"][0]["promptMarkdown"] = "Ping the capability, please."
+        _write_fake_claude(fake_claude, version_output="2.1.273 (Claude Code)\n", result=drifted)
+        with self.assertRaisesRegex(evals.EvalError, "does not match the reviewed fixture hash"):
+            evals.run_fixture(self._ping_fixture(), runtime="claude", runs=3, target=self.root, claude_bin=str(fake_claude))
 
     def test_frontend_design_capabilities_are_declared_and_opt_in(self) -> None:
         registry = self.registry()
