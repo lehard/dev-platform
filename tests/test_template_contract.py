@@ -152,30 +152,15 @@ class TemplateContractTests(unittest.TestCase):
     def test_downstream_platform_ci_is_self_contained_and_does_not_own_project_ci_name(self) -> None:
         workflow = (ROOT / "template" / ".github" / "workflows" / "dev-platform.yml.jinja").read_text(encoding="utf-8")
         agents = (ROOT / "template" / "AGENTS.md.jinja").read_text(encoding="utf-8")
-        guidance = (ROOT / "template" / "docs" / "engineering" / "agent-workflow.md").read_text(encoding="utf-8")
         readme = (ROOT / "template" / "README.md.jinja").read_text(encoding="utf-8")
         self.assertFalse((ROOT / "template" / ".github" / "workflows" / "ci.yml.jinja").exists())
         self.assertNotIn("lehard/dev-platform/.github/workflows", workflow)
         self.assertIn("scripts/select_checks.py", workflow)
         self.assertIn("scripts/openspec_lifecycle.py check", workflow)
         self.assertIn("self-contained CI workflow", agents)
-        self.assertIn("Keep CI providers thin.", agents)
-        self.assertIn("repository-owned executable commands or", guidance)
-        self.assertIn("GitHub-native events, permissions", guidance)
         self.assertIn("self-contained in this repository", readme)
         self.assertNotIn("Reusable CI is pinned", agents)
         self.assertNotIn("Reusable CI is pinned", readme)
-
-    def test_downstream_platform_ci_orchestrates_repository_owned_commands(self) -> None:
-        workflow = (ROOT / "template" / ".github" / "workflows" / "dev-platform.yml.jinja").read_text(encoding="utf-8")
-        for command in (
-            "python3 scripts/platform_doctor.py",
-            "python3 scripts/openspec_lifecycle.py check",
-            "python3 scripts/select_checks.py --base",
-            "python3 scripts/select_checks.py --mode protected-full --execute",
-        ):
-            with self.subTest(command=command):
-                self.assertIn(command, workflow)
 
     def test_downstream_platform_ci_preserves_required_pr_check_and_cancels_superseded_runs(self) -> None:
         workflow = (ROOT / "template" / ".github" / "workflows" / "dev-platform.yml.jinja").read_text(encoding="utf-8")

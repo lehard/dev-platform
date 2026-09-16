@@ -83,6 +83,8 @@ class InstructionArchitectureTests(unittest.TestCase):
     def test_ci_work_reaches_thin_provider_guidance_without_repeating_it_in_adapters(self) -> None:
         central = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         rendered = (ROOT / "template" / "AGENTS.md.jinja").read_text(encoding="utf-8")
+        rendered_guidance = (ROOT / "template" / "docs" / "engineering" / "agent-workflow.md").read_text(encoding="utf-8")
+        workflow = (ROOT / "template" / ".github" / "workflows" / "dev-platform.yml.jinja").read_text(encoding="utf-8")
         claude = (ROOT / "CLAUDE.md").read_text(encoding="utf-8")
         rendered_claude = (ROOT / "template" / "CLAUDE.md.jinja").read_text(encoding="utf-8")
 
@@ -92,6 +94,16 @@ class InstructionArchitectureTests(unittest.TestCase):
         self.assertIn(CI_OWNERSHIP_INVARIANT, rendered)
         self.assertIn("repository-owned executable entrypoints", rendered)
         self.assertIn("docs/engineering/agent-workflow.md", rendered)
+        self.assertIn("repository-owned executable commands or", rendered_guidance)
+        self.assertIn("GitHub-native events, permissions", rendered_guidance)
+        for command in (
+            "python3 scripts/platform_doctor.py",
+            "python3 scripts/openspec_lifecycle.py check",
+            "python3 scripts/select_checks.py --base",
+            "python3 scripts/select_checks.py --mode protected-full --execute",
+        ):
+            with self.subTest(command=command):
+                self.assertIn(command, workflow)
         for text in (claude, rendered_claude):
             self.assertNotIn(CI_OWNERSHIP_INVARIANT, text)
 
