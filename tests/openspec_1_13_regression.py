@@ -69,7 +69,7 @@ def main() -> int:
         for required in ("First authored addition", "Second authored addition"):
             if required not in archived:
                 raise SystemExit(f"archive dropped authored requirement: {required}")
-        if "Literal example only" in archived:
+        if archived.count("### Requirement: Literal example only") != 1:
             raise SystemExit("archive interpreted a fenced delta header as an authored requirement")
 
         # Retiring a one-requirement capability must accept both `+` bullets and
