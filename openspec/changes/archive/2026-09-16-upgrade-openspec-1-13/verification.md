@@ -13,7 +13,7 @@ Automated-Checks-Evidence: automated-checks.json
 
 - `python3 -m compileall -q template/scripts scripts` passed.
 - `python3 scripts/managed_projects.py validate` passed.
-- `python3 scripts/run_test_groups.py --all` passed: 863 tests across 13 groups.
+- `python3 scripts/run_test_groups.py --all` passed before archival closure (863 tests across 13 groups), then passed again after the Purpose-baseline guard was added (871 tests across 13 groups).
 - `openspec validate upgrade-openspec-1-13 --strict --no-interactive` passed before archive using the available compatible local CLI; archive below uses the exact 1.13.0 CLI.
 - `python3 template/scripts/openspec_lifecycle.py check` passed before the change was marked complete.
 - `openspec validate --all --strict --no-interactive` passed with the exact 1.13.0 CLI after replacing the 20 legacy placeholder spec purposes that 1.13 promotes from warnings to strict-validation failures.
