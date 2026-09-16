@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "selection": {
+    "state": "ready",
+    "command_count": 2,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "git diff --check",
+      "duration_seconds": 0.056,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_docs_links.py",
+      "duration_seconds": 0.59,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "docs",
+      "paths": [
+        "openspec/changes/pilot-system-one-decision-layer/.managed-task.json",
+        "openspec/changes/pilot-system-one-decision-layer/.openspec.yaml",
+        "openspec/changes/pilot-system-one-decision-layer/design.md",
+        "openspec/changes/pilot-system-one-decision-layer/pilot-evidence/aggregate-metrics.json",
+        "openspec/changes/pilot-system-one-decision-layer/pilot-evidence/cases/add-deepseek-harness-runtime-adapter/deterministic.json",
+        "openspec/changes/pilot-system-one-decision-layer/pilot-evidence/cases/add-deepseek-harness-runtime-adapter/input.json",
+        "openspec/changes/pilot-system-one-decision-layer/pilot-evidence/cases/add-deepseek-harness-runtime-adapter/model-adapter.json",
+        "openspec/changes/pilot-system-one-decision-layer/pilot-evidence/cases/add-deepseek-harness-runtime-adapter/reference.json",
+        "openspec/changes/pilot-system-one-decision-layer/pilot-evidence/cases/preflight-completion-before-validation/deterministic.json",
+        "openspec/changes/pilot-system-one-decision-layer/pilot-evidence/cases/preflight-completion-before-validation/input.json",
+        "openspec/changes/pilot-system-one-decision-layer/pilot-evidence/cases/preflight-completion-before-validation/model-adapter.json",
+        "openspec/changes/pilot-system-one-decision-layer/pilot-evidence/cases/preflight-completion-before-validation/reference.json",
+        "openspec/changes/pilot-system-one-decision-layer/pilot-evidence/cases/rollback-empty-managed-start-transactions/deterministic.json",
+        "openspec/changes/pilot-system-one-decision-layer/pilot-evidence/cases/rollback-empty-managed-start-transactions/input.json",
+        "openspec/changes/pilot-system-one-decision-layer/pilot-evidence/cases/rollback-empty-managed-start-transactions/model-adapter.json",
+        "openspec/changes/pilot-system-one-decision-layer/pilot-evidence/cases/rollback-empty-managed-start-transactions/reference.json",
+        "openspec/changes/pilot-system-one-decision-layer/pilot-evidence/cases/support-exact-pr-continuation/deterministic.json",
+        "openspec/changes/pilot-system-one-decision-layer/pilot-evidence/cases/support-exact-pr-continuation/input.json",
+        "openspec/changes/pilot-system-one-decision-layer/pilot-evidence/cases/support-exact-pr-continuation/model-adapter.json",
+        "openspec/changes/pilot-system-one-decision-layer/pilot-evidence/cases/support-exact-pr-continuation/reference.json",
+        "openspec/changes/pilot-system-one-decision-layer/pilot-evidence/cases/validate-ouroboros-execution-backend/deterministic.json",
+        "openspec/changes/pilot-system-one-decision-layer/pilot-evidence/cases/validate-ouroboros-execution-backend/input.json",
+        "openspec/changes/pilot-system-one-decision-layer/pilot-evidence/cases/validate-ouroboros-execution-backend/model-adapter.json",
+        "openspec/changes/pilot-system-one-decision-layer/pilot-evidence/cases/validate-ouroboros-execution-backend/reference.json",
+        "openspec/changes/pilot-system-one-decision-layer/pilot-evidence/jev-unavailable.json",
+        "openspec/changes/pilot-system-one-decision-layer/pilot-evidence/judgment-taxonomy.json",
+        "openspec/changes/pilot-system-one-decision-layer/pilot-report.md",
+        "openspec/changes/pilot-system-one-decision-layer/proposal.md",
+        "openspec/changes/pilot-system-one-decision-layer/specs/decision-layer-evaluation/spec.md",
+        "openspec/changes/pilot-system-one-decision-layer/tasks.md",
+        "openspec/changes/pilot-system-one-decision-layer/verification.md"
+      ],
+      "commands": [
+        "git diff --check",
+        "python3 scripts/check_docs_links.py"
+      ],
+      "evidence_types": [
+        "configuration",
+        "configuration"
+      ]
+    }
+  ]
+}
