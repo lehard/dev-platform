@@ -157,6 +157,16 @@ Do not skip local verification because cloud CI is narrower, and do not use the 
 
 Platform-managed scripts, docs and the self-contained CI workflow are versioned inside this repository by Copier. Platform upgrades arrive only through reviewed Copier update PRs; downstream CI never executes mutable `dev-platform@main` logic and does not require private cross-repository Actions Access.
 
+GitHub Actions is the current control plane, not the default implementation
+surface. Put portable test, build, verification, release, and deploy behavior
+that can run from a checkout behind repository-owned executable commands or
+scripts, and have the workflow orchestrate those entrypoints so agents and
+developers can invoke them locally. Keep GitHub-native events, permissions,
+concurrency, checkout/setup, secrets and environment wiring, artifacts, and
+check/status integration in the workflow. Do not add a generic provider
+abstraction for hypothetical portability, and do not extract working inline
+workflow logic merely to make YAML smaller.
+
 `platform_ci_ref` in schema v2 is legacy compatibility metadata and is not executed by the self-contained CI workflow.
 
 Required GitHub checks are never bypassed. Do not add agent/admin bypass merely to make autonomous publication succeed. The human user must not be used as a routine Git courier between completed agent work and GitHub.

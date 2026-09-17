@@ -1,0 +1,22 @@
+# Design: Native Claude eval behind the existing provider-neutral boundary
+
+## Decisions
+
+1. **Reuse the #79 core.** Capability identity, eval decisions, canonical statuses/evidence, sanitized storage and lifecycle integration remain owned by the existing provider-neutral layer.
+2. **Native surface first.** Claude live eval uses `claude plugin eval` when its exact supported version and output contract are compatible; do not introduce a nested `claude -p` runner merely to preserve the old reference design.
+3. **Adapter boundary remains strict.** Claude CLI arguments, JSON/HTML report structures and provider-specific statuses stay inside the adapter. Core records only normalized evidence and provenance.
+4. **Truth before parity.** Codex stays explicit `unsupported/unknown` until it has a supported truthful adapter; provider symmetry is not a requirement.
+5. **Keyless CI remains deterministic.** Existing fixture evaluation stays available and does not require Claude credentials/runtime.
+6. **Bounded evidence.** Do not persist full HTML reports, transcripts, secrets or chain-of-thought as a new store; retain only the minimum normalized fields needed for review.
+7. **Compatibility gate.** If `claude plugin eval` cannot express the positive/hard-negative/behavior expectations required by the current contract, record the exact unsupported boundary instead of wrapping it in fragile scraping or undocumented behavior.
+
+## Preflight findings (confirmed against the real CLI)
+
+The compatibility gate in decision 7 passed: `claude plugin eval` is real, its `--json` output is machine-readable, and it can express the platform's trigger/not-trigger contract through per-case grader `passed`/`error`. The adapter was implemented. Concrete findings that shaped it:
+
+- **Version boundary.** The locally installed CLI (2.1.119) has no `eval` subcommand under `claude plugin` at all. `@anthropic-ai/claude-code@2.1.269`-`2.1.273` (the current npm-published range at authoring time) do expose it. The adapter probes `--version` and gates on `>= 2.1.269` before ever invoking the plugin.
+- **Credential boundary.** `claude plugin eval` runs each case as a full `claude` child process "on your own credential." A real bounded probe run (`--runs 1`, single trivial case, `--max-cost-usd 0.20`) from this host-bridged desktop session produced `{"partial": true, "partialReason": "auth_failed", ...}` — the child could not reuse this session's host-brokered authentication. The adapter therefore treats a `partial`/`auth_failed`-shaped run, and per-run auth-failure error text, as `blocked/unavailable`, never as a truthful `not-triggered`.
+- **Exit-code boundary.** Exit 0 means every case met `--threshold`; exit 1 means some case scored below it (with a full report still written); exit 2 covers *both* an explicit `--max-cost-usd` abort and other fatal/partial runs (including the auth failure above) — the adapter never infers meaning from the exit code alone and always inspects the JSON report's `partial`/`partialReason`.
+- **Evidence boundary.** The native `--json` output embeds the literal prompt text (`promptMarkdown`) and a per-run trace file path (`tracePath`), and can additionally emit a full HTML report. None of those cross into the platform's canonical report (decision 6); `promptMarkdown` is read only long enough to re-hash it against the fixture's `prompt_sha256` and reject a case whose on-disk suite has drifted from the reviewed prompt.
+- **Ablation boundary (recorded, not built around).** Native `--ablation with-without` can produce a with/without score delta, which could in principle back `quality_comparisons`. Mapping that faithfully needs further design (baseline run identity, which comparisons are with-only) beyond this task's bounded scope, so live Claude runs report `quality_comparisons` as `not-verified`/`None` rather than a guessed mapping. This is a recorded boundary per decision 7, not a silent gap.
+- **Target boundary.** `claude plugin eval` needs a real on-disk eval suite to run against (a path, plugin name, or `plugin@marketplace` id); the provider-neutral fixture loaded by `load_fixture` intentionally keeps only prompt hashes, never prompt text (see `capability_evals.py`'s existing data-minimization design). The adapter therefore takes a separate `--target` pointing at that on-disk suite (e.g. a materialized `.claude/skills/dev-platform-<id>/` with its own `evals/`) and verifies, rather than assumes, that its prompts match the reviewed fixture.

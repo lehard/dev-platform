@@ -1,7 +1,7 @@
 # agent-workflow Specification
 
 ## Purpose
-TBD - created by archiving change add-systematic-bug-diagnosis-protocol. Update Purpose after archive.
+Define the end-to-end agent workflow for disciplined task intake, implementation, verification, and delivery.
 ## Requirements
 ### Requirement: Unknown defects use evidence-first diagnosis
 
@@ -109,4 +109,3 @@ the existing provider routing handoff rather than replace it.
 #### Scenario: Executor selection is already owned by routing
 - **WHEN** a managed task already has a provider routing record
 - **THEN** the handoff references that record and does not restate executor selection or write containment or launch an executor
-

@@ -1,0 +1,64 @@
+{
+  "calibration_note": "mean_confidence_when_correct should exceed mean_confidence_when_incorrect for the adapter to be usefully calibrated; sample size (5 cases x up to 15 judgments) is too small for a formal calibration curve, this is a directional signal only",
+  "cases_evaluated": 5,
+  "deterministic_judgments_fully_resolved_by_rule": [
+    "automated_checks_outcome_success",
+    "required_artifacts_present",
+    "spec_delta_present",
+    "task_checklist_complete",
+    "verification_pass_recorded"
+  ],
+  "deterministic_subset_accuracy": 1.0,
+  "false_allow_count": 0,
+  "false_escalation_count": 3,
+  "jev_arm": "unavailable for all 5 cases -- see jev-unavailable.json",
+  "labelable_judgments_scored": 75,
+  "latency_ms": {
+    "max": 132329,
+    "mean": 107821.0,
+    "min": 73812
+  },
+  "mean_confidence_when_correct": 0.865,
+  "mean_confidence_when_incorrect": 0.696,
+  "model_judged_subset_accuracy": 0.84,
+  "overall_accuracy": 0.893,
+  "per_case": [
+    {
+      "accuracy": 0.933,
+      "case": "add-deepseek-harness-runtime-adapter",
+      "correct": 14,
+      "total": 15
+    },
+    {
+      "accuracy": 0.933,
+      "case": "preflight-completion-before-validation",
+      "correct": 14,
+      "total": 15
+    },
+    {
+      "accuracy": 0.8,
+      "case": "rollback-empty-managed-start-transactions",
+      "correct": 12,
+      "total": 15
+    },
+    {
+      "accuracy": 0.867,
+      "case": "support-exact-pr-continuation",
+      "correct": 13,
+      "total": 15
+    },
+    {
+      "accuracy": 0.933,
+      "case": "validate-ouroboros-execution-backend",
+      "correct": 14,
+      "total": 15
+    }
+  ],
+  "schema_valid_reports": "5/5",
+  "tokens": {
+    "max": 100289,
+    "mean": 91371.2,
+    "min": 85831,
+    "total": 456856
+  }
+}

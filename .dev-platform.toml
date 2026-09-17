@@ -35,8 +35,8 @@ agent_board = true
 platform_git_lifecycle = true
 
 [tools.openspec]
-min_version = "1.6.0"
-tested_version = "1.6.0"
+min_version = "1.13.0"
+tested_version = "1.13.0"
 verify_required = true
 
 [tools.copier]

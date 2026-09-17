@@ -38,7 +38,15 @@ python3 scripts/capability_evals.py --json run \
 
 The included objective comparison verifies the capability lifecycle's observable result: an opt-out project has no derived skill surface, while a selected canonical descriptor produces its marked provider surface. The fixture report labels this as `deterministic-fixture`; it is not live Codex or Claude evidence.
 
-Current Codex and Claude adapters intentionally return `unsupported` rather than launch nested CLIs or infer a trigger from provider-specific stream events. That preserves the existing single-writer routing and containment contracts. A future adapter may be added only when its runtime offers truthful, supported trigger evidence; timeouts and runtime failures must remain distinct from `not-triggered`.
+The Codex adapter intentionally returns `unsupported` rather than launch a nested CLI or infer a trigger from provider-specific stream events, preserving the existing single-writer routing and containment contracts. A future Codex adapter may be added only when its runtime offers truthful, supported trigger evidence; timeouts and runtime failures must remain distinct from `not-triggered`.
+
+Claude has a bounded native adapter (backlog #108) that bridges to the CLI's own `claude plugin eval` (Claude Code >= 2.1.269) instead of duplicating its execution/scoring/reporting. `--runtime claude` additionally requires `--target <dir>`: an on-disk eval suite (a skills-dir plugin `claude plugin eval` can resolve, e.g. a materialized `.claude/skills/dev-platform-<id>/` with its own `evals/`) whose `prompt.md` cases must hash-match the reviewed fixture's `prompt_sha256` — a suite that has drifted from the reviewed fixture is rejected rather than silently trusted. The adapter probes `--version` and `plugin eval --help` (read-only, free, no credential) before ever invoking the plugin, and reports `blocked/unavailable` — never a fabricated `not-triggered` — when the CLI is missing, below the minimum version, or the native run itself cannot authenticate (`partial`/`partialReason: auth_failed` and similar). It never passes `--scaffold`, `--allow-tools`, or `--allow-real-servers`, and it never persists the native report's prompt text, HTML report, or trace file; only case identifiers, prompt digests, bounded statuses, and provenance cross into the canonical report. Native ablation (with/without) evidence is not yet mapped to `quality_comparisons`; those stay `not-verified` for live Claude runs, a recorded boundary rather than a fabricated baseline/candidate comparison.
+
+```bash
+python3 scripts/capability_manager.py evaluate capability-catalog \
+  --fixture dev-platform/evals/capability-catalog-pilot.json \
+  --runtime claude --target .claude/skills/dev-platform-capability-catalog
+```
 
 ## Architecture Health Review
 

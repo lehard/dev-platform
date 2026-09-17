@@ -71,7 +71,10 @@ jobs:
         run: python3 template/scripts/openspec_lifecycle.py check
 
       - name: Strict-validate OpenSpec
-        run: npx --yes @fission-ai/openspec@1.6.0 validate --all --strict --no-interactive
+        run: npx --yes @fission-ai/openspec@1.13.0 validate --all --strict --no-interactive
+
+      - name: Run OpenSpec archive/delta regression fixtures
+        run: python3 tests/openspec_1_13_regression.py --openspec-command "npx --yes @fission-ai/openspec@1.13.0"
 
       - name: Install tested Copier
         run: python3 -m pip install "copier==9.17.0"

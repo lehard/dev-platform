@@ -1,0 +1,8 @@
+- [x] Reconfirm OpenSpec 1.13.0 is the current stable release and record the exact package/version used for verification.
+- [x] Identify every Dev Platform source/template/fixture/doc that encodes the current 1.6.0 support/test baseline.
+- [x] Run the representative managed lifecycle on 1.13.0: materialize, structural validation, semantic verification, archive and post-archive state.
+- [x] Add/run focused regression fixtures for duplicate delta sections, retirement/remove with wrapped or `+` bullets, fenced examples, and missing spec deltas.
+- [x] If all compatibility evidence passes, update min/tested version contracts and matching fixtures/docs consistently.
+- [x] Verify generated/provider OpenSpec surfaces remain external and no vendoring is introduced.
+- [x] Run relevant platform regression checks and semantic OpenSpec verification.
+- [x] If a material incompatibility is found, keep the current supported contract and record the blocker rather than bypassing it.

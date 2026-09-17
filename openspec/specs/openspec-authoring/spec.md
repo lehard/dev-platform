@@ -1,8 +1,10 @@
 # openspec-authoring Specification
 
 ## Purpose
-TBD - created by archiving change strengthen-openspec-authoring-contract. Update Purpose after archive.
+Define the authoring, validation, archival, and evidence contract for OpenSpec changes in the platform.
+
 ## Requirements
+
 ### Requirement: Non-trivial OpenSpec proposals make the desired outcome verifiable
 
 The platform SHALL guide non-trivial OpenSpec proposals to state the intended outcome and concrete success criteria or verification evidence. Success evidence MAY be quantitative, binary, or directly observable depending on the nature of the change. The platform SHALL NOT require invented numeric KPIs where they do not improve verification.
@@ -110,3 +112,18 @@ The canonical central OpenSpec workflow and the rendered downstream workflow SHA
 - **THEN** archive mutation does not begin
 - **AND** the diagnostic identifies the missing requirement and its canonical workflow location.
 
+### Requirement: OpenSpec stable-version upgrades preserve lifecycle correctness
+
+Dev Platform SHALL update its supported OpenSpec compatibility baseline only after the selected stable release passes representative managed lifecycle checks and focused regressions for correctness-sensitive upstream changes.
+
+#### Scenario: Stable OpenSpec upgrade passes compatibility checks
+- **WHEN** a newer stable OpenSpec release is selected for adoption
+- **AND** representative materialize, validate, semantic verify and archive checks pass
+- **AND** focused regressions for the motivating upstream correctness changes pass
+- **THEN** the platform MAY update its minimum/tested OpenSpec version contract and matching fixtures/docs consistently
+- **AND** SHALL retain platform semantic verification and lifecycle evidence unless a separate reviewed change proves a guard redundant
+
+#### Scenario: Compatibility check finds a material regression
+- **WHEN** the selected stable OpenSpec release violates a Dev Platform lifecycle invariant or fails a representative regression
+- **THEN** the platform SHALL keep the existing supported contract
+- **AND** SHALL record the incompatibility instead of weakening verification, archive, or source-of-truth guarantees merely to complete the dependency bump
