@@ -59,6 +59,10 @@ routine_model = "haiku"
 standard_model = "sonnet"
 complex_model = "opus"
 
+[context_delegation]
+# Central-only soft dogfood. It never intercepts normal repository reads.
+enabled = true
+
 [independent_review]
 # Opt in only where a runtime can supply a separate fresh, read-only review
 # context. The platform validates its evidence but never launches a provider.

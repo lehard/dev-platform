@@ -1,0 +1,12 @@
+- [x] Reconcile current model-routing, provider-local delegation, agent-runtime and execution-provenance contracts at the exact task revision.
+- [x] Define the provider-neutral context-delegation request/result and bounded observation schema without introducing a second routing state machine.
+- [x] Resolve context workers through the existing routine provider-local profile/model mapping; do not enable whole-task R1.
+- [x] Implement the supported Codex read-only context-worker path using existing runtime primitives or report a truthful unsupported fallback.
+- [x] Implement the supported Claude read-only context-worker handoff using the current native Agent/subagent surface or report a truthful unsupported fallback.
+- [x] Ensure the supported worker path has no repository write capability and does not require write-containment ceremony.
+- [x] Add structured evidence output with path/symbol/range, finding, uncertainty and concise synthesis.
+- [x] Record bounded source/result/re-read payload volumes, timing, outcome and truthful provider/model/usage provenance through the existing local execution evidence lifecycle.
+- [x] Add a soft agent-facing preference for bulk exploratory reads while preserving direct targeted reads for editing, debugging, architecture and exact verification.
+- [x] Dogfood the capability in central dev-platform without hard Read interception or mandatory downstream rollout.
+- [x] Cover successful delegated read, targeted direct read, low-confidence/failure fallback, unsupported runtime, read-only boundary and evidence semantics with regression tests.
+- [x] Perform semantic OpenSpec verification and relevant platform checks; do not activate the later calibration or enforcement tasks automatically.
