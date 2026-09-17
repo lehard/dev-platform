@@ -7,7 +7,7 @@ Checks run successfully:
 - `python3 -m unittest -v tests.test_model_routing` (64 tests)
 - `python3 -m compileall -q template/scripts scripts`
 - `python3 scripts/managed_projects.py validate`
-- `python3 scripts/run_test_groups.py --all` (13 groups, 867 tests)
+- `python3 scripts/run_test_groups.py --all` (13 groups, 876 tests; rerun successfully after reconciliation with `origin/main`)
 - `python3 scripts/check_docs_links.py`
 - `git diff --check`
 
