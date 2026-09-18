@@ -1,7 +1,7 @@
 # public-distribution Specification
 
 ## Purpose
-TBD - created by archiving change productize-public-core-for-external-use. Update Purpose after archive.
+Define the portable public distribution boundary, sanitization checks, and non-destructive cutover requirements for Dev Platform.
 ## Requirements
 ### Requirement: Public distribution is sanitized from operator-specific state
 
@@ -34,4 +34,3 @@ The ordinary productization path SHALL create the new canonical public repositor
 - **WHEN** the sanitized snapshot has not passed clean render and client-like sandbox verification
 - **THEN** the new public repository is not declared canonical
 - **AND** existing consumers are not silently redirected or migrated.
-
