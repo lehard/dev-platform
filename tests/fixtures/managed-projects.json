@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "projects": [
+    {"repository": "example/managed", "state": "managed", "default_branch": "main", "note": "Synthetic managed project fixture."},
+    {"repository": "example/candidate", "state": "candidate", "default_branch": "main", "note": "Synthetic candidate fixture."},
+    {"repository": "example/excluded", "state": "excluded", "default_branch": "main", "note": "Synthetic excluded fixture."}
+  ]
+}

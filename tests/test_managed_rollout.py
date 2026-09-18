@@ -9,6 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
+FIXTURE_REGISTRY = ROOT / "tests" / "fixtures" / "managed-projects.json"
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import managed_projects  # noqa: E402
@@ -16,13 +17,13 @@ import rollout_project  # noqa: E402
 
 
 class ManagedProjectRegistryTests(unittest.TestCase):
-    def test_real_registry_is_valid_comprehensive_and_has_expected_managed_projects(self) -> None:
-        data = managed_projects.load_registry(ROOT / "managed-projects.json")
+    def test_synthetic_registry_is_valid_and_has_expected_managed_project(self) -> None:
+        data = managed_projects.load_registry(FIXTURE_REGISTRY)
         matrix = managed_projects.matrix_payload(data)
         repos = {item["repository"] for item in matrix["include"]}
-        self.assertEqual(repos, {"lehard/planner-agent-lab", "lehard/cuby", "lehard/Jara_Fin"})
-        self.assertEqual(len(data["projects"]), 13)
-        self.assertEqual(sum(1 for item in data["projects"] if item["state"] == "excluded"), 3)
+        self.assertEqual(repos, {"example/managed"})
+        self.assertEqual(len(data["projects"]), 3)
+        self.assertEqual(sum(1 for item in data["projects"] if item["state"] == "excluded"), 1)
 
     def test_non_managed_states_never_enter_matrix(self) -> None:
         data = {

@@ -26,6 +26,7 @@ PROFILES = [
         "protected_main": False,
         "publish_mode": "direct",
         "pr_merge_mode": "auto",
+        "scm_provider": "github",
         "main_branch": "main",
     },
     {
@@ -34,6 +35,7 @@ PROFILES = [
         "protected_main": True,
         "publish_mode": "pr",
         "pr_merge_mode": "auto",
+        "scm_provider": "github",
         "main_branch": "main",
     },
     {
@@ -42,6 +44,7 @@ PROFILES = [
         "protected_main": True,
         "publish_mode": "pr",
         "pr_merge_mode": "auto",
+        "scm_provider": "github",
         "main_branch": "main",
     },
 ]
