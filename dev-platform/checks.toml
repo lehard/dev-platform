@@ -106,6 +106,7 @@ targets = [
   "test_dev_entrypoint",
   "test_direct_main_health",
   "test_friction_review",
+  "test_gitlab_delivery",
   "test_harness_safety",
 ]
 mode = "parallel"
@@ -123,6 +124,7 @@ targets = [
   "test_openspec_lifecycle",
   "test_platform_bootstrap",
   "test_platform_common",
+  "test_operator_config",
   "test_platform_doctor",
   "test_capability_manager",
   "test_browser_verification",
