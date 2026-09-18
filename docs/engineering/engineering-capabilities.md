@@ -8,6 +8,22 @@ Each descriptor in `dev-platform/capabilities/<id>.toml` is the provider-neutral
 
 `dev-platform/capabilities.toml` is project-owned opt-in state. An empty `enabled` list means no provider skill surface, extra agent context, tool runtime, or dependency is materialized. Copier delivers the default file once and preserves later project choices.
 
+## Atomic delivery and versioning
+
+A capability is one atomic deliverable unit:
+
+```text
+Capability
+├── canonical descriptor
+├── instructions / provider skill
+├── optional tool/runtime adapter
+├── dependencies
+├── eval contract
+└── provider materialization
+```
+
+These components are reviewed and delivered together; components from different reviewed revisions must not be mixed. Today, a capability is versioned as part of an immutable Dev Platform release, with declared content hashes providing the verifiable consistency check. A future independent capability release lifecycle may change the versioning mechanism, but not this atomic boundary.
+
 ## Lifecycle
 
 Use the discoverable management entrypoint:
