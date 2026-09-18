@@ -3,7 +3,7 @@ full_commands = [
   "python3 -m compileall -q template/scripts scripts",
   "python3 scripts/run_test_groups.py --all",
 ]
-full_evidence_types = ["syntax", "configuration", "test"]
+full_evidence_types = ["syntax", "test"]
 full_required_evidence_types = ["test"]
 # control-plane: unknown/ambiguous paths and selector/CI/lifecycle surfaces stay
 # full-suite triggers (see [checks.*] below for the narrower risk classes).
