@@ -1,10 +1,9 @@
 [settings]
 full_commands = [
   "python3 -m compileall -q template/scripts scripts",
-  "python3 scripts/managed_projects.py validate",
   "python3 scripts/run_test_groups.py --all",
 ]
-full_evidence_types = ["syntax", "configuration", "test"]
+full_evidence_types = ["syntax", "test"]
 full_required_evidence_types = ["test"]
 # control-plane: unknown/ambiguous paths and selector/CI/lifecycle surfaces stay
 # full-suite triggers (see [checks.*] below for the narrower risk classes).
@@ -107,6 +106,7 @@ targets = [
   "test_dev_entrypoint",
   "test_direct_main_health",
   "test_friction_review",
+  "test_gitlab_delivery",
   "test_harness_safety",
 ]
 mode = "parallel"
@@ -124,6 +124,7 @@ targets = [
   "test_openspec_lifecycle",
   "test_platform_bootstrap",
   "test_platform_common",
+  "test_operator_config",
   "test_platform_doctor",
   "test_capability_manager",
   "test_browser_verification",

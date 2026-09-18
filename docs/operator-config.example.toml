@@ -1,0 +1,20 @@
+# Keep this file outside the public Dev Platform source tree, then set
+# DEV_PLATFORM_OPERATOR_CONFIG to its absolute path for operator-only actions.
+
+[development_backlog]
+repository = "your-org/development-backlog"
+project_label = "project:your-project"
+default_priority = "P2"
+project_owner = "your-org"
+project_number = 1
+
+[promotion]
+repo = "your-org/dev-platform"
+
+[process_health]
+process_label = "process"
+managed_label = "process:managed"
+
+[rollout]
+registry_path = "/secure/operator/managed-projects.json"
+bot_login = "your-platform-bot[bot]"

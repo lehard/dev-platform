@@ -342,6 +342,7 @@ class FrictionReviewTests(unittest.TestCase):
         unrelated = {"number": 51, "title": "[process-friction] labels", "body": "no marker", "labels": []}
         calls: list[list[str]] = []
         agent_friction.shutil.which = lambda _: "/usr/bin/gh"
+        agent_friction.platform_repository = lambda: "lehard/dev-platform"
 
         def fake_gh(command: list[str]) -> subprocess.CompletedProcess[str]:
             calls.append(command)

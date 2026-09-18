@@ -19,6 +19,7 @@ from _platform_common import (
     protected_main,
     publish_mode,
     read_platform_config,
+    scm_provider,
     relation,
     run_git,
     preflight,
@@ -262,11 +263,12 @@ def validate_publication_config(root: Path, config: dict, prof: str, mode: str) 
     merge_mode = pr_merge_mode(config)
     if merge_mode not in {"auto", "manual"}:
         raise SystemExit(f"Invalid pr_merge_mode={merge_mode!r}; expected 'auto' or 'manual'.")
+    provider = scm_provider(config)
     if protected_main(config) and mode == "direct":
-        raise SystemExit("protected_main=true is incompatible with publish_mode=direct. Use publish_mode=pr so GitHub required checks can gate the merge.")
+        raise SystemExit("protected_main=true is incompatible with publish_mode=direct. Use publish_mode=pr so required checks can gate the merge.")
     if mode == "pr" and prof == "light":
         raise SystemExit("publish_mode=pr requires a feature-capable profile. Use standard/multi-agent or a reviewed project-owned harness.")
-    if mode == "pr" and github_cli_env(root) is None:
+    if provider == "github" and mode == "pr" and github_cli_env(root) is None:
         raise SystemExit(
             "publish_mode=pr requires authenticated GitHub CLI/API access. Provide a valid GH_TOKEN/GITHUB_TOKEN, a persistent gh login, or reusable GitHub HTTPS credentials before finishing the task."
         )
@@ -631,7 +633,10 @@ def main() -> int:
     work = current_worktree_root()
     integration = main_root()
     config = read_platform_config(work)
+    provider = scm_provider(config)
     if args.status:
+        if provider == "gitlab":
+            return subprocess.run(["python3", str(work / "scripts" / "gitlab_delivery.py"), "status"], cwd=work).returncode
         return run_status(work, integration, config, as_json=args.json)
     if args.reconcile:
         if task_reconciliation is None:
@@ -641,6 +646,8 @@ def main() -> int:
     if harness_mode(config) != "platform":
         raise SystemExit("harness_mode=project: use the repository-owned Git/worktree publication workflow instead of scripts/finish_task.py.")
     prof = profile(config)
+    if provider not in {"github", "gitlab"}:
+        raise SystemExit(f"Unknown scm_provider: {provider}")
     preflight(integration)
     if work != integration:
         preflight(work)
@@ -665,6 +672,33 @@ def main() -> int:
             "canonical OpenSpec is unaffected -- reconcile explicitly if the new scope should be adopted "
             "(managed_task.py supersede --bundle <dir> " + drift["source_issue"] + ")"
         )
+    if provider == "gitlab":
+        if mode != "pr":
+            raise SystemExit("The bounded GitLab adapter supports publish_mode=pr only.")
+        if branch == main_branch:
+            raise SystemExit("GitLab merge-request publication requires a feature branch.")
+        hygiene_detail = run_openspec_hygiene(work)
+        checkpoint_detail = observe_friction_checkpoint_blocker(work, branch)
+        dirty_detail = "Current worktree is dirty." if not clean(work) else None
+        if hygiene_detail or checkpoint_detail or dirty_detail:
+            details = [detail for detail in (hygiene_detail, checkpoint_detail, dirty_detail) if detail]
+            raise SystemExit("GitLab completion preflight blocked: " + " | ".join(details))
+        fetch_main(work, "origin", main_branch)
+        remote_main = f"origin/{main_branch}"
+        if run_git(["merge-base", "--is-ancestor", remote_main, branch], cwd=work, check=False).returncode != 0:
+            raise SystemExit(f"{branch} is stale relative to {remote_main}. Reconcile explicitly, rerun checks, then finish.")
+        emit_finish_stage("preflight clear: starting required validation")
+        run_checks(work, remote_main, args.no_checks)
+        emit_finish_stage("validation clear: publishing GitLab merge request")
+        command = ["python3", str(work / "scripts" / "gitlab_delivery.py"), "publish"]
+        if args.title:
+            command += ["--title", args.title]
+        if args.body:
+            command += ["--body", args.body]
+        result = subprocess.run(command, cwd=work)
+        if result.returncode == 0:
+            emit_finish_stage("complete")
+        return result.returncode
     emit_finish_stage("preflight: observing completion blockers")
     run_friction_route_pending_retry(work)
     fetch_main(integration, "origin", main_branch)

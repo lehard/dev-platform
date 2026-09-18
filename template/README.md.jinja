@@ -2,11 +2,11 @@
 
 {{ project_description }}
 
-This repository is attached to the versioned `lehard/dev-platform` project factory.
+This repository is attached to a versioned Dev Platform Project Factory release.
 
 ## Developer workflow
 
-The repository uses `workflow_profile={{ workflow_profile }}`, `harness_mode={{ harness_mode }}`, `protected_main={{ protected_main }}`, `publish_mode={{ publish_mode }}` and `pr_merge_mode={{ pr_merge_mode }}`. Shared lifecycle scripts are versioned in this repository and updated through reviewed Copier releases.
+The repository uses `workflow_profile={{ workflow_profile }}`, `harness_mode={{ harness_mode }}`, `scm_provider={{ scm_provider }}`, `protected_main={{ protected_main }}`, `publish_mode={{ publish_mode }}` and `pr_merge_mode={{ pr_merge_mode }}`. Shared lifecycle scripts are versioned in this repository and updated through reviewed Copier releases.
 
 For normal agent work:
 
@@ -18,7 +18,7 @@ python3 scripts/finish_task.py
 python3 scripts/finish_task.py --status
 ```
 
-`finish_task.py` enforces OpenSpec lifecycle hygiene and re-fetches `origin/{{ main_branch }}` immediately before publication. For protected-main PR delivery it pushes the feature branch, creates/reuses a PR (matched to the exact local head, and resumed if it already exists even after `main` has advanced), prefers to arm GitHub's native auto-merge/merge-queue for that exact head before any long wait when `pr_merge_mode=auto`, then waits for required checks and merges through GitHub, and only then synchronizes local `main`. Failed checks or merge leave local main unchanged. It never force-pushes, bypasses required checks, or auto-resolves divergence. Rerunning it after an interruption resumes from current Git/GitHub state; `--status` gives a strictly read-only view of that state.
+`finish_task.py` enforces OpenSpec lifecycle hygiene and re-fetches `origin/{{ main_branch }}` immediately before publication. The core lifecycle pushes a verified feature branch and creates or reuses the selected provider's review object. GitHub preserves exact-head PR/check safety; GitLab observes the matching MR and CI status, then stops for human acceptance in the bounded standard adapter. Failed checks or merge leave local main unchanged. It never force-pushes, bypasses required checks, or auto-resolves divergence.
 
 Platform-owned PR publication requires authenticated GitHub CLI/API access; run `gh auth login` once on the agent host or provide a supported `GH_TOKEN`/`GITHUB_TOKEN`. `agent_doctor.py` catches missing auth and invalid `protected_main=true + publish_mode=direct` before publication.
 

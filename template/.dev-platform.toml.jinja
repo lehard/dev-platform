@@ -9,6 +9,7 @@ harness_mode = "{{ harness_mode }}"
 protected_main = {{ 'true' if protected_main else 'false' }}
 publish_mode = "{{ publish_mode }}"
 pr_merge_mode = "{{ pr_merge_mode }}"
+scm_provider = "{{ scm_provider }}"
 agent_tools = "{{ agent_tools }}"
 project_required_files = []
 
@@ -28,9 +29,6 @@ verify_required = true
 [tools.copier]
 min_version = "9.17.0"
 tested_version = "9.17.0"
-
-[tools.rollout]
-bot_login = "dev-platform-bot-lehard[bot]"
 
 [model_routing]
 enabled = true
@@ -62,19 +60,10 @@ enabled = false
 sdk_version = "0.1.1rc1"
 profile = "observation"
 
-[promotion]
-repo = "lehard/dev-platform"
-
-[development_backlog]
-repository = "{{ development_backlog_repository }}"
-project_label = "{{ development_backlog_project_label }}"
-default_priority = "{{ development_backlog_default_priority }}"
-project_owner = "{{ development_backlog_project_owner }}"
-project_number = {{ development_backlog_project_number }}
-
-[process_health]
-process_label = "process"
-managed_label = "process:managed"
+{% if operator_config_path %}
+[operator]
+config_path = "{{ operator_config_path }}"
+{% endif %}
 
 [paths]
 worktrees = ".claude/worktrees"

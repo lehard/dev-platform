@@ -171,6 +171,7 @@ def read_platform_config(root: Path | None = None) -> dict[str, Any]:
             "protected_main": True,
             "publish_mode": "pr",
             "pr_merge_mode": "auto",
+            "scm_provider": "github",
             "paths": {
                 "worktrees": ".claude/worktrees",
                 "agent_board": ".claude/agents-board.json",
@@ -180,7 +181,66 @@ def read_platform_config(root: Path | None = None) -> dict[str, Any]:
         }
     import tomllib
     with path.open("rb") as fh:
-        return tomllib.load(fh)
+        config = tomllib.load(fh)
+
+    # Operator-owned state is loaded only after an explicit project opt-in. It
+    # augments the portable project contract so existing operator-only helpers
+    # (managed Backlog status, rollout and process-health actions) need not
+    # maintain a competing configuration path.
+    operator = config.get("operator", {})
+    if operator is not None and not isinstance(operator, dict):
+        raise RuntimeError("operator configuration must be a TOML table")
+    operator = operator or {}
+    env_name = str(operator.get("config_env", "DEV_PLATFORM_OPERATOR_CONFIG"))
+    candidate = os.environ.get(env_name) or operator.get("config_path")
+    if not candidate:
+        return config
+    external_path = Path(str(candidate)).expanduser()
+    if not external_path.is_absolute():
+        external_path = root / external_path
+    try:
+        with external_path.open("rb") as fh:
+            external = tomllib.load(fh)
+    except FileNotFoundError as exc:
+        raise RuntimeError(f"operator configuration was requested but is unavailable: {external_path}") from exc
+    if not isinstance(external, dict):
+        raise RuntimeError("operator configuration must contain a TOML object")
+    for key, value in external.items():
+        if key == "operator":
+            continue
+        if isinstance(value, dict) and isinstance(config.get(key), dict):
+            config[key] = {**config[key], **value}
+        else:
+            config[key] = value
+    return config
+
+
+def read_operator_config(root: Path | None = None, *, required: bool = False) -> dict[str, Any]:
+    """Read explicit external operator state without merging it into project config."""
+    root = root or current_worktree_root()
+    config = read_platform_config(root)
+    operator = config.get("operator", {})
+    if operator is not None and not isinstance(operator, dict):
+        raise RuntimeError("operator configuration must be a TOML table")
+    operator = operator or {}
+    env_name = str(operator.get("config_env", "DEV_PLATFORM_OPERATOR_CONFIG"))
+    candidate = os.environ.get(env_name) or operator.get("config_path")
+    if not candidate:
+        if required:
+            raise RuntimeError(f"operator configuration is not enabled; set {env_name} or configure [operator].config_path for this operator-only action")
+        return {}
+    path = Path(str(candidate)).expanduser()
+    if not path.is_absolute():
+        path = root / path
+    try:
+        import tomllib
+        with path.open("rb") as fh:
+            data = tomllib.load(fh)
+    except FileNotFoundError as exc:
+        raise RuntimeError(f"operator configuration was requested but is unavailable: {path}") from exc
+    if not isinstance(data, dict):
+        raise RuntimeError("operator configuration must contain a TOML object")
+    return data
 
 
 def machine_path(key: str, root: Path | None = None) -> Path:
@@ -339,6 +399,11 @@ def publish_mode(config: dict[str, Any]) -> str:
 def pr_merge_mode(config: dict[str, Any]) -> str:
     # Legacy PR projects were manual. New generated projects explicitly record auto.
     return str(config.get("pr_merge_mode", "manual"))
+
+
+def scm_provider(config: dict[str, Any]) -> str:
+    """Return the configured delivery adapter without coupling lifecycle code to it."""
+    return str(config.get("scm_provider", "github")).lower()
 
 
 def _gh_auth_ok(root: Path, env: dict[str, str]) -> bool:

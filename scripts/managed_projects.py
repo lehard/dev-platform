@@ -2,18 +2,29 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_REGISTRY = ROOT / "managed-projects.json"
+DEFAULT_REGISTRY_ENV = "DEV_PLATFORM_OPERATOR_REGISTRY"
 REPOSITORY_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 BRANCH_RE = re.compile(r"^[A-Za-z0-9._/-]+$")
 ALLOWED_STATES = {"managed", "candidate", "excluded"}
 
 
-def load_registry(path: Path = DEFAULT_REGISTRY) -> dict[str, Any]:
+def configured_registry(path: Path | None = None) -> Path:
+    if path is not None:
+        return path
+    configured = os.environ.get(DEFAULT_REGISTRY_ENV)
+    if not configured:
+        raise ValueError(f"managed-project registry is operator-owned; pass --registry or set {DEFAULT_REGISTRY_ENV}")
+    return Path(configured)
+
+
+def load_registry(path: Path | None = None) -> dict[str, Any]:
+    path = configured_registry(path)
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError as exc:
@@ -24,7 +35,8 @@ def load_registry(path: Path = DEFAULT_REGISTRY) -> dict[str, Any]:
     return data
 
 
-def save_registry(data: dict[str, Any], path: Path = DEFAULT_REGISTRY) -> None:
+def save_registry(data: dict[str, Any], path: Path | None = None) -> None:
+    path = configured_registry(path)
     validate_registry(data)
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
@@ -98,7 +110,7 @@ def promote_repository(data: dict[str, Any], repository: str, default_branch: st
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate and query the dev-platform managed-project registry.")
-    parser.add_argument("--registry", type=Path, default=DEFAULT_REGISTRY)
+    parser.add_argument("--registry", type=Path, help=f"Operator-owned registry path (or set {DEFAULT_REGISTRY_ENV}).")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("validate", help="Validate registry syntax and invariants.")
     matrix = sub.add_parser("matrix", help="Print the GitHub Actions matrix for managed projects.")

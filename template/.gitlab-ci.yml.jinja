@@ -1,0 +1,16 @@
+# GitLab is deliberately a thin CI adapter: repository-owned entrypoints hold
+# the verification policy used both locally and in CI.
+stages:
+  - verify
+
+dev_platform_verify:
+  stage: verify
+  image: python:3.11
+  script:
+    - python3 scripts/platform_doctor.py
+    - python3 scripts/openspec_lifecycle.py check
+{% if harness_mode == 'platform' %}
+    - python3 scripts/select_checks.py --mode protected-full --execute
+{% else %}
+    - echo "harness_mode=project; application checks stay repository-owned"
+{% endif %}

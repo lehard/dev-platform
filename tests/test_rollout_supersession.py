@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
+FIXTURE_REGISTRY = ROOT / "tests" / "fixtures" / "managed-projects.json"
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import rollout_supersession as supersession  # noqa: E402
@@ -76,12 +77,12 @@ class RolloutSupersessionTests(unittest.TestCase):
         self.assertEqual(plan, [])
 
     def test_dry_run_reconcile_performs_zero_mutations(self) -> None:
-        registry = ROOT / "managed-projects.json"
-        with patch.object(supersession, "list_open_prs", return_value=[pr(1, "v1.0.0", repository="lehard/planner-agent-lab"), pr(2, "v1.1.0", repository="lehard/planner-agent-lab")]), \
+        registry = FIXTURE_REGISTRY
+        with patch.object(supersession, "list_open_prs", return_value=[pr(1, "v1.0.0", repository="example/managed"), pr(2, "v1.1.0", repository="example/managed")]), \
              patch.object(supersession, "committed_platform_version", return_value="v1.0.0"), \
              patch.object(supersession, "close_and_delete") as close:
             report = supersession.reconcile(
-                repository="lehard/planner-agent-lab", base_branch="main", expected_bot="dev-platform-bot[bot]",
+                repository="example/managed", base_branch="main", expected_bot="dev-platform-bot[bot]",
                 registry=registry, authoritative_version=None, authoritative_pr=None, apply=False,
             )
         self.assertEqual([item["number"] for item in report["planned_closures"]], [1])
@@ -89,23 +90,23 @@ class RolloutSupersessionTests(unittest.TestCase):
         close.assert_not_called()
 
     def test_maintenance_uses_newest_eligible_pr_and_preserves_it(self) -> None:
-        registry = ROOT / "managed-projects.json"
+        registry = FIXTURE_REGISTRY
         with patch.object(supersession, "list_open_prs", return_value=[
-            pr(1, "v1.4.17", repository="lehard/planner-agent-lab"),
-            pr(2, "v1.4.18", repository="lehard/planner-agent-lab"),
-            pr(3, "v1.4.20", repository="lehard/planner-agent-lab"),
+            pr(1, "v1.4.17", repository="example/managed"),
+            pr(2, "v1.4.18", repository="example/managed"),
+            pr(3, "v1.4.20", repository="example/managed"),
         ]), patch.object(supersession, "committed_platform_version", return_value="v1.4.16"):
             report = supersession.reconcile(
-                repository="lehard/planner-agent-lab", base_branch="main", expected_bot="dev-platform-bot[bot]",
+                repository="example/managed", base_branch="main", expected_bot="dev-platform-bot[bot]",
                 registry=registry, authoritative_version=None, authoritative_pr=None, apply=False,
             )
         self.assertEqual([item["number"] for item in report["planned_closures"]], [1, 2])
         self.assertEqual((report["authoritative_version"], report["authoritative_pr"]), ("v1.4.20", 3))
 
     def test_candidate_and_excluded_repositories_cannot_enter_reconciliation(self) -> None:
-        for repository in ("lehard/etsy", "lehard/lection"):
+        for repository in ("example/candidate", "example/excluded"):
             with self.subTest(repository=repository), self.assertRaises(ValueError):
-                supersession.require_managed(repository, ROOT / "managed-projects.json")
+                supersession.require_managed(repository, FIXTURE_REGISTRY)
 
     def test_branch_delete_failure_is_warning_only_after_confirmed_close(self) -> None:
         responses = iter([{}, {"state": "closed"}, {}, ValueError("protected branch")])

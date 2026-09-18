@@ -20,7 +20,7 @@ try:
 except ImportError:  # pragma: no cover - Windows fallback
     fcntl = None
 
-from _platform_common import atomic_write_text, cooperative_umask, current_worktree_root, ensure_shared_path, main_root, read_platform_config, utc_now
+from _platform_common import atomic_write_text, cooperative_umask, current_worktree_root, ensure_shared_path, main_root, read_operator_config, read_platform_config, utc_now
 
 
 DEFAULT_MIN_EVENTS = 5
@@ -397,7 +397,9 @@ def destination_for(event: dict) -> str:
         return origin_repository()
     if event.get("scope") == "platform":
         config = read_platform_config(main_root())
-        return str(config.get("promotion", {}).get("repo", "lehard/dev-platform")).lower()
+        operator = read_operator_config(main_root())
+        repository = operator.get("promotion", {}).get("repo") if isinstance(operator.get("promotion"), dict) else None
+        return repository.lower() if isinstance(repository, str) and repository.strip() else origin_repository()
     raise RuntimeError("friction event has an unsupported scope")
 
 
@@ -424,10 +426,11 @@ def process_label() -> str:
 
 def platform_repository() -> str:
     try:
-        configured = read_platform_config(main_root()).get("promotion", {}).get("repo", "lehard/dev-platform")
-    except (FileNotFoundError, OSError, ValueError):
-        configured = "lehard/dev-platform"
-    return str(configured).lower()
+        operator = read_operator_config(main_root(), required=True)
+        configured = operator.get("promotion", {}).get("repo") if isinstance(operator.get("promotion"), dict) else None
+    except (FileNotFoundError, OSError, ValueError, RuntimeError):
+        configured = None
+    return configured.lower() if isinstance(configured, str) and configured.strip() else origin_repository()
 
 
 def issue_labels(issue: dict) -> set[str]:
@@ -899,8 +902,11 @@ def cmd_promote(args: argparse.Namespace) -> int:
     event = choose_event(args.event)
     if event.get("scope") != "platform":
         raise SystemExit("Only scope=platform friction can be promoted to dev-platform.")
-    config = read_platform_config(main_root())
-    inbox_repo = str(config.get("promotion", {}).get("repo", "lehard/dev-platform"))
+    operator = read_operator_config(main_root(), required=True)
+    promotion = operator.get("promotion")
+    inbox_repo = promotion.get("repo") if isinstance(promotion, dict) else None
+    if not isinstance(inbox_repo, str) or not inbox_repo.strip():
+        raise SystemExit("Promotion requires operator-owned promotion.repo configuration.")
     project_slug = str(config.get("project_slug", "unknown-project"))
     title = f"[platform-candidate] {sanitize(str(event.get('proposal', event.get('category', 'friction'))))[:120]}"
     body = "\n".join(

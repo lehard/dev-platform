@@ -11,16 +11,15 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class TemplateContractTests(unittest.TestCase):
     def test_required_template_files_exist(self) -> None:
-        required = ["copier.yml", "template/AGENTS.md.jinja", "template/CLAUDE.md.jinja", "template/.dev-platform.toml.jinja", "template/dev-platform/checks.toml", "template/dev-platform/capabilities.toml", "template/dev-platform/capabilities/repository-hygiene.toml", "template/dev-platform/capabilities/repository-hygiene.md", "template/dev-platform/capabilities/architecture-health-review.toml", "template/dev-platform/capabilities/architecture-health-review.md", "template/dev-platform/evals/architecture-health-review-pilot.json", "template/dev-platform/capabilities/systematic-bug-diagnosis.toml", "template/dev-platform/capabilities/systematic-bug-diagnosis.md", "template/dev-platform/evals/systematic-bug-diagnosis-pilot.json", "template/dev-platform/capabilities/selective-domain-interrogation.toml", "template/dev-platform/capabilities/selective-domain-interrogation.md", "template/dev-platform/evals/selective-domain-interrogation-pilot.json", "template/dev-platform/capabilities/interoperable-agent-handoff.toml", "template/dev-platform/capabilities/interoperable-agent-handoff.md", "template/dev-platform/evals/interoperable-agent-handoff-pilot.json", "template/dev-platform/capabilities/bounded-prototype.toml", "template/dev-platform/capabilities/bounded-prototype.md", "template/dev-platform/evals/bounded-prototype-pilot.json", "template/dev-platform/capabilities/react-next-best-practices.toml", "template/dev-platform/capabilities/react-next-best-practices.md", "template/dev-platform/capabilities/react-next-best-practices/server-client-components.md", "template/dev-platform/capabilities/react-next-best-practices/data-fetching-and-waterfalls.md", "template/dev-platform/capabilities/react-next-best-practices/bundle-and-code-splitting.md", "template/dev-platform/capabilities/react-next-best-practices/rendering-and-re-renders.md", "template/dev-platform/evals/react-next-best-practices-pilot.json", "template/dev-platform/capabilities/ui-quality-review.toml", "template/dev-platform/capabilities/ui-quality-review.md", "template/dev-platform/evals/ui-quality-review-pilot.json", "template/docs/engineering/engineering-capabilities.md", "template/dev-platform/deepseek-harness-observation.cordis.yml", "template/requirements/deepseek-harness.txt", "template/.github/workflows/dev-platform.yml.jinja", "template/scripts/shared_workspace.py", "template/scripts/capability_manager.py", "template/scripts/agent_board.py", "template/scripts/start_worktree.py", "template/scripts/worktree_cleanup.py", "template/scripts/start_task.py", "template/scripts/managed_task.py", "template/scripts/managed_project_status.py", "template/scripts/start_managed_task.py", "template/scripts/execute_managed_task.py", "template/scripts/deepseek_harness_adapter.py", "template/scripts/select_checks.py", "template/scripts/project_sync.py", "template/scripts/project_publish.py", "template/scripts/finish_task.py", "template/scripts/reconcile_task.py", "template/scripts/task_reconciliation.py", "template/scripts/openspec_lifecycle.py", "template/scripts/independent_review.py", "template/scripts/merge_to_main.py", "template/scripts/agent_friction.py", "template/scripts/agent_doctor.py", "template/scripts/model_routing.py", "template/scripts/platform_bootstrap.py", "template/scripts/platform_doctor.py", "template/scripts/git_hooks/pre-commit", "template/scripts/git_hooks/pre-merge-commit"]
+        required = ["copier.yml", "template/.gitlab-ci.yml.jinja", "template/scripts/gitlab_delivery.py"]
         for relative in required:
             with self.subTest(relative=relative): self.assertTrue((ROOT / relative).exists(), relative)
 
-    def test_template_exposes_process_health_review_and_label_provisioning(self) -> None:
+    def test_template_keeps_process_health_operator_only(self) -> None:
         config = (ROOT / "template" / ".dev-platform.toml.jinja").read_text(encoding="utf-8")
         review = (ROOT / "template" / ".github" / "workflows" / "weekly-process-backlog-review.md.jinja").read_text(encoding="utf-8")
         labels = (ROOT / "template" / ".github" / "workflows" / "process-health-labels.yml.jinja").read_text(encoding="utf-8")
-        self.assertIn("[process_health]", config)
-        self.assertIn('managed_label = "process:managed"', config)
+        self.assertNotIn("[process_health]", config)
         self.assertIn("exact default-branch SHA", review)
         self.assertIn("process:managed", labels)
 
@@ -316,9 +315,9 @@ class TemplateContractTests(unittest.TestCase):
         workflow = (ROOT / "template" / "docs" / "engineering" / "agent-workflow.md").read_text(encoding="utf-8")
         claude = (ROOT / "template" / "CLAUDE.md.jinja").read_text(encoding="utf-8")
         helper = (ROOT / "template" / "scripts" / "managed_task.py").read_text(encoding="utf-8")
-        for value in ("development_backlog_repository", "development_backlog_project_label", "development_backlog_default_priority", "development_backlog_project_owner", "development_backlog_project_number"):
-            self.assertIn(value, copier)
-        self.assertIn("[development_backlog]", config)
+        self.assertNotIn("development_backlog_repository", copier)
+        self.assertNotIn("[development_backlog]", config)
+        self.assertIn("operator_config_path", copier)
         self.assertIn("create --bundle", agents)
         # The overlap-confirmation flag is authoring detail: root guidance names
         # the entrypoint, the workflow doc owns how to answer a candidate list.

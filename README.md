@@ -2,7 +2,7 @@
 
 **A developer platform for agent-first software development.**
 
-Dev Platform coordinates specifications, coding agents, isolated work, verification, GitHub delivery, releases, and continuous process improvement across multiple repositories.
+Dev Platform coordinates specifications, coding agents, isolated work, verification, provider-adapted delivery, releases, and continuous process improvement across multiple repositories.
 
 Once coding agents can generate code quickly, the bottleneck moves to **context, coordination, verification, integration, and lifecycle reliability**. Dev Platform turns those concerns into a versioned engineering lifecycle instead of leaving every repository to reconstruct them from prompts, conventions, and one-off scripts.
 
@@ -19,7 +19,7 @@ Once coding agents can generate code quickly, the bottleneck moves to **context,
 - **model routing** — work can be routed to Codex or Claude Code with explicit execution provenance;
 - **isolated execution** — feature branches, worktrees, scope ownership, and coordination keep parallel writers from sharing mutable state;
 - **verification** — repository checks, semantic OpenSpec verification, and truthful verification receipts are completion gates;
-- **GitHub delivery** — PR or deliberately configured direct publication has explicit terminal states and recovery semantics;
+- **provider-adapted delivery** — GitHub PR and bounded GitLab MR publication have explicit terminal states and recovery semantics;
 - **versioned platform rollout** — Copier, immutable releases, and reviewed downstream upgrades distribute reusable process safely;
 - **process learning** — structured friction becomes evidence for reusable platform improvements instead of disappearing in chat history.
 
@@ -33,7 +33,7 @@ The result is a control plane for the engineering lifecycle, not a replacement c
 - **Workflow profiles** for single-agent, standard branch-based, and parallel multi-agent work.
 - **Isolated workspaces** with worktree and scope coordination where the profile requires them.
 - **Risk-proportional validation** plus protected full validation before publication.
-- **GitHub-aware publication** with exact PR/direct delivery semantics and resumable recovery.
+- **provider-neutral publication** with exact GitHub PR safety and bounded GitLab MR delivery.
 - **Immutable SemVer releases** and exact-version Copier upgrades.
 - **Managed rollout** that opens reviewed upgrade PRs across adopted repositories.
 - **Continuous process improvement** through sanitized friction capture and periodic review.
@@ -46,7 +46,7 @@ A normal change moves through one lifecycle:
 2. **The task is routed.** The platform records a bounded routing decision and selects Codex or Claude Code at an appropriate tier.
 3. **Implementation is isolated.** The selected workflow profile determines whether the task uses a direct checkout, a feature branch, or a dedicated worktree with coordination metadata.
 4. **The result is verified.** Selected checks give fast feedback; required full checks and semantic OpenSpec verification establish completion evidence.
-5. **GitHub delivery reaches a terminal state.** A pushed branch, open PR, or green CI run is not treated as delivery until the configured publication lifecycle completes.
+5. **Provider delivery reaches a terminal state.** A pushed branch, open review object, or green CI run is not treated as delivery until the configured publication lifecycle completes.
 6. **Reusable platform changes are released.** Stable platform behavior is published under an immutable SemVer release and distributed to managed projects as exact-version Copier updates.
 7. **Friction feeds the next improvement.** High-signal process failures and near-misses can be captured, reviewed, classified, and promoted into reusable platform changes.
 
@@ -171,17 +171,14 @@ High-signal events such as user corrections, repeated failures, safety near-miss
 
 See [`docs/promotion-loop.md`](docs/promotion-loop.md) and the friction section of [`docs/engineering/agent-workflow.md`](docs/engineering/agent-workflow.md).
 
-## Managed rollout and registry
+## Optional operator layer
 
-[`managed-projects.json`](managed-projects.json) currently serves two related operational purposes for this installation: it is the explicit repository inventory **and** the cross-repository rollout allowlist.
-
-- `managed` repositories are adopted and eligible for ordinary rollout PRs;
-- `candidate` repositories are known active projects awaiting reviewed adoption;
-- `excluded` repositories are deliberately outside adoption/rollout and carry an explanation.
-
-Only `managed` entries can be mutated by ordinary rollout. Because adoption and rollout intentionally use all three states today, splitting owner-specific discovery inventory from the operational rollout registry would be a lifecycle/schema change, not a documentation cleanup; this README therefore documents the current contract instead of changing it cosmetically.
-
-See [`docs/managed-rollout.md`](docs/managed-rollout.md).
+The public core contains no live repository inventory, backlog binding, bot
+identity, or rollout allowlist. Operators that need fleet/backlog work supply
+an external registry and configuration explicitly; ordinary Project Factory
+renders, OpenSpec work, checks, and delivery do not require it. See
+[`docs/ownership.md`](docs/ownership.md) and
+[`docs/operator-config.example.toml`](docs/operator-config.example.toml).
 
 ## Repository structure
 
@@ -190,7 +187,6 @@ See [`docs/managed-rollout.md`](docs/managed-rollout.md).
 - [`openspec/`](openspec/) — accepted platform specs plus active/archive change history for Dev Platform itself.
 - [`docs/`](docs/) — architecture, adoption, ownership, routing, release, and operating guidance.
 - [`.github/workflows/`](.github/workflows/) — validation, adoption, release, rollout, and process-review automation.
-- [`managed-projects.json`](managed-projects.json) — current installation inventory and rollout allowlist.
 - [`tests/`](tests/) — lifecycle, adoption, Copier update, routing, publication, and safety verification.
 
 ## Advanced documentation
@@ -203,6 +199,7 @@ Start here when you need more than the README:
 - [`docs/engineering/openspec-workflow.md`](docs/engineering/openspec-workflow.md) — OpenSpec verification, receipts, archive, and dependency policy.
 - [`docs/engineering/model-routing.md`](docs/engineering/model-routing.md) — Codex/Claude routing and execution provenance.
 - [`docs/managed-rollout.md`](docs/managed-rollout.md) — registry, GitHub App setup, and downstream rollout.
+- [`docs/public-cutover.md`](docs/public-cutover.md) — sanitized snapshot, secret response, and owner-admin cutover gate.
 - [`docs/release-policy.md`](docs/release-policy.md) — immutable release and upgrade policy.
 - [`docs/ownership.md`](docs/ownership.md) — platform-owned versus project-owned boundaries.
 - [`openspec/specs/`](openspec/specs/) — accepted behavioral specifications for the platform.
