@@ -26,7 +26,11 @@ class OperatorConfigTests(unittest.TestCase):
                 '[operator]\nconfig_path = "operator.toml"\n\n[paths]\nchecks = "dev-platform/checks.toml"\n',
                 encoding="utf-8",
             )
-            config = platform_common.read_platform_config(root)
+            # This fixture exercises the explicit project-local path. It must
+            # not inherit an operator's live environment binding from the
+            # process that runs the platform suite.
+            with mock.patch.dict(os.environ, {}, clear=True):
+                config = platform_common.read_platform_config(root)
             self.assertEqual(config["development_backlog"]["repository"], "example/backlog")
 
     def test_portable_project_does_not_require_operator_config(self) -> None:
