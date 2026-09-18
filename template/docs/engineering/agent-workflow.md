@@ -103,7 +103,7 @@ unambiguous Issue item and the six expected Status options, and needs GitHub
 Projects authorization (`gh auth refresh -s project`). Quick tasks have no
 managed provenance and therefore do not touch the Project.
 
-Bootstrap exception: Development Backlog issue lehard/development-backlog#1 introduced the importer, so its package was manually scaffolded through the current OpenSpec CLI after target and semantic preflight. All later managed tasks use the managed-start command.
+Bootstrap exception: the initial Development Backlog issue introduced the importer, so its package was manually scaffolded through the current OpenSpec CLI after target and semantic preflight. All later managed tasks use the managed-start command.
 
 ## Provider-local model routing
 

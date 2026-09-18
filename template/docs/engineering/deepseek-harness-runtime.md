@@ -111,7 +111,7 @@ with the exact capability diagnostic instead of fabricating success.
 ## Evidence dependency and non-goals
 
 The adapter emits the canonical runtime-neutral `execution.efficiency` shape
-delivered by `lehard/development-backlog#68` / `lehard/dev-platform#312`. Its
+delivered by `example-org/development-backlog#68` / `example-org/dev-platform#312`. Its
 platform timing uses the shared measured timing helper, and every usage field
 uses the shared `{value, source, status}` vocabulary. DSH `inputTokens` maps to
 disjoint `fresh_input_tokens`, `cacheReadTokens` to `cache_read_tokens`, and

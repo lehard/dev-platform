@@ -382,98 +382,17 @@ def platform_config_contract(project_root: Path) -> dict[str, Any]:
     return config
 
 
-def development_backlog_locator_answers(project_root: Path) -> tuple[str, int]:
-    answers = parse_answers((project_root / ".copier-answers.yml").read_text(encoding="utf-8"))
-    owner = answers.get("development_backlog_project_owner", "lehard")
-    number_text = answers.get("development_backlog_project_number", "1")
-    if not BACKLOG_PROJECT_OWNER_RE.fullmatch(owner):
-        raise ValueError("Copier answer development_backlog_project_owner must be a GitHub login")
-    try:
-        number = int(number_text)
-    except ValueError as exc:
-        raise ValueError("Copier answer development_backlog_project_number must be a positive integer") from exc
-    if number < 1:
-        raise ValueError("Copier answer development_backlog_project_number must be a positive integer")
-    return owner, number
+def require_platform_config_contract(before: dict[str, Any], after: dict[str, Any]) -> None:
+    """Keep Copier rollout from injecting operator-owned configuration.
 
-
-def expected_development_backlog_migration(
-    config: dict[str, Any],
-    *,
-    project_owner: str = "lehard",
-    project_number: int = 1,
-) -> dict[str, Any] | None:
-    """Return the sole bootstrap-owned addition permitted to project config."""
-    existing = config.get("development_backlog")
-    if isinstance(existing, dict):
-        additions = {
-            key: value
-            for key, value in {"project_owner": project_owner, "project_number": project_number}.items()
-            if key not in existing
-        }
-        if not additions:
-            return None
-        migrated = dict(config)
-        migrated["development_backlog"] = {**existing, **additions}
-        return migrated
-    if existing is not None:
-        return None
-    project_slug = config.get("project_slug")
-    if not isinstance(project_slug, str) or not re.fullmatch(r"[A-Za-z0-9_.-]+", project_slug):
-        return None
-    migrated = dict(config)
-    migrated["development_backlog"] = {
-        "repository": "lehard/development-backlog",
-        "project_label": f"project:{project_slug}",
-        "default_priority": "P2",
-        "project_owner": project_owner,
-        "project_number": project_number,
-    }
-    return migrated
-
-
-def expected_process_health_migration(before: dict[str, Any]) -> dict[str, Any] | None:
-    if "process_health" in before:
-        return None
-    migrated = dict(before)
-    migrated["process_health"] = {
-        "process_label": "process",
-        "managed_label": "process:managed",
-    }
-    return migrated
-
-
-def expected_platform_config_migrations(
-    before: dict[str, Any], *, project_owner: str, project_number: int
-) -> list[dict[str, Any]]:
-    """Return every bounded, bootstrap-owned config migration from ``before``."""
-    candidates = [before]
-    for migrate in (
-        lambda config: expected_development_backlog_migration(
-            config, project_owner=project_owner, project_number=project_number
-        ),
-        expected_process_health_migration,
-    ):
-        for candidate in list(candidates):
-            migrated = migrate(candidate)
-            if migrated is not None:
-                candidates.append(migrated)
-    return candidates
-
-
-def require_platform_config_contract(
-    before: dict[str, Any],
-    after: dict[str, Any],
-    *,
-    project_owner: str = "lehard",
-    project_number: int = 1,
-) -> None:
-    if after in expected_platform_config_migrations(
-        before, project_owner=project_owner, project_number=project_number
-    ):
+    Existing operator integrations are project-owned/external and remain valid
+    when unchanged; a portable rollout may only advance platform metadata,
+    which ``platform_config_contract`` already removes before this comparison.
+    """
+    if after == before:
         return
     raise ValueError(
-        "project-owned .dev-platform.toml changed beyond platform_version or the expected bounded platform migrations during guarded recopy"
+        "project-owned .dev-platform.toml changed beyond platform_version during guarded recopy"
     )
 
 
@@ -1270,13 +1189,7 @@ def copier_update_with_guarded_recopy(
             protected_before,
             permitted_fingerprints=permitted_task_intake_migration(project_root, agents_before),
         )
-        project_owner, project_number = development_backlog_locator_answers(project_root)
-        require_platform_config_contract(
-            config_before,
-            platform_config_contract(project_root),
-            project_owner=project_owner,
-            project_number=project_number,
-        )
+        require_platform_config_contract(config_before, platform_config_contract(project_root))
         return "update"
 
     owned = project_owned_paths(project_root)
@@ -1369,13 +1282,7 @@ def copier_update_with_guarded_recopy(
         env=env,
     )
     require_paths_match_rendered_template(project_root, expected_target)
-    project_owner, project_number = development_backlog_locator_answers(project_root)
-    require_platform_config_contract(
-        config_before,
-        platform_config_contract(project_root),
-        project_owner=project_owner,
-        project_number=project_number,
-    )
+    require_platform_config_contract(config_before, platform_config_contract(project_root))
     if harness_mode(project_root) != mode:
         raise ValueError(f"guarded recopy changed harness_mode away from {mode}")
     return "guarded-recopy"

@@ -19,6 +19,7 @@ from _platform_common import (
     protected_main,
     publish_mode,
     read_platform_config,
+    scm_provider,
     relation,
     require_origin,
     run_git,
@@ -290,13 +291,14 @@ def main() -> int:
     branch = str(config.get("main_branch", "main"))
     prof = profile(config)
     mode = publish_mode(config)
+    provider = scm_provider(config)
     harness = harness_mode(config)
     expected_protected = protected_main(config)
     merge_mode = pr_merge_mode(config)
     failures = 0
     report(
         "ok",
-        f"workflow_profile={prof}; harness_mode={harness}; protected_main={str(expected_protected).lower()}; publish_mode={mode}; pr_merge_mode={merge_mode}",
+        f"workflow_profile={prof}; harness_mode={harness}; scm_provider={provider}; protected_main={str(expected_protected).lower()}; publish_mode={mode}; pr_merge_mode={merge_mode}",
     )
     if merge_mode not in {"auto", "manual"}:
         report("fail", f"invalid pr_merge_mode={merge_mode!r}; expected auto or manual")
@@ -337,8 +339,13 @@ def main() -> int:
     if run_git(["status", "--porcelain"], cwd=root).stdout.strip():
         report("warn", "current worktree is dirty")
 
-    gh_env = github_cli_env(root)
-    if mode == "pr" and harness == "platform":
+    gh_env = github_cli_env(root) if provider == "github" else None
+    if provider == "gitlab":
+        if shutil.which("glab"):
+            report("ok", "GitLab glab CLI is available for MR delivery")
+        else:
+            report("warn", "GitLab glab CLI is unavailable; it is required only when publishing an MR")
+    elif mode == "pr" and harness == "platform":
         if gh_env is not None:
             report("ok", "GitHub PR API authentication available")
         else:
@@ -357,7 +364,7 @@ def main() -> int:
         else:
             report("warn", f"pending Dev Platform rollout ({rollout_outcome.state}): {rollout_outcome.detail}")
 
-    if mode == "pr" and harness == "platform":
+    if provider == "github" and mode == "pr" and harness == "platform":
         report_publication_status(root, integration, config, gh_env)
 
     if gh_env is not None:

@@ -29,7 +29,11 @@ There is no silent remote workflow upgrade channel. `platform_ci_ref` remains in
 
 ## Managed rollout
 
-`managed-projects.json` is the explicit downstream project inventory and cross-repository allowlist. Only entries in state `managed` are eligible for central rollout. `candidate` means reviewed first-time adoption is still expected; `excluded` records an intentional non-adoption decision. Neither non-managed state may be mutated by rollout.
+An external operator-owned registry is the downstream project inventory and
+cross-repository allowlist when managed rollout is enabled. Only entries in
+state `managed` are eligible for central rollout. `candidate` means reviewed
+first-time adoption is still expected; `excluded` records an intentional
+non-adoption decision. The generic public core does not contain this registry.
 
 After a version is published, the release workflow dispatches the rollout workflow for that exact immutable tag. Rollout uses a least-privilege GitHub App with separate read-only platform-source and target-write tokens. The target token includes Workflows write because platform-managed updates can include `.github/workflows/*`. Rollout performs Copier update/doctor/project checks on a deterministic automation branch and opens a downstream PR. It does not auto-merge by default.
 

@@ -1,6 +1,6 @@
 # Repository Agent Rules
 
-This repository uses the shared workflow from `lehard/dev-platform` with `workflow_profile={{ workflow_profile }}`, `harness_mode={{ harness_mode }}`, `protected_main={{ protected_main }}`, `publish_mode={{ publish_mode }}` and `pr_merge_mode={{ pr_merge_mode }}`.
+This repository uses the shared Dev Platform workflow with `workflow_profile={{ workflow_profile }}`, `harness_mode={{ harness_mode }}`, `scm_provider={{ scm_provider }}`, `protected_main={{ protected_main }}`, `publish_mode={{ publish_mode }}` and `pr_merge_mode={{ pr_merge_mode }}`.
 
 This file is the canonical repository-wide map of the cross-agent task protocol: sources of truth, task intents, always-on invariants, entrypoints and where the detailed contract lives. It is deliberately bounded. Detailed workflow rules live in the linked documents and are read when a task reaches that concern. Tool-specific instruction files reference this contract and must not fork or duplicate it.
 
@@ -71,7 +71,7 @@ python3 scripts/finish_task.py --status
 
 `agent_doctor.py` is start-of-task hygiene and publication preflight. `start_task.py` synchronizes `origin` safely and never auto-merges divergent histories. `finish_task.py --reconcile` is the explicit managed-task recovery operation: it reports/merges current authoritative main only through normal Git history, refuses dirty/provenance-ambiguous/changed-remote state, and requires validation to be rerun. `finish_task.py` enforces OpenSpec lifecycle hygiene, re-fetches immediately before publication, refuses stale/diverged integration, never force-pushes, and is resumable: rerunning it after any interruption is the correct next step. `--status` never publishes, merges, or mutates task content; it freshly observes task/main ancestry so it can point to `--reconcile` before expensive validation.
 {% if publish_mode == 'pr' %}
-`publish_mode=pr`: validated work is pushed and a GitHub PR is created/reused by exact head SHA. With `pr_merge_mode=auto` the platform arms GitHub's native auto-merge for that exact head before any long wait, then fast-forwards local `{{ main_branch }}` only after the remote merge succeeds. With `pr_merge_mode=manual` publication stops at the PR for review.
+`publish_mode=pr`: validated work is pushed and the configured SCM adapter creates/reuses the exact task review object. GitHub preserves exact-head PR and required-check semantics; the bounded GitLab adapter observes MR CI and stops at human merge/acceptance.
 {% else %}
 `publish_mode=direct`: valid only when `protected_main=false`. The platform re-fetches immediately before push and only pushes when `origin/{{ main_branch }}` is an ancestor of local `{{ main_branch }}`. Any divergence aborts publication.
 {% endif %}

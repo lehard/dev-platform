@@ -1,0 +1,31 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "specs/project-factory/spec.md",
+    "specs/platform-config/spec.md",
+    "specs/standard-profile-lifecycle/spec.md",
+    "specs/public-distribution/spec.md",
+    "design.md",
+    "tasks.md"
+  ],
+  "change": "productize-public-core-for-external-use",
+  "imported_at": "2026-09-18T12:29:13+00:00",
+  "package_revision": "6b55f4ae832ac85382c5b8596fb4946d64928181018b6359edaac3119b9d8c6f",
+  "prepared_against": "165bb7797b6d1a8fb0c6a80eeeeaaa7c341d848f",
+  "routing_receipt": {
+    "assurance": "high",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "platform-process"
+  },
+  "source_issue": "lehard/development-backlog#118",
+  "source_issue_evidence": {
+    "body_sha256": "d9b4981e19e4c48a41743a3bc5b65040e07fe0b4d2f1c6231aa8d8486d91cca9",
+    "updated_at": "2026-09-18T12:24:31Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

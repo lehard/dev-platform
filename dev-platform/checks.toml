@@ -1,7 +1,6 @@
 [settings]
 full_commands = [
   "python3 -m compileall -q template/scripts scripts",
-  "python3 scripts/managed_projects.py validate",
   "python3 scripts/run_test_groups.py --all",
 ]
 full_evidence_types = ["syntax", "configuration", "test"]

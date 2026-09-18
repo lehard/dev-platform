@@ -223,7 +223,7 @@ def main() -> int:
     reconcile_parser.add_argument("--repository", required=True)
     reconcile_parser.add_argument("--base-branch", required=True)
     reconcile_parser.add_argument("--expected-bot", required=True, help="Expected GitHub App login, for example dev-platform-bot[bot].")
-    reconcile_parser.add_argument("--registry", type=Path, default=ROOT / "managed-projects.json")
+    reconcile_parser.add_argument("--registry", type=Path, required=True, help="External operator-owned managed-project registry.")
     reconcile_parser.add_argument("--authoritative-version")
     reconcile_parser.add_argument("--authoritative-pr", type=int)
     reconcile_parser.add_argument("--apply", action="store_true", help="Close only PRs shown by the dry-run plan.")

@@ -45,65 +45,10 @@ class PlatformBootstrapTests(unittest.TestCase):
             platform_bootstrap.sync_platform_version(root)
             self.assertEqual(config.read_text(encoding="utf-8"), original)
 
-    def test_development_backlog_migration_adds_only_the_missing_section(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            config = root / ".dev-platform.toml"
-            config.write_text('project_slug = "existing-project"\ncustom_value = "preserve"\n', encoding="utf-8")
-            platform_bootstrap.sync_development_backlog_config(root)
-            text = config.read_text(encoding="utf-8")
-            self.assertIn('custom_value = "preserve"', text)
-            self.assertIn('[development_backlog]', text)
-            self.assertIn('project_label = "project:existing-project"', text)
-            self.assertIn('project_owner = "lehard"', text)
-            self.assertIn('project_number = 1', text)
-            platform_bootstrap.sync_development_backlog_config(root)
-            self.assertEqual(text, config.read_text(encoding="utf-8"))
-
-    def test_development_backlog_migration_adds_locator_inside_existing_table(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            config = root / ".dev-platform.toml"
-            config.write_text(
-                'project_slug = "existing-project"\n\n'
-                '[development_backlog]\nrepository = "lehard/development-backlog"\n'
-                'project_label = "project:existing-project"\ndefault_priority = "P2"\n\n'
-                '[paths]\nchecks = "dev-platform/checks.toml"\n',
-                encoding="utf-8",
-            )
-            platform_bootstrap.sync_development_backlog_config(root)
-            loaded = platform_bootstrap.load_config(root)
-            self.assertEqual(loaded["development_backlog"]["project_owner"], "lehard")
-            self.assertEqual(loaded["development_backlog"]["project_number"], 1)
-            self.assertNotIn("project_owner", loaded["paths"])
-
-    def test_development_backlog_migration_uses_copier_locator_answers(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            (root / ".copier-answers.yml").write_text(
-                "development_backlog_project_owner: example-owner\n"
-                "development_backlog_project_number: 42\n",
-                encoding="utf-8",
-            )
-            config = root / ".dev-platform.toml"
-            config.write_text('project_slug = "existing-project"\n', encoding="utf-8")
-            platform_bootstrap.sync_development_backlog_config(root)
-            loaded = platform_bootstrap.load_config(root)
-            self.assertEqual(loaded["development_backlog"]["project_owner"], "example-owner")
-            self.assertEqual(loaded["development_backlog"]["project_number"], 42)
-
-    def test_process_health_migration_adds_and_preserves_bounded_labels(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            config = root / ".dev-platform.toml"
-            config.write_text('project_slug = "existing-project"\ncustom_value = "preserve"\n', encoding="utf-8")
-            platform_bootstrap.sync_process_health_config(root)
-            loaded = platform_bootstrap.load_config(root)
-            self.assertEqual(loaded["process_health"], {"process_label": "process", "managed_label": "process:managed"})
-            self.assertEqual(loaded["custom_value"], "preserve")
-            before = config.read_text(encoding="utf-8")
-            platform_bootstrap.sync_process_health_config(root)
-            self.assertEqual(before, config.read_text(encoding="utf-8"))
+    def test_bootstrap_does_not_add_operator_configuration(self) -> None:
+        source = MODULE_PATH.read_text(encoding="utf-8")
+        self.assertNotIn("sync_development_backlog_config", source)
+        self.assertNotIn("sync_process_health_config", source)
 
     def test_capability_sync_runs_only_when_the_rendered_contract_exists(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

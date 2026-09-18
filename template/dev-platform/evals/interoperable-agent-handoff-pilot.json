@@ -19,7 +19,7 @@
     {"id": "negative-run-tests", "expectation": "not-trigger", "prompt": "Run the focused unit tests for the parser module.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
     {"id": "negative-format-module", "expectation": "not-trigger", "prompt": "Format this module with the repository formatter.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
     {"id": "negative-add-specified-field", "expectation": "not-trigger", "prompt": "Add the already specified created_at ISO-8601 field to this DTO and its serializer.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
-    {"id": "negative-start-managed-task", "expectation": "not-trigger", "prompt": "Start managed task lehard/development-backlog#123 and begin implementation.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-start-managed-task", "expectation": "not-trigger", "prompt": "Start managed task example-org/development-backlog#123 and begin implementation.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
     {"id": "negative-route-executor", "expectation": "not-trigger", "prompt": "Record the routing decision and launch the balanced Codex executor for this task.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
     {"id": "negative-review-change", "expectation": "not-trigger", "prompt": "Review this authentication change for security issues.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
     {"id": "negative-dependency-bump", "expectation": "not-trigger", "prompt": "Apply the known one-line version bump requested in the release checklist.", "samples": ["not-triggered", "not-triggered", "not-triggered"]}

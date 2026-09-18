@@ -10,7 +10,10 @@ Ordinary rollout never performs first-time adoption and never auto-merges by def
 
 ## Registry
 
-`managed-projects.json` is the central project inventory and cross-project write allowlist.
+Managed rollout is an optional operator capability. Its project inventory and
+cross-project write allowlist live in an external operator-owned registry,
+passed with `--registry` or `DEV_PLATFORM_OPERATOR_REGISTRY`; the public core
+does not ship one.
 
 States:
 
@@ -23,7 +26,7 @@ Only `managed` enters the ordinary rollout matrix. `candidate` and `excluded` ar
 Validate locally with:
 
 ```bash
-python3 scripts/managed_projects.py validate
+python3 scripts/managed_projects.py --registry /secure/operator/managed-projects.json validate
 python3 scripts/managed_projects.py status
 ```
 

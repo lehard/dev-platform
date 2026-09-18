@@ -11,7 +11,7 @@ detailed Dev Platform workflow, see [agent-workflow.md](agent-workflow.md).
 
 A ChatGPT Project should declare:
 
-- `BACKLOG_REPOSITORY` — normally `lehard/development-backlog`;
+- `BACKLOG_REPOSITORY` — the operator's explicitly configured Development Backlog repository;
 - one or more target repositories;
 - the Development Backlog `project:*` label used for each target.
 

@@ -28,9 +28,6 @@ jobs:
       - name: Compile shared scripts
         run: python3 -m compileall -q template/scripts scripts
 
-      - name: Validate managed project registry
-        run: python3 scripts/managed_projects.py validate
-
       - name: Install pinned gh-aw
         run: gh extension install github/gh-aw --pin "$(tr -d '[:space:]' < .github/aw/gh-aw-version.txt)"
 

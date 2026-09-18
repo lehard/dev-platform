@@ -10,11 +10,11 @@ import sys
 import tomllib
 from pathlib import Path
 
-from _platform_common import SharedWorkspaceError, harness_mode, read_platform_config
+from _platform_common import SharedWorkspaceError, harness_mode, read_platform_config, scm_provider
 from shared_workspace import audit as audit_shared_workspace
 from shared_workspace import verify_shared_repository
 
-REQUIRED_COMMON = ["AGENTS.md", "CLAUDE.md", ".dev-platform.toml", "dev-platform/checks.toml", "dev-platform/capabilities.toml", "docs/engineering/openspec-workflow.md", "docs/engineering/task-intake.md", "docs/engineering/engineering-capabilities.md", "scripts/dev.py", "scripts/shared_workspace.py", "scripts/managed_task.py", "scripts/managed_project_status.py", "scripts/start_managed_task.py", "scripts/execute_managed_task.py", "scripts/select_checks.py", "scripts/project_sync.py", "scripts/project_publish.py", "scripts/start_task.py", "scripts/finish_task.py", "scripts/reconcile_task.py", "scripts/openspec_lifecycle.py", "scripts/independent_review.py", "scripts/agent_friction.py", "scripts/agent_doctor.py", "scripts/model_routing.py", "scripts/capability_manager.py", "scripts/capability_evals.py", "scripts/browser_verification.py"]
+REQUIRED_COMMON = ["AGENTS.md", "CLAUDE.md", ".dev-platform.toml", "dev-platform/checks.toml", "dev-platform/capabilities.toml", "docs/engineering/openspec-workflow.md", "docs/engineering/task-intake.md", "docs/engineering/engineering-capabilities.md", "scripts/dev.py", "scripts/shared_workspace.py", "scripts/managed_task.py", "scripts/managed_project_status.py", "scripts/start_managed_task.py", "scripts/execute_managed_task.py", "scripts/select_checks.py", "scripts/project_sync.py", "scripts/project_publish.py", "scripts/start_task.py", "scripts/finish_task.py", "scripts/reconcile_task.py", "scripts/openspec_lifecycle.py", "scripts/independent_review.py", "scripts/agent_friction.py", "scripts/agent_doctor.py", "scripts/model_routing.py", "scripts/capability_manager.py", "scripts/capability_evals.py", "scripts/browser_verification.py", "scripts/gitlab_delivery.py"]
 REQUIRED_MULTI_AGENT_PLATFORM = ["scripts/agent_board.py", "scripts/start_worktree.py", "scripts/worktree_cleanup.py", "scripts/git_hooks/pre-commit", "scripts/git_hooks/pre-merge-commit"]
 VERIFY_CANDIDATES = [".codex/skills/openspec-verify-change/SKILL.md", ".claude/skills/openspec-verify-change/SKILL.md", ".cursor/skills/openspec-verify-change/SKILL.md"]
 IGNORED_CONFLICT_DIRS = {".git", ".claude", ".codex", "node_modules", ".venv", "venv"}
@@ -94,6 +94,13 @@ def check_rendered_workflow_mode(root: Path, config: dict, failures: list[int]) 
     customization when `.copier-answers.yml` is changed by hand. The workflow is
     executable safety policy, so configuration and rendered triggers must agree.
     """
+    if scm_provider(config) == "gitlab":
+        workflow = root / ".gitlab-ci.yml"
+        if workflow.exists() and "scripts/select_checks.py" in workflow.read_text(encoding="utf-8"):
+            ok("GitLab CI delegates verification to repository-owned entrypoints")
+        else:
+            fail("missing or incomplete .gitlab-ci.yml"); failures[0] += 1
+        return
     workflow = root / ".github" / "workflows" / "dev-platform.yml"
     if not workflow.exists():
         fail("missing .github/workflows/dev-platform.yml"); failures[0] += 1
@@ -352,6 +359,11 @@ def main() -> int:
     check_task_intake_reference(root, config, failures)
     workflow_profile = str(config.get("workflow_profile", "standard"))
     harness = harness_mode(config)
+    provider = scm_provider(config)
+    if provider not in {"github", "gitlab"}:
+        fail(f"unknown scm_provider={provider!r}; expected 'github' or 'gitlab'"); failures[0] += 1
+    else:
+        ok(f"delivery adapter: {provider}")
     if harness not in {"platform", "project"}:
         fail(f"unknown harness_mode={harness!r}; expected 'platform' or 'project'"); failures[0] += 1
     else:

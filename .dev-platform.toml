@@ -9,6 +9,7 @@ harness_mode = "platform"
 protected_main = true
 publish_mode = "pr"
 pr_merge_mode = "auto"
+scm_provider = "github"
 agent_tools = "claude,codex"
 project_required_files = []
 source_required_paths = [
@@ -43,9 +44,6 @@ verify_required = true
 min_version = "9.17.0"
 tested_version = "9.17.0"
 
-[tools.rollout]
-bot_login = "dev-platform-bot-lehard[bot]"
-
 [model_routing]
 enabled = true
 
@@ -73,19 +71,12 @@ enabled = false
 sdk_version = "0.1.1rc1"
 profile = "observation"
 
-[promotion]
-repo = "lehard/dev-platform"
-
-[development_backlog]
-repository = "lehard/development-backlog"
-project_label = "project:dev-platform"
-default_priority = "P2"
-project_owner = "lehard"
-project_number = 1
-
-[process_health]
-process_label = "process"
-managed_label = "process:managed"
+[operator]
+# This source checkout intentionally carries no operator inventory, GitHub
+# Project binding, bot identity, or rollout policy. An operator supplies a
+# separately controlled TOML file through DEV_PLATFORM_OPERATOR_CONFIG when
+# invoking operator-only commands.
+config_env = "DEV_PLATFORM_OPERATOR_CONFIG"
 
 [paths]
 worktrees = ".claude/worktrees"
