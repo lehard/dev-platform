@@ -17,6 +17,20 @@ Dev Platform SHALL support reusable optional engineering capabilities through a 
 - **WHEN** a managed project has not enabled an optional capability
 - **THEN** render/update does not add that capability's agent context, generated provider surface, or tool runtime solely because the platform supports it
 
+### Requirement: A capability is an atomic deliverable unit
+
+Dev Platform SHALL review and deliver each capability as one atomic unit: its canonical descriptor, instructions or provider skill, optional tool/runtime adapter, dependencies, eval contract, and provider materialization. Components from different reviewed revisions SHALL NOT be mixed. Until capabilities have an independent release lifecycle, an immutable Dev Platform release plus verifiable content hashes SHALL establish the unit's revision consistency.
+
+#### Scenario: Capability is installed from a platform release
+- **WHEN** a project enables a capability from a released Dev Platform revision
+- **THEN** every component of that capability comes from the same reviewed atomic unit
+- **AND** validation can verify the unit's content hashes where hashes are declared
+
+#### Scenario: Capability release mechanism evolves
+- **WHEN** a future independent capability release lifecycle is introduced
+- **THEN** it may replace the versioning mechanism
+- **AND** it preserves the same atomic capability boundary
+
 ### Requirement: Capability invocation intent maps to provider-native controls
 
 Dev Platform SHALL represent invocation intent provider-neutrally and SHALL prefer native Claude/Codex discovery and explicit-invocation controls over a parallel semantic router.
