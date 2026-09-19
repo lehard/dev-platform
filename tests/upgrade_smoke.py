@@ -73,6 +73,11 @@ def main() -> int:
         }
         for relative, sentinel in sentinels.items():
             append_sentinel(target / relative, sentinel)
+        reviewed_context = target / "docs" / "context" / "product.md"
+        reviewed_context.write_text(
+            "# Product context\n\n<!-- project-owned-context-sentinel -->\n",
+            encoding="utf-8",
+        )
 
         # Cuby-like names with harmless fixture text only. They prove that a
         # platform-harness update keeps the project's effective ignore rules.
@@ -117,6 +122,8 @@ def main() -> int:
         for relative, sentinel in sentinels.items():
             if sentinel not in (target / relative).read_text(encoding="utf-8"):
                 raise SystemExit(f"Copier update removed project-owned content from {relative}")
+        if "<!-- project-owned-context-sentinel -->" not in reviewed_context.read_text(encoding="utf-8"):
+            raise SystemExit("Copier update removed reviewed project context")
         for relative in cuby_like_artifacts:
             ignored = subprocess.run(
                 ["git", "check-ignore", "--quiet", "--no-index", "--", relative],

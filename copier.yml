@@ -14,6 +14,7 @@ _skip_if_exists:
   - dev-platform/checks.toml
   - openspec/config.yaml
   - docs/engineering/project-rules.md
+  - docs/context
   - .gitignore
   - dev-platform/capabilities.toml
   - dev-platform/browser-verification.toml

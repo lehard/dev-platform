@@ -482,6 +482,20 @@ if __name__ == "__main__":
         with self.assertRaisesRegex(ValueError, "project-owned files changed"):
             rollout_project.require_project_owned_snapshot(self.root, snapshot)
 
+    def test_project_context_directory_is_project_owned_and_content_sensitive(self) -> None:
+        context = self.root / "docs" / "context"
+        context.mkdir(parents=True)
+        product = context / "product.md"
+        product.write_text("# Product\n\nReviewed fact.\n", encoding="utf-8")
+
+        snapshot = rollout_project.snapshot_existing_project_owned(self.root)
+        self.assertIn("docs/context", rollout_project.project_owned_paths(self.root))
+        self.assertIn("docs/context", snapshot)
+
+        product.write_text("# Product\n\nChanged fact.\n", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "project-owned files changed"):
+            rollout_project.require_project_owned_snapshot(self.root, snapshot)
+
     def test_cuby_task_intake_migration_is_the_only_allowed_agents_change(self) -> None:
         self.root.joinpath(".dev-platform.toml").write_text(
             self.root.joinpath(".dev-platform.toml").read_text(encoding="utf-8")

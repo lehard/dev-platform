@@ -203,6 +203,7 @@ class TemplateContractTests(unittest.TestCase):
             "dev-platform/checks.toml",
             "openspec/config.yaml",
             "docs/engineering/project-rules.md",
+            "docs/context",
         ):
             with self.subTest(relative=relative):
                 self.assertIn(f"  - {relative}", text)

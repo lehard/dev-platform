@@ -5,6 +5,7 @@ context: |
   It owns reusable engineering workflow, not application-domain requirements.
   Downstream compatibility and safe update behavior are first-class requirements.
   OpenSpec-generated tool skills are external generated artifacts and must not be vendored as platform-owned code.
+  Reviewed project/domain context is mapped by docs/context/README.md. Load only the relevant product, domain, architecture, anti-pattern, or example context when the artifact reaches that concern; do not ingest the whole context pack by default.
   Current specs describe accepted behavior; an active change describes an approved delta to that behavior, not a lower-priority source.
   A non-trivial platform change is complete only after platform checks, semantic OpenSpec verification, recorded PASS evidence and method, archive, and publication.
 
@@ -17,16 +18,19 @@ rules:
     - State whether the change affects new projects, existing-project updates, or both.
     - Separate universal platform behavior from project/profile-specific behavior.
     - Identify downstream managed files and compatibility risks.
+    - When scope depends on project goals, users, key scenarios, domain meaning, or product invariants, consult the relevant project-context destination before finalizing scope.
   design:
     - When a change materially affects data or migrations, security/privacy, CI or release lifecycle, external integrations, backwards compatibility, cross-project rollout, or a comparable high-consequence boundary, record concrete risks and mitigations. Do not add generic risk boilerplate for low-risk work.
     - Define ownership boundaries and upgrade/rollback behavior.
     - Prefer dependency-light, deterministic tooling.
     - Avoid requiring secrets or machine-specific absolute paths.
     - Resolve shared contracts before parallel implementation.
+    - When design changes or relies on a project architecture invariant or prior decision, consult the bounded architecture context and its linked canonical decision source.
   tasks:
     - Include template-render validation and downstream update considerations.
     - Define logical commit boundaries for non-trivial work.
     - Include tests for shared scripts and CI behavior.
+    - When implementation intersects a recorded anti-pattern or representative example, route to that focused context rather than copying unrelated project context into the task.
 
 operations:
   apply:

@@ -136,6 +136,7 @@ mode = "parallel"
 [test_groups.fast-c]
 targets = [
   "test_agent_instruction_architecture",
+  "test_project_context",
   "test_platform_doctor_workflow_mode",
   "test_pr_reconciliation_concurrency",
   "test_project_harness_doc_ownership",

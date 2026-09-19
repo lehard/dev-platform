@@ -109,7 +109,7 @@ Before accepting the result:
 
 The manual existing-repository path deliberately does **not** auto-run a potentially destructive OpenSpec migration. After reviewing the adoption diff, `python3 scripts/dev.py ready` is the normal local integration refresh.
 
-After the initial adoption is reviewed, `.dev-platform.toml`, `AGENTS.md`, `CLAUDE.md`, `README.md`, `dev-platform/checks.toml`, `openspec/config.yaml` and `docs/engineering/project-rules.md` remain protected from destructive first-time replacement. In `harness_mode=project`, project-owned lifecycle scripts, Git hooks, `.gitignore` and project-specific `docs/engineering/openspec-workflow.md` are also preserved. Platform-owned non-colliding metadata, doctors, OpenSpec lifecycle enforcement and self-contained Dev Platform CI remain managed by the platform.
+After the initial adoption is reviewed, `.dev-platform.toml`, `AGENTS.md`, `CLAUDE.md`, `README.md`, `dev-platform/checks.toml`, `openspec/config.yaml`, `docs/engineering/project-rules.md` and `docs/context/` remain protected from destructive first-time replacement. In `harness_mode=project`, project-owned lifecycle scripts, Git hooks, `.gitignore` and project-specific `docs/engineering/openspec-workflow.md` are also preserved. Platform-owned non-colliding metadata, doctors, OpenSpec lifecycle enforcement and self-contained Dev Platform CI remain managed by the platform.
 
 If the project needs additional compatibility helpers to be mandatory, declare repository-relative paths in `.dev-platform.toml` as `project_required_files = ["..."]` rather than customizing `scripts/platform_doctor.py`.
 
