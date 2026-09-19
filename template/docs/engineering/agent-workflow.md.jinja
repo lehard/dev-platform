@@ -1,3 +1,4 @@
+{% if operator_config_path %}
 # Agent workflow
 
 The platform exposes one lifecycle with profile-specific capabilities:
@@ -234,3 +235,41 @@ python3 scripts/finish_task.py --status
 ```
 
 The multi-agent profile may use `start_worktree.py` directly, but `start_task.py` is the preferred shared entrypoint.
+
+{% else %}
+# Portable agent workflow
+
+This workflow applies when the project has not explicitly enabled an operator
+integration. It is self-contained and does not require an external Backlog,
+Project-status mutation, fleet registry, process-health labels, or credentials.
+
+## Work execution
+
+For a small direct request, use the existing task/check/finish lifecycle. If
+the work becomes materially behavioral, architectural, compatibility-sensitive,
+or needs a complete contract, create and agree a local OpenSpec change before
+implementation. The materialized change is canonical until verification and
+archive; do not let code diverge from it.
+
+```bash
+python3 scripts/agent_doctor.py
+python3 scripts/start_task.py <change> --task "OpenSpec <change>" --scope "<paths>"
+python3 scripts/select_checks.py --execute
+python3 scripts/openspec_lifecycle.py check
+python3 scripts/finish_task.py --status
+python3 scripts/finish_task.py
+```
+
+GitHub publication preserves its exact-head review/check safety. The bounded
+GitLab adapter proves the selected merge request and terminal green CI match the
+current task HEAD, then stops for human merge/acceptance; it never auto-merges
+or deploys production.
+
+## Completion
+
+Before reporting a non-trivial OpenSpec task complete, run relevant checks and
+semantic verification, write a truthful `verification.md`, archive the change,
+and publish through the configured provider lifecycle. Report any blocked
+required step rather than claiming completion.
+
+{% endif %}

@@ -184,7 +184,7 @@ class TemplateContractTests(unittest.TestCase):
 
     def test_generated_guidance_keeps_local_checks_required_and_cloud_final(self) -> None:
         readme = (ROOT / "template" / "README.md.jinja").read_text(encoding="utf-8")
-        workflow = (ROOT / "template" / "docs" / "engineering" / "agent-workflow.md").read_text(encoding="utf-8")
+        workflow = (ROOT / "template" / "docs" / "engineering" / "agent-workflow.md.jinja").read_text(encoding="utf-8")
         self.assertIn("Required selected and full checks run locally before publication", readme)
         self.assertIn("Local-heavy, cloud-final verification", workflow)
 
@@ -253,7 +253,7 @@ class TemplateContractTests(unittest.TestCase):
 
     def test_managed_task_intake_is_universal_and_quick_tasks_remain_lightweight(self) -> None:
         agents = (ROOT / "template" / "AGENTS.md.jinja").read_text(encoding="utf-8")
-        workflow = (ROOT / "template" / "docs" / "engineering" / "agent-workflow.md").read_text(encoding="utf-8")
+        workflow = (ROOT / "template" / "docs" / "engineering" / "agent-workflow.md.jinja").read_text(encoding="utf-8")
         self.assertIn("managed task", agents)
         self.assertIn("quick task", agents)
         self.assertIn("Development Backlog Project item to `In progress`", agents)
@@ -266,8 +266,31 @@ class TemplateContractTests(unittest.TestCase):
         self.assertIn("stops before OpenSpec apply", workflow)
         self.assertIn("check_task_intake_reference", doctor)
 
+    def test_rendered_guidance_is_portable_without_operator_opt_in(self) -> None:
+        source = (ROOT / "template" / "AGENTS.md.jinja").read_text(encoding="utf-8")
+        template = jinja2.Environment().from_string(source)
+        portable = template.render(operator_config_path="")
+        operator = template.render(operator_config_path="/secure/operator.toml")
+        self.assertIn("Fix a non-trivial change", portable)
+        self.assertNotIn("scripts/start_managed_task.py", portable)
+        self.assertNotIn("Development Backlog Project item", portable)
+        self.assertIn("scripts/start_managed_task.py", operator)
+        self.assertIn("Development Backlog Project item", operator)
+
+    def test_linked_rendered_guidance_is_operator_independent_by_default(self) -> None:
+        for relative in ("docs/engineering/task-intake.md.jinja", "docs/engineering/agent-workflow.md.jinja"):
+            with self.subTest(relative=relative):
+                source = (ROOT / "template" / relative).read_text(encoding="utf-8")
+                template = jinja2.Environment().from_string(source)
+                portable = template.render(operator_config_path="")
+                operator = template.render(operator_config_path="/secure/operator.toml")
+                self.assertNotIn("Development Backlog", portable)
+                self.assertNotIn("scripts/start_managed_task.py", portable)
+                self.assertIn("Development Backlog", operator)
+                self.assertIn("scripts/start_managed_task.py", operator)
+
     def test_shared_task_intake_contract_covers_direct_execution_and_fixation(self) -> None:
-        for relative in ("docs/engineering/task-intake.md", "template/docs/engineering/task-intake.md"):
+        for relative in ("docs/engineering/task-intake.md", "template/docs/engineering/task-intake.md.jinja"):
             with self.subTest(relative=relative):
                 text = (ROOT / relative).read_text(encoding="utf-8")
                 self.assertIn("Fresh non-trivial execution", text)
@@ -284,7 +307,7 @@ class TemplateContractTests(unittest.TestCase):
     def test_goal_definition_is_selective_measurable_and_transient(self) -> None:
         root_agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         agents = (ROOT / "template" / "AGENTS.md.jinja").read_text(encoding="utf-8")
-        workflow = (ROOT / "template" / "docs" / "engineering" / "agent-workflow.md").read_text(encoding="utf-8")
+        workflow = (ROOT / "template" / "docs" / "engineering" / "agent-workflow.md.jinja").read_text(encoding="utf-8")
         central_workflow = (ROOT / "docs" / "engineering" / "agent-workflow.md").read_text(encoding="utf-8")
         # Root guidance states that refinement is selective and creates no durable
         # state, then routes to the canonical contract; the full goal contract is
@@ -312,7 +335,7 @@ class TemplateContractTests(unittest.TestCase):
         copier = (ROOT / "copier.yml").read_text(encoding="utf-8")
         config = (ROOT / "template" / ".dev-platform.toml.jinja").read_text(encoding="utf-8")
         agents = (ROOT / "template" / "AGENTS.md.jinja").read_text(encoding="utf-8")
-        workflow = (ROOT / "template" / "docs" / "engineering" / "agent-workflow.md").read_text(encoding="utf-8")
+        workflow = (ROOT / "template" / "docs" / "engineering" / "agent-workflow.md.jinja").read_text(encoding="utf-8")
         claude = (ROOT / "template" / "CLAUDE.md.jinja").read_text(encoding="utf-8")
         helper = (ROOT / "template" / "scripts" / "managed_task.py").read_text(encoding="utf-8")
         self.assertNotIn("development_backlog_repository", copier)
@@ -360,7 +383,7 @@ class TemplateContractTests(unittest.TestCase):
         doctor_text = (ROOT / "template" / "scripts" / "agent_doctor.py").read_text(encoding="utf-8")
         self.assertIn("report_publication_status", doctor_text)
         agents_text = (ROOT / "template" / "AGENTS.md.jinja").read_text(encoding="utf-8")
-        workflow_text = (ROOT / "template" / "docs" / "engineering" / "agent-workflow.md").read_text(encoding="utf-8")
+        workflow_text = (ROOT / "template" / "docs" / "engineering" / "agent-workflow.md.jinja").read_text(encoding="utf-8")
         self.assertIn("--status", agents_text)
         # Exact-head matching is publication mechanics, not always-on context.
         self.assertIn("exact validated head", workflow_text)
@@ -380,7 +403,7 @@ class TemplateContractTests(unittest.TestCase):
 
     def test_multi_agent_template_keeps_degraded_board_guidance_in_render_and_upgrade_smokes(self) -> None:
         agents = (ROOT / "template" / "AGENTS.md.jinja").read_text(encoding="utf-8")
-        workflow = (ROOT / "template" / "docs" / "engineering" / "agent-workflow.md").read_text(encoding="utf-8")
+        workflow = (ROOT / "template" / "docs" / "engineering" / "agent-workflow.md.jinja").read_text(encoding="utf-8")
         render = (ROOT / "tests" / "test_root_guidance_contract.py").read_text(encoding="utf-8")
         upgrade = (ROOT / "tests" / "upgrade_smoke.py").read_text(encoding="utf-8")
         self.assertIn("degraded or terminal sibling", agents)

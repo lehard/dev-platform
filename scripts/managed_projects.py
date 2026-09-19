@@ -2,25 +2,65 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
+import tomllib
 from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_REGISTRY_ENV = "DEV_PLATFORM_OPERATOR_REGISTRY"
 REPOSITORY_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 BRANCH_RE = re.compile(r"^[A-Za-z0-9._/-]+$")
 ALLOWED_STATES = {"managed", "candidate", "excluded"}
+OPERATOR_BACKLOG_FIELDS = ("repository", "project_label", "default_priority", "project_owner", "project_number")
 
 
-def configured_registry(path: Path | None = None) -> Path:
+def configured_operator_toml(*, root: Path = ROOT) -> tuple[Path, dict[str, Any]]:
+    """Load the explicitly opted-in external operator TOML with safe diagnostics."""
+    config_path = root / ".dev-platform.toml"
+    try:
+        with config_path.open("rb") as fh:
+            project = tomllib.load(fh)
+    except FileNotFoundError as exc:
+        raise ValueError("operator configuration is not enabled; pass --registry or enable [operator] in .dev-platform.toml") from exc
+    operator = project.get("operator", {})
+    if not isinstance(operator, dict) or operator.get("enabled") is not True:
+        raise ValueError("operator configuration is not enabled; pass --registry or explicitly enable [operator]")
+    configured = operator.get("config_path")
+    if not configured:
+        env_name = str(operator.get("config_env", "DEV_PLATFORM_OPERATOR_CONFIG"))
+        import os
+        configured = os.environ.get(env_name)
+    if not configured:
+        raise ValueError("operator is enabled but no external operator config is configured")
+    external_path = Path(str(configured)).expanduser()
+    if not external_path.is_absolute():
+        external_path = root / external_path
+    try:
+        with external_path.open("rb") as fh:
+            external = tomllib.load(fh)
+    except FileNotFoundError as exc:
+        raise ValueError(f"operator configuration not found: {external_path}") from exc
+    if not isinstance(external, dict):
+        raise ValueError(f"operator configuration must be a TOML object: {external_path}")
+    backlog = external.get("development_backlog")
+    missing = [field for field in OPERATOR_BACKLOG_FIELDS if not isinstance(backlog, dict) or not backlog.get(field)]
+    if missing:
+        raise ValueError(f"operator configuration is missing development_backlog fields ({', '.join(missing)}): {external_path}")
+    if not isinstance(backlog["project_number"], int) or backlog["project_number"] <= 0:
+        raise ValueError(f"operator configuration development_backlog.project_number must be a positive integer: {external_path}")
+    return external_path, external
+
+
+def configured_registry(path: Path | None = None, *, root: Path = ROOT) -> Path:
+    """Resolve CLI override, then explicit external operator configuration."""
     if path is not None:
         return path
-    configured = os.environ.get(DEFAULT_REGISTRY_ENV)
-    if not configured:
-        raise ValueError(f"managed-project registry is operator-owned; pass --registry or set {DEFAULT_REGISTRY_ENV}")
-    return Path(configured)
+    external_path, external = configured_operator_toml(root=root)
+    rollout = external.get("rollout", {})
+    registry = rollout.get("registry_path") if isinstance(rollout, dict) else None
+    if not isinstance(registry, str) or not registry.strip():
+        raise ValueError(f"operator configuration has no rollout.registry_path: {external_path}")
+    return Path(registry).expanduser()
 
 
 def load_registry(path: Path | None = None) -> dict[str, Any]:
@@ -110,7 +150,7 @@ def promote_repository(data: dict[str, Any], repository: str, default_branch: st
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate and query the dev-platform managed-project registry.")
-    parser.add_argument("--registry", type=Path, help=f"Operator-owned registry path (or set {DEFAULT_REGISTRY_ENV}).")
+    parser.add_argument("--registry", type=Path, help="Operator-owned registry path (overrides explicit operator configuration).")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("validate", help="Validate registry syntax and invariants.")
     matrix = sub.add_parser("matrix", help="Print the GitHub Actions matrix for managed projects.")

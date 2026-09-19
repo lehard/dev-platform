@@ -191,6 +191,8 @@ def read_platform_config(root: Path | None = None) -> dict[str, Any]:
     if operator is not None and not isinstance(operator, dict):
         raise RuntimeError("operator configuration must be a TOML table")
     operator = operator or {}
+    if operator.get("enabled") is not True:
+        return config
     env_name = str(operator.get("config_env", "DEV_PLATFORM_OPERATOR_CONFIG"))
     candidate = os.environ.get(env_name) or operator.get("config_path")
     if not candidate:
@@ -223,6 +225,10 @@ def read_operator_config(root: Path | None = None, *, required: bool = False) ->
     if operator is not None and not isinstance(operator, dict):
         raise RuntimeError("operator configuration must be a TOML table")
     operator = operator or {}
+    if operator.get("enabled") is not True:
+        if required:
+            raise RuntimeError("operator configuration is not enabled; set [operator].enabled = true before invoking operator-only actions")
+        return {}
     env_name = str(operator.get("config_env", "DEV_PLATFORM_OPERATOR_CONFIG"))
     candidate = os.environ.get(env_name) or operator.get("config_path")
     if not candidate:

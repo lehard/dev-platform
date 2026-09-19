@@ -11,9 +11,11 @@ Ordinary rollout never performs first-time adoption and never auto-merges by def
 ## Registry
 
 Managed rollout is an optional operator capability. Its project inventory and
-cross-project write allowlist live in an external operator-owned registry,
-passed with `--registry` or `DEV_PLATFORM_OPERATOR_REGISTRY`; the public core
-does not ship one.
+cross-project write allowlist live in an external operator-owned registry; the
+public core does not ship one. `--registry` is an explicit command-line
+override. Otherwise commands read `rollout.registry_path` from the external
+operator TOML selected only by an enabled project `[operator]` table. A global
+environment variable alone cannot enable the operator layer.
 
 States:
 
@@ -27,7 +29,7 @@ Validate locally with:
 
 ```bash
 python3 scripts/managed_projects.py --registry /secure/operator/managed-projects.json validate
-python3 scripts/managed_projects.py status
+python3 scripts/operator_doctor.py
 ```
 
 Explicit promotion is also available for recovery:
@@ -183,7 +185,7 @@ A `candidate` or `excluded` repository is rejected by ordinary rollout even when
 
 ## Repeated-failure alerting
 
-A single blocked rollout attempt is surfaced per-run: an `::error::` annotation, a step-summary blocker, and a `rollout-diagnostic.json` artifact (see `rollout-diagnostic-<project>-<version>`). None of that persists across runs, so a project that keeps failing the same way on every release looked, from the platform's point of view, identical to a project that failed once — that gap let `lehard/cuby` fail 8 consecutive releases before anyone noticed.
+A single blocked rollout attempt is surfaced per-run: an `::error::` annotation, a step-summary blocker, and a `rollout-diagnostic.json` artifact (see `rollout-diagnostic-<project>-<version>`). None of that persists across runs, so a project that keeps failing the same way on every release looked, from the platform's point of view, identical to a project that failed once — that gap let `example-org/example-service` fail 8 consecutive releases before anyone noticed.
 
 `scripts/rollout_failure_streak.py` closes that gap by keeping a durable, cross-run streak count per managed project:
 

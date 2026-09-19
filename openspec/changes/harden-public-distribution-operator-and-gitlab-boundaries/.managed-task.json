@@ -1,0 +1,31 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "specs/public-distribution/spec.md",
+    "specs/project-factory/spec.md",
+    "specs/platform-config/spec.md",
+    "specs/standard-profile-lifecycle/spec.md",
+    "design.md",
+    "tasks.md"
+  ],
+  "change": "harden-public-distribution-operator-and-gitlab-boundaries",
+  "imported_at": "2026-09-19T02:49:43+00:00",
+  "package_revision": "09b6ea4bc61a7e13edfbd5129d3522dfa0b70df6e9aa991780269ebfbb0ae3b9",
+  "prepared_against": "a64c918c751d70ec038385f5ec246c0335a24849",
+  "routing_receipt": {
+    "assurance": "high",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "platform-process"
+  },
+  "source_issue": "lehard/development-backlog#119",
+  "source_issue_evidence": {
+    "body_sha256": "2d0d6c98ab174d68f076392f298fc810dbcbb7c13c0c4adb9417380db00fa5c8",
+    "updated_at": "2026-09-19T02:28:57Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

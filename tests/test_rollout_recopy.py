@@ -125,10 +125,10 @@ class GuardedRecopyTests(unittest.TestCase):
             patch.object(rollout_project, "JARA_TEST_MERGE_TO_MAIN_SHA256", test_fingerprint),
         ):
             self.assertTrue(
-                rollout_project.migrate_project_publication_safety(self.root, "lehard/Jara_Fin")
+                rollout_project.migrate_project_publication_safety(self.root, "example-org/legacy-merge-harness")
             )
             self.assertFalse(
-                rollout_project.migrate_project_publication_safety(self.root, "lehard/Jara_Fin")
+                rollout_project.migrate_project_publication_safety(self.root, "example-org/legacy-merge-harness")
             )
 
         migrated = target.read_text(encoding="utf-8")
@@ -156,13 +156,13 @@ class GuardedRecopyTests(unittest.TestCase):
             patch.object(rollout_project, "JARA_MERGE_TO_MAIN_SHA256", harness_fingerprint),
             patch.object(rollout_project, "JARA_TEST_MERGE_TO_MAIN_SHA256", test_fingerprint),
         ):
-            self.assertTrue(rollout_project.migrate_project_publication_safety(self.root, "lehard/Jara_Fin"))
+            self.assertTrue(rollout_project.migrate_project_publication_safety(self.root, "example-org/legacy-merge-harness"))
             legacy_test, _ = rollout_project.reviewed_jara_test_source(
                 (self.root / "scripts" / "tests" / "test_merge_to_main.py").read_text(encoding="utf-8")
             )
             (self.root / "scripts" / "tests" / "test_merge_to_main.py").write_text(legacy_test, encoding="utf-8")
-            self.assertTrue(rollout_project.migrate_project_publication_safety(self.root, "lehard/Jara_Fin"))
-            self.assertFalse(rollout_project.migrate_project_publication_safety(self.root, "lehard/Jara_Fin"))
+            self.assertTrue(rollout_project.migrate_project_publication_safety(self.root, "example-org/legacy-merge-harness"))
+            self.assertFalse(rollout_project.migrate_project_publication_safety(self.root, "example-org/legacy-merge-harness"))
 
     def test_jara_unknown_or_partial_test_surface_fails_before_any_write(self) -> None:
         target = self.root / "scripts" / "merge_to_main.py"
@@ -178,7 +178,7 @@ class GuardedRecopyTests(unittest.TestCase):
             patch.object(rollout_project, "JARA_TEST_MERGE_TO_MAIN_SHA256", test_fingerprint),
             self.assertRaisesRegex(ValueError, "regression test"),
         ):
-            rollout_project.migrate_project_publication_safety(self.root, "lehard/Jara_Fin")
+            rollout_project.migrate_project_publication_safety(self.root, "example-org/legacy-merge-harness")
 
         self.assertEqual(target.read_text(encoding="utf-8"), original)
         self.assertFalse((self.root / "scripts" / "exact_head_safety.py").exists())
@@ -211,12 +211,12 @@ class GuardedRecopyTests(unittest.TestCase):
         ):
             self.assertTrue(
                 rollout_project.migrate_project_publication_safety(
-                    self.root, "lehard/planner-agent-lab"
+                    self.root, "example-org/legacy-publish-harness"
                 )
             )
             self.assertFalse(
                 rollout_project.migrate_project_publication_safety(
-                    self.root, "lehard/planner-agent-lab"
+                    self.root, "example-org/legacy-publish-harness"
                 )
             )
 
@@ -296,7 +296,7 @@ if __name__ == "__main__":
             patch.object(rollout_project, "JARA_MERGE_TO_MAIN_SHA256", fingerprint),
             patch.object(rollout_project, "JARA_TEST_MERGE_TO_MAIN_SHA256", test_fingerprint),
         ):
-            self.assertTrue(rollout_project.migrate_project_publication_safety(self.root, "lehard/Jara_Fin"))
+            self.assertTrue(rollout_project.migrate_project_publication_safety(self.root, "example-org/legacy-merge-harness"))
 
         migrated = target.read_text(encoding="utf-8")
         self.assertLess(
@@ -356,7 +356,7 @@ if __name__ == "__main__":
         ):
             self.assertTrue(
                 rollout_project.migrate_project_publication_safety(
-                    self.root, "lehard/planner-agent-lab"
+                    self.root, "example-org/legacy-publish-harness"
                 )
             )
 
@@ -389,8 +389,8 @@ if __name__ == "__main__":
             patch.object(rollout_project, "JARA_MERGE_TO_MAIN_SHA256", fingerprint),
             patch.object(rollout_project, "JARA_TEST_MERGE_TO_MAIN_SHA256", test_fingerprint),
         ):
-            self.assertTrue(rollout_project.migrate_project_publication_safety(self.root, "lehard/Jara_Fin"))
-            self.assertFalse(rollout_project.migrate_project_publication_safety(self.root, "lehard/Jara_Fin"))
+            self.assertTrue(rollout_project.migrate_project_publication_safety(self.root, "example-org/legacy-merge-harness"))
+            self.assertFalse(rollout_project.migrate_project_publication_safety(self.root, "example-org/legacy-merge-harness"))
 
         migrated = target.read_text(encoding="utf-8")
         self.assertLess(migrated.index(rollout_project.EXACT_HEAD_MARKER), migrated.index("if __name__"))
@@ -404,7 +404,7 @@ if __name__ == "__main__":
         with patch.object(rollout_project, "JARA_MERGE_TO_MAIN_SHA256", fingerprint), self.assertRaisesRegex(
             ValueError, "no unique top-level CLI guard"
         ):
-            rollout_project.migrate_project_publication_safety(self.root, "lehard/Jara_Fin")
+            rollout_project.migrate_project_publication_safety(self.root, "example-org/legacy-merge-harness")
 
         self.assertEqual(target.read_text(encoding="utf-8"), source)
         self.assertFalse((self.root / "scripts" / "exact_head_safety.py").exists())
@@ -415,7 +415,7 @@ if __name__ == "__main__":
         target.write_text(original, encoding="utf-8")
 
         with self.assertRaisesRegex(ValueError, "unrecognized harness bytes"):
-            rollout_project.migrate_project_publication_safety(self.root, "lehard/Jara_Fin")
+            rollout_project.migrate_project_publication_safety(self.root, "example-org/legacy-merge-harness")
 
         self.assertEqual(target.read_text(encoding="utf-8"), original)
         self.assertFalse((self.root / "scripts" / "exact_head_safety.py").exists())

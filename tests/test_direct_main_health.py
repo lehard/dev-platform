@@ -23,7 +23,7 @@ class DirectMainHealthTests(unittest.TestCase):
 
     def test_generated_guidance_calls_direct_main_health_lightweight(self) -> None:
         readme = (ROOT / "template" / "README.md.jinja").read_text(encoding="utf-8")
-        workflow_doc = (ROOT / "template" / "docs" / "engineering" / "agent-workflow.md").read_text(encoding="utf-8")
+        workflow_doc = (ROOT / "template" / "docs" / "engineering" / "agent-workflow.md.jinja").read_text(encoding="utf-8")
         for text in (readme, workflow_doc):
             self.assertIn("deliberately lightweight", text)
             self.assertIn("without repeating the full project check set", text)

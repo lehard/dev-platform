@@ -141,7 +141,10 @@ class RootGuidanceBudgetTests(unittest.TestCase):
             self.assertTrue(targets, f"{relative} exposes no navigation links")
             for target in targets:
                 with self.subTest(relative=relative, target=target):
-                    self.assertTrue((base / target).exists(), f"{relative} links to missing {target}")
+                    destination = base / target
+                    if not destination.exists() and relative.startswith("template/"):
+                        destination = Path(f"{destination}.jinja")
+                    self.assertTrue(destination.exists(), f"{relative} links to missing {target}")
 
     def test_tool_specific_adapters_stay_thin_references(self) -> None:
         for relative in ("CLAUDE.md", "template/CLAUDE.md.jinja"):

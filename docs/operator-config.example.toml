@@ -1,5 +1,8 @@
-# Keep this file outside the public Dev Platform source tree, then set
-# DEV_PLATFORM_OPERATOR_CONFIG to its absolute path for operator-only actions.
+# Keep this file outside the public Dev Platform source tree. Enable the
+# operator layer in the project `.dev-platform.toml` with
+# `[operator] enabled = true` and either `config_path = "/absolute/path"` or
+# `config_env = "DEV_PLATFORM_OPERATOR_CONFIG"`. The environment variable is
+# ignored until that explicit project opt-in exists.
 
 [development_backlog]
 repository = "your-org/development-backlog"

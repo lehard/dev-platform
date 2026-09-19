@@ -21,13 +21,23 @@ Target behavior during an active change is `current specs + active delta`, subje
 
 Keep these four intents distinct:
 
-- **Discuss** a change: inspect, design and compare options; do not create Backlog state merely because the discussion is substantial.
-- **Fix/add to Backlog** from a repository checkout when the user explicitly asks to record an accepted non-trivial change (for example "зафиксируй", "добавь в бэклог", "создай задачу"): prepare a local authoring bundle, run `python3 scripts/managed_task.py create --bundle <directory>`, and stop. Authoring never starts apply, implementation, dispatch, Project-status changes or delivery publication. ChatGPT Project uses its dedicated adapter for the same semantics when it has no checkout.
-- **Quick execution**: a small direct request is a quick task and uses the normal start/check/finish path with no Backlog issue and no ceremonial OpenSpec. If it becomes material or needs a full active OpenSpec contract, enter managed intake before further implementation.
+- **Discuss** a change: inspect, design and compare options; do not create durable task state merely because the discussion is substantial.
+{% if operator_config_path %}
+- **Fix/add to operator Backlog** from a repository checkout when the user explicitly asks to record an accepted non-trivial change: prepare a local authoring bundle, run `python3 scripts/managed_task.py create --bundle <directory>`, and stop. This optional operator integration never starts implementation or publication during authoring.
+{% else %}
+- **Fix a non-trivial change**: prepare the local OpenSpec proposal/spec/design/tasks package and stop for acceptance; no operator Backlog, Project mutation, or credentials are required.
+{% endif %}
+- **Quick execution**: a small direct request is a quick task and uses the normal start/check/finish path with no external issue and no ceremonial OpenSpec. If it becomes material or needs a full active OpenSpec contract, define an accepted local OpenSpec package before further implementation.
+{% if operator_config_path %}
 - **Fresh non-trivial execution**: explicit execution intent first creates/reuses the managed task and starts that same task before implementation; use `python3 scripts/execute_managed_task.py --bundle <directory>`.
-- **Execute an existing managed task**: an explicitly supplied Development Backlog issue is imported with `python3 scripts/start_managed_task.py owner/repo#N` before implementation.
+- **Execute an existing operator-managed task**: an explicitly supplied issue is imported with `python3 scripts/start_managed_task.py owner/repo#N` before implementation.
+{% else %}
+- **Fresh non-trivial execution**: explicit execution first accepts the local OpenSpec package and then implements it through the repository task/check/finish lifecycle.
+{% endif %}
 
+{% if operator_config_path %}
 Managed start validates the package without writing, creates the task branch/worktree, materializes the OpenSpec contract only in that task checkout, and reconciles the Development Backlog Project item to `In progress`. After import, `openspec/changes/<change>/` is canonical for implementation, verification and archive; the backlog issue stays a human-facing provenance item, not a competing task list.
+{% endif %}
 
 Goal refinement is a selective layer before authoring, used only for explicit goal-backed work or a materially unclear non-trivial request. It creates no durable goal, backlog or plan artifact. See [docs/engineering/agent-workflow.md](docs/engineering/agent-workflow.md).
 
@@ -61,7 +71,9 @@ Managed work carries a provider-neutral recommended start tier (`R2` balanced by
 ```bash
 python3 scripts/agent_doctor.py
 python3 scripts/start_task.py <slug> --task "<task>" --scope "<files/modules>"
+{% if operator_config_path %}
 python3 scripts/execute_managed_task.py --bundle <directory>
+{% endif %}
 python3 scripts/select_checks.py --execute
 python3 scripts/openspec_lifecycle.py archive <change>
 python3 scripts/finish_task.py --reconcile

@@ -2,7 +2,7 @@
 
 This is the detailed operating guidance for working *in* `dev-platform` itself. `AGENTS.md` is the bounded always-on map and remains the canonical entrypoint; this document holds the workflow detail that is only needed once a task reaches the relevant concern.
 
-For the guidance rendered into downstream managed projects, see `template/docs/engineering/agent-workflow.md`.
+For the guidance rendered into downstream managed projects, see `template/docs/engineering/agent-workflow.md.jinja`.
 
 ## Task intents
 
