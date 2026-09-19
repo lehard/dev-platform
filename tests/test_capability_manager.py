@@ -557,6 +557,22 @@ class CapabilityManagerTests(unittest.TestCase):
         })
         self.assertTrue(all(item["improved"] for item in report["quality_comparisons"]))
 
+    def test_project_evidence_snapshots_is_opt_in_and_uses_the_isolated_adapter(self) -> None:
+        descriptor = ROOT / "dev-platform" / "capabilities" / "project-evidence-snapshots.toml"
+        capability = manager.load_descriptor(ROOT, descriptor)
+        self.assertEqual(capability.kind, "tool-backed")
+        self.assertEqual(capability.tool_adapter, "scripts/project_evidence.py")
+        self.assertIn("never calls a provider", capability.safety_boundary)
+        for required in (
+            "machine-local,\nderived cache",
+            "routine/read-only context-worker path",
+            "no write authority",
+            "never promoted to a fresh fact set",
+            "Token usage\nand unavailable runtime fields remain unknown",
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, capability.instruction)
+
     def test_bounded_prototype_is_isolated_optional_and_non_promoting(self) -> None:
         capability = self.registry()["bounded-prototype"]
         self.assertEqual(capability.kind, "instruction-only")

@@ -155,6 +155,10 @@ The `scripts/add_intents.py` adapter scaffolds (`new-add`, `decompose`) and dete
 
 The design was informed by reviewing a third-party "Intents" skill bundle and its author's own walkthrough, provided out-of-band at authoring time as reference-only material for understanding staging and semantics. Dev Platform vendors none of that bundle's files or corporate/provider assumptions; the schemas, gates, and CLI are an independently authored, clean-room, provider-neutral implementation. See [dev-platform/capabilities/add-intents.md](../../dev-platform/capabilities/add-intents.md) for the full contract.
 
+## Project Evidence Snapshots
+
+`project-evidence-snapshots` is an opt-in, tool-backed cache substrate for staged work that would otherwise rediscover the same bounded repository facts. Its adapter inventories only declared concern roots, identifies actual source content with Git blob hashes where possible, validates source/projection/snapshot digests, and permits dependency-proven partial rebuilds. It emits bounded requests for the existing routine read-only context-worker path rather than launching a provider, scheduler, or new routing layer. Worker results contain only evidence-linked facts, conflicts, unknowns, confidence and optional existing provenance; conflicts or low confidence stay escalation-required. Snapshots are caller-named machine-local derived state, never a canonical project-context replacement, ADD/Intents lifecycle, or whole-repository knowledge store. See [dev-platform/capabilities/project-evidence-snapshots.md](../../dev-platform/capabilities/project-evidence-snapshots.md) for the full contract.
+
 ## Bounded prototype
 
 `bounded-prototype` is an opt-in, instruction-only capability for running one
