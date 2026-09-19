@@ -6,14 +6,14 @@
   "authoring_stops": true,
   "project_status": "Backlog",
   "issue": {
-    "repository": "lehard/development-backlog",
+    "repository": "example-org/development-backlog",
     "number": 80,
     "title": "[R2] Fixture managed authoring",
     "labels": ["project:dev-platform", "priority:P2"]
   },
   "package": {
     "version": 1,
-    "source_issue": "lehard/development-backlog#80",
+    "source_issue": "example-org/development-backlog#80",
     "target_repository": "lehard/dev-platform",
     "change": "fixture-managed-authoring",
     "prepared_against": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",

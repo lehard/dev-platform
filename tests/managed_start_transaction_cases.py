@@ -23,7 +23,7 @@ import managed_task  # noqa: E402
 
 def package() -> managed_task.Package:
     return managed_task.Package(
-        source_issue="lehard/development-backlog#43",
+        source_issue="example-org/development-backlog#43",
         target_repository="lehard/dev-platform",
         change="parallel-start-regression",
         prepared_against="a" * 40,
@@ -254,7 +254,7 @@ class ManagedStartTransactionTests(unittest.TestCase):
             sibling_sentinel = sibling_dir / "keep.txt"; sibling_sentinel.write_text("sibling work\n")
             sibling_receipt = self._stale_transaction(
                 worktrees,
-                SimpleNamespace(change="sibling-change", source_issue="lehard/development-backlog#99",
+                SimpleNamespace(change="sibling-change", source_issue="example-org/development-backlog#99",
                                 target_repository=pkg.target_repository, revision="9" * 64),
                 package_revision="9" * 64,
                 attempt_id="sibling-attempt",

@@ -50,7 +50,7 @@ class CentralDogfoodLifecycleTests(unittest.TestCase):
         change = self.root / "openspec" / "changes" / name
         change.mkdir(parents=True)
         (change / ".managed-task.json").write_text(
-            json.dumps({"change": name, "source_issue": "lehard/development-backlog#2"}), encoding="utf-8"
+            json.dumps({"change": name, "source_issue": "example-org/development-backlog#2"}), encoding="utf-8"
         )
         (change / "proposal.md").write_text("## Why\n", encoding="utf-8")
         return change
@@ -106,7 +106,7 @@ class CentralDogfoodLifecycleTests(unittest.TestCase):
         payload = json.dumps(
             {
                 "source_issue_drift": {
-                    "source_issue": "lehard/development-backlog#2",
+                    "source_issue": "example-org/development-backlog#2",
                     "recorded_body_sha256": recorded,
                     "current_body_sha256": current,
                 }
