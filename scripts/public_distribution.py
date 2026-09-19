@@ -87,6 +87,31 @@ CONTEXTUAL_CI_REFERENCES = {
 }
 
 
+class GitSourceError(ValueError):
+    """The public-distribution candidate set could not be read from Git."""
+
+
+def tracked_files(root: Path) -> list[str]:
+    """Return Git-tracked, repository-relative POSIX paths for `root`.
+
+    Fails closed (raises `GitSourceError`) rather than falling back to a
+    filesystem walk when `root` is not a readable Git checkout or `git`
+    itself fails: untracked working-tree state must never silently become
+    candidate repository source -- see the "Public audit covers the exact
+    public snapshot candidate set" requirement.
+    """
+    try:
+        result = subprocess.run(["git", "ls-files", "-z"], cwd=root, capture_output=True, check=False)
+    except OSError as exc:
+        raise GitSourceError(f"git is required to enumerate the public-distribution candidate set: {exc}") from exc
+    if result.returncode != 0:
+        stderr = result.stderr.decode("utf-8", errors="replace").strip()
+        raise GitSourceError(
+            f"public-distribution candidate set requires a readable Git checkout at {root}: {stderr or 'git ls-files failed'}"
+        )
+    return [entry for entry in result.stdout.decode("utf-8").split("\0") if entry]
+
+
 def public_files(root: Path, *, extra_excluded: frozenset[str] = frozenset()) -> list[Path]:
     """Return the single deterministic product candidate set.
 
@@ -94,10 +119,15 @@ def public_files(root: Path, *, extra_excluded: frozenset[str] = frozenset()) ->
     and archive construction. `extra_excluded` carries a supplied external
     cutover-policy file's own repository-relative path (when it happens to
     live inside `root`) so that private deny data is never itself packaged.
+
+    The candidate source is the checkout's Git-tracked files (`git
+    ls-files`), not a filesystem walk: untracked local/scratch files (never
+    committed to Git) are not repository source and must never enter the
+    candidate set, influence its digest, or produce audit findings.
     """
     return sorted(
-        path for path in root.rglob("*")
-        if path.is_file() and not _excluded(path.relative_to(root), extra_excluded)
+        root / relative for relative in tracked_files(root)
+        if (root / relative).is_file() and not _excluded(Path(relative), extra_excluded)
     )
 
 
@@ -381,7 +411,7 @@ def main() -> int:
     if args.command == "audit":
         try:
             receipt = audit_tree(root, cutover_policy_path=args.cutover_policy)
-        except CutoverPolicyError as exc:
+        except (CutoverPolicyError, GitSourceError) as exc:
             print(json.dumps({"error": str(exc)}, sort_keys=True))
             return 2
         print(json.dumps(receipt, sort_keys=True))
