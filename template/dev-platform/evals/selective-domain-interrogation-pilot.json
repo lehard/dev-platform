@@ -1,7 +1,7 @@
 {
   "version": 1,
   "capability": "selective-domain-interrogation",
-  "content_sha256": "cbd44878ec92bba5f2cc2cb88e9a04d6176ad1c9d153690327eff0d95197deca",
+  "content_sha256": "34101bb855b0559c8ae0d5df64cd71dec4255d7ea6f5891b24d964890ce107a3",
   "cases": [
     {"id": "positive-tiered-pricing", "expectation": "trigger", "prompt": "Add tiered pricing to billing; the issue does not say whether tiers stack with per-seat charges.", "samples": ["triggered", "triggered", "triggered"]},
     {"id": "positive-ambiguous-term-entitlement", "expectation": "trigger", "prompt": "Implement entitlement checks. The term entitlement is used differently in two parts of the codebase.", "samples": ["triggered", "triggered", "triggered"]},
