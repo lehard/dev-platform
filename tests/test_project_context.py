@@ -30,7 +30,10 @@ class ProjectContextTests(unittest.TestCase):
         ):
             with self.subTest(marker=marker):
                 self.assertIn(marker, index)
-        self.assertFalse((ROOT / "template" / "docs" / "context" / "README.md").exists())
+        self.assertEqual(
+            (ROOT / "template" / "docs" / "context" / "README.md").read_text(encoding="utf-8"),
+            platform_bootstrap.PROJECT_CONTEXT_MAP,
+        )
 
     def test_root_pointer_is_reached_concern_only_and_adapters_remain_thin(self) -> None:
         agents = (ROOT / "template" / "AGENTS.md.jinja").read_text(encoding="utf-8")
@@ -116,7 +119,7 @@ class ProjectContextTests(unittest.TestCase):
 
         copier = (ROOT / "copier.yml").read_text(encoding="utf-8")
         rollout = (ROOT / "scripts" / "rollout_project.py").read_text(encoding="utf-8")
-        self.assertNotIn("docs/context", copier)
+        self.assertIn("  - docs/context/README.md", copier)
         self.assertIn('"docs/context",', rollout)
         self.assertIn('return ("dir", digest.hexdigest())', rollout)
 

@@ -6,6 +6,9 @@ _exclude:
   # GitLab renders one provider-neutral lifecycle plus .gitlab-ci.yml. It must
   # not inherit GitHub Actions/process-health automation as a hidden default.
   - "{{ '.github/**' if scm_provider == 'gitlab' else '.dev-platform-no-exclude' }}"
+  # Bootstrap creates this only for projects that do not already have reviewed
+  # context, so Copier updates can never replace the project-owned map.
+  - docs/context/README.md
 _skip_if_exists:
   - .dev-platform.toml
   - AGENTS.md
