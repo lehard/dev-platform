@@ -1,7 +1,7 @@
 # project-context Specification
 
 ## Purpose
-TBD - created by archiving change add-project-context-pack. Update Purpose after archive.
+Define the bounded, project-owned context layer that gives coding agents stable product/domain knowledge without duplicating canonical engineering, OpenSpec, module, or operational guidance.
 ## Requirements
 ### Requirement: Managed projects expose a bounded project-owned context layer
 
