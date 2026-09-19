@@ -84,6 +84,22 @@ class TemplateContractTests(unittest.TestCase):
                     (ROOT / "template" / relative).read_text(encoding="utf-8"),
                 )
 
+    def test_add_intents_capability_is_mirrored_in_the_template(self) -> None:
+        for relative in (
+            "dev-platform/capabilities/add-intents.toml",
+            "dev-platform/capabilities/add-intents.md",
+            "dev-platform/evals/add-intents-pilot.json",
+            "dev-platform/capabilities/selective-domain-interrogation.toml",
+            "dev-platform/capabilities/selective-domain-interrogation.md",
+            "dev-platform/evals/selective-domain-interrogation-pilot.json",
+            "docs/engineering/engineering-capabilities.md",
+        ):
+            with self.subTest(relative=relative):
+                self.assertEqual(
+                    (ROOT / relative).read_text(encoding="utf-8"),
+                    (ROOT / "template" / relative).read_text(encoding="utf-8"),
+                )
+
     def test_generic_openspec_template_has_no_finance_domain_contract(self) -> None:
         text = (ROOT / "template" / "openspec" / "config.yaml.jinja").read_text(encoding="utf-8").lower()
         for term in ("p&l", "dds", "payroll", "cash canonical", "bank canonical"): self.assertNotIn(term, text)

@@ -68,6 +68,10 @@ For an explicit goal-backed request, use supported native goal state through `/g
 
 Goal refinement creates no goal file, backlog entry, decision log, resume artifact, or competing implementation plan. For managed work, the refined outcome informs the Issue/OpenSpec package; after materialization, that package remains canonical.
 
+## ADD -> Intents pre-authoring pipeline
+
+For a business requirement that implies a genuine system-design delta (new/changed capabilities, boundaries, contracts, data ownership, invariants, security/trust concerns, or material non-functional behavior), the opt-in `add-intents` capability inserts two bounded pre-authoring stages ahead of OpenSpec proposal authoring: an Architecture Design Delta (ADD) against the current accepted system, then atomic Intent decomposition of the approved ADD. A clear bounded change with no useful design delta skips this and goes straight to normal task intake. See [dev-platform/capabilities/add-intents.md](../../dev-platform/capabilities/add-intents.md) for the full contract, gates, and `scripts/add_intents.py` usage; ADD/intents remain bounded pre-authoring evidence, never a second backlog or implementation contract.
+
 ## Central source dogfood lifecycle
 
 For ordinary work in this central repository, use the committed source contract in `.dev-platform.toml` and its lifecycle adapter. Do not assemble a manual branch/worktree/PR flow. A managed task is imported first, then its sole untracked package is transferred into the isolated task worktree:

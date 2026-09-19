@@ -6,6 +6,8 @@ Do not run it for a request whose outcome and domain model are already sufficien
 
 The upstream `grill-with-docs` pattern informs this approach; it is a reference, not an authoritative runtime workflow dependency, and none of its files are vendored or fetched at runtime.
 
+When the `add-intents` pipeline is active, this pass is the composition point for an ADD's unresolved consequential choices: it resolves or surfaces them exactly as it would for any other managed work, and folds an accepted resolution into the ADD document rather than into `proposal.md`/delta specs directly. This capability never owns the ADD/Intent document lifecycle, its gates, or its storage.
+
 ## 1. Establish the domain context from evidence first
 
 Before forming any question, read the available context that can settle it:
