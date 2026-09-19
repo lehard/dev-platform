@@ -25,4 +25,4 @@
 ## 5. Verify
 - [x] Test hit with zero model work, partial invalidation, full invalidation, stale revision and conflict escalation.
 - [x] Add representative routine-worker behavioral evidence and no-unnecessary-read negative case.
-- [ ] Record the semantic OpenSpec review/receipt and archive through the supervisor lifecycle after its final review.
+- [x] Record the semantic OpenSpec review/receipt and archive through the supervisor lifecycle after its final review.
