@@ -69,8 +69,8 @@ class GuardedRecopyTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.tmp.cleanup()
 
-    def write_recognized_jara_test(self) -> str:
-        source = "\n\n".join(original.rstrip() for original, _ in rollout_project.JARA_TEST_MOCK_REPLACEMENTS) + "\n"
+    def write_recognized_legacy_merge_harness_test(self) -> str:
+        source = "\n\n".join(original.rstrip() for original, _ in rollout_project.LEGACY_MERGE_HARNESS_TEST_MOCK_REPLACEMENTS) + "\n"
         target = self.root / "scripts" / "tests" / "test_merge_to_main.py"
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(source, encoding="utf-8")
@@ -102,11 +102,11 @@ class GuardedRecopyTests(unittest.TestCase):
             rollout_project.require_project_publication_safety_conformance(self.root)
         self.assertEqual(publication.read_text(encoding="utf-8"), original)
 
-    def test_recognized_jara_fixture_gets_a_narrow_idempotent_exact_head_override(self) -> None:
+    def test_recognized_legacy_merge_harness_fixture_gets_a_narrow_idempotent_exact_head_override(self) -> None:
         target = self.root / "scripts" / "merge_to_main.py"
         original = (
             "def preserve_board_worktree_and_serialized_integration():\n"
-            "    return 'jara-specific-flow'\n\n"
+            "    return 'legacy-merge-specific-flow'\n\n"
             "def publish_branch_and_pr(worktree, branch, env):\n"
             "    return branch\n\n"
             "def wait_for_pr_checks(worktree, branch, env):\n"
@@ -118,11 +118,11 @@ class GuardedRecopyTests(unittest.TestCase):
         )
         target.write_text(original, encoding="utf-8")
         fingerprint = hashlib.sha256(original.encode("utf-8")).hexdigest()
-        test_fingerprint = self.write_recognized_jara_test()
+        test_fingerprint = self.write_recognized_legacy_merge_harness_test()
 
         with (
-            patch.object(rollout_project, "JARA_MERGE_TO_MAIN_SHA256", fingerprint),
-            patch.object(rollout_project, "JARA_TEST_MERGE_TO_MAIN_SHA256", test_fingerprint),
+            patch.object(rollout_project, "LEGACY_MERGE_HARNESS_SHA256", fingerprint),
+            patch.object(rollout_project, "LEGACY_MERGE_HARNESS_TEST_SHA256", test_fingerprint),
         ):
             self.assertTrue(
                 rollout_project.migrate_project_publication_safety(self.root, "example-org/legacy-merge-harness")
@@ -145,37 +145,37 @@ class GuardedRecopyTests(unittest.TestCase):
         self.assertIn('"headRefOid": exact_head', migrated_test)
         rollout_project.require_project_publication_safety_conformance(self.root)
 
-    def test_jara_active_harness_recovers_only_the_reviewed_legacy_test_surface(self) -> None:
+    def test_legacy_merge_harness_active_recovers_only_the_reviewed_legacy_test_surface(self) -> None:
         target = self.root / "scripts" / "merge_to_main.py"
         original = "def main():\n    pass\n\nif __name__ == '__main__':\n    main()\n"
         target.write_text(original, encoding="utf-8")
-        test_fingerprint = self.write_recognized_jara_test()
+        test_fingerprint = self.write_recognized_legacy_merge_harness_test()
         harness_fingerprint = hashlib.sha256(original.encode("utf-8")).hexdigest()
 
         with (
-            patch.object(rollout_project, "JARA_MERGE_TO_MAIN_SHA256", harness_fingerprint),
-            patch.object(rollout_project, "JARA_TEST_MERGE_TO_MAIN_SHA256", test_fingerprint),
+            patch.object(rollout_project, "LEGACY_MERGE_HARNESS_SHA256", harness_fingerprint),
+            patch.object(rollout_project, "LEGACY_MERGE_HARNESS_TEST_SHA256", test_fingerprint),
         ):
             self.assertTrue(rollout_project.migrate_project_publication_safety(self.root, "example-org/legacy-merge-harness"))
-            legacy_test, _ = rollout_project.reviewed_jara_test_source(
+            legacy_test, _ = rollout_project.reviewed_legacy_merge_harness_test_source(
                 (self.root / "scripts" / "tests" / "test_merge_to_main.py").read_text(encoding="utf-8")
             )
             (self.root / "scripts" / "tests" / "test_merge_to_main.py").write_text(legacy_test, encoding="utf-8")
             self.assertTrue(rollout_project.migrate_project_publication_safety(self.root, "example-org/legacy-merge-harness"))
             self.assertFalse(rollout_project.migrate_project_publication_safety(self.root, "example-org/legacy-merge-harness"))
 
-    def test_jara_unknown_or_partial_test_surface_fails_before_any_write(self) -> None:
+    def test_legacy_merge_harness_unknown_or_partial_test_surface_fails_before_any_write(self) -> None:
         target = self.root / "scripts" / "merge_to_main.py"
         original = "def main():\n    pass\n\nif __name__ == '__main__':\n    main()\n"
         target.write_text(original, encoding="utf-8")
-        test_fingerprint = self.write_recognized_jara_test()
+        test_fingerprint = self.write_recognized_legacy_merge_harness_test()
         test_target = self.root / "scripts" / "tests" / "test_merge_to_main.py"
         test_target.write_text(test_target.read_text(encoding="utf-8").replace('return subprocess.CompletedProcess', '# partial migration\n                return subprocess.CompletedProcess', 1), encoding="utf-8")
         harness_fingerprint = hashlib.sha256(original.encode("utf-8")).hexdigest()
 
         with (
-            patch.object(rollout_project, "JARA_MERGE_TO_MAIN_SHA256", harness_fingerprint),
-            patch.object(rollout_project, "JARA_TEST_MERGE_TO_MAIN_SHA256", test_fingerprint),
+            patch.object(rollout_project, "LEGACY_MERGE_HARNESS_SHA256", harness_fingerprint),
+            patch.object(rollout_project, "LEGACY_MERGE_HARNESS_TEST_SHA256", test_fingerprint),
             self.assertRaisesRegex(ValueError, "regression test"),
         ):
             rollout_project.migrate_project_publication_safety(self.root, "example-org/legacy-merge-harness")
@@ -183,12 +183,12 @@ class GuardedRecopyTests(unittest.TestCase):
         self.assertEqual(target.read_text(encoding="utf-8"), original)
         self.assertFalse((self.root / "scripts" / "exact_head_safety.py").exists())
 
-    def test_recognized_planner_fixture_preserves_its_standalone_clone_entrypoint(self) -> None:
+    def test_recognized_legacy_publish_harness_fixture_preserves_its_standalone_clone_entrypoint(self) -> None:
         target = self.root / "scripts" / "project_publish.py"
         finish_target = self.root / "scripts" / "finish_task.py"
         original = (
             "def push_feature_branch(root, remote, main_branch):\n"
-            "    return 'planner-specific-clone-flow'\n\n"
+            "    return 'legacy-publish-specific-flow'\n\n"
             "def publish_pr(root, remote, main_branch, title, body, merge_mode):\n"
             "    return 0\n\n"
             "if __name__ == '__main__':\n"
@@ -206,8 +206,8 @@ class GuardedRecopyTests(unittest.TestCase):
         finish_fingerprint = hashlib.sha256(finish_original.encode("utf-8")).hexdigest()
 
         with (
-            patch.object(rollout_project, "PLANNER_PROJECT_PUBLISH_SHA256", fingerprint),
-            patch.object(rollout_project, "PLANNER_FINISH_TASK_SHA256", finish_fingerprint),
+            patch.object(rollout_project, "LEGACY_PUBLISH_HARNESS_SHA256", fingerprint),
+            patch.object(rollout_project, "LEGACY_PUBLISH_HARNESS_FINISH_TASK_SHA256", finish_fingerprint),
         ):
             self.assertTrue(
                 rollout_project.migrate_project_publication_safety(
@@ -255,7 +255,7 @@ class GuardedRecopyTests(unittest.TestCase):
         env["PATH"] = str(tools) + os.pathsep + env.get("PATH", "")
         return env
 
-    def test_jara_cli_activates_exact_head_override_before_guard(self) -> None:
+    def test_legacy_merge_harness_cli_activates_exact_head_override_before_guard(self) -> None:
         target = self.root / "scripts" / "merge_to_main.py"
         source = '''class MergeError(RuntimeError):
     pass
@@ -290,11 +290,11 @@ if __name__ == "__main__":
 '''
         target.write_text(source, encoding="utf-8")
         fingerprint = hashlib.sha256(source.encode("utf-8")).hexdigest()
-        test_fingerprint = self.write_recognized_jara_test()
+        test_fingerprint = self.write_recognized_legacy_merge_harness_test()
 
         with (
-            patch.object(rollout_project, "JARA_MERGE_TO_MAIN_SHA256", fingerprint),
-            patch.object(rollout_project, "JARA_TEST_MERGE_TO_MAIN_SHA256", test_fingerprint),
+            patch.object(rollout_project, "LEGACY_MERGE_HARNESS_SHA256", fingerprint),
+            patch.object(rollout_project, "LEGACY_MERGE_HARNESS_TEST_SHA256", test_fingerprint),
         ):
             self.assertTrue(rollout_project.migrate_project_publication_safety(self.root, "example-org/legacy-merge-harness"))
 
@@ -315,7 +315,7 @@ if __name__ == "__main__":
         self.assertNotIn("remote-cleanup", result.stdout)
         self.assertNotIn("terminal-success", result.stdout)
 
-    def test_planner_cli_activates_exact_head_override_before_guard(self) -> None:
+    def test_legacy_publish_harness_cli_activates_exact_head_override_before_guard(self) -> None:
         target = self.root / "scripts" / "project_publish.py"
         finish_target = self.root / "scripts" / "finish_task.py"
         source = '''def require_gh_env(root):
@@ -351,8 +351,8 @@ if __name__ == "__main__":
         finish_fingerprint = hashlib.sha256(finish_source.encode("utf-8")).hexdigest()
 
         with (
-            patch.object(rollout_project, "PLANNER_PROJECT_PUBLISH_SHA256", fingerprint),
-            patch.object(rollout_project, "PLANNER_FINISH_TASK_SHA256", finish_fingerprint),
+            patch.object(rollout_project, "LEGACY_PUBLISH_HARNESS_SHA256", fingerprint),
+            patch.object(rollout_project, "LEGACY_PUBLISH_HARNESS_FINISH_TASK_SHA256", finish_fingerprint),
         ):
             self.assertTrue(
                 rollout_project.migrate_project_publication_safety(
@@ -379,15 +379,15 @@ if __name__ == "__main__":
     def test_v1_4_34_append_is_relocated_only_when_its_legacy_bytes_are_reviewed(self) -> None:
         target = self.root / "scripts" / "merge_to_main.py"
         source = "def main():\n    pass\n\nif __name__ == '__main__':\n    main()\n"
-        target.write_text(source.rstrip("\n") + rollout_project.JARA_OVERRIDE, encoding="utf-8")
+        target.write_text(source.rstrip("\n") + rollout_project.LEGACY_MERGE_HARNESS_OVERRIDE, encoding="utf-8")
         helper = self.root / "scripts" / "exact_head_safety.py"
         helper.write_text(rollout_project.EXACT_HEAD_HELPER, encoding="utf-8")
         fingerprint = hashlib.sha256(source.encode("utf-8")).hexdigest()
-        test_fingerprint = self.write_recognized_jara_test()
+        test_fingerprint = self.write_recognized_legacy_merge_harness_test()
 
         with (
-            patch.object(rollout_project, "JARA_MERGE_TO_MAIN_SHA256", fingerprint),
-            patch.object(rollout_project, "JARA_TEST_MERGE_TO_MAIN_SHA256", test_fingerprint),
+            patch.object(rollout_project, "LEGACY_MERGE_HARNESS_SHA256", fingerprint),
+            patch.object(rollout_project, "LEGACY_MERGE_HARNESS_TEST_SHA256", test_fingerprint),
         ):
             self.assertTrue(rollout_project.migrate_project_publication_safety(self.root, "example-org/legacy-merge-harness"))
             self.assertFalse(rollout_project.migrate_project_publication_safety(self.root, "example-org/legacy-merge-harness"))
@@ -401,7 +401,7 @@ if __name__ == "__main__":
         target.write_text(source, encoding="utf-8")
         fingerprint = hashlib.sha256(source.encode("utf-8")).hexdigest()
 
-        with patch.object(rollout_project, "JARA_MERGE_TO_MAIN_SHA256", fingerprint), self.assertRaisesRegex(
+        with patch.object(rollout_project, "LEGACY_MERGE_HARNESS_SHA256", fingerprint), self.assertRaisesRegex(
             ValueError, "no unique top-level CLI guard"
         ):
             rollout_project.migrate_project_publication_safety(self.root, "example-org/legacy-merge-harness")
@@ -482,7 +482,7 @@ if __name__ == "__main__":
         with self.assertRaisesRegex(ValueError, "project-owned files changed"):
             rollout_project.require_project_owned_snapshot(self.root, snapshot)
 
-    def test_cuby_task_intake_migration_is_the_only_allowed_agents_change(self) -> None:
+    def test_downstream_task_intake_migration_is_the_only_allowed_agents_change(self) -> None:
         self.root.joinpath(".dev-platform.toml").write_text(
             self.root.joinpath(".dev-platform.toml").read_text(encoding="utf-8")
             + '\n[development_backlog]\nrepository = "lehard/development-backlog"\n',
@@ -517,7 +517,7 @@ if __name__ == "__main__":
                 ),
             )
 
-    def test_cuby_guarded_recopy_accepts_the_task_intake_migration(self) -> None:
+    def test_downstream_guarded_recopy_accepts_the_task_intake_migration(self) -> None:
         self.root.joinpath(".dev-platform.toml").write_text(
             self.root.joinpath(".dev-platform.toml").read_text(encoding="utf-8")
             + '\n[development_backlog]\nrepository = "lehard/development-backlog"\n',
@@ -784,11 +784,11 @@ if __name__ == "__main__":
         self.assertEqual(strategy, "guarded-recopy")
         self.assertTrue(any(command[:2] == ["copier", "recopy"] for command in commands))
 
-    def test_platform_mode_recovers_cuby_shaped_mixed_historical_rejects(self) -> None:
+    def test_platform_mode_recovers_downstream_shaped_mixed_historical_rejects(self) -> None:
         self.use_platform_mode()
         self.copy_target_template("scripts/project_publish.py")
         (self.root / "scripts" / "finish_task.py").write_text(
-            "# exact recorded-baseline bytes in the real Cuby reproduction\n",
+            "# exact recorded-baseline bytes in the downstream reproduction\n",
             encoding="utf-8",
         )
         commands: list[list[str]] = []

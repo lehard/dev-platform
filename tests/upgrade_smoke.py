@@ -62,7 +62,7 @@ def main() -> int:
         run(["git", "commit", "-m", "Baseline generated project"], target)
 
         sentinels = {
-            ".gitignore": "# project-owned-cuby-ignore-sentinel",
+            ".gitignore": "# project-owned-legacy-ignore-sentinel",
             ".dev-platform.toml": "# project-owned-platform-config-sentinel",
             "AGENTS.md": "<!-- project-owned-agents-sentinel -->",
             "CLAUDE.md": "<!-- project-owned-claude-sentinel -->",
@@ -74,9 +74,9 @@ def main() -> int:
         for relative, sentinel in sentinels.items():
             append_sentinel(target / relative, sentinel)
 
-        # Cuby-like names with harmless fixture text only. They prove that a
+        # Legacy-project-like names with harmless fixture text only. They prove that a
         # platform-harness update keeps the project's effective ignore rules.
-        cuby_like_artifacts = {
+        legacy_like_artifacts = {
             ".env": "synthetic environment fixture\n",
             "config/provider-credentials.json": "{\"synthetic\": true}\n",
             "var/app.sqlite3": "synthetic database fixture\n",
@@ -87,11 +87,11 @@ def main() -> int:
         gitignore = target / ".gitignore"
         gitignore.write_text(
             gitignore.read_text(encoding="utf-8")
-            + "\n# Project-owned Cuby runtime ignores\n"
+            + "\n# Project-owned legacy runtime ignores\n"
             + ".env\nconfig/*credentials.json\nvar/*.sqlite3\nnode_modules/\ndist/\n*.tsbuildinfo\n",
             encoding="utf-8",
         )
-        for relative, content in cuby_like_artifacts.items():
+        for relative, content in legacy_like_artifacts.items():
             artifact = target / relative
             artifact.parent.mkdir(parents=True, exist_ok=True)
             artifact.write_text(content, encoding="utf-8")
@@ -117,7 +117,7 @@ def main() -> int:
         for relative, sentinel in sentinels.items():
             if sentinel not in (target / relative).read_text(encoding="utf-8"):
                 raise SystemExit(f"Copier update removed project-owned content from {relative}")
-        for relative in cuby_like_artifacts:
+        for relative in legacy_like_artifacts:
             ignored = subprocess.run(
                 ["git", "check-ignore", "--quiet", "--no-index", "--", relative],
                 cwd=target,
@@ -194,10 +194,10 @@ def main() -> int:
             print("Standard-profile routing preflight canary passed: parent-only standalone-clone route recorded.")
 
         status = run(["git", "status", "--porcelain"], target, capture=True).stdout
-        visible_artifacts = [relative for relative in cuby_like_artifacts if relative in status]
+        visible_artifacts = [relative for relative in legacy_like_artifacts if relative in status]
         if visible_artifacts:
             raise SystemExit(
-                "Copier update made Cuby-like synthetic artifacts visible to Git: "
+                "Copier update made legacy-project-like synthetic artifacts visible to Git: "
                 + ", ".join(visible_artifacts)
             )
         print(f"Upgrade smoke passed: base={base_ref} profile={args.profile} publish={args.publish_mode}")

@@ -576,13 +576,13 @@ Dev Platform SHALL keep mutable cross-project task-intake detail in a platform-o
 - **THEN** the required stable reference/invariant to the platform-owned intake contract is reconciled without overwriting unrelated project/domain/module rules
 - **AND** subsequent shared intake updates can arrive through normal platform-owned rollout surfaces
 
-#### Scenario: Jara_Fin receives the migration
+#### Scenario: A mature managed downstream project receives the migration
 
-- **GIVEN** `Jara_Fin` already exposes Development Backlog configuration and managed-task scripts
+- **GIVEN** a mature managed downstream project already exposes Development Backlog configuration and managed-task scripts
 - **AND** its root project guidance contains older intake semantics
 - **WHEN** the release containing this change is rolled out/migrated
 - **THEN** Codex and Claude in that repository resolve the new shared intake contract before starting fresh non-trivial execution
-- **AND** existing Jara-specific engineering/domain instructions remain intact
+- **AND** existing project-specific engineering/domain instructions remain intact
 
 ### Requirement: First-time project adoption remains an explicit boundary
 
@@ -626,7 +626,7 @@ symbol, class, or callable supplied only by a project-owned publication file.
 Shared platform lifecycle types and operations SHALL be owned by a
 platform-managed module or gated to a proven platform-harness-only operation.
 
-#### Scenario: Jara-shaped project harness lacks a platform publication type
+#### Scenario: Legacy-shaped project harness lacks a platform publication type
 
 - **GIVEN** a valid managed package targets a repository with
   `harness_mode=project`

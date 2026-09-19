@@ -7,7 +7,7 @@ Define the managed rollout registry, release ownership, and recovery controls fo
 
 When managed rollout adds or normalizes the platform-owned marked task-intake reference in a project-owned root `AGENTS.md`, guarded Copier recopy SHALL accept that exact deterministic migration while continuing to reject any other change to protected project-owned paths.
 
-#### Scenario: Cuby-like project receives the missing migration reference
+#### Scenario: A mature downstream project receives the missing migration reference
 
 - **GIVEN** a project-owned root `AGENTS.md` without the marked task-intake reference
 - **WHEN** managed rollout performs guarded Copier recopy and its deterministic migration

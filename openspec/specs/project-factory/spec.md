@@ -312,7 +312,7 @@ permissions outside the registered project and Git common directory.
 #### Scenario: Existing project already has local permission tooling
 
 - **GIVEN** an existing managed project has a project-owned permission audit or
-  wrappers such as the proven `Jara_Fin` pattern
+  wrappers such as a proven reviewed legacy pattern
 - **WHEN** the platform update is applied
 - **THEN** platform-owned writers adopt the shared primitive
 - **AND** project-owned tooling/content is preserved

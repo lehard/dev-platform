@@ -706,17 +706,17 @@ A bounded compatibility migration MAY change only the recognized publication ide
 
 Advancing `.copier-answers.yml` or `.dev-platform.toml` platform version metadata alone SHALL NOT count as successful safety adoption for a project-owned harness whose publication surface is known to require conformance.
 
-#### Scenario: Jara-like project harness has a recognized vulnerable publication shape
+#### Scenario: Legacy-merge-harness-like project harness has a recognized vulnerable publication shape
 
-- **GIVEN** a managed project-owned harness matches the reviewed Jara-like compatibility fixture
+- **GIVEN** a managed project-owned harness matches the reviewed legacy-merge-harness compatibility fixture
 - **WHEN** rollout applies the safety release
 - **THEN** only the vulnerable publication identity/confirmation surface is migrated to stable PR identity plus exact expected head
 - **AND** project-owned board, worktree, and serialized integration behavior remains intact
 - **AND** the migration is idempotent
 
-#### Scenario: Planner-like project harness has a recognized vulnerable publication shape
+#### Scenario: Legacy-publish-harness-like project harness has a recognized vulnerable publication shape
 
-- **GIVEN** a managed project-owned harness matches the reviewed Planner-like compatibility fixture
+- **GIVEN** a managed project-owned harness matches the reviewed legacy-publish-harness compatibility fixture
 - **WHEN** rollout applies the safety release
 - **THEN** its publication path gains stable PR identity and exact-head confirmation
 - **AND** its standalone integration-clone semantics remain intact
@@ -754,9 +754,9 @@ The migration SHALL preserve repository-specific orchestration outside the
 bounded publication surface and SHALL fail closed without writing unrecognized
 or structurally ambiguous harness bytes.
 
-#### Scenario: Jara-like harness is invoked as a CLI after migration
+#### Scenario: Legacy-merge-harness-like harness is invoked as a CLI after migration
 
-- **GIVEN** a reviewed Jara-like harness has an old merged PR for branch X at
+- **GIVEN** a reviewed legacy-merge-harness-like harness has an old merged PR for branch X at
   head A and a current reused branch X at head B
 - **WHEN** its migrated script is run through Python's CLI entrypoint
 - **THEN** the exact-head publication implementation is active before `main()`
@@ -764,9 +764,9 @@ or structurally ambiguous harness bytes.
   cleanup for B
 - **AND** board/worktree/serialized orchestration remains intact.
 
-#### Scenario: Planner-like harness is invoked as a CLI after migration
+#### Scenario: Legacy-publish-harness-like harness is invoked as a CLI after migration
 
-- **GIVEN** a reviewed Planner-like harness is migrated
+- **GIVEN** a reviewed legacy-publish-harness-like harness is migrated
 - **WHEN** the script is invoked through its real CLI entrypoint
 - **THEN** exact PR identity and exact merge confirmation are active before
   `main()`
@@ -779,25 +779,25 @@ or structurally ambiguous harness bytes.
 - **THEN** rollout fails with a compatibility diagnostic
 - **AND** it does not write the helper or modify harness bytes.
 
-### Requirement: Reviewed Jara exact-head migration adapts its known regression surface
+### Requirement: Reviewed legacy-merge-harness exact-head migration adapts its known regression surface
 
-When a reviewed Jara project-owned publication harness requires an exact-head
+When a reviewed legacy-merge-harness project-owned publication harness requires an exact-head
 compatibility migration, Dev Platform SHALL also adapt the known reviewed
 regression test surface that strictly mocks that publication behavior. Both
 surfaces SHALL be selected only by exact reviewed bytes and a rerun SHALL
 prove the generated state by reconstructing those bytes. Unknown or partial
 project-owned test drift SHALL block without writing either surface.
 
-#### Scenario: Known Jara strict mocks receive exact-head responses
+#### Scenario: Known legacy-merge-harness strict mocks receive exact-head responses
 
-- **GIVEN** Jara's reviewed legacy test source and publication harness
+- **GIVEN** the legacy-merge-harness's reviewed legacy test source and publication harness
 - **WHEN** rollout applies the exact-head migration
 - **THEN** the strict mocks return a local branch head and one matching exact
   PR record
-- **AND** Jara's merge-policy and cleanup regressions remain asserted
-- **AND** the resulting Jara CI is eligible to pass without manual edits.
+- **AND** the legacy-merge-harness's merge-policy and cleanup regressions remain asserted
+- **AND** the resulting legacy-merge-harness CI is eligible to pass without manual edits.
 
-#### Scenario: Unknown Jara regression-test drift is encountered
+#### Scenario: Unknown legacy-merge-harness regression-test drift is encountered
 
 - **WHEN** the companion test source differs from both the reviewed legacy
   and reversibly generated forms
@@ -811,15 +811,15 @@ successful adoption unless the reviewed compatibility surface proves exact
 merged-PR terminal reconciliation. Unknown or drifted project-owned harnesses
 SHALL remain unchanged and block rollout.
 
-#### Scenario: Recognized Planner-like harness receives terminal migration
+#### Scenario: Recognized legacy-publish-harness-like harness receives terminal migration
 
-- **GIVEN** the reviewed Planner-like publication and finish surfaces match the
+- **GIVEN** the reviewed legacy-publish-harness-like publication and finish surfaces match the
   approved compatibility predicate
 - **WHEN** rollout applies the terminal reconciliation release
 - **THEN** exact merge proof, pending-reconciliation recovery and idempotent
   `Done` projection are installed without replacing standalone-clone behavior
 
-#### Scenario: Planner-like harness cannot be proven safe
+#### Scenario: Legacy-publish-harness-like harness cannot be proven safe
 
 - **WHEN** either required compatibility surface has unknown or drifted bytes
 - **THEN** rollout fails before advancing version metadata or modifying harness bytes
