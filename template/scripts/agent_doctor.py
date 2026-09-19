@@ -188,13 +188,18 @@ def run_friction_review_status(integration: Path) -> None:
 
 def retry_friction_routing(integration: Path) -> None:
     """Best-effort telemetry retry; delivery hygiene must stay independent."""
-    result = subprocess.run(
-        ["python3", str(integration / "scripts" / "agent_friction.py"), "route-pending"],
-        cwd=integration,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+    try:
+        result = subprocess.run(
+            ["python3", str(integration / "scripts" / "agent_friction.py"), "route-pending"],
+            cwd=integration,
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=15,
+        )
+    except subprocess.TimeoutExpired:
+        report("warn", "friction routing retry timed out after 15 seconds; safe delivery is unaffected")
+        return
     if result.returncode:
         report("warn", "friction routing retry could not run: " + (result.stderr.strip() or result.stdout.strip() or f"exit {result.returncode}"))
         return
