@@ -43,6 +43,7 @@ Goal refinement is a selective layer before authoring, used only for explicit go
 - **Keep CI providers thin.** Put portable test, build, verification, release, and deploy behavior behind repository-owned executable entrypoints; use provider workflows for their native orchestration. See [release-policy.md](docs/release-policy.md).
 - **Resolve the friction checkpoint** before reporting a non-trivial task complete: `python3 scripts/agent_friction.py checkpoint --result none`, or the id of a recorded event.
 - **Report blockers.** If a required completion step is blocked, say so instead of reporting the task as done.
+- **Don't busy-poll background processes.** Wait out a long-running background command with one long timeout — for Codex, a single `write_stdin` call with `yield_time_ms` up to the runtime's max (around 300000) — instead of repeated short `sleep`/`ps` checks or empty stdin polls; poll again only once that wait elapses. Genuine interactive input is unaffected.
 
 ## Entrypoints
 
