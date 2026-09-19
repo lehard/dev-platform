@@ -129,3 +129,6 @@ jobs:
 
       - name: Smoke-test project-harness smart-update fallback
         run: python3 tests/rollout_recopy_smoke.py
+
+      - name: Smoke-test public distribution snapshot completeness
+        run: python3 tests/public_distribution_snapshot_smoke.py

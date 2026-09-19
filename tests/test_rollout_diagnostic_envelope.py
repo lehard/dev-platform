@@ -21,11 +21,11 @@ class BuildEnvelopeTests(unittest.TestCase):
             "Managed rollout: BLOCKED: downstream checkout is dirty before rollout\n"
         )
         envelope = rollout_diagnostic.build_envelope(
-            log_text=log, exit_code=2, repository="lehard/cuby", version="v1.4.19"
+            log_text=log, exit_code=2, repository="example-org/example-project", version="v1.4.19"
         )
         self.assertEqual(envelope["schema_version"], 1)
         self.assertEqual(envelope["status"], "blocked")
-        self.assertEqual(envelope["project"], "lehard/cuby")
+        self.assertEqual(envelope["project"], "example-org/example-project")
         self.assertEqual(envelope["target_release"], "v1.4.19")
         self.assertEqual(envelope["stage"], "prepare")
         self.assertEqual(envelope["category"], "safety_guard")
@@ -41,7 +41,7 @@ class BuildEnvelopeTests(unittest.TestCase):
             "non-recoverable conflicts: scripts/finish_task.py\n"
         )
         envelope = rollout_diagnostic.build_envelope(
-            log_text=log, exit_code=2, repository="lehard/cuby", version="v1.4.19"
+            log_text=log, exit_code=2, repository="example-org/example-project", version="v1.4.19"
         )
         self.assertEqual(envelope["stage"], "recovery")
         self.assertEqual(envelope["category"], "copier_conflict")
@@ -56,7 +56,7 @@ class BuildEnvelopeTests(unittest.TestCase):
             "+ Foo() { throw new Error('unrelated compiler noise') }\n"
         )
         envelope = rollout_diagnostic.build_envelope(
-            log_text=log, exit_code=1, repository="lehard/cuby", version="v1.4.19"
+            log_text=log, exit_code=1, repository="example-org/example-project", version="v1.4.19"
         )
         self.assertEqual(envelope["stage"], "downstream_check")
         self.assertEqual(envelope["category"], "downstream_check")
@@ -67,7 +67,7 @@ class BuildEnvelopeTests(unittest.TestCase):
     def test_runtime_environment_mismatch_is_classified_pointless(self) -> None:
         log = "Managed rollout: BLOCKED: node: command not found\n"
         envelope = rollout_diagnostic.build_envelope(
-            log_text=log, exit_code=2, repository="lehard/cuby", version="v1.4.19"
+            log_text=log, exit_code=2, repository="example-org/example-project", version="v1.4.19"
         )
         self.assertEqual(envelope["stage"], "prepare")
         self.assertEqual(envelope["category"], "runtime_environment")
@@ -76,7 +76,7 @@ class BuildEnvelopeTests(unittest.TestCase):
     def test_unclassifiable_failure_defaults_to_unknown(self) -> None:
         log = "some unrelated output\n"
         envelope = rollout_diagnostic.build_envelope(
-            log_text=log, exit_code=3, repository="lehard/cuby", version="v1.4.19"
+            log_text=log, exit_code=3, repository="example-org/example-project", version="v1.4.19"
         )
         self.assertEqual(envelope["stage"], "unknown")
         self.assertEqual(envelope["category"], "unknown")
@@ -90,7 +90,7 @@ class BuildEnvelopeTests(unittest.TestCase):
             "Managed rollout: BLOCKED: downstream checkout is dirty before rollout\n"
         )
         envelope = rollout_diagnostic.build_envelope(
-            log_text=log, exit_code=2, repository="lehard/cuby", version="v1.4.19"
+            log_text=log, exit_code=2, repository="example-org/example-project", version="v1.4.19"
         )
         serialized = json.dumps(envelope)
         self.assertNotIn("super-secret-token", serialized)
@@ -100,7 +100,7 @@ class BuildEnvelopeTests(unittest.TestCase):
         envelope = rollout_diagnostic.build_envelope(
             log_text="Managed rollout: BLOCKED: downstream checkout is dirty before rollout\n",
             exit_code=2,
-            repository="lehard/cuby",
+            repository="example-org/example-project",
             version="v1.4.19",
         )
         summary = rollout_diagnostic.render_summary(envelope)
@@ -130,7 +130,7 @@ class CliTests(unittest.TestCase):
                     "--exit-code",
                     "2",
                     "--repository",
-                    "lehard/cuby",
+                    "example-org/example-project",
                     "--version",
                     "v1.4.19",
                     "--output",
@@ -158,7 +158,7 @@ class CliTests(unittest.TestCase):
                     "--exit-code",
                     "2",
                     "--repository",
-                    "lehard/cuby",
+                    "example-org/example-project",
                     "--version",
                     "v1.4.19",
                     "--output",

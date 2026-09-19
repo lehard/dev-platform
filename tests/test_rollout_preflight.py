@@ -19,7 +19,7 @@ ROOT_PATH = Path("/tmp/integration")
 ENV: dict[str, str] = {}
 
 
-def pr(number: int, version: str, *, author: str = BOT, base: str = "main", branch: str | None = None, repository: str = "lehard/managed") -> dict[str, object]:
+def pr(number: int, version: str, *, author: str = BOT, base: str = "main", branch: str | None = None, repository: str = "example-org/managed-project") -> dict[str, object]:
     branch = branch or f"dev-platform/rollout-{version}"
     return {
         "number": number,
@@ -33,7 +33,7 @@ def pr(number: int, version: str, *, author: str = BOT, base: str = "main", bran
 class ObservePendingRolloutTests(unittest.TestCase):
     def test_no_open_prs_is_none(self) -> None:
         with (
-            patch.object(rollout_preflight, "github_repo_name", return_value="lehard/managed"),
+            patch.object(rollout_preflight, "github_repo_name", return_value="example-org/managed-project"),
             patch.object(rollout_preflight, "list_open_prs", return_value=[]),
         ):
             result = rollout_preflight.observe_pending_rollout(ROOT_PATH, CONFIG, ENV)
@@ -41,7 +41,7 @@ class ObservePendingRolloutTests(unittest.TestCase):
 
     def test_no_matching_branch_pattern_is_none(self) -> None:
         with (
-            patch.object(rollout_preflight, "github_repo_name", return_value="lehard/managed"),
+            patch.object(rollout_preflight, "github_repo_name", return_value="example-org/managed-project"),
             patch.object(rollout_preflight, "list_open_prs", return_value=[pr(1, "v1.0.0", branch="feature/unrelated")]),
         ):
             result = rollout_preflight.observe_pending_rollout(ROOT_PATH, CONFIG, ENV)
@@ -60,7 +60,7 @@ class ObservePendingRolloutTests(unittest.TestCase):
 
     def test_candidate_without_configured_bot_login_blocks_ambiguously(self) -> None:
         with (
-            patch.object(rollout_preflight, "github_repo_name", return_value="lehard/managed"),
+            patch.object(rollout_preflight, "github_repo_name", return_value="example-org/managed-project"),
             patch.object(rollout_preflight, "list_open_prs", return_value=[pr(1, "v1.0.0")]),
         ):
             result = rollout_preflight.observe_pending_rollout(ROOT_PATH, CONFIG_NO_BOT, ENV)
@@ -69,7 +69,7 @@ class ObservePendingRolloutTests(unittest.TestCase):
 
     def test_similar_pr_from_wrong_author_is_not_treated_as_rollout(self) -> None:
         with (
-            patch.object(rollout_preflight, "github_repo_name", return_value="lehard/managed"),
+            patch.object(rollout_preflight, "github_repo_name", return_value="example-org/managed-project"),
             patch.object(rollout_preflight, "list_open_prs", return_value=[pr(1, "v1.0.0", author="human")]),
         ):
             result = rollout_preflight.observe_pending_rollout(ROOT_PATH, CONFIG, ENV)
@@ -78,7 +78,7 @@ class ObservePendingRolloutTests(unittest.TestCase):
 
     def test_only_newest_eligible_pr_is_considered_authoritative(self) -> None:
         with (
-            patch.object(rollout_preflight, "github_repo_name", return_value="lehard/managed"),
+            patch.object(rollout_preflight, "github_repo_name", return_value="example-org/managed-project"),
             patch.object(rollout_preflight, "list_open_prs", return_value=[pr(1, "v1.0.0"), pr(2, "v1.2.0")]),
             patch.object(rollout_preflight, "required_check_state_for_ref", return_value=RequiredCheckState("passed")) as checks,
         ):
@@ -89,7 +89,7 @@ class ObservePendingRolloutTests(unittest.TestCase):
 
     def test_failed_required_checks_block(self) -> None:
         with (
-            patch.object(rollout_preflight, "github_repo_name", return_value="lehard/managed"),
+            patch.object(rollout_preflight, "github_repo_name", return_value="example-org/managed-project"),
             patch.object(rollout_preflight, "list_open_prs", return_value=[pr(1, "v1.0.0")]),
             patch.object(rollout_preflight, "required_check_state_for_ref", return_value=RequiredCheckState("failed", "ci")),
         ):
@@ -99,7 +99,7 @@ class ObservePendingRolloutTests(unittest.TestCase):
 
     def test_pending_required_checks_are_pending_checks_state(self) -> None:
         with (
-            patch.object(rollout_preflight, "github_repo_name", return_value="lehard/managed"),
+            patch.object(rollout_preflight, "github_repo_name", return_value="example-org/managed-project"),
             patch.object(rollout_preflight, "list_open_prs", return_value=[pr(1, "v1.0.0")]),
             patch.object(rollout_preflight, "required_check_state_for_ref", return_value=RequiredCheckState("pending")),
         ):
@@ -108,7 +108,7 @@ class ObservePendingRolloutTests(unittest.TestCase):
 
     def test_unknown_required_check_state_blocks(self) -> None:
         with (
-            patch.object(rollout_preflight, "github_repo_name", return_value="lehard/managed"),
+            patch.object(rollout_preflight, "github_repo_name", return_value="example-org/managed-project"),
             patch.object(rollout_preflight, "list_open_prs", return_value=[pr(1, "v1.0.0")]),
             patch.object(rollout_preflight, "required_check_state_for_ref", return_value=RequiredCheckState("unknown", "changed head")),
         ):
@@ -117,7 +117,7 @@ class ObservePendingRolloutTests(unittest.TestCase):
 
     def test_green_pr_is_safe_to_adopt(self) -> None:
         with (
-            patch.object(rollout_preflight, "github_repo_name", return_value="lehard/managed"),
+            patch.object(rollout_preflight, "github_repo_name", return_value="example-org/managed-project"),
             patch.object(rollout_preflight, "list_open_prs", return_value=[pr(1, "v1.0.0")]),
             patch.object(rollout_preflight, "required_check_state_for_ref", return_value=RequiredCheckState("passed")),
         ):
@@ -202,7 +202,7 @@ class ReconcilePendingRolloutTests(unittest.TestCase):
     def test_retry_after_remote_merge_finds_no_open_pr_and_is_idempotently_none(self) -> None:
         """A retried reconciliation after a prior remote-confirmed merge sees no open eligible PR."""
         with (
-            patch.object(rollout_preflight, "github_repo_name", return_value="lehard/managed"),
+            patch.object(rollout_preflight, "github_repo_name", return_value="example-org/managed-project"),
             patch.object(rollout_preflight, "list_open_prs", return_value=[]),
             patch.object(rollout_preflight, "request_protected_merge") as merge,
         ):

@@ -21,3 +21,18 @@ managed_label = "process:managed"
 [rollout]
 registry_path = "/secure/operator/managed-projects.json"
 bot_login = "your-platform-bot[bot]"
+
+# Optional. Continuity data for a live downstream repository still mid-migration
+# off a legacy, pre-platform publication harness (see docs/managed-rollout.md
+# "Legacy publication-harness continuity"). The public rollout engine ships
+# only the generic exact-head migration mechanism with synthetic example
+# repository identities and no expected fingerprints, so it applies to nothing
+# until an operator configures the real identity/fingerprints here. Omit this
+# table entirely when no downstream repository needs this compatibility path.
+[rollout.legacy_harness_migrations]
+legacy_merge_harness_repository = "your-org/legacy-merge-harness-example"
+legacy_merge_harness_sha256 = "<sha256 of that repository's exact scripts/merge_to_main.py>"
+legacy_merge_harness_test_sha256 = "<sha256 of that repository's exact scripts/tests/test_merge_to_main.py>"
+legacy_publish_harness_repository = "your-org/legacy-publish-harness-example"
+legacy_publish_harness_sha256 = "<sha256 of that repository's exact scripts/project_publish.py>"
+legacy_publish_harness_finish_task_sha256 = "<sha256 of that repository's exact scripts/finish_task.py>"

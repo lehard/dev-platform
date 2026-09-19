@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "selection": {
+    "state": "ready",
+    "command_count": 2,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.685,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 209.594,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        ".github/workflows/ci.yml",
+        "scripts/public_distribution.py",
+        "scripts/rollout_project.py",
+        "tests/public_distribution_snapshot_smoke.py",
+        "tests/rollout_recopy_smoke.py",
+        "tests/test_adopt_project.py",
+        "tests/test_managed_intake_project_harness_isolation.py",
+        "tests/test_managed_project_promotion.py",
+        "tests/test_managed_rollout.py",
+        "tests/test_public_distribution.py",
+        "tests/test_rollout_diagnostic_envelope.py",
+        "tests/test_rollout_failure_streak.py",
+        "tests/test_rollout_preflight.py",
+        "tests/test_rollout_recopy.py",
+        "tests/test_rollout_supersession.py",
+        "tests/upgrade_smoke.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ]
+}

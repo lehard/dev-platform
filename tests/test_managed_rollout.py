@@ -29,15 +29,15 @@ class ManagedProjectRegistryTests(unittest.TestCase):
         data = {
             "schema_version": 1,
             "projects": [
-                {"repository": "lehard/managed", "state": "managed", "default_branch": "main"},
-                {"repository": "lehard/candidate", "state": "candidate", "default_branch": "main"},
-                {"repository": "lehard/excluded", "state": "excluded", "default_branch": "main", "note": "intentional"},
+                {"repository": "example-org/managed-project", "state": "managed", "default_branch": "main"},
+                {"repository": "example-org/candidate-project", "state": "candidate", "default_branch": "main"},
+                {"repository": "example-org/excluded-project", "state": "excluded", "default_branch": "main", "note": "intentional"},
             ],
         }
         managed_projects.validate_registry(data)
         matrix = managed_projects.matrix_payload(data)
-        self.assertEqual([item["repository"] for item in matrix["include"]], ["lehard/managed"])
-        for repository in ("lehard/candidate", "lehard/excluded"):
+        self.assertEqual([item["repository"] for item in matrix["include"]], ["example-org/managed-project"])
+        for repository in ("example-org/candidate-project", "example-org/excluded-project"):
             with self.subTest(repository=repository), self.assertRaises(ValueError):
                 managed_projects.matrix_payload(data, repository)
 
@@ -45,7 +45,7 @@ class ManagedProjectRegistryTests(unittest.TestCase):
         data = {
             "schema_version": 1,
             "projects": [
-                {"repository": "lehard/excluded", "state": "excluded", "default_branch": "main", "note": ""},
+                {"repository": "example-org/excluded-project", "state": "excluded", "default_branch": "main", "note": ""},
             ],
         }
         with self.assertRaises(ValueError):
@@ -55,8 +55,8 @@ class ManagedProjectRegistryTests(unittest.TestCase):
         data = {
             "schema_version": 1,
             "projects": [
-                {"repository": "lehard/a", "state": "managed", "default_branch": "main"},
-                {"repository": "lehard/a", "state": "candidate", "default_branch": "main"},
+                {"repository": "example-org/a", "state": "managed", "default_branch": "main"},
+                {"repository": "example-org/a", "state": "candidate", "default_branch": "main"},
             ],
         }
         with self.assertRaises(ValueError):
@@ -64,11 +64,11 @@ class ManagedProjectRegistryTests(unittest.TestCase):
 
 
 class RolloutProjectTests(unittest.TestCase):
-    def test_jara_fin_style_guidance_migration_preserves_project_rules(self) -> None:
+    def test_legacy_style_guidance_migration_preserves_project_rules(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / ".dev-platform.toml").write_text(
-                'project_name = "Jara_Fin"\n\n[development_backlog]\nrepository = "lehard/development-backlog"\n',
+                'project_name = "example-project"\n\n[development_backlog]\nrepository = "lehard/development-backlog"\n',
                 encoding="utf-8",
             )
             (root / "AGENTS.md").write_text(

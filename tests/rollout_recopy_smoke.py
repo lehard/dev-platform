@@ -116,13 +116,13 @@ def main() -> int:
             product_ci.parent.mkdir(parents=True, exist_ok=True)
             product_ci.write_text("name: Project-owned product CI\n", encoding="utf-8")
 
-            # Synthetic Cuby-like artifacts: only names and harmless fixtures,
+            # Synthetic legacy-project-like artifacts: only names and harmless fixtures,
             # never real credentials. The rollout guard uses the same paths with
             # `git check-ignore --no-index` and must not materialize or stage them.
             gitignore = project / ".gitignore"
             gitignore.write_text(
                 gitignore.read_text(encoding="utf-8")
-                + "\n# Project-owned Cuby runtime ignores\n"
+                + "\n# Project-owned legacy runtime ignores\n"
                 + ".env\nconfig/*credentials.json\nvar/*.sqlite3\nnode_modules/\ndist/\n*.tsbuildinfo\n",
                 encoding="utf-8",
             )
@@ -197,7 +197,7 @@ def main() -> int:
             status = run(["git", "status", "--porcelain"], project).stdout
             visible = [relative for relative in synthetic_artifacts if relative in status]
             if visible:
-                raise SystemExit("Cuby-like synthetic artifacts became visible to Git: " + ", ".join(visible))
+                raise SystemExit("Legacy-project-like synthetic artifacts became visible to Git: " + ", ".join(visible))
 
             print(f"Safe project-harness transition smoke passed via {strategy}.")
     finally:
