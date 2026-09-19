@@ -933,6 +933,8 @@ if __name__ == "__main__":
         self.assertFalse(any(command[:2] == ["copier", "recopy"] for command in commands))
 
     def test_recopy_is_blocked_if_protected_file_changes(self) -> None:
+        self.require_platform_release_history()
+
         def fake_run(command, cwd, **kwargs):
             if command[:2] == ["copier", "recopy"]:
                 (self.root / "scripts/start_task.py").write_text("changed by recopy\n", encoding="utf-8")

@@ -418,6 +418,13 @@ class TemplateContractTests(unittest.TestCase):
         self.assertIn('_min_copier_version: "9.17.0"', copier); self.assertIn('[tools.copier]', config); self.assertIn('tested_version = "9.17.0"', config); self.assertIn('copier==9.17.0', ci)
 
     def test_openspec_version_policy_and_regression_smoke_are_consistent(self) -> None:
+        if not (ROOT / ".dev-platform.toml").is_file():
+            # This checkout's own `.dev-platform.toml` is deliberately not part
+            # of the public product candidate (see scripts/public_distribution.py
+            # EXCLUDED_PATHS): a fresh public snapshot has no central operator
+            # config until cutover generates one, so this central-checkout-
+            # specific assertion does not apply there.
+            self.skipTest("central .dev-platform.toml is not present in this checkout")
         config = (ROOT / ".dev-platform.toml").read_text(encoding="utf-8")
         template = (ROOT / "template" / ".dev-platform.toml.jinja").read_text(encoding="utf-8")
         ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
