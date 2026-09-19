@@ -21,11 +21,15 @@ EXCLUDED_PARTS = {".git", ".claude", ".codex", "__pycache__", ".pytest_cache", "
 # else under `openspec/` (accepted specs, current lifecycle configuration, any
 # active change) and all of `tests/` are required product/verification
 # material and stay in the candidate set -- see docs/public-cutover.md and
-# proposal decision 2 in this change's design.md.
+# proposal decision 2 in this change's design.md. `dev-platform/evals/` is
+# generic capability eval fixture data required by `tests/test_template_contract.py`
+# and `tests/test_capability_manager.py` (it must byte-match `template/dev-platform/evals/`),
+# not local/sensitive state, so it also stays; only `.dev-platform.toml` (this
+# specific checkout's own operator-opt-in config) and coordination state are
+# excluded as genuinely central-checkout-local.
 EXCLUDED_PATHS = {
     ".dev-platform.toml",
     ".managed-task-state.json",
-    "dev-platform/evals",
     "openspec/changes/archive",
 }
 CANONICAL_PRODUCT_REPOSITORY = "lehard/dev-platform"

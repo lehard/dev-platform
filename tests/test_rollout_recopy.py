@@ -69,6 +69,30 @@ class GuardedRecopyTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.tmp.cleanup()
 
+    def require_platform_release_history(self) -> None:
+        """Skip when `rollout_project.PLATFORM_ROOT` has no fetchable release tags.
+
+        Baseline-equivalence recovery fetches a real, previously published
+        `vX.Y.Z` platform tag to render an isolated comparison baseline (see
+        `ensure_platform_tag_available`). That is a property of an actual
+        release history, not of this source tree's completeness: a repository
+        on its first fresh-history commit (e.g. an extracted public snapshot,
+        proven self-contained by tests/public_distribution_snapshot_smoke.py)
+        has no prior release to fetch yet, exactly like this repository's own
+        first commit would not have. This guard keeps that pre-existing,
+        environment-coupled dependency from being mistaken for a packaging
+        defect.
+        """
+        result = subprocess.run(
+            ["git", "tag", "--list", "v*"],
+            cwd=rollout_project.PLATFORM_ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0 or not result.stdout.strip():
+            self.skipTest("PLATFORM_ROOT has no published release tags to fetch a baseline from")
+
     def write_recognized_legacy_merge_harness_test(self) -> str:
         source = "\n\n".join(original.rstrip() for original, _ in rollout_project.LEGACY_MERGE_HARNESS_TEST_MOCK_REPLACEMENTS) + "\n"
         target = self.root / "scripts" / "tests" / "test_merge_to_main.py"
@@ -518,6 +542,7 @@ if __name__ == "__main__":
             )
 
     def test_downstream_guarded_recopy_accepts_the_task_intake_migration(self) -> None:
+        self.require_platform_release_history()
         self.root.joinpath(".dev-platform.toml").write_text(
             self.root.joinpath(".dev-platform.toml").read_text(encoding="utf-8")
             + '\n[development_backlog]\nrepository = "lehard/development-backlog"\n',
@@ -709,6 +734,7 @@ if __name__ == "__main__":
                 rollout_project.stage_rollout_changes(self.root)
 
     def test_guarded_recopy_runs_only_for_project_owned_rejects(self) -> None:
+        self.require_platform_release_history()
         commands: list[list[str]] = []
 
         def fake_run(command, cwd, **kwargs):
@@ -734,6 +760,7 @@ if __name__ == "__main__":
         self.assertTrue(any(command[:2] == ["copier", "recopy"] for command in commands))
 
     def test_reclaimed_platform_conflict_allows_recopy_when_already_on_target(self) -> None:
+        self.require_platform_release_history()
         commands: list[list[str]] = []
 
         def fake_run(command, cwd, **kwargs):
@@ -758,6 +785,7 @@ if __name__ == "__main__":
         self.assertTrue(any(command[:2] == ["copier", "recopy"] for command in commands))
 
     def test_platform_mode_reclaimed_project_publish_allows_guarded_recopy(self) -> None:
+        self.require_platform_release_history()
         self.use_platform_mode()
         self.copy_target_template("scripts/project_publish.py")
         commands: list[list[str]] = []
@@ -785,6 +813,7 @@ if __name__ == "__main__":
         self.assertTrue(any(command[:2] == ["copier", "recopy"] for command in commands))
 
     def test_platform_mode_recovers_downstream_shaped_mixed_historical_rejects(self) -> None:
+        self.require_platform_release_history()
         self.use_platform_mode()
         self.copy_target_template("scripts/project_publish.py")
         (self.root / "scripts" / "finish_task.py").write_text(
