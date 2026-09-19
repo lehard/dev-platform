@@ -71,7 +71,7 @@ repository evidence before recommending another fix.
 Keep the report below 500 words and include only these sections:
 
 - Review context (`reviewed_at`, exact `main` SHA, previous-review boundary)
-- Root-cause candidates (up to 5, each with contributing issue numbers)
+- Root-cause candidates (up to 5, each with contributing issue numbers and a classification)
 - Active unmanaged evidence (up to 5)
 - Managed evidence (up to 5)
 - Likely resolved/superseded after current-state check (up to 5)
@@ -81,8 +81,14 @@ Keep the report below 500 words and include only these sections:
 Classify every open source issue once as unmanaged, managed, likely
 resolved/superseded, needs more evidence, or ready for human decision. Cluster
 symptoms by likely root cause before suggesting managed work: several issue
-counts never imply several required changes. Be conservative: cite issue
-numbers and brief evidence, distinguish facts from inferences, and say when
-the backlog is empty. Do not propose code changes as actions for yourself,
+counts never imply several required changes. A source issue marked
+`Classification: context-gap` is evidence of missing or misread stable project
+context, not a request to edit it. For a supported context-gap candidate, name
+its bounded `Context concern` and `Likely context destination`, and keep the
+observation, cited evidence, hypothesis, and proposed improvement distinct.
+Keep lifecycle, tooling, CI, worktree, authentication, and process defects in
+ordinary process-friction even when an agent made an error. Be conservative:
+cite issue numbers and brief evidence, distinguish facts from inferences, and
+say when the backlog is empty. Do not propose code changes as actions for yourself,
 create implementation pull requests, accept OpenSpec changes, create managed
 tasks, or close/relabel/comment on source evidence.

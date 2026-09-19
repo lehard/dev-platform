@@ -21,6 +21,8 @@ class TemplateContractTests(unittest.TestCase):
         labels = (ROOT / "template" / ".github" / "workflows" / "process-health-labels.yml.jinja").read_text(encoding="utf-8")
         self.assertNotIn("[process_health]", config)
         self.assertIn("exact default-branch SHA", review)
+        self.assertIn("Classification: context-gap", review)
+        self.assertIn("Likely context destination", review)
         self.assertIn("process:managed", labels)
 
     def test_platform_does_not_vendor_openspec_generated_skills(self) -> None:

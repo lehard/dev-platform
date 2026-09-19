@@ -189,7 +189,7 @@ Required GitHub checks are never bypassed. Do not add agent/admin bypass merely 
 
 ## Friction and promotion
 
-Record only high-signal friction: user correction, repeated failure, safety near-miss, undocumented invariant or excessive retries. Separate observation, evidence, hypothesis and proposal; classify as `project` or `platform`. Do not record secrets or routine successful sessions.
+Record only high-signal friction: user correction, repeated failure, safety near-miss, undocumented invariant or excessive retries. Separate observation, evidence, hypothesis and proposal; classify as `project` or `platform`. Do not record secrets or routine successful sessions. When a correction or substantive failure shows missing or misread stable project context, record it with `--classification context-gap` and one bounded `--context-concern` (`product`, `domain`, `architecture`, `anti-pattern`, `example`, or `other`); the corresponding `docs/context/` destination is a proposed improvement candidate, not an automatic write. Tooling, CI, lifecycle, worktree, authentication, and process defects remain ordinary `process-friction`; recurrence never automatically edits context or creates/starts managed work.
 
 The normal path is `record -> sanitized GitHub process issue upsert -> cloud triage/review`. Recording retains raw evidence locally and automatically creates or updates a fingerprinted issue in the correct repository. Routing failure leaves the local event pending and never blocks safe delivery; supported lifecycle commands retry it. Process issues are evidence only: neither triage nor review may create a managed task, OpenSpec change, implementation PR, or code change.
 
@@ -205,13 +205,14 @@ managed work or closes/relabels source evidence.
 
 ```bash
 python3 scripts/agent_friction.py record --category <category> --scope project --observation <sanitized-summary> --evidence <local-evidence-summary> --hypothesis <hypothesis> --proposal <proposal>
+python3 scripts/agent_friction.py record --classification context-gap --context-concern architecture --category <category> --scope project --observation <sanitized-summary> --evidence <local-evidence-summary> --hypothesis <hypothesis> --proposal <proposal>
 ```
 
 The weekly cloud Process Health Review is the routine review cadence. Local `pending`, `review`, `mark-reviewed`, and `promote` commands remain recovery/diagnostic surfaces, not per-task actions or completion ritual. `reconcile-process-labels` is a bounded idempotent recovery operation that restores the configured `process` label only on unmistakably router-generated open source issues. Pass `--participant-role supervisor|executor` when a finding concerns a specific participant; identity is read back from the current model-routing record rather than self-reported (see `docs/engineering/model-routing.md#execution-provenance`). Fingerprinting never includes model/provider, so the same recurring problem across different models updates one issue instead of splitting by model.
 
 ### Post-task retrospective
 
-Before non-trivial completion, run a distinct post-task retrospective -- not merely picking a checkpoint value. Review the task for user corrections, repeated substantive failures/retries, manual workarounds, safety near-misses, false premises, undocumented invariants, missing automation/documentation, tooling/auth/worktree/Git/OpenSpec/CI/lifecycle friction, avoidable repeated work, and problems noticed but left unresolved. Classify each candidate as already resolved in this task, already represented by an existing recorded event, or new and meaningful; record only the last class.
+Before non-trivial completion, run a distinct post-task retrospective -- not merely picking a checkpoint value. Review the task for user corrections, repeated substantive failures/retries, manual workarounds, safety near-misses, false premises, undocumented invariants, missing automation/documentation, tooling/auth/worktree/Git/OpenSpec/CI/lifecycle friction, avoidable repeated work, and problems noticed but left unresolved. A relevant user correction or repeated semantic failure may be a `context-gap` when it exposes stable project/domain knowledge that belongs in a bounded context destination; do not force ordinary agent mistakes or tooling/process defects into that category. Classify each candidate as already resolved in this task, already represented by an existing recorded event, or new and meaningful; record only the last class.
 
 The retrospective also reads the current task's existing high-signal `lifecycle-*` failure records from the friction log. It does not add a task-outcome database: a lifecycle failure must be classified as `resolved-in-task`, `already-recorded`, or `new-recorded` before the checkpoint can succeed. Clean tasks have no such records and retain the one-command `none` path.
 

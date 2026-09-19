@@ -175,6 +175,79 @@ class FrictionReviewTests(unittest.TestCase):
         event = agent_friction.read_events(None)[0]
         self.assertEqual(event["severity"], "medium")
         self.assertEqual(event["triggers"], ["old-category"])
+        self.assertEqual(event["classification"], "process-friction")
+        self.assertIsNone(event["context"])
+
+    def context_gap_event(self, *, provider: str, model: str) -> dict:
+        event = self.event(scope="project")
+        event.update(
+            {
+                "classification": "context-gap",
+                "context": {"concern": "architecture", "destination": "docs/context/architecture.md"},
+                "run": {"role": "executor", "participant": {"provider": provider, "model": {"value": model}}},
+            }
+        )
+        return event
+
+    def test_context_gap_records_bounded_metadata_and_route_body_stays_sanitized(self) -> None:
+        args = type(
+            "Args", (),
+            {
+                "category": "deployment-invariant", "trigger": ["user-correction"], "severity": "high", "task": None,
+                "observation": "user corrected the deployment invariant", "evidence": "api_key=very-secret-value",
+                "hypothesis": "the architecture invariant is absent from project context", "scope": "project",
+                "proposal": "review a bounded architecture context improvement", "participant_role": "unknown",
+                "classification": "context-gap", "context_concern": "architecture", "context_destination": None,
+                "no_route": True,
+            },
+        )()
+        with self.assertRaisesRegex(SystemExit, "appears to contain a secret"):
+            agent_friction.cmd_record(args)
+        self.assertFalse(self.log.exists())
+
+        args.evidence = "the stable deployment invariant was absent"
+        agent_friction.cmd_record(args)
+        event = agent_friction.read_events(None)[0]
+        self.assertEqual(event["classification"], "context-gap")
+        self.assertEqual(event["context"], {"concern": "architecture", "destination": "docs/context/architecture.md"})
+        body = agent_friction.route_body({**event, "observation": "api_key=local-only-secret"}, "fp123", occurrence=False)
+        self.assertIn("Context concern: `architecture`", body)
+        self.assertIn("Likely context destination: `docs/context/architecture.md`", body)
+        self.assertNotIn("local-only-secret", body)
+
+    def test_context_gap_requires_a_bounded_context_concern(self) -> None:
+        args = type(
+            "Args", (),
+            {"classification": "context-gap", "context_concern": None, "context_destination": None},
+        )()
+        with self.assertRaisesRegex(SystemExit, "requires --context-concern"):
+            agent_friction.context_metadata_for(args)
+
+    def test_context_gap_fingerprint_converges_across_provider_and_model(self) -> None:
+        claude = self.context_gap_event(provider="claude", model="sonnet")
+        codex = self.context_gap_event(provider="codex", model="gpt-5.6-sol")
+        codex["category"] = "repeated-error"
+        self.assertEqual(
+            agent_friction.fingerprint_for(claude, "example/project"),
+            agent_friction.fingerprint_for(codex, "example/project"),
+        )
+
+    def test_three_context_gap_observations_create_no_context_or_task_writes(self) -> None:
+        for index in range(3):
+            event = self.context_gap_event(provider="codex", model=f"model-{index}")
+            event["id"] = f"context-gap-{index}"
+            event["at"] = f"2026-08-{index + 1:02d}T10:00:00+00:00"
+            with self.log.open("a", encoding="utf-8") as fh:
+                fh.write(json.dumps(event) + "\n")
+        self.assertEqual(len(agent_friction.read_events(None)), 3)
+        self.assertFalse((self.root / "docs" / "context").exists())
+        self.assertFalse((self.root / "openspec").exists())
+
+    def test_process_friction_stays_outside_context_gap_classification(self) -> None:
+        event = self.event()
+        event["category"] = "ci-authentication"
+        self.assertEqual(event.get("classification", "process-friction"), "process-friction")
+        self.assertEqual(agent_friction.context_markdown_lines(event), [])
 
     def write_route(self, *, change: str = "routing-change", participant: dict | None = None) -> None:
         change_dir = self.root / "openspec" / "changes" / change

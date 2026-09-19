@@ -32,6 +32,15 @@ TRIGGERS = (
     "undocumented-invariant",
     "excessive-retry",
 )
+CLASSIFICATIONS = ("process-friction", "context-gap")
+CONTEXT_CONCERNS = {
+    "product": "docs/context/product.md",
+    "domain": "docs/context/domain.md",
+    "architecture": "docs/context/architecture.md",
+    "anti-pattern": "docs/context/anti-patterns.md",
+    "example": "docs/context/examples.md",
+    "other": "docs/context/README.md",
+}
 SECRET_PATTERNS = (
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
     re.compile(r"\bsk-[A-Za-z0-9_-]{16,}\b"),
@@ -86,6 +95,26 @@ def normalize_text(value: str, field: str, max_length: int = 4000) -> str:
         if pattern.search(normalized):
             raise SystemExit(f"{field} appears to contain a secret; redact it before recording friction")
     return normalized
+
+
+def context_metadata_for(args: argparse.Namespace) -> dict | None:
+    """Validate optional, bounded routing metadata for context-gap evidence."""
+    classification = getattr(args, "classification", "process-friction")
+    concern = getattr(args, "context_concern", None)
+    destination = getattr(args, "context_destination", None)
+    if classification != "context-gap":
+        if concern or destination:
+            raise SystemExit("--context-concern and --context-destination require --classification context-gap")
+        return None
+    if not concern:
+        raise SystemExit("--classification context-gap requires --context-concern")
+    expected_destination = CONTEXT_CONCERNS[concern]
+    if destination and destination != expected_destination:
+        raise SystemExit(
+            f"--context-destination for {concern!r} must be {expected_destination!r}; "
+            "use the bounded project-context destination"
+        )
+    return {"concern": concern, "destination": expected_destination}
 
 
 @contextlib.contextmanager
@@ -163,6 +192,7 @@ def cmd_record(args: argparse.Namespace) -> int:
     if path.exists():
         ensure_shared_path(path)
     triggers = sorted(set(args.trigger or [args.category]))
+    context = context_metadata_for(args)
     event = {
         "id": uuid.uuid4().hex[:12],
         "at": utc_now(),
@@ -177,6 +207,8 @@ def cmd_record(args: argparse.Namespace) -> int:
         "scope": args.scope,
         "proposal": normalize_text(args.proposal, "proposal"),
         "run": _current_run_provenance(args.participant_role),
+        "classification": getattr(args, "classification", "process-friction"),
+        "context": context,
     }
     encoded = json.dumps(event, ensure_ascii=False, sort_keys=True)
     with friction_lock():
@@ -215,6 +247,8 @@ def read_events(days: int | None = None) -> list[dict]:
             event.setdefault("severity", "medium")
             event.setdefault("triggers", [event.get("category", "legacy")])
             event.setdefault("run", _unknown_run_provenance("unknown"))
+            event.setdefault("classification", "process-friction")
+            event.setdefault("context", None)
             if cutoff is None or parse_time(event["at"]) >= cutoff:
                 events.append(event)
         except (json.JSONDecodeError, KeyError, ValueError, TypeError):
@@ -284,7 +318,9 @@ def pending_markdown(batch: dict) -> str:
         lines += [
             f"## {event.get('id')} [{event.get('scope', 'unknown')}] {event.get('category', 'unknown')}",
             f"- Severity: {event.get('severity', 'medium')}",
+            f"- Classification: {event.get('classification', 'process-friction')}",
             f"- Triggers: {', '.join(event.get('triggers', []))}",
+            *context_markdown_lines(event),
             f"- Observation: {event.get('observation', '')}",
             f"- Evidence: {event.get('evidence', '')}",
             f"- Hypothesis: {event.get('hypothesis', '')}",
@@ -347,15 +383,20 @@ def cmd_review(args: argparse.Namespace) -> int:
     scope_counts = Counter(event.get("scope", "unknown") for event in events)
     category_counts = Counter(event.get("category", "unknown") for event in events)
     severity_counts = Counter(event.get("severity", "medium") for event in events)
+    classification_counts = Counter(event.get("classification", "process-friction") for event in events)
     print(f"# Agent friction review — last {args.days} days\n")
     print(f"Events: {len(events)}")
     print("Scopes: " + ", ".join(f"{k}={v}" for k, v in sorted(scope_counts.items())))
     print("Categories: " + ", ".join(f"{k}={v}" for k, v in sorted(category_counts.items())))
     print("Severity: " + ", ".join(f"{k}={v}" for k, v in sorted(severity_counts.items())))
+    print("Classifications: " + ", ".join(f"{k}={v}" for k, v in sorted(classification_counts.items())))
     print()
     for event in events:
         print(f"## {event.get('id')} [{event.get('scope')}] {event.get('category')}")
         print(f"- Severity: {event.get('severity', 'medium')}")
+        print(f"- Classification: {event.get('classification', 'process-friction')}")
+        for line in context_markdown_lines(event):
+            print(line)
         print(f"- Observation: {event.get('observation')}")
         print(f"- Evidence: {event.get('evidence')}")
         print(f"- Hypothesis: {event.get('hypothesis')}")
@@ -375,6 +416,20 @@ def sanitize_for_route(value: object, max_length: int = 500) -> str:
     if any(pattern.search(text) for pattern in SECRET_PATTERNS):
         return "[REDACTED]"
     return sanitize(text)[:max_length] or "[not supplied]"
+
+
+def context_markdown_lines(event: dict) -> list[str]:
+    """Return only validated bounded context metadata for review/public routing."""
+    if event.get("classification") != "context-gap":
+        return []
+    context = event.get("context")
+    if not isinstance(context, dict):
+        return ["- Context concern: `[not supplied]`"]
+    concern = context.get("concern")
+    destination = context.get("destination")
+    if concern not in CONTEXT_CONCERNS or destination != CONTEXT_CONCERNS[concern]:
+        return ["- Context concern: `[invalid legacy metadata]`"]
+    return [f"- Context concern: `{concern}`", f"- Likely context destination: `{destination}`"]
 
 
 def origin_repository() -> str:
@@ -406,7 +461,21 @@ def destination_for(event: dict) -> str:
 def fingerprint_for(event: dict, repository: str) -> str:
     """Identity intentionally excludes raw observation, evidence and proposal."""
     category = re.sub(r"[^a-z0-9._-]+", "-", str(event.get("category", "unknown")).lower()).strip("-")
-    identity = f"v1|{repository.lower()}|{event.get('scope')}|{category or 'unknown'}"
+    classification = event.get("classification", "process-friction")
+    if classification == "context-gap":
+        context = event.get("context") if isinstance(event.get("context"), dict) else {}
+        concern = context.get("concern")
+        destination = context.get("destination")
+        if concern in CONTEXT_CONCERNS and destination == CONTEXT_CONCERNS[concern]:
+            # A correction and a repeated failure can expose the same missing
+            # stable context.  The bounded concern/destination is that root
+            # cause, while category is merely the symptom that exposed it.
+            identity = f"v2|{repository.lower()}|{event.get('scope')}|context-gap|{concern}|{destination}"
+        else:
+            identity = f"v2|{repository.lower()}|{event.get('scope')}|context-gap"
+    else:
+        # Keep existing issue identities stable for ordinary friction records.
+        identity = f"v1|{repository.lower()}|{event.get('scope')}|{category or 'unknown'}"
     return hashlib.sha256(identity.encode("utf-8")).hexdigest()[:24]
 
 
@@ -568,10 +637,12 @@ def route_body(event: dict, fingerprint: str, *, occurrence: bool) -> str:
         "",
         f"- Scope: `{sanitize_for_route(event.get('scope'), 32)}`",
         f"- Category: `{sanitize_for_route(event.get('category'), 100)}`",
+        f"- Classification: `{sanitize_for_route(event.get('classification', 'process-friction'), 32)}`",
         f"- Severity: `{sanitize_for_route(event.get('severity', 'medium'), 20)}`",
         f"- Fingerprint: `{fingerprint}`",
         f"- Recorded at: `{sanitize_for_route(event.get('at'), 64)}`",
         *([provenance_line] if provenance_line else []),
+        *context_markdown_lines(event),
         "",
         "### Observation",
         sanitize_for_route(event.get("observation")),
@@ -963,6 +1034,12 @@ def main() -> int:
 
     p = sub.add_parser("record")
     p.add_argument("--category", required=True)
+    p.add_argument("--classification", choices=CLASSIFICATIONS, default="process-friction")
+    p.add_argument("--context-concern", choices=tuple(CONTEXT_CONCERNS))
+    p.add_argument(
+        "--context-destination",
+        help="optional verified docs/context destination; inferred from --context-concern when omitted",
+    )
     p.add_argument("--trigger", action="append", choices=TRIGGERS)
     p.add_argument("--severity", choices=SEVERITIES, default="medium")
     p.add_argument("--observation", required=True)

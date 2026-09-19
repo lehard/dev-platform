@@ -130,8 +130,12 @@ likely resolved/superseded, needs more evidence, or ready for human decision.
 Before calling an older issue resolved or superseded, inspect current repository
 evidence; stale issue prose alone is insufficient.
 
-Cluster related symptoms by likely root cause before recommending work. Cite
-the contributing issue numbers, but do not treat issue count as change count.
+Cluster related symptoms by likely root cause before recommending work. A
+`context-gap` is a bounded candidate for project-context improvement, not an
+automatic context change: name its likely concern/destination only where the
+sanitized evidence supports it, and keep observation, evidence, hypothesis,
+and proposal distinct. Keep tooling/process defects outside that classification.
+Cite the contributing issue numbers, but do not treat issue count as change count.
 The review may write its dated report, but it must not create a managed task,
 close or relabel a source process issue, or implement a fix.
 
