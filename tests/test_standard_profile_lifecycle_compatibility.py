@@ -65,7 +65,7 @@ class StandardProfileManagedStartCompositionTests(unittest.TestCase):
 
     def _package(self) -> managed_task.Package:
         return managed_task.Package(
-            source_issue="lehard/development-backlog#62",
+            source_issue="example-org/development-backlog#62",
             target_repository="lehard/dev-platform",
             change="standard-profile-lifecycle-compatibility",
             prepared_against="a" * 40,
@@ -97,7 +97,7 @@ class StandardProfileManagedStartCompositionTests(unittest.TestCase):
                 patch.object(task_start, "require_fresh_task_base", return_value="a" * 40),
             ):
                 reconcile.return_value = __import__("types").SimpleNamespace(changed=True)
-                started, current_main, reused = start_managed_task.start_managed_task(root, "lehard/development-backlog#62")
+                started, current_main, reused = start_managed_task.start_managed_task(root, "example-org/development-backlog#62")
 
             self.assertEqual(started.profile, "standard")
             self.assertEqual(started.branch, f"agent/{package.change}")
@@ -147,7 +147,7 @@ class StandardProfileManagedStartCompositionTests(unittest.TestCase):
                 patch.object(task_start, "require_fresh_task_base", return_value="a" * 40),
             ):
                 with self.assertRaisesRegex(start_managed_task.ManagedProjectStatusError, "missing project scope"):
-                    start_managed_task.start_managed_task(root, "lehard/development-backlog#62")
+                    start_managed_task.start_managed_task(root, "example-org/development-backlog#62")
             self.assertEqual(
                 subprocess.run(["git", "branch", "--show-current"], cwd=root, text=True, capture_output=True, check=True).stdout.strip(),
                 "main",

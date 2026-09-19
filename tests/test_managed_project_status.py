@@ -24,7 +24,7 @@ def project_payload(*, current: str = "Ready", duplicate: bool = False) -> dict:
         "content": {
             "__typename": "Issue",
             "number": 8,
-            "repository": {"nameWithOwner": "lehard/development-backlog"},
+            "repository": {"nameWithOwner": "example-org/development-backlog"},
         },
         "fieldValueByName": {"name": current, "optionId": "current-option"},
     }
@@ -60,12 +60,12 @@ class ManagedProjectStatusTests(unittest.TestCase):
         self.root = Path(self.tmp.name)
         (self.root / "openspec" / "changes" / "managed").mkdir(parents=True)
         (self.root / "openspec" / "changes" / "managed" / ".managed-task.json").write_text(
-            json.dumps({"source_issue": "lehard/development-backlog#8"}), encoding="utf-8"
+            json.dumps({"source_issue": "example-org/development-backlog#8"}), encoding="utf-8"
         )
         (self.root / ".dev-platform.toml").write_text(
             'main_branch = "main"\n'
             '[development_backlog]\n'
-            'repository = "lehard/development-backlog"\n'
+            'repository = "example-org/development-backlog"\n'
             'project_label = "project:dev-platform"\n'
             'default_priority = "P2"\n'
             'project_owner = "lehard"\n'
@@ -79,16 +79,16 @@ class ManagedProjectStatusTests(unittest.TestCase):
     def test_discovers_unambiguous_active_managed_source(self) -> None:
         source = managed_project_status.discover_source_issue(self.root)
         assert source is not None
-        self.assertEqual(source.reference, "lehard/development-backlog#8")
+        self.assertEqual(source.reference, "example-org/development-backlog#8")
 
     def test_task_level_state_survives_after_active_change_is_archived(self) -> None:
         (self.root / "openspec" / "changes" / "managed" / ".managed-task.json").unlink()
         (self.root / ".managed-task-state.json").write_text(
-            json.dumps({"source_issue": "lehard/development-backlog#8", "change": "managed"}), encoding="utf-8"
+            json.dumps({"source_issue": "example-org/development-backlog#8", "change": "managed"}), encoding="utf-8"
         )
         source = managed_project_status.discover_source_issue(self.root)
         assert source is not None
-        self.assertEqual(source.reference, "lehard/development-backlog#8")
+        self.assertEqual(source.reference, "example-org/development-backlog#8")
 
     def test_reconcile_is_idempotent_when_status_is_already_current(self) -> None:
         with (
@@ -131,7 +131,7 @@ class ManagedProjectStatusTests(unittest.TestCase):
     def test_missing_locator_and_auth_are_actionable(self) -> None:
         config = managed_project_status.read_platform_config(self.root)
         del config["development_backlog"]["project_number"]
-        source = managed_project_status.parse_source_issue("lehard/development-backlog#8")
+        source = managed_project_status.parse_source_issue("example-org/development-backlog#8")
         with self.assertRaisesRegex(managed_project_status.ManagedProjectStatusError, "project_number"):
             managed_project_status.project_locator(config, source)
         with patch.object(managed_project_status, "github_cli_env", return_value=None):

@@ -32,32 +32,45 @@ EXCLUDED_PATHS = {
     ".managed-task-state.json",
     "openspec/changes/archive",
 }
+# `.managed-task.json` is the per-task Development Backlog provenance receipt
+# that `start_managed_task.py` materializes into the *active* (not yet
+# archived) change directory it imports -- it necessarily records this
+# operator's real source-issue reference (e.g. the concrete Development
+# Backlog repository/number) while the task is in flight. That is genuine
+# operator/task-tracking state, not product source: once a change is
+# archived it moves under the already-excluded `openspec/changes/archive`,
+# and a fresh clone never needs an in-flight task's own provenance file to be
+# developable/testable. Matched by filename (like `.git`/`__pycache__`)
+# rather than a full path so it is excluded under any active change.
+EXCLUDED_PARTS = EXCLUDED_PARTS | {".managed-task.json"}
 CANONICAL_PRODUCT_REPOSITORY = "lehard/dev-platform"
-# `lehard/development-backlog` is not a personal downstream reference: it is
-# this product's own canonical companion Development Backlog repository,
-# documented and referenced by name throughout AGENTS.md, docs/, and this
-# operator's own default operator configuration example -- the same kind of
-# real, intentionally-public product identity as the canonical repository
-# itself, not a private customer. Keep this allowlist narrow and reviewed.
-CANONICAL_PRODUCT_REPOSITORIES = {CANONICAL_PRODUCT_REPOSITORY, "lehard/development-backlog"}
+# Only this repository's own canonical identity is product identity. A
+# companion Development Backlog repository, managed-project registry, bot
+# account, GitHub Project, or downstream repository is operator state, even
+# when the current operator happens to use a real, named repository for it --
+# see design.md decision 1 in `finalize-public-snapshot-identity-boundary`.
+# Keep this allowlist to exactly the canonical source identity; do not widen
+# it back to cover a companion operator repository.
+CANONICAL_PRODUCT_REPOSITORIES = {CANONICAL_PRODUCT_REPOSITORY}
 OWNER_REFERENCE = re.compile(r"\blehard/[A-Za-z0-9_.-]+\b")
 SECRET_PATTERNS = {
     "github_pat": re.compile(r"ghp_[A-Za-z0-9]{30,}"),
     "gitlab_pat": re.compile(r"glpat-[A-Za-z0-9_-]{20,}"),
     "aws_access_key": re.compile(r"AKIA[0-9A-Z]{16}"),
 }
-# Bounded, explicit markers for known private-project compatibility leakage
-# that would not be caught by owner/repo matching alone (project code names,
-# not `owner/repo` strings). Keep this list small and reviewed -- it is a
-# blocklist of known leakage classes, not a natural-language scanner. Each
-# pattern is built from split literals, and each key is a generic category
-# label rather than the real name, so this policy module's own source (a
-# packaged candidate itself) never trips its own detector.
-COMPATIBILITY_MARKERS = {
-    "legacy_merge_partner": re.compile(r"\b" + "Jara" + r"[ _]?" + "Fin" + r"\b", re.IGNORECASE),
-    "legacy_publish_partner": re.compile(r"\b" + "Planner" + r"\s+" + "Agent" + r"\s+" + "Lab" + r"\b", re.IGNORECASE),
-    "legacy_ignore_partner": re.compile(r"\b" + "Cu" + "by" + r"\b"),
-}
+# Bounded, versioned schema for an external one-shot cutover policy: private
+# repository/compatibility-marker deny data needed only to sanitize the
+# pre-cutover source before a fresh-history cutover. This module never
+# encodes those private values itself (not even through split literals or
+# other self-avoidance tricks) -- see design.md decisions 4/5/6. The policy
+# is data, not a plugin framework; keep the schema this small.
+CUTOVER_POLICY_VERSION = 1
+POLICY_LABEL_RE = re.compile(r"^[a-z][a-z0-9_]*$")
+POLICY_REPOSITORY_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
+
+
+class CutoverPolicyError(ValueError):
+    """An explicitly requested external cutover policy could not be trusted."""
 # Markdown link targets: `[text](path)`, excluding external URLs and in-page anchors.
 README_LINK_RE = re.compile(r"\[[^\]]*\]\((?!https?://|mailto:|#)([^)#\s]+)\)")
 # Repository-relative paths referenced from CI workflow YAML (script/test/config
@@ -74,23 +87,85 @@ CONTEXTUAL_CI_REFERENCES = {
 }
 
 
-def public_files(root: Path) -> list[Path]:
+def public_files(root: Path, *, extra_excluded: frozenset[str] = frozenset()) -> list[Path]:
     """Return the single deterministic product candidate set.
 
     Do not add an audit-only walk: this set is the sole input for both audit
-    and archive construction.
+    and archive construction. `extra_excluded` carries a supplied external
+    cutover-policy file's own repository-relative path (when it happens to
+    live inside `root`) so that private deny data is never itself packaged.
     """
     return sorted(
         path for path in root.rglob("*")
-        if path.is_file() and not _excluded(path.relative_to(root))
+        if path.is_file() and not _excluded(path.relative_to(root), extra_excluded)
     )
 
 
-def _excluded(relative: Path) -> bool:
+def _excluded(relative: Path, extra_excluded: frozenset[str] = frozenset()) -> bool:
     value = relative.as_posix()
+    excluded_paths = EXCLUDED_PATHS | extra_excluded
     return bool(set(relative.parts) & EXCLUDED_PARTS) or any(
-        value == excluded or value.startswith(f"{excluded}/") for excluded in EXCLUDED_PATHS
+        value == excluded or value.startswith(f"{excluded}/") for excluded in excluded_paths
     )
+
+
+def load_cutover_policy(path: Path) -> dict[str, object]:
+    """Load and validate an external one-shot cutover policy file.
+
+    Fails closed (raises `CutoverPolicyError`) on anything unreadable,
+    malformed, or ambiguous -- see the accepted requirement "External cutover
+    policy is explicit and fail-closed". Returns compiled markers plus
+    non-sensitive provenance; never returns anything that copies the raw
+    policy content back into a generated artifact.
+    """
+    try:
+        raw = path.read_bytes()
+    except OSError as exc:
+        raise CutoverPolicyError(f"cutover policy is unreadable: {path}") from exc
+    try:
+        data = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise CutoverPolicyError(f"cutover policy is not valid JSON: {path}") from exc
+    if not isinstance(data, dict) or data.get("version") != CUTOVER_POLICY_VERSION:
+        raise CutoverPolicyError(f"cutover policy must be a JSON object with version={CUTOVER_POLICY_VERSION}: {path}")
+    prohibited_repositories = data.get("prohibited_repositories", {})
+    compatibility_markers = data.get("compatibility_markers", {})
+    if not isinstance(prohibited_repositories, dict) or not isinstance(compatibility_markers, dict):
+        raise CutoverPolicyError(
+            f"cutover policy prohibited_repositories/compatibility_markers must be label-keyed objects: {path}"
+        )
+    for label, value in prohibited_repositories.items():
+        if not POLICY_LABEL_RE.match(label) or not isinstance(value, str) or not POLICY_REPOSITORY_RE.match(value):
+            raise CutoverPolicyError(f"cutover policy prohibited_repositories entry '{label}' is invalid")
+    compiled_markers: dict[str, re.Pattern[str]] = {}
+    for label, pattern in compatibility_markers.items():
+        if not POLICY_LABEL_RE.match(label) or not isinstance(pattern, str) or not pattern:
+            raise CutoverPolicyError(f"cutover policy compatibility_markers entry '{label}' is invalid")
+        try:
+            compiled_markers[label] = re.compile(pattern)
+        except re.error as exc:
+            raise CutoverPolicyError(f"cutover policy compatibility_markers entry '{label}' is not a valid pattern: {exc}") from None
+    return {
+        "prohibited_repositories": dict(prohibited_repositories),
+        "compatibility_markers": compiled_markers,
+        "provenance": {
+            "path_basename": path.name,
+            "version": CUTOVER_POLICY_VERSION,
+            "digest": hashlib.sha256(raw).hexdigest(),
+        },
+    }
+
+
+def policy_extra_excluded(root: Path, policy_path: Path | None) -> frozenset[str]:
+    """Exclude a supplied cutover-policy file's own relative path, if inside `root`."""
+    if policy_path is None:
+        return frozenset()
+    resolved = policy_path.resolve()
+    try:
+        relative = resolved.relative_to(root.resolve())
+    except ValueError:
+        return frozenset()
+    return frozenset({relative.as_posix()})
 
 
 def source_revision(root: Path) -> str | None:
@@ -134,8 +209,17 @@ def missing_required_paths(root: Path, candidates: list[Path]) -> list[str]:
     return missing
 
 
-def audit_tree(root: Path, candidates: list[Path] | None = None) -> dict[str, object]:
-    candidates = candidates if candidates is not None else public_files(root)
+def audit_tree(
+    root: Path,
+    candidates: list[Path] | None = None,
+    *,
+    cutover_policy_path: Path | None = None,
+) -> dict[str, object]:
+    policy = load_cutover_policy(cutover_policy_path) if cutover_policy_path is not None else None
+    if candidates is None:
+        candidates = public_files(root, extra_excluded=policy_extra_excluded(root, cutover_policy_path))
+    prohibited_repositories: dict[str, str] = policy["prohibited_repositories"] if policy else {}
+    compatibility_markers: dict[str, re.Pattern[str]] = policy["compatibility_markers"] if policy else {}
     findings: dict[str, list[str]] = {
         "operator_state": [],
         "secrets": [],
@@ -160,18 +244,30 @@ def audit_tree(root: Path, candidates: list[Path] | None = None) -> dict[str, ob
         for name, pattern in SECRET_PATTERNS.items():
             if pattern.search(text):
                 findings["secrets"].append(f"possible {name} credential in current tree: {rel}")
-        for name, pattern in COMPATIBILITY_MARKERS.items():
+        # Diagnostics below name only the finding's label/path, never the raw
+        # deny value from the external policy -- see design.md decision 5.
+        for label, repository in prohibited_repositories.items():
+            if repository in text:
+                findings["operator_state"].append(
+                    f"prohibited repository reference from cutover policy ({label}): {rel}"
+                )
+        for label, pattern in compatibility_markers.items():
             if pattern.search(text):
-                findings["compatibility_markers"].append(f"possible {name} compatibility marker: {rel}")
+                findings["compatibility_markers"].append(
+                    f"possible {label} compatibility marker (external cutover policy): {rel}"
+                )
+    receipt_policy: dict[str, object] = {
+        "canonical_product_repositories": sorted(CANONICAL_PRODUCT_REPOSITORIES),
+        "excluded": sorted(EXCLUDED_PARTS | EXCLUDED_PATHS),
+    }
+    if policy is not None:
+        receipt_policy["cutover_policy"] = policy["provenance"]
     return {
         "candidate_files": [path.relative_to(root).as_posix() for path in candidates],
         "candidate_sha256": candidate_digest(root, candidates),
         "source_revision": source_revision(root),
         "findings": findings,
-        "policy": {
-            "canonical_product_repositories": sorted(CANONICAL_PRODUCT_REPOSITORIES),
-            "excluded": sorted(EXCLUDED_PARTS | EXCLUDED_PATHS),
-        },
+        "policy": receipt_policy,
     }
 
 
@@ -189,9 +285,9 @@ def has_findings(receipt: dict[str, object]) -> bool:
     return any(findings.values())
 
 
-def snapshot(root: Path, output: Path) -> dict[str, object]:
-    candidates = public_files(root)
-    receipt = audit_tree(root, candidates)
+def snapshot(root: Path, output: Path, *, cutover_policy_path: Path | None = None) -> dict[str, object]:
+    candidates = public_files(root, extra_excluded=policy_extra_excluded(root, cutover_policy_path))
+    receipt = audit_tree(root, candidates, cutover_policy_path=cutover_policy_path)
     if has_findings(receipt):
         raise ValueError(json.dumps(receipt, sort_keys=True))
     with tarfile.open(output, "w") as archive:
@@ -270,10 +366,24 @@ def main() -> int:
     parser.add_argument("--root", type=Path, default=ROOT)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--max-objects", type=int, default=100_000)
+    parser.add_argument(
+        "--cutover-policy",
+        type=Path,
+        default=None,
+        help=(
+            "Path to an explicit external one-shot cutover policy JSON file "
+            "(prohibited_repositories/compatibility_markers). Applies to "
+            "audit/snapshot only; missing/malformed input fails closed."
+        ),
+    )
     args = parser.parse_args()
     root = args.root.resolve()
     if args.command == "audit":
-        receipt = audit_tree(root)
+        try:
+            receipt = audit_tree(root, cutover_policy_path=args.cutover_policy)
+        except CutoverPolicyError as exc:
+            print(json.dumps({"error": str(exc)}, sort_keys=True))
+            return 2
         print(json.dumps(receipt, sort_keys=True))
         return 2 if has_findings(receipt) else 0
     if args.command == "history-audit":
@@ -287,7 +397,7 @@ def main() -> int:
     if args.output is None:
         parser.error("snapshot requires --output")
     try:
-        result = snapshot(root, args.output.resolve())
+        result = snapshot(root, args.output.resolve(), cutover_policy_path=args.cutover_policy)
     except ValueError as exc:
         print(exc)
         return 2

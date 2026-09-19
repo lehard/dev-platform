@@ -175,7 +175,7 @@ class InstructionArchitectureTests(unittest.TestCase):
                 (bundle / relative).write_text(content, encoding="utf-8")
             issue = {"updated_at": "2026-09-01T00:00:00Z", "title": "[R2] Fixture managed authoring", "body": "Fixture authoring evidence."}
             with (
-                patch.object(managed_task, "authoring_config", return_value=managed_task.AuthoringConfig("lehard/development-backlog", "project:dev-platform", "P2")),
+                patch.object(managed_task, "authoring_config", return_value=managed_task.AuthoringConfig("example-org/development-backlog", "project:dev-platform", "P2")),
                 patch.object(managed_task, "origin_repository", return_value=expected.target_repository),
                 patch.object(managed_task, "target_main", return_value=expected.prepared_against),
                 patch.object(managed_task, "validate_backlog_labels"),
