@@ -1,0 +1,26 @@
+[capability]
+id = "add-intents"
+name = "ADD -> Intents pipeline"
+description = "Translate a material business requirement into OpenSpec authoring through a bounded Architecture Design Delta and atomic-intent decomposition pass."
+kind = "tool-backed"
+applicability = "A business requirement that implies new/changed capabilities, boundaries, contracts, data ownership, invariants, security/trust concerns, or material non-functional behavior; not a clear bounded change with no useful design delta."
+invocation = "auto+explicit"
+visibility = "project"
+owner = "dev-platform"
+safety_boundary = "Reads/writes only the local JSON ADD/intent-set files it is pointed at and reads local Git history for prepared_against/freshness; never calls a provider API, opens a network connection, mutates openspec/changes/, Backlog, or Project state, or introduces a second backlog/registry/status ledger."
+dependencies = ["scripts/capability_manager.py"]
+materialization = "provider-skill-markdown"
+tool_adapter = "scripts/add_intents.py"
+update_policy = "replace-derived"
+removal_policy = "remove-derived-only"
+
+[provenance]
+source = "dev-platform"
+revision = "platform-managed"
+path = "dev-platform/capabilities/add-intents.md"
+license = "Apache-2.0"
+content_sha256 = "6afe8a52d13956ab48fb9381d4148b7dece222bec7c9f79076500aa4028654f7"
+
+[eval]
+evidence = "dev-platform/evals/add-intents-pilot.json"
+live_eval = "deterministic-fixture"
