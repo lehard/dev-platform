@@ -1,0 +1,26 @@
+[capability]
+id = "project-evidence-snapshots"
+name = "Project Evidence Snapshots"
+description = "Reuse bounded, source-identity-validated semantic project evidence before rediscovery work."
+kind = "tool-backed"
+applicability = "Staged authoring or analysis that would otherwise rediscover the same bounded project facts; not a universal repository scan, canonical context authoring, or a replacement for OpenSpec review."
+invocation = "auto+explicit"
+visibility = "project"
+owner = "dev-platform"
+safety_boundary = "Reads bounded repository evidence and writes only the caller-named machine-local snapshot/result files; never calls a provider, creates a scheduler, mutates canonical sources, opens Backlog/Project state, or promotes a semantic result into authoritative context."
+dependencies = ["scripts/project_evidence.py"]
+materialization = "provider-skill-markdown"
+tool_adapter = "scripts/project_evidence.py"
+update_policy = "replace-derived"
+removal_policy = "remove-derived-only"
+
+[provenance]
+source = "dev-platform"
+revision = "platform-managed"
+path = "dev-platform/capabilities/project-evidence-snapshots.md"
+license = "Apache-2.0"
+content_sha256 = "ef4f16fd870d7a0d31a519ac70233806cad51257ebf590d5ddc18c3f9038b578"
+
+[eval]
+evidence = "tests/test_project_evidence.py"
+live_eval = "deterministic-unit"

@@ -89,6 +89,8 @@ class TemplateContractTests(unittest.TestCase):
             "dev-platform/capabilities/add-intents.toml",
             "dev-platform/capabilities/add-intents.md",
             "dev-platform/evals/add-intents-pilot.json",
+            "dev-platform/capabilities/project-evidence-snapshots.toml",
+            "dev-platform/capabilities/project-evidence-snapshots.md",
             "dev-platform/capabilities/selective-domain-interrogation.toml",
             "dev-platform/capabilities/selective-domain-interrogation.md",
             "dev-platform/evals/selective-domain-interrogation-pilot.json",

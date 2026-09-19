@@ -1,0 +1,31 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "specs/project-context/spec.md",
+    "specs/model-routing/spec.md",
+    "specs/agent-workflow/spec.md",
+    "design.md",
+    "tasks.md"
+  ],
+  "change": "add-project-evidence-snapshots",
+  "imported_at": "2026-09-19T14:43:41+00:00",
+  "package_revision": "2afd0eb3f9d3c2d59c1d6be716dffbd20cce3dcd92354ffc688b069460e5fb3b",
+  "prepared_against": "30fcd7e369941f6523074317f081058609c168e6",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue": "lehard/development-backlog#127",
+  "source_issue_evidence": {
+    "body_sha256": "515f177d62b2a4e9c8ca005cac3672101117d6dbc8529766dc0d827c219498be",
+    "updated_at": "2026-09-19T13:13:47Z"
+  },
+  "supersedes": "1f930b3e9edd47361143b92dc0e44aef76f085da0b461fc2dd3c43c83c61cfe1",
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

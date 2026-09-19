@@ -138,6 +138,7 @@ mode = "parallel"
 targets = [
   "test_agent_instruction_architecture",
   "test_project_context",
+  "test_project_evidence",
   "test_platform_doctor_workflow_mode",
   "test_pr_reconciliation_concurrency",
   "test_project_harness_doc_ownership",
