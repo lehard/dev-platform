@@ -11,14 +11,14 @@ from pathlib import Path
 import jinja2
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "template" / "scripts"))
+import platform_bootstrap  # noqa: E402
 
 
 class ProjectContextTests(unittest.TestCase):
     def test_fresh_template_has_one_bounded_context_map_not_empty_topic_ceremony(self) -> None:
-        context = ROOT / "template" / "docs" / "context"
-        index = context / "README.md"
-        self.assertTrue(index.is_file())
-        self.assertLessEqual(len(index.read_text(encoding="utf-8").splitlines()), 60)
+        index = platform_bootstrap.PROJECT_CONTEXT_MAP
+        self.assertLessEqual(len(index.splitlines()), 60)
         for marker in (
             "product.md",
             "domain.md",
@@ -29,14 +29,12 @@ class ProjectContextTests(unittest.TestCase):
             "not mandatory empty",
         ):
             with self.subTest(marker=marker):
-                self.assertIn(marker, index.read_text(encoding="utf-8"))
-        for optional_topic in ("product.md", "domain.md", "architecture.md", "anti-patterns.md", "examples.md"):
-            with self.subTest(optional_topic=optional_topic):
-                self.assertFalse((context / optional_topic).exists())
+                self.assertIn(marker, index)
+        self.assertFalse((ROOT / "template" / "docs" / "context" / "README.md").exists())
 
     def test_root_pointer_is_reached_concern_only_and_adapters_remain_thin(self) -> None:
         agents = (ROOT / "template" / "AGENTS.md.jinja").read_text(encoding="utf-8")
-        context = (ROOT / "template" / "docs" / "context" / "README.md").read_text(encoding="utf-8")
+        context = platform_bootstrap.PROJECT_CONTEXT_MAP
         claude = (ROOT / "template" / "CLAUDE.md.jinja").read_text(encoding="utf-8")
 
         self.assertIn(
@@ -52,7 +50,7 @@ class ProjectContextTests(unittest.TestCase):
         self.assertTrue((ROOT / "docs" / "context" / "README.md").is_file())
 
     def test_bootstrap_is_evidence_first_and_preserves_uncertainty(self) -> None:
-        context = (ROOT / "template" / "docs" / "context" / "README.md").read_text(encoding="utf-8")
+        context = platform_bootstrap.PROJECT_CONTEXT_MAP
         for marker in (
             "Preserve any non-empty reviewed context",
             "README, project rules, OpenSpec",
@@ -106,10 +104,19 @@ class ProjectContextTests(unittest.TestCase):
         self.assertIn("design, load focused architecture context", workflow)
         self.assertIn("For tasks and implementation", workflow)
 
-    def test_context_is_preserved_by_copier_and_guarded_rollout(self) -> None:
+    def test_bootstrap_creates_context_once_and_guarded_rollout_preserves_it(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            platform_bootstrap.ensure_project_context_map(project)
+            context_map = project / "docs" / "context" / "README.md"
+            self.assertEqual(context_map.read_text(encoding="utf-8"), platform_bootstrap.PROJECT_CONTEXT_MAP)
+            context_map.write_text("# Reviewed context\\n", encoding="utf-8")
+            platform_bootstrap.ensure_project_context_map(project)
+            self.assertEqual(context_map.read_text(encoding="utf-8"), "# Reviewed context\\n")
+
         copier = (ROOT / "copier.yml").read_text(encoding="utf-8")
         rollout = (ROOT / "scripts" / "rollout_project.py").read_text(encoding="utf-8")
-        self.assertIn("  - docs/context/README.md", copier)
+        self.assertNotIn("docs/context", copier)
         self.assertIn('"docs/context",', rollout)
         self.assertIn('return ("dir", digest.hexdigest())', rollout)
 
