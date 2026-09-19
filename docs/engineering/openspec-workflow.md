@@ -37,6 +37,10 @@ In `design.md`, record concrete risks and mitigations when the work materially a
 
 Keep this context in the existing proposal, specs, design, and tasks artifacts. Do not create a mandatory `intent.md`, Must/Should/Could layer, or manual status/date/expiry/artifact ledger; lifecycle state and receipts already have authoritative sources.
 
+## Project-context routing
+
+Use [the project context map](../context/README.md) only when an artifact reaches project/domain knowledge that repository process and OpenSpec do not already own. For a proposal, load the relevant product or domain context when scope depends on goals, users, scenarios, terminology, or product invariants. For a design, load focused architecture context and its linked canonical decision when an invariant or prior decision matters. For tasks and implementation, load a recorded anti-pattern or representative example when the scoped work intersects it. Do not load the entire context pack or copy it into every artifact.
+
 ## Verify, archive, then publish
 
 Before archiving a non-trivial platform change, run relevant tests plus semantic OpenSpec verification. Prefer `/opsx:verify` when the installed tool integration exposes it. If the current agent environment cannot invoke that workflow, perform and document the equivalent OpenSpec review across the authored outcome and success evidence, completeness, correctness, and coherence. Structural `openspec validate` is useful but is not a substitute for semantic verification or project-specific checks.

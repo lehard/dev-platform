@@ -80,6 +80,7 @@ python3 template/scripts/openspec_lifecycle.py check
 | OpenSpec contract model, semantic verification, receipts, archive, dependency policy | [docs/engineering/openspec-workflow.md](docs/engineering/openspec-workflow.md) |
 | Optional engineering capability lifecycle and the browser verification adapter | [docs/engineering/engineering-capabilities.md](docs/engineering/engineering-capabilities.md), [docs/engineering/browser-verification.md](docs/engineering/browser-verification.md) |
 | Provider-local executor selection, escalation, delegated write containment | [docs/engineering/model-routing.md](docs/engineering/model-routing.md) |
+| Product/domain semantics, architecture invariants, anti-patterns or representative examples | [docs/context/README.md](docs/context/README.md) when that concern is reached |
 | Release identity, downstream CI ownership, rollout registry, upgrade safety | [docs/release-policy.md](docs/release-policy.md) |
 | Rollout registry ownership, GitHub App credentials, recovery | [docs/managed-rollout.md](docs/managed-rollout.md) |
 | Platform-owned versus project-owned boundaries | [docs/ownership.md](docs/ownership.md) |
@@ -87,6 +88,8 @@ python3 template/scripts/openspec_lifecycle.py check
 ## Ownership
 
 Promote a rule/tool only when it is reusable across projects or a defined workflow profile. Keep application-domain rules, credentials, machine-local paths and one-off workarounds in the owning project, and keep subtree-specific rules in a module-level `AGENTS.md` next to the code they govern.
+
+`docs/context/` is a project-owned, selectively loaded context surface; it does not make every context document always-on guidance.
 
 A change to a downstream managed file must consider both new-project rendering and Copier update behavior for existing projects. The shared lifecycle is composable: `light`, `standard`, and `multi-agent` profiles select capabilities rather than forking the template.
 

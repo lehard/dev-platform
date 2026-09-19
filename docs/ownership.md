@@ -28,7 +28,7 @@ Each project owns its product and implementation reality:
 - deployment/runbook details;
 - secrets and machine-local access data.
 
-Project-owned rules belong in `docs/engineering/project-rules.md`, module-level `AGENTS.md`, OpenSpec artifacts, and project-specific docs/configuration.
+Project-owned rules belong in `docs/engineering/project-rules.md`, module-level `AGENTS.md`, OpenSpec artifacts, and project-specific docs/configuration. Stable product/domain context belongs in `docs/context/`, whose README is a selective map rather than an always-on prompt or a competing source of engineering rules.
 
 ## Operator-owned
 

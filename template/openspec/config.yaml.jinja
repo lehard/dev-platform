@@ -4,6 +4,7 @@ context: |
   {{ project_name }}: {{ project_description }}
   Repository process and safety constraints live in AGENTS.md and applicable module-level AGENTS.md files.
   Project-specific engineering rules live in docs/engineering/project-rules.md.
+  Reviewed project/domain context is mapped by docs/context/README.md. Load only the relevant product, domain, architecture, anti-pattern, or example context when the artifact reaches that concern; do not ingest the whole context pack by default.
   OpenSpec is the planning contract for non-trivial product and architecture work.
   openspec/specs describes accepted current behavior; an active openspec/changes delta describes the approved change to that behavior.
   Reuse existing domain models, source-of-truth ownership, integrations and repository conventions unless a change explicitly replaces them.
@@ -16,15 +17,18 @@ rules:
     - State relevant constraints and explicit non-goals that bound the accepted iteration.
     - For a change to existing behavior, workflow, UX, contract, or architecture whose transition is not otherwise clear, include a concise current-to-target description.
     - Identify affected existing domains, integrations, contracts and source-of-truth ownership.
+    - When scope depends on project goals, users, key scenarios, domain meaning, or product invariants, consult the relevant project-context destination before finalizing scope.
     - Prefer evolving the existing system over creating parallel canonical sources.
   design:
     - When a change materially affects data or migrations, security/privacy, CI or release lifecycle, external integrations, backwards compatibility, cross-project rollout, or a comparable high-consequence boundary, record concrete risks and mitigations. Do not add generic risk boilerplate for low-risk work.
     - Document migration/backfill, compatibility, audit/history, rollback/cutover and performance implications when relevant.
     - Resolve shared contracts before declaring workstreams safe to run in parallel.
+    - When design changes or relies on a project architecture invariant or prior decision, consult the bounded architecture context and its linked canonical decision source.
   tasks:
     - Express dependencies and mark only genuinely independent work as parallelizable.
     - Define logical commit boundaries for non-trivial work.
     - Include targeted tests, regression checks and end-to-end acceptance scenarios.
+    - When implementation intersects a recorded anti-pattern or representative example, route to that focused context rather than copying unrelated project context into the task.
 
 operations:
   apply:

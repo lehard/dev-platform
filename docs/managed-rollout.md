@@ -50,6 +50,7 @@ The following files are **project-owned after initial creation** and are preserv
 - `dev-platform/checks.toml` — project-specific check selection and acceptance commands;
 - `openspec/config.yaml` — project/domain context and OpenSpec guidance;
 - `docs/engineering/project-rules.md` — project-specific engineering invariants.
+- `docs/context/` — reviewed project/domain context.
 
 Shared executable lifecycle scripts, self-contained CI and shared workflow documentation remain platform-managed. For mature `harness_mode=project` repositories, project-specific Git/task harness collision points listed in `copier.yml` are also preserved during guarded recopy. If a project needs an extra file to be required by platform doctor, declare it in `.dev-platform.toml` as `project_required_files = ["..."]` instead of editing `scripts/platform_doctor.py`.
 

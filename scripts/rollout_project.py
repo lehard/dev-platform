@@ -34,6 +34,7 @@ ALWAYS_PROJECT_OWNED_ROLLOUT_PATHS = {
     "dev-platform/checks.toml",
     "openspec/config.yaml",
     "docs/engineering/project-rules.md",
+    "docs/context",
 }
 
 # These are names only: rollout never creates, reads, stages, or commits the
@@ -853,7 +854,16 @@ def path_fingerprint(path: Path) -> tuple[str, str]:
     if path.is_file():
         return ("file", hashlib.sha256(path.read_bytes()).hexdigest())
     if path.is_dir():
-        return ("dir", "present")
+        digest = hashlib.sha256()
+        for entry in sorted(path.rglob("*"), key=lambda candidate: candidate.as_posix()):
+            relative = entry.relative_to(path).as_posix().encode("utf-8")
+            if entry.is_symlink():
+                digest.update(b"symlink\0" + relative + b"\0" + os.readlink(entry).encode("utf-8") + b"\0")
+            elif entry.is_file():
+                digest.update(b"file\0" + relative + b"\0" + entry.read_bytes() + b"\0")
+            elif entry.is_dir():
+                digest.update(b"dir\0" + relative + b"\0")
+        return ("dir", digest.hexdigest())
     return ("missing", "")
 
 

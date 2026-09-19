@@ -20,6 +20,19 @@ Keep the root map bounded. Adding a new durable concern means adding one
 discoverable pointer and targeted evidence, not copying its workflow into every
 runtime adapter.
 
+## Project context
+
+`docs/context/README.md` is the project-owned map for stable product and domain
+knowledge. It routes only reached concerns -- product semantics, domain terms,
+architecture invariants, known anti-patterns, and representative examples -- to
+their focused context. It is not an always-on prompt or a second owner for
+engineering rules, checks, OpenSpec behavior, module rules, or detailed
+runbooks.
+
+Fresh projects receive the map, not empty topic files. Bootstrap it from
+repository evidence first; preserve reviewed context on updates and leave
+unresolved facts explicitly unknown until a human confirms them.
+
 ## Surface ownership
 
 | Surface | Owns | Must not own |

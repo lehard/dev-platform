@@ -99,12 +99,13 @@ python3 scripts/finish_task.py --status
 | Provider-local executor selection, escalation, delegated write containment | [docs/engineering/model-routing.md](docs/engineering/model-routing.md) |
 | Optional engineering capability lifecycle and the browser verification adapter | [docs/engineering/engineering-capabilities.md](docs/engineering/engineering-capabilities.md), [docs/engineering/browser-verification.md](docs/engineering/browser-verification.md) |
 | Project-specific engineering, stack and domain rules | [docs/engineering/project-rules.md](docs/engineering/project-rules.md) |
+| Product/domain semantics, architecture invariants, anti-patterns or representative examples | [docs/context/README.md](docs/context/README.md) when that concern is reached |
 
 Platform-managed scripts, docs and the self-contained CI workflow are versioned in this repository by Copier; upgrades arrive only through reviewed Copier update PRs.
 
 ## Ownership
 
-Platform-owned files carry the shared lifecycle and are updated by Copier. Project-owned files carry this repository's domain, stack and operational rules. Keep subtree-specific rules in a module-level `AGENTS.md` next to the code they govern, and keep project-domain rules in project-owned docs rather than promoting them into this map.
+Platform-owned files carry the shared lifecycle and are updated by Copier. Project-owned files carry this repository's domain, stack and operational rules. Keep subtree-specific rules in a module-level `AGENTS.md` next to the code they govern, and keep project-domain rules in project-owned docs rather than promoting them into this map. `docs/context/` is a project-owned, selectively loaded context surface.
 
 OpenSpec-generated Claude/Codex skills are produced by the OpenSpec CLI; do not hand-edit them or treat them as platform-owned source.
 
