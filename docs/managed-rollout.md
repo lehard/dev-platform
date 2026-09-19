@@ -100,6 +100,30 @@ That is the human-facing process. The workflow auto-detects the repository:
 
 The detector and exact behavior are documented in `docs/adoption.md`.
 
+## Legacy publication-harness continuity
+
+`scripts/rollout_project.py` ships a generic exact-head publication-safety
+migration engine (`migrate_project_publication_safety`) for `harness_mode=project`
+repositories whose committed publication harness predates the platform's
+exact-head merge-safety contract. The public candidate contains no
+company-specific data: it defaults to two synthetic example repository
+identities (`example-org/legacy-merge-harness`, `example-org/legacy-publish-harness`)
+and no expected fingerprints, so it matches nothing and every other managed
+repository rolls out unaffected.
+
+A real downstream repository still mid-migration off such a harness is
+operator continuity data, not product behavior: the exact repository identity
+and the reviewed SHA-256 fingerprint of its exact historical harness/test
+bytes belong only in the external operator TOML, never in public source. Set
+them under `[rollout.legacy_harness_migrations]` (see
+`docs/operator-config.example.toml`); `main()` loads them once via
+`apply_operator_legacy_harness_continuity()` before rollout runs. Without that
+configuration `migrate_project_publication_safety` never activates, and a
+`harness_mode=project` repository whose harness genuinely needs the migration
+fails rollout closed with an actionable "publication-safety compatibility
+blocker" diagnostic instead of silently shipping an unsafe merge path -- the
+same fail-closed behavior as any other unrecognized harness shape.
+
 ## Automatic release rollout
 
 `publish-version.yml` publishes the immutable release and then dispatches `.github/workflows/rollout.yml` with that exact tag.

@@ -26,10 +26,11 @@ MANAGED_START_IMPORT_GRAPH = (
     "start_task.py",
 )
 
-# A Jara-shaped project-owned publication harness: it neither defines the
-# platform `PrRef` type nor `request_protected_merge`. This is exactly the
-# surface that broke managed intake for Jara_Fin Backlog #93.
-JARA_PROJECT_PUBLISH = '''\
+# A legacy-shaped project-owned publication harness: it neither defines the
+# platform `PrRef` type nor `request_protected_merge`. This is the generic
+# shape of a real incident where a mature downstream harness broke managed
+# intake because it predated the platform publication API.
+LEGACY_PROJECT_PUBLISH = '''\
 """Project-owned publication harness preserved by Copier for harness_mode=project."""
 
 
@@ -37,7 +38,7 @@ def publish(*_args, **_kwargs):
     raise SystemExit("project-owned publication entrypoint")
 '''
 
-JARA_FINISH_TASK = '''\
+LEGACY_FINISH_TASK = '''\
 """Project-owned finish harness without the platform sync helper."""
 
 
@@ -52,12 +53,12 @@ class ManagedIntakeProjectHarnessIsolationTests(unittest.TestCase):
         scripts.mkdir()
         for name in MANAGED_START_IMPORT_GRAPH:
             (scripts / name).write_text((SCRIPTS / name).read_text(encoding="utf-8"), encoding="utf-8")
-        (scripts / "project_publish.py").write_text(JARA_PROJECT_PUBLISH, encoding="utf-8")
-        (scripts / "finish_task.py").write_text(JARA_FINISH_TASK, encoding="utf-8")
+        (scripts / "project_publish.py").write_text(LEGACY_PROJECT_PUBLISH, encoding="utf-8")
+        (scripts / "finish_task.py").write_text(LEGACY_FINISH_TASK, encoding="utf-8")
         return scripts
 
     def test_standard_start_import_graph_loads_without_platform_publication_api(self) -> None:
-        """`import start_task` must succeed against a Jara-shaped project harness."""
+        """`import start_task` must succeed against a legacy-shaped project harness."""
         with tempfile.TemporaryDirectory(prefix="managed-intake-project-harness-") as tmp:
             scripts = self._project_scripts(Path(tmp))
             probe = (

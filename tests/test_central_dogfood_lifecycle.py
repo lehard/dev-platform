@@ -297,6 +297,13 @@ class CentralDogfoodLifecycleTests(unittest.TestCase):
     def test_source_contract_is_explicit_and_adapter_paths_are_present(self) -> None:
         import tomllib
 
+        if not (ROOT / ".dev-platform.toml").is_file():
+            # This checkout's own `.dev-platform.toml` is deliberately not part
+            # of the public product candidate (see scripts/public_distribution.py
+            # EXCLUDED_PATHS): a fresh public snapshot has no central operator
+            # config until cutover generates one, so this central-checkout-
+            # specific assertion does not apply there.
+            self.skipTest("central .dev-platform.toml is not present in this checkout")
         with (ROOT / ".dev-platform.toml").open("rb") as handle:
             config = tomllib.load(handle)
         self.assertEqual(config["workflow_profile"], "multi-agent")

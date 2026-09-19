@@ -16,7 +16,7 @@ class StreakStateTests(unittest.TestCase):
     def test_first_failure_opens_streak_at_one_without_alert(self) -> None:
         state, alert, unreadable = rfs.next_state_on_failure(
             None,
-            repository="lehard/cuby",
+            repository="example-org/example-project",
             version="v1.4.13",
             category="copier_conflict",
             reason="Copier left unresolved .rej files: scripts/project_publish.py.rej",
@@ -32,7 +32,7 @@ class StreakStateTests(unittest.TestCase):
     def test_repeated_failure_increments_and_preserves_first_release(self) -> None:
         first, _, _ = rfs.next_state_on_failure(
             None,
-            repository="lehard/cuby",
+            repository="example-org/example-project",
             version="v1.4.13",
             category="copier_conflict",
             reason="rej files",
@@ -42,7 +42,7 @@ class StreakStateTests(unittest.TestCase):
         body = rfs.render_body(first)
         second, alert, unreadable = rfs.next_state_on_failure(
             body,
-            repository="lehard/cuby",
+            repository="example-org/example-project",
             version="v1.4.14",
             category="copier_conflict",
             reason="rej files still present",
@@ -62,7 +62,7 @@ class StreakStateTests(unittest.TestCase):
         for index, version in enumerate(["v1.4.13", "v1.4.14", "v1.4.15"], start=1):
             state, alert, unreadable = rfs.next_state_on_failure(
                 body,
-                repository="lehard/cuby",
+                repository="example-org/example-project",
                 version=version,
                 category="copier_conflict",
                 reason="rej files",
@@ -80,7 +80,7 @@ class StreakStateTests(unittest.TestCase):
     def test_unreadable_prior_state_escalates_instead_of_resetting(self) -> None:
         state, alert, unreadable = rfs.next_state_on_failure(
             "this issue body has no machine-readable state block",
-            repository="lehard/cuby",
+            repository="example-org/example-project",
             version="v1.4.16",
             category="unknown",
             reason="unclear",
@@ -94,7 +94,7 @@ class StreakStateTests(unittest.TestCase):
     def test_different_repository_marker_does_not_leak_into_state(self) -> None:
         other_project, _, _ = rfs.next_state_on_failure(
             None,
-            repository="lehard/other-project",
+            repository="example-org/other-project",
             version="v1.4.13",
             category="copier_conflict",
             reason="rej files",
@@ -106,7 +106,7 @@ class StreakStateTests(unittest.TestCase):
         # mistaken for this repository's own prior streak.
         state, alert, unreadable = rfs.next_state_on_failure(
             other_body,
-            repository="lehard/cuby",
+            repository="example-org/example-project",
             version="v1.4.13",
             category="copier_conflict",
             reason="rej files",
@@ -122,7 +122,7 @@ class ParseAndRenderTests(unittest.TestCase):
     def test_parse_state_round_trips_through_render_body(self) -> None:
         state = {
             "schema_version": 1,
-            "repository": "lehard/cuby",
+            "repository": "example-org/example-project",
             "consecutive_failures": 4,
             "first_failed_release": "v1.4.13",
             "last_failed_release": "v1.4.20",
@@ -144,7 +144,7 @@ class ParseAndRenderTests(unittest.TestCase):
     def test_parse_state_rejects_unknown_schema_version(self) -> None:
         body = (
             "<!-- rollout-failure-streak-state\n"
-            '{"schema_version": 99, "repository": "lehard/cuby", "consecutive_failures": 1}\n'
+            '{"schema_version": 99, "repository": "example-org/example-project", "consecutive_failures": 1}\n'
             "-->"
         )
         self.assertIsNone(rfs.parse_state(body))
@@ -180,7 +180,7 @@ class LabelBootstrapTests(unittest.TestCase):
         with patch.object(rfs, "run_gh", side_effect=fake_run_gh), \
              patch.object(rfs, "find_tracking_issue", return_value=None) as find_issue:
             args = argparse.Namespace(
-                repository="lehard/cuby", version="v1.4.21", category="unknown",
+                repository="example-org/example-project", version="v1.4.21", category="unknown",
                 reason="unsupported gh flag", last_updated="2026-08-11T00:00:00Z",
                 threshold=3, tracker_repo="lehard/dev-platform", summary_output=None,
             )
@@ -198,7 +198,7 @@ class LabelBootstrapTests(unittest.TestCase):
 
         with patch.object(rfs, "run_gh", side_effect=fake_run_gh):
             args = argparse.Namespace(
-                repository="lehard/cuby", version="v1.4.21", category="unknown",
+                repository="example-org/example-project", version="v1.4.21", category="unknown",
                 reason="unsupported gh flag", last_updated="2026-08-11T00:00:00Z",
                 threshold=3, tracker_repo="lehard/dev-platform", summary_output=None,
             )
@@ -208,7 +208,7 @@ class LabelBootstrapTests(unittest.TestCase):
     def test_record_success_also_bootstraps_tracking_label_before_lookup(self) -> None:
         with patch.object(rfs, "run_gh") as run_gh, patch.object(rfs, "find_tracking_issue", return_value=None) as find_issue:
             run_gh.return_value = rfs.subprocess.CompletedProcess(["gh"], 0, "", "")
-            args = argparse.Namespace(repository="lehard/cuby", version="v1.4.21", tracker_repo="lehard/dev-platform")
+            args = argparse.Namespace(repository="example-org/example-project", version="v1.4.21", tracker_repo="lehard/dev-platform")
             self.assertEqual(rfs.cmd_record_success(args), 0)
         run_gh.assert_called_once()
         self.assertEqual(run_gh.call_args[0][0][:3], ["label", "create", rfs.TRACKING_LABEL])

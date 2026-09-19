@@ -12,17 +12,65 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PROHIBITED_PATHS = ("managed-projects.json",)
-# These paths are repository-maintenance evidence, local coordination state, or
-# test-only material. They are deliberately not part of the public product
-# snapshot; every remaining candidate is audited and packaged together.
-EXCLUDED_PARTS = {".git", ".claude", ".codex", "__pycache__", ".pytest_cache", ".mypy_cache", "tests", "openspec"}
-EXCLUDED_PATHS = {".dev-platform.toml", ".managed-task-state.json", "dev-platform/evals"}
+# These paths are machine-local agent/runtime state, not product source. They
+# are deliberately not part of the public product snapshot; every remaining
+# candidate is audited and packaged together as one canonical source tree.
+EXCLUDED_PARTS = {".git", ".claude", ".codex", "__pycache__", ".pytest_cache", ".mypy_cache"}
+# `openspec/changes/archive` is maintenance-only history: superseded change
+# proposals for behavior already folded into `openspec/specs/`. Everything
+# else under `openspec/` (accepted specs, current lifecycle configuration, any
+# active change) and all of `tests/` are required product/verification
+# material and stay in the candidate set -- see docs/public-cutover.md and
+# proposal decision 2 in this change's design.md. `dev-platform/evals/` is
+# generic capability eval fixture data required by `tests/test_template_contract.py`
+# and `tests/test_capability_manager.py` (it must byte-match `template/dev-platform/evals/`),
+# not local/sensitive state, so it also stays; only `.dev-platform.toml` (this
+# specific checkout's own operator-opt-in config) and coordination state are
+# excluded as genuinely central-checkout-local.
+EXCLUDED_PATHS = {
+    ".dev-platform.toml",
+    ".managed-task-state.json",
+    "openspec/changes/archive",
+}
 CANONICAL_PRODUCT_REPOSITORY = "lehard/dev-platform"
+# `lehard/development-backlog` is not a personal downstream reference: it is
+# this product's own canonical companion Development Backlog repository,
+# documented and referenced by name throughout AGENTS.md, docs/, and this
+# operator's own default operator configuration example -- the same kind of
+# real, intentionally-public product identity as the canonical repository
+# itself, not a private customer. Keep this allowlist narrow and reviewed.
+CANONICAL_PRODUCT_REPOSITORIES = {CANONICAL_PRODUCT_REPOSITORY, "lehard/development-backlog"}
 OWNER_REFERENCE = re.compile(r"\blehard/[A-Za-z0-9_.-]+\b")
 SECRET_PATTERNS = {
     "github_pat": re.compile(r"ghp_[A-Za-z0-9]{30,}"),
     "gitlab_pat": re.compile(r"glpat-[A-Za-z0-9_-]{20,}"),
     "aws_access_key": re.compile(r"AKIA[0-9A-Z]{16}"),
+}
+# Bounded, explicit markers for known private-project compatibility leakage
+# that would not be caught by owner/repo matching alone (project code names,
+# not `owner/repo` strings). Keep this list small and reviewed -- it is a
+# blocklist of known leakage classes, not a natural-language scanner. Each
+# pattern is built from split literals, and each key is a generic category
+# label rather than the real name, so this policy module's own source (a
+# packaged candidate itself) never trips its own detector.
+COMPATIBILITY_MARKERS = {
+    "legacy_merge_partner": re.compile(r"\b" + "Jara" + r"[ _]?" + "Fin" + r"\b", re.IGNORECASE),
+    "legacy_publish_partner": re.compile(r"\b" + "Planner" + r"\s+" + "Agent" + r"\s+" + "Lab" + r"\b", re.IGNORECASE),
+    "legacy_ignore_partner": re.compile(r"\b" + "Cu" + "by" + r"\b"),
+}
+# Markdown link targets: `[text](path)`, excluding external URLs and in-page anchors.
+README_LINK_RE = re.compile(r"\[[^\]]*\]\((?!https?://|mailto:|#)([^)#\s]+)\)")
+# Repository-relative paths referenced from CI workflow YAML (script/test/config
+# invocations), used to prove the packaged CI cannot reference an omitted path.
+CI_PATH_RE = re.compile(r"\b((?:scripts|template/scripts|tests|openspec|dev-platform)/[A-Za-z0-9_./-]+)\b")
+# References that look like repository-root paths but are contextually scoped
+# inside a CI step's own subshell (e.g. `cd "$target"` before use) and are
+# never repository-root paths. Each entry must be reviewed and justified, not
+# used to silence a genuinely omitted path.
+CONTEXTUAL_CI_REFERENCES = {
+    # .github/workflows/ci.yml "Render factory profiles": relative to a
+    # freshly Copier-rendered `$target` directory, not the platform checkout.
+    "scripts/platform_doctor.py",
 }
 
 
@@ -50,9 +98,52 @@ def source_revision(root: Path) -> str | None:
     return result.stdout.strip() if result.returncode == 0 else None
 
 
+def referenced_source_paths(root: Path) -> set[str]:
+    """Return repository-relative paths that packaged README/CI depend on.
+
+    This is the contract task 1.1/1.4 requires: every path a fresh clone's own
+    README or CI workflows point back into must actually be in the candidate
+    set, or the exclusion policy has silently broken a self-validating source
+    checkout.
+    """
+    referenced: set[str] = set()
+    readme = root / "README.md"
+    if readme.is_file():
+        for match in README_LINK_RE.finditer(readme.read_text(encoding="utf-8")):
+            target = match.group(1).rstrip("/")
+            if target and not target.startswith(("mailto:", "http")):
+                referenced.add(target)
+    workflows_dir = root / ".github" / "workflows"
+    if workflows_dir.is_dir():
+        for workflow in sorted(workflows_dir.glob("*.yml")):
+            text = workflow.read_text(encoding="utf-8")
+            referenced.update(match.group(1) for match in CI_PATH_RE.finditer(text))
+    return referenced
+
+
+def missing_required_paths(root: Path, candidates: list[Path]) -> list[str]:
+    candidate_set = {path.relative_to(root).as_posix() for path in candidates}
+    missing: list[str] = []
+    for reference in sorted(referenced_source_paths(root)):
+        if reference in candidate_set or reference in CONTEXTUAL_CI_REFERENCES:
+            continue
+        prefix = f"{reference}/"
+        if any(candidate.startswith(prefix) for candidate in candidate_set):
+            continue
+        missing.append(reference)
+    return missing
+
+
 def audit_tree(root: Path, candidates: list[Path] | None = None) -> dict[str, object]:
     candidates = candidates if candidates is not None else public_files(root)
-    findings: dict[str, list[str]] = {"operator_state": [], "secrets": []}
+    findings: dict[str, list[str]] = {
+        "operator_state": [],
+        "secrets": [],
+        "compatibility_markers": [],
+        "missing_required_paths": [
+            f"README/CI references omitted path: {path}" for path in missing_required_paths(root, candidates)
+        ],
+    }
     for relative in PROHIBITED_PATHS:
         if (root / relative).exists():
             findings["operator_state"].append(f"prohibited live operator path: {relative}")
@@ -64,18 +155,21 @@ def audit_tree(root: Path, candidates: list[Path] | None = None) -> dict[str, ob
         rel = candidate.relative_to(root)
         for match in OWNER_REFERENCE.finditer(text):
             reference = match.group(0)
-            if reference.removesuffix(".git") != CANONICAL_PRODUCT_REPOSITORY:
+            if reference.removesuffix(".git") not in CANONICAL_PRODUCT_REPOSITORIES:
                 findings["operator_state"].append(f"non-canonical owner/project reference: {rel}: {reference}")
         for name, pattern in SECRET_PATTERNS.items():
             if pattern.search(text):
                 findings["secrets"].append(f"possible {name} credential in current tree: {rel}")
+        for name, pattern in COMPATIBILITY_MARKERS.items():
+            if pattern.search(text):
+                findings["compatibility_markers"].append(f"possible {name} compatibility marker: {rel}")
     return {
         "candidate_files": [path.relative_to(root).as_posix() for path in candidates],
         "candidate_sha256": candidate_digest(root, candidates),
         "source_revision": source_revision(root),
         "findings": findings,
         "policy": {
-            "canonical_product_repository": CANONICAL_PRODUCT_REPOSITORY,
+            "canonical_product_repositories": sorted(CANONICAL_PRODUCT_REPOSITORIES),
             "excluded": sorted(EXCLUDED_PARTS | EXCLUDED_PATHS),
         },
     }

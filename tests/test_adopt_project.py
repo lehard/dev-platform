@@ -83,7 +83,7 @@ class AdoptProjectTests(unittest.TestCase):
             self.assertEqual(plan["blockers"], [])
             self.assertEqual(plan["project_required_files"], ["scripts/merge_to_main.py", "scripts/select_checks.py"])
 
-    def test_jara_like_harness_selects_multi_agent_project_mode(self) -> None:
+    def test_legacy_like_harness_selects_multi_agent_project_mode(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             for relative in (

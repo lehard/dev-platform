@@ -39,7 +39,7 @@ ALWAYS_PROJECT_OWNED_ROLLOUT_PATHS = {
 
 # These are names only: rollout never creates, reads, stages, or commits the
 # corresponding artifacts. They exercise the effective ignore behavior that a
-# Cuby-like repository commonly needs to keep local.
+# mature downstream repository commonly needs to keep local.
 REPRESENTATIVE_IGNORE_PATHS = {
     ".env": "environment secrets",
     "config/provider-credentials.json": "provider credentials",
@@ -94,10 +94,23 @@ UNSAFE_BRANCH_PR_VIEW_RE = re.compile(
 # Reviewed live project-harness shapes.  These fingerprints deliberately make
 # compatibility opt-in by bytes, so a downstream edit cannot be overwritten by
 # an apparently similar migration.
-JARA_MERGE_TO_MAIN_SHA256 = "a201795ddc3785630e789e409e510a471a8b848699014a815f461a0a2a38d91d"
-JARA_TEST_MERGE_TO_MAIN_SHA256 = "756c1b87df8c4abb2e4539785998e07e87bd6bf8f617cb3234908db5368537a4"
-PLANNER_PROJECT_PUBLISH_SHA256 = "0bc3a4d169f41c6c8565e8f740ff92db51c7b8400a1aeaaa5bbcf5cbe1f1dfcb"
-PLANNER_FINISH_TASK_SHA256 = "7f10a5f605becb5cfa77d32dfbe2a4987b69d52d78ad777cc6ae515f7142385c"
+#
+# The expected fingerprints below are `None` by default: a fingerprint of one
+# specific downstream repository's exact historical file is continuity data
+# for that one operator's live fleet, not generic product behavior, so it is
+# never hard-coded in public source. An operator with a live downstream still
+# mid-migration off a legacy publication harness supplies the real repository
+# identity and reviewed fingerprints through external operator configuration
+# (`apply_operator_legacy_harness_continuity`, called from `main()`); see
+# docs/operator-config.example.toml `[rollout.legacy_harness_migrations]` and
+# docs/managed-rollout.md. Without that configuration the two repository
+# identities below stay at their synthetic example values, the fingerprints
+# stay `None`, and `migrate_project_publication_safety` never matches real
+# content -- rollout still proceeds for every other repository.
+LEGACY_MERGE_HARNESS_SHA256: str | None = None
+LEGACY_MERGE_HARNESS_TEST_SHA256: str | None = None
+LEGACY_PUBLISH_HARNESS_SHA256: str | None = None
+LEGACY_PUBLISH_HARNESS_FINISH_TASK_SHA256: str | None = None
 
 EXACT_HEAD_HELPER = '''# dev-platform:exact-head-publication-v1
 from __future__ import annotations
@@ -167,16 +180,16 @@ def merge_exact_pr(root, pr, expected, env, timeout=600):
     raise RuntimeError(detail)
 '''
 
-JARA_OVERRIDE = '''\n# dev-platform:exact-head-publication-v1\nfrom exact_head_safety import exact_pr, exact_state, ensure_exact_pr, check_exact_pr, merge_exact_pr\ndef publish_branch_and_pr(worktree, branch, env):\n    run_git(worktree, "push", "-u", "origin", branch)\n    title = run_git(worktree, "log", "-1", "--pretty=%s").stdout.strip() or branch\n    try: ensure_exact_pr(worktree, branch, "main", env, title, "Published by Jara_Fin protected-main agent lifecycle after local validation.")\n    except RuntimeError as exc: raise MergeError(f"Could not create exact PR for {branch!r}: {exc}") from exc\ndef wait_for_pr_checks(worktree, branch, env):\n    try:\n        pr, head = exact_pr(worktree, branch, "main", env)\n        if not pr: raise RuntimeError("exact PR is absent")\n        if pr.get("state") != "MERGED": check_exact_pr(worktree, pr, head, env)\n        elif not exact_state(worktree, pr, head, env): raise RuntimeError("merged PR no longer proves the exact head")\n    except RuntimeError as exc: raise MergeError(f"Required exact PR checks did not pass: {exc}") from exc\ndef merge_pr(worktree, branch, env):\n    try:\n        pr, head = exact_pr(worktree, branch, "main", env)\n        if not pr: raise RuntimeError("exact PR is absent")\n        merge_exact_pr(worktree, pr, head, env)\n        delete_remote_branch(worktree, branch)\n    except RuntimeError as exc: raise MergeError(f"Exact protected merge failed: {exc}") from exc\n'''
+LEGACY_MERGE_HARNESS_OVERRIDE = '''\n# dev-platform:exact-head-publication-v1\nfrom exact_head_safety import exact_pr, exact_state, ensure_exact_pr, check_exact_pr, merge_exact_pr\ndef publish_branch_and_pr(worktree, branch, env):\n    run_git(worktree, "push", "-u", "origin", branch)\n    title = run_git(worktree, "log", "-1", "--pretty=%s").stdout.strip() or branch\n    try: ensure_exact_pr(worktree, branch, "main", env, title, "Published by the reviewed legacy-merge-harness protected-main agent lifecycle after local validation.")\n    except RuntimeError as exc: raise MergeError(f"Could not create exact PR for {branch!r}: {exc}") from exc\ndef wait_for_pr_checks(worktree, branch, env):\n    try:\n        pr, head = exact_pr(worktree, branch, "main", env)\n        if not pr: raise RuntimeError("exact PR is absent")\n        if pr.get("state") != "MERGED": check_exact_pr(worktree, pr, head, env)\n        elif not exact_state(worktree, pr, head, env): raise RuntimeError("merged PR no longer proves the exact head")\n    except RuntimeError as exc: raise MergeError(f"Required exact PR checks did not pass: {exc}") from exc\ndef merge_pr(worktree, branch, env):\n    try:\n        pr, head = exact_pr(worktree, branch, "main", env)\n        if not pr: raise RuntimeError("exact PR is absent")\n        merge_exact_pr(worktree, pr, head, env)\n        delete_remote_branch(worktree, branch)\n    except RuntimeError as exc: raise MergeError(f"Exact protected merge failed: {exc}") from exc\n'''
 
-PLANNER_OVERRIDE = '''\n# dev-platform:exact-head-publication-v1\nfrom exact_head_safety import ensure_exact_pr, check_exact_pr, merge_exact_pr\ndef publish_pr(root, remote, main_branch, title, body, merge_mode):\n    env = require_gh_env(root)\n    current = push_feature_branch(root, remote, main_branch)\n    title = title or run_git(["log", "-1", "--pretty=%s"], cwd=root).stdout.strip() or current\n    body = body or "Published by Planner Agent Lab after local validation and a fresh origin/main check."\n    try: pr, head = ensure_exact_pr(root, current, main_branch, env, title, body)\n    except RuntimeError as exc: raise SystemExit(f"Could not create exact Planner PR: {exc}") from exc\n    if merge_mode == "manual":\n        print("PR published for manual review; no merge attempted.")\n        return 0\n    try:\n        check_exact_pr(root, pr, head, env)\n        merge_exact_pr(root, pr, head, env)\n    except RuntimeError as exc: raise SystemExit(f"Exact Planner merge failed: {exc}") from exc\n    return 0\n'''
-PLANNER_TERMINAL_OVERRIDE = '''\n# dev-platform:terminal-reconciliation-v1\nfrom managed_project_status import discover_source_issue\nfrom project_terminal_reconciliation import reconcile_if_exact_merged\n_legacy_main = main\ndef main():\n    root = current_worktree_root()\n    branch = current_branch(root)\n    source = discover_source_issue(root)\n    source_issue = source.reference if source is not None else None\n    try:\n        if reconcile_if_exact_merged(root, branch, source_issue):\n            print("Planner task terminal reconciliation completed without republishing.")\n            return 0\n        result = _legacy_main()\n        if reconcile_if_exact_merged(root, branch, source_issue):\n            print("Planner task terminal reconciliation completed after exact merge.")\n        return result\n    except Exception as exc:\n        raise SystemExit("Managed terminal reconciliation pending; rerun finish_task.py after restoring GitHub Project/Issue access: " + str(exc)) from exc\n'''
+LEGACY_PUBLISH_HARNESS_OVERRIDE = '''\n# dev-platform:exact-head-publication-v1\nfrom exact_head_safety import ensure_exact_pr, check_exact_pr, merge_exact_pr\ndef publish_pr(root, remote, main_branch, title, body, merge_mode):\n    env = require_gh_env(root)\n    current = push_feature_branch(root, remote, main_branch)\n    title = title or run_git(["log", "-1", "--pretty=%s"], cwd=root).stdout.strip() or current\n    body = body or "Published by the reviewed legacy-publish-harness lifecycle after local validation and a fresh origin/main check."\n    try: pr, head = ensure_exact_pr(root, current, main_branch, env, title, body)\n    except RuntimeError as exc: raise SystemExit(f"Could not create exact legacy-publish-harness PR: {exc}") from exc\n    if merge_mode == "manual":\n        print("PR published for manual review; no merge attempted.")\n        return 0\n    try:\n        check_exact_pr(root, pr, head, env)\n        merge_exact_pr(root, pr, head, env)\n    except RuntimeError as exc: raise SystemExit(f"Exact legacy-publish-harness merge failed: {exc}") from exc\n    return 0\n'''
+LEGACY_PUBLISH_HARNESS_TERMINAL_OVERRIDE = '''\n# dev-platform:terminal-reconciliation-v1\nfrom managed_project_status import discover_source_issue\nfrom project_terminal_reconciliation import reconcile_if_exact_merged\n_legacy_main = main\ndef main():\n    root = current_worktree_root()\n    branch = current_branch(root)\n    source = discover_source_issue(root)\n    source_issue = source.reference if source is not None else None\n    try:\n        if reconcile_if_exact_merged(root, branch, source_issue):\n            print("Legacy-publish-harness task terminal reconciliation completed without republishing.")\n            return 0\n        result = _legacy_main()\n        if reconcile_if_exact_merged(root, branch, source_issue):\n            print("Legacy-publish-harness task terminal reconciliation completed after exact merge.")\n        return result\n    except Exception as exc:\n        raise SystemExit("Managed terminal reconciliation pending; rerun finish_task.py after restoring GitHub Project/Issue access: " + str(exc)) from exc\n'''
 
-# These are the three strict subprocess mocks in the reviewed Jara regression
-# source.  They are deliberately complete, exact replacements rather than a
-# heuristic rewrite: removing the generated blocks must reconstruct the
+# These are the three strict subprocess mocks in the reviewed legacy-merge-harness
+# regression source.  They are deliberately complete, exact replacements rather
+# than a heuristic rewrite: removing the generated blocks must reconstruct the
 # reviewed legacy bytes before a rerun is accepted.
-JARA_TEST_MOCK_REPLACEMENTS = (
+LEGACY_MERGE_HARNESS_TEST_MOCK_REPLACEMENTS = (
     (
         '''        def fake_run(command, cwd=None, env=None, text=True, capture_output=True, check=False):
             calls.append(command)
@@ -489,7 +502,7 @@ def install_pre_entrypoint_override(source: str, override: str) -> str:
 
 def reviewed_legacy_source(
     source: str,
-    expected_sha256: str,
+    expected_sha256: str | None,
     override: str,
 ) -> tuple[str, str]:
     """Return a reviewed source and its migration state without accepting drift.
@@ -525,24 +538,24 @@ def reviewed_legacy_source(
     return matches[0], "v1.4.34-append"
 
 
-def reviewed_jara_test_source(source: str) -> tuple[str, str]:
-    """Return the reviewed Jara test source and migration state.
+def reviewed_legacy_merge_harness_test_source(source: str) -> tuple[str, str]:
+    """Return the reviewed legacy-merge-harness test source and migration state.
 
     The companion test is project-owned.  Its active form is therefore
     accepted only when all three known generated replacements occur exactly
     once and reversing them recreates the reviewed legacy fingerprint.
     """
-    if hashlib.sha256(source.encode("utf-8")).hexdigest() == JARA_TEST_MERGE_TO_MAIN_SHA256:
+    if hashlib.sha256(source.encode("utf-8")).hexdigest() == LEGACY_MERGE_HARNESS_TEST_SHA256:
         return source, "unmigrated"
     legacy = source
-    for original, migrated in JARA_TEST_MOCK_REPLACEMENTS:
+    for original, migrated in LEGACY_MERGE_HARNESS_TEST_MOCK_REPLACEMENTS:
         if legacy.count(migrated) != 1:
             raise ValueError(
                 "project-owned publication-safety compatibility blocker: incomplete migrated regression test surface; "
                 "preserving harness and test bytes"
             )
         legacy = legacy.replace(migrated, original)
-    if hashlib.sha256(legacy.encode("utf-8")).hexdigest() != JARA_TEST_MERGE_TO_MAIN_SHA256:
+    if hashlib.sha256(legacy.encode("utf-8")).hexdigest() != LEGACY_MERGE_HARNESS_TEST_SHA256:
         raise ValueError(
             "project-owned publication-safety compatibility blocker: unrecognized regression test bytes; "
             "preserving harness and test bytes"
@@ -550,9 +563,9 @@ def reviewed_jara_test_source(source: str) -> tuple[str, str]:
     return legacy, "migrated"
 
 
-def migrate_jara_test_source(source: str) -> str:
+def migrate_legacy_merge_harness_test_source(source: str) -> str:
     migrated = source
-    for original, replacement in JARA_TEST_MOCK_REPLACEMENTS:
+    for original, replacement in LEGACY_MERGE_HARNESS_TEST_MOCK_REPLACEMENTS:
         if migrated.count(original) != 1:
             raise ValueError(
                 "project-owned publication-safety compatibility blocker: unrecognized regression test blocks; "
@@ -566,14 +579,87 @@ LEGACY_MERGE_HARNESS_REPOSITORY = "example-org/legacy-merge-harness"
 LEGACY_PUBLISH_HARNESS_REPOSITORY = "example-org/legacy-publish-harness"
 
 
+def _read_operator_config(root: Path) -> dict[str, Any]:
+    """Best-effort external operator config; ``{}`` when not opted in.
+
+    Rollout must remain fully usable for a checkout that has not opted into
+    the operator layer, so any missing/unreadable/malformed configuration is
+    treated as "not configured" rather than an error.
+    """
+    try:
+        config = load_platform_config(root)
+    except ValueError:
+        return {}
+    operator = config.get("operator")
+    if not isinstance(operator, dict) or operator.get("enabled") is not True:
+        return {}
+    env_name = str(operator.get("config_env", "DEV_PLATFORM_OPERATOR_CONFIG"))
+    candidate = os.environ.get(env_name) or operator.get("config_path")
+    if not candidate:
+        return {}
+    path = Path(str(candidate)).expanduser()
+    if not path.is_absolute():
+        path = root / path
+    try:
+        import tomllib
+
+        with path.open("rb") as fh:
+            data = tomllib.load(fh)
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def apply_operator_legacy_harness_continuity(root: Path = PLATFORM_ROOT) -> None:
+    """Load real per-repository legacy publication-harness continuity data.
+
+    The public rollout engine ships only a generic exact-head migration
+    mechanism: synthetic example repository identities and no expected
+    fingerprints, so it is inert (matches nothing) without configuration. An
+    operator whose live downstream fleet is still mid-migration off a legacy
+    publication harness supplies the real repository identity and reviewed
+    fingerprints through external operator configuration -- see
+    docs/operator-config.example.toml ``[rollout.legacy_harness_migrations]``
+    and docs/managed-rollout.md. This is deliberately the only place that
+    continuity data for one specific downstream repository may live; the
+    public candidate never hard-codes it.
+    """
+    global LEGACY_MERGE_HARNESS_REPOSITORY, LEGACY_PUBLISH_HARNESS_REPOSITORY
+    global LEGACY_MERGE_HARNESS_SHA256, LEGACY_MERGE_HARNESS_TEST_SHA256
+    global LEGACY_PUBLISH_HARNESS_SHA256, LEGACY_PUBLISH_HARNESS_FINISH_TASK_SHA256
+    config = _read_operator_config(root)
+    rollout = config.get("rollout")
+    migrations = rollout.get("legacy_harness_migrations") if isinstance(rollout, dict) else None
+    if not isinstance(migrations, dict):
+        return
+    LEGACY_MERGE_HARNESS_REPOSITORY = str(
+        migrations.get("legacy_merge_harness_repository") or LEGACY_MERGE_HARNESS_REPOSITORY
+    )
+    LEGACY_PUBLISH_HARNESS_REPOSITORY = str(
+        migrations.get("legacy_publish_harness_repository") or LEGACY_PUBLISH_HARNESS_REPOSITORY
+    )
+    LEGACY_MERGE_HARNESS_SHA256 = migrations.get("legacy_merge_harness_sha256") or None
+    LEGACY_MERGE_HARNESS_TEST_SHA256 = migrations.get("legacy_merge_harness_test_sha256") or None
+    LEGACY_PUBLISH_HARNESS_SHA256 = migrations.get("legacy_publish_harness_sha256") or None
+    LEGACY_PUBLISH_HARNESS_FINISH_TASK_SHA256 = migrations.get("legacy_publish_harness_finish_task_sha256") or None
+
+
 def migrate_project_publication_safety(project_root: Path, repository: str) -> bool:
     """Apply only reviewed synthetic legacy-harness overrides, guarded by exact bytes."""
     if harness_mode(project_root) != "project":
         return False
     if repository == LEGACY_MERGE_HARNESS_REPOSITORY:
-        target, expected, override = project_root / "scripts/merge_to_main.py", JARA_MERGE_TO_MAIN_SHA256, JARA_OVERRIDE
+        target, expected, override = (
+            project_root / "scripts/merge_to_main.py",
+            LEGACY_MERGE_HARNESS_SHA256,
+            LEGACY_MERGE_HARNESS_OVERRIDE,
+        )
     elif repository == LEGACY_PUBLISH_HARNESS_REPOSITORY:
-        target, expected, override = project_root / "scripts/project_publish.py", PLANNER_PROJECT_PUBLISH_SHA256, PLANNER_OVERRIDE
+        target, expected, override = (
+            project_root / "scripts/project_publish.py",
+            LEGACY_PUBLISH_HARNESS_SHA256,
+            LEGACY_PUBLISH_HARNESS_OVERRIDE,
+        )
     else:
         return False
     helper = project_root / "scripts/exact_head_safety.py"
@@ -629,10 +715,10 @@ def migrate_project_publication_safety(project_root: Path, repository: str) -> b
     test_migrated = test_current
     test_active = True
     if test_target is not None:
-        _, test_state = reviewed_jara_test_source(test_current)
+        _, test_state = reviewed_legacy_merge_harness_test_source(test_current)
         test_active = test_state == "migrated"
         if not test_active:
-            test_migrated = migrate_jara_test_source(test_current)
+            test_migrated = migrate_legacy_merge_harness_test_source(test_current)
 
     terminal_changed = False
     finish_target = None
@@ -641,14 +727,14 @@ def migrate_project_publication_safety(project_root: Path, repository: str) -> b
         finish_target = project_root / "scripts/finish_task.py"
         finish_current = finish_target.read_text(encoding="utf-8") if finish_target.is_file() else ""
         if TERMINAL_RECONCILIATION_MARKER not in finish_current:
-            if hashlib.sha256(finish_current.encode("utf-8")).hexdigest() != PLANNER_FINISH_TASK_SHA256:
+            if hashlib.sha256(finish_current.encode("utf-8")).hexdigest() != LEGACY_PUBLISH_HARNESS_FINISH_TASK_SHA256:
                 raise ValueError(
-                    "project-owned terminal-reconciliation compatibility blocker: unrecognized Planner finish_task bytes; "
+                    "project-owned terminal-reconciliation compatibility blocker: unrecognized legacy-publish-harness finish_task bytes; "
                     "preserving harness bytes"
                 )
-            finish_migrated = install_pre_entrypoint_override(finish_current, PLANNER_TERMINAL_OVERRIDE)
+            finish_migrated = install_pre_entrypoint_override(finish_current, LEGACY_PUBLISH_HARNESS_TERMINAL_OVERRIDE)
             terminal_changed = True
-        elif finish_current.count(PLANNER_TERMINAL_OVERRIDE) != 1:
+        elif finish_current.count(LEGACY_PUBLISH_HARNESS_TERMINAL_OVERRIDE) != 1:
             raise ValueError(
                 "project-owned terminal-reconciliation compatibility blocker: incomplete migrated finish_task surface; "
                 "preserving harness bytes"
@@ -1435,6 +1521,7 @@ def main() -> int:
     parser.add_argument("--base-branch", required=True)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
+    apply_operator_legacy_harness_continuity()
     try:
         return apply_rollout(
             args.project_root,

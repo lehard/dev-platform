@@ -342,6 +342,13 @@ class DeepSeekHarnessDistributionTests(unittest.TestCase):
         self.assertIn("/fake-bundled-runtime", result.stdout)
 
     def test_dependency_profile_and_config_are_exact_and_disabled(self) -> None:
+        if not (ROOT / ".dev-platform.toml").is_file():
+            # This checkout's own `.dev-platform.toml` is deliberately not part
+            # of the public product candidate (see scripts/public_distribution.py
+            # EXCLUDED_PATHS): a fresh public snapshot has no central operator
+            # config until cutover generates one, so this central-checkout-
+            # specific assertion does not apply there.
+            self.skipTest("central .dev-platform.toml is not present in this checkout")
         requirements = (ROOT / "template" / "requirements" / "deepseek-harness.txt").read_text(encoding="utf-8")
         central_config = (ROOT / ".dev-platform.toml").read_text(encoding="utf-8")
         template_config = (ROOT / "template" / ".dev-platform.toml.jinja").read_text(encoding="utf-8")

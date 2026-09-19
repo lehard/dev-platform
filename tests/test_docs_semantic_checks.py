@@ -31,7 +31,12 @@ class DocsLinkCheckTests(unittest.TestCase):
         # this asserts the scan actually found a realistic number of files
         # rather than silently matching zero, which reads as "no problems"
         # for the wrong reason. See test_scan_is_not_fooled_by_a_dot_claude_ancestor.
-        self.assertGreater(len(scanned), 100)
+        # The threshold is calibrated to the smallest realistic tree: a fresh
+        # public snapshot with only its own current change archived (see
+        # tests/public_distribution_snapshot_smoke.py), not this checkout's
+        # full `openspec/changes/archive/` history, which is excluded from
+        # that snapshot and would otherwise inflate the count considerably.
+        self.assertGreater(len(scanned), 50)
         cache: dict[Path, set[str]] = {}
         problems: list[str] = []
         for path in scanned:

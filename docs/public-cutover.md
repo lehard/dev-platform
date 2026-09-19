@@ -8,10 +8,16 @@ project, and complete the GitLab sandbox proof before preparing a deterministic
 tar snapshot with `snapshot --output <path>`. The current-tree audit covers
 the exact product candidate set used by that snapshot. It permits only the
 canonical `lehard/dev-platform` product identity; personal downstream,
-backlog, fleet, and bot references must be replaced with synthetic examples.
-Repository-maintenance evidence (`tests/`, `openspec/`, local agent
-state, the central checkout's `.dev-platform.toml`, and `dev-platform/evals/`)
-is deliberately excluded from the product candidate set. The shipped template
+backlog, fleet, and bot references must be replaced with synthetic examples,
+and known project-specific compatibility markers (see
+`scripts/public_distribution.py` `COMPATIBILITY_MARKERS`) are blocked even
+when they are not written as `owner/repo`. The candidate set is a canonical,
+self-contained source checkout, not a reduced runtime export: `tests/` and
+accepted `openspec/specs/` plus current OpenSpec lifecycle configuration ship
+so a fresh clone stays developable, testable, and spec-driven from its first
+commit. Only maintenance-only history (`openspec/changes/archive/`), local
+agent/runtime state, and the central checkout's own `.dev-platform.toml` are
+deliberately excluded from the product candidate set. The shipped template
 remains the portable configuration surface.
 
 The history audit is a separate bounded reachable-blob scan for supported

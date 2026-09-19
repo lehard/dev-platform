@@ -13,7 +13,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import rollout_supersession as supersession  # noqa: E402
 
 
-def pr(number: int, version: str, *, author: str = "dev-platform-bot[bot]", base: str = "main", branch: str | None = None, repository: str = "lehard/managed") -> dict[str, object]:
+def pr(number: int, version: str, *, author: str = "dev-platform-bot[bot]", base: str = "main", branch: str | None = None, repository: str = "example-org/managed-project") -> dict[str, object]:
     branch = branch or f"dev-platform/rollout-{version}"
     return {
         "number": number,
@@ -27,7 +27,7 @@ def pr(number: int, version: str, *, author: str = "dev-platform-bot[bot]", base
 class RolloutSupersessionTests(unittest.TestCase):
     def eligible(self, *prs: dict[str, object]) -> list[supersession.RolloutPR]:
         return supersession.eligible_rollout_prs(
-            list(prs), repository="lehard/managed", base_branch="main", expected_bot="dev-platform-bot[bot]"
+            list(prs), repository="example-org/managed-project", base_branch="main", expected_bot="dev-platform-bot[bot]"
         )
 
     def test_identity_requires_exact_branch_semver_base_and_bot_not_title(self) -> None:
@@ -112,13 +112,13 @@ class RolloutSupersessionTests(unittest.TestCase):
         responses = iter([{}, {"state": "closed"}, {}, ValueError("protected branch")])
         with patch.object(supersession, "gh_api", side_effect=lambda *_args, **_kwargs: next(responses)):
             supersession.close_and_delete(
-                "lehard/managed", supersession.RolloutPR(1, "https://example.invalid/pr/1", "dev-platform/rollout-v1.0.0", "v1.0.0"),
+                "example-org/managed-project", supersession.RolloutPR(1, "https://example.invalid/pr/1", "dev-platform/rollout-v1.0.0", "v1.0.0"),
                 "committed downstream base already uses v1.0.0",
             )
 
     def test_successful_empty_delete_response_is_not_an_api_failure(self) -> None:
         completed = supersession.subprocess.CompletedProcess(["gh"], 0, "", "")
-        self.assertIsNone(supersession.gh_api(["-X", "DELETE", "repos/lehard/managed/git/refs/heads/x"], runner=lambda *_args, **_kwargs: completed))
+        self.assertIsNone(supersession.gh_api(["-X", "DELETE", "repos/example-org/managed-project/git/refs/heads/x"], runner=lambda *_args, **_kwargs: completed))
 
 
 class RolloutSupersessionWorkflowTests(unittest.TestCase):
@@ -149,7 +149,7 @@ class FindExactPendingRolloutPrTests(unittest.TestCase):
         prs = [pr(1, "v1.2.2"), pr(2, "v1.2.3")]
         with patch.object(supersession, "list_open_prs", return_value=prs):
             found = supersession.find_exact_pending_rollout_pr(
-                "lehard/managed", "main", "dev-platform-bot[bot]", "v1.2.3"
+                "example-org/managed-project", "main", "dev-platform-bot[bot]", "v1.2.3"
             )
         self.assertIsNotNone(found)
         self.assertEqual((found.number, found.version), (2, "v1.2.3"))
@@ -158,7 +158,7 @@ class FindExactPendingRolloutPrTests(unittest.TestCase):
         prs = [pr(1, "v1.2.2")]
         with patch.object(supersession, "list_open_prs", return_value=prs):
             found = supersession.find_exact_pending_rollout_pr(
-                "lehard/managed", "main", "dev-platform-bot[bot]", "v1.2.3"
+                "example-org/managed-project", "main", "dev-platform-bot[bot]", "v1.2.3"
             )
         self.assertIsNone(found)
 
@@ -166,7 +166,7 @@ class FindExactPendingRolloutPrTests(unittest.TestCase):
         prs = [pr(1, "v1.2.3", author="some-human")]
         with patch.object(supersession, "list_open_prs", return_value=prs):
             found = supersession.find_exact_pending_rollout_pr(
-                "lehard/managed", "main", "dev-platform-bot[bot]", "v1.2.3"
+                "example-org/managed-project", "main", "dev-platform-bot[bot]", "v1.2.3"
             )
         self.assertIsNone(found)
 
@@ -174,7 +174,7 @@ class FindExactPendingRolloutPrTests(unittest.TestCase):
         prs = [pr(1, "v1.2.3", base="release")]
         with patch.object(supersession, "list_open_prs", return_value=prs):
             found = supersession.find_exact_pending_rollout_pr(
-                "lehard/managed", "main", "dev-platform-bot[bot]", "v1.2.3"
+                "example-org/managed-project", "main", "dev-platform-bot[bot]", "v1.2.3"
             )
         self.assertIsNone(found)
 
@@ -182,7 +182,7 @@ class FindExactPendingRolloutPrTests(unittest.TestCase):
         prs = [pr(1, "v1.2.3", branch="dev-platform/rollout-v1.2.3-extra")]
         with patch.object(supersession, "list_open_prs", return_value=prs):
             found = supersession.find_exact_pending_rollout_pr(
-                "lehard/managed", "main", "dev-platform-bot[bot]", "v1.2.3"
+                "example-org/managed-project", "main", "dev-platform-bot[bot]", "v1.2.3"
             )
         self.assertIsNone(found)
 
@@ -192,7 +192,7 @@ class FindExactPendingRolloutPrTests(unittest.TestCase):
         try:
             with patch.object(supersession, "list_open_prs", return_value=prs):
                 argv = [
-                    "find-pending", "--repository", "lehard/managed", "--base-branch", "main",
+                    "find-pending", "--repository", "example-org/managed-project", "--base-branch", "main",
                     "--expected-bot", "dev-platform-bot[bot]", "--version", "v1.2.3", "--output", str(output),
                 ]
                 with patch.object(sys, "argv", ["rollout_supersession.py", *argv]):
