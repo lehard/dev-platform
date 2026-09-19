@@ -74,6 +74,7 @@ def main() -> int:
         for relative, sentinel in sentinels.items():
             append_sentinel(target / relative, sentinel)
         reviewed_context = target / "docs" / "context" / "product.md"
+        reviewed_context.parent.mkdir(parents=True, exist_ok=True)
         reviewed_context.write_text(
             "# Product context\n\n<!-- project-owned-context-sentinel -->\n",
             encoding="utf-8",
