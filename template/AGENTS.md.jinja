@@ -52,6 +52,7 @@ Goal refinement is a selective layer before authoring, used only for explicit go
 - **Keep CI providers thin.** Put portable test, build, verification, release, and deploy behavior behind repository-owned executable entrypoints; use provider workflows for their native orchestration. See [docs/engineering/agent-workflow.md](docs/engineering/agent-workflow.md).
 - **Report blockers.** If a required completion step is blocked, say so instead of reporting the task as done.
 - **Resolve the friction checkpoint** before reporting a non-trivial task complete: `python3 scripts/agent_friction.py checkpoint --result none`, or the id of a recorded event.
+- **Don't busy-poll background processes.** Wait out a long-running background command with one long timeout — for Codex, a single `write_stdin` call with `yield_time_ms` up to the runtime's max (around 300000) — instead of repeated short `sleep`/`ps` checks or empty stdin polls; poll again only once that wait elapses. Genuine interactive input is unaffected.
 {% if workflow_profile == 'multi-agent' %}
 - **Other agents' state is off limits.** Do not use another agent's worktree or change another active entry's scope without resolving the overlap, and never delete another agent's dirty or unmerged tree. No delegation or containment path stashes, resets, cleans or deletes integration state.
 {% endif %}
