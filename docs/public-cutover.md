@@ -2,9 +2,24 @@
 
 The public product is cut over from a verified sanitized snapshot, not by
 rewriting historical references that are merely project or operator names.
-Run `python3 scripts/public_distribution.py audit`, render a clean default
+Run `python3 scripts/public_distribution.py audit` and
+`python3 scripts/public_distribution.py history-audit`, render a clean default
 project, and complete the GitLab sandbox proof before preparing a deterministic
-tar snapshot with `snapshot --output <path>`.
+tar snapshot with `snapshot --output <path>`. The current-tree audit covers
+the exact product candidate set used by that snapshot. It permits only the
+canonical `lehard/dev-platform` product identity; personal downstream,
+backlog, fleet, and bot references must be replaced with synthetic examples.
+Repository-maintenance evidence (`tests/`, `openspec/`, local agent
+state, the central checkout's `.dev-platform.toml`, and `dev-platform/evals/`)
+is deliberately excluded from the product candidate set. The shipped template
+remains the portable configuration surface.
+
+The history audit is a separate bounded reachable-blob scan for supported
+GitHub, GitLab, and AWS credential signatures. Its JSON receipt records the
+refs, object limit, examined object count, pattern classes, and limitations;
+it never prints possible credential values. A clean result is not a universal
+claim that no secret ever existed. Rerun both audits and the snapshot if the
+source revision changes after evidence is recorded.
 
 If the audit identifies an actual credential or sensitive payload, treat it as
 a security incident: rotate or revoke it first, record that remediation, then

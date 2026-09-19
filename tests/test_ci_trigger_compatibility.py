@@ -17,7 +17,7 @@ class CiTriggerCompatibilityTests(unittest.TestCase):
 
     def test_generated_guidance_explains_required_pr_compatibility(self) -> None:
         readme = (ROOT / "template" / "README.md.jinja").read_text(encoding="utf-8")
-        agent_workflow = (ROOT / "template" / "docs" / "engineering" / "agent-workflow.md").read_text(encoding="utf-8")
+        agent_workflow = (ROOT / "template" / "docs" / "engineering" / "agent-workflow.md.jinja").read_text(encoding="utf-8")
         self.assertIn("pull-request `platform-ci` compatibility gate", readme)
         self.assertIn("pull-request `platform-ci` gate", agent_workflow)
         self.assertIn("published main state", readme)

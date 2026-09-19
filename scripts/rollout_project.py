@@ -561,13 +561,17 @@ def migrate_jara_test_source(source: str) -> str:
     return migrated
 
 
+LEGACY_MERGE_HARNESS_REPOSITORY = "example-org/legacy-merge-harness"
+LEGACY_PUBLISH_HARNESS_REPOSITORY = "example-org/legacy-publish-harness"
+
+
 def migrate_project_publication_safety(project_root: Path, repository: str) -> bool:
-    """Apply only reviewed Jara/Planner overrides, guarded by exact bytes."""
+    """Apply only reviewed synthetic legacy-harness overrides, guarded by exact bytes."""
     if harness_mode(project_root) != "project":
         return False
-    if repository == "lehard/Jara_Fin":
+    if repository == LEGACY_MERGE_HARNESS_REPOSITORY:
         target, expected, override = project_root / "scripts/merge_to_main.py", JARA_MERGE_TO_MAIN_SHA256, JARA_OVERRIDE
-    elif repository == "lehard/planner-agent-lab":
+    elif repository == LEGACY_PUBLISH_HARNESS_REPOSITORY:
         target, expected, override = project_root / "scripts/project_publish.py", PLANNER_PROJECT_PUBLISH_SHA256, PLANNER_OVERRIDE
     else:
         return False
@@ -575,7 +579,7 @@ def migrate_project_publication_safety(project_root: Path, repository: str) -> b
     terminal_helper = project_root / "scripts/project_terminal_reconciliation.py"
     current = target.read_text(encoding="utf-8") if target.is_file() else ""
     helper_current = helper.read_text(encoding="utf-8") if helper.is_file() else None
-    test_target = project_root / "scripts/tests/test_merge_to_main.py" if repository == "lehard/Jara_Fin" else None
+    test_target = project_root / "scripts/tests/test_merge_to_main.py" if repository == LEGACY_MERGE_HARNESS_REPOSITORY else None
     test_current = test_target.read_text(encoding="utf-8") if test_target and test_target.is_file() else ""
 
     harness_active = False
@@ -632,7 +636,7 @@ def migrate_project_publication_safety(project_root: Path, repository: str) -> b
     terminal_changed = False
     finish_target = None
     finish_migrated = None
-    if repository == "lehard/planner-agent-lab":
+    if repository == LEGACY_PUBLISH_HARNESS_REPOSITORY:
         finish_target = project_root / "scripts/finish_task.py"
         finish_current = finish_target.read_text(encoding="utf-8") if finish_target.is_file() else ""
         if TERMINAL_RECONCILIATION_MARKER not in finish_current:

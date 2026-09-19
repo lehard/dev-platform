@@ -1,3 +1,4 @@
+{% if operator_config_path %}
 # Managed task intake
 
 This is the platform-owned contract for turning a user request into work.
@@ -164,3 +165,42 @@ This document is platform-owned and arrives through normal release rollout.
 Project-owned root `AGENTS.md` keeps local rules, but must include the stable
 reference inserted by the rollout migration. The migration is additive and
 marked; it does not replace project/domain or module-level instructions.
+
+{% else %}
+# Portable task intake
+
+This is the project-local contract for turning a user request into work. It
+does not require an operator Backlog, GitHub Project, fleet registry, or
+operator credentials.
+
+## Intent boundary
+
+- **Discuss**: inspect and compare without creating durable task state.
+- **Fix / plan a non-trivial change**: author a local OpenSpec
+  proposal/spec/design/tasks package and stop for acceptance.
+- **Quick execution**: make a small, bounded change through the normal
+  task/check/finish workflow without ceremonial OpenSpec.
+- **Non-trivial execution**: agree the local OpenSpec package before
+  implementation, then keep it canonical through verification and archive.
+
+Use repository evidence to resolve factual ambiguity. Ask the user only when a
+material product or scope choice remains. Do not let a quick task silently grow
+into a material behavior, architecture, compatibility, data-contract, or scope
+change: write/accept the local OpenSpec package first.
+
+## Commands
+
+```bash
+openspec new change <change>
+python3 scripts/start_task.py <change> --task "OpenSpec <change>" --scope "<paths>"
+python3 scripts/select_checks.py --execute
+python3 scripts/openspec_lifecycle.py check
+python3 scripts/finish_task.py
+```
+
+The generated repository contains its own lifecycle scripts and CI workflow.
+Provider adapters create or reuse the configured review object; GitLab stops at
+green exact-head CI for human merge/acceptance. Do not require access to this
+platform repository or to an operator installation to perform ordinary work.
+
+{% endif %}

@@ -83,7 +83,7 @@ class InstructionArchitectureTests(unittest.TestCase):
     def test_ci_work_reaches_thin_provider_guidance_without_repeating_it_in_adapters(self) -> None:
         central = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         rendered = (ROOT / "template" / "AGENTS.md.jinja").read_text(encoding="utf-8")
-        rendered_guidance = (ROOT / "template" / "docs" / "engineering" / "agent-workflow.md").read_text(encoding="utf-8")
+        rendered_guidance = (ROOT / "template" / "docs" / "engineering" / "agent-workflow.md.jinja").read_text(encoding="utf-8")
         workflow = (ROOT / "template" / ".github" / "workflows" / "dev-platform.yml.jinja").read_text(encoding="utf-8")
         claude = (ROOT / "CLAUDE.md").read_text(encoding="utf-8")
         rendered_claude = (ROOT / "template" / "CLAUDE.md.jinja").read_text(encoding="utf-8")
@@ -119,7 +119,7 @@ class InstructionArchitectureTests(unittest.TestCase):
     def test_task_intake_and_chatgpt_adapter_share_one_authoring_contract(self) -> None:
         paths = (
             "docs/engineering/task-intake.md",
-            "template/docs/engineering/task-intake.md",
+            "template/docs/engineering/task-intake.md.jinja",
             "docs/engineering/chatgpt-project-protocol.md",
             "template/docs/engineering/chatgpt-project-protocol.md",
         )

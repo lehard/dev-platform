@@ -83,6 +83,12 @@ def check_file(root: Path, path: Path, cache: dict[Path, set[str]]) -> list[str]
             resolved.relative_to(root.resolve())
         except ValueError:
             continue  # outside the repository; not this check's concern
+        # A template source may use a `.md.jinja` filename while its rendered
+        # output deliberately links to the public `.md` path.
+        if not resolved.exists() and "template" in resolved.relative_to(root.resolve()).parts:
+            rendered_source = Path(f"{resolved}.jinja")
+            if rendered_source.exists():
+                resolved = rendered_source
         if not resolved.exists():
             problems.append(f"{path.relative_to(root)}: broken link destination '{dest}'")
             continue

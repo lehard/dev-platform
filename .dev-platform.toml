@@ -72,10 +72,10 @@ sdk_version = "0.1.1rc1"
 profile = "observation"
 
 [operator]
-# This source checkout intentionally carries no operator inventory, GitHub
-# Project binding, bot identity, or rollout policy. An operator supplies a
-# separately controlled TOML file through DEV_PLATFORM_OPERATOR_CONFIG when
-# invoking operator-only commands.
+# This central operator checkout opts into a separately controlled config.
+# The public snapshot excludes this installation file; generated projects have
+# no operator table unless their render explicitly opts in.
+enabled = true
 config_env = "DEV_PLATFORM_OPERATOR_CONFIG"
 
 [paths]
