@@ -39,7 +39,7 @@ class ManagedStatusLifecycleTests(unittest.TestCase):
     def test_reviewable_pr_reconciles_in_review_before_manual_stop(self) -> None:
         root = Path("/tmp/managed-review")
         lookup = SimpleNamespace(available=True, exact_open={"number": 12}, exact_merged=None)
-        project = SimpleNamespace(changed=True, source_issue="lehard/development-backlog#8")
+        project = SimpleNamespace(changed=True, source_issue="example-org/development-backlog#8")
         with (
             mock.patch.object(project_publish, "_validate_feature_branch", return_value="agent/managed"),
             mock.patch.object(project_publish, "require_gh_environment", return_value={}),
@@ -75,8 +75,8 @@ class ManagedStatusLifecycleTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             events: list[str] = []
-            project = SimpleNamespace(changed=False, source_issue="lehard/development-backlog#8")
-            identity = SimpleNamespace(source_issue="lehard/development-backlog#8", change="managed")
+            project = SimpleNamespace(changed=False, source_issue="example-org/development-backlog#8")
+            identity = SimpleNamespace(source_issue="example-org/development-backlog#8", change="managed")
 
             def record_done(*args, **kwargs):
                 self.assertEqual(kwargs["source_issue"], identity.source_issue)
@@ -115,7 +115,7 @@ class ManagedStatusLifecycleTests(unittest.TestCase):
                 mock.patch.object(
                     finish_task,
                     "delivery_identity",
-                    return_value=SimpleNamespace(source_issue="lehard/development-backlog#8", change="managed"),
+                    return_value=SimpleNamespace(source_issue="example-org/development-backlog#8", change="managed"),
                 ),
                 mock.patch.object(finish_task, "sync_after_remote_pr_merge") as sync,
                 mock.patch.object(
@@ -144,7 +144,7 @@ class ManagedStatusLifecycleTests(unittest.TestCase):
             root = Path(tmp)
             events: list[str] = []
             identity = SimpleNamespace(
-                source_issue="lehard/development-backlog#8", change="managed", process_evidence=("lehard/dev-platform#17",)
+                source_issue="example-org/development-backlog#8", change="managed", process_evidence=("lehard/dev-platform#17",)
             )
             with (
                 mock.patch.object(finish_task, "delivery_identity", return_value=identity),
@@ -162,7 +162,7 @@ class ManagedStatusLifecycleTests(unittest.TestCase):
     def test_terminal_identity_mismatch_blocks_project_mutation_after_sync(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            identity = SimpleNamespace(source_issue="lehard/development-backlog#8", change="managed-a")
+            identity = SimpleNamespace(source_issue="example-org/development-backlog#8", change="managed-a")
             with (
                 mock.patch.object(finish_task, "delivery_identity", return_value=identity),
                 mock.patch.object(finish_task, "sync_after_remote_pr_merge") as sync,
@@ -250,18 +250,18 @@ class SourceIssueDriftStatusTests(unittest.TestCase):
         return [call.args[0] for call in printed.call_args_list]
 
     def test_status_json_includes_source_issue_drift_field(self) -> None:
-        drift = {"source_issue": "lehard/development-backlog#8", "drifted": True, "recorded_body_sha256": "a" * 64, "current_body_sha256": "b" * 64}
+        drift = {"source_issue": "example-org/development-backlog#8", "drifted": True, "recorded_body_sha256": "a" * 64, "current_body_sha256": "b" * 64}
         [output] = self.run_status(as_json=True, drift=drift)
         payload = json.loads(output)
         self.assertEqual(payload["source_issue_drift"], drift)
 
     def test_status_text_prints_drift_note_only_when_drifted(self) -> None:
-        drifted = {"source_issue": "lehard/development-backlog#8", "drifted": True}
+        drifted = {"source_issue": "example-org/development-backlog#8", "drifted": True}
         outputs = self.run_status(as_json=False, drift=drifted)
         self.assertIn("status: in_review", outputs)
-        self.assertTrue(any("source_issue_drift" in line and "lehard/development-backlog#8" in line for line in outputs))
+        self.assertTrue(any("source_issue_drift" in line and "example-org/development-backlog#8" in line for line in outputs))
 
-        not_drifted = {"source_issue": "lehard/development-backlog#8", "drifted": False}
+        not_drifted = {"source_issue": "example-org/development-backlog#8", "drifted": False}
         outputs = self.run_status(as_json=False, drift=not_drifted)
         self.assertFalse(any("source_issue_drift" in line for line in outputs))
 

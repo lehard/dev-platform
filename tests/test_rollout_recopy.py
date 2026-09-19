@@ -448,7 +448,7 @@ if __name__ == "__main__":
         before = rollout_project.platform_config_contract(self.root)
         self.root.joinpath(".dev-platform.toml").write_text(
             self.root.joinpath(".dev-platform.toml").read_text(encoding="utf-8")
-            + '\n[development_backlog]\nrepository = "lehard/development-backlog"\nproject_label = "project:transition-smoke"\ndefault_priority = "P2"\nproject_owner = "lehard"\nproject_number = 1\n',
+            + '\n[development_backlog]\nrepository = "example-org/development-backlog"\nproject_label = "project:transition-smoke"\ndefault_priority = "P2"\nproject_owner = "lehard"\nproject_number = 1\n',
             encoding="utf-8",
         )
         after = rollout_project.platform_config_contract(self.root)
@@ -523,7 +523,7 @@ if __name__ == "__main__":
     def test_downstream_task_intake_migration_is_the_only_allowed_agents_change(self) -> None:
         self.root.joinpath(".dev-platform.toml").write_text(
             self.root.joinpath(".dev-platform.toml").read_text(encoding="utf-8")
-            + '\n[development_backlog]\nrepository = "lehard/development-backlog"\n',
+            + '\n[development_backlog]\nrepository = "example-org/development-backlog"\n',
             encoding="utf-8",
         )
         contract = self.root / rollout_project.TASK_INTAKE_REFERENCE
@@ -559,7 +559,7 @@ if __name__ == "__main__":
         self.require_platform_release_history()
         self.root.joinpath(".dev-platform.toml").write_text(
             self.root.joinpath(".dev-platform.toml").read_text(encoding="utf-8")
-            + '\n[development_backlog]\nrepository = "lehard/development-backlog"\n',
+            + '\n[development_backlog]\nrepository = "example-org/development-backlog"\n',
             encoding="utf-8",
         )
         contract = self.root / rollout_project.TASK_INTAKE_REFERENCE

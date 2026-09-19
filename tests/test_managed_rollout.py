@@ -68,7 +68,7 @@ class RolloutProjectTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / ".dev-platform.toml").write_text(
-                'project_name = "example-project"\n\n[development_backlog]\nrepository = "lehard/development-backlog"\n',
+                'project_name = "example-project"\n\n[development_backlog]\nrepository = "example-org/development-backlog"\n',
                 encoding="utf-8",
             )
             (root / "AGENTS.md").write_text(

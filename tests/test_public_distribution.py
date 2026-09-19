@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import subprocess
 import tempfile
 import unittest
@@ -16,6 +17,16 @@ SPEC.loader.exec_module(public_distribution)
 
 
 class PublicDistributionTests(unittest.TestCase):
+    def test_shipped_sanitizer_has_no_built_in_compatibility_marker_denylist(self) -> None:
+        # Private-project compatibility deny data is one-shot cutover input,
+        # never shipped source -- see design.md decision 6. `CANONICAL_PRODUCT_REPOSITORIES`
+        # is limited to this repository's own canonical identity, with no
+        # companion operator repository baked in.
+        self.assertFalse(hasattr(public_distribution, "COMPATIBILITY_MARKERS"))
+        self.assertEqual(
+            public_distribution.CANONICAL_PRODUCT_REPOSITORIES, {public_distribution.CANONICAL_PRODUCT_REPOSITORY}
+        )
+
     def test_audit_and_snapshot_use_the_same_candidate_set(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -54,20 +65,115 @@ class PublicDistributionTests(unittest.TestCase):
                 "openspec/changes/archive/2020-01-01-old-change/proposal.md", relative
             )
 
-    def test_compatibility_marker_blocks_audit_and_snapshot_without_owner_repo_shape(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
+    def test_cutover_policy_marker_blocks_audit_and_snapshot(self) -> None:
+        with tempfile.TemporaryDirectory() as policy_tmp, tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "docs").mkdir()
-            # Built from split literals so this test file's own committed
-            # source (a packaged candidate itself once `tests/` ships) does
-            # not contain a contiguous match for its own bait text.
-            bait = "Published by " + "Jara" + "_Fin" + " protected-main agent lifecycle.\n"
-            (root / "docs" / "notes.md").write_text(bait, encoding="utf-8")
-            receipt = public_distribution.audit_tree(root)
+            (root / "docs" / "notes.md").write_text(
+                "Published by SyntheticPartnerCo protected-main agent lifecycle.\n", encoding="utf-8"
+            )
+            policy_path = Path(policy_tmp) / "cutover-policy.json"
+            policy_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "compatibility_markers": {"legacy_merge_partner": r"\bSyntheticPartnerCo\b"},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            receipt = public_distribution.audit_tree(root, cutover_policy_path=policy_path)
             self.assertTrue(public_distribution.has_findings(receipt))
             self.assertTrue(receipt["findings"]["compatibility_markers"])
+            self.assertNotIn("SyntheticPartnerCo", json.dumps(receipt))
             with self.assertRaises(ValueError):
-                public_distribution.snapshot(root, root / "snapshot.tar")
+                public_distribution.snapshot(root, root / "snapshot.tar", cutover_policy_path=policy_path)
+
+    def test_cutover_policy_prohibited_repository_blocks_audit(self) -> None:
+        with tempfile.TemporaryDirectory() as policy_tmp, tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "docs").mkdir()
+            (root / "docs" / "notes.md").write_text("See acme/legacy-service for details.\n", encoding="utf-8")
+            policy_path = Path(policy_tmp) / "cutover-policy.json"
+            policy_path.write_text(
+                json.dumps({"version": 1, "prohibited_repositories": {"legacy_downstream": "acme/legacy-service"}}),
+                encoding="utf-8",
+            )
+            receipt = public_distribution.audit_tree(root, cutover_policy_path=policy_path)
+            self.assertTrue(public_distribution.has_findings(receipt))
+            self.assertTrue(receipt["findings"]["operator_state"])
+            self.assertNotIn("acme/legacy-service", json.dumps(receipt))
+
+    def test_cutover_policy_receipt_records_provenance_without_deny_values(self) -> None:
+        with tempfile.TemporaryDirectory() as policy_tmp, tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "README.md").write_text("safe\n", encoding="utf-8")
+            policy_path = Path(policy_tmp) / "cutover-policy.json"
+            policy_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "prohibited_repositories": {"legacy_downstream": "acme/legacy-service"},
+                        "compatibility_markers": {"legacy_merge_partner": r"\bSyntheticPartnerCo\b"},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            receipt = public_distribution.audit_tree(root, cutover_policy_path=policy_path)
+            provenance = receipt["policy"]["cutover_policy"]
+            self.assertEqual(provenance["path_basename"], "cutover-policy.json")
+            self.assertEqual(provenance["version"], 1)
+            self.assertTrue(provenance["digest"])
+            self.assertNotIn("acme/legacy-service", json.dumps(receipt))
+            self.assertNotIn("SyntheticPartnerCo", json.dumps(receipt))
+
+    def test_cutover_policy_missing_or_malformed_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as policy_tmp, tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "README.md").write_text("safe\n", encoding="utf-8")
+            missing_path = Path(policy_tmp) / "does-not-exist.json"
+            with self.assertRaises(public_distribution.CutoverPolicyError):
+                public_distribution.audit_tree(root, cutover_policy_path=missing_path)
+
+            not_json = Path(policy_tmp) / "not-json.json"
+            not_json.write_text("not json", encoding="utf-8")
+            with self.assertRaises(public_distribution.CutoverPolicyError):
+                public_distribution.audit_tree(root, cutover_policy_path=not_json)
+
+            bad_version = Path(policy_tmp) / "bad-version.json"
+            bad_version.write_text(json.dumps({"version": 2}), encoding="utf-8")
+            with self.assertRaises(public_distribution.CutoverPolicyError):
+                public_distribution.audit_tree(root, cutover_policy_path=bad_version)
+
+            bad_marker = Path(policy_tmp) / "bad-marker.json"
+            bad_marker.write_text(
+                json.dumps({"version": 1, "compatibility_markers": {"Not A Label": "x"}}), encoding="utf-8"
+            )
+            with self.assertRaises(public_distribution.CutoverPolicyError):
+                public_distribution.audit_tree(root, cutover_policy_path=bad_marker)
+
+            bad_repo_shape = Path(policy_tmp) / "bad-repo.json"
+            bad_repo_shape.write_text(
+                json.dumps({"version": 1, "prohibited_repositories": {"legacy_downstream": "not-owner-shaped"}}),
+                encoding="utf-8",
+            )
+            with self.assertRaises(public_distribution.CutoverPolicyError):
+                public_distribution.audit_tree(root, cutover_policy_path=bad_repo_shape)
+
+            with self.assertRaises(ValueError):
+                public_distribution.snapshot(root, root / "snapshot.tar", cutover_policy_path=missing_path)
+
+    def test_cutover_policy_file_is_excluded_from_candidate_set_and_snapshot(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "README.md").write_text("safe\n", encoding="utf-8")
+            policy_path = root / "cutover-policy.json"
+            policy_path.write_text(json.dumps({"version": 1}), encoding="utf-8")
+            receipt = public_distribution.audit_tree(root, cutover_policy_path=policy_path)
+            self.assertNotIn("cutover-policy.json", receipt["candidate_files"])
+            self.assertFalse(public_distribution.has_findings(receipt))
+            result = public_distribution.snapshot(root, root / "snapshot.tar", cutover_policy_path=policy_path)
+            self.assertNotIn("cutover-policy.json", result["audit"]["candidate_files"])
 
     def test_missing_required_path_referenced_by_readme_blocks_audit(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

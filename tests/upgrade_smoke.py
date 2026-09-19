@@ -180,7 +180,7 @@ def main() -> int:
             change = target / "openspec" / "changes" / "upgrade-smoke-routing-canary"
             change.mkdir(parents=True)
             (change / ".managed-task.json").write_text(
-                json.dumps({"source_issue": "lehard/development-backlog#0", "change": "upgrade-smoke-routing-canary"}),
+                json.dumps({"source_issue": "example-org/development-backlog#0", "change": "upgrade-smoke-routing-canary"}),
                 encoding="utf-8",
             )
             probe = subprocess.run(
