@@ -109,7 +109,7 @@ class ProjectContextTests(unittest.TestCase):
     def test_context_is_preserved_by_copier_and_guarded_rollout(self) -> None:
         copier = (ROOT / "copier.yml").read_text(encoding="utf-8")
         rollout = (ROOT / "scripts" / "rollout_project.py").read_text(encoding="utf-8")
-        self.assertIn("  - docs/context", copier)
+        self.assertIn("  - docs/context/README.md", copier)
         self.assertIn('"docs/context",', rollout)
         self.assertIn('return ("dir", digest.hexdigest())', rollout)
 
