@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/public-distribution/spec.md"
+  ],
+  "change": "scope-public-distribution-candidates-to-git-tracked-source",
+  "imported_at": "2026-09-19T14:03:17+00:00",
+  "package_revision": "047be0655f9631e4ab2c26f0e803ca78feb32ad915e8e7ee18e50c449dad0647",
+  "prepared_against": "30fcd7e369941f6523074317f081058609c168e6",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue": "lehard/development-backlog#130",
+  "source_issue_evidence": {
+    "body_sha256": "6a4d52e2d770e0808c6786aa7a865ad94085c4e8df08a0b314c0b93dfb68e344",
+    "updated_at": "2026-09-19T13:32:12Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

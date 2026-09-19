@@ -104,6 +104,13 @@ def main() -> int:
                 "extracted snapshot is missing required top-level paths: " + ", ".join(missing_top_level)
             )
 
+        # `public_files()` now derives its candidate set from `git ls-files`
+        # (see scripts/public_distribution.py), so the extracted tree needs
+        # its fresh canonical history established before it can be
+        # re-derived here -- this is exactly the history a real cutover
+        # would already have in place at this point.
+        establish_fresh_history(extracted)
+
         missing_referenced = public_distribution.missing_required_paths(
             extracted, public_distribution.public_files(extracted)
         )
@@ -112,8 +119,6 @@ def main() -> int:
                 "extracted snapshot's own README/CI reference paths it does not contain: "
                 + ", ".join(missing_referenced)
             )
-
-        establish_fresh_history(extracted)
 
         for command in EXTRACTED_CHECK_COMMANDS:
             run(command, extracted)
