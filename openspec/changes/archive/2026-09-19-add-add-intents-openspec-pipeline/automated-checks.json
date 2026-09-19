@@ -9,26 +9,32 @@
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
-      "duration_seconds": 3.105,
+      "duration_seconds": 4.127,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
-      "duration_seconds": 662.667,
+      "duration_seconds": 572.97,
       "outcome": "success",
       "exit_code": 0
     }
   ],
   "selected_checks": [
     {
-      "id": "full",
-      "paths": [],
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "scripts/add_intents.py",
+        "template/scripts/add_intents.py",
+        "tests/test_add_intents.py",
+        "tests/test_template_contract.py"
+      ],
       "commands": [
         "python3 -m compileall -q template/scripts scripts",
         "python3 scripts/run_test_groups.py --all"
       ],
-      "selection_reason": "protected-full",
+      "selection_reason": "high-impact-path",
       "evidence_types": [
         "syntax",
         "test"
