@@ -231,9 +231,13 @@ def run_friction_route_pending_retry(root: Path) -> None:
     # harnesses. Current platform renders always include this helper.
     if not helper.is_file():
         return
-    result = subprocess.run(
-        ["python3", str(helper), "route-pending"], cwd=root, text=True, capture_output=True, check=False,
-    )
+    try:
+        result = subprocess.run(
+            ["python3", str(helper), "route-pending"], cwd=root, text=True, capture_output=True, check=False, timeout=15,
+        )
+    except subprocess.TimeoutExpired:
+        print("WARNING: friction routing retry timed out after 15 seconds; safe publication may continue.")
+        return
     if result.returncode == 0:
         try:
             payload = json.loads(result.stdout)
