@@ -42,5 +42,5 @@
 - [x] 6.1 Render clean no-operator standard projects for both GitHub and GitLab and verify their guidance/configuration contracts.
 - [x] 6.2 Run operator-enabled synthetic validation proving external config + registry works without public-tree state.
 - [x] 6.3 Run current-tree public audit, bounded history-secret audit, deterministic snapshot dry-run, GitLab exact-head CI sandbox tests, OpenSpec verification and all required repository checks.
-- [ ] 6.4 Record truthful verification evidence and archive only after all gates pass on the exact final revision.
-- [ ] 6.5 Do not perform GitHub repository create/rename/visibility cutover, downstream migrations, or client production deployment from this task; leave those as explicit later owner/admin or repository-scoped actions.
+- [x] 6.4 Record truthful verification evidence and archive only after all gates pass on the exact final revision.
+- [x] 6.5 Do not perform GitHub repository create/rename/visibility cutover, downstream migrations, or client production deployment from this task; leave those as explicit later owner/admin or repository-scoped actions.
