@@ -18,7 +18,7 @@ source = "dev-platform"
 revision = "platform-managed"
 path = "dev-platform/capabilities/selective-domain-interrogation.md"
 license = "Apache-2.0"
-content_sha256 = "cbd44878ec92bba5f2cc2cb88e9a04d6176ad1c9d153690327eff0d95197deca"
+content_sha256 = "34101bb855b0559c8ae0d5df64cd71dec4255d7ea6f5891b24d964890ce107a3"
 
 [eval]
 evidence = "dev-platform/evals/selective-domain-interrogation-pilot.json"

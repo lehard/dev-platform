@@ -1,0 +1,30 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "specs/agent-workflow/spec.md",
+    "specs/openspec-authoring/spec.md",
+    "design.md",
+    "tasks.md"
+  ],
+  "change": "add-add-intents-openspec-pipeline",
+  "imported_at": "2026-09-19T11:38:30+00:00",
+  "package_revision": "3319de3fe7497670990ea28acf9c039430bf4bdd4e840e6f4c528248d1b2b3fd",
+  "prepared_against": "bbddd4f3ecc7e2ac87c01c590ff89a5a34b0e304",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue": "lehard/development-backlog#126",
+  "source_issue_evidence": {
+    "body_sha256": "60808be4d9c8700ce074e1664eb45bc52616f816bcd13f26141516b0bbbeca45",
+    "updated_at": "2026-09-19T11:21:20Z"
+  },
+  "supersedes": "e927d308e09b46191faf4b395f3456e78aacdaba441b7ef22239dd501b521250",
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

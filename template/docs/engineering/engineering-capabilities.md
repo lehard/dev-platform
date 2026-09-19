@@ -142,6 +142,19 @@ The reviewed upstream is [`mattpocock/skills`](https://github.com/mattpocock/ski
 | Delegate the grilling loop to a subagent that answers on the user's behalf | Reject | Product/intent choices are surfaced to the human, not auto-answered; the capability never invents requirements. |
 | Mandatory grilling before every task | Reject | A sufficiently clear request proceeds with no interrogation ceremony. |
 
+## ADD -> Intents pipeline
+
+`add-intents` is an opt-in, tool-backed capability that translates a material business requirement into OpenSpec authoring through two bounded pre-authoring stages: an Architecture Design Delta (ADD) against the current accepted system, then atomic Intent decomposition of the approved ADD. Enable it only where a repository wants this pre-authoring separation:
+
+```bash
+python3 scripts/capability_manager.py enable add-intents
+python3 scripts/capability_manager.py evaluate add-intents --fixture dev-platform/evals/add-intents-pilot.json --runtime fixture
+```
+
+The `scripts/add_intents.py` adapter scaffolds (`new-add`, `decompose`) and deterministically validates (`validate-add`, `validate-intents`) both documents: schema/provenance/freshness for the ADD, and coverage/dependency-graph/overlap/readiness structure for the intent set. It never claims a design is correct or a decomposition is the best possible partition -- that stays targeted agent/human review, same as `architecture-health-review`. ADD and intents are bounded, machine-local pre-authoring evidence; they introduce no second backlog, registry, board, or status ledger, and after an intent's OpenSpec change is materialized, ordinary managed OpenSpec lifecycle governs implementation, verification, and archive.
+
+The design was informed by reviewing a third-party "Intents" skill bundle and its author's own walkthrough, provided out-of-band at authoring time as reference-only material for understanding staging and semantics. Dev Platform vendors none of that bundle's files or corporate/provider assumptions; the schemas, gates, and CLI are an independently authored, clean-room, provider-neutral implementation. See [dev-platform/capabilities/add-intents.md](../../dev-platform/capabilities/add-intents.md) for the full contract.
+
 ## Bounded prototype
 
 `bounded-prototype` is an opt-in, instruction-only capability for running one
