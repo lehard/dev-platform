@@ -94,6 +94,9 @@ class AgenticWorkflowTests(unittest.TestCase):
         for value in ("exact current commit SHA", "previous-review boundary", "root cause", "inspect current default-branch"):
             with self.subTest(value=value):
                 self.assertIn(value, text)
+        self.assertIn("Classification: context-gap", text)
+        self.assertIn("Likely context destination", text)
+        self.assertIn("ordinary process-friction", text)
         self.assertIn("or close/relabel/comment on source evidence", text)
 
 
