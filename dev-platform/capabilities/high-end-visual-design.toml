@@ -1,0 +1,25 @@
+[capability]
+id = "high-end-visual-design"
+name = "High-end visual design"
+description = "Specialized visual profile for marketing, brand, launch, and portfolio surfaces whose stated goal is an ambitious, distinctive identity. Not for dashboards, internal B2B tools, or accessibility-first flows; never a default."
+kind = "instruction-only"
+applicability = "Explicitly selected for marketing, landing, brand, launch, campaign, or portfolio surfaces that want an ambitious distinctive identity."
+invocation = "auto+explicit"
+visibility = "project"
+owner = "dev-platform"
+safety_boundary = "Instruction-only; subordinate to project product requirements, the project design system, accessibility rules, and accepted OpenSpec. Must not be adopted as the default for dashboards or B2B UI, cannot change product intent, cannot create managed work, and adds no application runtime dependency."
+dependencies = ["dev-platform/capabilities/frontend-design.toml"]
+materialization = "provider-skill-markdown"
+update_policy = "replace-derived"
+removal_policy = "remove-derived-only"
+
+[provenance]
+source = "leonxlnx/taste-skill · skills/taste-skill/SKILL.md + skills/redesign-skill/SKILL.md"
+revision = "ccbc15639c97057cbfcf32ecebc38ef716e4bb37"
+path = "dev-platform/capabilities/high-end-visual-design.md"
+license = "MIT"
+content_sha256 = "6cd216dbf45e09c0e35505e80cf93b187880b87d9464c5bd5fb67acdc56c5794"
+
+[eval]
+evidence = "deterministic-fixture"
+live_eval = "not-required-for-fixture"

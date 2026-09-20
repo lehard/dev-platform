@@ -1,0 +1,115 @@
+# Repository Agent Rules
+
+This repository uses the shared Dev Platform workflow with `workflow_profile={{ workflow_profile }}`, `harness_mode={{ harness_mode }}`, `scm_provider={{ scm_provider }}`, `protected_main={{ protected_main }}`, `publish_mode={{ publish_mode }}` and `pr_merge_mode={{ pr_merge_mode }}`.
+
+This file is the canonical repository-wide map of the cross-agent task protocol: sources of truth, task intents, always-on invariants, entrypoints and where the detailed contract lives. It is deliberately bounded. Detailed workflow rules live in the linked documents and are read when a task reaches that concern. Tool-specific instruction files reference this contract and must not fork or duplicate it.
+
+## Sources of truth
+
+These have different ownership; do not treat them as one flat precedence list:
+
+- `AGENTS.md` and any applicable module-level `AGENTS.md` — how work may be performed (process, safety, Git, verification).
+- `openspec/specs/` — accepted current behavior.
+- `openspec/changes/<active>/` — the approved delta currently changing that behavior.
+- Code — implementation of current specs plus approved active deltas.
+- `docs/` — durable architecture/runbook/project guidance outside active feature contracts.
+- `.claude/agents-board.json` — machine-local coordination only when the multi-agent profile is enabled; never a backlog.
+
+Target behavior during an active change is `current specs + active delta`, subject to process/safety constraints. A safety/process rule is not silently bypassed because an OpenSpec artifact conflicts with it. Report the conflict.
+
+## Task intents
+
+Keep these four intents distinct:
+
+- **Discuss** a change: inspect, design and compare options; do not create durable task state merely because the discussion is substantial.
+{% if operator_config_path %}
+- **Fix/add to operator Backlog** from a repository checkout when the user explicitly asks to record an accepted non-trivial change: prepare a local authoring bundle, run `python3 scripts/managed_task.py create --bundle <directory>`, and stop. This optional operator integration never starts implementation or publication during authoring.
+{% else %}
+- **Fix a non-trivial change**: prepare the local OpenSpec proposal/spec/design/tasks package and stop for acceptance; no operator Backlog, Project mutation, or credentials are required.
+{% endif %}
+- **Quick execution**: a small direct request is a quick task and uses the normal start/check/finish path with no external issue and no ceremonial OpenSpec. If it becomes material or needs a full active OpenSpec contract, define an accepted local OpenSpec package before further implementation.
+{% if operator_config_path %}
+- **Fresh non-trivial execution**: explicit execution intent first creates/reuses the managed task and starts that same task before implementation; use `python3 scripts/execute_managed_task.py --bundle <directory>`.
+- **Execute an existing operator-managed task**: an explicitly supplied issue is imported with `python3 scripts/start_managed_task.py owner/repo#N` before implementation.
+{% else %}
+- **Fresh non-trivial execution**: explicit execution first accepts the local OpenSpec package and then implements it through the repository task/check/finish lifecycle.
+{% endif %}
+
+{% if operator_config_path %}
+Managed start validates the package without writing, creates the task branch/worktree, materializes the OpenSpec contract only in that task checkout, and reconciles the Development Backlog Project item to `In progress`. After import, `openspec/changes/<change>/` is canonical for implementation, verification and archive; the backlog issue stays a human-facing provenance item, not a competing task list.
+{% endif %}
+
+Goal refinement is a selective layer before authoring, used only for explicit goal-backed work or a materially unclear non-trivial request. It creates no durable goal, backlog or plan artifact. See [docs/engineering/agent-workflow.md](docs/engineering/agent-workflow.md).
+
+## Always-on invariants
+
+- **No silent divergence.** If implementation reveals the agreed change is wrong, update the relevant OpenSpec artifact *before* changing direction. Never implement a different contract and repair the specification afterwards.
+- **Verification is not a checkbox count.** A non-trivial OpenSpec change is complete only after project checks, semantic verification, a truthful `verification.md` receipt, archive through the lifecycle helper, and publication in that order.
+- **Never fabricate a verification receipt.** The report must state what was actually checked and which method was used.
+- **Managed contract conflicts stop.** Repair formal/schema mismatches in an imported package; a material product-contract conflict returns to the user.
+- **Quick tasks do not silently grow.** If one expands into a material behavior, architecture, compatibility, data-contract or scope change, stop and propose managed-task fixation.
+- **Required GitHub checks are never bypassed.** Do not add agent/admin bypass to make autonomous publication succeed, and do not use the human user as a routine Git courier between finished work and GitHub.
+- **Keep CI providers thin.** Put portable test, build, verification, release, and deploy behavior behind repository-owned executable entrypoints; use provider workflows for their native orchestration. See [docs/engineering/agent-workflow.md](docs/engineering/agent-workflow.md).
+- **Report blockers.** If a required completion step is blocked, say so instead of reporting the task as done.
+- **Resolve the friction checkpoint** before reporting a non-trivial task complete: `python3 scripts/agent_friction.py checkpoint --result none`, or the id of a recorded event.
+- **Don't busy-poll background processes.** Wait out a long-running background command with one long timeout — for Codex, a single `write_stdin` call with `yield_time_ms` up to the runtime's max (around 300000) — instead of repeated short `sleep`/`ps` checks or empty stdin polls; poll again only once that wait elapses. Genuine interactive input is unaffected.
+{% if workflow_profile == 'multi-agent' %}
+- **Other agents' state is off limits.** Do not use another agent's worktree or change another active entry's scope without resolving the overlap, and never delete another agent's dirty or unmerged tree. No delegation or containment path stashes, resets, cleans or deletes integration state.
+{% endif %}
+## Profile
+
+{% if workflow_profile == 'light' %}
+`light`: single-agent workflow. Work stays on synchronized `{{ main_branch }}` without mandatory feature branches, worktrees or an agent board. The default publication mode is normally `direct`, which is only compatible with an intentionally unprotected integration branch. A protected main requires a feature-capable standard/multi-agent profile or a reviewed project-owned harness.
+{% elif workflow_profile == 'standard' %}
+`standard`: each task uses a feature branch created from freshly synchronized `{{ main_branch }}`. Worktrees and the agent board are not mandatory.
+{% else %}
+`multi-agent`: agents develop in isolated Git worktrees and register scope ownership in the machine-local agent board, while the integration copy on `{{ main_branch }}` stays clean and acts only as the integration point. Supply exact intended files through `--scope`; only a valid active entry with a proven worktree/branch identity can return `WAIT`. A degraded or terminal sibling is a hygiene warning, not a claim; an unreadable or un-lockable board is a blocked error. Directories/subsystems/globs stay advisory.
+
+Managed work carries a provider-neutral recommended start tier (`R2` balanced by default, `R3` frontier only with a recorded hard trigger) authored with the task. Execution records a bounded routing decision through `scripts/model_routing.py` that confirms the authored tier or escalates on newly discovered evidence, rather than requiring a strong parent to redo full routing before every task starts. The user does not choose an executor, and a delegation is claimed only when its write containment is actually proven.
+{% endif %}
+## Entrypoints
+
+```bash
+python3 scripts/agent_doctor.py
+python3 scripts/start_task.py <slug> --task "<task>" --scope "<files/modules>"
+{% if operator_config_path %}
+python3 scripts/execute_managed_task.py --bundle <directory>
+{% endif %}
+python3 scripts/select_checks.py --execute
+python3 scripts/openspec_lifecycle.py archive <change>
+python3 scripts/finish_task.py --reconcile
+python3 scripts/finish_task.py
+python3 scripts/finish_task.py --status
+```
+
+`agent_doctor.py` is start-of-task hygiene and publication preflight. `start_task.py` synchronizes `origin` safely and never auto-merges divergent histories. `finish_task.py --reconcile` is the explicit managed-task recovery operation: it reports/merges current authoritative main only through normal Git history, refuses dirty/provenance-ambiguous/changed-remote state, and requires validation to be rerun. `finish_task.py` enforces OpenSpec lifecycle hygiene, re-fetches immediately before publication, refuses stale/diverged integration, never force-pushes, and is resumable: rerunning it after any interruption is the correct next step. `--status` never publishes, merges, or mutates task content; it freshly observes task/main ancestry so it can point to `--reconcile` before expensive validation.
+{% if publish_mode == 'pr' %}
+`publish_mode=pr`: validated work is pushed and the configured SCM adapter creates/reuses the exact task review object. GitHub preserves exact-head PR and required-check semantics; the bounded GitLab adapter observes MR CI and stops at human merge/acceptance.
+{% else %}
+`publish_mode=direct`: valid only when `protected_main=false`. The platform re-fetches immediately before push and only pushes when `origin/{{ main_branch }}` is an ancestor of local `{{ main_branch }}`. Any divergence aborts publication.
+{% endif %}
+## Where the detailed contract lives
+
+| Concern | Canonical document |
+| --- | --- |
+| Maintaining agent-facing instructions, pointers and surface ownership | [docs/engineering/agent-instructions.md](docs/engineering/agent-instructions.md) |
+| Task intake and intent transitions | [docs/engineering/task-intake.md](docs/engineering/task-intake.md) |
+| ChatGPT Project authoring through connected GitHub | [docs/engineering/chatgpt-project-protocol.md](docs/engineering/chatgpt-project-protocol.md) |
+| Task intake, goal refinement, start/publish lifecycle, worktrees, shared workspace, friction, completion | [docs/engineering/agent-workflow.md](docs/engineering/agent-workflow.md) |
+| OpenSpec contract model, semantic verification, receipts, archive, version policy | [docs/engineering/openspec-workflow.md](docs/engineering/openspec-workflow.md) |
+| Provider-local executor selection, escalation, delegated write containment | [docs/engineering/model-routing.md](docs/engineering/model-routing.md) |
+| Optional engineering capability lifecycle and the browser verification adapter | [docs/engineering/engineering-capabilities.md](docs/engineering/engineering-capabilities.md), [docs/engineering/browser-verification.md](docs/engineering/browser-verification.md) |
+| Project-specific engineering, stack and domain rules | [docs/engineering/project-rules.md](docs/engineering/project-rules.md) |
+| Product/domain semantics, architecture invariants, anti-patterns or representative examples | [docs/context/README.md](docs/context/README.md) when that concern is reached |
+
+Platform-managed scripts, docs and the self-contained CI workflow are versioned in this repository by Copier; upgrades arrive only through reviewed Copier update PRs.
+
+## Ownership
+
+Platform-owned files carry the shared lifecycle and are updated by Copier. Project-owned files carry this repository's domain, stack and operational rules. Keep subtree-specific rules in a module-level `AGENTS.md` next to the code they govern, and keep project-domain rules in project-owned docs rather than promoting them into this map. `docs/context/` is a project-owned, selectively loaded context surface.
+
+OpenSpec-generated Claude/Codex skills are produced by the OpenSpec CLI; do not hand-edit them or treat them as platform-owned source.
+
+## Optional engineering capabilities
+
+Optional engineering capabilities are independent of `workflow_profile`. Use `python3 scripts/capability_manager.py list` to discover them and the same entrypoint for `create`, `enable`, `update`, `remove`, `audit`, and `sync`. `dev-platform/capabilities.toml` is the project opt-in; descriptors under `dev-platform/capabilities/` are canonical. Generated `.claude/.codex` skill surfaces are derived and must not be edited. OpenSpec-generated skills remain external to this lifecycle. The opt-in `browser-verification` capability adds bounded exploratory browser checks for web projects; see [docs/engineering/browser-verification.md](docs/engineering/browser-verification.md).

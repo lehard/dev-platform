@@ -1,0 +1,20 @@
+#!/bin/sh
+# Managed by dev-platform scripts/agent_doctor.py.
+# In multi-agent platform-owned mode, development happens in isolated worktrees;
+# the integration copy stays clean and receives only fast-forward integration.
+
+if [ "$DEV_PLATFORM_ALLOW_MAIN_COMMIT" = "1" ]; then
+    exit 0
+fi
+
+git_dir=$(git rev-parse --git-dir 2>/dev/null) || exit 0
+common_dir=$(git rev-parse --git-common-dir 2>/dev/null) || exit 0
+
+if [ "$git_dir" != "$common_dir" ]; then
+    exit 0
+fi
+
+echo "pre-commit: direct commit in the integration copy is blocked by dev-platform." >&2
+echo "Use scripts/start_task.py so development happens in an isolated worktree." >&2
+echo "Override only after an explicit user decision: DEV_PLATFORM_ALLOW_MAIN_COMMIT=1 git commit ..." >&2
+exit 1

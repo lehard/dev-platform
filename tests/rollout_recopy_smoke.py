@@ -1,0 +1,218 @@
+from __future__ import annotations
+
+import os
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+TARGET_TAG = "v99.99.99"
+sys.path.insert(0, str(ROOT / "scripts"))
+
+import rollout_project  # noqa: E402
+
+
+def run(command: list[str], cwd: Path, *, check: bool = True) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(command, cwd=cwd, text=True, capture_output=True, check=check)
+
+
+def append_answer(path: Path, key: str, value: str) -> None:
+    text = path.read_text(encoding="utf-8").rstrip() + "\n"
+    if f"{key}:" not in text:
+        text += f"{key}: {value}\n"
+    path.write_text(text, encoding="utf-8")
+
+
+def main() -> int:
+    baseline = run(["git", "rev-parse", "-q", "--verify", "refs/tags/v1.2.3"], ROOT, check=False)
+    if baseline.returncode != 0:
+        print(
+            "Skipping project-harness recopy smoke: historical tag v1.2.3 does not "
+            "exist in this checkout (a fresh-history checkout has no historical "
+            "release tags to reproduce this transition from)."
+        )
+        return 0
+
+    existing = run(["git", "show-ref", "--verify", "--quiet", f"refs/tags/{TARGET_TAG}"], ROOT, check=False)
+    if existing.returncode == 0:
+        raise SystemExit(f"Local smoke-test tag already exists: {TARGET_TAG}")
+    run(["git", "tag", TARGET_TAG, "HEAD"], ROOT)
+    try:
+        with tempfile.TemporaryDirectory(prefix="dev-platform-recopy-smoke-") as tmp:
+            project = Path(tmp) / "project"
+            project.mkdir()
+            run(["git", "init", "-b", "main"], project)
+            run(["git", "config", "user.name", "Rollout Smoke"], project)
+            run(["git", "config", "user.email", "rollout-smoke@example.invalid"], project)
+
+            run(
+                [
+                    "copier",
+                    "copy",
+                    "--trust",
+                    "--defaults",
+                    "--vcs-ref",
+                    "v1.2.3",
+                    "--data",
+                    "project_name=Transition Smoke",
+                    "--data",
+                    "project_slug=transition-smoke",
+                    "--data",
+                    "project_description=Reproduce project-owned harness transition",
+                    "--data",
+                    "workflow_profile=standard",
+                    "--data",
+                    "publish_mode=direct",
+                    "--data",
+                    "protected_main=false",
+                    str(ROOT),
+                    str(project),
+                ],
+                ROOT,
+            )
+
+            custom_scripts = {
+                "scripts/agent_doctor.py": "#!/usr/bin/env python3\nprint('project-owned doctor sentinel')\n",
+                "scripts/agent_friction.py": "#!/usr/bin/env python3\nprint('project-owned friction sentinel')\n",
+                "scripts/finish_task.py": "#!/usr/bin/env python3\nprint('project-owned finish sentinel')\n",
+                "scripts/project_publish.py": "#!/usr/bin/env python3\nprint('project-owned publish sentinel')\n",
+                "scripts/project_sync.py": "#!/usr/bin/env python3\nprint('project-owned sync sentinel')\n",
+                "scripts/select_checks.py": "#!/usr/bin/env python3\nprint('project-owned checks sentinel')\n",
+                "scripts/start_task.py": "#!/usr/bin/env python3\nprint('project-owned start sentinel')\n",
+            }
+            for relative, body in custom_scripts.items():
+                (project / relative).write_text(body, encoding="utf-8")
+
+            # Reproduce the Planner Lab transition precisely: _platform_common.py
+            # used to be customized downstream, but the project-specific helpers
+            # have already moved out and the common file has been restored to the
+            # new platform-owned target bytes. Copier still sees a historic diff
+            # from v1.2.3 and may emit a reject while replaying that diff.
+            (project / "scripts" / "_platform_common.py").write_bytes(
+                (ROOT / "template" / "scripts" / "_platform_common.py").read_bytes()
+            )
+
+            answers_path = project / ".copier-answers.yml"
+            append_answer(answers_path, "harness_mode", "project")
+            append_answer(answers_path, "protected_main", "false")
+            config_path = project / ".dev-platform.toml"
+            config_text = config_path.read_text(encoding="utf-8")
+            config_text = config_text.replace("protected_main = true", "protected_main = false")
+            if "harness_mode" not in config_text:
+                config_text = config_text.replace(
+                    'workflow_profile = "standard"\n',
+                    'workflow_profile = "standard"\nharness_mode = "project"\n',
+                    1,
+                )
+            if "platform_git_lifecycle" not in config_text:
+                marker = "[capabilities]\n"
+                config_text = config_text.replace(
+                    marker,
+                    marker + "platform_git_lifecycle = false\n",
+                    1,
+                )
+            config_path.write_text(config_text, encoding="utf-8")
+
+            # Capability selection is project-owned opt-in.  The platform may
+            # add descriptors/manager code on update, but must not reset this
+            # explicit project decision.
+            capability_selection = project / "dev-platform" / "capabilities.toml"
+            capability_selection.write_text("version = 1\nenabled = [\"repository-hygiene\"]\n", encoding="utf-8")
+            capability_selection_before = capability_selection.read_text(encoding="utf-8")
+
+            product_ci = project / ".github" / "workflows" / "ci.yml"
+            product_ci.parent.mkdir(parents=True, exist_ok=True)
+            product_ci.write_text("name: Project-owned product CI\n", encoding="utf-8")
+
+            # Synthetic legacy-project-like artifacts: only names and harmless fixtures,
+            # never real credentials. The rollout guard uses the same paths with
+            # `git check-ignore --no-index` and must not materialize or stage them.
+            gitignore = project / ".gitignore"
+            gitignore.write_text(
+                gitignore.read_text(encoding="utf-8")
+                + "\n# Project-owned legacy runtime ignores\n"
+                + ".env\nconfig/*credentials.json\nvar/*.sqlite3\nnode_modules/\ndist/\n*.tsbuildinfo\n",
+                encoding="utf-8",
+            )
+            synthetic_artifacts = {
+                ".env": "synthetic environment fixture\n",
+                "config/provider-credentials.json": "{\"synthetic\": true}\n",
+                "var/app.sqlite3": "synthetic database fixture\n",
+                "node_modules/.package-lock.json": "synthetic dependency fixture\n",
+                "dist/assets/app.js": "synthetic build fixture\n",
+                "tsconfig.tsbuildinfo": "synthetic TypeScript fixture\n",
+            }
+            for relative, content in synthetic_artifacts.items():
+                artifact = project / relative
+                artifact.parent.mkdir(parents=True, exist_ok=True)
+                artifact.write_text(content, encoding="utf-8")
+
+            run(["git", "add", "-A"], project)
+            run(["git", "commit", "-m", "Simulate customized v1.2.3 project harness"], project)
+
+            # Production managed rollout accepts only the canonical GitHub Copier
+            # source. This smoke deliberately renders from the current local checkout
+            # so it can exercise an unreleased candidate tag; authorize only that
+            # local source inside the test process.
+            rollout_project.EXPECTED_SOURCES.add(str(ROOT))
+
+            before = rollout_project.snapshot_existing_project_owned(project)
+            agents_before = (project / "AGENTS.md").read_text(encoding="utf-8")
+            config_before = rollout_project.platform_config_contract(project)
+            strategy = rollout_project.copier_update_with_guarded_recopy(
+                project,
+                TARGET_TAG,
+                env=os.environ.copy(),
+            )
+            if strategy not in {"update", "guarded-recopy"}:
+                raise SystemExit(f"Unexpected safe transition strategy: {strategy}")
+
+            rollout_project.normalize_copier_answers(project)
+            after_answers = rollout_project.parse_answers(answers_path.read_text(encoding="utf-8"))
+            if after_answers.get("_commit") != TARGET_TAG:
+                raise SystemExit(f"Copier did not record {TARGET_TAG}: {after_answers.get('_commit')}")
+            if rollout_project.load_platform_version(project) != TARGET_TAG[1:]:
+                raise SystemExit("platform_bootstrap did not synchronize platform_version to current smoke tag")
+            try:
+                rollout_project.require_platform_config_contract(
+                    config_before, rollout_project.platform_config_contract(project)
+                )
+            except ValueError as exc:
+                raise SystemExit(str(exc)) from exc
+            rollout_project.require_project_owned_snapshot(
+                project,
+                before,
+                permitted_fingerprints=rollout_project.permitted_task_intake_migration(
+                    project, agents_before
+                ),
+            )
+            if not rollout_project.reclaimed_platform_path_matches_template(
+                project, "scripts/_platform_common.py"
+            ):
+                raise SystemExit("Reclaimed platform common no longer matches the target template")
+            if not (project / ".github" / "workflows" / "dev-platform.yml").exists():
+                raise SystemExit("Safe harness transition did not add the non-colliding platform CI workflow")
+            if rollout_project.find_reject_files(project):
+                raise SystemExit("Safe harness transition left .rej files")
+            if capability_selection.read_text(encoding="utf-8") != capability_selection_before:
+                raise SystemExit("Copier update overwrote project-owned capability selection")
+            if not (project / "scripts" / "capability_manager.py").exists():
+                raise SystemExit("Copier update did not materialize the capability lifecycle manager")
+            rollout_project.require_effective_ignore_coverage(
+                project,
+                set(synthetic_artifacts),
+            )
+            status = run(["git", "status", "--porcelain"], project).stdout
+            visible = [relative for relative in synthetic_artifacts if relative in status]
+            if visible:
+                raise SystemExit("Legacy-project-like synthetic artifacts became visible to Git: " + ", ".join(visible))
+
+            print(f"Safe project-harness transition smoke passed via {strategy}.")
+    finally:
+        run(["git", "tag", "-d", TARGET_TAG], ROOT, check=False)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

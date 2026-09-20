@@ -1,0 +1,121 @@
+_min_copier_version: "9.17.0"
+_subdirectory: template
+_answers_file: .copier-answers.yml
+_templates_suffix: .jinja
+_exclude:
+  # GitLab renders one provider-neutral lifecycle plus .gitlab-ci.yml. It must
+  # not inherit GitHub Actions/process-health automation as a hidden default.
+  - "{{ '.github/**' if scm_provider == 'gitlab' else '.dev-platform-no-exclude' }}"
+  # Bootstrap creates this only for projects that do not already have reviewed
+  # context, so Copier updates can never replace the project-owned map.
+  - docs/context/README.md
+_skip_if_exists:
+  - .dev-platform.toml
+  - AGENTS.md
+  - CLAUDE.md
+  - README.md
+  - dev-platform/checks.toml
+  - openspec/config.yaml
+  - docs/engineering/project-rules.md
+  - .gitignore
+  - dev-platform/capabilities.toml
+  - dev-platform/browser-verification.toml
+  - "{{ 'docs/engineering/openspec-workflow.md' if harness_mode == 'project' else '.copier-managed-harness' }}"
+  - "{{ 'docs/engineering/agent-workflow.md' if harness_mode == 'project' else '.copier-managed-harness' }}"
+  - "{{ 'scripts/agent_board.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
+  - "{{ 'scripts/agent_doctor.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
+  - "{{ 'scripts/agent_friction.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
+  - "{{ 'scripts/integration_state.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
+  - "{{ 'scripts/finish_task.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
+  - "{{ 'scripts/merge_to_main.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
+  - "{{ 'scripts/project_publish.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
+  - "{{ 'scripts/project_sync.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
+  - "{{ 'scripts/select_checks.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
+  - "{{ 'scripts/start_task.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
+  - "{{ 'scripts/start_worktree.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
+  - "{{ 'scripts/worktree_cleanup.py' if harness_mode == 'project' else '.copier-managed-harness' }}"
+  - "{{ 'scripts/git_hooks/pre-commit' if harness_mode == 'project' else '.copier-managed-harness' }}"
+  - "{{ 'scripts/git_hooks/pre-merge-commit' if harness_mode == 'project' else '.copier-managed-harness' }}"
+_tasks:
+  - command: ["{{ _copier_python }}", "scripts/platform_bootstrap.py"]
+
+project_name:
+  type: str
+  help: Human-readable project name
+
+project_slug:
+  type: str
+  help: Repository/project slug
+  default: "{{ project_name | lower | replace(' ', '-') | replace('_', '-') }}"
+
+project_description:
+  type: str
+  help: One-line project description
+  default: ""
+
+main_branch:
+  type: str
+  help: Default integration branch
+  default: main
+
+workflow_profile:
+  type: str
+  help: Development workflow complexity
+  choices:
+    - light
+    - standard
+    - multi-agent
+  default: standard
+
+harness_mode:
+  type: str
+  help: Who owns the Git/task/worktree/test-coordination harness. Use project for mature repositories that already have a proven repository-specific lifecycle.
+  choices:
+    - platform
+    - project
+  default: platform
+
+protected_main:
+  type: bool
+  help: Whether the GitHub integration branch is expected to be protected. Protected branches require PR publication.
+  default: "{{ false if workflow_profile == 'light' else true }}"
+
+publish_mode:
+  type: str
+  help: How completed work reaches GitHub (PR is required for protected main; direct is only for intentionally unprotected repos)
+  choices:
+    - pr
+    - direct
+  default: "{{ 'direct' if workflow_profile == 'light' else 'pr' }}"
+  validator: "{% if workflow_profile == 'light' and publish_mode == 'pr' %}light profile has no feature branch; choose direct or use standard profile{% elif protected_main and publish_mode == 'direct' %}protected_main=true is incompatible with direct publication; choose pr or disable protection deliberately{% endif %}"
+
+pr_merge_mode:
+  type: str
+  help: Whether ordinary task PRs merge automatically after required checks or stop for manual review
+  choices:
+    - auto
+    - manual
+  default: auto
+
+scm_provider:
+  type: str
+  help: SCM delivery adapter. GitHub and GitLab share the same standard lifecycle.
+  choices:
+    - github
+    - gitlab
+  default: github
+
+platform_ci_ref:
+  type: str
+  help: Legacy schema-v2 CI metadata retained for v1 compatibility; self-contained CI does not execute this ref
+  default: dab74494c9a6ad9a77d99e73bb36774a6d42350d
+
+agent_tools:
+  type: str
+  help: Comma-separated OpenSpec tool IDs
+  default: "claude,codex"
+
+operator_config_path:
+  type: str
+  help: Optional path to an operator-owned TOML configuration; leave blank for ordinary project work.
+  default: ""

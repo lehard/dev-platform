@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "capability": "systematic-bug-diagnosis",
+  "content_sha256": "87b64e6fbfb119888550a421cdbd04594c2a96d22835dcbf079412637ed748bf",
+  "cases": [
+    {"id": "positive-unknown-500", "expectation": "trigger", "prompt": "Diagnose why the checkout endpoint now returns 500 for a previously valid request.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-regression", "expectation": "trigger", "prompt": "Track down this regression: version 4 produces a different invoice total than version 3 for the same fixture.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-intermittent", "expectation": "trigger", "prompt": "Investigate the intermittent timeout that appears in roughly one in ten worker jobs.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-performance", "expectation": "trigger", "prompt": "Diagnose why the search request became much slower after last week's deployment.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-unknown-test-failure", "expectation": "trigger", "prompt": "Debug this unexplained integration-test failure and establish the real cause before changing code.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-wrong-output", "expectation": "trigger", "prompt": "Find the cause of the report returning the wrong timezone for some customers.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-production-symptom", "expectation": "trigger", "prompt": "A production request is broken but the alert gives no cause; investigate with safe, observable evidence.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-flake", "expectation": "trigger", "prompt": "Diagnose the new CI flake instead of retrying it until it passes.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-debug-request", "expectation": "trigger", "prompt": "Please debug this API failure. We do not yet know whether parsing, auth, or the cache is responsible.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-unexplained-crash", "expectation": "trigger", "prompt": "Investigate this unexplained command crash and add a regression check if there is a reasonable seam.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "negative-confirmed-typo", "expectation": "not-trigger", "prompt": "Fix the confirmed typo in this user-facing error message.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-known-config", "expectation": "not-trigger", "prompt": "Change the already identified staging URL from http to https in this one config value.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-format", "expectation": "not-trigger", "prompt": "Format this Python module with the repository formatter.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-rename", "expectation": "not-trigger", "prompt": "Rename this local variable to match the established naming convention.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-explicit-copy", "expectation": "not-trigger", "prompt": "Replace the confirmed outdated product name in this documentation sentence.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-implement", "expectation": "not-trigger", "prompt": "Implement the already specified JSON serialization field in this DTO.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-test-run", "expectation": "not-trigger", "prompt": "Run the focused unit test for this parser.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-review", "expectation": "not-trigger", "prompt": "Review this authentication change for security issues.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-docs", "expectation": "not-trigger", "prompt": "Rewrite this release-note paragraph to be more concise.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-known-mechanical", "expectation": "not-trigger", "prompt": "Apply the known one-line version bump requested in the release checklist.", "samples": ["not-triggered", "not-triggered", "not-triggered"]}
+  ],
+  "quality_comparisons": [
+    {
+      "id": "unknown-bug-evidence-fixture",
+      "objective_verifier": "The capability test validates a representative unknown-response-regression record: a confirmed 500 reproducer, a rejected timeout hypothesis, a parser-field root-cause probe, a regression check that fails before and passes after repair, an original-reproducer rerun, and removal of tagged temporary instrumentation.",
+      "baseline": "not-verified",
+      "candidate": "verified"
+    },
+    {
+      "id": "quick-correction-exemption",
+      "objective_verifier": "The deterministic fixture contains ten hard-negative prompts for confirmed bounded corrections and verifies that they do not trigger the diagnosis capability.",
+      "baseline": "not-verified",
+      "candidate": "verified"
+    }
+  ]
+}

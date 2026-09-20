@@ -1,0 +1,22 @@
+name: Provision Process Health Labels
+
+on:
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  provision:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure bounded lifecycle label exists
+        env:
+          GH_TOKEN: {% raw %}${{ github.token }}{% endraw %}
+          REPOSITORY: {% raw %}${{ github.repository }}{% endraw %}
+        run: |
+          if ! gh api "repos/${REPOSITORY}/labels/process%3Amanaged" >/dev/null 2>&1; then
+            gh api --method POST "repos/${REPOSITORY}/labels" \
+              -f name='process:managed' -f color='1d76db' \
+              -f description='Process evidence linked to an active managed task'
+          fi

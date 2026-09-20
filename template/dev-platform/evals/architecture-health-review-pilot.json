@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "capability": "architecture-health-review",
+  "content_sha256": "2f447982067689d78c696a52234133b264e31048498c88ed6a5986049ad51a80",
+  "cases": [
+    {"id": "positive-revision-bound-review", "expectation": "trigger", "prompt": "Produce a read-only architecture health review of this repository at the current commit.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-named-subsystem", "expectation": "trigger", "prompt": "Review the lifecycle subsystem for coupling and interface leakage; do not refactor it.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-depth-and-locality", "expectation": "trigger", "prompt": "Assess whether this module is shallow and whether its callers suffer from poor locality.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-boundary-evidence", "expectation": "trigger", "prompt": "Inspect this interface for evidence that internal policy leaks across its boundary.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-seam-and-adapters", "expectation": "trigger", "prompt": "Review whether this proposed seam has evidence beyond one adapter.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-repeated-abstraction", "expectation": "trigger", "prompt": "Run the architecture health review's deletion test on these repeated wrappers.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-controlled-shallow-smell", "expectation": "trigger", "prompt": "Assess the controlled fixture where a pass-through wrapper exposes every dependency; report observation, evidence, uncertainty, and an advisory candidate separately.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-healthy-control", "expectation": "trigger", "prompt": "Review the healthy control with two genuinely varying adapters and a small caller-facing interface; avoid calling it a smell without contrary evidence.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-alternative-design", "expectation": "trigger", "prompt": "For this explicitly high-consequence public compatibility interface, compare two materially different designs without choosing or implementing either.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-human-promotion", "expectation": "trigger", "prompt": "Explain how an accepted architecture-review finding enters the ordinary managed task lifecycle without creating one now.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "negative-format", "expectation": "not-trigger", "prompt": "Format this Python file with the existing project formatter.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-unit-test", "expectation": "not-trigger", "prompt": "Run the focused unit test for this parser.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-implementation", "expectation": "not-trigger", "prompt": "Implement the already approved refactor in this active managed task.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-issue-creation", "expectation": "not-trigger", "prompt": "Create a Backlog issue for the accepted proposal.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-debug", "expectation": "not-trigger", "prompt": "Diagnose why this API request returns status 500.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-deploy", "expectation": "not-trigger", "prompt": "Deploy the already approved service release.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-copy", "expectation": "not-trigger", "prompt": "Rewrite this paragraph to be more concise.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-security", "expectation": "not-trigger", "prompt": "Review this authentication change for security issues.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-sql", "expectation": "not-trigger", "prompt": "Explain this SQL query plan.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-release-notes", "expectation": "not-trigger", "prompt": "Fetch the current release notes from the vendor site.", "samples": ["not-triggered", "not-triggered", "not-triggered"]}
+  ],
+  "quality_comparisons": [
+    {
+      "id": "revision-bound-read-only-review-protocol",
+      "objective_verifier": "The deterministic fixture test verifies that the selected canonical descriptor materializes the review protocol containing an exact revision, observation/evidence/uncertainty/proposal separation, a healthy-control requirement, and an explicit no-mutation boundary.",
+      "baseline": "not-verified",
+      "candidate": "verified"
+    }
+  ]
+}

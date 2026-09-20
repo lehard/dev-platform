@@ -1,0 +1,726 @@
+# managed-task-intake Specification
+
+## Purpose
+Define how approved Development Backlog work is imported, materialized, and governed as a managed task.
+## Requirements
+### Requirement: Managed tasks use a versioned central intake package
+
+A managed task SHALL be represented by a human-readable issue in the configured Development Backlog plus exactly one supported managed OpenSpec package. The package SHALL identify its format version, source issue, target repository, OpenSpec change name, preparation commit for the target repository, and the complete set of planning artifacts required for implementation.
+
+#### Scenario: ChatGPT prepares a managed task
+
+- **WHEN** a non-trivial change is explicitly fixed into the Development Backlog
+- **THEN** the issue contains the human task description and OpenSpec change name
+- **AND** a `managed-openspec:v1` package contains the source issue, target repository, preparation commit and OpenSpec artifacts
+- **AND** no implementation is started merely because the package exists
+
+#### Scenario: Multiple supported packages are present
+
+- **WHEN** intake finds zero packages, more than one current package, an unsupported version, or an incomplete manifest
+- **THEN** import fails closed with an actionable error
+- **AND** no OpenSpec files are partially materialized
+
+### Requirement: Managed-task import is deterministic and target-safe
+
+The platform SHALL provide a dependency-light import entrypoint that reads a managed task using existing authenticated GitHub access, verifies that the package target matches the current repository, constrains every supplied artifact to the new OpenSpec change root, and never executes package text as shell or code.
+
+#### Scenario: Correct task is imported from the target repository
+
+- **GIVEN** the current checkout resolves to the package target repository
+- **AND** the package is structurally valid
+- **WHEN** the managed-task import entrypoint is invoked
+- **THEN** it creates the change scaffold using the installed OpenSpec CLI and repository schema
+- **AND** writes only the declared OpenSpec artifacts under that change
+- **AND** records provenance sufficient to identify the source issue and imported package revision
+- **AND** does not start apply or edit application/platform implementation files
+
+#### Scenario: Task targets a different repository
+
+- **WHEN** the package target repository does not equal the normalized current `origin` repository identity
+- **THEN** import aborts before creating or changing the OpenSpec change
+
+#### Scenario: Package declares an unsafe artifact path
+
+- **WHEN** an artifact path is absolute, traverses outside the change root, targets `.git`, or otherwise escapes the allowed planning area
+- **THEN** import rejects the package before writing any artifact
+
+### Requirement: Import uses the repository's current OpenSpec contract
+
+Managed-task import SHALL use the installed OpenSpec CLI to create/inspect the change under the repository's current configured schema instead of assuming a fixed directory layout from the transport package alone. The transport package SHALL supply planning content, not replace OpenSpec schema discovery.
+
+#### Scenario: Repository schema has evolved since package preparation
+
+- **WHEN** the current OpenSpec CLI/schema requires a different scaffold or artifact contract than the package assumed
+- **THEN** import/preflight reports the incompatibility
+- **AND** does not silently invent or discard product semantics merely to force the package through validation
+
+#### Scenario: Structural validation succeeds
+
+- **WHEN** all package artifacts are materialized into a compatible scaffold
+- **THEN** the importer runs the repository-supported structural OpenSpec preflight
+- **AND** reports that semantic preflight is still required before implementation
+
+### Requirement: Package freshness is explicit and semantic preflight is mandatory when needed
+
+A managed package SHALL record the target repository commit used during preparation. Import SHALL compare that evidence with current synchronized target state. A changed target commit SHALL not automatically invalidate unrelated planning, but it SHALL be surfaced so an agent cannot blindly apply an old contract.
+
+#### Scenario: Target main is unchanged
+
+- **WHEN** the synchronized target commit equals `prepared_against`
+- **THEN** import reports the package as freshness-aligned
+- **AND** the normal semantic OpenSpec review still applies before implementation
+
+#### Scenario: Target main advanced after preparation
+
+- **WHEN** synchronized target main differs from `prepared_against`
+- **THEN** import reports the package as stale relative to repository state
+- **AND** the agent reviews relevant current specs and active changes before implementation
+- **AND** a material product-contract conflict requires user resolution rather than silent rewriting
+
+### Requirement: Re-import is idempotent and never silently overwrites divergent work
+
+The importer SHALL compute and persist provenance for the imported package so retrying the same task is safe. It SHALL distinguish an unchanged imported package from a package that changed after local materialization or from an unrelated same-name OpenSpec change.
+
+#### Scenario: Same unchanged package is imported again
+
+- **GIVEN** the existing local change was imported from the same source issue and package revision
+- **WHEN** import is repeated
+- **THEN** it verifies/reuses the existing change without duplicating artifacts or destroying edits
+
+#### Scenario: Backlog package changed after materialization
+
+- **GIVEN** the local change already records an earlier package revision
+- **WHEN** the source issue now contains a different package revision
+- **THEN** the importer stops and requires explicit reconciliation
+- **AND** does not overwrite the repository-local OpenSpec automatically
+
+#### Scenario: Same change name belongs to another source
+
+- **WHEN** a local active change with the requested name exists but its provenance does not match the source issue
+- **THEN** import fails closed and reports the naming conflict
+
+### Requirement: Intake authentication adds no new secret boundary
+
+Managed-task intake SHALL reuse existing validated GitHub CLI/API credentials and the installed OpenSpec CLI. It SHALL NOT require a new daemon, cloud service, API key, or committed credential.
+
+#### Scenario: GitHub issue cannot be read
+
+- **WHEN** existing GitHub authentication is unavailable or insufficient for the private backlog repository
+- **THEN** import fails with an authentication/setup message
+- **AND** does not partially create the OpenSpec change
+
+### Requirement: Intake does not own dispatch or Project workflow state
+
+The v1 importer SHALL prepare planning state only. It SHALL NOT poll GitHub Project `Ready`, launch Codex/Claude, change Project status, merge code, or replace the existing dev-platform execution/publication lifecycle.
+
+#### Scenario: Managed task is imported successfully
+
+- **WHEN** import and structural preflight complete
+- **THEN** the task is ready for the existing agent/OpenSpec execution flow
+- **AND** no background execution or Project-status mutation is triggered by the importer
+
+### Requirement: Explicit fixation intent creates a managed task without starting implementation
+
+The platform SHALL define an explicit managed-task authoring path for non-trivial work discussed with a repository agent. Discussion or exploration alone SHALL NOT create backlog state. When the user clearly asks to fix/record/add the accepted change to the Development Backlog, the agent SHALL create the managed task and its OpenSpec package, then stop before implementation.
+
+#### Scenario: User is still discussing alternatives
+
+- **WHEN** the user and agent are exploring requirements, architecture, tradeoffs or implementation options without an explicit fixation request
+- **THEN** no Development Backlog issue or managed OpenSpec package is created solely because the discussion is detailed
+- **AND** the agent may continue analysis without starting implementation unless separately requested
+
+#### Scenario: User explicitly asks to fix the accepted change
+
+- **GIVEN** the discussion has converged on a non-trivial accepted result
+- **WHEN** the user says “зафиксируй”, “добавь в бэклог”, “создай задачу”, “отправь в бэклог” or an equivalent unambiguous authoring instruction
+- **THEN** the agent consolidates only the currently accepted decision
+- **AND** prepares a human-readable managed task plus complete OpenSpec package
+- **AND** invokes the standard authoring entrypoint
+- **AND** does not begin apply, coding, task start, dispatch or publication after successful creation
+
+### Requirement: Managed-task authoring uses repository configuration and current target identity
+
+A participating repository SHALL expose configuration sufficient to author a task into the shared Development Backlog without hard-coded per-agent instructions. The configuration SHALL include the backlog repository, project label and default priority. The target repository SHALL be derived from the normalized current GitHub `origin` identity.
+
+#### Scenario: Agent authors from a configured managed repository
+
+- **WHEN** the authoring helper runs in a participating repository
+- **THEN** it resolves the Development Backlog repository and `project:*` label from repository configuration
+- **AND** resolves the target repository from the current checkout origin
+- **AND** uses `priority:P2` when the user did not explicitly select another supported priority
+
+#### Scenario: Required authoring configuration is missing or invalid
+
+- **WHEN** backlog repository, project label, target GitHub origin or supported priority cannot be resolved unambiguously
+- **THEN** authoring fails closed with an actionable error
+- **AND** no partial Issue/package is published
+
+### Requirement: Authoring preserves the existing managed-openspec:v1 transport contract
+
+The authoring helper SHALL publish exactly one valid `managed-openspec:v1` package that can be consumed by the existing managed-task importer. It SHALL not invent a second transport representation for Codex/Claude-authored tasks.
+
+#### Scenario: Managed task is created successfully
+
+- **GIVEN** the agent has prepared the required OpenSpec planning artifacts
+- **WHEN** authoring publishes the task
+- **THEN** the Issue contains the configured target repository and OpenSpec change name
+- **AND** exactly one `managed-openspec:v1` package identifies the new source issue, target repository, change name, preparation commit and complete declared artifacts
+- **AND** the package format is directly consumable by the standard importer
+
+#### Scenario: Prepared artifacts cannot satisfy the current OpenSpec contract
+
+- **WHEN** required planning artifacts are missing, empty, unsafe, ambiguous or incompatible with the repository's current OpenSpec schema
+- **THEN** authoring stops before publishing an incomplete managed task
+- **AND** reports the planning incompatibility for the agent to repair or escalate
+
+### Requirement: Model-owned planning and helper-owned publication remain separate
+
+The agent/model SHALL own semantic planning content, while the authoring helper SHALL own deterministic GitHub and package mechanics. The helper SHALL not invent product requirements or implementation design, and the model SHALL not be required to hand-assemble GitHub API calls or transport delimiters for normal authoring.
+
+#### Scenario: Agent prepares a change after discussion
+
+- **WHEN** a managed task is ready to author
+- **THEN** the agent supplies the accepted human task description and OpenSpec artifacts to the helper through the supported local interface
+- **AND** the helper validates configuration/package structure, creates the Issue, applies configured labels and attaches the package
+- **AND** the helper does not rewrite semantic requirements merely to make the package publishable
+
+### Requirement: Authoring checks for an obvious open duplicate before creation
+
+Managed-task authoring SHALL perform a bounded duplicate check against open issues in the configured Development Backlog for the same project/target before creating a new issue. It SHALL avoid silently creating an obvious duplicate while not pretending that fuzzy similarity can resolve ambiguous product scope automatically.
+
+#### Scenario: Clear duplicate already exists
+
+- **WHEN** the bounded duplicate check finds an open managed task that unambiguously represents the same change
+- **THEN** authoring does not create a second issue
+- **AND** returns the existing issue for the agent to update or report according to the user’s accepted decision
+
+#### Scenario: Potential overlap is ambiguous
+
+- **WHEN** an existing open task is related but it is unclear whether the new decision belongs in that task or is a separate change
+- **THEN** authoring stops before creating a duplicate
+- **AND** the agent asks the user to resolve the scope boundary
+
+#### Scenario: No obvious duplicate exists
+
+- **WHEN** the bounded check finds no materially same open task
+- **THEN** authoring may create the new managed task normally
+
+### Requirement: Authoring does not materialize or execute the target change
+
+Managed-task authoring SHALL leave the target repository free of a persistent active OpenSpec change for the newly scheduled work and SHALL not invoke the implementation lifecycle. Temporary local validation artifacts MAY be used only if they are safely contained and removed before authoring succeeds.
+
+#### Scenario: Task is successfully added to Backlog
+
+- **WHEN** the central Issue and package are created
+- **THEN** no persistent `openspec/changes/<change>` is left in the target repository solely from authoring
+- **AND** no `start_task`, apply, implementation, finish, dispatcher or Project-status mutation is triggered
+- **AND** later execution still begins by importing the managed task through the standard intake path
+
+### Requirement: Repository agents share one managed-task authoring contract
+
+Codex and Claude Code SHALL receive the same repository-wide managed-task semantics from the canonical agent contract. Tool-specific instruction files MAY reference that contract but SHALL NOT maintain divergent copies of the managed-task rules.
+
+#### Scenario: Claude Code opens a generated repository
+
+- **WHEN** Claude Code reads the repository instructions
+- **THEN** `CLAUDE.md` directs it to the canonical `AGENTS.md` contract
+- **AND** the managed-task authoring behavior is not separately duplicated in Claude-specific text
+
+#### Scenario: Codex opens the same repository
+
+- **WHEN** Codex reads the repository agent instructions
+- **THEN** it receives the same discussion/fixation/quick/import semantics from `AGENTS.md`
+- **AND** the resulting managed task uses the same helper/config/package contract as Claude
+
+### Requirement: Managed-task provenance remains resolvable after materialization
+
+After a managed package is materialized, the repository SHALL retain deterministic provenance sufficient to resolve the source Development Backlog Issue and canonical repository-local OpenSpec change during later resume and delivery. The original package content SHALL NOT become a second canonical implementation plan.
+
+#### Scenario: Managed task resumes with an active canonical change
+
+- **GIVEN** a managed task was materialized from source Issue A
+- **AND** the repository-local active change records matching provenance to Issue A
+- **WHEN** execution resumes from the existing branch/worktree
+- **THEN** the lifecycle reuses that canonical change
+- **AND** does not re-import or overwrite it from the original backlog package
+
+#### Scenario: Managed task resumes after canonical change was archived
+
+- **GIVEN** the matching repository-local change was semantically verified and archived
+- **WHEN** only publication/reconciliation work remains
+- **THEN** provenance to Issue A remains resolvable from the archived lifecycle evidence
+- **AND** resume does not create a second active change
+
+#### Scenario: Canonical change is missing or belongs to another source
+
+- **WHEN** a managed branch/worktree/PR claims source Issue A but no matching active/archived canonical change exists, or the same-name change records different provenance
+- **THEN** managed resume fails closed with an actionable recovery state
+- **AND** does not continue implementation/publication based only on branch, PR title or change name
+
+### Requirement: Canonical OpenSpec may evolve without losing source provenance
+
+The platform SHALL distinguish legitimate repository-local OpenSpec evolution from provenance loss. A canonical managed change MAY diverge from the original transport package under the existing no-silent-divergence rules, while retaining its source Issue identity.
+
+#### Scenario: Implementation updates design or tasks after materialization
+
+- **GIVEN** the repository-local change still identifies the same source managed Issue
+- **WHEN** implementation validly updates proposal/design/spec/tasks according to the repository lifecycle
+- **THEN** later provenance validation accepts the evolved canonical change
+- **AND** does not require byte equality with the original managed package
+
+### Requirement: Fresh managed start is isolated from stale integration task state
+
+A fresh managed task SHALL be distinguishable from resume of an existing managed task before first materialization. Task-specific state inherited from shared integration state SHALL NOT by itself establish the identity or resume status of the new task.
+
+#### Scenario: Integration baseline contains stale task state
+
+- **GIVEN** integration `main` exposes task state for managed task B
+- **AND** managed task A has a valid central package but no repository-local canonical change yet
+- **WHEN** task A starts through the managed intake path
+- **THEN** the lifecycle treats A as a fresh task rather than a resume of A or B
+- **AND** does not require canonical OpenSpec provenance for A before first materialization
+- **AND** does not adopt source Issue B as A's identity
+
+#### Scenario: Existing task is genuinely resumed
+
+- **GIVEN** task A has an existing task worktree/branch with task-local identity and matching active or archived canonical provenance
+- **WHEN** task A is resumed
+- **THEN** the existing resume provenance guards remain authoritative
+- **AND** the transport package is not re-applied over the canonical repository-local change
+
+#### Scenario: Integration state belongs to another task during fresh start
+
+- **WHEN** fresh task A observes integration-visible managed state for task B
+- **THEN** that state is treated as contamination or non-authoritative integration evidence
+- **AND** task A either materializes safely using its exact package identity or enters an explicit bounded recovery path
+- **AND** the lifecycle does not guess or silently rewrite either task identity
+
+### Requirement: Managed task-specific state does not become shared authoritative identity
+
+Task-specific lifecycle state SHALL be scoped or cleaned so that completion of one managed task cannot make the next task checkout inherit that task as authoritative identity. The implementation MAY choose storage locality, cleanup, or explicit classification semantics, but SHALL preserve deterministic resume and recovery behavior.
+
+#### Scenario: Managed task completes and another task starts
+
+- **GIVEN** task B has reached terminal delivery
+- **WHEN** later task A starts from the current integration baseline
+- **THEN** task B's task-specific state cannot cause task A to enter resume-only provenance validation
+- **AND** task A resolves identity from its own package/task evidence
+
+#### Scenario: Existing contaminated baseline needs recovery
+
+- **GIVEN** integration state already contains stale task-specific identity from a terminal task
+- **WHEN** an operator starts the intended next managed task
+- **THEN** the platform provides or documents a bounded recovery path that verifies the stale identity and preserves the new task's exact package identity
+- **AND** recovery is idempotent
+- **AND** recovery does not become a generic provenance-guard bypass
+
+### Requirement: Terminal managed identity remains bound to the executing task
+
+After a managed task is materialized, the platform SHALL preserve enough task-local identity to attribute all later managed side effects to that exact task. Repository or integration state belonging to another managed task SHALL NOT replace the executing task's source Issue or canonical change identity.
+
+#### Scenario: Integration checkout contains stale task state
+
+- **GIVEN** task A has matching task-local managed provenance
+- **AND** the integration checkout exposes a state marker or package for task B
+- **WHEN** task A reaches publication or terminal reconciliation
+- **THEN** task A remains attributed to source Issue A
+- **AND** Issue B is not selected or mutated as a substitute
+
+#### Scenario: Multiple archived managed packages exist
+
+- **GIVEN** the repository contains archived packages for several completed managed tasks
+- **WHEN** one exact task resumes only terminal delivery/reconciliation
+- **THEN** the lifecycle resolves the source identity belonging to that task's provenance/delivery
+- **AND** does not select another archive merely because it is visible from integration main
+
+#### Scenario: Task and integration identity disagree
+
+- **WHEN** authoritative task-local identity disagrees with integration-visible managed state
+- **THEN** the platform reports an explicit provenance mismatch
+- **AND** blocks managed side-effect mutation until the mismatch is resolved
+- **AND** does not guess which Development Backlog Issue should be updated
+
+#### Scenario: Quick task has no managed source
+
+- **WHEN** an ordinary quick task reaches terminal delivery without managed provenance
+- **THEN** no Development Backlog managed identity is invented
+- **AND** managed Project-status reconciliation remains a no-op for that task
+
+### Requirement: Authoring validates against the exact prepared target revision
+
+Managed-task authoring SHALL validate a package against the same target repository revision that it records as `prepared_against`. A freshly fetched remote revision SHALL NOT be recorded as preparation evidence while semantic/structural validation is actually performed against a different stale local spec state.
+
+#### Scenario: Local authoring checkout is stale
+
+- **GIVEN** target `origin/main` has advanced beyond the local authoring checkout
+- **WHEN** authoring prepares a package against the fetched remote revision
+- **THEN** validation observes the exact fetched target state or authoring fails closed before publication
+- **AND** the package is not represented as validated against a state it did not inspect
+
+#### Scenario: Exact target state cannot be established
+
+- **WHEN** authoring cannot safely establish the repository/spec state for the recorded `prepared_against` revision
+- **THEN** no Issue/package publication occurs
+- **AND** the diagnostic explains the synchronization or validation blocker
+
+### Requirement: Managed packages carry bounded source-Issue revision evidence
+
+Managed-task authoring SHALL capture machine-comparable source-Issue revision evidence such that deterministic platform-owned authoring receipt metadata does not cause an immediate newly authored task to appear drifted from itself. Real user edits to the source Issue title/body before materialization SHALL remain detectable and SHALL require explicit acknowledgement or supersession.
+
+#### Scenario: Source Issue changes before materialization
+
+- **GIVEN** a package was authored from source Issue revision A
+- **AND** the source Issue is materially edited to revision B before implementation starts
+- **WHEN** managed start/import evaluates the task
+- **THEN** the drift is reported before implementation
+- **AND** the executor must explicitly reconcile/supersede the package or acknowledge that revision A remains the intended scope
+- **AND** the old package is not silently treated as current human intent
+
+#### Scenario: Source Issue changes after materialization
+
+- **GIVEN** a package has already been materialized into canonical repository-local OpenSpec
+- **WHEN** the human-facing Issue is edited later
+- **THEN** lifecycle status can expose bounded drift evidence
+- **AND** repository-local OpenSpec is not automatically overwritten or broadened
+
+#### Scenario: Newly authored task starts without a user edit
+
+- **GIVEN** a managed task is authored and the platform writes its deterministic authoring receipt
+- **AND** the user does not change the Issue scope
+- **WHEN** the exact task is started
+- **THEN** source revision validation succeeds without an acknowledgement retry.
+
+#### Scenario: User edits scope before start
+
+- **GIVEN** a managed task was authored
+- **AND** the user materially changes its title or body before materialization
+- **WHEN** start validates source revision evidence
+- **THEN** it fails closed and exposes the recorded/current evidence needed for an explicit decision.
+
+### Requirement: Published managed package revisions can be superseded safely before execution
+
+The platform SHALL provide one supported idempotent operation to replace a published managed package revision when the transport is invalid or accepted pre-execution planning has been revised. The replacement SHALL be fully validated before becoming active, SHALL preserve bounded predecessor revision evidence, and SHALL leave exactly one active package revision for deterministic import.
+
+#### Scenario: Invalid published package is repaired
+
+- **GIVEN** the current package cannot pass supported intake validation
+- **WHEN** an operator supplies a corrected authoring bundle through the supported repair/supersede path
+- **THEN** the replacement is validated against current exact target state before activation
+- **AND** the old revision is marked superseded by bounded revision evidence
+- **AND** the importer resolves exactly one active revision without hand-editing GitHub content
+
+#### Scenario: Supersede is retried with identical content
+
+- **GIVEN** the requested replacement revision is already active
+- **WHEN** the same supersede operation is retried
+- **THEN** it converges as a no-op
+- **AND** no duplicate active package is created
+
+#### Scenario: Package revision history is ambiguous
+
+- **WHEN** intake observes more than one active package revision or malformed supersession metadata
+- **THEN** import fails closed before materialization
+- **AND** reports the revision ambiguity rather than guessing
+
+### Requirement: Managed-start mutation is guarded by a persisted per-change transaction
+
+Before any worktree or agent-board mutation for a managed start in a multi-agent-profile checkout, the platform SHALL persist a machine-local, per-change start transaction identifying the exact package (source issue, target repository, change, package revision, resolved branch/worktree). The transaction SHALL serialize only retries of the same managed change; it SHALL NOT block or interact with the start of a different managed change.
+
+#### Scenario: Transaction precedes workspace mutation
+
+- **WHEN** a managed start begins for change A in a multi-agent-profile checkout
+- **THEN** a transaction record for change A is persisted before any worktree or board mutation occurs
+- **AND** the transaction is retired only after the start completes successfully
+
+#### Scenario: Unrelated managed changes start independently
+
+- **GIVEN** a start transaction is active for change A
+- **WHEN** a start begins for unrelated change B
+- **THEN** change B's start proceeds without waiting on or being blocked by change A's transaction
+
+#### Scenario: Interrupted start preserves its retry receipt
+
+- **WHEN** a managed start for change A is interrupted before completion
+- **THEN** change A's transaction record remains on disk
+- **AND** a subsequent start for change A uses it to resume recovery rather than starting from an unrecorded state
+
+### Requirement: Incomplete managed-start recovery is fenced to exact task identity
+
+When a managed start finds transaction state without matching canonical OpenSpec provenance, the platform SHALL treat this as bounded incomplete creation state for that exact task and MAY recover it. Recovery SHALL act only on the worktree, branch and agent-board entry named by that task's own transaction, and SHALL refuse when the candidate has commits not reachable from the main branch, dirty paths not owned by that task, task-local state naming a different source issue or change, an ambiguous board match, or cannot be proven to be an exact registered Git worktree. Recovery SHALL NOT perform global worktree or board pruning.
+
+#### Scenario: Exact partial task is recovered without touching a sibling
+
+- **GIVEN** task A's transaction names a worktree/branch that is only partially created
+- **AND** an unrelated sibling task's worktree is separately dirty
+- **WHEN** task A retries its managed start
+- **THEN** only task A's exact worktree/branch/board entry is inspected and, if safe, recovered
+- **AND** the sibling task's worktree and board entry are left untouched
+
+#### Scenario: Board lookup is fenced to exact task identity
+
+- **GIVEN** the agent board contains a stale entry for an unrelated task
+- **WHEN** recovery resolves the board entry for the current task's transaction
+- **THEN** it matches only the exact `(worktree, branch)` identity recorded in the transaction
+- **AND** more than one matching board entry fails recovery closed as ambiguous rather than picking one
+
+#### Scenario: Unsafe partial state blocks automatic recovery
+
+- **WHEN** the candidate worktree named by the transaction has commits not reachable from `main`, dirty paths the task does not own, or task-local state naming a different source issue or change
+- **THEN** recovery fails closed with an actionable diagnostic
+- **AND** no worktree, branch or board mutation occurs
+
+#### Scenario: Non-canonical path is never deleted as retry debris
+
+- **WHEN** the transaction names a path that is not an exact registered Git worktree
+- **THEN** recovery leaves that path untouched and reports that ownership could not be proven
+- **AND** does not guess that the path is safe retry debris
+
+### Requirement: Fresh non-trivial execution enters managed intake before implementation
+
+When a user explicitly asks a repository agent to execute a fresh non-trivial change that is not already represented by a managed task, the platform SHALL establish managed-task provenance before implementation begins. Execution intent SHALL authorize the platform to author or reuse the managed task and then start that same task without requiring a second user instruction between those steps.
+
+#### Scenario: User asks Codex to implement a fresh non-trivial change
+
+- **GIVEN** the request is material enough for the managed path
+- **AND** no unambiguous existing managed task already represents the accepted change
+- **WHEN** the user asks to implement, fix, build, or otherwise execute the change
+- **THEN** the agent performs the bounded managed-authoring preflight and creates one Development Backlog Issue plus supported managed OpenSpec package
+- **AND** starts or resumes that exact managed task through the standard managed-start lifecycle
+- **AND** implementation changes begin only after the repository-local canonical OpenSpec has been materialized and preflighted
+- **AND** the user is not required to separately say “зафиксируй” after already requesting execution
+
+#### Scenario: Existing managed task already represents the execution request
+
+- **GIVEN** bounded duplicate/identity checks resolve one existing managed task as the same accepted change
+- **WHEN** the user asks to execute the change
+- **THEN** the platform reuses that task rather than creating a duplicate
+- **AND** continues through the existing managed start/resume contract
+
+### Requirement: Fixation-only intent remains authoring-only
+
+The platform SHALL distinguish an instruction to record accepted work from an instruction to execute it. Explicit fixation SHALL continue to create or update the managed task and SHALL stop before managed start or implementation unless the same current request also clearly authorizes execution.
+
+#### Scenario: User asks only to add the accepted change to Backlog
+
+- **WHEN** the user says “зафиксируй”, “добавь в бэклог”, “создай задачу” or an equivalent authoring-only instruction
+- **THEN** the platform authors or updates the managed task and package
+- **AND** does not invoke managed start, apply, implementation, dispatch, or publication
+
+### Requirement: Quick work escalates to managed intake before becoming a material OpenSpec change
+
+Quick execution SHALL remain available for small bounded work that does not require a managed planning contract. If quick work becomes materially behavioral/architectural/compatibility/data-contract/cross-session in scope, or the agent determines that a full active OpenSpec change is required to govern the implementation, the platform SHALL transition to managed intake before further implementation continues.
+
+#### Scenario: Representative quick fix stays bounded
+
+- **GIVEN** a small clear change does not require a full OpenSpec implementation contract
+- **WHEN** the user asks for immediate execution
+- **THEN** the existing quick lifecycle may execute without Development Backlog Issue or ceremonial OpenSpec
+
+#### Scenario: Quick task grows into a material change
+
+- **GIVEN** work started as quick execution
+- **WHEN** repository inspection reveals material scope or the need for a full active OpenSpec change
+- **THEN** further implementation stops
+- **AND** the accepted scope is authored/reused as a managed task
+- **AND** work continues only after managed start establishes canonical repository-local OpenSpec provenance
+
+### Requirement: Fresh non-trivial execution has one idempotent orchestration path
+
+The platform SHALL provide a standard deterministic orchestration entry path for fresh non-trivial execution that composes the existing managed authoring and managed-start operations. The orchestration path SHALL NOT create a competing backlog, package format, dispatcher, or lifecycle state machine.
+
+#### Scenario: Combined execution path succeeds from a clean state
+
+- **WHEN** the orchestration path receives a fresh non-trivial accepted execution request
+- **THEN** it performs required authoring checks, creates or reuses one managed task, then starts/resumes that exact task
+- **AND** returns the canonical task checkout/OpenSpec to the ordinary implementation lifecycle
+
+#### Scenario: Orchestration is retried after partial progress
+
+- **GIVEN** a previous attempt already created the Issue/package, task worktree, or materialized OpenSpec before interruption
+- **WHEN** the same accepted execution is retried
+- **THEN** the path resolves and reuses the existing exact managed identity
+- **AND** does not create a duplicate Issue, package, worktree, or competing OpenSpec change
+
+### Requirement: Ordinary active OpenSpec execution is backed by managed provenance
+
+On normal platform-owned execution and delivery paths, a non-trivial active OpenSpec implementation SHALL have matching managed-task provenance. The platform SHALL fail closed before terminal execution/publication when an active non-trivial OpenSpec change lacks that provenance, except through an explicit supported legacy/recovery path that identifies the state without inventing history.
+
+#### Scenario: Orphan active OpenSpec reaches the ordinary lifecycle
+
+- **GIVEN** a non-trivial active OpenSpec change exists
+- **AND** no matching managed source Issue/provenance can be resolved
+- **WHEN** the ordinary platform-owned completion/publication lifecycle evaluates the task
+- **THEN** it blocks with an actionable managed-intake or recovery instruction
+- **AND** does not fabricate a source Issue, silently bypass provenance, delete work, or report terminal success
+
+#### Scenario: Genuine quick work has no OpenSpec change
+
+- **GIVEN** a bounded quick task never created an active OpenSpec change
+- **WHEN** it uses the supported quick lifecycle
+- **THEN** absence of managed provenance alone does not force backlog creation
+
+### Requirement: Shared intake semantics remain updateable in existing managed repositories
+
+Dev Platform SHALL keep mutable cross-project task-intake detail in a platform-owned canonical contract that is delivered by normal platform releases. Project-owned root agent guidance MAY keep project/domain rules and a bounded always-on map, but SHALL expose a stable reference/invariant that routes agents to the shared intake contract instead of freezing a divergent copy of the workflow.
+
+#### Scenario: New managed project is rendered
+
+- **WHEN** a new project is created from the Dev Platform template
+- **THEN** its repository agent map and platform-owned intake contract expose the same discuss/fix/quick/fresh-nontrivial/existing-managed semantics as the central platform
+
+#### Scenario: Existing managed project has stale project-owned root guidance
+
+- **GIVEN** the project already has managed-task capability/configuration
+- **BUT** its project-owned root guidance predates the shared execution-intake contract
+- **WHEN** the platform migration/update is applied
+- **THEN** the required stable reference/invariant to the platform-owned intake contract is reconciled without overwriting unrelated project/domain/module rules
+- **AND** subsequent shared intake updates can arrive through normal platform-owned rollout surfaces
+
+#### Scenario: A mature managed downstream project receives the migration
+
+- **GIVEN** a mature managed downstream project already exposes Development Backlog configuration and managed-task scripts
+- **AND** its root project guidance contains older intake semantics
+- **WHEN** the release containing this change is rolled out/migrated
+- **THEN** Codex and Claude in that repository resolve the new shared intake contract before starting fresh non-trivial execution
+- **AND** existing project-specific engineering/domain instructions remain intact
+
+### Requirement: First-time project adoption remains an explicit boundary
+
+Changing the shared intake contract SHALL NOT automatically adopt repositories that are not yet managed by Dev Platform. Candidate repositories SHALL continue to use the existing explicit first-time adoption process before they receive managed rollout semantics.
+
+#### Scenario: Candidate repository is present in the managed registry
+
+- **GIVEN** a repository is marked `candidate` rather than `managed`
+- **WHEN** a new intake-contract release is published
+- **THEN** ordinary rollout does not mutate or reclassify that repository
+- **AND** explicit Adopt Project remains the required first-time administrative action
+
+### Requirement: Empty managed-start transactions are recoverable without manual state editing
+
+Dev Platform SHALL remove or supersede a managed-start transaction only after proving that the failed attempt created no task worktree, branch or board entry.
+
+#### Scenario: Package validation fails before task state exists
+
+- **WHEN** managed start creates a transaction and package validation fails before worktree, branch or board mutation
+- **THEN** the exact empty transaction is removed during failure cleanup
+- **AND** no task-side effect remains
+
+#### Scenario: Corrected package retries after an empty failure
+
+- **WHEN** a corrected package revision is retried against a stale transaction
+- **AND** the exact worktree, branch and board entry are all absent
+- **THEN** the stale transaction is safely superseded and normal start continues
+
+#### Scenario: Partial state exists
+
+- **WHEN** any matching or ambiguous worktree, branch or board state exists
+- **THEN** automatic empty rollback is refused
+- **AND** the existing conservative recovery diagnostics are preserved
+
+### Requirement: Managed start is independent of project-owned publication APIs
+
+The standard managed-task start entrypoint SHALL remain dependency-light for a
+repository whose configuration declares `harness_mode=project`. Before a
+project task is admitted, its import and preflight path SHALL NOT require a
+symbol, class, or callable supplied only by a project-owned publication file.
+Shared platform lifecycle types and operations SHALL be owned by a
+platform-managed module or gated to a proven platform-harness-only operation.
+
+#### Scenario: Legacy-shaped project harness lacks a platform publication type
+
+- **GIVEN** a valid managed package targets a repository with
+  `harness_mode=project`
+- **AND** its preserved `scripts/project_publish.py` does not expose the
+  platform harness `PrRef` type
+- **WHEN** the standard managed-start entrypoint validates and starts the task
+- **THEN** it completes the normal managed admission and materialization path
+  without importing that project-owned publication API
+- **AND** the resulting worktree, provenance, and source-issue status flow use
+  the ordinary managed lifecycle rather than a project-specific workaround
+
+#### Scenario: Platform-only publication dependency is unavailable
+
+- **GIVEN** a platform-harness-only pending-rollout operation requires a
+  platform-owned publication dependency that cannot be loaded
+- **WHEN** managed start reaches that proven platform-only operation
+- **THEN** it fails closed with an actionable dependency diagnostic
+- **AND** it does not create task worktree, board, or source Issue/Project
+  status side effects before the failed admission
+
+### Requirement: Project-harness compatibility coverage exercises the standard entrypoint
+
+The platform SHALL maintain regression coverage for representative
+project-owned harnesses at the actual standard managed-start entrypoint, not
+only for isolated helpers or a project-specific recovery command.
+
+#### Scenario: Project-owned publication surface evolves independently
+
+- **GIVEN** a compatibility fixture preserves a project-owned publication
+  module whose exports differ from the platform harness
+- **WHEN** platform validation exercises managed start for that fixture
+- **THEN** the fixture proves the standard entrypoint neither imports nor
+  assumes the differing project-owned API
+- **AND** platform-harness exact-head pending-rollout coverage remains green
+
+### Requirement: Connected-GitHub authoring verifies durable managed state before reporting success
+
+When a ChatGPT Project authors a managed task through supported connected GitHub mutations without a target checkout, the adapter SHALL treat the mutation sequence as incomplete until it has read back and verified the durable Development Backlog state. Successful fixation SHALL mean that the exact Issue has the configured target and priority labels plus exactly one active supported `managed-openspec:v1` package whose manifest and declared artifacts satisfy the current managed-task contract.
+
+#### Scenario: Connected authoring completes normally
+- **WHEN** the adapter creates or updates a managed Development Backlog Issue and publishes its package
+- **THEN** it reads the Issue and package back from GitHub before reporting success
+- **AND** verifies target repository, OpenSpec change, project label, priority label, source Issue identity, `prepared_against`, required source revision evidence and every declared non-empty artifact
+- **AND** reports the task as fixed into Backlog only after that verification passes
+- **AND** does not start, dispatch, implement, or move the task to `Ready`.
+
+#### Scenario: Issue exists but package publication is incomplete
+- **GIVEN** an earlier connected-authoring attempt created the exact Issue
+- **BUT** the active package or required labels are missing
+- **WHEN** the same accepted fixation is retried and Issue identity/scope is unambiguous
+- **THEN** the adapter reuses that Issue and completes the missing deterministic authoring state
+- **AND** does not create a duplicate Issue
+- **AND** verifies the completed durable state before reporting success.
+
+#### Scenario: Partial state cannot be repaired safely
+- **WHEN** connected authoring cannot publish or verify one complete managed Issue/package pair, or finds ambiguous/conflicting partial state
+- **THEN** it reports an authoring blocker and the exact partial state
+- **AND** does not claim successful fixation
+- **AND** does not weaken managed-start validation or invent replacement product intent.
+
+### Requirement: Connected authoring enforces package validation parity before publication success
+
+A connected-GitHub managed package SHALL NOT be reported as successfully authored unless its routing receipt and OpenSpec artifacts satisfy the same relevant structural/schema/strict validation contract required by the canonical repository-local authoring/import path at the exact `prepared_against` target revision. A package that would deterministically fail standard managed start SHALL be rejected during authoring instead of being treated as ready Backlog work.
+
+#### Scenario: Routing receipt is formally invalid
+- **GIVEN** a connected-authored package contains a routing receipt outside the supported schema or values
+- **WHEN** authoring validation runs
+- **THEN** successful fixation is refused before the package is treated as complete
+- **AND** the diagnostic identifies the routing-receipt defect.
+
+#### Scenario: OpenSpec requirement is structurally invalid
+- **GIVEN** a package contains an ADDED requirement that lacks a required Scenario block or otherwise fails strict OpenSpec validation
+- **WHEN** authoring validation runs against the exact `prepared_against` repository schema
+- **THEN** successful fixation is refused
+- **AND** the malformed package is not reported as ready for standard managed start.
+
+#### Scenario: Package validates at authoring and later starts normally
+- **GIVEN** the connected package passes routing/package/OpenSpec validation against its exact `prepared_against` revision
+- **WHEN** a coding agent later invokes standard `start_managed_task.py` without human scope edits
+- **THEN** intake does not require a repair/supersede merely to fix a formal authoring defect
+- **AND** the same managed transport contract is consumed without a ChatGPT-specific importer.
+
+### Requirement: Connected-GitHub recovery preserves one managed task identity
+
+Retrying connected-GitHub authoring after a partial mutation SHALL be idempotent for one unambiguous accepted change. Duplicate detection SHALL consider an exact incomplete Issue from the preceding attempt as a recoverable managed-authoring candidate rather than treating only fully formed managed tasks as reusable.
+
+#### Scenario: Exact incomplete Issue is found during retry
+- **GIVEN** one open Issue matches the accepted target repository, change name and task scope
+- **AND** it is missing some deterministic managed-authoring state
+- **WHEN** connected authoring retries
+- **THEN** it completes that Issue in place if doing so does not require changing accepted product semantics
+- **AND** leaves exactly one active managed package
+- **AND** does not create another Issue for the same change.
+
+#### Scenario: Candidate identity is ambiguous
+- **WHEN** more than one candidate could represent the accepted change, or the existing Issue scope materially diverged
+- **THEN** authoring stops for explicit resolution rather than guessing which Issue to mutate.

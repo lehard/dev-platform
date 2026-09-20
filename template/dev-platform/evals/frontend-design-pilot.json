@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "capability": "frontend-design",
+  "content_sha256": "4c4c3583526c65993e67f713380a9983ca31d5f15ab39bed3043d2f9e2bb26e6",
+  "cases": [
+    {"id": "positive-new-landing", "expectation": "trigger", "prompt": "Design and build a new marketing landing page for this product.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-redesign", "expectation": "trigger", "prompt": "Do a substantial visual redesign of the existing settings screen so it stops looking templated.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-ui-quality", "expectation": "trigger", "prompt": "Run a UI-quality pass over the onboarding flow and improve its visual direction.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-new-dashboard", "expectation": "trigger", "prompt": "Build a new analytics dashboard view from scratch with a coherent visual language.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-typography", "expectation": "trigger", "prompt": "Establish the typographic hierarchy and type scale for this new site.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-hero", "expectation": "trigger", "prompt": "Design the hero section for the new product homepage.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-component-look", "expectation": "trigger", "prompt": "Give the new pricing page an intentional layout that is not three equal cards.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-empty-states", "expectation": "trigger", "prompt": "Design the empty and error states for the new project screen.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-motion", "expectation": "trigger", "prompt": "Add a purposeful page-load motion sequence to the new campaign page.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-brief", "expectation": "trigger", "prompt": "Turn this design brief into a concrete visual direction for the new UI.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "negative-api-endpoint", "expectation": "not-trigger", "prompt": "Add a paginated REST endpoint for the orders resource.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-migration", "expectation": "not-trigger", "prompt": "Write a database migration that adds a nullable column and backfills it.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-bugfix-logic", "expectation": "not-trigger", "prompt": "Fix the off-by-one error in the pagination cursor calculation.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-css-tweak", "expectation": "not-trigger", "prompt": "Nudge the footer margin by 4px so it matches the spec.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-prop-rename", "expectation": "not-trigger", "prompt": "Rename the isActive prop to isEnabled across these components.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-dep-bump", "expectation": "not-trigger", "prompt": "Bump the build tooling to the latest minor version and fix the lockfile.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-perf", "expectation": "not-trigger", "prompt": "Profile and reduce the server response time for the search query.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-auth", "expectation": "not-trigger", "prompt": "Review this authentication token refresh change for security issues.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-ci", "expectation": "not-trigger", "prompt": "Split the CI test job into two parallel groups.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-copy-only", "expectation": "not-trigger", "prompt": "Fix the typo in the confirmation email body text.", "samples": ["not-triggered", "not-triggered", "not-triggered"]}
+  ],
+  "quality_comparisons": [
+    {
+      "id": "opt-in-materializes-general-design-guidance",
+      "objective_verifier": "The deterministic fixture test verifies that a project that has not enabled frontend-design has no derived skill surface, and that enabling the canonical descriptor materializes exactly the marker generated from it for each supported provider.",
+      "baseline": "not-verified",
+      "candidate": "verified"
+    },
+    {
+      "id": "backend-control-gets-no-design-context",
+      "objective_verifier": "Every backend or non-design control prompt in this fixture is labelled not-trigger, so a project that leaves the capability disabled receives no frontend-design context from it.",
+      "baseline": "not-verified",
+      "candidate": "verified"
+    }
+  ]
+}

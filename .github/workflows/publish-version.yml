@@ -1,0 +1,74 @@
+name: Publish Platform Version
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - VERSION
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release commit
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Determine release intent
+        id: intent
+        run: python3 scripts/release_intent.py >> "$GITHUB_OUTPUT"
+
+      - name: Create immutable-by-policy tag and release
+        id: release
+        if: steps.intent.outputs.intent == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(tr -d '[:space:]' < VERSION)"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "VERSION must be SemVer X.Y.Z; got: $version" >&2
+            exit 1
+          fi
+          tag="v$version"
+          git fetch --tags origin
+          existing="$(git rev-parse -q --verify "refs/tags/$tag" || true)"
+          if [[ -n "$existing" ]]; then
+            if [[ "$existing" != "$GITHUB_SHA" ]]; then
+              echo "Refusing to move existing tag $tag from $existing to $GITHUB_SHA" >&2
+              exit 1
+            fi
+          else
+            git tag "$tag" "$GITHUB_SHA"
+            git push origin "refs/tags/$tag"
+          fi
+          if ! gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$tag" --repo "$GITHUB_REPOSITORY" --verify-tag \
+              --title "$tag" --notes "Developer Platform $tag"
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Determine managed rollout dispatch
+        id: rollout_gate
+        if: steps.intent.outputs.intent == 'true'
+        env:
+          DEV_PLATFORM_MANAGED_ROLLOUT_ENABLED: ${{ vars.DEV_PLATFORM_MANAGED_ROLLOUT_ENABLED }}
+        run: python3 scripts/rollout_dispatch_gate.py >> "$GITHUB_OUTPUT"
+
+      - name: Dispatch managed-project rollout
+        if: steps.intent.outputs.intent == 'true' && steps.rollout_gate.outputs.dispatch == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh workflow run rollout.yml --repo "$GITHUB_REPOSITORY" --ref main -f "version=$TAG"
+          echo "Dispatched managed rollout for $TAG"

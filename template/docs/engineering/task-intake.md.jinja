@@ -1,0 +1,210 @@
+{% if operator_config_path %}
+# Managed task intake
+
+This is the platform-owned contract for turning a user request into work.
+`AGENTS.md` is the short repository map; project/domain rules remain
+project-owned. Read this document before authoring or executing non-trivial
+work.
+
+Its intent boundaries, managed representation, source-of-truth model, and
+authoring STOP rules apply across conversation surfaces. Repository-local
+agents use the commands below; ChatGPT Project follows the connected-GitHub
+mechanics in [chatgpt-project-protocol.md](chatgpt-project-protocol.md) without
+creating a separate task format.
+
+## Intent boundary
+
+- **Discuss**: inspect, design and compare. Do not create durable Backlog state.
+- **Incubate / park**: preserve a potentially useful idea without accepting it
+  for delivery. Use the repository-backed Incubator contract below; do not
+  create a managed task or OpenSpec package.
+- **Fix / add to Backlog**: an explicit recording request (for example
+  `зафиксируй`, `добавь в бэклог`, `создай задачу`) authors or updates the
+  managed package and stops. It never starts implementation or changes Project
+  status.
+- **Quick execution**: a small, clear, bounded change may use normal task
+  execution without a Backlog Issue or ceremonial OpenSpec change.
+- **Fresh non-trivial execution**: an explicit request to implement, fix,
+  build, or otherwise execute material work creates or reuses its managed task,
+  starts that exact task, and only then begins implementation.
+- **Existing managed task**: start the supplied Development Backlog Issue.
+
+User wording is evidence of the current intent, not a magic keyword. Direct
+execution does not require a second `зафиксируй` instruction. A fixation-only
+request remains authoring-only unless the same request also clearly authorizes
+execution.
+
+## Cross-surface authoring
+
+The shared managed-task semantics are:
+
+- **Discuss**, **Fix / add to Backlog**, quick execution, and fresh non-trivial
+  execution retain the intent boundaries above on every surface.
+- A fixation creates or updates one Development Backlog Issue with one active
+  `managed-openspec:v1` package: its manifest identifies the source Issue, target
+  repository, change, prepared-against revision, routing receipt, and declared
+  non-empty OpenSpec artifacts. The Issue is human-facing provenance; after
+  materialization, local OpenSpec is canonical for implementation.
+- Fixation stops in `Backlog`: it does not implement, start the managed task,
+  dispatch an executor, move Project status, or publish a delivery. A missing
+  supported authoring mechanic is a blocker, not permission to change intent.
+
+The mechanics are deliberately surface-specific:
+
+- A repository-local Codex or Claude agent with the platform helper uses the
+  deterministic `managed_task.py create --bundle ...` command below. It does
+  not manually reconstruct GitHub Issue/package mutations when that helper is
+  available.
+- A ChatGPT Project with connected GitHub mutation access but no target
+  checkout creates the same Issue/package through the bounded adapter contract.
+  It does not need local shell access and must not claim that lack of
+  `managed_task.py` itself blocks authorized ChatGPT authoring. It reports
+  fixation only after the adapter's mandatory post-write read-back proves the
+  labels, one active package, source revision evidence, routing receipt, and
+  strict OpenSpec importability at the package's exact `prepared_against` SHA.
+  If equivalent validation is unavailable, the adapter fails closed.
+- A later repository-local agent imports either result through the ordinary
+  `start_managed_task.py owner/repo#N` path. There is no ChatGPT-specific
+  importer or translation layer.
+
+## Incubator
+
+`Incubator` is an optional pre-commitment planning layer backed by ordinary open
+Issues in the configured Development Backlog repository. An incubated Issue
+carries the dedicated `incubator` label but SHALL NOT carry a `project:*` label,
+a priority label, managed authoring receipt, OpenSpec package, routing decision,
+task workspace, or execution entitlement. Managed authoring discovers bounded
+same-project candidates through the configured `project:*` label, so an
+incubated Issue remains outside the managed-task lifecycle until a human accepts
+it as work.
+
+Keep an incubated item small and machine-editable. Record the target repository,
+the idea or hypothesis, why it is worth remembering (including a source when
+useful), and a **revisit condition**. Prefer an evidence/event trigger such as
+“after enough routing executions exist” or “if this friction repeats” over an
+arbitrary calendar date unless the decision is genuinely time-driven.
+
+GitHub Project placement is a visualization layer, not the source of truth. A
+Project may auto-add Issues matching `label:incubator` and expose a dedicated
+`Incubator` view filtered by that label. Managed Backlog views should exclude
+`label:incubator`. Do not add a `project:*` label merely to make an incubated
+Issue appear in a Project. A Project `Status` value on an incubated Issue is
+non-authoritative; managed lifecycle status begins only after promotion.
+
+Promotion requires explicit human acceptance of the idea as work. Create or
+reuse the ordinary managed Development Backlog Issue and OpenSpec package through
+the normal authoring path and leave that managed task in `Backlog`. After the
+managed identity exists, close the incubated Issue with a link to the promoted
+task. Never move an incubated idea directly to `Ready` or start implementation
+merely because it was parked.
+
+If the current agent surface cannot mutate GitHub Project views or fields, that
+must not block durable incubation: create or update the repository Issue and let
+the configured Project automation/view surface it when available.
+
+## Evidence-first execution
+
+Use repository evidence to narrow work before broad reading or unnecessary
+human interruption. If the relevant file, symbol, owner, or contract is not
+known, search first; then read only the likely evidence-bearing files needed to
+make the next decision or act safely. If the canonical path is already known,
+read it directly rather than performing a ceremonial search.
+
+Resolve factual ambiguity from repository evidence when the repository can
+answer it. Ask the user when a material product, intent, or scope choice remains
+rather than turning a repository lookup into a question. Once enough evidence
+exists to act safely inside the agreed scope, proceed instead of continuing
+open-ended exploration by default.
+
+## Commands
+
+Prepare the normal managed authoring bundle (`manifest.json`, `issue.md`, and
+the declared OpenSpec artifacts). For authoring-only use:
+
+```bash
+python3 scripts/managed_task.py create --bundle <directory>
+```
+
+For a fresh, non-trivial execution request use the one composed entrypoint:
+
+```bash
+python3 scripts/execute_managed_task.py --bundle <directory> --scope "<files/modules>"
+```
+
+It composes the existing authoring checks with `start_managed_task.py`; it does
+not create another backlog, dispatcher, package format, or state machine. A
+retry reuses the authoring receipt or exact existing Issue, then resumes the
+same managed start identity. Candidate overlap remains an explicit decision:
+review it and pass `--confirm-distinct` only when the scopes are genuinely
+separate.
+
+For an already supplied managed Issue use:
+
+```bash
+python3 scripts/start_managed_task.py owner/repo#N
+```
+
+Managed start performs read-only package intake, creates/reuses the task
+checkout, materializes the canonical local OpenSpec only there, and reconciles
+the Development Backlog item to `In progress`. It stops before implementation.
+After materialization, the local OpenSpec is canonical; the Issue is human-
+facing provenance rather than a second implementation plan.
+
+## Escalating quick work
+
+Keep quick work quick. If inspection reveals material behavioral,
+architectural, compatibility, data-contract, cross-session, or scope impact —
+or if a full active OpenSpec change is needed to govern the work — stop further
+implementation and enter managed intake first. Do not create a normal active
+OpenSpec change as a substitute for managed provenance.
+
+The ordinary terminal lifecycle rejects an active OpenSpec change that lacks
+managed provenance. This does not affect genuine quick work with no active
+OpenSpec. Legacy/manual states need a reviewed recovery that records their real
+source identity; never fabricate an Issue, delete work, or bypass the guard.
+
+## Existing managed repositories
+
+This document is platform-owned and arrives through normal release rollout.
+Project-owned root `AGENTS.md` keeps local rules, but must include the stable
+reference inserted by the rollout migration. The migration is additive and
+marked; it does not replace project/domain or module-level instructions.
+
+{% else %}
+# Portable task intake
+
+This is the project-local contract for turning a user request into work. It
+does not require an operator Backlog, GitHub Project, fleet registry, or
+operator credentials.
+
+## Intent boundary
+
+- **Discuss**: inspect and compare without creating durable task state.
+- **Fix / plan a non-trivial change**: author a local OpenSpec
+  proposal/spec/design/tasks package and stop for acceptance.
+- **Quick execution**: make a small, bounded change through the normal
+  task/check/finish workflow without ceremonial OpenSpec.
+- **Non-trivial execution**: agree the local OpenSpec package before
+  implementation, then keep it canonical through verification and archive.
+
+Use repository evidence to resolve factual ambiguity. Ask the user only when a
+material product or scope choice remains. Do not let a quick task silently grow
+into a material behavior, architecture, compatibility, data-contract, or scope
+change: write/accept the local OpenSpec package first.
+
+## Commands
+
+```bash
+openspec new change <change>
+python3 scripts/start_task.py <change> --task "OpenSpec <change>" --scope "<paths>"
+python3 scripts/select_checks.py --execute
+python3 scripts/openspec_lifecycle.py check
+python3 scripts/finish_task.py
+```
+
+The generated repository contains its own lifecycle scripts and CI workflow.
+Provider adapters create or reuse the configured review object; GitLab stops at
+green exact-head CI for human merge/acceptance. Do not require access to this
+platform repository or to an operator installation to perform ordinary work.
+
+{% endif %}

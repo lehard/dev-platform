@@ -1,0 +1,8 @@
+.claude/
+.managed-task-state.json
+.dev-platform/browser-verification/
+.github/aw/logs/
+AGENTS.local.md
+__pycache__/
+*.py[cod]
+.DS_Store

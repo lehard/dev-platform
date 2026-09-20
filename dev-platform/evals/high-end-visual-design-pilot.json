@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "capability": "high-end-visual-design",
+  "content_sha256": "6cd216dbf45e09c0e35505e80cf93b187880b87d9464c5bd5fb67acdc56c5794",
+  "cases": [
+    {"id": "positive-brand-launch", "expectation": "trigger", "prompt": "Design an ambitious brand launch page with a distinctive visual identity.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-agency-landing", "expectation": "trigger", "prompt": "Build an Awwwards-tier landing page for a creative agency.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-portfolio", "expectation": "trigger", "prompt": "Create a designer portfolio site with kinetic typography and orchestrated motion.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-campaign", "expectation": "trigger", "prompt": "Design a campaign microsite that should feel premium and memorable.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-marketing-hero", "expectation": "trigger", "prompt": "Give the marketing homepage a signature hero moment with a strong art direction.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-product-launch", "expectation": "trigger", "prompt": "Design the public product launch page with a bold, distinctive layout.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "negative-internal-dashboard", "expectation": "not-trigger", "prompt": "Improve the layout of the internal analytics dashboard.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-b2b-admin", "expectation": "not-trigger", "prompt": "Redesign the B2B admin console's user management table.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-settings", "expectation": "not-trigger", "prompt": "Clean up the account settings screen so the forms are consistent.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-accessibility-flow", "expectation": "not-trigger", "prompt": "Build the accessibility-first public benefits application flow.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-data-table", "expectation": "not-trigger", "prompt": "Add sorting and filtering to the workflow-heavy orders table UI.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-generic-frontend", "expectation": "not-trigger", "prompt": "Fix the responsive breakpoints on the existing docs pages.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-backend", "expectation": "not-trigger", "prompt": "Add a webhook retry queue to the notifications service.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-regulated", "expectation": "not-trigger", "prompt": "Update the regulated disclosures page to the new legal copy.", "samples": ["not-triggered", "not-triggered", "not-triggered"]}
+  ],
+  "quality_comparisons": [
+    {
+      "id": "specialized-profile-is-opt-in-only",
+      "objective_verifier": "The deterministic fixture test verifies that high-end-visual-design materializes no derived surface unless a project explicitly enables it, so it cannot become a silent default for any surface including dashboards and B2B UI.",
+      "baseline": "not-verified",
+      "candidate": "verified"
+    },
+    {
+      "id": "dashboard-and-b2b-surfaces-are-non-applicable",
+      "objective_verifier": "Every dashboard, B2B, settings, data-table, accessibility-first, and regulated control prompt in this fixture is labelled not-trigger, matching the descriptor's declared non-applicability.",
+      "baseline": "not-verified",
+      "candidate": "verified"
+    }
+  ]
+}

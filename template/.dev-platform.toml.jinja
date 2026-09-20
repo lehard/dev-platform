@@ -1,0 +1,78 @@
+schema_version = 2
+platform_version = "1.0.0"
+platform_ci_ref = "{{ platform_ci_ref }}"
+project_name = "{{ project_name }}"
+project_slug = "{{ project_slug }}"
+main_branch = "{{ main_branch }}"
+workflow_profile = "{{ workflow_profile }}"
+harness_mode = "{{ harness_mode }}"
+protected_main = {{ 'true' if protected_main else 'false' }}
+publish_mode = "{{ publish_mode }}"
+pr_merge_mode = "{{ pr_merge_mode }}"
+scm_provider = "{{ scm_provider }}"
+agent_tools = "{{ agent_tools }}"
+project_required_files = []
+
+[capabilities]
+openspec = true
+github_sync = true
+feature_branches = {{ 'true' if workflow_profile in ['standard', 'multi-agent'] else 'false' }}
+worktrees = {{ 'true' if workflow_profile == 'multi-agent' else 'false' }}
+agent_board = {{ 'true' if workflow_profile == 'multi-agent' else 'false' }}
+platform_git_lifecycle = {{ 'true' if harness_mode == 'platform' else 'false' }}
+
+[tools.openspec]
+min_version = "1.13.0"
+tested_version = "1.13.0"
+verify_required = true
+
+[tools.copier]
+min_version = "9.17.0"
+tested_version = "9.17.0"
+
+[model_routing]
+enabled = true
+
+[model_routing.codex]
+routine_model = "gpt-5.6-terra"
+standard_model = "gpt-5.6-terra"
+complex_model = "gpt-5.6-sol"
+
+[model_routing.claude]
+routine_model = "haiku"
+standard_model = "sonnet"
+complex_model = "opus"
+
+[context_delegation]
+# Soft opt-in only. Normal repository reads remain available everywhere.
+enabled = false
+
+[independent_review]
+# Opt in only where a runtime can supply a separate fresh, read-only review
+# context. The platform validates its evidence but never launches a provider.
+enabled = false
+
+# Optional developer-preview backend. Merely rendering this configuration does
+# not install or select DeepSeek Harness; the separate adapter entrypoint still
+# requires an explicit opt-in for every experimental run.
+[experimental_runtime.deepseek_harness]
+enabled = false
+sdk_version = "0.1.1rc1"
+profile = "observation"
+
+{% if operator_config_path %}
+[operator]
+enabled = true
+config_path = "{{ operator_config_path }}"
+{% endif %}
+
+[paths]
+worktrees = ".claude/worktrees"
+agent_board = ".claude/agents-board.json"
+main_merge_lock = ".claude/main-merge.lock"
+pending_worktrees = ".claude/pending-worktrees.md"
+pending_completed_worktree_cleanup = ".claude/pending-completed-worktree-cleanup.json"
+friction_log = ".claude/agent-friction.jsonl"
+friction_state = ".claude/agent-friction-state.json"
+friction_reports = ".claude/reports/process-improvement"
+checks = "dev-platform/checks.toml"

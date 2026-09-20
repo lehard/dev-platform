@@ -1,0 +1,47 @@
+schema: spec-driven
+
+context: |
+  {{ project_name }}: {{ project_description }}
+  Repository process and safety constraints live in AGENTS.md and applicable module-level AGENTS.md files.
+  Project-specific engineering rules live in docs/engineering/project-rules.md.
+  Reviewed project/domain context is mapped by docs/context/README.md. Load only the relevant product, domain, architecture, anti-pattern, or example context when the artifact reaches that concern; do not ingest the whole context pack by default.
+  OpenSpec is the planning contract for non-trivial product and architecture work.
+  openspec/specs describes accepted current behavior; an active openspec/changes delta describes the approved change to that behavior.
+  Reuse existing domain models, source-of-truth ownership, integrations and repository conventions unless a change explicitly replaces them.
+  A non-trivial OpenSpec change is complete only after project checks, semantic OpenSpec verification, recorded PASS evidence and method, archive, and configured publication.
+
+rules:
+  proposal:
+    - Keep one intent per OpenSpec change. Apply the split test before authoring: if a substantial part could be accepted, delivered, verified, or rolled back independently while the remainder waits, split it unless the parts are jointly required for one observable outcome; touching multiple files/components/capabilities alone does not require a split.
+    - State the expected outcome and concrete success criteria or verification evidence. Use quantitative thresholds when meaningful; otherwise use binary or directly observable evidence instead of inventing KPIs.
+    - State relevant constraints and explicit non-goals that bound the accepted iteration.
+    - For a change to existing behavior, workflow, UX, contract, or architecture whose transition is not otherwise clear, include a concise current-to-target description.
+    - Identify affected existing domains, integrations, contracts and source-of-truth ownership.
+    - When scope depends on project goals, users, key scenarios, domain meaning, or product invariants, consult the relevant project-context destination before finalizing scope.
+    - Prefer evolving the existing system over creating parallel canonical sources.
+  design:
+    - When a change materially affects data or migrations, security/privacy, CI or release lifecycle, external integrations, backwards compatibility, cross-project rollout, or a comparable high-consequence boundary, record concrete risks and mitigations. Do not add generic risk boilerplate for low-risk work.
+    - Document migration/backfill, compatibility, audit/history, rollback/cutover and performance implications when relevant.
+    - Resolve shared contracts before declaring workstreams safe to run in parallel.
+    - When design changes or relies on a project architecture invariant or prior decision, consult the bounded architecture context and its linked canonical decision source.
+  tasks:
+    - Express dependencies and mark only genuinely independent work as parallelizable.
+    - Define logical commit boundaries for non-trivial work.
+    - Include targeted tests, regression checks and end-to-end acceptance scenarios.
+    - When implementation intersects a recorded anti-pattern or representative example, route to that focused context rather than copying unrelated project context into the task.
+
+operations:
+  apply:
+    guidance:
+      - Follow AGENTS.md for the configured workflow profile, GitHub synchronization, check selection and publication safety.
+      - 'No silent divergence: update proposal/specs/design/tasks before knowingly implementing changed intent, behavior, technical approach or execution dependencies.'
+      - Mark a task complete only after implementation and required verification for that task.
+  archive:
+    guidance:
+      - Preserve durable architecture/runbook information in docs/ when it is operational context rather than product behavior.
+      - Confirm task checkboxes and verification reflect implemented state before archive.
+      - For non-trivial changes, require project-specific checks/QA and semantic OpenSpec verification before archive.
+      - Prefer /opsx:verify when available; otherwise document the equivalent review of outcome/success evidence, completeness, correctness, and coherence.
+      - When a verification check fails, classify it as introduced, pre-existing, or unknown relative to the authoritative base; claim pre-existing only with trustworthy baseline evidence, otherwise leave it unknown.
+      - 'After material findings are resolved, record `OpenSpec-Verify: PASS` and `Verification-Method: <method>` in the active change verification.md.'
+      - Use `python3 scripts/openspec_lifecycle.py archive <change>` as the normal project archive entrypoint so completion requirements are mechanically checked.

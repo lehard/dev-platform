@@ -1,0 +1,756 @@
+# model-routing Specification
+
+## Purpose
+Define provider-neutral model routing, escalation, and evidence requirements for managed task execution.
+## Requirements
+### Requirement: The platform exposes abstract execution profiles
+
+The routing contract SHALL support at least `routine`, `standard` and `complex` execution profiles, reachable either from an authored abstract start tier (`R1` -> `routine`, `R2` -> `standard`, `R3` -> `complex`) or from an explicit override. Concrete runtime model IDs and reasoning-effort settings SHALL live in versioned platform/runtime configuration or generated agent profiles rather than durable task artifacts.
+
+Provider-local delegation, including a strong parent/supervisor, remains a supported execution capability, but a strong parent SHALL NOT be a mandatory entrypoint for every routing-enabled managed task: execution MAY begin directly on the tier-recommended executor. The parent MAY retain complex/high-risk work itself and SHOULD delegate routine/standard implementation when a configured cheaper executor is available and safe. If work starts on a stronger-than-recommended session, the platform MAY down-route through the existing supported provider-local child path instead of requiring ceremonial re-delegation.
+
+#### Scenario: Routine task is delegated cheaply
+
+- **GIVEN** semantic preflight classifies a task as `routine`
+- **AND** a supported cheaper executor is available
+- **WHEN** implementation begins
+- **THEN** the parent delegates the bounded implementation to the configured routine executor
+- **AND** the user is not required to choose that executor manually
+
+#### Scenario: Complex task stays on strong profile
+
+- **GIVEN** semantic preflight classifies the task as `complex`
+- **WHEN** implementation begins
+- **THEN** the platform keeps or routes the work to the configured strong profile
+- **AND** it does not require an unnecessary cheap-model attempt first
+
+#### Scenario: R2 starts directly on the recommended executor
+
+- **GIVEN** a managed task recommends `R2`
+- **AND** the configured balanced provider-local executor is available
+- **WHEN** execution starts directly on that executor
+- **THEN** the task begins without first running Sol/Opus as a routing supervisor and without ceremonial strong-parent delegation
+- **AND** normal containment, verification and publication invariants remain authoritative
+- **AND** provider-local delegation remains available as a secondary capability if needed later
+
+#### Scenario: Task opened on a stronger-than-recommended session
+
+- **GIVEN** a managed task recommends `R2`
+- **AND** execution is opened on a stronger-than-recommended provider-local session
+- **WHEN** the platform evaluates the entrypoint
+- **THEN** it MAY down-route through the existing supported provider-local delegation/fallback path
+- **AND** normal containment and verification invariants remain authoritative
+
+### Requirement: Routing is provider-local in the first version
+
+The platform SHALL support OpenAI-local routing when work is entered through Codex and Claude-local routing when work is entered through Claude Code. Cross-provider delegation SHALL NOT be required for the initial routing capability.
+
+The integration SHALL use the supported project-level/native agent capabilities of the current runtime when practical and SHALL verify the actually supported runtime surface during implementation preflight rather than assuming a permanent external CLI/IDE API.
+
+#### Scenario: Codex entrypoint selects an OpenAI executor
+
+- **GIVEN** the user starts a managed task through a supported Codex VS Code/CLI environment
+- **WHEN** routing selects a cheaper profile
+- **THEN** the delegated executor uses a configured supported OpenAI model/profile
+- **AND** no Claude runtime is required
+
+#### Scenario: Claude entrypoint selects a Claude executor
+
+- **GIVEN** the user starts a managed task through a supported Claude Code Desktop/CLI environment
+- **WHEN** routing selects a cheaper profile
+- **THEN** the delegated executor uses a configured supported Claude model/profile
+- **AND** no OpenAI runtime is required
+
+### Requirement: Routed writers use the platform containment invariant without unnecessary duplicate guards
+
+A routed child that can modify repository state SHALL have a valid assigned task worktree and SHALL execute under a proven write boundary that protects integration/main and other task worktrees. The platform SHOULD prefer the current runtime's native OS-level sandbox/worktree isolation when it can prove that boundary for the actual filesystem topology.
+
+Native containment SHALL NOT be wrapped in an additional provider-specific prevention layer merely because a legacy guard exists. A custom guarded launch or detection-only fallback SHALL be used only where native isolation is unavailable, insufficient, or not provable for the supported runtime/mode. A lightweight content-aware integration post-check SHALL remain defense in depth for routed writers.
+
+#### Scenario: Native runtime containment is sufficient
+
+- **GIVEN** the selected runtime exposes a proven write boundary restricted to the assigned task workspace/worktree
+- **WHEN** routed implementation starts
+- **THEN** the platform MAY use the native child execution path directly
+- **AND** it does not require redundant provider-specific guard ceremony
+- **AND** the integration post-check still runs before success is reported
+
+#### Scenario: Native runtime containment is insufficient
+
+- **GIVEN** a selected child can write repository state
+- **BUT** the platform cannot prove an adequate native boundary for that runtime/mode
+- **WHEN** routed implementation is prepared
+- **THEN** the platform uses the minimal safe guarded fallback or retains implementation on the parent
+- **AND** it does not claim native hard containment
+
+### Requirement: Under-routing triggers controlled escalation
+
+After the managed package is materialized, the executor SHALL perform a bounded freshness check against the current repository/spec state before implementation, confirming the authored start tier or escalating when newly discovered evidence satisfies a frontier trigger. It SHALL NOT require a strong parent to repeat the full routing assessment before implementation solely because execution has begun.
+
+More broadly, a delegated executor SHALL stop and escalate whenever evidence shows that the selected execution profile is insufficient. Escalation triggers SHALL include at least a newly discovered frontier hard trigger, material OpenSpec/current-spec conflict, substantial unexpected scope growth, unexpected cross-cutting impact, materially low confidence, or repeated substantive failure to satisfy required verification after reasonable bounded attempts.
+
+Escalation SHALL preserve useful task state: canonical OpenSpec, current assigned worktree/diff, relevant findings and verification failures, plus the reason for escalation. It SHALL NOT restart the task from scratch without a concrete need. Downgrade below the authored tier is not required by this version.
+
+#### Scenario: Standard task reveals cross-cutting complexity
+
+- **GIVEN** a task was routed to the `standard` executor
+- **WHEN** implementation discovers a material cross-cutting contract or architecture problem
+- **THEN** the standard executor stops broadening the solution autonomously
+- **AND** the task context is handed to the configured stronger profile
+- **AND** implementation resumes from the existing task state after the stronger parent reconciles the contract
+
+#### Scenario: Failed bounded attempts cause escalation
+
+- **GIVEN** the delegated executor has made the configured bounded substantive attempts to satisfy required checks
+- **AND** the remaining failure indicates reasoning/diagnostic difficulty rather than a transient command error
+- **WHEN** the attempt bound is reached
+- **THEN** the work escalates instead of entering an unbounded cheap-model retry loop
+
+#### Scenario: Current repo reveals hidden frontier complexity
+
+- **GIVEN** an authored `R2` task has been materialized
+- **WHEN** freshness inspection discovers a supported frontier trigger absent from authoring context
+- **THEN** the executor records the new evidence and escalates to the configured `R3` path
+- **AND** useful task state is preserved
+
+### Requirement: Routing failures degrade truthfully and safely
+
+If the preferred executor, model or subagent capability is unavailable, the workflow SHALL NOT report a delegation that did not occur. It SHALL either use an explicitly configured safe fallback/parent profile or return an actionable capability diagnostic when no safe route exists.
+
+Model routing SHALL NOT bypass OpenSpec consistency, project checks, semantic verification, protected-main requirements or publication rules. The parent/supervisor remains responsible for assessing the delegated result before the normal completion lifecycle proceeds.
+
+#### Scenario: Cheap executor is unavailable
+
+- **GIVEN** routing selects a cheaper profile
+- **BUT** the configured executor is unavailable in the current runtime
+- **WHEN** execution continues
+- **THEN** the platform uses the configured safe fallback or parent
+- **AND** records/reports the actual route rather than claiming the unavailable executor was used
+
+#### Scenario: Delegated implementation completes
+
+- **WHEN** a routed child reports implementation complete
+- **THEN** the parent evaluates the result in the task checkout
+- **AND** all existing required checks and OpenSpec completion semantics still apply before publication
+
+### Requirement: Managed routing recommends an abstract start tier during authoring
+
+For a managed task, the platform SHALL record a provider-neutral recommended start tier during managed-task authoring after the accepted intent has been reconciled with a bounded targeted inspection of relevant current repository context. The recommendation SHALL be part of task execution metadata, not a concrete runtime model requirement.
+
+The human-facing Development Backlog Issue title SHALL expose the recommendation as a compact abstract prefix so the user can select the intended starting capability without opening the Issue. Concrete model IDs SHALL NOT be embedded in the durable Issue/OpenSpec solely for routing and SHALL remain governed by current versioned runtime/platform mapping.
+
+The first production policy SHALL support `R2` balanced and `R3` frontier recommendations. `R1` economy MAY be represented as a reserved tier but SHALL NOT be recommended for production work until a later accepted evidence-gated change enables it.
+
+#### Scenario: Ordinary well-specified managed task
+
+- **GIVEN** the accepted task is well specified after bounded repository inspection
+- **AND** no frontier hard trigger is present
+- **WHEN** the managed package is authored
+- **THEN** the recommended start tier is `R2`
+- **AND** the Issue title exposes `[R2]`
+- **AND** no concrete Claude/OpenAI model ID is required in the managed contract
+
+#### Scenario: Frontier work has explicit reasoning evidence
+
+- **GIVEN** authoring identifies a supported frontier hard trigger
+- **WHEN** the managed package is authored
+- **THEN** the recommendation MAY be `R3`
+- **AND** the routing evidence records the concrete trigger/rationale
+- **AND** the Issue title exposes `[R3]`
+
+### Requirement: Frontier routing is trigger-based rather than risk-size based
+
+`R2` SHALL be the default production execution tier. Selecting `R3` SHALL require evidence that additional reasoning capability is plausibly outcome-changing, such as unresolved architecture, materially unknown diagnosis, weak verification combined with high consequence, novel cross-system interaction without an established pattern, trustworthy history of comparable R2 escalation, or a prior substantive balanced failure for reasoning/diagnostic causes.
+
+Expected diff size, number of files, public visibility, blast radius or failure cost SHALL NOT by themselves require `R3`. The platform MAY increase reasoning effort or assurance while retaining `R2`.
+
+#### Scenario: High-blast-radius but mechanically clear change
+
+- **GIVEN** a change affects an important shared contract
+- **BUT** the intended behavior is clear and objectively verifiable
+- **AND** no frontier hard trigger exists
+- **WHEN** routing is authored
+- **THEN** the task remains eligible for `R2`
+- **AND** assurance MAY be high independently
+
+### Requirement: Execution tier, reasoning effort and assurance are independent routing dimensions
+
+The platform SHALL represent the recommended execution tier separately from reasoning-effort guidance and assurance/verification depth. A high assurance requirement SHALL NOT automatically select a frontier executor. Runtime-specific model and effort values remain replaceable configuration/provenance rather than durable product requirements.
+
+#### Scenario: Balanced executor with elevated safeguards
+
+- **GIVEN** a task is semantically suitable for balanced execution
+- **AND** its failure consequence requires stronger verification
+- **WHEN** the task is authored/executed
+- **THEN** it MAY use `R2` with elevated effort and/or high assurance
+- **AND** the high assurance does not itself force `R3`
+
+### Requirement: Routing v2 reuses truthful execution provenance
+
+Routing v2 SHALL reuse the bounded routing/execution provenance delivered by `adopt-gh-aw-process-automation` and SHALL NOT create a parallel run/tracing state machine. Planned tier, actual execution participants/models/effort where provable, verification outcome, fallback and escalation SHALL remain distinguishable so later calibration can evaluate routing without fabricating counterfactual success.
+
+#### Scenario: Planned and actual routes differ
+
+- **GIVEN** a task was authored as `R2`
+- **AND** actual execution later escalates or falls back
+- **WHEN** provenance is recorded
+- **THEN** the planned recommendation and actual execution path remain distinguishable
+- **AND** later analysis can attribute the escalation without rewriting the managed task contract
+
+### Requirement: Model routing preserves truthful bounded execution provenance
+
+For each routed non-trivial managed task, the platform SHALL preserve bounded execution provenance sufficient to distinguish the supervisor from any delegated executor that actually ran. The provenance SHALL reuse the existing routing/execution record rather than create a parallel tracing state machine.
+
+For each participant where the information is applicable and available, provenance SHOULD represent the runtime/provider, participant role, execution profile, model identity, reasoning effort, bounded execution identifier and parent/child relationship. Model and reasoning-effort fields SHALL carry enough source/status information to distinguish platform-selected/configured values from runtime-confirmed values and unknown values.
+
+Free-form model self-identification SHALL NOT be the authoritative source for model or effort provenance. A route that was merely prepared SHALL NOT be represented as an executed child. Fallback and escalation SHALL preserve the actual execution path rather than the preferred path that failed to run.
+
+The concrete runtime adapters SHALL be verified against the supported Codex and Claude Code surfaces at implementation preflight. If a runtime does not reliably expose a desired field, the platform SHALL degrade truthfully by recording that field as unknown or only as selected/configured; it SHALL NOT scrape unstable UI text or infer effective execution state from an unsupported assumption solely to make the record complete.
+
+#### Scenario: Routed Codex executor actually runs
+
+- **GIVEN** Codex routing selects a routine or standard executor
+- **WHEN** the platform-owned Codex launch actually runs the selected executor
+- **THEN** the routing record preserves the actual executed child participant and the platform-selected model/profile
+- **AND** reasoning effort is marked selected/configured or runtime-confirmed only according to evidence available from the supported current Codex runtime
+- **AND** any unavailable effective effort remains unknown rather than inferred
+
+#### Scenario: Native Claude subagent actually runs
+
+- **GIVEN** Claude routing selects a routine or standard child and emits a native Agent hand-off
+- **WHEN** the supervisor actually invokes that Agent and records the returned execution identifier
+- **THEN** the routing record preserves the executed Claude child participant, its selected model/profile/effort and returned bounded agent identifier
+- **AND** selected values are not mislabeled as runtime-confirmed unless the supported runtime also confirms them
+
+#### Scenario: Preferred delegated executor is unavailable
+
+- **GIVEN** routing selected a lower-cost executor
+- **BUT** the current runtime cannot safely launch or confirm that child
+- **WHEN** work is retained by or falls back to the parent
+- **THEN** provenance reports the actual parent/fallback execution
+- **AND** does not create an executed child participant for the unavailable route
+
+#### Scenario: Routed work escalates
+
+- **GIVEN** a delegated executor actually performed bounded work and then triggered escalation
+- **WHEN** the stronger parent resumes the task
+- **THEN** provenance may contain both real participants and the escalation relationship
+- **AND** later friction can be attributed to the appropriate participant or to the overall run when the locus is ambiguous
+
+### Requirement: Execution provenance remains replaceable across runtime/model changes
+
+Execution provenance SHALL describe a specific task execution rather than become a durable model requirement of the backlog Issue or canonical product specification. Concrete model IDs, reasoning-effort vocabulary and runtime-specific identifiers remain replaceable execution metadata governed by the current supported platform/runtime policy.
+
+Historical provenance MAY preserve the model/runtime values that actually or reportedly applied to that execution, but a later change to the supported model lineup SHALL NOT require editing old Development Backlog Issues or accepted OpenSpec requirements solely to rename current executor models.
+
+#### Scenario: Model policy changes after an execution
+
+- **GIVEN** a completed or recorded task execution used an older supported model mapping
+- **WHEN** the platform later changes its current model-routing policy
+- **THEN** historical execution provenance retains the truthful historical values/source status
+- **AND** future executions use the new current policy without rewriting the managed task contract
+
+### Requirement: Codex execution provenance is verified against a real live run
+
+The "Routed Codex executor actually runs" scenario for truthful bounded execution provenance SHALL be verified at least once against a real, live `codex` CLI invocation through the platform-owned `dispatch_codex()`/`run_codex()` path, not solely through simulated stdout event lines in unit tests.
+
+#### Scenario: Live Codex delegation confirms real provenance capture
+
+- **GIVEN** a real authenticated `codex` CLI is available and a routine/standard Codex route is prepared for a real managed task
+- **WHEN** `run_codex()` launches that route through the real CLI
+- **THEN** the resulting `execution.participant` carries a real bounded execution identifier captured from the live `--json` event stream
+- **AND** model/reasoning-effort source/status reflect only what the live run actually confirmed, with no field upgraded to `runtime-confirmed` without live evidence
+
+### Requirement: Routed Codex execution has single-writer ownership per assigned worktree
+
+The model-routing lifecycle SHALL prevent more than one active write-capable Codex executor from owning the same assigned worktree at the same time. Launch ownership SHALL remain held until the prior writer is known to have exited or has been terminated and reaped.
+
+#### Scenario: Second writer is requested while the first is active
+
+- **GIVEN** a write-capable Codex executor currently owns an assigned worktree
+- **WHEN** another routed Codex launch targets the same worktree
+- **THEN** the second launch is refused before it can write
+- **AND** the existing writer remains the only active writer for that worktree
+
+#### Scenario: Prior launch state is ambiguous
+
+- **WHEN** the platform cannot safely prove that the previous writer has exited
+- **THEN** it does not release single-writer ownership
+- **AND** a new write-capable launch fails closed with an actionable diagnostic
+
+### Requirement: Abnormal delegated return leaves truthful execution state
+
+If a routed Codex launch returns abnormally after starting a writer, routing provenance SHALL NOT represent the handoff as cleanly complete until the writer lifecycle is resolved.
+
+#### Scenario: Parent path fails after child launch
+
+- **WHEN** a routed launch encounters timeout, cancellation, stream failure or another abnormal return after the child started
+- **THEN** execution provenance records the real failed/abnormal outcome
+- **AND** the worktree is not made eligible for a new writer while the previous writer remains live or ambiguous
+
+### Requirement: Managed execution provenance captures comparable efficiency evidence
+
+For non-trivial managed execution, the platform SHALL preserve bounded runtime-efficiency evidence in the existing routing/execution provenance path rather than creating a parallel observability state machine.
+
+The platform SHALL record execution timing from its own execution boundary. Runtime/provider-supplied usage fields such as input/prompt tokens, cache-read tokens, fresh/computed input tokens, output tokens, total tokens, and model-request/turn counts MAY be recorded when the supported runtime exposes authoritative values. Optional measurements SHALL preserve enough source/status information to distinguish measured/confirmed values from unavailable or unknown values.
+
+Missing efficiency evidence SHALL NOT be represented as zero and SHALL NOT make an otherwise valid task execution fail solely because a provider does not expose a usage metric.
+
+#### Scenario: Runtime exposes authoritative usage
+
+- **GIVEN** a managed executor returns supported structured usage evidence
+- **WHEN** the platform records the execution outcome
+- **THEN** the compatible normalized efficiency fields are preserved with truthful source/status
+- **AND** platform-measured elapsed time is preserved alongside them
+- **AND** no prompt, chain-of-thought or full transcript is required
+
+#### Scenario: Runtime does not expose token usage
+
+- **GIVEN** a managed executor completes but the supported runtime exposes no reliable token breakdown
+- **WHEN** execution provenance is finalized
+- **THEN** elapsed time and the available lifecycle outcome are still recorded
+- **AND** unsupported usage fields remain unknown/absent rather than guessed or set to zero
+- **AND** completion is not rejected solely because usage metadata is unavailable
+
+### Requirement: Efficiency evidence reuses existing execution outcomes
+
+Efficiency measurement SHALL reuse the existing provider/model/profile provenance and the existing verification, retry/escalation/fallback, human-intervention, containment, abnormal-termination and recovery evidence where those facts already exist. It SHALL NOT introduce a competing task/execution status machine.
+
+#### Scenario: Execution escalates
+
+- **GIVEN** an R2 execution performs bounded work and then escalates
+- **WHEN** efficiency evidence is aggregated
+- **THEN** the actual elapsed/usage evidence for the performed path remains attributable to the real execution
+- **AND** the existing escalation/final-outcome provenance remains authoritative
+
+### Requirement: Efficiency evidence remains runtime-neutral and historically compatible
+
+The canonical efficiency schema SHALL NOT depend on DeepSeek Harness, Cordis, or another optional runtime implementation. Historical execution records that predate efficiency fields SHALL remain readable and SHALL be treated as missing evidence rather than invalid or zero-valued observations. The schema SHALL compare a model-request count across runtimes only when each contributing adapter has authoritative evidence that its counted event has that same semantic identity. Runtime-local turn, assistant-message or step counters MAY be retained as bounded evidence but SHALL NOT be silently normalized into a cross-runtime model-request metric. Historical ambiguous counters SHALL remain readable without being upgraded to stronger semantics.
+
+#### Scenario: Historical record is analyzed
+
+- **GIVEN** a prior execution record has no efficiency fields
+- **WHEN** a baseline report reads it
+- **THEN** the record may still contribute compatible outcome facts
+- **AND** unavailable efficiency measurements are classified as missing
+- **AND** no fabricated values are introduced
+
+#### Scenario: Runtime event meanings differ
+
+- **GIVEN** two runtimes expose different event types whose one-to-one relationship to model requests is not proven
+- **WHEN** efficiency evidence is normalized
+- **THEN** the platform does not aggregate those counters as one comparable metric
+- **AND** unavailable canonical request counts remain unknown rather than fabricated.
+
+### Requirement: Baseline reporting exposes sample adequacy
+
+The execution-efficiency baseline SHALL distinguish launched executions from verified managed executions. A decision-quality `sufficient` status SHALL NOT be produced solely because the launched-execution count reaches the sample guideline. The first decision-quality gate SHALL require at least 15 verified managed executions and SHALL expose verification/metric coverage so sparse or incompatible evidence remains visible.
+
+#### Scenario: Launch count is high but verification coverage is low
+
+- **GIVEN** at least 15 managed executions were launched
+- **AND** fewer than 15 have verified completion evidence
+- **WHEN** the baseline report is generated
+- **THEN** it remains `insufficient`
+- **AND** it reports launched and verified/eligible counts separately.
+
+#### Scenario: Baseline sample is too small
+
+- **GIVEN** only a small or sparsely populated execution sample exists
+- **WHEN** the baseline report is generated
+- **THEN** it reports the available observations and missing-field coverage
+- **AND** it labels the evidence insufficient rather than claiming a reliable improvement or regression
+
+### Requirement: Baseline collection does not self-optimize execution
+
+This change SHALL collect and report evidence only. It SHALL NOT automatically switch runtimes, change routing tiers, enable R1, enforce token/time kill budgets, or self-modify routing policy based on the collected sample.
+
+#### Scenario: High-cost execution is observed
+
+- **WHEN** the report observes an unusually expensive or long execution
+- **THEN** the observation is retained for analysis
+- **AND** no new automatic routing or cancellation policy is inferred by this change alone
+
+### Requirement: Routing calibration reuses the existing execution baseline evidence path
+
+The platform SHALL support bounded read-only calibration of the current R2/R3 routing rubric from existing managed-task routing/execution records and verification evidence. Calibration SHALL reuse the current routing-record/baseline scanning path and SHALL NOT introduce a parallel execution database, tracing backend, transcript store or calibration state machine.
+
+Routing-calibration eligibility SHALL be based on the routing facts needed for the decision, independently from whether optional efficiency fields such as token usage or a cross-runtime request counter are comparable.
+
+#### Scenario: Verified execution lacks comparable efficiency usage
+
+- **GIVEN** a managed execution has truthful authored routing data, actual route/outcome and verification evidence
+- **AND** token/request usage is unavailable or not cross-runtime comparable
+- **WHEN** routing calibration evaluates the execution
+- **THEN** the execution may still contribute routing-outcome evidence
+- **AND** unavailable efficiency metadata remains unknown rather than excluding an otherwise usable routing outcome
+
+### Requirement: Calibration distinguishes authored route from actual execution outcome
+
+For each usable execution, calibration SHALL preserve authored start tier and rubric/task-family context where present, actual execution/fallback/escalation path, verification outcome, and provider/model source status where provable. Missing fields SHALL remain missing or unknown.
+
+#### Scenario: Authored R2 completes without frontier escalation
+
+- **GIVEN** an authored `R2` execution completes required verification without `R3` escalation
+- **WHEN** calibration aggregates outcomes
+- **THEN** it contributes positive evidence for the current R2 path in its recorded context
+- **AND** it is counted separately from direct R3 executions and escalated executions
+
+#### Scenario: R2 escalates and then succeeds
+
+- **GIVEN** an authored `R2` execution has a real R2 attempt
+- **AND** the path later escalates to `R3` and completes successfully
+- **WHEN** calibration aggregates outcomes
+- **THEN** the initial R2 path and final success remain distinguishable
+- **AND** an escalation reason is reported only when the existing provenance proves it
+
+#### Scenario: Legacy or partial record
+
+- **GIVEN** a historical routing record lacks an authored tier, model confirmation, escalation reason or another optional field
+- **WHEN** calibration reads it
+- **THEN** supported facts may still contribute to compatible counts
+- **AND** missing values are not converted to defaults or guesses
+
+### Requirement: Calibration avoids unsupported counterfactual claims
+
+Calibration SHALL NOT infer that `R3` was necessary merely because a direct R3 execution succeeded. It SHALL NOT label a direct R3 execution as over-routing without additional counterfactual evidence. Counterfactual replay is not required for the first calibration version.
+
+#### Scenario: Direct frontier execution succeeds
+
+- **GIVEN** a task was authored and executed directly as `R3`
+- **WHEN** calibration analyzes the result
+- **THEN** it is recorded as successful direct R3 execution
+- **AND** the report does not claim that R2 would have failed or succeeded
+
+### Requirement: Calibration exposes routing-specific sample adequacy and tradeoffs
+
+The calibration report SHALL always expose observation counts and coverage and SHALL include at least:
+
+- authored tier distribution and frontier exposure;
+- verified R2 success without R3 escalation;
+- R2-to-R3 escalation rate/path and known reason distribution;
+- success after escalation;
+- fallback/abnormal/unknown outcome counts;
+- verification, first-pass and human-intervention signals only where current evidence supports them truthfully.
+
+Breakdowns by task family, rubric version and provider/model generation SHALL include their own sample counts and SHALL NOT be presented as confident tuning evidence when the corresponding sample is insufficient.
+
+#### Scenario: Global sample is usable but one family is small
+
+- **GIVEN** the overall routing sample is adequate for a bounded global review
+- **AND** one task family has too few usable executions
+- **WHEN** the report renders breakdowns
+- **THEN** the global report may be usable
+- **AND** the small family is explicitly marked insufficient for family-specific policy advice
+
+#### Scenario: Current real sample is insufficient
+
+- **GIVEN** the current verified routing sample lacks adequate coverage
+- **WHEN** the first calibration report is produced
+- **THEN** the report returns `insufficient evidence / no policy change`
+- **AND** implementation of the reporting capability is not considered blocked merely because more executions must accumulate
+
+### Requirement: Calibration remains advisory
+
+Calibration MAY produce a human-readable candidate decision to keep or change rubric rules, hard triggers, effort/assurance defaults or model mapping. Any actual policy change SHALL require a separate explicit reviewed managed change.
+
+Calibration SHALL NOT automatically modify routing policy, enable R1, create Development Backlog tasks, dispatch remediation, or introduce a learned router.
+
+#### Scenario: Report recommends a rubric change
+
+- **GIVEN** the calibration report has adequate evidence to suggest a concrete rubric or hard-trigger adjustment
+- **WHEN** the report is produced
+- **THEN** it states the candidate change as human-readable advice only
+- **AND** it does not edit routing policy files, `.dev-platform.toml`, the rubric or model mapping
+- **AND** it does not create a Development Backlog task, dispatch remediation or enable a learned router
+
+#### Scenario: Evidence supports keeping the current policy
+
+- **GIVEN** the calibration report finds no change is warranted or the sample is insufficient
+- **WHEN** the report is produced
+- **THEN** it records `no change` or `insufficient evidence / no policy change` as advisory output
+- **AND** any later policy change still requires a separate explicit reviewed managed change
+
+### Requirement: Bulk repository context may be delegated to a cheaper read-only worker
+
+The platform MAY delegate question-directed bulk repository reads from an already selected managed-task executor to a provider-local read-only context worker. This auxiliary operation SHALL remain distinct from the managed task start tier: using a routine-profile context worker SHALL NOT by itself classify or rewrite the managed task as R1.
+
+The context worker SHALL resolve through replaceable provider-local routing configuration rather than durable concrete model IDs in task artifacts. Cross-provider context delegation SHALL NOT be required.
+
+#### Scenario: Strong session needs a narrow answer from broad source context
+
+- **GIVEN** an R2 or R3 execution needs to inspect a bounded set of large repository files for a specific question
+- **AND** a supported cheaper provider-local read-only worker is available
+- **WHEN** context delegation is selected
+- **THEN** the worker receives the question and bounded repository scope
+- **AND** returns compact structured evidence to the parent
+- **AND** the managed task keeps its existing R2/R3 execution identity
+
+#### Scenario: Exact source detail is needed
+
+- **GIVEN** editing, debugging, architecture reasoning or exact verification requires source detail
+- **WHEN** the parent needs a targeted file/range
+- **THEN** a direct targeted read remains available
+- **AND** context delegation does not force an unnecessary summarization hop
+
+### Requirement: Context delegation is read-only and fails open truthfully
+
+A supported context worker path SHALL NOT grant repository write capability. If the runtime cannot provide the supported read-only delegation, the worker fails, or its result is materially low confidence, the platform SHALL expose a bounded direct-read fallback and SHALL NOT claim successful delegation.
+
+Read-only context delegation SHALL NOT require write-containment ceremony solely for consistency with write-capable executors.
+
+#### Scenario: Context worker cannot run
+
+- **GIVEN** the selected runtime lacks the required read-only worker surface or the delegated operation fails
+- **WHEN** the parent still needs repository evidence
+- **THEN** the platform records the real unsupported/failed outcome
+- **AND** direct reading remains available
+- **AND** no successful child execution is fabricated
+
+### Requirement: Context-delegation evidence is bounded and semantically truthful
+
+The platform SHALL retain enough local observation evidence to evaluate context delegation without creating a separate transcript or telemetry service. At minimum, supported observations SHALL distinguish source payload volume, returned payload volume, attributable direct re-read volume when observable, elapsed time, outcome, and provider/model provenance when truthfully known.
+
+Deterministic line or byte counts MAY be used as payload-reduction evidence but SHALL NOT be labelled as measured token or request usage. Canonical token/request fields SHALL be populated only from exact supported runtime evidence; unavailable values remain unknown.
+
+#### Scenario: Runtime does not expose exact token usage
+
+- **GIVEN** a context delegation completed and source/result byte volumes are known
+- **BUT** the runtime does not expose an exact supported token field
+- **WHEN** the observation is recorded
+- **THEN** byte/line payload evidence is retained separately
+- **AND** token usage remains unknown rather than estimated as canonical usage
+
+### Requirement: Initial context delegation remains soft before calibration
+
+The first production context-delegation capability SHALL remain advisory and SHALL NOT hard-block ordinary repository Read operations. Hard interception or redirection of eligible reads requires a later evidence-gated change.
+
+#### Scenario: Soft dogfood phase is active
+
+- **GIVEN** context delegation is available during the initial dogfood phase
+- **WHEN** the parent chooses a direct repository read
+- **THEN** the platform does not block the read solely because a context worker exists
+- **AND** later calibration may evaluate whether stronger enforcement is justified
+
+### Requirement: Snapshot semantic extraction prefers routine read-only workers
+
+Snapshot construction SHALL use deterministic preprocessing first and routine/read-only workers for bounded semantic extraction before stronger-model escalation, unless conflict, low confidence, or materially complex interpretation requires escalation.
+
+#### Scenario: Bounded extraction is routine
+- **WHEN** selected evidence can be summarized into a projection without a novel design decision
+- **THEN** the platform may delegate that extraction through the existing routine read-only context-worker path
+- **AND** the worker has no repository write authority
+
+#### Scenario: Extraction is ambiguous or conflicting
+- **WHEN** the routine worker reports materially low confidence or conflicting evidence that source-of-truth rules cannot resolve mechanically
+- **THEN** the result is marked for stronger review/escalation
+- **AND** the routine worker does not invent a new architecture decision
+
+### Requirement: Snapshot worker evidence reuses routing provenance where practical
+
+The platform SHALL avoid a parallel telemetry system solely for snapshot workers.
+
+#### Scenario: Worker execution is measurable
+- **WHEN** existing routing/context-worker provenance exposes timing or supported usage evidence
+- **THEN** snapshot reporting may reference/reuse that evidence
+- **AND** unavailable token fields remain unknown rather than guessed
+
+### Requirement: Routing enforcement is bound to durable exact managed identity
+
+For a managed task whose policy requires a routing decision/execution outcome, the platform SHALL bind archive and terminal routing enforcement to the exact durable managed task/change identity rather than only to a currently materialized active OpenSpec directory.
+
+The same exact identity SHALL be usable to verify the existing durable routing record after archive. Absence of an active change directory SHALL NOT by itself satisfy the routing gate for a known managed task.
+
+Durable identity lookup for verification/read purposes SHALL NOT make route preparation or dispatch valid after archive; pre-implementation routing remains an active-change operation.
+
+#### Scenario: Managed task reaches archive without routing evidence
+
+- **GIVEN** an exact managed task requires routing evidence
+- **AND** no valid route/execution outcome is durably recorded for that task
+- **WHEN** the task attempts the managed archive boundary
+- **THEN** archive is refused before the OpenSpec change is moved
+- **AND** the diagnostic identifies the missing routing evidence and required sequencing.
+
+#### Scenario: Routed task is archived before finish
+
+- **GIVEN** a managed task has valid required routing/execution evidence
+- **AND** its OpenSpec change is archived through the normal lifecycle
+- **WHEN** terminal finish verifies the routing gate
+- **THEN** the platform resolves the exact archived managed identity
+- **AND** verifies the existing durable routing evidence for that identity
+- **AND** does not silently pass merely because no active change directory exists.
+
+#### Scenario: Another managed change is active
+
+- **GIVEN** the exact task being finished is already archived
+- **AND** another unrelated managed OpenSpec change is currently active
+- **WHEN** terminal routing enforcement resolves provenance
+- **THEN** it binds only to the archived task being finished
+- **AND** SHALL NOT use the unrelated active change or its routing record.
+
+#### Scenario: Routing is attempted after archive
+
+- **GIVEN** a managed task has already crossed the archive boundary without a valid pre-implementation route
+- **WHEN** a caller attempts `route-codex` or `route-claude`
+- **THEN** route preparation remains rejected as out of sequence
+- **AND** the platform SHALL NOT create a retrospective routing decision to legalize completed work.
+
+### Requirement: Archived routing provenance remains truthfully readable
+
+Routing and friction provenance readers SHALL be able to resolve previously recorded route/execution identity for an archived managed task when an exact durable binding exists. They SHALL reuse the existing routing record and SHALL NOT infer provider, model, participant, or outcome fields from unrelated active work.
+
+Unavailable fields SHALL remain unknown.
+
+#### Scenario: Friction is recorded after archive
+
+- **GIVEN** a managed task was routed before implementation and later archived
+- **AND** its durable routing record contains participant provenance
+- **WHEN** a bounded post-archive friction record requests task provenance
+- **THEN** the reader binds to that archived task/change
+- **AND** preserves the truthfully recorded participant/provider/model fields
+- **AND** does not require rematerializing the OpenSpec change.
+
+### Requirement: Supported retained execution is explicit
+
+When current routing policy permits the parent/current strong session to retain implementation work without a launched child executor, a successful retained path SHALL be represented as an explicit durable outcome on the existing routing record, bound to the exact managed task and carrying the required truthful postcheck/containment evidence.
+
+Absence of a child launch alone SHALL NOT imply retained success.
+
+#### Scenario: Parent retains supported work
+
+- **GIVEN** current routing policy permits the selected work to remain on the parent/current strong session
+- **WHEN** implementation completes without a child launch
+- **THEN** a truthful retained outcome is persisted for the exact task
+- **AND** the terminal routing gate verifies that outcome under the same exact-task contract.
+
+#### Scenario: Unrecorded retention reaches completion
+
+- **GIVEN** a routine/standard route has no successful child execution
+- **AND** no explicit policy-valid retained outcome is recorded
+- **WHEN** archive or terminal completion checks routing
+- **THEN** the gate fails closed
+- **AND** SHALL NOT treat missing execution evidence as implicit success.
+
+### Requirement: Verified concurrent integration advancement is distinct from a delegated escape
+
+The platform SHALL retain raw observation of integration `HEAD` movement during
+a delegated write, but it MAY classify a pure head movement as a verified
+concurrent integration advance rather than a containment violation only when
+the writer had native hard containment, no integration path was created,
+changed or disappeared, the new head is a fast-forward descendant of the
+pre-run head, and it exactly equals the integration checkout's recorded
+remote-tracking base-branch ref. The routing execution receipt SHALL preserve
+the before/after heads and explicit classification.
+
+All other integration-head movement, including detection-only execution,
+non-fast-forward movement, unverified/missing remote refs, or any path-level
+change, SHALL remain a containment violation.
+
+#### Scenario: Another lifecycle fast-forwards clean integration during a native child run
+
+- **GIVEN** a native hard-contained delegated writer runs in its assigned
+  worktree
+- **AND** the integration snapshot has no new, changed or disappeared paths
+- **AND** a separate lifecycle fast-forwards integration from the pre-run head
+  to the exact recorded remote-tracking base-branch head
+- **WHEN** the delegated writer returns successfully
+- **THEN** the execution records a verified concurrent integration advance
+- **AND** the routing outcome is not marked as a delegated escape
+
+#### Scenario: Head movement cannot be proven as a concurrent remote fast-forward
+
+- **GIVEN** a delegated writer observes integration-head movement
+- **WHEN** a path changed, the move is not a fast-forward, the remote ref does
+  not exactly match, or containment is not native hard
+- **THEN** the containment result remains failed
+- **AND** normal friction recording remains available for the violation
+
+### Requirement: Historic external-advance recovery is evidence-bound
+
+The platform SHALL provide a recovery path for a historic delegated execution
+that was recorded failed solely because of a pure integration-head movement.
+Recovery SHALL require an exact matching machine-local friction event and
+durable route identity, SHALL verify the recorded before/after and
+remote-fast-forward facts, and SHALL preserve the original execution outcome
+inside the recovery evidence. It SHALL NOT act as a generic retrospective
+routing override.
+
+Recovery's remote-provenance proof SHALL use a verifier dedicated to the
+historical case, distinct from the live containment postcheck's verifier, and
+SHALL NOT require `after_head` to equal the checkout's *current*
+remote-tracking ref. Instead it SHALL require, all independently: `after_head`
+is an ancestor of (or equal to) the checkout's current remote-tracking main
+(proving it is real, accepted history and not an orphan/reset commit); and a
+durable local record (for example the remote-tracking ref's own reflog) shows
+`after_head` was that ref's value at a timestamp within the exact execution
+window already recorded on the flagged route's own evidence. Plain ancestry
+to current main, without that durable temporal binding, SHALL NOT be treated
+as sufficient historical provenance. The binding window SHALL be derived only
+from the durable route being recovered, never from a hardcoded external fact.
+
+A successful recovery SHALL mirror the completed execution and its nested
+recovery record into the durable integration-root routing record, using the
+same mechanism other completed executions use to do so, before reporting
+success. A failure to persist that durable record SHALL cause recovery to
+refuse closed without updating the task-local copy either, so a terminal
+routing/archive gate reading the durable record can never disagree with a
+reported successful recovery.
+
+#### Scenario: A recorded pure-head-move false positive is reviewed
+
+- **GIVEN** an existing route records a launched native child with successful
+  return code but a containment failure
+- **AND** the supplied friction event binds to that exact task, execution and
+  a verified pure remote fast-forward with no path mutation
+- **WHEN** an operator invokes the narrow recovery command
+- **THEN** the route records the reviewed recovery and retains the original
+  execution evidence
+- **AND** terminal routing verification can use that explicit recovery record
+
+#### Scenario: Historic evidence is incomplete or mismatched
+
+- **WHEN** the supplied event, route identity, head facts, native enforcement
+  evidence or path-mutation facts cannot be verified exactly
+- **THEN** recovery refuses without changing routing evidence
+
+#### Scenario: The recorded external advance is no longer the current remote tip
+
+- **GIVEN** `after_head` was a verified concurrent advance at the time of the
+  incident but the checkout's remote-tracking main has since advanced further
+  (including through an unrelated later merge)
+- **AND** the checkout's own remote-tracking ref reflog still records
+  `after_head` as its value at a timestamp inside the flagged route's own
+  recorded execution window
+- **WHEN** an operator invokes the narrow recovery command
+- **THEN** recovery succeeds using the dedicated historical verifier
+- **AND** the live containment postcheck's own current-tip verifier is not
+  consulted for this decision
+
+#### Scenario: Ancestry to current main is not durable temporal proof
+
+- **GIVEN** `after_head` is an ancestor of the checkout's current
+  remote-tracking main
+- **AND** no durable local record binds `after_head` to that ref at a
+  timestamp within the flagged route's recorded execution window
+- **WHEN** an operator invokes the narrow recovery command
+- **THEN** recovery refuses without changing routing evidence
+- **AND** the refusal is not bypassable by a force/override flag
+
+#### Scenario: A successful recovery reaches the durable routing record
+
+- **GIVEN** every recovery fact has been proven
+- **WHEN** the recovery command writes its result
+- **THEN** the durable integration-root routing record for that exact task
+  carries the identical recovered execution and recovery evidence as the
+  task-local copy
+- **AND** a terminal routing or archive gate reading the durable record
+  accepts the recovered classification
+
+#### Scenario: Durable persistence fails during recovery
+
+- **GIVEN** every recovery fact has been proven
+- **WHEN** writing the durable integration-root routing record fails
+- **THEN** recovery refuses without writing the task-local copy either
+- **AND** no terminal gate can observe a recovered task-local record while
+  the durable record remains stale
+

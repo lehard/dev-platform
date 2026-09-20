@@ -1,0 +1,22 @@
+#!/bin/sh
+# Managed by dev-platform scripts/agent_doctor.py.
+# Platform-owned multi-agent workflow keeps task branches linear and integrates
+# them with fast-forward only through scripts/finish_task.py.
+
+if [ "$DEV_PLATFORM_ALLOW_MERGE_COMMIT" = "1" ]; then
+    exit 0
+fi
+
+git_dir=$(git rev-parse --git-dir 2>/dev/null) || exit 0
+common_dir=$(git rev-parse --git-common-dir 2>/dev/null) || exit 0
+
+if [ "$git_dir" = "$common_dir" ]; then
+    echo "pre-merge-commit: merge commits in the integration copy are blocked." >&2
+    echo "Publish through scripts/finish_task.py (fast-forward integration)." >&2
+else
+    echo "pre-merge-commit: merge commits in task worktrees are blocked." >&2
+    echo "Rebase onto the integration branch so task history remains linear." >&2
+fi
+
+echo "Override only after an explicit user decision: DEV_PLATFORM_ALLOW_MERGE_COMMIT=1 git merge ..." >&2
+exit 1

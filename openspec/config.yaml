@@ -1,0 +1,50 @@
+schema: spec-driven
+
+context: |
+  dev-platform is the central developer platform and Copier project factory for multiple agent-first repositories.
+  It owns reusable engineering workflow, not application-domain requirements.
+  Downstream compatibility and safe update behavior are first-class requirements.
+  OpenSpec-generated tool skills are external generated artifacts and must not be vendored as platform-owned code.
+  Reviewed project/domain context is mapped by docs/context/README.md. Load only the relevant product, domain, architecture, anti-pattern, or example context when the artifact reaches that concern; do not ingest the whole context pack by default.
+  Current specs describe accepted behavior; an active change describes an approved delta to that behavior, not a lower-priority source.
+  A non-trivial platform change is complete only after platform checks, semantic OpenSpec verification, recorded PASS evidence and method, archive, and publication.
+
+rules:
+  proposal:
+    - Keep one intent per OpenSpec change. Apply the split test before authoring: if a substantial part could be accepted, delivered, verified, or rolled back independently while the remainder waits, split it unless the parts are jointly required for one observable outcome; touching multiple files/components/capabilities alone does not require a split.
+    - State the expected outcome and concrete success criteria or verification evidence. Use quantitative thresholds when meaningful; otherwise use binary or directly observable evidence instead of inventing KPIs.
+    - State relevant constraints and explicit non-goals that bound the accepted iteration.
+    - For a change to existing behavior, workflow, UX, contract, or architecture whose transition is not otherwise clear, include a concise current-to-target description.
+    - State whether the change affects new projects, existing-project updates, or both.
+    - Separate universal platform behavior from project/profile-specific behavior.
+    - Identify downstream managed files and compatibility risks.
+    - When scope depends on project goals, users, key scenarios, domain meaning, or product invariants, consult the relevant project-context destination before finalizing scope.
+  design:
+    - When a change materially affects data or migrations, security/privacy, CI or release lifecycle, external integrations, backwards compatibility, cross-project rollout, or a comparable high-consequence boundary, record concrete risks and mitigations. Do not add generic risk boilerplate for low-risk work.
+    - Define ownership boundaries and upgrade/rollback behavior.
+    - Prefer dependency-light, deterministic tooling.
+    - Avoid requiring secrets or machine-specific absolute paths.
+    - Resolve shared contracts before parallel implementation.
+    - When design changes or relies on a project architecture invariant or prior decision, consult the bounded architecture context and its linked canonical decision source.
+  tasks:
+    - Include template-render validation and downstream update considerations.
+    - Define logical commit boundaries for non-trivial work.
+    - Include tests for shared scripts and CI behavior.
+    - When implementation intersects a recorded anti-pattern or representative example, route to that focused context rather than copying unrelated project context into the task.
+
+operations:
+  apply:
+    guidance:
+      - Keep the template generic and move project-specific examples into documentation or profile configuration.
+      - Do not vendor OpenSpec-generated AI tool skills.
+      - Treat downstream project content as potentially divergent; never assume blind overwrite is safe.
+      - No silent divergence: when implementation changes intent/scope, observable behavior, technical approach, or execution dependencies, update proposal/specs/design/tasks respectively before continuing in the new direction.
+  archive:
+    guidance:
+      - Confirm durable platform behavior is represented in docs/template before archiving.
+      - Ensure completed task checkboxes reflect validated implementation.
+      - For non-trivial changes, require project/platform checks plus semantic OpenSpec verification before archive; structural openspec validate alone is insufficient.
+      - Prefer /opsx:verify when available; otherwise document the equivalent review of outcome/success evidence, completeness, correctness, and coherence.
+      - When a verification check fails, classify it as introduced, pre-existing, or unknown relative to the authoritative base; claim pre-existing only with trustworthy baseline evidence, otherwise leave it unknown.
+      - 'After material findings are resolved, record `OpenSpec-Verify: PASS` and `Verification-Method: <method>` in the active change verification.md.'
+      - Archive central platform changes through `python3 template/scripts/openspec_lifecycle.py archive <change>` so completion requirements are mechanically checked.

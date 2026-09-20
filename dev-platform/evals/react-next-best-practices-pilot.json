@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "capability": "react-next-best-practices",
+  "content_sha256": "bf9d8935ef53c9220b0fdfc6b83df0382d92850de210781c8c50f9f1ca0b3103",
+  "cases": [
+    {"id": "positive-server-client-boundary", "expectation": "trigger", "prompt": "In our Next.js App Router app, decide which of these components should be Server Components and where the \"use client\" boundary belongs.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-request-waterfall", "expectation": "trigger", "prompt": "The dashboard route in our Next.js app loads slowly because the data fetches run one after another; remove the request waterfall.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-bundle-split", "expectation": "trigger", "prompt": "The React bundle is too big because the rich text editor is imported eagerly; code-split it with next/dynamic.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-wasted-rerenders", "expectation": "trigger", "prompt": "This React list re-renders every row on each keystroke; reduce the wasted re-renders.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-effect-misuse", "expectation": "trigger", "prompt": "We have a useEffect that copies props into state in this React component; is that the right pattern?", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-suspense-streaming", "expectation": "trigger", "prompt": "Add Suspense streaming so the Next.js product page shell renders before the reviews section finishes loading.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-caching-revalidate", "expectation": "trigger", "prompt": "Review the fetch caching and revalidation choices in our Next.js App Router data layer.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-context-rerender", "expectation": "trigger", "prompt": "Our React context provider re-renders the whole tree on every update; how should we split it?", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-list-key", "expectation": "trigger", "prompt": "This React component uses the array index as the key for a filterable list; fix the rendering bug.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-new-next-feature", "expectation": "trigger", "prompt": "Build a new Next.js App Router route that fetches on the server and passes serialisable props to a small client component.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "negative-backend-endpoint", "expectation": "not-trigger", "prompt": "Add a paginated REST endpoint for the orders resource in our Django service.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-sql-migration", "expectation": "not-trigger", "prompt": "Write a database migration that adds a nullable column and backfills it.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-vue-app", "expectation": "not-trigger", "prompt": "Refactor this Vue 3 composable so it stops re-computing on every reactive change.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-svelte-store", "expectation": "not-trigger", "prompt": "Convert this Svelte store to use derived stores instead of manual subscriptions.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-plain-css", "expectation": "not-trigger", "prompt": "Nudge the footer margin by 4px in the stylesheet so it matches the spec.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-cli-tool", "expectation": "not-trigger", "prompt": "Add a --dry-run flag to our Python command line data importer.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-infra", "expectation": "not-trigger", "prompt": "Split the CI test job into two parallel groups and cache the dependency install.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-jquery-widget", "expectation": "not-trigger", "prompt": "Fix the event handler leak in this legacy jQuery carousel widget.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-copy-edit", "expectation": "not-trigger", "prompt": "Fix the typo in the confirmation email body text.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-go-service-perf", "expectation": "not-trigger", "prompt": "Profile and reduce the p99 latency of the Go pricing service.", "samples": ["not-triggered", "not-triggered", "not-triggered"]}
+  ],
+  "quality_comparisons": [
+    {
+      "id": "opt-in-materializes-react-guidance",
+      "objective_verifier": "The deterministic fixture test verifies that a project that has not enabled react-next-best-practices has no derived skill surface, and that enabling the canonical descriptor materializes exactly the marker generated from it for each supported provider.",
+      "baseline": "not-verified",
+      "candidate": "verified"
+    },
+    {
+      "id": "non-react-and-backend-controls-get-no-guidance",
+      "objective_verifier": "Every non-React frontend, backend, and infrastructure control prompt in this fixture is labelled not-trigger, so an incompatible or opted-out project receives no React/Next guidance from it.",
+      "baseline": "not-verified",
+      "candidate": "verified"
+    }
+  ]
+}

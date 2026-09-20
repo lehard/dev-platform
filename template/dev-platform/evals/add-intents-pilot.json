@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "capability": "add-intents",
+  "content_sha256": "6e3c711b851849a08ced17b47339431680393e9005a84fb744a494274ddfade2",
+  "cases": [
+    {"id": "positive-new-integration-contract", "expectation": "trigger", "prompt": "Add a new Kafka event integration between billing and search so search stays in sync with organization profile changes.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-new-capability-boundary", "expectation": "trigger", "prompt": "Introduce tiered pricing as a new capability that changes how the billing service computes and boundaries with the entitlement service.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-data-ownership-change", "expectation": "trigger", "prompt": "Move order-status ownership from the fulfillment service to a new orders service; other services must stop writing order status directly.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-invariant-change", "expectation": "trigger", "prompt": "Change the refund invariant so a partial refund may now exceed the captured amount minus prior refunds under a documented exception.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-security-trust-boundary", "expectation": "trigger", "prompt": "Add a new trust boundary: allow a partner service to read customer PII through a new scoped token, where today no external service can.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-material-nfr", "expectation": "trigger", "prompt": "The search endpoint must move from eventual to strong consistency after a write, which changes its replication and caching design.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-new-component-boundary", "expectation": "trigger", "prompt": "Split the monolithic reporting module into its own service with its own deployment and data store.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-cross-system-consequence", "expectation": "trigger", "prompt": "Support multi-currency invoices, which changes tax calculation, rounding, and every downstream consumer of the invoice total.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-contract-change", "expectation": "trigger", "prompt": "Add a new required field to the public webhook payload contract that every subscriber must start handling.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-preserved-constraint-with-new-delta", "expectation": "trigger", "prompt": "Add SSO login while the existing password login must keep working exactly as today for non-SSO tenants.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "negative-clear-bugfix", "expectation": "not-trigger", "prompt": "Fix the off-by-one error in the pagination offset; the cause and expected result are already established.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-mechanical-rename", "expectation": "not-trigger", "prompt": "Rename this helper function to match the established naming convention across its three call sites.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-dependency-bump", "expectation": "not-trigger", "prompt": "Apply the known one-line dependency version bump requested in the release checklist.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-formatting", "expectation": "not-trigger", "prompt": "Run the repository formatter over this module; no behavior changes.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-already-specified-field", "expectation": "not-trigger", "prompt": "Add the already-specified created_at ISO-8601 field to this DTO and its serializer, exactly as described.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-config-value", "expectation": "not-trigger", "prompt": "Change the already-identified staging URL from http to https in this one config value.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-test-only", "expectation": "not-trigger", "prompt": "Add a unit test for the existing pagination helper; no production code changes.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-copy-fix", "expectation": "not-trigger", "prompt": "Fix the confirmed typo in this error message string.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-log-level", "expectation": "not-trigger", "prompt": "Lower this noisy log line from warn to debug.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-existing-endpoint-tweak", "expectation": "not-trigger", "prompt": "Add response caching headers to this already-defined read-only GET endpoint; no contract change.", "samples": ["not-triggered", "not-triggered", "not-triggered"]}
+  ],
+  "quality_comparisons": [
+    {
+      "id": "add-records-only-genuine-delta",
+      "objective_verifier": "A representative ADD produced for a business requirement records only new/changed system-design elements, references already-established decisions instead of restating them, and validate-add reports ok=true.",
+      "baseline": "not-verified",
+      "candidate": "verified"
+    },
+    {
+      "id": "unresolved-choice-blocks-approval",
+      "objective_verifier": "validate-add rejects approved=true while any unresolved_choices entry has status=open or any contradictions entry has resolved=false, and accepts approval once every choice/contradiction is explicitly resolved.",
+      "baseline": "not-verified",
+      "candidate": "verified"
+    },
+    {
+      "id": "decomposition-covers-every-material-element",
+      "objective_verifier": "validate-intents rejects an intent set that leaves a new/changed ADD element with no covering intent and no explicit non_implementation disposition, and accepts one where every such element is covered or explicitly disposed.",
+      "baseline": "not-verified",
+      "candidate": "verified"
+    },
+    {
+      "id": "decomposition-detects-cycles-and-unexplained-overlap",
+      "objective_verifier": "validate-intents rejects a cyclic intent dependency graph and rejects two intents covering the same ADD element without each recording an explicit overlap_reason.",
+      "baseline": "not-verified",
+      "candidate": "verified"
+    },
+    {
+      "id": "clear-change-bypasses-the-pipeline",
+      "objective_verifier": "The deterministic fixture contains ten hard-negative prompts for clear bounded changes with no useful design delta and verifies that none trigger the ADD/intents pipeline.",
+      "baseline": "not-verified",
+      "candidate": "verified"
+    }
+  ]
+}

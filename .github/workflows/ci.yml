@@ -1,0 +1,134 @@
+name: Platform CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.11"
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "20.19.0"
+          package-manager-cache: false
+
+      - name: Compile shared scripts
+        run: python3 -m compileall -q template/scripts scripts
+
+      - name: Install pinned gh-aw
+        run: gh extension install github/gh-aw --pin "$(tr -d '[:space:]' < .github/aw/gh-aw-version.txt)"
+
+      - name: Validate agentic workflow sources and generated locks
+        run: python3 scripts/validate_agentic_workflows.py
+
+      - name: Install Jinja2 for docs-semantic checks
+        run: python3 -m pip install jinja2
+
+      - name: Unit tests
+        shell: bash
+        run: |
+          set +e
+          python3 scripts/run_test_groups.py --all --evidence /tmp/test-groups-evidence.json > /tmp/unit-tests.log 2>&1
+          status=$?
+          cat /tmp/unit-tests.log
+          if [ "$status" -ne 0 ]; then
+            python3 - <<'PY'
+          from pathlib import Path
+          lines = Path("/tmp/unit-tests.log").read_text(encoding="utf-8", errors="replace").splitlines()
+          separators = [i for i, line in enumerate(lines) if line.startswith("----- failing group")]
+          start = separators[0] if separators else max(0, len(lines) - 25)
+          detail = "\n".join(lines[start:])
+          if len(detail) > 7000:
+              detail = detail[-7000:]
+          escaped = detail.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+          print(f"::error file=tests,title=Unit test failure::{escaped}")
+          PY
+            exit "$status"
+          fi
+      # This one job's exit status is GitHub's required check ("validate"); a
+      # failure in ANY group above already fails this step (and therefore the
+      # job), so no separate cross-job aggregate is needed while tests run in
+      # a single job. See tests/test_run_test_groups.py for the aggregate
+      # contract this depends on: any failed group -> non-zero exit.
+
+      - name: Enforce OpenSpec lifecycle hygiene
+        run: python3 template/scripts/openspec_lifecycle.py check
+
+      - name: Strict-validate OpenSpec
+        run: npx --yes @fission-ai/openspec@1.13.0 validate --all --strict --no-interactive
+
+      - name: Run OpenSpec archive/delta regression fixtures
+        run: python3 tests/openspec_1_13_regression.py --openspec-command "npx --yes @fission-ai/openspec@1.13.0"
+
+      - name: Install tested Copier
+        run: python3 -m pip install "copier==9.17.0"
+
+      - name: Render factory profiles
+        shell: bash
+        run: |
+          set +e
+          {
+            for profile_and_mode in light:direct standard:pr multi-agent:pr; do
+              profile="${profile_and_mode%%:*}"
+              publish_mode="${profile_and_mode##*:}"
+              target="/tmp/dev-platform-$profile"
+              rm -rf "$target"
+              copier copy --trust --defaults --vcs-ref HEAD \
+                --data project_name="Smoke $profile" \
+                --data project_slug="smoke-$profile" \
+                --data project_description="Factory smoke test" \
+                --data workflow_profile="$profile" \
+                --data harness_mode="platform" \
+                --data publish_mode="$publish_mode" \
+                --data platform_ci_ref="dab74494c9a6ad9a77d99e73bb36774a6d42350d" \
+                . "$target"
+              python3 -m compileall -q "$target/scripts"
+              (
+                cd "$target"
+                python3 scripts/platform_doctor.py
+                test -f .github/workflows/dev-platform.yml
+                ! grep -R "project-ci.yml@main" .github/workflows
+              )
+            done
+          } > /tmp/factory-render.log 2>&1
+          status=$?
+          cat /tmp/factory-render.log
+          if [ "$status" -ne 0 ]; then
+            python3 - <<'PY'
+          from pathlib import Path
+          detail = "\n".join(Path("/tmp/factory-render.log").read_text(encoding="utf-8", errors="replace").splitlines()[-60:])
+          if len(detail) > 7000:
+              detail = detail[-7000:]
+          escaped = detail.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+          print(f"::error file=copier.yml,title=Factory render failure::{escaped}")
+          PY
+            exit "$status"
+          fi
+
+      - name: Smoke-test Copier upgrade paths
+        run: |
+          python3 tests/upgrade_smoke.py --profile light --publish-mode direct
+          python3 tests/upgrade_smoke.py --profile standard --publish-mode pr
+          python3 tests/upgrade_smoke.py --profile multi-agent --publish-mode pr
+
+      - name: Smoke-test mature project harness adoption
+        run: python3 tests/project_harness_adoption_smoke.py
+
+      - name: Smoke-test project-harness smart-update fallback
+        run: python3 tests/rollout_recopy_smoke.py
+
+      - name: Smoke-test public distribution snapshot completeness
+        run: python3 tests/public_distribution_snapshot_smoke.py

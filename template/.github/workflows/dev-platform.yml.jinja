@@ -1,0 +1,62 @@
+{% if scm_provider == 'github' %}
+name: Dev Platform
+
+on:
+  pull_request:
+    branches:
+      - {{ main_branch }}
+{% if publish_mode == 'direct' %}
+  push:
+    branches:
+      - {{ main_branch }}
+{% endif %}
+  workflow_dispatch:
+
+concurrency:
+  # Event type is part of the key deliberately: a lightweight push health run
+  # must never cancel an explicitly requested manual full-suite run on the same ref.
+  group: "{% raw %}${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}{% endraw %}"
+  cancel-in-progress: true
+
+jobs:
+  platform-ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.11"
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "20.19.0"
+          package-manager-cache: false
+
+      - name: Validate platform contract
+        run: python3 scripts/platform_doctor.py
+
+      - name: Enforce OpenSpec lifecycle hygiene
+        run: python3 scripts/openspec_lifecycle.py check
+
+      - name: Strict-validate OpenSpec
+        run: npx --yes @fission-ai/openspec@1.13.0 validate --all --strict --no-interactive
+{% if harness_mode == 'platform' %}
+
+      - name: Run protected full platform-managed checks
+        if: github.event_name == 'pull_request'
+        run: python3 scripts/select_checks.py --base "origin/{% raw %}${{ github.base_ref }}{% endraw %}" --mode protected-full --execute
+
+      - name: Run protected full platform-managed checks
+        if: github.event_name == 'workflow_dispatch'
+        run: python3 scripts/select_checks.py --mode protected-full --execute
+{% else %}
+
+      - name: Project checks are repository-owned
+        run: echo "harness_mode=project; product/application checks are delegated to repository CI."
+{%- endif -%}
+{% else %}
+# GitHub Actions is intentionally not configured when scm_provider=gitlab.
+{%- endif -%}{{ '\n' -}}

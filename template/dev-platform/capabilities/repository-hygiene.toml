@@ -1,0 +1,25 @@
+[capability]
+id = "repository-hygiene"
+name = "Repository hygiene"
+description = "Apply the repository's local contract and bounded verification before engineering changes."
+kind = "instruction-only"
+applicability = "Repository preparation, implementation, and verification work."
+invocation = "auto+explicit"
+visibility = "project"
+owner = "dev-platform"
+safety_boundary = "Instruction-only; no package installation, credentials, production access, or write authority beyond the active task."
+dependencies = []
+materialization = "provider-skill-markdown"
+update_policy = "replace-derived"
+removal_policy = "remove-derived-only"
+
+[provenance]
+source = "dev-platform"
+revision = "platform-managed"
+path = "dev-platform/capabilities/repository-hygiene.md"
+license = "Apache-2.0"
+content_sha256 = "7d8c8101e683b5748a6f9a8a0f599dbce19c48de8d3b957872b62345d52ab887"
+
+[eval]
+evidence = "none"
+live_eval = "not-required-for-fixture"

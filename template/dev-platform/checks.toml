@@ -1,0 +1,47 @@
+# Project-owned check mapping consumed by scripts/select_checks.py.
+# Keep this file aligned with the actual repository stack.
+
+[settings]
+full_commands = ["git diff --check", "python3 scripts/openspec_lifecycle.py check"]
+# These files can change dependency resolution, build behavior, schema/runtime
+# startup, or CI policy. Unknown paths and these control-plane paths both run
+# full_commands. Mature projects should keep full_commands representative of
+# their real stack; a local subset never supplies protected-PR authority.
+full_trigger_patterns = [
+  ".dev-platform.toml",
+  "dev-platform/checks.toml",
+  ".github/workflows/**",
+  "openspec/**",
+  "scripts/select_checks.py",
+  "scripts/openspec_lifecycle.py",
+  "scripts/finish_task.py",
+  "scripts/project_publish.py",
+  "scripts/project_sync.py",
+  "**/pyproject.toml",
+  "**/requirements*.txt",
+  "**/poetry.lock",
+  "**/uv.lock",
+  "**/Pipfile",
+  "**/Pipfile.lock",
+  "**/package.json",
+  "**/package-lock.json",
+  "**/npm-shrinkwrap.json",
+  "**/pnpm-lock.yaml",
+  "**/yarn.lock",
+  "**/next.config.*",
+  "**/vite.config.*",
+  "**/alembic.ini",
+  "**/alembic/**",
+]
+
+[checks.docs]
+patterns = ["*.md", "docs/**", "openspec/**", "AGENTS.md", "CLAUDE.md"]
+commands = ["git diff --check", "python3 scripts/openspec_lifecycle.py check"]
+
+[checks.python]
+patterns = ["**/*.py"]
+commands = ["python3 -m compileall -q ."]
+
+[checks.javascript]
+patterns = ["**/*.js", "**/*.jsx", "**/*.ts", "**/*.tsx"]
+commands = []

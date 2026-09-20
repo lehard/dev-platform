@@ -1,0 +1,858 @@
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+from _platform_common import (
+    current_worktree_root,
+    fetch_main,
+    github_cli_env,
+    harness_mode,
+    main_root,
+    pr_merge_mode,
+    profile,
+    protected_main,
+    publish_mode,
+    read_platform_config,
+    scm_provider,
+    relation,
+    run_git,
+    preflight,
+)
+from integration_state import (
+    dirty_paths,
+    fcntl,
+    integration_clean,
+    local_state_matches_remote_target,
+    normalize_equivalent_remote_state,
+    serialized_integration,
+)
+import publication_state
+try:
+    from openspec_lifecycle import require_automated_evidence
+except (ImportError, ModuleNotFoundError):  # Compatibility while old renders are upgraded.
+    def require_automated_evidence(change: Path, *, root: Path | None = None) -> None:
+        return None
+try:
+    import task_reconciliation
+except ModuleNotFoundError:  # Compatibility while an existing project is being upgraded by Copier.
+    task_reconciliation = None
+from managed_project_status import (
+    ManagedProjectStatusError,
+    block_for_scope_conflict,
+    reconcile as reconcile_managed_project,
+    resume_from_scope_conflict,
+)
+try:
+    from worktree_cleanup import defer_completed_task, targeted_cleanup_command
+except ImportError:  # Compatibility while an existing project is being upgraded by Copier.
+    defer_completed_task = None
+    targeted_cleanup_command = None
+try:
+    from agent_board import HardScopeOverlap, enforce_scope_gate, warn_current_worktree_scope_overlap
+except (ImportError, ModuleNotFoundError):  # Compatibility while older rendered projects are upgraded.
+    class HardScopeOverlap(RuntimeError):
+        pass
+
+    def warn_current_worktree_scope_overlap(root: Path, worktree: Path, branch: str) -> None:
+        return None
+
+    def enforce_scope_gate(root: Path, worktree: Path, branch: str) -> None:
+        return None
+try:
+    from managed_task import (
+        ManagedTaskError,
+        assert_integration_identity_cross_check,
+        delivery_identity,
+        observe_source_issue_drift,
+        require_managed_checkout_identity,
+        require_no_orphan_active_openspec,
+        require_delivery_provenance,
+        resolve_process_evidence_after_delivery,
+    )
+except ModuleNotFoundError:  # Compatibility while a pre-managed-intake render is being upgraded.
+    class ManagedTaskError(RuntimeError):
+        pass
+
+    def require_delivery_provenance(root: Path):
+        return None
+
+    def require_no_orphan_active_openspec(root: Path) -> None:
+        return None
+
+    def delivery_identity(root: Path):
+        return None
+
+    def assert_integration_identity_cross_check(integration: Path, identity) -> None:
+        return None
+
+    def observe_source_issue_drift(root: Path):
+        return None
+
+    def require_managed_checkout_identity(root: Path, *, expected_change: str | None = None, expected_source_issue: str | None = None):
+        return None
+
+    def resolve_process_evidence_after_delivery(root: Path, identity, implementation_sha: str) -> None:
+        return None
+
+
+ALLOW_NO_CHECKS_ENV = "DEV_PLATFORM_ALLOW_NO_CHECKS"
+DIRECT_PUBLISH_GUARD = "DEV_PLATFORM_VALIDATED_DIRECT_PUBLISH"
+
+
+def clean(root: Path) -> bool:
+    return not run_git(["status", "--porcelain"], cwd=root).stdout.strip()
+
+
+def current_branch(root: Path) -> str:
+    return run_git(["branch", "--show-current"], cwd=root).stdout.strip()
+
+
+def find_board_id(main: Path, worktree: Path, config: dict) -> str | None:
+    rel = config.get("paths", {}).get("agent_board", ".claude/agents-board.json")
+    path = main / rel
+    if not path.exists():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return None
+    for item in data.get("items", []):
+        try:
+            if Path(item.get("worktree", "")).resolve() == worktree.resolve():
+                return item.get("id")
+        except OSError:
+            continue
+    return None
+
+
+def finish_board(main: Path, worktree: Path, config: dict) -> None:
+    board_id = find_board_id(main, worktree, config)
+    if board_id:
+        subprocess.run(["python3", str(main / "scripts" / "agent_board.py"), "finish", "--id", board_id, "--quiet"], cwd=main, check=False)
+
+
+def emit_finish_stage(label: str) -> None:
+    """Emit one bounded lifecycle-stage marker for the synchronous finish.
+
+    This is a single flushed line per transition -- no loop, no polling, no
+    background process. It exists so a multi-minute synchronous finish reports
+    where it is without callers resorting to ad-hoc pollers.
+    """
+    print(f"DEV_PLATFORM_FINISH_STAGE: {label}", flush=True)
+
+
+def run_checks(root: Path, base: str, no_checks: bool) -> None:
+    if no_checks:
+        return
+    # Stream the child's combined output line-by-line so the per-command
+    # (DEV_PLATFORM_CHECK_COMMAND / _RESULT) and per-test-group
+    # (DEV_PLATFORM_TEST_GROUP*) progress lines reach the caller live during a
+    # multi-minute run, while still accumulating the full text for the bounded
+    # failure evidence descriptor.
+    proc = subprocess.Popen(
+        ["python3", str(root / "scripts" / "select_checks.py"), "--base", base, "--execute"],
+        cwd=root, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+    )
+    chunks: list[str] = []
+    assert proc.stdout is not None
+    with proc.stdout as stream:
+        for line in stream:
+            chunks.append(line)
+            print(line, end="", flush=True)
+    returncode = proc.wait()
+    output = "".join(chunks)
+    if returncode != 0:
+        record_lifecycle_friction(root, "lifecycle-validation-failure", "required platform validation failed", validation_failure_evidence(output, returncode))
+        raise SystemExit(returncode)
+
+
+def validation_failure_evidence(output: str, returncode: int) -> str:
+    """Extract the selector's bounded descriptor without forwarding raw logs."""
+    prefix = "DEV_PLATFORM_CHECK_FAILURE: "
+    for line in output.splitlines():
+        if not line.startswith(prefix):
+            continue
+        try:
+            descriptor = json.loads(line[len(prefix):])
+        except json.JSONDecodeError:
+            break
+        if isinstance(descriptor, dict):
+            return json.dumps(descriptor, ensure_ascii=False, sort_keys=True)
+    return json.dumps({"failure_class": "selector-exit", "exit_code": returncode}, sort_keys=True)
+
+
+def run_openspec_hygiene(root: Path) -> str | None:
+    """Observe OpenSpec/provenance hygiene read-only.
+
+    Returns ``None`` when hygiene passes and an actionable blocker detail when
+    it does not. The narrow ``record_lifecycle_friction`` side effect on failure
+    is preserved so operator review still has the signal.
+    """
+    script = root / "scripts" / "openspec_lifecycle.py"
+    result = subprocess.run(["python3", str(script), "check"], cwd=root, text=True, capture_output=True)
+    if result.stdout:
+        print(result.stdout, end="")
+    if result.stderr:
+        print(result.stderr, end="", file=sys.stderr)
+    if result.returncode != 0:
+        record_lifecycle_friction(root, "lifecycle-openspec-hygiene-failure", "OpenSpec lifecycle hygiene failed", "openspec_lifecycle check returned a non-zero exit status")
+        return (
+            result.stderr.strip()
+            or result.stdout.strip()
+            or "openspec_lifecycle check returned a non-zero exit status"
+        )
+    return None
+
+
+def record_lifecycle_friction(root: Path, category: str, observation: str, evidence: str) -> None:
+    """Capture narrow deterministic failures without changing delivery outcome."""
+    helper = root / "scripts" / "agent_friction.py"
+    if not helper.is_file():
+        return
+    subprocess.run(
+        [
+            "python3", str(helper), "record",
+            "--category", category, "--trigger", "repeated-error", "--severity", "high",
+            "--observation", observation, "--evidence", evidence,
+            "--hypothesis", "a deterministic lifecycle guard needs operator review",
+            "--scope", "platform", "--proposal", "review the lifecycle failure and its guard",
+            "--task", current_branch(root),
+        ],
+        cwd=root, text=True, capture_output=True, check=False,
+    )
+
+
+def run_friction_route_pending_retry(root: Path) -> None:
+    """Best-effort friction telemetry retry; never blocks publication.
+
+    This is intentionally separate from the friction checkpoint: the checkpoint
+    is an observable blocker aggregated with the other read-only completion
+    gates, while this retry only prints non-fatal WARNING lines.
+    """
+    helper = root / "scripts" / "agent_friction.py"
+    # Compatibility for minimal pre-friction renders used by older project
+    # harnesses. Current platform renders always include this helper.
+    if not helper.is_file():
+        return
+    try:
+        result = subprocess.run(
+            ["python3", str(helper), "route-pending"], cwd=root, text=True, capture_output=True, check=False, timeout=15,
+        )
+    except subprocess.TimeoutExpired:
+        print("WARNING: friction routing retry timed out after 15 seconds; safe publication may continue.")
+        return
+    if result.returncode == 0:
+        try:
+            payload = json.loads(result.stdout)
+        except json.JSONDecodeError:
+            print("WARNING: friction routing retry returned unreadable output; safe publication may continue.")
+        else:
+            if payload.get("failures"):
+                print(f"WARNING: {payload['failures']} friction event(s) remain pending GitHub routing; safe publication may continue.")
+    else:
+        print("WARNING: friction routing retry could not run; safe publication may continue.")
+
+
+def observe_friction_checkpoint_blocker(root: Path, branch: str) -> str | None:
+    """Return an actionable detail when the completion friction checkpoint is unresolved."""
+    helper = root / "scripts" / "agent_friction.py"
+    if not helper.is_file():
+        return None
+    checkpoint = subprocess.run(
+        ["python3", str(helper), "assert-checkpoint", "--branch", branch], cwd=root, text=True, capture_output=True, check=False,
+    )
+    if checkpoint.returncode:
+        return checkpoint.stderr.strip() or checkpoint.stdout.strip() or "Completion friction checkpoint is required."
+    return None
+
+
+def validate_publication_config(root: Path, config: dict, prof: str, mode: str) -> None:
+    merge_mode = pr_merge_mode(config)
+    if merge_mode not in {"auto", "manual"}:
+        raise SystemExit(f"Invalid pr_merge_mode={merge_mode!r}; expected 'auto' or 'manual'.")
+    provider = scm_provider(config)
+    if protected_main(config) and mode == "direct":
+        raise SystemExit("protected_main=true is incompatible with publish_mode=direct. Use publish_mode=pr so required checks can gate the merge.")
+    if mode == "pr" and prof == "light":
+        raise SystemExit("publish_mode=pr requires a feature-capable profile. Use standard/multi-agent or a reviewed project-owned harness.")
+    if provider == "github" and mode == "pr" and github_cli_env(root) is None:
+        raise SystemExit(
+            "publish_mode=pr requires authenticated GitHub CLI/API access. Provide a valid GH_TOKEN/GITHUB_TOKEN, a persistent gh login, or reusable GitHub HTTPS credentials before finishing the task."
+        )
+
+
+def task_pr_is_already_merged(root: Path, branch: str, main_branch: str) -> bool:
+    """Return true only when GitHub merged the exact-head PR for this local branch."""
+    env = github_cli_env(root)
+    if env is None:
+        return False
+    lookup = publication_state.find_exact_local_branch_pr(root, env, branch, main_branch)
+    return lookup.available and lookup.exact_merged is not None
+
+
+def find_existing_exact_open_pr(root: Path, branch: str, main_branch: str) -> dict | None:
+    """Detect an already-open exact-head PR so recovery can resume it.
+
+    This is deliberately checked before the first-publication stale-base
+    precondition: an existing exact-head PR remains resumable through GitHub
+    required checks/protection/auto-merge/queue even after the base branch has
+    advanced, and the platform must not force a rebase merely to satisfy a
+    local check that GitHub itself does not require for recovery.
+    """
+    env = github_cli_env(root)
+    if env is None:
+        return None
+    lookup = publication_state.find_exact_local_branch_pr(root, env, branch, main_branch)
+    return lookup.exact_open if lookup.available else None
+
+
+def run_status(work: Path, integration: Path, config: dict, *, as_json: bool) -> int:
+    """Read publication state plus freshly observed task/main freshness; never publish or merge."""
+    main_branch = str(config.get("main_branch", "main"))
+    mode = publish_mode(config)
+    branch = current_branch(work)
+    checkout_identity = None
+    checkout_identity_error = None
+    try:
+        checkout_identity = require_managed_checkout_identity(work)
+    except Exception as exc:
+        checkout_identity_error = str(exc)
+    if harness_mode(config) != "platform" or mode != "pr":
+        message = (
+            f"status: not_applicable (harness_mode={harness_mode(config)!r}, publish_mode={mode!r}); "
+            "this status view covers harness_mode=platform, publish_mode=pr tasks only."
+        )
+        payload = {"status": "not_applicable", "checkout_identity": checkout_identity.evidence_payload() if checkout_identity else None,
+                   "checkout_identity_error": checkout_identity_error}
+        print(json.dumps(payload) if as_json else message + (f"\ncheckout identity: {checkout_identity_error}" if checkout_identity_error else ""))
+        return 0
+    if not branch or branch == main_branch:
+        message = "status: not_published (no feature branch is checked out)"
+        payload = {"status": "not_published", "detail": "no feature branch is checked out",
+                   "checkout_identity": checkout_identity.evidence_payload() if checkout_identity else None,
+                   "checkout_identity_error": checkout_identity_error}
+        print(json.dumps(payload) if as_json else message + (f"\ncheckout identity: {checkout_identity_error}" if checkout_identity_error else ""))
+        return 0
+    env = github_cli_env(work)
+    obs = publication_state.observe_publication(work, integration, env, branch, main_branch)
+    durability = publication_state.merge_durability_capability(config, env, work)
+    try:
+        if task_reconciliation is None:
+            raise RuntimeError("task reconciliation helper is not installed")
+        freshness = task_reconciliation.status_payload(work)
+    except Exception as exc:
+        freshness = {"task_freshness": "unavailable", "reconcile_required": False, "freshness_detail": str(exc)}
+    try:
+        drift = observe_source_issue_drift(work)
+    except Exception:
+        drift = None
+    if as_json:
+        payload = {**publication_state.status_payload(obs, durability), **freshness}
+        payload["source_issue_drift"] = drift
+        payload["checkout_identity"] = checkout_identity.evidence_payload() if checkout_identity else None
+        payload["checkout_identity_error"] = checkout_identity_error
+        print(json.dumps(payload, indent=2))
+    else:
+        print(publication_state.status_text(obs, durability))
+        if freshness["task_freshness"] == "unavailable":
+            print("task freshness: unavailable (authoritative main could not be observed)")
+        else:
+            print(f"task freshness: {freshness['task_freshness']} relative to origin/{main_branch}")
+            if freshness["reconcile_required"]:
+                print("reconcile required before expensive validation: python3 scripts/finish_task.py --reconcile")
+        provenance = freshness.get("managed_provenance")
+        if provenance:
+            print(f"managed provenance: {provenance}")
+        if isinstance(drift, dict) and drift.get("drifted"):
+            print(
+                f"source_issue_drift: {drift['source_issue']} changed since this package was authored "
+                "(rerun with --json for hashes)"
+            )
+        if checkout_identity_error:
+            print("checkout identity: " + checkout_identity_error)
+        elif checkout_identity:
+            print("checkout identity: " + json.dumps(checkout_identity.evidence_payload(), sort_keys=True))
+    return 0
+
+
+def integrate_and_publish_direct(work: Path, integration: Path, config: dict, branch: str, main_branch: str) -> None:
+    fetch_main(integration, "origin", main_branch)
+    remote_main = f"origin/{main_branch}"
+    if branch != main_branch:
+        if not clean(integration):
+            raise SystemExit("Integration copy is dirty. Resolve it before direct integration.")
+        if work == integration:
+            run_git(["switch", main_branch], cwd=integration)
+        elif current_branch(integration) != main_branch:
+            raise SystemExit(f"Integration copy must have {main_branch!r} checked out.")
+        if run_git(["merge-base", "--is-ancestor", remote_main, main_branch], cwd=integration, check=False).returncode != 0:
+            raise SystemExit(f"Local {main_branch} is not safely based on current {remote_main}.")
+        if run_git(["merge-base", "--is-ancestor", main_branch, branch], cwd=integration, check=False).returncode != 0:
+            raise SystemExit(f"{branch} is stale relative to current local {main_branch}. Rebase/update explicitly and rerun checks.")
+        run_git(["merge", "--ff-only", branch], cwd=integration)
+        print(f"Integrated {branch} -> {main_branch} locally.")
+    env = os.environ.copy()
+    env[DIRECT_PUBLISH_GUARD] = "1"
+    subprocess.run(["python3", str(integration / "scripts" / "project_publish.py"), "--mode", "direct"], cwd=integration, check=True, env=env)
+
+
+def sync_after_remote_pr_merge(work: Path, integration: Path, config: dict, main_branch: str) -> None:
+    # This function is called only while serialized_integration is held. Fetch
+    # after lock acquisition: a previous reconciler may have advanced main while
+    # this task was waiting for the shared checkout.
+    fetch_main(integration, "origin", main_branch)
+    if not integration_clean(integration, config):
+        remote_main = f"origin/{main_branch}"
+        paths = dirty_paths(integration, config)
+        if not local_state_matches_remote_target(integration, config, remote_main):
+            raise SystemExit(
+                "Remote PR is merged (authoritative), but local reconciliation is blocked by divergent integration content. "
+                "Leave it untouched and synchronize main manually after resolving local state. Affected paths: "
+                + ", ".join(paths)
+            )
+        normalize_equivalent_remote_state(integration, remote_main)
+        print(f"Normalized integration index to the already-merged {remote_main}; local content was proven equivalent.")
+    remote_main = f"origin/{main_branch}"
+    if work == integration:
+        run_git(["switch", main_branch], cwd=integration)
+    elif current_branch(integration) != main_branch:
+        raise SystemExit(f"Remote PR merged, but integration copy must have {main_branch!r} checked out before synchronization.")
+    state = relation(integration, main_branch, remote_main)
+    if state == "behind":
+        run_git(["merge", "--ff-only", remote_main], cwd=integration)
+        print(f"Fast-forwarded local {main_branch} to merged {remote_main}.")
+    elif state == "equal":
+        print(f"Local {main_branch} already equals merged {remote_main}.")
+    else:
+        raise SystemExit(f"Remote PR merged, but local {main_branch} vs {remote_main} is {state}. Refusing automatic reconciliation.")
+
+
+def _caller_cwd_is_within(worktree: Path) -> bool:
+    """Tell whether removing ``worktree`` would invalidate the invoking runner.
+
+    ``os.chdir(integration)`` only changes this Python child.  The shell or
+    wrapper that launched it keeps its own cwd, normally exposed as inherited
+    ``PWD``.  On hosts where that environment is unavailable, inspect the
+    immediate parent when ``lsof`` can provide the same evidence.  Unknown is
+    deliberately treated as unsafe: cleanup is housekeeping after authority,
+    so a deferred warning is preferable to a false terminal failure.
+    """
+    raw_pwd = os.environ.get("PWD")
+    if raw_pwd:
+        try:
+            return Path(raw_pwd).resolve().is_relative_to(worktree.resolve())
+        except OSError:
+            return True
+    lsof = shutil.which("lsof")
+    if lsof:
+        try:
+            observed = subprocess.run(
+                [lsof, "-a", "-p", str(os.getppid()), "-d", "cwd", "-Fn"],
+                text=True,
+                capture_output=True,
+                check=False,
+                timeout=5,
+            )
+            for line in observed.stdout.splitlines():
+                if line.startswith("n"):
+                    return Path(line[1:]).resolve().is_relative_to(worktree.resolve())
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+    return True
+
+
+def cleanup_completed_task(work: Path, integration: Path, branch: str, *, squash_merged: bool) -> None:
+    if work == integration:
+        return
+
+    if _caller_cwd_is_within(work):
+        if defer_completed_task is None:
+            print(
+                f"WARNING: task is integrated, but cleanup is deferred because the caller cwd is inside {work}; "
+                "the installed worktree cleanup recovery helper is unavailable."
+            )
+            return
+        try:
+            record, target = defer_completed_task(integration, work, branch)
+        except (OSError, SystemExit) as exc:
+            print(
+                f"WARNING: task is integrated, but cleanup is deferred because the caller cwd is inside {work}; "
+                f"the deferred cleanup record could not be updated: {exc}"
+            )
+            return
+        print(
+            f"WARNING: task is integrated; deferred cleanup of caller worktree {work} is recorded at {record}. "
+            "From a surviving integration context, run exactly: "
+            f"{targeted_cleanup_command(target) if targeted_cleanup_command else 'the recorded targeted cleanup command'}."
+        )
+        return
+
+    # The running process must leave the task worktree before asking Git to
+    # remove it. All post-merge housekeeping is driven from the integration
+    # checkout where main is already synchronized.
+    os.chdir(integration)
+    removed = run_git(["worktree", "remove", str(work)], cwd=integration, check=False)
+    if removed.returncode != 0:
+        detail = removed.stderr.strip() or removed.stdout.strip() or f"exit {removed.returncode}"
+        print(f"WARNING: task is integrated, but local worktree cleanup failed for {work}: {detail}")
+        return
+
+    # A squash-merged branch is not an ancestor of main even though its PR is
+    # merged. At this point remote merge has been confirmed and main synced, so
+    # explicit local branch deletion is safe for the exact completed task.
+    delete_flag = "-D" if squash_merged else "-d"
+    deleted = run_git(["branch", delete_flag, branch], cwd=integration, check=False)
+    if deleted.returncode != 0:
+        detail = deleted.stderr.strip() or deleted.stdout.strip() or f"exit {deleted.returncode}"
+        print(f"WARNING: task is integrated, but local branch cleanup failed for {branch}: {detail}")
+        return
+    print(f"Removed completed worktree and local branch {branch}.")
+
+
+def reconcile_confirmed_remote_pr_merge(
+    work: Path,
+    integration: Path,
+    config: dict,
+    branch: str,
+    main_branch: str,
+    prof: str,
+    *,
+    cleanup: bool,
+    timeout_seconds: float,
+) -> None:
+    """Serialize only local post-MERGED reconciliation, never remote waits."""
+    try:
+        identity = delivery_identity(work)
+    except ManagedTaskError as exc:
+        raise SystemExit("Managed task provenance is invalid before terminal reconciliation: " + str(exc)) from exc
+    with serialized_integration(integration, config, timeout_seconds):
+        sync_after_remote_pr_merge(work, integration, config, main_branch)
+        try:
+            assert_integration_identity_cross_check(integration, identity)
+            project = reconcile_managed_project(
+                work,
+                "Done",
+                source_issue=identity.source_issue if identity else None,
+            )
+        except (ManagedProjectStatusError, ManagedTaskError) as exc:
+            raise SystemExit(
+                "GitHub confirms the task PR is merged and local main is synchronized, "
+                "but managed Project reconciliation is pending: " + str(exc)
+            ) from exc
+        if project is not None:
+            print(
+                f"Managed Project status {'updated' if project.changed else 'already current'}: "
+                f"{project.source_issue} -> Done"
+            )
+        if getattr(identity, "process_evidence", ()):
+            try:
+                implementation_sha = run_git(["rev-parse", "HEAD"], cwd=integration).stdout.strip()
+                resolve_process_evidence_after_delivery(work, identity, implementation_sha)
+            except ManagedTaskError as exc:
+                raise SystemExit(
+                    "GitHub confirms the task PR is merged, local main is synchronized, and Project reconciliation succeeded, "
+                    "but linked process-evidence resolution is pending: " + str(exc)
+                ) from exc
+        if prof == "multi-agent":
+            finish_board(integration, work, config)
+        if cleanup:
+            cleanup_completed_task(work, integration, branch, squash_merged=True)
+
+
+def observe_completion_blockers(
+    work: Path,
+    integration: Path,
+    branch: str,
+    main_branch: str,
+    remote_main: str,
+    mode: str,
+    exact_open_pr: dict | None,
+) -> list[tuple[str, str]]:
+    """Evaluate every safely observable read-only completion gate.
+
+    Returns ``(stage_label, actionable_detail)`` pairs for each independently
+    observable blocker. This performs ONLY read-only observations -- it never
+    mutates task, board, project or git state -- so all currently visible
+    blockers can be reported together before expensive validation starts.
+    """
+    blockers: list[tuple[str, str]] = []
+
+    hygiene_detail = run_openspec_hygiene(work)
+    if hygiene_detail is not None:
+        blockers.append(("openspec-hygiene", hygiene_detail))
+
+    checkpoint_detail = observe_friction_checkpoint_blocker(work, branch)
+    if checkpoint_detail is not None:
+        blockers.append(("friction-checkpoint", checkpoint_detail))
+
+    if not clean(work):
+        blockers.append(("worktree-clean", "Current worktree is dirty. Commit or remove changes first."))
+
+    if task_reconciliation is None:
+        stale_state = relation(work, "HEAD", remote_main)
+        freshness_state = stale_state
+        reconcile_required = stale_state in {"behind", "diverged"}
+    else:
+        freshness_observation = task_reconciliation.observe(work)
+        freshness_state = freshness_observation.state
+        reconcile_required = freshness_observation.reconcile_required
+    if reconcile_required:
+        blockers.append((
+            "task-freshness",
+            f"{branch} is {freshness_state} relative to freshly observed {remote_main}. "
+            "Reconcile before expensive validation: python3 scripts/finish_task.py --reconcile",
+        ))
+
+    if (
+        mode == "pr"
+        and branch != main_branch
+        and exact_open_pr is None
+        and run_git(["merge-base", "--is-ancestor", remote_main, branch], cwd=work, check=False).returncode != 0
+    ):
+        blockers.append((
+            "branch-base",
+            f"{branch} is stale relative to {remote_main}. Rebase/update explicitly, rerun checks, then finish.",
+        ))
+
+    try:
+        enforce_scope_gate(integration, work, branch)
+    except HardScopeOverlap as exc:
+        blockers.append(("scope-overlap", str(exc)))
+
+    return blockers
+
+
+def report_completion_blockers(blockers: list[tuple[str, str]]) -> None:
+    print(
+        f"Completion preflight found {len(blockers)} blocker(s) that must be resolved "
+        "before expensive validation:",
+        flush=True,
+    )
+    for stage_label, detail in blockers:
+        print(f"  - [{stage_label}] {detail}", flush=True)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Validate, integrate when needed, and publish a completed task without a human git hand-off.")
+    parser.add_argument("--no-checks", action="store_true")
+    parser.add_argument("--cleanup", action="store_true")
+    parser.add_argument("--title")
+    parser.add_argument("--body")
+    parser.add_argument("--merge-timeout", type=float, default=60.0)
+    parser.add_argument("--status", action="store_true", help="Read-only publication status; makes no mutations.")
+    parser.add_argument("--reconcile", action="store_true", help="Safely merge authoritative main into the current managed task before validation.")
+    parser.add_argument("--json", action="store_true", help="Emit --status output as JSON.")
+    args = parser.parse_args()
+    if args.json and not args.status:
+        parser.error("--json requires --status")
+    if args.status and args.reconcile:
+        parser.error("--status and --reconcile are mutually exclusive")
+    if args.merge_timeout < 0:
+        parser.error("--merge-timeout must be non-negative")
+    if args.no_checks and os.environ.get(ALLOW_NO_CHECKS_ENV) != "1":
+        raise SystemExit(
+            "--no-checks is an emergency/operator override and is blocked by default. "
+            f"Set {ALLOW_NO_CHECKS_ENV}=1 only after an explicit decision to bypass validation."
+        )
+    work = current_worktree_root()
+    integration = main_root()
+    config = read_platform_config(work)
+    provider = scm_provider(config)
+    if args.status:
+        if provider == "gitlab":
+            return subprocess.run(["python3", str(work / "scripts" / "gitlab_delivery.py"), "status"], cwd=work).returncode
+        return run_status(work, integration, config, as_json=args.json)
+    if args.reconcile:
+        if task_reconciliation is None:
+            raise SystemExit("Task reconciliation helper is unavailable; update the rendered platform lifecycle before using --reconcile.")
+        task_reconciliation.reconcile(work)
+        return 0
+    if harness_mode(config) != "platform":
+        raise SystemExit("harness_mode=project: use the repository-owned Git/worktree publication workflow instead of scripts/finish_task.py.")
+    prof = profile(config)
+    if provider not in {"github", "gitlab"}:
+        raise SystemExit(f"Unknown scm_provider: {provider}")
+    preflight(integration)
+    if work != integration:
+        preflight(work)
+    mode = publish_mode(config)
+    main_branch = str(config.get("main_branch", "main"))
+    branch = current_branch(work)
+    try:
+        require_managed_checkout_identity(work)
+    except ManagedTaskError as exc:
+        raise SystemExit("Managed checkout identity gate blocked lifecycle evidence work: " + str(exc)) from exc
+    if not branch:
+        raise SystemExit("Detached HEAD is not publishable through the platform lifecycle.")
+    validate_publication_config(work, config, prof, mode)
+    try:
+        require_no_orphan_active_openspec(work)
+        delivery = require_delivery_provenance(work)
+        if delivery is not None:
+            require_automated_evidence(delivery.path, root=work)
+    except ManagedTaskError as exc:
+        raise SystemExit("Managed task publication blocked: " + str(exc)) from exc
+    try:
+        drift = observe_source_issue_drift(work)
+    except Exception:
+        drift = None
+    if isinstance(drift, dict) and drift.get("drifted"):
+        print(
+            f"source_issue_drift: {drift['source_issue']} changed since this package was authored; "
+            "canonical OpenSpec is unaffected -- reconcile explicitly if the new scope should be adopted "
+            "(managed_task.py supersede --bundle <dir> " + drift["source_issue"] + ")"
+        )
+    if provider == "gitlab":
+        if mode != "pr":
+            raise SystemExit("The bounded GitLab adapter supports publish_mode=pr only.")
+        if branch == main_branch:
+            raise SystemExit("GitLab merge-request publication requires a feature branch.")
+        hygiene_detail = run_openspec_hygiene(work)
+        checkpoint_detail = observe_friction_checkpoint_blocker(work, branch)
+        dirty_detail = "Current worktree is dirty." if not clean(work) else None
+        if hygiene_detail or checkpoint_detail or dirty_detail:
+            details = [detail for detail in (hygiene_detail, checkpoint_detail, dirty_detail) if detail]
+            raise SystemExit("GitLab completion preflight blocked: " + " | ".join(details))
+        fetch_main(work, "origin", main_branch)
+        remote_main = f"origin/{main_branch}"
+        if run_git(["merge-base", "--is-ancestor", remote_main, branch], cwd=work, check=False).returncode != 0:
+            raise SystemExit(f"{branch} is stale relative to {remote_main}. Reconcile explicitly, rerun checks, then finish.")
+        emit_finish_stage("preflight clear: starting required validation")
+        run_checks(work, remote_main, args.no_checks)
+        emit_finish_stage("validation clear: publishing GitLab merge request")
+        command = ["python3", str(work / "scripts" / "gitlab_delivery.py"), "publish"]
+        if args.title:
+            command += ["--title", args.title]
+        if args.body:
+            command += ["--body", args.body]
+        result = subprocess.run(command, cwd=work)
+        if result.returncode == 0:
+            emit_finish_stage("complete")
+        return result.returncode
+    emit_finish_stage("preflight: observing completion blockers")
+    run_friction_route_pending_retry(work)
+    fetch_main(integration, "origin", main_branch)
+    remote_main = f"origin/{main_branch}"
+
+    # Recovery is intentionally checked before local validation against the new
+    # remote base. A squash-merged task branch is no longer an ancestor of main,
+    # but if GitHub already merged this exact head there is nothing to rebase or
+    # republish; only local reconciliation remains. This early-return stays
+    # ahead of freshness evaluation and the consolidated preflight.
+    if mode == "pr" and branch != main_branch and task_pr_is_already_merged(work, branch, main_branch):
+        reconcile_confirmed_remote_pr_merge(
+            work, integration, config, branch, main_branch, prof, cleanup=args.cleanup, timeout_seconds=args.merge_timeout
+        )
+        print("Task PR was already merged through GitHub; local main and task state were reconciled without republishing.")
+        emit_finish_stage("complete")
+        return 0
+
+    # An exact PR remains the publication object after reconciliation, but its
+    # old validation cannot apply to the newly reconciled head.
+    exact_open_pr = None
+    if mode == "pr" and branch != main_branch:
+        exact_open_pr = find_existing_exact_open_pr(work, branch, main_branch)
+
+    warn_current_worktree_scope_overlap(integration, work, branch)
+
+    # Consolidated read-only completion preflight. Every already-observable
+    # blocker (OpenSpec/provenance hygiene, friction checkpoint, worktree
+    # cleanliness, task freshness, branch-base staleness, hard scope overlap) is
+    # evaluated and reported together here, BEFORE expensive validation, so two
+    # independent blockers no longer cost two multi-minute finishes.
+    blockers = observe_completion_blockers(
+        work, integration, branch, main_branch, remote_main, mode, exact_open_pr
+    )
+    if blockers:
+        report_completion_blockers(blockers)
+        raise SystemExit(1)
+
+    emit_finish_stage("preflight clear: starting required validation")
+    run_checks(work, remote_main, args.no_checks)
+
+    # Immediately-before-publication recheck: factual scope can have grown
+    # since admission (or since the pre-validation recheck inside
+    # select_checks.py) even when checks themselves passed.
+    try:
+        enforce_scope_gate(integration, work, branch)
+    except HardScopeOverlap as exc:
+        block_for_scope_conflict(work, str(exc))
+        raise SystemExit(str(exc)) from exc
+    resume_from_scope_conflict(work)
+    emit_finish_stage("validation clear: starting publication/integration")
+    if mode == "pr":
+        if branch == main_branch:
+            raise SystemExit("publish_mode=pr requires a feature branch. Use standard/multi-agent profile or switch publish_mode deliberately.")
+        if exact_open_pr is None and run_git(["merge-base", "--is-ancestor", remote_main, branch], cwd=work, check=False).returncode != 0:
+            raise SystemExit(f"{branch} is stale relative to {remote_main}. Rebase/update explicitly, rerun checks, then finish.")
+        if exact_open_pr is not None:
+            print(f"Resuming existing exact-head PR: {exact_open_pr.get('url')}")
+        command = ["python3", str(work / "scripts" / "project_publish.py"), "--mode", "pr"]
+        if args.title:
+            command += ["--title", args.title]
+        if args.body:
+            command += ["--body", args.body]
+        subprocess.run(command, cwd=work, check=True)
+        if pr_merge_mode(config) == "auto":
+            reconcile_confirmed_remote_pr_merge(
+                work, integration, config, branch, main_branch, prof, cleanup=args.cleanup, timeout_seconds=args.merge_timeout
+            )
+            print("Task PR passed required checks, merged through GitHub, and local main was synchronized.")
+        else:
+            if prof == "standard" and work == integration:
+                run_git(["switch", main_branch], cwd=integration)
+                print(f"Returned integration copy to {main_branch} after manual-review PR publication.")
+            if prof == "multi-agent":
+                finish_board(integration, work, config)
+            print("Task published as PR for manual review. OpenSpec lifecycle hygiene passed.")
+        emit_finish_stage("complete")
+        return 0
+    if mode != "direct":
+        raise SystemExit(f"Unknown publish_mode: {mode}")
+    try:
+        identity = delivery_identity(work)
+    except ManagedTaskError as exc:
+        raise SystemExit("Managed task provenance is invalid before direct publication: " + str(exc)) from exc
+    with serialized_integration(integration, config, args.merge_timeout):
+        integrate_and_publish_direct(work, integration, config, branch, main_branch)
+        try:
+            assert_integration_identity_cross_check(integration, identity)
+            project = reconcile_managed_project(
+                work,
+                "Done",
+                source_issue=identity.source_issue if identity else None,
+            )
+        except (ManagedProjectStatusError, ManagedTaskError) as exc:
+            raise SystemExit(
+                "Direct publication succeeded, but managed Project reconciliation is pending: " + str(exc)
+            ) from exc
+        if project is not None:
+            print(
+                f"Managed Project status {'updated' if project.changed else 'already current'}: "
+                f"{project.source_issue} -> Done"
+            )
+        if getattr(identity, "process_evidence", ()):
+            try:
+                implementation_sha = run_git(["rev-parse", "HEAD"], cwd=integration).stdout.strip()
+                resolve_process_evidence_after_delivery(work, identity, implementation_sha)
+            except ManagedTaskError as exc:
+                raise SystemExit(
+                    "Direct publication and Project reconciliation succeeded, but linked process-evidence resolution is pending: " + str(exc)
+                ) from exc
+        if prof == "multi-agent" and work != integration:
+            finish_board(integration, work, config)
+    if args.cleanup:
+        cleanup_completed_task(work, integration, branch, squash_merged=False)
+    print("Task published directly. OpenSpec lifecycle hygiene passed.")
+    emit_finish_stage("complete")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

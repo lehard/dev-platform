@@ -1,0 +1,13 @@
+# Project-owned browser verification origin allowlist.
+#
+# localhost, 127.0.0.1, ::1, *.localhost and *.test are always allowed and need
+# no entry here. This file only *widens* the set.
+#
+#   allowlisted_origins : extra non-production origins the project explicitly trusts
+#                         (e.g. "https://staging.example.test:8443", "http://app.internal")
+#   production_origins   : origins that additionally require --allow-production-origin
+#                         per run; interactive (write/submit) steps against them are
+#                         always refused.
+version = 1
+allowlisted_origins = []
+production_origins = []

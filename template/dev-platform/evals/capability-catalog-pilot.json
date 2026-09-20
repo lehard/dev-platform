@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "capability": "capability-catalog",
+  "content_sha256": "0fcf31950ff9725464a47fd95a5631c40a7d81504fb21744b52e555af317bf8d",
+  "cases": [
+    {"id": "positive-list", "expectation": "trigger", "prompt": "List the optional engineering capabilities available here.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-show", "expectation": "trigger", "prompt": "Show the descriptor for the repository hygiene capability.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-audit", "expectation": "trigger", "prompt": "Audit the project's selected engineering capabilities.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-enable", "expectation": "trigger", "prompt": "Enable the capability catalog for this project.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-disable", "expectation": "trigger", "prompt": "Disable an optional development capability.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-create", "expectation": "trigger", "prompt": "Create a reusable engineering capability from this descriptor.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-update", "expectation": "trigger", "prompt": "Update this capability and check its lifecycle evidence.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-remove", "expectation": "trigger", "prompt": "Remove a project-selected capability safely.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-provenance", "expectation": "trigger", "prompt": "Which source revision and license belong to this capability?", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-support", "expectation": "trigger", "prompt": "Which providers support this optional capability?", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "negative-format", "expectation": "not-trigger", "prompt": "Format this Python file with the existing project formatter.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-unit-test", "expectation": "not-trigger", "prompt": "Run the focused unit test for this parser.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-commit", "expectation": "not-trigger", "prompt": "Write a conventional commit message for my current diff.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-network", "expectation": "not-trigger", "prompt": "Fetch the current release notes from the vendor site.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-sql", "expectation": "not-trigger", "prompt": "Explain this SQL query plan.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-ui", "expectation": "not-trigger", "prompt": "Adjust the mobile spacing in this product screen.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-security", "expectation": "not-trigger", "prompt": "Review this authentication change for security issues.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-deploy", "expectation": "not-trigger", "prompt": "Deploy the already approved service release.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-debug", "expectation": "not-trigger", "prompt": "Diagnose why this API request returns status 500.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-copy", "expectation": "not-trigger", "prompt": "Rewrite this paragraph to be more concise.", "samples": ["not-triggered", "not-triggered", "not-triggered"]}
+  ],
+  "quality_comparisons": [
+    {
+      "id": "catalog-derived-from-canonical-descriptors",
+      "objective_verifier": "The deterministic fixture test verifies that an opt-out project has no derived skill surface and an enabled capability materializes exactly the marker generated from its canonical descriptor.",
+      "baseline": "not-verified",
+      "candidate": "verified"
+    }
+  ]
+}
