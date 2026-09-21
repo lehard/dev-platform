@@ -68,6 +68,11 @@ def main() -> int:
         return 0
     with tempfile.TemporaryDirectory(prefix=f"dev-platform-upgrade-{args.profile}-") as tmp:
         target = Path(tmp) / "project"
+        # read_platform_config() opens operator.config_path once [operator] is
+        # enabled, so this fixture must be a real, parseable TOML file rather
+        # than a placeholder string.
+        operator_fixture = Path(tmp) / "operator.toml"
+        operator_fixture.write_text("# synthetic operator config fixture\n", encoding="utf-8")
         run(
             [
                 "copier", "copy", "--trust", "--defaults", "--vcs-ref", base_ref,
@@ -76,6 +81,7 @@ def main() -> int:
                 "--data", f"project_description=Upgrade smoke {args.profile}",
                 "--data", f"workflow_profile={args.profile}",
                 "--data", f"publish_mode={args.publish_mode}",
+                "--data", f"operator_config_path={operator_fixture}",
                 str(ROOT), str(target),
             ],
             ROOT,
@@ -183,12 +189,11 @@ def main() -> int:
             raise SystemExit("Copier update did not propagate outcome-oriented OpenSpec guidance")
         updated_config = platform_config.read_text(encoding="utf-8")
         if (
-            "[development_backlog]" not in updated_config
-            or 'project_label = "project:upgrade-' not in updated_config
-            or 'project_owner = "lehard"' not in updated_config
-            or "project_number = 1" not in updated_config
+            "[operator]" not in updated_config
+            or "enabled = true" not in updated_config
+            or f'config_path = "{operator_fixture}"' not in updated_config
         ):
-            raise SystemExit("Copier update did not migrate Development Backlog authoring configuration")
+            raise SystemExit("Copier update did not preserve project-owned operator opt-in configuration")
         if list(target.rglob("*.rej")):
             raise SystemExit("Copier update left .rej files")
 
