@@ -76,6 +76,7 @@ def main() -> int:
                 "--data", f"project_description=Upgrade smoke {args.profile}",
                 "--data", f"workflow_profile={args.profile}",
                 "--data", f"publish_mode={args.publish_mode}",
+                "--data", "operator_config_path=/example/operator.toml",
                 str(ROOT), str(target),
             ],
             ROOT,
@@ -183,12 +184,11 @@ def main() -> int:
             raise SystemExit("Copier update did not propagate outcome-oriented OpenSpec guidance")
         updated_config = platform_config.read_text(encoding="utf-8")
         if (
-            "[development_backlog]" not in updated_config
-            or 'project_label = "project:upgrade-' not in updated_config
-            or 'project_owner = "lehard"' not in updated_config
-            or "project_number = 1" not in updated_config
+            "[operator]" not in updated_config
+            or "enabled = true" not in updated_config
+            or 'config_path = "/example/operator.toml"' not in updated_config
         ):
-            raise SystemExit("Copier update did not migrate Development Backlog authoring configuration")
+            raise SystemExit("Copier update did not preserve project-owned operator opt-in configuration")
         if list(target.rglob("*.rej")):
             raise SystemExit("Copier update left .rej files")
 
