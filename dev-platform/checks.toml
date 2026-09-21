@@ -130,6 +130,7 @@ targets = [
   "test_capability_manager",
   "test_browser_verification",
   "test_add_intents",
+  "test_orchestrate_pre_authoring",
   "test_docs_semantic_checks",
 ]
 mode = "parallel"

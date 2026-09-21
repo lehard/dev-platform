@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "specs/agent-workflow/spec.md",
+    "design.md",
+    "tasks.md"
+  ],
+  "change": "add-pre-authoring-orchestrator",
+  "imported_at": "2026-09-21T15:38:55+00:00",
+  "package_revision": "102f0b976c6cb5d2936c9cd47d17f1bb1c9fe93da2bb9be90895f1ffd443eaad",
+  "prepared_against": "30fcd7e369941f6523074317f081058609c168e6",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue": "lehard/development-backlog#129",
+  "source_issue_evidence": {
+    "body_sha256": "58b0f91e9f3b2e06bd608c0a07751204e60a9a071d1759842be2bce604ac3bd3",
+    "updated_at": "2026-09-19T13:15:24Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
