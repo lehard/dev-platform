@@ -77,6 +77,10 @@ jobs:
             echo "DEV_PLATFORM_OPERATOR_REPOSITORY is not configured; see docs/managed-rollout.md." >&2
             exit 1
           fi
+          if [[ ! "$OPERATOR_REPOSITORY" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
+            echo "DEV_PLATFORM_OPERATOR_REPOSITORY must be owner/name; got: $OPERATOR_REPOSITORY" >&2
+            exit 1
+          fi
           echo "repository=$OPERATOR_REPOSITORY" >> "$GITHUB_OUTPUT"
           echo "repo_name=${OPERATOR_REPOSITORY#*/}" >> "$GITHUB_OUTPUT"
 
@@ -101,24 +105,6 @@ jobs:
           permission-contents: write
           permission-pull-requests: write
           permission-workflows: write
-
-      - name: Create operator registry write token
-        id: registry-token
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
-        with:
-          client-id: ${{ vars.DEV_PLATFORM_APP_CLIENT_ID }}
-          private-key: ${{ secrets.DEV_PLATFORM_APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
-          repositories: ${{ steps.operator.outputs.repo_name }}
-          permission-contents: write
-
-      - name: Checkout operator registry
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          repository: ${{ steps.operator.outputs.repository }}
-          token: ${{ steps.registry-token.outputs.token }}
-          path: operator
-          fetch-depth: 0
 
       - name: Resolve target default branch
         id: target
@@ -226,6 +212,26 @@ jobs:
           GH_TOKEN: ${{ steps.target-token.outputs.token }}
           PR_URL: ${{ steps.pr.outputs.url }}
         run: gh pr merge "$PR_URL" --squash --delete-branch
+
+      - name: Create operator registry write token
+        id: registry-token
+        if: steps.adopt.outputs.kind == 'fresh' || steps.adopt.outputs.status == 'already_adopted'
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          client-id: ${{ vars.DEV_PLATFORM_APP_CLIENT_ID }}
+          private-key: ${{ secrets.DEV_PLATFORM_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ steps.operator.outputs.repo_name }}
+          permission-contents: write
+
+      - name: Checkout operator registry
+        if: steps.adopt.outputs.kind == 'fresh' || steps.adopt.outputs.status == 'already_adopted'
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: ${{ steps.operator.outputs.repository }}
+          token: ${{ steps.registry-token.outputs.token }}
+          path: operator
+          fetch-depth: 0
 
       - name: Promote completed adoption to managed
         if: steps.adopt.outputs.kind == 'fresh' || steps.adopt.outputs.status == 'already_adopted'

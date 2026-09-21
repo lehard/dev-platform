@@ -34,6 +34,34 @@ The actual re-dispatch of `adopt-project.yml`/`rollout.yml` against the fixed wo
 
 Read the full existing content of all three workflow files, `docs/managed-rollout.md`, and `docs/operator-config.example.toml` before editing. No change to `scripts/managed_projects.py`/`scripts/operator_doctor.py` was needed or made, since both already accepted an arbitrary `--registry` filesystem path — confirmed by re-running their existing test suites unchanged. The new checkout/token steps reuse the identical `actions/checkout` + `actions/create-github-app-token` pattern every other cross-repository step in these same workflows already uses, introducing no new mechanism.
 
+## Independent review
+
+A native Claude executor independently read the proposal/design/spec, the
+full diff of all three workflow files, the docs changes, and the test suite,
+and ran the tests itself. It confirmed the security property holds (no
+`platform/managed-projects.json` reference anywhere, minimal token
+permissions, correct step ordering) and archive-readiness, and found two
+real, worth-fixing hardening gaps, both applied here:
+
+- `adopt-project.yml` minted the operator write token and checked out the
+  operator repository unconditionally, even on the common path where the
+  adoption PR is left open for review and "Promote completed adoption to
+  managed" never runs -- exposing a write-scoped token it would never use.
+  Moved both steps to immediately before the promote step and gated all
+  three with the same `if:` condition.
+- `DEV_PLATFORM_OPERATOR_REPOSITORY` was only checked for non-emptiness,
+  unlike the existing `owner/name` regex validation on the adoption target
+  repository input. A misconfigured value would degrade from the intended
+  clear fail-closed message into an opaque downstream GitHub API error.
+  Added the same `^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$` validation to all three
+  workflows' operator-repository checks.
+
+It also noted the new tests are string-match assertions on raw YAML (correct
+and meaningful for the regression they guard against, but unable to detect a
+future step-ordering break); no action taken on that observation, since it
+matches the existing test style for every other workflow-content contract
+test in this suite.
+
 ## Tests run
 
 ```

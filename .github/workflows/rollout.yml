@@ -48,6 +48,10 @@ jobs:
             echo "DEV_PLATFORM_OPERATOR_REPOSITORY is not configured; see docs/managed-rollout.md." >&2
             exit 1
           fi
+          if [[ ! "$OPERATOR_REPOSITORY" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
+            echo "DEV_PLATFORM_OPERATOR_REPOSITORY must be owner/name; got: $OPERATOR_REPOSITORY" >&2
+            exit 1
+          fi
           echo "repository=$OPERATOR_REPOSITORY" >> "$GITHUB_OUTPUT"
           echo "repo_name=${OPERATOR_REPOSITORY#*/}" >> "$GITHUB_OUTPUT"
 
