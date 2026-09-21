@@ -16,8 +16,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE_SCRIPTS = ROOT / "template" / "scripts"
-if str(TEMPLATE_SCRIPTS) not in sys.path:
-    sys.path.insert(0, str(TEMPLATE_SCRIPTS))
+# Always insert at position 0, even if already present elsewhere on
+# sys.path: several test modules prepend the bare scripts/ directory (whose
+# shims execute unconditionally on import), and a merely-conditional insert
+# here can leave template/scripts shadowed behind it depending on discovery
+# order.
+sys.path.insert(0, str(TEMPLATE_SCRIPTS))
 
 import add_intents  # noqa: E402
 import orchestrate_pre_authoring as orch  # noqa: E402

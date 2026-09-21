@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/agent-workflow/spec.md"
+  ],
+  "change": "add-requirement-intake",
+  "imported_at": "2026-09-21T17:26:40+00:00",
+  "package_revision": "988cae2af77a36980b06f7225dfd6f0b8d41f420039b38f91ef1831a7d2ff590",
+  "prepared_against": "179cc17d8ccea68206a9463de02acee357c945c8",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "requirement-intake"
+  },
+  "source_issue": "lehard/development-backlog#144",
+  "source_issue_evidence": {
+    "body_sha256": "302613044b18c3a90d512efbdf292ea17d269752a416474e81432d3f800c3d75",
+    "updated_at": "2026-09-21T17:25:50Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

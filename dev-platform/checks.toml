@@ -131,6 +131,7 @@ targets = [
   "test_browser_verification",
   "test_add_intents",
   "test_orchestrate_pre_authoring",
+  "test_requirement_intake",
   "test_docs_semantic_checks",
 ]
 mode = "parallel"
