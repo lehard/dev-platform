@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -43,6 +44,15 @@ def create_worktree(root: Path, slug_value: str, task: str, scope: str = "", *, 
         raise RuntimeError(f"Branch already exists: {branch}")
     subprocess.run(["python3", str(root / "scripts" / "agent_board.py"), "doctor"], cwd=root, check=False)
     run_git(["worktree", "add", "-b", branch, str(worktree), main_branch], cwd=root)
+    local_platform_config = root / ".dev-platform.toml"
+    # An operator-enabled checkout's .dev-platform.toml is intentionally
+    # untracked (the public snapshot excludes it), so a fresh worktree never
+    # inherits it from Git. Without it, managed_project_status.py cannot
+    # resolve [development_backlog] inside the new worktree.
+    if local_platform_config.is_file() and run_git(
+        ["ls-files", "--error-unmatch", "--", ".dev-platform.toml"], cwd=root, check=False
+    ).returncode != 0:
+        shutil.copy2(local_platform_config, worktree / ".dev-platform.toml")
     try:
         # Git creates several shared common-directory entries while adding the
         # worktree.  Verify/repair that bounded writer boundary before package
