@@ -27,6 +27,32 @@ Read `template/scripts/managed_task.py` (for `run`, `fetch_issue`, `issue_ref`, 
 
 **Test-infrastructure finding surfaced and fixed during this work:** `tests/test_requirement_intake.py`'s conditional `sys.path` insert (`if str(TEMPLATE_SCRIPTS) not in sys.path: sys.path.insert(...)`) could be shadowed when an earlier-discovered test module (several `test_rollout_*.py`/`test_release_intent.py`/`test_managed_rollout.py` files prepend the bare `scripts/` directory and never remove it) left `template/scripts` present but no longer at the front of `sys.path`. Because every `scripts/*.py` dogfood shim runs its template target unconditionally on import (`source_adapter.run_template`, no `__name__ == "__main__"` guard), `import requirement_intake` then resolved to `scripts/requirement_intake.py` and executed its CLI with no arguments during test discovery, failing the whole module's collection. Reproduced directly with `unittest.TestLoader().discover(...)` and a `runpy.run_path` call-stack trace. Fixed by making the `sys.path` insert unconditional (always insert at position 0) in both `tests/test_requirement_intake.py` and `tests/test_orchestrate_pre_authoring.py` (the same latent pattern, not yet triggered there only because of its alphabetically earlier discovery position). Verified by reproducing the discovery call directly before and after the fix.
 
+## Independent review
+
+A native Claude executor independently read the proposal/design/spec,
+`managed_task.py`/`managed_project_status.py`'s composed functions, and the
+test suite, and ran the tests itself. It found two real, reproduced parsing
+gaps, both fixed here with regression tests:
+
+- `CHILD_ITEM_RE` anchored `^-` at column 0, so a GitHub-UI-indented
+  checklist item was invisible to parsing and `link_child` would append a
+  duplicate entry instead of recognizing the existing one.
+- Section-scanning stopped at the children block's start, so a section
+  placed after it (natural, since the block's HTML-comment markers are
+  invisible in the rendered Issue) was silently dropped.
+
+It also confirmed no unsanitized input reaches any `gh` mutation (argv-list
+`subprocess.run`, no shell) and that `aggregate()`'s status derivation and
+per-child error handling are correct. It noted the sys.path fix's framing as
+a "general fix" slightly overstates scope: six other pre-existing test files
+use the same vulnerable conditional-insert pattern and remain latently
+exposed to the identical shadowing bug under a different discovery order.
+That is a pre-existing repository-wide pattern, not introduced by this
+change, and fixing all six is out of this change's bounded scope; flagged
+separately as a follow-up rather than silently left unmentioned.
+
+Re-ran the full suite after the fixes; all groups still pass.
+
 ## Tests run
 
 ```
