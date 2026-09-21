@@ -55,7 +55,7 @@
 name: "Weekly Process Backlog Review"
 on:
   schedule:
-    - cron: "23 3 * * 0"  # Friendly format: weekly (scattered)
+    - cron: "25 22 * * 4"  # Friendly format: weekly (scattered)
   workflow_dispatch:
     inputs:
       aw_context:
