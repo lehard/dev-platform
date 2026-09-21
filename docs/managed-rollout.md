@@ -49,7 +49,7 @@ it there would mean every future promotion permanently records the fleet's
 real repository names in `lehard/dev-platform`'s public history.
 
 Set the non-secret repository variable `DEV_PLATFORM_OPERATOR_REPOSITORY`
-(for example `lehard/dev-platform-operator`) on the public repo to name that
+(for example `your-org/dev-platform-operator`) on the public repo to name that
 private repository generically — it is never hardcoded in workflow or Python
 source. Each workflow then:
 
