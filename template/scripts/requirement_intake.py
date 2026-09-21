@@ -31,7 +31,7 @@ REQUIREMENT_LABEL = "type:requirement"
 CHILD_LABEL = "type:internal-change"
 CHILDREN_START = "<!-- requirement-children:start -->"
 CHILDREN_END = "<!-- requirement-children:end -->"
-CHILD_ITEM_RE = re.compile(r"^- \[[ xX]\] (?P<ref>\S+/\S+#\d+)\s*$", re.MULTILINE)
+CHILD_ITEM_RE = re.compile(r"^[ \t]*- \[[ xX]\] (?P<ref>\S+/\S+#\d+)\s*$", re.MULTILINE)
 SECTION_RE = re.compile(r"^## (?P<name>.+?)\s*$", re.MULTILINE)
 BACK_REFERENCE_PREFIX = "Requirement: "
 
@@ -74,22 +74,27 @@ def parse_requirement_body(body: str) -> dict[str, Any]:
     A Requirement Issue is edited by hand in the ordinary GitHub UI, so
     parsing is best-effort: a missing section is simply absent from the
     result rather than a hard failure. Only the children block is
-    structurally load-bearing (used for linkage/aggregation).
+    structurally load-bearing (used for linkage/aggregation). The children
+    block's HTML-comment markers are invisible in the rendered Issue view, so
+    a human editing sections may add or move content before or after it;
+    section-scanning excises the children block from the body first so a
+    section on either side of it is still recognized.
     """
     children_start = body.find(CHILDREN_START)
     children_end = body.find(CHILDREN_END)
-    section_scan_end = children_start if children_start != -1 else len(body)
-    sections: dict[str, str] = {}
-    matches = list(SECTION_RE.finditer(body, 0, section_scan_end))
-    for index, match in enumerate(matches):
-        name = match.group("name").strip().lower()
-        start = match.end()
-        end = matches[index + 1].start() if index + 1 < len(matches) else section_scan_end
-        sections[name] = body[start:end].strip()
     children: list[str] = []
+    section_source = body
     if children_start != -1 and children_end != -1 and children_end > children_start:
         block = body[children_start + len(CHILDREN_START):children_end]
         children = [match.group("ref") for match in CHILD_ITEM_RE.finditer(block)]
+        section_source = body[:children_start] + body[children_end + len(CHILDREN_END):]
+    sections: dict[str, str] = {}
+    matches = list(SECTION_RE.finditer(section_source))
+    for index, match in enumerate(matches):
+        name = match.group("name").strip().lower()
+        start = match.end()
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(section_source)
+        sections[name] = section_source[start:end].strip()
     return {"sections": sections, "children": children}
 
 

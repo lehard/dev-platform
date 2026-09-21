@@ -65,6 +65,30 @@ class RenderParseTests(unittest.TestCase):
         parsed = ri.parse_requirement_body(body)
         self.assertEqual(set(parsed["sections"]), {"outcome", "target repository"})
 
+    def test_parse_recognizes_indented_children(self) -> None:
+        """Regression: a GitHub-UI hand-edit can indent a checklist item;
+        parsing must still recognize it as an existing child so link_child
+        does not append a duplicate entry for it."""
+        body = (
+            "## Outcome\n\nShip X.\n\n"
+            f"{ri.CHILDREN_START}\n  - [ ] acme/repo#20\n{ri.CHILDREN_END}\n"
+        )
+        parsed = ri.parse_requirement_body(body)
+        self.assertEqual(parsed["children"], ["acme/repo#20"])
+
+    def test_parse_recognizes_sections_placed_after_the_children_block(self) -> None:
+        """Regression: the children block's HTML-comment markers are
+        invisible in the rendered Issue, so a human may add or move a
+        section after it; that section must still be recognized."""
+        body = (
+            "## Outcome\n\nShip X.\n\n"
+            f"{ri.CHILDREN_START}\n- [ ] acme/repo#20\n{ri.CHILDREN_END}\n\n"
+            "## Exclusions\n\nDoes not cover enterprise SSO.\n"
+        )
+        parsed = ri.parse_requirement_body(body)
+        self.assertEqual(parsed["sections"]["exclusions"], "Does not cover enterprise SSO.")
+        self.assertEqual(parsed["children"], ["acme/repo#20"])
+
     def test_render_rejects_empty_outcome(self) -> None:
         with self.assertRaises(ri.RequirementIntakeError):
             ri.render_requirement_body(outcome="   ", target_repository="acme/billing")
@@ -230,6 +254,36 @@ class LinkChildTests(unittest.TestCase):
             if command[:3] == ["gh", "issue", "edit"] and command[3] == "20" and "--body" in command
         ]
         self.assertEqual(child_body_edits, [])
+
+    def test_link_child_is_idempotent_for_an_indented_existing_entry(self) -> None:
+        """Regression: an existing child entry indented by a GitHub-UI hand
+        edit must still be recognized, so re-linking does not duplicate it."""
+        parent_body = (
+            f"## Outcome\n\nShip X.\n\n{ri.CHILDREN_START}\n  - [ ] acme/development-backlog#20\n{ri.CHILDREN_END}\n"
+        )
+        child_body = "Some managed task body.\n\nRequirement: acme/development-backlog#7\n"
+        fetched = {"acme/development-backlog#7": parent_body, "acme/development-backlog#20": child_body}
+        commands: list[list[str]] = []
+
+        def fake_fetch_issue(root, repository, number):
+            return {"body": fetched[f"{repository}#{number}"]}
+
+        def fake_run(command, cwd, env=None, input_text=None):
+            commands.append(command)
+            return type("Result", (), {"stdout": "", "returncode": 0})()
+
+        with (
+            patch.object(ri, "github_cli_env", return_value={}),
+            patch.object(ri, "fetch_issue", side_effect=fake_fetch_issue),
+            patch.object(ri, "run", side_effect=fake_run),
+        ):
+            ri.link_child(self.root, requirement="acme/development-backlog#7", child="acme/development-backlog#20")
+
+        parent_body_edits = [
+            command for command in commands
+            if command[:3] == ["gh", "issue", "edit"] and command[3] == "7" and "--body" in command
+        ]
+        self.assertEqual(parent_body_edits, [])
 
 
 class AggregateTests(unittest.TestCase):
