@@ -9,13 +9,13 @@
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
-      "duration_seconds": 0.122,
+      "duration_seconds": 0.144,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
-      "duration_seconds": 173.996,
+      "duration_seconds": 153.813,
       "outcome": "success",
       "exit_code": 0
     }
@@ -49,6 +49,6 @@
     "change": "isolate-operator-registry",
     "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/isolate-operator-registry",
     "branch": "agent/isolate-operator-registry",
-    "head": "d3f48ec5a1dc57bb00f141549cdf263a4be37e09"
+    "head": "fb061b95456946e1ac81562c96fc01c69f393ffa"
   }
 }
