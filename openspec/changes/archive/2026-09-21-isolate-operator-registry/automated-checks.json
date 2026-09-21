@@ -1,0 +1,54 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 2,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.144,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 153.813,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        ".github/workflows/adopt-project.yml",
+        ".github/workflows/reconcile-stale-rollouts.yml",
+        ".github/workflows/rollout.yml",
+        "tests/test_managed_rollout.py",
+        "tests/test_rollout_supersession.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "source_issue": "lehard/development-backlog#145",
+    "change": "isolate-operator-registry",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/isolate-operator-registry",
+    "branch": "agent/isolate-operator-registry",
+    "head": "fb061b95456946e1ac81562c96fc01c69f393ffa"
+  }
+}

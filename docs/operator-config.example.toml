@@ -19,6 +19,10 @@ process_label = "process"
 managed_label = "process:managed"
 
 [rollout]
+# A local clone of the private operator repository (see docs/managed-rollout.md
+# "CI resolution: a private operator repository") works here too, e.g.
+# "/path/to/dev-platform-operator/managed-projects.json" -- any filesystem
+# path is accepted, this file is never resolved as a public-repo path.
 registry_path = "/secure/operator/managed-projects.json"
 bot_login = "your-platform-bot[bot]"
 

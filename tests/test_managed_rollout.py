@@ -172,7 +172,11 @@ class RolloutWorkflowContractTests(unittest.TestCase):
     def test_rollout_workflow_uses_split_app_tokens_and_is_pr_only(self) -> None:
         workflow = (ROOT / ".github" / "workflows" / "rollout.yml").read_text(encoding="utf-8")
         pin = "actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1"
-        self.assertEqual(workflow.count(pin), 2)
+        # source-token and target-token (rollout job) plus registry-token
+        # (plan job, read-only access to the private operator registry repo).
+        self.assertEqual(workflow.count(pin), 3)
+        self.assertIn("id: registry-token", workflow)
+        self.assertIn("repositories: ${{ steps.operator.outputs.repo_name }}", workflow)
         self.assertIn("id: source-token", workflow)
         self.assertIn("repositories: dev-platform", workflow)
         self.assertIn("permission-contents: read", workflow)
@@ -186,6 +190,32 @@ class RolloutWorkflowContractTests(unittest.TestCase):
         self.assertIn("gh pr create", workflow)
         self.assertNotIn("gh pr merge", workflow)
         self.assertNotIn("--auto-merge", workflow)
+
+    def test_rollout_reads_the_managed_registry_from_the_private_operator_repository(self) -> None:
+        """The public repo must never itself hold the managed fleet registry
+        (see docs/managed-rollout.md): the plan job checks out a
+        generically-configured private operator repository and reads
+        managed-projects.json only from there."""
+        workflow = (ROOT / ".github" / "workflows" / "rollout.yml").read_text(encoding="utf-8")
+        self.assertIn("DEV_PLATFORM_OPERATOR_REPOSITORY is not configured", workflow)
+        self.assertIn("repository: ${{ steps.operator.outputs.repository }}", workflow)
+        self.assertIn("path: operator", workflow)
+        self.assertIn("--registry operator/managed-projects.json validate", workflow)
+        self.assertIn("--registry operator/managed-projects.json matrix", workflow)
+        self.assertNotIn("platform/managed-projects.json", workflow)
+
+    def test_adopt_project_promotes_into_the_private_operator_repository(self) -> None:
+        """Same operator-isolation contract as rollout.yml: promoting an
+        adopted repository to managed must commit into the private operator
+        repository, never into the public lehard/dev-platform history."""
+        workflow = (ROOT / ".github" / "workflows" / "adopt-project.yml").read_text(encoding="utf-8")
+        self.assertIn("DEV_PLATFORM_OPERATOR_REPOSITORY is not configured", workflow)
+        self.assertIn("repository: ${{ steps.operator.outputs.repository }}", workflow)
+        self.assertIn("path: operator", workflow)
+        self.assertIn("--registry operator/managed-projects.json promote", workflow)
+        self.assertIn('git -C operator commit -m "chore: manage $REPOSITORY"', workflow)
+        self.assertIn("git -C operator push origin HEAD:main", workflow)
+        self.assertNotIn("platform/managed-projects.json", workflow)
 
     def test_rollout_requires_an_immutable_published_release(self) -> None:
         workflow = (ROOT / ".github" / "workflows" / "rollout.yml").read_text(encoding="utf-8")
