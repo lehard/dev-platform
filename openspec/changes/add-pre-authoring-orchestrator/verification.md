@@ -73,6 +73,21 @@ that logic. `record_decision` writes then re-validates through `add_intents.vali
 (public API) and rolls back the write on failure, so it cannot persist a
 document that fails the same structural gate `approve_add` will enforce next.
 
+## Independent review
+
+A native Claude executor (agent_id `abf68c3997293e2a4`, recorded via
+`scripts/model_routing.py record-claude-execution`) independently read the
+proposal/design/spec, both composed modules, and the test suite, and ran the
+tests itself. It found two real bugs, both fixed here with regression tests:
+
+- `init()` did not retry ADD scaffolding after a prior partial failure left
+  `state.json` without `add.json`, permanently wedging the requirement.
+- `record_decision()`'s rollback write on a failed re-validation used a plain
+  `write_text` instead of `atomic_write_text`, reintroducing the partial-write
+  risk that helper exists to prevent.
+
+Re-ran the full suite after the fixes; all groups still pass.
+
 ## Tests run
 
 ```
