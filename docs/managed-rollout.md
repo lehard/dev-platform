@@ -38,6 +38,39 @@ Explicit promotion is also available for recovery:
 python3 scripts/managed_projects.py promote --repository owner/name --default-branch main
 ```
 
+### CI resolution: a private operator repository
+
+A GitHub Actions runner has no access to an operator's local filesystem, so
+**Adopt Project**, **Roll Out Platform** and **Reconcile Stale Managed
+Rollouts** each resolve the registry from a dedicated, private
+operator-owned GitHub repository instead — never from `lehard/dev-platform`
+itself. The public core must never hold `managed-projects.json`: committing
+it there would mean every future promotion permanently records the fleet's
+real repository names in `lehard/dev-platform`'s public history.
+
+Set the non-secret repository variable `DEV_PLATFORM_OPERATOR_REPOSITORY`
+(for example `lehard/dev-platform-operator`) on the public repo to name that
+private repository generically — it is never hardcoded in workflow or Python
+source. Each workflow then:
+
+1. fails closed if `DEV_PLATFORM_OPERATOR_REPOSITORY` is unset, with the same
+   explicit message pattern as the GitHub App configuration check;
+2. mints a short-lived GitHub App token scoped only to that repository
+   (`contents: read` for rollout/reconcile's read-only matrix planning,
+   `contents: write` for Adopt Project's promotion write);
+3. checks it out to a local `operator/` path in the job;
+4. passes `--registry operator/managed-projects.json` to every
+   `scripts/managed_projects.py` invocation.
+
+The private operator repository needs no special structure: it is not a fork
+of Dev Platform and not a second platform, only `managed-projects.json` (this
+same schema) plus, optionally, an `operator.toml` mirroring the local one
+described above. A local checkout of `lehard/dev-platform` resolves the same
+registry by cloning that private repository once and pointing
+`rollout.registry_path` in the local external operator TOML at the clone's
+`managed-projects.json` — no code change is needed for the local path, since
+`--registry`/`registry_path` already accept an arbitrary filesystem path.
+
 ## Template ownership boundary
 
 Copier creates the initial repository contract, but not every generated file remains platform-owned forever.
@@ -75,15 +108,16 @@ Recommended setup:
    - **Workflows: Read and write** — required because Dev Platform can update downstream `.github/workflows/*` files
    - Metadata remains read-only as required by GitHub.
 5. Do not grant organization/account permissions that rollout does not use.
-6. Install the App on **`dev-platform` itself** plus repositories intentionally participating in onboarding/rollout. When using **Selected repositories**, adding the target repo is the one normal manual security gate before onboarding.
+6. Install the App on **`dev-platform` itself**, the **private operator repository** (see [CI resolution](#ci-resolution-a-private-operator-repository) above), plus repositories intentionally participating in onboarding/rollout. When using **Selected repositories**, adding the target repo is the one normal manual security gate before onboarding.
 7. Generate a private key for the App.
 8. In `lehard/dev-platform` repository settings add:
    - Actions variable `DEV_PLATFORM_APP_CLIENT_ID` = the App **Client ID**;
-   - Actions secret `DEV_PLATFORM_APP_PRIVATE_KEY` = the full generated private key including BEGIN/END lines.
+   - Actions secret `DEV_PLATFORM_APP_PRIVATE_KEY` = the full generated private key including BEGIN/END lines;
+   - Actions variable `DEV_PLATFORM_OPERATOR_REPOSITORY` = the private operator repository, `owner/name`.
 
 Never commit the private key or a long-lived installation token.
 
-Each cross-repository job creates separately down-scoped short-lived tokens: read-only platform source access, target-repository write access, and when onboarding needs registry promotion, a `dev-platform` Contents-write token. No PAT is required.
+Each cross-repository job creates separately down-scoped short-lived tokens: read-only platform source access, target-repository write access, and read/write access to the private operator repository's registry as each workflow needs it. No PAT is required.
 
 ## Adding a new project
 

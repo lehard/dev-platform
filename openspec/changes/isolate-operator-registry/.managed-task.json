@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/platform-rollout/spec.md"
+  ],
+  "change": "isolate-operator-registry",
+  "imported_at": "2026-09-21T19:15:04+00:00",
+  "package_revision": "2a637be2baa1b429318a3b43c4754ed2d4a5b71b998ff8ef80183126c591ab1f",
+  "prepared_against": "32bc6e06a3b9dd494fb7745fa62dc61fc6971343",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "operator-registry-isolation"
+  },
+  "source_issue": "lehard/development-backlog#145",
+  "source_issue_evidence": {
+    "body_sha256": "f7fb54ff71bb60cb1ce017626898fab1cd89ff8d833be4ab7ee458980dbdffe7",
+    "updated_at": "2026-09-21T19:14:16Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

@@ -31,6 +31,43 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Require Dev Platform GitHub App
+        id: operator
+        env:
+          APP_CLIENT_ID: ${{ vars.DEV_PLATFORM_APP_CLIENT_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.DEV_PLATFORM_APP_PRIVATE_KEY }}
+          OPERATOR_REPOSITORY: ${{ vars.DEV_PLATFORM_OPERATOR_REPOSITORY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$APP_CLIENT_ID" || -z "$APP_PRIVATE_KEY" ]]; then
+            echo "Dev Platform GitHub App is not configured; see docs/managed-rollout.md." >&2
+            exit 1
+          fi
+          if [[ -z "$OPERATOR_REPOSITORY" ]]; then
+            echo "DEV_PLATFORM_OPERATOR_REPOSITORY is not configured; see docs/managed-rollout.md." >&2
+            exit 1
+          fi
+          echo "repository=$OPERATOR_REPOSITORY" >> "$GITHUB_OUTPUT"
+          echo "repo_name=${OPERATOR_REPOSITORY#*/}" >> "$GITHUB_OUTPUT"
+
+      - name: Create operator registry read token
+        id: registry-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          client-id: ${{ vars.DEV_PLATFORM_APP_CLIENT_ID }}
+          private-key: ${{ secrets.DEV_PLATFORM_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ steps.operator.outputs.repo_name }}
+          permission-contents: read
+
+      - name: Checkout operator registry
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: ${{ steps.operator.outputs.repository }}
+          token: ${{ steps.registry-token.outputs.token }}
+          path: operator
+
       - name: Validate published release and build rollout matrix
         id: plan
         shell: bash
@@ -40,7 +77,7 @@ jobs:
           REQUESTED_REPOSITORY: ${{ inputs.repository }}
         run: |
           set -euo pipefail
-          python3 scripts/managed_projects.py validate
+          python3 scripts/managed_projects.py --registry operator/managed-projects.json validate
           version="$REQUESTED_VERSION"
           if [[ -z "$version" ]]; then
             version="v$(tr -d '[:space:]' < VERSION)"
@@ -55,9 +92,9 @@ jobs:
             exit 1
           fi
           if [[ -n "$REQUESTED_REPOSITORY" ]]; then
-            matrix="$(python3 scripts/managed_projects.py matrix --repository "$REQUESTED_REPOSITORY")"
+            matrix="$(python3 scripts/managed_projects.py --registry operator/managed-projects.json matrix --repository "$REQUESTED_REPOSITORY")"
           else
-            matrix="$(python3 scripts/managed_projects.py matrix)"
+            matrix="$(python3 scripts/managed_projects.py --registry operator/managed-projects.json matrix)"
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"

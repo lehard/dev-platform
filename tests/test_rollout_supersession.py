@@ -135,10 +135,13 @@ class RolloutSupersessionWorkflowTests(unittest.TestCase):
         workflow = (ROOT / ".github/workflows/reconcile-stale-rollouts.yml").read_text(encoding="utf-8")
         self.assertIn("options: [dry-run, apply]", workflow)
         self.assertIn("confirm_apply=SUPERSEDE_STALE_ROLLOUTS", workflow)
-        self.assertIn("scripts/managed_projects.py matrix", workflow)
+        self.assertIn("scripts/managed_projects.py --registry operator/managed-projects.json matrix", workflow)
         self.assertIn("if [[ \"$MODE\" == apply ]]; then args+=(--apply); fi", workflow)
         self.assertIn("actions/create-github-app-token@", workflow)
         self.assertIn("python3 scripts/rollout_supersession.py reconcile", workflow)
+        # Same operator-isolation contract as adopt-project.yml/rollout.yml.
+        self.assertIn("DEV_PLATFORM_OPERATOR_REPOSITORY is not configured", workflow)
+        self.assertNotIn("platform/managed-projects.json", workflow)
 
 
 class FindExactPendingRolloutPrTests(unittest.TestCase):
