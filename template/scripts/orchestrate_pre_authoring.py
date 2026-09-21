@@ -106,10 +106,14 @@ def init(
     target_repository: str,
     base_dir: Path | None = None,
 ) -> dict[str, Any]:
-    """Bind a requirement identity and scaffold its ADD. Safe to call once per requirement.
+    """Bind a requirement identity and scaffold its ADD. Safe to call repeatedly.
 
     Refuses to re-init over an existing state bound to different requirement
     content: a requirement id names one requirement, not a slot to overwrite.
+    Resumable across a partial failure: if state.json exists (from a prior
+    call) but add.json does not (e.g. new_add raised after state.json was
+    written), this retries the ADD scaffold instead of returning stale state
+    for a permanently-missing artifact.
     """
     base_dir = base_dir or default_base_dir(root)
     directory = requirement_dir(base_dir, requirement_id)
@@ -124,7 +128,11 @@ def init(
                 f"pre-authoring state for {requirement_id!r} already exists and is bound to different "
                 "requirement content/target; use a different --id for a different requirement"
             )
-        return existing
+        if add_path(directory).is_file():
+            return existing
+        # state.json survived a prior failed init (new_add did not complete);
+        # fall through and retry the ADD scaffold rather than returning state
+        # for a permanently-missing artifact.
     directory.mkdir(parents=True, exist_ok=True)
     state = {
         "version": STATE_VERSION,
@@ -398,7 +406,7 @@ def record_decision(
     _write_json(path, document)
     report = add_intents.validate_add(root, path, check_freshness=False)
     if not report.ok:
-        path.write_text(original, encoding="utf-8")
+        atomic_write_text(path, original)
         raise OrchestratorError("cannot record decision: " + "; ".join(report.errors))
     return document
 

@@ -131,6 +131,53 @@ class OrchestratorFlowTests(unittest.TestCase):
                 target_repository="acme/billing", base_dir=self.base_dir,
             )
 
+    def test_init_recovers_from_a_partial_failure_that_left_state_without_add(self) -> None:
+        """Regression: a prior init() that wrote state.json but raised before
+        new_add() completed must not permanently wedge the requirement -- a
+        later init() call with the same arguments must retry the ADD
+        scaffold, not silently return state for a missing artifact."""
+        directory = orch.requirement_dir(self.base_dir, "add-tiered-pricing")
+        directory.mkdir(parents=True)
+        requirement_digest = orch._digest(self.requirement.read_text(encoding="utf-8"))
+        orch._write_json(orch.state_path(directory), {
+            "version": orch.STATE_VERSION,
+            "id": "add-tiered-pricing",
+            "requirement_file": str(self.requirement),
+            "requirement_digest": requirement_digest,
+            "target_repository": "acme/billing",
+            "created_at": "2024-01-01T00:00:00Z",
+        })
+        self.assertFalse(orch.add_path(directory).is_file())
+        self._init()
+        self.assertTrue(orch.add_path(directory).is_file())
+        result = self._status()
+        self.assertNotEqual(result["stages"].get("snapshot", {}).get("state"), None)
+
+    def test_record_decision_rollback_is_atomic(self) -> None:
+        """Regression: the rollback write on a failed record-decision must use
+        the same atomic-write path as every other mutation in this module."""
+        self._init()
+        directory = orch.requirement_dir(self.base_dir, "add-tiered-pricing")
+        add_file = orch.add_path(directory)
+        add_document = json.loads(add_file.read_text(encoding="utf-8"))
+        # approved=True with no elements and a mismatched approval digest
+        # forces _validate_add_document to reject the in-memory candidate
+        # after record_decision resolves the only open choice, exercising
+        # the rollback path.
+        add_document["unresolved_choices"] = [{"question": "Pick a default currency?", "status": "open"}]
+        add_document["approved"] = True
+        add_document["approval"] = {"digest": "0" * 64, "approved_at": "2024-01-01T00:00:00Z"}
+        add_file.write_text(json.dumps(add_document), encoding="utf-8")
+        before = add_file.read_text(encoding="utf-8")
+        with self.assertRaises(orch.OrchestratorError):
+            orch.record_decision(
+                self.root, requirement_id="add-tiered-pricing", index=0,
+                resolution="USD", base_dir=self.base_dir,
+            )
+        self.assertEqual(add_file.read_text(encoding="utf-8"), before)
+        # No stray temp file left behind by the rollback write.
+        self.assertEqual(list(directory.glob(".add.json.*")), [])
+
     def test_status_before_snapshot_reports_missing_snapshot(self) -> None:
         self._init()
         result = self._status()
