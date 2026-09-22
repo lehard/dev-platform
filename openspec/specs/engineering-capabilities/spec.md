@@ -2,7 +2,9 @@
 
 ## Purpose
 Define the lifecycle and ownership boundaries for optional engineering capabilities supplied by the platform.
+
 ## Requirements
+
 ### Requirement: Optional engineering capabilities use one provider-neutral lifecycle
 
 Dev Platform SHALL support reusable optional engineering capabilities through a canonical provider-neutral contract that is separate from core workflow-profile composition. A capability SHALL declare its identity, owner, applicability/trigger, invocation intent, visibility intent, kind, provenance, safety boundary, dependencies, materialization policy, and update/removal policy without embedding provider-local implementation details into the canonical identity.
@@ -213,3 +215,21 @@ Rules SHALL be pinned and updated only through reviewed capability lifecycle, an
 - **WHEN** capability guidance disagrees with a project design system or repository rule
 - **THEN** the project rule and its acceptance tests take precedence
 - **AND** the guidance does not trigger an unsolicited redesign or block merge on its own
+
+### Requirement: Generated CI materializes derived capability surfaces before platform validation
+
+Every generated project's CI SHALL materialize its selected capabilities' derived provider surfaces before running platform validation, since those surfaces are deliberately gitignored and therefore absent on any fresh checkout.
+
+#### Scenario: A fresh checkout has capabilities enabled
+
+- **GIVEN** a project's `dev-platform/capabilities.toml` has one or more capabilities enabled
+- **AND** the checkout is fresh, so the gitignored derived provider surfaces for those capabilities do not yet exist
+- **WHEN** generated CI runs
+- **THEN** it runs `capability_manager.py sync` before `platform_doctor.py`
+- **AND** platform validation's capability audit passes
+
+#### Scenario: Materialized surfaces are never committed
+
+- **WHEN** generated CI materializes selected capability surfaces
+- **THEN** those files remain matched by the project's own gitignore patterns
+- **AND** no generated CI step stages or commits them
