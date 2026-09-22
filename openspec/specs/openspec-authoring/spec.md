@@ -64,7 +64,7 @@ The platform SHALL bound the accepted current iteration through scope, non-goals
 
 - **WHEN** authoring identifies a useful later enhancement that is not part of the accepted result
 - **THEN** it remains a non-goal or follow-up
-- **AND** it becomes a separate managed backlog task only after explicit human fixation
+- **AND** generic explicit fixation creates or reuses a Business Requirement without creating an OpenSpec package
 
 #### Scenario: Lifecycle state changes
 
@@ -177,4 +177,3 @@ For work routed through ADD/Intents, the platform SHALL provide a bounded author
 #### Scenario: Intent or parent changes after handoff
 - **WHEN** the selected intent, approved ADD, or required snapshot identity no longer matches the handoff
 - **THEN** the authoring input is stale and must be regenerated before relying on it
-

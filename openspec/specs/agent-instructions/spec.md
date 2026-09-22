@@ -27,27 +27,27 @@ Tool-specific instruction files SHALL reference shared Dev Platform rules rather
 
 ### Requirement: Managed-task semantics are consistent across conversation surfaces
 
-ChatGPT Project, Codex, and Claude SHALL preserve the same intent boundaries, canonical managed-task representation, source-of-truth model, and authoring STOP behavior even when their supported publication mechanics differ.
+ChatGPT Project, Codex, and Claude SHALL preserve the same Discuss, generic Fix, non-trivial Execute, and explicit direct technical managed intent boundaries. Generic fixation SHALL create or reuse one human-facing Business Requirement without OpenSpec authoring; technical package publication belongs to subsequent requirement execution or explicit direct technical intent. Supported transport mechanics MAY differ without changing these meanings.
 
 #### Scenario: ChatGPT Project fixes accepted work to Backlog
 - **GIVEN** ChatGPT Project has connected GitHub mutation access but no target-repository checkout
-- **WHEN** the user explicitly asks to record an accepted non-trivial change
-- **THEN** ChatGPT can create or update exactly one Development Backlog Issue and one valid managed OpenSpec package using the canonical ChatGPT adapter contract
-- **AND** the task remains in Backlog without implementation or managed start
-- **AND** lack of local `managed_task.py` execution is not itself a blocker
+- **WHEN** the user explicitly asks only to record accepted non-trivial work
+- **THEN** ChatGPT creates or reuses and reads back exactly one `type:requirement` Business Requirement
+- **AND** it creates no managed OpenSpec package or technical decomposition
+- **AND** lack of local `requirement_intake.py` execution is not itself a blocker when the connected adapter verifies the same durable representation
 
 #### Scenario: Repo-local agent fixes accepted work to Backlog
 - **GIVEN** Codex or Claude operates inside a managed repository checkout with the platform authoring helper
-- **WHEN** the user explicitly asks to record an accepted non-trivial change
-- **THEN** the agent uses the supported deterministic `managed_task.py create --bundle ...` path
-- **AND** does not manually reconstruct GitHub/package mechanics when the helper is available
+- **WHEN** the user explicitly asks only to record accepted non-trivial work
+- **THEN** the agent uses `requirement_intake.py create` to create or reuse the Business Requirement and stops
+- **AND** it does not invoke `managed_task.py create` for generic fixation
 
 ### Requirement: Cross-surface authoring produces one consumable managed representation
 
-A managed task authored from ChatGPT Project SHALL be consumable by the existing repository managed-task intake without a ChatGPT-specific import or translation layer.
+An internal or explicitly requested direct technical managed task authored from ChatGPT Project SHALL remain consumable by the ordinary managed-task intake without a ChatGPT-specific translation layer. A generic Business Requirement SHALL remain the same human-facing representation across conversation surfaces and SHALL not require a technical package.
 
 #### Scenario: Coding agent later starts a ChatGPT-authored task
-- **GIVEN** ChatGPT Project created a valid managed Development Backlog task and stopped
+- **GIVEN** ChatGPT Project created a valid technical managed Development Backlog task under explicit technical intent or Requirement execution
 - **WHEN** Codex or Claude later runs the ordinary `start_managed_task.py owner/repo#N` flow
 - **THEN** the package validates and materializes through the same intake contract as a repo-locally authored managed task
 - **AND** repository-local OpenSpec becomes canonical after materialization
