@@ -158,11 +158,19 @@ def _identity(root: Path, path: Path) -> dict[str, str]:
     return {"algorithm": "sha256", "digest": digest}
 
 
-def inventory(root: Path) -> dict[str, Any]:
+def _selected_concerns(concerns: Iterable[str] | None) -> tuple[str, ...]:
+    selected = tuple(CONCERNS if concerns is None else concerns)
+    if not selected or len(set(selected)) != len(selected) or any(concern not in CONCERNS for concern in selected):
+        raise ProjectEvidenceError("concerns must be a non-empty unique subset of the supported concerns")
+    return selected
+
+
+def inventory(root: Path, *, concerns: Iterable[str] | None = None) -> dict[str, Any]:
     """Inventory only the initial bounded concern roots with stable identities."""
+    selected = _selected_concerns(concerns)
     source_concerns: dict[str, set[str]] = {}
     all_paths: dict[str, Path] = {}
-    for concern in CONCERNS:
+    for concern in selected:
         for path in _candidate_paths(root, concern):
             if path.is_file():
                 relative = _safe_relative(root, path)
@@ -182,7 +190,7 @@ def inventory(root: Path) -> dict[str, Any]:
     ]
     dependencies = {
         concern: [source["path"] for source in sources if concern in source["concerns"]]
-        for concern in CONCERNS
+        for concern in selected
     }
     return {"sources": sources, "dependencies": dependencies}
 
@@ -335,8 +343,8 @@ def validate_snapshot(root: Path, snapshot: dict[str, Any], *, check_freshness: 
         raise ProjectEvidenceError("snapshot revision must be a Git SHA or null")
     sources = _source_map(snapshot)
     projections = snapshot.get("projections")
-    if not isinstance(projections, dict) or set(projections) != set(CONCERNS):
-        raise ProjectEvidenceError("snapshot must contain exactly the supported projections")
+    if not isinstance(projections, dict) or not projections or not set(projections).issubset(CONCERNS):
+        raise ProjectEvidenceError("snapshot must contain a non-empty subset of supported projections")
     for projection in projections.values():
         if not isinstance(projection, dict):
             raise ProjectEvidenceError("snapshot projection must be an object")
@@ -347,7 +355,7 @@ def validate_snapshot(root: Path, snapshot: dict[str, Any], *, check_freshness: 
     freshness = "not-checked"
     changed: list[str] = []
     if check_freshness:
-        current = inventory(root)
+        current = inventory(root, concerns=projections)
         current_sources = {source["path"]: source for source in current["sources"]}
         for path in sorted(set(sources) | set(current_sources)):
             if path not in sources or path not in current_sources or sources[path]["identity"] != current_sources[path]["identity"]:
@@ -362,9 +370,18 @@ def validate_snapshot(root: Path, snapshot: dict[str, Any], *, check_freshness: 
     return {"ok": True, "freshness": freshness, "changed_sources": changed, "digest": snapshot["digest"]}
 
 
-def build_snapshot(root: Path, *, prior: dict[str, Any] | None, results: dict[str, dict[str, Any]]) -> tuple[dict[str, Any], dict[str, Any]]:
+def build_snapshot(
+    root: Path,
+    *,
+    prior: dict[str, Any] | None,
+    results: dict[str, dict[str, Any]],
+    concerns: Iterable[str] | None = None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
     started = time.monotonic()
-    current = inventory(root)
+    selected = _selected_concerns(concerns)
+    if any(concern not in selected for concern in results):
+        raise ProjectEvidenceError("worker results must be limited to selected concerns")
+    current = inventory(root, concerns=selected)
     sources = {source["path"]: source for source in current["sources"]}
     projections: dict[str, dict[str, Any]] = {}
     counts: dict[str, Any] = {
@@ -375,7 +392,7 @@ def build_snapshot(root: Path, *, prior: dict[str, Any] | None, results: dict[st
         "escalation_count": 0,
     }
     unknown_model_calls = False
-    for concern in CONCERNS:
+    for concern in selected:
         dependencies = current["dependencies"][concern]
         reused = _fresh_prior_projection(prior, concern, sources, dependencies) if prior else None
         if reused is not None and concern not in results:
@@ -449,7 +466,9 @@ def _command_build(args: argparse.Namespace) -> int:
         # Prior content is structural cache input; freshness is deliberately not
         # required because unchanged projections can survive a new revision.
         validate_snapshot(root, prior, check_freshness=False)
-    snapshot, evidence = build_snapshot(root, prior=prior, results=_result_arguments(args.worker_result))
+    snapshot, evidence = build_snapshot(
+        root, prior=prior, results=_result_arguments(args.worker_result), concerns=args.concern or None
+    )
     _write_json(Path(args.out), snapshot)
     print(json.dumps({"snapshot": str(Path(args.out)), "digest": snapshot["digest"], "efficiency": evidence}, ensure_ascii=False, sort_keys=True))
     return 0
@@ -485,6 +504,7 @@ def main() -> int:
     build = commands.add_parser("build", help="inventory sources and reuse or request bounded projections")
     build.add_argument("--out", required=True, help="machine-local snapshot JSON path")
     build.add_argument("--prior", help="prior snapshot eligible for source-identity reuse")
+    build.add_argument("--concern", action="append", choices=CONCERNS, help="projection to build; repeat to use a scoped subset")
     build.add_argument("--worker-result", action="append", default=[], metavar="CONCERN=PATH", help="read-only worker result; repeat per rebuilt concern")
     build.set_defaults(handler=_command_build)
     validate = commands.add_parser("validate", help="validate schema, provenance, digests, and optional current freshness")

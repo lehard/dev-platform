@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/architecture-health/spec.md"
+  ],
+  "change": "add-architecture-health-cloud-review",
+  "imported_at": "2026-09-22T18:47:02+00:00",
+  "package_revision": "b1928afd173e8f876bce7ba285ee5ed27b01b2c491b750db7f2a1b2b99d94a80",
+  "prepared_against": "fb912d20f9d278d39b0717fbd3cad0831b56355d",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "platform-health-review"
+  },
+  "source_issue": "lehard/development-backlog#165",
+  "source_issue_evidence": {
+    "body_sha256": "8c558771024c5537156ace440da19375375de9f5b50e8607d92fbe95dc90f482",
+    "updated_at": "2026-09-22T18:44:50Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

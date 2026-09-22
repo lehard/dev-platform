@@ -38,17 +38,29 @@ concurrency:
 jobs:
   process-health-review:
     name: Process Health Review
+    # GitHub requires the calling job's permissions to be a ceiling that
+    # covers every permission any nested job inside the called reusable
+    # workflow requests, not just what the review's own prompt/tools need.
+    # weekly-process-backlog-review.lock.yml's internal jobs (activation,
+    # detection, conclusion, ...) collectively request actions: read,
+    # contents: read, issues: write, and pull-requests: read.
     permissions:
+      actions: read
       contents: read
-      issues: read
+      issues: write
       pull-requests: read
     uses: ./.github/workflows/weekly-process-backlog-review.lock.yml
     secrets: inherit
 
   architecture-health-review:
     name: Architecture Health Review
+    # Same ceiling requirement: architecture-health-review.lock.yml's
+    # internal jobs collectively request actions: read, contents: read,
+    # and issues: write.
     permissions:
+      actions: read
       contents: read
+      issues: write
     uses: ./.github/workflows/architecture-health-review.lock.yml
     secrets: inherit
 

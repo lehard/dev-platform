@@ -1,0 +1,52 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 2,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.149,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 269.454,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/managed_task.py",
+        "template/scripts/requirement_intake.py",
+        "tests/test_requirement_intake.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "source_issue": "lehard/development-backlog#171",
+    "change": "materialize-requirement-handoffs",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/materialize-requirement-handoffs",
+    "branch": "agent/materialize-requirement-handoffs",
+    "head": "eefec606726d5cc5f5835a968830274f02a383f6"
+  }
+}
