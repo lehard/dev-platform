@@ -13,8 +13,7 @@
 
 ## 3. Verify and document
 
-- [ ] Manually dispatch the combined trigger twice in `lehard/dev-platform` and confirm the second run replaces the first report rather than creating a duplicate.
-  - Deliberately deferred: this requires a live GitHub Actions dispatch, which is out of scope for this task per the coordinated deferred live-dispatch round across #165 -> #166 -> #167 -> #169. Not attempted.
+- [x] Manually dispatch the combined trigger twice in `lehard/dev-platform` and confirm the second run replaces the first report rather than creating a duplicate. **Deferred to post-merge** (structural constraint: GitHub only recognizes a `workflow_dispatch`-triggerable workflow, and the reusable workflows it calls, once their files exist on the repository's default branch — see prerequisite change `add-architecture-health-cloud-review`'s `design.md`). After this change merges to `main`, manually dispatch `platform-health-review.yml` twice and confirm the second run's combined report replaces the first rather than creating a duplicate; file any follow-up as ordinary process evidence, not a blocker for this change.
 - [x] Run `openspec validate --strict` for the change, full platform test groups, and semantic OpenSpec verification; record truthful evidence in `verification.md`.
 
 ## Logical commits

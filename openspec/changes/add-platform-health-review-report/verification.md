@@ -1,32 +1,55 @@
 # Verification: add-platform-health-review-report
 
+OpenSpec-Verify: PASS
+
+Verification-Method: local deterministic validation (unit tests for the new report-aggregation script against a fake gh client, full platform test-group suite, OpenSpec structural + hygiene validation, gh-aw compile drift check) both before and after reconciling with the merged `main`; live gh-aw cloud dispatch of the combined trigger (including the double-dispatch replace check) is an explicit documented post-merge follow-up, not performed pre-archive
+
+Automated-Checks-Evidence: automated-checks.json
+
 ## Scope of this receipt
 
 This records what was actually run for the `add-platform-health-review-report`
-change (managed Issue lehard/development-backlog#167), on branch
-`agent/add-platform-health-review-report`, after merging in the sibling branch
-`agent/add-platform-health-review-orchestration` (which itself already
-contains `add-architecture-health-cloud-review`, #165, merged into it).
+change (managed Issue lehard/development-backlog#167). Prerequisite siblings
+`add-architecture-health-cloud-review` (#165) and
+`add-platform-health-review-orchestration` (#166) have both since merged to
+`main`, establishing the same "live workflow_dispatch requires the workflow's
+file (and every reusable workflow it calls) to already exist on the default
+branch" structural GitHub constraint (see `design.md`'s "Verification note").
+Per the user's decision applied consistently across the whole
+#165->#166->#167->#169 chain, the one `tasks.md` live-dispatch item is
+reworded as an explicit **post-merge** follow-up rather than a pre-archive
+gate. Every other item, and everything verifiable pre-merge, was actually run
+and passed, so this change is archive-ready on that basis.
 
-This change is deliberately **not** archived and this receipt is **not** a
-completion claim for the whole four-change stack (#165 -> #166 -> #167 ->
-#169). One task item is deliberately left unattempted (see below) pending a
-later coordinated live-dispatch round across all four related changes. Do not
-read this file as `OpenSpec-Verify: PASS`.
-
-## Step 0: sibling merge
+## Step 0: sibling merge, then reconcile with merged main
 
 `git merge agent/add-platform-health-review-orchestration` from inside this
-worktree fast-forwarded cleanly (no conflicts, no manual resolution needed).
-Confirmed present afterward:
-- `.github/workflows/platform-health-review.yml` (the combined orchestrator)
-- `.github/workflows/architecture-health-review.md` / `.lock.yml`
-- `.github/workflows/weekly-process-backlog-review.md` / `.lock.yml` (updated
-  for the combined `workflow_call` trigger)
-- `openspec/changes/add-architecture-health-cloud-review/` and
-  `openspec/changes/add-platform-health-review-orchestration/` (left
-  untouched, not archived, per instructions -- they are not this task's
-  concern)
+worktree originally fast-forwarded cleanly. After #165 and #166 actually
+merged to `main`, `python3 scripts/dogfood_task.py reconcile` was run to
+replace that provisional local merge with real history; it stopped at merge
+conflicts in `.github/workflows/platform-health-review.yml` and
+`tests/test_agentic_workflows.py` (expected: main had since gained #166's
+merge plus a separate quick-fix, `fix-platform-health-review-permissions`,
+that corrected insufficient job-level `permissions:` on the two review-calling
+jobs -- discovered by #166's own post-merge live-dispatch follow-up -- while
+this branch's commit already added the `publish-report` job on top of the
+pre-fix content). Resolved by combining both sides by hand: kept the
+corrected `permissions:` blocks (and their explanatory comments) from `main`
+on the `process-health-review`/`architecture-health-review` jobs, and kept
+this task's own `publish-report` job addition unchanged; in the test file,
+kept both this task's new/updated tests
+(`test_platform_health_review_publishes_one_combined_report`, the
+updated `test_platform_health_review_jobs_do_not_depend_on_each_other`) and
+main's new `test_caller_job_permissions_cover_every_nested_job_in_the_called_workflow`
+regression test. Also removed two now-stale duplicate pre-archive OpenSpec
+change directories (`add-architecture-health-cloud-review`,
+`add-platform-health-review-orchestration`) that were leftover artifacts of
+the original local stacked-branch merges -- confirmed via
+`git show origin/main:<path>` that `main` never contained them at their active
+(non-archived) location, only under `openspec/changes/archive/...`.
+Confirmed afterward: `dogfood_task.py status` reports `task freshness: ahead
+relative to origin/main` (no longer diverged), and the full validation suite
+(below) was re-run against this reconciled state and passed.
 
 ## What was implemented
 
@@ -96,14 +119,17 @@ All from `/Users/Shared/Workspace/dev-platform/.claude/worktrees/add-platform-he
      non-gh-aw Actions/Python and are intentionally outside this compiler
      check's scope; they are covered instead by
      `tests/test_agentic_workflows.py` (new
-     `test_platform_health_review_publishes_one_combined_report`, and the
-     updated `test_platform_health_review_jobs_do_not_depend_on_each_other`)
-     and by the new `tests/test_publish_platform_health_review_report.py`.
+     `test_platform_health_review_publishes_one_combined_report`, the
+     updated `test_platform_health_review_jobs_do_not_depend_on_each_other`,
+     and main's `test_caller_job_permissions_cover_every_nested_job_in_the_called_workflow`
+     picked up by the reconcile) and by the new
+     `tests/test_publish_platform_health_review_report.py`.
 
-7. `python3 -m unittest tests.test_agentic_workflows -v`
-   - 12 tests, all passed (`OK`), including the two new/updated tests
-     covering the `publish-report` job's shape and the review jobs' continued
-     independence from each other.
+7. `python3 -m unittest tests.test_agentic_workflows -v` (re-run post-reconcile)
+   - 13 tests, all passed (`OK`): this task's two new/updated tests covering
+     the `publish-report` job's shape and the review jobs' continued
+     independence from each other, plus the permissions-ceiling regression
+     test picked up from `main` via the reconcile.
 
 8. `python3 -m unittest tests.test_publish_platform_health_review_report -v`
    - 24 focused unit tests, all passed (`OK`). These exercise, against a
@@ -119,35 +145,18 @@ All from `/Users/Shared/Workspace/dev-platform/.claude/worktrees/add-platform-he
      publishes with the gap stated explicitly; plus `gh api --paginate`
      JSON-array-splitting edge cases and outcome-argument parsing/stripping.
 
-9. `python3 scripts/dogfood_task.py route-claude --profile standard --rationale "..." --evidence "..."`
-   - Refused: `Model routing blocked: model routing requires exactly one
-     materialized managed OpenSpec change in this task checkout; found 3`.
-   - Expected consequence of the stacked-branch approach (three
-     `openspec/changes/` packages are materialized simultaneously:
-     `add-architecture-health-cloud-review`,
-     `add-platform-health-review-orchestration`, and
-     `add-platform-health-review-report`), matching what the prior sibling
-     task (`add-platform-health-review-orchestration`) also recorded. Not
-     forced; recorded here as-is per instructions.
+9. `python3 scripts/dogfood_task.py route-claude --profile routine --rationale "..." --evidence "..."`
+   - Recorded cleanly (`R2`, routine profile) after the reconcile removed the
+     two stale duplicate OpenSpec directories, leaving exactly one
+     materialized change (`add-platform-health-review-report`) in this
+     worktree. `report-claude-execution` recorded a clean containment
+     postcheck.
 
-## Explicitly deferred / not attempted
+## Post-merge follow-up (not a pre-archive gap)
 
-- `tasks.md` item "Manually dispatch the combined trigger twice in
-  `lehard/dev-platform` and confirm the second run replaces the first report
-  rather than creating a duplicate" -- **deliberately not attempted**. It
-  requires a live GitHub Actions dispatch against the real repository, which
-  is out of scope for this task per the explicit instruction to defer all
-  live-dispatch verification to a later, separate coordinated round across
-  the four related changes (#165 -> #166 -> #167 -> #169). This checkbox is
-  left unchecked in `tasks.md`.
-- `openspec_lifecycle.py archive`, `dogfood_task.py finish`, `git push`, and
-  opening a PR were not run, per instructions -- this branch is left ready for
-  the next sibling task (#169, `add-platform-health-review-notifications`) to
-  merge on top of it the same way this task merged #166's branch.
-
-## Explicit statement
-
-This is **not** a pass/complete verification receipt for the OpenSpec
-lifecycle. Do not treat this file as `OpenSpec-Verify: PASS`. One required
-task item (live manual-dispatch confirmation) is deliberately deferred, as
-described above.
+- **Live double-dispatch of `platform-health-review.yml` in
+  `lehard/dev-platform`.** Documented in `tasks.md` and `design.md` as an
+  explicit post-merge follow-up: the workflow (and every reusable workflow it
+  calls) must exist on `main` before `workflow_dispatch` recognizes it at
+  all. To be performed once this change merges, alongside #165's and #166's
+  own already-completed post-merge dispatch confirmations.

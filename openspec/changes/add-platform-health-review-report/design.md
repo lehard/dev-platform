@@ -12,6 +12,24 @@ Following the existing accepted report contract:
 - Contains one section per review (process, architecture) with each review's own existing bounded content rules (e.g. the process review's existing 500-word/5-item bounds stay in force for its own section).
 - Uses one fixed title prefix (distinct from the existing `[process-backlog]` prefix, e.g. `[platform-health-review]`) and `close-older-issues` so a new run replaces the prior report rather than accumulating duplicates.
 
+## Verification note
+
+`tasks.md` originally listed a live double-dispatch smoke test in
+`lehard/dev-platform` as a pre-archive verification item. As established by
+prerequisite changes `add-architecture-health-cloud-review` and
+`add-platform-health-review-orchestration`, GitHub Actions only recognizes a
+`workflow_dispatch`-triggerable workflow, and accepts a dispatch request for
+it, once that workflow's file exists on the repository's **default branch**
+-- and this holds for every reusable workflow a caller `uses:`, not only the
+top-level one. This change's `publish-report` job is a new job inside the
+already-merged `platform-health-review.yml`, so the same structural
+constraint applies. The live-dispatch confirmation is therefore an explicit
+**post-merge** follow-up (see `tasks.md`), not a pre-archive gate: everything
+verifiable pre-merge (unit tests for
+`scripts/publish_platform_health_review_report.py` covering normal/partial/
+repeat-run behavior with mocked `gh` calls, `openspec validate --strict`, and
+the full platform test suite) was verified before archive.
+
 ## Compatibility and rollback
 
 If either underlying review is temporarily unavailable, the report step still records whichever review's output is available and notes the gap; it does not fail the whole report because one section is missing. Reverting this change removes the combined report only; each review's own existing safe-outputs behavior (if any is retained independently) is unaffected.
