@@ -2,9 +2,14 @@
 name: Weekly Process Backlog Review
 description: Freshness-aware bounded weekly Codex summary of the dev-platform process backlog.
 
+# The weekly schedule is owned by the combined Platform Health Review trigger
+# (.github/workflows/platform-health-review.yml), which calls this workflow
+# via `workflow_call` alongside Architecture Health Review on one shared
+# schedule/dispatch. `workflow_dispatch` is kept here so this review can still
+# be run standalone, independent of the combined trigger.
 on:
-  schedule: weekly
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
