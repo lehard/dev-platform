@@ -191,10 +191,12 @@ Record only high-signal friction: user correction, repeated failure, safety near
 
 The normal path is `record -> sanitized GitHub process issue upsert -> cloud triage/review`. Recording retains raw evidence locally and automatically creates or updates a fingerprinted issue in the correct repository. Routing failure leaves the local event pending and never blocks safe delivery; supported lifecycle commands retry it. Process issues are evidence only: neither triage nor review may create a managed task, OpenSpec change, implementation PR, or code change.
 
-When a human explicitly fixes accepted evidence into a managed task, author it
-with repeatable `--process-evidence owner/repo#N` references. The managed
-package keeps the canonical relation; linked open evidence gets the bounded
-`process:managed` label/backlink and remains open until terminal delivery. A
+When a human accepts process evidence as work, record the Business Requirement
+first. When pre-authoring produces the internal managed child that implements
+that evidence-backed change, author the child with repeatable
+`--process-evidence owner/repo#N` references. The managed package keeps the
+canonical relation; linked open evidence gets the bounded `process:managed`
+label/backlink and remains open until terminal delivery. A
 Process Health Review is read-only: its dated report records the exact `main`
 SHA and previous-review boundary, checks bounded current managed work and
 merged changes, clusters symptoms by likely root cause, and verifies
