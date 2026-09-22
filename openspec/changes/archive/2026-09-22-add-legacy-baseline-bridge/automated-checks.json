@@ -9,13 +9,13 @@
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
-      "duration_seconds": 0.125,
+      "duration_seconds": 0.105,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
-      "duration_seconds": 153.108,
+      "duration_seconds": 167.864,
       "outcome": "success",
       "exit_code": 0
     }
@@ -49,6 +49,6 @@
     "change": "add-legacy-baseline-bridge",
     "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/add-legacy-baseline-bridge",
     "branch": "agent/add-legacy-baseline-bridge",
-    "head": "a9e0a5425ce78ee5fad08de47f53f0262bfc5815"
+    "head": "9cb534cbe80da5882820740ad863f2d8ac7057d7"
   }
 }
