@@ -168,9 +168,8 @@ class StartPreAuthoringTests(unittest.TestCase):
             payload = ri.start_pre_authoring(self.root, requirement="acme/development-backlog#7", base_dir=self.base_dir)
         self.assertEqual(payload["slug"], "requirement-7")
         directory = ri.orchestrate_pre_authoring.requirement_dir(self.base_dir, "requirement-7")
-        self.assertTrue(ri.orchestrate_pre_authoring.add_path(directory).is_file())
-        add_document = json.loads(ri.orchestrate_pre_authoring.add_path(directory).read_text(encoding="utf-8"))
-        self.assertEqual(add_document["target_repository"], "acme/billing")
+        self.assertFalse(ri.orchestrate_pre_authoring.add_path(directory).exists())
+        self.assertEqual(payload["state"]["target_repository"], "acme/billing")
         context = json.loads((directory / "requirement.json").read_text(encoding="utf-8"))
         self.assertEqual(context, {
             "version": ri.REQUIREMENT_CONTEXT_VERSION,
@@ -257,7 +256,7 @@ class StartPreAuthoringTests(unittest.TestCase):
                 with patch.object(ri, "fetch_issue", return_value={"body": changed}):
                     ri.start_pre_authoring(self.root, requirement="acme/development-backlog#7", base_dir=base_dir)
                 self.assertEqual(snapshot.read_text(encoding="utf-8"), '{"snapshot": "retained"}\n')
-                self.assertNotEqual(add_file.read_text(encoding="utf-8"), '{"stale": "add"}\n')
+                self.assertFalse(add_file.exists())
                 self.assertFalse(ri.orchestrate_pre_authoring.intents_path(directory).exists())
                 self.assertFalse(ri.orchestrate_pre_authoring.handoff_dir(directory).exists())
                 self.assertFalse(ri.orchestrate_pre_authoring.receipt_path(directory).exists())
@@ -281,7 +280,7 @@ class StartPreAuthoringTests(unittest.TestCase):
         with patch.object(ri, "fetch_issue", return_value={"body": body}):
             ri.start_pre_authoring(self.root, requirement="acme/development-backlog#7", base_dir=self.base_dir)
         self.assertEqual(json.loads(state_path.read_text(encoding="utf-8"))["version"], ri.orchestrate_pre_authoring.STATE_VERSION)
-        self.assertNotEqual(ri.orchestrate_pre_authoring.add_path(directory).read_text(encoding="utf-8"), '{"legacy": true}\n')
+        self.assertFalse(ri.orchestrate_pre_authoring.add_path(directory).exists())
 
     def test_start_requires_an_outcome_section(self) -> None:
         with patch.object(ri, "fetch_issue", return_value={"body": "## Target repository\n\n`acme/billing`\n"}):

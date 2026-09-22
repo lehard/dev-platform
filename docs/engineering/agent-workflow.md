@@ -47,9 +47,11 @@ python3 scripts/requirement_intake.py start --requirement owner/repo#N
 python3 scripts/orchestrate_pre_authoring.py status --id requirement-N
 ```
 
-Drive the orchestrator resumably through evidence snapshot -> ADD -> intents ->
-handoff. Surface a human question only when the orchestrator reports a
-consequential unresolved choice; otherwise continue from repository evidence.
+Drive the orchestrator resumably through a recorded depth selection. A
+deterministic result goes directly to a handoff; bounded evidence requests only
+scoped routine read-only projections; a material design delta continues through
+snapshot -> ADD -> intents -> handoff. Surface a human question only when the
+orchestrator reports a consequential unresolved choice.
 For each ready handoff, author the resulting internal technical managed change
 through the existing managed/OpenSpec path, then immediately link it:
 

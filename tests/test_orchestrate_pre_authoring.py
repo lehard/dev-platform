@@ -103,13 +103,16 @@ class OrchestratorFlowTests(unittest.TestCase):
         self.tmp.cleanup()
 
     def _init(self) -> dict:
-        return orch.init(
+        state = orch.init(
             self.root,
             requirement_id="add-tiered-pricing",
             requirement_file=self.requirement,
             target_repository="acme/billing",
             base_dir=self.base_dir,
         )
+        orch.select_depth(self.root, requirement_id="add-tiered-pricing", depth=orch.DEPTH_MATERIAL_DESIGN,
+                          reason="Pricing tiers change behavior and boundaries", base_dir=self.base_dir)
+        return state
 
     def _status(self) -> dict:
         return orch.status(self.root, requirement_id="add-tiered-pricing", base_dir=self.base_dir)
@@ -118,6 +121,61 @@ class OrchestratorFlowTests(unittest.TestCase):
         state = self._init()
         self.assertEqual(state["target_repository"], "acme/billing")
         directory = orch.requirement_dir(self.base_dir, "add-tiered-pricing")
+        self.assertTrue(orch.add_path(directory).is_file())
+
+    def test_unselected_requirement_has_no_add_and_deterministic_skip_is_reusable(self) -> None:
+        orch.init(self.root, requirement_id="add-tiered-pricing", requirement_file=self.requirement,
+                  target_repository="acme/billing", base_dir=self.base_dir)
+        directory = orch.requirement_dir(self.base_dir, "add-tiered-pricing")
+        self.assertFalse(orch.add_path(directory).exists())
+        self.assertEqual(self._status()["current_stage"], "selection")
+        decision = orch.select_depth(self.root, requirement_id="add-tiered-pricing", depth=orch.DEPTH_DETERMINISTIC,
+                                     reason="Mechanical correction", base_dir=self.base_dir)
+        self.assertEqual(decision["routing"], "none")
+        first = self._status()
+        self.assertEqual(first["current_stage"], "complete")
+        self.assertFalse(orch.add_path(directory).exists())
+        receipt = orch.skip_path(directory).read_text(encoding="utf-8")
+        self._status()
+        self.assertEqual(orch.skip_path(directory).read_text(encoding="utf-8"), receipt)
+
+    def test_bounded_evidence_only_requests_selected_projection(self) -> None:
+        orch.init(self.root, requirement_id="add-tiered-pricing", requirement_file=self.requirement,
+                  target_repository="acme/billing", base_dir=self.base_dir)
+        orch.select_depth(self.root, requirement_id="add-tiered-pricing", depth=orch.DEPTH_BOUNDED_EVIDENCE,
+                          reason="Need rules lookup", concerns=["rules"], base_dir=self.base_dir)
+        result = self._status()
+        self.assertIn("--concern rules", result["blocker"]["action"])
+        directory = orch.requirement_dir(self.base_dir, "add-tiered-pricing")
+        snapshot, _ = project_evidence.build_snapshot(self.root, prior=None, results={}, concerns=["rules"])
+        orch._write_json(orch.snapshot_path(directory), snapshot)
+        result = self._status()
+        self.assertEqual(set(result["blocker"]["worker_requests"]), {"rules"})
+        snapshot, _ = project_evidence.build_snapshot(self.root, prior=snapshot,
+            results={"rules": worker_results_for(self.root)["rules"]}, concerns=["rules"])
+        orch._write_json(orch.snapshot_path(directory), snapshot)
+        self.assertEqual(self._status()["current_stage"], "complete")
+        self.assertFalse(orch.add_path(directory).exists())
+
+    def test_changed_requirement_invalidates_selection_and_skip_but_not_snapshot(self) -> None:
+        self._init()
+        directory = orch.requirement_dir(self.base_dir, "add-tiered-pricing")
+        snapshot = build_fresh_snapshot(self.root, orch.snapshot_path(directory))
+        self.assertEqual(self._status()["current_stage"], "add")
+        self.requirement.write_text("Change tier boundaries.\n", encoding="utf-8")
+        orch.init(self.root, requirement_id="add-tiered-pricing", requirement_file=self.requirement,
+                  target_repository="acme/billing", base_dir=self.base_dir, refresh_requirement=True)
+        self.assertFalse(orch.selection_path(directory).exists())
+        self.assertFalse(orch.add_path(directory).exists())
+        self.assertEqual(orch._load_json(orch.snapshot_path(directory), "snapshot"), snapshot)
+        self.assertEqual(self._status()["current_stage"], "selection")
+
+    def test_material_selection_recovers_missing_add_without_resetting_decision(self) -> None:
+        self._init()
+        directory = orch.requirement_dir(self.base_dir, "add-tiered-pricing")
+        orch.add_path(directory).unlink()
+        orch.select_depth(self.root, requirement_id="add-tiered-pricing", depth=orch.DEPTH_MATERIAL_DESIGN,
+                          reason="Pricing tiers change behavior and boundaries", base_dir=self.base_dir)
         self.assertTrue(orch.add_path(directory).is_file())
 
     def test_init_is_idempotent_for_the_same_requirement(self) -> None:
