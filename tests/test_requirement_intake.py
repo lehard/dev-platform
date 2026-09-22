@@ -25,6 +25,7 @@ TEMPLATE_SCRIPTS = ROOT / "template" / "scripts"
 sys.path.insert(0, str(TEMPLATE_SCRIPTS))
 
 import managed_project_status  # noqa: E402
+import managed_task  # noqa: E402
 import requirement_intake as ri  # noqa: E402
 
 
@@ -104,6 +105,92 @@ class RenderParseTests(unittest.TestCase):
     def test_parse_tolerates_a_body_with_no_children_block(self) -> None:
         parsed = ri.parse_requirement_body("## Outcome\n\nShip X.\n")
         self.assertEqual(parsed["children"], [])
+
+
+class MaterializeHandoffTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = init_repo()
+        self.root = Path(self.tmp.name)
+        self.handoff = self.root / "handoff.json"
+        self.handoff.write_text(json.dumps({"digest": "a" * 64}), encoding="utf-8")
+        self.bundle = self.root / "bundle"
+        self.bundle.mkdir()
+        self.bundle_value = managed_task.AuthoringBundle(
+            "Ship it", "Outcome", "ship-it", ("proposal.md",), {"proposal.md": "Proposal"},
+        )
+        self.parent_body = ri.render_requirement_body(outcome="Ship it", target_repository="acme/platform")
+        self.child_body = ""
+        self.marker = f"<!-- requirement-handoff:v1:acme/backlog#7:{'a' * 64} -->"
+        self.candidates: list[dict] = []
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def _fetch(self, root, repository, number):
+        if number == 7:
+            return {"body": self.parent_body, "labels": [{"name": ri.REQUIREMENT_LABEL}]}
+        return {"body": self.child_body, "labels": [{"name": ri.CHILD_LABEL}]}
+
+    def _link(self, root, *, requirement, child):
+        self.parent_body = self.parent_body.replace(ri.CHILDREN_END, f"- [ ] {child}\n{ri.CHILDREN_END}")
+        self.child_body += f"\nRequirement: {requirement}\n"
+
+    def _run(self, *, candidates=None, create=None, link=None, status=None):
+        report = status or {"current_stage": "complete", "target_repository": "acme/platform",
+                            "handoffs": {"intent": str(self.handoff)}}
+        config = managed_task.AuthoringConfig("acme/backlog", "managed", "P2")
+        with (
+            patch.object(ri.orchestrate_pre_authoring, "status", return_value=report),
+            patch.object(ri, "fetch_issue", side_effect=self._fetch),
+            patch.object(ri, "github_cli_env", return_value={}),
+            patch.object(ri.managed_task, "origin_repository", return_value="acme/platform"),
+            patch.object(ri.managed_task, "authoring_config", return_value=config),
+            patch.object(ri.managed_task, "load_authoring_bundle", return_value=self.bundle_value),
+            patch.object(ri.managed_task, "run_json", return_value=self.candidates if candidates is None else candidates),
+            patch.object(ri.managed_task, "create_task", side_effect=create) as create_mock,
+            patch.object(ri, "link_child", side_effect=link or self._link),
+        ):
+            result = ri.materialize_handoff(self.root, requirement="acme/backlog#7",
+                handoff_file=self.handoff, bundle_path=self.bundle)
+        return result, create_mock
+
+    def test_create_then_link_and_retry_reuses_exact_child(self) -> None:
+        package = type("Package", (), {"source_issue": "acme/backlog#8"})()
+        result, create_mock = self._run(create=lambda *args, **kwargs: (package, False, False))
+        self.assertEqual(result["child"], "acme/backlog#8")
+        self.assertEqual(create_mock.call_args.kwargs["handoff_marker"], self.marker)
+        self.candidates = [{"number": 8, "body": self.marker}]
+        self.child_body = self.marker + self.child_body
+        published = type("Package", (), {"change": "ship-it", "target_repository": "acme/platform",
+                                          "artifacts": self.bundle_value.artifacts, "contents": self.bundle_value.contents})()
+        with (
+            patch.object(ri.managed_task, "issue_bodies", return_value=["package"]),
+            patch.object(ri.managed_task, "parse_package", return_value=published),
+        ):
+            result, create_mock = self._run()
+        self.assertEqual(result["child"], "acme/backlog#8")
+        create_mock.assert_not_called()
+
+    def test_interrupted_link_retries_without_another_issue(self) -> None:
+        self.candidates = [{"number": 8, "body": self.marker}]
+        self.child_body = self.marker
+        published = type("Package", (), {"change": "ship-it", "target_repository": "acme/platform",
+                                          "artifacts": self.bundle_value.artifacts, "contents": self.bundle_value.contents})()
+        with (
+            patch.object(ri.managed_task, "issue_bodies", return_value=["package"]),
+            patch.object(ri.managed_task, "parse_package", return_value=published),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "transport interruption"):
+                self._run(link=lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("transport interruption")))
+            result, create_mock = self._run()
+        self.assertEqual(result["child"], "acme/backlog#8")
+        create_mock.assert_not_called()
+
+    def test_invalid_or_ambiguous_handoff_does_not_create_issue(self) -> None:
+        with self.assertRaises(ri.RequirementIntakeError):
+            self._run(status={"current_stage": "snapshot", "blocker": {"state": "stale"}})
+        with self.assertRaisesRegex(ri.RequirementIntakeError, "multiple children"):
+            self._run(candidates=[{"number": 8, "body": self.marker}, {"number": 9, "body": self.marker}])
 
 
 class CreateRequirementTests(unittest.TestCase):
