@@ -1,6 +1,8 @@
 # Verification: add-platform-health-review-orchestration
 
-## OpenSpec-Verify: PASS
+OpenSpec-Verify: PASS
+
+Verification-Method: local deterministic validation (gh-aw compile, structural/unit tests, full platform test-group suite, OpenSpec structural + hygiene validation) both before and after reconciling with the merged `main`; live gh-aw cloud dispatch of the combined trigger is an explicit documented post-merge follow-up, not performed pre-archive
 
 The prerequisite sibling change `add-architecture-health-cloud-review` (#165)
 has since merged to `main` (PR #31, merge commit `9b5a449`), establishing the
@@ -13,8 +15,6 @@ gate — it is checked because it now correctly describes deferred post-merge
 work, not because a live dispatch already happened. Every other item, and
 everything that *is* verifiable pre-merge, was actually run and passed (see
 below), so this change is archive-ready on that basis.
-
-## Verification-Method: local deterministic validation (gh-aw compile, structural/unit tests, full platform test-group suite, OpenSpec structural + hygiene validation) both before and after reconciling with the merged `main`; live gh-aw cloud dispatch of the combined trigger is an explicit documented post-merge follow-up, not performed pre-archive
 
 ## Sibling merge (step 0, then reconcile with merged main)
 
