@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -200,6 +201,59 @@ class PublishTests(unittest.TestCase):
         self.assertIn("did not complete", gh.created["body"])
         self.assertIn("Architecture Health Review", gh.created["body"])
         self.assertIsNotNone(result["number"])
+
+
+class RenderSummaryTests(unittest.TestCase):
+    def test_summary_is_short_and_excludes_findings_detail(self) -> None:
+        summary = report.render_summary(
+            title="[platform-health-review] 2026-09-22",
+            process=_outcome("Process Health Review", "success"),
+            architecture=_outcome("Architecture Health Review", "success"),
+        )
+        self.assertIn("[platform-health-review] 2026-09-22", summary)
+        self.assertIn("Process Health Review: success", summary)
+        self.assertIn("Architecture Health Review: success", summary)
+        # Short: a handful of lines, never the full report body shape.
+        self.assertLessEqual(len(summary.splitlines()), 3)
+
+    def test_publish_result_includes_a_summary_key(self) -> None:
+        gh = FakeGh(open_reports=[], created_number=101)
+        result = report.publish(
+            reviewed_at="2026-09-22T06:00:00Z",
+            main_sha="abc123",
+            process=_outcome("Process Health Review"),
+            architecture=_outcome("Architecture Health Review"),
+            gh=gh,
+        )
+        self.assertIn("summary", result)
+        self.assertIn("[platform-health-review] 2026-09-22", result["summary"])
+
+
+class WriteGithubOutputTests(unittest.TestCase):
+    def test_writes_parseable_key_value_and_multiline_summary(self) -> None:
+        with tempfile.NamedTemporaryFile(mode="r+", delete=False) as handle:
+            path = handle.name
+        try:
+            report.write_github_output(path, number=101, url="https://x/101", summary="line one\nline two")
+            content = Path(path).read_text(encoding="utf-8")
+            self.assertIn("report_issue_number=101", content)
+            self.assertIn("report_issue_url=https://x/101", content)
+            self.assertIn("report_summary<<ghadelim_", content)
+            self.assertIn("line one\nline two", content)
+        finally:
+            Path(path).unlink(missing_ok=True)
+
+    def test_appends_without_clobbering_existing_content(self) -> None:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False) as handle:
+            handle.write("existing=value\n")
+            path = handle.name
+        try:
+            report.write_github_output(path, number=1, url="https://x/1", summary="s")
+            content = Path(path).read_text(encoding="utf-8")
+            self.assertIn("existing=value", content)
+            self.assertIn("report_issue_number=1", content)
+        finally:
+            Path(path).unlink(missing_ok=True)
 
 
 class SplitJsonArraysTests(unittest.TestCase):
