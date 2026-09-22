@@ -103,10 +103,18 @@ When the user asks to execute a Business Requirement, the ordered flow is:
 
 Requirement progress is read-through, never a second status ledger:
 `python3 scripts/requirement_intake.py aggregate --requirement owner/repo#N`
-derives progress from the linked children's real Development Backlog Project
-statuses. The primary human-facing Project view should show Requirements and
-exclude `type:internal-change`; child visibility remains available through
-the parent links and dedicated/internal views.
+retains its child-only `status` for compatibility and adds a `progress`
+projection. `progress.stage` is one of `pre-authoring`, `design`,
+`human-decision`, `ready`, `implementation`, `blocked`, `unknown`, or `done`;
+before materialization it reads local orchestrator evidence; once children
+exist it reads their authoritative Development Backlog Project statuses without
+requiring machine-local pre-authoring state. Its `reason`, `diagnostics`, and
+`sources` identify the evidence used. An unreadable, stale, unsupported, or
+contradictory source fails closed to `unknown`; an explicit child block or
+orchestrator escalation reports `blocked`. No output is persisted as a
+Requirement field. The primary human-facing Project view should show
+Requirements and exclude `type:internal-change`; child visibility remains
+available through the parent links and dedicated/internal views.
 
 ## Incubator
 
