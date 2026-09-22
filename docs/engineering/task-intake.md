@@ -16,66 +16,99 @@ creating a separate task format.
 - **Discuss**: inspect, design and compare. Do not create durable Backlog state.
 - **Incubate / park**: preserve a potentially useful idea without accepting it
   for delivery. Use the repository-backed Incubator contract below; do not
-  create a managed task or OpenSpec package.
+  create a Requirement, managed task, or OpenSpec package.
 - **Fix / add to Backlog**: an explicit recording request (for example
-  `зафиксируй`, `добавь в бэклог`, `создай задачу`) authors or updates the
-  managed package and stops. It never starts implementation or changes Project
-  status.
+  `зафиксируй`, `добавь в бэклог`, `создай задачу`, `отправь в бэклог`)
+  creates or updates a human-facing Business Requirement and stops. Fixation
+  does **not** author OpenSpec, perform technical decomposition, start
+  pre-authoring, start implementation, or change lifecycle status.
 - **Quick execution**: a small, clear, bounded change may use normal task
-  execution without a Backlog Issue or ceremonial OpenSpec change.
-- **Fresh non-trivial execution**: an explicit request to implement, fix,
-  build, or otherwise execute material work creates or reuses its managed task,
-  starts that exact task, and only then begins implementation.
-- **Existing managed task**: start the supplied Development Backlog Issue.
+  execution without a Requirement, Backlog Issue, or ceremonial OpenSpec
+  change.
+- **Fresh non-trivial execution**: unless the user explicitly requests a
+  technical managed task/OpenSpec change, create or reuse a Business
+  Requirement, start its pre-authoring flow, produce the internal managed
+  OpenSpec change(s) from handoff, link them back to the Requirement, start
+  those managed tasks, and only then implement.
+- **Existing Business Requirement**: start the supplied Requirement through
+  `requirement_intake.py start` and resume its pre-authoring state.
+- **Direct technical managed/OpenSpec path**: preserve the existing managed
+  authoring/start path when the user explicitly supplies an existing managed
+  Issue/OpenSpec task or explicitly asks to create a technical managed task.
+  This path is an exception chosen by explicit technical intent; it is not the
+  default meaning of `зафиксируй`.
 
 User wording is evidence of the current intent, not a magic keyword. Direct
 execution does not require a second `зафиксируй` instruction. A fixation-only
-request remains authoring-only unless the same request also clearly authorizes
-execution.
+request always stops after the Requirement is durable unless the same request
+also clearly authorizes execution.
 
-## Cross-surface authoring
+## Requirement-first cross-surface contract
 
-The shared managed-task semantics are:
+A Business Requirement is the normal human-facing unit of accepted non-trivial
+work. It is an ordinary Development Backlog Issue labeled `type:requirement`
+with business-language sections:
 
-- **Discuss**, **Fix / add to Backlog**, quick execution, and fresh non-trivial
-  execution retain the intent boundaries above on every surface.
-- A fixation creates or updates one Development Backlog Issue with one active
-  `managed-openspec:v1` package: its manifest identifies the source Issue, target
-  repository, change, prepared-against revision, routing receipt, and declared
-  non-empty OpenSpec artifacts. The Issue is human-facing provenance; after
-  materialization, local OpenSpec is canonical for implementation.
-- Fixation stops in `Backlog`: it does not implement, start the managed task,
-  dispatch an executor, move Project status, or publish a delivery. A missing
-  supported authoring mechanic is a blocker, not permission to change intent.
+- `## Outcome`;
+- optional `## Context`;
+- optional `## Acceptance evidence`;
+- `## Target repository`;
+- optional `## Exclusions`;
+- the machine-readable requirement-children block owned by
+  `requirement_intake.py`.
 
-The mechanics are deliberately surface-specific:
+Requirement fixation contains no `proposal.md`, `design.md`, `tasks.md`,
+OpenSpec delta, file-level plan, or technical decomposition. The stable
+pre-authoring identity is `requirement-<issue-number>`.
 
-- A repository-local Codex or Claude agent with the platform helper uses the
-  deterministic `managed_task.py create --bundle ...` command below. It does
-  not manually reconstruct GitHub Issue/package mutations when that helper is
-  available.
-- A ChatGPT Project with connected GitHub mutation access but no target
-  checkout creates the same Issue/package through the bounded adapter contract.
-  It does not need local shell access and must not claim that lack of
-  `managed_task.py` itself blocks authorized ChatGPT authoring. It reports
-  fixation only after the adapter's mandatory post-write read-back proves the
-  labels, one active package, source revision evidence, routing receipt, and
-  strict OpenSpec importability at the package's exact `prepared_against` SHA.
-  If equivalent validation is unavailable, the adapter fails closed.
-- A later repository-local agent imports either result through the ordinary
-  `start_managed_task.py owner/repo#N` path. There is no ChatGPT-specific
-  importer or translation layer.
+The semantics are identical across agent surfaces:
+
+- A repository-local Codex, Claude Code, or other agent with a checkout MUST
+  use `python3 scripts/requirement_intake.py create ...` for fixation.
+- A ChatGPT Project with connected GitHub mutation access but no checkout uses
+  the bounded adapter in [chatgpt-project-protocol.md](chatgpt-project-protocol.md)
+  to create and read back the **same Requirement representation**. That adapter
+  is a transport equivalent of `requirement_intake.py create`; it must not
+  substitute a managed OpenSpec package merely because it lacks local shell
+  access.
+- A fixation-only request stops as soon as the Requirement is durably created
+  or the exact existing Requirement is reused.
+
+When the user asks to execute a Business Requirement, the ordered flow is:
+
+1. Run `python3 scripts/requirement_intake.py start --requirement owner/repo#N`.
+2. Drive `scripts/orchestrate_pre_authoring.py status` resumably.
+3. Build/reuse evidence snapshot, draft and approve the ADD, pausing for the
+   human only when the orchestrator surfaces a genuinely consequential open
+   choice.
+4. Decompose approved ADD elements into intents and prepare OpenSpec handoff
+   envelopes.
+5. For every ready handoff, author the internal technical change through the
+   existing managed/OpenSpec lifecycle.
+6. Immediately link each resulting child Issue with
+   `python3 scripts/requirement_intake.py link-child --requirement owner/repo#N --child owner/repo#M`.
+   Each child is labeled `type:internal-change` and carries a parent
+   back-reference.
+7. Start and implement those internal managed tasks through the existing
+   lifecycle. OpenSpec becomes canonical only for each technical child after
+   that child is materialized.
+
+Requirement progress is read-through, never a second status ledger:
+`python3 scripts/requirement_intake.py aggregate --requirement owner/repo#N`
+derives progress from the linked children's real Development Backlog Project
+statuses. The primary human-facing Project view should show Requirements and
+exclude `type:internal-change`; child visibility remains available through
+the parent links and dedicated/internal views.
 
 ## Incubator
 
 `Incubator` is an optional pre-commitment planning layer backed by ordinary open
 Issues in the configured Development Backlog repository. An incubated Issue
 carries the dedicated `incubator` label but SHALL NOT carry a `project:*` label,
-a priority label, managed authoring receipt, OpenSpec package, routing decision,
-task workspace, or execution entitlement. Managed authoring discovers bounded
-same-project candidates through the configured `project:*` label, so an
-incubated Issue remains outside the managed-task lifecycle until a human accepts
-it as work.
+a priority label, Requirement label, managed authoring receipt, OpenSpec
+package, routing decision, task workspace, or execution entitlement. It remains
+outside both requirement-first intake and the technical managed lifecycle until
+a human accepts it as work.
 
 Keep an incubated item small and machine-editable. Record the target repository,
 the idea or hypothesis, why it is worth remembering (including a source when
@@ -85,21 +118,21 @@ arbitrary calendar date unless the decision is genuinely time-driven.
 
 GitHub Project placement is a visualization layer, not the source of truth. A
 Project may auto-add Issues matching `label:incubator` and expose a dedicated
-`Incubator` view filtered by that label. Managed Backlog views should exclude
-`label:incubator`. Do not add a `project:*` label merely to make an incubated
-Issue appear in a Project. A Project `Status` value on an incubated Issue is
-non-authoritative; managed lifecycle status begins only after promotion.
+`Incubator` view filtered by that label. Main Requirement views should exclude
+`label:incubator` and `type:internal-change`. Do not add a `project:*` label
+merely to make an incubated Issue appear in a Project.
 
 Promotion requires explicit human acceptance of the idea as work. Create or
-reuse the ordinary managed Development Backlog Issue and OpenSpec package through
-the normal authoring path and leave that managed task in `Backlog`. After the
-managed identity exists, close the incubated Issue with a link to the promoted
-task. Never move an incubated idea directly to `Ready` or start implementation
-merely because it was parked.
+reuse the ordinary Business Requirement through the requirement-first fixation
+path and leave fixation stopped there. After the Requirement identity exists,
+close the incubated Issue with a link to the Requirement. Never promote an
+incubated idea directly into OpenSpec or start implementation merely because it
+was parked.
 
 If the current agent surface cannot mutate GitHub Project views or fields, that
-must not block durable incubation: create or update the repository Issue and let
-the configured Project automation/view surface it when available.
+must not block durable incubation or Requirement authoring: create/update the
+repository Issue and let configured Project automation/views surface it when
+available.
 
 ## Evidence-first execution
 
@@ -117,37 +150,54 @@ open-ended exploration by default.
 
 ## Commands
 
-Prepare the normal managed authoring bundle (`manifest.json`, `issue.md`, and
-the declared OpenSpec artifacts). For authoring-only use:
+For fixation-only authoring from a repository checkout, prepare small text files
+for the business sections and run:
+
+```bash
+python3 scripts/requirement_intake.py create \
+  --repository OWNER/DEVELOPMENT-BACKLOG \
+  --title "<business requirement title>" \
+  --outcome-file <outcome.md> \
+  --target-repository OWNER/TARGET \
+  [--context-file <context.md>] \
+  [--acceptance-file <acceptance.md>] \
+  [--exclusions-file <exclusions.md>]
+```
+
+To execute or resume an existing Requirement:
+
+```bash
+python3 scripts/requirement_intake.py start --requirement owner/repo#N
+python3 scripts/orchestrate_pre_authoring.py status --id requirement-N
+```
+
+Follow the orchestrator's bounded next action until handoff is complete. Author
+each resulting **internal** technical managed change through the existing
+managed-task path, then link it immediately:
 
 ```bash
 python3 scripts/managed_task.py create --bundle <directory>
+python3 scripts/requirement_intake.py link-child \
+  --requirement owner/repo#N \
+  --child owner/repo#M
+python3 scripts/start_managed_task.py owner/repo#M
 ```
 
-For a fresh, non-trivial execution request use the one composed entrypoint:
+The composed direct execution helper remains valid only for an explicitly
+technical managed task:
 
 ```bash
 python3 scripts/execute_managed_task.py --bundle <directory> --scope "<files/modules>"
 ```
 
-It composes the existing authoring checks with `start_managed_task.py`; it does
-not create another backlog, dispatcher, package format, or state machine. A
-retry reuses the authoring receipt or exact existing Issue, then resumes the
-same managed start identity. Candidate overlap remains an explicit decision:
-review it and pass `--confirm-distinct` only when the scopes are genuinely
-separate.
-
-For an already supplied managed Issue use:
+For an already supplied managed Issue/OpenSpec task, continue to use:
 
 ```bash
 python3 scripts/start_managed_task.py owner/repo#N
 ```
 
-Managed start performs read-only package intake, creates/reuses the task
-checkout, materializes the canonical local OpenSpec only there, and reconciles
-the Development Backlog item to `In progress`. It stops before implementation.
-After materialization, the local OpenSpec is canonical; the Issue is human-
-facing provenance rather than a second implementation plan.
+Candidate overlap and managed-package validation rules remain unchanged for
+those internal/direct technical paths.
 
 ## Escalating quick work
 
