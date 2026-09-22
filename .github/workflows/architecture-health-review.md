@@ -2,14 +2,19 @@
 name: Architecture Health Review
 description: Bounded read-only Codex cloud run of Architecture Health Review, on a schedule or manual dispatch.
 
+# The weekly schedule is owned by the combined Platform Health Review trigger
+# (.github/workflows/platform-health-review.yml), which calls this workflow
+# via `workflow_call` alongside Process Health Review on one shared
+# schedule/dispatch. `workflow_dispatch` is kept here so this review can still
+# be run standalone, independent of the combined trigger.
 on:
-  schedule: weekly
   workflow_dispatch:
     inputs:
       scope:
         description: Optional path/subsystem to review. Leave empty to use the bounded default hotspot heuristic.
         required: false
         type: string
+  workflow_call:
 
 permissions:
   contents: read

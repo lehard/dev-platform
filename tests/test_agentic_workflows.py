@@ -28,8 +28,8 @@ SOURCES = {
         "max-turns: 10",
         "allowed-repos: public",
         "issues: read",
-        "schedule: weekly",
         "workflow_dispatch:",
+        "workflow_call:",
         "create-issue:",
         "Review context (`reviewed_at`, exact `main` SHA, previous-review boundary)",
         "Root-cause candidates",
@@ -42,8 +42,8 @@ SOURCES = {
         "max-turns: 10",
         "allowed-repos: public",
         "toolsets: [repos]",
-        "schedule: weekly",
         "workflow_dispatch:",
+        "workflow_call:",
         "create-issue:",
         "dev-platform/capabilities/architecture-health-review.md",
         "openspec/specs/architecture-health/spec.md",
@@ -51,6 +51,15 @@ SOURCES = {
         "never create or recommend creating a managed task",
     },
 }
+
+# The combined `platform-health-review` trigger (see
+# openspec/specs/platform-health-review/spec.md) owns the one shared
+# schedule/workflow_dispatch that starts these two reviews together. Neither
+# review's own gh-aw source declares `schedule:` any more; each keeps only its
+# standalone `workflow_dispatch` plus the `workflow_call` trigger that the
+# combined orchestrator uses to invoke it.
+COMBINED_TRIGGER_WORKFLOWS = ("weekly-process-backlog-review", "architecture-health-review")
+PLATFORM_HEALTH_REVIEW_PATH = ROOT / ".github" / "workflows" / "platform-health-review.yml"
 
 
 class AgenticWorkflowTests(unittest.TestCase):
@@ -114,6 +123,43 @@ class AgenticWorkflowTests(unittest.TestCase):
         self.assertIn("Likely context destination", text)
         self.assertIn("ordinary process-friction", text)
         self.assertIn("or close/relabel/comment on source evidence", text)
+
+    def test_combined_reviews_no_longer_declare_their_own_schedule(self) -> None:
+        # The `platform-health-review` capability (openspec/specs/platform-health-review/spec.md)
+        # owns the one shared schedule. Each review keeps its own standalone
+        # `workflow_dispatch` plus a `workflow_call` trigger for the combined
+        # orchestrator, but must not also declare an independent `schedule:`.
+        for name in COMBINED_TRIGGER_WORKFLOWS:
+            text = (ROOT / ".github" / "workflows" / f"{name}.md").read_text(encoding="utf-8")
+            with self.subTest(name=name):
+                self.assertNotIn("schedule:", text)
+                self.assertIn("workflow_call:", text)
+                self.assertIn("workflow_dispatch:", text)
+
+    def test_combined_locks_expose_workflow_call_trigger(self) -> None:
+        for name in COMBINED_TRIGGER_WORKFLOWS:
+            text = (ROOT / ".github" / "workflows" / f"{name}.lock.yml").read_text(encoding="utf-8")
+            with self.subTest(name=name):
+                self.assertIn("workflow_call:", text)
+                self.assertNotIn("cron:", text)
+
+    def test_platform_health_review_orchestrator_defines_one_combined_trigger(self) -> None:
+        text = PLATFORM_HEALTH_REVIEW_PATH.read_text(encoding="utf-8")
+        self.assertIn("schedule:", text)
+        self.assertIn("cron:", text)
+        self.assertIn("workflow_dispatch:", text)
+        # Both reviews are called as reusable workflows from their compiled
+        # gh-aw lock files, unconditionally (no agent decides which to run).
+        self.assertIn("uses: ./.github/workflows/weekly-process-backlog-review.lock.yml", text)
+        self.assertIn("uses: ./.github/workflows/architecture-health-review.lock.yml", text)
+        self.assertIn("secrets: inherit", text)
+
+    def test_platform_health_review_jobs_do_not_depend_on_each_other(self) -> None:
+        # Each review's job must run independently of the other so that one
+        # review failing or being unavailable never blocks the other's run.
+        text = PLATFORM_HEALTH_REVIEW_PATH.read_text(encoding="utf-8")
+        jobs_text = text[text.index("\njobs:") :]
+        self.assertNotIn("needs:", jobs_text)
 
 
 if __name__ == "__main__":

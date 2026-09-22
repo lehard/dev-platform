@@ -1,0 +1,46 @@
+# Platform Health Review: the combined trigger for the `platform-health-review`
+# capability (openspec/specs/platform-health-review/spec.md). This plain,
+# non-agentic orchestration workflow owns the one shared schedule and manual
+# dispatch that starts Process Health Review and Architecture Health Review
+# together, for the same triggering event, in `lehard/dev-platform` only.
+#
+# Each review keeps its own gh-aw source, engine, tools, safe-outputs and
+# cost/runtime guardrails completely unchanged (see
+# weekly-process-backlog-review.md and architecture-health-review.md). This
+# file only calls their compiled workflows as reusable workflows via
+# `workflow_call`; it introduces no AI engine, credit spend, or reasoning of
+# its own. Each review also keeps its own standalone `workflow_dispatch`
+# trigger, so it can still be run independently of this combined trigger.
+#
+# A failure in one review's job does not block or cancel the other's job:
+# neither job declares `needs:` on the other.
+name: Platform Health Review
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Weekly, Monday 06:00 UTC. Single shared time for both reviews.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: platform-health-review
+  cancel-in-progress: false
+
+jobs:
+  process-health-review:
+    name: Process Health Review
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+    uses: ./.github/workflows/weekly-process-backlog-review.lock.yml
+    secrets: inherit
+
+  architecture-health-review:
+    name: Architecture Health Review
+    permissions:
+      contents: read
+    uses: ./.github/workflows/architecture-health-review.lock.yml
+    secrets: inherit
