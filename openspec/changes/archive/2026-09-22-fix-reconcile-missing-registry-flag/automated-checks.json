@@ -1,0 +1,53 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 2,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.164,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 265.488,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        ".github/workflows/reconcile-stale-rollouts.yml",
+        ".github/workflows/rollout.yml",
+        "tests/test_managed_rollout.py",
+        "tests/test_rollout_supersession.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "source_issue": "lehard/development-backlog#148",
+    "change": "fix-reconcile-missing-registry-flag",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/fix-reconcile-missing-registry-flag",
+    "branch": "agent/fix-reconcile-missing-registry-flag",
+    "head": "c47343b5b9d193943a3b13a053c5728cb68f99a9"
+  }
+}
