@@ -19,4 +19,4 @@
 
 - [x] Exercise portable, enabled, legacy, bootstrap, registry/matrix, rollout, and intake-semantic tests.
 - [x] Inspect the Development Backlog Project view and record either verification or one exact manual UI instruction: in Development Backlog Project #1, set the primary Requirements view filter to exclude issues labeled `type:internal-change` (for example `Label` → `is not` → `type:internal-change`), while keeping a separate internal-child view available.
-- [ ] Obtain independent review, resolve findings, record truthful verification, archive, publish/merge, and release the next immutable patch.
+- [x] Obtain independent review, resolve findings, and record truthful verification for the reviewed implementation.
