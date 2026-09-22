@@ -3,7 +3,9 @@
 ## Purpose
 
 The Project Factory SHALL define the reusable, versioned contract for creating and safely updating agent-first repositories without taking ownership of application-domain behavior.
+
 ## Requirements
+
 ### Requirement: Central versioned project factory
 
 The platform SHALL provide a central Copier-based factory for creating new agent-first repositories and delivering reviewed updates to existing managed repositories.
@@ -511,3 +513,17 @@ Project Factory tests, examples, and accepted specifications SHALL distinguish o
 - **THEN** no concrete maintainer backlog/fleet identity appears in the output
 - **AND** the existing portable lifecycle remains fully verified.
 
+### Requirement: Rendered templates end with a single clean trailing newline
+
+Templates SHALL NOT render a trailing blank line at end-of-file, so that a Copier update's staged diff never fails a standard whitespace-hygiene gate (`git diff --cached --check`) purely because of a control-tag formatting artifact rather than a real content change.
+
+#### Scenario: A control tag closes a template file
+
+- **GIVEN** a template file's last line is a Jinja control tag (for example `{% endif %}`) with no further content after it
+- **WHEN** the template is rendered for any valid combination of its governing variables
+- **THEN** the rendered file ends with exactly one trailing newline and no blank line
+
+#### Scenario: Whitespace-control trimming never corrupts inline expressions
+
+- **WHEN** a template fix removes an unwanted rendered blank line
+- **THEN** it SHALL NOT rely on a Jinja environment-wide whitespace-trimming setting unless every template using inline control or escape tags (such as `{% raw %}...{% endraw %}` guarding literal `${{ }}` expressions) has been verified unaffected

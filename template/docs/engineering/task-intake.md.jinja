@@ -169,7 +169,6 @@ This document is platform-owned and arrives through normal release rollout.
 Project-owned root `AGENTS.md` keeps local rules, but must include the stable
 reference inserted by the rollout migration. The migration is additive and
 marked; it does not replace project/domain or module-level instructions.
-
 {% else %}
 # Portable task intake
 
@@ -206,5 +205,4 @@ The generated repository contains its own lifecycle scripts and CI workflow.
 Provider adapters create or reuse the configured review object; GitLab stops at
 green exact-head CI for human merge/acceptance. Do not require access to this
 platform repository or to an operator installation to perform ordinary work.
-
-{% endif %}
+{% endif -%}

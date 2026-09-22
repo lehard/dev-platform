@@ -1,0 +1,50 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 2,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.123,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 182.732,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-fallback",
+      "paths": [
+        "template/.gitlab-ci.yml.jinja"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "unknown-path",
+      "evidence_types": [
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "source_issue": "lehard/development-backlog#147",
+    "change": "fix-rollout-trailing-blank-lines",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/fix-rollout-trailing-blank-lines",
+    "branch": "agent/fix-rollout-trailing-blank-lines",
+    "head": "b81fdc91bbc59961401d6f57de8d64a0866d1ee2"
+  }
+}

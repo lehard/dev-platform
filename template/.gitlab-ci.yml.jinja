@@ -13,4 +13,4 @@ dev_platform_verify:
     - python3 scripts/select_checks.py --mode protected-full --execute
 {% else %}
     - echo "harness_mode=project; application checks stay repository-owned"
-{% endif %}
+{% endif -%}
