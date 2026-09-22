@@ -77,12 +77,18 @@ The semantics are identical across agent surfaces:
 When the user asks to execute a Business Requirement, the ordered flow is:
 
 1. Run `python3 scripts/requirement_intake.py start --requirement owner/repo#N`.
-2. Drive `scripts/orchestrate_pre_authoring.py status` resumably.
-3. Build/reuse evidence snapshot, draft and approve the ADD, pausing for the
-   human only when the orchestrator surfaces a genuinely consequential open
-   choice.
-4. Decompose approved ADD elements into intents and prepare OpenSpec handoff
-   envelopes.
+2. Drive `scripts/orchestrate_pre_authoring.py status` resumably. Record an
+   explainable `select-depth` decision bound to the complete Requirement:
+   `deterministic`, `bounded-evidence` (with explicit `--concern` scope), or
+   `material-design`. An unchanged selection is reused; a changed Requirement
+   invalidates it and its derived artifacts.
+3. The deterministic path produces a direct handoff without snapshot or model
+   work. Bounded evidence builds only selected projections through the routine
+   read-only route and then produces a direct handoff. Neither path creates ADD
+   or intents. For material design, build/reuse evidence, draft and approve ADD,
+   pausing for a genuinely consequential open choice.
+4. On the material path, decompose approved ADD elements into intents and
+   prepare OpenSpec handoff envelopes.
 5. For every ready handoff, author the internal technical change through the
    existing managed/OpenSpec lifecycle.
 6. Immediately link each resulting child Issue with
