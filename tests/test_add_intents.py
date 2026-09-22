@@ -761,6 +761,28 @@ class HandoffTests(unittest.TestCase):
         self.assertTrue(report.ok, report.errors)
         self.assertEqual(report.freshness, "fresh")
 
+    def test_handoff_envelope_preserves_complete_requirement_context(self) -> None:
+        envelope = add_intents.prepare_handoff(
+            self.root, add_path=self.add_path, intents_path=self.intents_path,
+            intent_ids=["intent-tier-boundary"], out=self.root / "handoff.json",
+            requirement_context={
+                "version": 1,
+                "outcome": "Introduce tiered pricing.",
+                "context": "Customers need a lower-cost plan.",
+                "acceptance_evidence": "A customer can subscribe to a tier.",
+                "exclusions": "No change to invoicing.",
+                "target_repository": "acme/billing",
+            },
+        )
+        self.assertEqual(envelope["requirement_context"], {
+            "version": 1,
+            "outcome": "Introduce tiered pricing.",
+            "context": "Customers need a lower-cost plan.",
+            "acceptance_evidence": "A customer can subscribe to a tier.",
+            "exclusions": "No change to invoicing.",
+            "target_repository": "acme/billing",
+        })
+
     def test_handoff_requires_group_reason_for_multiple_intents(self) -> None:
         intents_document = json.loads(self.intents_path.read_text(encoding="utf-8"))
         intents_document["intents"].append(_intent(id="intent-second", covers=[]))

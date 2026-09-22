@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Thin resumable pre-authoring orchestrator.
+"""Thin resumable, proportional pre-authoring orchestrator.
 
 Composes project_evidence.py (Project Evidence Snapshots) and add_intents.py
 (ADD -> Intents -> OpenSpec handoff) into one status/decision surface that a
@@ -16,7 +16,10 @@ machine-local, non-authoritative navigation receipt.
 Directory layout per requirement id (default root: .claude/pre-authoring/<id>/):
     state.json      -- requirement identity + artifact paths (written once by init)
     snapshot.json   -- a Project Evidence Snapshot (project_evidence.py)
-    add.json        -- an ADD document (add_intents.py)
+    selection.json  -- explainable pre-authoring depth and evidence bindings
+    skip.json       -- derived receipt when ADD/intents are safely bypassed
+    direct-handoff.json -- normal OpenSpec authoring input for a skipped path
+    add.json        -- an ADD document (add_intents.py; material paths only)
     intents.json    -- an intent-set document (add_intents.py)
     handoff/<intent-or-group>.json -- OpenSpec authoring-input envelopes
     receipt.json    -- last computed status(), written for external inspection only
@@ -30,6 +33,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -37,8 +41,16 @@ import add_intents
 import project_evidence
 from _platform_common import atomic_write_text, current_worktree_root, utc_now
 
-STATE_VERSION = 1
+STATE_VERSION = 3
 RECEIPT_VERSION = 1
+SELECTION_VERSION = 1
+SKIP_RECEIPT_VERSION = 1
+DIRECT_HANDOFF_VERSION = 1
+
+DEPTH_DETERMINISTIC = "deterministic"
+DEPTH_BOUNDED_EVIDENCE = "bounded-evidence"
+DEPTH_MATERIAL_DESIGN = "material-design"
+DEPTHS = (DEPTH_DETERMINISTIC, DEPTH_BOUNDED_EVIDENCE, DEPTH_MATERIAL_DESIGN)
 
 
 class OrchestratorError(RuntimeError):
@@ -94,8 +106,39 @@ def receipt_path(directory: Path) -> Path:
     return directory / "receipt.json"
 
 
+def selection_path(directory: Path) -> Path:
+    return directory / "selection.json"
+
+
+def skip_path(directory: Path) -> Path:
+    return directory / "skip.json"
+
+
+def direct_handoff_path(directory: Path) -> Path:
+    return directory / "direct-handoff.json"
+
+
 def load_state(directory: Path) -> dict[str, Any]:
     return _load_json(state_path(directory), "pre-authoring state")
+
+
+def _invalidate_from_selection(directory: Path) -> None:
+    """Discard only artifacts derived from a Requirement's business meaning.
+
+    A Project Evidence Snapshot is rooted in the target worktree, rather than
+    the Requirement text, so it remains eligible for its own freshness check.
+    ADD, intents, handoffs and navigation receipts are all downstream of the
+    Requirement and must be rebuilt. No OpenSpec directory is under this
+    machine-local pre-authoring root, so materialized OpenSpec is untouched.
+    """
+    for path in (
+        selection_path(directory), skip_path(directory), direct_handoff_path(directory),
+        add_path(directory), intents_path(directory), receipt_path(directory),
+    ):
+        path.unlink(missing_ok=True)
+    handoffs = handoff_dir(directory)
+    if handoffs.exists():
+        shutil.rmtree(handoffs)
 
 
 def init(
@@ -105,34 +148,67 @@ def init(
     requirement_file: Path,
     target_repository: str,
     base_dir: Path | None = None,
+    refresh_requirement: bool = False,
+    business_context_file: Path | None = None,
 ) -> dict[str, Any]:
-    """Bind a requirement identity and scaffold its ADD. Safe to call repeatedly.
+    """Bind a Requirement identity. Safe to call repeatedly.
 
-    Refuses to re-init over an existing state bound to different requirement
-    content: a requirement id names one requirement, not a slot to overwrite.
-    Resumable across a partial failure: if state.json exists (from a prior
-    call) but add.json does not (e.g. new_add raised after state.json was
-    written), this retries the ADD scaffold instead of returning stale state
-    for a permanently-missing artifact.
+    Refuses to re-init over an existing state bound to a different local
+    Requirement identity. Requirement intake supplies ``refresh_requirement``
+    after refetching its stable GitHub Issue; a changed complete binding then
+    resets ADD-and-later derived artifacts before safely rebinding.
+    Depth is deliberately selected after this deterministic binding.  ADD is
+    therefore scaffolded only for a recorded material-design selection.
     """
     base_dir = base_dir or default_base_dir(root)
     directory = requirement_dir(base_dir, requirement_id)
     if not requirement_file.is_file():
         raise OrchestratorError(f"requirement file is missing: {requirement_file}")
+    if business_context_file is not None and not business_context_file.is_file():
+        raise OrchestratorError(f"Requirement context file is missing: {business_context_file}")
     requirement_digest = _digest(requirement_file.read_text(encoding="utf-8"))
+    business_context_file_value = str(business_context_file) if business_context_file is not None else None
     existing_state_path = state_path(directory)
     if existing_state_path.is_file():
         existing = load_state(directory)
-        if existing.get("requirement_digest") != requirement_digest or existing.get("target_repository") != target_repository:
-            raise OrchestratorError(
-                f"pre-authoring state for {requirement_id!r} already exists and is bound to different "
-                "requirement content/target; use a different --id for a different requirement"
+        legacy_requirement_file = directory / "requirement.md"
+        is_legacy_outcome_only_state = (
+            existing.get("version") != STATE_VERSION
+            and existing.get("requirement_file") == str(legacy_requirement_file)
+        )
+        if (
+            existing.get("id") != requirement_id
+            or (
+                existing.get("requirement_file") != str(requirement_file)
+                and not (refresh_requirement and is_legacy_outcome_only_state)
             )
-        if add_path(directory).is_file():
+        ):
+            raise OrchestratorError(
+                f"pre-authoring state for {requirement_id!r} is bound to a different Requirement identity; "
+                "use a different --id for a different requirement"
+            )
+        binding_changed = (
+            existing.get("version") != STATE_VERSION
+            or existing.get("requirement_file") != str(requirement_file)
+            or existing.get("requirement_digest") != requirement_digest
+            or existing.get("target_repository") != target_repository
+            or existing.get("business_context_file") != business_context_file_value
+        )
+        if binding_changed and not refresh_requirement:
+            raise OrchestratorError(
+                f"pre-authoring state for {requirement_id!r} has a changed or legacy Requirement binding; "
+                "restart through requirement_intake.py start to rebuild derived pre-authoring artifacts"
+            )
+        if not binding_changed:
             return existing
+        if binding_changed:
+            _invalidate_from_selection(directory)
+        created_at = existing.get("created_at") if isinstance(existing.get("created_at"), str) else utc_now()
         # state.json survived a prior failed init (new_add did not complete);
         # fall through and retry the ADD scaffold rather than returning state
         # for a permanently-missing artifact.
+    else:
+        created_at = utc_now()
     directory.mkdir(parents=True, exist_ok=True)
     state = {
         "version": STATE_VERSION,
@@ -140,24 +216,90 @@ def init(
         "requirement_file": str(requirement_file),
         "requirement_digest": requirement_digest,
         "target_repository": target_repository,
-        "created_at": utc_now(),
+        "business_context_file": business_context_file_value,
+        "created_at": created_at,
     }
     _write_json(existing_state_path, state)
-    add_intents.new_add(
-        root,
-        add_id=requirement_id,
-        requirement_file=requirement_file,
-        target_repository=target_repository,
-        out=add_path(directory),
-    )
     return state
 
 
-def _snapshot_status(root: Path, directory: Path) -> dict[str, Any]:
-    path = snapshot_path(directory)
+def select_depth(
+    root: Path, *, requirement_id: str, depth: str, reason: str,
+    concerns: list[str] | None = None, base_dir: Path | None = None,
+) -> dict[str, Any]:
+    """Record an explicit, reviewable depth decision without a model call.
+
+    The caller supplies the semantic judgment; this function enforces its
+    bounded consequences and binds it to the complete Requirement identity.
+    """
+    directory = requirement_dir(base_dir or default_base_dir(root), requirement_id)
+    state = load_state(directory)
+    if depth not in DEPTHS or not reason.strip():
+        raise OrchestratorError("depth must be supported and reason must be non-empty")
+    if depth == DEPTH_BOUNDED_EVIDENCE:
+        try:
+            selected = list(project_evidence._selected_concerns(concerns))
+        except project_evidence.ProjectEvidenceError as exc:
+            raise OrchestratorError(str(exc)) from exc
+        if concerns is None:
+            raise OrchestratorError("bounded evidence requires explicit --concern scope")
+    elif concerns:
+        if depth == DEPTH_DETERMINISTIC:
+            raise OrchestratorError("deterministic depth cannot request worker projections")
+        selected = list(project_evidence._selected_concerns(concerns))
+    else:
+        selected = [] if depth == DEPTH_DETERMINISTIC else list(project_evidence.CONCERNS)
+    if _digest(Path(state["requirement_file"]).read_text(encoding="utf-8")) != state["requirement_digest"]:
+        raise OrchestratorError("Requirement binding changed; restart through requirement_intake.py start")
+    decision = {
+        "version": SELECTION_VERSION, "depth": depth, "reason": reason.strip(),
+        "requirement_digest": state["requirement_digest"],
+        "target_repository": state["target_repository"], "concerns": selected,
+        "routing": "routine-read-only" if depth == DEPTH_BOUNDED_EVIDENCE else ("R2-default" if depth == DEPTH_MATERIAL_DESIGN else "none"),
+    }
+    path = selection_path(directory)
+    if path.is_file():
+        previous = _load_json(path, "depth selection")
+        if previous == decision:
+            if depth == DEPTH_MATERIAL_DESIGN and not add_path(directory).is_file():
+                add_intents.new_add(
+                    root, add_id=requirement_id, requirement_file=Path(state["requirement_file"]),
+                    target_repository=state["target_repository"], out=add_path(directory),
+                )
+            return decision
+        _invalidate_from_selection(directory)
+    _write_json(path, decision)
+    if depth == DEPTH_MATERIAL_DESIGN:
+        add_intents.new_add(
+            root, add_id=requirement_id, requirement_file=Path(state["requirement_file"]),
+            target_repository=state["target_repository"], out=add_path(directory),
+        )
+    return decision
+
+
+def _selection_status(root: Path, directory: Path, state: dict[str, Any]) -> dict[str, Any]:
+    path = selection_path(directory)
     if not path.is_file():
-        return {"stage": "snapshot", "state": "missing", "action": f"project_evidence.py build --out {path}"}
+        return {"stage": "selection", "state": "missing", "action": "orchestrate_pre_authoring.py select-depth --depth <deterministic|bounded-evidence|material-design> --reason TEXT [--concern NAME]"}
+    selection = _load_json(path, "depth selection")
+    if selection.get("version") != SELECTION_VERSION or selection.get("depth") not in DEPTHS:
+        return {"stage": "selection", "state": "invalid", "action": "record a supported depth selection"}
+    if (selection.get("requirement_digest") != state.get("requirement_digest")
+            or selection.get("target_repository") != state.get("target_repository")
+            or not Path(state["requirement_file"]).is_file()
+            or _digest(Path(state["requirement_file"]).read_text(encoding="utf-8")) != state["requirement_digest"]):
+        return {"stage": "selection", "state": "stale", "action": "requirement_intake.py start --requirement <issue>"}
+    return {"stage": "selection", "state": "ready", "decision": selection}
+
+
+def _snapshot_status(root: Path, directory: Path, concerns: list[str]) -> dict[str, Any]:
+    path = snapshot_path(directory)
+    scope = " ".join(f"--concern {concern}" for concern in concerns)
+    if not path.is_file():
+        return {"stage": "snapshot", "state": "missing", "action": f"project_evidence.py build --out {path} {scope}".strip()}
     snapshot = _load_json(path, "snapshot")
+    if set(snapshot.get("projections", {})) != set(concerns):
+        return {"stage": "snapshot", "state": "scope-mismatch", "action": f"project_evidence.py build --out {path} {scope}".strip()}
     try:
         report = project_evidence.validate_snapshot(root, snapshot, check_freshness=True)
     except project_evidence.ProjectEvidenceError as exc:
@@ -167,6 +309,13 @@ def _snapshot_status(root: Path, directory: Path) -> dict[str, Any]:
         for concern, projection in snapshot.get("projections", {}).items()
         if isinstance(projection, dict) and projection.get("status") == "requires-extraction"
     ]
+    escalation = [
+        concern for concern, projection in snapshot.get("projections", {}).items()
+        if isinstance(projection, dict) and projection.get("status") == "escalation-required"
+    ]
+    if escalation:
+        return {"stage": "snapshot", "state": "needs-escalation", "concerns": escalation,
+                "action": "resolve conflicting or low-confidence evidence before continuing"}
     if needs_extraction:
         worker_requests = {
             concern: snapshot["projections"][concern]["worker_request"] for concern in needs_extraction
@@ -179,6 +328,7 @@ def _snapshot_status(root: Path, directory: Path) -> dict[str, Any]:
                 f"run each worker_request, write results to files, then "
                 f"project_evidence.py build --out {path} --prior {path} "
                 + " ".join(f"--worker-result {concern}=<path>" for concern in needs_extraction)
+                + f" {scope}"
             ),
         }
     if report["freshness"] not in ("fresh",):
@@ -187,7 +337,7 @@ def _snapshot_status(root: Path, directory: Path) -> dict[str, Any]:
             "state": "stale",
             "freshness": report["freshness"],
             "changed_sources": report["changed_sources"],
-            "action": f"project_evidence.py build --out {path} --prior {path} [--worker-result ...]",
+            "action": f"project_evidence.py build --out {path} --prior {path} {scope} [--worker-result ...]",
         }
     return {"stage": "snapshot", "state": "ready", "digest": snapshot["digest"]}
 
@@ -203,7 +353,7 @@ def _decision_request(item: dict[str, Any], index: int) -> dict[str, Any]:
 def _add_status(root: Path, directory: Path) -> dict[str, Any]:
     path = add_path(directory)
     if not path.is_file():
-        return {"stage": "add", "state": "missing", "action": "orchestrate_pre_authoring.py init"}
+        return {"stage": "add", "state": "missing", "action": "re-run select-depth --depth material-design with the recorded reason"}
     document = _load_json(path, "ADD document")
     open_decisions = [
         _decision_request(item, index)
@@ -284,6 +434,12 @@ def _handoff_status(root: Path, directory: Path, ready_intent_ids: list[str]) ->
     directory_h = handoff_dir(directory)
     add_file = add_path(directory)
     intents_file = intents_path(directory)
+    state = load_state(directory)
+    business_context_file = state.get("business_context_file")
+    context_argument = (
+        f" --requirement-context-file {business_context_file}"
+        if isinstance(business_context_file, str) and business_context_file else ""
+    )
     prepared: dict[str, Any] = {}
     missing: list[str] = []
     stale: dict[str, Any] = {}
@@ -307,7 +463,8 @@ def _handoff_status(root: Path, directory: Path, ready_intent_ids: list[str]) ->
             "stale_intent_ids": stale,
             "action": (
                 f"add_intents.py prepare-handoff --add {add_file} --intents {intents_file} "
-                f"--intent-id <id> --out {directory_h}/<id>.json"
+                f"--intent-id <id>{context_argument} "
+                f"--out {directory_h}/<id>.json"
             ),
         }
     return {"stage": "handoff", "state": "ready", "envelopes": prepared}
@@ -325,18 +482,34 @@ def status(root: Path, *, requirement_id: str, base_dir: Path | None = None) -> 
     directory = requirement_dir(base_dir, requirement_id)
     state = load_state(directory)
 
-    snapshot_report = _snapshot_status(root, directory)
-    stages: dict[str, Any] = {"snapshot": snapshot_report}
+    selection_report = _selection_status(root, directory, state)
+    stages: dict[str, Any] = {"selection": selection_report}
     result: dict[str, Any] = {
         "id": requirement_id,
         "target_repository": state.get("target_repository"),
         "stages": stages,
     }
+    if selection_report["state"] != "ready":
+        result["current_stage"] = "selection"
+        result["blocker"] = selection_report
+        _write_receipt(directory, result)
+        return result
+
+    decision = selection_report["decision"]
+    depth = decision["depth"]
+    if depth == DEPTH_DETERMINISTIC:
+        return _finish_skip(directory, result, state, decision, None)
+
+    snapshot_report = _snapshot_status(root, directory, decision["concerns"])
+    stages["snapshot"] = snapshot_report
     if snapshot_report["state"] != "ready":
         result["current_stage"] = "snapshot"
         result["blocker"] = snapshot_report
         _write_receipt(directory, result)
         return result
+
+    if depth == DEPTH_BOUNDED_EVIDENCE:
+        return _finish_skip(directory, result, state, decision, snapshot_report["digest"])
 
     add_report = _add_status(root, directory)
     stages["add"] = add_report
@@ -365,6 +538,37 @@ def status(root: Path, *, requirement_id: str, base_dir: Path | None = None) -> 
     result["current_stage"] = "complete"
     result["blocker"] = None
     result["handoffs"] = handoff_report["envelopes"]
+    _write_receipt(directory, result)
+    return result
+
+
+def _finish_skip(
+    directory: Path, result: dict[str, Any], state: dict[str, Any],
+    decision: dict[str, Any], evidence_digest: str | None,
+) -> dict[str, Any]:
+    """Reconcile derived skip/handoff receipts from fresh source bindings."""
+    binding = {
+        "version": SKIP_RECEIPT_VERSION, "depth": decision["depth"],
+        "reason": decision["reason"], "requirement_digest": state["requirement_digest"],
+        "target_repository": state["target_repository"],
+        "concerns": decision["concerns"], "evidence_digest": evidence_digest,
+        "routing": decision["routing"],
+    }
+    if not skip_path(directory).is_file() or _load_json(skip_path(directory), "skip receipt") != binding:
+        _write_json(skip_path(directory), binding)
+    context_file = state.get("business_context_file")
+    context = _load_json(Path(context_file), "Requirement context") if context_file else None
+    handoff = {
+        "version": DIRECT_HANDOFF_VERSION, "kind": "direct-requirement-handoff",
+        "requirement_id": result["id"], "requirement_context": context,
+        "source_binding": binding,
+    }
+    if not direct_handoff_path(directory).is_file() or _load_json(direct_handoff_path(directory), "direct handoff") != handoff:
+        _write_json(direct_handoff_path(directory), handoff)
+    result["stages"]["skip"] = {"stage": "skip", "state": "ready", "receipt": str(skip_path(directory))}
+    result["current_stage"] = "complete"
+    result["blocker"] = None
+    result["handoffs"] = {"direct": str(direct_handoff_path(directory))}
     _write_receipt(directory, result)
     return result
 
@@ -417,11 +621,16 @@ def main() -> int:
     parser.add_argument("--base-dir", type=Path, default=None, help="override the default .claude/pre-authoring directory")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    init_parser = sub.add_parser("init", help="bind a requirement identity and scaffold its ADD")
+    init_parser = sub.add_parser("init", help="bind a requirement identity")
     init_parser.add_argument("--requirement-file", required=True, type=Path)
     init_parser.add_argument("--target-repository", required=True)
 
     sub.add_parser("status", help="recompute the current/next pre-authoring stage from the artifact files")
+
+    select_parser = sub.add_parser("select-depth", help="record a reasoned, bounded depth decision")
+    select_parser.add_argument("--depth", required=True, choices=DEPTHS)
+    select_parser.add_argument("--reason", required=True)
+    select_parser.add_argument("--concern", action="append", choices=project_evidence.CONCERNS)
 
     decision_parser = sub.add_parser("record-decision", help="apply an accepted human answer to one open ADD decision")
     decision_parser.add_argument("--index", required=True, type=int)
@@ -444,6 +653,11 @@ def main() -> int:
             payload = status(root, requirement_id=args.requirement_id, base_dir=args.base_dir)
             print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
             return 0 if payload["current_stage"] == "complete" else 1
+        if args.command == "select-depth":
+            payload = select_depth(root, requirement_id=args.requirement_id, depth=args.depth,
+                                   reason=args.reason, concerns=args.concern, base_dir=args.base_dir)
+            print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+            return 0
         if args.command == "record-decision":
             document = record_decision(
                 root,

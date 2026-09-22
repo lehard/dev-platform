@@ -2,9 +2,7 @@
 
 ## Purpose
 Define the end-to-end agent workflow for disciplined task intake, implementation, verification, and delivery.
-
 ## Requirements
-
 ### Requirement: Unknown defects use evidence-first diagnosis
 
 Dev Platform SHALL provide a reusable diagnosis path for unknown bugs, regressions and unexplained failures that establishes an observable failure condition and tests falsifiable hypotheses before claiming a root cause.
@@ -176,14 +174,16 @@ The intent set SHALL make ADD coverage and dependency structure inspectable with
 
 ### Requirement: Intents are the normalized input to OpenSpec authoring
 
-OpenSpec authoring SHALL consume atomic intents rather than using ADD directly as the normal specification unit.
+OpenSpec authoring SHALL consume atomic intents rather than using ADD directly as the normal specification unit. The handoff SHALL retain the complete accepted Requirement business context as bounded authoring input.
 
 #### Scenario: Intent is ready for authoring
+
 - **WHEN** an intent has bounded outcome, scope/non-goals, dependencies, and ADD/evidence references
-- **THEN** it can be handed to OpenSpec proposal authoring
+- **THEN** its handoff includes the complete accepted Requirement business context plus the intent and approved ADD constraints
 - **AND** authoring does not repeat broad system/design discovery merely to rediscover the approved delta
 
 #### Scenario: OpenSpec authoring finds a material ADD conflict
+
 - **WHEN** proposal/spec/design authoring requires changing an approved ADD decision
 - **THEN** the flow returns to ADD/intent refinement
 - **AND** does not silently override the approved design
@@ -342,12 +342,27 @@ Dev Platform SHALL support recording an accepted business requirement as one Dev
 
 ### Requirement: A Requirement can start and resume pre-authoring
 
-Dev Platform SHALL provide one entrypoint that binds a Requirement identity to the pre-authoring orchestrator (#129) so analysis can begin and resume from it across sessions.
+Dev Platform SHALL provide one entrypoint that binds a Requirement identity to the pre-authoring orchestrator so analysis can begin and resume across sessions. The binding SHALL include the canonical values of Outcome, Context when present, Acceptance evidence when present, Exclusions when present, and target repository; it SHALL NOT bind only Outcome.
 
 #### Scenario: Requirement bridges into pre-authoring
+
 - **WHEN** `requirement_intake.py start` is given a Requirement reference
-- **THEN** it extracts the requirement's outcome/target-repository from the Issue body
-- **AND** initializes the pre-authoring orchestrator with that content under the Requirement's stable identity
+- **THEN** it extracts the Requirement's Outcome, Context, Acceptance evidence, Exclusions, and target repository from the Issue body
+- **AND** initializes the pre-authoring orchestrator with a digestable canonical representation under the Requirement's stable identity
+
+#### Scenario: Meaningful Requirement content changes before materialization
+
+- **GIVEN** a Requirement has local pre-authoring artifacts but no canonical managed OpenSpec materialization
+- **WHEN** a later start observes a changed Outcome, Context, Acceptance evidence, Exclusions, or target repository
+- **THEN** it invalidates dependent derived pre-authoring state before reuse
+- **AND** it does not continue design or handoff from the stale business meaning
+
+#### Scenario: Requirement content is unchanged on resume
+
+- **GIVEN** a Requirement's complete canonical business representation is unchanged
+- **WHEN** pre-authoring resumes
+- **THEN** existing snapshot, ADD, intent, and handoff artifacts remain eligible for their normal content/freshness checks
+- **AND** the flow does not repeat semantic work solely because the session restarted
 
 ### Requirement: Internal managed OpenSpec changes remain linked to their parent Requirement
 
@@ -376,3 +391,77 @@ Dev Platform SHALL derive a Requirement's aggregate progress by reading its link
 #### Scenario: Unreadable child status fails closed
 - **WHEN** a linked child's Project status cannot be read
 - **THEN** the aggregate reports that child as unknown rather than assuming it is done or in progress
+
+### Requirement: Requirement pre-authoring is proportional and provider-neutral
+
+Dev Platform SHALL select and record the least ceremonial safe pre-authoring depth from the complete Requirement and scoped repository evidence. The selection SHALL compose with the existing provider-neutral routing policy and SHALL NOT introduce a second router or provider-specific lifecycle.
+
+#### Scenario: Deterministic work bypasses semantic design stages
+
+- **WHEN** a complete Requirement and its bounded repository evidence yield a deterministic action with no material design delta
+- **THEN** the flow records the deterministic depth and next action without invoking a model or requiring ADD/intents
+- **AND** a resumed run can reuse that recorded decision while its bindings remain fresh
+
+#### Scenario: Bounded evidence work uses the routine read-only path
+
+- **WHEN** the flow needs bounded evidence extraction but no material design decision
+- **THEN** it requests only the scoped projections needed for that extraction
+- **AND** it records the existing routine read-only route rather than escalating to design routing
+
+#### Scenario: Material design work proceeds through ADD and intents
+
+- **WHEN** scoped evidence leaves a genuine architecture, behavior, compatibility, or execution design delta
+- **THEN** the flow records that reason and requires ADD/intents under the existing R2 default
+- **AND** it escalates to R3 only for a documented existing hard trigger
+
+#### Scenario: Explicit skip and scoped evidence remain resumable
+
+- **WHEN** ADD/intents are safely skipped or a matching scoped projection is already fresh
+- **THEN** the flow persists a bounded receipt with its source/evidence bindings
+- **AND** a changed binding invalidates only the decision and artifacts that depended on it
+
+### Requirement: Ready Requirement handoffs materialize idempotently into linked internal changes
+
+Dev Platform SHALL materialize a validated ready handoff through the existing managed-task intake boundary and SHALL return success only when the exact internal managed change and its parent Requirement linkage are both confirmed.
+
+#### Scenario: A ready handoff creates one linked internal change
+
+- **WHEN** a validated ready handoff is materialized for a Requirement
+- **THEN** the adapter renders the existing managed-task package contract and creates or exactly reuses one internal managed Issue
+- **AND** it immediately confirms the parent-to-child and child-to-parent linkage before reporting success
+
+#### Scenario: Retry repairs an interrupted linkage without duplication
+
+- **GIVEN** a prior materialization created its exact child but did not complete linkage
+- **WHEN** the same handoff is retried
+- **THEN** the adapter resolves that exact child by stable handoff identity and repairs the missing link
+- **AND** it does not create another managed Issue or canonical OpenSpec change
+
+#### Scenario: Invalid or ambiguous materialization fails safely
+
+- **WHEN** handoff bindings are invalid or candidate provenance is ambiguous
+- **THEN** materialization stops with actionable failure evidence
+- **AND** it does not report a partial Issue/link pair as successful
+
+### Requirement: Requirement progress is a derived human-facing projection
+
+Dev Platform SHALL expose the Requirement's pre-authoring and child-execution progress as a recomputable read-through projection. It SHALL NOT create or mutate a second manual Requirement lifecycle state.
+
+#### Scenario: Pre-authoring and readiness are visible before children exist
+
+- **WHEN** a Requirement has current local orchestrator evidence and no linked internal child
+- **THEN** the projection distinguishes active pre-authoring/design, a human decision gate when applicable, and implementation readiness
+- **AND** it identifies the evidence used for that display stage
+
+#### Scenario: Linked child lifecycle determines implementation and completion
+
+- **WHEN** a Requirement has linked internal changes with authoritative lifecycle observations
+- **THEN** the projection reports implementation while required children are active and completion only when all required children are complete
+- **AND** it keeps internal changes out of the primary human-facing Project view
+
+#### Scenario: Unreadable or contradictory source state is not optimistic
+
+- **WHEN** required orchestrator or linked-child source state is missing, stale, unreadable, contradictory, or explicitly blocked
+- **THEN** the projection reports blocked or unknown with the diagnostic reason
+- **AND** it does not present the Requirement as ready or complete
+

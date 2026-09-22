@@ -77,28 +77,44 @@ The semantics are identical across agent surfaces:
 When the user asks to execute a Business Requirement, the ordered flow is:
 
 1. Run `python3 scripts/requirement_intake.py start --requirement owner/repo#N`.
-2. Drive `scripts/orchestrate_pre_authoring.py status` resumably.
-3. Build/reuse evidence snapshot, draft and approve the ADD, pausing for the
-   human only when the orchestrator surfaces a genuinely consequential open
-   choice.
-4. Decompose approved ADD elements into intents and prepare OpenSpec handoff
-   envelopes.
-5. For every ready handoff, author the internal technical change through the
-   existing managed/OpenSpec lifecycle.
-6. Immediately link each resulting child Issue with
-   `python3 scripts/requirement_intake.py link-child --requirement owner/repo#N --child owner/repo#M`.
-   Each child is labeled `type:internal-change` and carries a parent
+2. Drive `scripts/orchestrate_pre_authoring.py status` resumably. Record an
+   explainable `select-depth` decision bound to the complete Requirement:
+   `deterministic`, `bounded-evidence` (with explicit `--concern` scope), or
+   `material-design`. An unchanged selection is reused; a changed Requirement
+   invalidates it and its derived artifacts.
+3. The deterministic path produces a direct handoff without snapshot or model
+   work. Bounded evidence builds only selected projections through the routine
+   read-only route and then produces a direct handoff. Neither path creates ADD
+   or intents. For material design, build/reuse evidence, draft and approve ADD,
+   pausing for a genuinely consequential open choice.
+4. On the material path, decompose approved ADD elements into intents and
+   prepare OpenSpec handoff envelopes.
+5. For every ready handoff, author its managed bundle and run
+   `python3 scripts/requirement_intake.py materialize-handoff --requirement owner/repo#N --handoff <ready-envelope.json> --bundle <authored-bundle-directory>`.
+   The adapter validates current handoff readiness, creates or exactly reuses
+   one managed Issue, repairs an interrupted parent/child link on retry, and
+   reports success only after both link directions are confirmed. It does not
+   invent proposal/design/spec content: the bundle remains the authored
+   OpenSpec input. Each child carries `type:internal-change` and a parent
    back-reference.
-7. Start and implement those internal managed tasks through the existing
+6. Start and implement those internal managed tasks through the existing
    lifecycle. OpenSpec becomes canonical only for each technical child after
    that child is materialized.
 
 Requirement progress is read-through, never a second status ledger:
 `python3 scripts/requirement_intake.py aggregate --requirement owner/repo#N`
-derives progress from the linked children's real Development Backlog Project
-statuses. The primary human-facing Project view should show Requirements and
-exclude `type:internal-change`; child visibility remains available through
-the parent links and dedicated/internal views.
+retains its child-only `status` for compatibility and adds a `progress`
+projection. `progress.stage` is one of `pre-authoring`, `design`,
+`human-decision`, `ready`, `implementation`, `blocked`, `unknown`, or `done`;
+before materialization it reads local orchestrator evidence; once children
+exist it reads their authoritative Development Backlog Project statuses without
+requiring machine-local pre-authoring state. Its `reason`, `diagnostics`, and
+`sources` identify the evidence used. An unreadable, stale, unsupported, or
+contradictory source fails closed to `unknown`; an explicit child block or
+orchestrator escalation reports `blocked`. No output is persisted as a
+Requirement field. The primary human-facing Project view should show
+Requirements and exclude `type:internal-change`; child visibility remains
+available through the parent links and dedicated/internal views.
 
 ## Incubator
 
