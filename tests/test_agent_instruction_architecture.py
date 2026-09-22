@@ -116,7 +116,7 @@ class InstructionArchitectureTests(unittest.TestCase):
                 self.assertNotIn("Fix/add to Backlog", text)
                 self.assertNotIn("managed_task.py", text)
 
-    def test_task_intake_and_chatgpt_adapter_share_one_authoring_contract(self) -> None:
+    def test_task_intake_and_chatgpt_adapter_share_requirement_first_contract(self) -> None:
         paths = (
             "docs/engineering/task-intake.md",
             "template/docs/engineering/task-intake.md.jinja",
@@ -126,18 +126,35 @@ class InstructionArchitectureTests(unittest.TestCase):
         for relative in paths:
             text = (ROOT / relative).read_text(encoding="utf-8")
             with self.subTest(relative=relative):
-                self.assertIn("managed-openspec:v1", text)
-                self.assertIn("Backlog", text)
-                self.assertIn("start_managed_task.py", text)
+                self.assertIn("type:requirement", text)
+                self.assertIn("requirement_intake.py", text)
+                self.assertIn("type:internal-change", text)
+                self.assertIn("fixation-only", text)
+
+        # Generic fixation must not silently collapse back to direct OpenSpec
+        # authoring on repository-local agents.
+        for relative in ("docs/engineering/task-intake.md", "template/docs/engineering/task-intake.md.jinja"):
+            text = (ROOT / relative).read_text(encoding="utf-8")
+            fixation = text[text.index("**Fix / add to Backlog**"):text.index("**Quick execution**")]
+            with self.subTest(relative=relative):
+                self.assertIn("Business Requirement", fixation)
+                self.assertNotIn("managed_task.py create", fixation)
+                self.assertNotIn("managed-openspec:v1", fixation)
+
+        # ChatGPT keeps the strict managed-package adapter, but only as the
+        # explicitly technical escape hatch rather than the generic fixation handler.
         for relative in ("docs/engineering/chatgpt-project-protocol.md", "template/docs/engineering/chatgpt-project-protocol.md"):
             text = (ROOT / relative).read_text(encoding="utf-8")
             with self.subTest(relative=relative):
+                self.assertIn("Default fixation: Business Requirement", text)
+                self.assertIn("Explicit direct technical managed authoring", text)
+                self.assertIn("managed-openspec:v1", text)
                 self.assertIn("Connected-GitHub authoring", text)
                 self.assertIn("no local shell is required", text)
                 self.assertIn("ChatGPT-specific manifest", text)
                 self.assertIn("ordered mutation-and-verification", text)
                 self.assertIn("exact `prepared_against` revision", text)
-                self.assertIn("must fail\nclosed", text)
+                self.assertIn("must fail closed", " ".join(text.split()))
 
     def test_chatgpt_fixture_is_backlog_only_and_consumable_by_normal_package_discovery(self) -> None:
         value = fixture("chatgpt_project_fixation.json")

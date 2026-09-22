@@ -52,59 +52,117 @@ After terminal task delivery, `finish_task.py --cleanup` records cleanup for a t
 ## Task intake
 
 {% if operator_config_path %}
-`AGENTS.md` owns the cross-agent task protocol. For an explicitly accepted non-trivial change that the user asks to record in Backlog, prepare a contained authoring bundle and run:
+The canonical cross-project contract is [task-intake.md](task-intake.md).
+Generic fixation is requirement-first.
+
+For an explicitly accepted non-trivial change that the user asks to record,
+author a Business Requirement and stop:
+
+~~~
+python3 scripts/requirement_intake.py create \
+  --repository OWNER/DEVELOPMENT-BACKLOG \
+  --title "<business requirement title>" \
+  --outcome-file <outcome.md> \
+  --target-repository OWNER/TARGET \
+  [--context-file <context.md>] \
+  [--acceptance-file <acceptance.md>] \
+  [--exclusions-file <exclusions.md>]
+~~~
+
+This creates/reuses only the human-facing `type:requirement` Issue. It does
+not author OpenSpec or technical decomposition and does not start execution.
+
+When the user asks to execute that Requirement, run:
+
+~~~
+python3 scripts/requirement_intake.py start --requirement owner/repo#N
+python3 scripts/orchestrate_pre_authoring.py status --id requirement-N
+~~~
+
+Resume evidence -> ADD -> intents -> handoff, asking the human only for a
+consequential unresolved choice. Each ready handoff becomes an internal
+technical managed change through the existing managed-task authoring path; link
+the resulting Issue back immediately:
 
 ~~~
 python3 scripts/managed_task.py create --bundle <directory>
+python3 scripts/requirement_intake.py link-child --requirement owner/repo#N --child owner/repo#M
+python3 scripts/start_managed_task.py owner/repo#M
 ~~~
 
-The helper validates the configured `development_backlog` contract, target origin and temporary OpenSpec artifacts against a short-lived checkout of the exact `prepared_against` revision it records (never a possibly-stale local working tree), then publishes exactly one package -- carrying bounded source-Issue revision evidence (`updated_at` plus a normalized title/body hash). The deterministic managed-task authoring receipt is excluded from that hash; human title/body scope edits remain drift evidence. The helper then stops. A bounded same-project/target candidate result requires the agent to decide scope explicitly before rerunning with `--confirm-distinct`; authoring never begins implementation.
+The child carries `type:internal-change`; the parent Requirement stays the
+human-facing object. Use
+`python3 scripts/requirement_intake.py aggregate --requirement owner/repo#N`
+for read-through progress from children's real Project statuses. Do not create
+a second Requirement status ledger.
 
-If the source Issue is edited after authoring but before start materializes it, start stops with an actionable diagnostic naming the recorded and current body hashes; either author a superseding package with `managed_task.py supersede --bundle <directory> owner/repo#N` or rerun start with `--acknowledge-source-issue-revision <current_body_sha256>` to explicitly keep the existing package's scope. `supersede` validates the replacement against exact current target state before activating it, rewrites the predecessor comment with a bounded `supersedes` link instead of leaving two ambiguous active packages, is refused once the task already reached `In review`/`Done`, and converges as a no-op on an unchanged retry. Legacy packages authored before this evidence existed skip the drift check entirely.
+Quick tasks remain unchanged. The direct managed/OpenSpec path remains
+available only when the user explicitly supplies an existing managed
+Issue/OpenSpec task or explicitly requests a technical managed task. In that
+case the existing `python3 scripts/managed_task.py create --bundle <directory>`,
+`python3 scripts/execute_managed_task.py --bundle <directory>`, and
+`python3 scripts/start_managed_task.py owner/repo#N` semantics remain available.
 
-For an explicit fresh non-trivial execution request, prepare the same bundle and use the composed path:
+For any internal or explicit-direct technical authoring bundle,
+`managed_task.py create --bundle <directory>` retains exact
+`prepared_against` validation and bounded duplicate detection. A bounded
+same-project/target candidate requires an explicit scope decision before
+rerunning with `--confirm-distinct`. Source-Issue revision evidence,
+`supersede`, routing, and recovery rules are unchanged.
 
-~~~
-python3 scripts/execute_managed_task.py --bundle <directory> --scope "<files/modules>"
-~~~
-
-It creates/reuses the exact managed Issue and immediately starts it before implementation; retries converge on the same authoring/start identity. An explicit fixation-only request still uses `managed_task.py create` and stops. The canonical cross-project intent contract is [task-intake.md](task-intake.md).
-
-Use the managed execution path for an explicitly supplied Development Backlog task:
+For a supplied internal/direct managed task:
 
 ~~~
 python3 scripts/start_managed_task.py owner/repo#N
 ~~~
 
-The managed-start entrypoint reads one versioned package through existing GitHub authentication and validates the target checkout without writing. It then starts the normal task branch/worktree, materializes planning artifacts there, performs structural validation, and reconciles the matching Development Backlog Project item to `In progress`. It stops before OpenSpec apply, implementation, publication, or automatic dispatch. If Project identity, item mapping, expected Status options, or Projects mutation permission is unavailable, start fails explicitly and cleans up only the newly-created task workspace. The standalone importer remains for recovery inside a task checkout and for the `light` profile; it rejects direct materialization from platform-owned `standard` and `multi-agent` integration branches.
-
-If Prepared against differs from the fetched integration commit, semantic preflight against current specs and active changes is mandatory. Formal/schema reconciliation is allowed; a material product-contract conflict must return to the user. After import, repository-local OpenSpec is the implementation contract and the backlog issue is provenance only.
-
-Small direct requests remain quick tasks: use the normal start/check/finish lifecycle without creating a central issue. If one becomes a material behavior, architecture, compatibility, data-contract, or scope change — or requires a full active OpenSpec contract — stop implementation and enter managed intake before continuing.
+Managed start reads and validates the versioned package before writing, creates
+the normal task branch/worktree, materializes planning artifacts only there,
+reconciles the matching Development Backlog Project item to `In progress`,
+and stops before OpenSpec apply, implementation, publication, or automatic
+dispatch. After materialization the child/direct Issue/OpenSpec package is
+authoritative for that technical change; a parent Requirement remains the
+human-facing business/progress object.
 
 ### Selective goal definition
 
-Goal definition is a selective refinement layer before this intake, not a new task state. Refine a goal before OpenSpec or managed-task authoring only when the user explicitly requests goal-backed work, or when a non-trivial request is materially unclear about its intended outcome or success evidence. Do not require goal creation for an ordinary concrete quick or implementation task.
+Goal definition is a selective refinement layer before this intake, not a new
+task state. Refine a goal before Requirement/OpenSpec authoring only when the
+user explicitly requests goal-backed work, or when a non-trivial request is
+materially unclear about its intended outcome or success evidence. Do not
+require goal creation for an ordinary concrete quick or implementation task.
 
-A usable goal states the concrete outcome, verification evidence, a meaningful quantitative or binary success threshold, relevant scope bounds, and the condition that should stop work for clarification. If a missing choice could change the intended result, ask one concise question instead of inventing the requirement.
+A usable goal states the concrete outcome, verification evidence, a meaningful
+quantitative or binary success threshold, relevant scope bounds, and the
+condition that should stop work for clarification. If a missing choice could
+change the intended result, ask one concise question instead of inventing the
+requirement.
 
-For an explicit goal-backed request, use supported native goal state through `/goal` or runtime-native goal tools when available, and inspect any active goal before creating a duplicate or conflicting one. Include a token budget only when the user explicitly requests one. A fuzzy request that the user did not ask to make goal-backed receives transient natural-language refinement, not implicit durable goal state. If native goal state was explicitly requested but is unavailable, perform an explicitly transient refinement or report the limitation; never claim that `create_goal` succeeded or that an active goal exists when the runtime cannot prove it.
+For an explicit goal-backed request, use supported native goal state through
+`/goal` or runtime-native goal tools when available, and inspect any active
+goal before creating a duplicate or conflicting one. Include a token budget
+only when the user explicitly requests one. A fuzzy request that the user did
+not ask to make goal-backed receives transient natural-language refinement, not
+implicit durable goal state. If native goal state was explicitly requested but
+is unavailable, perform an explicitly transient refinement or report the
+limitation; never claim that `create_goal` succeeded or that an active goal
+exists when the runtime cannot prove it.
 
-Goal refinement creates no goal file, backlog entry, decision log, resume artifact, or competing implementation plan. For managed work, the refined outcome informs the Issue/OpenSpec package; after materialization, that Issue/OpenSpec package is authoritative.
+Goal refinement creates no goal file, backlog entry, decision log, resume
+artifact, or competing implementation plan. For requirement-first work, the
+refined outcome informs the Business Requirement; after technical child
+materialization its OpenSpec is canonical for implementation. For a direct
+technical managed task, the Issue/OpenSpec package is authoritative after
+materialization.
 
 Managed delivery projects lifecycle evidence onto the central board: an exact
-reviewable PR becomes `In review`, while `Done` is written only after confirmed
-delivery and local reconciliation. Normal CI/merge waiting stays `In review`.
-For a real human/external stop, run
-`python3 scripts/managed_project_status.py block --reason "..."`; after the
-blocker clears, `resume` derives `In progress` versus `In review` from exact PR
-evidence. `status --json` is read-only. The resolver uses configured
-`development_backlog.project_owner` plus `project_number`, requires an
-unambiguous Issue item and the six expected Status options, and needs GitHub
-Projects authorization (`gh auth refresh -s project`). Quick tasks have no
+reviewable PR becomes `In review`, while `Done` is written only after
+confirmed delivery and local reconciliation. Normal CI/merge waiting stays
+`In review`. For a real human/external stop, use
+`managed_project_status.py block`; after it clears, `resume` derives
+`In progress` versus `In review` from exact PR evidence. Quick tasks have no
 managed provenance and therefore do not touch the Project.
 
-Bootstrap exception: the initial Development Backlog issue introduced the importer, so its package was manually scaffolded through the current OpenSpec CLI after target and semantic preflight. All later managed tasks use the managed-start command.
 {% else %}
 This project has not explicitly enabled an operator integration, so task intake is self-contained: it does not require an external Backlog, Project-status mutation, fleet registry, process-health labels, or operator credentials.
 
@@ -193,10 +251,12 @@ Record only high-signal friction: user correction, repeated failure, safety near
 
 The normal path is `record -> sanitized GitHub process issue upsert -> cloud triage/review`. Recording retains raw evidence locally and automatically creates or updates a fingerprinted issue in the correct repository. Routing failure leaves the local event pending and never blocks safe delivery; supported lifecycle commands retry it. Process issues are evidence only: neither triage nor review may create a managed task, OpenSpec change, implementation PR, or code change.
 
-When a human explicitly fixes accepted evidence into a managed task, author it
-with repeatable `--process-evidence owner/repo#N` references. The managed
-package keeps the canonical relation; linked open evidence gets the bounded
-`process:managed` label/backlink and remains open until terminal delivery. A
+When a human accepts process evidence as work, record the Business Requirement
+first. When pre-authoring produces the internal managed child that implements
+that evidence-backed change, author the child with repeatable
+`--process-evidence owner/repo#N` references. The managed package keeps the
+canonical relation; linked open evidence gets the bounded `process:managed`
+label/backlink and remains open until terminal delivery. A
 Process Health Review is read-only: its dated report records the exact `main`
 SHA and previous-review boundary, checks bounded current managed work and
 merged changes, clusters symptoms by likely root cause, and verifies

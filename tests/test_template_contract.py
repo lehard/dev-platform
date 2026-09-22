@@ -293,14 +293,14 @@ class TemplateContractTests(unittest.TestCase):
         workflow = (ROOT / "template" / "docs" / "engineering" / "agent-workflow.md.jinja").read_text(encoding="utf-8")
         self.assertIn("managed task", agents)
         self.assertIn("quick task", agents)
-        self.assertIn("Development Backlog Project item to `In progress`", agents)
+        self.assertIn("Development Backlog Project item to `In progress`", " ".join(agents.split()))
         self.assertIn("scripts/start_managed_task.py", agents)
         self.assertIn("scripts/execute_managed_task.py", agents)
         self.assertIn("scripts/start_managed_task.py", workflow)
         self.assertIn("scripts/execute_managed_task.py", workflow)
         doctor = (ROOT / "template" / "scripts" / "platform_doctor.py").read_text(encoding="utf-8")
         self.assertIn("scripts/start_managed_task.py", doctor)
-        self.assertIn("stops before OpenSpec apply", workflow)
+        self.assertIn("stops before OpenSpec apply", " ".join(workflow.split()))
         self.assertIn("check_task_intake_reference", doctor)
 
     def test_rendered_guidance_is_portable_without_operator_opt_in(self) -> None:
@@ -338,7 +338,7 @@ class TemplateContractTests(unittest.TestCase):
     def test_chatgpt_adapter_defers_to_shared_task_intake_contract(self) -> None:
         text = (ROOT / "docs" / "engineering" / "chatgpt-project-protocol.md").read_text(encoding="utf-8")
         self.assertIn("Fresh non-trivial execution", text)
-        self.assertIn("managed task-intake contract", text)
+        self.assertIn("requirement-first intent contract", text)
         self.assertIn("second fixation phrase", text)
 
     def test_goal_definition_is_selective_measurable_and_transient(self) -> None:
@@ -356,15 +356,16 @@ class TemplateContractTests(unittest.TestCase):
                 self.assertIn("docs/engineering/agent-workflow.md", text)
         for destination, text in (("central", central_workflow), ("template", workflow)):
             with self.subTest(destination=destination):
+                normalized = " ".join(text.split())
                 self.assertIn("## Selective goal definition", text)
-                self.assertIn("materially unclear about its intended outcome or success evidence", text)
-                self.assertIn("ordinary concrete quick or implementation task", text)
-                self.assertIn("quantitative or binary success threshold", text)
-                self.assertIn("For an explicit goal-backed request", text)
-                self.assertIn("`/goal` or runtime-native goal tools when available", text)
-                self.assertIn("not implicit durable goal state", text)
-                self.assertIn("never claim that `create_goal` succeeded", text)
-                self.assertIn("creates no goal file, backlog entry, decision log, resume artifact, or competing implementation plan", text)
+                self.assertIn("materially unclear about its intended outcome or success evidence", normalized)
+                self.assertIn("ordinary concrete quick or implementation task", normalized)
+                self.assertIn("quantitative or binary success threshold", normalized)
+                self.assertIn("For an explicit goal-backed request", normalized)
+                self.assertIn("`/goal` or runtime-native goal tools when available", normalized)
+                self.assertIn("not implicit durable goal state", normalized)
+                self.assertIn("never claim that `create_goal` succeeded", normalized)
+                self.assertIn("creates no goal file, backlog entry, decision log, resume artifact, or competing implementation plan", normalized)
         self.assertIn("Goal definition is a selective refinement layer before this intake", workflow)
         self.assertIn("Issue/OpenSpec package is authoritative", workflow)
 
