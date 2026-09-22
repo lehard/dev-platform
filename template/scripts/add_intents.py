@@ -727,13 +727,15 @@ def prepare_handoff(
     intent_ids: list[str],
     out: Path,
     group_reason: str | None = None,
+    requirement_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Produce a bounded OpenSpec authoring-input envelope for selected ready intent(s).
 
     This is a thin, deterministic packaging step: it never invents outcome
     prose, never talks to GitHub/OpenSpec authoring itself, and only carries
-    forward already-approved ADD/intent content plus evidence references so
-    OpenSpec authoring does not have to rediscover them. Grouping more than
+    forward already-approved ADD/intent content plus evidence references and
+    an optional canonical Requirement context so OpenSpec authoring does not
+    have to rediscover them. Grouping more than
     one intent into a single envelope requires an explicit `group_reason`
     (the ordinary OpenSpec split test still governs whether that grouping is
     actually justified).
@@ -797,6 +799,7 @@ def prepare_handoff(
         "created_at": utc_now(),
         "add_id": add_document.get("add_id"),
         "business_context": intents_document.get("business_context", ""),
+        "requirement_context": requirement_context,
         "intent_ids": list(intent_ids),
         "group_reason": group_reason.strip() if isinstance(group_reason, str) and group_reason.strip() else None,
         "intents": [
@@ -930,6 +933,10 @@ def main() -> int:
     prepare_handoff_parser.add_argument("--intents", required=True, type=Path, dest="intents_path")
     prepare_handoff_parser.add_argument("--intent-id", required=True, action="append", dest="intent_ids")
     prepare_handoff_parser.add_argument("--group-reason", default=None)
+    prepare_handoff_parser.add_argument(
+        "--requirement-context-file", type=Path,
+        help="canonical Requirement context JSON to preserve in the authoring envelope",
+    )
     prepare_handoff_parser.add_argument("--out", required=True, type=Path)
 
     validate_handoff_parser = sub.add_parser(
@@ -977,6 +984,10 @@ def main() -> int:
             print(json.dumps(report.to_dict(), ensure_ascii=False, indent=2))
             return 0 if report.ok else 2
         if args.command == "prepare-handoff":
+            requirement_context = (
+                _load_json(args.requirement_context_file, "Requirement context")
+                if args.requirement_context_file else None
+            )
             payload = prepare_handoff(
                 root,
                 add_path=args.add_path,
@@ -984,6 +995,7 @@ def main() -> int:
                 intent_ids=args.intent_ids,
                 out=args.out,
                 group_reason=args.group_reason,
+                requirement_context=requirement_context,
             )
             print(f"Handoff envelope scaffolded for {', '.join(args.intent_ids)} -> {args.out}")
             return 0

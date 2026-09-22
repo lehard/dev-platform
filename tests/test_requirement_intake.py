@@ -158,7 +158,10 @@ class StartPreAuthoringTests(unittest.TestCase):
     def test_start_bridges_a_requirement_issue_into_orchestrator_init(self) -> None:
         body = (
             "## Outcome\n\nMake onboarding self-serve.\n\n"
+            "## Context\n\nSupport currently onboards every client by hand.\n\n"
+            "## Acceptance evidence\n\nA new client can self-serve within one business day.\n\n"
             "## Target repository\n\n`acme/billing`\n\n"
+            "## Exclusions\n\nDoes not cover enterprise SSO.\n\n"
             f"{ri.CHILDREN_START}\n{ri.CHILDREN_END}\n"
         )
         with patch.object(ri, "fetch_issue", return_value={"body": body}):
@@ -168,8 +171,117 @@ class StartPreAuthoringTests(unittest.TestCase):
         self.assertTrue(ri.orchestrate_pre_authoring.add_path(directory).is_file())
         add_document = json.loads(ri.orchestrate_pre_authoring.add_path(directory).read_text(encoding="utf-8"))
         self.assertEqual(add_document["target_repository"], "acme/billing")
-        requirement_text = (directory / "requirement.md").read_text(encoding="utf-8")
-        self.assertEqual(requirement_text.strip(), "Make onboarding self-serve.")
+        context = json.loads((directory / "requirement.json").read_text(encoding="utf-8"))
+        self.assertEqual(context, {
+            "version": ri.REQUIREMENT_CONTEXT_VERSION,
+            "outcome": "Make onboarding self-serve.",
+            "context": "Support currently onboards every client by hand.",
+            "acceptance_evidence": "A new client can self-serve within one business day.",
+            "exclusions": "Does not cover enterprise SSO.",
+            "target_repository": "acme/billing",
+        })
+        self.assertEqual(payload["state"]["business_context_file"], str(directory / "requirement.json"))
+
+    def test_start_normalizes_formatting_only_edits_without_rebuilding(self) -> None:
+        initial = (
+            "## Outcome\n\nMake onboarding self-serve.\n\n"
+            "## Context\n\nSupport onboards every client by hand.\n\n"
+            "## Acceptance evidence\n\nA client self-serves in one business day.\n\n"
+            "## Target repository\n\n`acme/billing`\n\n"
+            "## Exclusions\n\nNo enterprise SSO.\n"
+        )
+        reformatted = (
+            "## Outcome\n\n Make   onboarding\n self-serve. \n\n"
+            "## Context\n\nSupport   onboards every\nclient by hand.\n\n"
+            "## Acceptance evidence\n\nA client self-serves in one business day.\n\n"
+            "## Target repository\n\n acme/billing \n\n"
+            "## Exclusions\n\nNo enterprise SSO.\n"
+        )
+        with patch.object(ri, "fetch_issue", return_value={"body": initial}):
+            first = ri.start_pre_authoring(self.root, requirement="acme/development-backlog#7", base_dir=self.base_dir)
+        directory = ri.orchestrate_pre_authoring.requirement_dir(self.base_dir, "requirement-7")
+        add_file = ri.orchestrate_pre_authoring.add_path(directory)
+        add_file.write_text('{"preserved": true}\n', encoding="utf-8")
+        snapshot_file = ri.orchestrate_pre_authoring.snapshot_path(directory)
+        snapshot_file.write_text('{"preserved": "snapshot"}\n', encoding="utf-8")
+        intents_file = ri.orchestrate_pre_authoring.intents_path(directory)
+        intents_file.write_text('{"preserved": "intents"}\n', encoding="utf-8")
+        handoff_file = ri.orchestrate_pre_authoring.handoff_dir(directory) / "intent.json"
+        handoff_file.parent.mkdir()
+        handoff_file.write_text('{"preserved": "handoff"}\n', encoding="utf-8")
+        with patch.object(ri, "fetch_issue", return_value={"body": reformatted}):
+            second = ri.start_pre_authoring(self.root, requirement="acme/development-backlog#7", base_dir=self.base_dir)
+        self.assertEqual(first["state"], second["state"])
+        self.assertEqual(add_file.read_text(encoding="utf-8"), '{"preserved": true}\n')
+        self.assertEqual(snapshot_file.read_text(encoding="utf-8"), '{"preserved": "snapshot"}\n')
+        self.assertEqual(intents_file.read_text(encoding="utf-8"), '{"preserved": "intents"}\n')
+        self.assertEqual(handoff_file.read_text(encoding="utf-8"), '{"preserved": "handoff"}\n')
+
+    def test_start_rebuilds_add_and_later_artifacts_for_each_changed_business_value(self) -> None:
+        initial = (
+            "## Outcome\n\nMake onboarding self-serve.\n\n"
+            "## Context\n\nSupport onboards every client by hand.\n\n"
+            "## Acceptance evidence\n\nA client self-serves in one business day.\n\n"
+            "## Target repository\n\n`acme/billing`\n\n"
+            "## Exclusions\n\nNo enterprise SSO.\n"
+        )
+        replacements = {
+            "Outcome": "Launch guided onboarding.",
+            "Context": "Sales onboards every client by hand.",
+            "Acceptance evidence": "A client self-serves within one hour.",
+            "Target repository": "`acme/accounts`",
+            "Exclusions": "No enterprise SCIM.",
+        }
+        for section, replacement in replacements.items():
+            with self.subTest(section=section):
+                base_dir = self.root / ".claude" / f"pre-authoring-{section.replace(' ', '-') }"
+                with patch.object(ri, "fetch_issue", return_value={"body": initial}):
+                    ri.start_pre_authoring(self.root, requirement="acme/development-backlog#7", base_dir=base_dir)
+                directory = ri.orchestrate_pre_authoring.requirement_dir(base_dir, "requirement-7")
+                snapshot = ri.orchestrate_pre_authoring.snapshot_path(directory)
+                snapshot.write_text('{"snapshot": "retained"}\n', encoding="utf-8")
+                add_file = ri.orchestrate_pre_authoring.add_path(directory)
+                add_file.write_text('{"stale": "add"}\n', encoding="utf-8")
+                ri.orchestrate_pre_authoring.intents_path(directory).write_text('{"stale": "intents"}\n', encoding="utf-8")
+                handoff = ri.orchestrate_pre_authoring.handoff_dir(directory) / "intent.json"
+                handoff.parent.mkdir()
+                handoff.write_text('{"stale": "handoff"}\n', encoding="utf-8")
+                ri.orchestrate_pre_authoring.receipt_path(directory).write_text('{"stale": "receipt"}\n', encoding="utf-8")
+                changed = initial.replace(f"## {section}\n\n" + {
+                    "Outcome": "Make onboarding self-serve.",
+                    "Context": "Support onboards every client by hand.",
+                    "Acceptance evidence": "A client self-serves in one business day.",
+                    "Target repository": "`acme/billing`",
+                    "Exclusions": "No enterprise SSO.",
+                }[section], f"## {section}\n\n{replacement}")
+                with patch.object(ri, "fetch_issue", return_value={"body": changed}):
+                    ri.start_pre_authoring(self.root, requirement="acme/development-backlog#7", base_dir=base_dir)
+                self.assertEqual(snapshot.read_text(encoding="utf-8"), '{"snapshot": "retained"}\n')
+                self.assertNotEqual(add_file.read_text(encoding="utf-8"), '{"stale": "add"}\n')
+                self.assertFalse(ri.orchestrate_pre_authoring.intents_path(directory).exists())
+                self.assertFalse(ri.orchestrate_pre_authoring.handoff_dir(directory).exists())
+                self.assertFalse(ri.orchestrate_pre_authoring.receipt_path(directory).exists())
+
+    def test_start_rebuilds_legacy_outcome_only_state(self) -> None:
+        body = "## Outcome\n\nShip X.\n\n## Target repository\n\n`acme/billing`\n"
+        directory = ri.orchestrate_pre_authoring.requirement_dir(self.base_dir, "requirement-7")
+        directory.mkdir(parents=True)
+        legacy_file = directory / "requirement.md"
+        legacy_file.write_text("Ship X.\n", encoding="utf-8")
+        state_path = ri.orchestrate_pre_authoring.state_path(directory)
+        state_path.write_text(json.dumps({
+            "version": 1,
+            "id": "requirement-7",
+            "requirement_file": str(legacy_file),
+            "requirement_digest": ri.orchestrate_pre_authoring._digest("Ship X.\n"),
+            "target_repository": "acme/billing",
+            "created_at": "2024-01-01T00:00:00Z",
+        }), encoding="utf-8")
+        ri.orchestrate_pre_authoring.add_path(directory).write_text('{"legacy": true}\n', encoding="utf-8")
+        with patch.object(ri, "fetch_issue", return_value={"body": body}):
+            ri.start_pre_authoring(self.root, requirement="acme/development-backlog#7", base_dir=self.base_dir)
+        self.assertEqual(json.loads(state_path.read_text(encoding="utf-8"))["version"], ri.orchestrate_pre_authoring.STATE_VERSION)
+        self.assertNotEqual(ri.orchestrate_pre_authoring.add_path(directory).read_text(encoding="utf-8"), '{"legacy": true}\n')
 
     def test_start_requires_an_outcome_section(self) -> None:
         with patch.object(ri, "fetch_issue", return_value={"body": "## Target repository\n\n`acme/billing`\n"}):
