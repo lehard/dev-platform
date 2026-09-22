@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -130,6 +131,28 @@ class RolloutSupersessionWorkflowTests(unittest.TestCase):
         self.assertIn("${APP_SLUG}[bot]", workflow)
         self.assertIn("dev-platform-managed-rollout: validated-exact-version", workflow)
         self.assertNotIn("--force", workflow.lower())
+
+    def test_rollout_jobs_reconcile_calls_pass_the_required_registry_flag(self) -> None:
+        """rollout_supersession.py reconcile's --registry is required=True; the
+        rollout job runs on a fresh runner separate from plan and must check
+        out its own operator registry and pass --registry to both reconcile
+        call sites, or the CLI itself fails closed with a missing-argument error."""
+        workflow = (ROOT / ".github/workflows/rollout.yml").read_text(encoding="utf-8")
+        reconcile_calls = re.findall(
+            r"rollout_supersession\.py reconcile \\\n(?:.*\\\n)*.*", workflow
+        )
+        self.assertEqual(len(reconcile_calls), 2)
+        for call in reconcile_calls:
+            self.assertIn("--registry operator/managed-projects.json", call)
+        # The rollout job needs its own operator checkout, since job outputs
+        # do not carry step outputs across separate runners.
+        self.assertEqual(workflow.count("Checkout operator registry"), 2)
+
+    def test_reconcile_stale_rollouts_reconcile_call_passes_the_required_registry_flag(self) -> None:
+        workflow = (ROOT / ".github/workflows/reconcile-stale-rollouts.yml").read_text(encoding="utf-8")
+        self.assertIn("--registry operator/managed-projects.json", workflow)
+        self.assertIn("python3 scripts/rollout_supersession.py reconcile", workflow)
+        self.assertEqual(workflow.count("Checkout operator registry"), 2)
 
     def test_maintenance_is_explicit_dry_run_or_confirmed_apply_and_uses_managed_matrix(self) -> None:
         workflow = (ROOT / ".github/workflows/reconcile-stale-rollouts.yml").read_text(encoding="utf-8")

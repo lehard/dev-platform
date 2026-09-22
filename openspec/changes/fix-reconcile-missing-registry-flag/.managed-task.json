@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/managed-rollout/spec.md"
+  ],
+  "change": "fix-reconcile-missing-registry-flag",
+  "imported_at": "2026-09-22T08:57:32+00:00",
+  "package_revision": "3fc7e9a95de69abc661e023632bba071922f8294f407bb53e080f526f9290680",
+  "prepared_against": "4a41a24bdd9cefdf48392e13316e26537c96a38a",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "low",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "platform-rollout-copier-bridge"
+  },
+  "source_issue": "lehard/development-backlog#148",
+  "source_issue_evidence": {
+    "body_sha256": "fbd5e4187b222b87a79bd2422702a498917927c19255bd3243e73bef3474bdee",
+    "updated_at": "2026-09-22T08:56:44Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

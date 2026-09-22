@@ -124,6 +124,41 @@ jobs:
             exit 1
           fi
 
+      - name: Require Dev Platform GitHub App
+        id: operator
+        env:
+          OPERATOR_REPOSITORY: ${{ vars.DEV_PLATFORM_OPERATOR_REPOSITORY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$OPERATOR_REPOSITORY" ]]; then
+            echo "DEV_PLATFORM_OPERATOR_REPOSITORY is not configured; see docs/managed-rollout.md." >&2
+            exit 1
+          fi
+          if [[ ! "$OPERATOR_REPOSITORY" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
+            echo "DEV_PLATFORM_OPERATOR_REPOSITORY must be owner/name; got: $OPERATOR_REPOSITORY" >&2
+            exit 1
+          fi
+          echo "repository=$OPERATOR_REPOSITORY" >> "$GITHUB_OUTPUT"
+          echo "repo_name=${OPERATOR_REPOSITORY#*/}" >> "$GITHUB_OUTPUT"
+
+      - name: Create operator registry read token
+        id: registry-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
+        with:
+          client-id: ${{ vars.DEV_PLATFORM_APP_CLIENT_ID }}
+          private-key: ${{ secrets.DEV_PLATFORM_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ steps.operator.outputs.repo_name }}
+          permission-contents: read
+
+      - name: Checkout operator registry
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: ${{ steps.operator.outputs.repository }}
+          token: ${{ steps.registry-token.outputs.token }}
+          path: operator
+
       - name: Create read-only platform source token
         id: source-token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
@@ -374,6 +409,7 @@ jobs:
             --repository "$REPOSITORY" \
             --base-branch "$BASE_BRANCH" \
             --expected-bot "${APP_SLUG}[bot]" \
+            --registry operator/managed-projects.json \
             --authoritative-version "$VERSION" \
             --authoritative-pr "$TARGET_PR" \
             --apply \
@@ -393,6 +429,7 @@ jobs:
             --repository "$REPOSITORY" \
             --base-branch "$BASE_BRANCH" \
             --expected-bot "${APP_SLUG}[bot]" \
+            --registry operator/managed-projects.json \
             --apply \
             --output rollout-supersession.json
 
