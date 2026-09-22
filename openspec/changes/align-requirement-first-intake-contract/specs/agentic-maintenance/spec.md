@@ -23,4 +23,3 @@ The periodic review SHALL reason about likely root causes across the bounded evi
 - **THEN** it groups them into one bounded root-cause candidate
 - **AND** cites the contributing issue numbers
 - **AND** generic human fixation creates or reuses a Business Requirement; technical managed work starts only with execution or explicit direct technical intent
-
