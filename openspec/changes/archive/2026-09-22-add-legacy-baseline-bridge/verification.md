@@ -47,6 +47,10 @@ openspec validate add-legacy-baseline-bridge --strict   # valid
 python3 -m pytest tests/test_rollout_recopy.py tests/test_managed_rollout.py -q   # independent review's own run: 61 passed, 6 pre-existing skips
 ```
 
+## Real CI failure found and fixed during publication
+
+The PR's own `Platform CI` run (not simulated locally: local runs always have `copier` already installed from prior work in this environment) failed the required `validate` check: the new `LegacyBaselineBridgeTests` tests patch `copier._vcs.get_repo`/`_get_or_create_mirror`, which requires the real `copier` package to be importable, but `.github/workflows/ci.yml`'s "Unit tests" step ran before its existing "Install tested Copier" step (which previously only existed for the later template-rendering smoke tests). Fixed by moving "Install tested Copier" immediately before "Unit tests" in `ci.yml`. Re-ran the full local suite after the reorder (13/13 groups, 1140 tests, unchanged) and re-validated the YAML parses; the corrected PR CI run is the actual terminal proof this fix is real (see the PR).
+
 No unresolved finding remains.
 
 OpenSpec-Verify: PASS
