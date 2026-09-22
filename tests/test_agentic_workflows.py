@@ -157,9 +157,29 @@ class AgenticWorkflowTests(unittest.TestCase):
     def test_platform_health_review_jobs_do_not_depend_on_each_other(self) -> None:
         # Each review's job must run independently of the other so that one
         # review failing or being unavailable never blocks the other's run.
+        # The deterministic `publish-report` aggregation job is exempt: it
+        # legitimately `needs:` both review jobs (with `if: always()`) so it
+        # can compose one combined report even when a review job failed.
         text = PLATFORM_HEALTH_REVIEW_PATH.read_text(encoding="utf-8")
         jobs_text = text[text.index("\njobs:") :]
-        self.assertNotIn("needs:", jobs_text)
+        review_jobs_text = jobs_text[: jobs_text.index("\n  publish-report:")]
+        self.assertNotIn("needs:", review_jobs_text)
+
+    def test_platform_health_review_publishes_one_combined_report(self) -> None:
+        # The combined report (openspec/specs/platform-health-review/spec.md)
+        # is a deterministic, non-agentic aggregation step that still runs,
+        # and still records the gap, when a review job failed or was skipped.
+        text = PLATFORM_HEALTH_REVIEW_PATH.read_text(encoding="utf-8")
+        jobs_text = text[text.index("\njobs:") :]
+        publish_job_text = jobs_text[jobs_text.index("\n  publish-report:") :]
+        self.assertIn("needs: [process-health-review, architecture-health-review]", publish_job_text)
+        self.assertIn("if: always()", publish_job_text)
+        self.assertIn("issues: write", publish_job_text)
+        self.assertIn("scripts/publish_platform_health_review_report.py", publish_job_text)
+        self.assertIn("needs.process-health-review.outputs.created_issue_number", publish_job_text)
+        self.assertIn("needs.architecture-health-review.outputs.created_issue_number", publish_job_text)
+        self.assertIn("needs.process-health-review.result", publish_job_text)
+        self.assertIn("needs.architecture-health-review.result", publish_job_text)
 
 
 if __name__ == "__main__":
