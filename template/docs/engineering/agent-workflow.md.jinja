@@ -101,8 +101,68 @@ available only when the user explicitly supplies an existing managed
 Issue/OpenSpec task or explicitly requests a technical managed task. In that
 case the existing `managed_task.py create`,
 `execute_managed_task.py --bundle ...`, and
-`start_managed_task.py owner/repo#N` semantics and all validation,
-source-revision, routing, Project-status, and recovery rules remain unchanged.
+`start_managed_task.py owner/repo#N` semantics remain available.
+
+For any internal or explicit-direct technical authoring bundle,
+`managed_task.py create --bundle <directory>` retains exact
+`prepared_against` validation and bounded duplicate detection. A bounded
+same-project/target candidate requires an explicit scope decision before
+rerunning with `--confirm-distinct`. Source-Issue revision evidence,
+`supersede`, routing, and recovery rules are unchanged.
+
+For a supplied internal/direct managed task:
+
+~~~
+python3 scripts/start_managed_task.py owner/repo#N
+~~~
+
+Managed start reads and validates the versioned package before writing, creates
+the normal task branch/worktree, materializes planning artifacts only there,
+reconciles the matching Development Backlog Project item to `In progress`,
+and stops before OpenSpec apply, implementation, publication, or automatic
+dispatch. After materialization the child/direct Issue/OpenSpec package is
+authoritative for that technical change; a parent Requirement remains the
+human-facing business/progress object.
+
+### Selective goal definition
+
+Goal definition is a selective refinement layer before this intake, not a new
+task state. Refine a goal before Requirement/OpenSpec authoring only when the
+user explicitly requests goal-backed work, or when a non-trivial request is
+materially unclear about its intended outcome or success evidence. Do not
+require goal creation for an ordinary concrete quick or implementation task.
+
+A usable goal states the concrete outcome, verification evidence, a meaningful
+quantitative or binary success threshold, relevant scope bounds, and the
+condition that should stop work for clarification. If a missing choice could
+change the intended result, ask one concise question instead of inventing the
+requirement.
+
+For an explicit goal-backed request, use supported native goal state through
+`/goal` or runtime-native goal tools when available, and inspect any active
+goal before creating a duplicate or conflicting one. Include a token budget
+only when the user explicitly requests one. A fuzzy request that the user did
+not ask to make goal-backed receives transient natural-language refinement, not
+implicit durable goal state. If native goal state was explicitly requested but
+is unavailable, perform an explicitly transient refinement or report the
+limitation; never claim that `create_goal` succeeded or that an active goal
+exists when the runtime cannot prove it.
+
+Goal refinement creates no goal file, backlog entry, decision log, resume
+artifact, or competing implementation plan. For requirement-first work, the
+refined outcome informs the Business Requirement; after technical child
+materialization its OpenSpec is canonical for implementation. For a direct
+technical managed task, the Issue/OpenSpec package is authoritative after
+materialization.
+
+Managed delivery projects lifecycle evidence onto the central board: an exact
+reviewable PR becomes `In review`, while `Done` is written only after
+confirmed delivery and local reconciliation. Normal CI/merge waiting stays
+`In review`. For a real human/external stop, use
+`managed_project_status.py block`; after it clears, `resume` derives
+`In progress` versus `In review` from exact PR evidence. Quick tasks have no
+managed provenance and therefore do not touch the Project.
+
 {% else %}
 This project has not explicitly enabled an operator integration, so task intake is self-contained: it does not require an external Backlog, Project-status mutation, fleet registry, process-health labels, or operator credentials.
 
