@@ -4,6 +4,8 @@ OpenSpec-Verify: PASS
 
 Verification-Method: local deterministic validation (gh-aw compile, structural/unit tests, full platform test-group suite, OpenSpec structural + hygiene validation) both before and after reconciling with the merged `main`; live gh-aw cloud dispatch of the combined trigger is an explicit documented post-merge follow-up, not performed pre-archive
 
+Automated-Checks-Evidence: automated-checks.json
+
 The prerequisite sibling change `add-architecture-health-cloud-review` (#165)
 has since merged to `main` (PR #31, merge commit `9b5a449`), establishing the
 same "live workflow_dispatch requires the workflow's file to already exist on
