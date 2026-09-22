@@ -1109,6 +1109,28 @@ class LegacyBaselineBridgeTests(unittest.TestCase):
                     "v1.4.38", env=os.environ.copy(), legacy_repository="acme/platform-legacy",
                 )
 
+    def test_ensure_platform_tag_available_rejects_a_malformed_legacy_repository(self) -> None:
+        def fake_subprocess_run(command, **kwargs):
+            if command[:2] == ["git", "rev-parse"]:
+                return type("Result", (), {"returncode": 1, "stdout": "", "stderr": ""})()
+            if command[:2] == ["git", "fetch"] and "origin" in command:
+                return type("Result", (), {"returncode": 1, "stdout": "", "stderr": "not found"})()
+            raise AssertionError(f"unexpected command: {command}")
+
+        with patch.object(rollout_project.subprocess, "run", side_effect=fake_subprocess_run):
+            with self.assertRaisesRegex(ValueError, "legacy_repository must be owner/name"):
+                rollout_project.ensure_platform_tag_available(
+                    "v1.4.38", env=os.environ.copy(), legacy_repository="github.com@evil.example/x",
+                )
+
+    def test_ensure_legacy_baseline_rejects_a_malformed_legacy_repository(self) -> None:
+        with patch.object(rollout_project, "load_answers") as load_answers:
+            with self.assertRaisesRegex(ValueError, "legacy_repository must be owner/name"):
+                rollout_project.ensure_legacy_baseline_tag_available(
+                    self.root, legacy_repository="github.com@evil.example/x", version="v1.5.1",
+                )
+            load_answers.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()

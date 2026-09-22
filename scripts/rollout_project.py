@@ -24,6 +24,13 @@ EXPECTED_SOURCES = {
 BACKLOG_PROJECT_OWNER_RE = re.compile(r"^[A-Za-z0-9-]+$")
 TASK_INTAKE_REFERENCE_MARKER = "<!-- dev-platform:task-intake-reference -->"
 TASK_INTAKE_REFERENCE = "docs/engineering/task-intake.md"
+LEGACY_REPOSITORY_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
+
+
+def validated_legacy_repository(legacy_repository: str) -> str:
+    if not LEGACY_REPOSITORY_RE.fullmatch(legacy_repository):
+        raise ValueError(f"legacy_repository must be owner/name; got: {legacy_repository!r}")
+    return legacy_repository
 
 # Files that remain downstream-owned for every harness mode.
 ALWAYS_PROJECT_OWNED_ROLLOUT_PATHS = {
@@ -964,6 +971,7 @@ def ensure_platform_tag_available(tag: str, *, env: dict[str, str], legacy_repos
     # A fresh-history canonical checkout never contains a pre-cutover tag; a
     # configured legacy repository (the pre-cutover history, preserved
     # verbatim under a different slug) is the only other place it can live.
+    legacy_repository = validated_legacy_repository(legacy_repository)
     legacy_fetched = subprocess.run(
         ["git", "fetch", "--quiet", "--no-tags", "--depth=1", f"https://github.com/{legacy_repository}.git", f"refs/tags/{tag}:refs/tags/{tag}"],
         cwd=PLATFORM_ROOT,
@@ -1274,19 +1282,20 @@ def ensure_legacy_baseline_tag_available(
     """
     if not legacy_repository:
         return
+    legacy_repository = validated_legacy_repository(legacy_repository)
     try:
         import copier._vcs as copier_vcs  # noqa: PLC0415 - optional, only needed here
     except ImportError as exc:
         raise ValueError("Copier is not installed; cannot bridge the legacy baseline") from exc
 
     answers = load_answers(project_root)
-    url = copier_vcs.get_repo(answers["_src_path"])
-    if url is None:
-        raise ValueError(f"cannot resolve Copier template source: {answers['_src_path']!r}")
     try:
-        mirror = copier_vcs._get_or_create_mirror(url)  # noqa: SLF001 - no public API for this cache
+        url = copier_vcs.get_repo(answers["_src_path"])
+        mirror = copier_vcs._get_or_create_mirror(url) if url is not None else None  # noqa: SLF001 - no public API for this cache
     except AttributeError as exc:
         raise ValueError("installed Copier version does not expose the expected mirror-cache internals") from exc
+    if url is None:
+        raise ValueError(f"cannot resolve Copier template source: {answers['_src_path']!r}")
 
     baseline = answers["_commit"]
     already_present = subprocess.run(

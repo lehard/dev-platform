@@ -238,6 +238,9 @@ class RolloutWorkflowContractTests(unittest.TestCase):
         self.assertIn("LEGACY_REPOSITORY: ${{ vars.DEV_PLATFORM_LEGACY_REPOSITORY }}", workflow)
         self.assertIn('legacy_args=(--legacy-repository "$LEGACY_REPOSITORY")', workflow)
         self.assertIn('"${legacy_args[@]}"', workflow)
+        self.assertIn(
+            'DEV_PLATFORM_LEGACY_REPOSITORY must be owner/name; got: $LEGACY_REPOSITORY', workflow,
+        )
 
     def test_release_dispatches_exact_rollout_workflow(self) -> None:
         workflow = (ROOT / ".github" / "workflows" / "publish-version.yml").read_text(encoding="utf-8")

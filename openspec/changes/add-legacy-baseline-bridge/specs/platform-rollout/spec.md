@@ -23,3 +23,15 @@ Managed upgrades SHALL support an optional, generically-configured legacy reposi
 
 - **WHEN** the legacy repository variable is unset
 - **THEN** rollout behaves exactly as it did before this capability existed
+
+#### Scenario: Guarded-recopy's own baseline comparison needs the same pre-cutover tag
+
+- **GIVEN** guarded-recopy compares the currently-checked-out platform baseline against a pre-cutover tag not present in the platform checkout's own git history
+- **AND** a legacy repository is configured
+- **WHEN** that baseline tag cannot be fetched from the canonical `origin`
+- **THEN** it is fetched from the configured legacy repository directly into the platform checkout before the comparison runs
+
+#### Scenario: A malformed legacy repository is rejected
+
+- **WHEN** the configured legacy repository value is not a plain `owner/name` reference
+- **THEN** rollout fails closed with a clear error before constructing any fetch URL from it

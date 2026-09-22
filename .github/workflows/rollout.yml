@@ -232,6 +232,10 @@ jobs:
           set +e
           legacy_args=()
           if [[ -n "$LEGACY_REPOSITORY" ]]; then
+            if [[ ! "$LEGACY_REPOSITORY" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
+              echo "::error title=Managed rollout blocked::DEV_PLATFORM_LEGACY_REPOSITORY must be owner/name; got: $LEGACY_REPOSITORY"
+              exit 1
+            fi
             legacy_args=(--legacy-repository "$LEGACY_REPOSITORY")
           fi
           python3 platform/scripts/rollout_project.py \

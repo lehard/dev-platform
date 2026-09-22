@@ -31,6 +31,7 @@ Both changes take the same new optional `legacy_repository: str | None = None` p
 - Any change to `.copier-answers.yml` schema or content, or to `scripts/managed_projects.py`/the private operator registry.
 - A general "multi-source template" framework: this is one bounded fallback, gated behind one optional flag, reusing Copier's own existing cache mechanism rather than building a parallel one.
 - Adopt Project's onboarding path: it never invokes `copier update` for an already-adopted repository (confirmed by reading `scripts/adopt_project.py`), so it needs no change here.
+- Restoring the mirror's `origin` fetch refspec after the bridge runs: the narrowed refspec is never widened back. This is safe today because `rollout.yml`'s matrix runs each fetch fresh `ubuntu-latest` runners with no persisted `~/.cache/copier` (verified: no `actions/cache` step targets it). If a future change adds caching across rollout runs for that same template source, this narrowing would need to be revisited first.
 
 ## Tests
 
