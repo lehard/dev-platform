@@ -21,13 +21,85 @@ For a multi-repository project, use an explicit mapping `repository -> project l
 
 ## Connected-GitHub authoring
 
+ChatGPT Project uses the same requirement-first intent contract as repository
+agents. Connected GitHub is an alternative transport, not a different intake
+meaning.
+
+### Default fixation: Business Requirement
+
+For an explicit fixation-only request such as «зафиксируй», «добавь в бэклог»,
+«создай задачу», «отправь в бэклог», or equivalent, create or reuse a
+human-facing Business Requirement. This is the connected-GitHub transport
+equivalent of:
+
+```text
+python3 scripts/requirement_intake.py create ...
+```
+
+The resulting Development Backlog Issue MUST:
+
+- carry `type:requirement`;
+- contain `## Outcome`, optional `## Context`, optional
+  `## Acceptance evidence`, `## Target repository`, optional
+  `## Exclusions`, plus the canonical empty requirement-children marker
+  block;
+- contain business intent only, with no `proposal.md`, `design.md`,
+  `tasks.md`, OpenSpec delta, file-level plan, or technical decomposition.
+
+Before creating a new Issue, search bounded open backlog context for an
+unambiguous existing Requirement with the same accepted outcome/target. Reuse
+that exact Requirement when appropriate; do not create duplicates merely
+because wording differs.
+
+After mutation, read the Issue back and verify the title/body, exact target
+repository, `type:requirement` label, and children markers. Fixation succeeds
+only after this read-back. A fixation-only request then **stops**: do not start
+pre-authoring, create OpenSpec, dispatch an executor, move lifecycle status, or
+implement anything.
+
+A ChatGPT Project without a checkout must not fall back to direct
+`managed-openspec:v1` authoring merely because it cannot execute
+`requirement_intake.py` locally. The connected adapter creates the same
+Requirement representation; a repository-local agent can later run
+`requirement_intake.py start` against that Issue.
+
+### Execute a Business Requirement
+
+When the user explicitly asks to execute a supplied/existing Business
+Requirement, hand it to a repository-capable agent and follow the canonical
+flow:
+
+```text
+requirement_intake.py start
+  -> orchestrate_pre_authoring.py
+  -> evidence/snapshot
+  -> ADD
+  -> human decision only for consequential ambiguity
+  -> intents
+  -> OpenSpec handoff
+  -> internal managed OpenSpec child change(s)
+  -> requirement_intake.py link-child
+  -> normal implementation lifecycle
+```
+
+Each technical child is `type:internal-change` and links back to the parent
+Requirement. Requirement progress is derived from those children's real
+lifecycle states through `requirement_intake.py aggregate`; never maintain a
+second manual status ledger.
+
+### Explicit direct technical managed authoring
+
+The following adapter is reserved for cases where the user explicitly asks to
+create a **technical managed task**, or explicitly supplies an existing
+managed/OpenSpec task identity. It is not the default handler for generic
+fixation language.
+
+
 This path applies only when ChatGPT Project has supported connected GitHub
 mutation access and no checkout of the target repository. It is an alternative
 transport, not an alternative task format.
 
-For an accepted non-trivial fixation, inspect the bounded target context and
-the relevant open backlog items, then use this ordered mutation-and-verification
-sequence. A successful mutation is not a successful fixation until step 6.
+For an explicitly requested **direct technical managed task** (or an existing managed/OpenSpec identity that must be authored through this adapter), inspect the bounded target context and the relevant open backlog items, then use this ordered mutation-and-verification sequence. A successful mutation is not successful technical authoring until step 6.
 
 1. Resolve the selected target's default-branch revision and prepare one
    package for that exact `prepared_against` SHA. Before writing, validate its
@@ -107,24 +179,36 @@ Lack of Project-field mutation must not force a manual copy/paste step or block
 saving the idea.
 
 Promotion from Incubator requires a later explicit human decision to accept the
-idea as work. Then use the ordinary managed-task authoring flow and leave the
-new managed task in `Backlog`. After the managed identity exists, close the
-incubator Issue with a link to the promoted task; never move an incubated idea
-directly to `Ready` or start implementation merely because it was parked.
+idea as work. Then create or reuse the ordinary Business Requirement through
+the requirement-first fixation path and stop. After the Requirement identity
+exists, close the incubator Issue with a link to that Requirement; never promote
+an incubated idea directly into OpenSpec, `Ready`, or implementation merely
+because it was parked.
 
 ### Fix / add to Backlog
 
-When the user explicitly asks to record accepted work — for example «зафиксируй», «добавь в бэклог», «создай задачу», «отправь в бэклог», or equivalent — follow the current Dev Platform managed-task authoring contract.
+When the user explicitly asks to record accepted work — for example
+«зафиксируй», «добавь в бэклог», «создай задачу», «отправь в бэклог», or
+equivalent — the default result is a **Business Requirement**, not a managed
+OpenSpec task.
 
-For a non-trivial managed change:
+1. Consolidate only the currently accepted business decision.
+2. Choose the concrete target repository and corresponding Project routing
+   parameter.
+3. Create or reuse one `type:requirement` Issue using the connected-GitHub
+   Requirement adapter above.
+4. Verify its business sections and label by read-back.
+5. Stop. Do not start pre-authoring or implementation unless execution was also
+   explicitly requested.
 
-1. Consolidate only the currently accepted decision.
-2. Check relevant open backlog tasks to avoid an obvious duplicate.
-3. Inspect only the target-repository context needed to author the task correctly.
-4. Create or update the Development Backlog Issue and linked managed OpenSpec package using the current platform process.
-5. Leave a newly recorded task in Backlog. Do not implement it, dispatch it, or move it to `Ready` unless the user separately authorizes execution.
+A fixation contains Outcome, Context when useful, Acceptance evidence when
+useful, Target repository, and Exclusions/constraints when useful. It contains
+no proposal/design/tasks/OpenSpec package and no technical decomposition.
 
-If the existing task clearly covers the same change, update it instead of creating a duplicate. If the scope boundary is genuinely ambiguous, ask for resolution rather than guessing.
+If an existing Requirement clearly covers the same accepted outcome, update or
+reuse it instead of creating a duplicate. If the business scope boundary is
+genuinely consequential and unresolved, ask for that decision rather than
+guessing.
 
 ### Quick task
 
@@ -134,12 +218,21 @@ If the work expands into a material behavior, architecture, compatibility, data-
 
 ### Fresh non-trivial execution
 
-When the user explicitly asks to execute a fresh material change, follow the
-target repository's platform-owned
-[managed task-intake contract](task-intake.md): author or reuse one managed
-task and immediately start that exact task before implementation. Do not ask
-the user for a second fixation phrase after they have already asked to execute.
-An explicit fixation-only instruction still authors and stops.
+When the user explicitly asks to execute fresh material business/product work,
+use requirement-first execution: create/reuse the Requirement if needed, then
+start that exact Requirement through the repository-local
+[task-intake contract](task-intake.md). The repository agent drives
+`requirement_intake.py start` and resumable pre-authoring through handoff,
+creates the internal managed OpenSpec child change(s), links every child back
+to the parent, starts those technical tasks, and only then implements.
+
+Do not ask for a second fixation phrase after the user has already authorized
+execution. A fixation-only instruction still creates/reuses the Requirement
+and stops.
+
+If the user instead explicitly supplies an existing managed Issue/OpenSpec task
+or explicitly asks for a technical managed task, use the preserved direct
+managed path rather than wrapping it in a new Requirement.
 
 ## Verification
 
@@ -187,7 +280,9 @@ to use this contract; they should not copy the procedure.
 - Target repository `AGENTS.md` and engineering docs: current repository workflow and safety rules.
 - Materialized OpenSpec package: implementation contract for a managed change.
 - Development Backlog Issue with `incubator` and no `project:*` label: durable pre-commitment idea record.
-- Managed Development Backlog Issue: human-facing task/provenance record.
-- Development Backlog Project: visualization and managed-task workflow status; Project placement alone does not promote an incubated idea.
+- Business Requirement Issue (`type:requirement`): normal human-facing accepted-work object before technical authoring.
+- Internal managed Development Backlog Issue (`type:internal-change` when parented): technical child/provenance record after pre-authoring handoff.
+- Direct managed Development Backlog Issue: explicit technical-path provenance when no Requirement wrapper was requested.
+- Development Backlog Project: visualization and technical lifecycle status; the primary human view should show Requirements and exclude `type:internal-change`.
 
 For actual implementation of an existing managed task, hand off to the target repository's current lifecycle instead of continuing from this adapter as a parallel implementation plan.
