@@ -10,7 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 VERSION_FILE = ROOT / ".github" / "aw" / "gh-aw-version.txt"
-WORKFLOWS = ("process-issue-triage", "weekly-process-backlog-review")
+WORKFLOWS = ("process-issue-triage", "weekly-process-backlog-review", "architecture-health-review")
 
 
 def run(*args: str) -> None:
@@ -43,6 +43,7 @@ def main() -> int:
             ".github/aw",
             ".github/workflows/process-issue-triage.lock.yml",
             ".github/workflows/weekly-process-backlog-review.lock.yml",
+            ".github/workflows/architecture-health-review.lock.yml",
         ),
         cwd=ROOT,
     )

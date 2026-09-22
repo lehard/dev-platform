@@ -17,6 +17,7 @@ SOURCES = {
         "timeout-minutes: 8",
         "max-turns: 8",
         "allowed-repos: public",
+        "issues: read",
         "add-labels:",
         "add-comment:",
     },
@@ -26,12 +27,28 @@ SOURCES = {
         "timeout-minutes: 10",
         "max-turns: 10",
         "allowed-repos: public",
+        "issues: read",
         "schedule: weekly",
         "workflow_dispatch:",
         "create-issue:",
         "Review context (`reviewed_at`, exact `main` SHA, previous-review boundary)",
         "Root-cause candidates",
         "Likely resolved/superseded",
+    },
+    "architecture-health-review": {
+        "max-ai-credits: 100",
+        "max-daily-ai-credits: 100",
+        "timeout-minutes: 10",
+        "max-turns: 10",
+        "allowed-repos: public",
+        "toolsets: [repos]",
+        "schedule: weekly",
+        "workflow_dispatch:",
+        "create-issue:",
+        "dev-platform/capabilities/architecture-health-review.md",
+        "openspec/specs/architecture-health/spec.md",
+        "Never propose or make a code edit",
+        "never create or recommend creating a managed task",
     },
 }
 
@@ -52,7 +69,6 @@ class AgenticWorkflowTests(unittest.TestCase):
             text = (ROOT / ".github" / "workflows" / f"{name}.md").read_text(encoding="utf-8")
             self.assertIn("engine: codex", text)
             self.assertIn("contents: read", text)
-            self.assertIn("issues: read", text)
             self.assertIn("workflow_dispatch:", text)
             self.assertIn("threat-detection:", text)
             self.assertNotIn("private-to-public-flows:", text)
