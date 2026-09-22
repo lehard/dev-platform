@@ -1,0 +1,57 @@
+{
+  "candidate": {
+    "base_head": "18cc04736fe318247d7576d1490ae3a9a40178b2",
+    "base_ref": "origin/main",
+    "candidate_head": "5b5a4b001e3124b8510bfb53c3020308a0f456fd",
+    "diff_sha256": "69e39af5ef9db6ae7b9b2964d0a873b75c0773e92d4da520d2925eb17dc9b662"
+  },
+  "change": "openspec/changes/enable-operator-managed-requirement-intake",
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/enable-operator-managed-requirement-intake/design.md",
+        "openspec/changes/enable-operator-managed-requirement-intake/proposal.md",
+        "openspec/changes/enable-operator-managed-requirement-intake/specs/agent-instructions/spec.md",
+        "openspec/changes/enable-operator-managed-requirement-intake/specs/platform-config/spec.md",
+        "openspec/changes/enable-operator-managed-requirement-intake/specs/platform-rollout/spec.md",
+        "openspec/changes/enable-operator-managed-requirement-intake/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/enable-operator-managed-requirement-intake/proposal.md",
+        "openspec/changes/enable-operator-managed-requirement-intake/design.md",
+        "openspec/changes/enable-operator-managed-requirement-intake/tasks.md",
+        "openspec/changes/enable-operator-managed-requirement-intake/specs/agent-instructions/spec.md",
+        "openspec/changes/enable-operator-managed-requirement-intake/specs/platform-config/spec.md",
+        "openspec/changes/enable-operator-managed-requirement-intake/specs/platform-rollout/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-09-22T18:08:59+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/enable-operator-managed-requirement-intake/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "928b5b7a-e38d-4c95-99cc-b9e184b86f72",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1
+}

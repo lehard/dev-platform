@@ -1,0 +1,19 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "18cc04736fe318247d7576d1490ae3a9a40178b2",
+    "base_ref": "origin/main",
+    "candidate_head": "5b5a4b001e3124b8510bfb53c3020308a0f456fd",
+    "diff_sha256": "69e39af5ef9db6ae7b9b2964d0a873b75c0773e92d4da520d2925eb17dc9b662"
+  },
+  "findings": [],
+  "perspective": "spec-fidelity",
+  "request_id": "928b5b7a-e38d-4c95-99cc-b9e184b86f72",
+  "reviewer": {
+    "context_id": "fresh-read-only-156",
+    "fresh_context": true,
+    "runtime": "independent Codex review",
+    "write_access": false
+  },
+  "schema_version": 1
+}
