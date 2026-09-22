@@ -154,7 +154,7 @@ class InstructionArchitectureTests(unittest.TestCase):
                 self.assertIn("ChatGPT-specific manifest", text)
                 self.assertIn("ordered mutation-and-verification", text)
                 self.assertIn("exact `prepared_against` revision", text)
-                self.assertIn("must fail\\nclosed", text)
+                self.assertIn("must fail closed", " ".join(text.split()))
 
     def test_chatgpt_fixture_is_backlog_only_and_consumable_by_normal_package_discovery(self) -> None:
         value = fixture("chatgpt_project_fixation.json")
