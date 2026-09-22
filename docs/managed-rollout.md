@@ -60,7 +60,12 @@ source. Each workflow then:
    `contents: write` for Adopt Project's promotion write);
 3. checks it out to a local `operator/` path in the job;
 4. passes `--registry operator/managed-projects.json` to every
-   `scripts/managed_projects.py` invocation.
+   `scripts/managed_projects.py` invocation, and to every
+   `scripts/rollout_supersession.py reconcile` invocation (that subcommand
+   independently requires `--registry` to confirm a repository is managed
+   before closing any of its PRs). A job that calls `reconcile` on a runner
+   separate from its own `plan` job repeats this checkout itself, since job
+   outputs do not carry a prior job's checked-out working tree.
 
 The private operator repository needs no special structure: it is not a fork
 of Dev Platform and not a second platform, only `managed-projects.json` (this
