@@ -230,7 +230,6 @@ jobs:
           APP_SLUG: ${{ steps.target-token.outputs.app-slug }}
           REPOSITORY: ${{ matrix.repository }}
           BASE_BRANCH: ${{ matrix.default_branch }}
-          OPERATOR_INTEGRATION: ${{ matrix.operator_integration }}
           VERSION: ${{ needs.plan.outputs.version }}
         run: |
           set -euo pipefail
@@ -261,6 +260,7 @@ jobs:
           REPOSITORY: ${{ matrix.repository }}
           VERSION: ${{ needs.plan.outputs.version }}
           BASE_BRANCH: ${{ matrix.default_branch }}
+          OPERATOR_INTEGRATION: ${{ matrix.operator_integration }}
           LEGACY_REPOSITORY: ${{ vars.DEV_PLATFORM_LEGACY_REPOSITORY }}
         run: |
           set -uo pipefail
