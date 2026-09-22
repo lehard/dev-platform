@@ -172,9 +172,11 @@ class RolloutWorkflowContractTests(unittest.TestCase):
     def test_rollout_workflow_uses_split_app_tokens_and_is_pr_only(self) -> None:
         workflow = (ROOT / ".github" / "workflows" / "rollout.yml").read_text(encoding="utf-8")
         pin = "actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1"
-        # source-token and target-token (rollout job) plus registry-token
-        # (plan job, read-only access to the private operator registry repo).
-        self.assertEqual(workflow.count(pin), 3)
+        # source-token and target-token (rollout job) plus one registry-token
+        # in the plan job and a second in the rollout job (each needs its own
+        # read-only access to the private operator registry repo, since job
+        # outputs cannot pass step outputs between separate runners).
+        self.assertEqual(workflow.count(pin), 4)
         self.assertIn("id: registry-token", workflow)
         self.assertIn("repositories: ${{ steps.operator.outputs.repo_name }}", workflow)
         self.assertIn("id: source-token", workflow)
