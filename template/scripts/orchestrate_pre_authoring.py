@@ -30,6 +30,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -37,7 +38,7 @@ import add_intents
 import project_evidence
 from _platform_common import atomic_write_text, current_worktree_root, utc_now
 
-STATE_VERSION = 1
+STATE_VERSION = 2
 RECEIPT_VERSION = 1
 
 
@@ -98,6 +99,22 @@ def load_state(directory: Path) -> dict[str, Any]:
     return _load_json(state_path(directory), "pre-authoring state")
 
 
+def _invalidate_from_add(directory: Path) -> None:
+    """Discard only artifacts derived from a Requirement's business meaning.
+
+    A Project Evidence Snapshot is rooted in the target worktree, rather than
+    the Requirement text, so it remains eligible for its own freshness check.
+    ADD, intents, handoffs and navigation receipts are all downstream of the
+    Requirement and must be rebuilt. No OpenSpec directory is under this
+    machine-local pre-authoring root, so materialized OpenSpec is untouched.
+    """
+    for path in (add_path(directory), intents_path(directory), receipt_path(directory)):
+        path.unlink(missing_ok=True)
+    handoffs = handoff_dir(directory)
+    if handoffs.exists():
+        shutil.rmtree(handoffs)
+
+
 def init(
     root: Path,
     *,
@@ -105,11 +122,15 @@ def init(
     requirement_file: Path,
     target_repository: str,
     base_dir: Path | None = None,
+    refresh_requirement: bool = False,
+    business_context_file: Path | None = None,
 ) -> dict[str, Any]:
     """Bind a requirement identity and scaffold its ADD. Safe to call repeatedly.
 
-    Refuses to re-init over an existing state bound to different requirement
-    content: a requirement id names one requirement, not a slot to overwrite.
+    Refuses to re-init over an existing state bound to a different local
+    Requirement identity. Requirement intake supplies ``refresh_requirement``
+    after refetching its stable GitHub Issue; a changed complete binding then
+    resets ADD-and-later derived artifacts before safely rebinding.
     Resumable across a partial failure: if state.json exists (from a prior
     call) but add.json does not (e.g. new_add raised after state.json was
     written), this retries the ADD scaffold instead of returning stale state
@@ -119,20 +140,51 @@ def init(
     directory = requirement_dir(base_dir, requirement_id)
     if not requirement_file.is_file():
         raise OrchestratorError(f"requirement file is missing: {requirement_file}")
+    if business_context_file is not None and not business_context_file.is_file():
+        raise OrchestratorError(f"Requirement context file is missing: {business_context_file}")
     requirement_digest = _digest(requirement_file.read_text(encoding="utf-8"))
+    business_context_file_value = str(business_context_file) if business_context_file is not None else None
     existing_state_path = state_path(directory)
     if existing_state_path.is_file():
         existing = load_state(directory)
-        if existing.get("requirement_digest") != requirement_digest or existing.get("target_repository") != target_repository:
-            raise OrchestratorError(
-                f"pre-authoring state for {requirement_id!r} already exists and is bound to different "
-                "requirement content/target; use a different --id for a different requirement"
+        legacy_requirement_file = directory / "requirement.md"
+        is_legacy_outcome_only_state = (
+            existing.get("version") != STATE_VERSION
+            and existing.get("requirement_file") == str(legacy_requirement_file)
+        )
+        if (
+            existing.get("id") != requirement_id
+            or (
+                existing.get("requirement_file") != str(requirement_file)
+                and not (refresh_requirement and is_legacy_outcome_only_state)
             )
-        if add_path(directory).is_file():
+        ):
+            raise OrchestratorError(
+                f"pre-authoring state for {requirement_id!r} is bound to a different Requirement identity; "
+                "use a different --id for a different requirement"
+            )
+        binding_changed = (
+            existing.get("version") != STATE_VERSION
+            or existing.get("requirement_file") != str(requirement_file)
+            or existing.get("requirement_digest") != requirement_digest
+            or existing.get("target_repository") != target_repository
+            or existing.get("business_context_file") != business_context_file_value
+        )
+        if binding_changed and not refresh_requirement:
+            raise OrchestratorError(
+                f"pre-authoring state for {requirement_id!r} has a changed or legacy Requirement binding; "
+                "restart through requirement_intake.py start to rebuild derived pre-authoring artifacts"
+            )
+        if not binding_changed and add_path(directory).is_file():
             return existing
+        if binding_changed:
+            _invalidate_from_add(directory)
+        created_at = existing.get("created_at") if isinstance(existing.get("created_at"), str) else utc_now()
         # state.json survived a prior failed init (new_add did not complete);
         # fall through and retry the ADD scaffold rather than returning state
         # for a permanently-missing artifact.
+    else:
+        created_at = utc_now()
     directory.mkdir(parents=True, exist_ok=True)
     state = {
         "version": STATE_VERSION,
@@ -140,7 +192,8 @@ def init(
         "requirement_file": str(requirement_file),
         "requirement_digest": requirement_digest,
         "target_repository": target_repository,
-        "created_at": utc_now(),
+        "business_context_file": business_context_file_value,
+        "created_at": created_at,
     }
     _write_json(existing_state_path, state)
     add_intents.new_add(
@@ -284,6 +337,12 @@ def _handoff_status(root: Path, directory: Path, ready_intent_ids: list[str]) ->
     directory_h = handoff_dir(directory)
     add_file = add_path(directory)
     intents_file = intents_path(directory)
+    state = load_state(directory)
+    business_context_file = state.get("business_context_file")
+    context_argument = (
+        f" --requirement-context-file {business_context_file}"
+        if isinstance(business_context_file, str) and business_context_file else ""
+    )
     prepared: dict[str, Any] = {}
     missing: list[str] = []
     stale: dict[str, Any] = {}
@@ -307,7 +366,8 @@ def _handoff_status(root: Path, directory: Path, ready_intent_ids: list[str]) ->
             "stale_intent_ids": stale,
             "action": (
                 f"add_intents.py prepare-handoff --add {add_file} --intents {intents_file} "
-                f"--intent-id <id> --out {directory_h}/<id>.json"
+                f"--intent-id <id>{context_argument} "
+                f"--out {directory_h}/<id>.json"
             ),
         }
     return {"stage": "handoff", "state": "ready", "envelopes": prepared}

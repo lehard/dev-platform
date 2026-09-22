@@ -257,6 +257,21 @@ class OrchestratorFlowTests(unittest.TestCase):
         self.assertNotIn("prompt", json.dumps(receipt))
         self.assertNotIn("transcript", json.dumps(receipt))
 
+    def test_handoff_action_includes_requirement_context_when_bound(self) -> None:
+        context = self.root / "requirement-context.json"
+        context.write_text('{"outcome": "Tiered pricing"}\n', encoding="utf-8")
+        orch.init(
+            self.root,
+            requirement_id="add-tiered-pricing",
+            requirement_file=self.requirement,
+            target_repository="acme/billing",
+            base_dir=self.base_dir,
+            business_context_file=context,
+        )
+        directory = orch.requirement_dir(self.base_dir, "add-tiered-pricing")
+        action = orch._handoff_status(self.root, directory, ["intent-tier-boundary"])["action"]
+        self.assertIn(f"--requirement-context-file {context}", action)
+
     def test_human_pause_surfaces_open_decision_and_resume_applies_the_answer(self) -> None:
         self._init()
         directory = orch.requirement_dir(self.base_dir, "add-tiered-pricing")

@@ -18,6 +18,7 @@ that already owns it.
 from __future__ import annotations
 
 import argparse
+import json
 import re
 from pathlib import Path
 from typing import Any
@@ -34,6 +35,7 @@ CHILDREN_END = "<!-- requirement-children:end -->"
 CHILD_ITEM_RE = re.compile(r"^[ \t]*- \[[ xX]\] (?P<ref>\S+/\S+#\d+)\s*$", re.MULTILINE)
 SECTION_RE = re.compile(r"^## (?P<name>.+?)\s*$", re.MULTILINE)
 BACK_REFERENCE_PREFIX = "Requirement: "
+REQUIREMENT_CONTEXT_VERSION = 1
 
 
 class RequirementIntakeError(RuntimeError):
@@ -98,6 +100,37 @@ def parse_requirement_body(body: str) -> dict[str, Any]:
     return {"sections": sections, "children": children}
 
 
+def _normalize_business_text(value: str) -> str:
+    """Normalize presentation-only whitespace in a business Requirement section."""
+    return " ".join(value.split())
+
+
+def canonical_requirement_context(parsed: dict[str, Any]) -> dict[str, Any]:
+    """Return the complete, deterministic pre-authoring view of a Requirement."""
+    sections = parsed.get("sections")
+    if not isinstance(sections, dict):
+        raise RequirementIntakeError("Requirement sections are invalid")
+    outcome = sections.get("outcome")
+    target_repository = sections.get("target repository")
+    if not isinstance(outcome, str) or not outcome.strip():
+        raise RequirementIntakeError("Requirement has no ## Outcome section")
+    if not isinstance(target_repository, str) or not target_repository.strip():
+        raise RequirementIntakeError("Requirement has no ## Target repository section")
+    return {
+        "version": REQUIREMENT_CONTEXT_VERSION,
+        "outcome": _normalize_business_text(outcome),
+        "context": _normalize_business_text(str(sections.get("context") or "")),
+        "acceptance_evidence": _normalize_business_text(str(sections.get("acceptance evidence") or "")),
+        "exclusions": _normalize_business_text(str(sections.get("exclusions") or "")),
+        "target_repository": repo(target_repository.strip("` \n")),
+    }
+
+
+def render_canonical_requirement_context(context: dict[str, Any]) -> str:
+    """Serialize the derived context in one stable local representation."""
+    return json.dumps(context, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+
+
 def create_requirement(
     root: Path,
     *,
@@ -142,22 +175,21 @@ def start_pre_authoring(
     repository, number = issue_ref(requirement)
     issue = fetch_issue(root, repository, number)
     parsed = parse_requirement_body(str(issue.get("body") or ""))
-    outcome = parsed["sections"].get("outcome")
-    target_repository = parsed["sections"].get("target repository")
-    if not outcome:
-        raise RequirementIntakeError(f"{requirement} has no ## Outcome section")
-    if not target_repository:
-        raise RequirementIntakeError(f"{requirement} has no ## Target repository section")
-    target_repository = target_repository.strip("` \n")
+    try:
+        context = canonical_requirement_context(parsed)
+    except RequirementIntakeError as exc:
+        raise RequirementIntakeError(f"{requirement}: {exc}") from exc
     base_dir = base_dir or default_base_dir(root)
     slug = requirement_slug(number)
     directory = orchestrate_pre_authoring.requirement_dir(base_dir, slug)
     directory.mkdir(parents=True, exist_ok=True)
-    requirement_file = directory / "requirement.md"
-    atomic_write_text(requirement_file, outcome.strip() + "\n")
+    requirement_file = directory / "requirement.json"
+    atomic_write_text(requirement_file, render_canonical_requirement_context(context))
     state = orchestrate_pre_authoring.init(
         root, requirement_id=slug, requirement_file=requirement_file,
-        target_repository=target_repository, base_dir=base_dir,
+        target_repository=context["target_repository"], base_dir=base_dir,
+        refresh_requirement=True,
+        business_context_file=requirement_file,
     )
     return {"requirement": f"{repository}#{number}", "slug": slug, "state": state}
 
