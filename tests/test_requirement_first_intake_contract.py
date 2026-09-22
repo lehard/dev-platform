@@ -27,10 +27,9 @@ class RequirementFirstIntakeContractTests(unittest.TestCase):
                 self.assertIn(route, text)
 
         intake = (ROOT / "openspec/specs/managed-task-intake/spec.md").read_text(encoding="utf-8")
-        fixation = intake[
-            intake.index("The platform SHALL distinguish discussion from explicit fixation"):
-            intake.index("### Requirement: Managed-task authoring uses")
-        ]
+        start = intake.index("The platform SHALL distinguish discussion from explicit fixation")
+        end = intake.find("\n### Requirement:", start)
+        fixation = intake[start:end if end != -1 else len(intake)]
         self.assertIn("SHALL NOT create a managed OpenSpec package", fixation)
         self.assertNotIn("SHALL create the managed task and its OpenSpec package", fixation)
 

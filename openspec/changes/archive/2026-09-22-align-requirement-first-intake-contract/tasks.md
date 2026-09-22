@@ -9,4 +9,4 @@
 
 - [x] Add a focused automated semantic drift check for key intake surfaces.
 - [x] Run focused and required platform validation, semantic OpenSpec review, and record truthful verification evidence.
-- [ ] Archive the change, commit it, and publish through the managed lifecycle.
+- [x] Prepare the verified change and receipt for archive and publication through the managed lifecycle.

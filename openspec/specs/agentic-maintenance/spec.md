@@ -82,13 +82,13 @@ The repository SHALL provide a periodic process-backlog review workflow with a w
 
 ### Requirement: Process review does not create managed work
 
-Process/friction issues SHALL be treated as evidence and advisory maintenance input, not as Development Backlog tasks. Neither triage nor periodic review SHALL create a managed task, publish a `managed-openspec:v1` package, materialize OpenSpec, dispatch an executor or change Development Backlog workflow state.
+Process/friction issues SHALL remain evidence and advisory maintenance input. Neither triage nor periodic review SHALL create a Business Requirement, technical managed task, OpenSpec package, implementation PR, or Development Backlog lifecycle state. Later explicit human fixation MAY create a Business Requirement under the requirement-first intake contract; execution requires a subsequent or simultaneous execution instruction.
 
 #### Scenario: Review finds a process issue ready for remediation
 
 - **WHEN** triage or weekly review identifies a likely reusable fix
 - **THEN** the workflow may explain the recommendation in bounded process output
-- **AND** no managed task is created automatically
+- **AND** no Backlog task is created automatically
 - **AND** a later generic fixation request creates or reuses a Business Requirement without technical authoring
 
 ### Requirement: Agentic maintenance has explicit cost and runtime guardrails

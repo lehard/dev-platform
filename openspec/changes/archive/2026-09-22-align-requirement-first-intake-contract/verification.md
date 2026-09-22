@@ -15,10 +15,14 @@ Automated-Checks-Evidence: automated-checks.json
 
 - `python3 -m compileall -q template/scripts scripts`: pass.
 - `python3 scripts/managed_projects.py validate`: pass (3 managed, 0 candidate, 0 excluded).
-- `python3 scripts/run_test_groups.py --all --quiet`: pass in the supervising session, 13 groups, 1155 discovered tests, no failed groups. This run preceded the final documentation-only spec edits and one additional contract assertion; focused verification after those edits is below. The archive helper will run selected checks against the final candidate and write its own evidence.
+- `python3 scripts/run_test_groups.py --all --quiet`: pass in the supervising session, 13 groups, 1159 discovered tests, no failed groups, rerun after reconciliation and all final contract/test edits. The archive helper will run selected checks against the final candidate and write its own evidence.
 - `python3 -m unittest tests.test_requirement_first_intake_contract -v`: pass, 3 tests after final edits.
 - `openspec validate align-requirement-first-intake-contract --strict`: pass after final edits.
-- `python3 template/scripts/openspec_lifecycle.py check`: pass before the final spec edits.
+- `python3 template/scripts/openspec_lifecycle.py check`: pass after reconciliation and final spec edits.
 - `git diff --check`: pass after final edits.
 
 The routed R2 executor's earlier full-suite run failed in shared-workspace permission fixtures inside its native workspace-write sandbox. The same full suite passed outside that sandbox in the supervising task session; no production change was made to work around the sandbox fixture.
+
+## Post-archive validation
+
+After OpenSpec synchronized the accepted specs and renamed the two stale requirement headings, the regression test was adjusted to identify the fixation requirement by its normative text rather than its old section position. The final archived tree passed `python3 -m unittest tests.test_requirement_first_intake_contract -v` (3 tests), `python3 scripts/run_test_groups.py --all --quiet` (13 groups, 1159 tests, no failed groups), Python compileall, managed project registry validation, OpenSpec lifecycle hygiene, and `git diff --check`. The lifecycle helper also validated all 32 accepted specs strictly during archive.

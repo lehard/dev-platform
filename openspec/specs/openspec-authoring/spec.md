@@ -62,7 +62,7 @@ The platform SHALL bound the accepted current iteration through scope, non-goals
 
 #### Scenario: Future improvement is outside the accepted change
 
-- **WHEN** authoring identifies a useful later enhancement that is not part of the accepted result
+- **WHEN** authoring identifies a useful later enhancement outside the accepted result
 - **THEN** it remains a non-goal or follow-up
 - **AND** generic explicit fixation creates or reuses a Business Requirement without creating an OpenSpec package
 
@@ -70,7 +70,7 @@ The platform SHALL bound the accepted current iteration through scope, non-goals
 
 - **WHEN** a change moves through verification, archive, or publication
 - **THEN** authoritative lifecycle state and receipts remain the source of truth
-- **AND** no manually maintained proposal status field is required to mirror them
+- **AND** no manually maintained proposal status field mirrors them
 
 ### Requirement: Central and generated repositories share one OpenSpec authoring contract
 
