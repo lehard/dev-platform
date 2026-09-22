@@ -307,7 +307,7 @@ class TemplateContractTests(unittest.TestCase):
         source = (ROOT / "template" / "AGENTS.md.jinja").read_text(encoding="utf-8")
         template = jinja2.Environment().from_string(source)
         portable = template.render(operator_config_path="")
-        operator = template.render(operator_config_path="/secure/operator.toml")
+        operator = template.render(operator_integration=True, operator_config_path="")
         self.assertIn("Fix a non-trivial change", portable)
         self.assertNotIn("scripts/start_managed_task.py", portable)
         self.assertNotIn("Development Backlog Project item", portable)
@@ -320,7 +320,7 @@ class TemplateContractTests(unittest.TestCase):
                 source = (ROOT / "template" / relative).read_text(encoding="utf-8")
                 template = jinja2.Environment().from_string(source)
                 portable = template.render(operator_config_path="")
-                operator = template.render(operator_config_path="/secure/operator.toml")
+                operator = template.render(operator_integration=True, operator_config_path="")
                 self.assertNotIn("Development Backlog", portable)
                 self.assertNotIn("scripts/start_managed_task.py", portable)
                 self.assertIn("Development Backlog", operator)
@@ -379,6 +379,7 @@ class TemplateContractTests(unittest.TestCase):
         self.assertNotIn("development_backlog_repository", copier)
         self.assertNotIn("[development_backlog]", config)
         self.assertIn("operator_config_path", copier)
+        self.assertIn("operator_integration", copier)
         self.assertIn("create --bundle", agents)
         # The overlap-confirmation flag is authoring detail: root guidance names
         # the entrypoint, the workflow doc owns how to answer a candidate list.

@@ -1,4 +1,4 @@
-{% if operator_config_path %}
+{% if operator_integration | default(false) or operator_config_path %}
 # Managed task intake
 
 This is the platform-owned contract for turning a user request into work.

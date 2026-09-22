@@ -63,7 +63,7 @@ REQUIRED_HEADINGS = [
 def render(context: dict[str, object]) -> str:
     env = jinja2.Environment(undefined=jinja2.StrictUndefined)
     template = env.from_string(TEMPLATE_PATH.read_text(encoding="utf-8"))
-    return template.render(operator_config_path="", **context)
+    return template.render(operator_config_path="", operator_integration=False, **context)
 
 
 def main() -> int:

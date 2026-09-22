@@ -478,6 +478,23 @@ if __name__ == "__main__":
         before = rollout_project.platform_config_contract(self.root)
         rollout_project.require_platform_config_contract(before, dict(before))
 
+    def test_platform_config_contract_allows_only_selected_generic_operator_activation(self) -> None:
+        before = rollout_project.platform_config_contract(self.root)
+        activated = dict(before)
+        activated["operator"] = {"enabled": True, "config_env": "DEV_PLATFORM_OPERATOR_CONFIG"}
+        rollout_project.require_platform_config_contract(
+            before, activated, operator_integration=True
+        )
+        with self.assertRaisesRegex(ValueError, "beyond platform_version"):
+            rollout_project.require_platform_config_contract(before, activated)
+
+    def test_rollout_answer_activation_is_machine_owned_and_idempotent(self) -> None:
+        answers = self.root / ".copier-answers.yml"
+        rollout_project.set_operator_integration_answer(self.root, True)
+        self.assertIn("operator_integration: true\n", answers.read_text(encoding="utf-8"))
+        rollout_project.set_operator_integration_answer(self.root, True)
+        self.assertEqual(answers.read_text(encoding="utf-8").count("operator_integration:"), 1)
+
     def test_snapshot_covers_dynamic_required_files_and_product_ci(self) -> None:
         snapshot = rollout_project.snapshot_existing_project_owned(self.root)
         self.assertIn("scripts/project_helper.py", snapshot)

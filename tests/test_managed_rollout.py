@@ -41,6 +41,14 @@ class ManagedProjectRegistryTests(unittest.TestCase):
             with self.subTest(repository=repository), self.assertRaises(ValueError):
                 managed_projects.matrix_payload(data, repository)
 
+    def test_operator_integration_is_optional_boolean_matrix_metadata(self) -> None:
+        data = {"schema_version": 1, "projects": [{"repository": "example-org/managed-project", "state": "managed", "default_branch": "main", "operator_integration": True}]}
+        managed_projects.validate_registry(data)
+        self.assertTrue(managed_projects.matrix_payload(data)["include"][0]["operator_integration"])
+        data["projects"][0]["operator_integration"] = "true"
+        with self.assertRaises(ValueError):
+            managed_projects.validate_registry(data)
+
     def test_excluded_repository_requires_reason(self) -> None:
         data = {
             "schema_version": 1,
