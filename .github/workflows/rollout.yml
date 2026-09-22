@@ -225,15 +225,21 @@ jobs:
           REPOSITORY: ${{ matrix.repository }}
           VERSION: ${{ needs.plan.outputs.version }}
           BASE_BRANCH: ${{ matrix.default_branch }}
+          LEGACY_REPOSITORY: ${{ vars.DEV_PLATFORM_LEGACY_REPOSITORY }}
         run: |
           set -uo pipefail
           log_file="$(mktemp)"
           set +e
+          legacy_args=()
+          if [[ -n "$LEGACY_REPOSITORY" ]]; then
+            legacy_args=(--legacy-repository "$LEGACY_REPOSITORY")
+          fi
           python3 platform/scripts/rollout_project.py \
             --project-root target \
             --repository "$REPOSITORY" \
             --version "$VERSION" \
             --base-branch "$BASE_BRANCH" \
+            "${legacy_args[@]}" \
             --output /tmp/rollout-result.json 2>&1 | tee "$log_file"
           rc=${PIPESTATUS[0]}
           set -e

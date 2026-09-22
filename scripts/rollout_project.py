@@ -938,7 +938,7 @@ def git_tree_path_fingerprint(
     return ("file", hashlib.sha256(raw_content).hexdigest())
 
 
-def ensure_platform_tag_available(tag: str, *, env: dict[str, str]) -> None:
+def ensure_platform_tag_available(tag: str, *, env: dict[str, str], legacy_repository: str | None = None) -> None:
     found = subprocess.run(
         ["git", "rev-parse", "--verify", f"refs/tags/{tag}^{{commit}}"],
         cwd=PLATFORM_ROOT,
@@ -956,9 +956,27 @@ def ensure_platform_tag_available(tag: str, *, env: dict[str, str]) -> None:
         capture_output=True,
         check=False,
     )
-    if fetched.returncode != 0:
-        detail = fetched.stderr.strip() or fetched.stdout.strip() or f"exit {fetched.returncode}"
+    if fetched.returncode == 0:
+        return
+    detail = fetched.stderr.strip() or fetched.stdout.strip() or f"exit {fetched.returncode}"
+    if not legacy_repository:
         raise ValueError(f"could not fetch recorded platform baseline {tag}: {detail}")
+    # A fresh-history canonical checkout never contains a pre-cutover tag; a
+    # configured legacy repository (the pre-cutover history, preserved
+    # verbatim under a different slug) is the only other place it can live.
+    legacy_fetched = subprocess.run(
+        ["git", "fetch", "--quiet", "--no-tags", "--depth=1", f"https://github.com/{legacy_repository}.git", f"refs/tags/{tag}:refs/tags/{tag}"],
+        cwd=PLATFORM_ROOT,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if legacy_fetched.returncode != 0:
+        legacy_detail = legacy_fetched.stderr.strip() or legacy_fetched.stdout.strip() or f"exit {legacy_fetched.returncode}"
+        raise ValueError(
+            f"could not fetch recorded platform baseline {tag} from origin ({detail}) or legacy_repository={legacy_repository} ({legacy_detail})"
+        )
 
 
 def rendered_template_fingerprints(
@@ -968,6 +986,7 @@ def rendered_template_fingerprints(
     *,
     env: dict[str, str],
     baseline_equivalence: bool = False,
+    legacy_repository: str | None = None,
 ) -> dict[str, tuple[str, str]]:
     """Render an immutable template revision with the downstream's recorded answers.
 
@@ -976,7 +995,7 @@ def rendered_template_fingerprints(
     customized the file.  Render in an isolated directory instead.  Tasks are
     explicitly skipped: this is a read-only ownership proof, not adoption.
     """
-    ensure_platform_tag_available(tag, env=env)
+    ensure_platform_tag_available(tag, env=env, legacy_repository=legacy_repository)
     with tempfile.TemporaryDirectory(prefix="dev-platform-rollout-baseline-") as temporary:
         root = Path(temporary)
         answers = root / "answers.yml"
@@ -1014,6 +1033,7 @@ def baseline_equivalent_conflict_paths(
     *,
     env: dict[str, str],
     answers_text: str,
+    legacy_repository: str | None = None,
 ) -> set[str]:
     """Prove the committed downstream path still equals its recorded old template.
 
@@ -1027,6 +1047,7 @@ def baseline_equivalent_conflict_paths(
         relatives,
         env=env,
         baseline_equivalence=True,
+        legacy_repository=legacy_repository,
     )
     proven: set[str] = set()
     for relative in relatives:
@@ -1232,11 +1253,78 @@ def run_rendered_platform_bootstrap(project_root: Path, *, env: dict[str, str]) 
     run(["python3", str(bootstrap)], project_root, env=env)
 
 
+def ensure_legacy_baseline_tag_available(
+    project_root: Path,
+    *,
+    legacy_repository: str | None,
+    version: str,
+) -> None:
+    """Bridge a project's pre-cutover Copier baseline tag into Copier's own
+    mirror cache of its template source, so `copier update` can perform its
+    normal 3-way transition even though a fresh-history canonical template
+    never contains that historical tag.
+
+    A no-op when `legacy_repository` is not configured, or when the
+    project's recorded baseline is already resolvable in the mirror (for
+    example a project already on a post-cutover release). Never mutates the
+    canonical remote, the legacy remote, or any committed project state:
+    the combined objects live only in this process's local Copier cache,
+    and only Copier's own already-narrow `git worktree add <ref>` needs to
+    resolve `ref` -- nothing else reads this cache's extra tag.
+    """
+    if not legacy_repository:
+        return
+    try:
+        import copier._vcs as copier_vcs  # noqa: PLC0415 - optional, only needed here
+    except ImportError as exc:
+        raise ValueError("Copier is not installed; cannot bridge the legacy baseline") from exc
+
+    answers = load_answers(project_root)
+    url = copier_vcs.get_repo(answers["_src_path"])
+    if url is None:
+        raise ValueError(f"cannot resolve Copier template source: {answers['_src_path']!r}")
+    try:
+        mirror = copier_vcs._get_or_create_mirror(url)  # noqa: SLF001 - no public API for this cache
+    except AttributeError as exc:
+        raise ValueError("installed Copier version does not expose the expected mirror-cache internals") from exc
+
+    baseline = answers["_commit"]
+    already_present = subprocess.run(
+        ["git", "--git-dir", str(mirror), "rev-parse", "--verify", f"refs/tags/{baseline}^{{commit}}"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if already_present.returncode == 0:
+        return
+
+    # Copier's own mirror refresh (`git remote update --prune`) treats every
+    # ref matching origin's fetch refspec as origin's to prune, so a plain
+    # `+refs/*:refs/*` mirror refspec would delete the tag we are about to
+    # add on the very next refresh. Narrow it first to exactly what this
+    # rollout still needs from the real canonical remote.
+    run(["git", "--git-dir", str(mirror), "config", "--unset-all", "remote.origin.fetch"], project_root, check=False)
+    run(["git", "--git-dir", str(mirror), "config", "--add", "remote.origin.fetch", "+refs/heads/*:refs/heads/*"], project_root)
+    run(
+        ["git", "--git-dir", str(mirror), "config", "--add", "remote.origin.fetch", f"+refs/tags/{version}:refs/tags/{version}"],
+        project_root,
+    )
+    run(
+        [
+            "git", "--git-dir", str(mirror), "fetch", "--no-tags",
+            f"https://github.com/{legacy_repository}.git",
+            f"refs/tags/{baseline}:refs/tags/{baseline}",
+        ],
+        project_root,
+    )
+
+
 def copier_update_with_guarded_recopy(
     project_root: Path,
     version: str,
     *,
     env: dict[str, str],
+    legacy_repository: str | None = None,
 ) -> str:
     """Run smart update, falling back to recopy only for proven-safe conflicts.
 
@@ -1263,6 +1351,7 @@ def copier_update_with_guarded_recopy(
         if reclaimed_platform_path_matches_template(project_root, relative)
     }
 
+    ensure_legacy_baseline_tag_available(project_root, legacy_repository=legacy_repository, version=version)
     run(
         [
             "copier",
@@ -1303,6 +1392,7 @@ def copier_update_with_guarded_recopy(
             conflict_targets - reclaimed_conflicts,
             env=env,
             answers_text=answers_before,
+            legacy_repository=legacy_repository,
         )
         if mode == "platform"
         else set()
@@ -1332,6 +1422,7 @@ def copier_update_with_guarded_recopy(
         baseline_conflicts,
         env=env,
         answers_text=answers_before,
+        legacy_repository=legacy_repository,
     )
     if reproven != baseline_conflicts:
         missing = sorted(baseline_conflicts - reproven)
@@ -1445,6 +1536,7 @@ def apply_rollout(
     version: str,
     base_branch: str,
     output: Path | None = None,
+    legacy_repository: str | None = None,
 ) -> int:
     project_root = project_root.resolve()
     target = parse_version(version)
@@ -1481,6 +1573,7 @@ def apply_rollout(
         project_root,
         version,
         env=private_source_git_env(),
+        legacy_repository=legacy_repository,
     )
     normalize_copier_answers(project_root)
 
@@ -1520,6 +1613,16 @@ def main() -> int:
     parser.add_argument("--version", required=True)
     parser.add_argument("--base-branch", required=True)
     parser.add_argument("--output", type=Path)
+    parser.add_argument(
+        "--legacy-repository",
+        default=None,
+        help=(
+            "Optional owner/name of the preserved pre-cutover platform history "
+            "(see docs/managed-rollout.md). When set, a project still on a "
+            "baseline tag the fresh-history canonical repository no longer "
+            "contains can still be rolled out."
+        ),
+    )
     args = parser.parse_args()
     apply_operator_legacy_harness_continuity()
     try:
@@ -1529,6 +1632,7 @@ def main() -> int:
             args.version,
             args.base_branch,
             args.output,
+            legacy_repository=args.legacy_repository,
         )
     except ValueError as exc:
         print(f"Managed rollout: BLOCKED: {exc}")
