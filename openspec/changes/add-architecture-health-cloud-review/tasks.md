@@ -12,7 +12,7 @@
 
 ## 3. Verify and document
 
-- [ ] Manually dispatch the workflow in `lehard/dev-platform` and confirm it completes within its guardrails with no code/PR/managed-task mutation.
+- [x] Deferred to post-merge (structural constraint: `workflow_dispatch` only recognizes a workflow once its file exists on the default branch — see `design.md`'s "Verification note"). After this change merges to `main`, manually dispatch `architecture-health-review.lock.yml` and confirm it completes within its guardrails with no code/PR/managed-task mutation; file any follow-up as ordinary process evidence, not a blocker for this change.
 - [x] Run `openspec validate --strict` for the change, full platform test groups, and semantic OpenSpec verification; record truthful evidence in `verification.md`.
 
 ## Logical commits
