@@ -18,12 +18,14 @@ that already owns it.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 from pathlib import Path
 from typing import Any
 
 import managed_project_status
+import managed_task
 import orchestrate_pre_authoring
 from _platform_common import atomic_write_text, current_worktree_root, github_cli_env
 from managed_task import ManagedTaskError, fetch_issue, issue_ref, repo, run
@@ -203,6 +205,12 @@ def link_child(root: Path, *, requirement: str, child: str) -> dict[str, Any]:
     requirement_ref = f"{requirement_repository}#{requirement_number}"
     child_ref = f"{child_repository}#{child_number}"
 
+    child_issue = fetch_issue(root, child_repository, child_number)
+    child_body = str(child_issue.get("body") or "")
+    other_parents = re.findall(r"^Requirement: (\S+/\S+#\d+)\s*$", child_body, re.MULTILINE)
+    if other_parents and set(other_parents) != {requirement_ref}:
+        raise RequirementIntakeError(f"{child_ref} already references a different Requirement: {other_parents}")
+
     parent_issue = fetch_issue(root, requirement_repository, requirement_number)
     parent_body = str(parent_issue.get("body") or "")
     parsed = parse_requirement_body(parent_body)
@@ -218,8 +226,6 @@ def link_child(root: Path, *, requirement: str, child: str) -> dict[str, Any]:
         run(["gh", "issue", "edit", str(requirement_number), "--repo", requirement_repository, "--body", new_body], root, env)
 
     ensure_label(root, child_repository, CHILD_LABEL, env=env)
-    child_issue = fetch_issue(root, child_repository, child_number)
-    child_body = str(child_issue.get("body") or "")
     back_reference = f"{BACK_REFERENCE_PREFIX}{requirement_ref}"
     if back_reference not in child_body:
         new_child_body = child_body.rstrip("\n") + f"\n\n{back_reference}\n"
@@ -227,6 +233,80 @@ def link_child(root: Path, *, requirement: str, child: str) -> dict[str, Any]:
     else:
         run(["gh", "issue", "edit", str(child_number), "--repo", child_repository, "--add-label", CHILD_LABEL], root, env)
     return {"requirement": requirement_ref, "child": child_ref}
+
+
+def materialize_handoff(
+    root: Path, *, requirement: str, handoff_file: Path, bundle_path: Path,
+    base_dir: Path | None = None, confirm_distinct: bool = False,
+) -> dict[str, Any]:
+    """Create/reuse one managed child and prove bidirectional linkage.
+
+    The authored bundle supplies semantic OpenSpec content. This adapter owns
+    only validated handoff provenance and the create/link transaction; it never
+    guesses a proposal or creates a second task ledger.
+    """
+    repository, number = issue_ref(requirement)
+    requirement_ref = f"{repository}#{number}"
+    parent = fetch_issue(root, repository, number)
+    if REQUIREMENT_LABEL not in managed_task.issue_labels(parent):
+        raise RequirementIntakeError(f"{requirement_ref} is not labeled {REQUIREMENT_LABEL}")
+    slug = requirement_slug(number)
+    directory = orchestrate_pre_authoring.requirement_dir(base_dir or default_base_dir(root), slug)
+    report = orchestrate_pre_authoring.status(root, requirement_id=slug, base_dir=base_dir)
+    if report.get("current_stage") != "complete":
+        raise RequirementIntakeError(f"{requirement_ref} handoff is not ready: {report.get('blocker')}")
+    resolved = handoff_file.resolve()
+    if str(resolved) not in {str(Path(value).resolve()) for value in report.get("handoffs", {}).values()}:
+        raise RequirementIntakeError("handoff is not one of the Requirement's current ready handoffs")
+    try:
+        envelope = json.loads(resolved.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RequirementIntakeError(f"handoff cannot be read: {exc}") from exc
+    digest = envelope.get("digest")
+    if digest is None and envelope.get("kind") == "direct-requirement-handoff":
+        digest = hashlib.sha256(json.dumps(envelope, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode()).hexdigest()
+    if not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
+        raise RequirementIntakeError("ready handoff has no valid digest")
+    marker = f"<!-- requirement-handoff:v1:{requirement_ref}:{digest} -->"
+    bundle = managed_task.load_authoring_bundle(str(bundle_path))
+    config = managed_task.authoring_config(root)
+    if managed_task.origin_repository(root) != report["target_repository"]:
+        raise RequirementIntakeError("handoff targets a different repository from this checkout")
+    env = github_cli_env(root)
+    if env is None:
+        raise RequirementIntakeError("GitHub CLI authentication is required")
+    issues = managed_task.run_json(
+        ["gh", "api", "--paginate", f"repos/{config.repository}/issues?state=all&per_page=100"], root, env,
+    )
+    if not isinstance(issues, list):
+        raise RequirementIntakeError("GitHub returned an invalid candidate list")
+    candidates = [issue for issue in issues if isinstance(issue, dict) and "pull_request" not in issue
+                  and marker in str(issue.get("body") or "")]
+    if len(candidates) > 1:
+        raise RequirementIntakeError(f"multiple children carry exact handoff identity {marker}")
+    if candidates:
+        child_number = managed_task.issue_number(candidates[0])
+        child_ref = f"{config.repository}#{child_number}"
+        try:
+            package = managed_task.parse_package(managed_task.issue_bodies(root, config.repository, child_number), child_ref)
+        except ManagedTaskError as exc:
+            raise RequirementIntakeError(f"exact child {child_ref} has no valid managed package: {exc}") from exc
+        if (package.change != bundle.change or package.target_repository != report["target_repository"]
+                or package.artifacts != bundle.artifacts or package.contents != bundle.contents):
+            raise RequirementIntakeError(f"exact child {child_ref} conflicts with the authored bundle")
+    else:
+        package, _, _ = managed_task.create_task(
+            root, str(bundle_path), None, confirm_distinct, handoff_marker=marker,
+        )
+        child_ref = package.source_issue
+    link_child(root, requirement=requirement_ref, child=child_ref)
+    refreshed_parent = fetch_issue(root, repository, number)
+    refreshed_child = fetch_issue(root, *issue_ref(child_ref))
+    if child_ref not in parse_requirement_body(str(refreshed_parent.get("body") or ""))["children"]:
+        raise RequirementIntakeError(f"linkage incomplete: {requirement_ref} does not list {child_ref}")
+    if f"{BACK_REFERENCE_PREFIX}{requirement_ref}" not in str(refreshed_child.get("body") or ""):
+        raise RequirementIntakeError(f"linkage incomplete: {child_ref} does not reference {requirement_ref}")
+    return {"requirement": requirement_ref, "child": child_ref, "handoff_digest": digest}
 
 
 def aggregate(root: Path, *, requirement: str) -> dict[str, Any]:
@@ -277,6 +357,13 @@ def main() -> int:
     link_parser.add_argument("--requirement", required=True)
     link_parser.add_argument("--child", required=True)
 
+    materialize_parser = sub.add_parser("materialize-handoff", help="create or exactly reuse and link a ready handoff's managed child")
+    materialize_parser.add_argument("--requirement", required=True)
+    materialize_parser.add_argument("--handoff", required=True, type=Path)
+    materialize_parser.add_argument("--bundle", required=True, type=Path)
+    materialize_parser.add_argument("--base-dir", type=Path, default=None)
+    materialize_parser.add_argument("--confirm-distinct", action="store_true")
+
     aggregate_parser = sub.add_parser("aggregate", help="report a Requirement's status derived from its linked children")
     aggregate_parser.add_argument("--requirement", required=True)
 
@@ -301,6 +388,12 @@ def main() -> int:
         if args.command == "link-child":
             payload = link_child(root, requirement=args.requirement, child=args.child)
             print(f"Linked {payload['child']} -> {payload['requirement']}")
+            return 0
+        if args.command == "materialize-handoff":
+            payload = materialize_handoff(root, requirement=args.requirement, handoff_file=args.handoff,
+                                          bundle_path=args.bundle, base_dir=args.base_dir,
+                                          confirm_distinct=args.confirm_distinct)
+            print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
             return 0
         if args.command == "aggregate":
             payload = aggregate(root, requirement=args.requirement)

@@ -89,13 +89,15 @@ When the user asks to execute a Business Requirement, the ordered flow is:
    pausing for a genuinely consequential open choice.
 4. On the material path, decompose approved ADD elements into intents and
    prepare OpenSpec handoff envelopes.
-5. For every ready handoff, author the internal technical change through the
-   existing managed/OpenSpec lifecycle.
-6. Immediately link each resulting child Issue with
-   `python3 scripts/requirement_intake.py link-child --requirement owner/repo#N --child owner/repo#M`.
-   Each child is labeled `type:internal-change` and carries a parent
+5. For every ready handoff, author its managed bundle and run
+   `python3 scripts/requirement_intake.py materialize-handoff --requirement owner/repo#N --handoff <ready-envelope.json> --bundle <authored-bundle-directory>`.
+   The adapter validates current handoff readiness, creates or exactly reuses
+   one managed Issue, repairs an interrupted parent/child link on retry, and
+   reports success only after both link directions are confirmed. It does not
+   invent proposal/design/spec content: the bundle remains the authored
+   OpenSpec input. Each child carries `type:internal-change` and a parent
    back-reference.
-7. Start and implement those internal managed tasks through the existing
+6. Start and implement those internal managed tasks through the existing
    lifecycle. OpenSpec becomes canonical only for each technical child after
    that child is materialized.
 
