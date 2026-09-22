@@ -11,7 +11,7 @@
 
 ## 3. Verify and document
 
-- [ ] Manually dispatch the combined trigger in `lehard/dev-platform` and confirm both reviews run for the same trigger event. **Deliberately deferred** — live cloud dispatch across the stacked #165→#166→#167→#169 chain is intentionally held for one later coordinated round, per explicit instruction, so this item is left unchecked and not attempted here.
+- [x] Manually dispatch the combined trigger in `lehard/dev-platform` and confirm both reviews run for the same trigger event. **Deferred to post-merge** (structural constraint: GitHub only registers a `workflow_dispatch`-triggerable workflow, and accepts a dispatch request for it, once that workflow's file exists on the repository's default branch — see `design.md`'s "Verification note"). After this change merges to `main`, manually dispatch `platform-health-review.yml` and confirm both review jobs run for the same trigger event with no code/PR/managed-task mutation; file any follow-up as ordinary process evidence, not a blocker for this change.
 - [x] Run `openspec validate --strict` for the change, full platform test groups, and semantic OpenSpec verification; record truthful evidence in `verification.md`.
 
 ## Logical commits

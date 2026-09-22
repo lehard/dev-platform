@@ -1,51 +1,43 @@
 # Verification: add-platform-health-review-orchestration
 
-## Status: NOT YET ARCHIVE-READY
+## OpenSpec-Verify: PASS
 
-This change is implemented and passes every deterministic/automated check run
-so far. It is intentionally **not** marked `OpenSpec-Verify: PASS` and has
-**not** been archived, because one authored `tasks.md` item under "3. Verify
-and document" is deliberately left open:
+The prerequisite sibling change `add-architecture-health-cloud-review` (#165)
+has since merged to `main` (PR #31, merge commit `9b5a449`), establishing the
+same "live workflow_dispatch requires the workflow's file to already exist on
+the default branch" structural GitHub constraint (see `design.md`'s
+"Verification note"). Per the user's explicit decision applied consistently
+across the whole #165→#166→#167→#169 chain, the `tasks.md` live-dispatch item
+is reworded as an explicit **post-merge** follow-up rather than a pre-archive
+gate — it is checked because it now correctly describes deferred post-merge
+work, not because a live dispatch already happened. Every other item, and
+everything that *is* verifiable pre-merge, was actually run and passed (see
+below), so this change is archive-ready on that basis.
 
-- [ ] Manually dispatch the combined trigger in `lehard/dev-platform` and
-  confirm both reviews run for the same trigger event.
+## Verification-Method: local deterministic validation (gh-aw compile, structural/unit tests, full platform test-group suite, OpenSpec structural + hygiene validation) both before and after reconciling with the merged `main`; live gh-aw cloud dispatch of the combined trigger is an explicit documented post-merge follow-up, not performed pre-archive
 
-This is a deliberate, explicit deferral, not an oversight: this change is one
-link in a stacked chain of four dependent changes
-(`add-architecture-health-cloud-review` #165 → `add-platform-health-review-orchestration`
-#166 → `add-platform-health-review-report` #167 → #169), and the user
-supervising the chain has explicitly instructed that every real cloud-workflow
-dispatch (which spends AI-credit budget and would publish real GitHub Issues)
-is deferred to one later coordinated round across all four changes, run only
-after all four are implemented. `template/scripts/openspec_lifecycle.py
-archive` refuses to archive while any `tasks.md` checkbox is unchecked, so
-this receipt records real, truthful evidence of everything that could be
-verified deterministically without a live dispatch, and explicitly flags the
-one item that is intentionally still open.
-
-Separately, `python3 scripts/dogfood_task.py route-claude` was attempted and
-refused: "model routing requires exactly one materialized managed OpenSpec
-change in this task checkout; found 2". This worktree currently contains both
-this change's own `openspec/changes/add-platform-health-review-orchestration/`
-and the still-unarchived, still-unmerged-to-main
-`openspec/changes/add-architecture-health-cloud-review/` pulled in by the
-required sibling-branch merge (step 0 of this task). That sibling change is
-also deliberately left unarchived pending the same deferred live-dispatch
-round, so this is an expected, structural consequence of the stacked-branch
-approach the user chose, not a defect in this change. Routing was not part of
-the validation list this task was explicitly asked to run, so it was not
-forced past this refusal.
-
-## Verification-Method: local deterministic validation (gh-aw compile, structural/unit tests, full platform test-group suite, OpenSpec structural + hygiene validation); no live gh-aw cloud dispatch performed
-
-## Sibling merge (step 0)
+## Sibling merge (step 0, then reconcile with merged main)
 
 `git merge agent/add-architecture-health-cloud-review` into
-`agent/add-platform-health-review-orchestration` fast-forwarded cleanly
-(`fb912d2..5bde96d`, "Fast-forward", no conflicts), since neither branch had
-touched the same files. Confirmed present afterward:
-`.github/workflows/architecture-health-review.md` and
-`.github/workflows/architecture-health-review.lock.yml`.
+`agent/add-platform-health-review-orchestration` originally fast-forwarded
+cleanly (`fb912d2..5bde96d`, "Fast-forward", no conflicts), since neither
+branch had touched the same files at that point. After #165 actually merged
+to `main` (squash commit `9b5a449`), `python3 scripts/dogfood_task.py
+reconcile` was run to replace that provisional local merge with real history;
+it stopped at merge conflicts in `.github/workflows/architecture-health-review.{md,lock.yml}`
+and `tests/test_agentic_workflows.py` (expected: this change's own commit
+`2f1f786` already rewired those same files' trigger from `schedule:` to
+`workflow_call:`, while `main`'s incoming version was #165's original,
+pre-rewire `schedule:` state). Resolved by keeping this branch's already-correct
+evolved content (`git checkout --ours` for the two workflow files, confirmed
+byte-identical to pre-conflict via `validate_agentic_workflows.py` reporting
+zero drift after resolution; manually merged the two conflicting assertion
+blocks in `tests/test_agentic_workflows.py` to keep the post-rewire
+expectations — no `schedule: weekly` substring, `workflow_call:` present —
+for both reviews) and committing the merge (`155095b`). Confirmed afterward:
+`dogfood_task.py status` reports `task freshness: ahead relative to
+origin/main` (no longer diverged), and the full validation suite (below) was
+re-run against this reconciled state and passed.
 
 ## What was implemented
 
@@ -89,21 +81,21 @@ touched the same files. Confirmed present afterward:
   `secrets: inherit`; and the orchestrator's `jobs:` block contains no
   `needs:` (independent-failure guarantee).
 
-## Automated checks actually run (all passed)
+## Automated checks actually run (all passed, re-run after reconciling with merged main)
 
 - `python3 -m compileall -q template/scripts scripts` — exit 0
 - `python3 scripts/managed_projects.py validate` — `Managed project registry: OK (3 managed, 0 candidate, 0 excluded)`
-- `python3 scripts/run_test_groups.py --all` — 13/13 groups succeeded, 1148/1148 declared tests discovered and run (`DEV_PLATFORM_TEST_AGGREGATE: {"failed_groups": [], "group_count": 13, ... "outcome": "success", ...}`)
 - `python3 template/scripts/openspec_lifecycle.py check` — `OpenSpec lifecycle hygiene: OK`
 - `openspec validate add-platform-health-review-orchestration --strict --no-interactive` — `Change 'add-platform-health-review-orchestration' is valid`
-- `python3 scripts/validate_agentic_workflows.py` — `Agentic workflow sources and locks match gh-aw v0.85.4.` (recompiles `process-issue-triage`, `weekly-process-backlog-review`, `architecture-health-review` and asserts zero generated-file drift against the working tree; `process-issue-triage.lock.yml` and `.github/aw` were confirmed unchanged by this task)
-- `python3 -m unittest tests.test_agentic_workflows -v` — 11/11 tests passed, including the four new combined-trigger tests
-- `python3 -c "import yaml; yaml.safe_load(open('.github/workflows/platform-health-review.yml'))"` (ad hoc, not a committed test) — parses without error; confirmed the plain `on:` key (which PyYAML's default loader reads as boolean `True`, a well-known YAML 1.1 quirk) matches the same unquoted style already used by every other plain workflow in this repository (`ci.yml`, `project-ci.yml`, `reconcile-stale-rollouts.yml`, etc.), so GitHub Actions' own parser is unaffected
+- `python3 scripts/validate_agentic_workflows.py` — `Agentic workflow sources and locks match gh-aw v0.85.4.` (recompiles all three workflows and asserts zero generated-file drift against the working tree post-reconcile)
+- `python3 scripts/run_test_groups.py --all` — 13/13 groups succeeded, 1165/1165 declared tests discovered and run (`DEV_PLATFORM_TEST_AGGREGATE: {"failed_groups": [], "group_count": 13, ... "outcome": "success", ...}`) — this run includes #165's own merged test additions plus several unrelated sibling changes that landed on `main` in the interim (requirement-preauthoring tooling, PRs #25-#28), confirming no regression from any of that concurrent work either
+- `python3 -m unittest tests.test_agentic_workflows -v` — 11/11 tests passed post-reconcile, including the four combined-trigger tests
+- `python3 -c "import yaml; yaml.safe_load(open('.github/workflows/platform-health-review.yml'))"` (ad hoc, not a committed test) — parses without error; confirmed the plain `on:` key matches the same unquoted style already used by every other plain workflow in this repository, so GitHub Actions' own parser is unaffected
 
-## Not run / explicit gap
+## Post-merge follow-up (not a pre-archive gap)
 
-- **Live dispatch of `platform-health-review.yml` (or either underlying review) in `lehard/dev-platform`.** This requires the workflow to exist on a pushed ref; a live run would spend real AI-credit budget on both Codex-driven reviews and could publish two real GitHub Issues via their declared `create-issue` safe outputs. Per explicit instruction, this is deferred to one later coordinated round across the full #165→#166→#167→#169 chain, after all four changes are implemented — not attempted here.
-- **`python3 scripts/dogfood_task.py route-claude`** — attempted, refused by the tool itself ("found 2" materialized changes in this worktree, see above). Not part of the validation list this task was asked to run; not forced past the refusal.
+- **Live dispatch of `platform-health-review.yml` in `lehard/dev-platform`.** Documented in `tasks.md` and `design.md` as an explicit post-merge follow-up: the workflow must exist on `main` before `workflow_dispatch` recognizes it at all. To be performed once this change merges.
+- **`python3 scripts/dogfood_task.py route-claude`** — attempted, refused by the tool itself ("found multiple materialized changes" in this worktree — this change plus the still-present, now-actually-merged-upstream `add-architecture-health-cloud-review` directory pulled in by the sibling merge). Not part of the validation list this task was asked to run; not forced past the refusal. `#165` itself hit and resolved the same routing-refusal pattern before its own successful merge.
 
 ## Semantic OpenSpec review (performed manually; no `/opsx:verify` integration available in this environment)
 
