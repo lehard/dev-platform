@@ -1,0 +1,51 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 2,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.66,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 278.257,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "scripts/rollout_project.py",
+        "tests/test_rollout_validation_ownership.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "source_issue": "lehard/development-backlog#155",
+    "change": "separate-rollout-product-validation",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/separate-rollout-product-validation",
+    "branch": "agent/separate-rollout-product-validation",
+    "head": "db59b64a5a87946f566656e163431de92a0c9587"
+  }
+}

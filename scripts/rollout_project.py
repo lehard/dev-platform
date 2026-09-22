@@ -1489,6 +1489,12 @@ def copier_update_with_guarded_recopy(
 
 
 def run_project_validation(project_root: Path, base_branch: str) -> None:
+    """Validate the rendered Dev Platform Harness before opening a rollout PR.
+
+    Product verification belongs to the downstream rollout PR's normal CI.  In
+    particular, this control-plane step must not execute the rendered check
+    selector, whose commands can require repository-specific dependencies.
+    """
     rejects = find_reject_files(project_root)
     if rejects:
         raise ValueError("Copier left unresolved .rej files: " + ", ".join(rejects[:10]))
@@ -1498,20 +1504,9 @@ def run_project_validation(project_root: Path, base_branch: str) -> None:
     if not doctor.exists():
         raise ValueError("updated project is missing scripts/platform_doctor.py")
     run(["python3", str(doctor)], project_root)
-
-    if harness_mode(project_root) == "project":
-        print(
-            "harness_mode=project; rollout delegates product/application checks to downstream CI.",
-            flush=True,
-        )
-        return
-
-    checks = project_root / "scripts" / "select_checks.py"
-    if not checks.exists():
-        raise ValueError("updated project is missing scripts/select_checks.py")
-    run(
-        ["python3", str(checks), "--base", f"origin/{base_branch}", "--execute"],
-        project_root,
+    print(
+        "Rollout validated Dev Platform Harness compatibility; downstream rollout PR CI verifies product behavior.",
+        flush=True,
     )
 
 
