@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/project-factory/spec.md"
+  ],
+  "change": "fix-dev-platform-yml-trailing-blank-line",
+  "imported_at": "2026-09-22T09:52:55+00:00",
+  "package_revision": "c95b07581ad4607555531f428b475bd72a6a9de05e8ee370ea7e85a082a4ac8b",
+  "prepared_against": "f871bfed2f04cff0d9f89f28f85be92383f895b0",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "low",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "platform-rollout-copier-bridge"
+  },
+  "source_issue": "lehard/development-backlog#149",
+  "source_issue_evidence": {
+    "body_sha256": "e58393e073aa657f7f4b37960f9e9af51ee8ab9b4e6fb929313fa9642c6787b9",
+    "updated_at": "2026-09-22T09:52:11Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
