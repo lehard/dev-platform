@@ -10,10 +10,10 @@ reaches a handoff; each becomes its own ordinary managed task Issue, labeled
 ``type:internal-change`` and linked back to its parent Requirement.
 
 Aggregation is read-through: this module stores no separate status of its
-own. It only asks the existing ``managed_project_status.observe()`` for each
-linked child's real Development Backlog Project status and derives one label
-from that, so a Requirement's progress can never diverge from the lifecycle
-that already owns it.
+own. It reads the local pre-authoring orchestrator and each linked child's
+real Development Backlog Project status, then derives a display projection
+from those authoritative observations. The projection is never persisted, so
+a Requirement's progress cannot diverge from the lifecycle that owns it.
 """
 from __future__ import annotations
 
@@ -38,6 +38,8 @@ CHILD_ITEM_RE = re.compile(r"^[ \t]*- \[[ xX]\] (?P<ref>\S+/\S+#\d+)\s*$", re.MU
 SECTION_RE = re.compile(r"^## (?P<name>.+?)\s*$", re.MULTILINE)
 BACK_REFERENCE_PREFIX = "Requirement: "
 REQUIREMENT_CONTEXT_VERSION = 1
+PROJECT_STATUSES = frozenset(managed_project_status.EXPECTED_STATUSES)
+ORCHESTRATOR_STAGES = frozenset({"selection", "snapshot", "add", "intents", "handoff", "complete"})
 
 
 class RequirementIntakeError(RuntimeError):
@@ -309,23 +311,110 @@ def materialize_handoff(
     return {"requirement": requirement_ref, "child": child_ref, "handoff_digest": digest}
 
 
+def _child_observations(root: Path, children: list[str]) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
+    """Read linked-child statuses and retain failures as projection evidence."""
+    statuses: list[dict[str, Any]] = []
+    diagnostics: list[dict[str, str]] = []
+    for child_ref in children:
+        try:
+            observation = managed_project_status.observe(root, source_issue=child_ref)
+            current = observation.current_status if observation else None
+        except managed_project_status.ManagedProjectStatusError as exc:
+            current = None
+            diagnostics.append({"source": "child", "child": child_ref, "reason": f"unreadable Project status: {exc}"})
+        if current is None and not any(item.get("child") == child_ref for item in diagnostics):
+            diagnostics.append({"source": "child", "child": child_ref, "reason": "missing Project status"})
+        elif current is not None and current not in PROJECT_STATUSES:
+            diagnostics.append({"source": "child", "child": child_ref, "reason": f"unsupported Project status: {current}"})
+        statuses.append({"child": child_ref, "status": current})
+    if len(set(children)) != len(children):
+        diagnostics.append({"source": "children", "reason": "contradictory duplicate child references"})
+    return statuses, diagnostics
+
+
+def _orchestrator_observation(root: Path, number: int) -> tuple[dict[str, Any] | None, list[dict[str, str]]]:
+    """Return a fresh orchestrator report, failing closed when it cannot be read."""
+    try:
+        report = orchestrate_pre_authoring.status(root, requirement_id=requirement_slug(number))
+    except orchestrate_pre_authoring.OrchestratorError as exc:
+        return None, [{"source": "orchestrator", "reason": f"unreadable pre-authoring state: {exc}"}]
+    if not isinstance(report, dict):
+        return None, [{"source": "orchestrator", "reason": "invalid pre-authoring report"}]
+    current_stage = report.get("current_stage")
+    stages = report.get("stages")
+    if current_stage not in ORCHESTRATOR_STAGES or not isinstance(stages, dict):
+        return report, [{"source": "orchestrator", "reason": "contradictory pre-authoring report"}]
+    if current_stage != "complete":
+        current = stages.get(current_stage)
+        if not isinstance(current, dict) or current.get("stage") != current_stage or not isinstance(current.get("state"), str):
+            return report, [{"source": "orchestrator", "reason": "contradictory current pre-authoring stage"}]
+    elif (
+        report.get("blocker") is not None
+        or not isinstance(report.get("handoffs"), dict)
+        or not report["handoffs"]
+    ):
+        return report, [{"source": "orchestrator", "reason": "contradictory completed pre-authoring report"}]
+    return report, []
+
+
+def _pre_authoring_progress(report: dict[str, Any]) -> tuple[str, str]:
+    """Map a validated orchestrator report to its human-facing display stage."""
+    current_stage = report["current_stage"]
+    if current_stage == "complete":
+        return "ready", "current pre-authoring handoff is ready to materialize"
+    current = report["stages"][current_stage]
+    state = current["state"]
+    if state in {"invalid", "stale", "scope-mismatch"}:
+        return "unknown", f"pre-authoring {current_stage} source is {state}"
+    if state == "needs-decision":
+        return "human-decision", "a consequential design decision requires human resolution"
+    if state == "needs-escalation":
+        return "blocked", "pre-authoring evidence requires escalation"
+    if current_stage in {"add", "intents", "handoff"}:
+        return "design", f"pre-authoring {current_stage} is {state}"
+    return "pre-authoring", f"pre-authoring {current_stage} is {state}"
+
+
+def _progress_projection(
+    root: Path, *, number: int, children: list[str], child_statuses: list[dict[str, Any]],
+    child_diagnostics: list[dict[str, str]],
+) -> dict[str, Any]:
+    """Derive progress without writing any Requirement lifecycle state.
+
+    Required source failures take precedence over optimistic display stages.
+    Once a child exists, its Project lifecycle owns implementation/completion;
+    machine-local pre-authoring state is no longer a required source.
+    """
+    report, orchestrator_diagnostics = (
+        (None, []) if children else _orchestrator_observation(root, number)
+    )
+    diagnostics = [*child_diagnostics, *orchestrator_diagnostics]
+    sources: dict[str, Any] = {"children": child_statuses, "orchestrator": report}
+    if any(entry["status"] is None or entry["status"] not in PROJECT_STATUSES for entry in child_statuses):
+        return {"stage": "unknown", "reason": "a linked child Project status is unreadable or unsupported", "diagnostics": diagnostics, "sources": sources}
+    if child_diagnostics or orchestrator_diagnostics:
+        return {"stage": "unknown", "reason": "a progress source is unreadable or contradictory", "diagnostics": diagnostics, "sources": sources}
+    if any(entry["status"] == "Blocked" for entry in child_statuses):
+        return {"stage": "blocked", "reason": "a linked child is blocked", "diagnostics": diagnostics, "sources": sources}
+    if children:
+        if all(entry["status"] == "Done" for entry in child_statuses):
+            return {"stage": "done", "reason": "all linked children are done", "diagnostics": diagnostics, "sources": sources}
+        return {"stage": "implementation", "reason": "linked child lifecycle is active", "diagnostics": diagnostics, "sources": sources}
+    assert report is not None  # validated above; retained to make the mapping total.
+    stage, reason = _pre_authoring_progress(report)
+    return {"stage": stage, "reason": reason, "diagnostics": diagnostics, "sources": sources}
+
+
 def aggregate(root: Path, *, requirement: str) -> dict[str, Any]:
     repository, number = issue_ref(requirement)
     issue = fetch_issue(root, repository, number)
     parsed = parse_requirement_body(str(issue.get("body") or ""))
     children = parsed["children"]
-    if not children:
-        return {"requirement": f"{repository}#{number}", "status": "pre-authoring", "children": []}
-    statuses: list[dict[str, Any]] = []
-    for child_ref in children:
-        try:
-            observation = managed_project_status.observe(root, source_issue=child_ref)
-            current = observation.current_status if observation else None
-        except managed_project_status.ManagedProjectStatusError:
-            current = None
-        statuses.append({"child": child_ref, "status": current})
+    statuses, child_diagnostics = _child_observations(root, children)
     values = [entry["status"] for entry in statuses]
-    if any(value is None for value in values):
+    if not children:
+        overall = "pre-authoring"
+    elif any(value is None for value in values):
         overall = "unknown"
     elif all(value == "Done" for value in values):
         overall = "Done"
@@ -333,7 +422,14 @@ def aggregate(root: Path, *, requirement: str) -> dict[str, Any]:
         overall = "Blocked"
     else:
         overall = "In progress"
-    return {"requirement": f"{repository}#{number}", "status": overall, "children": statuses}
+    return {
+        "requirement": f"{repository}#{number}", "status": overall,
+        "children": statuses,
+        "progress": _progress_projection(
+            root, number=number, children=children, child_statuses=statuses,
+            child_diagnostics=child_diagnostics,
+        ),
+    }
 
 
 def main() -> int:
@@ -364,7 +460,7 @@ def main() -> int:
     materialize_parser.add_argument("--base-dir", type=Path, default=None)
     materialize_parser.add_argument("--confirm-distinct", action="store_true")
 
-    aggregate_parser = sub.add_parser("aggregate", help="report a Requirement's status derived from its linked children")
+    aggregate_parser = sub.add_parser("aggregate", help="report a Requirement's derived progress from pre-authoring and linked children")
     aggregate_parser.add_argument("--requirement", required=True)
 
     args = parser.parse_args()
