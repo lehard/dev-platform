@@ -37,6 +37,9 @@ jobs:
       - name: Install Jinja2 for docs-semantic checks
         run: python3 -m pip install jinja2
 
+      - name: Install tested Copier
+        run: python3 -m pip install "copier==9.17.0"
+
       - name: Unit tests
         shell: bash
         run: |
@@ -72,9 +75,6 @@ jobs:
 
       - name: Run OpenSpec archive/delta regression fixtures
         run: python3 tests/openspec_1_13_regression.py --openspec-command "npx --yes @fission-ai/openspec@1.13.0"
-
-      - name: Install tested Copier
-        run: python3 -m pip install "copier==9.17.0"
 
       - name: Render factory profiles
         shell: bash

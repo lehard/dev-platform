@@ -634,7 +634,7 @@ if __name__ == "__main__":
             self.assertTrue(normalize_baseline)
             return downstream[relative]
 
-        def fake_baseline(tag, answers_text, relatives, *, env, baseline_equivalence=False):
+        def fake_baseline(tag, answers_text, relatives, *, env, baseline_equivalence=False, legacy_repository=None):
             self.assertEqual(tag, "v1.2.3")
             self.assertIn("_commit: v1.2.3", answers_text)
             self.assertEqual(relatives, set(downstream))
@@ -1010,6 +1010,126 @@ if __name__ == "__main__":
                     "v1.4.15",
                     env=os.environ.copy(),
                 )
+
+
+class LegacyBaselineBridgeTests(unittest.TestCase):
+    """ensure_legacy_baseline_tag_available/ensure_platform_tag_available's
+    fallback to a configured legacy repository for a pre-cutover tag a
+    fresh-history canonical checkout can never contain."""
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def test_ensure_legacy_baseline_is_a_no_op_without_a_configured_repository(self) -> None:
+        with patch.object(rollout_project, "load_answers") as load_answers:
+            rollout_project.ensure_legacy_baseline_tag_available(
+                self.root, legacy_repository=None, version="v1.5.1",
+            )
+            load_answers.assert_not_called()
+
+    def test_ensure_legacy_baseline_skips_the_fetch_when_the_tag_already_resolves(self) -> None:
+        commands: list[list[str]] = []
+
+        def fake_run(command, cwd, **kwargs):
+            commands.append(command)
+            return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+
+        with (
+            patch.object(rollout_project, "load_answers", return_value={"_src_path": "gh:acme/platform", "_commit": "v1.5.1"}),
+            patch("copier._vcs.get_repo", return_value="https://github.com/acme/platform.git"),
+            patch("copier._vcs._get_or_create_mirror", return_value=Path("/tmp/fake-mirror.git")),
+            patch.object(rollout_project.subprocess, "run", return_value=type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()),
+            patch.object(rollout_project, "run", side_effect=fake_run),
+        ):
+            rollout_project.ensure_legacy_baseline_tag_available(
+                self.root, legacy_repository="acme/platform-legacy", version="v1.5.1",
+            )
+        self.assertEqual(commands, [])
+
+    def test_ensure_legacy_baseline_narrows_refspec_then_fetches_from_legacy(self) -> None:
+        commands: list[list[str]] = []
+
+        def fake_run(command, cwd, **kwargs):
+            commands.append(command)
+            return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+
+        with (
+            patch.object(rollout_project, "load_answers", return_value={"_src_path": "gh:acme/platform", "_commit": "v1.4.38"}),
+            patch("copier._vcs.get_repo", return_value="https://github.com/acme/platform.git"),
+            patch("copier._vcs._get_or_create_mirror", return_value=Path("/tmp/fake-mirror.git")),
+            patch.object(rollout_project.subprocess, "run", return_value=type("Result", (), {"returncode": 1, "stdout": "", "stderr": ""})()),
+            patch.object(rollout_project, "run", side_effect=fake_run),
+        ):
+            rollout_project.ensure_legacy_baseline_tag_available(
+                self.root, legacy_repository="acme/platform-legacy", version="v1.5.1",
+            )
+        self.assertEqual(len(commands), 4)
+        self.assertEqual(commands[0][:6], ["git", "--git-dir", "/tmp/fake-mirror.git", "config", "--unset-all", "remote.origin.fetch"])
+        self.assertEqual(commands[1][-1], "+refs/heads/*:refs/heads/*")
+        self.assertEqual(commands[2][-1], "+refs/tags/v1.5.1:refs/tags/v1.5.1")
+        self.assertEqual(commands[3][3:6], ["fetch", "--no-tags", "https://github.com/acme/platform-legacy.git"])
+        self.assertEqual(commands[3][-1], "refs/tags/v1.4.38:refs/tags/v1.4.38")
+
+    def test_ensure_platform_tag_available_falls_back_to_legacy_repository(self) -> None:
+        calls: list[list[str]] = []
+
+        def fake_subprocess_run(command, **kwargs):
+            calls.append(command)
+            if command[:2] == ["git", "rev-parse"]:
+                return type("Result", (), {"returncode": 1, "stdout": "", "stderr": ""})()
+            if command[:2] == ["git", "fetch"] and "origin" in command:
+                return type("Result", (), {"returncode": 1, "stdout": "", "stderr": "not found"})()
+            if command[:2] == ["git", "fetch"]:
+                self.assertIn("https://github.com/acme/platform-legacy.git", command)
+                return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+            raise AssertionError(f"unexpected command: {command}")
+
+        with patch.object(rollout_project.subprocess, "run", side_effect=fake_subprocess_run):
+            rollout_project.ensure_platform_tag_available(
+                "v1.4.38", env=os.environ.copy(), legacy_repository="acme/platform-legacy",
+            )
+        fetch_commands = [c for c in calls if c[:2] == ["git", "fetch"]]
+        self.assertEqual(len(fetch_commands), 2)
+
+    def test_ensure_platform_tag_available_reports_both_failures_without_legacy_configured_or_matching(self) -> None:
+        def fake_subprocess_run(command, **kwargs):
+            if command[:2] == ["git", "rev-parse"]:
+                return type("Result", (), {"returncode": 1, "stdout": "", "stderr": ""})()
+            return type("Result", (), {"returncode": 1, "stdout": "", "stderr": "not found"})()
+
+        with patch.object(rollout_project.subprocess, "run", side_effect=fake_subprocess_run):
+            with self.assertRaisesRegex(ValueError, "could not fetch recorded platform baseline"):
+                rollout_project.ensure_platform_tag_available("v1.4.38", env=os.environ.copy())
+            with self.assertRaisesRegex(ValueError, "legacy_repository=acme/platform-legacy"):
+                rollout_project.ensure_platform_tag_available(
+                    "v1.4.38", env=os.environ.copy(), legacy_repository="acme/platform-legacy",
+                )
+
+    def test_ensure_platform_tag_available_rejects_a_malformed_legacy_repository(self) -> None:
+        def fake_subprocess_run(command, **kwargs):
+            if command[:2] == ["git", "rev-parse"]:
+                return type("Result", (), {"returncode": 1, "stdout": "", "stderr": ""})()
+            if command[:2] == ["git", "fetch"] and "origin" in command:
+                return type("Result", (), {"returncode": 1, "stdout": "", "stderr": "not found"})()
+            raise AssertionError(f"unexpected command: {command}")
+
+        with patch.object(rollout_project.subprocess, "run", side_effect=fake_subprocess_run):
+            with self.assertRaisesRegex(ValueError, "legacy_repository must be owner/name"):
+                rollout_project.ensure_platform_tag_available(
+                    "v1.4.38", env=os.environ.copy(), legacy_repository="github.com@evil.example/x",
+                )
+
+    def test_ensure_legacy_baseline_rejects_a_malformed_legacy_repository(self) -> None:
+        with patch.object(rollout_project, "load_answers") as load_answers:
+            with self.assertRaisesRegex(ValueError, "legacy_repository must be owner/name"):
+                rollout_project.ensure_legacy_baseline_tag_available(
+                    self.root, legacy_repository="github.com@evil.example/x", version="v1.5.1",
+                )
+            load_answers.assert_not_called()
 
 
 if __name__ == "__main__":

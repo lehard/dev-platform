@@ -134,6 +134,38 @@ That is the human-facing process. The workflow auto-detects the repository:
 
 The detector and exact behavior are documented in `docs/adoption.md`.
 
+## Bridging a pre-cutover legacy baseline
+
+`copier update` resolves a managed project's template source (`_src_path` in
+its `.copier-answers.yml`) itself, independent of the workflow's own
+`platform/` checkout, and clones/caches it locally to compute the 3-way diff
+against the project's recorded baseline tag (`_commit`). A fresh-history
+canonical repository (see `docs/public-cutover.md`) never contains a
+pre-cutover tag, so a project still on one fails rollout with `invalid
+reference: <tag>` until that tag is bridged in.
+
+Set the optional, non-secret repository variable
+`DEV_PLATFORM_LEGACY_REPOSITORY` (for example `your-org/dev-platform-legacy`,
+never hardcoded) to the repository holding the preserved pre-cutover history.
+When configured, `rollout_project.py --legacy-repository owner/name`:
+
+1. resolves Copier's own local mirror cache for the project's template
+   source (the same cache Copier itself uses, keyed by that source URL);
+2. narrows that cache's `origin` fetch refspec to exactly what the current
+   rollout still needs from the real canonical remote (branches plus the
+   exact version being rolled out), so Copier's own periodic `git remote
+   update --prune` refresh of that cache cannot delete a tag it doesn't
+   recognize as origin's;
+3. fetches only the project's recorded baseline tag from the legacy
+   repository into that same cache.
+
+The combined objects live only in the ephemeral CI runner's local cache; no
+history is rewritten, no old tag is ever pushed to or published from the
+canonical repository, and a project already on a post-cutover baseline never
+triggers a legacy fetch at all. The same optional flag applies to the
+baseline-equivalence comparison guarded recopy falls back to when a Copier
+update leaves reject files on genuinely unchanged platform paths.
+
 ## Legacy publication-harness continuity
 
 `scripts/rollout_project.py` ships a generic exact-head publication-safety

@@ -229,6 +229,19 @@ class RolloutWorkflowContractTests(unittest.TestCase):
         self.assertIn("ref: ${{ needs.plan.outputs.version }}", workflow)
         self.assertIn("python3 platform/scripts/rollout_project.py", workflow)
 
+    def test_rollout_optionally_bridges_a_pre_cutover_legacy_baseline(self) -> None:
+        """A fresh-history canonical checkout never contains a pre-cutover
+        tag; an optional, generically-configured legacy repository lets
+        rollout_project.py bridge it in without hardcoding any repository
+        identity into public source."""
+        workflow = (ROOT / ".github" / "workflows" / "rollout.yml").read_text(encoding="utf-8")
+        self.assertIn("LEGACY_REPOSITORY: ${{ vars.DEV_PLATFORM_LEGACY_REPOSITORY }}", workflow)
+        self.assertIn('legacy_args=(--legacy-repository "$LEGACY_REPOSITORY")', workflow)
+        self.assertIn('"${legacy_args[@]}"', workflow)
+        self.assertIn(
+            'DEV_PLATFORM_LEGACY_REPOSITORY must be owner/name; got: $LEGACY_REPOSITORY', workflow,
+        )
+
     def test_release_dispatches_exact_rollout_workflow(self) -> None:
         workflow = (ROOT / ".github" / "workflows" / "publish-version.yml").read_text(encoding="utf-8")
         self.assertIn("actions: write", workflow)
