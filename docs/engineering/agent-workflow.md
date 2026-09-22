@@ -6,51 +6,94 @@ For the guidance rendered into downstream managed projects, see `template/docs/e
 
 ## Task intents
 
-Four intents stay distinct.
+The canonical intent contract is [task-intake.md](task-intake.md). Keep the
+following routes distinct.
 
-**Discuss.** Inspect, design and compare options. A substantial discussion does not by itself create Backlog state.
+**Discuss.** Inspect, design and compare options. A substantial discussion does
+not by itself create Backlog state.
 
-**Fix/add to Backlog.** When the user explicitly asks to record an accepted non-trivial change ("зафиксируй", "добавь в бэклог", "создай задачу" or equivalent), prepare a local authoring bundle and run:
+**Fix/add to Backlog.** When the user explicitly asks to record accepted
+non-trivial work ("зафиксируй", "добавь в бэклог", "создай задачу", "отправь в
+бэклог" or equivalent), author a human-facing Business Requirement and stop:
+
+```bash
+python3 scripts/requirement_intake.py create \
+  --repository OWNER/DEVELOPMENT-BACKLOG \
+  --title "<business requirement title>" \
+  --outcome-file <outcome.md> \
+  --target-repository OWNER/TARGET \
+  [--context-file <context.md>] \
+  [--acceptance-file <acceptance.md>] \
+  [--exclusions-file <exclusions.md>]
+```
+
+The Requirement contains business intent only and is labeled
+`type:requirement`. Fixation does not create `proposal.md`, `design.md`,
+`tasks.md`, an OpenSpec delta, technical decomposition, execution state, or
+implementation. A fixation-only request stops here.
+
+**Quick execution.** A small direct request may use the existing
+task/check/finish workflow without creating a Requirement, backlog issue, or
+ceremonial OpenSpec. If it expands into a material behavior, architecture,
+compatibility, data-contract, or scope change, stop implementation and enter
+the appropriate non-trivial intake route before continuing.
+
+**Fresh non-trivial execution / execute a Business Requirement.** By default,
+material business/product work is requirement-first. Create/reuse the
+Requirement if necessary, then run:
+
+```bash
+python3 scripts/requirement_intake.py start --requirement owner/repo#N
+python3 scripts/orchestrate_pre_authoring.py status --id requirement-N
+```
+
+Drive the orchestrator resumably through evidence snapshot -> ADD -> intents ->
+handoff. Surface a human question only when the orchestrator reports a
+consequential unresolved choice; otherwise continue from repository evidence.
+For each ready handoff, author the resulting internal technical managed change
+through the existing managed/OpenSpec path, then immediately link it:
+
+```bash
+python3 scripts/managed_task.py create --bundle <directory>
+python3 scripts/requirement_intake.py link-child \
+  --requirement owner/repo#N \
+  --child owner/repo#M
+python3 scripts/start_managed_task.py owner/repo#M
+```
+
+The child is labeled `type:internal-change`. Repeat once per handoff; one
+Requirement may legitimately produce multiple technical children. Requirement
+progress is read-through from their real Project statuses:
+
+```bash
+python3 scripts/requirement_intake.py aggregate --requirement owner/repo#N
+```
+
+Do not write a parallel Requirement status ledger. The primary human-facing
+Project view should show Requirements and filter out `type:internal-change`.
+
+**Direct technical managed/OpenSpec path.** Preserve the existing path when the
+user explicitly supplies a managed Development Backlog Issue/OpenSpec task or
+explicitly asks to create a technical managed task. For technical authoring,
+prepare the normal managed bundle and use:
 
 ```bash
 python3 scripts/managed_task.py create --bundle <directory>
 ```
 
-The bundle contains `manifest.json` (`title`, `change`, ordered `artifacts`), `issue.md`, and those artifacts. The helper validates the configured Backlog contract and the temporary OpenSpec change against a short-lived checkout of the exact `prepared_against` revision it records (never a possibly-stale local working tree), performs bounded duplicate checking, publishes one `managed-openspec:v1` package carrying bounded source-Issue revision evidence (`updated_at` plus a normalized title/body hash). The deterministic managed-task authoring receipt is excluded from that hash; human title/body scope edits remain drift evidence. The helper then stops. Review potential-overlap candidates and pass `--confirm-distinct` only after deciding the scopes are separate. Do not implement, apply, dispatch, publish, or change Project state after authoring; wait for a separate execution request.
+For an explicit technical create-and-run request use
+`python3 scripts/execute_managed_task.py --bundle <directory>`; for an already
+supplied managed Issue use
+`python3 scripts/start_managed_task.py owner/repo#N`.
 
-If the source Issue is edited after authoring but before `start_managed_task.py`/`managed_task.py` materializes it, start stops with an actionable diagnostic naming the recorded and current body hashes; either author a superseding package or rerun with `--acknowledge-source-issue-revision <current_body_sha256>` to explicitly keep the existing package's scope. Once a package is materialized, local OpenSpec stays canonical -- later Issue edits never rewrite it automatically; `dogfood_task.py status --json`/`finish_task.py --status --json` instead expose a bounded `source_issue_drift` field for the human/agent to notice.
-
-A published package that fails supported intake validation, or whose pre-execution scope needs revising, is replaced with:
-
-```bash
-python3 scripts/managed_task.py supersede --bundle <directory> owner/repo#N
-```
-
-`supersede` validates the replacement against the exact current target state before activating it, rewrites the predecessor comment with a bounded `supersedes` link rather than leaving two ambiguous active packages, and is refused once the task has already reached `In review`/`Done` Project status. Retrying with an unchanged bundle converges as a no-op.
-
-When accepted process evidence explicitly motivates the work, pass a repeatable
-`--process-evidence owner/repo#N` for each source issue. The package, not a
-full-text comment search, is canonical. Eligible evidence is marked
-`process:managed` with one bounded backlink after the task exists, then remains
-open until terminal managed success.
-
-Authoring also records a provider-neutral recommended start tier (`R2` balanced by default) and prefixes the created Issue title with `[R2]`. Pass `--strong-trigger <category>` only when a concrete hard trigger applies (see [docs/engineering/model-routing.md](model-routing.md)) to recommend `R3` instead; diff size, file count or blast radius alone are never a valid reason to pass it.
-
-**Quick execution.** A small direct request may use the existing task/check/finish workflow without creating a backlog issue or ceremonial OpenSpec. If it expands into a material behavior, architecture, compatibility, data-contract, or scope change (or needs a full active OpenSpec contract), stop implementation and enter managed intake before continuing instead of broadening it silently.
-
-**Fresh non-trivial execution.** An explicit request to implement material work creates or reuses the managed task and starts that same task before implementation. Prepare the normal authoring bundle, then run `python3 scripts/execute_managed_task.py --bundle <directory>`. The composed helper is idempotent across authoring and start interruptions. The detailed shared intent contract lives in [task-intake.md](task-intake.md).
-
-**Execute an existing managed task.** An explicitly supplied Development Backlog issue is a managed task. Run:
-
-```bash
-python3 scripts/start_managed_task.py owner/repo#N
-```
-
-It performs read-only package intake, creates the task branch/worktree, materializes the agreed package only in that task checkout, then reconciles the configured Development Backlog Project item to `In progress`. It does not start apply, dispatch, or publication. Missing Project configuration/permission is a resumable start blocker, not a silent stale `Ready` state. `managed_task.py` is a task-checkout-only importer for recovery and light-profile use; it must not materialize files in a feature-capable integration checkout.
-
-Then compare the materialized change with current specs and active changes. Repair formal/schema mismatches, but stop for user resolution if the product contract materially conflicts.
-
-After successful import, the local `openspec/changes/<change>/` artifacts are canonical for implementation, verification, and archive. The backlog issue remains the human-facing provenance item, not a competing implementation task list.
+All existing managed-package safeguards remain unchanged on this direct/internal
+technical path: exact-`prepared_against` validation, bounded duplicate
+checking, one active `managed-openspec:v1` package, source-Issue revision
+evidence, routing receipt, `supersede` for a pre-execution replacement, and
+Project reconciliation on managed start. After materialization, the child's
+local `openspec/changes/<change>/` artifacts are canonical for implementation,
+verification and archive; the parent Requirement remains the human-facing
+business/progress object.
 
 ## Development Backlog Project state
 
