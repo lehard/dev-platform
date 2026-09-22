@@ -18,15 +18,18 @@ Target behavior during an active change is `current specs + active delta`, subje
 
 ## Task intents
 
-Keep these four intents distinct:
+Keep these intents distinct:
 
 - **Discuss** a change: inspect, design and compare options; a substantial discussion does not by itself create Backlog state.
-- **Fix/add to Backlog** from a repository checkout when the user explicitly asks to record an accepted non-trivial change ("зафиксируй", "добавь в бэклог", "создай задачу" or equivalent): prepare a local authoring bundle, run `python3 scripts/managed_task.py create --bundle <directory>`, and stop. Authoring never starts apply, implementation, dispatch, Project-status changes or delivery publication. ChatGPT Project uses its dedicated adapter for the same semantics when it has no checkout.
-- **Quick execution**: a small direct request is a quick task and uses the existing task/check/finish workflow with no backlog issue and no ceremonial OpenSpec. If it becomes material or needs a full active OpenSpec contract, enter managed intake before further implementation.
-- **Fresh non-trivial execution**: explicit execution intent first creates/reuses the managed task and starts that same task before implementation; use `python3 scripts/execute_managed_task.py --bundle <directory>`.
-- **Execute an existing managed task**: an explicitly supplied Development Backlog issue is imported with `python3 scripts/start_managed_task.py owner/repo#N` before implementation.
+- **Fix/add to Backlog** when the user explicitly asks to record accepted non-trivial work ("зафиксируй", "добавь в бэклог", "создай задачу", "отправь в бэклог" or equivalent): create or reuse a human-facing Business Requirement through `python3 scripts/requirement_intake.py create ...` and stop. Fixation creates no OpenSpec package and performs no technical decomposition or implementation.
+- **Quick execution**: a small direct request remains a quick task and uses the existing task/check/finish workflow with no Requirement, backlog issue, or ceremonial OpenSpec. If it becomes material, stop and enter requirement-first or explicit technical managed intake before broadening scope.
+- **Fresh non-trivial execution**: by default create/reuse a Business Requirement, run `requirement_intake.py start`, drive `orchestrate_pre_authoring.py` through evidence -> ADD -> intents -> handoff, author the resulting internal managed OpenSpec change(s), link each with `requirement_intake.py link-child`, start those managed tasks, and only then implement.
+- **Execute an existing Business Requirement**: an explicitly supplied `type:requirement` Issue enters through `python3 scripts/requirement_intake.py start --requirement owner/repo#N`.
+- **Direct technical managed/OpenSpec path**: when the user explicitly supplies an existing managed Issue/OpenSpec task or explicitly asks to create a technical managed task, preserve the existing `managed_task.py create` / `execute_managed_task.py` / `start_managed_task.py` path. This is not the default meaning of "зафиксируй".
 
-Managed start performs read-only package intake, creates the task branch/worktree, materializes the agreed package only in that task checkout, and reconciles the Development Backlog Project item to `In progress`. After import, `openspec/changes/<change>/` is canonical for implementation, verification and archive; the backlog issue remains the human-facing provenance item, not a competing implementation task list.
+Each internal technical child is linked back to its parent Requirement and labeled `type:internal-change`. Requirement progress is derived from child lifecycle state through `requirement_intake.py aggregate`; do not maintain a second manual status ledger. The primary human-facing Project view should show Requirements and exclude internal changes.
+
+After a technical child is imported, `openspec/changes/<change>/` is canonical for that child's implementation, verification and archive. The parent Requirement remains the human-facing business/progress object, not a competing technical task list.
 
 Goal refinement is a selective layer before authoring, used only for explicit goal-backed work or a materially unclear non-trivial request. It creates no durable goal, backlog or plan artifact. See [docs/engineering/agent-workflow.md](docs/engineering/agent-workflow.md).
 
@@ -50,6 +53,8 @@ Goal refinement is a selective layer before authoring, used only for explicit go
 Ordinary work in this repository uses the committed source contract in `.dev-platform.toml` and its lifecycle adapter. Do not assemble a manual branch/worktree/PR flow.
 
 ```bash
+python3 scripts/requirement_intake.py start --requirement owner/repo#N
+python3 scripts/orchestrate_pre_authoring.py status --id requirement-N
 python3 scripts/start_managed_task.py owner/repo#N
 python3 scripts/execute_managed_task.py --bundle <directory>
 python3 scripts/dogfood_task.py route-claude --profile <routine|standard|complex> --rationale "..." --evidence "..."
