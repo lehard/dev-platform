@@ -338,7 +338,7 @@ class TemplateContractTests(unittest.TestCase):
     def test_chatgpt_adapter_defers_to_shared_task_intake_contract(self) -> None:
         text = (ROOT / "docs" / "engineering" / "chatgpt-project-protocol.md").read_text(encoding="utf-8")
         self.assertIn("Fresh non-trivial execution", text)
-        self.assertIn("managed task-intake contract", text)
+        self.assertIn("requirement-first intent contract", text)
         self.assertIn("second fixation phrase", text)
 
     def test_goal_definition_is_selective_measurable_and_transient(self) -> None:
