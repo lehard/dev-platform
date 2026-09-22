@@ -202,6 +202,24 @@ class CapabilityManagerTests(unittest.TestCase):
         self.assertFalse((self.root / ".codex").exists())
         self.assertEqual(manager.audit(self.root, self.registry(), []), {"status": "ok", "enabled": [], "issues": [], "unsupported": []})
 
+    def test_audit_fails_on_a_fresh_checkout_but_passes_after_sync(self) -> None:
+        """Reproduces the exact fresh-CI-checkout failure this fix addresses:
+        a project has selected capabilities enabled, but their derived provider
+        surfaces are gitignored and therefore absent on a fresh clone. Generated
+        CI must run `capability_manager.py sync` before `platform_doctor.py`'s
+        own audit call, or the audit reports the surfaces as missing."""
+        registry = self.registry()
+        manager.write_selection(self.root, ["repository-hygiene"])
+        enabled = manager.load_selection(self.root)
+        fresh_checkout_audit = manager.audit(self.root, registry, enabled)
+        self.assertEqual(fresh_checkout_audit["status"], "error")
+        self.assertTrue(
+            any("stale or missing" in issue for issue in fresh_checkout_audit["issues"]),
+            fresh_checkout_audit["issues"],
+        )
+        manager.sync(self.root, registry, enabled)
+        self.assertEqual(manager.audit(self.root, registry, enabled)["status"], "ok")
+
     def test_enable_sync_audit_and_disable_are_idempotent(self) -> None:
         registry = self.registry()
         manager.write_selection(self.root, ["repository-hygiene"])

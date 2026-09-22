@@ -35,6 +35,11 @@ jobs:
           node-version: "20.19.0"
           package-manager-cache: false
 
+      - name: Materialize selected capability surfaces
+        run: |
+          umask 0002
+          python3 scripts/capability_manager.py sync
+
       - name: Validate platform contract
         run: python3 scripts/platform_doctor.py
 

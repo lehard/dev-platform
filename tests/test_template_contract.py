@@ -102,6 +102,23 @@ class TemplateContractTests(unittest.TestCase):
                     (ROOT / "template" / relative).read_text(encoding="utf-8"),
                 )
 
+    def test_generated_ci_materializes_capability_surfaces_before_platform_doctor(self) -> None:
+        """A fresh GitHub Actions checkout never has the gitignored derived
+        capability surfaces (.claude/skills/dev-platform-*, .codex/skills/dev-platform-*)
+        that platform_doctor.py's capability audit requires when a project has
+        any capability enabled, so the generated CI must materialize them first."""
+        workflow = (ROOT / "template" / ".github" / "workflows" / "dev-platform.yml.jinja").read_text(encoding="utf-8")
+        sync_index = workflow.index("python3 scripts/capability_manager.py sync")
+        doctor_index = workflow.index("python3 scripts/platform_doctor.py")
+        self.assertLess(sync_index, doctor_index)
+        self.assertIn("name: Materialize selected capability surfaces", workflow)
+
+    def test_derived_capability_surfaces_stay_ignored_after_materialization(self) -> None:
+        gitignore = (ROOT / "template" / ".gitignore.jinja").read_text(encoding="utf-8")
+        for pattern in (".claude/skills/dev-platform-*/", ".codex/skills/dev-platform-*/"):
+            with self.subTest(pattern=pattern):
+                self.assertIn(pattern, gitignore)
+
     def test_generic_openspec_template_has_no_finance_domain_contract(self) -> None:
         text = (ROOT / "template" / "openspec" / "config.yaml.jinja").read_text(encoding="utf-8").lower()
         for term in ("p&l", "dds", "payroll", "cash canonical", "bank canonical"): self.assertNotIn(term, text)
