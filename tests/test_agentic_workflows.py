@@ -4,6 +4,8 @@ import re
 import unittest
 from pathlib import Path
 
+import yaml
+
 
 ROOT = Path(__file__).resolve().parents[1]
 PIN = (ROOT / ".github" / "aw" / "gh-aw-version.txt").read_text(encoding="utf-8").strip()
@@ -180,6 +182,38 @@ class AgenticWorkflowTests(unittest.TestCase):
         self.assertIn("needs.architecture-health-review.outputs.created_issue_number", publish_job_text)
         self.assertIn("needs.process-health-review.result", publish_job_text)
         self.assertIn("needs.architecture-health-review.result", publish_job_text)
+
+    def test_caller_job_permissions_cover_every_nested_job_in_the_called_workflow(self) -> None:
+        # GitHub rejects a reusable-workflow call at run start (startup_failure)
+        # if any nested job inside the called workflow requests a permission
+        # the calling job did not grant -- the caller's permissions: block is
+        # a ceiling, not merely a hint for the review's own prompt/tools.
+        # This directly regression-guards the real failure hit in
+        # https://github.com/lehard/dev-platform/actions/runs/35797079694.
+        rank = {"none": 0, "read": 1, "write": 2}
+        orchestrator = yaml.safe_load(PLATFORM_HEALTH_REVIEW_PATH.read_text(encoding="utf-8"))
+        caller_jobs = {
+            "process-health-review": "weekly-process-backlog-review",
+            "architecture-health-review": "architecture-health-review",
+        }
+        for caller_job_id, lock_name in caller_jobs.items():
+            with self.subTest(job=caller_job_id):
+                caller_permissions = orchestrator["jobs"][caller_job_id].get("permissions", {})
+                lock_path = ROOT / ".github" / "workflows" / f"{lock_name}.lock.yml"
+                lock_doc = yaml.safe_load(lock_path.read_text(encoding="utf-8"))
+                required: dict[str, str] = {}
+                for job in lock_doc["jobs"].values():
+                    for scope, level in (job.get("permissions") or {}).items():
+                        if rank.get(level, 0) > rank.get(required.get(scope, "none"), 0):
+                            required[scope] = level
+                for scope, level in required.items():
+                    granted = caller_permissions.get(scope, "none")
+                    self.assertGreaterEqual(
+                        rank.get(granted, 0),
+                        rank.get(level, 0),
+                        f"{caller_job_id} grants {scope}: {granted!r} but a nested job in "
+                        f"{lock_name}.lock.yml requests {scope}: {level!r}",
+                    )
 
 
 if __name__ == "__main__":

@@ -89,6 +89,8 @@ class GhClient:
             [
                 "api",
                 f"repos/{self.repo}/issues",
+                "--method",
+                "GET",
                 "--paginate",
                 "-f",
                 "state=open",

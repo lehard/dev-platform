@@ -1154,9 +1154,17 @@ def create_task(
     assurance: str = "standard",
     effort_hint: str | None = None,
     process_evidence_values: list[str] | None = None,
+    handoff_marker: str | None = None,
 ) -> tuple[Package, bool, bool]:
     config = authoring_config(root)
     bundle = load_authoring_bundle(bundle_path)
+    if handoff_marker is not None:
+        if not re.fullmatch(r"<!-- requirement-handoff:v1:[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+#[1-9][0-9]*:[0-9a-f]{64} -->", handoff_marker):
+            raise ManagedTaskError("invalid Requirement handoff provenance marker")
+        parent_reference = handoff_marker.split(":", 3)[2]
+        parent_line = f"Requirement: {parent_reference}"
+        suffix = "" if parent_line in bundle.issue_body else f"\n\n{parent_line}"
+        bundle = replace(bundle, issue_body=bundle.issue_body.rstrip() + suffix + "\n\n" + handoff_marker + "\n")
     try:
         routing_receipt = recommend_start_tier(
             strong_trigger=strong_trigger,

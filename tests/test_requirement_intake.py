@@ -25,6 +25,7 @@ TEMPLATE_SCRIPTS = ROOT / "template" / "scripts"
 sys.path.insert(0, str(TEMPLATE_SCRIPTS))
 
 import managed_project_status  # noqa: E402
+import managed_task  # noqa: E402
 import requirement_intake as ri  # noqa: E402
 
 
@@ -106,6 +107,92 @@ class RenderParseTests(unittest.TestCase):
         self.assertEqual(parsed["children"], [])
 
 
+class MaterializeHandoffTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = init_repo()
+        self.root = Path(self.tmp.name)
+        self.handoff = self.root / "handoff.json"
+        self.handoff.write_text(json.dumps({"digest": "a" * 64}), encoding="utf-8")
+        self.bundle = self.root / "bundle"
+        self.bundle.mkdir()
+        self.bundle_value = managed_task.AuthoringBundle(
+            "Ship it", "Outcome", "ship-it", ("proposal.md",), {"proposal.md": "Proposal"},
+        )
+        self.parent_body = ri.render_requirement_body(outcome="Ship it", target_repository="acme/platform")
+        self.child_body = ""
+        self.marker = f"<!-- requirement-handoff:v1:acme/backlog#7:{'a' * 64} -->"
+        self.candidates: list[dict] = []
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def _fetch(self, root, repository, number):
+        if number == 7:
+            return {"body": self.parent_body, "labels": [{"name": ri.REQUIREMENT_LABEL}]}
+        return {"body": self.child_body, "labels": [{"name": ri.CHILD_LABEL}]}
+
+    def _link(self, root, *, requirement, child):
+        self.parent_body = self.parent_body.replace(ri.CHILDREN_END, f"- [ ] {child}\n{ri.CHILDREN_END}")
+        self.child_body += f"\nRequirement: {requirement}\n"
+
+    def _run(self, *, candidates=None, create=None, link=None, status=None):
+        report = status or {"current_stage": "complete", "target_repository": "acme/platform",
+                            "handoffs": {"intent": str(self.handoff)}}
+        config = managed_task.AuthoringConfig("acme/backlog", "managed", "P2")
+        with (
+            patch.object(ri.orchestrate_pre_authoring, "status", return_value=report),
+            patch.object(ri, "fetch_issue", side_effect=self._fetch),
+            patch.object(ri, "github_cli_env", return_value={}),
+            patch.object(ri.managed_task, "origin_repository", return_value="acme/platform"),
+            patch.object(ri.managed_task, "authoring_config", return_value=config),
+            patch.object(ri.managed_task, "load_authoring_bundle", return_value=self.bundle_value),
+            patch.object(ri.managed_task, "run_json", return_value=self.candidates if candidates is None else candidates),
+            patch.object(ri.managed_task, "create_task", side_effect=create) as create_mock,
+            patch.object(ri, "link_child", side_effect=link or self._link),
+        ):
+            result = ri.materialize_handoff(self.root, requirement="acme/backlog#7",
+                handoff_file=self.handoff, bundle_path=self.bundle)
+        return result, create_mock
+
+    def test_create_then_link_and_retry_reuses_exact_child(self) -> None:
+        package = type("Package", (), {"source_issue": "acme/backlog#8"})()
+        result, create_mock = self._run(create=lambda *args, **kwargs: (package, False, False))
+        self.assertEqual(result["child"], "acme/backlog#8")
+        self.assertEqual(create_mock.call_args.kwargs["handoff_marker"], self.marker)
+        self.candidates = [{"number": 8, "body": self.marker}]
+        self.child_body = self.marker + self.child_body
+        published = type("Package", (), {"change": "ship-it", "target_repository": "acme/platform",
+                                          "artifacts": self.bundle_value.artifacts, "contents": self.bundle_value.contents})()
+        with (
+            patch.object(ri.managed_task, "issue_bodies", return_value=["package"]),
+            patch.object(ri.managed_task, "parse_package", return_value=published),
+        ):
+            result, create_mock = self._run()
+        self.assertEqual(result["child"], "acme/backlog#8")
+        create_mock.assert_not_called()
+
+    def test_interrupted_link_retries_without_another_issue(self) -> None:
+        self.candidates = [{"number": 8, "body": self.marker}]
+        self.child_body = self.marker
+        published = type("Package", (), {"change": "ship-it", "target_repository": "acme/platform",
+                                          "artifacts": self.bundle_value.artifacts, "contents": self.bundle_value.contents})()
+        with (
+            patch.object(ri.managed_task, "issue_bodies", return_value=["package"]),
+            patch.object(ri.managed_task, "parse_package", return_value=published),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "transport interruption"):
+                self._run(link=lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("transport interruption")))
+            result, create_mock = self._run()
+        self.assertEqual(result["child"], "acme/backlog#8")
+        create_mock.assert_not_called()
+
+    def test_invalid_or_ambiguous_handoff_does_not_create_issue(self) -> None:
+        with self.assertRaises(ri.RequirementIntakeError):
+            self._run(status={"current_stage": "snapshot", "blocker": {"state": "stale"}})
+        with self.assertRaisesRegex(ri.RequirementIntakeError, "multiple children"):
+            self._run(candidates=[{"number": 8, "body": self.marker}, {"number": 9, "body": self.marker}])
+
+
 class CreateRequirementTests(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = init_repo()
@@ -158,18 +245,129 @@ class StartPreAuthoringTests(unittest.TestCase):
     def test_start_bridges_a_requirement_issue_into_orchestrator_init(self) -> None:
         body = (
             "## Outcome\n\nMake onboarding self-serve.\n\n"
+            "## Context\n\nSupport currently onboards every client by hand.\n\n"
+            "## Acceptance evidence\n\nA new client can self-serve within one business day.\n\n"
             "## Target repository\n\n`acme/billing`\n\n"
+            "## Exclusions\n\nDoes not cover enterprise SSO.\n\n"
             f"{ri.CHILDREN_START}\n{ri.CHILDREN_END}\n"
         )
         with patch.object(ri, "fetch_issue", return_value={"body": body}):
             payload = ri.start_pre_authoring(self.root, requirement="acme/development-backlog#7", base_dir=self.base_dir)
         self.assertEqual(payload["slug"], "requirement-7")
         directory = ri.orchestrate_pre_authoring.requirement_dir(self.base_dir, "requirement-7")
-        self.assertTrue(ri.orchestrate_pre_authoring.add_path(directory).is_file())
-        add_document = json.loads(ri.orchestrate_pre_authoring.add_path(directory).read_text(encoding="utf-8"))
-        self.assertEqual(add_document["target_repository"], "acme/billing")
-        requirement_text = (directory / "requirement.md").read_text(encoding="utf-8")
-        self.assertEqual(requirement_text.strip(), "Make onboarding self-serve.")
+        self.assertFalse(ri.orchestrate_pre_authoring.add_path(directory).exists())
+        self.assertEqual(payload["state"]["target_repository"], "acme/billing")
+        context = json.loads((directory / "requirement.json").read_text(encoding="utf-8"))
+        self.assertEqual(context, {
+            "version": ri.REQUIREMENT_CONTEXT_VERSION,
+            "outcome": "Make onboarding self-serve.",
+            "context": "Support currently onboards every client by hand.",
+            "acceptance_evidence": "A new client can self-serve within one business day.",
+            "exclusions": "Does not cover enterprise SSO.",
+            "target_repository": "acme/billing",
+        })
+        self.assertEqual(payload["state"]["business_context_file"], str(directory / "requirement.json"))
+
+    def test_start_normalizes_formatting_only_edits_without_rebuilding(self) -> None:
+        initial = (
+            "## Outcome\n\nMake onboarding self-serve.\n\n"
+            "## Context\n\nSupport onboards every client by hand.\n\n"
+            "## Acceptance evidence\n\nA client self-serves in one business day.\n\n"
+            "## Target repository\n\n`acme/billing`\n\n"
+            "## Exclusions\n\nNo enterprise SSO.\n"
+        )
+        reformatted = (
+            "## Outcome\n\n Make   onboarding\n self-serve. \n\n"
+            "## Context\n\nSupport   onboards every\nclient by hand.\n\n"
+            "## Acceptance evidence\n\nA client self-serves in one business day.\n\n"
+            "## Target repository\n\n acme/billing \n\n"
+            "## Exclusions\n\nNo enterprise SSO.\n"
+        )
+        with patch.object(ri, "fetch_issue", return_value={"body": initial}):
+            first = ri.start_pre_authoring(self.root, requirement="acme/development-backlog#7", base_dir=self.base_dir)
+        directory = ri.orchestrate_pre_authoring.requirement_dir(self.base_dir, "requirement-7")
+        add_file = ri.orchestrate_pre_authoring.add_path(directory)
+        add_file.write_text('{"preserved": true}\n', encoding="utf-8")
+        snapshot_file = ri.orchestrate_pre_authoring.snapshot_path(directory)
+        snapshot_file.write_text('{"preserved": "snapshot"}\n', encoding="utf-8")
+        intents_file = ri.orchestrate_pre_authoring.intents_path(directory)
+        intents_file.write_text('{"preserved": "intents"}\n', encoding="utf-8")
+        handoff_file = ri.orchestrate_pre_authoring.handoff_dir(directory) / "intent.json"
+        handoff_file.parent.mkdir()
+        handoff_file.write_text('{"preserved": "handoff"}\n', encoding="utf-8")
+        with patch.object(ri, "fetch_issue", return_value={"body": reformatted}):
+            second = ri.start_pre_authoring(self.root, requirement="acme/development-backlog#7", base_dir=self.base_dir)
+        self.assertEqual(first["state"], second["state"])
+        self.assertEqual(add_file.read_text(encoding="utf-8"), '{"preserved": true}\n')
+        self.assertEqual(snapshot_file.read_text(encoding="utf-8"), '{"preserved": "snapshot"}\n')
+        self.assertEqual(intents_file.read_text(encoding="utf-8"), '{"preserved": "intents"}\n')
+        self.assertEqual(handoff_file.read_text(encoding="utf-8"), '{"preserved": "handoff"}\n')
+
+    def test_start_rebuilds_add_and_later_artifacts_for_each_changed_business_value(self) -> None:
+        initial = (
+            "## Outcome\n\nMake onboarding self-serve.\n\n"
+            "## Context\n\nSupport onboards every client by hand.\n\n"
+            "## Acceptance evidence\n\nA client self-serves in one business day.\n\n"
+            "## Target repository\n\n`acme/billing`\n\n"
+            "## Exclusions\n\nNo enterprise SSO.\n"
+        )
+        replacements = {
+            "Outcome": "Launch guided onboarding.",
+            "Context": "Sales onboards every client by hand.",
+            "Acceptance evidence": "A client self-serves within one hour.",
+            "Target repository": "`acme/accounts`",
+            "Exclusions": "No enterprise SCIM.",
+        }
+        for section, replacement in replacements.items():
+            with self.subTest(section=section):
+                base_dir = self.root / ".claude" / f"pre-authoring-{section.replace(' ', '-') }"
+                with patch.object(ri, "fetch_issue", return_value={"body": initial}):
+                    ri.start_pre_authoring(self.root, requirement="acme/development-backlog#7", base_dir=base_dir)
+                directory = ri.orchestrate_pre_authoring.requirement_dir(base_dir, "requirement-7")
+                snapshot = ri.orchestrate_pre_authoring.snapshot_path(directory)
+                snapshot.write_text('{"snapshot": "retained"}\n', encoding="utf-8")
+                add_file = ri.orchestrate_pre_authoring.add_path(directory)
+                add_file.write_text('{"stale": "add"}\n', encoding="utf-8")
+                ri.orchestrate_pre_authoring.intents_path(directory).write_text('{"stale": "intents"}\n', encoding="utf-8")
+                handoff = ri.orchestrate_pre_authoring.handoff_dir(directory) / "intent.json"
+                handoff.parent.mkdir()
+                handoff.write_text('{"stale": "handoff"}\n', encoding="utf-8")
+                ri.orchestrate_pre_authoring.receipt_path(directory).write_text('{"stale": "receipt"}\n', encoding="utf-8")
+                changed = initial.replace(f"## {section}\n\n" + {
+                    "Outcome": "Make onboarding self-serve.",
+                    "Context": "Support onboards every client by hand.",
+                    "Acceptance evidence": "A client self-serves in one business day.",
+                    "Target repository": "`acme/billing`",
+                    "Exclusions": "No enterprise SSO.",
+                }[section], f"## {section}\n\n{replacement}")
+                with patch.object(ri, "fetch_issue", return_value={"body": changed}):
+                    ri.start_pre_authoring(self.root, requirement="acme/development-backlog#7", base_dir=base_dir)
+                self.assertEqual(snapshot.read_text(encoding="utf-8"), '{"snapshot": "retained"}\n')
+                self.assertFalse(add_file.exists())
+                self.assertFalse(ri.orchestrate_pre_authoring.intents_path(directory).exists())
+                self.assertFalse(ri.orchestrate_pre_authoring.handoff_dir(directory).exists())
+                self.assertFalse(ri.orchestrate_pre_authoring.receipt_path(directory).exists())
+
+    def test_start_rebuilds_legacy_outcome_only_state(self) -> None:
+        body = "## Outcome\n\nShip X.\n\n## Target repository\n\n`acme/billing`\n"
+        directory = ri.orchestrate_pre_authoring.requirement_dir(self.base_dir, "requirement-7")
+        directory.mkdir(parents=True)
+        legacy_file = directory / "requirement.md"
+        legacy_file.write_text("Ship X.\n", encoding="utf-8")
+        state_path = ri.orchestrate_pre_authoring.state_path(directory)
+        state_path.write_text(json.dumps({
+            "version": 1,
+            "id": "requirement-7",
+            "requirement_file": str(legacy_file),
+            "requirement_digest": ri.orchestrate_pre_authoring._digest("Ship X.\n"),
+            "target_repository": "acme/billing",
+            "created_at": "2024-01-01T00:00:00Z",
+        }), encoding="utf-8")
+        ri.orchestrate_pre_authoring.add_path(directory).write_text('{"legacy": true}\n', encoding="utf-8")
+        with patch.object(ri, "fetch_issue", return_value={"body": body}):
+            ri.start_pre_authoring(self.root, requirement="acme/development-backlog#7", base_dir=self.base_dir)
+        self.assertEqual(json.loads(state_path.read_text(encoding="utf-8"))["version"], ri.orchestrate_pre_authoring.STATE_VERSION)
+        self.assertFalse(ri.orchestrate_pre_authoring.add_path(directory).exists())
 
     def test_start_requires_an_outcome_section(self) -> None:
         with patch.object(ri, "fetch_issue", return_value={"body": "## Target repository\n\n`acme/billing`\n"}):
@@ -298,6 +496,29 @@ class AggregateTests(unittest.TestCase):
         items = "\n".join(f"- [ ] {ref}" for ref in refs)
         return f"## Outcome\n\nShip X.\n\n{ri.CHILDREN_START}\n{items}\n{ri.CHILDREN_END}\n"
 
+    @staticmethod
+    def _orchestrator_report(stage: str, state: str = "missing") -> dict[str, object]:
+        if stage == "complete":
+            return {"current_stage": "complete", "stages": {}, "blocker": None, "handoffs": {"direct": "handoff.json"}}
+        return {
+            "current_stage": stage,
+            "stages": {stage: {"stage": stage, "state": state}},
+            "blocker": {"stage": stage, "state": state},
+        }
+
+    def _projected_stage(self, *, children: list[str], report: dict[str, object], statuses: dict[str, str] | None = None) -> str:
+        def fake_observe(root, *, source_issue):
+            return managed_project_status.ProjectObservation(
+                source_issue, "acme", 1, "Backlog", (statuses or {})[source_issue], None, False
+            )
+
+        with (
+            patch.object(ri, "fetch_issue", return_value={"body": self._body_with_children(children)}),
+            patch.object(ri.orchestrate_pre_authoring, "status", return_value=report),
+            patch.object(managed_project_status, "observe", side_effect=fake_observe),
+        ):
+            return ri.aggregate(self.root, requirement="acme/development-backlog#7")["progress"]["stage"]
+
     def test_no_children_reports_pre_authoring(self) -> None:
         with patch.object(ri, "fetch_issue", return_value={"body": self._body_with_children([])}):
             payload = ri.aggregate(self.root, requirement="acme/development-backlog#7")
@@ -362,6 +583,53 @@ class AggregateTests(unittest.TestCase):
         by_child = {entry["child"]: entry["status"] for entry in payload["children"]}
         self.assertIsNone(by_child["acme/development-backlog#21"])
         self.assertEqual(by_child["acme/development-backlog#20"], "Done")
+
+    def test_projection_distinguishes_pre_authoring_design_decision_and_ready(self) -> None:
+        self.assertEqual(self._projected_stage(children=[], report=self._orchestrator_report("selection")), "pre-authoring")
+        self.assertEqual(self._projected_stage(children=[], report=self._orchestrator_report("add", "needs-drafting")), "design")
+        self.assertEqual(self._projected_stage(children=[], report=self._orchestrator_report("add", "needs-decision")), "human-decision")
+        self.assertEqual(self._projected_stage(children=[], report=self._orchestrator_report("complete")), "ready")
+        self.assertEqual(self._projected_stage(children=[], report=self._orchestrator_report("snapshot", "stale")), "unknown")
+
+    def test_projection_uses_children_for_implementation_blocked_and_done(self) -> None:
+        children = ["acme/development-backlog#20"]
+        report = self._orchestrator_report("complete")
+        self.assertEqual(self._projected_stage(children=children, report=report, statuses={children[0]: "In progress"}), "implementation")
+        self.assertEqual(self._projected_stage(children=children, report=report, statuses={children[0]: "In review"}), "implementation")
+        self.assertEqual(self._projected_stage(children=children, report=report, statuses={children[0]: "Blocked"}), "blocked")
+        self.assertEqual(self._projected_stage(children=children, report=report, statuses={children[0]: "Done"}), "done")
+
+    def test_linked_child_progress_does_not_require_machine_local_pre_authoring_state(self) -> None:
+        child = "acme/development-backlog#20"
+        with (
+            patch.object(ri, "fetch_issue", return_value={"body": self._body_with_children([child])}),
+            patch.object(ri.orchestrate_pre_authoring, "status", side_effect=AssertionError("must not read pre-authoring")),
+            patch.object(managed_project_status, "observe", return_value=managed_project_status.ProjectObservation(
+                child, "acme", 1, "Backlog", "Done", None, False,
+            )),
+        ):
+            payload = ri.aggregate(self.root, requirement="acme/development-backlog#7")
+        self.assertEqual(payload["progress"]["stage"], "done")
+
+    def test_projection_reports_orchestrator_escalation_as_blocked(self) -> None:
+        self.assertEqual(
+            self._projected_stage(children=[], report=self._orchestrator_report("snapshot", "needs-escalation")),
+            "blocked",
+        )
+
+    def test_projection_fails_closed_for_unreadable_and_contradictory_sources(self) -> None:
+        with (
+            patch.object(ri, "fetch_issue", return_value={"body": self._body_with_children([])}),
+            patch.object(ri.orchestrate_pre_authoring, "status", side_effect=ri.orchestrate_pre_authoring.OrchestratorError("missing state")),
+        ):
+            payload = ri.aggregate(self.root, requirement="acme/development-backlog#7")
+        self.assertEqual(payload["progress"]["stage"], "unknown")
+        self.assertIn("unreadable", payload["progress"]["diagnostics"][0]["reason"])
+
+        self.assertEqual(
+            self._projected_stage(children=[], report={"current_stage": "complete", "stages": {}, "blocker": "unexpected", "handoffs": {}}),
+            "unknown",
+        )
 
 
 if __name__ == "__main__":
