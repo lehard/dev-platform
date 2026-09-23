@@ -13,6 +13,7 @@ import hashlib
 import json
 import re
 import subprocess
+import tomllib
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -89,14 +90,29 @@ def create_receipt(root: Path, *, requirement: str, source_issue: str, change: s
     verification_rel = verification.relative_to(root).as_posix()
     if not archive_rel.startswith("openspec/changes/archive/") or not archive.name.endswith("-" + change):
         raise RequirementIntegrationError("archive does not identify the exact managed change")
+    try:
+        provenance = json.loads((archive / ".managed-task.json").read_text(encoding="utf-8"))
+        checks = json.loads((archive / "automated-checks.json").read_text(encoding="utf-8"))
+        tasks = (archive / "tasks.md").read_text(encoding="utf-8")
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RequirementIntegrationError("archived managed provenance, tasks or automated checks are unavailable") from exc
+    if provenance.get("source_issue") != source_issue or provenance.get("change") != change:
+        raise RequirementIntegrationError("archived managed provenance does not match the child")
+    task_lines = [line.strip() for line in tasks.splitlines() if re.match(r"^\s*-\s*\[[ xX]\]", line)]
+    if not task_lines or any(re.match(r"^-\s*\[ \]", line) for line in task_lines):
+        raise RequirementIntegrationError("archived managed tasks are incomplete")
+    if (checks.get("outcome") != "success" or not isinstance(checks.get("executed_commands"), list)
+            or not checks["executed_commands"] or any(command.get("outcome") != "success" for command in checks["executed_commands"])):
+        raise RequirementIntegrationError("archived automated checks do not prove success")
     text = verification.read_text(encoding="utf-8")
     lines = {line.strip() for line in text.splitlines()}
     if "OpenSpec-Verify: PASS" not in lines or not any(line.startswith("Verification-Method:") and line.split(":", 1)[1].strip() for line in lines):
         raise RequirementIntegrationError("archived verification receipt lacks a truthful PASS method")
     head = _git(root, "rev-parse", "HEAD")
     branch = _git(root, "symbolic-ref", "--short", "HEAD")
-    if _git(root, "show", f"{head}:{verification_rel}") != text.strip():
-        raise RequirementIntegrationError("verification receipt differs from the exact committed child head")
+    for relative in (verification_rel, f"{archive_rel}/.managed-task.json", f"{archive_rel}/automated-checks.json", f"{archive_rel}/tasks.md"):
+        if _git(root, "show", f"{head}:{relative}") != (root / relative).read_text(encoding="utf-8").strip():
+            raise RequirementIntegrationError(f"archived evidence differs from the exact committed child head: {relative}")
     state_path = root / ".managed-task-state.json"
     try:
         state = json.loads(state_path.read_text(encoding="utf-8"))
@@ -157,9 +173,9 @@ def assemble_candidate(root: Path, *, requirement: str, base: str, receipt_paths
         raise RequirementIntegrationError("candidate base is not an exact resolvable commit") from exc
     if resolved_base != base:
         raise RequirementIntegrationError("candidate base is not an exact resolvable commit")
-    claimed: dict[str, str] = {}
+    claimed: dict[str, tuple[str, str]] = {}
     children: list[dict[str, str]] = []
-    for receipt, receipt_path in zip(receipts, receipt_paths, strict=True):
+    for receipt in receipts:
         try:
             resolved_head = _git(root, "rev-parse", receipt.head)
             _git(root, "cat-file", "-e", f"{receipt.head}^{{commit}}")
@@ -173,17 +189,316 @@ def assemble_candidate(root: Path, *, requirement: str, base: str, receipt_paths
             raise RequirementIntegrationError(f"archived verification is absent from child head: {receipt.source_issue}")
         if _git(root, "merge-base", base, receipt.head) != base:
             raise RequirementIntegrationError(f"child head is stale or not based on candidate base: {receipt.source_issue}")
-        paths = [item for item in _git(root, "diff-tree", "--no-commit-id", "--name-only", "-r", base, receipt.head).splitlines() if item]
-        overlap = sorted(path for path in paths if path in claimed)
+        previous_head = children[-1]["head"] if children else None
+        dependent = previous_head is not None and subprocess.run(
+            ["git", "merge-base", "--is-ancestor", previous_head, receipt.head], cwd=root, capture_output=True,
+        ).returncode == 0
+        delta_base = previous_head if dependent else base
+        paths = [item for item in _git(root, "diff-tree", "--no-commit-id", "--name-only", "-r", delta_base, receipt.head).splitlines() if item]
+        overlap = sorted(
+            path for path in paths if path in claimed and subprocess.run(
+                ["git", "merge-base", "--is-ancestor", claimed[path][1], receipt.head], cwd=root, capture_output=True,
+            ).returncode != 0
+        )
         if overlap:
             raise RequirementIntegrationError(
-                f"child edits overlap ({receipt.source_issue} with {claimed[overlap[0]]}): {', '.join(overlap[:5])}"
+                f"child edits overlap ({receipt.source_issue} with {claimed[overlap[0]][0]}): {', '.join(overlap[:5])}"
             )
-        claimed.update({path: receipt.source_issue for path in paths})
-        children.append({"source_issue": receipt.source_issue, "change": receipt.change, "head": receipt.head,
-                         "receipt": str(receipt_path.resolve()), "digest": receipt.digest})
+        claimed.update({path: (receipt.source_issue, receipt.head) for path in paths})
+        children.append({"source_issue": receipt.source_issue, "change": receipt.change, "source_branch": receipt.source_branch, "head": receipt.head,
+                         "delta_base": delta_base, "digest": receipt.digest})
     unsigned = {"version": 1, "requirement": requirement, "base": base, "children": children}
     return {**unsigned, "digest": _digest(unsigned)}
+
+
+def _registered_worktrees(root: Path) -> dict[Path, str]:
+    listing = _git(root, "worktree", "list", "--porcelain")
+    result: dict[Path, str] = {}
+    path: Path | None = None
+    for line in [*listing.splitlines(), ""]:
+        if line.startswith("worktree "):
+            path = Path(line[9:]).resolve()
+        elif line.startswith("branch refs/heads/") and path is not None:
+            result[path] = line.removeprefix("branch refs/heads/")
+        elif not line:
+            path = None
+    return result
+
+
+def _candidate_manifest_path(requirement: str) -> Path:
+    if ISSUE_RE.fullmatch(requirement) is None:
+        raise RequirementIntegrationError("Requirement identity is invalid")
+    return Path("dev-platform/requirement-integrations") / (_candidate_slug(requirement) + ".json")
+
+
+def _candidate_slug(requirement: str) -> str:
+    if ISSUE_RE.fullmatch(requirement) is None:
+        raise RequirementIntegrationError("Requirement identity is invalid")
+    number = requirement.rsplit("#", 1)[1]
+    digest = hashlib.sha256(requirement.lower().encode("utf-8")).hexdigest()[:12]
+    return f"requirement-{number}-{digest}-integration"
+
+
+def _project_topology(root: Path) -> tuple[str, Path]:
+    config_path = root / ".dev-platform.toml"
+    if config_path.is_file():
+        try:
+            config = tomllib.loads(config_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            raise RequirementIntegrationError(f"cannot read platform source contract: {exc}") from exc
+    else:
+        config = {}
+    main_branch = config.get("main_branch", "main")
+    configured = config.get("paths", {}).get("worktrees", ".claude/worktrees")
+    if not isinstance(main_branch, str) or not main_branch or not isinstance(configured, str):
+        raise RequirementIntegrationError("platform topology is invalid")
+    configured_path = Path(configured)
+    if configured_path.is_absolute() or ".." in configured_path.parts:
+        raise RequirementIntegrationError("worktree root must be repository-relative")
+    return main_branch, (root / configured_path).resolve()
+
+
+def _child_commit_message(child: dict[str, str]) -> str:
+    return (f"Integrate {child['source_issue']} ({child['change']})\n\n"
+            f"Requirement-Child: {child['source_issue']}\n"
+            f"Requirement-Head: {child['head']}\n"
+            f"Requirement-Delta-Base: {child['delta_base']}\n"
+            f"Requirement-Receipt: {child['digest']}")
+
+
+def compose_candidate(root: Path, *, manifest: dict[str, Any], receipt_paths: list[Path], worktree: Path, branch: str) -> dict[str, Any]:
+    """Create or resume an owned candidate worktree from exact child trees.
+
+    No existing worktree or branch is removed, reset, cleaned, or overwritten.
+    A partial uncommitted application is reported for explicit recovery.
+    """
+    root = root.resolve()
+    worktree = worktree.resolve()
+    if not isinstance(manifest, dict) or manifest.get("version") != 1:
+        raise RequirementIntegrationError("candidate manifest has an unsupported version")
+    unsigned = {key: value for key, value in manifest.items() if key != "digest"}
+    if manifest.get("digest") != _digest(unsigned):
+        raise RequirementIntegrationError("candidate manifest digest does not match its content")
+    requirement = manifest.get("requirement")
+    if not isinstance(requirement, str) or not ISSUE_RE.fullmatch(requirement):
+        raise RequirementIntegrationError("candidate Requirement is invalid")
+    expected_branch = "agent/" + _candidate_slug(requirement)
+    if branch != expected_branch:
+        raise RequirementIntegrationError(f"candidate branch must be {expected_branch}")
+    main_branch, allowed_parent = _project_topology(root)
+    if _registered_worktrees(root).get(root) != main_branch:
+        raise RequirementIntegrationError("compose must run from the shared integration checkout on main")
+    if worktree.parent != allowed_parent or worktree.name != expected_branch.removeprefix("agent/"):
+        raise RequirementIntegrationError("candidate worktree must be its dedicated configured worktree path")
+    base = manifest.get("base")
+    children = manifest.get("children")
+    if not isinstance(base, str) or not SHA_RE.fullmatch(base) or not isinstance(children, list) or len(children) < 2:
+        raise RequirementIntegrationError("candidate base or child list is invalid")
+    has_origin = subprocess.run(["git", "remote", "get-url", "origin"], cwd=root, capture_output=True).returncode == 0
+    if has_origin:
+        _git(root, "fetch", "origin", main_branch)
+    authoritative = _git(root, "rev-parse", f"refs/remotes/origin/{main_branch}" if has_origin else f"refs/heads/{main_branch}")
+    if authoritative != base:
+        raise RequirementIntegrationError("authoritative main changed after candidate assembly")
+    if assemble_candidate(root, requirement=requirement, base=base, receipt_paths=receipt_paths) != manifest:
+        raise RequirementIntegrationError("child handoff evidence changed after candidate assembly")
+    registered = _registered_worktrees(root)
+    if worktree in registered:
+        if registered[worktree] != branch:
+            raise RequirementIntegrationError("candidate worktree belongs to another branch")
+    else:
+        if worktree.exists():
+            raise RequirementIntegrationError("candidate path exists but is not a registered worktree")
+        branch_exists = subprocess.run(["git", "show-ref", "--verify", "--quiet", "refs/heads/" + branch], cwd=root)
+        if branch_exists.returncode == 0:
+            raise RequirementIntegrationError("candidate branch exists outside its dedicated worktree")
+        if branch_exists.returncode != 1:
+            raise RequirementIntegrationError("cannot inspect candidate branch")
+        worktree.parent.mkdir(parents=True, exist_ok=True)
+        _git(root, "worktree", "add", "-b", branch, str(worktree), base)
+    if _git(worktree, "status", "--porcelain"):
+        raise RequirementIntegrationError("candidate worktree has uncommitted changes; refusing takeover")
+    commits = _git(worktree, "rev-list", "--reverse", f"{base}..HEAD").splitlines()
+    if len(commits) > len(children) + 1:
+        raise RequirementIntegrationError("candidate branch has unexpected commits")
+    for index, commit in enumerate(commits[:len(children)]):
+        child = children[index]
+        if not isinstance(child, dict) or _git(worktree, "show", "-s", "--format=%B", commit) != _child_commit_message(child):
+            raise RequirementIntegrationError("candidate branch has unexpected child provenance or order")
+        previous = base if index == 0 else commits[index - 1]
+        if _git(worktree, "diff", "--binary", previous, commit) != _git(root, "diff", "--binary", child["delta_base"], child["head"]):
+            raise RequirementIntegrationError("candidate child commit differs from its exact source tree change")
+    if len(commits) == len(children) + 1:
+        expected_path = _candidate_manifest_path(requirement)
+        if _git(worktree, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD") != expected_path.as_posix():
+            raise RequirementIntegrationError("candidate manifest commit has unexpected changes")
+        if _git(worktree, "show", "-s", "--format=%B", "HEAD") != f"Bind integrated Requirement {requirement} candidate":
+            raise RequirementIntegrationError("candidate manifest commit has unexpected provenance")
+        existing = _git(worktree, "show", f"HEAD:{expected_path.as_posix()}")
+        expected = json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True)
+        if existing != expected:
+            raise RequirementIntegrationError("candidate branch has a different committed integration manifest")
+        return {"worktree": str(worktree), "branch": branch, "head": _git(worktree, "rev-parse", "HEAD"), "resumed": True}
+    for child in children[len(commits):]:
+        if not isinstance(child, dict) or not SHA_RE.fullmatch(str(child.get("head", ""))):
+            raise RequirementIntegrationError("candidate child provenance is malformed")
+        if _git(root, "rev-parse", str(child.get("source_branch", ""))) != child["head"]:
+            raise RequirementIntegrationError(f"child branch changed before composition: {child.get('source_issue')}")
+        patch = subprocess.run(
+            ["git", "diff", "--binary", child["delta_base"], child["head"]], cwd=root, capture_output=True, check=True,
+        ).stdout
+        if not patch:
+            raise RequirementIntegrationError(f"child has no tree change: {child['source_issue']}")
+        applied = subprocess.run(["git", "apply", "--index", "-"], cwd=worktree, input=patch, capture_output=True)
+        if applied.returncode:
+            raise RequirementIntegrationError(
+                f"candidate application failed for {child['source_issue']}: {applied.stderr.decode(errors='replace').strip()}"
+            )
+        _git(worktree, "commit", "-m", _child_commit_message(child))
+    manifest_path = worktree / _candidate_manifest_path(requirement)
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    _git(worktree, "add", str(manifest_path.relative_to(worktree)))
+    _git(worktree, "commit", "-m", f"Bind integrated Requirement {requirement} candidate")
+    return {"worktree": str(worktree), "branch": branch, "head": _git(worktree, "rev-parse", "HEAD"), "resumed": False}
+
+
+def _validate_candidate_checkout(root: Path, manifest: dict[str, Any]) -> tuple[str, str]:
+    requirement = manifest.get("requirement")
+    if not isinstance(requirement, str) or not ISSUE_RE.fullmatch(requirement):
+        raise RequirementIntegrationError("candidate Requirement identity is invalid")
+    unsigned = {key: value for key, value in manifest.items() if key != "digest"}
+    if manifest.get("digest") != _digest(unsigned):
+        raise RequirementIntegrationError("candidate manifest digest is invalid")
+    base = manifest.get("base")
+    children = manifest.get("children")
+    if not isinstance(base, str) or not SHA_RE.fullmatch(base) or not isinstance(children, list) or len(children) < 2:
+        raise RequirementIntegrationError("candidate history manifest is malformed")
+    branch = "agent/" + _candidate_slug(requirement)
+    if _git(root, "symbolic-ref", "--short", "HEAD") != branch:
+        raise RequirementIntegrationError("candidate checkout is not on its exact integration branch")
+    path = _candidate_manifest_path(requirement)
+    try:
+        committed = json.loads(_git(root, "show", f"HEAD:{path.as_posix()}"))
+    except (RequirementIntegrationError, json.JSONDecodeError) as exc:
+        raise RequirementIntegrationError("candidate manifest is not committed at the exact branch head") from exc
+    if committed != manifest or json.loads((root / path).read_text(encoding="utf-8")) != manifest:
+        raise RequirementIntegrationError("candidate checkout does not match its committed manifest")
+    commits = _git(root, "rev-list", "--reverse", f"{base}..HEAD").splitlines()
+    if len(commits) != len(children) + 1:
+        raise RequirementIntegrationError("candidate history does not contain every exact child and manifest commit")
+    for index, child in enumerate(children):
+        commit = commits[index]
+        previous = base if index == 0 else commits[index - 1]
+        if (not isinstance(child, dict) or _git(root, "show", "-s", "--format=%B", commit) != _child_commit_message(child)
+                or _git(root, "diff", "--binary", previous, commit) != _git(root, "diff", "--binary", child["delta_base"], child["head"])):
+            raise RequirementIntegrationError("candidate history differs from exact child provenance")
+    if (_git(root, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD") != path.as_posix()
+            or _git(root, "show", "-s", "--format=%B", "HEAD") != f"Bind integrated Requirement {requirement} candidate"):
+        raise RequirementIntegrationError("candidate manifest commit has unexpected content")
+    if _git(root, "status", "--porcelain"):
+        raise RequirementIntegrationError("candidate worktree has uncommitted changes")
+    return branch, _git(root, "rev-parse", "HEAD")
+
+
+def _verify_parent_links(integration: Path, manifest: dict[str, Any]) -> None:
+    import requirement_intake
+
+    requirement = manifest["requirement"]
+    parent = requirement_intake.fetch_issue(integration, *requirement_intake.issue_ref(requirement))
+    if requirement_intake.REQUIREMENT_LABEL not in requirement_intake.managed_task.issue_labels(parent):
+        raise RequirementIntegrationError("integration parent is not a Requirement")
+    linked = requirement_intake.parse_requirement_body(str(parent.get("body") or ""))["children"]
+    for child in manifest["children"]:
+        source = child["source_issue"]
+        if source not in linked:
+            raise RequirementIntegrationError(f"candidate child is not linked to Requirement: {source}")
+        issue = requirement_intake.fetch_issue(integration, *requirement_intake.issue_ref(source))
+        if requirement_intake.CHILD_LABEL not in requirement_intake.managed_task.issue_labels(issue):
+            raise RequirementIntegrationError(f"candidate child lacks internal-change identity: {source}")
+
+
+def _run_full_checks(root: Path) -> None:
+    commands = [
+        ["python3", "-m", "compileall", "-q", "template/scripts", "scripts"],
+        ["python3", "scripts/managed_projects.py", "validate"],
+        ["python3", "scripts/run_test_groups.py", "--all"],
+        ["python3", "template/scripts/openspec_lifecycle.py", "check"],
+    ]
+    for command in commands:
+        print("Requirement integration validation:", " ".join(command), flush=True)
+        result = subprocess.run(command, cwd=root)
+        if result.returncode:
+            raise RequirementIntegrationError(f"full candidate validation failed: {' '.join(command)} (exit {result.returncode})")
+
+
+def _reconcile_exact_merged(root: Path, integration: Path, manifest: dict[str, Any], branch: str, head: str) -> dict[str, Any] | None:
+    from _platform_common import github_cli_env, read_platform_config
+    from integration_state import serialized_integration
+    from managed_project_status import reconcile as reconcile_project
+    from publication_state import find_exact_head_pr
+    from finish_task import sync_after_remote_pr_merge
+
+    config = read_platform_config(root)
+    main_branch = str(config.get("main_branch", "main"))
+    env = github_cli_env(root)
+    if env is None:
+        raise RequirementIntegrationError("GitHub authentication is required to prove exact merged PR state")
+    lookup = find_exact_head_pr(root, env, branch, main_branch, head)
+    if not lookup.available:
+        raise RequirementIntegrationError("exact PR state is unavailable; no terminal status was changed")
+    if lookup.exact_merged is None:
+        return None
+    with serialized_integration(integration, config, 60.0):
+        sync_after_remote_pr_merge(root, integration, config, main_branch)
+        _verify_parent_links(integration, manifest)
+        for child in manifest["children"]:
+            reconcile_project(integration, "Done", source_issue=child["source_issue"])
+    return {"requirement": manifest["requirement"], "branch": branch, "head": head,
+            "pr": lookup.exact_merged.get("url"), "status": "merged-and-reconciled",
+            "children": [child["source_issue"] for child in manifest["children"]]}
+
+
+def publish_candidate(root: Path, *, manifest: dict[str, Any], receipt_paths: list[Path], title: str | None = None) -> dict[str, Any]:
+    """Validate and publish one shared candidate through the protected PR primitive."""
+    from _platform_common import main_root, pr_merge_mode, publish_mode, read_platform_config
+
+    root = root.resolve()
+    integration = main_root().resolve()
+    config = read_platform_config(root)
+    if publish_mode(config) != "pr":
+        raise RequirementIntegrationError("shared Requirement integration requires protected PR publication")
+    branch, head = _validate_candidate_checkout(root, manifest)
+    merged = _reconcile_exact_merged(root, integration, manifest, branch, head)
+    if merged is not None:
+        return merged
+    composed = compose_candidate(integration, manifest=manifest, receipt_paths=receipt_paths,
+                                 worktree=root, branch=branch)
+    if composed["head"] != head or not composed["resumed"]:
+        raise RequirementIntegrationError("candidate head changed before publication")
+    _verify_parent_links(integration, manifest)
+    _run_full_checks(root)
+    # Reobserve every exact input after potentially long validation, before a
+    # push or PR mutation. Existing exact-head PRs are resumed by the existing
+    # publisher; a changed source or main stops at this gate.
+    composed = compose_candidate(integration, manifest=manifest, receipt_paths=receipt_paths,
+                                 worktree=root, branch=branch)
+    if composed["head"] != head:
+        raise RequirementIntegrationError("candidate head changed after validation")
+    command = ["python3", "scripts/project_publish.py", "--mode", "pr"]
+    if title:
+        command += ["--title", title]
+    command += ["--body", f"Shared Requirement integration for {manifest['requirement']}\n\nExact candidate: {head}\nManifest: {_candidate_manifest_path(manifest['requirement'])}"]
+    result = subprocess.run(command, cwd=root)
+    if result.returncode:
+        raise RequirementIntegrationError(f"protected PR publication did not complete (exit {result.returncode})")
+    merged = _reconcile_exact_merged(root, integration, manifest, branch, head)
+    if merged is not None:
+        return merged
+    if pr_merge_mode(config) == "manual":
+        return {"requirement": manifest["requirement"], "branch": branch, "head": head,
+                "status": "in-review", "children": [child["source_issue"] for child in manifest["children"]]}
+    raise RequirementIntegrationError("publisher returned without an exact merged PR; no terminal status was changed")
 
 
 def main() -> int:
@@ -201,6 +516,15 @@ def main() -> int:
     assemble.add_argument("--base", required=True)
     assemble.add_argument("--receipt", required=True, type=Path, action="append")
     assemble.add_argument("--out", required=True, type=Path)
+    compose = sub.add_parser("compose", help="create or resume the exact combined candidate in its dedicated worktree")
+    compose.add_argument("--manifest", required=True, type=Path)
+    compose.add_argument("--worktree", required=True, type=Path)
+    compose.add_argument("--branch", required=True)
+    compose.add_argument("--receipt", required=True, type=Path, action="append")
+    publish = sub.add_parser("publish", help="full-check and publish one exact shared candidate through a protected PR")
+    publish.add_argument("--manifest", required=True, type=Path)
+    publish.add_argument("--receipt", type=Path, action="append", default=[])
+    publish.add_argument("--title")
     args = parser.parse_args()
     root = Path.cwd().resolve()
     try:
@@ -208,10 +532,19 @@ def main() -> int:
             payload = create_receipt(root, requirement=args.requirement, source_issue=args.source_issue, change=args.change,
                                      archived_contract=args.archived_contract, verification_receipt=args.verification_receipt)
             write_receipt(args.out, payload)
-        else:
+        elif args.command == "assemble":
             payload = assemble_candidate(root, requirement=args.requirement, base=args.base, receipt_paths=args.receipt)
             args.out.parent.mkdir(parents=True, exist_ok=True)
-            args.out.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+            encoded = json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+            if args.out.exists() and args.out.read_text(encoding="utf-8") != encoded:
+                raise RequirementIntegrationError("refusing to replace a different candidate manifest")
+            args.out.write_text(encoded, encoding="utf-8")
+        elif args.command == "compose":
+            payload = compose_candidate(root, manifest=json.loads(args.manifest.read_text(encoding="utf-8")),
+                                        receipt_paths=args.receipt, worktree=args.worktree, branch=args.branch)
+        else:
+            payload = publish_candidate(root, manifest=json.loads(args.manifest.read_text(encoding="utf-8")),
+                                        receipt_paths=args.receipt, title=args.title)
         print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
         return 0
     except RequirementIntegrationError as exc:
