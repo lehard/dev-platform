@@ -22,8 +22,7 @@
 # combined report Issue via scripts/publish_platform_health_review_report.py
 # rather than re-evaluating or changing either review's own findings.
 #
-# The `notify` job (openspec/changes/add-platform-health-review-notifications/,
-# openspec/specs/platform-health-review/spec.md) is a further deterministic,
+# The `notify` job (openspec/specs/platform-health-review/spec.md) is a further deterministic,
 # non-agentic step that only runs once `publish-report` actually succeeded.
 # It sends one short summary + report-Issue-link notification (never the
 # full report body) to whichever optional channel(s) -- Telegram and/or a

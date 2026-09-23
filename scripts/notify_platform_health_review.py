@@ -3,10 +3,8 @@
 Health Review report.
 
 This is the deterministic, non-agentic notification step for the
-`platform-health-review` capability
-(openspec/specs/platform-health-review/spec.md,
-openspec/changes/add-platform-health-review-notifications/). It runs after
-the combined report Issue has already been published by
+`platform-health-review` capability (openspec/specs/platform-health-review/spec.md).
+It runs after the combined report Issue has already been published by
 `scripts/publish_platform_health_review_report.py` (a separate, prior
 workflow job) and never re-evaluates or duplicates that report.
 

@@ -228,7 +228,7 @@ def render_summary(*, title: str, process: ReviewOutcome, architecture: ReviewOu
 
     This is deliberately not the full report body: it names the report and
     each review's high-level result only, never findings detail. See
-    `openspec/changes/add-platform-health-review-notifications/`.
+    `openspec/specs/platform-health-review/spec.md`.
     """
     return (
         f"{title}\n"
@@ -275,9 +275,8 @@ def publish(
 def write_github_output(path: str, *, number: object, url: object, summary: str) -> None:
     """Append this run's report identity as GitHub Actions step outputs.
 
-    Consumed by the notification job
-    (`openspec/changes/add-platform-health-review-notifications/`) so that a
-    later, separate, non-agentic step can send a short summary + link without
+    Consumed by the notification job (`openspec/specs/platform-health-review/spec.md`)
+    so that a later, separate, non-agentic step can send a short summary + link without
     re-reading or re-deriving the report. Uses the standard multiline-value
     delimiter form for `summary`, since it may contain newlines.
     """
