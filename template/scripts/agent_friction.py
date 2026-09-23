@@ -973,6 +973,7 @@ def cmd_promote(args: argparse.Namespace) -> int:
     event = choose_event(args.event)
     if event.get("scope") != "platform":
         raise SystemExit("Only scope=platform friction can be promoted to dev-platform.")
+    config = read_platform_config(main_root())
     operator = read_operator_config(main_root(), required=True)
     promotion = operator.get("promotion")
     inbox_repo = promotion.get("repo") if isinstance(promotion, dict) else None
