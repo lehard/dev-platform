@@ -1506,22 +1506,34 @@ def copier_update_with_guarded_recopy(
     return "guarded-recopy"
 
 
-def run_project_validation(project_root: Path, base_branch: str) -> None:
-    """Validate the rendered Dev Platform Harness before opening a rollout PR.
+def validate_platform_installation(project_root: Path) -> None:
+    """Validate only platform-owned compatibility of a rendered installation.
 
-    Product verification belongs to the downstream rollout PR's normal CI.  In
-    particular, this control-plane step must not execute the rendered check
-    selector, whose commands can require repository-specific dependencies.
+    This deliberately stops before the rendered check selector. Product
+    verification belongs to the downstream repository's normal CI, while this
+    reusable gate proves the Copier result has the platform surfaces needed to
+    reach that CI safely.
     """
     rejects = find_reject_files(project_root)
     if rejects:
         raise ValueError("Copier left unresolved .rej files: " + ", ".join(rejects[:10]))
     run(["git", "diff", "--check", "--"], project_root)
+    run(["git", "diff", "--cached", "--check", "--"], project_root)
 
     doctor = project_root / "scripts" / "platform_doctor.py"
     if not doctor.exists():
         raise ValueError("updated project is missing scripts/platform_doctor.py")
     run(["python3", str(doctor)], project_root)
+
+
+def run_project_validation(project_root: Path, base_branch: str) -> None:
+    """Validate the rendered Dev Platform Harness before opening a rollout PR.
+
+    ``base_branch`` remains part of the public rollout helper signature. The
+    platform installation checks themselves are branch-independent so release
+    candidate validation can reuse them verbatim.
+    """
+    validate_platform_installation(project_root)
     print(
         "Rollout validated Dev Platform Harness compatibility; downstream rollout PR CI verifies product behavior.",
         flush=True,

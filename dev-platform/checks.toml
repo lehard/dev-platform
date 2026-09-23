@@ -153,6 +153,7 @@ targets = [
   "test_project_harness_doc_ownership",
   "test_protected_publish_contract",
   "test_release_intent",
+  "test_release_installation_validation",
   "test_rollout_dispatch_gate",
   "test_rollout_control_plane_regressions",
   "test_rollout_diagnostic_envelope",
