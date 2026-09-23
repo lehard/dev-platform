@@ -215,5 +215,60 @@ class LabelBootstrapTests(unittest.TestCase):
         find_issue.assert_called_once()
 
 
+class RecoveryReconciliationTests(unittest.TestCase):
+    repository = "example-org/example-project"
+    issue = {"number": 17, "body": rfs.render_body({
+        "schema_version": 1,
+        "repository": repository,
+        "consecutive_failures": 3,
+        "first_failed_release": "v1.4.13",
+        "last_failed_release": "v1.4.15",
+        "last_category": "copier_conflict",
+        "last_reason": "rej files",
+        "last_updated": "2026-08-10T00:00:00Z",
+    })}
+
+    def args(self) -> argparse.Namespace:
+        return argparse.Namespace(repository=self.repository, default_branch="main", tracker_repo="lehard/dev-platform")
+
+    def test_project_version_requires_coherent_default_branch_markers(self) -> None:
+        with patch.object(rfs, "project_raw_file", side_effect=["_commit: v1.4.15\n", 'platform_version = "1.4.15"\n']):
+            self.assertEqual(rfs.project_platform_version(self.repository, "main", "target-read"), "v1.4.15")
+        with patch.object(rfs, "project_raw_file", side_effect=["_commit: v1.4.15\n", 'platform_version = "1.4.14"\n']):
+            with self.assertRaisesRegex(ValueError, "inconsistent"):
+                rfs.project_platform_version(self.repository, "main", "target-read")
+
+    def test_recovered_project_closes_existing_alert(self) -> None:
+        with patch.dict("os.environ", {"ROLLOUT_PROJECT_TOKEN": "target-read"}), \
+             patch.object(rfs, "find_tracking_issue", return_value=self.issue), \
+             patch.object(rfs, "project_platform_version", return_value="v1.4.15"), \
+             patch.object(rfs, "run_gh") as run_gh:
+            self.assertEqual(rfs.cmd_reconcile(self.args()), 0)
+        self.assertEqual(run_gh.call_count, 2)
+        self.assertEqual(run_gh.call_args_list[0].args[0][:2], ["issue", "comment"])
+        self.assertEqual(run_gh.call_args_list[1].args[0][:2], ["issue", "close"])
+
+    def test_still_stale_project_leaves_alert_open(self) -> None:
+        with patch.dict("os.environ", {"ROLLOUT_PROJECT_TOKEN": "target-read"}), \
+             patch.object(rfs, "find_tracking_issue", return_value=self.issue), \
+             patch.object(rfs, "project_platform_version", return_value="v1.4.14"), \
+             patch.object(rfs, "run_gh") as run_gh:
+            self.assertEqual(rfs.cmd_reconcile(self.args()), 0)
+        run_gh.assert_not_called()
+
+    def test_ambiguous_version_records_leave_alert_open(self) -> None:
+        with patch.dict("os.environ", {"ROLLOUT_PROJECT_TOKEN": "target-read"}), \
+             patch.object(rfs, "find_tracking_issue", return_value=self.issue), \
+             patch.object(rfs, "project_platform_version", side_effect=ValueError("platform version records are inconsistent")), \
+             patch.object(rfs, "run_gh") as run_gh:
+            self.assertEqual(rfs.cmd_reconcile(self.args()), 0)
+        run_gh.assert_not_called()
+
+    def test_repeated_run_after_closure_is_a_noop(self) -> None:
+        with patch.object(rfs, "find_tracking_issue", return_value=None), patch.object(rfs, "run_gh") as run_gh:
+            self.assertEqual(rfs.cmd_reconcile(self.args()), 0)
+        run_gh.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()
