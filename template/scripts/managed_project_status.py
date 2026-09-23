@@ -95,6 +95,31 @@ mutation($project: ID!, $item: ID!, $field: ID!, $option: String!) {
 """.strip()
 
 
+ISSUE_ITEMS_QUERY = """
+query($owner: String!, $repo: String!, $number: Int!, $cursor: String) {
+  repository(owner: $owner, name: $repo) {
+    issue(number: $number) {
+      projectItems(first: 100, after: $cursor) {
+        nodes {
+          id
+          isArchived
+          project { id }
+          content {
+            __typename
+            ... on Issue { number repository { nameWithOwner } }
+          }
+          fieldValueByName(name: "Status") {
+            ... on ProjectV2ItemFieldSingleSelectValue { name optionId }
+          }
+        }
+        pageInfo { hasNextPage endCursor }
+      }
+    }
+  }
+}
+""".strip()
+
+
 def parse_source_issue(reference: str) -> SourceIssue:
     match = SOURCE_ISSUE_RE.fullmatch(reference.strip())
     if not match:
@@ -252,6 +277,46 @@ def _project_state(
         cursor = page.get("endCursor")
         if not isinstance(cursor, str) or not cursor:
             raise ManagedProjectStatusError("GitHub Project item pagination returned no continuation cursor")
+
+    if not matching_items:
+        # GitHub can expose a newly added item through Issue.projectItems before
+        # it appears in ProjectV2.items. Resolve the exact source issue, then
+        # retain the same project identity and uniqueness checks.
+        owner, repo = source.repository.split("/", 1)
+        issue_cursor: str | None = None
+        while True:
+            payload = _graphql(
+                root,
+                env,
+                ISSUE_ITEMS_QUERY,
+                {"owner": owner, "repo": repo, "number": source.number, "cursor": issue_cursor},
+            )
+            repository = payload.get("data", {}).get("repository")
+            issue = repository.get("issue") if isinstance(repository, dict) else None
+            if not isinstance(issue, dict):
+                raise ManagedProjectStatusError(f"managed issue {source.reference} was not found or is not readable")
+            items = issue.get("projectItems", {})
+            for item in items.get("nodes", []):
+                if not isinstance(item, dict) or item.get("isArchived"):
+                    continue
+                content = item.get("content")
+                item_project = item.get("project")
+                if (
+                    isinstance(item_project, dict)
+                    and item_project.get("id") == project_id
+                    and isinstance(content, dict)
+                    and content.get("__typename") == "Issue"
+                    and content.get("number") == source.number
+                    and isinstance(content.get("repository"), dict)
+                    and content["repository"].get("nameWithOwner") == source.repository
+                ):
+                    matching_items.append(item)
+            page = items.get("pageInfo", {})
+            if not page.get("hasNextPage"):
+                break
+            issue_cursor = page.get("endCursor")
+            if not isinstance(issue_cursor, str) or not issue_cursor:
+                raise ManagedProjectStatusError("GitHub Issue project item pagination returned no continuation cursor")
 
     if len(matching_items) != 1:
         raise ManagedProjectStatusError(
