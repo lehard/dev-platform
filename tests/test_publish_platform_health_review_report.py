@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -224,6 +225,52 @@ class OutcomeParsingTests(unittest.TestCase):
     def test_result_is_stripped(self) -> None:
         outcome = report._outcome("Process Health Review", " success ", "", "")
         self.assertEqual(outcome.result, "success")
+
+
+class GhClientCommandTests(unittest.TestCase):
+    """Assert the exact `gh` argv built for each call, without shelling out.
+
+    `gh api` defaults to POST the moment any `-f`/`-F` parameter is present
+    (see `gh api --help`), so a read-only list call must pass `--method GET`
+    explicitly or GitHub validates the request against the wrong (mutating)
+    endpoint schema. This regression-guards the real failure hit in a live
+    post-merge dispatch: https://github.com/lehard/dev-platform/actions/runs/35800636908
+    ('For properties/labels, "platform-health-review" is not an array.
+    "title" wasn't supplied. (HTTP 422)').
+    """
+
+    def _run_with_mocked_gh(self, method_name: str, *args, stdout: str = "[]") -> list[str]:
+        client = report.GhClient("lehard/dev-platform")
+        with patch("publish_platform_health_review_report.subprocess.run") as mock_run:
+            mock_run.return_value.returncode = 0
+            mock_run.return_value.stdout = stdout
+            mock_run.return_value.stderr = ""
+            getattr(client, method_name)(*args)
+        (called_args,), _ = mock_run.call_args
+        return called_args
+
+    def test_list_open_reports_uses_explicit_get_method(self) -> None:
+        argv = self._run_with_mocked_gh("list_open_reports")
+        self.assertIn("gh", argv)
+        self.assertIn("--method", argv)
+        self.assertEqual(argv[argv.index("--method") + 1], "GET")
+        self.assertIn("--paginate", argv)
+
+    def test_create_report_issue_defaults_to_post(self) -> None:
+        argv = self._run_with_mocked_gh(
+            "create_report_issue", "title", "body", stdout='{"number": 1, "html_url": "https://x/1"}'
+        )
+        # No explicit --method: gh api's documented default becomes POST as
+        # soon as -f parameters are present, which is correct for creating
+        # an issue -- this test pins that assumption so it fails loudly if
+        # gh's default behavior or this call's flags ever change.
+        self.assertNotIn("--method", argv)
+        self.assertIn("-f", argv)
+
+    def test_close_issue_uses_explicit_patch_method(self) -> None:
+        argv = self._run_with_mocked_gh("close_issue", 7, stdout="{}")
+        self.assertIn("-X", argv)
+        self.assertEqual(argv[argv.index("-X") + 1], "PATCH")
 
 
 if __name__ == "__main__":
