@@ -7,7 +7,7 @@ publication, release, and managed rollout do not depend on it.
 ## Version and secret contract
 
 The exact compiler/runtime pin is stored in
-`.github/aw/gh-aw-version.txt` and is currently `v0.85.4`. Install that exact
+`.github/aw/gh-aw-version.txt` and is currently `v0.88.8`. Install that exact
 extension before changing workflow sources:
 
 ```bash
@@ -15,15 +15,18 @@ gh extension install github/gh-aw --pin "$(tr -d '[:space:]' < .github/aw/gh-aw-
 gh aw doctor --repo lehard/dev-platform
 ```
 
-The repository-level `.github/workflows/aw.json` maps the compiler's default
-MCP gateway runtime to its immutable `v0.4.9` digest. This supported compiled
-lock substitution corrects public-repository secrecy classification while
-retaining `allowed-repos: public`. Do not enable `private-to-public-flows`; this
-pilot must never read private repository data for a public GitHub safe output.
+The validator compiles the release with its resolved immutable source commit,
+so generated setup-action references remain SHA-pinned.
 
-`gh-aw-mcpg` v0.4.9 also enforces a trusted host-mount policy. The two pilot
-sources therefore declare only the three compiler-owned mount roots required by
-the `v0.85.4` safe-output backend: the workflow workspace, its
+The generated locks use the compiler's `gh-aw-mcpg` v0.4.18 image pinned by
+digest. The repository-level `.github/workflows/aw.json` retains the older
+v0.4.8-to-v0.4.9 substitution for legacy compilation; it does not replace the
+v0.88.8 compiler's runtime. The generated GitHub tool guard retains
+`allowed-repos: public`. Do not enable `private-to-public-flows`; this pilot
+must never read private repository data for a public GitHub safe output.
+
+The three pilot sources declare only the three compiler-owned mount roots
+required by the `v0.88.8` safe-output backend: the workflow workspace, its
 `$RUNNER_TEMP/gh-aw/safeoutputs` runtime directory, and `/tmp/gh-aw`. This is
 not an agent write grant: Codex remains read-only and can request GitHub writes
 only through the configured safe-output handler. Do not add broader roots,

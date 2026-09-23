@@ -1,0 +1,65 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 1.634,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 4.066,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 281.002,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        ".github/workflows/architecture-health-review.lock.yml",
+        ".github/workflows/architecture-health-review.md",
+        ".github/workflows/process-issue-triage.lock.yml",
+        ".github/workflows/process-issue-triage.md",
+        ".github/workflows/weekly-process-backlog-review.lock.yml",
+        ".github/workflows/weekly-process-backlog-review.md",
+        "scripts/validate_agentic_workflows.py",
+        "tests/test_agentic_workflows.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "source_issue": "lehard/development-backlog#184",
+    "change": "bound-ghaw-agent-jobs",
+    "worktree": "/Users/Shared/Workspace/dev-platform-161-recovery/.claude/worktrees/bound-ghaw-agent-jobs",
+    "branch": "agent/bound-ghaw-agent-jobs",
+    "head": "fdfa69c4bd106dec5163fa559187ef7e41d3fd03"
+  }
+}
