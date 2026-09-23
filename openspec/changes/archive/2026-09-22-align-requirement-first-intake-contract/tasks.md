@@ -1,0 +1,12 @@
+# Tasks
+
+## Contract
+
+- [x] Update accepted OpenSpec requirements for generic fixation, execution, and explicit direct technical managed authoring.
+- [x] Correct adjacent accepted-spec and downstream agent-facing wording without changing the workflow architecture.
+
+## Guard and verification
+
+- [x] Add a focused automated semantic drift check for key intake surfaces.
+- [x] Run focused and required platform validation, semantic OpenSpec review, and record truthful verification evidence.
+- [x] Prepare the verified change and receipt for archive and publication through the managed lifecycle.

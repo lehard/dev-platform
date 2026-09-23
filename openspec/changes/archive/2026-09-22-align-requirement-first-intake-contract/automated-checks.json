@@ -1,0 +1,51 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 2,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 1.049,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 220.091,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "tests/test_requirement_first_intake_contract.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "source_issue": "lehard/development-backlog#174",
+    "change": "align-requirement-first-intake-contract",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/align-requirement-first-intake-contract",
+    "branch": "agent/align-requirement-first-intake-contract",
+    "head": "b3d8bfaff116c64107f398ae907c02f86c9d0550"
+  }
+}

@@ -29,7 +29,7 @@ Tool-specific instruction files SHALL reference shared Dev Platform rules rather
 
 ### Requirement: Managed-task semantics are consistent across conversation surfaces
 
-For an explicitly operator-integrated project, ChatGPT Project, Codex, and Claude SHALL preserve the same requirement-first intent boundaries, Requirement representation, source-of-truth model, and explicit direct-technical exception even when their supported publication mechanics differ. A portable project that does not select operator integration SHALL retain its self-contained local OpenSpec workflow.
+For an explicitly operator-integrated project, ChatGPT Project, Codex, and Claude SHALL preserve the same Discuss, generic Fix, non-trivial Execute, and explicit direct technical managed intent boundaries. Generic fixation SHALL create or reuse one human-facing Business Requirement without OpenSpec authoring; technical package publication belongs to subsequent Requirement execution or explicit direct technical intent. Supported transport mechanics MAY differ without changing these meanings. A portable project that does not select operator integration SHALL retain its self-contained local OpenSpec workflow.
 
 #### Scenario: ChatGPT Project fixes accepted work to Backlog
 
@@ -37,12 +37,14 @@ For an explicitly operator-integrated project, ChatGPT Project, Codex, and Claud
 - **WHEN** the user explicitly asks to record accepted non-trivial work
 - **THEN** it creates or reuses exactly one `type:requirement` Development Backlog Issue through the canonical connected adapter and reads it back
 - **AND** it stops without OpenSpec technical decomposition, managed start, or implementation
+- **AND** lack of local `requirement_intake.py` execution is not itself a blocker when the connected adapter verifies the same durable representation
 
 #### Scenario: Repo-local agent fixes accepted work to Backlog
 
 - **GIVEN** Codex or Claude operates in an operator-integrated repository checkout
 - **WHEN** the user explicitly asks to record accepted non-trivial work
 - **THEN** it uses `requirement_intake.py create` and stops after the Requirement is durable
+- **AND** it does not invoke `managed_task.py create` for generic fixation
 
 #### Scenario: Fresh execution and explicit technical work remain distinct
 
@@ -57,12 +59,13 @@ For an explicitly operator-integrated project, ChatGPT Project, Codex, and Claud
 
 ### Requirement: Cross-surface authoring produces one consumable managed representation
 
-A managed task authored from ChatGPT Project SHALL be consumable by the existing repository managed-task intake without a ChatGPT-specific import or translation layer.
+An internal or explicitly requested direct technical managed task authored from ChatGPT Project SHALL remain consumable by the ordinary managed-task intake without a ChatGPT-specific translation layer. A generic Business Requirement SHALL remain the same human-facing representation across conversation surfaces and SHALL not require a technical package.
 
 #### Scenario: Coding agent later starts a ChatGPT-authored task
-- **GIVEN** ChatGPT Project created a valid managed Development Backlog task and stopped
-- **WHEN** Codex or Claude later runs the ordinary `start_managed_task.py owner/repo#N` flow
-- **THEN** the package validates and materializes through the same intake contract as a repo-locally authored managed task
+
+- **GIVEN** ChatGPT Project created a valid technical managed Development Backlog task under explicit technical intent or Requirement execution
+- **WHEN** Codex or Claude later runs `start_managed_task.py owner/repo#N`
+- **THEN** the package validates through the standard intake contract
 - **AND** repository-local OpenSpec becomes canonical after materialization
 
 ### Requirement: Agent instructions expose the thin-CI ownership boundary
