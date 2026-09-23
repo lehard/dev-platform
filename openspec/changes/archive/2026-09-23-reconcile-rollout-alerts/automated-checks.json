@@ -9,19 +9,19 @@
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
-      "duration_seconds": 2.065,
+      "duration_seconds": 2.292,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 -m ruff check scripts template/scripts tests",
-      "duration_seconds": 0.26,
+      "duration_seconds": 0.653,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
-      "duration_seconds": 418.22,
+      "duration_seconds": 304.97,
       "outcome": "success",
       "exit_code": 0
     }
@@ -57,6 +57,6 @@
     "change": "reconcile-rollout-alerts",
     "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/reconcile-rollout-alerts",
     "branch": "agent/reconcile-rollout-alerts",
-    "head": "2389a8a82c244dd7c2fb2d408a695a4de92cba33"
+    "head": "c97c7a2eb14b25d025efaf1cc9a6709f24111071"
   }
 }
