@@ -493,7 +493,6 @@ def main() -> int:
             return 0
         if args.command == "aggregate":
             payload = aggregate(root, requirement=args.requirement)
-            import json
             print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
             return 0
         raise RequirementIntakeError(f"unsupported command: {args.command}")  # pragma: no cover - argparse enforces the choice set

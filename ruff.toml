@@ -1,0 +1,5 @@
+[lint]
+# Keep this gate intentionally narrow: these Pyflakes diagnostics catch names
+# that cannot resolve at runtime without turning the platform into a broad
+# style-cleanup or type-migration project.
+select = ["E9", "F811", "F821", "F822", "F823"]
