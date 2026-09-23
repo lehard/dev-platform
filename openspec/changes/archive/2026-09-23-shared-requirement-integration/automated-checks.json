@@ -9,19 +9,19 @@
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
-      "duration_seconds": 1.401,
+      "duration_seconds": 10.148,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 -m ruff check scripts template/scripts tests",
-      "duration_seconds": 2.635,
+      "duration_seconds": 1.663,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
-      "duration_seconds": 507.862,
+      "duration_seconds": 248.576,
       "outcome": "success",
       "exit_code": 0
     }
@@ -63,6 +63,6 @@
     "change": "shared-requirement-integration",
     "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/shared-requirement-integration",
     "branch": "agent/shared-requirement-integration",
-    "head": "f8576930428c48cd98a38151af9fa3e204acbd7a"
+    "head": "5a4b4d8bd2bfd15a531538c04c88a32fc6a8d74c"
   }
 }
