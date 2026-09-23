@@ -15,6 +15,7 @@ Reviewed proposal, design, both delta specs, implementation and tests together a
 - `python3 template/scripts/openspec_lifecycle.py check` — passed after reconciliation.
 - `openspec validate shared-requirement-integration --strict` — passed after reconciliation.
 - `git diff --check` — passed before reconciliation.
+- `python3 scripts/select_checks.py --base origin/main --execute --evidence openspec/changes/archive/2026-09-23-shared-requirement-integration/automated-checks.json` — compile, Ruff and full test groups passed again on the exact head after the PR-base reconciliation; refreshed the archived evidence identity.
 
 The first live GitHub two-child shared-PR/full-CI dogfood has **not** run in this bootstrap change; it remains an explicit acceptance gate of the later terminal Requirement execution child. This receipt does not assert that #164 is complete.
 
