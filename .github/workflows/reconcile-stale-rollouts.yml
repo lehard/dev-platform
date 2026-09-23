@@ -1,6 +1,8 @@
 name: Reconcile Stale Managed Rollouts
 
 on:
+  schedule:
+    - cron: '23 4 * * *'
   workflow_dispatch:
     inputs:
       mode:
@@ -86,6 +88,7 @@ jobs:
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     permissions:
       contents: read
+      issues: write
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - name: Require rollout GitHub App configuration
@@ -149,6 +152,22 @@ jobs:
           args=(--repository "$REPOSITORY" --base-branch "$BASE_BRANCH" --expected-bot "${APP_SLUG}[bot]" --registry operator/managed-projects.json --output rollout-supersession.json)
           if [[ "$MODE" == apply ]]; then args+=(--apply); fi
           python3 scripts/rollout_supersession.py reconcile "${args[@]}"
+      - name: Reconcile recovered rollout alert
+        if: github.event_name == 'schedule' || inputs.mode == 'apply'
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ROLLOUT_PROJECT_TOKEN: ${{ steps.target-token.outputs.token }}
+          REPOSITORY: ${{ matrix.repository }}
+          DEFAULT_BRANCH: ${{ matrix.default_branch }}
+          TRACKER_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          python3 scripts/rollout_failure_streak.py reconcile \
+            --repository "$REPOSITORY" \
+            --default-branch "$DEFAULT_BRANCH" \
+            --tracker-repo "$TRACKER_REPO"
       - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         if: always()
         with:

@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import json
+import os
 import re
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
+
+from rollout_supersession import parse_version, platform_version_from_contents
 
 SCHEMA_VERSION = 1
 DEFAULT_THRESHOLD = 3
@@ -145,6 +150,69 @@ def run_gh(args: list[str]) -> subprocess.CompletedProcess[str]:
     return result
 
 
+def project_raw_file(repository: str, path: str, branch: str, token: str) -> str:
+    """Read one authoritative target file without granting its token issue access."""
+    env = dict(os.environ)
+    env["GH_TOKEN"] = token
+    result = subprocess.run(
+        [
+            "gh", "api", "-H", "Accept: application/vnd.github+json",
+            f"repos/{repository}/contents/{quote(path, safe='/')}?ref={quote(branch, safe='')}",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+        env=env,
+    )
+    if result.returncode != 0:
+        raise ValueError(f"could not read {path} from the downstream default branch")
+    try:
+        payload = json.loads(result.stdout)
+        content = payload["content"]
+        if not isinstance(content, str):
+            raise ValueError("response has no file content")
+        return base64.b64decode(content, validate=False).decode("utf-8")
+    except (KeyError, TypeError, ValueError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError(f"could not decode {path}") from exc
+
+
+def project_platform_version(repository: str, branch: str, token: str) -> str:
+    copier_text = project_raw_file(repository, ".copier-answers.yml", branch, token)
+    config_text = project_raw_file(repository, ".dev-platform.toml", branch, token)
+    version = platform_version_from_contents(copier_text, config_text)
+    if version is None:
+        raise ValueError("platform version records are missing, unstable, or inconsistent")
+    return version
+
+
+def observe_recovery(prior_body: str, *, repository: str, branch: str, project_token: str | None) -> tuple[bool, str]:
+    """Return recovery proof without changing either repository.
+
+    The issue state identifies the failed version; the project's default branch
+    supplies both independent version markers.  Anything unreadable is kept
+    open rather than being interpreted as recovery.
+    """
+    prior = parse_state(prior_body)
+    if prior is None or prior.get("repository") != repository:
+        return False, "tracking state is unreadable or belongs to another project"
+    failed = prior.get("last_failed_release")
+    if not isinstance(failed, str):
+        return False, "tracking state has no last failed release"
+    try:
+        failed_version = parse_version(failed)
+    except ValueError:
+        return False, "tracking state has an invalid last failed release"
+    if not project_token:
+        return False, "downstream read token is unavailable"
+    try:
+        current = project_platform_version(repository, branch, project_token)
+    except ValueError as exc:
+        return False, f"could not prove coherent downstream platform version: {exc}"
+    if parse_version(current) < failed_version:
+        return False, f"downstream platform version {current} is older than failed release {failed}"
+    return True, f"coherent downstream platform version {current} proves recovery at or beyond {failed}"
+
+
 LABEL_METADATA = {
     TRACKING_LABEL: ("ededed", "Automated tracking issue for repeated managed rollout failures against one project."),
     ALERT_LABEL: ("d73a4a", "Managed rollout has failed repeatedly against the same project and needs human attention."),
@@ -241,6 +309,35 @@ def cmd_record_success(args: argparse.Namespace) -> int:
         return 0
 
 
+def cmd_reconcile(args: argparse.Namespace) -> int:
+    """Close a durable alert only after independently observing recovery."""
+    try:
+        existing = find_tracking_issue(args.repository, args.tracker_repo)
+        if existing is None:
+            print(f"rollout_failure_streak: no open alert for {args.repository}")
+            return 0
+        recovered, detail = observe_recovery(
+            existing.get("body") or "",
+            repository=args.repository,
+            branch=args.default_branch,
+            project_token=os.environ.get("ROLLOUT_PROJECT_TOKEN"),
+        )
+        if not recovered:
+            print(f"::warning::rollout_failure_streak: alert remains open for {args.repository}: {detail}", file=sys.stderr)
+            return 0
+        number = str(existing["number"])
+        run_gh([
+            "issue", "comment", number, "--repo", args.tracker_repo,
+            "--body", f"Resolved by maintenance reconciliation: `{args.repository}` {detail}.",
+        ])
+        run_gh(["issue", "close", number, "--repo", args.tracker_repo])
+        print(f"rollout_failure_streak: closed alert for {args.repository}: {detail}")
+        return 0
+    except Exception as exc:  # noqa: BLE001 - reconciliation must not block operator maintenance
+        print(f"::warning::rollout_failure_streak: could not reconcile failure tracker: {exc}", file=sys.stderr)
+        return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Track and alert on consecutive managed-rollout failures against the same project."
@@ -262,6 +359,12 @@ def main() -> int:
 
     p = sub.add_parser("record-success", parents=[common])
     p.set_defaults(func=cmd_record_success)
+
+    p = sub.add_parser("reconcile", help="Reconcile one open rollout alert against the downstream default branch.")
+    p.add_argument("--repository", required=True)
+    p.add_argument("--default-branch", required=True)
+    p.add_argument("--tracker-repo", default="lehard/dev-platform")
+    p.set_defaults(func=cmd_reconcile)
 
     args = parser.parse_args()
     return args.func(args)
