@@ -2,20 +2,26 @@
   "version": 2,
   "selection": {
     "state": "ready",
-    "command_count": 2,
+    "command_count": 3,
     "check_count": 1
   },
   "outcome": "success",
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
-      "duration_seconds": 0.469,
+      "duration_seconds": 0.583,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.227,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
-      "duration_seconds": 325.147,
+      "duration_seconds": 438.73,
       "outcome": "success",
       "exit_code": 0
     }
@@ -29,10 +35,12 @@
       ],
       "commands": [
         "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
         "python3 scripts/run_test_groups.py --all"
       ],
       "selection_reason": "high-impact-path",
       "evidence_types": [
+        "syntax",
         "syntax",
         "test"
       ],
@@ -46,6 +54,6 @@
     "change": "fix-friction-promotion",
     "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/fix-friction-promotion",
     "branch": "agent/fix-friction-promotion",
-    "head": "3ad8ca1c3b707d2e65ce387fe8a16c86c83c74c5"
+    "head": "f288a736f4284335c056a04c4c7aee71fbea6351"
   }
 }

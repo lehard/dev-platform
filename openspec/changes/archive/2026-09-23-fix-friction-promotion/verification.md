@@ -11,6 +11,6 @@ Executed before archive:
 - `python3 -m unittest tests.test_friction_review -q` — 46 passed.
 - `python3 scripts/select_checks.py --base origin/main --execute` — compileall and all platform test groups passed.
 - `python3 template/scripts/openspec_lifecycle.py check` — passed.
-- `openspec validate fix-friction-promotion --strict --no-interactive` — pending below.
+- `openspec validate fix-friction-promotion --strict --no-interactive` — passed before archive.
 
 The archive helper will produce `automated-checks.json` for its exact check run.
