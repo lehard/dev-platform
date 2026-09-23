@@ -9,19 +9,19 @@
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
-      "duration_seconds": 1.624,
+      "duration_seconds": 2.514,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 -m ruff check scripts template/scripts tests",
-      "duration_seconds": 3.544,
+      "duration_seconds": 0.58,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
-      "duration_seconds": 366.754,
+      "duration_seconds": 464.573,
       "outcome": "success",
       "exit_code": 0
     }
@@ -60,6 +60,6 @@
     "change": "bound-ghaw-agent-jobs",
     "worktree": "/Users/Shared/Workspace/dev-platform-161-recovery/.claude/worktrees/bound-ghaw-agent-jobs",
     "branch": "agent/bound-ghaw-agent-jobs",
-    "head": "56be1196dc033dd074e21d7be8b8e9efbd41c176"
+    "head": "367b7885a98bc39e747c6dcb3092e1f4bdef85e6"
   }
 }
