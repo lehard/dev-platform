@@ -50,6 +50,9 @@ jobs:
       - name: Install tested Copier
         run: python3 -m pip install "copier==9.17.0"
 
+      - name: Validate release installation contract
+        run: python3 scripts/validate_release_installation.py
+
       - name: Unit tests
         shell: bash
         run: |

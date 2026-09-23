@@ -43,7 +43,7 @@ See `docs/managed-rollout.md` for registry ownership, one-time App setup and rec
 
 ## Upgrade safety
 
-Platform CI must test both fresh rendering and `copier update` from the previous stable tag while preserving project-owned changes and rejecting unresolved `*.rej`/Git conflict artifacts.
+Platform CI and publication run `python3 scripts/validate_release_installation.py` before an immutable tag is created. It uses real Copier fresh renders and upgrades from the newest stable tag for GitHub platform/project harness modes plus the supported GitLab platform surface. Every disposable result receives the rollout-equivalent platform-only checks: reject detection, staged and unstaged diff hygiene, `platform_doctor.py` (including required files and selected capability surfaces). It deliberately does not call project selectors or application commands. Explicit local snapshot flags can skip a shallow checkout or upgrade cases when no baseline tag exists; CI and publication use neither flag and fail closed without complete history and a stable baseline.
 
 Managed rollout must target an actually published immutable release tag using Copier `--vcs-ref`; it must never consume mutable `main` as the downstream upgrade source.
 
