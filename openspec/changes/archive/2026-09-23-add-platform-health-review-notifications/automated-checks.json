@@ -9,26 +9,33 @@
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
-      "duration_seconds": 0.731,
+      "duration_seconds": 0.276,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
-      "duration_seconds": 175.067,
+      "duration_seconds": 163.121,
       "outcome": "success",
       "exit_code": 0
     }
   ],
   "selected_checks": [
     {
-      "id": "full",
-      "paths": [],
+      "id": "full-trigger",
+      "paths": [
+        ".github/workflows/platform-health-review.yml",
+        "dev-platform/checks.toml",
+        "scripts/notify_platform_health_review.py",
+        "scripts/publish_platform_health_review_report.py",
+        "tests/test_notify_platform_health_review.py",
+        "tests/test_publish_platform_health_review_report.py"
+      ],
       "commands": [
         "python3 -m compileall -q template/scripts scripts",
         "python3 scripts/run_test_groups.py --all"
       ],
-      "selection_reason": "protected-full",
+      "selection_reason": "high-impact-path",
       "evidence_types": [
         "syntax",
         "test"
@@ -43,6 +50,6 @@
     "change": "add-platform-health-review-notifications",
     "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/add-platform-health-review-notifications",
     "branch": "agent/add-platform-health-review-notifications",
-    "head": "b53a672405946628a0d4ef00092af0f378a82f31"
+    "head": "f3944398fce5fbd9e1b39597da5e85807ae7296c"
   }
 }
