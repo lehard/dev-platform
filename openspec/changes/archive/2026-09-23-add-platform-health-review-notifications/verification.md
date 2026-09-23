@@ -197,12 +197,32 @@ change (`add-platform-health-review-notifications`) in this worktree.
   credentials is outside what an automated agent does. Deferred until the
   user chooses to configure and test a real channel.
 
+## Post-archive CI finding (fixed before merge)
+
+After archiving, the real PR's CI `validate` job failed:
+`tests/public_distribution_snapshot_smoke.py` -> `scripts/public_distribution.py`
+scans `.github/workflows/*.yml` content for path-like tokens matching
+`(scripts|template/scripts|tests|openspec|dev-platform)/...` (including
+inside comments) and requires every one found to still exist in the public
+candidate tree. A comment in `.github/workflows/platform-health-review.yml`
+and docstrings in `scripts/notify_platform_health_review.py` /
+`scripts/publish_platform_health_review_report.py` referenced
+`openspec/changes/add-platform-health-review-notifications/` as a live
+path -- but archiving (above) had just moved that directory under
+`openspec/changes/archive/2026-09-23-.../`, so the reference broke the
+check. Fixed by replacing all four references with the permanent
+`openspec/specs/platform-health-review/spec.md` pointer instead of a
+transient active-change path; confirmed locally
+(`tests/public_distribution_snapshot_smoke.py` previously failed, now
+passes) plus the full `run_test_groups.py --all` suite, then re-pushed.
+
 ## Conclusion
 
 This is the fourth and final change in the #165 -> #166 -> #167 -> #169
 stack. All prerequisite siblings and their follow-up fixes are merged to
 `main`; this change is reconciled against that real history, fully
-validated pre-merge, and archive-ready. The two remaining items -- live
-dispatch of the `notify` job to confirm its clean no-op, and a real
-Telegram/webhook send once the user provisions secrets -- are explicit,
-documented post-merge follow-ups, not pre-archive gaps.
+validated pre-merge (including the post-archive CI finding above), and
+archive-ready. The two remaining items -- live dispatch of the `notify` job
+to confirm its clean no-op, and a real Telegram/webhook send once the user
+provisions secrets -- are explicit, documented post-merge follow-ups, not
+pre-archive gaps.
