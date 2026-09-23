@@ -21,6 +21,18 @@
 # when either review job failed or was skipped, composing exactly one
 # combined report Issue via scripts/publish_platform_health_review_report.py
 # rather than re-evaluating or changing either review's own findings.
+#
+# The `notify` job (openspec/specs/platform-health-review/spec.md) is a further deterministic,
+# non-agentic step that only runs once `publish-report` actually succeeded.
+# It sends one short summary + report-Issue-link notification (never the
+# full report body) to whichever optional channel(s) -- Telegram and/or a
+# generic outbound webhook -- have their required secret(s) configured,
+# via scripts/notify_platform_health_review.py. A channel with no configured
+# secret is silently skipped; GitHub (the report Issue itself) remains fully
+# sufficient with zero external configuration. Channel secret *values* are
+# never read from this workflow file or any other portable/public project
+# configuration -- only from GitHub Actions repository secrets, referenced
+# below via `secrets.*`.
 name: Platform Health Review
 
 on:
@@ -72,9 +84,14 @@ jobs:
     permissions:
       contents: read
       issues: write
+    outputs:
+      report_issue_number: ${{ steps.publish.outputs.report_issue_number }}
+      report_issue_url: ${{ steps.publish.outputs.report_issue_url }}
+      report_summary: ${{ steps.publish.outputs.report_summary }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - name: Publish combined Platform Health Review report
+        id: publish
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
@@ -98,3 +115,27 @@ jobs:
             --architecture-result "$ARCHITECTURE_RESULT" \
             --architecture-issue-number "$ARCHITECTURE_ISSUE_NUMBER" \
             --architecture-issue-url "$ARCHITECTURE_ISSUE_URL"
+
+  notify:
+    name: Notify configured channels
+    needs: publish-report
+    if: always() && needs.publish-report.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Send optional Telegram/webhook notification
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          NOTIFY_WEBHOOK_URL: ${{ secrets.NOTIFY_WEBHOOK_URL }}
+          ISSUE_URL: ${{ needs.publish-report.outputs.report_issue_url }}
+          ISSUE_NUMBER: ${{ needs.publish-report.outputs.report_issue_number }}
+          SUMMARY: ${{ needs.publish-report.outputs.report_summary }}
+        run: |
+          set -euo pipefail
+          python3 scripts/notify_platform_health_review.py \
+            --issue-url "$ISSUE_URL" \
+            --issue-number "$ISSUE_NUMBER" \
+            --summary "$SUMMARY"

@@ -23,8 +23,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import subprocess
+import uuid
 from dataclasses import dataclass
 
 
@@ -221,6 +223,20 @@ def render_body(
     )
 
 
+def render_summary(*, title: str, process: ReviewOutcome, architecture: ReviewOutcome) -> str:
+    """Render the short (few-line) summary used for external notification.
+
+    This is deliberately not the full report body: it names the report and
+    each review's high-level result only, never findings detail. See
+    `openspec/specs/platform-health-review/spec.md`.
+    """
+    return (
+        f"{title}\n"
+        f"Process Health Review: {process.result}. "
+        f"Architecture Health Review: {architecture.result}."
+    )
+
+
 def publish(
     *,
     reviewed_at: str,
@@ -252,7 +268,28 @@ def publish(
         "url": created.get("html_url"),
         "previous_review_boundary": boundary,
         "closed_prior_reports": [r.get("number") for r in prior_reports if r.get("number") != new_number],
+        "summary": render_summary(title=title, process=process, architecture=architecture),
     }
+
+
+def write_github_output(path: str, *, number: object, url: object, summary: str) -> None:
+    """Append this run's report identity as GitHub Actions step outputs.
+
+    Consumed by the notification job (`openspec/specs/platform-health-review/spec.md`)
+    so that a later, separate, non-agentic step can send a short summary + link without
+    re-reading or re-deriving the report. Uses the standard multiline-value
+    delimiter form for `summary`, since it may contain newlines.
+    """
+    delimiter = f"ghadelim_{uuid.uuid4().hex}"
+    lines = [
+        f"report_issue_number={number if number is not None else ''}",
+        f"report_issue_url={url if url is not None else ''}",
+        f"report_summary<<{delimiter}",
+        summary,
+        delimiter,
+    ]
+    with open(path, "a", encoding="utf-8") as handle:
+        handle.write("\n".join(lines) + "\n")
 
 
 def _outcome(name: str, result: str, issue_number: str, issue_url: str) -> ReviewOutcome:
@@ -303,6 +340,14 @@ def main(argv: list[str] | None = None) -> int:
     print(f"  previous_review_boundary: {result['previous_review_boundary']}")
     if result["closed_prior_reports"]:
         print(f"  closed prior report(s): {result['closed_prior_reports']}")
+    github_output_path = os.environ.get("GITHUB_OUTPUT")
+    if github_output_path:
+        write_github_output(
+            github_output_path,
+            number=result["number"],
+            url=result["url"],
+            summary=result["summary"],
+        )
     return 0
 
 

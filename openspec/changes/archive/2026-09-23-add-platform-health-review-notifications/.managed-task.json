@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/platform-health-review/spec.md"
+  ],
+  "change": "add-platform-health-review-notifications",
+  "imported_at": "2026-09-22T19:04:37+00:00",
+  "package_revision": "f4985b4bb96d7bc771f095ad4727df0837231056fe3c393b505b3665e61992ab",
+  "prepared_against": "fb912d20f9d278d39b0717fbd3cad0831b56355d",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "platform-health-review"
+  },
+  "source_issue": "lehard/development-backlog#169",
+  "source_issue_evidence": {
+    "body_sha256": "6f8c26b6edf08543841b4042b3af849eaf18d3af97ca5c0334ed2ad834fe50c0",
+    "updated_at": "2026-09-22T18:57:58Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
