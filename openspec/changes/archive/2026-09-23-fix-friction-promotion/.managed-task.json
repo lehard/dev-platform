@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/agent-workflow/spec.md"
+  ],
+  "change": "fix-friction-promotion",
+  "imported_at": "2026-09-23T06:39:00+00:00",
+  "package_revision": "390226a89a37c49597f4d856ea8fe4802906dd8a49df076719aef1623b51cced",
+  "prepared_against": "9fe86d87e5ee3ff06fe0b84181b489c6906537a9",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue": "lehard/development-backlog#178",
+  "source_issue_evidence": {
+    "body_sha256": "1030eb9b8091267316604050fd0ab69d6e1d2492d88584961b24a232eef7eed8",
+    "updated_at": "2026-09-23T06:35:26Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
