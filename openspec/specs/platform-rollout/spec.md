@@ -993,6 +993,14 @@ Managed upgrades SHALL support an optional, generically-configured legacy reposi
 
 The private managed-project registry MAY record `operator_integration` as a boolean for each managed repository. The rollout matrix SHALL carry that boolean to the exact-version Copier update so the selected project's machine-owned Copier answer can activate the generic external-configuration reference. Public platform source SHALL NOT embed the selected repository identities or any operator installation configuration.
 
+#### Scenario: Selected managed project is rolled out from a clean checkout
+
+- **GIVEN** a private registry entry is `managed` and sets `operator_integration` true
+- **WHEN** exact-version rollout prepares its update branch
+- **THEN** rollout SHALL provide the generic operator-integration answer to Copier as render data while the downstream checkout remains clean
+- **AND** Copier SHALL record the selected answer as part of its normal update result before bootstrap
+- **AND** the resulting change remains a reviewable downstream pull request
+
 #### Scenario: Selected managed project is rolled out
 
 - **GIVEN** a private registry entry is `managed` and sets `operator_integration` true
