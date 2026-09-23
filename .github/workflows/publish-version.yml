@@ -25,6 +25,14 @@ jobs:
         id: intent
         run: python3 scripts/release_intent.py >> "$GITHUB_OUTPUT"
 
+      - name: Install tested Copier for release installation validation
+        if: steps.intent.outputs.intent == 'true'
+        run: python3 -m pip install "copier==9.17.0"
+
+      - name: Validate release installation contract
+        if: steps.intent.outputs.intent == 'true'
+        run: python3 scripts/validate_release_installation.py
+
       - name: Create immutable-by-policy tag and release
         id: release
         if: steps.intent.outputs.intent == 'true'

@@ -48,6 +48,7 @@ class RolloutValidationOwnershipTests(unittest.TestCase):
                     commands,
                     [
                         ["git", "diff", "--check", "--"],
+                        ["git", "diff", "--cached", "--check", "--"],
                         ["python3", str(root / "scripts" / "platform_doctor.py")],
                     ],
                 )

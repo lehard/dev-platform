@@ -1,0 +1,64 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 1.808,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.549,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 281.779,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        ".github/workflows/ci.yml",
+        ".github/workflows/publish-version.yml",
+        "dev-platform/checks.toml",
+        "scripts/rollout_project.py",
+        "scripts/validate_release_installation.py",
+        "tests/test_release_installation_validation.py",
+        "tests/test_rollout_validation_ownership.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "source_issue": "lehard/development-backlog#183",
+    "change": "validate-release-installation-contract",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/validate-release-installation-contract",
+    "branch": "agent/validate-release-installation-contract",
+    "head": "48b41d6c6856d2f11876bedb4638c247abab67fe"
+  }
+}

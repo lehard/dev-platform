@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/platform-ci/spec.md"
+  ],
+  "change": "validate-release-installation-contract",
+  "imported_at": "2026-09-23T12:24:44+00:00",
+  "package_revision": "d6b61297998748c23709dead203181d35cd52bdfe0bc12f4189d79e4ce28a536",
+  "prepared_against": "47a2b26255904b7ac434e3848c0fbb208e59a143",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue": "lehard/development-backlog#183",
+  "source_issue_evidence": {
+    "body_sha256": "c890fd617882f31272ab6e4db30cc7c6c6b063b22402e4d7ac2e87efb26434f9",
+    "updated_at": "2026-09-23T11:11:46Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
