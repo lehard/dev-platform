@@ -35,12 +35,12 @@ available GitHub CLI surface. The exact required manual setting is recorded in
 ## Checks performed
 
 - `python3 -m unittest tests.test_managed_rollout tests.test_platform_bootstrap tests.test_template_contract` — 72 tests passed.
-- `python3 scripts/run_test_groups.py --all` — all 13 groups passed; 1,150 declared/discovered tests.
+- `python3 scripts/run_test_groups.py --all` — all 13 groups passed; 1,216 declared/discovered tests after reconciling with `origin/main` at `06d55a4`.
 - `python3 -m compileall -q scripts template/scripts` — passed.
 - `python3 scripts/managed_projects.py validate` — passed.
 - `openspec validate enable-operator-managed-requirement-intake --strict --no-interactive` — passed.
 - `python3 template/scripts/openspec_lifecycle.py check` — passed before archive readiness.
-- `python3 scripts/independent_review.py check enable-operator-managed-requirement-intake` — passed after recording fresh spec-fidelity and engineering-quality reviews for the final candidate. The prior engineering finding was fixed before this receipt.
+- `python3 scripts/independent_review.py check enable-operator-managed-requirement-intake` — passed after recording fresh spec-fidelity and engineering-quality reviews for the final candidate `f18547d`. The prior engineering finding was fixed before this receipt.
 
 `openspec verify` is not provided by the installed OpenSpec CLI, so the
 documented equivalent semantic review above is the verification method.
