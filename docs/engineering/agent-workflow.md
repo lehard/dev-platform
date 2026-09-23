@@ -65,14 +65,18 @@ python3 scripts/start_managed_task.py owner/repo#M
 
 The child is labeled `type:internal-change`. Repeat once per handoff; one
 Requirement may legitimately produce multiple technical children. Requirement
-progress is read-through from their real Project statuses:
+progress is a read-through projection from local pre-authoring evidence and
+their real Project statuses:
 
 ```bash
 python3 scripts/requirement_intake.py aggregate --requirement owner/repo#N
 ```
 
-Do not write a parallel Requirement status ledger. The primary human-facing
-Project view should show Requirements and filter out `type:internal-change`.
+The compatible `status` field remains child-only; `progress` adds a
+recomputable pre-authoring, design/decision, readiness, implementation,
+blocked/unknown, or done stage with source diagnostics. Do not write a
+parallel Requirement status ledger. The primary human-facing Project view
+should show Requirements and filter out `type:internal-change`.
 
 **Direct technical managed/OpenSpec path.** Preserve the existing path when the
 user explicitly supplies a managed Development Backlog Issue/OpenSpec task or

@@ -108,6 +108,8 @@ targets = [
   "test_friction_review",
   "test_gitlab_delivery",
   "test_harness_safety",
+  "test_notify_platform_health_review",
+  "test_publish_platform_health_review_report",
 ]
 mode = "parallel"
 

@@ -496,6 +496,29 @@ class AggregateTests(unittest.TestCase):
         items = "\n".join(f"- [ ] {ref}" for ref in refs)
         return f"## Outcome\n\nShip X.\n\n{ri.CHILDREN_START}\n{items}\n{ri.CHILDREN_END}\n"
 
+    @staticmethod
+    def _orchestrator_report(stage: str, state: str = "missing") -> dict[str, object]:
+        if stage == "complete":
+            return {"current_stage": "complete", "stages": {}, "blocker": None, "handoffs": {"direct": "handoff.json"}}
+        return {
+            "current_stage": stage,
+            "stages": {stage: {"stage": stage, "state": state}},
+            "blocker": {"stage": stage, "state": state},
+        }
+
+    def _projected_stage(self, *, children: list[str], report: dict[str, object], statuses: dict[str, str] | None = None) -> str:
+        def fake_observe(root, *, source_issue):
+            return managed_project_status.ProjectObservation(
+                source_issue, "acme", 1, "Backlog", (statuses or {})[source_issue], None, False
+            )
+
+        with (
+            patch.object(ri, "fetch_issue", return_value={"body": self._body_with_children(children)}),
+            patch.object(ri.orchestrate_pre_authoring, "status", return_value=report),
+            patch.object(managed_project_status, "observe", side_effect=fake_observe),
+        ):
+            return ri.aggregate(self.root, requirement="acme/development-backlog#7")["progress"]["stage"]
+
     def test_no_children_reports_pre_authoring(self) -> None:
         with patch.object(ri, "fetch_issue", return_value={"body": self._body_with_children([])}):
             payload = ri.aggregate(self.root, requirement="acme/development-backlog#7")
@@ -560,6 +583,53 @@ class AggregateTests(unittest.TestCase):
         by_child = {entry["child"]: entry["status"] for entry in payload["children"]}
         self.assertIsNone(by_child["acme/development-backlog#21"])
         self.assertEqual(by_child["acme/development-backlog#20"], "Done")
+
+    def test_projection_distinguishes_pre_authoring_design_decision_and_ready(self) -> None:
+        self.assertEqual(self._projected_stage(children=[], report=self._orchestrator_report("selection")), "pre-authoring")
+        self.assertEqual(self._projected_stage(children=[], report=self._orchestrator_report("add", "needs-drafting")), "design")
+        self.assertEqual(self._projected_stage(children=[], report=self._orchestrator_report("add", "needs-decision")), "human-decision")
+        self.assertEqual(self._projected_stage(children=[], report=self._orchestrator_report("complete")), "ready")
+        self.assertEqual(self._projected_stage(children=[], report=self._orchestrator_report("snapshot", "stale")), "unknown")
+
+    def test_projection_uses_children_for_implementation_blocked_and_done(self) -> None:
+        children = ["acme/development-backlog#20"]
+        report = self._orchestrator_report("complete")
+        self.assertEqual(self._projected_stage(children=children, report=report, statuses={children[0]: "In progress"}), "implementation")
+        self.assertEqual(self._projected_stage(children=children, report=report, statuses={children[0]: "In review"}), "implementation")
+        self.assertEqual(self._projected_stage(children=children, report=report, statuses={children[0]: "Blocked"}), "blocked")
+        self.assertEqual(self._projected_stage(children=children, report=report, statuses={children[0]: "Done"}), "done")
+
+    def test_linked_child_progress_does_not_require_machine_local_pre_authoring_state(self) -> None:
+        child = "acme/development-backlog#20"
+        with (
+            patch.object(ri, "fetch_issue", return_value={"body": self._body_with_children([child])}),
+            patch.object(ri.orchestrate_pre_authoring, "status", side_effect=AssertionError("must not read pre-authoring")),
+            patch.object(managed_project_status, "observe", return_value=managed_project_status.ProjectObservation(
+                child, "acme", 1, "Backlog", "Done", None, False,
+            )),
+        ):
+            payload = ri.aggregate(self.root, requirement="acme/development-backlog#7")
+        self.assertEqual(payload["progress"]["stage"], "done")
+
+    def test_projection_reports_orchestrator_escalation_as_blocked(self) -> None:
+        self.assertEqual(
+            self._projected_stage(children=[], report=self._orchestrator_report("snapshot", "needs-escalation")),
+            "blocked",
+        )
+
+    def test_projection_fails_closed_for_unreadable_and_contradictory_sources(self) -> None:
+        with (
+            patch.object(ri, "fetch_issue", return_value={"body": self._body_with_children([])}),
+            patch.object(ri.orchestrate_pre_authoring, "status", side_effect=ri.orchestrate_pre_authoring.OrchestratorError("missing state")),
+        ):
+            payload = ri.aggregate(self.root, requirement="acme/development-backlog#7")
+        self.assertEqual(payload["progress"]["stage"], "unknown")
+        self.assertIn("unreadable", payload["progress"]["diagnostics"][0]["reason"])
+
+        self.assertEqual(
+            self._projected_stage(children=[], report={"current_stage": "complete", "stages": {}, "blocker": "unexpected", "handoffs": {}}),
+            "unknown",
+        )
 
 
 if __name__ == "__main__":
