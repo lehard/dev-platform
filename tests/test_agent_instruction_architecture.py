@@ -156,8 +156,9 @@ class InstructionArchitectureTests(unittest.TestCase):
                 self.assertIn("exact `prepared_against` revision", text)
                 self.assertIn("must fail closed", " ".join(text.split()))
 
-    def test_chatgpt_fixture_is_backlog_only_and_consumable_by_normal_package_discovery(self) -> None:
-        value = fixture("chatgpt_project_fixation.json")
+    def test_chatgpt_explicit_technical_fixture_is_consumable_by_normal_package_discovery(self) -> None:
+        value = fixture("chatgpt_project_direct_technical_authoring.json")
+        self.assertEqual(value["intent"], "explicit-direct-technical-managed-authoring")
         package = package_from_fixture(value)
         serialized = managed_task.serialize_package(package)
         parsed = managed_task.parse_package([serialized], package.source_issue)
@@ -174,9 +175,10 @@ class InstructionArchitectureTests(unittest.TestCase):
                 discovered = managed_task.discover_task(Path(tmp), package.source_issue)
         self.assertEqual(discovered.revision, parsed.revision)
 
-    def test_repo_local_fixture_uses_deterministic_authoring_and_matches_chatgpt_representation(self) -> None:
-        chatgpt = fixture("chatgpt_project_fixation.json")
-        local = fixture("repo_local_fixation.json")
+    def test_repo_local_explicit_technical_fixture_matches_chatgpt_representation(self) -> None:
+        chatgpt = fixture("chatgpt_project_direct_technical_authoring.json")
+        local = fixture("repo_local_direct_technical_authoring.json")
+        self.assertEqual(local["intent"], "explicit-direct-technical-managed-authoring")
         self.assertEqual(local["authoring_command"], "python3 scripts/managed_task.py create --bundle <directory>")
         for key in ("intent", "authoring_stops", "project_status", "issue"):
             self.assertEqual(local[key], chatgpt[key])

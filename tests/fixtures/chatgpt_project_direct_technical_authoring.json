@@ -1,8 +1,7 @@
 {
-  "surface": "repo-local-codex-or-claude",
-  "authoring_command": "python3 scripts/managed_task.py create --bundle <directory>",
-  "local_shell_used": true,
-  "intent": "fix/add-to-backlog",
+  "surface": "chatgpt-project",
+  "local_shell_used": false,
+  "intent": "explicit-direct-technical-managed-authoring",
   "authoring_stops": true,
   "project_status": "Backlog",
   "issue": {
