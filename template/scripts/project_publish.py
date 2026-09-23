@@ -34,6 +34,7 @@ from publication_state import (
     stable_pr_ref,
 )
 from managed_project_status import ManagedProjectStatusError, reconcile as reconcile_managed_project
+from requirement_integration import RequirementIntegrationError, require_independent_publication_exception
 try:
     from managed_task import ManagedTaskError, require_delivery_provenance
 except ModuleNotFoundError:  # Compatibility while a pre-managed-intake render is being upgraded.
@@ -396,8 +397,10 @@ def publish_pr(
     config: dict | None = None,
 ) -> int:
     try:
-        require_delivery_provenance(root)
-    except ManagedTaskError as exc:
+        delivery = require_delivery_provenance(root)
+        if delivery is not None:
+            require_independent_publication_exception(root, delivery)
+    except (ManagedTaskError, RequirementIntegrationError) as exc:
         raise SystemExit("Managed task publication blocked: " + str(exc)) from exc
     current = _validate_feature_branch(root, remote, main_branch)
     env = require_gh_environment(root)

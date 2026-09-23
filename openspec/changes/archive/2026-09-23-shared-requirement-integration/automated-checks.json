@@ -1,0 +1,68 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.878,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.737,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 217.485,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "scripts/requirement_integration.py",
+        "template/scripts/finish_task.py",
+        "template/scripts/project_publish.py",
+        "template/scripts/requirement_integration.py",
+        "template/scripts/start_managed_task.py",
+        "tests/test_git_lifecycle.py",
+        "tests/test_merge_lifecycle_resilience.py",
+        "tests/test_protected_main_zero_handoff.py",
+        "tests/test_publication_recovery_cli.py",
+        "tests/test_requirement_integration.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "source_issue": "lehard/development-backlog#182",
+    "change": "shared-requirement-integration",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/shared-requirement-integration",
+    "branch": "agent/shared-requirement-integration",
+    "head": "1d443f6b1a3f403ebda4d0032d5524f79e9f66b9"
+  }
+}

@@ -33,6 +33,7 @@ from integration_state import (
     serialized_integration,
 )
 import publication_state
+from requirement_integration import RequirementIntegrationError, require_independent_publication_exception
 try:
     from openspec_lifecycle import require_automated_evidence
 except (ImportError, ModuleNotFoundError):  # Compatibility while old renders are upgraded.
@@ -696,7 +697,10 @@ def main() -> int:
         delivery = require_delivery_provenance(work)
         if delivery is not None:
             require_automated_evidence(delivery.path, root=work)
-    except ManagedTaskError as exc:
+            independent_reason = require_independent_publication_exception(work, delivery)
+            if independent_reason is not None:
+                print(f"Requirement shared-integration exception: {independent_reason}")
+    except (ManagedTaskError, RequirementIntegrationError) as exc:
         raise SystemExit("Managed task publication blocked: " + str(exc)) from exc
     try:
         drift = observe_source_issue_drift(work)

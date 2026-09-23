@@ -25,12 +25,15 @@ from managed_task import (
     Package,
     canonical_provenance_candidates,
     discover_task,
+    fetch_issue,
     import_task,
+    issue_ref,
     read_task_state,
     resolve_canonical_provenance,
     write_task_state,
 )
 from managed_project_status import ManagedProjectStatusError, reconcile
+from requirement_integration import ReadyForIntegrationReceipt, RequirementIntegrationError, read_receipt
 from start_task import StartedTask, cleanup_started_task, start_task
 from start_task import admission_reason, admit_task
 from shared_workspace import admit_managed_intake
@@ -48,7 +51,9 @@ def _transaction_path(worktrees_root: Path, change: str) -> Path:
 
 
 @contextmanager
-def managed_start_transaction(root: Path, package: Package) -> Iterator[tuple[dict[str, object], bool]]:
+def managed_start_transaction(
+    root: Path, package: Package, base_receipt: ReadyForIntegrationReceipt | None = None
+) -> Iterator[tuple[dict[str, object], bool]]:
     """Persist and lock one managed start before any board/project mutation.
 
     The transaction is machine-local and task-scoped. The per-change lock
@@ -70,6 +75,7 @@ def managed_start_transaction(root: Path, package: Package) -> Iterator[tuple[di
             "target_repository": package.target_repository,
             "change": package.change,
             "package_revision": package.revision,
+            "base_child_digest": base_receipt.digest if base_receipt else None,
             "branch": branch,
             "worktree": str(worktree),
             "created_at": utc_now(),
@@ -85,6 +91,7 @@ def managed_start_transaction(root: Path, package: Package) -> Iterator[tuple[di
             "target_repository": package.target_repository,
             "change": package.change,
             "package_revision": package.revision,
+            "base_child_digest": base_receipt.digest if base_receipt else None,
             "branch": branch,
             "worktree": str(worktree),
         }
@@ -334,6 +341,7 @@ def _resume_existing_managed_task(
     package: Package,
     existing_root: Path,
     scope: str,
+    base_receipt: ReadyForIntegrationReceipt | None = None,
 ) -> tuple[StartedTask, str, bool]:
     resolve_canonical_provenance(existing_root, source_issue=package.source_issue, change=package.change)
     # Bounded migration for tasks created before task-level state was
@@ -343,6 +351,10 @@ def _resume_existing_managed_task(
     branch = run_git(["branch", "--show-current"], cwd=existing_root).stdout.strip()
     if not branch:
         raise ManagedTaskError(f"existing managed task worktree is detached: {existing_root}")
+    if base_receipt is not None and run_git(
+        ["merge-base", "--is-ancestor", base_receipt.head, "HEAD"], cwd=existing_root, check=False
+    ).returncode != 0:
+        raise ManagedTaskError("resumed child does not descend from its exact ready predecessor")
     started = StartedTask(profile="multi-agent", branch=branch, task_root=existing_root)
     decision = admit_task(root, started, scope if scope else None)
     desired_status = "Blocked" if decision["decision"] == "WAIT" else "In progress"
@@ -364,6 +376,7 @@ def _start_new_managed_task(
     reference: str,
     scope: str,
     acknowledge_source_issue_revision: str | None,
+    base_receipt: ReadyForIntegrationReceipt | None = None,
 ) -> tuple[StartedTask, str, bool]:
     started = start_task(
         root,
@@ -373,6 +386,10 @@ def _start_new_managed_task(
         admission=False,
     )
     try:
+        if base_receipt is not None:
+            if run_git(["rev-parse", base_receipt.source_branch], cwd=started.task_root).stdout.strip() != base_receipt.head:
+                raise ManagedTaskError("ready predecessor branch changed before dependent child start")
+            run_git(["merge", "--ff-only", base_receipt.head], cwd=started.task_root)
         imported, current_main, reused = import_task(
             started.task_root,
             reference,
@@ -405,28 +422,44 @@ def _start_new_managed_task(
 
 
 def start_managed_task(
-    root: Path, reference: str, scope: str = "", *, acknowledge_source_issue_revision: str | None = None
+    root: Path, reference: str, scope: str = "", *, acknowledge_source_issue_revision: str | None = None,
+    base_child_receipt: Path | None = None,
 ) -> tuple[StartedTask, str, bool]:
     """Discover before task creation, then materialize in the task checkout only."""
     admit_managed_intake(root)
     package = discover_task(root, reference)
+    predecessor = read_receipt(base_child_receipt) if base_child_receipt else None
+    if predecessor is not None:
+        if predecessor.source_issue == package.source_issue:
+            raise ManagedTaskError("a managed child cannot depend on itself")
+        child_issue = fetch_issue(root, *issue_ref(package.source_issue))
+        predecessor_issue = fetch_issue(root, *issue_ref(predecessor.source_issue))
+        reference_line = f"Requirement: {predecessor.requirement}"
+        if (reference_line not in str(child_issue.get("body") or "")
+                or reference_line not in str(predecessor_issue.get("body") or "")):
+            raise ManagedTaskError("dependent children do not have the same linked parent Requirement")
+        if run_git(["rev-parse", predecessor.source_branch], cwd=root).stdout.strip() != predecessor.head:
+            raise ManagedTaskError("ready predecessor branch changed before dependent child start")
     config = read_platform_config(root)
+    if predecessor is not None and profile(config) != "multi-agent":
+        raise ManagedTaskError("dependent Requirement child start requires isolated multi-agent worktrees")
     if profile(config) != "multi-agent":
-        return _start_new_managed_task(root, package, reference, scope, acknowledge_source_issue_revision)
+        return _start_new_managed_task(root, package, reference, scope, acknowledge_source_issue_revision, predecessor)
 
-    with managed_start_transaction(root, package) as (transaction, _created):
+    with managed_start_transaction(root, package, predecessor) as (transaction, _created):
         existing_root = Path(str(transaction["worktree"])).resolve()
         if existing_root.is_dir() and canonical_provenance_candidates(existing_root, package.change):
-            return _resume_existing_managed_task(root, package, existing_root, scope)
+            return _resume_existing_managed_task(root, package, existing_root, scope, predecessor)
 
         recover_incomplete_managed_start(root, package, transaction)
-        return _start_new_managed_task(root, package, reference, scope, acknowledge_source_issue_revision)
+        return _start_new_managed_task(root, package, reference, scope, acknowledge_source_issue_revision, predecessor)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Start a managed backlog task without writing to integration main.")
     parser.add_argument("issue", help="owner/repo#N or GitHub issue URL")
     parser.add_argument("--scope", default="", help="optional task scope for multi-agent board registration")
+    parser.add_argument("--base-child-receipt", type=Path, help="exact ready predecessor for a dependent Requirement child")
     parser.add_argument(
         "--acknowledge-source-issue-revision",
         metavar="BODY_SHA256",
@@ -439,11 +472,12 @@ def main() -> int:
         started, current_main, reused = start_managed_task(
             root, args.issue, args.scope,
             acknowledge_source_issue_revision=args.acknowledge_source_issue_revision,
+            base_child_receipt=args.base_child_receipt,
         )
     except ManagedAdmissionWait as exc:
         print(f"Managed task waiting: {exc}")
         return 3
-    except (ManagedTaskError, ManagedProjectStatusError, RuntimeError, subprocess.CalledProcessError) as exc:
+    except (ManagedTaskError, ManagedProjectStatusError, RequirementIntegrationError, RuntimeError, subprocess.CalledProcessError) as exc:
         print(f"Managed task start blocked: {exc}")
         return 2
     print(f"Managed task {'reused' if reused else 'materialized'} in {started.task_root}")
