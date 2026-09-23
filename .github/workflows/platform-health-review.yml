@@ -13,7 +13,14 @@
 # trigger, so it can still be run independently of this combined trigger.
 #
 # A failure in one review's job does not block or cancel the other's job:
-# neither job declares `needs:` on the other.
+# neither review job declares `needs:` on the other.
+#
+# The `publish-report` job (openspec/specs/platform-health-review/spec.md)
+# is a deterministic, non-agentic aggregation step: it `needs:` both review
+# jobs with `if: always()` so it still runs -- and still records the gap --
+# when either review job failed or was skipped, composing exactly one
+# combined report Issue via scripts/publish_platform_health_review_report.py
+# rather than re-evaluating or changing either review's own findings.
 name: Platform Health Review
 
 on:
@@ -56,3 +63,38 @@ jobs:
       issues: write
     uses: ./.github/workflows/architecture-health-review.lock.yml
     secrets: inherit
+
+  publish-report:
+    name: Publish combined report
+    needs: [process-health-review, architecture-health-review]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Publish combined Platform Health Review report
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          MAIN_SHA: ${{ github.sha }}
+          PROCESS_RESULT: ${{ needs.process-health-review.result }}
+          PROCESS_ISSUE_NUMBER: ${{ needs.process-health-review.outputs.created_issue_number }}
+          PROCESS_ISSUE_URL: ${{ needs.process-health-review.outputs.created_issue_url }}
+          ARCHITECTURE_RESULT: ${{ needs.architecture-health-review.result }}
+          ARCHITECTURE_ISSUE_NUMBER: ${{ needs.architecture-health-review.outputs.created_issue_number }}
+          ARCHITECTURE_ISSUE_URL: ${{ needs.architecture-health-review.outputs.created_issue_url }}
+        run: |
+          set -euo pipefail
+          reviewed_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          python3 scripts/publish_platform_health_review_report.py \
+            --repo "$REPO" \
+            --reviewed-at "$reviewed_at" \
+            --main-sha "$MAIN_SHA" \
+            --process-result "$PROCESS_RESULT" \
+            --process-issue-number "$PROCESS_ISSUE_NUMBER" \
+            --process-issue-url "$PROCESS_ISSUE_URL" \
+            --architecture-result "$ARCHITECTURE_RESULT" \
+            --architecture-issue-number "$ARCHITECTURE_ISSUE_NUMBER" \
+            --architecture-issue-url "$ARCHITECTURE_ISSUE_URL"
