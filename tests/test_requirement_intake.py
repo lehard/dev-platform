@@ -7,11 +7,13 @@ reimplementing GitHub I/O.
 """
 from __future__ import annotations
 
+import io
 import json
 import subprocess
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
@@ -191,6 +193,32 @@ class MaterializeHandoffTests(unittest.TestCase):
             self._run(status={"current_stage": "snapshot", "blocker": {"state": "stale"}})
         with self.assertRaisesRegex(ri.RequirementIntakeError, "multiple children"):
             self._run(candidates=[{"number": 8, "body": self.marker}, {"number": 9, "body": self.marker}])
+
+    def test_materialize_handoff_cli_serializes_confirmed_success_and_retry(self) -> None:
+        """The CLI must not shadow its module-level JSON serializer on success."""
+        results = [
+            {"requirement": "acme/backlog#7", "child": "acme/backlog#8", "created": True},
+            {"requirement": "acme/backlog#7", "child": "acme/backlog#8", "created": False},
+        ]
+        argv = [
+            "requirement_intake.py", "materialize-handoff", "--requirement", "acme/backlog#7",
+            "--handoff", "handoff.json", "--bundle", "bundle",
+        ]
+        with (
+            patch.object(ri, "current_worktree_root", return_value=self.root),
+            patch.object(ri, "materialize_handoff", side_effect=results) as materialize,
+            patch.object(sys, "argv", argv),
+        ):
+            outputs = []
+            for _ in results:
+                stream = io.StringIO()
+                with redirect_stdout(stream):
+                    self.assertEqual(ri.main(), 0)
+                outputs.append(json.loads(stream.getvalue()))
+
+        self.assertEqual([payload["child"] for payload in outputs], ["acme/backlog#8", "acme/backlog#8"])
+        self.assertEqual([payload["created"] for payload in outputs], [True, False])
+        self.assertEqual(materialize.call_count, 2)
 
 
 class CreateRequirementTests(unittest.TestCase):

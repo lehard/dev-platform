@@ -19,6 +19,7 @@ permissions:
 jobs:
   plan:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     outputs:
       version: ${{ steps.plan.outputs.version }}
       matrix: ${{ steps.plan.outputs.matrix }}
@@ -106,6 +107,7 @@ jobs:
   rollout:
     needs: plan
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}

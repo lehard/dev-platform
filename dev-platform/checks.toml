@@ -1,9 +1,10 @@
 [settings]
 full_commands = [
   "python3 -m compileall -q template/scripts scripts",
+  "python3 -m ruff check scripts template/scripts tests",
   "python3 scripts/run_test_groups.py --all",
 ]
-full_evidence_types = ["syntax", "test"]
+full_evidence_types = ["syntax", "syntax", "test"]
 full_required_evidence_types = ["test"]
 # control-plane: unknown/ambiguous paths and selector/CI/lifecycle surfaces stay
 # full-suite triggers (see [checks.*] below for the narrower risk classes).
@@ -49,8 +50,8 @@ evidence_types = ["configuration", "configuration", "configuration"]
 
 [checks.python]
 patterns = ["**/*.py"]
-commands = ["python3 -m compileall -q template/scripts scripts", "python3 scripts/run_test_groups.py --all"]
-evidence_types = ["syntax", "test"]
+commands = ["python3 -m compileall -q template/scripts scripts", "python3 -m ruff check scripts template/scripts tests", "python3 scripts/run_test_groups.py --all"]
+evidence_types = ["syntax", "syntax", "test"]
 required_evidence_types = ["test"]
 
 # Canonical mandatory test groups. `mode = "parallel"` groups run concurrently
@@ -99,6 +100,7 @@ mode = "parallel"
 targets = [
   "test_adopt_project",
   "test_agentic_workflows",
+  "test_ci_guardrails",
   "test_central_dogfood_lifecycle",
   "test_ci_trigger_compatibility",
   "test_deepseek_harness_runtime",
