@@ -97,9 +97,21 @@ When the user asks to execute a Business Requirement, the ordered flow is:
    invent proposal/design/spec content: the bundle remains the authored
    OpenSpec input. Each child carries `type:internal-change` and a parent
    back-reference.
+   The back-reference is an exact standalone `Requirement: owner/repo#N`
+   line. Authored prose such as `Parent Requirement:` does not replace it;
+   materialization repairs and verifies the canonical line on retry.
 6. Start and implement those internal managed tasks through the existing
    lifecycle. OpenSpec becomes canonical only for each technical child after
    that child is materialized.
+
+At child start or resume, the managed adapter derives an ignored, disposable
+`.claude/requirement-child-context/<change>.json` handoff from the exact imported
+package, current repository head, linked Requirement identity, and (when used)
+the ready predecessor receipt. The handoff points to the canonical OpenSpec;
+it does not copy the Requirement's pre-authoring transcript or unrelated sibling
+Issue bodies. A changed predecessor receipt or repository/package provenance
+requires a fresh derivation before execution. The supervisor retains only the
+Requirement identity, child lifecycle states, and consequential human decisions.
 
 Requirement progress is read-through, never a second status ledger:
 `python3 scripts/requirement_intake.py aggregate --requirement owner/repo#N`

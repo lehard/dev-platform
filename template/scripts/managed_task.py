@@ -79,6 +79,9 @@ class Package:
     source_issue_evidence: dict[str, str] | None = None
     supersedes: str | None = None
     process_evidence: tuple[str, ...] = ()
+    # Derived at discovery from the already fetched Issue body; not part of
+    # the serialized managed package or its immutable authoring revision.
+    parent_requirement: str | None = None
 
 
 @dataclass(frozen=True)
@@ -1775,7 +1778,13 @@ def observe_source_issue_drift(root: Path) -> dict[str, Any] | None:
 def discover_task(root: Path, reference: str) -> Package:
     issue_repository, number = issue_ref(reference)
     requested = f"{issue_repository}#{number}"
-    package = parse_package(issue_bodies(root, issue_repository, number), requested)
+    bodies = issue_bodies(root, issue_repository, number)
+    package = parse_package(bodies, requested)
+    parents = re.findall(r"^Requirement: ([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+#[1-9][0-9]*)\s*$", bodies[0], re.MULTILINE)
+    if len(parents) > 1:
+        raise ManagedTaskError(f"{requested} has ambiguous parent Requirement references")
+    if parents:
+        package = replace(package, parent_requirement=parents[0])
     if package.target_repository != origin_repository(root):
         raise ManagedTaskError(f"package targets {package.target_repository}, not this checkout; no files changed")
     return package

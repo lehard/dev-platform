@@ -297,6 +297,7 @@ class RequirementIntegrationTests(unittest.TestCase):
         with mock.patch.object(start_managed_task, "start_task", return_value=started), \
                 mock.patch.object(start_managed_task, "run_git", side_effect=run_git), \
                 mock.patch.object(start_managed_task, "import_task", side_effect=imported), \
+                mock.patch.object(start_managed_task, "refresh_context", return_value=None), \
                 mock.patch.object(start_managed_task, "admit_task", return_value={"decision": "RUN"}), \
                 mock.patch.object(start_managed_task, "reconcile", return_value=SimpleNamespace(changed=True)):
             start_managed_task._start_new_managed_task(self.root, package, package.source_issue, "", None, receipt)
