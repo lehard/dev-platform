@@ -363,19 +363,11 @@ def normalize_copier_answers(project_root: Path) -> None:
         print("Normalized .copier-answers.yml trailing newline formatting")
 
 
-def set_operator_integration_answer(project_root: Path, enabled: bool) -> None:
-    """Set only the machine-owned generic Copier selection on a rollout branch."""
-    if not enabled:
-        return
-    path = project_root / ".copier-answers.yml"
-    text = path.read_text(encoding="utf-8")
-    if re.search(r"^operator_integration:\s*.*$", text, re.MULTILINE):
-        updated = re.sub(r"^operator_integration:\s*.*$", "operator_integration: true", text, count=1, flags=re.MULTILINE)
-    else:
-        updated = text.rstrip("\n") + "\noperator_integration: true\n"
-    if updated != text:
-        path.write_text(updated, encoding="utf-8")
-        print("Enabled generic operator integration in Copier answers")
+def copier_render_data(operator_integration: bool) -> list[str]:
+    """Return optional Copier render data without mutating the checkout."""
+    if operator_integration:
+        return ["--data", "operator_integration=true"]
+    return []
 
 
 def load_answers(project_root: Path) -> dict[str, str]:
@@ -1015,6 +1007,7 @@ def rendered_template_fingerprints(
     env: dict[str, str],
     baseline_equivalence: bool = False,
     legacy_repository: str | None = None,
+    operator_integration: bool = False,
 ) -> dict[str, tuple[str, str]]:
     """Render an immutable template revision with the downstream's recorded answers.
 
@@ -1040,6 +1033,7 @@ def rendered_template_fingerprints(
                 tag,
                 "--data-file",
                 str(answers),
+                *copier_render_data(operator_integration),
                 str(PLATFORM_ROOT),
                 str(rendered),
             ],
@@ -1393,6 +1387,7 @@ def copier_update_with_guarded_recopy(
             version,
             "--conflict",
             "rej",
+            *copier_render_data(operator_integration),
         ],
         project_root,
         env=env,
@@ -1442,10 +1437,6 @@ def copier_update_with_guarded_recopy(
         flush=True,
     )
     reset_failed_copier_update(project_root)
-    # ``reset_failed_copier_update`` deliberately restores the branch's
-    # original answers. Reapply the selected machine-owned answer before the
-    # guarded recopy so a recoverable conflict cannot silently drop it.
-    set_operator_integration_answer(project_root, operator_integration)
     require_project_owned_snapshot(project_root, protected_before)
     require_reclaimed_platform_paths_match_template(project_root, reclaimed_conflicts)
     # Re-prove from committed HEAD after reset. This is intentionally independent
@@ -1479,6 +1470,7 @@ def copier_update_with_guarded_recopy(
             "--overwrite",
             "--vcs-ref",
             version,
+            *copier_render_data(operator_integration),
         ],
         project_root,
         env=env,
@@ -1505,6 +1497,7 @@ def copier_update_with_guarded_recopy(
         answers_before,
         baseline_conflicts,
         env=env,
+        operator_integration=operator_integration,
     )
     require_paths_match_rendered_template(project_root, expected_target)
     require_platform_config_contract(config_before, platform_config_contract(project_root), operator_integration=operator_integration)
@@ -1598,7 +1591,6 @@ def apply_rollout(
     run(["git", "fetch", "origin", base_branch], project_root)
     run(["git", "checkout", "-b", branch, f"origin/{base_branch}"], project_root)
     ensure_clean(project_root)
-    set_operator_integration_answer(project_root, operator_integration)
 
     strategy = copier_update_with_guarded_recopy(
         project_root,

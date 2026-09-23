@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/platform-rollout/spec.md"
+  ],
+  "change": "fix-operator-rollout-clean-checkout",
+  "imported_at": "2026-09-23T05:44:28+00:00",
+  "package_revision": "cffff1c230239fe6d266c13eea064cfeebfc8400cb27e9f17344e140094795a6",
+  "prepared_against": "2e142aced9296ba4649f90f26310fddae6573371",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue": "lehard/development-backlog#175",
+  "source_issue_evidence": {
+    "body_sha256": "84a926037b8b0c983a9757b20ea14058e39e9139695fe68e1e7f91fbaa6202b3",
+    "updated_at": "2026-09-23T05:42:41Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

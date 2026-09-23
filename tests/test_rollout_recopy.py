@@ -488,12 +488,12 @@ if __name__ == "__main__":
         with self.assertRaisesRegex(ValueError, "beyond platform_version"):
             rollout_project.require_platform_config_contract(before, activated)
 
-    def test_rollout_answer_activation_is_machine_owned_and_idempotent(self) -> None:
-        answers = self.root / ".copier-answers.yml"
-        rollout_project.set_operator_integration_answer(self.root, True)
-        self.assertIn("operator_integration: true\n", answers.read_text(encoding="utf-8"))
-        rollout_project.set_operator_integration_answer(self.root, True)
-        self.assertEqual(answers.read_text(encoding="utf-8").count("operator_integration:"), 1)
+    def test_operator_integration_render_data_is_selected_without_checkout_mutation(self) -> None:
+        self.assertEqual(
+            rollout_project.copier_render_data(True),
+            ["--data", "operator_integration=true"],
+        )
+        self.assertEqual(rollout_project.copier_render_data(False), [])
 
     def test_snapshot_covers_dynamic_required_files_and_product_ci(self) -> None:
         snapshot = rollout_project.snapshot_existing_project_owned(self.root)
@@ -743,6 +743,28 @@ if __name__ == "__main__":
         self.assertEqual(commands[0][:7], ["copier", "copy", "--trust", "--defaults", "--skip-tasks", "--vcs-ref", "v1.2.3"])
         self.assertIn("--data-file", commands[0])
 
+    def test_baseline_renderer_can_use_operator_render_data_without_rewriting_answers(self) -> None:
+        commands: list[list[str]] = []
+
+        def fake_run(command, cwd, **kwargs):
+            commands.append(command)
+            return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+
+        with (
+            patch.object(rollout_project, "ensure_platform_tag_available"),
+            patch.object(rollout_project, "run", side_effect=fake_run),
+        ):
+            rollout_project.rendered_template_fingerprints(
+                "v1.2.3",
+                "_commit: v1.2.3\nproject_name: Test\n",
+                set(),
+                env=os.environ.copy(),
+                operator_integration=True,
+            )
+
+        self.assertIn("--data", commands[0])
+        self.assertIn("operator_integration=true", commands[0])
+
     def test_failed_prepare_command_is_a_structured_blocker(self) -> None:
         result = type("Result", (), {"returncode": 2, "stdout": None, "stderr": None})()
         with patch.object(rollout_project.subprocess, "run", return_value=result):
@@ -784,11 +806,16 @@ if __name__ == "__main__":
                 rollout_project.stage_rollout_changes(self.root)
 
     def test_guarded_recopy_runs_only_for_project_owned_rejects(self) -> None:
-        self.require_platform_release_history("v1.2.3", "v1.3.1")
         commands: list[list[str]] = []
+        answers_before = (self.root / ".copier-answers.yml").read_text(encoding="utf-8")
 
         def fake_run(command, cwd, **kwargs):
             commands.append(command)
+            if command[:2] in (["copier", "update"], ["copier", "recopy"]):
+                self.assertEqual(
+                    (self.root / ".copier-answers.yml").read_text(encoding="utf-8"),
+                    answers_before,
+                )
             return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
 
         with (
@@ -799,15 +826,23 @@ if __name__ == "__main__":
                 side_effect=[["scripts/start_task.py.rej"], []],
             ),
             patch.object(rollout_project, "reset_failed_copier_update"),
+            patch.object(rollout_project, "rendered_template_fingerprints", return_value={}),
+            patch.object(rollout_project, "require_paths_match_rendered_template"),
         ):
             strategy = rollout_project.copier_update_with_guarded_recopy(
                 self.root,
                 "v1.3.1",
                 env=os.environ.copy(),
+                operator_integration=True,
             )
         self.assertEqual(strategy, "guarded-recopy")
-        self.assertTrue(any(command[:2] == ["copier", "update"] for command in commands))
-        self.assertTrue(any(command[:2] == ["copier", "recopy"] for command in commands))
+        copier_commands = [
+            command for command in commands if command[:2] in (["copier", "update"], ["copier", "recopy"])
+        ]
+        self.assertEqual(len(copier_commands), 2)
+        for command in copier_commands:
+            self.assertIn("--data", command)
+            self.assertIn("operator_integration=true", command)
 
     def test_reclaimed_platform_conflict_allows_recopy_when_already_on_target(self) -> None:
         self.require_platform_release_history("v1.2.3", "v1.3.1")
