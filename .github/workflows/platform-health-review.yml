@@ -81,6 +81,7 @@ jobs:
     needs: [process-health-review, architecture-health-review]
     if: always()
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       issues: write
@@ -121,6 +122,7 @@ jobs:
     needs: publish-report
     if: always() && needs.publish-report.result == 'success'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: read
     steps:

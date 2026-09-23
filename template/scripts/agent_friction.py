@@ -978,6 +978,7 @@ def cmd_promote(args: argparse.Namespace) -> int:
     inbox_repo = promotion.get("repo") if isinstance(promotion, dict) else None
     if not isinstance(inbox_repo, str) or not inbox_repo.strip():
         raise SystemExit("Promotion requires operator-owned promotion.repo configuration.")
+    config = read_platform_config(main_root())
     project_slug = str(config.get("project_slug", "unknown-project"))
     title = f"[platform-candidate] {sanitize(str(event.get('proposal', event.get('category', 'friction'))))[:120]}"
     body = "\n".join(

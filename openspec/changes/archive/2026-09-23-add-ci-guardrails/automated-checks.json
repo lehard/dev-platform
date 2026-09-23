@@ -1,0 +1,69 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.627,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.454,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 187.182,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        ".github/workflows/adopt-project.yml",
+        ".github/workflows/ci.yml",
+        ".github/workflows/platform-health-review.yml",
+        ".github/workflows/project-ci.yml",
+        ".github/workflows/publish-version.yml",
+        ".github/workflows/reconcile-stale-rollouts.yml",
+        ".github/workflows/rollout.yml",
+        "dev-platform/checks.toml",
+        "template/.github/workflows/dev-platform.yml.jinja",
+        "template/.github/workflows/process-health-labels.yml.jinja",
+        "template/scripts/agent_friction.py",
+        "tests/test_ci_guardrails.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "source_issue": "lehard/development-backlog#177",
+    "change": "add-ci-guardrails",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/add-ci-guardrails",
+    "branch": "agent/add-ci-guardrails",
+    "head": "bede9cf0c3ba58f6f898665d1a97cd76ae28bfe2"
+  }
+}

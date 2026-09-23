@@ -12,6 +12,9 @@ on:
 {% endif %}
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   # Event type is part of the key deliberately: a lightweight push health run
   # must never cancel an explicitly requested manual full-suite run on the same ref.
@@ -21,6 +24,7 @@ concurrency:
 jobs:
   platform-ci:
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
