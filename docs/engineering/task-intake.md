@@ -115,11 +115,17 @@ When the user asks to execute a Business Requirement, the ordered flow is:
    Potential same-project duplicates require an explicit reviewed
    `--confirm-distinct`; a material contract conflict still stops. OpenSpec
    becomes canonical only for each technical child after materialization.
-   If admission sees files inherited unchanged from the exact ready
-   predecessor, the supervisor records narrow path acknowledgments and retries;
-   a changed predecessor, new edits to those files, or another task's claim
+   A changed predecessor, new edits to inherited files, or another task's claim
    remains a blocker. Historical linked children are reused by unique managed
    change identity even when a refreshed handoff has a different digest.
+
+The Requirement's primary Project card is a projection of the same evidence.
+Started pre-authoring, ready handoff and child execution display `In progress`;
+an unknown or blocked source displays `Blocked`. The richer read-through stage
+and its reason remain available through `requirement_intake.py aggregate`.
+Only the exact shared-candidate merged-PR reconciliation may set the parent
+card to `Done`, after it syncs main, verifies links and marks the children Done.
+Child `Done` statuses or ready receipts alone never complete the parent card.
 
 At child start or resume, the managed adapter derives an ignored, disposable
 `.claude/requirement-child-context/<change>.json` handoff from the exact imported

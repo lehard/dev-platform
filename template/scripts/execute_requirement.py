@@ -19,6 +19,7 @@ import agent_board
 import managed_project_status
 import managed_task
 import orchestrate_pre_authoring
+import requirement_board
 import requirement_intake
 import requirement_integration
 import start_managed_task
@@ -219,6 +220,7 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
         started, _, _ = start_managed_task.start_managed_task(
             integration, child, base_child_receipt=predecessor,
         )
+        requirement_board.reconcile_nonterminal(integration, requirement=requirement)
         return {
             "status": "implement-child", "requirement": requirement, "child": child,
             "change": change, "worktree": str(started.task_root),
@@ -256,6 +258,7 @@ def main() -> int:
         RequirementExecutionError, requirement_intake.RequirementIntakeError,
         requirement_integration.RequirementIntegrationError, managed_task.ManagedTaskError,
         orchestrate_pre_authoring.OrchestratorError, start_managed_task.ManagedAdmissionWait,
+        requirement_board.RequirementBoardError, managed_project_status.ManagedProjectStatusError,
     ) as exc:
         print(json.dumps({"status": "blocked", "requirement": args.requirement, "reason": str(exc)}, ensure_ascii=False))
         return 2

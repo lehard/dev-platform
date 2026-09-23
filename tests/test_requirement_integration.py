@@ -211,7 +211,7 @@ class RequirementIntegrationTests(unittest.TestCase):
             sync.assert_called_once()
             links.assert_called_once()
             self.assertEqual([call.kwargs["source_issue"] for call in statuses.call_args_list],
-                             ["acme/backlog#8", "acme/backlog#9"])
+                             ["acme/backlog#8", "acme/backlog#9", "acme/backlog#7"])
 
     def test_bare_remote_main_is_authoritative_for_candidate(self) -> None:
         remote = self.root / "remote.git"

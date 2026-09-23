@@ -81,13 +81,15 @@ class RequirementExecutionTests(unittest.TestCase):
                 mock.patch.object(execution, "_ready_receipt", return_value=None),
                 mock.patch.object(execution.start_managed_task, "start_managed_task", return_value=(SimpleNamespace(task_root=root / "child"), "head", True)),
                 mock.patch.object(execution.requirement_intake, "materialize_handoff"),
+                mock.patch.object(execution.requirement_board, "reconcile_nonterminal"),
             )
-            with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5], patches[6], patches[7], patches[8] as start, patches[9] as materialize:
+            with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5], patches[6], patches[7], patches[8] as start, patches[9] as materialize, patches[10] as board:
                 result = execution.advance(root, requirement=REQUIREMENT, base_dir=root)
             self.assertEqual(result["status"], "implement-child")
             self.assertEqual(result["child"], "acme/backlog#8")
             self.assertIsNone(start.call_args.kwargs["base_child_receipt"])
             materialize.assert_not_called()
+            board.assert_called_once_with(root.resolve(), requirement=REQUIREMENT)
 
     def test_advance_materializes_missing_child_then_starts_it(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -107,6 +109,8 @@ class RequirementExecutionTests(unittest.TestCase):
                 execution.managed_project_status, "observe", return_value=SimpleNamespace(current_status="Ready")
             ), mock.patch.object(execution, "_ready_receipt", return_value=None), mock.patch.object(
                 execution.start_managed_task, "start_managed_task", return_value=(SimpleNamespace(task_root=root / "child"), "head", False)
+            ), mock.patch.object(
+                execution.requirement_board, "reconcile_nonterminal"
             ):
                 result = execution.advance(root, requirement=REQUIREMENT, base_dir=root, confirm_distinct=True)
             self.assertEqual(result["status"], "implement-child")
