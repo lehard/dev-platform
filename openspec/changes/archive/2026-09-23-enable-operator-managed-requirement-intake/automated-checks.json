@@ -9,13 +9,13 @@
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
-      "duration_seconds": 0.798,
+      "duration_seconds": 0.745,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
-      "duration_seconds": 208.5,
+      "duration_seconds": 195.448,
       "outcome": "success",
       "exit_code": 0
     }
@@ -53,6 +53,6 @@
     "change": "enable-operator-managed-requirement-intake",
     "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/enable-operator-managed-requirement-intake",
     "branch": "agent/enable-operator-managed-requirement-intake",
-    "head": "f18547d0f9d5b836e8a5322aa2a1f3ab4ac7ec9a"
+    "head": "143c37402612417412e41b97b307a9c89bda4e26"
   }
 }
