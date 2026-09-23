@@ -16,6 +16,27 @@ Notification delivery is intentionally kept outside the sandboxed gh-aw agent jo
 2. A subsequent ordinary Actions step runs a repository-owned script (e.g. `scripts/notify_platform_health_review.py`) that reads that output plus whichever secrets are present in its environment, and performs delivery to each configured channel independently (a failure sending to one channel does not block the other).
 3. The script never receives write access to the repository; its only side effect is an outbound HTTP call to Telegram's API and/or the configured webhook URL.
 
+## Verification note
+
+`tasks.md` originally listed a live test-send smoke check in `lehard/dev-platform`
+as a pre-archive verification item. As established by prerequisite changes
+`add-architecture-health-cloud-review`, `add-platform-health-review-orchestration`,
+and `add-platform-health-review-report`, GitHub Actions only recognizes a
+`workflow_dispatch`-triggerable workflow, and every reusable workflow it
+calls, once their files exist on the repository's **default branch**. This
+change's `notify` job is new inside the already-merged
+`platform-health-review.yml`, so the same structural constraint applies.
+Separately, this repository has no `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID`/
+`NOTIFY_WEBHOOK_URL` secret configured yet, so even a post-merge dispatch can
+only confirm the "no channel configured -> clean no-op" scenario, not a real
+delivered message -- that half requires the user to provision real secrets,
+which is outside this task's control (entering credentials is not something
+an automated agent does). The live-dispatch confirmation is therefore an
+explicit **post-merge** follow-up (see `tasks.md`): everything verifiable
+pre-merge (unit tests covering every channel-configuration combination and
+secret redaction with mocked HTTP calls, `openspec validate --strict`, and
+the full platform test suite) was verified before archive.
+
 ## Compatibility and rollback
 
 Disabling all channels (unsetting both the enablement config and the secrets) returns to today's GitHub-only behavior with no code path removed — the step simply has nothing configured to send. Removing the notification step/script entirely is a clean revert with no data migration.

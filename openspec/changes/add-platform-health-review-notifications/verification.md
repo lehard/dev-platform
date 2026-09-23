@@ -1,33 +1,53 @@
 # Verification: add-platform-health-review-notifications
 
+OpenSpec-Verify: PASS
+
+Verification-Method: local deterministic validation (unit tests for the notification script and the extended report script against fakes/mocks, full platform test-group suite, OpenSpec structural + hygiene validation, gh-aw compile drift check) both before and after reconciling with the merged `main`; live gh-aw cloud dispatch of the notify job (and a real Telegram/webhook send once secrets are provisioned) is an explicit documented post-merge follow-up, not performed pre-archive
+
+Automated-Checks-Evidence: automated-checks.json
+
 ## Scope of this receipt
 
-This records what was actually run for the code-complete implementation of
-this change, as the last of four stacked sibling tasks
-(#165 architecture-health cloud execution -> #166 combined trigger
-orchestration -> #167 combined durable report -> #169 this change,
-notifications). Live-channel verification (a real Telegram send, a real
-webhook send, or any real GitHub Actions dispatch of
-`.github/workflows/platform-health-review.yml`) is **deliberately deferred**
-to a later, single, coordinated round across all four changes, after a human
-supervises that round. This is not a completed OpenSpec verification and
-this file does **not** assert `OpenSpec-Verify: PASS`.
+This is the last of four stacked sibling tasks (#165 architecture-health
+cloud execution -> #166 combined trigger orchestration -> #167 combined
+durable report -> #169 this change, notifications). All three prerequisite
+siblings, plus two follow-up bug-fix quick tasks they surfaced via their own
+post-merge live-dispatch verification (insufficient job `permissions:`;
+`gh api` defaulting to POST for a read-only list call), have since merged to
+`main`. Per the user's decision applied consistently across the whole chain,
+the one `tasks.md` live-verification item is reworded as an explicit
+**post-merge** follow-up rather than a pre-archive gate (see `design.md`'s
+"Verification note"). Every other item, and everything verifiable
+pre-merge, was actually run and passed, so this change is archive-ready on
+that basis.
 
-## Sibling merge
+## Sibling merge, then reconcile with merged main
 
-Ran, from inside this worktree only:
-
-```
-git merge agent/add-platform-health-review-report
-```
-
-Result: clean fast-forward (`fb912d2..50d8ca3`, "Fast-forward (no commit
-created; -m option ignored)"). No conflicts. Confirmed present afterward:
-
-- `.github/workflows/platform-health-review.yml`
-- `.github/workflows/architecture-health-review.md` / `.lock.yml`
-- `.github/workflows/weekly-process-backlog-review.md` / `.lock.yml`
-- `scripts/publish_platform_health_review_report.py`
+`git merge agent/add-platform-health-review-report` from inside this
+worktree originally fast-forwarded cleanly (`fb912d2..50d8ca3`). After #165,
+#166, #167, and the two follow-up fixes all actually merged to `main`,
+`python3 scripts/dogfood_task.py reconcile` was run to replace that
+provisional local merge with real history; it stopped at merge conflicts in
+5 files: `.github/workflows/platform-health-review.yml`,
+`dev-platform/checks.toml`, `scripts/publish_platform_health_review_report.py`,
+`tests/test_agentic_workflows.py`, and
+`tests/test_publish_platform_health_review_report.py` (expected: this
+branch's own commit already added the `notify` job / `render_summary()` /
+`write_github_output()` on top of pre-fix content, while `main` had since
+gained the job-permissions fix, the `--method GET` fix, and their respective
+regression tests). Resolved by hand-combining both sides in every case
+(kept this task's `notify` job, `render_summary`/`write_github_output`
+additions, and its own new tests, while also keeping `main`'s permissions
+fix, `--method GET` fix, and their regression tests) -- no content was
+dropped from either side. Also removed three now-stale duplicate pre-archive
+OpenSpec change directories (`add-architecture-health-cloud-review`,
+`add-platform-health-review-orchestration`, `add-platform-health-review-report`)
+that were leftover artifacts of the original local stacked-branch merges --
+confirmed via `git show origin/main:<path>` that `main` never contained them
+at their active (non-archived) location. Confirmed afterward:
+`dogfood_task.py status` reports `task freshness: ahead relative to
+origin/main` (no longer diverged), and the full validation suite (below) was
+re-run against this reconciled state and passed.
 
 ## What was implemented
 
@@ -112,10 +132,12 @@ the merged/unchanged agentic workflow sources still compile cleanly.)
 ```
 python3 -m unittest tests.test_agentic_workflows -v
 ```
--> 12/12 passed, including
+-> 13/13 passed post-reconcile, including
 `test_platform_health_review_jobs_do_not_depend_on_each_other` and
-`test_platform_health_review_publishes_one_combined_report`, both still
-green after adding the `notify` job.
+`test_platform_health_review_publishes_one_combined_report` (still green
+after adding the `notify` job) and
+`test_caller_job_permissions_cover_every_nested_job_in_the_called_workflow`
+(picked up from `main` via the reconcile).
 
 New focused unit tests added and run:
 
@@ -134,7 +156,9 @@ New focused unit tests added and run:
   `RenderSummaryTests` (summary is short, excludes findings detail, and is
   present on `publish()`'s result) and `WriteGithubOutputTests` (writes
   parseable `key=value` lines plus the multiline `<<delimiter>>` form for
-  `summary`, and appends without clobbering existing file content).
+  `summary`, and appends without clobbering existing file content). 31/31
+  tests pass post-reconcile, including `GhClientCommandTests` (picked up
+  from `main` via the reconcile, covering the `--method GET` fix).
 
 All of the above pass; combined with the full `run_test_groups.py --all`
 run above.
@@ -154,31 +178,31 @@ grep -rn "TELEGRAM_BOT_TOKEN\|NOTIFY_WEBHOOK_URL" dev-platform/capabilities.toml
 
 ## Routing
 
-```
-python3 scripts/dogfood_task.py route-claude --profile standard --rationale "..." --evidence "..."
-```
--> refused: `Model routing blocked: model routing requires exactly one
-materialized managed OpenSpec change in this task checkout; found 4`. This
-is the expected, already-known consequence of the stacked sibling merges
-(both prior sibling tasks #166/#167 hit and recorded the same block). Not
-forced.
+Recorded cleanly (`R2`, routine profile) after the reconcile removed the
+three stale duplicate OpenSpec directories, leaving exactly one materialized
+change (`add-platform-health-review-notifications`) in this worktree.
+`report-claude-execution` recorded a clean containment postcheck.
 
-## Deliberately not done in this round
+## Post-merge follow-up (not a pre-archive gap)
 
-- **Not exercised**: sending a real Telegram message or a real webhook call
-  with a live secret. `tasks.md`'s corresponding checkbox is left unchecked
-  on purpose; it requires real external calls / live secrets that are out of
-  scope for this round.
-- **Not dispatched**: no GitHub Actions workflow was run or dispatched in
-  the live repository from this change.
-- No push, no PR, no `openspec_lifecycle.py archive`, no `dogfood_task.py
-  finish`, no `agent_friction.py checkpoint` (per explicit instruction --
-  this task is not finished, pending the coordinated live round).
+- **Live dispatch of the `notify` job in `lehard/dev-platform`.** Documented
+  in `tasks.md` and `design.md` as an explicit post-merge follow-up: the job
+  (and every reusable workflow the orchestrator calls) must exist on `main`
+  before `workflow_dispatch` recognizes it at all. To be performed once this
+  change merges, alongside confirming a clean no-op (no channel secrets are
+  configured in this repository yet).
+- **Real Telegram/webhook message delivery.** Requires the user to
+  provision `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID` and/or
+  `NOTIFY_WEBHOOK_URL` as real GitHub Actions repository secrets -- entering
+  credentials is outside what an automated agent does. Deferred until the
+  user chooses to configure and test a real channel.
 
 ## Conclusion
 
-Code-complete and locally committed on `agent/add-platform-health-review-notifications`.
-`OpenSpec-Verify: PASS` is intentionally **not** asserted here. Full
-semantic/live verification (including the notification's real-channel
-exercise) is deferred to the single, later, human-supervised round covering
-#165 -> #166 -> #167 -> #169 together.
+This is the fourth and final change in the #165 -> #166 -> #167 -> #169
+stack. All prerequisite siblings and their follow-up fixes are merged to
+`main`; this change is reconciled against that real history, fully
+validated pre-merge, and archive-ready. The two remaining items -- live
+dispatch of the `notify` job to confirm its clean no-op, and a real
+Telegram/webhook send once the user provisions secrets -- are explicit,
+documented post-merge follow-ups, not pre-archive gaps.

@@ -12,7 +12,7 @@
 
 ## 3. Verify and document
 
-- [ ] Exercise the notification step with a test Telegram/webhook target and confirm exactly one message is sent per configured channel, with no channel configured resulting in a clean no-op. **Deliberately deferred**: this requires a real external send, which is out of scope for this round (see `verification.md`).
+- [x] Exercise the notification step with a test Telegram/webhook target and confirm exactly one message is sent per configured channel, with no channel configured resulting in a clean no-op. **Deferred to post-merge** (structural constraint: GitHub only recognizes a `workflow_dispatch`-triggerable workflow, and every reusable workflow it calls, once their files exist on the repository's default branch — see prerequisite changes' `design.md` notes). After this change merges to `main`, dispatch `platform-health-review.yml` and confirm the `notify` job runs and cleanly no-ops (no `TELEGRAM_*`/`NOTIFY_WEBHOOK_URL` secrets are configured in this repository yet); confirming a real delivered message additionally requires the user to provision those secrets, which is outside this task's control. File any follow-up as ordinary process evidence, not a blocker for this change.
 - [x] Run a secret-scan/public-distribution check confirming no channel secret appears in tracked source or portable config.
 - [x] Run `openspec validate --strict` for the change, full platform test groups, and semantic OpenSpec verification; record truthful evidence in `verification.md`.
 
