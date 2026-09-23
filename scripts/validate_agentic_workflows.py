@@ -11,6 +11,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 VERSION_FILE = ROOT / ".github" / "aw" / "gh-aw-version.txt"
 WORKFLOWS = ("process-issue-triage", "weekly-process-backlog-review", "architecture-health-review")
+# gh-aw v0.88.8 is built from this immutable release commit. Pin generated
+# setup actions to it instead of allowing a mutable release tag.
+GH_AW_ACTION_REF = "69763a0390c8438e006d545f1faef1fab742719d"
 
 
 def run(*args: str) -> None:
@@ -33,7 +36,10 @@ def main() -> int:
             f"gh extension install github/gh-aw --pin {version} --force"
         )
 
-    run("gh", "aw", "compile", *WORKFLOWS, "--strict", "--validate")
+    run(
+        "gh", "aw", "compile", *WORKFLOWS, "--strict", "--validate",
+        "--action-mode", "release", "--action-tag", GH_AW_ACTION_REF,
+    )
     changed = subprocess.run(
         (
             "git",
