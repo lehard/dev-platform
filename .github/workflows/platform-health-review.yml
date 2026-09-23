@@ -1,0 +1,141 @@
+# Platform Health Review: the combined trigger for the `platform-health-review`
+# capability (openspec/specs/platform-health-review/spec.md). This plain,
+# non-agentic orchestration workflow owns the one shared schedule and manual
+# dispatch that starts Process Health Review and Architecture Health Review
+# together, for the same triggering event, in `lehard/dev-platform` only.
+#
+# Each review keeps its own gh-aw source, engine, tools, safe-outputs and
+# cost/runtime guardrails completely unchanged (see
+# weekly-process-backlog-review.md and architecture-health-review.md). This
+# file only calls their compiled workflows as reusable workflows via
+# `workflow_call`; it introduces no AI engine, credit spend, or reasoning of
+# its own. Each review also keeps its own standalone `workflow_dispatch`
+# trigger, so it can still be run independently of this combined trigger.
+#
+# A failure in one review's job does not block or cancel the other's job:
+# neither review job declares `needs:` on the other.
+#
+# The `publish-report` job (openspec/specs/platform-health-review/spec.md)
+# is a deterministic, non-agentic aggregation step: it `needs:` both review
+# jobs with `if: always()` so it still runs -- and still records the gap --
+# when either review job failed or was skipped, composing exactly one
+# combined report Issue via scripts/publish_platform_health_review_report.py
+# rather than re-evaluating or changing either review's own findings.
+#
+# The `notify` job (openspec/specs/platform-health-review/spec.md) is a further deterministic,
+# non-agentic step that only runs once `publish-report` actually succeeded.
+# It sends one short summary + report-Issue-link notification (never the
+# full report body) to whichever optional channel(s) -- Telegram and/or a
+# generic outbound webhook -- have their required secret(s) configured,
+# via scripts/notify_platform_health_review.py. A channel with no configured
+# secret is silently skipped; GitHub (the report Issue itself) remains fully
+# sufficient with zero external configuration. Channel secret *values* are
+# never read from this workflow file or any other portable/public project
+# configuration -- only from GitHub Actions repository secrets, referenced
+# below via `secrets.*`.
+name: Platform Health Review
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Weekly, Monday 06:00 UTC. Single shared time for both reviews.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: platform-health-review
+  cancel-in-progress: false
+
+jobs:
+  process-health-review:
+    name: Process Health Review
+    # GitHub requires the calling job's permissions to be a ceiling that
+    # covers every permission any nested job inside the called reusable
+    # workflow requests, not just what the review's own prompt/tools need.
+    # weekly-process-backlog-review.lock.yml's internal jobs (activation,
+    # detection, conclusion, ...) collectively request actions: read,
+    # contents: read, issues: write, and pull-requests: read.
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+      pull-requests: read
+    uses: ./.github/workflows/weekly-process-backlog-review.lock.yml
+    secrets: inherit
+
+  architecture-health-review:
+    name: Architecture Health Review
+    # Same ceiling requirement: architecture-health-review.lock.yml's
+    # internal jobs collectively request actions: read, contents: read,
+    # and issues: write.
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+    uses: ./.github/workflows/architecture-health-review.lock.yml
+    secrets: inherit
+
+  publish-report:
+    name: Publish combined report
+    needs: [process-health-review, architecture-health-review]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    outputs:
+      report_issue_number: ${{ steps.publish.outputs.report_issue_number }}
+      report_issue_url: ${{ steps.publish.outputs.report_issue_url }}
+      report_summary: ${{ steps.publish.outputs.report_summary }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Publish combined Platform Health Review report
+        id: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          MAIN_SHA: ${{ github.sha }}
+          PROCESS_RESULT: ${{ needs.process-health-review.result }}
+          PROCESS_ISSUE_NUMBER: ${{ needs.process-health-review.outputs.created_issue_number }}
+          PROCESS_ISSUE_URL: ${{ needs.process-health-review.outputs.created_issue_url }}
+          ARCHITECTURE_RESULT: ${{ needs.architecture-health-review.result }}
+          ARCHITECTURE_ISSUE_NUMBER: ${{ needs.architecture-health-review.outputs.created_issue_number }}
+          ARCHITECTURE_ISSUE_URL: ${{ needs.architecture-health-review.outputs.created_issue_url }}
+        run: |
+          set -euo pipefail
+          reviewed_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          python3 scripts/publish_platform_health_review_report.py \
+            --repo "$REPO" \
+            --reviewed-at "$reviewed_at" \
+            --main-sha "$MAIN_SHA" \
+            --process-result "$PROCESS_RESULT" \
+            --process-issue-number "$PROCESS_ISSUE_NUMBER" \
+            --process-issue-url "$PROCESS_ISSUE_URL" \
+            --architecture-result "$ARCHITECTURE_RESULT" \
+            --architecture-issue-number "$ARCHITECTURE_ISSUE_NUMBER" \
+            --architecture-issue-url "$ARCHITECTURE_ISSUE_URL"
+
+  notify:
+    name: Notify configured channels
+    needs: publish-report
+    if: always() && needs.publish-report.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Send optional Telegram/webhook notification
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          NOTIFY_WEBHOOK_URL: ${{ secrets.NOTIFY_WEBHOOK_URL }}
+          ISSUE_URL: ${{ needs.publish-report.outputs.report_issue_url }}
+          ISSUE_NUMBER: ${{ needs.publish-report.outputs.report_issue_number }}
+          SUMMARY: ${{ needs.publish-report.outputs.report_summary }}
+        run: |
+          set -euo pipefail
+          python3 scripts/notify_platform_health_review.py \
+            --issue-url "$ISSUE_URL" \
+            --issue-number "$ISSUE_NUMBER" \
+            --summary "$SUMMARY"

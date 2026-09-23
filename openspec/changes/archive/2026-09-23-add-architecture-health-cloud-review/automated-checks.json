@@ -1,0 +1,53 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 2,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.168,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 171.516,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        ".github/workflows/architecture-health-review.lock.yml",
+        ".github/workflows/architecture-health-review.md",
+        "scripts/validate_agentic_workflows.py",
+        "tests/test_agentic_workflows.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "source_issue": "lehard/development-backlog#165",
+    "change": "add-architecture-health-cloud-review",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/add-architecture-health-cloud-review",
+    "branch": "agent/add-architecture-health-cloud-review",
+    "head": "ac616ebd785a8ca6ef58deb946dc98021f47d37f"
+  }
+}

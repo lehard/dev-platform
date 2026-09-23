@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/agent-workflow/spec.md"
+  ],
+  "change": "materialize-requirement-handoffs",
+  "imported_at": "2026-09-22T20:14:52+00:00",
+  "package_revision": "36644561e2c6e9747483640a510cf840b19a56bb5021a07a689af1b7fbc03097",
+  "prepared_against": "fb912d20f9d278d39b0717fbd3cad0831b56355d",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "requirement-first-intake"
+  },
+  "source_issue": "lehard/development-backlog#171",
+  "source_issue_evidence": {
+    "body_sha256": "688d59f859eb870accd4cc4a154f717f1420e96e7c807a54ea1ea7d75b97c5eb",
+    "updated_at": "2026-09-22T19:04:58Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

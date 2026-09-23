@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/agent-workflow/spec.md"
+  ],
+  "change": "make-requirement-preauthoring-proportional",
+  "imported_at": "2026-09-22T19:37:50+00:00",
+  "package_revision": "abca9ef0dd4125c9038e05c01b7d111f77adf22e09f41565ef9ff75875a06a4c",
+  "prepared_against": "fb912d20f9d278d39b0717fbd3cad0831b56355d",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "requirement-first-intake"
+  },
+  "source_issue": "lehard/development-backlog#170",
+  "source_issue_evidence": {
+    "body_sha256": "eead0755a0dcdb602640f46cb0d5ddf4e5c3ee4c9602f27ee81568c3f787924b",
+    "updated_at": "2026-09-22T19:02:51Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

@@ -1,0 +1,54 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 2,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.157,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 161.366,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        ".github/workflows/platform-health-review.yml",
+        "dev-platform/checks.toml",
+        "scripts/publish_platform_health_review_report.py",
+        "tests/test_agentic_workflows.py",
+        "tests/test_publish_platform_health_review_report.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "source_issue": "lehard/development-backlog#167",
+    "change": "add-platform-health-review-report",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/add-platform-health-review-report",
+    "branch": "agent/add-platform-health-review-report",
+    "head": "0c7b680ccf8a63fcb1fbf98cf911fc2028dce585"
+  }
+}

@@ -93,8 +93,10 @@ python3 scripts/start_managed_task.py owner/repo#M
 The child carries `type:internal-change`; the parent Requirement stays the
 human-facing object. Use
 `python3 scripts/requirement_intake.py aggregate --requirement owner/repo#N`
-for read-through progress from children's real Project statuses. Do not create
-a second Requirement status ledger.
+for a read-through Requirement progress projection. The compatible `status`
+field remains child-only; `progress` adds a recomputable pre-authoring,
+design/decision, readiness, implementation, blocked/unknown, or done stage
+with source diagnostics. Do not create a second Requirement status ledger.
 
 Quick tasks remain unchanged. The direct managed/OpenSpec path remains
 available only when the user explicitly supplies an existing managed

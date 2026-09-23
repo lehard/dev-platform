@@ -4,7 +4,7 @@ Managed rollout removes the human step of remembering which Copier-managed proje
 
 The operating model is:
 
-`platform release -> managed registry -> exact Copier update -> project checks -> rollout PR -> downstream CI/review -> merge`
+`platform release -> managed registry -> exact Copier update -> Harness validation -> rollout PR -> downstream CI/review -> merge`
 
 Ordinary rollout never performs first-time adoption and never auto-merges by default. First-time onboarding is handled by the separate **Adopt Project** workflow.
 
@@ -209,7 +209,7 @@ For every `managed` repository, rollout:
 4. validates Copier ownership/source/version metadata and current version coherence;
 5. runs Copier `9.17.0` against the exact `vX.Y.Z` tag with `--conflict rej`;
 6. requires post-update version coherence and blocks on `.rej`, Git conflict markers, downgrade attempts, unexpected template source or validation failure;
-7. runs `scripts/platform_doctor.py` and selected project checks;
+7. runs only Dev Platform Harness validation (`.rej`/diff hygiene and `scripts/platform_doctor.py`); product/application checks are owned by the downstream rollout PR's normal CI;
 8. commits and pushes a deterministic rollout branch without force;
 9. opens a normal PR;
 10. stops. Merge remains governed by downstream CI/review.
