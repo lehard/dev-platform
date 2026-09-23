@@ -979,6 +979,31 @@ class ManagedPackageTests(unittest.TestCase):
             self.assertEqual(package.routing_receipt["recommended_start_tier"], "R2")
             self.assertIsNone(package.routing_receipt["strong_trigger"])
 
+    def test_handoff_marker_adds_exact_backlink_despite_parent_prose(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            authoring_config(root)
+            bundle_root = root / "bundle"
+            authoring_bundle(bundle_root)
+            issue_file = bundle_root / "issue.md"
+            issue_file.write_text(issue_file.read_text(encoding="utf-8") + "\nParent Requirement: acme/backlog#7\n", encoding="utf-8")
+            marker = "<!-- requirement-handoff:v1:acme/backlog#7:" + "a" * 64 + " -->"
+            with (
+                patch.object(managed_task, "origin_repository", return_value="lehard/dev-platform"),
+                patch.object(managed_task, "target_main", return_value="f" * 40),
+                patch.object(managed_task, "validate_backlog_labels"),
+                patch.object(managed_task, "validate_authoring_bundle"),
+                patch.object(managed_task, "open_backlog_issues", return_value=[]),
+                patch.object(managed_task, "create_issue", return_value=9) as create,
+                patch.object(managed_task, "fetch_issue", return_value={"updated_at": "2026-01-01T00:00:00Z", "title": "t", "body": "b"}),
+                patch.object(managed_task, "publish_package", return_value=False),
+                patch.object(managed_task, "verify_published_managed_task"),
+            ):
+                managed_task.create_task(root, str(bundle_root), None, False, handoff_marker=marker)
+            body = create.call_args.args[2].issue_body
+            self.assertEqual(body.splitlines().count("Requirement: acme/backlog#7"), 1)
+            self.assertIn(marker, body)
+
     def test_create_task_r3_requires_a_supported_trigger_and_prefixes_title(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

@@ -100,9 +100,26 @@ When the user asks to execute a Business Requirement, the ordered flow is:
    The back-reference is an exact standalone `Requirement: owner/repo#N`
    line. Authored prose such as `Parent Requirement:` does not replace it;
    materialization repairs and verifies the canonical line on retry.
-6. Start and implement those internal managed tasks through the existing
-   lifecycle. OpenSpec becomes canonical only for each technical child after
-   that child is materialized.
+6. Run `python3 scripts/execute_requirement.py advance --requirement owner/repo#N`
+   from integration `main`. The source-owned supervisor reuses unique already
+   linked children even if a historical handoff digest was refreshed, creates
+   only missing children from authored bundles, and starts/resumes one child at
+   a time in its isolated worktree with the exact predecessor receipt. It
+   returns `implement-child` when the current agent must perform routed code
+   work and verification in that worktree; rerun the same command after the
+   child archive is committed. This is an internal agent continuation, not a
+   user-facing stop or manual child list. When all ready receipts exist it
+   composes and publishes the shared candidate through the protected path.
+   A verified clean ready child releases only its own active board writer
+   claim; its worktree, Issue and receipt remain for shared publication.
+   Potential same-project duplicates require an explicit reviewed
+   `--confirm-distinct`; a material contract conflict still stops. OpenSpec
+   becomes canonical only for each technical child after materialization.
+   If admission sees files inherited unchanged from the exact ready
+   predecessor, the supervisor records narrow path acknowledgments and retries;
+   a changed predecessor, new edits to those files, or another task's claim
+   remains a blocker. Historical linked children are reused by unique managed
+   change identity even when a refreshed handoff has a different digest.
 
 At child start or resume, the managed adapter derives an ignored, disposable
 `.claude/requirement-child-context/<change>.json` handoff from the exact imported

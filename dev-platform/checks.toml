@@ -139,6 +139,7 @@ targets = [
   "test_requirement_intake",
   "test_requirement_integration",
   "test_requirement_child_context",
+  "test_requirement_execution",
   "test_docs_semantic_checks",
 ]
 mode = "parallel"

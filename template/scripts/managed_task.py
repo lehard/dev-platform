@@ -1166,7 +1166,7 @@ def create_task(
             raise ManagedTaskError("invalid Requirement handoff provenance marker")
         parent_reference = handoff_marker.split(":", 3)[2]
         parent_line = f"Requirement: {parent_reference}"
-        suffix = "" if parent_line in bundle.issue_body else f"\n\n{parent_line}"
+        suffix = "" if re.search(rf"^{re.escape(parent_line)}\s*$", bundle.issue_body, re.MULTILINE) else f"\n\n{parent_line}"
         bundle = replace(bundle, issue_body=bundle.issue_body.rstrip() + suffix + "\n\n" + handoff_marker + "\n")
     try:
         routing_receipt = recommend_start_tier(
