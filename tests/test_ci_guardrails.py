@@ -58,7 +58,7 @@ class CiGuardrailTests(unittest.TestCase):
                 if filename in {"ci.yml", "project-ci.yml"}:
                     self.assertEqual(workflow["permissions"], {"contents": "read"})
                 if filename == "reconcile-stale-rollouts.yml":
-                    self.assertEqual(workflow["jobs"]["reconcile"]["permissions"], {"contents": "read"})
+                    self.assertEqual(workflow["jobs"]["reconcile"]["permissions"], {"contents": "read", "issues": "write"})
                 for job_name, expected_timeout in expected_timeouts.items():
                     with self.subTest(job=job_name):
                         job = workflow["jobs"][job_name]
