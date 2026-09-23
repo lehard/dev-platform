@@ -15,4 +15,4 @@
 ## 3. Verify
 
 - [x] Exercise local/bare remote integration and interruption recovery tests, including changed child head and conflicting edits.
-- [ ] Run representative local/bare two-child CLI dogfood, full platform checks, semantic OpenSpec verification and truthful archive receipt; leave live shared-PR dogfood to terminal Requirement execution.
+- [x] Run representative local/bare two-child CLI dogfood, full platform checks, semantic OpenSpec verification and truthful archive receipt; leave live shared-PR dogfood to terminal Requirement execution.
