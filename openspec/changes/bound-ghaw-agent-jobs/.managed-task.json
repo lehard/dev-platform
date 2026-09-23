@@ -1,0 +1,32 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/ci-safety/spec.md"
+  ],
+  "change": "bound-ghaw-agent-jobs",
+  "imported_at": "2026-09-23T12:44:37+00:00",
+  "package_revision": "8c14d616257326083890741ec50e5dba4167a8d76f3cffd8cb09748c50ed1d9a",
+  "prepared_against": "8cd3519a86b6c161e08f5119a7b339a772f93b54",
+  "process_evidence": [
+    "lehard/dev-platform#74"
+  ],
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue": "lehard/development-backlog#184",
+  "source_issue_evidence": {
+    "body_sha256": "1771f303f87c1d99d18d3e2a8802bfaefe5ddcaa1d84ee9d926fea633e7bc78c",
+    "updated_at": "2026-09-23T12:33:47Z"
+  },
+  "supersedes": "3d374217ea12c65fd85e7f892f218de35a32ab931333966cf4ba9284d0c662d5",
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

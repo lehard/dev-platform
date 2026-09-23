@@ -1,0 +1,9 @@
+# Design
+
+Advance the gh-aw pin in `.github/aw/gh-aw-version.txt` from v0.85.4 to v0.88.8. A direct compiler probe showed v0.85.4 and v0.86.3 accept `jobs.agent.timeout-minutes` but silently omit it from the generated lock, whereas v0.88.8 emits it. The newer strict validator also requires an explicit `tools.bash` setting when `tools.github.min-integrity: none`; for the Codex engine, `bash: ["*"]` preserves its existing unrestricted shell capability, while a command allowlist is rejected. Do not disable strict validation to make compilation pass.
+
+Set `jobs.agent.timeout-minutes` above the existing agentic execution step budget but below GitHub's maximum; allow time for activation/setup/cleanup. Compile each modified Markdown source with the newly pinned version and inspect generated YAML. Do not edit locks directly. Add a regression that parses compiled YAML and asserts a bounded integer timeout for each agent job; keep existing source frontmatter timeout checks. Review the generated diff for unrelated compiler changes and validate its safety before publication.
+
+Compiler migration effect: v0.88.8 generates `github/gh-aw/actions/setup` from its own release and a newer MCP gateway/firewall runtime. Pin the setup action to the immutable commit behind the v0.88.8 release tag, inspect generated secret/action/container manifests and permissions, and update source guidance to describe the actual generated runtime. The compiler replaces the obsolete v0.85.4 entry in `.github/aw/actions-lock.json` with the new release action's immutable SHA. Treat any broader permissions or repository visibility change as a blocker, rather than accepting generated churn blindly.
+
+Risk: a job deadline shorter than normal setup plus inference plus cleanup could cancel reviews. Use a 30-minute agent-job budget against 8–10 minute execution steps, verify gh-aw schema/compilation, and retain safe-output job's existing 45-minute deadline.
