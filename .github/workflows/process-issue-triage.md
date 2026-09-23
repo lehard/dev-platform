@@ -27,16 +27,20 @@ max-ai-credits: 50
 max-daily-ai-credits: 100
 max-turns: 8
 
-# gh-aw v0.85.4's safe-output backend mounts only these compiler-owned paths.
-# v0.4.9's mount policy defaults the workspace to read-only, so declare the
-# smallest explicit launcher allowlist required by that backend.  This does not
-# change agent filesystem access or GitHub repository visibility.
+jobs:
+  agent:
+    timeout-minutes: 30
+
+# gh-aw v0.88.8's safe-output backend mounts only these compiler-owned paths.
+# Declare the smallest explicit launcher allowlist required by the safe-output
+# backend. This does not change agent filesystem access or repository visibility.
 sandbox:
   mcp:
     env:
       MCP_GATEWAY_ALLOWED_MOUNT_ROOTS: "${GITHUB_WORKSPACE}:rw,${RUNNER_TEMP}/gh-aw/safeoutputs:rw,/tmp/gh-aw:rw"
 
 tools:
+  bash: ["*"]
   github:
     toolsets: [issues, labels]
     min-integrity: none
