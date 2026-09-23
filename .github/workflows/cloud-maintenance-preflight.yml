@@ -1,0 +1,51 @@
+name: Cloud Maintenance Preflight
+
+on:
+  workflow_dispatch:
+
+# This operator-invoked probe is independent of deterministic CI, release, and
+# rollout workflows. It receives only the provider credential needed for the
+# one bounded request below.
+permissions:
+  contents: read
+
+jobs:
+  provider-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Verify OpenAI API credential
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${OPENAI_API_KEY:-}" ]]; then
+            echo "::error title=Cloud maintenance setup::OPENAI_PROVIDER_SECRET_UNAVAILABLE"
+            exit 1
+          fi
+
+          # Discard response content and emit only a fixed status category.
+          # Do not enable shell tracing: this command carries the credential in
+          # an HTTP header and must never print it.
+          http_status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
+            --connect-timeout 10 --max-time 20 --request GET \
+            --header "Authorization: Bearer ${OPENAI_API_KEY}" \
+            https://api.openai.com/v1/models || true)"
+          case "$http_status" in
+            2??)
+              echo "OPENAI_PROVIDER_AUTHENTICATION_OK"
+              ;;
+            401|403)
+              echo "::error title=Cloud maintenance setup::OPENAI_PROVIDER_INVALID_CREDENTIAL"
+              exit 1
+              ;;
+            000)
+              echo "::error title=Cloud maintenance setup::OPENAI_PROVIDER_UNREACHABLE"
+              exit 1
+              ;;
+            *)
+              echo "::error title=Cloud maintenance setup::OPENAI_PROVIDER_REJECTED"
+              exit 1
+              ;;
+          esac

@@ -1,0 +1,61 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.921,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.691,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 346.749,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        ".github/workflows/cloud-maintenance-preflight.yml",
+        "dev-platform/checks.toml",
+        "scripts/cloud_maintenance_preflight.py",
+        "tests/test_cloud_maintenance_preflight.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "source_issue": "lehard/development-backlog#179",
+    "change": "preflight-cloud-maintenance",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/preflight-cloud-maintenance",
+    "branch": "agent/preflight-cloud-maintenance",
+    "head": "1aea4380526bef78bc0b2c918f52ea5312aae5de"
+  }
+}
