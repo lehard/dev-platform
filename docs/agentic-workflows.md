@@ -25,12 +25,14 @@ v0.88.8 compiler's runtime. The generated GitHub tool guard retains
 `allowed-repos: public`. Do not enable `private-to-public-flows`; this pilot
 must never read private repository data for a public GitHub safe output.
 
-The three pilot sources declare only the three compiler-owned mount roots
-required by the `v0.88.8` safe-output backend: the workflow workspace, its
-`$RUNNER_TEMP/gh-aw/safeoutputs` runtime directory, and `/tmp/gh-aw`. This is
-not an agent write grant: Codex remains read-only and can request GitHub writes
-only through the configured safe-output handler. Do not add broader roots,
-private repository access, or `private-to-public-flows` as a workaround.
+The pinned compiler calculates the MCP gateway mount allowlist from its
+workspace and safe-output mounts. Do not override
+`MCP_GATEWAY_ALLOWED_MOUNT_ROOTS` in `sandbox.mcp.env`: the gateway receives
+literal `${GITHUB_WORKSPACE}` text there, so it rejects the real workspace
+path and the safe-output backend cannot start. This allowlist is not an agent
+write grant: Codex remains read-only and can request GitHub writes only
+through the configured safe-output handler. Do not add broader roots, private
+repository access, or `private-to-public-flows` as a workaround.
 
 The only required repository Actions secret is `OPENAI_API_KEY`. It is consumed
 by the Codex runtime and must never be committed, printed, copied into workflow

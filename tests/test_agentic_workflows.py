@@ -9,9 +9,6 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 PIN = (ROOT / ".github" / "aw" / "gh-aw-version.txt").read_text(encoding="utf-8").strip()
-SAFE_OUTPUTS_MOUNT_ROOTS = (
-    "${GITHUB_WORKSPACE}:rw,${RUNNER_TEMP}/gh-aw/safeoutputs:rw,/tmp/gh-aw:rw"
-)
 SOURCES = {
     "process-issue-triage": {
         "max-ai-credits: 50",
@@ -92,7 +89,7 @@ class AgenticWorkflowTests(unittest.TestCase):
             self.assertIn("bash: [\"*\"]", text)
             self.assertIn("jobs:\n  agent:\n    timeout-minutes: 30", text)
             self.assertNotIn("private-to-public-flows:", text)
-            self.assertIn(f'MCP_GATEWAY_ALLOWED_MOUNT_ROOTS: "{SAFE_OUTPUTS_MOUNT_ROOTS}"', text)
+            self.assertNotIn("MCP_GATEWAY_ALLOWED_MOUNT_ROOTS:", text)
             for value in required:
                 self.assertIn(value, text)
             for value in forbidden:
@@ -120,10 +117,8 @@ class AgenticWorkflowTests(unittest.TestCase):
             self.assertIn('"repos": "public"', agent)
             self.assertRegex(agent, r"ghcr\.io/github/gh-aw-mcpg:v0\.4\.18@sha256:[0-9a-f]{64}")
             self.assertNotIn("gh-aw-mcpg:v0.4.8", agent)
-            self.assertIn(
-                f'GH_AW_MCP_GATEWAY_ENV_0: "{SAFE_OUTPUTS_MOUNT_ROOTS}"',
-                agent,
-            )
+            self.assertNotIn("GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES", agent)
+            self.assertIn('export MCP_GATEWAY_ALLOWED_MOUNT_ROOTS="${GITHUB_WORKSPACE}:rw,', agent)
             for uses in re.findall(r"^\s*uses:\s+[^@\s]+@([^\s#]+)", text, flags=re.MULTILINE):
                 self.assertRegex(uses, r"^[0-9a-f]{40}$", msg=f"non-immutable action reference: {uses}")
 
