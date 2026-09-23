@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/agentic-maintenance/spec.md"
+  ],
+  "change": "preflight-cloud-maintenance",
+  "imported_at": "2026-09-23T07:08:02+00:00",
+  "package_revision": "42b402b08b4ed8f7c4784bea4e8bba291fe8ff8cba69df8f968ef66d7b15062e",
+  "prepared_against": "9fe86d87e5ee3ff06fe0b84181b489c6906537a9",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue": "lehard/development-backlog#179",
+  "source_issue_evidence": {
+    "body_sha256": "3e79bd284e4c149940f4f00b92c92ab9bf9eac49d1e00be342ea0daf2856ca41",
+    "updated_at": "2026-09-23T06:36:33Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

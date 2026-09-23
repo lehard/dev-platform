@@ -34,6 +34,35 @@ by the Codex runtime and must never be committed, printed, copied into workflow
 prompts, or included in validation evidence. Repository administrators configure
 it in GitHub Actions secrets; contributors only verify the secret name exists.
 
+## Cloud maintenance setup preflight
+
+Before relying on an enabled cloud workflow, an operator can check its setup:
+
+```bash
+python3 scripts/cloud_maintenance_preflight.py --repo lehard/dev-platform --ref main
+```
+
+The command reads only the state of the three cloud-maintenance workflows and
+the names of repository Actions secrets. If every cloud workflow is disabled,
+it reports that state and exits successfully without treating it as a failure of
+deterministic CI, release, or rollout. If any are enabled and `OPENAI_API_KEY`
+is absent, it identifies that secret name and directs an administrator to
+configure it; it does not start an agentic workflow run.
+
+When the secret metadata is present, the command dispatches the manual-only
+`Cloud Maintenance Preflight` Actions workflow. That workflow sends one
+time-bounded authenticated request to the OpenAI API, discards the response
+body, and emits only one of these fixed outcome categories:
+
+- `OPENAI_PROVIDER_AUTHENTICATION_OK`
+- `OPENAI_PROVIDER_INVALID_CREDENTIAL`
+- `OPENAI_PROVIDER_UNREACHABLE`
+- `OPENAI_PROVIDER_REJECTED`
+
+Inspect the dispatched run in GitHub Actions for the category. Neither the
+command nor the workflow prints or retrieves a secret value or provider response
+body.
+
 ## Installed workflows
 
 - `process-issue-triage`: runs after a maintainer adds the `process` label, or
