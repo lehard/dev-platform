@@ -128,6 +128,70 @@ class ManagedProjectStatusTests(unittest.TestCase):
                 managed_project_status.reconcile(self.root, "In progress")
         self.assertEqual(graphql.call_count, 1)
 
+    def test_issue_side_lookup_recovers_item_missing_from_project_list(self) -> None:
+        project = project_payload()
+        project["data"]["user"]["projectV2"]["items"]["nodes"] = []
+        issue_item = {
+            "id": "item-1",
+            "isArchived": False,
+            "project": {"id": "project-id"},
+            "content": {
+                "__typename": "Issue",
+                "number": 8,
+                "repository": {"nameWithOwner": "example-org/development-backlog"},
+            },
+            "fieldValueByName": {"name": "Ready", "optionId": "current-option"},
+        }
+        issue = {"data": {"repository": {"issue": {"projectItems": {
+            "nodes": [issue_item], "pageInfo": {"hasNextPage": False, "endCursor": None},
+        }}}}}
+        with (
+            patch.object(managed_project_status, "github_cli_env", return_value={}),
+            patch.object(managed_project_status, "_graphql", side_effect=[project, issue]) as graphql,
+        ):
+            observation = managed_project_status.observe(self.root)
+        assert observation is not None
+        self.assertEqual(observation.current_status, "Ready")
+        self.assertEqual(graphql.call_count, 2)
+
+    def test_issue_side_lookup_rejects_other_project(self) -> None:
+        project = project_payload()
+        project["data"]["user"]["projectV2"]["items"]["nodes"] = []
+        issue = {"data": {"repository": {"issue": {"projectItems": {
+            "nodes": [{
+                "id": "item-1", "isArchived": False, "project": {"id": "other-project"},
+                "content": {"__typename": "Issue", "number": 8,
+                            "repository": {"nameWithOwner": "example-org/development-backlog"}},
+                "fieldValueByName": {"name": "Ready"},
+            }], "pageInfo": {"hasNextPage": False, "endCursor": None},
+        }}}}}
+        with (
+            patch.object(managed_project_status, "github_cli_env", return_value={}),
+            patch.object(managed_project_status, "_graphql", side_effect=[project, issue]),
+        ):
+            with self.assertRaisesRegex(managed_project_status.ManagedProjectStatusError, "maps to 0 items"):
+                managed_project_status.observe(self.root)
+
+    def test_issue_side_lookup_rejects_ambiguous_project_items(self) -> None:
+        project = project_payload()
+        project["data"]["user"]["projectV2"]["items"]["nodes"] = []
+        item = {
+            "id": "item-1", "isArchived": False, "project": {"id": "project-id"},
+            "content": {"__typename": "Issue", "number": 8,
+                        "repository": {"nameWithOwner": "example-org/development-backlog"}},
+            "fieldValueByName": {"name": "Ready"},
+        }
+        issue = {"data": {"repository": {"issue": {"projectItems": {
+            "nodes": [item, {**item, "id": "item-2"}],
+            "pageInfo": {"hasNextPage": False, "endCursor": None},
+        }}}}}
+        with (
+            patch.object(managed_project_status, "github_cli_env", return_value={}),
+            patch.object(managed_project_status, "_graphql", side_effect=[project, issue]),
+        ):
+            with self.assertRaisesRegex(managed_project_status.ManagedProjectStatusError, "maps to 2 items"):
+                managed_project_status.observe(self.root)
+
     def test_missing_locator_and_auth_are_actionable(self) -> None:
         config = managed_project_status.read_platform_config(self.root)
         del config["development_backlog"]["project_number"]
