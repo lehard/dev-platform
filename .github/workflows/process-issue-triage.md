@@ -31,14 +31,6 @@ jobs:
   agent:
     timeout-minutes: 30
 
-# gh-aw v0.88.8's safe-output backend mounts only these compiler-owned paths.
-# Declare the smallest explicit launcher allowlist required by the safe-output
-# backend. This does not change agent filesystem access or repository visibility.
-sandbox:
-  mcp:
-    env:
-      MCP_GATEWAY_ALLOWED_MOUNT_ROOTS: "${GITHUB_WORKSPACE}:rw,${RUNNER_TEMP}/gh-aw/safeoutputs:rw,/tmp/gh-aw:rw"
-
 tools:
   bash: ["*"]
   github:
