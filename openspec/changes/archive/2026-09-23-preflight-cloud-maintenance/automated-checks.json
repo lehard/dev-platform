@@ -9,19 +9,19 @@
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
-      "duration_seconds": 6.542,
+      "duration_seconds": 9.531,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 -m ruff check scripts template/scripts tests",
-      "duration_seconds": 0.513,
+      "duration_seconds": 0.261,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
-      "duration_seconds": 373.519,
+      "duration_seconds": 433.136,
       "outcome": "success",
       "exit_code": 0
     }
@@ -56,6 +56,6 @@
     "change": "preflight-cloud-maintenance",
     "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/preflight-cloud-maintenance",
     "branch": "agent/preflight-cloud-maintenance",
-    "head": "58c0e252348168015a88050ad86bad49af49fd0e"
+    "head": "052872d16cde1c641f5d1983588ba6aebe77af14"
   }
 }
