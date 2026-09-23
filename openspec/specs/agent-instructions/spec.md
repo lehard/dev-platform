@@ -2,7 +2,9 @@
 
 ## Purpose
 Define the durable, layered instruction contract that guides agents safely across the platform and its owned modules.
+
 ## Requirements
+
 ### Requirement: Agent-facing instructions use bounded discoverable context pointers
 
 Dev Platform SHALL keep always-on agent instruction surfaces bounded and SHALL provide explicit discoverable pointers to authoritative concern-specific guidance when additional detail is required.
@@ -27,22 +29,33 @@ Tool-specific instruction files SHALL reference shared Dev Platform rules rather
 
 ### Requirement: Managed-task semantics are consistent across conversation surfaces
 
-ChatGPT Project, Codex, and Claude SHALL preserve the same Discuss, generic Fix, non-trivial Execute, and explicit direct technical managed intent boundaries. Generic fixation SHALL create or reuse one human-facing Business Requirement without OpenSpec authoring; technical package publication belongs to subsequent requirement execution or explicit direct technical intent. Supported transport mechanics MAY differ without changing these meanings.
+For an explicitly operator-integrated project, ChatGPT Project, Codex, and Claude SHALL preserve the same Discuss, generic Fix, non-trivial Execute, and explicit direct technical managed intent boundaries. Generic fixation SHALL create or reuse one human-facing Business Requirement without OpenSpec authoring; technical package publication belongs to subsequent Requirement execution or explicit direct technical intent. Supported transport mechanics MAY differ without changing these meanings. A portable project that does not select operator integration SHALL retain its self-contained local OpenSpec workflow.
 
 #### Scenario: ChatGPT Project fixes accepted work to Backlog
 
-- **GIVEN** ChatGPT Project has connected GitHub mutation access but no checkout
-- **WHEN** the user explicitly asks only to record accepted non-trivial work
-- **THEN** ChatGPT creates or reuses and reads back exactly one `type:requirement` Business Requirement
-- **AND** it creates no managed OpenSpec package or technical decomposition
+- **GIVEN** an operator-integrated ChatGPT Project has connected GitHub mutation access but no target-repository checkout
+- **WHEN** the user explicitly asks to record accepted non-trivial work
+- **THEN** it creates or reuses exactly one `type:requirement` Development Backlog Issue through the canonical connected adapter and reads it back
+- **AND** it stops without OpenSpec technical decomposition, managed start, or implementation
 - **AND** lack of local `requirement_intake.py` execution is not itself a blocker when the connected adapter verifies the same durable representation
 
 #### Scenario: Repo-local agent fixes accepted work to Backlog
 
-- **GIVEN** Codex or Claude operates inside a managed repository checkout
-- **WHEN** the user explicitly asks only to record accepted non-trivial work
-- **THEN** the agent uses `requirement_intake.py create` to create or reuse the Business Requirement and stops
+- **GIVEN** Codex or Claude operates in an operator-integrated repository checkout
+- **WHEN** the user explicitly asks to record accepted non-trivial work
+- **THEN** it uses `requirement_intake.py create` and stops after the Requirement is durable
 - **AND** it does not invoke `managed_task.py create` for generic fixation
+
+#### Scenario: Fresh execution and explicit technical work remain distinct
+
+- **WHEN** an operator-integrated repository receives fresh non-trivial execution
+- **THEN** it starts the Requirement, completes pre-authoring, links each internal child, and starts that child before implementation
+- **AND** an explicitly supplied managed task or explicit technical authoring request preserves the existing managed-task path
+
+#### Scenario: Quick work and portable work remain independent
+
+- **WHEN** a request is a bounded quick task or the project has no operator-integration selection
+- **THEN** it does not require an external Backlog or operator configuration
 
 ### Requirement: Cross-surface authoring produces one consumable managed representation
 

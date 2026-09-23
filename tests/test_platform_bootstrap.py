@@ -45,10 +45,34 @@ class PlatformBootstrapTests(unittest.TestCase):
             platform_bootstrap.sync_platform_version(root)
             self.assertEqual(config.read_text(encoding="utf-8"), original)
 
-    def test_bootstrap_does_not_add_operator_configuration(self) -> None:
-        source = MODULE_PATH.read_text(encoding="utf-8")
-        self.assertNotIn("sync_development_backlog_config", source)
-        self.assertNotIn("sync_process_health_config", source)
+    def test_bootstrap_adds_only_selected_generic_operator_configuration(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".dev-platform.toml").write_text('schema_version = 2\nplatform_version = "1.0.0"\n', encoding="utf-8")
+            (root / ".copier-answers.yml").write_text("operator_integration: true\n", encoding="utf-8")
+            platform_bootstrap.sync_operator_integration(root)
+            self.assertIn('config_env = "DEV_PLATFORM_OPERATOR_CONFIG"', (root / ".dev-platform.toml").read_text(encoding="utf-8"))
+
+    def test_bootstrap_preserves_enabled_legacy_operator_configuration(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config = root / ".dev-platform.toml"
+            original = '[operator]\nenabled = true\nconfig_path = "operator.toml"\n'
+            config.write_text(original, encoding="utf-8")
+            (root / ".copier-answers.yml").write_text("operator_integration: true\n", encoding="utf-8")
+            platform_bootstrap.sync_operator_integration(root)
+            self.assertEqual(config.read_text(encoding="utf-8"), original)
+
+    def test_bootstrap_rejects_conflicting_existing_operator_configuration(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config = root / ".dev-platform.toml"
+            original = "[operator]\nenabled = false\n"
+            config.write_text(original, encoding="utf-8")
+            (root / ".copier-answers.yml").write_text("operator_integration: true\n", encoding="utf-8")
+            with self.assertRaisesRegex(RuntimeError, "conflicts"):
+                platform_bootstrap.sync_operator_integration(root)
+            self.assertEqual(config.read_text(encoding="utf-8"), original)
 
     def test_capability_sync_runs_only_when_the_rendered_contract_exists(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

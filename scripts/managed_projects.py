@@ -96,6 +96,7 @@ def validate_registry(data: dict[str, Any]) -> None:
         state = item.get("state")
         default_branch = item.get("default_branch")
         note = item.get("note", "")
+        operator_integration = item.get("operator_integration", False)
         if not isinstance(repository, str) or not REPOSITORY_RE.fullmatch(repository):
             raise ValueError(f"{label}.repository must be owner/name")
         if repository in seen:
@@ -107,11 +108,13 @@ def validate_registry(data: dict[str, Any]) -> None:
             raise ValueError(f"{repository}: invalid default_branch")
         if note is not None and not isinstance(note, str):
             raise ValueError(f"{repository}: note must be a string")
+        if not isinstance(operator_integration, bool):
+            raise ValueError(f"{repository}: operator_integration must be a boolean")
         if state == "excluded" and (not isinstance(note, str) or not note.strip()):
             raise ValueError(f"{repository}: excluded entries must explain the exclusion in note")
 
 
-def managed_projects(data: dict[str, Any], repository: str | None = None) -> list[dict[str, str]]:
+def managed_projects(data: dict[str, Any], repository: str | None = None) -> list[dict[str, Any]]:
     projects = [item for item in data["projects"] if item["state"] == "managed"]
     if repository:
         matching = [item for item in data["projects"] if item["repository"] == repository]
@@ -120,7 +123,15 @@ def managed_projects(data: dict[str, Any], repository: str | None = None) -> lis
         if matching[0]["state"] != "managed":
             raise ValueError(f"repository is registered as {matching[0]['state']}, not managed: {repository}")
         projects = matching
-    return [{"repository": item["repository"], "repo_name": item["repository"].split("/", 1)[1], "default_branch": item["default_branch"]} for item in projects]
+    return [
+        {
+            "repository": item["repository"],
+            "repo_name": item["repository"].split("/", 1)[1],
+            "default_branch": item["default_branch"],
+            "operator_integration": item.get("operator_integration", False),
+        }
+        for item in projects
+    ]
 
 
 def matrix_payload(data: dict[str, Any], repository: str | None = None) -> dict[str, Any]:

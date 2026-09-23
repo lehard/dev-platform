@@ -119,3 +119,8 @@ operator_config_path:
   type: str
   help: Optional path to an operator-owned TOML configuration; leave blank for ordinary project work.
   default: ""
+
+operator_integration:
+  type: bool
+  help: Enable the generic environment-backed operator integration for this project.
+  default: false

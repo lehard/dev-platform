@@ -22,13 +22,13 @@ Target behavior during an active change is `current specs + active delta`, subje
 Keep these intents distinct:
 
 - **Discuss** a change: inspect, design and compare options; do not create durable task state merely because the discussion is substantial.
-{% if operator_config_path %}
+{% if operator_integration | default(false) or operator_config_path %}
 - **Fix/add to operator Backlog** when the user explicitly asks to record accepted non-trivial work: create or reuse a human-facing Business Requirement through `python3 scripts/requirement_intake.py create ...` and stop. Fixation creates no managed OpenSpec package and performs no technical decomposition or implementation.
 {% else %}
 - **Fix a non-trivial change**: prepare the local OpenSpec proposal/spec/design/tasks package and stop for acceptance; no operator Backlog, Project mutation, or credentials are required.
 {% endif %}
 - **Quick execution**: a small direct request remains a quick task and uses the normal start/check/finish path with no external issue and no ceremonial OpenSpec. If it becomes material, enter the configured non-trivial intake path before broadening scope.
-{% if operator_config_path %}
+{% if operator_integration | default(false) or operator_config_path %}
 - **Fresh non-trivial execution**: by default create/reuse a Business Requirement, start its pre-authoring flow, drive evidence -> ADD -> intents -> handoff, author the resulting internal managed OpenSpec change(s), link each child to the Requirement, start those managed tasks, and only then implement.
 - **Execute an existing Business Requirement**: start a supplied `type:requirement` Issue with `python3 scripts/requirement_intake.py start --requirement owner/repo#N`.
 - **Direct technical managed/OpenSpec path**: an explicitly supplied managed Issue/OpenSpec task, or an explicit request to create a technical managed task, continues to use `managed_task.py create`, `execute_managed_task.py`, or `start_managed_task.py`. This is not the default meaning of a generic fixation request.
@@ -36,7 +36,7 @@ Keep these intents distinct:
 - **Fresh non-trivial execution**: explicit execution first accepts the local OpenSpec package and then implements it through the repository task/check/finish lifecycle.
 {% endif %}
 
-{% if operator_config_path %}
+{% if operator_integration | default(false) or operator_config_path %}
 Each internal technical child is labeled `type:internal-change` and linked back to its parent Requirement. Requirement progress is read through from child lifecycle state with `requirement_intake.py aggregate`; do not maintain a second manual status ledger.
 
 For an internal child or an explicitly requested direct technical managed task,
@@ -82,7 +82,7 @@ Managed work carries a provider-neutral recommended start tier (`R2` balanced by
 ```bash
 python3 scripts/agent_doctor.py
 python3 scripts/start_task.py <slug> --task "<task>" --scope "<files/modules>"
-{% if operator_config_path %}
+{% if operator_integration | default(false) or operator_config_path %}
 python3 scripts/requirement_intake.py start --requirement owner/repo#N
 python3 scripts/orchestrate_pre_authoring.py status --id requirement-N
 python3 scripts/managed_task.py create --bundle <directory>

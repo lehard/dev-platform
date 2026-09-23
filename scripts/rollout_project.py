@@ -363,6 +363,21 @@ def normalize_copier_answers(project_root: Path) -> None:
         print("Normalized .copier-answers.yml trailing newline formatting")
 
 
+def set_operator_integration_answer(project_root: Path, enabled: bool) -> None:
+    """Set only the machine-owned generic Copier selection on a rollout branch."""
+    if not enabled:
+        return
+    path = project_root / ".copier-answers.yml"
+    text = path.read_text(encoding="utf-8")
+    if re.search(r"^operator_integration:\s*.*$", text, re.MULTILINE):
+        updated = re.sub(r"^operator_integration:\s*.*$", "operator_integration: true", text, count=1, flags=re.MULTILINE)
+    else:
+        updated = text.rstrip("\n") + "\noperator_integration: true\n"
+    if updated != text:
+        path.write_text(updated, encoding="utf-8")
+        print("Enabled generic operator integration in Copier answers")
+
+
 def load_answers(project_root: Path) -> dict[str, str]:
     path = project_root / ".copier-answers.yml"
     if not path.exists():
@@ -403,7 +418,7 @@ def platform_config_contract(project_root: Path) -> dict[str, Any]:
     return config
 
 
-def require_platform_config_contract(before: dict[str, Any], after: dict[str, Any]) -> None:
+def require_platform_config_contract(before: dict[str, Any], after: dict[str, Any], *, operator_integration: bool = False) -> None:
     """Keep Copier rollout from injecting operator-owned configuration.
 
     Existing operator integrations are project-owned/external and remain valid
@@ -411,6 +426,11 @@ def require_platform_config_contract(before: dict[str, Any], after: dict[str, An
     which ``platform_config_contract`` already removes before this comparison.
     """
     if after == before:
+        return
+    expected = dict(before)
+    if operator_integration and "operator" not in expected:
+        expected["operator"] = {"enabled": True, "config_env": "DEV_PLATFORM_OPERATOR_CONFIG"}
+    if after == expected:
         return
     raise ValueError(
         "project-owned .dev-platform.toml changed beyond platform_version during guarded recopy"
@@ -1334,6 +1354,7 @@ def copier_update_with_guarded_recopy(
     *,
     env: dict[str, str],
     legacy_repository: str | None = None,
+    operator_integration: bool = False,
 ) -> str:
     """Run smart update, falling back to recopy only for proven-safe conflicts.
 
@@ -1387,7 +1408,7 @@ def copier_update_with_guarded_recopy(
             protected_before,
             permitted_fingerprints=permitted_task_intake_migration(project_root, agents_before),
         )
-        require_platform_config_contract(config_before, platform_config_contract(project_root))
+        require_platform_config_contract(config_before, platform_config_contract(project_root), operator_integration=operator_integration)
         return "update"
 
     owned = project_owned_paths(project_root)
@@ -1421,6 +1442,10 @@ def copier_update_with_guarded_recopy(
         flush=True,
     )
     reset_failed_copier_update(project_root)
+    # ``reset_failed_copier_update`` deliberately restores the branch's
+    # original answers. Reapply the selected machine-owned answer before the
+    # guarded recopy so a recoverable conflict cannot silently drop it.
+    set_operator_integration_answer(project_root, operator_integration)
     require_project_owned_snapshot(project_root, protected_before)
     require_reclaimed_platform_paths_match_template(project_root, reclaimed_conflicts)
     # Re-prove from committed HEAD after reset. This is intentionally independent
@@ -1482,7 +1507,7 @@ def copier_update_with_guarded_recopy(
         env=env,
     )
     require_paths_match_rendered_template(project_root, expected_target)
-    require_platform_config_contract(config_before, platform_config_contract(project_root))
+    require_platform_config_contract(config_before, platform_config_contract(project_root), operator_integration=operator_integration)
     if harness_mode(project_root) != mode:
         raise ValueError(f"guarded recopy changed harness_mode away from {mode}")
     return "guarded-recopy"
@@ -1541,6 +1566,7 @@ def apply_rollout(
     base_branch: str,
     output: Path | None = None,
     legacy_repository: str | None = None,
+    operator_integration: bool = False,
 ) -> int:
     project_root = project_root.resolve()
     target = parse_version(version)
@@ -1572,12 +1598,14 @@ def apply_rollout(
     run(["git", "fetch", "origin", base_branch], project_root)
     run(["git", "checkout", "-b", branch, f"origin/{base_branch}"], project_root)
     ensure_clean(project_root)
+    set_operator_integration_answer(project_root, operator_integration)
 
     strategy = copier_update_with_guarded_recopy(
         project_root,
         version,
         env=private_source_git_env(),
         legacy_repository=legacy_repository,
+        operator_integration=operator_integration,
     )
     normalize_copier_answers(project_root)
 
@@ -1617,6 +1645,7 @@ def main() -> int:
     parser.add_argument("--version", required=True)
     parser.add_argument("--base-branch", required=True)
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--operator-integration", action="store_true", help="Enable the generic environment-backed operator integration for this managed rollout.")
     parser.add_argument(
         "--legacy-repository",
         default=None,
@@ -1637,6 +1666,7 @@ def main() -> int:
             args.base_branch,
             args.output,
             legacy_repository=args.legacy_repository,
+            operator_integration=args.operator_integration,
         )
     except ValueError as exc:
         print(f"Managed rollout: BLOCKED: {exc}")

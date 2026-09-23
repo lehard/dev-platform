@@ -64,6 +64,10 @@ profile = "observation"
 [operator]
 enabled = true
 config_path = "{{ operator_config_path }}"
+{% elif operator_integration | default(false) %}
+[operator]
+enabled = true
+config_env = "DEV_PLATFORM_OPERATOR_CONFIG"
 {% endif %}
 
 [paths]

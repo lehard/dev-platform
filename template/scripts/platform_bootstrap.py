@@ -111,6 +111,29 @@ def sync_platform_version(root: Path) -> None:
         print(f"Synchronized .dev-platform.toml platform_version to {commit[1:]}")
 
 
+def operator_integration_selected(root: Path) -> bool:
+    answers = root / ".copier-answers.yml"
+    if not answers.exists():
+        return False
+    return any(line.strip().lower() == "operator_integration: true" for line in answers.read_text(encoding="utf-8").splitlines())
+
+
+def sync_operator_integration(root: Path) -> None:
+    """Add only the stable generic opt-in; existing reviewed tables are preserved."""
+    if not operator_integration_selected(root):
+        return
+    config_path = root / ".dev-platform.toml"
+    config = load_config(root)
+    operator = config.get("operator")
+    if operator is not None:
+        if not isinstance(operator, dict) or operator.get("enabled") is not True:
+            raise RuntimeError("existing [operator] configuration conflicts with requested generic operator integration")
+        return
+    text = config_path.read_text(encoding="utf-8").rstrip("\n")
+    config_path.write_text(text + "\n\n[operator]\nenabled = true\nconfig_env = \"DEV_PLATFORM_OPERATOR_CONFIG\"\n", encoding="utf-8")
+    print("Enabled generic environment-backed operator integration")
+
+
 def ensure_project_context_map(root: Path) -> None:
     """Create the initial map without ever replacing reviewed project context."""
     context_map = root / "docs" / "context" / "README.md"
@@ -148,6 +171,7 @@ def initialize_openspec(root: Path, executable: str, tools: str) -> None:
 def main() -> int:
     root = Path.cwd().resolve()
     sync_platform_version(root)
+    sync_operator_integration(root)
     ensure_project_context_map(root)
     sync_engineering_capabilities(root)
     config = load_config(root)

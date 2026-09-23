@@ -260,12 +260,17 @@ jobs:
           REPOSITORY: ${{ matrix.repository }}
           VERSION: ${{ needs.plan.outputs.version }}
           BASE_BRANCH: ${{ matrix.default_branch }}
+          OPERATOR_INTEGRATION: ${{ matrix.operator_integration }}
           LEGACY_REPOSITORY: ${{ vars.DEV_PLATFORM_LEGACY_REPOSITORY }}
         run: |
           set -uo pipefail
           log_file="$(mktemp)"
           set +e
           legacy_args=()
+          operator_args=()
+          if [[ "$OPERATOR_INTEGRATION" == "true" ]]; then
+            operator_args=(--operator-integration)
+          fi
           if [[ -n "$LEGACY_REPOSITORY" ]]; then
             if [[ ! "$LEGACY_REPOSITORY" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
               echo "::error title=Managed rollout blocked::DEV_PLATFORM_LEGACY_REPOSITORY must be owner/name; got: $LEGACY_REPOSITORY"
@@ -278,6 +283,7 @@ jobs:
             --repository "$REPOSITORY" \
             --version "$VERSION" \
             --base-branch "$BASE_BRANCH" \
+            "${operator_args[@]}" \
             "${legacy_args[@]}" \
             --output /tmp/rollout-result.json 2>&1 | tee "$log_file"
           rc=${PIPESTATUS[0]}
