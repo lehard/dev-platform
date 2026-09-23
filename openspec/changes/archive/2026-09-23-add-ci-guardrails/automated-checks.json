@@ -9,19 +9,19 @@
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
-      "duration_seconds": 1.342,
+      "duration_seconds": 0.627,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 -m ruff check scripts template/scripts tests",
-      "duration_seconds": 0.417,
+      "duration_seconds": 0.454,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
-      "duration_seconds": 279.725,
+      "duration_seconds": 187.182,
       "outcome": "success",
       "exit_code": 0
     }
@@ -41,7 +41,6 @@
         "template/.github/workflows/dev-platform.yml.jinja",
         "template/.github/workflows/process-health-labels.yml.jinja",
         "template/scripts/agent_friction.py",
-        "template/scripts/requirement_intake.py",
         "tests/test_ci_guardrails.py"
       ],
       "commands": [
@@ -65,6 +64,6 @@
     "change": "add-ci-guardrails",
     "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/add-ci-guardrails",
     "branch": "agent/add-ci-guardrails",
-    "head": "9956ea0d884cd12b9406343c8b4b9166a6ea0ccd"
+    "head": "bede9cf0c3ba58f6f898665d1a97cd76ae28bfe2"
   }
 }
