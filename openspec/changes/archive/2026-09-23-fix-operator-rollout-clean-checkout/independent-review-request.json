@@ -1,0 +1,53 @@
+{
+  "candidate": {
+    "base_head": "2e142aced9296ba4649f90f26310fddae6573371",
+    "base_ref": "origin/main",
+    "candidate_head": "e80c4aeee7386d9ac11e5eae35d0b9d4c505a738",
+    "diff_sha256": "a327c823321e7624edc2c38100e1fcf78552e8f2422233bef11a1d7638eae1b7"
+  },
+  "change": "openspec/changes/fix-operator-rollout-clean-checkout",
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/fix-operator-rollout-clean-checkout/design.md",
+        "openspec/changes/fix-operator-rollout-clean-checkout/proposal.md",
+        "openspec/changes/fix-operator-rollout-clean-checkout/specs/platform-rollout/spec.md",
+        "openspec/changes/fix-operator-rollout-clean-checkout/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/fix-operator-rollout-clean-checkout/proposal.md",
+        "openspec/changes/fix-operator-rollout-clean-checkout/design.md",
+        "openspec/changes/fix-operator-rollout-clean-checkout/tasks.md",
+        "openspec/changes/fix-operator-rollout-clean-checkout/specs/platform-rollout/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-09-23T05:58:43+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/fix-operator-rollout-clean-checkout/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "c243815d-7b9c-47d4-bc60-14715953e133",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1
+}

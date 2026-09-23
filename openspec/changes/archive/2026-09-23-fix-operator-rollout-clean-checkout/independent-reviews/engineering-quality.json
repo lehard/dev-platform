@@ -1,0 +1,19 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "2e142aced9296ba4649f90f26310fddae6573371",
+    "base_ref": "origin/main",
+    "candidate_head": "e80c4aeee7386d9ac11e5eae35d0b9d4c505a738",
+    "diff_sha256": "a327c823321e7624edc2c38100e1fcf78552e8f2422233bef11a1d7638eae1b7"
+  },
+  "findings": [],
+  "perspective": "engineering-quality",
+  "request_id": "c243815d-7b9c-47d4-bc60-14715953e133",
+  "reviewer": {
+    "context_id": "/root/independent_review_retry",
+    "fresh_context": true,
+    "runtime": "Codex collaboration independent reviewer",
+    "write_access": false
+  },
+  "schema_version": 1
+}

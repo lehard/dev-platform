@@ -8,7 +8,7 @@
 ## 2. Verify and prepare archive readiness
 
 - [x] Add focused clean-checkout regression coverage and run relevant rollout tests plus platform validation.
-- [ ] Obtain independent review and record a truthful semantic verification receipt with the required automated-check evidence marker.
+- [x] Obtain independent review and record a truthful semantic verification receipt with the required automated-check evidence marker.
 
 After this checklist is complete, the lifecycle helper archives the accepted
 delta. Publication, the next immutable patch release, and the resulting
