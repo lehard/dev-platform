@@ -7,7 +7,10 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stdout
+from io import StringIO
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_ROOT = ROOT / "template" / "scripts"
@@ -661,6 +664,44 @@ class FrictionReviewTests(unittest.TestCase):
         fp_claude = agent_friction.fingerprint_for(with_claude, "lehard/dev-platform")
         fp_codex = agent_friction.fingerprint_for(with_codex, "lehard/dev-platform")
         self.assertEqual(fp_claude, fp_codex)
+
+    def test_promote_dry_run_uses_configured_source_project(self) -> None:
+        self.log.write_text(json.dumps(self.event()) + "\n", encoding="utf-8")
+        output = StringIO()
+        with (
+            mock.patch.object(agent_friction, "read_platform_config", return_value={"project_slug": "fixture-project"}),
+            mock.patch.object(agent_friction, "read_operator_config", return_value={"promotion": {"repo": "operator/friction"}}),
+            mock.patch.object(sys, "argv", ["agent_friction.py", "promote", "route-me", "--dry-run"]),
+            redirect_stdout(output),
+        ):
+            self.assertEqual(agent_friction.main(), 0)
+
+        rendered = output.getvalue()
+        self.assertIn("Source project: `fixture-project`", rendered)
+        self.assertNotIn("local-only-secret", rendered)
+
+    def test_promote_uses_configured_operator_destination(self) -> None:
+        self.log.write_text(json.dumps(self.event()) + "\n", encoding="utf-8")
+        submitted_bodies: list[str] = []
+
+        def fake_run(command: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+            if command[:3] == ["gh", "auth", "status"]:
+                return subprocess.CompletedProcess(command, 0, "", "")
+            self.assertEqual(command[:5], ["gh", "issue", "create", "--repo", "operator/friction"])
+            submitted_bodies.append(Path(command[-1]).read_text(encoding="utf-8"))
+            return subprocess.CompletedProcess(command, 0, "https://example.test/operator/friction/issues/1\n", "")
+
+        with (
+            mock.patch.object(agent_friction, "read_platform_config", return_value={"project_slug": "fixture-project"}),
+            mock.patch.object(agent_friction, "read_operator_config", return_value={"promotion": {"repo": "operator/friction"}}),
+            mock.patch.object(agent_friction.shutil, "which", return_value="/usr/bin/gh"),
+            mock.patch.object(agent_friction.subprocess, "run", side_effect=fake_run),
+        ):
+            self.assertEqual(agent_friction.cmd_promote(type("Args", (), {"event": "route-me", "dry_run": False})()), 0)
+
+        self.assertEqual(len(submitted_bodies), 1)
+        self.assertIn("Source project: `fixture-project`", submitted_bodies[0])
+        self.assertNotIn("local-only-secret", submitted_bodies[0])
 
 
 if __name__ == "__main__":
