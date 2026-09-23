@@ -12,7 +12,7 @@ The current managed lifecycle publishes every internal child independently. For 
 
 ## Success evidence
 
-An end-to-end two-child dogfood proves isolated child work, one integration PR and full CI, child-level traceability, safe retry and terminal reconciliation. Tests cover stale heads, conflicting edits and a failed integration check.
+A local/bare-remote two-child CLI rehearsal proves isolated child work, exact combined-candidate composition and safe retry. Tests cover stale heads, conflicting edits, failed integration checks and terminal reconciliation only after an exact merged PR. The first live two-child GitHub PR/full-CI dogfood is an acceptance gate for the later terminal Requirement execution change, after this bootstrap primitive is published.
 
 ## Constraints and non-goals
 

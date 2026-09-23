@@ -149,6 +149,43 @@ def read_receipt(path: Path) -> ReadyForIntegrationReceipt:
     return ReadyForIntegrationReceipt.from_payload(payload)
 
 
+def require_independent_publication_exception(root: Path, delivery: Any) -> str | None:
+    """Require a committed reason before separately publishing a linked child."""
+    import managed_task
+    import requirement_intake
+
+    source_issue = getattr(delivery, "source_issue", None)
+    archive = getattr(delivery, "path", None)
+    if not isinstance(source_issue, str) or not isinstance(archive, Path):
+        raise RequirementIntegrationError("managed publication has no canonical source and archive identity")
+    issue = managed_task.fetch_issue(root, *managed_task.issue_ref(source_issue))
+    body = str(issue.get("body") or "")
+    parents = re.findall(r"^Requirement: (\S+/\S+#\d+)\s*$", body, re.MULTILINE)
+    if not parents:
+        return None
+    if len(parents) != 1 or requirement_intake.CHILD_LABEL not in managed_task.issue_labels(issue):
+        raise RequirementIntegrationError("linked child has ambiguous Requirement provenance")
+    parent = managed_task.fetch_issue(root, *managed_task.issue_ref(parents[0]))
+    if (requirement_intake.REQUIREMENT_LABEL not in managed_task.issue_labels(parent)
+            or source_issue not in requirement_intake.parse_requirement_body(str(parent.get("body") or ""))["children"]):
+        raise RequirementIntegrationError("linked child is not reciprocally listed by its Requirement")
+    verification = archive / "verification.md"
+    try:
+        lines = verification.read_text(encoding="utf-8").splitlines()
+    except OSError as exc:
+        raise RequirementIntegrationError("linked child has no archived verification receipt") from exc
+    reasons = [line.split(":", 1)[1].strip() for line in lines if line.startswith("Requirement-Integration-Exception:")]
+    if len(reasons) != 1 or len(reasons[0]) < 12:
+        raise RequirementIntegrationError(
+            f"{source_issue} is linked to {parents[0]}; independent publication requires one "
+            "'Requirement-Integration-Exception: <reason>' line in archived verification.md"
+        )
+    relative = verification.resolve().relative_to(root.resolve()).as_posix()
+    if _git(root, "show", f"HEAD:{relative}") != verification.read_text(encoding="utf-8").strip():
+        raise RequirementIntegrationError("independent-publication reason is not committed at the exact head")
+    return reasons[0]
+
+
 def assemble_candidate(root: Path, *, requirement: str, base: str, receipt_paths: list[Path]) -> dict[str, Any]:
     """Bind an ordered candidate, rejecting stale heads and overlapping paths.
 

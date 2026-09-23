@@ -3,7 +3,7 @@
 ## 1. Specify and implement child handoff
 
 - [x] Add scenarios for exact child provenance and verified nonterminal handoff.
-- [ ] Record an explicit reason when a linked child uses independent publication instead of the shared default.
+- [x] Record an explicit reason when a linked child uses independent publication instead of the shared default.
 - [x] Add a guarded ready-for-integration operation that leaves source Issue/Project status nonterminal.
 
 ## 2. Integrate and publish
@@ -15,4 +15,4 @@
 ## 3. Verify
 
 - [x] Exercise local/bare remote integration and interruption recovery tests, including changed child head and conflicting edits.
-- [ ] Run representative two-child dogfood, full platform checks, semantic OpenSpec verification and truthful archive receipt.
+- [ ] Run representative local/bare two-child CLI dogfood, full platform checks, semantic OpenSpec verification and truthful archive receipt; leave live shared-PR dogfood to terminal Requirement execution.

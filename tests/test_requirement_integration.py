@@ -231,6 +231,38 @@ class RequirementIntegrationTests(unittest.TestCase):
         self.assertEqual(git(self.root, "rev-parse", "main"), self.base)
         self.assertNotEqual(git(candidate, "rev-parse", "HEAD"), self.base)
 
+    def test_bare_remote_two_child_cli_rehearsal(self) -> None:
+        remote = self.root / "remote.git"
+        git(self.root, "init", "--bare", "--initial-branch=main", str(remote))
+        git(self.root, "remote", "add", "origin", str(remote))
+        git(self.root, "push", "-u", "origin", "main")
+        _, first = self.child("one", "one.txt")
+        _, second = self.child("two", "two.txt")
+        manifest_path = self.root / "candidate.json"
+        assembled = subprocess.run(
+            [sys.executable, str(HELPER), "assemble", "--requirement", "acme/backlog#7",
+             "--base", self.base, "--receipt", str(first), "--receipt", str(second),
+             "--out", str(manifest_path)], cwd=self.root, capture_output=True, text=True, check=True,
+        )
+        manifest = json.loads(assembled.stdout)
+        self.assertEqual(json.loads(manifest_path.read_text(encoding="utf-8")), manifest)
+        slug = integration._candidate_slug("acme/backlog#7")
+        candidate = self.root / ".claude/worktrees" / slug
+        command = [sys.executable, str(HELPER), "compose", "--manifest", str(manifest_path),
+                   "--worktree", str(candidate), "--branch", "agent/" + slug,
+                   "--receipt", str(first), "--receipt", str(second)]
+        composed = json.loads(subprocess.run(command, cwd=self.root, capture_output=True,
+                                             text=True, check=True).stdout)
+        resumed = json.loads(subprocess.run(command, cwd=self.root, capture_output=True,
+                                            text=True, check=True).stdout)
+        self.assertFalse(composed["resumed"])
+        self.assertTrue(resumed["resumed"])
+        self.assertEqual(composed["head"], resumed["head"])
+        self.assertEqual(git(self.root, "rev-parse", "origin/main"), self.base)
+        self.assertEqual(git(self.root, "rev-parse", "main"), self.base)
+        self.assertEqual((candidate / "one.txt").read_text(encoding="utf-8"), "one\n")
+        self.assertEqual((candidate / "two.txt").read_text(encoding="utf-8"), "two\n")
+
     def test_sequential_child_can_intentionally_edit_prior_child_path(self) -> None:
         one, one_receipt = self.child("one", "one.txt")
         two, two_receipt = self.child("two", "one.txt", base_ref="one")
@@ -303,3 +335,26 @@ class RequirementIntegrationTests(unittest.TestCase):
             result = integration.publish_candidate(candidate, manifest=manifest, receipt_paths=receipts)
         self.assertEqual(result["status"], "in-review")
         self.assertEqual(events, ["full-checks", "protected-pr"])
+
+    def test_independent_linked_child_requires_committed_exception_reason(self) -> None:
+        import managed_task
+
+        self.child("one", "one.txt")
+        git(self.root, "switch", "one")
+        archive = self.root / "openspec/changes/archive/2026-09-23-one"
+        delivery = SimpleNamespace(source_issue="acme/backlog#8", path=archive)
+        child_issue = {"body": "Requirement: acme/backlog#7\n", "labels": [{"name": "type:internal-change"}]}
+        parent_issue = {"body": "<!-- requirement-children:start -->\n- [ ] acme/backlog#8\n<!-- requirement-children:end -->",
+                        "labels": [{"name": "type:requirement"}]}
+        with mock.patch.object(managed_task, "fetch_issue", side_effect=[child_issue, parent_issue]):
+            with self.assertRaisesRegex(integration.RequirementIntegrationError, "requires one"):
+                integration.require_independent_publication_exception(self.root, delivery)
+        verification = archive / "verification.md"
+        verification.write_text(verification.read_text(encoding="utf-8") +
+                                "Requirement-Integration-Exception: Bootstrap the shared publication machinery safely\n",
+                                encoding="utf-8")
+        git(self.root, "add", str(verification.relative_to(self.root)))
+        git(self.root, "commit", "-m", "record bootstrap exception")
+        with mock.patch.object(managed_task, "fetch_issue", side_effect=[child_issue, parent_issue]):
+            reason = integration.require_independent_publication_exception(self.root, delivery)
+        self.assertIn("Bootstrap", reason)
