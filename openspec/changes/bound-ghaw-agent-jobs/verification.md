@@ -19,7 +19,8 @@ The accepted delta requires whole-job deadlines independent of the agentic step 
 - Parsed all three generated YAML files: agent job deadlines are 30 minutes; agentic steps are 8, 10 and 10 minutes; every old/new job permission map is identical.
 - `python3 -m compileall -q template/scripts scripts`: passed.
 - `python3 scripts/managed_projects.py validate`: passed (3 managed projects).
-- `python3 scripts/run_test_groups.py --all`: 13 groups passed, no failed groups, 1230 declared and discovered tests.
-- `python3 template/scripts/openspec_lifecycle.py check`: passed before archive.
+- `python3 scripts/run_test_groups.py --all`: 13 groups passed, no failed groups, 1230 declared and discovered tests on the initial base; after reconciling with newer `origin/main`, all 13 groups passed again with 1232 declared and discovered tests.
+- `python3 template/scripts/openspec_lifecycle.py check`: passed before task completion. After all task boxes were checked, it reported the expected active-change lifecycle debt; archive is the required resolution.
 - `openspec validate bound-ghaw-agent-jobs --strict --no-interactive`: passed.
 - `git diff --check`: passed.
+- After the normal-history merge of `origin/main`, `python3 scripts/validate_agentic_workflows.py`, compileall and managed project registry validation passed again.
