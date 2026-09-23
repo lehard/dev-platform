@@ -9,19 +9,19 @@
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
-      "duration_seconds": 14.069,
+      "duration_seconds": 3.837,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 -m ruff check scripts template/scripts tests",
-      "duration_seconds": 15.367,
+      "duration_seconds": 5.242,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
-      "duration_seconds": 619.617,
+      "duration_seconds": 437.444,
       "outcome": "success",
       "exit_code": 0
     }
@@ -59,6 +59,6 @@
     "change": "validate-release-installation-contract",
     "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/validate-release-installation-contract",
     "branch": "agent/validate-release-installation-contract",
-    "head": "24512a991c1b8dece4f05e1312fcd5d4ca2858a5"
+    "head": "6306411c5c5dd9f49188541f3d278082acc64b12"
   }
 }
