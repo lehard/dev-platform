@@ -56,14 +56,26 @@ class RolloutFailureStreakWorkflowTests(unittest.TestCase):
             self.assertNotIn("target-token", block)
             self.assertNotIn("source-token", block)
 
+    def test_maintenance_workflow_reconciles_alerts_with_separate_tracker_and_project_tokens(self) -> None:
+        workflow = ROOT / ".github" / "workflows" / "reconcile-stale-rollouts.yml"
+        text = workflow.read_text(encoding="utf-8")
+        block = step_block(text, "Reconcile recovered rollout alert")
+        self.assertIn("if: github.event_name == 'schedule' || inputs.mode == 'apply'", block)
+        self.assertIn("cron: '23 4 * * *'", text)
+        self.assertIn("rollout_failure_streak.py reconcile", block)
+        self.assertIn("${{ github.token }}", block)
+        self.assertIn("${{ steps.target-token.outputs.token }}", block)
+        self.assertIn("--default-branch \"$DEFAULT_BRANCH\"", block)
+
 
 class RolloutFailureStreakScriptTests(unittest.TestCase):
     def test_script_entry_points_never_raise_on_generic_failure(self) -> None:
         text = SCRIPT.read_text(encoding="utf-8")
         self.assertIn("def cmd_record_failure", text)
         self.assertIn("def cmd_record_success", text)
+        self.assertIn("def cmd_reconcile", text)
         self.assertIn("except Exception as exc:  # noqa: BLE001", text)
-        self.assertEqual(text.count("except Exception as exc:  # noqa: BLE001"), 2)
+        self.assertEqual(text.count("except Exception as exc:  # noqa: BLE001"), 3)
 
     def test_unreadable_prior_state_never_silently_resets(self) -> None:
         text = SCRIPT.read_text(encoding="utf-8")
