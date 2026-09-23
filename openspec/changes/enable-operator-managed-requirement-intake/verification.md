@@ -40,7 +40,7 @@ available GitHub CLI surface. The exact required manual setting is recorded in
 - `python3 scripts/managed_projects.py validate` — passed.
 - `openspec validate enable-operator-managed-requirement-intake --strict --no-interactive` — passed.
 - `python3 template/scripts/openspec_lifecycle.py check` — passed before archive readiness.
-- `python3 scripts/independent_review.py check enable-operator-managed-requirement-intake` — passed after recording one spec-fidelity review and one engineering-quality review. The engineering review finding was fixed before this receipt.
+- `python3 scripts/independent_review.py check enable-operator-managed-requirement-intake` — passed after recording fresh spec-fidelity and engineering-quality reviews for the final candidate. The prior engineering finding was fixed before this receipt.
 
 `openspec verify` is not provided by the installed OpenSpec CLI, so the
 documented equivalent semantic review above is the verification method.
