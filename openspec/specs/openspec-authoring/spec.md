@@ -62,15 +62,15 @@ The platform SHALL bound the accepted current iteration through scope, non-goals
 
 #### Scenario: Future improvement is outside the accepted change
 
-- **WHEN** authoring identifies a useful later enhancement that is not part of the accepted result
+- **WHEN** authoring identifies a useful later enhancement outside the accepted result
 - **THEN** it remains a non-goal or follow-up
-- **AND** it becomes a separate managed backlog task only after explicit human fixation
+- **AND** generic explicit fixation creates or reuses a Business Requirement without creating an OpenSpec package
 
 #### Scenario: Lifecycle state changes
 
 - **WHEN** a change moves through verification, archive, or publication
 - **THEN** authoritative lifecycle state and receipts remain the source of truth
-- **AND** no manually maintained proposal status field is required to mirror them
+- **AND** no manually maintained proposal status field mirrors them
 
 ### Requirement: Central and generated repositories share one OpenSpec authoring contract
 
@@ -177,4 +177,3 @@ For work routed through ADD/Intents, the platform SHALL provide a bounded author
 #### Scenario: Intent or parent changes after handoff
 - **WHEN** the selected intent, approved ADD, or required snapshot identity no longer matches the handoff
 - **THEN** the authoring input is stale and must be regenerated before relying on it
-

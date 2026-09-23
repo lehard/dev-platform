@@ -50,16 +50,18 @@ restating an equivalent policy.
 
 ## Cross-surface managed authoring
 
-`task-intake.md` is the semantic owner. A fixation is one Development Backlog
-Issue with one active `managed-openspec:v1` package, and it stops in `Backlog`.
-The target-repository checkout changes only after normal managed start
-materializes that package; the local OpenSpec is then canonical.
+`task-intake.md` is the semantic owner. Generic fixation creates or reuses one
+human-facing Business Requirement and stops; it does not create an OpenSpec
+package or technically decompose the work. Requirement execution creates and
+links internal technical children, whose materialized local OpenSpec is then
+canonical.
 
-Repository-local Codex and Claude use `managed_task.py create --bundle ...`
-when it is available. ChatGPT Project may use its supported connected GitHub
-mutations when it has no checkout, but must create the same package shape and
-must not start implementation. The ordinary `start_managed_task.py` importer
-accepts either result without translation.
+Repository-local Codex and Claude use `requirement_intake.py create` for
+generic fixation. `managed_task.py create --bundle ...` remains available only
+for an internal child or an explicitly requested direct technical managed task.
+ChatGPT Project follows the same meaning through its connected-GitHub adapter;
+the ordinary `start_managed_task.py` importer accepts the resulting technical
+package without translation.
 
 ## Evidence
 
@@ -69,8 +71,7 @@ For an instruction-surface change, add proportionate evidence for:
 - a positive reached-concern discovery case and a negative unrelated-concern
   case;
 - thin tool-specific adapters with no duplicate shared policy; and
-- representative ChatGPT Project and repository-local fixation representations
-  that parse through the normal managed package contract.
+- representative generic fixation and explicit technical authoring routes.
 
 ## Upstream reference
 

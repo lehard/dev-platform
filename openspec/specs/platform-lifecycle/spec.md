@@ -66,7 +66,7 @@ For non-trivial OpenSpec work, agents SHALL update planning artifacts before kno
 
 Platform friction SHALL keep raw evidence machine-local by default, while high-signal sanitized friction candidates SHALL be routed automatically to the appropriate GitHub process-issue backlog during supported lifecycle processing instead of depending on remembered routine manual promotion. Routing SHALL sanitize credential-like content and arbitrary raw evidence, deduplicate repeated occurrences with a stable non-secret fingerprint, and preserve a durable local fallback when GitHub routing is unavailable.
 
-Process/friction issues SHALL remain evidence/inbox state. They SHALL NOT automatically create Development Backlog tasks, materialize OpenSpec changes, dispatch executors or start remediation. Converting process evidence into managed work requires separate explicit human fixation intent through the managed-task authoring contract.
+Process/friction issues SHALL remain evidence/inbox state. They SHALL NOT automatically create Development Backlog tasks, materialize OpenSpec changes, dispatch executors or start remediation. Generic human fixation creates or reuses a Business Requirement and stops. Execution of that Requirement or explicit direct technical intent follows its respective intake path.
 
 #### Scenario: Reusable friction is promoted
 
@@ -111,7 +111,7 @@ Process/friction issues SHALL remain evidence/inbox state. They SHALL NOT automa
 
 - **WHEN** a process issue or cloud review recommends a reusable fix
 - **THEN** the recommendation remains advisory process evidence
-- **AND** no Development Backlog issue or OpenSpec change is created until the human explicitly requests fixation through the managed-task authoring path
+- **AND** no Business Requirement is created until explicit human fixation, and no technical OpenSpec change is created until execution or explicit direct technical intent
 
 ### Requirement: Workflow profile and harness ownership are composable
 
@@ -1406,7 +1406,6 @@ A proposed context improvement SHALL become repository work only after explicit 
 
 #### Scenario: Human accepts a context improvement candidate
 - **WHEN** a human explicitly accepts a reviewed context-gap proposal as work
-- **THEN** the platform creates or reuses the normal managed task through the existing intake contract
+- **THEN** generic fixation creates or reuses a Business Requirement, and explicit execution or direct technical intent enters its corresponding managed path
 - **AND** context evidence is linked as provenance where supported
 - **AND** no parallel context-specific task state machine is introduced.
-
