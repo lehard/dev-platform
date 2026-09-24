@@ -24,7 +24,7 @@ Keep these intents distinct:
 - **Fix/add to Backlog** when the user explicitly asks to record accepted non-trivial work ("зафиксируй", "добавь в бэклог", "создай задачу", "отправь в бэклог" or equivalent): create or reuse a human-facing Business Requirement through `python3 scripts/requirement_intake.py create ...` and stop. Fixation creates no OpenSpec package and performs no technical decomposition or implementation.
 - **Quick execution**: a small direct request remains a quick task and uses the existing task/check/finish workflow with no Requirement, backlog issue, or ceremonial OpenSpec. If it becomes material, stop and enter requirement-first or explicit technical managed intake before broadening scope.
 - **Fresh non-trivial execution**: by default create/reuse a Business Requirement, run `requirement_intake.py start`, drive `orchestrate_pre_authoring.py` through evidence -> ADD -> intents -> handoff, author the resulting internal managed OpenSpec change(s), link each with `requirement_intake.py link-child`, start those managed tasks, and only then implement.
-- **Execute an existing Business Requirement**: an explicitly supplied `type:requirement` Issue enters through `python3 scripts/requirement_intake.py start --requirement owner/repo#N`.
+- **Execute an existing Business Requirement**: an explicitly supplied `type:requirement` Issue enters through `python3 scripts/requirement_intake.py start --requirement owner/repo#N`; after fresh authored handoffs, resume its children and shared delivery through `python3 scripts/execute_requirement.py advance --requirement owner/repo#N` until terminal.
 - **Direct technical managed/OpenSpec path**: when the user explicitly supplies an existing managed Issue/OpenSpec task or explicitly asks to create a technical managed task, preserve the existing `managed_task.py create` / `execute_managed_task.py` / `start_managed_task.py` path. This is not the default meaning of "зафиксируй".
 
 Each internal technical child is linked back to its parent Requirement and labeled `type:internal-change`. Requirement progress is derived from child lifecycle state through `requirement_intake.py aggregate`; do not maintain a second manual status ledger. The primary human-facing Project view should show Requirements and exclude internal changes.
@@ -54,6 +54,7 @@ Ordinary work in this repository uses the committed source contract in `.dev-pla
 
 ```bash
 python3 scripts/requirement_intake.py start --requirement owner/repo#N
+python3 scripts/execute_requirement.py advance --requirement owner/repo#N
 python3 scripts/orchestrate_pre_authoring.py status --id requirement-N
 python3 scripts/start_managed_task.py owner/repo#N
 python3 scripts/execute_managed_task.py --bundle <directory>

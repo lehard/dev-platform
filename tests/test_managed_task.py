@@ -496,6 +496,7 @@ class ManagedPackageTests(unittest.TestCase):
                 patch.object(start_managed_task, "discover_task", return_value=package),
                 patch.object(start_managed_task, "start_task", return_value=started) as start,
                 patch.object(start_managed_task, "import_task", side_effect=materialize),
+                patch.object(start_managed_task, "refresh_context", return_value=None),
                 patch.object(start_managed_task, "admit_task", return_value={"decision": "RUN", "claims": []}),
                 patch.object(start_managed_task, "reconcile", return_value=SimpleNamespace(changed=True)),
             ):
@@ -519,6 +520,7 @@ class ManagedPackageTests(unittest.TestCase):
                 patch.object(start_managed_task, "read_platform_config", return_value={"workflow_profile": "multi-agent"}),
                 patch.object(start_managed_task, "machine_path", return_value=task_root.parent),
                 patch.object(start_managed_task, "run_git", return_value=SimpleNamespace(stdout="agent/resumed\n")),
+                patch.object(start_managed_task, "refresh_context", return_value=None),
                 patch.object(start_managed_task, "admit_task", return_value={"decision": "RUN", "claims": []}),
                 patch.object(start_managed_task, "reconcile", return_value=SimpleNamespace(changed=False)) as reconcile,
                 patch.object(start_managed_task, "start_task") as fresh_start,
@@ -549,6 +551,7 @@ class ManagedPackageTests(unittest.TestCase):
                 patch.object(start_managed_task, "discover_task", return_value=package),
                 patch.object(start_managed_task, "start_task", return_value=started),
                 patch.object(start_managed_task, "import_task", side_effect=materialize),
+                patch.object(start_managed_task, "refresh_context", return_value=None),
                 patch.object(start_managed_task, "admit_task", return_value=wait),
                 patch.object(start_managed_task, "reconcile", return_value=SimpleNamespace(changed=True)) as reconcile,
                 patch.object(start_managed_task, "cleanup_started_task") as cleanup,
@@ -599,6 +602,7 @@ class ManagedPackageTests(unittest.TestCase):
                 patch.object(start_managed_task, "read_platform_config", return_value={"workflow_profile": "multi-agent"}),
                 patch.object(start_managed_task, "machine_path", return_value=task_root.parent),
                 patch.object(start_managed_task, "run_git", return_value=SimpleNamespace(stdout="agent/resumed\n")),
+                patch.object(start_managed_task, "refresh_context", return_value=None),
                 patch.object(start_managed_task, "admit_task", side_effect=[wait, run]) as admit,
                 patch.object(start_managed_task, "reconcile", return_value=SimpleNamespace(changed=True)) as reconcile,
                 patch.object(start_managed_task, "start_task") as fresh_start,
@@ -671,6 +675,7 @@ class ManagedPackageTests(unittest.TestCase):
                 patch.object(start_managed_task, "check_schema", create=True) as schema,
                 patch.object(start_managed_task, "start_task", return_value=started) as task_start,
                 patch.object(start_managed_task, "import_task", side_effect=materialize),
+                patch.object(start_managed_task, "refresh_context", return_value=None),
                 patch.object(start_managed_task, "admit_task", return_value={"decision": "RUN", "claims": []}),
                 patch.object(start_managed_task, "reconcile", return_value=SimpleNamespace(changed=False)),
             ):
@@ -690,6 +695,7 @@ class ManagedPackageTests(unittest.TestCase):
             patch.object(start_managed_task, "discover_task", return_value=package),
             patch.object(start_managed_task, "start_task", return_value=started),
             patch.object(start_managed_task, "import_task", return_value=(package, "b" * 40, False)),
+            patch.object(start_managed_task, "refresh_context", return_value=None),
             patch.object(
                 start_managed_task,
                 "reconcile",
@@ -973,6 +979,31 @@ class ManagedPackageTests(unittest.TestCase):
             self.assertEqual(package.routing_receipt["recommended_start_tier"], "R2")
             self.assertIsNone(package.routing_receipt["strong_trigger"])
 
+    def test_handoff_marker_adds_exact_backlink_despite_parent_prose(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            authoring_config(root)
+            bundle_root = root / "bundle"
+            authoring_bundle(bundle_root)
+            issue_file = bundle_root / "issue.md"
+            issue_file.write_text(issue_file.read_text(encoding="utf-8") + "\nParent Requirement: acme/backlog#7\n", encoding="utf-8")
+            marker = "<!-- requirement-handoff:v1:acme/backlog#7:" + "a" * 64 + " -->"
+            with (
+                patch.object(managed_task, "origin_repository", return_value="lehard/dev-platform"),
+                patch.object(managed_task, "target_main", return_value="f" * 40),
+                patch.object(managed_task, "validate_backlog_labels"),
+                patch.object(managed_task, "validate_authoring_bundle"),
+                patch.object(managed_task, "open_backlog_issues", return_value=[]),
+                patch.object(managed_task, "create_issue", return_value=9) as create,
+                patch.object(managed_task, "fetch_issue", return_value={"updated_at": "2026-01-01T00:00:00Z", "title": "t", "body": "b"}),
+                patch.object(managed_task, "publish_package", return_value=False),
+                patch.object(managed_task, "verify_published_managed_task"),
+            ):
+                managed_task.create_task(root, str(bundle_root), None, False, handoff_marker=marker)
+            body = create.call_args.args[2].issue_body
+            self.assertEqual(body.splitlines().count("Requirement: acme/backlog#7"), 1)
+            self.assertIn(marker, body)
+
     def test_create_task_r3_requires_a_supported_trigger_and_prefixes_title(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -1203,6 +1234,7 @@ class ManagedPackageTests(unittest.TestCase):
                 patch.object(managed_task, "validate_change"),
                 patch.object(start_managed_task, "read_platform_config", return_value={"workflow_profile": "standard"}),
                 patch.object(start_managed_task, "start_task", return_value=started),
+                patch.object(start_managed_task, "refresh_context", return_value=None),
                 patch.object(start_managed_task, "admit_task", return_value={"decision": "RUN", "claims": []}),
                 patch.object(start_managed_task, "reconcile", return_value=SimpleNamespace(changed=True)),
             ):
@@ -1223,6 +1255,22 @@ class ManagedPackageTests(unittest.TestCase):
                 package = managed_task.discover_task(root, "example-org/development-backlog#1")
             self.assertIsNone(package.source_issue_evidence)
             fetch.assert_not_called()
+
+    def test_discover_task_derives_only_exact_requirement_backlink(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with (
+                patch.object(managed_task, "issue_bodies", return_value=[package_body() + "\nParent Requirement: acme/backlog#7\n"]),
+                patch.object(managed_task, "origin_repository", return_value="lehard/dev-platform"),
+            ):
+                package = managed_task.discover_task(root, "example-org/development-backlog#1")
+            self.assertIsNone(package.parent_requirement)
+            with (
+                patch.object(managed_task, "issue_bodies", return_value=[package_body() + "\nRequirement: acme/backlog#7\n"]),
+                patch.object(managed_task, "origin_repository", return_value="lehard/dev-platform"),
+            ):
+                package = managed_task.discover_task(root, "example-org/development-backlog#1")
+            self.assertEqual(package.parent_requirement, "acme/backlog#7")
 
     def test_import_blocks_on_drift_and_unblocks_with_matching_acknowledge_value(self) -> None:
         authored_issue = {"updated_at": "2026-01-01T00:00:00Z", "title": "original title", "body": "original scope"}
@@ -1330,6 +1378,7 @@ class ManagedPackageTests(unittest.TestCase):
                 patch.object(start_managed_task, "discover_task", return_value=package),
                 patch.object(start_managed_task, "start_task", return_value=started),
                 patch.object(start_managed_task, "import_task", side_effect=materialize),
+                patch.object(start_managed_task, "refresh_context", return_value=None),
                 patch.object(start_managed_task, "admit_task", return_value={"decision": "RUN", "claims": []}),
                 patch.object(start_managed_task, "reconcile", return_value=SimpleNamespace(changed=True)),
             ):
