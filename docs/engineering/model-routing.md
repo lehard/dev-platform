@@ -43,6 +43,13 @@ The command records the decision through `scripts/model_routing.py`. `routine` a
 
 The child path is truthful: if native Codex containment cannot be proven, it reports that limit and the parent retains the work rather than claiming a delegation. A local single-writer receipt and advisory lock are held for the exact assigned worktree throughout a launched Codex writer's lifecycle. A second writer is refused while that writer is live, and a stale or incomplete receipt fails closed rather than assuming the earlier writer disappeared.
 
+For a linked Requirement child, managed start/resume also prepares a bounded
+local context file. The Codex executor prompt points to that file after checking
+the exact task identity, repository head, and managed-package provenance. The
+file is a derived pointer to canonical child artifacts and bounded dependency
+facts, not a copy of the supervisor's transcript or sibling tasks. If that
+context is stale, resume the managed child to refresh it before routing.
+
 ## Claude Code entrypoint
 
 When work is entered through Claude Code instead:
@@ -56,6 +63,8 @@ python3 scripts/dogfood_task.py route-claude --profile <routine|standard|complex
 `complex` (derived from `R3`, or passed explicitly) records the route and remains on the current strong Claude session (Opus, per the configured `[model_routing.claude]` complex profile) without a mandatory cheap-model attempt.
 
 `routine`/`standard` (derived from `R2`/`R1`, or passed explicitly) record the route, refuse to proceed if the integration checkout is already dirty, and print the exact native Agent-tool call the supervisor must then actually invoke in place (no `isolation`, since the current working directory already is the assigned task worktree) — a Claude subagent can only be launched by the supervisor's own tool call, not spawned as a subprocess the way Codex is. The supervisor reviews the returned diff, then runs `python3 scripts/model_routing.py record-claude-execution --agent-id "<id>"` (or `dogfood_task.py report-claude-execution`), which runs the mandatory containment post-check and records execution evidence.
+
+For a linked Requirement child, `route-claude` also prints the validated bounded child-context path to include in the native executor handoff. A stale context fails routing until the exact managed child is resumed to refresh it.
 
 `finish`'s routing gate rejects a routine/standard Claude route that has no recorded, clean execution evidence — a route cannot be merely recorded without the child actually having run.
 
