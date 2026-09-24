@@ -169,6 +169,7 @@ def publish(root: Path, manifest: dict[str, Any], receipts: list[Path], title: s
     ri._verify_parent_links(integration, manifest)
     ri._run_full_checks(root)
     _validate_checkout(root, manifest, receipts)
+    ri._git(integration, "fetch", "origin", main_branch)
     if ri._git(integration, "rev-parse", f"origin/{main_branch}") != manifest["base"]:
         raise ri.RequirementIntegrationError("authoritative main changed after merge validation")
     command = ["python3", "scripts/project_publish.py", "--mode", "pr"]
