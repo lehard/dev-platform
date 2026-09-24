@@ -1,0 +1,31 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/public-distribution/spec.md"
+  ],
+  "change": "exclude-integration-provenance-from-public-snapshot",
+  "imported_at": "2026-09-24T11:35:03+00:00",
+  "package_revision": "b9ca20dec60b37637294d3b799341e38d65d0272fd170c8e3a33e8cc0a839b94",
+  "prepared_against": "7e41f247b1e597e83be4a0a01756ad2f00c53821",
+  "process_evidence": [
+    "lehard/dev-platform#109"
+  ],
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue": "lehard/development-backlog#207",
+  "source_issue_evidence": {
+    "body_sha256": "d0eba60e47896c659b110d8ad565b7ba75c919ad891ed97e11ab1f647d443921",
+    "updated_at": "2026-09-24T11:33:23Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

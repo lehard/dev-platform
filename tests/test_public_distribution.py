@@ -264,6 +264,38 @@ class PublicDistributionTests(unittest.TestCase):
             self.assertFalse(public_distribution.has_findings(receipt))
             self.assertEqual(receipt["candidate_files"], ["README.md"])
 
+    def test_shared_requirement_integration_manifest_is_omitted_from_audit_and_snapshot(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "README.md").write_text("safe\n", encoding="utf-8")
+            manifest = root / "dev-platform" / "requirement-integrations" / "requirement-207.json"
+            manifest.parent.mkdir(parents=True)
+            manifest.write_text('{"source_issue": "lehard' + '/development-backlog#207"}\n', encoding="utf-8")
+            _git_track(root)
+
+            receipt = public_distribution.audit_tree(root)
+            self.assertFalse(public_distribution.has_findings(receipt))
+            self.assertNotIn("dev-platform/requirement-integrations/requirement-207.json", receipt["candidate_files"])
+
+            public_distribution.snapshot(root, root / "snapshot.tar")
+            with tarfile.open(root / "snapshot.tar") as archive:
+                self.assertNotIn("dev-platform/requirement-integrations/requirement-207.json", archive.getnames())
+
+    def test_noncanonical_owner_reference_in_product_file_still_blocks_audit(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            product_file = root / "docs" / "product.md"
+            product_file.parent.mkdir(parents=True)
+            product_file.write_text("See lehard" + "/development-backlog#207.\n", encoding="utf-8")
+            _git_track(root)
+
+            receipt = public_distribution.audit_tree(root)
+            self.assertTrue(public_distribution.has_findings(receipt))
+            self.assertIn("docs/product.md", receipt["candidate_files"])
+            self.assertTrue(receipt["findings"]["operator_state"])
+            with self.assertRaises(ValueError):
+                public_distribution.snapshot(root, root / "snapshot.tar")
+
     def test_packaged_owner_reference_blocks_audit_and_snapshot(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
