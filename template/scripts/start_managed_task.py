@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 import uuid
 from contextlib import contextmanager
@@ -34,6 +35,7 @@ from managed_task import (
 )
 from managed_project_status import ManagedProjectStatusError, reconcile
 from requirement_integration import ReadyForIntegrationReceipt, RequirementIntegrationError, read_receipt
+from requirement_child_context import refresh_context
 from start_task import StartedTask, cleanup_started_task, start_task
 from start_task import admission_reason, admit_task
 from shared_workspace import admit_managed_intake
@@ -355,6 +357,9 @@ def _resume_existing_managed_task(
         ["merge-base", "--is-ancestor", base_receipt.head, "HEAD"], cwd=existing_root, check=False
     ).returncode != 0:
         raise ManagedTaskError("resumed child does not descend from its exact ready predecessor")
+    context = refresh_context(existing_root, package, predecessor=base_receipt)
+    if context is not None:
+        print(f"Bounded Requirement child context refreshed: {context}")
     started = StartedTask(profile="multi-agent", branch=branch, task_root=existing_root)
     decision = admit_task(root, started, scope if scope else None)
     desired_status = "Blocked" if decision["decision"] == "WAIT" else "In progress"
@@ -396,6 +401,9 @@ def _start_new_managed_task(
             expected_revision=package.revision,
             acknowledge_source_issue_revision=acknowledge_source_issue_revision,
         )
+        context = refresh_context(started.task_root, package, predecessor=base_receipt)
+        if context is not None:
+            print(f"Bounded Requirement child context prepared: {context}")
         decision = admit_task(root, started, scope if scope else None)
         desired_status = "Blocked" if decision["decision"] == "WAIT" else "In progress"
         reconciliation = reconcile(
@@ -434,9 +442,9 @@ def start_managed_task(
             raise ManagedTaskError("a managed child cannot depend on itself")
         child_issue = fetch_issue(root, *issue_ref(package.source_issue))
         predecessor_issue = fetch_issue(root, *issue_ref(predecessor.source_issue))
-        reference_line = f"Requirement: {predecessor.requirement}"
-        if (reference_line not in str(child_issue.get("body") or "")
-                or reference_line not in str(predecessor_issue.get("body") or "")):
+        reference_line = re.compile(rf"^Requirement: {re.escape(predecessor.requirement)}\s*$", re.MULTILINE)
+        if (not reference_line.search(str(child_issue.get("body") or ""))
+                or not reference_line.search(str(predecessor_issue.get("body") or ""))):
             raise ManagedTaskError("dependent children do not have the same linked parent Requirement")
         if run_git(["rev-parse", predecessor.source_branch], cwd=root).stdout.strip() != predecessor.head:
             raise ManagedTaskError("ready predecessor branch changed before dependent child start")

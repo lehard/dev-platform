@@ -188,6 +188,27 @@ class CentralDogfoodLifecycleTests(unittest.TestCase):
         self.assertNotIn("--profile", command)
         self.assertIn("--rationale", command)
 
+    def test_route_codex_points_to_exact_bounded_child_context(self) -> None:
+        change = self.add_managed_change()
+        state = {"change": "central-task", "source_issue": "example-org/development-backlog#2"}
+        (self.root / ".managed-task-state.json").write_text(json.dumps(state), encoding="utf-8")
+        context_path = self.root / ".claude/requirement-child-context/central-task.json"
+        context_path.parent.mkdir(parents=True)
+        import hashlib
+        digest = hashlib.sha256((change / ".managed-task.json").read_bytes()).hexdigest()
+        head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=self.root, check=True, text=True, capture_output=True).stdout.strip()
+        payload = {
+            **state, "managed_package": "openspec/changes/central-task", "repository_head": head,
+            "managed_provenance_sha256": digest,
+        }
+        context_path.write_text(json.dumps(payload), encoding="utf-8")
+        prompt = dogfood_task.bounded_executor_prompt(self.root, dogfood_task.CODEX_EXECUTOR_PROMPT)
+        self.assertIn(str(context_path), prompt)
+        payload["managed_provenance_sha256"] = "0" * 64
+        context_path.write_text(json.dumps(payload), encoding="utf-8")
+        with self.assertRaisesRegex(SystemExit, "stale"):
+            dogfood_task.bounded_executor_prompt(self.root, dogfood_task.CODEX_EXECUTOR_PROMPT)
+
     def test_route_claude_records_route_and_cannot_itself_launch(self) -> None:
         args = dogfood_task.argparse.Namespace(
             profile="standard",
@@ -205,6 +226,26 @@ class CentralDogfoodLifecycleTests(unittest.TestCase):
         self.assertIn("--evidence", command)
         self.assertNotIn("--prompt", command)
         self.assertEqual(run.call_args.args[1], self.root)
+
+    def test_route_claude_prints_validated_requirement_handoff(self) -> None:
+        change = self.add_managed_change()
+        state = {"change": "central-task", "source_issue": "example-org/development-backlog#2"}
+        (self.root / ".managed-task-state.json").write_text(json.dumps(state), encoding="utf-8")
+        context_path = self.root / ".claude/requirement-child-context/central-task.json"
+        context_path.parent.mkdir(parents=True)
+        import hashlib
+        digest = hashlib.sha256((change / ".managed-task.json").read_bytes()).hexdigest()
+        head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=self.root, check=True, text=True, capture_output=True).stdout.strip()
+        context_path.write_text(json.dumps({
+            **state, "managed_package": "openspec/changes/central-task", "repository_head": head,
+            "managed_provenance_sha256": digest,
+        }), encoding="utf-8")
+        args = dogfood_task.argparse.Namespace(profile="complex", rationale="R3 retained", evidence=[])
+        with mock.patch.object(dogfood_task, "current_root", return_value=self.root), mock.patch.object(
+            dogfood_task, "run"
+        ), mock.patch("builtins.print") as printed:
+            self.assertEqual(dogfood_task.route_claude(args), 0)
+        self.assertIn(str(context_path), printed.call_args.args[0])
 
     def test_route_claude_omits_profile_when_confirming_authored_tier(self) -> None:
         args = dogfood_task.argparse.Namespace(

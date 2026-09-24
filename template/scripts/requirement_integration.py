@@ -520,6 +520,8 @@ def _reconcile_exact_merged(root: Path, integration: Path, manifest: dict[str, A
         _verify_parent_links(integration, manifest)
         for child in manifest["children"]:
             reconcile_project(integration, "Done", source_issue=child["source_issue"])
+        # The primary card is terminal only inside this exact merged-PR proof.
+        reconcile_project(integration, "Done", source_issue=manifest["requirement"])
     return {"requirement": manifest["requirement"], "branch": branch, "head": head,
             "pr": lookup.exact_merged.get("url"), "status": "merged-and-reconciled",
             "children": [child["source_issue"] for child in manifest["children"]]}

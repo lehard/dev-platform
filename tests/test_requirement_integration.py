@@ -314,7 +314,7 @@ class RequirementIntegrationTests(unittest.TestCase):
             sync.assert_called_once()
             links.assert_called_once()
             self.assertEqual([call.kwargs["source_issue"] for call in statuses.call_args_list],
-                             ["acme/backlog#8", "acme/backlog#9"])
+                             ["acme/backlog#8", "acme/backlog#9", "acme/backlog#7"])
 
     def test_bare_remote_main_is_authoritative_for_candidate(self) -> None:
         remote = self.root / "remote.git"
@@ -400,6 +400,7 @@ class RequirementIntegrationTests(unittest.TestCase):
         with mock.patch.object(start_managed_task, "start_task", return_value=started), \
                 mock.patch.object(start_managed_task, "run_git", side_effect=run_git), \
                 mock.patch.object(start_managed_task, "import_task", side_effect=imported), \
+                mock.patch.object(start_managed_task, "refresh_context", return_value=None), \
                 mock.patch.object(start_managed_task, "admit_task", return_value={"decision": "RUN"}), \
                 mock.patch.object(start_managed_task, "reconcile", return_value=SimpleNamespace(changed=True)):
             start_managed_task._start_new_managed_task(self.root, package, package.source_issue, "", None, receipt)
