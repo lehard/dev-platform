@@ -546,3 +546,98 @@ The shared Requirement publisher SHALL preserve exact verified child provenance 
 - **THEN** it receives the same-content local contract without changing tracked candidate files
 - **AND** validation does not silently fall back to a different operator profile
 
+### Requirement: Requirement child execution uses bounded canonical context
+
+Each internal Requirement child SHALL start or resume from its own materialized managed OpenSpec package, current repository state, and only explicit bounded dependency evidence. The Requirement supervisor SHALL NOT pass the accumulated pre-authoring transcript or unrelated sibling detail as child execution context.
+
+#### Scenario: Child starts with canonical context
+
+- **GIVEN** a linked child has an imported managed package and declared dependencies
+- **WHEN** its execution handoff is assembled
+- **THEN** the handoff identifies the exact child source and current repository revision
+- **AND** it includes only the dependency receipts required for that child
+- **AND** it excludes the pre-authoring transcript and unrelated sibling task bodies
+
+#### Scenario: Dependency changes before resume
+
+- **WHEN** a dependency receipt no longer matches canonical state
+- **THEN** child execution stops on the stale handoff
+- **AND** a fresh bounded handoff can be derived without recreating the child or trusting old transcript content
+
+#### Scenario: Authored parent prose is not a canonical backlink
+
+- **GIVEN** a child Issue describes a Parent Requirement in authored prose
+- **WHEN** the managed adapter links or validates that child
+- **THEN** it requires an exact canonical `Requirement: owner/repo#N` line and reciprocal parent listing
+- **AND** a substring inside `Parent Requirement:` is not accepted as linkage evidence
+
+### Requirement: Explicit Requirement execution reaches terminal delivery
+
+An explicit Execute Requirement request SHALL drive every ready internal child through the existing managed lifecycle and shared integration boundary, stopping only for a consequential decision or external blocker. The supervisor SHALL derive its next action from canonical state rather than persist an independent child queue.
+
+#### Scenario: Ready children are executed in dependency order
+
+- **GIVEN** a Requirement has complete pre-authoring and ready handoffs for sequential children
+- **WHEN** execution is requested
+- **THEN** each exact child is reused or materialized and bidirectionally linked
+- **AND** each child starts or resumes in an isolated managed worktree with only its required predecessor receipt
+- **AND** a handoff alone is never reported as terminal delivery
+
+#### Scenario: Parent prose cannot suppress the canonical link
+
+- **GIVEN** an authored child bundle contains `Parent Requirement: owner/repo#N` as prose
+- **WHEN** the Requirement handoff is materialized
+- **THEN** the generated Issue includes the exact standalone `Requirement: owner/repo#N` backlink before package source evidence is captured
+- **AND** the subsequent child start does not require acknowledging an adapter-created source revision
+
+#### Scenario: An interrupted run is resumed
+
+- **GIVEN** a child or shared candidate already exists
+- **WHEN** the supervisor repeats Execute Requirement
+- **THEN** it derives the current state and resumes the exact child, receipt, candidate or PR without duplication
+- **AND** stale or ambiguous evidence blocks the unsafe transition with an actionable diagnostic
+
+#### Scenario: A historical handoff was rebased after delivery
+
+- **GIVEN** a linked child for a handoff's managed change is already canonical or delivered
+- **WHEN** pre-authoring refresh changes that handoff's digest
+- **THEN** the supervisor reuses the unique exact linked child instead of creating a duplicate Issue
+- **AND** multiple children claiming one change fail closed
+
+#### Scenario: A verified ready child stops claiming active writer scope
+
+- **GIVEN** a child has a verified ready receipt at its exact clean committed head
+- **WHEN** the supervisor advances to a dependent child
+- **THEN** the prior child relinquishes only its own active board writer claim while retaining its worktree, Issue and receipt
+- **AND** a dirty worktree, changed head or missing receipt blocks claim release and dependent start
+
+#### Scenario: Terminal completion is authoritative
+
+- **WHEN** all required children have verified ready receipts and one shared candidate has merged through protected publication
+- **THEN** the supervisor reconciles child and local main state before reporting the Requirement complete
+- **AND** a missing child, failed check, unmerged PR or uncertain external state prevents a Done claim
+
+### Requirement: Requirement board status is derived from terminal authority
+
+The primary Requirement Project card SHALL reflect a recomputable projection of current orchestrator, child and shared-publication evidence. The Project field SHALL NOT become a second independent lifecycle.
+
+#### Scenario: Execution is visible without premature completion
+
+- **GIVEN** a Requirement has one or more linked children in progress or ready for shared integration
+- **WHEN** its Project card is reconciled
+- **THEN** the card shows a nonterminal execution stage
+- **AND** no child receipt or handoff alone makes it Done
+
+#### Scenario: Uncertain evidence fails closed
+
+- **GIVEN** a required source is stale, missing, contradictory or explicitly blocked
+- **WHEN** the board projection is computed
+- **THEN** it reports blocked or unknown with a reason
+- **AND** it does not optimistically write Ready or Done
+
+#### Scenario: Protected publication permits Done
+
+- **GIVEN** every required child is delivered and the exact shared candidate PR is merged with local main reconciled
+- **WHEN** the Requirement card is reconciled
+- **THEN** it reaches Done idempotently
+- **AND** child Issues remain excluded from the primary human-facing view

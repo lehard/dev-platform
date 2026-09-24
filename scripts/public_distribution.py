@@ -30,6 +30,9 @@ EXCLUDED_PARTS = {".git", ".claude", ".codex", "__pycache__", ".pytest_cache", "
 EXCLUDED_PATHS = {
     ".dev-platform.toml",
     ".managed-task-state.json",
+    # Shared Requirement integration manifests record protected operator
+    # reconciliation provenance, not reusable platform product source.
+    "dev-platform/requirement-integrations",
     "openspec/changes/archive",
 }
 # `.managed-task.json` is the per-task Development Backlog provenance receipt

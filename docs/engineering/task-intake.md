@@ -97,9 +97,44 @@ When the user asks to execute a Business Requirement, the ordered flow is:
    invent proposal/design/spec content: the bundle remains the authored
    OpenSpec input. Each child carries `type:internal-change` and a parent
    back-reference.
-6. Start and implement those internal managed tasks through the existing
-   lifecycle. OpenSpec becomes canonical only for each technical child after
-   that child is materialized.
+   The back-reference is an exact standalone `Requirement: owner/repo#N`
+   line. Authored prose such as `Parent Requirement:` does not replace it;
+   materialization repairs and verifies the canonical line on retry.
+6. Run `python3 scripts/execute_requirement.py advance --requirement owner/repo#N`
+   from integration `main`. The source-owned supervisor reuses unique already
+   linked children even if a historical handoff digest was refreshed, creates
+   only missing children from authored bundles, and starts/resumes one child at
+   a time in its isolated worktree with the exact predecessor receipt. It
+   returns `implement-child` when the current agent must perform routed code
+   work and verification in that worktree; rerun the same command after the
+   child archive is committed. This is an internal agent continuation, not a
+   user-facing stop or manual child list. When all ready receipts exist it
+   composes and publishes the shared candidate through the protected path.
+   A verified clean ready child releases only its own active board writer
+   claim; its worktree, Issue and receipt remain for shared publication.
+   Potential same-project duplicates require an explicit reviewed
+   `--confirm-distinct`; a material contract conflict still stops. OpenSpec
+   becomes canonical only for each technical child after materialization.
+   A changed predecessor, new edits to inherited files, or another task's claim
+   remains a blocker. Historical linked children are reused by unique managed
+   change identity even when a refreshed handoff has a different digest.
+
+The Requirement's primary Project card is a projection of the same evidence.
+Started pre-authoring, ready handoff and child execution display `In progress`;
+an unknown or blocked source displays `Blocked`. The richer read-through stage
+and its reason remain available through `requirement_intake.py aggregate`.
+Only the exact shared-candidate merged-PR reconciliation may set the parent
+card to `Done`, after it syncs main, verifies links and marks the children Done.
+Child `Done` statuses or ready receipts alone never complete the parent card.
+
+At child start or resume, the managed adapter derives an ignored, disposable
+`.claude/requirement-child-context/<change>.json` handoff from the exact imported
+package, current repository head, linked Requirement identity, and (when used)
+the ready predecessor receipt. The handoff points to the canonical OpenSpec;
+it does not copy the Requirement's pre-authoring transcript or unrelated sibling
+Issue bodies. A changed predecessor receipt or repository/package provenance
+requires a fresh derivation before execution. The supervisor retains only the
+Requirement identity, child lifecycle states, and consequential human decisions.
 
 Requirement progress is read-through, never a second status ledger:
 `python3 scripts/requirement_intake.py aggregate --requirement owner/repo#N`
