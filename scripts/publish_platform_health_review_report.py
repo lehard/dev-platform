@@ -3,7 +3,7 @@
 
 This is a plain, non-agentic aggregation step for the `platform-health-review`
 capability (openspec/specs/platform-health-review/spec.md). The private
-`lehard/development-backlog` caller invokes this immutable-release utility
+The private caller invokes this immutable-release utility
 with `if: always()` after both review jobs, so it still records the gap when
 one review job failed or was skipped.
 
@@ -30,7 +30,6 @@ from dataclasses import dataclass
 
 
 TITLE_PREFIX = "[platform-health-review] "
-PRIVATE_REPORT_REPOSITORY = "lehard/development-backlog"
 REPORT_LABEL = "platform-health-review"
 REPORT_LABEL_COLOR = "5319e7"
 REPORT_LABEL_DESCRIPTION = "Combined Platform Health Review report (process + architecture)"
@@ -83,6 +82,10 @@ class GhClient:
                 "--force",
             ]
         )
+
+    def is_private_repository(self) -> bool:
+        data = json.loads(self._run(["api", f"repos/{self.repo}"]))
+        return data.get("private") is True
 
     def list_open_reports(self) -> list[dict]:
         stdout = self._run(
@@ -323,7 +326,7 @@ def _outcome(name: str, result: str, issue_number: str, issue_url: str) -> Revie
 
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--repo", required=True, help="private report destination: lehard/development-backlog")
+    parser.add_argument("--repo", required=True, help="private caller repository used as report destination")
     parser.add_argument("--reviewed-at", required=True, help="ISO-8601 UTC timestamp for this combined run")
     parser.add_argument("--main-sha", required=True, help="exact default-branch commit SHA for this run")
     parser.add_argument("--process-result", required=True, help="needs.<process job>.result")
@@ -339,8 +342,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_arg_parser().parse_args(argv)
-    if args.repo != PRIVATE_REPORT_REPOSITORY:
-        print("error: Platform Health Review full report destination must be private development-backlog", flush=True)
+    if args.repo != os.environ.get("GITHUB_REPOSITORY"):
+        print("error: Platform Health Review destination must match the caller repository", flush=True)
         return 1
     process = _outcome(
         "Process Health Review", args.process_result, args.process_issue_number, args.process_issue_url
@@ -353,6 +356,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     gh = GhClient(args.repo)
     try:
+        if not gh.is_private_repository():
+            raise PlatformHealthReportError("Platform Health Review full report destination must be private")
         result = publish(
             reviewed_at=args.reviewed_at,
             main_sha=args.main_sha,

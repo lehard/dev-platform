@@ -4,17 +4,17 @@
 
 ### Requirement: Process and Architecture Health Review run together on one combined trigger
 
-Dev Platform SHALL run the combined scheduled and manually dispatched Platform Health Review in the private `lehard/development-backlog` repository. The review SHALL read only the bounded public platform and private Backlog evidence needed by its existing process and architecture lenses. The public `lehard/dev-platform` repository SHALL NOT run a complete combined review that reads private Backlog data. The combined review remains advisory and does not create managed work or mutate source evidence.
+Dev Platform SHALL run the combined scheduled and manually dispatched Platform Health Review in the private caller repository. The review SHALL read only the bounded public platform and private Backlog evidence needed by its existing process and architecture lenses. The public `lehard/dev-platform` repository SHALL NOT run a complete combined review that reads private Backlog data. The combined review remains advisory and does not create managed work or mutate source evidence.
 
 #### Scenario: Scheduled combined run
 
 - **WHEN** the private combined review is triggered on its schedule
-- **THEN** its jobs, logs, artifacts, and full report remain in `lehard/development-backlog`
+- **THEN** its jobs, logs, artifacts, and full report remain in the private caller repository
 - **AND** no private task information is emitted to a public `dev-platform` output surface
 
 #### Scenario: Manually dispatched combined run
 
-- **WHEN** a human manually triggers the combined review in `lehard/development-backlog`
+- **WHEN** a human manually triggers the combined review in the private caller repository
 - **THEN** both reviews run in that private repository and remain advisory
 
 #### Scenario: One review fails independently
@@ -29,7 +29,7 @@ Dev Platform SHALL run the combined scheduled and manually dispatched Platform H
 
 ### Requirement: Platform Health Review publishes one combined durable report
 
-Each run SHALL publish exactly one dated, combined, human-readable Issue in private `lehard/development-backlog`, replacing the prior same-prefix report. The report SHALL record the reviewed platform `main` SHA, review time, previous boundary, and whether private evidence was available. The public repository SHALL NOT publish a second full report or store private task information.
+Each run SHALL publish exactly one dated, combined, human-readable Issue in the private caller repository, replacing the prior same-prefix report. The report SHALL record the reviewed platform `main` SHA, review time, previous boundary, and whether private evidence was available. The public repository SHALL NOT publish a second full report or store private task information.
 
 #### Scenario: Combined run produces one report
 
@@ -39,7 +39,7 @@ Each run SHALL publish exactly one dated, combined, human-readable Issue in priv
 
 #### Scenario: Repeat run replaces the prior report
 
-- **GIVEN** a prior same-prefix combined report exists in `development-backlog`
+- **GIVEN** a prior same-prefix combined report exists in the private Backlog
 - **WHEN** a new review run completes
 - **THEN** the new private report replaces the prior report without accumulating duplicates
 
@@ -64,8 +64,8 @@ The private workflow SHALL mint a short-lived GitHub App installation token for 
 #### Scenario: Token scope
 
 - **WHEN** the private run prepares review credentials
-- **THEN** its App read token is restricted to `dev-platform` and `development-backlog` and only required read permissions
-- **AND** report publishing is restricted to private `development-backlog`
+- **THEN** its App read token is restricted to `dev-platform` and the private caller repository and only required read permissions
+- **AND** report publishing is restricted to the private caller repository
 
 #### Scenario: Credentials unavailable
 

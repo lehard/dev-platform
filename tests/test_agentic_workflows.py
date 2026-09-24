@@ -25,7 +25,7 @@ SOURCES = {
         "max-daily-ai-credits: 100",
         "timeout-minutes: 10",
         "max-turns: 10",
-        "allowed-repos: [lehard/dev-platform, lehard/development-backlog]",
+        'allowed-repos: [lehard/dev-platform, "${{ github.repository }}"]',
         "issues: read",
         "workflow_call:",
         "create-issue:",
@@ -140,7 +140,7 @@ class AgenticWorkflowTests(unittest.TestCase):
         self.assertIn("or close/relabel/comment on source evidence", text)
 
     def test_public_repository_has_no_combined_platform_health_trigger(self) -> None:
-        # The combined private review is owned by lehard/development-backlog.
+        # The combined private review is owned by the private caller repository.
         self.assertFalse((ROOT / ".github" / "workflows" / "platform-health-review.yml").exists())
 
     def test_private_review_read_token_and_report_boundary(self) -> None:
@@ -153,9 +153,9 @@ class AgenticWorkflowTests(unittest.TestCase):
             self.assertNotIn("private-to-public-flows:", source)
         self.assertIn("permission-issues: read", process)
         self.assertIn("permission-pull-requests: read", process)
-        self.assertIn("allowed-repos: [lehard/dev-platform, lehard/development-backlog]", process)
+        self.assertIn('allowed-repos: [lehard/dev-platform, "${{ github.repository }}"]', process)
         self.assertIn("repositories: dev-platform", architecture)
-        self.assertNotIn("allowed-repos: [lehard/dev-platform, lehard/development-backlog]", architecture)
+        self.assertNotIn('allowed-repos: [lehard/dev-platform, "${{ github.repository }}"]', architecture)
 
 
 

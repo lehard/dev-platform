@@ -23,7 +23,7 @@ digest. The repository-level `.github/workflows/aw.json` retains the older
 v0.4.8-to-v0.4.9 substitution for legacy compilation; it does not replace the
 v0.88.8 compiler's runtime. The private health review's generated GitHub
 tool guard permits only `lehard/dev-platform` and
-`lehard/development-backlog`. Its safe outputs run in the private caller.
+the private caller repository. Its safe outputs run in the private caller.
 Do not enable `private-to-public-flows`.
 
 The pinned compiler calculates the MCP gateway mount allowlist from its
@@ -37,7 +37,7 @@ through the configured safe-output handler. Do not add broader roots or
 
 The public pilot requires `OPENAI_API_KEY`. The private health review also
 requires a separate `OPENAI_API_KEY` secret and GitHub App configuration in
-`lehard/development-backlog`; see [private-platform-health-review.md](private-platform-health-review.md).
+the private caller repository; see [private-platform-health-review.md](private-platform-health-review.md).
 Secret values must never be committed, printed, copied into workflow prompts,
 or included in validation evidence.
 

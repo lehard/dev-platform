@@ -15,7 +15,6 @@ from dataclasses import dataclass
 
 
 DEFAULT_PLATFORM_REPOSITORY = "lehard/dev-platform"
-DEFAULT_BACKLOG_REPOSITORY = "lehard/development-backlog"
 UNAVAILABLE_CATEGORY = "GitHub App read token or required private repository access"
 
 
@@ -63,7 +62,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--token-env", default="PLATFORM_HEALTH_READ_TOKEN")
     parser.add_argument("--platform-repository", default=DEFAULT_PLATFORM_REPOSITORY)
-    parser.add_argument("--backlog-repository", default=DEFAULT_BACKLOG_REPOSITORY)
+    parser.add_argument("--backlog-repository", default=os.environ.get("GITHUB_REPOSITORY", ""))
     args = parser.parse_args(argv)
     result = preflight(
         token=os.environ.get(args.token_env, ""),

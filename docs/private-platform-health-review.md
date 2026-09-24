@@ -1,15 +1,15 @@
 # Private Platform Health Review
 
-The combined Platform Health Review runs only in the private
-`lehard/development-backlog` repository. Its Actions logs, artifacts, review
+The combined Platform Health Review runs only in the private Backlog
+repository. Its Actions logs, artifacts, review
 issues, and notifications are private. The caller lives at
-`development-backlog/.github/workflows/platform-health-review.yml` and pins
+`.github/workflows/platform-health-review.yml` in that repository and pins
 the reusable reviews and helpers to one immutable `dev-platform` commit.
 `lehard/dev-platform` does not schedule or publish a combined report.
 
 ## Private-repository setup
 
-Install the Dev Platform GitHub App on `lehard/development-backlog` as well as
+Install the Dev Platform GitHub App on the private caller repository as well as
 `lehard/dev-platform`. The App must have at least **Contents: read**,
 **Issues: read**, and **Pull requests: read** on these repositories. In the
 private repository configure:

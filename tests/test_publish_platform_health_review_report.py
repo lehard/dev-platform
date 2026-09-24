@@ -359,6 +359,21 @@ class GhClientCommandTests(unittest.TestCase):
         self.assertIn("-X", argv)
         self.assertEqual(argv[argv.index("-X") + 1], "PATCH")
 
+    def test_destination_visibility_is_checked_before_publication(self) -> None:
+        client = report.GhClient("example/private")
+        with patch.object(client, "_run", return_value='{"private": true}') as run:
+            self.assertTrue(client.is_private_repository())
+        run.assert_called_once_with(["api", "repos/example/private"])
+        with patch.object(client, "_run", return_value='{"private": false}'):
+            self.assertFalse(client.is_private_repository())
+
+    def test_main_rejects_public_destination_and_foreign_caller(self) -> None:
+        args = ["--repo", "example/private", "--reviewed-at", "2026-09-22T06:00:00Z", "--main-sha", "abc", "--process-result", "skipped", "--architecture-result", "skipped"]
+        with patch.dict("os.environ", {"GITHUB_REPOSITORY": "example/other"}):
+            self.assertEqual(report.main(args), 1)
+        with patch.dict("os.environ", {"GITHUB_REPOSITORY": "example/private"}), patch.object(report.GhClient, "is_private_repository", return_value=False):
+            self.assertEqual(report.main(args), 1)
+
 
 if __name__ == "__main__":
     unittest.main()
