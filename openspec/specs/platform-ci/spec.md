@@ -333,4 +333,3 @@ Ready-child claim unit tests SHALL verify claim identity and dirty-worktree beha
 - **GIVEN** a private temporary board fixture on a Linux CI runner
 - **WHEN** the ready-child claim tests run
 - **THEN** they exercise matching, removal and refusal behavior without requiring a group ownership change
-
