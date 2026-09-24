@@ -2,11 +2,10 @@
 """Publish one combined Platform Health Review report Issue per run.
 
 This is a plain, non-agentic aggregation step for the `platform-health-review`
-capability (openspec/specs/platform-health-review/spec.md). It runs as a
-deterministic Actions step, `needs:` both of the review jobs declared in
-`.github/workflows/platform-health-review.yml` with `if: always()`, so it
-still runs -- and still records the gap -- when one review job failed or was
-skipped.
+capability (openspec/specs/platform-health-review/spec.md). The private
+The private caller invokes this immutable-release utility
+with `if: always()` after both review jobs, so it still records the gap when
+one review job failed or was skipped.
 
 It does not re-run, re-evaluate, or change either review's own findings. It
 only reads each review's already-published `create-issue` safe-output result
@@ -83,6 +82,10 @@ class GhClient:
                 "--force",
             ]
         )
+
+    def is_private_repository(self) -> bool:
+        data = json.loads(self._run(["api", f"repos/{self.repo}"]))
+        return data.get("private") is True
 
     def list_open_reports(self) -> list[dict]:
         stdout = self._run(
@@ -202,14 +205,25 @@ def render_body(
     reviewed_at: str,
     main_sha: str,
     boundary: str,
+    evidence_status: str,
+    unavailable_evidence: str | None,
+    process_result: str,
+    architecture_result: str,
     process_section: str,
     architecture_section: str,
 ) -> str:
+    evidence_lines = [f"- private_evidence: {evidence_status}"]
+    if unavailable_evidence:
+        evidence_lines.append(f"- unavailable_evidence: {unavailable_evidence}")
+    audit_status = "complete" if evidence_status == "available" and process_result == "success" and architecture_result == "success" else "degraded"
     return (
         "# Platform Health Review\n\n"
         f"- reviewed_at: {reviewed_at}\n"
         f"- main_sha: {main_sha}\n"
-        f"- previous_review_boundary: {boundary}\n\n"
+        f"- previous_review_boundary: {boundary}\n"
+        f"- audit_status: {audit_status}\n"
+        + "\n".join(evidence_lines)
+        + "\n\n"
         "## Process Health Review\n\n"
         f"{process_section}\n\n"
         "## Architecture Health Review\n\n"
@@ -244,7 +258,15 @@ def publish(
     process: ReviewOutcome,
     architecture: ReviewOutcome,
     gh: GhClient,
+    evidence_status: str = "available",
+    unavailable_evidence: str | None = None,
 ) -> dict:
+    if evidence_status not in {"available", "degraded"}:
+        raise PlatformHealthReportError(f"unsupported private evidence status: {evidence_status!r}")
+    if evidence_status == "available" and unavailable_evidence:
+        raise PlatformHealthReportError("unavailable evidence may only be recorded for a degraded review")
+    if evidence_status == "degraded" and not unavailable_evidence:
+        raise PlatformHealthReportError("a degraded review must name its unavailable evidence category")
     gh.ensure_label()
     prior_reports = gh.list_open_reports()
     boundary = previous_boundary(prior_reports)
@@ -252,6 +274,10 @@ def publish(
         reviewed_at=reviewed_at,
         main_sha=main_sha,
         boundary=boundary,
+        evidence_status=evidence_status,
+        unavailable_evidence=unavailable_evidence,
+        process_result=process.result,
+        architecture_result=architecture.result,
         process_section=render_section(process),
         architecture_section=render_section(architecture),
     )
@@ -275,8 +301,8 @@ def publish(
 def write_github_output(path: str, *, number: object, url: object, summary: str) -> None:
     """Append this run's report identity as GitHub Actions step outputs.
 
-    Consumed by the notification job (`openspec/specs/platform-health-review/spec.md`)
-    so that a later, separate, non-agentic step can send a short summary + link without
+    Consumed by the private caller's optional notification job so a later,
+    separate, non-agentic step can send a short summary + link without
     re-reading or re-deriving the report. Uses the standard multiline-value
     delimiter form for `summary`, since it may contain newlines.
     """
@@ -300,7 +326,7 @@ def _outcome(name: str, result: str, issue_number: str, issue_url: str) -> Revie
 
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--repo", required=True, help="owner/repo, e.g. lehard/dev-platform")
+    parser.add_argument("--repo", required=True, help="private caller repository used as report destination")
     parser.add_argument("--reviewed-at", required=True, help="ISO-8601 UTC timestamp for this combined run")
     parser.add_argument("--main-sha", required=True, help="exact default-branch commit SHA for this run")
     parser.add_argument("--process-result", required=True, help="needs.<process job>.result")
@@ -309,11 +335,16 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--architecture-result", required=True, help="needs.<architecture job>.result")
     parser.add_argument("--architecture-issue-number", default="")
     parser.add_argument("--architecture-issue-url", default="")
+    parser.add_argument("--private-evidence-status", choices=("available", "degraded"), default="available")
+    parser.add_argument("--unavailable-evidence", default="")
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_arg_parser().parse_args(argv)
+    if args.repo != os.environ.get("GITHUB_REPOSITORY"):
+        print("error: Platform Health Review destination must match the caller repository", flush=True)
+        return 1
     process = _outcome(
         "Process Health Review", args.process_result, args.process_issue_number, args.process_issue_url
     )
@@ -325,11 +356,15 @@ def main(argv: list[str] | None = None) -> int:
     )
     gh = GhClient(args.repo)
     try:
+        if not gh.is_private_repository():
+            raise PlatformHealthReportError("Platform Health Review full report destination must be private")
         result = publish(
             reviewed_at=args.reviewed_at,
             main_sha=args.main_sha,
             process=process,
             architecture=architecture,
+            evidence_status=args.private_evidence_status,
+            unavailable_evidence=args.unavailable_evidence.strip() or None,
             gh=gh,
         )
     except PlatformHealthReportError as exc:

@@ -1,8 +1,7 @@
-# platform-health-review Specification
+# platform-health-review Specification Delta
 
-## Purpose
-Define the automated, cloud-native "Platform Health Review" that runs Dev Platform's existing advisory review capabilities together on one combined trigger and durable reporting/notification surface, without requiring a running local computer or a standing server.
-## Requirements
+## MODIFIED Requirements
+
 ### Requirement: Process and Architecture Health Review run together on one combined trigger
 
 Dev Platform SHALL run the combined scheduled and manually dispatched Platform Health Review in the private caller repository. The review SHALL read only the bounded public platform and private Backlog evidence needed by its existing process and architecture lenses. The public `lehard/dev-platform` repository SHALL NOT run a complete combined review that reads private Backlog data. The combined review remains advisory and does not create managed work or mutate source evidence.
@@ -56,36 +55,7 @@ Each run SHALL publish exactly one dated, combined, human-readable Issue in the 
 - **WHEN** one bounded review job fails
 - **THEN** the private combined report marks that section unavailable and does not claim complete status
 
-### Requirement: Platform Health Review supports optional external notification
-
-Dev Platform SHALL support notifying a human when a new Platform Health Review report is published, through GitHub (the report Issue itself, always present) and, optionally, Telegram and a generic outbound webhook. Notification content SHALL be limited to a short summary and a link to the report Issue, and SHALL NOT duplicate the full report. Any external channel secret SHALL be supplied only through GitHub Actions repository secrets and SHALL NOT be written into `dev-platform/capabilities.toml`, `.dev-platform.toml`, or any other portable or public project configuration file. Notification delivery SHALL run as a separate, deterministic, non-agentic step outside the sandboxed review job.
-
-#### Scenario: Configured channel receives a notification
-
-- **GIVEN** a Telegram or webhook secret is configured for the repository
-- **WHEN** a Platform Health Review report is published
-- **THEN** exactly one short notification containing a summary and the report Issue link is sent to that channel
-- **AND** the notification does not contain the full report body
-
-#### Scenario: Unconfigured channel is skipped
-
-- **GIVEN** no secret is configured for a given optional channel
-- **WHEN** a Platform Health Review report is published
-- **THEN** that channel is silently skipped
-- **AND** GitHub remains fully sufficient as the base channel with no error raised
-
-#### Scenario: One channel's delivery fails
-
-- **GIVEN** more than one optional channel is configured
-- **WHEN** delivery to one channel fails
-- **THEN** delivery to the other configured channel still proceeds independently
-- **AND** the already-published report Issue is unaffected
-
-#### Scenario: Secret never enters portable configuration
-
-- **WHEN** a channel is enabled for a repository
-- **THEN** its non-secret enablement setting may live in ordinary project-owned configuration
-- **AND** its secret value is never present in `dev-platform/capabilities.toml`, `.dev-platform.toml`, or any other tracked portable/public project file
+## ADDED Requirements
 
 ### Requirement: Private Backlog access uses a minimally scoped GitHub App token
 
@@ -101,4 +71,3 @@ The private workflow SHALL mint a short-lived GitHub App installation token for 
 
 - **WHEN** required App credentials are not configured
 - **THEN** the run takes the explicit degraded path without running an agent against incomplete Backlog evidence
-
