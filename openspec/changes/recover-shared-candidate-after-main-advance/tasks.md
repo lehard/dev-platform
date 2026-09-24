@@ -13,4 +13,4 @@
 ## Verification
 
 - [x] Add Git-backed recovery and refusal tests.
-- [ ] Run relevant/full checks, semantic OpenSpec verification, archive and protected publication.
+- [x] Run relevant/full checks and semantic OpenSpec verification; archive and protected publication are terminal lifecycle steps.
