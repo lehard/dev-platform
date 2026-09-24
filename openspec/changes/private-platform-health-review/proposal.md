@@ -11,4 +11,4 @@ The public Platform Health Review cannot read the private Development Backlog, s
 
 ## Impact
 
-The private operator repository gains the workflow and its GitHub Actions configuration. The platform owns reusable review logic and the contract. Operators must provide the App credentials and OpenAI API key to the private runner; public repository secrets do not transfer across repositories.
+The private Development Backlog gains the workflow and its GitHub Actions configuration. The platform owns reusable review logic and the contract. Operators must provide the App credentials and OpenAI API key to the private runner; public repository secrets do not transfer across repositories.
