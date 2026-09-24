@@ -1,0 +1,32 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/agent-workflow/spec.md"
+  ],
+  "change": "recover-shared-candidate-after-main-advance",
+  "imported_at": "2026-09-24T04:22:01+00:00",
+  "package_revision": "a4991aa9f446041402f9399c63fb07be840847ff69bd2a25f1bf9abde043e03b",
+  "prepared_against": "045ac688eb655b82fadd4dd9d0d9ec21cf51700e",
+  "process_evidence": [
+    "lehard/dev-platform#93",
+    "lehard/dev-platform#94"
+  ],
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue": "lehard/development-backlog#192",
+  "source_issue_evidence": {
+    "body_sha256": "c7860d388699bb2e1da914ff3582da014f6af7d87e198e832ad9513cc3ca8100",
+    "updated_at": "2026-09-24T04:17:47Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

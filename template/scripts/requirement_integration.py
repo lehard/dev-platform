@@ -12,6 +12,7 @@ import argparse
 import hashlib
 import json
 import re
+import shutil
 import subprocess
 import tomllib
 from dataclasses import asdict, dataclass
@@ -212,6 +213,7 @@ def assemble_candidate(root: Path, *, requirement: str, base: str, receipt_paths
         raise RequirementIntegrationError("candidate base is not an exact resolvable commit")
     claimed: dict[str, tuple[str, str]] = {}
     children: list[dict[str, str]] = []
+    replayed = False
     for receipt in receipts:
         try:
             resolved_head = _git(root, "rev-parse", receipt.head)
@@ -224,13 +226,15 @@ def assemble_candidate(root: Path, *, requirement: str, base: str, receipt_paths
             raise RequirementIntegrationError(f"child branch changed after handoff: {receipt.source_issue}")
         if not _git(root, "show", f"{receipt.head}:{receipt.verification_receipt}"):
             raise RequirementIntegrationError(f"archived verification is absent from child head: {receipt.source_issue}")
-        if _git(root, "merge-base", base, receipt.head) != base:
-            raise RequirementIntegrationError(f"child head is stale or not based on candidate base: {receipt.source_issue}")
+        common_base = _git(root, "merge-base", base, receipt.head)
+        if not common_base:
+            raise RequirementIntegrationError(f"child head has no common base with candidate: {receipt.source_issue}")
         previous_head = children[-1]["head"] if children else None
         dependent = previous_head is not None and subprocess.run(
             ["git", "merge-base", "--is-ancestor", previous_head, receipt.head], cwd=root, capture_output=True,
         ).returncode == 0
-        delta_base = previous_head if dependent else base
+        delta_base = previous_head if dependent else common_base
+        replayed |= common_base != base
         paths = [item for item in _git(root, "diff-tree", "--no-commit-id", "--name-only", "-r", delta_base, receipt.head).splitlines() if item]
         overlap = sorted(
             path for path in paths if path in claimed and subprocess.run(
@@ -245,6 +249,8 @@ def assemble_candidate(root: Path, *, requirement: str, base: str, receipt_paths
         children.append({"source_issue": receipt.source_issue, "change": receipt.change, "source_branch": receipt.source_branch, "head": receipt.head,
                          "delta_base": delta_base, "digest": receipt.digest})
     unsigned = {"version": 1, "requirement": requirement, "base": base, "children": children}
+    if replayed:
+        unsigned["generation"] = base[:12]
     return {**unsigned, "digest": _digest(unsigned)}
 
 
@@ -268,12 +274,34 @@ def _candidate_manifest_path(requirement: str) -> Path:
     return Path("dev-platform/requirement-integrations") / (_candidate_slug(requirement) + ".json")
 
 
-def _candidate_slug(requirement: str) -> str:
+def _candidate_slug(requirement: str, generation: str | None = None) -> str:
     if ISSUE_RE.fullmatch(requirement) is None:
         raise RequirementIntegrationError("Requirement identity is invalid")
     number = requirement.rsplit("#", 1)[1]
     digest = hashlib.sha256(requirement.lower().encode("utf-8")).hexdigest()[:12]
-    return f"requirement-{number}-{digest}-integration"
+    slug = f"requirement-{number}-{digest}-integration"
+    if generation is not None:
+        if not re.fullmatch(r"[0-9a-f]{12}", generation):
+            raise RequirementIntegrationError("candidate generation is invalid")
+        slug += f"-{generation}"
+    return slug
+
+
+def _provision_local_contract(root: Path, worktree: Path) -> None:
+    source = root / ".dev-platform.toml"
+    if not source.is_file():
+        return
+    ignored = subprocess.run(["git", "check-ignore", "-q", ".dev-platform.toml"], cwd=root).returncode == 0
+    if not ignored:
+        if not (worktree / ".dev-platform.toml").is_file():
+            raise RequirementIntegrationError("tracked source contract is absent from candidate")
+        return
+    target = worktree / ".dev-platform.toml"
+    if target.exists() or target.is_symlink():
+        if not target.is_file() or target.read_bytes() != source.read_bytes():
+            raise RequirementIntegrationError("candidate local source contract differs from integration checkout")
+        return
+    shutil.copy2(source, target)
 
 
 def _project_topology(root: Path) -> tuple[str, Path]:
@@ -319,7 +347,7 @@ def compose_candidate(root: Path, *, manifest: dict[str, Any], receipt_paths: li
     requirement = manifest.get("requirement")
     if not isinstance(requirement, str) or not ISSUE_RE.fullmatch(requirement):
         raise RequirementIntegrationError("candidate Requirement is invalid")
-    expected_branch = "agent/" + _candidate_slug(requirement)
+    expected_branch = "agent/" + _candidate_slug(requirement, manifest.get("generation"))
     if branch != expected_branch:
         raise RequirementIntegrationError(f"candidate branch must be {expected_branch}")
     main_branch, allowed_parent = _project_topology(root)
@@ -353,6 +381,7 @@ def compose_candidate(root: Path, *, manifest: dict[str, Any], receipt_paths: li
             raise RequirementIntegrationError("cannot inspect candidate branch")
         worktree.parent.mkdir(parents=True, exist_ok=True)
         _git(root, "worktree", "add", "-b", branch, str(worktree), base)
+    _provision_local_contract(root, worktree)
     if _git(worktree, "status", "--porcelain"):
         raise RequirementIntegrationError("candidate worktree has uncommitted changes; refusing takeover")
     commits = _git(worktree, "rev-list", "--reverse", f"{base}..HEAD").splitlines()
@@ -411,7 +440,7 @@ def _validate_candidate_checkout(root: Path, manifest: dict[str, Any]) -> tuple[
     children = manifest.get("children")
     if not isinstance(base, str) or not SHA_RE.fullmatch(base) or not isinstance(children, list) or len(children) < 2:
         raise RequirementIntegrationError("candidate history manifest is malformed")
-    branch = "agent/" + _candidate_slug(requirement)
+    branch = "agent/" + _candidate_slug(requirement, manifest.get("generation"))
     if _git(root, "symbolic-ref", "--short", "HEAD") != branch:
         raise RequirementIntegrationError("candidate checkout is not on its exact integration branch")
     path = _candidate_manifest_path(requirement)
@@ -562,6 +591,10 @@ def main() -> int:
     publish.add_argument("--manifest", required=True, type=Path)
     publish.add_argument("--receipt", type=Path, action="append", default=[])
     publish.add_argument("--title")
+    recover = sub.add_parser("recover", help="compose and publish a new generation from current main and exact child receipts")
+    recover.add_argument("--requirement", required=True)
+    recover.add_argument("--receipt", required=True, type=Path, action="append")
+    recover.add_argument("--title")
     args = parser.parse_args()
     root = Path.cwd().resolve()
     try:
@@ -579,9 +612,20 @@ def main() -> int:
         elif args.command == "compose":
             payload = compose_candidate(root, manifest=json.loads(args.manifest.read_text(encoding="utf-8")),
                                         receipt_paths=args.receipt, worktree=args.worktree, branch=args.branch)
-        else:
+        elif args.command == "publish":
             payload = publish_candidate(root, manifest=json.loads(args.manifest.read_text(encoding="utf-8")),
                                         receipt_paths=args.receipt, title=args.title)
+        else:
+            main_branch, worktree_parent = _project_topology(root)
+            if _registered_worktrees(root).get(root) != main_branch or _git(root, "status", "--porcelain"):
+                raise RequirementIntegrationError("recovery requires a clean shared integration checkout on main")
+            base = _git(root, "rev-parse", "HEAD")
+            manifest = assemble_candidate(root, requirement=args.requirement, base=base, receipt_paths=args.receipt)
+            slug = _candidate_slug(args.requirement, manifest.get("generation"))
+            candidate = worktree_parent / slug
+            compose_candidate(root, manifest=manifest, receipt_paths=args.receipt,
+                              worktree=candidate, branch="agent/" + slug)
+            payload = publish_candidate(candidate, manifest=manifest, receipt_paths=args.receipt, title=args.title)
         print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
         return 0
     except RequirementIntegrationError as exc:
