@@ -229,7 +229,7 @@ def link_child(root: Path, *, requirement: str, child: str) -> dict[str, Any]:
 
     ensure_label(root, child_repository, CHILD_LABEL, env=env)
     back_reference = f"{BACK_REFERENCE_PREFIX}{requirement_ref}"
-    if back_reference not in child_body:
+    if not re.search(rf"^{re.escape(back_reference)}\s*$", child_body, re.MULTILINE):
         new_child_body = child_body.rstrip("\n") + f"\n\n{back_reference}\n"
         run(["gh", "issue", "edit", str(child_number), "--repo", child_repository, "--body", new_child_body, "--add-label", CHILD_LABEL], root, env)
     else:
@@ -306,7 +306,7 @@ def materialize_handoff(
     refreshed_child = fetch_issue(root, *issue_ref(child_ref))
     if child_ref not in parse_requirement_body(str(refreshed_parent.get("body") or ""))["children"]:
         raise RequirementIntakeError(f"linkage incomplete: {requirement_ref} does not list {child_ref}")
-    if f"{BACK_REFERENCE_PREFIX}{requirement_ref}" not in str(refreshed_child.get("body") or ""):
+    if not re.search(rf"^{re.escape(BACK_REFERENCE_PREFIX + requirement_ref)}\s*$", str(refreshed_child.get("body") or ""), re.MULTILINE):
         raise RequirementIntakeError(f"linkage incomplete: {child_ref} does not reference {requirement_ref}")
     return {"requirement": requirement_ref, "child": child_ref, "handoff_digest": digest}
 
