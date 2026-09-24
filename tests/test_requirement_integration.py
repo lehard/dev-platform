@@ -163,6 +163,68 @@ class RequirementIntegrationTests(unittest.TestCase):
                                           worktree=candidate, branch="agent/" + slug)
         self.assertFalse(candidate.exists())
 
+    def test_moved_main_uses_distinct_generation_and_preserves_prior_candidate(self) -> None:
+        _, one_receipt = self.child("one", "one.txt")
+        _, two_receipt = self.child("two", "two.txt")
+        receipts = [one_receipt, two_receipt]
+        original = integration.assemble_candidate(self.root, requirement="acme/backlog#7", base=self.base,
+                                                  receipt_paths=receipts)
+        old_slug = integration._candidate_slug("acme/backlog#7")
+        old_candidate = self.root / ".claude/worktrees" / old_slug
+        old = integration.compose_candidate(self.root, manifest=original, receipt_paths=receipts,
+                                            worktree=old_candidate, branch="agent/" + old_slug)
+        (self.root / "unrelated.txt").write_text("main advanced\n", encoding="utf-8")
+        git(self.root, "add", "unrelated.txt")
+        git(self.root, "commit", "-m", "unrelated main change")
+        new_base = git(self.root, "rev-parse", "HEAD")
+        recovered = integration.assemble_candidate(self.root, requirement="acme/backlog#7", base=new_base,
+                                                   receipt_paths=receipts)
+        self.assertEqual(recovered["generation"], new_base[:12])
+        self.assertEqual([child["delta_base"] for child in recovered["children"]], [self.base, self.base])
+        new_slug = integration._candidate_slug("acme/backlog#7", recovered["generation"])
+        new_candidate = self.root / ".claude/worktrees" / new_slug
+        result = integration.compose_candidate(self.root, manifest=recovered, receipt_paths=receipts,
+                                               worktree=new_candidate, branch="agent/" + new_slug)
+        self.assertTrue((new_candidate / "unrelated.txt").is_file())
+        self.assertTrue((new_candidate / "one.txt").is_file())
+        self.assertTrue((new_candidate / "two.txt").is_file())
+        self.assertEqual(integration.compose_candidate(self.root, manifest=recovered, receipt_paths=receipts,
+                                                       worktree=new_candidate, branch="agent/" + new_slug)["head"], result["head"])
+        self.assertEqual(git(old_candidate, "rev-parse", "HEAD"), old["head"])
+
+    def test_recovery_rejects_patch_conflict_without_touching_child(self) -> None:
+        one, one_receipt = self.child("one", "one.txt")
+        _, two_receipt = self.child("two", "two.txt")
+        (self.root / "one.txt").write_text("conflicting main\n", encoding="utf-8")
+        git(self.root, "add", "one.txt")
+        git(self.root, "commit", "-m", "conflicting main")
+        base = git(self.root, "rev-parse", "HEAD")
+        receipts = [one_receipt, two_receipt]
+        manifest = integration.assemble_candidate(self.root, requirement="acme/backlog#7", base=base,
+                                                  receipt_paths=receipts)
+        slug = integration._candidate_slug("acme/backlog#7", manifest["generation"])
+        with self.assertRaisesRegex(integration.RequirementIntegrationError, "candidate application failed"):
+            integration.compose_candidate(self.root, manifest=manifest, receipt_paths=receipts,
+                                          worktree=self.root / ".claude/worktrees" / slug, branch="agent/" + slug)
+        self.assertEqual(git(self.root, "rev-parse", "one"), one)
+
+    def test_ignored_local_contract_is_copied_and_mismatch_blocks(self) -> None:
+        _, one_receipt = self.child("one", "one.txt")
+        _, two_receipt = self.child("two", "two.txt")
+        (self.root / ".git/info/exclude").write_text(".dev-platform.toml\n", encoding="utf-8")
+        (self.root / ".dev-platform.toml").write_text('main_branch = "main"\n', encoding="utf-8")
+        receipts = [one_receipt, two_receipt]
+        manifest = integration.assemble_candidate(self.root, requirement="acme/backlog#7", base=self.base,
+                                                  receipt_paths=receipts)
+        slug = integration._candidate_slug("acme/backlog#7")
+        candidate = self.root / ".claude/worktrees" / slug
+        kwargs = {"manifest": manifest, "receipt_paths": receipts, "worktree": candidate, "branch": "agent/" + slug}
+        integration.compose_candidate(self.root, **kwargs)
+        self.assertEqual((candidate / ".dev-platform.toml").read_bytes(), (self.root / ".dev-platform.toml").read_bytes())
+        (candidate / ".dev-platform.toml").write_text('main_branch = "other"\n', encoding="utf-8")
+        with self.assertRaisesRegex(integration.RequirementIntegrationError, "local source contract differs"):
+            integration.compose_candidate(self.root, **kwargs)
+
     def test_merged_candidate_recovery_skips_stale_inputs_and_checks(self) -> None:
         _, one_receipt = self.child("one", "one.txt")
         _, two_receipt = self.child("two", "two.txt")
