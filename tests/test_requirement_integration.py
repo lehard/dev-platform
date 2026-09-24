@@ -20,6 +20,11 @@ assert SPEC and SPEC.loader
 integration = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = integration
 SPEC.loader.exec_module(integration)
+MERGE_SPEC = importlib.util.spec_from_file_location("requirement_merge_recovery", HELPER.parent / "requirement_merge_recovery.py")
+assert MERGE_SPEC and MERGE_SPEC.loader
+merge_recovery = importlib.util.module_from_spec(MERGE_SPEC)
+sys.modules[MERGE_SPEC.name] = merge_recovery
+MERGE_SPEC.loader.exec_module(merge_recovery)
 
 
 def git(root: Path, *args: str) -> str:
@@ -224,6 +229,42 @@ class RequirementIntegrationTests(unittest.TestCase):
         (candidate / ".dev-platform.toml").write_text('main_branch = "other"\n', encoding="utf-8")
         with self.assertRaisesRegex(integration.RequirementIntegrationError, "local source contract differs"):
             integration.compose_candidate(self.root, **kwargs)
+
+    def test_exact_parent_merge_recovery_keeps_both_conflicting_changes(self) -> None:
+        one, first = self.child("one", "one.txt")
+        two, second = self.child("two", "two.txt", base_ref="one")
+        (self.root / ".git/info/exclude").write_text(".claude/\nreceipts/\n", encoding="utf-8")
+        (self.root / "one.txt").write_text("main contribution\n", encoding="utf-8")
+        git(self.root, "add", "one.txt")
+        git(self.root, "commit", "-m", "main overlap")
+        manifest = merge_recovery.assemble(self.root, "acme/backlog#7", [first, second])
+        self.assertEqual(manifest["source_head"], two)
+        self.assertIn("one.txt", manifest["overlap_paths"])
+        prepared = merge_recovery.prepare(self.root, manifest, [first, second], self.root / ".claude/merge.json")
+        candidate = Path(prepared["worktree"])
+        self.assertIn("one.txt", prepared["conflicts"])
+        (candidate / "one.txt").write_text("main contribution\none contribution\n", encoding="utf-8")
+        git(candidate, "add", "one.txt")
+        finalized = merge_recovery.finalize(candidate, manifest, [first, second])
+        self.assertEqual(finalized["status"], "ready")
+        self.assertEqual(merge_recovery._validate_checkout(candidate, manifest, [first, second])[1], finalized["head"])
+        self.assertEqual(git(candidate, "rev-list", "--parents", "-n", "1", "HEAD^" ).split()[2], two)
+        self.assertEqual(git(self.root, "rev-parse", "one"), one)
+
+    def test_merge_recovery_rejects_changed_child_branch_before_finalize(self) -> None:
+        _, first = self.child("one", "one.txt")
+        _, second = self.child("two", "two.txt", base_ref="one")
+        (self.root / ".git/info/exclude").write_text(".claude/\nreceipts/\n", encoding="utf-8")
+        manifest = merge_recovery.assemble(self.root, "acme/backlog#7", [first, second])
+        prepared = merge_recovery.prepare(self.root, manifest, [first, second], self.root / ".claude/merge.json")
+        candidate = Path(prepared["worktree"])
+        git(self.root, "switch", "two")
+        (self.root / "later.txt").write_text("changed\n", encoding="utf-8")
+        git(self.root, "add", "later.txt")
+        git(self.root, "commit", "-m", "later")
+        git(self.root, "switch", "main")
+        with self.assertRaisesRegex(integration.RequirementIntegrationError, "child receipt or branch changed"):
+            merge_recovery.finalize(candidate, manifest, [first, second])
 
     def test_merged_candidate_recovery_skips_stale_inputs_and_checks(self) -> None:
         _, one_receipt = self.child("one", "one.txt")
