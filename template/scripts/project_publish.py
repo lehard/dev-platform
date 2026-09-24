@@ -35,6 +35,7 @@ from publication_state import (
 )
 from managed_project_status import ManagedProjectStatusError, reconcile as reconcile_managed_project
 from requirement_integration import RequirementIntegrationError, require_independent_publication_exception
+import requirement_integration
 try:
     from managed_task import ManagedTaskError, require_delivery_provenance
 except ModuleNotFoundError:  # Compatibility while a pre-managed-intake render is being upgraded.
@@ -386,6 +387,42 @@ def request_protected_merge(
     return "unavailable"
 
 
+def validate_shared_manifest(root: Path, path: Path) -> dict:
+    """Bind shared publication to one exact committed Requirement candidate."""
+    if path.is_absolute() or ".." in path.parts or path.parent != Path("dev-platform/requirement-integrations") or path.suffix != ".json":
+        raise RequirementIntegrationError("shared manifest must use its canonical repository-relative path")
+    try:
+        payload = json.loads((root / path).read_text(encoding="utf-8"))
+        shown = run_git(["show", f"HEAD:{path.as_posix()}"], cwd=root, check=False)
+        if shown.returncode:
+            raise ValueError("missing committed manifest")
+        committed = json.loads(shown.stdout)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        raise RequirementIntegrationError("shared manifest is absent or not committed at exact HEAD") from exc
+    if not isinstance(payload, dict) or payload != committed:
+        raise RequirementIntegrationError("shared manifest differs from exact committed HEAD")
+    unsigned = {key: value for key, value in payload.items() if key != "digest"}
+    requirement = payload.get("requirement")
+    children = payload.get("children")
+    if (payload.get("digest") != requirement_integration._digest(unsigned)
+            or not isinstance(requirement, str) or not requirement_integration.ISSUE_RE.fullmatch(requirement)
+            or not isinstance(children, list) or len(children) < 2
+            or any(not isinstance(child, dict) or not isinstance(child.get("source_issue"), str)
+                   or not requirement_integration.ISSUE_RE.fullmatch(child["source_issue"]) for child in children)
+            or len({child["source_issue"] for child in children}) != len(children)):
+        raise RequirementIntegrationError("shared manifest identity or digest is invalid")
+    generation = payload.get("generation")
+    expected = requirement_integration._candidate_slug(requirement, generation)
+    if payload.get("mode") == "exact-parent-merge":
+        expected += "-merge"
+    elif payload.get("mode") is not None:
+        raise RequirementIntegrationError("shared manifest mode is unsupported")
+    if path.name != expected + ".json" or branch(root) != "agent/" + expected:
+        raise RequirementIntegrationError("shared manifest does not identify the candidate branch")
+    requirement_integration._verify_parent_links(main_root(), payload)
+    return payload
+
+
 def publish_pr(
     root: Path,
     remote: str,
@@ -395,6 +432,7 @@ def publish_pr(
     merge_mode: str,
     *,
     config: dict | None = None,
+    shared_manifest: Path | None = None,
 ) -> int:
     try:
         delivery = require_delivery_provenance(root)
@@ -402,6 +440,11 @@ def publish_pr(
             require_independent_publication_exception(root, delivery)
     except (ManagedTaskError, RequirementIntegrationError) as exc:
         raise SystemExit("Managed task publication blocked: " + str(exc)) from exc
+    if shared_manifest is not None:
+        try:
+            validate_shared_manifest(root, shared_manifest)
+        except RequirementIntegrationError as exc:
+            raise SystemExit("Shared Requirement publication blocked: " + str(exc)) from exc
     current = _validate_feature_branch(root, remote, main_branch)
     env = require_gh_environment(root)
     expected_head = run_git(["rev-parse", current], cwd=root).stdout.strip()
@@ -428,7 +471,7 @@ def publish_pr(
         print(f"PR for {current} was already merged on GitHub for the exact validated head; nothing further to merge.")
         return 0
     try:
-        project = reconcile_managed_project(root, "In review")
+        project = None if shared_manifest is not None else reconcile_managed_project(root, "In review")
     except ManagedProjectStatusError as exc:
         raise SystemExit(
             "Reviewable PR exists, but managed Project reconciliation is pending: " + str(exc)
@@ -479,6 +522,7 @@ def main() -> int:
     parser.add_argument("--remote", default="origin")
     parser.add_argument("--title")
     parser.add_argument("--body")
+    parser.add_argument("--shared-manifest", type=Path, help="committed shared Requirement manifest; skip single-child Project attribution")
     args = parser.parse_args()
     root = current_worktree_root()
     config = read_platform_config(root)
@@ -488,7 +532,8 @@ def main() -> int:
         if protected_main(config):
             raise SystemExit("protected_main=true is incompatible with direct publication. Use PR publication so required checks can gate the merge.")
         return publish_direct(root, args.remote, main_branch)
-    return publish_pr(root, args.remote, main_branch, args.title, args.body, pr_merge_mode(config), config=config)
+    return publish_pr(root, args.remote, main_branch, args.title, args.body, pr_merge_mode(config), config=config,
+                      shared_manifest=args.shared_manifest)
 
 
 if __name__ == "__main__":

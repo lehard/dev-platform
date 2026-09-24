@@ -551,7 +551,8 @@ def publish_candidate(root: Path, *, manifest: dict[str, Any], receipt_paths: li
                                  worktree=root, branch=branch)
     if composed["head"] != head:
         raise RequirementIntegrationError("candidate head changed after validation")
-    command = ["python3", "scripts/project_publish.py", "--mode", "pr"]
+    command = ["python3", "scripts/project_publish.py", "--mode", "pr",
+               "--shared-manifest", _candidate_manifest_path(manifest["requirement"]).as_posix()]
     if title:
         command += ["--title", title]
     command += ["--body", f"Shared Requirement integration for {manifest['requirement']}\n\nExact candidate: {head}\nManifest: {_candidate_manifest_path(manifest['requirement'])}"]
