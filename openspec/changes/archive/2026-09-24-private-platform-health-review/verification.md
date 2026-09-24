@@ -6,6 +6,8 @@ Verification-Method: manual semantic review of the authored outcome, success evi
 
 Automated-Checks-Evidence: automated-checks.json
 
+Requirement-Integration-Exception: Requirement #194 has exactly one technical child (#195), so a shared multi-child integration candidate cannot be assembled; publish this verified child through its exact managed PR.
+
 ## Outcome and cloud evidence
 
 - The private caller's missing-access run published a private `degraded` report, with `private_evidence: degraded`, an unavailable-evidence category, and both AI reviews skipped: [private report #204](https://github.com/lehard/development-backlog/issues/204). The private report replaced its predecessor on later runs.
