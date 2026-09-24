@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 import unittest
 from pathlib import Path
@@ -185,6 +186,20 @@ class AgenticWorkflowTests(unittest.TestCase):
         jobs_text = text[text.index("\njobs:") :]
         review_jobs_text = jobs_text[: jobs_text.index("\n  publish-report:")]
         self.assertNotIn("needs:", review_jobs_text)
+
+    def test_combined_reviews_use_distinct_artifact_contexts(self) -> None:
+        # gh-aw derives artifact names from workflow inputs. Both reusable
+        # calls run under one GitHub run ID, so equal inputs mix their agent
+        # output and safe-output artifacts even when both jobs appear green.
+        orchestrator = yaml.safe_load(PLATFORM_HEALTH_REVIEW_PATH.read_text(encoding="utf-8"))
+        jobs = orchestrator["jobs"]
+        contexts = [
+            jobs[name]["with"]["aw_context"]
+            for name in ("process-health-review", "architecture-health-review")
+        ]
+        self.assertEqual(len(set(contexts)), 2)
+        for context in contexts:
+            self.assertIsInstance(json.loads(context), dict)
 
     def test_platform_health_review_publishes_one_combined_report(self) -> None:
         # The combined report (openspec/specs/platform-health-review/spec.md)
