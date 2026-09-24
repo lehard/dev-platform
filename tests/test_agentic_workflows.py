@@ -147,6 +147,7 @@ class AgenticWorkflowTests(unittest.TestCase):
         process = (ROOT / ".github" / "workflows" / "weekly-process-backlog-review.md").read_text(encoding="utf-8")
         architecture = (ROOT / ".github" / "workflows" / "architecture-health-review.md").read_text(encoding="utf-8")
         for source in (process, architecture):
+            self.assertIn("inlined-imports: true", source)
             self.assertIn("github-token: ${{ steps.private_read_token.outputs.token }}", source)
             self.assertIn("permission-contents: read", source)
             self.assertNotIn("permission-issues: write", source)
@@ -156,6 +157,11 @@ class AgenticWorkflowTests(unittest.TestCase):
         self.assertIn('allowed-repos: [lehard/dev-platform, "${{ github.repository }}"]', process)
         self.assertIn("repositories: dev-platform", architecture)
         self.assertNotIn('allowed-repos: [lehard/dev-platform, "${{ github.repository }}"]', architecture)
+
+    def test_reusable_review_locks_are_self_contained_in_private_caller(self) -> None:
+        for name in ("weekly-process-backlog-review", "architecture-health-review"):
+            lock = (ROOT / ".github" / "workflows" / f"{name}.lock.yml").read_text(encoding="utf-8")
+            self.assertNotIn("{{#runtime-import", lock)
 
 
 

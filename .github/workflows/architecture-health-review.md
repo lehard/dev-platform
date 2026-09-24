@@ -6,6 +6,8 @@ description: Bounded read-only Codex cloud run of Architecture Health Review, on
 on:
   workflow_call:
 
+inlined-imports: true
+
 permissions:
   contents: read
 

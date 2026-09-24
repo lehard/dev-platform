@@ -6,6 +6,8 @@ description: Freshness-aware bounded weekly Codex summary of the dev-platform pr
 on:
   workflow_call:
 
+inlined-imports: true
+
 permissions:
   contents: read
   issues: read
