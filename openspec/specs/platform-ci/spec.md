@@ -3,9 +3,7 @@
 ## Purpose
 
 Platform CI SHALL validate platform-managed behavior without requiring downstream repositories to execute mutable or inaccessible logic from the central private repository.
-
 ## Requirements
-
 ### Requirement: Downstream CI has no private repository access prerequisite
 
 Generated project CI SHALL execute platform-managed check scripts from the checked-out downstream repository and SHALL NOT require access to a private reusable workflow in `dev-platform`.
@@ -325,3 +323,13 @@ Central platform CI and release publication SHALL run the same bounded installat
 - **WHEN** both supported GitHub harness ownership modes are validated
 - **THEN** each mode receives platform-owned installation checks
 - **AND** neither mode executes downstream product/application tests
+
+### Requirement: Ready-child claim tests are portable
+
+Ready-child claim unit tests SHALL verify claim identity and dirty-worktree behavior without depending on shared-workspace group ownership of the test runner's private temporary directory. Production shared-path enforcement SHALL remain active.
+
+#### Scenario: Linux runner executes claim tests
+
+- **GIVEN** a private temporary board fixture on a Linux CI runner
+- **WHEN** the ready-child claim tests run
+- **THEN** they exercise matching, removal and refusal behavior without requiring a group ownership change

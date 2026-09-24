@@ -29,6 +29,38 @@ CODEX_EXECUTOR_PROMPT = (
 )
 
 
+def bounded_executor_prompt(root: Path, fallback: str) -> str:
+    """Point a child at its derived Requirement context without inlining it."""
+    state_path = root / ".managed-task-state.json"
+    if not state_path.is_file():
+        return fallback
+    try:
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        change = state["change"]
+    except (OSError, json.JSONDecodeError, KeyError, TypeError) as exc:
+        raise SystemExit(f"Managed task identity is unreadable before routing: {exc}") from exc
+    if not isinstance(change, str) or not CHANGE_RE.fullmatch(change):
+        raise SystemExit("Managed task identity has an invalid change before routing.")
+    path = root / ".claude" / "requirement-child-context" / f"{change}.json"
+    if not path.is_file():
+        return fallback
+    try:
+        context = json.loads(path.read_text(encoding="utf-8"))
+        package_path = (root / context["managed_package"]).resolve()
+        if not package_path.is_relative_to(root.resolve() / "openspec" / "changes"):
+            raise SystemExit("Bounded Requirement context points outside canonical OpenSpec changes.")
+        provenance = package_path / ".managed-task.json"
+        import hashlib
+        observed_digest = hashlib.sha256(provenance.read_bytes()).hexdigest()
+    except (OSError, json.JSONDecodeError, KeyError, TypeError) as exc:
+        raise SystemExit(f"Bounded Requirement context is unreadable before routing: {exc}") from exc
+    if (context.get("source_issue") != state.get("source_issue") or context.get("change") != change
+            or context.get("repository_head") != git(root, "rev-parse", "HEAD")
+            or context.get("managed_provenance_sha256") != observed_digest):
+        raise SystemExit("Bounded Requirement context is stale before routing; resume the exact managed child to refresh it.")
+    return fallback + f" Read the bounded Requirement child context at {path} before implementation."
+
+
 def run(command: list[str], root: Path) -> None:
     result = subprocess.run(command, cwd=root)
     if result.returncode:
@@ -228,7 +260,7 @@ def route_codex(args: argparse.Namespace) -> int:
         "--rationale",
         args.rationale,
         "--prompt",
-        args.prompt or CODEX_EXECUTOR_PROMPT,
+        bounded_executor_prompt(root, args.prompt or CODEX_EXECUTOR_PROMPT),
     ]
     for item in args.evidence:
         command += ["--evidence", item]
@@ -247,6 +279,7 @@ def route_claude(args: argparse.Namespace) -> int:
     """
     root = current_root()
     verify_source_contract(root)
+    handoff = bounded_executor_prompt(root, "Read the canonical managed OpenSpec before implementation.")
     command = ["python3", "scripts/model_routing.py", "dispatch-claude"]
     if args.profile:
         command += ["--profile", args.profile]
@@ -254,6 +287,8 @@ def route_claude(args: argparse.Namespace) -> int:
     for item in args.evidence:
         command += ["--evidence", item]
     run(command, root)
+    if handoff != "Read the canonical managed OpenSpec before implementation.":
+        print(f"Bounded child handoff for the native Claude executor: {handoff}")
     return 0
 
 

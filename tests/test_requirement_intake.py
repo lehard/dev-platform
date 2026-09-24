@@ -188,6 +188,13 @@ class MaterializeHandoffTests(unittest.TestCase):
         self.assertEqual(result["child"], "acme/backlog#8")
         create_mock.assert_not_called()
 
+    def test_authored_parent_prose_is_not_confirmed_backlink(self) -> None:
+        package = type("Package", (), {"source_issue": "acme/backlog#8"})()
+        self.parent_body = self.parent_body.replace(ri.CHILDREN_END, f"- [ ] acme/backlog#8\n{ri.CHILDREN_END}")
+        self.child_body = "Parent Requirement: acme/backlog#7\n"
+        with self.assertRaisesRegex(ri.RequirementIntakeError, "linkage incomplete"):
+            self._run(create=lambda *args, **kwargs: (package, False, False), link=lambda *args, **kwargs: None)
+
     def test_invalid_or_ambiguous_handoff_does_not_create_issue(self) -> None:
         with self.assertRaises(ri.RequirementIntakeError):
             self._run(status={"current_stage": "snapshot", "blocker": {"state": "stale"}})
@@ -480,6 +487,33 @@ class LinkChildTests(unittest.TestCase):
             if command[:3] == ["gh", "issue", "edit"] and command[3] == "20" and "--body" in command
         ]
         self.assertEqual(child_body_edits, [])
+
+    def test_link_child_repairs_authored_parent_prose(self) -> None:
+        parent_body = (
+            f"## Outcome\n\nShip X.\n\n{ri.CHILDREN_START}\n"
+            f"- [ ] acme/development-backlog#20\n{ri.CHILDREN_END}\n"
+        )
+        child_body = "Parent Requirement: acme/development-backlog#7\n"
+        fetched = {"acme/development-backlog#7": parent_body, "acme/development-backlog#20": child_body}
+        commands: list[list[str]] = []
+
+        def fake_fetch_issue(root, repository, number):
+            return {"body": fetched[f"{repository}#{number}"]}
+
+        def fake_run(command, cwd, env=None, input_text=None):
+            commands.append(command)
+            return type("Result", (), {"stdout": "", "returncode": 0})()
+
+        with (
+            patch.object(ri, "github_cli_env", return_value={}),
+            patch.object(ri, "fetch_issue", side_effect=fake_fetch_issue),
+            patch.object(ri, "run", side_effect=fake_run),
+        ):
+            ri.link_child(self.root, requirement="acme/development-backlog#7", child="acme/development-backlog#20")
+
+        child_edit = next(command for command in commands if command[:4] == ["gh", "issue", "edit", "20"])
+        updated_body = child_edit[child_edit.index("--body") + 1]
+        self.assertIn("\nRequirement: acme/development-backlog#7\n", updated_body)
 
     def test_link_child_is_idempotent_for_an_indented_existing_entry(self) -> None:
         """Regression: an existing child entry indented by a GitHub-UI hand

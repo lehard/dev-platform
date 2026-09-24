@@ -1,0 +1,68 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.134,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.153,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 222.157,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "scripts/dogfood_task.py",
+        "template/scripts/managed_task.py",
+        "template/scripts/requirement_child_context.py",
+        "template/scripts/requirement_intake.py",
+        "template/scripts/start_managed_task.py",
+        "tests/test_central_dogfood_lifecycle.py",
+        "tests/test_managed_task.py",
+        "tests/test_requirement_child_context.py",
+        "tests/test_requirement_intake.py",
+        "tests/test_requirement_integration.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "source_issue": "lehard/development-backlog#187",
+    "change": "bounded-child-execution-context",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/bounded-child-execution-context",
+    "branch": "agent/bounded-child-execution-context",
+    "head": "5d2e502284415ff99a9ac89a357b63aac642b32c"
+  }
+}
