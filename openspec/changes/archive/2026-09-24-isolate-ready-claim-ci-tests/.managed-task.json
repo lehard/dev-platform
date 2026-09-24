@@ -1,0 +1,31 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/platform-ci/spec.md"
+  ],
+  "change": "isolate-ready-claim-ci-tests",
+  "imported_at": "2026-09-24T10:49:37+00:00",
+  "package_revision": "502b2d6a918d00a1cc34a4b8ec551c867573e674ea659d0fa3c334f79905d659",
+  "prepared_against": "7e41f247b1e597e83be4a0a01756ad2f00c53821",
+  "process_evidence": [
+    "lehard/dev-platform#109"
+  ],
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue": "lehard/development-backlog#201",
+  "source_issue_evidence": {
+    "body_sha256": "e3ba572608c989aedf9ad457caee0cff3924232e64956d3caa7e9d7de5790d7e",
+    "updated_at": "2026-09-24T05:50:14Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

@@ -4,8 +4,10 @@ import json
 import sys
 import tempfile
 import unittest
+from contextlib import contextmanager
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Iterator
 from unittest import mock
 
 
@@ -15,6 +17,13 @@ import execute_requirement as execution
 
 
 REQUIREMENT = "acme/backlog#7"
+
+
+@contextmanager
+def fixture_locked_json(path: Path) -> Iterator[dict]:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    yield data
+    path.write_text(json.dumps(data), encoding="utf-8")
 
 
 class RequirementExecutionTests(unittest.TestCase):
@@ -158,6 +167,8 @@ class RequirementExecutionTests(unittest.TestCase):
                 return receipt.head if args == ("rev-parse", "HEAD") else ""
             with mock.patch.object(execution.agent_board, "board_path", return_value=board), mock.patch.object(
                 execution, "_git", side_effect=git_result
+            ), mock.patch.object(
+                execution, "locked_json", fixture_locked_json
             ):
                 execution._release_ready_claim(root, worktree, receipt)
                 execution._release_ready_claim(root, worktree, receipt)
@@ -176,6 +187,8 @@ class RequirementExecutionTests(unittest.TestCase):
             for head, status in (("b" * 40, ""), (receipt.head, " M changed.py")):
                 with mock.patch.object(execution.agent_board, "board_path", return_value=board), mock.patch.object(
                     execution, "_git", side_effect=lambda _root, *args: head if args == ("rev-parse", "HEAD") else status
+                ), mock.patch.object(
+                    execution, "locked_json", fixture_locked_json
                 ):
                     with self.assertRaisesRegex(execution.RequirementExecutionError, "writer claim remains active"):
                         execution._release_ready_claim(root, worktree, receipt)
