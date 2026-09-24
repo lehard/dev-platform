@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import subprocess
 import sys
 import tempfile
 import types
@@ -17,9 +18,64 @@ sys.path.insert(0, str(SCRIPTS))
 import finish_task  # noqa: E402
 import managed_project_status  # noqa: E402
 import project_publish  # noqa: E402
+import requirement_integration  # noqa: E402
 
 
 class ManagedStatusLifecycleTests(unittest.TestCase):
+    def test_shared_manifest_is_exact_committed_candidate_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            subprocess.run(["git", "init", "-b", "main"], cwd=root, check=True, capture_output=True)
+            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=root, check=True)
+            subprocess.run(["git", "config", "user.name", "Test"], cwd=root, check=True)
+            slug = requirement_integration._candidate_slug("acme/backlog#7")
+            path = Path("dev-platform/requirement-integrations") / (slug + ".json")
+            (root / path).parent.mkdir(parents=True)
+            payload = {"version": 1, "requirement": "acme/backlog#7", "base": "a" * 40,
+                       "children": [{"source_issue": "acme/backlog#8"}, {"source_issue": "acme/backlog#9"}]}
+            payload["digest"] = requirement_integration._digest(payload)
+            (root / path).write_text(json.dumps(payload), encoding="utf-8")
+            subprocess.run(["git", "add", path.as_posix()], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-m", "candidate"], cwd=root, check=True, capture_output=True)
+            subprocess.run(["git", "switch", "-c", "agent/" + slug], cwd=root, check=True, capture_output=True)
+            with mock.patch.object(project_publish, "main_root", return_value=root), \
+                    mock.patch.object(requirement_integration, "_verify_parent_links") as links:
+                self.assertEqual(project_publish.validate_shared_manifest(root, path), payload)
+                links.assert_called_once()
+                (root / path).write_text("{}", encoding="utf-8")
+                with self.assertRaisesRegex(requirement_integration.RequirementIntegrationError, "differs"):
+                    project_publish.validate_shared_manifest(root, path)
+
+    def test_shared_pr_skips_only_single_child_project_reconciliation(self) -> None:
+        root = Path("/tmp/shared-review")
+        lookup = SimpleNamespace(available=True, exact_open={"number": 12}, exact_merged=None)
+        manifest = Path("dev-platform/requirement-integrations/candidate.json")
+        with (
+            mock.patch.object(project_publish, "validate_shared_manifest", return_value={}) as validate,
+            mock.patch.object(project_publish, "_validate_feature_branch", return_value="agent/shared"),
+            mock.patch.object(project_publish, "require_gh_environment", return_value={}),
+            mock.patch.object(project_publish, "run_git", return_value=SimpleNamespace(stdout="a" * 40)),
+            mock.patch.object(project_publish, "find_exact_head_pr", return_value=lookup),
+            mock.patch.object(project_publish, "push_feature_branch"),
+            mock.patch.object(project_publish, "ensure_pr", return_value=project_publish.PrRef(12, "https://example/pr/12")),
+            mock.patch.object(project_publish, "reconcile_managed_project") as reconcile,
+        ):
+            self.assertEqual(project_publish.publish_pr(root, "origin", "main", None, None, "manual", shared_manifest=manifest), 0)
+        validate.assert_called_once_with(root, manifest)
+        reconcile.assert_not_called()
+
+    def test_invalid_shared_manifest_blocks_before_pr_mutation(self) -> None:
+        root = Path("/tmp/shared-review")
+        manifest = Path("dev-platform/requirement-integrations/candidate.json")
+        with mock.patch.object(project_publish, "validate_shared_manifest",
+                               side_effect=requirement_integration.RequirementIntegrationError("invalid")), \
+                mock.patch.object(project_publish, "_validate_feature_branch") as feature, \
+                mock.patch.object(project_publish, "push_feature_branch") as push:
+            with self.assertRaisesRegex(SystemExit, "Shared Requirement publication blocked"):
+                project_publish.publish_pr(root, "origin", "main", None, None, "manual", shared_manifest=manifest)
+        feature.assert_not_called()
+        push.assert_not_called()
+
     def test_validation_failure_evidence_uses_bounded_selector_descriptor(self) -> None:
         output = (
             'DEV_PLATFORM_CHECK_FAILURE: {"command":"python3 scripts/run_test_groups.py --all",'

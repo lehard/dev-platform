@@ -172,7 +172,8 @@ def publish(root: Path, manifest: dict[str, Any], receipts: list[Path], title: s
     ri._git(integration, "fetch", "origin", main_branch)
     if ri._git(integration, "rev-parse", f"origin/{main_branch}") != manifest["base"]:
         raise ri.RequirementIntegrationError("authoritative main changed after merge validation")
-    command = ["python3", "scripts/project_publish.py", "--mode", "pr"]
+    command = ["python3", "scripts/project_publish.py", "--mode", "pr",
+               "--shared-manifest", _manifest_path(manifest).as_posix()]
     if title:
         command += ["--title", title]
     command += ["--body", f"Shared exact-parent merge for {manifest['requirement']}\n\nCandidate: {head}\nManifest: {_manifest_path(manifest)}"]
