@@ -12,6 +12,10 @@
 # its own. Each review also keeps its own standalone `workflow_dispatch`
 # trigger, so it can still be run independently of this combined trigger.
 #
+# Each called workflow needs distinct inputs: gh-aw hashes inputs into the
+# artifact prefix, and both calls otherwise use the same empty input. Shared
+# prefixes let one review ingest the other's artifacts within this run.
+#
 # A failure in one review's job does not block or cancel the other's job:
 # neither review job declares `needs:` on the other.
 #
@@ -62,6 +66,8 @@ jobs:
       issues: write
       pull-requests: read
     uses: ./.github/workflows/weekly-process-backlog-review.lock.yml
+    with:
+      aw_context: '{"review":"process-health-review"}'
     secrets: inherit
 
   architecture-health-review:
@@ -74,6 +80,8 @@ jobs:
       contents: read
       issues: write
     uses: ./.github/workflows/architecture-health-review.lock.yml
+    with:
+      aw_context: '{"review":"architecture-health-review"}'
     secrets: inherit
 
   publish-report:
