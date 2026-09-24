@@ -1,0 +1,77 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 2.887,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.745,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 417.235,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "scripts/dogfood_task.py",
+        "scripts/execute_requirement.py",
+        "scripts/public_distribution.py",
+        "template/scripts/execute_requirement.py",
+        "template/scripts/managed_task.py",
+        "template/scripts/requirement_board.py",
+        "template/scripts/requirement_child_context.py",
+        "template/scripts/requirement_intake.py",
+        "template/scripts/requirement_integration.py",
+        "template/scripts/requirement_merge_recovery.py",
+        "template/scripts/start_managed_task.py",
+        "tests/test_central_dogfood_lifecycle.py",
+        "tests/test_managed_task.py",
+        "tests/test_public_distribution.py",
+        "tests/test_requirement_board.py",
+        "tests/test_requirement_child_context.py",
+        "tests/test_requirement_execution.py",
+        "tests/test_requirement_intake.py",
+        "tests/test_requirement_integration.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "source_issue": "lehard/development-backlog#211",
+    "change": "identify-merge-candidate-by-source",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/identify-merge-candidate-by-source",
+    "branch": "agent/identify-merge-candidate-by-source",
+    "head": "7a610b32c7f5b5242f34411172c66d62cb5152b3"
+  }
+}

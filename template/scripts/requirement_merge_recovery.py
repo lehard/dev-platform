@@ -23,6 +23,11 @@ def _manifest_path(manifest: dict[str, Any]) -> Path:
     return Path("dev-platform/requirement-integrations") / (_slug(manifest) + ".json")
 
 
+def _generation(base: str, source_head: str) -> str:
+    """Return the bounded namespace for an exact merge candidate source."""
+    return base[:6] + source_head[:6]
+
+
 def assemble(root: Path, requirement: str, receipts: list[Path]) -> dict[str, Any]:
     base = ri._git(root, "rev-parse", "HEAD")
     ordinary = ri.assemble_candidate(root, requirement=requirement, base=base, receipt_paths=receipts)
@@ -38,7 +43,7 @@ def assemble(root: Path, requirement: str, receipts: list[Path]) -> dict[str, An
     source_paths = sorted(_paths(root, common, source))
     overlap = sorted(set(source_paths) & _paths(root, common, base))
     unsigned = {"version": 1, "mode": "exact-parent-merge", "requirement": requirement,
-                "base": base, "source_head": source, "generation": base[:12],
+                "base": base, "source_head": source, "generation": _generation(base, source),
                 "children": children, "source_paths": source_paths, "overlap_paths": overlap}
     return {**unsigned, "digest": ri._digest(unsigned)}
 
@@ -47,7 +52,15 @@ def _check_manifest(root: Path, manifest: dict[str, Any], receipts: list[Path]) 
     unsigned = {key: value for key, value in manifest.items() if key != "digest"}
     if manifest.get("mode") != "exact-parent-merge" or manifest.get("digest") != ri._digest(unsigned):
         raise ri.RequirementIntegrationError("merge recovery manifest is invalid")
-    if assemble(root, manifest["requirement"], receipts) != manifest:
+    expected = assemble(root, manifest["requirement"], receipts)
+    if expected == manifest:
+        return
+    # Generations committed before source-bound recovery used the full base
+    # prefix.  Keep validating their immutable exact inputs and digest.
+    legacy_unsigned = {key: value for key, value in expected.items() if key != "digest"}
+    legacy_unsigned["generation"] = manifest["base"][:12]
+    legacy = {**legacy_unsigned, "digest": ri._digest(legacy_unsigned)}
+    if legacy != manifest:
         raise ri.RequirementIntegrationError("merge recovery inputs changed")
 
 

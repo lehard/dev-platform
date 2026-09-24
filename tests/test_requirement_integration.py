@@ -266,6 +266,42 @@ class RequirementIntegrationTests(unittest.TestCase):
         with self.assertRaisesRegex(integration.RequirementIntegrationError, "child receipt or branch changed"):
             merge_recovery.finalize(candidate, manifest, [first, second])
 
+    def test_merge_recovery_source_bound_generation_preserves_prior_candidate(self) -> None:
+        _, first = self.child("one", "one.txt")
+        _, second = self.child("two", "two.txt", base_ref="one")
+        _, corrected = self.child("two-corrected", "two.txt", base_ref="one")
+        (self.root / ".git/info/exclude").write_text(".claude/\nreceipts/\n", encoding="utf-8")
+        (self.root / "one.txt").write_text("main contribution\n", encoding="utf-8")
+        git(self.root, "add", "one.txt")
+        git(self.root, "commit", "-m", "main overlap")
+
+        original = merge_recovery.assemble(self.root, "acme/backlog#7", [first, second])
+        original_slug = merge_recovery._slug(original)
+        merge_recovery.prepare(self.root, original, [first, second], self.root / ".claude/original-merge.json")
+
+        recovered = merge_recovery.assemble(self.root, "acme/backlog#7", [first, corrected])
+        self.assertEqual(recovered["generation"], recovered["base"][:6] + recovered["source_head"][:6])
+        self.assertNotEqual(recovered["generation"], original["generation"])
+        self.assertNotEqual(merge_recovery._slug(recovered), original_slug)
+        prepared = merge_recovery.prepare(self.root, recovered, [first, corrected], self.root / ".claude/recovered-merge.json")
+        self.assertTrue((self.root / ".claude/worktrees" / original_slug).is_dir())
+        self.assertTrue(Path(prepared["worktree"]).is_dir())
+
+    def test_merge_recovery_rejects_identical_source_generation_and_accepts_legacy_manifest(self) -> None:
+        _, first = self.child("one", "one.txt")
+        _, second = self.child("two", "two.txt", base_ref="one")
+        (self.root / ".git/info/exclude").write_text(".claude/\nreceipts/\n", encoding="utf-8")
+        manifest = merge_recovery.assemble(self.root, "acme/backlog#7", [first, second])
+        legacy_unsigned = {key: value for key, value in manifest.items() if key != "digest"}
+        legacy_unsigned["generation"] = manifest["base"][:12]
+        legacy = {**legacy_unsigned, "digest": integration._digest(legacy_unsigned)}
+        merge_recovery._check_manifest(self.root, legacy, [first, second])
+
+        out = self.root / ".claude/merge.json"
+        merge_recovery.prepare(self.root, manifest, [first, second], out)
+        with self.assertRaisesRegex(integration.RequirementIntegrationError, "already occupied"):
+            merge_recovery.prepare(self.root, manifest, [first, second], out)
+
     def test_merged_candidate_recovery_skips_stale_inputs_and_checks(self) -> None:
         _, one_receipt = self.child("one", "one.txt")
         _, two_receipt = self.child("two", "two.txt")
