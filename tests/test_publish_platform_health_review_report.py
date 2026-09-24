@@ -129,12 +129,18 @@ class RenderBodyTests(unittest.TestCase):
             reviewed_at="2026-09-22T06:00:00Z",
             main_sha="deadbeef",
             boundary="2026-09-15T06:00:00Z",
+            evidence_status="available",
+            unavailable_evidence=None,
+            process_result="success",
+            architecture_result="success",
             process_section="process section text",
             architecture_section="architecture section text",
         )
         self.assertIn("reviewed_at: 2026-09-22T06:00:00Z", body)
         self.assertIn("main_sha: deadbeef", body)
         self.assertIn("previous_review_boundary: 2026-09-15T06:00:00Z", body)
+        self.assertIn("audit_status: complete", body)
+        self.assertIn("private_evidence: available", body)
         self.assertIn("## Process Health Review", body)
         self.assertIn("process section text", body)
         self.assertIn("## Architecture Health Review", body)
@@ -201,7 +207,34 @@ class PublishTests(unittest.TestCase):
         )
         self.assertIn("did not complete", gh.created["body"])
         self.assertIn("Architecture Health Review", gh.created["body"])
+        self.assertIn("audit_status: degraded", gh.created["body"])
         self.assertIsNotNone(result["number"])
+
+    def test_degraded_run_names_unavailable_evidence_and_never_claims_complete(self) -> None:
+        gh = FakeGh(open_reports=[])
+        report.publish(
+            reviewed_at="2026-09-22T06:00:00Z",
+            main_sha="abc123",
+            process=_outcome("Process Health Review", "skipped", "", ""),
+            architecture=_outcome("Architecture Health Review", "skipped", "", ""),
+            evidence_status="degraded",
+            unavailable_evidence="GitHub App read token or required private repository access",
+            gh=gh,
+        )
+        self.assertIn("audit_status: degraded", gh.created["body"])
+        self.assertIn("unavailable_evidence:", gh.created["body"])
+        self.assertNotIn("audit_status: complete", gh.created["body"])
+
+    def test_degraded_run_requires_an_evidence_category(self) -> None:
+        with self.assertRaisesRegex(report.PlatformHealthReportError, "must name"):
+            report.publish(
+                reviewed_at="2026-09-22T06:00:00Z",
+                main_sha="abc123",
+                process=_outcome("Process Health Review"),
+                architecture=_outcome("Architecture Health Review"),
+                evidence_status="degraded",
+                gh=FakeGh(),
+            )
 
 
 class RenderSummaryTests(unittest.TestCase):

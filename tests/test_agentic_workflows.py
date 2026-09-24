@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import re
 import unittest
 from pathlib import Path
@@ -26,9 +25,8 @@ SOURCES = {
         "max-daily-ai-credits: 100",
         "timeout-minutes: 10",
         "max-turns: 10",
-        "allowed-repos: public",
+        "allowed-repos: [lehard/dev-platform, lehard/development-backlog]",
         "issues: read",
-        "workflow_dispatch:",
         "workflow_call:",
         "create-issue:",
         "Review context (`reviewed_at`, exact `main` SHA, previous-review boundary)",
@@ -40,9 +38,8 @@ SOURCES = {
         "max-daily-ai-credits: 100",
         "timeout-minutes: 10",
         "max-turns: 10",
-        "allowed-repos: public",
+        "allowed-repos: [lehard/dev-platform]",
         "toolsets: [repos]",
-        "workflow_dispatch:",
         "workflow_call:",
         "create-issue:",
         "dev-platform/capabilities/architecture-health-review.md",
@@ -58,16 +55,6 @@ AGENTIC_STEP_TIMEOUT_MINUTES = {
     "weekly-process-backlog-review": 10,
     "architecture-health-review": 10,
 }
-
-# The combined `platform-health-review` trigger (see
-# openspec/specs/platform-health-review/spec.md) owns the one shared
-# schedule/workflow_dispatch that starts these two reviews together. Neither
-# review's own gh-aw source declares `schedule:` any more; each keeps only its
-# standalone `workflow_dispatch` plus the `workflow_call` trigger that the
-# combined orchestrator uses to invoke it.
-COMBINED_TRIGGER_WORKFLOWS = ("weekly-process-backlog-review", "architecture-health-review")
-PLATFORM_HEALTH_REVIEW_PATH = ROOT / ".github" / "workflows" / "platform-health-review.yml"
-
 
 class AgenticWorkflowTests(unittest.TestCase):
     def test_pin_is_exact_stable_semver(self) -> None:
@@ -85,7 +72,10 @@ class AgenticWorkflowTests(unittest.TestCase):
             text = (ROOT / ".github" / "workflows" / f"{name}.md").read_text(encoding="utf-8")
             self.assertIn("engine: codex", text)
             self.assertIn("contents: read", text)
-            self.assertIn("workflow_dispatch:", text)
+            if name == "process-issue-triage":
+                self.assertIn("workflow_dispatch:", text)
+            else:
+                self.assertNotIn("workflow_dispatch:", text)
             self.assertIn("threat-detection:", text)
             self.assertIn("bash: [\"*\"]", text)
             self.assertIn("jobs:\n  agent:\n    timeout-minutes: 30", text)
@@ -115,7 +105,10 @@ class AgenticWorkflowTests(unittest.TestCase):
             self.assertRegex(text, r"ghcr\.io/github/gh-aw-mcpg:v0\.4\.18@sha256:[0-9a-f]{64}")
             self.assertIn(f"github/gh-aw/actions/setup@{GH_AW_ACTION_REF}", text)
             agent = text[text.index("  agent:") : text.index("  conclusion:")]
-            self.assertIn('"repos": "public"', agent)
+            if name == "process-issue-triage":
+                self.assertIn('"repos": "public"', agent)
+            else:
+                self.assertIn("GITHUB_MCP_SERVER_TOKEN: ${{ steps.private_read_token.outputs.token }}", agent)
             self.assertRegex(agent, r"ghcr\.io/github/gh-aw-mcpg:v0\.4\.18@sha256:[0-9a-f]{64}")
             self.assertNotIn("gh-aw-mcpg:v0.4.8", agent)
             self.assertNotIn("GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES", agent)
@@ -146,108 +139,24 @@ class AgenticWorkflowTests(unittest.TestCase):
         self.assertIn("ordinary process-friction", text)
         self.assertIn("or close/relabel/comment on source evidence", text)
 
-    def test_combined_reviews_no_longer_declare_their_own_schedule(self) -> None:
-        # The `platform-health-review` capability (openspec/specs/platform-health-review/spec.md)
-        # owns the one shared schedule. Each review keeps its own standalone
-        # `workflow_dispatch` plus a `workflow_call` trigger for the combined
-        # orchestrator, but must not also declare an independent `schedule:`.
-        for name in COMBINED_TRIGGER_WORKFLOWS:
-            text = (ROOT / ".github" / "workflows" / f"{name}.md").read_text(encoding="utf-8")
-            with self.subTest(name=name):
-                self.assertNotIn("schedule:", text)
-                self.assertIn("workflow_call:", text)
-                self.assertIn("workflow_dispatch:", text)
+    def test_public_repository_has_no_combined_platform_health_trigger(self) -> None:
+        # The combined private review is owned by lehard/development-backlog.
+        self.assertFalse((ROOT / ".github" / "workflows" / "platform-health-review.yml").exists())
 
-    def test_combined_locks_expose_workflow_call_trigger(self) -> None:
-        for name in COMBINED_TRIGGER_WORKFLOWS:
-            text = (ROOT / ".github" / "workflows" / f"{name}.lock.yml").read_text(encoding="utf-8")
-            with self.subTest(name=name):
-                self.assertIn("workflow_call:", text)
-                self.assertNotIn("cron:", text)
+    def test_private_review_read_token_and_report_boundary(self) -> None:
+        process = (ROOT / ".github" / "workflows" / "weekly-process-backlog-review.md").read_text(encoding="utf-8")
+        architecture = (ROOT / ".github" / "workflows" / "architecture-health-review.md").read_text(encoding="utf-8")
+        for source in (process, architecture):
+            self.assertIn("github-token: ${{ steps.private_read_token.outputs.token }}", source)
+            self.assertIn("permission-contents: read", source)
+            self.assertNotIn("permission-issues: write", source)
+            self.assertNotIn("private-to-public-flows:", source)
+        self.assertIn("permission-issues: read", process)
+        self.assertIn("permission-pull-requests: read", process)
+        self.assertIn("allowed-repos: [lehard/dev-platform, lehard/development-backlog]", process)
+        self.assertIn("repositories: dev-platform", architecture)
+        self.assertNotIn("allowed-repos: [lehard/dev-platform, lehard/development-backlog]", architecture)
 
-    def test_platform_health_review_orchestrator_defines_one_combined_trigger(self) -> None:
-        text = PLATFORM_HEALTH_REVIEW_PATH.read_text(encoding="utf-8")
-        self.assertIn("schedule:", text)
-        self.assertIn("cron:", text)
-        self.assertIn("workflow_dispatch:", text)
-        # Both reviews are called as reusable workflows from their compiled
-        # gh-aw lock files, unconditionally (no agent decides which to run).
-        self.assertIn("uses: ./.github/workflows/weekly-process-backlog-review.lock.yml", text)
-        self.assertIn("uses: ./.github/workflows/architecture-health-review.lock.yml", text)
-        self.assertIn("secrets: inherit", text)
-
-    def test_platform_health_review_jobs_do_not_depend_on_each_other(self) -> None:
-        # Each review's job must run independently of the other so that one
-        # review failing or being unavailable never blocks the other's run.
-        # The deterministic `publish-report` aggregation job is exempt: it
-        # legitimately `needs:` both review jobs (with `if: always()`) so it
-        # can compose one combined report even when a review job failed.
-        text = PLATFORM_HEALTH_REVIEW_PATH.read_text(encoding="utf-8")
-        jobs_text = text[text.index("\njobs:") :]
-        review_jobs_text = jobs_text[: jobs_text.index("\n  publish-report:")]
-        self.assertNotIn("needs:", review_jobs_text)
-
-    def test_combined_reviews_use_distinct_artifact_contexts(self) -> None:
-        # gh-aw derives artifact names from workflow inputs. Both reusable
-        # calls run under one GitHub run ID, so equal inputs mix their agent
-        # output and safe-output artifacts even when both jobs appear green.
-        orchestrator = yaml.safe_load(PLATFORM_HEALTH_REVIEW_PATH.read_text(encoding="utf-8"))
-        jobs = orchestrator["jobs"]
-        contexts = [
-            jobs[name]["with"]["aw_context"]
-            for name in ("process-health-review", "architecture-health-review")
-        ]
-        self.assertEqual(len(set(contexts)), 2)
-        for context in contexts:
-            self.assertIsInstance(json.loads(context), dict)
-
-    def test_platform_health_review_publishes_one_combined_report(self) -> None:
-        # The combined report (openspec/specs/platform-health-review/spec.md)
-        # is a deterministic, non-agentic aggregation step that still runs,
-        # and still records the gap, when a review job failed or was skipped.
-        text = PLATFORM_HEALTH_REVIEW_PATH.read_text(encoding="utf-8")
-        jobs_text = text[text.index("\njobs:") :]
-        publish_job_text = jobs_text[jobs_text.index("\n  publish-report:") :]
-        self.assertIn("needs: [process-health-review, architecture-health-review]", publish_job_text)
-        self.assertIn("if: always()", publish_job_text)
-        self.assertIn("issues: write", publish_job_text)
-        self.assertIn("scripts/publish_platform_health_review_report.py", publish_job_text)
-        self.assertIn("needs.process-health-review.outputs.created_issue_number", publish_job_text)
-        self.assertIn("needs.architecture-health-review.outputs.created_issue_number", publish_job_text)
-        self.assertIn("needs.process-health-review.result", publish_job_text)
-        self.assertIn("needs.architecture-health-review.result", publish_job_text)
-
-    def test_caller_job_permissions_cover_every_nested_job_in_the_called_workflow(self) -> None:
-        # GitHub rejects a reusable-workflow call at run start (startup_failure)
-        # if any nested job inside the called workflow requests a permission
-        # the calling job did not grant -- the caller's permissions: block is
-        # a ceiling, not merely a hint for the review's own prompt/tools.
-        # This directly regression-guards the real failure hit in
-        # https://github.com/lehard/dev-platform/actions/runs/35797079694.
-        rank = {"none": 0, "read": 1, "write": 2}
-        orchestrator = yaml.safe_load(PLATFORM_HEALTH_REVIEW_PATH.read_text(encoding="utf-8"))
-        caller_jobs = {
-            "process-health-review": "weekly-process-backlog-review",
-            "architecture-health-review": "architecture-health-review",
-        }
-        for caller_job_id, lock_name in caller_jobs.items():
-            with self.subTest(job=caller_job_id):
-                caller_permissions = orchestrator["jobs"][caller_job_id].get("permissions", {})
-                lock_path = ROOT / ".github" / "workflows" / f"{lock_name}.lock.yml"
-                lock_doc = yaml.safe_load(lock_path.read_text(encoding="utf-8"))
-                required: dict[str, str] = {}
-                for job in lock_doc["jobs"].values():
-                    for scope, level in (job.get("permissions") or {}).items():
-                        if rank.get(level, 0) > rank.get(required.get(scope, "none"), 0):
-                            required[scope] = level
-                for scope, level in required.items():
-                    granted = caller_permissions.get(scope, "none")
-                    self.assertGreaterEqual(
-                        rank.get(granted, 0),
-                        rank.get(level, 0),
-                        f"{caller_job_id} grants {scope}: {granted!r} but a nested job in "
-                        f"{lock_name}.lock.yml requests {scope}: {level!r}",
-                    )
 
 
 if __name__ == "__main__":

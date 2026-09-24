@@ -15,7 +15,6 @@ RUFF_COMMAND = "python3 -m ruff check scripts template/scripts tests"
 WORKFLOW_TIMEOUTS = {
     "adopt-project.yml": {"adopt": 30},
     "ci.yml": {"validate": 45},
-    "platform-health-review.yml": {"publish-report": 10, "notify": 5},
     "project-ci.yml": {"checks": 45},
     "publish-version.yml": {"publish": 15},
     "reconcile-stale-rollouts.yml": {"plan": 10, "reconcile": 25},
