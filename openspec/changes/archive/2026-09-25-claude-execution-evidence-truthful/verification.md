@@ -35,3 +35,7 @@ The native Agent tool is invoked by the supervisor's own tool call; its result, 
 ## Residual limits
 
 Terminal completion for a routine/standard Claude route still rests on a supervisor claim plus the verified containment postcheck; the platform cannot prove that the child actually ran, and the record now says so. An active pre-repair Claude routing record must be re-recorded before archive.
+
+## Archive attempt note
+
+The first archive-helper run of the selected checks (`DEV_PLATFORM_TEST_JOBS=3`) failed one timing-bounded test, `test_publication_recovery_cli.BoundedTestDeadlineHelperTests.test_expired_helper_fails_with_process_identity_and_retained_output` (0.3s deadline; the killed helper had retained no partial output). This change does not touch that code; the test passed in the earlier full run and in isolation. The failure classification is `unknown` rather than proven `pre-existing`. The archive was rerun with `DEV_PLATFORM_TEST_JOBS=2`, and all selected checks passed; `automated-checks.json` records that rerun.
