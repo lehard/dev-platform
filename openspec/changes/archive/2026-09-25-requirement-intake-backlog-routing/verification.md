@@ -33,3 +33,7 @@ Requirement-Integration-Exception: Requirement lehard/development-backlog#218 ha
 - **Coherence:** The proposal, design, delta specs and code agree. Existing Requirements are not relabelled, and managed technical authoring is unchanged.
 
 The automated-checks marker names evidence the archive helper will generate; it does not assert that this file existed before archive.
+
+## Post-archive reconcile refresh
+
+After archive, `origin/main` advanced (#127, #128) and the task branch was reconciled by a normal merge (`857a66d`) without conflicts. Full validation was rerun on the reconciled head: compile, managed-project registry, OpenSpec lifecycle hygiene and all 13 test groups passed. `automated-checks.json` was then regenerated with `scripts/select_checks.py --base origin/main --execute` at that exact head (compile, ruff and the full test suite passed). The original archive-time run also succeeded; the refreshed file replaces it only so its checkout identity matches the published head.
