@@ -147,6 +147,17 @@ def current_head(root: Path) -> str | None:
     return result.stdout.strip() if result.returncode == 0 and result.stdout.strip() else None
 
 
+def current_task_content(root: Path) -> dict | None:
+    """Best-effort managed-task proof; quick tasks retain exact-head semantics."""
+    try:
+        from managed_task import read_task_state
+        from task_content_identity import content_identity
+        state = read_task_state(root)
+        return content_identity(root, str(state["change"])) if state else None
+    except Exception:
+        return None
+
+
 def _unknown_run_provenance(role: str) -> dict:
     return {"source_issue": None, "change": None, "role": role, "supervisor": None, "participant": None}
 
@@ -903,6 +914,9 @@ def cmd_checkpoint(args: argparse.Namespace) -> int:
         "branch": branch,
         "head": current_head(root),
     }
+    proof = current_task_content(root)
+    if proof is not None:
+        checkpoint["task_content"] = proof
     with friction_lock():
         state = read_state()
         state["checkpoints"][branch] = checkpoint
@@ -949,6 +963,16 @@ def require_checkpoint(branch: str, root: Path | None = None) -> None:
     current = current_head(resolved_root)
     if current is None:
         raise SystemExit("Could not determine the current task head to verify retrospective freshness.")
+    recorded_content = checkpoint.get("task_content")
+    current_content = current_task_content(resolved_root)
+    if isinstance(recorded_content, dict):
+        from task_content_identity import equivalent_proofs
+        if not equivalent_proofs(resolved_root, recorded_content, current_content):
+            raise SystemExit(
+                "Completion friction retrospective is stale because task-owned content changed or could not be proven equivalent. "
+                "Run a fresh `python3 scripts/agent_friction.py checkpoint ...` after reviewing the latest changes."
+            )
+        return
     if checkpoint.get("head") != current:
         raise SystemExit(
             "Completion friction retrospective is stale for the current task execution state "

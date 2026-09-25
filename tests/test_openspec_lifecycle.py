@@ -233,6 +233,31 @@ class OpenSpecLifecycleTests(unittest.TestCase):
             ):
                 self.assertFalse(lifecycle.evidence_matches_checkout(change, root, identity, actual))
 
+    def test_content_aware_evidence_accepts_same_task_content_after_head_moves(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            change = self.make_change(root, "managed", "- [x] one\n")
+            proof = {"version": 1, "digest": "c" * 64, "paths": {"feature.txt": "d" * 40}, "base": "e" * 40}
+            identity = mock.Mock()
+            identity.evidence_payload.return_value = {
+                "source_issue": "owner/backlog#1", "change": "managed", "worktree": "/task", "branch": "agent/task",
+                "head": "b" * 40, "task_content": proof,
+            }
+            actual = {**identity.evidence_payload(), "head": "a" * 40}
+            self.assertTrue(lifecycle.evidence_matches_checkout(change, root, identity, actual))
+
+    def test_content_aware_evidence_rejects_mutated_task_content(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            change = self.make_change(root, "managed", "- [x] one\n")
+            identity = mock.Mock()
+            identity.evidence_payload.return_value = {
+                "source_issue": "owner/backlog#1", "change": "managed", "worktree": "/task", "branch": "agent/task",
+                "head": "b" * 40, "task_content": {"version": 1, "digest": "c" * 64},
+            }
+            actual = {**identity.evidence_payload(), "head": "a" * 40, "task_content": {"version": 1, "digest": "e" * 64}}
+            self.assertFalse(lifecycle.evidence_matches_checkout(change, root, identity, actual))
+
     def test_static_platform_readiness_rejects_missing_evidence_marker_before_checks(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             change = self.make_change(

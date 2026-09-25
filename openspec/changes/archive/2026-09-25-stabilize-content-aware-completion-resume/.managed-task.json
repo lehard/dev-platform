@@ -1,0 +1,37 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/completion-lifecycle/spec.md"
+  ],
+  "change": "stabilize-content-aware-completion-resume",
+  "imported_at": "2026-09-25T11:04:25+00:00",
+  "package_revision": "c64eff3e198eb8f759beae77feab6aa782ddd271f4a03d6096ab8d5c85fb9b38",
+  "prepared_against": "c7b182ec1bff0de62cd224e61d328b4bb182f7e0",
+  "private_lineage_handle": "pln_71c5ec9b2b46b7454512edb31dbfca40",
+  "process_evidence": [
+    "lehard/dev-platform#396",
+    "lehard/dev-platform#402",
+    "lehard/dev-platform#403",
+    "lehard/dev-platform#406",
+    "lehard/dev-platform#411",
+    "lehard/dev-platform#416",
+    "lehard/dev-platform#430"
+  ],
+  "routing_receipt": {
+    "assurance": "high",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "completion-lifecycle"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "b1ed8f6e7cfbad27508204be57d9d3d05a81117bcc9de5775f37c8eee6a5b7f4",
+    "updated_at": "2026-09-17T04:08:27Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

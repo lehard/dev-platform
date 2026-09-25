@@ -11,6 +11,7 @@ import time
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_SOURCE = ROOT / "template" / "scripts"
@@ -630,6 +631,28 @@ class GitLifecycleTests(unittest.TestCase):
         self.assertLess(first_at - started, 1.0, "first line was not forwarded promptly")
         self.assertGreater(ended - first_at, 1.5, "output appears to have been buffered until child exit")
         self.assertIn("LATE_LINE", recorder.getvalue())
+
+
+class CheapPublicationResumeTests(unittest.TestCase):
+    def test_exact_armed_pr_is_a_cheap_resumable_state(self) -> None:
+        pr = {"number": 7, "url": "https://example.invalid/pr/7", "headRefOid": "a" * 40, "autoMergeRequest": {"enabledBy": "bot"}}
+        lookup = finish_task.publication_state.ExactHeadPrLookup(available=True, exact_open=pr)
+        with (
+            mock.patch.object(finish_task, "github_cli_env", return_value={}),
+            mock.patch.object(finish_task.publication_state, "find_exact_local_branch_pr", return_value=lookup),
+            mock.patch.object(finish_task.publication_state, "required_check_state_for_ref", return_value=finish_task.publication_state.RequiredCheckState("pending")),
+        ):
+            self.assertEqual(finish_task.resumable_remote_armed_pr(Path("/task"), "agent/task", "main"), pr)
+
+    def test_changed_remote_intent_fails_closed_from_cheap_resume(self) -> None:
+        pr = {"number": 7, "url": "https://example.invalid/pr/7", "headRefOid": "a" * 40, "autoMergeRequest": {"enabledBy": "bot"}}
+        lookup = finish_task.publication_state.ExactHeadPrLookup(available=True, exact_open=pr)
+        with (
+            mock.patch.object(finish_task, "github_cli_env", return_value={}),
+            mock.patch.object(finish_task.publication_state, "find_exact_local_branch_pr", return_value=lookup),
+            mock.patch.object(finish_task.publication_state, "required_check_state_for_ref", return_value=finish_task.publication_state.RequiredCheckState("failed")),
+        ):
+            self.assertIsNone(finish_task.resumable_remote_armed_pr(Path("/task"), "agent/task", "main"))
 
 
 if __name__ == "__main__": unittest.main()
