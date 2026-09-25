@@ -279,6 +279,10 @@ def _model_for(config: dict[str, Any], provider: str, profile: str) -> str:
 SOURCE_SELECTED = "selected"
 SOURCE_RUNTIME_CONFIRMED = "runtime-confirmed"
 SOURCE_UNKNOWN = "unknown"
+# A supplied Claude Agent-tool id is a claim the supervisor itself makes, not
+# a platform-observed fact -- distinct from both a policy-selected value and
+# a runtime-confirmed one. See record_claude_execution.
+SOURCE_SELF_REPORTED = "self-reported"
 
 # Runtime-neutral efficiency vocabulary.  A measurement is deliberately a
 # small value/source/status tuple rather than a bare number: missing runtime
@@ -459,6 +463,32 @@ def _require_clean_postcheck(execution: dict[str, Any], provider: str) -> None:
         raise RoutingError(f"routing gate requires a clean containment postcheck for {provider} execution")
 
 
+def _is_self_reported_claude(execution: dict[str, Any]) -> bool:
+    """True for a Claude execution recorded only as a self-reported claim.
+
+    Covers both the current explicit shape (``launch_evidence ==
+    "self-reported"``) and the legacy pre-repair shape, which carried an
+    ``agent_id`` key but no ``outcome`` key at all (it always wrote
+    ``launched: True`` unconditionally).
+    """
+    if not isinstance(execution, dict):
+        return False
+    if execution.get("launch_evidence") == "self-reported":
+        return True
+    return "agent_id" in execution and "outcome" not in execution
+
+
+def _launch_confirmed(execution: Any) -> bool:
+    """True only for a launch the platform can actually treat as confirmed.
+
+    A self-reported Claude claim -- current or legacy -- never counts, even
+    when a legacy record carries ``launched: True``.
+    """
+    if not isinstance(execution, dict):
+        return False
+    return execution.get("launched") is True and not _is_self_reported_claude(execution)
+
+
 def require_routing_gate(root: Path, source_issue: str, change: str) -> Route:
     """Fail closed unless durable evidence proves the exact routed outcome."""
     route, _ = read_durable_route(root, source_issue, change)
@@ -483,9 +513,9 @@ def require_routing_gate(root: Path, source_issue: str, change: str) -> Route:
             raise RoutingError("routing evidence must explicitly state a non-empty parent-retention reason")
         _require_clean_postcheck(execution, route.provider)
         return route
-    if not execution.get("launched"):
-        raise RoutingError(f"routing gate requires a clean successful native {route.provider} executor launch for routine/standard work")
     if route.provider == "codex":
+        if not execution.get("launched"):
+            raise RoutingError(f"routing gate requires a clean successful native {route.provider} executor launch for routine/standard work")
         recovery = execution.get("recovery")
         # A reviewed recovery bypasses exactly the three checks below and
         # nothing else: it never edits `outcome`/`returncode`/`violation` on
@@ -497,9 +527,19 @@ def require_routing_gate(root: Path, source_issue: str, change: str) -> Route:
             execution.get("outcome") != "completed" or execution.get("returncode") != 0 or execution.get("violation")
         ):
             raise RoutingError("routing gate requires a clean successful native Codex executor launch for routine/standard work")
-    else:
+        return route
+    # Claude: the gate cannot rely on `launched` (the Agent tool has no
+    # platform-verifiable receipt); it accepts only an explicit self-reported
+    # claim backed by a clean containment postcheck. A legacy record carrying
+    # `launched: True` without that explicit outcome is refused so it gets
+    # repaired by rerunning record-claude-execution before archive.
+    if execution.get("outcome") == "claimed" and execution.get("launch_evidence") == "self-reported":
         _require_clean_postcheck(execution, "Claude")
-    return route
+        return route
+    raise RoutingError(
+        "routing evidence claims a Claude launch the platform cannot verify (no self-reported claim outcome recorded); "
+        "rerun record-claude-execution before archive"
+    )
 
 
 def _write_route(path: Path, route: Route) -> None:
@@ -1013,13 +1053,20 @@ def prepare_claude_handoff(root: Path, *, profile: str | None, rationale: str, e
 
 
 def record_claude_execution(root: Path, *, agent_id: str, summary: str | None = None) -> dict[str, Any]:
-    """Record that the supervisor actually invoked the emitted Claude hand-off.
+    """Record the supervisor's claim that it invoked the emitted Claude hand-off.
 
     Must run after the real Agent-tool call returns. Runs the mandatory
     content-aware postcheck (fails closed on any integration/main mutation)
     and persists the resulting execution evidence so finish's routing gate
-    can verify a routine/standard route was truly executed, not just
-    recorded.
+    can consider a routine/standard route.
+
+    The native Agent tool is invoked by the supervisor's own tool call and its
+    result reaches only the supervisor's conversation; no platform-owned
+    process observes it, and no supported Claude Code surface hands back a
+    machine-verifiable launch receipt. The supplied id is therefore recorded
+    only as a self-reported claim (``outcome: "claimed"``, ``launched: None``)
+    -- never as ``launched: True`` with an executed participant -- so nothing
+    downstream can mistake an arbitrary string for proof a child actually ran.
     """
     route, path = _read_route(root)
     if route.provider != "claude":
@@ -1032,23 +1079,30 @@ def record_claude_execution(root: Path, *, agent_id: str, summary: str | None = 
     tier_decision = determine_claude_tier(shell_enabled=True)
     check = postcheck(route)
     execution = {
-        "launched": True,
-        "agent_id": agent_id.strip(),
+        "outcome": "claimed",
+        "launch_evidence": "self-reported",
+        "launched": None,
+        "claimed_agent_id": agent_id.strip(),
         "summary": summary.strip() if summary else None,
         "tier": tier_decision.tier.value,
         "mechanism": tier_decision.mechanism,
         "postcheck": check,
         "recorded_at": utc_now(),
-        # A real Agent-tool invocation returned, so this participant actually
-        # executed. Model is what the supervisor selected via claude_agent();
-        # reasoning effort has no supported selection/confirmation surface on
-        # the current Agent tool (see claude_agent docstring), so it stays
-        # unknown rather than reusing the discarded profile-implied guess.
-        "participant": _participant(
-            role="executor", provider="claude", profile=route.profile, model=route.executor_model,
-            effort_value=None, effort_source=SOURCE_UNKNOWN,
-            execution_id=agent_id.strip(), execution_id_kind="claude-agent-id",
-        ),
+        # Not an executed participant: the model is what the supervisor
+        # selected via claude_agent(), but there is no platform-verifiable
+        # evidence a child using it ever ran, so provenance source is
+        # self-reported rather than selected/runtime-confirmed. Reasoning
+        # effort has no supported selection/confirmation surface on the
+        # current Agent tool (see claude_agent docstring), so it stays
+        # unknown.
+        "claimed_participant": {
+            "role": "executor",
+            "provider": "claude",
+            "profile": route.profile,
+            "model": _model_provenance(route.executor_model, SOURCE_SELF_REPORTED),
+            "reasoning_effort": _effort_provenance(None, SOURCE_UNKNOWN),
+            "execution_id": {"value": agent_id.strip(), "kind": "claude-agent-id"},
+        },
     }
     next_route = Route(**{**asdict(route), "execution": execution})
     _write_route(path, next_route)
@@ -1282,10 +1336,10 @@ def efficiency_baseline(root: Path) -> dict[str, Any]:
     records remain observations with missing efficiency fields.
     """
     records = _local_routing_records(root)
-    launched_records = [record for record in records if isinstance(record.get("execution"), dict) and record["execution"].get("launched")]
+    launched_records = [record for record in records if _launch_confirmed(record.get("execution"))]
     executions = [record["execution"] for record in launched_records if isinstance(record.get("execution"), dict)]
     verification_by_record = [(record, _verification_outcome(root, record)) for record in records]
-    verified_records = [record for record, outcome in verification_by_record if outcome == "passed" and isinstance(record.get("execution"), dict) and record["execution"].get("launched")]
+    verified_records = [record for record, outcome in verification_by_record if outcome == "passed" and _launch_confirmed(record.get("execution"))]
     verified_executions = [record["execution"] for record in verified_records if isinstance(record.get("execution"), dict)]
     metrics = {field: _summarize_measurements(executions, field) for field in CROSS_RUNTIME_EFFICIENCY_FIELDS}
     comparable_coverage = {field: _summarize_measurements(verified_executions, field) for field in CROSS_RUNTIME_EFFICIENCY_FIELDS}
@@ -1393,6 +1447,9 @@ def _actual_route_of(record: dict[str, Any]) -> dict[str, Any]:
 
 def _execution_outcome_label(record: dict[str, Any]) -> str:
     execution = record.get("execution")
+    if isinstance(execution, dict) and _is_self_reported_claude(execution):
+        outcome = execution.get("outcome")
+        return outcome if isinstance(outcome, str) and outcome else "claimed"
     if not isinstance(execution, dict) or not execution.get("launched"):
         return "not_launched"
     outcome = execution.get("outcome")
@@ -1436,7 +1493,7 @@ def _calibration_observation(root: Path, record: dict[str, Any], verification: s
         "actual": _actual_route_of(record),
         "outcome": _execution_outcome_label(record),
         "verification": verification,
-        "launched": bool(isinstance(record.get("execution"), dict) and record["execution"].get("launched")),
+        "launched": _launch_confirmed(record.get("execution")),
         "task_family": task_family if isinstance(task_family, str) and task_family else "unknown",
         "rubric_version": rubric_version if isinstance(rubric_version, str) and rubric_version else "unknown",
         "provider_model_generation": _runtime_identity(record),

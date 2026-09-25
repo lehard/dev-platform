@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/model-routing/spec.md"
+  ],
+  "change": "claude-execution-evidence-truthful",
+  "imported_at": "2026-09-25T07:39:26+00:00",
+  "package_revision": "77d7c1ba35ca9d9aff3177a971bf9d55150c78b68934bf82d795c7609751f923",
+  "prepared_against": "0dc3b2075d4607a479cf8e5e69ab704e8e5abef2",
+  "private_lineage_handle": "pln_afa7dd92649400513c8ff833036cf126",
+  "routing_receipt": {
+    "assurance": "high",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "routing-evidence-repair"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "00d086ef150a90849c7cba40050fedcba546a4798eca26690d6d572ec2d3c627",
+    "updated_at": "2026-09-25T07:37:42Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

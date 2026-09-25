@@ -537,6 +537,20 @@ class ModelRoutingTests(unittest.TestCase):
         self.assertEqual(report["observations"]["verification"], {"passed": 1})
         self.assertEqual(report["observations"]["verified_eligible_executions"], 1)
 
+    def test_efficiency_baseline_excludes_self_reported_claude_from_launched(self) -> None:
+        codex_launched = {"change": "codex-real", "execution": {"launched": True, "outcome": "completed"}}
+        claude_claimed = {
+            "change": "claude-claimed",
+            "execution": {
+                "outcome": "claimed", "launch_evidence": "self-reported", "launched": None,
+                "claimed_agent_id": "agent-abc123",
+            },
+        }
+        claude_legacy = {"change": "claude-legacy", "execution": {"launched": True, "agent_id": "x"}}
+        with patch.object(routing, "_local_routing_records", return_value=[codex_launched, claude_claimed, claude_legacy]):
+            report = routing.efficiency_baseline(self.task)
+        self.assertEqual(report["observations"]["launched_executions"], 1)
+
     def test_escalation_preserves_task_context_and_uses_strong_policy(self) -> None:
         self.prepare()
         escalated = routing.escalate(self.task, "unexpected cross-cutting contract")
@@ -692,22 +706,27 @@ class ModelRoutingTests(unittest.TestCase):
             # and made a real change inside the assigned task worktree (not integration).
             (self.task / "implemented.txt").write_text("real subagent work\n", encoding="utf-8")
             execution = routing.record_claude_execution(self.task, agent_id="agent-abc123", summary="added implemented.txt")
-        self.assertTrue(execution["launched"])
-        self.assertEqual(execution["agent_id"], "agent-abc123")
+        self.assertIsNone(execution["launched"])
+        self.assertEqual(execution["outcome"], "claimed")
+        self.assertEqual(execution["launch_evidence"], "self-reported")
+        self.assertEqual(execution["claimed_agent_id"], "agent-abc123")
+        self.assertNotIn("agent_id", execution)
+        self.assertNotIn("participant", execution)
         self.assertEqual(execution["postcheck"]["containment"], "clean")
         self.assertEqual(
-            execution["participant"],
+            execution["claimed_participant"],
             {
                 "role": "executor",
                 "provider": "claude",
                 "profile": "standard",
-                "model": {"value": "sonnet", "source": "selected"},
+                "model": {"value": "sonnet", "source": "self-reported"},
                 "reasoning_effort": {"value": None, "source": "unknown"},
                 "execution_id": {"value": "agent-abc123", "kind": "claude-agent-id"},
             },
         )
         saved = json.loads(self.record_path().read_text(encoding="utf-8"))
-        self.assertTrue(saved["execution"]["launched"])
+        self.assertIsNone(saved["execution"]["launched"])
+        self.assertEqual(saved["execution"]["outcome"], "claimed")
         self.assertEqual(saved["execution"]["postcheck"]["containment"], "clean")
         self.assertEqual(json.loads(self.durable_record_path().read_text(encoding="utf-8"))["execution"], saved["execution"])
 
@@ -741,6 +760,65 @@ class ModelRoutingTests(unittest.TestCase):
             )
             with self.assertRaisesRegex(routing.RoutingError, "not delegated"):
                 routing.record_claude_execution(self.task, agent_id="agent-abc123")
+
+    def test_arbitrary_agent_id_is_not_launch_proof(self) -> None:
+        detection_only = guard.EnforcementDecision(guard.EnforcementTier.DETECTION_ONLY, "detection-only:claude-shell-capable", "no proven sandbox")
+        with (
+            patch.object(routing, "main_root", return_value=self.integration),
+            patch.object(routing, "determine_claude_tier", return_value=detection_only),
+        ):
+            routing.prepare_claude_handoff(
+                self.task,
+                profile="standard",
+                rationale="Sol supervisor completed bounded current-spec preflight",
+                evidence=["openspec/changes/routing-change"],
+            )
+            execution = routing.record_claude_execution(self.task, agent_id="anything-made-up")
+            self.assertIsNone(execution["launched"])
+            self.assertEqual(execution["outcome"], "claimed")
+            self.assertEqual(execution["launch_evidence"], "self-reported")
+            self.assertNotIn("participant", execution)
+            self.assertEqual(execution["claimed_participant"]["model"]["source"], "self-reported")
+            self.assertFalse(routing._launch_confirmed(execution))
+            gate_route = routing.require_routing_gate(self.task, "owner/backlog#7", "routing-change")
+        self.assertEqual(gate_route.change, "routing-change")
+        self.assertEqual(routing._execution_outcome_label({"execution": execution}), "claimed")
+
+    def test_routing_gate_refuses_legacy_self_reported_claude_launch(self) -> None:
+        with patch.object(routing, "main_root", return_value=self.integration):
+            route = self.prepare(provider="claude", profile="standard")
+            legacy_execution = {
+                "launched": True,
+                "agent_id": "x",
+                "postcheck": {"containment": "clean", "pre_existing_changes": []},
+                "participant": {
+                    "role": "executor", "provider": "claude", "profile": "standard",
+                    "model": {"value": "sonnet", "source": "selected"},
+                    "reasoning_effort": {"value": None, "source": "unknown"},
+                    "execution_id": {"value": "x", "kind": "claude-agent-id"},
+                },
+            }
+            next_route = routing.Route(**{**routing.asdict(route), "execution": legacy_execution})
+            routing._write_route(self.record_path(), next_route)
+            routing._persist_completed_execution(next_route)
+            with self.assertRaisesRegex(routing.RoutingError, "cannot verify"):
+                routing.require_routing_gate(self.task, route.source_issue, route.change)
+
+    def test_routing_gate_refuses_claimed_claude_execution_with_dirty_postcheck(self) -> None:
+        with patch.object(routing, "main_root", return_value=self.integration):
+            route = self.prepare(provider="claude", profile="standard")
+            claimed_execution = {
+                "outcome": "claimed",
+                "launch_evidence": "self-reported",
+                "launched": None,
+                "claimed_agent_id": "agent-abc123",
+                "postcheck": {"containment": "violation", "pre_existing_changes": []},
+            }
+            next_route = routing.Route(**{**routing.asdict(route), "execution": claimed_execution})
+            routing._write_route(self.record_path(), next_route)
+            routing._persist_completed_execution(next_route)
+            with self.assertRaisesRegex(routing.RoutingError, "clean containment postcheck"):
+                routing.require_routing_gate(self.task, route.source_issue, route.change)
 
     def test_postcheck_reports_native_worktree_escape(self) -> None:
         route = self.prepare(provider="claude", profile="standard")
@@ -1381,6 +1459,25 @@ class RoutingCalibrationTests(unittest.TestCase):
         escalation = report["global"]["r2_to_r3_escalation"]
         self.assertEqual(escalation["recorded_reasons"], {})
         self.assertEqual(escalation["unknown_reason"], 1)
+
+    def test_self_reported_claude_records_are_not_launched_in_calibration(self) -> None:
+        codex_record = self.seed("codex-real", outcome="completed")
+        claude_claimed = self.seed("claude-claimed", provider="claude", launched=False, outcome=None)
+        claude_claimed["execution"] = {
+            "outcome": "claimed", "launch_evidence": "self-reported", "launched": None,
+            "claimed_agent_id": "agent-abc123",
+        }
+        claude_legacy = self.seed("claude-legacy", provider="claude", launched=False, outcome=None)
+        claude_legacy["execution"] = {"launched": True, "agent_id": "x"}
+        report = self.run_report([codex_record, claude_claimed, claude_legacy])
+        self.assertEqual(report["sample"]["launched_executions"], 1)
+        self.assertEqual(report["sample"]["planned_only_routes"], 2)
+        self.assertEqual(
+            routing._execution_outcome_label(claude_claimed), "claimed"
+        )
+        self.assertEqual(
+            routing._execution_outcome_label(claude_legacy), "claimed"
+        )
 
     def test_direct_r3_success_is_not_labelled_over_routed(self) -> None:
         record = self.seed("direct-r3", tier="R3", profile="complex", outcome="completed")
