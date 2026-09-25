@@ -157,6 +157,11 @@ def evidence_matches_checkout(
             source = active_prefix + path[len(archive_prefix):]
             old = run_git(["rev-parse", f"{validated_head}:{source}"], cwd=root, check=False)
             new = run_git(["rev-parse", f"{current_head}:{path}"], cwd=root, check=False)
+            if source == active_prefix + AUTOMATED_EVIDENCE_FILE and old.returncode and not new.returncode:
+                # The archive helper writes its check receipt after the
+                # validated commit; require_automated_evidence validates its
+                # contents separately before publication.
+                continue
             if old.returncode or new.returncode or old.stdout.strip() != new.stdout.strip():
                 return False
     return True
