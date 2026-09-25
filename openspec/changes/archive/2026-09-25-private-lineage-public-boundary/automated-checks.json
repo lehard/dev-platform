@@ -9,19 +9,19 @@
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
-      "duration_seconds": 0.128,
+      "duration_seconds": 0.515,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 -m ruff check scripts template/scripts tests",
-      "duration_seconds": 0.106,
+      "duration_seconds": 0.18,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
-      "duration_seconds": 292.931,
+      "duration_seconds": 305.911,
       "outcome": "success",
       "exit_code": 0
     }
@@ -34,7 +34,6 @@
         "dev-platform/checks.toml",
         "scripts/check_private_backlog_refs.py",
         "scripts/dogfood_task.py",
-        "scripts/migrate_private_lineage.py",
         "template/scripts/execute_requirement.py",
         "template/scripts/finish_task.py",
         "template/scripts/managed_project_status.py",
@@ -72,6 +71,6 @@
     "change": "private-lineage-public-boundary",
     "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/private-lineage-public-boundary",
     "branch": "agent/private-lineage-public-boundary",
-    "head": "b5c4ee8817957d3e31e6b6cb9e2daa72fc1fe42b"
+    "head": "994a2838b34598b6921d27a536551c3cdd493370"
   }
 }
