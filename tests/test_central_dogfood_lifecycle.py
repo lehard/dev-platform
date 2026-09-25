@@ -315,8 +315,10 @@ class CentralDogfoodLifecycleTests(unittest.TestCase):
                 self.route_payload(
                     provider="claude",
                     execution={
-                        "launched": True,
-                        "agent_id": "agent-abc123",
+                        "outcome": "claimed",
+                        "launch_evidence": "self-reported",
+                        "launched": None,
+                        "claimed_agent_id": "agent-abc123",
                         "tier": "detection-only",
                         "postcheck": {"containment": "clean", "pre_existing_changes": []},
                     },
@@ -332,7 +334,15 @@ class CentralDogfoodLifecycleTests(unittest.TestCase):
         record.parent.mkdir(parents=True)
         record.write_text(
             json.dumps(
-                self.route_payload(provider="claude", execution={"launched": True, "agent_id": "agent-abc123"})
+                self.route_payload(
+                    provider="claude",
+                    execution={
+                        "outcome": "claimed",
+                        "launch_evidence": "self-reported",
+                        "launched": None,
+                        "claimed_agent_id": "agent-abc123",
+                    },
+                )
             ),
             encoding="utf-8",
         )
