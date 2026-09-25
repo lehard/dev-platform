@@ -99,8 +99,24 @@ def evidence_matches_checkout(
     expected = identity.evidence_payload()
     if not isinstance(actual, dict):
         return False
-    if {key: value for key, value in actual.items() if key != "head"} != {
-        key: value for key, value in expected.items() if key != "head"
+    # New evidence is content-aware.  Keep exact SHA as provenance but accept
+    # it across only a mechanically equal task-content proof.  Legacy receipts
+    # retain the narrower archive-only transition below.
+    expected_content = expected.get("task_content")
+    actual_content = actual.get("task_content") if isinstance(actual, dict) else None
+    if isinstance(expected_content, dict) or isinstance(actual_content, dict):
+        from task_content_identity import equivalent_proofs
+        stable_expected = {key: value for key, value in expected.items() if key not in {"head", "task_content"}}
+        stable_actual = {key: value for key, value in actual.items() if key not in {"head", "task_content"}}
+        if (
+            stable_actual == stable_expected
+            and isinstance(expected_content, dict)
+            and isinstance(actual_content, dict)
+            and equivalent_proofs(root, actual_content, expected_content)
+        ):
+            return True
+    if {key: value for key, value in actual.items() if key not in {"head", "task_content"}} != {
+        key: value for key, value in expected.items() if key not in {"head", "task_content"}
     }:
         return False
     validated_head = actual.get("head")
@@ -125,10 +141,25 @@ def evidence_matches_checkout(
         for path in (change / "specs").glob("*/spec.md")
     }
     paths = [line for line in changed.stdout.splitlines() if line]
-    return bool(paths) and all(
+    allowed = bool(paths) and all(
         path.startswith(archive_prefix) or path.startswith(active_prefix) or path in materialized_specs
         for path in paths
     )
+    if not allowed:
+        return False
+    # A content-aware receipt can fall back only for the archive move. Every
+    # archived file must be byte-for-byte equal to its validated active copy.
+    if isinstance(actual_content, dict) or isinstance(expected_content, dict):
+        archived = [path for path in paths if path.startswith(archive_prefix)]
+        if not archived:
+            return False
+        for path in archived:
+            source = active_prefix + path[len(archive_prefix):]
+            old = run_git(["rev-parse", f"{validated_head}:{source}"], cwd=root, check=False)
+            new = run_git(["rev-parse", f"{current_head}:{path}"], cwd=root, check=False)
+            if old.returncode or new.returncode or old.stdout.strip() != new.stdout.strip():
+                return False
+    return True
 
 
 def require_automated_evidence(change: Path, *, root: Path | None = None) -> None:

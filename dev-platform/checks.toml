@@ -184,6 +184,7 @@ targets = [
   "test_shared_workspace",
   "test_task_freshness",
   "test_template_contract",
+  "test_task_content_identity",
   "test_module_isolation",
 ]
 mode = "parallel"
