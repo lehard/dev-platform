@@ -142,6 +142,7 @@ targets = [
   "test_requirement_integration",
   "test_requirement_child_context",
   "test_requirement_execution",
+  "test_requirement_flow_e2e",
   "test_requirement_board",
   "test_docs_semantic_checks",
 ]

@@ -108,8 +108,7 @@ When the user asks to execute a Business Requirement, the ordered flow is:
    returns `implement-child` when the current agent must perform routed code
    work and verification in that worktree; rerun the same command after the
    child archive is committed. This is an internal agent continuation, not a
-   user-facing stop or manual child list. When all ready receipts exist it
-   composes and publishes the shared candidate through the protected path.
+   user-facing stop or manual child list. With one child it uses ordinary managed publication and reconciles the parent after the exact child merge. With two or more ready children requiring joint delivery it composes and publishes a shared candidate through the protected path.
    A verified clean ready child releases only its own active board writer
    claim; its worktree, Issue and receipt remain for shared publication.
    Potential same-project duplicates require an explicit reviewed
@@ -123,9 +122,9 @@ The Requirement's primary Project card is a projection of the same evidence.
 Started pre-authoring, ready handoff and child execution display `In progress`;
 an unknown or blocked source displays `Blocked`. The richer read-through stage
 and its reason remain available through `requirement_intake.py aggregate`.
-Only the exact shared-candidate merged-PR reconciliation may set the parent
-card to `Done`, after it syncs main, verifies links and marks the children Done.
-Child `Done` statuses or ready receipts alone never complete the parent card.
+Only terminal reconciliation after exact merged delivery of every mandatory child may set the parent card to `Done` and close its Issue. The single-child path uses ordinary managed publication; joint delivery uses a shared candidate for two or more children. Child `Done` statuses or ready receipts alone never complete the parent card. Retry terminal reconciliation with `python3 scripts/requirement_terminal.py reconcile --requirement owner/repo#N` for previously delivered parents.
+
+Terminal single-child finish uses the ordinary exact worktree cleanup. A merged shared candidate records its exact worktree, branch and head for targeted cleanup; run the printed `scripts/worktree_cleanup.py cleanup` command from integration `main` after the publisher exits. The cleanup helper checks that the worktree is clean, inactive and still has the recorded identity.
 
 At child start or resume, the managed adapter derives an ignored, disposable
 `.claude/requirement-child-context/<change>.json` handoff from the exact imported

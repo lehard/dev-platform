@@ -92,9 +92,7 @@ When the user asks to execute a Business Requirement, the ordered flow is:
    This validates readiness, creates or exactly reuses one managed Issue, repairs
    an interrupted link on retry, and confirms both link directions before
    success. The authored bundle supplies proposal/design/spec semantics.
-6. Start and implement those internal managed tasks through the existing
-   lifecycle. OpenSpec becomes canonical only for each technical child after
-   that child is materialized.
+6. Run `python3 scripts/execute_requirement.py advance --requirement owner/repo#N` to start and resume the children. A direct handoff is executable as one child. One child uses its ordinary managed PR; two or more children use shared integration only for joint delivery. After exact delivery, terminal reconciliation marks the parent Done and closes it. Retry older delivered parents with `python3 scripts/requirement_terminal.py reconcile --requirement owner/repo#N`. OpenSpec becomes canonical for each child after materialization. Ordinary finish cleans a single child; merged shared integration records an exact worktree/branch/head target and prints the safe targeted cleanup command to run from integration `main` after the publisher exits.
 
 Requirement progress is read-through, never a second status ledger:
 `python3 scripts/requirement_intake.py aggregate --requirement owner/repo#N`

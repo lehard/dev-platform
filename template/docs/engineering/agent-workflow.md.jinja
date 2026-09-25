@@ -91,7 +91,17 @@ python3 scripts/start_managed_task.py owner/repo#M
 ~~~
 
 The child carries `type:internal-change`; the parent Requirement stays the
-human-facing object. Use
+human-facing object.
+A direct deterministic or bounded-evidence handoff is one executable child.
+One child finishes through its normal managed PR and exact merge; two or more
+children use shared integration only when joint delivery is required. After
+every mandatory child is delivered, terminal reconciliation marks the parent
+Project card `Done` and closes its Issue. The operation is idempotent for older
+delivered Requirements:
+`python3 scripts/requirement_terminal.py reconcile --requirement owner/repo#N`.
+No `Requirement-Integration-Exception` is required for an ordinary single child.
+
+Use
 `python3 scripts/requirement_intake.py aggregate --requirement owner/repo#N`
 for a read-through Requirement progress projection. The compatible `status`
 field remains child-only; `progress` adds a recomputable pre-authoring,
