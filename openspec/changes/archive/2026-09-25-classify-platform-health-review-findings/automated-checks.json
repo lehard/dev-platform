@@ -1,0 +1,98 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 1.34,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.942,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 259.25,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        ".github/workflows/architecture-health-review.lock.yml",
+        ".github/workflows/architecture-health-review.md",
+        ".github/workflows/weekly-process-backlog-review.lock.yml",
+        ".github/workflows/weekly-process-backlog-review.md",
+        "scripts/publish_platform_health_review_report.py",
+        "template/.github/workflows/weekly-process-backlog-review.md.jinja",
+        "tests/test_agentic_workflows.py",
+        "tests/test_capability_manager.py",
+        "tests/test_publish_platform_health_review_report.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_2f6c931f2e7d14e392d9a7ffd0de1f19",
+    "change": "classify-platform-health-review-findings",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/classify-platform-health-review-findings",
+    "branch": "agent/classify-platform-health-review-findings",
+    "head": "31dc94f345fa1e4b7e6bdd89a34fc70b83dfef23",
+    "task_content": {
+      "version": 1,
+      "digest": "dfbd1c32658effe5399d1f023f4c4b57a841a1b23be4a93ea6736da04f935159",
+      "paths": {
+        ".github/workflows/architecture-health-review.lock.yml": "fd67e079e48c3327aed9948aece52d2861185514",
+        ".github/workflows/architecture-health-review.md": "3f5fe2b38d2c1bca277827e5f23e53f48988d429",
+        ".github/workflows/weekly-process-backlog-review.lock.yml": "0118bd159f81b8fa4b08d93d9c2936222e713197",
+        ".github/workflows/weekly-process-backlog-review.md": "483238fab0f3f8b78a35e8474040877a96a7c1e6",
+        "dev-platform/capabilities/architecture-health-review.md": "6c390846beb795e5aec60999eb828f7e4a8ea4a2",
+        "dev-platform/capabilities/architecture-health-review.toml": "89fa89decf6c032635511671e5794424f9f325ca",
+        "dev-platform/evals/architecture-health-review-pilot.json": "3657d16a4f94cf3468161c6b88991588a8a77eba",
+        "docs/private-platform-health-review.md": "672f6c253192d114b3a038b0f6e2a31735076bc5",
+        "openspec/changes/classify-platform-health-review-findings/.managed-task.json": "71944bac48ea192a63843360807e3dcf763ca815",
+        "openspec/changes/classify-platform-health-review-findings/.openspec.yaml": "abd7c5ae1cae1c899841a849ec2ddffc4969a643",
+        "openspec/changes/classify-platform-health-review-findings/automated-checks.json": "00885c2fbdcc3ef3551d6b2a36edc75ed28a6db6",
+        "openspec/changes/classify-platform-health-review-findings/design.md": "9a13ca08c893a12ffc328408b9447ea1176a7ecd",
+        "openspec/changes/classify-platform-health-review-findings/proposal.md": "76387b06d67179445b046558a809bc48f300451a",
+        "openspec/changes/classify-platform-health-review-findings/specs/platform-health-review/spec.md": "244a91d04f00c5f39b05e4998046a918d1ea5112",
+        "openspec/changes/classify-platform-health-review-findings/tasks.md": "997b5e0279ac72da4133497c54fd697532aa5c90",
+        "openspec/changes/classify-platform-health-review-findings/verification.md": "95b9043636e84277eb1e98d78a392863723682e5",
+        "openspec/specs/platform-health-review/spec.md": "b994f696d8e885ff38279dea59d45dee3f7defe2",
+        "scripts/publish_platform_health_review_report.py": "1e20924a8522a8651d3eea4d69e11f6a137fe430",
+        "template/.github/workflows/weekly-process-backlog-review.md.jinja": "6d212fa05c7dc80c0c7fe49daf2da1a9434238b8",
+        "template/dev-platform/capabilities/architecture-health-review.md": "6c390846beb795e5aec60999eb828f7e4a8ea4a2",
+        "template/dev-platform/capabilities/architecture-health-review.toml": "89fa89decf6c032635511671e5794424f9f325ca",
+        "template/dev-platform/evals/architecture-health-review-pilot.json": "3657d16a4f94cf3468161c6b88991588a8a77eba",
+        "tests/test_agentic_workflows.py": "7270babfd9b32a73a51567ff78cc656d464846bf",
+        "tests/test_capability_manager.py": "8755032984ea7991996ea2f705d71e1481a8cb64",
+        "tests/test_publish_platform_health_review_report.py": "fafb4bf0ec0f46fee1484b5930b431dbaa02735b"
+      },
+      "base": "736e700f63fa8dceb744dca442cdd8acb4b7eea8"
+    }
+  }
+}

@@ -282,6 +282,9 @@ class CapabilityManagerTests(unittest.TestCase):
             "## Observations",
             "## Uncertainty and counter-evidence",
             "## Advisory improvements",
+            "evidence lens",
+            "Подтверждённый дефект",
+            "вероятно устранён",
             "at least two materially distinct options",
             "Do not modify repository files",
         ):

@@ -56,3 +56,18 @@ authentication, and process defects as ordinary process friction. Verify a
 likely-resolved/superseded classification against current repository evidence;
 never rely on stale issue prose alone. Do not create managed work, close,
 relabel, or comment on source issues, edit files, or implement a fix.
+
+For every stated finding or root-cause candidate, use exactly one primary
+Russian `category` — `Подтверждённый дефект`, `Риск надёжности`, `Возможность
+упрощения`, `Техническая гигиена`, or `Наблюдение` — plus Russian
+`confidence` (`высокая`, `средняя`, or `низкая`) and Russian `status` (`новый`,
+`сохраняется`, `уже в работе`, `вероятно устранён`, or `наблюдать`). Work-state
+groupings are context, not replacements for these fields. If relevant Backlog
+or recent merged-change evidence is unavailable or inconclusive, state that
+uncertainty and use `наблюдать`; do not call the candidate new work.
+
+Start the report with `## Краткие findings`, containing at most five one-line
+root-cause findings in the format `- <краткий заголовок> | категория: <value> |
+уверенность: <value> | статус: <value> | источник: <Issue, PR or path>`, or
+`- Нет findings.` when there are none. Write report prose in Russian and keep
+the full report below 500 words.

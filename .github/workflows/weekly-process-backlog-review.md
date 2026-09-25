@@ -88,15 +88,29 @@ and issue text are historical evidence, not proof that a problem still exists.
 For any likely-resolved or superseded candidate, inspect current default-branch
 repository evidence before recommending another fix.
 
-Keep the report below 500 words and include only these sections:
+Write report prose in Russian, keep it below 500 words, and include only these sections:
 
 - Review context (`reviewed_at`, exact `main` SHA, previous-review boundary)
+- Краткие findings (at most five one-line root-cause findings, or `- Нет findings.`)
 - Root-cause candidates (up to 5, each with contributing issue numbers and a classification)
 - Active unmanaged evidence (up to 5)
 - Managed evidence (up to 5)
 - Likely resolved/superseded after current-state check (up to 5)
 - Needs more evidence or ready for human decision (up to 5)
 - One explicit human next step
+
+For every stated finding or root-cause candidate, use exactly one primary
+Russian `category` — `Подтверждённый дефект`, `Риск надёжности`, `Возможность
+упрощения`, `Техническая гигиена`, or `Наблюдение` — plus Russian
+`confidence` (`высокая`, `средняя`, or `низкая`) and Russian `status` (`новый`,
+`сохраняется`, `уже в работе`, `вероятно устранён`, or `наблюдать`). The
+unmanaged/managed/resolved/needs-evidence work-state grouping remains context;
+it does not replace these fields. When Backlog or merged-change evidence is
+unavailable or inconclusive, state that uncertainty and use `наблюдать`; do
+not present the candidate as new work. In `## Краткие findings`, use the exact
+one-line format `- <краткий заголовок> | категория: <value> | уверенность:
+<value> | статус: <value> | источник: <Issue, PR or path>`. Copy the same
+classification into the detailed finding where it appears below.
 
 Classify every open source issue once as unmanaged, managed, likely
 resolved/superseded, needs more evidence, or ready for human decision. Cluster
