@@ -1,0 +1,93 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 1.431,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.253,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 375.606,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "template/scripts/agent_friction.py",
+        "template/scripts/finish_task.py",
+        "template/scripts/managed_task.py",
+        "template/scripts/openspec_lifecycle.py",
+        "template/scripts/task_content_identity.py",
+        "tests/test_friction_review.py",
+        "tests/test_git_lifecycle.py",
+        "tests/test_openspec_lifecycle.py",
+        "tests/test_task_content_identity.py",
+        "tests/test_template_contract.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_71c5ec9b2b46b7454512edb31dbfca40",
+    "change": "stabilize-content-aware-completion-resume",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/stabilize-content-aware-completion-resume",
+    "branch": "agent/stabilize-content-aware-completion-resume",
+    "head": "71edae33cc9458bb5ca62d646d41e1c2ecb58bc5",
+    "task_content": {
+      "version": 1,
+      "digest": "c664c5e8ef59e06b3e3f3ba9f1458b49edb804d72302da214d1b07bdbbeb0aa6",
+      "paths": {
+        "dev-platform/checks.toml": "74a3e5c73bd25b7395500cf44629a7d7e7b9429a",
+        "openspec/changes/stabilize-content-aware-completion-resume/.managed-task.json": "296c1fabbbb0fdebf04092cf6f9730b53301c9ca",
+        "openspec/changes/stabilize-content-aware-completion-resume/.openspec.yaml": "abd7c5ae1cae1c899841a849ec2ddffc4969a643",
+        "openspec/changes/stabilize-content-aware-completion-resume/design.md": "f62540dd86a78090be471fb86b0cf7bedd979b1b",
+        "openspec/changes/stabilize-content-aware-completion-resume/proposal.md": "cf9e419bdd07beba415be4b64c23942bef38be1a",
+        "openspec/changes/stabilize-content-aware-completion-resume/specs/completion-lifecycle/spec.md": "4c3dd1a3dbe3d29d46bb08fe4fca3ed9e6afe9e5",
+        "openspec/changes/stabilize-content-aware-completion-resume/tasks.md": "08a8e8a4363a9b02a85229f8dea0a2c581c8820a",
+        "openspec/changes/stabilize-content-aware-completion-resume/verification.md": "464fcdd80a9917e3842890d98d14d3a273ff0245",
+        "template/scripts/agent_friction.py": "844d6ab30ff83880664bbe21316d20db9220e4f3",
+        "template/scripts/finish_task.py": "f48fa0529dcc3e26d9c29ebe7aee4604d799b16a",
+        "template/scripts/managed_task.py": "aa13d160b6db5c390fb6c7213a4b59c81e741dde",
+        "template/scripts/openspec_lifecycle.py": "50f4f03fa82de14e41f950cf4adbd25266cb8d9b",
+        "template/scripts/task_content_identity.py": "2864fc058b88be6bc2142e7b74051b202ede104a",
+        "tests/test_friction_review.py": "0be6c9ae9c8b4068ed275436750b035833aef643",
+        "tests/test_git_lifecycle.py": "7bd27082ff15295f4cbad90a1d12458a3fca696c",
+        "tests/test_openspec_lifecycle.py": "07baeae5826168cb3e42e7d9c2ff60db690aeaf4",
+        "tests/test_task_content_identity.py": "74ff1f1a2579bf4228eee5c3740fa35f7d484f95",
+        "tests/test_template_contract.py": "02fe2300cde4f550cd5a7be6f39ae5bdc3550651"
+      },
+      "base": "28f988a95483d2c546d00352cca7b8fc28d39a19"
+    }
+  }
+}
