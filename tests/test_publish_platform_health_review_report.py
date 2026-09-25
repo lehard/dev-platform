@@ -15,12 +15,14 @@ import publish_platform_health_review_report as report  # noqa: E402
 class FakeGh:
     """Records calls instead of shelling out to a real `gh` binary."""
 
-    def __init__(self, *, open_reports: list[dict] | None = None, created_number: int = 42) -> None:
+    def __init__(self, *, open_reports: list[dict] | None = None, created_number: int = 42,
+                 issue_bodies: dict[int, str] | None = None) -> None:
         self.open_reports = open_reports or []
         self.created_number = created_number
         self.label_ensured = False
         self.created: dict | None = None
         self.closed: list[int] = []
+        self.issue_bodies = issue_bodies or {}
 
     def ensure_label(self) -> None:
         self.label_ensured = True
@@ -38,6 +40,9 @@ class FakeGh:
     def close_issue(self, number: int) -> None:
         self.closed.append(number)
 
+    def issue_body(self, number: int) -> str:
+        return self.issue_bodies.get(number, "## Краткие findings\n\n- Нет findings.\n")
+
 
 def _outcome(name: str, result: str = "success", number: str = "7", url: str = "https://x/7") -> report.ReviewOutcome:
     return report._outcome(name, result, number, url)
@@ -46,36 +51,48 @@ def _outcome(name: str, result: str = "success", number: str = "7", url: str = "
 class RenderSectionTests(unittest.TestCase):
     def test_success_with_issue_links_to_it(self) -> None:
         text = report.render_section(_outcome("Process Health Review"))
-        self.assertIn("ran.", text)
+        self.assertIn("выполнен.", text)
         self.assertIn("#7", text)
         self.assertIn("https://x/7", text)
 
     def test_success_without_issue_notes_no_report(self) -> None:
         outcome = report._outcome("Process Health Review", "success", "", "")
         text = report.render_section(outcome)
-        self.assertIn("ran but did not produce a report issue", text)
+        self.assertIn("выполнен без Issue отчёта", text)
 
     def test_skipped_states_did_not_run(self) -> None:
         outcome = report._outcome("Architecture Health Review", "skipped", "", "")
         text = report.render_section(outcome)
-        self.assertIn("did not run", text)
+        self.assertIn("не запускался", text)
 
     def test_failure_states_did_not_complete(self) -> None:
         outcome = report._outcome("Architecture Health Review", "failure", "", "")
         text = report.render_section(outcome)
-        self.assertIn("did not complete", text)
+        self.assertIn("не завершился", text)
         self.assertIn("failure", text)
 
     def test_cancelled_states_did_not_complete(self) -> None:
         outcome = report._outcome("Architecture Health Review", "cancelled", "", "")
         text = report.render_section(outcome)
-        self.assertIn("did not complete", text)
+        self.assertIn("не завершился", text)
 
     def test_unrecognized_result_is_stated_explicitly(self) -> None:
         outcome = report._outcome("Architecture Health Review", "neutral", "", "")
         text = report.render_section(outcome)
-        self.assertIn("unrecognized job result", text)
+        self.assertIn("неизвестный результат job", text)
         self.assertIn("neutral", text)
+
+
+class ExtractFindingsTests(unittest.TestCase):
+    def test_accepts_only_bounded_classified_lines(self) -> None:
+        line = "- Повторный сбой | категория: Подтверждённый дефект | уверенность: высокая | статус: уже в работе | источник: backlog#225"
+        body = "# Отчёт\n\n## Краткие findings\n\n" + line + "\n\n## Подробности\n\nignored"
+        self.assertEqual(report.extract_findings(body), [line])
+
+    def test_missing_or_invalid_summary_is_unavailable_not_empty(self) -> None:
+        self.assertIsNone(report.extract_findings("## Observations\n\n- item"))
+        self.assertIsNone(report.extract_findings("## Краткие findings\n\n- item | категория: Ошибка | уверенность: высокая | статус: новый | источник: #1"))
+        self.assertEqual(report.extract_findings("## Краткие findings\n\n- Нет findings.\n"), [])
 
 
 class ExtractReviewedAtTests(unittest.TestCase):
@@ -141,13 +158,32 @@ class RenderBodyTests(unittest.TestCase):
         self.assertIn("previous_review_boundary: 2026-09-15T06:00:00Z", body)
         self.assertIn("audit_status: complete", body)
         self.assertIn("private_evidence: available", body)
-        self.assertIn("## Process Health Review", body)
+        self.assertIn("## Процессы", body)
         self.assertIn("process section text", body)
-        self.assertIn("## Architecture Health Review", body)
+        self.assertIn("## Архитектура", body)
         self.assertIn("architecture section text", body)
 
 
 class PublishTests(unittest.TestCase):
+    def test_combined_report_embeds_classified_findings_from_private_sources(self) -> None:
+        line = "- Неустойчивый запуск | категория: Риск надёжности | уверенность: средняя | статус: сохраняется | источник: PR#10"
+        gh = FakeGh(issue_bodies={7: "## Краткие findings\n\n" + line + "\n"})
+        report.publish(
+            reviewed_at="2026-09-22T06:00:00Z", main_sha="abc123",
+            process=_outcome("Process Health Review"), architecture=_outcome("Architecture Health Review"), gh=gh,
+        )
+        self.assertIn(line, gh.created["body"])
+        self.assertIn("audit_status: complete", gh.created["body"])
+
+    def test_malformed_source_excerpt_degrades_without_losing_report(self) -> None:
+        gh = FakeGh(issue_bodies={7: "## Краткие findings\n\n- unclassified\n"})
+        report.publish(
+            reviewed_at="2026-09-22T06:00:00Z", main_sha="abc123",
+            process=_outcome("Process Health Review"), architecture=_outcome("Architecture Health Review"), gh=gh,
+        )
+        self.assertIn("audit_status: degraded", gh.created["body"])
+        self.assertIn("Краткие findings недоступны", gh.created["body"])
+
     def test_normal_run_creates_one_issue_and_closes_nothing_when_no_prior_report(self) -> None:
         gh = FakeGh(open_reports=[], created_number=101)
         result = report.publish(
@@ -205,7 +241,7 @@ class PublishTests(unittest.TestCase):
             architecture=architecture_missing,
             gh=gh,
         )
-        self.assertIn("did not complete", gh.created["body"])
+        self.assertIn("не завершился", gh.created["body"])
         self.assertIn("Architecture Health Review", gh.created["body"])
         self.assertIn("audit_status: degraded", gh.created["body"])
         self.assertIsNotNone(result["number"])

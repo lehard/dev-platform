@@ -10,6 +10,8 @@ inlined-imports: true
 
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
 
 engine: codex
 network: defaults
@@ -29,8 +31,12 @@ jobs:
           client-id: ${{ vars.DEV_PLATFORM_APP_CLIENT_ID }}
           private-key: ${{ secrets.DEV_PLATFORM_APP_PRIVATE_KEY }}
           owner: lehard
-          repositories: dev-platform
+          repositories: |
+            dev-platform
+            ${{ github.event.repository.name }}
           permission-contents: read
+          permission-issues: read
+          permission-pull-requests: read
 
 # gh-aw v0.88.8's safe-output backend mounts only these compiler-owned paths.
 # Declare the smallest explicit launcher allowlist required by the safe-output
@@ -38,9 +44,9 @@ jobs:
 tools:
   bash: ["*"]
   github:
-    toolsets: [repos]
+    toolsets: [issues, pull_requests, repos]
     min-integrity: none
-    allowed-repos: [lehard/dev-platform]
+    allowed-repos: [lehard/dev-platform, "${{ github.repository }}"]
     github-token: ${{ steps.private_read_token.outputs.token }}
 
 safe-outputs:
@@ -91,12 +97,22 @@ Read the exact `lehard/dev-platform` default-branch commit SHA with the GitHub
 read tool and record it as the reviewed revision. The caller's workflow commit
 belongs to private `development-backlog` and is not the reviewed platform SHA.
 
+Before describing any advisory improvement as new, inspect the relevant private
+Backlog issues and recent merged changes in `lehard/dev-platform`. Cite that
+private evidence only in this private report. If a candidate is active, already
+known, or likely resolved, give it the applicable status below and do not
+recommend duplicate new work. If that evidence is unavailable or inconclusive,
+state the limitation and use `наблюдать`; it cannot justify calling the
+candidate new.
+
 ## Output
 
 Produce exactly one bounded report using the Markdown shape from
 `dev-platform/capabilities/architecture-health-review.md`'s "Bounded report"
 section, through the declared `create-issue` safe output, titled with the
-current UTC date. Keep the report at or below 500 words. Do not create more
+current UTC date. Include `## Краткие findings` with at most five one-line
+entries in the capability's exact field order, or `- Нет findings.`. Keep the
+report prose in Russian and keep it at or below 500 words. Do not create more
 than the one declared issue, and do not edit, close, relabel, comment on, or
 otherwise mutate any other repository or issue content.
 

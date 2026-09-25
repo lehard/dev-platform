@@ -32,15 +32,21 @@ Write a Markdown report outside application code (or return it directly) with th
 - reviewed scope: <paths, question, and exclusions>
 - evidence gathered: <commands, documents, tests, and history consulted>
 
+## Краткие findings
+
+- <краткий заголовок> | категория: <Подтверждённый дефект | Риск надёжности | Возможность упрощения | Техническая гигиена | Наблюдение> | уверенность: <высокая | средняя | низкая> | статус: <новый | сохраняется | уже в работе | вероятно устранён | наблюдать> | источник: <путь, Issue или PR>
+
 ## Observations
 
 ### AH-001 — <short evidence-backed title>
 
-- category: <depth | locality | coupling | boundary leakage | seam | repeated abstraction>
+- evidence lens: <depth | locality | coupling | boundary leakage | seam | repeated abstraction>
+- category: <Подтверждённый дефект | Риск надёжности | Возможность упрощения | Техническая гигиена | Наблюдение>
 - locations: `<path>:<symbol-or-line>`
 - observation: <what the current structure demonstrates>
 - evidence: <callers, tests, history, or documented decision>
-- confidence: <high | medium | low>
+- confidence: <высокая | средняя | низкая>
+- status: <новый | сохраняется | уже в работе | вероятно устранён | наблюдать>
 
 ## Uncertainty and counter-evidence
 
@@ -61,6 +67,16 @@ No code, Issue, Backlog item, or managed task was created by this review. A huma
 ```
 
 Observations, evidence, uncertainty, and advisory improvements are separate sections. Include at least one healthy control or counter-example when a heuristic could otherwise over-report a smell. Do not manufacture a finding when the evidence is insufficient.
+
+Each observation has exactly one primary Russian category, confidence, and
+status from the values above. The evidence lens is structural context, not a
+replacement for the primary category. Before calling an advisory improvement
+new, inspect relevant existing Backlog work and recent merged changes. If
+current state is unavailable or inconclusive, state that uncertainty and use
+`наблюдать`; do not call the candidate new. The review remains advisory and
+read-only. The `Краткие findings` section has at most five one-line entries in
+the exact shown field order, repeating only the most relevant observations;
+write `- Нет findings.` when there are none.
 
 ## Selective alternative-design analysis
 

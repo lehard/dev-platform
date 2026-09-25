@@ -8,9 +8,10 @@ with `if: always()` after both review jobs, so it still records the gap when
 one review job failed or was skipped.
 
 It does not re-run, re-evaluate, or change either review's own findings. It
-only reads each review's already-published `create-issue` safe-output result
+reads each review's already-published `create-issue` safe-output result
 (job `result` plus `created_issue_number`/`created_issue_url` outputs exposed
-by each review's compiled `workflow_call` lock file) and composes exactly one
+by each review's compiled `workflow_call` lock file), fetches a bounded
+classified excerpt from the resulting private Issues, and composes exactly one
 dated, human-readable combined report Issue, reusing the same
 title-prefix + close-older-issues replace-not-accumulate shape already
 accepted for each individual review's own report. Because this step is plain
@@ -36,6 +37,11 @@ REPORT_LABEL_DESCRIPTION = "Combined Platform Health Review report (process + ar
 
 _REVIEWED_AT_RE = re.compile(r"^- reviewed_at:\s*(\S+)\s*$", re.MULTILINE)
 _DATE_ONLY_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})")
+FINDINGS_HEADING = "## Краткие findings"
+FINDING_CATEGORIES = frozenset({"Подтверждённый дефект", "Риск надёжности", "Возможность упрощения", "Техническая гигиена", "Наблюдение"})
+FINDING_CONFIDENCE = frozenset({"высокая", "средняя", "низкая"})
+FINDING_STATUSES = frozenset({"новый", "сохраняется", "уже в работе", "вероятно устранён", "наблюдать"})
+MAX_EXCERPT_FINDINGS = 5
 
 
 class PlatformHealthReportError(RuntimeError):
@@ -139,6 +145,10 @@ class GhClient:
             ]
         )
 
+    def issue_body(self, number: int) -> str:
+        data = json.loads(self._run(["api", f"repos/{self.repo}/issues/{number}", "--method", "GET"]))
+        return str(data.get("body") or "")
+
 
 def _split_json_arrays(stdout: str) -> list[str]:
     """Split `gh api --paginate` stdout into one string per JSON array page."""
@@ -160,20 +170,55 @@ def _split_json_arrays(stdout: str) -> list[str]:
     return chunks
 
 
-def render_section(outcome: ReviewOutcome) -> str:
+def extract_findings(body: str) -> list[str] | None:
+    """Read only the bounded, classified summary lines from one private report."""
+    lines = body.splitlines()
+    headings = [index for index, line in enumerate(lines) if line.strip() == FINDINGS_HEADING]
+    if len(headings) != 1:
+        return None
+    start = headings[0] + 1
+    end = next((index for index in range(start, len(lines)) if lines[index].startswith("## ")), len(lines))
+    entries = [line.strip() for line in lines[start:end] if line.strip()]
+    if entries == ["- Нет findings."]:
+        return []
+    if not 1 <= len(entries) <= MAX_EXCERPT_FINDINGS:
+        return None
+    for entry in entries:
+        if len(entry) > 300 or not entry.startswith("- "):
+            return None
+        fields = entry[2:].split(" | ")
+        if len(fields) != 5 or not 1 <= len(fields[0]) <= 100:
+            return None
+        values = []
+        for field, prefix in zip(fields[1:], ("категория: ", "уверенность: ", "статус: ", "источник: ")):
+            if not field.startswith(prefix):
+                return None
+            values.append(field[len(prefix):])
+        if (values[0] not in FINDING_CATEGORIES or values[1] not in FINDING_CONFIDENCE
+                or values[2] not in FINDING_STATUSES or not 1 <= len(values[3]) <= 120):
+            return None
+    return entries
+
+
+def render_section(outcome: ReviewOutcome, findings: list[str] | None = None) -> str:
     if outcome.result == "success":
         if outcome.issue_number:
             url_suffix = f" ({outcome.issue_url})" if outcome.issue_url else ""
-            return f"**{outcome.name}: ran.** See #{outcome.issue_number}{url_suffix} for the full report."
+            link = f"**{outcome.name}: выполнен.** Полный отчёт: #{outcome.issue_number}{url_suffix}."
+            if findings is None:
+                return link + "\n\nКраткие findings недоступны или имеют неверный формат."
+            if not findings:
+                return link + "\n\nНет findings."
+            return link + "\n\n" + "\n".join(findings)
         return (
-            f"**{outcome.name}: ran but did not produce a report issue** for this run "
-            "(no findings issue was created by its safe output)."
+            f"**{outcome.name}: выполнен без Issue отчёта** "
+            "(safe output не создал Issue с findings)."
         )
     if outcome.result == "skipped":
-        return f"**{outcome.name}: did not run** for this trigger (job skipped)."
+        return f"**{outcome.name}: не запускался** (job skipped)."
     if outcome.result in ("failure", "cancelled"):
-        return f"**{outcome.name}: did not complete** for this run (result: {outcome.result}); no report was produced."
-    return f"**{outcome.name}: reported an unrecognized job result** ({outcome.result!r}); no report was produced."
+        return f"**{outcome.name}: не завершился** (result: {outcome.result}); отчёт отсутствует."
+    return f"**{outcome.name}: неизвестный результат job** ({outcome.result!r}); отчёт отсутствует."
 
 
 def extract_reviewed_at(body: str) -> str | None:
@@ -211,29 +256,28 @@ def render_body(
     architecture_result: str,
     process_section: str,
     architecture_section: str,
+    excerpts_available: bool = True,
 ) -> str:
     evidence_lines = [f"- private_evidence: {evidence_status}"]
     if unavailable_evidence:
         evidence_lines.append(f"- unavailable_evidence: {unavailable_evidence}")
-    audit_status = "complete" if evidence_status == "available" and process_result == "success" and architecture_result == "success" else "degraded"
+    audit_status = "complete" if evidence_status == "available" and process_result == "success" and architecture_result == "success" and excerpts_available else "degraded"
     return (
-        "# Platform Health Review\n\n"
+        "# Обзор здоровья платформы\n\n"
         f"- reviewed_at: {reviewed_at}\n"
         f"- main_sha: {main_sha}\n"
         f"- previous_review_boundary: {boundary}\n"
         f"- audit_status: {audit_status}\n"
         + "\n".join(evidence_lines)
         + "\n\n"
-        "## Process Health Review\n\n"
+        "## Процессы\n\n"
         f"{process_section}\n\n"
-        "## Architecture Health Review\n\n"
+        "## Архитектура\n\n"
         f"{architecture_section}\n\n"
         "---\n"
-        "This is an aggregated, advisory report generated by "
-        "`scripts/publish_platform_health_review_report.py`. It performs no "
-        "source-issue mutation beyond linking to each review's own report and "
-        "closing the prior combined report under this same title prefix. It "
-        "does not change what either review evaluates.\n"
+        "Это advisory отчёт `scripts/publish_platform_health_review_report.py`. "
+        "Он ссылается на исходные отчёты и закрывает только предыдущий combined "
+        "Issue с тем же префиксом; исходные findings и задачи не меняет.\n"
     )
 
 
@@ -270,6 +314,15 @@ def publish(
     gh.ensure_label()
     prior_reports = gh.list_open_reports()
     boundary = previous_boundary(prior_reports)
+    excerpts: list[list[str] | None] = []
+    for outcome in (process, architecture):
+        findings = None
+        if outcome.result == "success" and outcome.issue_number and outcome.issue_number.isdecimal():
+            try:
+                findings = extract_findings(gh.issue_body(int(outcome.issue_number)))
+            except (PlatformHealthReportError, ValueError, json.JSONDecodeError):
+                pass
+        excerpts.append(findings)
     body = render_body(
         reviewed_at=reviewed_at,
         main_sha=main_sha,
@@ -278,8 +331,9 @@ def publish(
         unavailable_evidence=unavailable_evidence,
         process_result=process.result,
         architecture_result=architecture.result,
-        process_section=render_section(process),
-        architecture_section=render_section(architecture),
+        process_section=render_section(process, excerpts[0]),
+        architecture_section=render_section(architecture, excerpts[1]),
+        excerpts_available=all(excerpt is not None for excerpt in excerpts),
     )
     title = report_title(reviewed_at)
     created = gh.create_report_issue(title, body)
