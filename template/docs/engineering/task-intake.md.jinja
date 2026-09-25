@@ -23,6 +23,12 @@ creating a separate task format.
   creates or updates a human-facing Business Requirement and stops. Fixation
   does **not** author OpenSpec, perform technical decomposition, start
   pre-authoring, start implementation, or change lifecycle status.
+  `requirement_intake.py create` applies the checkout's configured
+  `[development_backlog]` project label and the explicit or default priority
+  to the Requirement, fails closed before creating anything when that routing
+  cannot be resolved (mismatched Backlog repository, a target repository not
+  configured in this checkout, or an unavailable label), and verifies both
+  labels by reading the Issue back before reporting success.
 - **Quick execution**: a small, clear, bounded change may use normal task
   execution without a Requirement, Backlog Issue, or ceremonial OpenSpec
   change.

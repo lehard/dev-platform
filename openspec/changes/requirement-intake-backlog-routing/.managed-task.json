@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/agent-workflow/spec.md",
+    "specs/managed-task-intake/spec.md"
+  ],
+  "change": "requirement-intake-backlog-routing",
+  "imported_at": "2026-09-25T11:11:28+00:00",
+  "package_revision": "d0008ccdc5f3649487e3056abf7057b782dc8f540ce2a454aa142ee982dfd90f",
+  "prepared_against": "28f988a95483d2c546d00352cca7b8fc28d39a19",
+  "private_lineage_handle": "pln_abd5c9b4e84befd6154641cd41b74654",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "bec351348b0de5c03939524c2c616ec783de00a7195ffa7ef0d158d79ffd7080",
+    "updated_at": "2026-09-25T11:04:55Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
