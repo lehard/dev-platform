@@ -34,3 +34,7 @@ Requirement-Integration-Exception: This private Requirement has exactly one tech
 - **Coherence:** The proposal, design, specification deltas and implementation agree on current-tree cleanup and prevention of supported new leaks. No claim is made that historical Git commits or three unavailable old logs are clean.
 
 The automated-checks marker names evidence the archive helper will generate; it does not assert that this file existed before archive.
+
+## Post-archive CI correction
+
+The first protected PR check found an owner/project reference in the current public snapshot. The workflow now reads the private Backlog repository from an Actions variable, the one-time migration program was removed after use, and guard tests use a fictional repository. The repository variable was set before retrying publication. `python3 tests/public_distribution_snapshot_smoke.py` then passed on a freshly extracted snapshot, including all 13 test groups and 1317 discovered tests plus OpenSpec lifecycle hygiene. The original automated archive receipt remains an accurate record of the earlier archived candidate; this section records the subsequent correction separately.

@@ -20,36 +20,36 @@ SPEC.loader.exec_module(guard)
 class PrivateBacklogGuardTests(unittest.TestCase):
     def test_explicit_repository_runs_without_local_source_contract(self) -> None:
         with tempfile.TemporaryDirectory() as directory, mock.patch(
-            "sys.argv", ["guard", "--root", directory, "--repository", "lehard/development-backlog"]
+            "sys.argv", ["guard", "--root", directory, "--repository", "example/internal-tasks"]
         ), mock.patch.object(guard, "violations", return_value=[]) as files, mock.patch.object(
             guard, "publication_text_violation", return_value=False
         ):
             with redirect_stdout(StringIO()):
                 self.assertEqual(guard.main(), 0)
-            self.assertEqual(files.call_args.args[1], "lehard/development-backlog")
+            self.assertEqual(files.call_args.args[1], "example/internal-tasks")
 
     def test_scans_tracked_and_untracked_files_without_reporting_private_content(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             subprocess.run(["git", "init", "-q", str(root)], check=True)
-            (root / "safe.txt").write_text("https://github.com/acme/development-backlog/issues/42\n", encoding="utf-8")
+            (root / "safe.txt").write_text("https://github.com/acme/internal-tasks/issues/42\n", encoding="utf-8")
             subprocess.run(["git", "add", "safe.txt"], cwd=root, check=True)
-            self.assertEqual(guard.violations(root, "lehard/development-backlog"), [])
+            self.assertEqual(guard.violations(root, "example/internal-tasks"), [])
 
-            secret = "https://github.com/lehard/development-backlog/issues/" + "216"
+            secret = "https://github.com/example/internal-tasks/issues/" + "216"
             (root / "untracked.txt").write_text(secret, encoding="utf-8")
-            self.assertEqual(len(guard.violations(root, "lehard/development-backlog")), 1)
-            self.assertNotIn("216", str(guard.violations(root, "lehard/development-backlog")))
+            self.assertEqual(len(guard.violations(root, "example/internal-tasks")), 1)
+            self.assertNotIn("216", str(guard.violations(root, "example/internal-tasks")))
 
     def test_detects_short_reference_and_issue_number_in_path(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             subprocess.run(["git", "init", "-q", str(root)], check=True)
-            (root / "note.txt").write_text("lehard/development-backlog" + "#217", encoding="utf-8")
-            (root / "development-backlog").mkdir()
-            (root / "development-backlog" / "issues").mkdir()
-            (root / "development-backlog" / "issues" / "218").write_text("safe text", encoding="utf-8")
-            self.assertEqual(len(guard.violations(root, "lehard/development-backlog")), 2)
+            (root / "note.txt").write_text("example/internal-tasks" + "#217", encoding="utf-8")
+            (root / "internal-tasks").mkdir()
+            (root / "internal-tasks" / "issues").mkdir()
+            (root / "internal-tasks" / "issues" / "218").write_text("safe text", encoding="utf-8")
+            self.assertEqual(len(guard.violations(root, "example/internal-tasks")), 2)
 
 
 if __name__ == "__main__":
