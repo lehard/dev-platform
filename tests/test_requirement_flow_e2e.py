@@ -28,6 +28,7 @@ class RequirementFlowEndToEndTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp = init_repo()
         self.root = Path(self.temp.name)
+        subprocess.run(["git", "branch", "-M", "main"], cwd=self.root, check=True, capture_output=True)
         self.base = self.root / ".claude/pre-authoring"
         self.requirement = self.root / "requirement.json"
         self.requirement.write_text('{"outcome":"Change billing"}\n', encoding="utf-8")
