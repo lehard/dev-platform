@@ -1,33 +1,50 @@
 {
-  "version": 2,
-  "selection": {
-    "state": "ready",
-    "command_count": 3,
-    "check_count": 1
-  },
-  "outcome": "success",
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
       "duration_seconds": 2.887,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     },
     {
       "command": "python3 -m ruff check scripts template/scripts tests",
       "duration_seconds": 0.745,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
       "duration_seconds": 417.235,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     }
   ],
+  "identity_redaction": {
+    "after_original_verification": true,
+    "method": "private-lineage-current-tree-migration",
+    "original_sha256": "837e8317e4cb73e7208b9ffebdb85af7e34bb067aa116d9281eab1498e620abb",
+    "version": 1
+  },
+  "managed_checkout": {
+    "branch": "agent/identify-merge-candidate-by-source",
+    "change": "identify-merge-candidate-by-source",
+    "head": "7a610b32c7f5b5242f34411172c66d62cb5152b3",
+    "private_lineage_handle": "pln_bf054c3617f31db8187e510072689123",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/identify-merge-candidate-by-source"
+  },
+  "outcome": "success",
   "selected_checks": [
     {
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
       "id": "full-trigger",
       "paths": [
         "dev-platform/checks.toml",
@@ -51,27 +68,16 @@
         "tests/test_requirement_intake.py",
         "tests/test_requirement_integration.py"
       ],
-      "commands": [
-        "python3 -m compileall -q template/scripts scripts",
-        "python3 -m ruff check scripts template/scripts tests",
-        "python3 scripts/run_test_groups.py --all"
-      ],
-      "selection_reason": "high-impact-path",
-      "evidence_types": [
-        "syntax",
-        "syntax",
-        "test"
-      ],
       "required_evidence_types": [
         "test"
-      ]
+      ],
+      "selection_reason": "high-impact-path"
     }
   ],
-  "managed_checkout": {
-    "source_issue": "lehard/development-backlog#211",
-    "change": "identify-merge-candidate-by-source",
-    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/identify-merge-candidate-by-source",
-    "branch": "agent/identify-merge-candidate-by-source",
-    "head": "7a610b32c7f5b5242f34411172c66d62cb5152b3"
-  }
+  "selection": {
+    "check_count": 1,
+    "command_count": 3,
+    "state": "ready"
+  },
+  "version": 2
 }

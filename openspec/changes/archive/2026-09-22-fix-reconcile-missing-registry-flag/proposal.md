@@ -15,4 +15,6 @@ A real `Roll Out Platform` dispatch for a managed project reaches and passes the
 
 ## Dependencies
 
-None. This is a narrower continuation of `isolate-operator-registry` (lehard/development-backlog#145), which threaded the operator registry into `managed_projects.py` calls but did not cover `rollout_supersession.py reconcile`'s separate, job-scoped requirement.
+None. This is a narrower continuation of `isolate-operator-registry` (the private Backlog task), which threaded the operator registry into `managed_projects.py` calls but did not cover `rollout_supersession.py reconcile`'s separate, job-scoped requirement.
+
+Identity-Redaction: Direct private Backlog identifiers were removed from this current-tree archive after the original review.

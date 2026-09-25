@@ -1,48 +1,54 @@
 {
-  "version": 2,
-  "selection": {
-    "state": "ready",
-    "command_count": 2,
-    "check_count": 1
-  },
-  "outcome": "success",
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
       "duration_seconds": 0.088,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
       "duration_seconds": 161.871,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     }
   ],
+  "identity_redaction": {
+    "after_original_verification": true,
+    "method": "private-lineage-current-tree-migration",
+    "original_sha256": "a5d167221b2a1ef175b10ca2a228e4db347b7cc6388a9b170f755a202caff635",
+    "version": 1
+  },
+  "managed_checkout": {
+    "branch": "agent/add-platform-health-review-notifications",
+    "change": "add-platform-health-review-notifications",
+    "head": "a48a1c3d5a4ee60935459cec8799528c5f73bf80",
+    "private_lineage_handle": "pln_056c3fb65f1dd5fddf4804eee23a1218",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/add-platform-health-review-notifications"
+  },
+  "outcome": "success",
   "selected_checks": [
     {
-      "id": "full",
-      "paths": [],
       "commands": [
         "python3 -m compileall -q template/scripts scripts",
         "python3 scripts/run_test_groups.py --all"
       ],
-      "selection_reason": "protected-full",
       "evidence_types": [
         "syntax",
         "test"
       ],
+      "id": "full",
+      "paths": [],
       "required_evidence_types": [
         "test"
-      ]
+      ],
+      "selection_reason": "protected-full"
     }
   ],
-  "managed_checkout": {
-    "source_issue": "lehard/development-backlog#169",
-    "change": "add-platform-health-review-notifications",
-    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/add-platform-health-review-notifications",
-    "branch": "agent/add-platform-health-review-notifications",
-    "head": "a48a1c3d5a4ee60935459cec8799528c5f73bf80"
-  }
+  "selection": {
+    "check_count": 1,
+    "command_count": 2,
+    "state": "ready"
+  },
+  "version": 2
 }

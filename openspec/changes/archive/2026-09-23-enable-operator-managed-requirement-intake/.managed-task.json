@@ -8,9 +8,16 @@
     "specs/agent-instructions/spec.md"
   ],
   "change": "enable-operator-managed-requirement-intake",
+  "identity_redaction": {
+    "after_original_verification": true,
+    "method": "private-lineage-current-tree-migration",
+    "original_sha256": "710c5d147cc759e27a6f2ba5977e1edb78faa803a3f2a4c4d1fcd75bbfc785cc",
+    "version": 1
+  },
   "imported_at": "2026-09-22T17:56:57+00:00",
   "package_revision": "c772d6f28418c2e600af21d39f7a245963543167fef7523da340bc6218c43699",
   "prepared_against": "18cc04736fe318247d7576d1490ae3a9a40178b2",
+  "private_lineage_handle": "pln_e16da05076960f428282b0bf4fb2033f",
   "routing_receipt": {
     "assurance": "standard",
     "effort_hint": "medium",
@@ -20,7 +27,6 @@
     "strong_trigger": null,
     "task_family": "platform"
   },
-  "source_issue": "lehard/development-backlog#156",
   "source_issue_evidence": {
     "body_sha256": "cd6a206fb212102e7e2b82dfcda039408eb3d2a72c5cf0b01d2a1436a32a93f4",
     "updated_at": "2026-09-22T17:43:35Z"

@@ -6,9 +6,16 @@
     "tasks.md"
   ],
   "change": "add-pre-authoring-orchestrator",
+  "identity_redaction": {
+    "after_original_verification": true,
+    "method": "private-lineage-current-tree-migration",
+    "original_sha256": "54ccc1e702904fa074902cfa64211bce83811ee978db155351e26f493db72854",
+    "version": 1
+  },
   "imported_at": "2026-09-21T15:38:55+00:00",
   "package_revision": "102f0b976c6cb5d2936c9cd47d17f1bb1c9fe93da2bb9be90895f1ffd443eaad",
   "prepared_against": "30fcd7e369941f6523074317f081058609c168e6",
+  "private_lineage_handle": "pln_ea4fbc69522d2d37dea88b062e3d8fb9",
   "routing_receipt": {
     "assurance": "standard",
     "effort_hint": "medium",
@@ -18,7 +25,6 @@
     "strong_trigger": null,
     "task_family": "general"
   },
-  "source_issue": "lehard/development-backlog#129",
   "source_issue_evidence": {
     "body_sha256": "58b0f91e9f3b2e06bd608c0a07751204e60a9a071d1759842be2bce604ac3bd3",
     "updated_at": "2026-09-19T13:15:24Z"

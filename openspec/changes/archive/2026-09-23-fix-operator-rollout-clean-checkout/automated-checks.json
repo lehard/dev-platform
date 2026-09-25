@@ -1,51 +1,57 @@
 {
-  "version": 2,
-  "selection": {
-    "state": "ready",
-    "command_count": 2,
-    "check_count": 1
-  },
-  "outcome": "success",
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
       "duration_seconds": 0.139,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
       "duration_seconds": 219.632,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     }
   ],
+  "identity_redaction": {
+    "after_original_verification": true,
+    "method": "private-lineage-current-tree-migration",
+    "original_sha256": "eed8c06ad0b2490c2143db02970b09c5cb8e8d893e338a1a341406dfc7ea8331",
+    "version": 1
+  },
+  "managed_checkout": {
+    "branch": "agent/fix-operator-rollout-clean-checkout",
+    "change": "fix-operator-rollout-clean-checkout",
+    "head": "e80c4aeee7386d9ac11e5eae35d0b9d4c505a738",
+    "private_lineage_handle": "pln_43b98b2f36a48082c2c52367467d918c",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/fix-operator-rollout-clean-checkout"
+  },
+  "outcome": "success",
   "selected_checks": [
     {
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "evidence_types": [
+        "syntax",
+        "test"
+      ],
       "id": "full-trigger",
       "paths": [
         "scripts/rollout_project.py",
         "tests/test_rollout_recopy.py"
       ],
-      "commands": [
-        "python3 -m compileall -q template/scripts scripts",
-        "python3 scripts/run_test_groups.py --all"
-      ],
-      "selection_reason": "high-impact-path",
-      "evidence_types": [
-        "syntax",
-        "test"
-      ],
       "required_evidence_types": [
         "test"
-      ]
+      ],
+      "selection_reason": "high-impact-path"
     }
   ],
-  "managed_checkout": {
-    "source_issue": "lehard/development-backlog#175",
-    "change": "fix-operator-rollout-clean-checkout",
-    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/fix-operator-rollout-clean-checkout",
-    "branch": "agent/fix-operator-rollout-clean-checkout",
-    "head": "e80c4aeee7386d9ac11e5eae35d0b9d4c505a738"
-  }
+  "selection": {
+    "check_count": 1,
+    "command_count": 2,
+    "state": "ready"
+  },
+  "version": 2
 }

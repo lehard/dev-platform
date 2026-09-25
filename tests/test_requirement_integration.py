@@ -32,6 +32,37 @@ def git(root: Path, *args: str) -> str:
 
 
 class RequirementIntegrationTests(unittest.TestCase):
+    def test_private_manifest_projection_has_no_exact_issue_identity(self) -> None:
+        private = {
+            "version": 1, "requirement": "acme/backlog#7", "base": "a" * 40,
+            "children": [
+                {"source_issue": "acme/backlog#8", "change": "one", "source_branch": "agent/one", "head": "b" * 40, "delta_base": "a" * 40, "digest": "c" * 64},
+                {"source_issue": "acme/backlog#9", "change": "two", "source_branch": "agent/two", "head": "d" * 40, "delta_base": "b" * 40, "digest": "e" * 64},
+            ],
+        }
+        private["digest"] = integration._digest(private)
+        handles = {"acme/backlog#7": "pln_" + "1" * 32, "acme/backlog#8": "pln_" + "2" * 32, "acme/backlog#9": "pln_" + "3" * 32}
+        with mock.patch("private_lineage.enabled", return_value=True), mock.patch(
+            "private_lineage.handle_for_issue", side_effect=lambda _root, issue, _change, create=False: handles[issue]
+        ):
+            public = integration._public_manifest(Path("/unused"), private)
+        self.assertEqual(public["requirement"], handles["acme/backlog#7"])
+        self.assertEqual([child["source_issue"] for child in public["children"]], [handles["acme/backlog#8"], handles["acme/backlog#9"]])
+        self.assertNotIn("acme/backlog#", json.dumps(public))
+        self.assertEqual(public["digest"], integration._digest({key: value for key, value in public.items() if key != "digest"}))
+        self.assertEqual(integration._candidate_slug(public["requirement"]), "private-lineage-" + handles["acme/backlog#7"] + "-integration")
+
+    def test_private_manifest_projection_fails_without_authorized_mapping(self) -> None:
+        import private_lineage
+
+        private = {"version": 1, "requirement": "acme/backlog#7", "base": "a" * 40, "children": []}
+        private["digest"] = integration._digest(private)
+        with mock.patch("private_lineage.enabled", return_value=True), mock.patch(
+            "private_lineage.handle_for_issue", side_effect=private_lineage.PrivateLineageError("private mapping unavailable")
+        ):
+            with self.assertRaisesRegex(private_lineage.PrivateLineageError, "private mapping unavailable"):
+                integration._public_manifest(Path("/unused"), private)
+
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name)
@@ -151,6 +182,26 @@ class RequirementIntegrationTests(unittest.TestCase):
         self.assertEqual(integration.compose_candidate(self.root, **kwargs)["head"], first["head"])
         self.assertEqual(git(self.root, "rev-parse", "one"), one)
         self.assertEqual(git(self.root, "rev-parse", "two"), two)
+
+    def test_private_compose_uses_opaque_branch_commits_and_manifest(self) -> None:
+        _, one_receipt = self.child("one", "one.txt")
+        _, two_receipt = self.child("two", "two.txt")
+        receipts = [one_receipt, two_receipt]
+        manifest = integration.assemble_candidate(self.root, requirement="acme/backlog#7", base=self.base,
+                                                  receipt_paths=receipts)
+        handles = {"acme/backlog#7": "pln_" + "1" * 32, "acme/backlog#8": "pln_" + "2" * 32, "acme/backlog#9": "pln_" + "3" * 32}
+        slug = integration._candidate_slug(handles["acme/backlog#7"])
+        candidate = self.root / ".claude/worktrees" / slug
+        with mock.patch("private_lineage.enabled", return_value=True), mock.patch(
+            "private_lineage.handle_for_issue", side_effect=lambda _root, issue, _change, create=False: handles[issue]
+        ):
+            integration.compose_candidate(self.root, manifest=manifest, receipt_paths=receipts,
+                                          worktree=candidate, branch="agent/" + slug)
+            projected = integration._public_manifest(candidate, manifest)
+            self.assertEqual(integration._validate_candidate_checkout(candidate, manifest)[0], "agent/" + slug)
+        messages = git(candidate, "log", "--format=%B", f"{self.base}..HEAD")
+        public_manifest = (candidate / integration._candidate_manifest_path(projected["requirement"])).read_text(encoding="utf-8")
+        self.assertNotIn("acme/backlog#", messages + public_manifest)
 
     def test_compose_rejects_stale_main_before_worktree_creation(self) -> None:
         _, one_receipt = self.child("one", "one.txt")

@@ -1,27 +1,42 @@
 {
-  "version": 2,
-  "selection": {
-    "state": "ready",
-    "command_count": 2,
-    "check_count": 1
-  },
-  "outcome": "success",
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
       "duration_seconds": 0.144,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
       "duration_seconds": 153.813,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     }
   ],
+  "identity_redaction": {
+    "after_original_verification": true,
+    "method": "private-lineage-current-tree-migration",
+    "original_sha256": "17031e98e4273dbd8d54d3d015bb05f10e902e6761b72ecfc56faca7103d4e99",
+    "version": 1
+  },
+  "managed_checkout": {
+    "branch": "agent/isolate-operator-registry",
+    "change": "isolate-operator-registry",
+    "head": "fb061b95456946e1ac81562c96fc01c69f393ffa",
+    "private_lineage_handle": "pln_83cde68b51df9594493569d47b50d3d2",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/isolate-operator-registry"
+  },
+  "outcome": "success",
   "selected_checks": [
     {
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "evidence_types": [
+        "syntax",
+        "test"
+      ],
       "id": "full-trigger",
       "paths": [
         ".github/workflows/adopt-project.yml",
@@ -30,25 +45,16 @@
         "tests/test_managed_rollout.py",
         "tests/test_rollout_supersession.py"
       ],
-      "commands": [
-        "python3 -m compileall -q template/scripts scripts",
-        "python3 scripts/run_test_groups.py --all"
-      ],
-      "selection_reason": "high-impact-path",
-      "evidence_types": [
-        "syntax",
-        "test"
-      ],
       "required_evidence_types": [
         "test"
-      ]
+      ],
+      "selection_reason": "high-impact-path"
     }
   ],
-  "managed_checkout": {
-    "source_issue": "lehard/development-backlog#145",
-    "change": "isolate-operator-registry",
-    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/isolate-operator-registry",
-    "branch": "agent/isolate-operator-registry",
-    "head": "fb061b95456946e1ac81562c96fc01c69f393ffa"
-  }
+  "selection": {
+    "check_count": 1,
+    "command_count": 2,
+    "state": "ready"
+  },
+  "version": 2
 }

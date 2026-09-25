@@ -32,6 +32,11 @@ jobs:
       - name: Compile shared scripts
         run: python3 -m compileall -q template/scripts scripts
 
+      - name: Guard private Backlog references in public source
+        env:
+          PRIVATE_BACKLOG_REPOSITORY: ${{ vars.DEV_PLATFORM_PRIVATE_BACKLOG_REPOSITORY }}
+        run: python3 scripts/check_private_backlog_refs.py --repository "$PRIVATE_BACKLOG_REPOSITORY"
+
       - name: Install pinned Ruff
         run: python3 -m pip install "ruff==0.11.13"
 

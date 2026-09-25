@@ -131,12 +131,21 @@ def _snapshot_from_dict(value: dict[str, Any]) -> GitSnapshot:
         raise RoutingError("routing record has an invalid containment snapshot") from exc
 
 
-def _read_managed_provenance(path: Path) -> dict[str, Any]:
+def _read_managed_provenance(path: Path, root: Path | None = None, expected_source: str | None = None) -> dict[str, Any]:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
-        source_issue, change = payload["source_issue"], payload["change"]
+        change = payload["change"]
     except (OSError, KeyError, json.JSONDecodeError) as exc:
         raise RoutingError(f"cannot read managed-task provenance at {path}") from exc
+    source_issue = payload.get("source_issue")
+    if source_issue is None and root is not None and "private_lineage_handle" in payload:
+        import managed_task
+
+        try:
+            source_issue = managed_task.source_issue_for_provenance(root, path.parent, expected_source=expected_source)
+        except managed_task.ManagedTaskError as exc:
+            raise RoutingError("private managed-task lineage could not be verified") from exc
+        payload = {**payload, "source_issue": source_issue}
     if not isinstance(source_issue, str) or not isinstance(change, str):
         raise RoutingError("managed-task provenance has invalid source_issue/change values")
     return payload
@@ -151,7 +160,7 @@ def _managed_provenance(root: Path) -> dict[str, Any]:
     candidates = list((root / "openspec" / "changes").glob("*/.managed-task.json"))
     if len(candidates) != 1:
         raise RoutingError(f"model routing requires exactly one materialized managed OpenSpec change in this task checkout; found {len(candidates)}")
-    return _read_managed_provenance(candidates[0])
+    return _read_managed_provenance(candidates[0], root)
 
 
 def resolve_managed_provenance(root: Path, source_issue: str, change: str) -> tuple[dict[str, Any], Path, str]:
@@ -171,7 +180,7 @@ def resolve_managed_provenance(root: Path, source_issue: str, change: str) -> tu
     matches: list[tuple[dict[str, Any], Path, str]] = []
     wrong_identity: list[str] = []
     for path in candidates:
-        payload = _read_managed_provenance(path)
+        payload = _read_managed_provenance(path, root, source_issue)
         candidate_source = payload["source_issue"]
         candidate_change = payload["change"]
         if candidate_change == change and candidate_source.lower() == source_issue.lower():

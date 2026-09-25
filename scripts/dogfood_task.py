@@ -96,7 +96,10 @@ def managed_change(root: Path, change: str) -> Path:
         payload = json.loads(provenance.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
         raise SystemExit(f"Managed OpenSpec provenance is invalid: {exc}") from exc
-    if payload.get("change") != change or not payload.get("source_issue"):
+    identity = payload.get("source_issue") or payload.get("private_lineage_handle")
+    if payload.get("change") != change or not isinstance(identity, str) or (
+        "source_issue" not in payload and not re.fullmatch(r"pln_[0-9a-f]{32}", identity)
+    ):
         raise SystemExit("Managed OpenSpec provenance does not identify this change.")
     return path
 

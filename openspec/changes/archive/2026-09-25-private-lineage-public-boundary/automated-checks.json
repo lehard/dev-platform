@@ -1,0 +1,76 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.515,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.18,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 305.911,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        ".github/workflows/ci.yml",
+        "dev-platform/checks.toml",
+        "scripts/check_private_backlog_refs.py",
+        "scripts/dogfood_task.py",
+        "template/scripts/execute_requirement.py",
+        "template/scripts/finish_task.py",
+        "template/scripts/managed_project_status.py",
+        "template/scripts/managed_task.py",
+        "template/scripts/model_routing.py",
+        "template/scripts/openspec_lifecycle.py",
+        "template/scripts/private_lineage.py",
+        "template/scripts/project_publish.py",
+        "template/scripts/requirement_integration.py",
+        "template/scripts/requirement_merge_recovery.py",
+        "tests/test_managed_project_status.py",
+        "tests/test_managed_task.py",
+        "tests/test_model_routing.py",
+        "tests/test_private_backlog_guard.py",
+        "tests/test_requirement_integration.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_04750c3f5a5e0a97aafb595f9636dd00",
+    "change": "private-lineage-public-boundary",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/private-lineage-public-boundary",
+    "branch": "agent/private-lineage-public-boundary",
+    "head": "994a2838b34598b6921d27a536551c3cdd493370"
+  }
+}

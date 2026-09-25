@@ -6,9 +6,16 @@
     "specs/project-factory/spec.md"
   ],
   "change": "fix-rollout-trailing-blank-lines",
+  "identity_redaction": {
+    "after_original_verification": true,
+    "method": "private-lineage-current-tree-migration",
+    "original_sha256": "010debf91796ea2e666cf0438c7e18e120fe951c7557c83573b1d2f90ecfa7cd",
+    "version": 1
+  },
   "imported_at": "2026-09-22T08:14:02+00:00",
   "package_revision": "fc5dee4519119b88a6f8cadfd55e76d801dd5ef676694eaace9a8db1d8bb7186",
   "prepared_against": "9cddc89691154dcf208d69218f5337e020452bbf",
+  "private_lineage_handle": "pln_968c3d7489b14422a12827226eb25d44",
   "routing_receipt": {
     "assurance": "standard",
     "effort_hint": "low",
@@ -18,7 +25,6 @@
     "strong_trigger": null,
     "task_family": "platform-rollout-copier-bridge"
   },
-  "source_issue": "lehard/development-backlog#147",
   "source_issue_evidence": {
     "body_sha256": "c03fddf8ea23a9489a25836405a4006f51fe1bb658ac9d607106c8bc67469e5b",
     "updated_at": "2026-09-22T08:13:19Z"

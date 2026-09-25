@@ -38,6 +38,23 @@ def git(cwd: Path, *args: str) -> None:
 
 
 class ModelRoutingTests(unittest.TestCase):
+    def test_opaque_managed_provenance_uses_verified_private_identity(self) -> None:
+        import managed_task
+
+        provenance = self.task / "openspec/changes/routing-change/.managed-task.json"
+        provenance.write_text(json.dumps({"private_lineage_handle": "pln_" + "a" * 32, "change": "routing-change"}), encoding="utf-8")
+        (self.task / ".managed-task-state.json").write_text(
+            json.dumps({"source_issue": "owner/backlog#7", "change": "routing-change"}), encoding="utf-8"
+        )
+        with patch.object(managed_task, "source_issue_for_provenance", return_value="owner/backlog#7") as verified:
+            self.assertEqual(routing.current_managed_identity(self.task), ("owner/backlog#7", "routing-change"))
+            self.assertEqual(routing._managed_identity(self.task), ("owner/backlog#7", "routing-change"))
+            self.assertEqual(routing.resolve_managed_provenance(self.task, "owner/backlog#7", "routing-change")[2], "active")
+        self.assertEqual(verified.call_count, 2)
+        with patch.object(managed_task, "source_issue_for_provenance", side_effect=managed_task.ManagedTaskError("mismatch")):
+            with self.assertRaisesRegex(routing.RoutingError, "could not be verified"):
+                routing.resolve_managed_provenance(self.task, "owner/backlog#7", "routing-change")
+
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
         self.integration = Path(self.tmp.name) / "integration"

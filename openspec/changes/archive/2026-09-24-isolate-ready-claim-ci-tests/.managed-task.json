@@ -6,9 +6,16 @@
     "specs/platform-ci/spec.md"
   ],
   "change": "isolate-ready-claim-ci-tests",
+  "identity_redaction": {
+    "after_original_verification": true,
+    "method": "private-lineage-current-tree-migration",
+    "original_sha256": "f008c98b9d5420a8624021b67e57c00bc718f7b8936c8336098931e1f7711f2d",
+    "version": 1
+  },
   "imported_at": "2026-09-24T10:49:37+00:00",
   "package_revision": "502b2d6a918d00a1cc34a4b8ec551c867573e674ea659d0fa3c334f79905d659",
   "prepared_against": "7e41f247b1e597e83be4a0a01756ad2f00c53821",
+  "private_lineage_handle": "pln_34a6fe46548a83f0dd8623f817c3d0e9",
   "process_evidence": [
     "lehard/dev-platform#109"
   ],
@@ -21,7 +28,6 @@
     "strong_trigger": null,
     "task_family": "general"
   },
-  "source_issue": "lehard/development-backlog#201",
   "source_issue_evidence": {
     "body_sha256": "e3ba572608c989aedf9ad457caee0cff3924232e64956d3caa7e9d7de5790d7e",
     "updated_at": "2026-09-24T05:50:14Z"

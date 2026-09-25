@@ -1,33 +1,50 @@
 {
-  "version": 2,
-  "selection": {
-    "state": "ready",
-    "command_count": 3,
-    "check_count": 1
-  },
-  "outcome": "success",
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
       "duration_seconds": 0.934,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     },
     {
       "command": "python3 -m ruff check scripts template/scripts tests",
       "duration_seconds": 1.652,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
       "duration_seconds": 289.769,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     }
   ],
+  "identity_redaction": {
+    "after_original_verification": true,
+    "method": "private-lineage-current-tree-migration",
+    "original_sha256": "29ffcd6c9c8da77ad29db2b56c4e51c2210d6b7ab0149663142ba9e7e2b55d5a",
+    "version": 1
+  },
+  "managed_checkout": {
+    "branch": "agent/isolate-ready-claim-ci-tests",
+    "change": "isolate-ready-claim-ci-tests",
+    "head": "b4d63c0490f1fa2601274e639b27f507ea827bbf",
+    "private_lineage_handle": "pln_34a6fe46548a83f0dd8623f817c3d0e9",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/isolate-ready-claim-ci-tests"
+  },
+  "outcome": "success",
   "selected_checks": [
     {
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
       "id": "full-trigger",
       "paths": [
         "dev-platform/checks.toml",
@@ -48,27 +65,16 @@
         "tests/test_requirement_intake.py",
         "tests/test_requirement_integration.py"
       ],
-      "commands": [
-        "python3 -m compileall -q template/scripts scripts",
-        "python3 -m ruff check scripts template/scripts tests",
-        "python3 scripts/run_test_groups.py --all"
-      ],
-      "selection_reason": "high-impact-path",
-      "evidence_types": [
-        "syntax",
-        "syntax",
-        "test"
-      ],
       "required_evidence_types": [
         "test"
-      ]
+      ],
+      "selection_reason": "high-impact-path"
     }
   ],
-  "managed_checkout": {
-    "source_issue": "lehard/development-backlog#201",
-    "change": "isolate-ready-claim-ci-tests",
-    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/isolate-ready-claim-ci-tests",
-    "branch": "agent/isolate-ready-claim-ci-tests",
-    "head": "b4d63c0490f1fa2601274e639b27f507ea827bbf"
-  }
+  "selection": {
+    "check_count": 1,
+    "command_count": 3,
+    "state": "ready"
+  },
+  "version": 2
 }

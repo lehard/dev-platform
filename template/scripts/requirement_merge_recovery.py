@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -15,12 +16,13 @@ def _paths(root: Path, start: str, end: str) -> set[str]:
     return set(ri._git(root, "diff", "--name-only", start, end).splitlines()) - {""}
 
 
-def _slug(manifest: dict[str, Any]) -> str:
-    return ri._candidate_slug(manifest["requirement"], manifest["generation"]) + "-merge"
+def _slug(manifest: dict[str, Any], root: Path | None = None) -> str:
+    requirement = ri._public_requirement(root, manifest["requirement"]) if root else manifest["requirement"]
+    return ri._candidate_slug(requirement, manifest["generation"]) + "-merge"
 
 
-def _manifest_path(manifest: dict[str, Any]) -> Path:
-    return Path("dev-platform/requirement-integrations") / (_slug(manifest) + ".json")
+def _manifest_path(manifest: dict[str, Any], root: Path | None = None) -> Path:
+    return Path("dev-platform/requirement-integrations") / (_slug(manifest, root) + ".json")
 
 
 def _generation(base: str, source_head: str) -> str:
@@ -77,7 +79,7 @@ def prepare(root: Path, manifest: dict[str, Any], receipts: list[Path], out: Pat
     if authoritative != manifest["base"]:
         raise ri.RequirementIntegrationError("authoritative main changed before merge preparation")
     _check_manifest(root, manifest, receipts)
-    slug = _slug(manifest)
+    slug = _slug(manifest, root)
     worktree = parent / slug
     branch = "agent/" + slug
     if out.exists() and out.read_text(encoding="utf-8") != json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n":
@@ -107,7 +109,7 @@ def finalize(root: Path, manifest: dict[str, Any], receipts: list[Path]) -> dict
         raise ri.RequirementIntegrationError("merge recovery manifest is invalid")
     if len(receipts) != len(manifest["children"]):
         raise ri.RequirementIntegrationError("merge recovery receipt count differs")
-    if ri._git(root, "symbolic-ref", "--short", "HEAD") != "agent/" + _slug(manifest):
+    if ri._git(root, "symbolic-ref", "--short", "HEAD") != "agent/" + _slug(manifest, root):
         raise ri.RequirementIntegrationError("merge candidate branch identity differs")
     if ri._git(root, "rev-parse", "HEAD") != manifest["base"] or ri._git(root, "rev-parse", "MERGE_HEAD") != manifest["source_head"]:
         raise ri.RequirementIntegrationError("merge parents changed before finalization")
@@ -123,14 +125,15 @@ def finalize(root: Path, manifest: dict[str, Any], receipts: list[Path]) -> dict
     if not changed or not changed.issubset(set(manifest["source_paths"])):
         raise ri.RequirementIntegrationError("merge resolution changed paths outside exact child source")
     ri._git(root, "add", "--", *sorted(changed))
-    ri._git(root, "commit", "-m", f"Merge verified children for {manifest['requirement']}\n\nRequirement-Source-Head: {manifest['source_head']}")
+    public_manifest = ri._public_manifest(root, manifest)
+    ri._git(root, "commit", "-m", f"Merge verified children for {public_manifest['requirement']}\n\nRequirement-Source-Head: {manifest['source_head']}")
     if ri._git(root, "rev-list", "--parents", "-n", "1", "HEAD").split()[1:] != [manifest["base"], manifest["source_head"]]:
         raise ri.RequirementIntegrationError("merge commit parents are not exact")
-    path = root / _manifest_path(manifest)
+    path = root / _manifest_path(manifest, root)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    path.write_text(json.dumps(public_manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     ri._git(root, "add", path.relative_to(root).as_posix())
-    ri._git(root, "commit", "-m", f"Bind merged Requirement {manifest['requirement']} candidate")
+    ri._git(root, "commit", "-m", f"Bind merged Requirement {public_manifest['requirement']} candidate")
     return {"status": "ready", "worktree": str(root), "head": ri._git(root, "rev-parse", "HEAD")}
 
 
@@ -140,7 +143,7 @@ def _validate_checkout(root: Path, manifest: dict[str, Any], receipts: list[Path
         raise ri.RequirementIntegrationError("merge recovery manifest is invalid")
     if len(receipts) != len(manifest["children"]):
         raise ri.RequirementIntegrationError("merge recovery receipt count differs")
-    if ri._git(root, "symbolic-ref", "--short", "HEAD") != "agent/" + _slug(manifest):
+    if ri._git(root, "symbolic-ref", "--short", "HEAD") != "agent/" + _slug(manifest, root):
         raise ri.RequirementIntegrationError("merge candidate branch differs")
     if ri._git(root, "status", "--porcelain"):
         raise ri.RequirementIntegrationError("merge candidate is dirty")
@@ -153,15 +156,15 @@ def _validate_checkout(root: Path, manifest: dict[str, Any], receipts: list[Path
     changed = _paths(root, manifest["base"], merge)
     if not changed.issubset(set(manifest["source_paths"])):
         raise ri.RequirementIntegrationError("merge candidate altered an unrelated path")
-    path = _manifest_path(manifest).as_posix()
+    path = _manifest_path(manifest, root).as_posix()
     if ri._git(root, "diff-tree", "--no-commit-id", "--name-only", "-r", bind) != path:
         raise ri.RequirementIntegrationError("merge binding commit has unexpected changes")
-    if json.loads(ri._git(root, "show", f"HEAD:{path}")) != manifest:
+    if json.loads(ri._git(root, "show", f"HEAD:{path}")) != ri._public_manifest(root, manifest):
         raise ri.RequirementIntegrationError("merge manifest is not exact at candidate HEAD")
     for child, receipt in zip(manifest["children"], receipts):
         if ri.read_receipt(receipt).digest != child["digest"] or ri._git(root, "rev-parse", child["source_branch"]) != child["head"]:
             raise ri.RequirementIntegrationError("merge child provenance changed")
-    return "agent/" + _slug(manifest), ri._git(root, "rev-parse", "HEAD")
+    return "agent/" + _slug(manifest, root), ri._git(root, "rev-parse", "HEAD")
 
 
 def publish(root: Path, manifest: dict[str, Any], receipts: list[Path], title: str | None) -> dict[str, Any]:
@@ -186,11 +189,15 @@ def publish(root: Path, manifest: dict[str, Any], receipts: list[Path], title: s
     if ri._git(integration, "rev-parse", f"origin/{main_branch}") != manifest["base"]:
         raise ri.RequirementIntegrationError("authoritative main changed after merge validation")
     command = ["python3", "scripts/project_publish.py", "--mode", "pr",
-               "--shared-manifest", _manifest_path(manifest).as_posix()]
+               "--shared-manifest", _manifest_path(manifest, root).as_posix()]
     if title:
         command += ["--title", title]
-    command += ["--body", f"Shared exact-parent merge for {manifest['requirement']}\n\nCandidate: {head}\nManifest: {_manifest_path(manifest)}"]
-    if subprocess.run(command, cwd=root).returncode:
+    public_requirement = ri._public_requirement(root, manifest["requirement"])
+    command += ["--body", f"Shared exact-parent merge for {public_requirement}\n\nCandidate: {head}\nManifest: {_manifest_path(manifest, root)}"]
+    environment = os.environ.copy()
+    if public_requirement != manifest["requirement"]:
+        environment["DEV_PLATFORM_PRIVATE_MANIFEST"] = json.dumps(manifest, ensure_ascii=False)
+    if subprocess.run(command, cwd=root, env=environment).returncode:
         raise ri.RequirementIntegrationError("protected merge candidate publication did not complete")
     merged = ri._reconcile_exact_merged(root, integration, manifest, branch, head)
     if merged is None:

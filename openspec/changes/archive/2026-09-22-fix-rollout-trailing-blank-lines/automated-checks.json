@@ -1,50 +1,56 @@
 {
-  "version": 2,
-  "selection": {
-    "state": "ready",
-    "command_count": 2,
-    "check_count": 1
-  },
-  "outcome": "success",
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
       "duration_seconds": 0.123,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
       "duration_seconds": 182.732,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     }
   ],
+  "identity_redaction": {
+    "after_original_verification": true,
+    "method": "private-lineage-current-tree-migration",
+    "original_sha256": "bee2510e97fdb8381590913fc9a3fad1bc982648f1937521c9f0d67d38efccc0",
+    "version": 1
+  },
+  "managed_checkout": {
+    "branch": "agent/fix-rollout-trailing-blank-lines",
+    "change": "fix-rollout-trailing-blank-lines",
+    "head": "b81fdc91bbc59961401d6f57de8d64a0866d1ee2",
+    "private_lineage_handle": "pln_968c3d7489b14422a12827226eb25d44",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/fix-rollout-trailing-blank-lines"
+  },
+  "outcome": "success",
   "selected_checks": [
     {
-      "id": "full-fallback",
-      "paths": [
-        "template/.gitlab-ci.yml.jinja"
-      ],
       "commands": [
         "python3 -m compileall -q template/scripts scripts",
         "python3 scripts/run_test_groups.py --all"
       ],
-      "selection_reason": "unknown-path",
       "evidence_types": [
         "syntax",
         "test"
       ],
+      "id": "full-fallback",
+      "paths": [
+        "template/.gitlab-ci.yml.jinja"
+      ],
       "required_evidence_types": [
         "test"
-      ]
+      ],
+      "selection_reason": "unknown-path"
     }
   ],
-  "managed_checkout": {
-    "source_issue": "lehard/development-backlog#147",
-    "change": "fix-rollout-trailing-blank-lines",
-    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/fix-rollout-trailing-blank-lines",
-    "branch": "agent/fix-rollout-trailing-blank-lines",
-    "head": "b81fdc91bbc59961401d6f57de8d64a0866d1ee2"
-  }
+  "selection": {
+    "check_count": 1,
+    "command_count": 2,
+    "state": "ready"
+  },
+  "version": 2
 }

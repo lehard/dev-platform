@@ -7,9 +7,16 @@
     "specs/ci-safety/spec.md"
   ],
   "change": "add-ci-guardrails",
+  "identity_redaction": {
+    "after_original_verification": true,
+    "method": "private-lineage-current-tree-migration",
+    "original_sha256": "422907d35bada3c93940dca4f2de9a20cc57f0a92db49fc77eac1ca3c839ff13",
+    "version": 1
+  },
   "imported_at": "2026-09-23T06:33:14+00:00",
   "package_revision": "b78400d5a2cc9d566acc7bccd30e02018923e2759af0c542d39b02a420f6571b",
   "prepared_against": "9fe86d87e5ee3ff06fe0b84181b489c6906537a9",
+  "private_lineage_handle": "pln_31777de4e1a1d20f9d504c60b1328156",
   "routing_receipt": {
     "assurance": "standard",
     "effort_hint": "medium",
@@ -19,7 +26,6 @@
     "strong_trigger": null,
     "task_family": "general"
   },
-  "source_issue": "lehard/development-backlog#177",
   "source_issue_evidence": {
     "body_sha256": "bec87fba8a6c633dd49d2c061b995451aebada0672fdbe87ecdea63bd17bee23",
     "updated_at": "2026-09-23T06:31:48Z"

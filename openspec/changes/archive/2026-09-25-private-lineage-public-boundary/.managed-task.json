@@ -1,0 +1,35 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/public-distribution/spec.md",
+    "specs/managed-task-intake/spec.md"
+  ],
+  "change": "private-lineage-public-boundary",
+  "identity_redaction": {
+    "after_original_import": true,
+    "method": "private-lineage-current-tree-migration",
+    "original_sha256": "43b0d2a35b13b02060de310c40cd5b7ba4ba48ae00e6d3dd6f81f8e6dd3caece",
+    "version": 1
+  },
+  "imported_at": "2026-09-24T20:54:35+00:00",
+  "package_revision": "013f1ff81015e9beb88071d6558492de67dd8d6bb3c4a377a4538fa9f430e3b8",
+  "prepared_against": "05e919d1d1e37e6fc64f65f5bb34166a7f5bd100",
+  "private_lineage_handle": "pln_04750c3f5a5e0a97aafb595f9636dd00",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "b0554139ee9e31c070b7c97823b2c56ba5dd689b7f63d6c4cf5bb67eba6ee78f",
+    "updated_at": "2026-09-24T20:51:02Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

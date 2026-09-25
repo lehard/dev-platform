@@ -127,12 +127,19 @@ def parse_source_issue(reference: str) -> SourceIssue:
     return SourceIssue(match.group(1), int(match.group(2)))
 
 
-def _provenance_source(path: Path) -> str:
+def _provenance_source(path: Path, root: Path | None = None) -> str:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise ManagedProjectStatusError(f"managed task provenance is unreadable: {path}") from exc
     source = payload.get("source_issue")
+    if source is None and root is not None and "private_lineage_handle" in payload:
+        import managed_task
+
+        try:
+            source = managed_task.source_issue_for_provenance(root, path.parent)
+        except managed_task.ManagedTaskError as exc:
+            raise ManagedProjectStatusError("private managed task provenance cannot be authorized") from exc
     if not isinstance(source, str):
         raise ManagedProjectStatusError(f"managed task provenance has no source_issue: {path}")
     return source
@@ -150,7 +157,7 @@ def discover_source_issue(root: Path, config: dict[str, Any] | None = None) -> S
     if len(active) > 1:
         raise ManagedProjectStatusError("multiple active managed OpenSpec packages make task identity ambiguous")
     if active:
-        return parse_source_issue(_provenance_source(active[0]))
+        return parse_source_issue(_provenance_source(active[0], root))
 
     cfg = config or read_platform_config(root)
     main_branch = str(cfg.get("main_branch", "main"))
@@ -174,7 +181,7 @@ def discover_source_issue(root: Path, config: dict[str, Any] | None = None) -> S
             path = root / relative
             if path.is_file():
                 candidates.append(path)
-    sources = sorted({_provenance_source(path) for path in candidates})
+    sources = sorted({_provenance_source(path, root) for path in candidates})
     if len(sources) > 1:
         raise ManagedProjectStatusError("current branch contains multiple managed task provenance records")
     return parse_source_issue(sources[0]) if sources else None

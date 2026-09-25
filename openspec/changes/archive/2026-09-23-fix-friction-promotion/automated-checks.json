@@ -1,59 +1,65 @@
 {
-  "version": 2,
-  "selection": {
-    "state": "ready",
-    "command_count": 3,
-    "check_count": 1
-  },
-  "outcome": "success",
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
       "duration_seconds": 1.866,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     },
     {
       "command": "python3 -m ruff check scripts template/scripts tests",
       "duration_seconds": 0.352,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
       "duration_seconds": 400.521,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     }
   ],
+  "identity_redaction": {
+    "after_original_verification": true,
+    "method": "private-lineage-current-tree-migration",
+    "original_sha256": "67237e5c320723429a2d42baa0541e5aadb83b8a752efbfff8c228b8f606ca34",
+    "version": 1
+  },
+  "managed_checkout": {
+    "branch": "agent/fix-friction-promotion",
+    "change": "fix-friction-promotion",
+    "head": "25d75f3522dff5920e18b178e972a10b2901db61",
+    "private_lineage_handle": "pln_fd690484d9ca04b93abc2f08388b35a2",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/fix-friction-promotion"
+  },
+  "outcome": "success",
   "selected_checks": [
     {
-      "id": "full-trigger",
-      "paths": [
-        "template/scripts/agent_friction.py",
-        "tests/test_friction_review.py"
-      ],
       "commands": [
         "python3 -m compileall -q template/scripts scripts",
         "python3 -m ruff check scripts template/scripts tests",
         "python3 scripts/run_test_groups.py --all"
       ],
-      "selection_reason": "high-impact-path",
       "evidence_types": [
         "syntax",
         "syntax",
         "test"
       ],
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/agent_friction.py",
+        "tests/test_friction_review.py"
+      ],
       "required_evidence_types": [
         "test"
-      ]
+      ],
+      "selection_reason": "high-impact-path"
     }
   ],
-  "managed_checkout": {
-    "source_issue": "lehard/development-backlog#178",
-    "change": "fix-friction-promotion",
-    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/fix-friction-promotion",
-    "branch": "agent/fix-friction-promotion",
-    "head": "25d75f3522dff5920e18b178e972a10b2901db61"
-  }
+  "selection": {
+    "check_count": 1,
+    "command_count": 3,
+    "state": "ready"
+  },
+  "version": 2
 }

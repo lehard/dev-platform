@@ -107,6 +107,19 @@ def canonical_change(root: Path, package: managed_task.Package, *, lifecycle: st
 
 
 class ManagedPackageTests(unittest.TestCase):
+    def test_private_process_notes_do_not_publish_source_issue(self) -> None:
+        package = managed_task.parse_package([package_body()], "example-org/development-backlog#1")
+        identity = managed_task.ManagedTaskIdentity(package.source_issue, package.change, ())
+        root = Path("/unused")
+        with patch.object(managed_task.private_lineage, "enabled", return_value=True), patch.object(
+            managed_task.private_lineage, "handle_for_issue", return_value="pln_" + "a" * 32
+        ):
+            backlink = managed_task.process_backlink(package, root)
+            resolution = managed_task.process_resolution_note(identity, "b" * 40, root)
+        self.assertIn("pln_" + "a" * 32, backlink)
+        self.assertIn("pln_" + "a" * 32, resolution)
+        self.assertNotIn(package.source_issue, backlink + resolution)
+
     def test_parse_valid_package_and_revision_is_stable(self) -> None:
         body = package_body()
         first = managed_task.parse_package([body], "example-org/development-backlog#1")

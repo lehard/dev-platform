@@ -6,9 +6,16 @@
     "specs/agent-workflow/spec.md"
   ],
   "change": "fix-friction-promotion",
+  "identity_redaction": {
+    "after_original_verification": true,
+    "method": "private-lineage-current-tree-migration",
+    "original_sha256": "df1b0f02a7bfb5df42cd2690c77204347c3bf929bfc0e8c029eb4c6f5ddf6e08",
+    "version": 1
+  },
   "imported_at": "2026-09-23T06:39:00+00:00",
   "package_revision": "390226a89a37c49597f4d856ea8fe4802906dd8a49df076719aef1623b51cced",
   "prepared_against": "9fe86d87e5ee3ff06fe0b84181b489c6906537a9",
+  "private_lineage_handle": "pln_fd690484d9ca04b93abc2f08388b35a2",
   "routing_receipt": {
     "assurance": "standard",
     "effort_hint": "medium",
@@ -18,7 +25,6 @@
     "strong_trigger": null,
     "task_family": "general"
   },
-  "source_issue": "lehard/development-backlog#178",
   "source_issue_evidence": {
     "body_sha256": "1030eb9b8091267316604050fd0ab69d6e1d2492d88584961b24a232eef7eed8",
     "updated_at": "2026-09-23T06:35:26Z"

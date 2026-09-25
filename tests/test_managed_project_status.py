@@ -81,6 +81,19 @@ class ManagedProjectStatusTests(unittest.TestCase):
         assert source is not None
         self.assertEqual(source.reference, "example-org/development-backlog#8")
 
+    def test_opaque_active_source_requires_private_mapping(self) -> None:
+        import managed_task
+
+        path = self.root / "openspec/changes/managed/.managed-task.json"
+        path.write_text(json.dumps({"private_lineage_handle": "pln_" + "a" * 32, "change": "managed"}), encoding="utf-8")
+        with patch.object(managed_task, "source_issue_for_provenance", return_value="example-org/development-backlog#8"):
+            source = managed_project_status.discover_source_issue(self.root)
+            assert source is not None
+            self.assertEqual(source.reference, "example-org/development-backlog#8")
+        with patch.object(managed_task, "source_issue_for_provenance", side_effect=managed_task.ManagedTaskError("missing mapping")):
+            with self.assertRaisesRegex(managed_project_status.ManagedProjectStatusError, "cannot be authorized"):
+                managed_project_status.discover_source_issue(self.root)
+
     def test_task_level_state_survives_after_active_change_is_archived(self) -> None:
         (self.root / "openspec" / "changes" / "managed" / ".managed-task.json").unlink()
         (self.root / ".managed-task-state.json").write_text(

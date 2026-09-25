@@ -1,27 +1,42 @@
 {
-  "version": 2,
-  "selection": {
-    "state": "ready",
-    "command_count": 2,
-    "check_count": 1
-  },
-  "outcome": "success",
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
       "duration_seconds": 0.387,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
       "duration_seconds": 150.826,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     }
   ],
+  "identity_redaction": {
+    "after_original_verification": true,
+    "method": "private-lineage-current-tree-migration",
+    "original_sha256": "54167d156a44209548aa7092cd30ca103523d7439a0b6b4765f01d6ab5cb9c45",
+    "version": 1
+  },
+  "managed_checkout": {
+    "branch": "agent/add-requirement-intake",
+    "change": "add-requirement-intake",
+    "head": "047950525ef03704bf757b8db7e159a246c5ddc0",
+    "private_lineage_handle": "pln_24c46c2a3a7da56a8aede46b99cd5ca5",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/add-requirement-intake"
+  },
+  "outcome": "success",
   "selected_checks": [
     {
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "evidence_types": [
+        "syntax",
+        "test"
+      ],
       "id": "full-trigger",
       "paths": [
         "dev-platform/checks.toml",
@@ -30,25 +45,16 @@
         "tests/test_orchestrate_pre_authoring.py",
         "tests/test_requirement_intake.py"
       ],
-      "commands": [
-        "python3 -m compileall -q template/scripts scripts",
-        "python3 scripts/run_test_groups.py --all"
-      ],
-      "selection_reason": "high-impact-path",
-      "evidence_types": [
-        "syntax",
-        "test"
-      ],
       "required_evidence_types": [
         "test"
-      ]
+      ],
+      "selection_reason": "high-impact-path"
     }
   ],
-  "managed_checkout": {
-    "source_issue": "lehard/development-backlog#144",
-    "change": "add-requirement-intake",
-    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/add-requirement-intake",
-    "branch": "agent/add-requirement-intake",
-    "head": "047950525ef03704bf757b8db7e159a246c5ddc0"
-  }
+  "selection": {
+    "check_count": 1,
+    "command_count": 2,
+    "state": "ready"
+  },
+  "version": 2
 }

@@ -32,6 +32,7 @@ from _platform_common import (
     utc_now,
 )
 import managed_project_status
+import private_lineage
 from start_tier_routing import (
     ASSURANCE_VALUES,
     EFFORT_HINT_VALUES,
@@ -117,10 +118,11 @@ class ManagedCheckoutIdentity:
     worktree: Path
     branch: str
     head: str
+    private_lineage_handle: str | None = None
 
     def evidence_payload(self) -> dict[str, str]:
         return {
-            "source_issue": self.source_issue,
+            **({"private_lineage_handle": self.private_lineage_handle} if self.private_lineage_handle else {"source_issue": self.source_issue}),
             "change": self.change,
             "worktree": str(self.worktree),
             "branch": self.branch,
@@ -856,7 +858,19 @@ def validate_process_evidence(root: Path, references: tuple[str, ...]) -> None:
         process_evidence_issue(root, reference)
 
 
-def process_backlink(package: Package) -> str:
+def _public_process_identity(root: Path, source_issue: str, change: str) -> str:
+    if private_lineage.enabled(root):
+        return private_lineage.handle_for_issue(root, source_issue, change, create=True)
+    return source_issue
+
+
+def process_backlink(package: Package, root: Path | None = None) -> str:
+    identity = _public_process_identity(root, package.source_issue, package.change) if root else package.source_issue
+    if root and private_lineage.enabled(root):
+        return "\n".join((
+            f"<!-- {PROCESS_BACKLINK_PREFIX}:{identity}:{package.change} -->",
+            f"Managed as private Backlog evidence for `{package.change}`. The evidence remains open until terminal delivery succeeds.",
+        ))
     return "\n".join(
         (
             f"<!-- {PROCESS_BACKLINK_PREFIX}:{package.source_issue}:{package.change} -->",
@@ -891,10 +905,11 @@ def reconcile_process_evidence_linkage(root: Path, package: Package) -> None:
                 env,
             )
         comments = run_json(["gh", "api", "--paginate", f"repos/{repository}/issues/{number}/comments"], root, env)
-        marker = f"<!-- {PROCESS_BACKLINK_PREFIX}:{package.source_issue}:{package.change} -->"
+        identity = _public_process_identity(root, package.source_issue, package.change)
+        marker = f"<!-- {PROCESS_BACKLINK_PREFIX}:{identity}:{package.change} -->"
         if not isinstance(comments, list) or not any(marker in str(comment.get("body", "")) for comment in comments if isinstance(comment, dict)):
             run(
-                ["gh", "api", "--method", "POST", f"repos/{repository}/issues/{number}/comments", "--raw-field", "body=" + process_backlink(package)],
+                ["gh", "api", "--method", "POST", f"repos/{repository}/issues/{number}/comments", "--raw-field", "body=" + process_backlink(package, root)],
                 root,
                 env,
             )
@@ -1340,6 +1355,16 @@ def _checkout_candidate(root: Path, registered: dict[Path, str | None]) -> Manag
     return ManagedCheckoutIdentity(str(state["source_issue"]), str(state["change"]), worktree, branch, head)
 
 
+def _with_private_lineage(identity: ManagedCheckoutIdentity) -> ManagedCheckoutIdentity:
+    if not private_lineage.enabled(identity.worktree):
+        return identity
+    try:
+        handle = private_lineage.handle_for_issue(identity.worktree, identity.source_issue, identity.change)
+    except private_lineage.PrivateLineageError as exc:
+        raise ManagedTaskError(str(exc)) from exc
+    return replace(identity, private_lineage_handle=handle)
+
+
 def _current_task_integration_strays(integration: Path, change: str) -> list[str]:
     """Report only integration paths whose ownership is proven by change layout.
 
@@ -1409,7 +1434,7 @@ def resolve_managed_checkout_identity(
     registered = _registered_worktrees(integration)
     current = _checkout_candidate(root, registered)
     if current is not None and matches_expected(current):
-        return current
+        return _with_private_lineage(current)
 
     no_expectation = expected_change is None and expected_source_issue is None
     if no_expectation and current is None and root in registered and root != integration:
@@ -1465,11 +1490,33 @@ def require_managed_checkout_identity(
     )
 
 
-def _provenance_for(path: Path, lifecycle: str) -> CanonicalProvenance:
+def source_issue_for_provenance(root: Path, path: Path, *, expected_source: str | None = None) -> str:
+    """Resolve committed provenance through exact local/private authorization."""
     payload = read_provenance(path)
-    source = payload.get("source_issue")
+    handle = payload.get("private_lineage_handle")
+    if handle is None:
+        source = payload.get("source_issue")
+        if not isinstance(source, str):
+            raise ManagedTaskError("managed-task provenance has no source identity")
+        return source
+    if "source_issue" in payload:
+        raise ManagedTaskError("managed-task provenance mixes private and public identity forms")
+    source = expected_source or (read_task_state(root) or {}).get("source_issue")
     change = payload.get("change")
     if not isinstance(source, str) or not isinstance(change, str):
+        raise ManagedTaskError("opaque managed lineage requires exact local task state")
+    try:
+        private_lineage.require_handle(root, source, change, handle)
+    except private_lineage.PrivateLineageError as exc:
+        raise ManagedTaskError(str(exc)) from exc
+    return source
+
+
+def _provenance_for(path: Path, lifecycle: str, root: Path, expected_source: str | None = None) -> CanonicalProvenance:
+    payload = read_provenance(path)
+    source = source_issue_for_provenance(root, path, expected_source=expected_source)
+    change = payload.get("change")
+    if not isinstance(change, str):
         raise ManagedTaskError(f"managed-task provenance is incomplete: {path}")
     repository, number = issue_ref(source)
     valid_path = path.name == change if lifecycle == "active" else path.name == change or path.name.endswith(f"-{change}")
@@ -1482,12 +1529,12 @@ def _provenance_for(path: Path, lifecycle: str) -> CanonicalProvenance:
     return CanonicalProvenance(f"{repository}#{number}", change, path, lifecycle, process_evidence)
 
 
-def canonical_provenance_candidates(root: Path, change: str) -> list[CanonicalProvenance]:
+def canonical_provenance_candidates(root: Path, change: str, expected_source: str | None = None) -> list[CanonicalProvenance]:
     """Locate only canonical active/archive locations for ``change``."""
     active = change_root(root, change)
     candidates: list[CanonicalProvenance] = []
     if (active / PROVENANCE).is_file():
-        candidates.append(_provenance_for(active, "active"))
+        candidates.append(_provenance_for(active, "active", root, expected_source))
     archive = root / "openspec" / "changes" / "archive"
     if archive.is_dir():
         # Current OpenSpec archives directly to a dated change directory,
@@ -1495,7 +1542,7 @@ def canonical_provenance_candidates(root: Path, change: str) -> list[CanonicalPr
         archived_paths = list(archive.glob(f"*-{change}")) + list(archive.glob(f"*/{change}"))
         for archived in sorted(set(archived_paths)):
             if (archived / PROVENANCE).is_file():
-                candidates.append(_provenance_for(archived, "archived"))
+                candidates.append(_provenance_for(archived, "archived", root, expected_source))
     return candidates
 
 
@@ -1526,10 +1573,10 @@ def resolve_canonical_provenance(
             return None
         if len(active) != 1:
             raise ManagedTaskError("multiple active managed OpenSpec packages make task identity ambiguous")
-        candidate = _provenance_for(active[0].parent, "active")
+        candidate = _provenance_for(active[0].parent, "active", root)
         expected_source, expected_change = candidate.source_issue, candidate.change
 
-    candidates = canonical_provenance_candidates(root, expected_change)
+    candidates = canonical_provenance_candidates(root, expected_change, expected_source)
     matching = [item for item in candidates if item.source_issue.lower() == str(expected_source).lower()]
     if not matching:
         if candidates:
@@ -1639,7 +1686,12 @@ def delivery_identity(root: Path) -> ManagedTaskIdentity | None:
     return ManagedTaskIdentity(provenance.source_issue, provenance.change, provenance.process_evidence)
 
 
-def process_resolution_note(identity: ManagedTaskIdentity, implementation_sha: str) -> str:
+def process_resolution_note(identity: ManagedTaskIdentity, implementation_sha: str, root: Path | None = None) -> str:
+    if root and private_lineage.enabled(root):
+        return "\n".join((
+            process_resolution_marker(identity, root),
+            f"Resolved after terminal delivery of private Backlog task `{identity.change}` at implementation `{implementation_sha}`.",
+        ))
     return "\n".join(
         (
             process_resolution_marker(identity),
@@ -1649,8 +1701,9 @@ def process_resolution_note(identity: ManagedTaskIdentity, implementation_sha: s
     )
 
 
-def process_resolution_marker(identity: ManagedTaskIdentity) -> str:
-    return f"<!-- {PROCESS_BACKLINK_PREFIX}:resolved:{identity.source_issue}:{identity.change} -->"
+def process_resolution_marker(identity: ManagedTaskIdentity, root: Path | None = None) -> str:
+    source = _public_process_identity(root, identity.source_issue, identity.change) if root else identity.source_issue
+    return f"<!-- {PROCESS_BACKLINK_PREFIX}:resolved:{source}:{identity.change} -->"
 
 
 def resolve_process_evidence_after_delivery(root: Path, identity: ManagedTaskIdentity | None, implementation_sha: str) -> None:
@@ -1679,12 +1732,12 @@ def resolve_process_evidence_after_delivery(root: Path, identity: ManagedTaskIde
         comments = run_json(["gh", "api", "--paginate", f"repos/{repository}/issues/{number}/comments"], root, env)
         if not isinstance(comments, list):
             raise ManagedTaskError("GitHub returned an unexpected issue-comment payload")
-        marker = process_resolution_marker(identity)
+        marker = process_resolution_marker(identity, root)
         if not any(marker in str(comment.get("body", "")) for comment in comments if isinstance(comment, dict)):
             run(
                 [
                     "gh", "api", "--method", "POST", f"repos/{repository}/issues/{number}/comments",
-                    "--raw-field", "body=" + process_resolution_note(identity, implementation_sha),
+                    "--raw-field", "body=" + process_resolution_note(identity, implementation_sha, root),
                 ],
                 root,
                 env,
@@ -1722,8 +1775,13 @@ def assert_integration_identity_cross_check(
 
 
 def write_provenance(root: Path, package: Package) -> None:
+    repository_root = root.parents[2]
+    if private_lineage.enabled(repository_root):
+        identity = {"private_lineage_handle": private_lineage.handle_for_issue(repository_root, package.source_issue, package.change, create=True)}
+    else:
+        identity = {"source_issue": package.source_issue}
     payload = {
-        "version": 1, "source_issue": package.source_issue, "target_repository": package.target_repository,
+        "version": 1, **identity, "target_repository": package.target_repository,
         "change": package.change, "prepared_against": package.prepared_against,
         "package_revision": package.revision, "artifacts": list(package.artifacts),
         "imported_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
@@ -1866,7 +1924,7 @@ def import_task(
             return package, current_main, True
     if destination_exists:
         provenance = read_provenance(destination)
-        if provenance.get("source_issue", "").lower() != package.source_issue.lower():
+        if source_issue_for_provenance(root, destination, expected_source=package.source_issue).lower() != package.source_issue.lower():
             raise ManagedTaskError("same-name OpenSpec change belongs to a different source issue")
         check_schema(root, package)
         validate_change(root, package.change)

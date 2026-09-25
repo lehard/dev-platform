@@ -9,14 +9,14 @@ Automated-Checks-Evidence: automated-checks.json
 ## Scope of this receipt
 
 This records what was actually run for the `add-platform-health-review-report`
-change (managed Issue lehard/development-backlog#167). Prerequisite siblings
-`add-architecture-health-cloud-review` (#165) and
-`add-platform-health-review-orchestration` (#166) have both since merged to
+change (private managed Issue). Prerequisite siblings
+`add-architecture-health-cloud-review` (the architecture review prerequisite) and
+`add-platform-health-review-orchestration` (the orchestration prerequisite) have both since merged to
 `main`, establishing the same "live workflow_dispatch requires the workflow's
 file (and every reusable workflow it calls) to already exist on the default
 branch" structural GitHub constraint (see `design.md`'s "Verification note").
 Per the user's decision applied consistently across the whole
-#165->#166->#167->#169 chain, the one `tasks.md` live-dispatch item is
+the architecture review prerequisite->the orchestration prerequisite->this report change->the notification follow-up chain, the one `tasks.md` live-dispatch item is
 reworded as an explicit **post-merge** follow-up rather than a pre-archive
 gate. Every other item, and everything verifiable pre-merge, was actually run
 and passed, so this change is archive-ready on that basis.
@@ -24,14 +24,14 @@ and passed, so this change is archive-ready on that basis.
 ## Step 0: sibling merge, then reconcile with merged main
 
 `git merge agent/add-platform-health-review-orchestration` from inside this
-worktree originally fast-forwarded cleanly. After #165 and #166 actually
+worktree originally fast-forwarded cleanly. After the architecture review prerequisite and the orchestration prerequisite actually
 merged to `main`, `python3 scripts/dogfood_task.py reconcile` was run to
 replace that provisional local merge with real history; it stopped at merge
 conflicts in `.github/workflows/platform-health-review.yml` and
-`tests/test_agentic_workflows.py` (expected: main had since gained #166's
+`tests/test_agentic_workflows.py` (expected: main had since gained the orchestration prerequisite's
 merge plus a separate quick-fix, `fix-platform-health-review-permissions`,
 that corrected insufficient job-level `permissions:` on the two review-calling
-jobs -- discovered by #166's own post-merge live-dispatch follow-up -- while
+jobs -- discovered by the orchestration prerequisite's own post-merge live-dispatch follow-up -- while
 this branch's commit already added the `publish-report` job on top of the
 pre-fix content). Resolved by combining both sides by hand: kept the
 corrected `permissions:` blocks (and their explanatory comments) from `main`
@@ -158,5 +158,7 @@ All from `/Users/Shared/Workspace/dev-platform/.claude/worktrees/add-platform-he
   `lehard/dev-platform`.** Documented in `tasks.md` and `design.md` as an
   explicit post-merge follow-up: the workflow (and every reusable workflow it
   calls) must exist on `main` before `workflow_dispatch` recognizes it at
-  all. To be performed once this change merges, alongside #165's and #166's
+  all. To be performed once this change merges, alongside the architecture review prerequisite's and the orchestration prerequisite's
   own already-completed post-merge dispatch confirmations.
+
+Identity-Redaction: Private task identifiers were removed from this current-tree receipt after the original verification; its outcomes and method were retained.
