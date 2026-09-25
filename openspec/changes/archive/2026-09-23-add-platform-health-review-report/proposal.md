@@ -2,7 +2,7 @@
 
 ## Why
 
-lehard/development-backlog#157 requires a durable, human-readable GitHub entry point for the Platform Health Review result — a human should never need to remember a local file path or search the repository for output. The platform already proves this pattern works: the periodic process-backlog review (`.github/workflows/weekly-process-backlog-review.md`) persists its dated report as a single GitHub Issue via a `create-issue` safe output, a fixed title prefix, and `close-older-issues` (replace, not accumulate). No spec currently defines this for a *combined* process-plus-architecture report; today the two reviews have no shared report artifact at all.
+the private Backlog task requires a durable, human-readable GitHub entry point for the Platform Health Review result — a human should never need to remember a local file path or search the repository for output. The platform already proves this pattern works: the periodic process-backlog review (`.github/workflows/weekly-process-backlog-review.md`) persists its dated report as a single GitHub Issue via a `create-issue` safe output, a fixed title prefix, and `close-older-issues` (replace, not accumulate). No spec currently defines this for a *combined* process-plus-architecture report; today the two reviews have no shared report artifact at all.
 
 ## Current to target
 
@@ -29,3 +29,5 @@ This change does not add any notification/delivery mechanism (a separate linked 
 ## Delivery scope
 
 An OpenSpec delta to `specs/platform-health-review/spec.md` plus the report-generation wiring in the relevant `.github/workflows/*.md` source(s) and their compiled lock workflow(s). No application/product code changes.
+
+Identity-Redaction: Direct private Backlog identifiers were removed from this current-tree archive after the original review.

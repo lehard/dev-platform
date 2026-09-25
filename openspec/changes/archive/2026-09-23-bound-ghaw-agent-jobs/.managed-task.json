@@ -6,9 +6,16 @@
     "specs/ci-safety/spec.md"
   ],
   "change": "bound-ghaw-agent-jobs",
+  "identity_redaction": {
+    "after_original_verification": true,
+    "method": "private-lineage-current-tree-migration",
+    "original_sha256": "5651ceb820ef1599f11d220fe89591abc729a60c85c337d20556937969740a4c",
+    "version": 1
+  },
   "imported_at": "2026-09-23T12:44:37+00:00",
   "package_revision": "8c14d616257326083890741ec50e5dba4167a8d76f3cffd8cb09748c50ed1d9a",
   "prepared_against": "8cd3519a86b6c161e08f5119a7b339a772f93b54",
+  "private_lineage_handle": "pln_a9902871c1247dad5ae160af94fefad9",
   "process_evidence": [
     "lehard/dev-platform#74"
   ],
@@ -21,7 +28,6 @@
     "strong_trigger": null,
     "task_family": "general"
   },
-  "source_issue": "lehard/development-backlog#184",
   "source_issue_evidence": {
     "body_sha256": "1771f303f87c1d99d18d3e2a8802bfaefe5ddcaa1d84ee9d926fea633e7bc78c",
     "updated_at": "2026-09-23T12:33:47Z"

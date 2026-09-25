@@ -6,9 +6,16 @@
     "specs/managed-rollout/spec.md"
   ],
   "change": "fix-reconcile-missing-registry-flag",
+  "identity_redaction": {
+    "after_original_verification": true,
+    "method": "private-lineage-current-tree-migration",
+    "original_sha256": "70bb57d11c0172e58c28273574e0e2e69a2699e2102dd2ffdc147e53f1dbd82c",
+    "version": 1
+  },
   "imported_at": "2026-09-22T08:57:32+00:00",
   "package_revision": "3fc7e9a95de69abc661e023632bba071922f8294f407bb53e080f526f9290680",
   "prepared_against": "4a41a24bdd9cefdf48392e13316e26537c96a38a",
+  "private_lineage_handle": "pln_3267eca6c07b3f48ae3eb83876dee5d7",
   "routing_receipt": {
     "assurance": "standard",
     "effort_hint": "low",
@@ -18,7 +25,6 @@
     "strong_trigger": null,
     "task_family": "platform-rollout-copier-bridge"
   },
-  "source_issue": "lehard/development-backlog#148",
   "source_issue_evidence": {
     "body_sha256": "fbd5e4187b222b87a79bd2422702a498917927c19255bd3243e73bef3474bdee",
     "updated_at": "2026-09-22T08:56:44Z"

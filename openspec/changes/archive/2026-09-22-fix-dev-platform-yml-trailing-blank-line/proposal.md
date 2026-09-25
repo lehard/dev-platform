@@ -14,4 +14,6 @@ Real `copier copy --trust --defaults` renders for both `harness_mode` values, fo
 
 ## Dependencies
 
-Continues `fix-rollout-trailing-blank-lines` (lehard/development-backlog#147) and, transitively, `add-legacy-baseline-bridge` (lehard/development-backlog#146): both earlier fixes are prerequisites for a rollout run reaching this far.
+Continues `fix-rollout-trailing-blank-lines` (the private Backlog task) and, transitively, `add-legacy-baseline-bridge` (the private Backlog task): both earlier fixes are prerequisites for a rollout run reaching this far.
+
+Identity-Redaction: Direct private Backlog identifiers were removed from this current-tree archive after the original review.

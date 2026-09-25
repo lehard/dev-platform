@@ -6,9 +6,16 @@
     "specs/platform-health-review/spec.md"
   ],
   "change": "add-platform-health-review-notifications",
+  "identity_redaction": {
+    "after_original_verification": true,
+    "method": "private-lineage-current-tree-migration",
+    "original_sha256": "c17e655c31174882f595113cf74146f294ac25e656ac358b634b33b14842c542",
+    "version": 1
+  },
   "imported_at": "2026-09-22T19:04:37+00:00",
   "package_revision": "f4985b4bb96d7bc771f095ad4727df0837231056fe3c393b505b3665e61992ab",
   "prepared_against": "fb912d20f9d278d39b0717fbd3cad0831b56355d",
+  "private_lineage_handle": "pln_056c3fb65f1dd5fddf4804eee23a1218",
   "routing_receipt": {
     "assurance": "standard",
     "effort_hint": "medium",
@@ -18,7 +25,6 @@
     "strong_trigger": null,
     "task_family": "platform-health-review"
   },
-  "source_issue": "lehard/development-backlog#169",
   "source_issue_evidence": {
     "body_sha256": "6f8c26b6edf08543841b4042b3af849eaf18d3af97ca5c0334ed2ad834fe50c0",
     "updated_at": "2026-09-22T18:57:58Z"

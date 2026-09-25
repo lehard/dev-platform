@@ -1,51 +1,57 @@
 {
-  "version": 2,
-  "selection": {
-    "state": "ready",
-    "command_count": 2,
-    "check_count": 1
-  },
-  "outcome": "success",
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
       "duration_seconds": 0.624,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
       "duration_seconds": 286.625,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     }
   ],
+  "identity_redaction": {
+    "after_original_verification": true,
+    "method": "private-lineage-current-tree-migration",
+    "original_sha256": "e1df723150cb8d6374c86daf6a4f2f3b75f55803f6ccc17953e29839019c0e36",
+    "version": 1
+  },
+  "managed_checkout": {
+    "branch": "agent/fix-handoff-cli-serialization",
+    "change": "fix-handoff-cli-serialization",
+    "head": "62d6efefa9ccfef033ac9504d8aa3fb9b03d3e4b",
+    "private_lineage_handle": "pln_349485e06c8be4efddfd72046533f899",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/fix-handoff-cli-serialization"
+  },
+  "outcome": "success",
   "selected_checks": [
     {
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "evidence_types": [
+        "syntax",
+        "test"
+      ],
       "id": "full-trigger",
       "paths": [
         "template/scripts/requirement_intake.py",
         "tests/test_requirement_intake.py"
       ],
-      "commands": [
-        "python3 -m compileall -q template/scripts scripts",
-        "python3 scripts/run_test_groups.py --all"
-      ],
-      "selection_reason": "high-impact-path",
-      "evidence_types": [
-        "syntax",
-        "test"
-      ],
       "required_evidence_types": [
         "test"
-      ]
+      ],
+      "selection_reason": "high-impact-path"
     }
   ],
-  "managed_checkout": {
-    "source_issue": "lehard/development-backlog#181",
-    "change": "fix-handoff-cli-serialization",
-    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/fix-handoff-cli-serialization",
-    "branch": "agent/fix-handoff-cli-serialization",
-    "head": "62d6efefa9ccfef033ac9504d8aa3fb9b03d3e4b"
-  }
+  "selection": {
+    "check_count": 1,
+    "command_count": 2,
+    "state": "ready"
+  },
+  "version": 2
 }

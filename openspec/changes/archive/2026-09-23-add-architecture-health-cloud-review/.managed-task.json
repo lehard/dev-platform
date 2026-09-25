@@ -6,9 +6,16 @@
     "specs/architecture-health/spec.md"
   ],
   "change": "add-architecture-health-cloud-review",
+  "identity_redaction": {
+    "after_original_verification": true,
+    "method": "private-lineage-current-tree-migration",
+    "original_sha256": "9c7597c6733f8194a21e780668f71600b8562ce6efcc11ecabf5e7a3ef10c443",
+    "version": 1
+  },
   "imported_at": "2026-09-22T18:47:02+00:00",
   "package_revision": "b1928afd173e8f876bce7ba285ee5ed27b01b2c491b750db7f2a1b2b99d94a80",
   "prepared_against": "fb912d20f9d278d39b0717fbd3cad0831b56355d",
+  "private_lineage_handle": "pln_dce2a3d40e160be544583bd9d244f3b2",
   "routing_receipt": {
     "assurance": "standard",
     "effort_hint": "medium",
@@ -18,7 +25,6 @@
     "strong_trigger": null,
     "task_family": "platform-health-review"
   },
-  "source_issue": "lehard/development-backlog#165",
   "source_issue_evidence": {
     "body_sha256": "8c558771024c5537156ace440da19375375de9f5b50e8607d92fbe95dc90f482",
     "updated_at": "2026-09-22T18:44:50Z"

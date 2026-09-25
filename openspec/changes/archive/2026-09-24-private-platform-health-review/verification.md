@@ -6,12 +6,12 @@ Verification-Method: manual semantic review of the authored outcome, success evi
 
 Automated-Checks-Evidence: automated-checks.json
 
-Requirement-Integration-Exception: Requirement #194 has exactly one technical child (#195), so a shared multi-child integration candidate cannot be assembled; publish this verified child through its exact managed PR.
+Requirement-Integration-Exception: The private Requirement has exactly one technical child, so a shared multi-child integration candidate cannot be assembled; publish this verified child through its exact managed PR.
 
 ## Outcome and cloud evidence
 
-- The private caller's missing-access run published a private `degraded` report, with `private_evidence: degraded`, an unavailable-evidence category, and both AI reviews skipped: [private report #204](https://github.com/lehard/development-backlog/issues/204). The private report replaced its predecessor on later runs.
-- After GitHub App installation permission approval, [private run 35993638802](https://github.com/lehard/development-backlog/actions/runs/35993638802) completed successfully. Preflight, both review agents, safe outputs, and the publisher succeeded. [Private combined report #210](https://github.com/lehard/development-backlog/issues/210) records `audit_status: complete` and `private_evidence: available`, and links the private process and architecture reports #209 and #208. The process report cites private managed evidence.
+- The private caller's missing-access run published a private `degraded` report, with `private_evidence: degraded`, an unavailable-evidence category, and both AI reviews skipped: a private report. The private report replaced its predecessor on later runs.
+- After GitHub App installation permission approval, a private cloud run completed successfully. Preflight, both review agents, safe outputs, and the publisher succeeded. The private combined report records `audit_status: complete` and `private_evidence: available`, and links the private process and architecture private process and architecture reports. The process report cites private managed evidence.
 - The public repository received no new combined or individual report from that run. Historical public reports #99, #100 and #101 were closed; #100's old body, which mentioned private issue identifiers, was replaced with a brief migration notice.
 
 ## Automated checks
@@ -32,3 +32,5 @@ Requirement-Integration-Exception: Requirement #194 has exactly one technical ch
 - **Coherence:** The proposal, design, specification delta, implementation, tests, and live behavior agree on private-only complete output, explicit degraded mode, and independent review sections. No separate public full report or storage path remains active.
 
 The automated-checks marker above names the evidence that the archive helper will generate from its own selected checks; it does not assert that the evidence file existed before archive.
+
+Identity-Redaction: Private report, run, and task identifiers were removed from this current-tree receipt after the original verification; its outcomes and method were retained.

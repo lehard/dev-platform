@@ -10,9 +10,16 @@
     "specs/agent-instructions/spec.md"
   ],
   "change": "align-requirement-first-intake-contract",
+  "identity_redaction": {
+    "after_original_verification": true,
+    "method": "private-lineage-current-tree-migration",
+    "original_sha256": "9f7fffd5348aaf7f24065bb264026b65b89932d758381fc46a5e386c9b23df7f",
+    "version": 1
+  },
   "imported_at": "2026-09-22T20:18:44+00:00",
   "package_revision": "5e8a3eb836a5434fc316e70ca81343734a74f05ed96db3d934ab03e1c1ac187e",
   "prepared_against": "4021b69176e7138f928293fc50870bab4c847bb0",
+  "private_lineage_handle": "pln_753dc17b0da5645bce3c55678e889082",
   "routing_receipt": {
     "assurance": "high",
     "effort_hint": "medium",
@@ -22,7 +29,6 @@
     "strong_trigger": null,
     "task_family": "contract-alignment"
   },
-  "source_issue": "lehard/development-backlog#174",
   "source_issue_evidence": {
     "body_sha256": "89432994aabe68eb9460570e62190492f7b6b7abb6c8e56904ee2770948e0bf9",
     "updated_at": "2026-09-22T20:17:11Z"

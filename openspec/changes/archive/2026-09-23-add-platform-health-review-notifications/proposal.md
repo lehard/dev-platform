@@ -2,7 +2,7 @@
 
 ## Why
 
-lehard/development-backlog#157 requires that a human be notified when a new Platform Health Review result is available, through a configured channel, without the notification duplicating the full report. GitHub is already the base channel (the report Issue itself, from `add-platform-health-review-report`), but nothing currently pushes a short summary to a human proactively, and no notification mechanism (Telegram, generic webhook) exists anywhere in the platform today: this is genuinely new integration surface.
+the private Backlog task requires that a human be notified when a new Platform Health Review result is available, through a configured channel, without the notification duplicating the full report. GitHub is already the base channel (the report Issue itself, from `add-platform-health-review-report`), but nothing currently pushes a short summary to a human proactively, and no notification mechanism (Telegram, generic webhook) exists anywhere in the platform today: this is genuinely new integration surface.
 
 ## Current to target
 
@@ -31,3 +31,5 @@ This change does not add multi-recipient or per-repository notification routing 
 ## Delivery scope
 
 An OpenSpec delta to `specs/platform-health-review/spec.md`, a repository-owned notification script, and the GitHub Actions workflow wiring that invokes it after the report step. No application/product code changes.
+
+Identity-Redaction: Direct private Backlog identifiers were removed from this current-tree archive after the original review.

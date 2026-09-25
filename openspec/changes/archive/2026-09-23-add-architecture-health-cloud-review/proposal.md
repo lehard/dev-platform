@@ -2,7 +2,7 @@
 
 ## Why
 
-Architecture Health Review (`openspec/specs/architecture-health/spec.md`) is accepted as an advisory, read-only capability, but its spec defines only review content/scope; it has no execution environment, schedule, or trigger of its own today, and can only run inside an interactive local agent session. Requirement lehard/development-backlog#157 asks for a Platform Health Review that runs entirely in the cloud, on a schedule or by manual dispatch, without a running local computer. Architecture Health Review must gain this cloud/scheduled execution surface before it can be combined with the already cloud-capable Process Health Review.
+Architecture Health Review (`openspec/specs/architecture-health/spec.md`) is accepted as an advisory, read-only capability, but its spec defines only review content/scope; it has no execution environment, schedule, or trigger of its own today, and can only run inside an interactive local agent session. Requirement the private Backlog task asks for a Platform Health Review that runs entirely in the cloud, on a schedule or by manual dispatch, without a running local computer. Architecture Health Review must gain this cloud/scheduled execution surface before it can be combined with the already cloud-capable Process Health Review.
 
 ## Current to target
 
@@ -30,3 +30,5 @@ This change does not combine Architecture Health Review's trigger with Process H
 ## Delivery scope
 
 A new `.github/workflows/*.md` (gh-aw source) plus its compiled lock workflow, and the architecture-health OpenSpec accepted-spec delta. No application/product code changes.
+
+Identity-Redaction: Direct private Backlog identifiers were removed from this current-tree archive after the original review.

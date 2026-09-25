@@ -1,33 +1,50 @@
 {
-  "version": 2,
-  "selection": {
-    "state": "ready",
-    "command_count": 3,
-    "check_count": 1
-  },
-  "outcome": "success",
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
       "duration_seconds": 2.03,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     },
     {
       "command": "python3 -m ruff check scripts template/scripts tests",
       "duration_seconds": 0.381,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
       "duration_seconds": 322.208,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     }
   ],
+  "identity_redaction": {
+    "after_original_verification": true,
+    "method": "private-lineage-current-tree-migration",
+    "original_sha256": "daab4ad08e98daff82eab4c1befedd442cc037eb4d6a158d807b1001a9816fcc",
+    "version": 1
+  },
+  "managed_checkout": {
+    "branch": "agent/private-platform-health-review",
+    "change": "private-platform-health-review",
+    "head": "f1d1241fdfedc64aaa4632663fa8ed0544f76d8b",
+    "private_lineage_handle": "pln_a2fb99fa23fa2d17e8355fbfaf8ecf4a",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/private-platform-health-review"
+  },
+  "outcome": "success",
   "selected_checks": [
     {
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
       "id": "full-trigger",
       "paths": [
         ".github/workflows/architecture-health-review.lock.yml",
@@ -43,27 +60,16 @@
         "tests/test_private_platform_health_preflight.py",
         "tests/test_publish_platform_health_review_report.py"
       ],
-      "commands": [
-        "python3 -m compileall -q template/scripts scripts",
-        "python3 -m ruff check scripts template/scripts tests",
-        "python3 scripts/run_test_groups.py --all"
-      ],
-      "selection_reason": "high-impact-path",
-      "evidence_types": [
-        "syntax",
-        "syntax",
-        "test"
-      ],
       "required_evidence_types": [
         "test"
-      ]
+      ],
+      "selection_reason": "high-impact-path"
     }
   ],
-  "managed_checkout": {
-    "source_issue": "lehard/development-backlog#195",
-    "change": "private-platform-health-review",
-    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/private-platform-health-review",
-    "branch": "agent/private-platform-health-review",
-    "head": "f1d1241fdfedc64aaa4632663fa8ed0544f76d8b"
-  }
+  "selection": {
+    "check_count": 1,
+    "command_count": 3,
+    "state": "ready"
+  },
+  "version": 2
 }

@@ -1,27 +1,42 @@
 {
-  "version": 2,
-  "selection": {
-    "state": "ready",
-    "command_count": 2,
-    "check_count": 1
-  },
-  "outcome": "success",
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
       "duration_seconds": 0.105,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
       "duration_seconds": 167.864,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     }
   ],
+  "identity_redaction": {
+    "after_original_verification": true,
+    "method": "private-lineage-current-tree-migration",
+    "original_sha256": "283e5d248a367a739ce9ddd1491d325c0e3ca2d9f303c7d6ea9fd05b0b928b2f",
+    "version": 1
+  },
+  "managed_checkout": {
+    "branch": "agent/add-legacy-baseline-bridge",
+    "change": "add-legacy-baseline-bridge",
+    "head": "9cb534cbe80da5882820740ad863f2d8ac7057d7",
+    "private_lineage_handle": "pln_83d0c29317c067dbd0e103c43b06d466",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/add-legacy-baseline-bridge"
+  },
+  "outcome": "success",
   "selected_checks": [
     {
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "evidence_types": [
+        "syntax",
+        "test"
+      ],
       "id": "full-trigger",
       "paths": [
         ".github/workflows/ci.yml",
@@ -30,25 +45,16 @@
         "tests/test_managed_rollout.py",
         "tests/test_rollout_recopy.py"
       ],
-      "commands": [
-        "python3 -m compileall -q template/scripts scripts",
-        "python3 scripts/run_test_groups.py --all"
-      ],
-      "selection_reason": "high-impact-path",
-      "evidence_types": [
-        "syntax",
-        "test"
-      ],
       "required_evidence_types": [
         "test"
-      ]
+      ],
+      "selection_reason": "high-impact-path"
     }
   ],
-  "managed_checkout": {
-    "source_issue": "lehard/development-backlog#146",
-    "change": "add-legacy-baseline-bridge",
-    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/add-legacy-baseline-bridge",
-    "branch": "agent/add-legacy-baseline-bridge",
-    "head": "9cb534cbe80da5882820740ad863f2d8ac7057d7"
-  }
+  "selection": {
+    "check_count": 1,
+    "command_count": 2,
+    "state": "ready"
+  },
+  "version": 2
 }

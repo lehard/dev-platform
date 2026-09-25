@@ -780,6 +780,13 @@ def main() -> int:
     emit_finish_stage("preflight clear: starting required validation")
     run_checks(work, remote_main, args.no_checks)
 
+    # The source repository has a public distribution boundary and a private
+    # Backlog. Check the exact candidate immediately before publication. The
+    # generic rendered lifecycle has no such source-owned guard.
+    privacy_guard = work / "scripts" / "check_private_backlog_refs.py"
+    if privacy_guard.is_file():
+        subprocess.run(["python3", str(privacy_guard), "--root", str(work)], cwd=work, check=True)
+
     # Immediately-before-publication recheck: factual scope can have grown
     # since admission (or since the pre-validation recheck inside
     # select_checks.py) even when checks themselves passed.

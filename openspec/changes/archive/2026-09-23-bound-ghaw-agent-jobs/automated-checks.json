@@ -1,33 +1,50 @@
 {
-  "version": 2,
-  "selection": {
-    "state": "ready",
-    "command_count": 3,
-    "check_count": 1
-  },
-  "outcome": "success",
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
       "duration_seconds": 1.634,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     },
     {
       "command": "python3 -m ruff check scripts template/scripts tests",
       "duration_seconds": 4.066,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
       "duration_seconds": 281.002,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     }
   ],
+  "identity_redaction": {
+    "after_original_verification": true,
+    "method": "private-lineage-current-tree-migration",
+    "original_sha256": "97509104500877d988d8e661dc918503fafca1682af7e0702bde327db4afb393",
+    "version": 1
+  },
+  "managed_checkout": {
+    "branch": "agent/bound-ghaw-agent-jobs",
+    "change": "bound-ghaw-agent-jobs",
+    "head": "fdfa69c4bd106dec5163fa559187ef7e41d3fd03",
+    "private_lineage_handle": "pln_a9902871c1247dad5ae160af94fefad9",
+    "worktree": "/Users/Shared/Workspace/dev-platform-161-recovery/.claude/worktrees/bound-ghaw-agent-jobs"
+  },
+  "outcome": "success",
   "selected_checks": [
     {
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
       "id": "full-trigger",
       "paths": [
         ".github/workflows/architecture-health-review.lock.yml",
@@ -39,27 +56,16 @@
         "scripts/validate_agentic_workflows.py",
         "tests/test_agentic_workflows.py"
       ],
-      "commands": [
-        "python3 -m compileall -q template/scripts scripts",
-        "python3 -m ruff check scripts template/scripts tests",
-        "python3 scripts/run_test_groups.py --all"
-      ],
-      "selection_reason": "high-impact-path",
-      "evidence_types": [
-        "syntax",
-        "syntax",
-        "test"
-      ],
       "required_evidence_types": [
         "test"
-      ]
+      ],
+      "selection_reason": "high-impact-path"
     }
   ],
-  "managed_checkout": {
-    "source_issue": "lehard/development-backlog#184",
-    "change": "bound-ghaw-agent-jobs",
-    "worktree": "/Users/Shared/Workspace/dev-platform-161-recovery/.claude/worktrees/bound-ghaw-agent-jobs",
-    "branch": "agent/bound-ghaw-agent-jobs",
-    "head": "fdfa69c4bd106dec5163fa559187ef7e41d3fd03"
-  }
+  "selection": {
+    "check_count": 1,
+    "command_count": 3,
+    "state": "ready"
+  },
+  "version": 2
 }

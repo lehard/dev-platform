@@ -1,27 +1,42 @@
 {
-  "version": 2,
-  "selection": {
-    "state": "ready",
-    "command_count": 2,
-    "check_count": 1
-  },
-  "outcome": "success",
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
       "duration_seconds": 0.168,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
       "duration_seconds": 171.516,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     }
   ],
+  "identity_redaction": {
+    "after_original_verification": true,
+    "method": "private-lineage-current-tree-migration",
+    "original_sha256": "c5adca0eb3f9fe564c7f8c58ce0f26486124897ab61bf0249c27521778804ba3",
+    "version": 1
+  },
+  "managed_checkout": {
+    "branch": "agent/add-architecture-health-cloud-review",
+    "change": "add-architecture-health-cloud-review",
+    "head": "ac616ebd785a8ca6ef58deb946dc98021f47d37f",
+    "private_lineage_handle": "pln_dce2a3d40e160be544583bd9d244f3b2",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/add-architecture-health-cloud-review"
+  },
+  "outcome": "success",
   "selected_checks": [
     {
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "evidence_types": [
+        "syntax",
+        "test"
+      ],
       "id": "full-trigger",
       "paths": [
         ".github/workflows/architecture-health-review.lock.yml",
@@ -29,25 +44,16 @@
         "scripts/validate_agentic_workflows.py",
         "tests/test_agentic_workflows.py"
       ],
-      "commands": [
-        "python3 -m compileall -q template/scripts scripts",
-        "python3 scripts/run_test_groups.py --all"
-      ],
-      "selection_reason": "high-impact-path",
-      "evidence_types": [
-        "syntax",
-        "test"
-      ],
       "required_evidence_types": [
         "test"
-      ]
+      ],
+      "selection_reason": "high-impact-path"
     }
   ],
-  "managed_checkout": {
-    "source_issue": "lehard/development-backlog#165",
-    "change": "add-architecture-health-cloud-review",
-    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/add-architecture-health-cloud-review",
-    "branch": "agent/add-architecture-health-cloud-review",
-    "head": "ac616ebd785a8ca6ef58deb946dc98021f47d37f"
-  }
+  "selection": {
+    "check_count": 1,
+    "command_count": 2,
+    "state": "ready"
+  },
+  "version": 2
 }

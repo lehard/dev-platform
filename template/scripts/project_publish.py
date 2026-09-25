@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 import time
 from contextlib import nullcontext
@@ -404,13 +405,26 @@ def validate_shared_manifest(root: Path, path: Path) -> dict:
     unsigned = {key: value for key, value in payload.items() if key != "digest"}
     requirement = payload.get("requirement")
     children = payload.get("children")
+    private_raw = os.environ.get("DEV_PLATFORM_PRIVATE_MANIFEST")
+    private_manifest = None
+    if private_raw:
+        try:
+            private_manifest = json.loads(private_raw)
+        except json.JSONDecodeError as exc:
+            raise RequirementIntegrationError("private integration evidence is malformed") from exc
+    opaque = private_manifest is not None
     if (payload.get("digest") != requirement_integration._digest(unsigned)
-            or not isinstance(requirement, str) or not requirement_integration.ISSUE_RE.fullmatch(requirement)
+            or not isinstance(requirement, str)
+            or (not requirement_integration.ISSUE_RE.fullmatch(requirement) and not (opaque and re.fullmatch(r"pln_[0-9a-f]{32}", requirement)))
             or not isinstance(children, list) or len(children) < 2
             or any(not isinstance(child, dict) or not isinstance(child.get("source_issue"), str)
-                   or not requirement_integration.ISSUE_RE.fullmatch(child["source_issue"]) for child in children)
+                   or not (re.fullmatch(r"pln_[0-9a-f]{32}", child["source_issue"])
+                           if opaque else requirement_integration.ISSUE_RE.fullmatch(child["source_issue"])) for child in children)
             or len({child["source_issue"] for child in children}) != len(children)):
         raise RequirementIntegrationError("shared manifest identity or digest is invalid")
+    if opaque:
+        if not isinstance(private_manifest, dict) or requirement_integration._public_manifest(main_root(), private_manifest) != payload:
+            raise RequirementIntegrationError("public manifest does not match exact private lineage")
     generation = payload.get("generation")
     expected = requirement_integration._candidate_slug(requirement, generation)
     if payload.get("mode") == "exact-parent-merge":
@@ -419,7 +433,7 @@ def validate_shared_manifest(root: Path, path: Path) -> dict:
         raise RequirementIntegrationError("shared manifest mode is unsupported")
     if path.name != expected + ".json" or branch(root) != "agent/" + expected:
         raise RequirementIntegrationError("shared manifest does not identify the candidate branch")
-    requirement_integration._verify_parent_links(main_root(), payload)
+    requirement_integration._verify_parent_links(main_root(), private_manifest if opaque else payload)
     return payload
 
 
@@ -445,6 +459,14 @@ def publish_pr(
             validate_shared_manifest(root, shared_manifest)
         except RequirementIntegrationError as exc:
             raise SystemExit("Shared Requirement publication blocked: " + str(exc)) from exc
+    privacy_guard = root / "scripts" / "check_private_backlog_refs.py"
+    if privacy_guard.is_file():
+        proposed_title = title or run_git(["log", "-1", "--pretty=%s"], cwd=root).stdout.strip()
+        proposed_body = body or "Published by dev-platform after local validation and a fresh origin/main check."
+        subprocess.run(
+            ["python3", str(privacy_guard), "--root", str(root), "--text", proposed_title, "--text", proposed_body],
+            cwd=root, check=True,
+        )
     current = _validate_feature_branch(root, remote, main_branch)
     env = require_gh_environment(root)
     expected_head = run_git(["rev-parse", current], cwd=root).stdout.strip()

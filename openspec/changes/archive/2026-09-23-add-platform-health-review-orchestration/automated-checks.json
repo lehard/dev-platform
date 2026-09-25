@@ -1,27 +1,42 @@
 {
-  "version": 2,
-  "selection": {
-    "state": "ready",
-    "command_count": 2,
-    "check_count": 1
-  },
-  "outcome": "success",
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
       "duration_seconds": 0.409,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
       "duration_seconds": 161.292,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     }
   ],
+  "identity_redaction": {
+    "after_original_verification": true,
+    "method": "private-lineage-current-tree-migration",
+    "original_sha256": "846ff4589bc5af631e8bd37668028cb64a593c2e5145b502bd5eacea64280343",
+    "version": 1
+  },
+  "managed_checkout": {
+    "branch": "agent/add-platform-health-review-orchestration",
+    "change": "add-platform-health-review-orchestration",
+    "head": "f65b24631bfee2e140d65e973c6e4e6c58349a3c",
+    "private_lineage_handle": "pln_a9cd2e760df9504f519c0511979c5a79",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/add-platform-health-review-orchestration"
+  },
+  "outcome": "success",
   "selected_checks": [
     {
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "evidence_types": [
+        "syntax",
+        "test"
+      ],
       "id": "full-trigger",
       "paths": [
         ".github/workflows/architecture-health-review.lock.yml",
@@ -31,25 +46,16 @@
         ".github/workflows/weekly-process-backlog-review.md",
         "tests/test_agentic_workflows.py"
       ],
-      "commands": [
-        "python3 -m compileall -q template/scripts scripts",
-        "python3 scripts/run_test_groups.py --all"
-      ],
-      "selection_reason": "high-impact-path",
-      "evidence_types": [
-        "syntax",
-        "test"
-      ],
       "required_evidence_types": [
         "test"
-      ]
+      ],
+      "selection_reason": "high-impact-path"
     }
   ],
-  "managed_checkout": {
-    "source_issue": "lehard/development-backlog#166",
-    "change": "add-platform-health-review-orchestration",
-    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/add-platform-health-review-orchestration",
-    "branch": "agent/add-platform-health-review-orchestration",
-    "head": "f65b24631bfee2e140d65e973c6e4e6c58349a3c"
-  }
+  "selection": {
+    "check_count": 1,
+    "command_count": 2,
+    "state": "ready"
+  },
+  "version": 2
 }

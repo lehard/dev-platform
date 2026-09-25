@@ -6,9 +6,16 @@
     "specs/platform-rollout/spec.md"
   ],
   "change": "add-legacy-baseline-bridge",
+  "identity_redaction": {
+    "after_original_verification": true,
+    "method": "private-lineage-current-tree-migration",
+    "original_sha256": "6403813431eda290cbce1bb82c41abe969324317a09ff124e9fe8a101a166d6b",
+    "version": 1
+  },
   "imported_at": "2026-09-22T06:48:12+00:00",
   "package_revision": "678b87fe80e925448223a21b00b3aacbf161cbf238741c31b241a17b649cf659",
   "prepared_against": "88d614c982fd0922d7812ce721fc00cfd7f07edc",
+  "private_lineage_handle": "pln_83d0c29317c067dbd0e103c43b06d466",
   "routing_receipt": {
     "assurance": "standard",
     "effort_hint": "medium",
@@ -18,7 +25,6 @@
     "strong_trigger": null,
     "task_family": "platform-rollout-copier-bridge"
   },
-  "source_issue": "lehard/development-backlog#146",
   "source_issue_evidence": {
     "body_sha256": "d75b61c1559d5df86d254c997834446a83d4a2091e74725ed3b715a79f6d8e20",
     "updated_at": "2026-09-22T06:43:56Z"

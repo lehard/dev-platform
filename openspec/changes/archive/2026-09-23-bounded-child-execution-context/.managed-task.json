@@ -6,9 +6,16 @@
     "specs/agent-workflow/spec.md"
   ],
   "change": "bounded-child-execution-context",
+  "identity_redaction": {
+    "after_original_verification": true,
+    "method": "private-lineage-current-tree-migration",
+    "original_sha256": "dd6ddc8cf27969f277a69971c3f510d3debc4a0add66eb3ed21d1b1122255298",
+    "version": 1
+  },
   "imported_at": "2026-09-23T14:45:25+00:00",
   "package_revision": "309c5889471f376e88b8ddd3836748d5cd487b23916a91bae330bf5c649ec77f",
   "prepared_against": "f40baaf59437a17453f1dce792cdc6e7957f36b7",
+  "private_lineage_handle": "pln_2af761a338d6d7202d46988052ef98a8",
   "routing_receipt": {
     "assurance": "standard",
     "effort_hint": "medium",
@@ -18,7 +25,6 @@
     "strong_trigger": null,
     "task_family": "general"
   },
-  "source_issue": "lehard/development-backlog#187",
   "source_issue_evidence": {
     "body_sha256": "49da705de68e7f59e52ca521db4e5aa4e8ae87bfdd212d592a6ff9284ef986a7",
     "updated_at": "2026-09-23T14:44:15Z"

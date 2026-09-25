@@ -6,9 +6,16 @@
     "specs/agent-workflow/spec.md"
   ],
   "change": "fix-handoff-cli-serialization",
+  "identity_redaction": {
+    "after_original_verification": true,
+    "method": "private-lineage-current-tree-migration",
+    "original_sha256": "32c2cf3b87617f6142cb47db264486eb0ee2e4be3217537c55a242a816b055d7",
+    "version": 1
+  },
   "imported_at": "2026-09-23T06:42:08+00:00",
   "package_revision": "82d65d40d2e01863813b44f4e83f3984eef6c91dcf3b0a23c575c34d04744af3",
   "prepared_against": "9fe86d87e5ee3ff06fe0b84181b489c6906537a9",
+  "private_lineage_handle": "pln_349485e06c8be4efddfd72046533f899",
   "routing_receipt": {
     "assurance": "standard",
     "effort_hint": "medium",
@@ -18,7 +25,6 @@
     "strong_trigger": null,
     "task_family": "general"
   },
-  "source_issue": "lehard/development-backlog#181",
   "source_issue_evidence": {
     "body_sha256": "55cc66a99d22a1678a333bfb42f129bdbe30ef029be5b5cd0df39e8ef10787c5",
     "updated_at": "2026-09-23T06:40:49Z"

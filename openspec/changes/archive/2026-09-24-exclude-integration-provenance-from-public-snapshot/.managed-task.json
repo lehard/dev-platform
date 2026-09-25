@@ -6,9 +6,16 @@
     "specs/public-distribution/spec.md"
   ],
   "change": "exclude-integration-provenance-from-public-snapshot",
+  "identity_redaction": {
+    "after_original_verification": true,
+    "method": "private-lineage-current-tree-migration",
+    "original_sha256": "189a85f0559d19d552aa8ec19590747f40e0efcfb96e18ebe7f752c60961a6c2",
+    "version": 1
+  },
   "imported_at": "2026-09-24T11:35:03+00:00",
   "package_revision": "b9ca20dec60b37637294d3b799341e38d65d0272fd170c8e3a33e8cc0a839b94",
   "prepared_against": "7e41f247b1e597e83be4a0a01756ad2f00c53821",
+  "private_lineage_handle": "pln_bd3d44f83ffbe9e936635a77b3453bef",
   "process_evidence": [
     "lehard/dev-platform#109"
   ],
@@ -21,7 +28,6 @@
     "strong_trigger": null,
     "task_family": "general"
   },
-  "source_issue": "lehard/development-backlog#207",
   "source_issue_evidence": {
     "body_sha256": "d0eba60e47896c659b110d8ad565b7ba75c919ad891ed97e11ab1f647d443921",
     "updated_at": "2026-09-24T11:33:23Z"

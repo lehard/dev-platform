@@ -1,27 +1,42 @@
 {
-  "version": 2,
-  "selection": {
-    "state": "ready",
-    "command_count": 2,
-    "check_count": 1
-  },
-  "outcome": "success",
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
       "duration_seconds": 0.673,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
       "duration_seconds": 193.54,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     }
   ],
+  "identity_redaction": {
+    "after_original_verification": true,
+    "method": "private-lineage-current-tree-migration",
+    "original_sha256": "43065c663edb8c409df80fcda145f9bb82d95343c5400387f11827dfc86f0bcd",
+    "version": 1
+  },
+  "managed_checkout": {
+    "branch": "agent/preserve-requirement-preauthoring-context",
+    "change": "preserve-requirement-preauthoring-context",
+    "head": "a226b2725148cfee5b5fccd9860aa77e3f4417db",
+    "private_lineage_handle": "pln_fc6f9e46dc2454f5d4c8011c6b8c681a",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/preserve-requirement-preauthoring-context"
+  },
+  "outcome": "success",
   "selected_checks": [
     {
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "evidence_types": [
+        "syntax",
+        "test"
+      ],
       "id": "full-trigger",
       "paths": [
         "template/scripts/add_intents.py",
@@ -31,25 +46,16 @@
         "tests/test_orchestrate_pre_authoring.py",
         "tests/test_requirement_intake.py"
       ],
-      "commands": [
-        "python3 -m compileall -q template/scripts scripts",
-        "python3 scripts/run_test_groups.py --all"
-      ],
-      "selection_reason": "high-impact-path",
-      "evidence_types": [
-        "syntax",
-        "test"
-      ],
       "required_evidence_types": [
         "test"
-      ]
+      ],
+      "selection_reason": "high-impact-path"
     }
   ],
-  "managed_checkout": {
-    "source_issue": "lehard/development-backlog#168",
-    "change": "preserve-requirement-preauthoring-context",
-    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/preserve-requirement-preauthoring-context",
-    "branch": "agent/preserve-requirement-preauthoring-context",
-    "head": "a226b2725148cfee5b5fccd9860aa77e3f4417db"
-  }
+  "selection": {
+    "check_count": 1,
+    "command_count": 2,
+    "state": "ready"
+  },
+  "version": 2
 }

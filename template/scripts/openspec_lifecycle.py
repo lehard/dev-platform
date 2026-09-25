@@ -9,13 +9,16 @@ from pathlib import Path
 
 from _platform_common import current_worktree_root, harness_mode, read_platform_config, run_git
 try:
-    from managed_task import ManagedTaskError, read_provenance, require_managed_checkout_identity
+    from managed_task import ManagedTaskError, read_provenance, require_managed_checkout_identity, source_issue_for_provenance
 except (ImportError, ModuleNotFoundError):  # Compatibility while old renders are upgraded.
     class ManagedTaskError(RuntimeError):
         pass
 
     def read_provenance(change: Path):
         return {}
+
+    def source_issue_for_provenance(root: Path, change: Path, *, expected_source: str | None = None):
+        return read_provenance(change).get("source_issue")
 
     def require_managed_checkout_identity(root: Path, *, expected_change: str | None = None, expected_source_issue: str | None = None):
         return None
@@ -155,7 +158,7 @@ def require_automated_evidence(change: Path, *, root: Path | None = None) -> Non
     if (change / ".managed-task.json").is_file():
         try:
             provenance = read_provenance(change)
-            source_issue = provenance.get("source_issue")
+            source_issue = source_issue_for_provenance((root or change.parents[2]).resolve(), change)
             canonical_change = provenance.get("change")
             if not isinstance(source_issue, str) or not isinstance(canonical_change, str):
                 raise ManagedTaskError("managed-task provenance must identify source_issue and change for checkout evidence")
@@ -240,7 +243,7 @@ def require_managed_routing_evidence(change: Path) -> None:
         return
     try:
         payload = json.loads(provenance.read_text(encoding="utf-8"))
-        source_issue = payload["source_issue"]
+        source_issue = source_issue_for_provenance(change.parents[2], change)
         managed_change = payload["change"]
     except (OSError, KeyError, TypeError, json.JSONDecodeError) as exc:
         raise SystemExit(f"{change.name}: routing archive gate cannot read exact managed-task provenance") from exc
@@ -315,7 +318,7 @@ def archive_change(root: Path, name: str) -> int:
     platform_owned = harness_mode(read_platform_config(root)) == "platform"
     if platform_owned and (change / ".managed-task.json").is_file():
         try:
-            source_issue = read_provenance(change).get("source_issue")
+            source_issue = source_issue_for_provenance(root, change)
             if not isinstance(source_issue, str):
                 raise ManagedTaskError("managed-task provenance must identify source_issue for checkout evidence")
             require_managed_checkout_identity(

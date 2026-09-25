@@ -6,9 +6,16 @@
     "specs/engineering-capabilities/spec.md"
   ],
   "change": "fix-generated-ci-capability-sync",
+  "identity_redaction": {
+    "after_original_verification": true,
+    "method": "private-lineage-current-tree-migration",
+    "original_sha256": "08f599809d36120258ed5da8fd6674529d43604c3cb1430049f1db2eba9946a7",
+    "version": 1
+  },
   "imported_at": "2026-09-22T12:07:24+00:00",
   "package_revision": "27af0d718a80687030a09798b482932ae8565c9b70977e694290f7b2c0fa9196",
   "prepared_against": "339fda0a4ee04a06ce615db89d6dc3439a85a818",
+  "private_lineage_handle": "pln_21d7884495c8dc97294f11a7b5e1994c",
   "routing_receipt": {
     "assurance": "standard",
     "effort_hint": "medium",
@@ -18,7 +25,6 @@
     "strong_trigger": null,
     "task_family": "platform-rollout-copier-bridge"
   },
-  "source_issue": "lehard/development-backlog#150",
   "source_issue_evidence": {
     "body_sha256": "8be2d13a8fc468016760ae5362d45343ed70af8d770769b6bd2a2b443e5ea4e0",
     "updated_at": "2026-09-22T12:06:41Z"

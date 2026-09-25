@@ -1,27 +1,42 @@
 {
-  "version": 2,
-  "selection": {
-    "state": "ready",
-    "command_count": 2,
-    "check_count": 1
-  },
-  "outcome": "success",
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
       "duration_seconds": 0.116,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
       "duration_seconds": 153.704,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     }
   ],
+  "identity_redaction": {
+    "after_original_verification": true,
+    "method": "private-lineage-current-tree-migration",
+    "original_sha256": "feb41a919dc0bb2971d3f7a6c2e80b4031abc4233b79baa8344f8599a74e5f97",
+    "version": 1
+  },
+  "managed_checkout": {
+    "branch": "agent/add-pre-authoring-orchestrator",
+    "change": "add-pre-authoring-orchestrator",
+    "head": "1c86f47dfb72e5dfb4b28a3ab4e5c683632991f0",
+    "private_lineage_handle": "pln_ea4fbc69522d2d37dea88b062e3d8fb9",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/add-pre-authoring-orchestrator"
+  },
+  "outcome": "success",
   "selected_checks": [
     {
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "evidence_types": [
+        "syntax",
+        "test"
+      ],
       "id": "full-trigger",
       "paths": [
         "dev-platform/checks.toml",
@@ -29,25 +44,16 @@
         "template/scripts/orchestrate_pre_authoring.py",
         "tests/test_orchestrate_pre_authoring.py"
       ],
-      "commands": [
-        "python3 -m compileall -q template/scripts scripts",
-        "python3 scripts/run_test_groups.py --all"
-      ],
-      "selection_reason": "high-impact-path",
-      "evidence_types": [
-        "syntax",
-        "test"
-      ],
       "required_evidence_types": [
         "test"
-      ]
+      ],
+      "selection_reason": "high-impact-path"
     }
   ],
-  "managed_checkout": {
-    "source_issue": "lehard/development-backlog#129",
-    "change": "add-pre-authoring-orchestrator",
-    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/add-pre-authoring-orchestrator",
-    "branch": "agent/add-pre-authoring-orchestrator",
-    "head": "1c86f47dfb72e5dfb4b28a3ab4e5c683632991f0"
-  }
+  "selection": {
+    "check_count": 1,
+    "command_count": 2,
+    "state": "ready"
+  },
+  "version": 2
 }

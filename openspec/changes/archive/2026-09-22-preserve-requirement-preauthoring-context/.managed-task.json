@@ -6,9 +6,16 @@
     "specs/agent-workflow/spec.md"
   ],
   "change": "preserve-requirement-preauthoring-context",
+  "identity_redaction": {
+    "after_original_verification": true,
+    "method": "private-lineage-current-tree-migration",
+    "original_sha256": "5dbe4953ae4f97844afcd820f7258bfd85f1319de3fdf1d698449362bf452b27",
+    "version": 1
+  },
   "imported_at": "2026-09-22T18:56:34+00:00",
   "package_revision": "6d13c0ba9240e92b7a300debe8d9f00f79f0dc2bdb313d4a4d70c8d2eb903ca6",
   "prepared_against": "fb912d20f9d278d39b0717fbd3cad0831b56355d",
+  "private_lineage_handle": "pln_fc6f9e46dc2454f5d4c8011c6b8c681a",
   "routing_receipt": {
     "assurance": "standard",
     "effort_hint": "medium",
@@ -18,7 +25,6 @@
     "strong_trigger": null,
     "task_family": "requirement-first-intake"
   },
-  "source_issue": "lehard/development-backlog#168",
   "source_issue_evidence": {
     "body_sha256": "f639e191c361bda01429786c2a65eaf24666992d5df8d29906d386e7b1ef7026",
     "updated_at": "2026-09-22T18:55:02Z"

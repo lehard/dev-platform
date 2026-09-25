@@ -132,6 +132,7 @@ targets = [
   "test_platform_common",
   "test_operator_config",
   "test_public_distribution",
+  "test_private_backlog_guard",
   "test_platform_doctor",
   "test_capability_manager",
   "test_browser_verification",

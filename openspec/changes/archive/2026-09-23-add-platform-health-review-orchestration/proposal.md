@@ -2,7 +2,7 @@
 
 ## Why
 
-lehard/development-backlog#157 asks for one user-facing "Platform Health Review" rather than two separate, uncoordinated review mechanisms. Process Health Review already has a cloud, weekly-fuzzy-schedule-plus-manual-dispatch trigger (`openspec/specs/agentic-maintenance/spec.md`); a linked prerequisite change (`add-architecture-health-cloud-review`) gives Architecture Health Review an equivalent cloud trigger. Neither review runs together today, and no capability presents them to a human as one combined function.
+the private Backlog task asks for one user-facing "Platform Health Review" rather than two separate, uncoordinated review mechanisms. Process Health Review already has a cloud, weekly-fuzzy-schedule-plus-manual-dispatch trigger (`openspec/specs/agentic-maintenance/spec.md`); a linked prerequisite change (`add-architecture-health-cloud-review`) gives Architecture Health Review an equivalent cloud trigger. Neither review runs together today, and no capability presents them to a human as one combined function.
 
 ## Current to target
 
@@ -29,3 +29,5 @@ This change does not alter what either review evaluates or how it reasons about 
 ## Delivery scope
 
 A new OpenSpec capability delta (`specs/platform-health-review/spec.md`) plus the trigger wiring in the relevant `.github/workflows/*.md` source(s) and their compiled lock workflow(s). No application/product code changes.
+
+Identity-Redaction: Direct private Backlog identifiers were removed from this current-tree archive after the original review.

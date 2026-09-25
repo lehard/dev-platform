@@ -1,52 +1,58 @@
 {
-  "version": 2,
-  "selection": {
-    "state": "ready",
-    "command_count": 2,
-    "check_count": 1
-  },
-  "outcome": "success",
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
       "duration_seconds": 0.149,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
       "duration_seconds": 269.454,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     }
   ],
+  "identity_redaction": {
+    "after_original_verification": true,
+    "method": "private-lineage-current-tree-migration",
+    "original_sha256": "d019377bb3d2f89506f47a4b73963b39cfc11784c9acf2822ec10ed2a7255f39",
+    "version": 1
+  },
+  "managed_checkout": {
+    "branch": "agent/materialize-requirement-handoffs",
+    "change": "materialize-requirement-handoffs",
+    "head": "eefec606726d5cc5f5835a968830274f02a383f6",
+    "private_lineage_handle": "pln_cbbc40e198a25ecd3c0240a5681eba09",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/materialize-requirement-handoffs"
+  },
+  "outcome": "success",
   "selected_checks": [
     {
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "evidence_types": [
+        "syntax",
+        "test"
+      ],
       "id": "full-trigger",
       "paths": [
         "template/scripts/managed_task.py",
         "template/scripts/requirement_intake.py",
         "tests/test_requirement_intake.py"
       ],
-      "commands": [
-        "python3 -m compileall -q template/scripts scripts",
-        "python3 scripts/run_test_groups.py --all"
-      ],
-      "selection_reason": "high-impact-path",
-      "evidence_types": [
-        "syntax",
-        "test"
-      ],
       "required_evidence_types": [
         "test"
-      ]
+      ],
+      "selection_reason": "high-impact-path"
     }
   ],
-  "managed_checkout": {
-    "source_issue": "lehard/development-backlog#171",
-    "change": "materialize-requirement-handoffs",
-    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/materialize-requirement-handoffs",
-    "branch": "agent/materialize-requirement-handoffs",
-    "head": "eefec606726d5cc5f5835a968830274f02a383f6"
-  }
+  "selection": {
+    "check_count": 1,
+    "command_count": 2,
+    "state": "ready"
+  },
+  "version": 2
 }

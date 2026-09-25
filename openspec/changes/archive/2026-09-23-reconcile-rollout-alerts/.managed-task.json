@@ -6,9 +6,16 @@
     "specs/platform-rollout/spec.md"
   ],
   "change": "reconcile-rollout-alerts",
+  "identity_redaction": {
+    "after_original_verification": true,
+    "method": "private-lineage-current-tree-migration",
+    "original_sha256": "c1fd34eee380a5245d23d63592703d899997ac739c28b4c11439e15834f2eec7",
+    "version": 1
+  },
   "imported_at": "2026-09-23T07:09:52+00:00",
   "package_revision": "7e672c7eba810df834e60c1173dc66c99a667dff285b9cfecb2fa2b60fdc5e35",
   "prepared_against": "9fe86d87e5ee3ff06fe0b84181b489c6906537a9",
+  "private_lineage_handle": "pln_f8706c6001501d445560b183ea0f0373",
   "routing_receipt": {
     "assurance": "standard",
     "effort_hint": "medium",
@@ -18,7 +25,6 @@
     "strong_trigger": null,
     "task_family": "general"
   },
-  "source_issue": "lehard/development-backlog#180",
   "source_issue_evidence": {
     "body_sha256": "813268616d15aa9725198399eeaeb0327c3c4ce36ae4e62ea43750e1d5a861da",
     "updated_at": "2026-09-23T06:37:22Z"

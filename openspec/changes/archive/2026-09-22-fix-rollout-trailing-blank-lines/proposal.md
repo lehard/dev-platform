@@ -19,4 +19,6 @@ No change to `copier.yml`'s Jinja environment options: a global `_envops: {trim_
 
 ## Dependencies
 
-None. This is a narrower continuation of the already-merged `add-legacy-baseline-bridge` change (lehard/development-backlog#146): that fix let Copier's 3-way diff succeed against a pre-cutover baseline; this fix lets the resulting diff pass the whitespace-hygiene gate that runs immediately afterward in `scripts/rollout_project.py`.
+None. This is a narrower continuation of the already-merged `add-legacy-baseline-bridge` change (the private Backlog task): that fix let Copier's 3-way diff succeed against a pre-cutover baseline; this fix lets the resulting diff pass the whitespace-hygiene gate that runs immediately afterward in `scripts/rollout_project.py`.
+
+Identity-Redaction: Direct private Backlog identifiers were removed from this current-tree archive after the original review.

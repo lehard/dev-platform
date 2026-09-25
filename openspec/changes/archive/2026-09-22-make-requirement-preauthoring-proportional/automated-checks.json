@@ -1,27 +1,42 @@
 {
-  "version": 2,
-  "selection": {
-    "state": "ready",
-    "command_count": 2,
-    "check_count": 1
-  },
-  "outcome": "success",
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
       "duration_seconds": 1.363,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
       "duration_seconds": 276.214,
-      "outcome": "success",
-      "exit_code": 0
+      "exit_code": 0,
+      "outcome": "success"
     }
   ],
+  "identity_redaction": {
+    "after_original_verification": true,
+    "method": "private-lineage-current-tree-migration",
+    "original_sha256": "8e08bd7c01b20b38586df62081cf68ceac304c18defab081b3816db460573186",
+    "version": 1
+  },
+  "managed_checkout": {
+    "branch": "agent/make-requirement-preauthoring-proportional",
+    "change": "make-requirement-preauthoring-proportional",
+    "head": "428ecaf57771c9a60f3a50a42b0ccbd8abbe6f19",
+    "private_lineage_handle": "pln_5eabde1c5c61be1b73dcde542dc7dbe0",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/make-requirement-preauthoring-proportional"
+  },
+  "outcome": "success",
   "selected_checks": [
     {
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "evidence_types": [
+        "syntax",
+        "test"
+      ],
       "id": "full-trigger",
       "paths": [
         "template/scripts/orchestrate_pre_authoring.py",
@@ -29,25 +44,16 @@
         "tests/test_orchestrate_pre_authoring.py",
         "tests/test_requirement_intake.py"
       ],
-      "commands": [
-        "python3 -m compileall -q template/scripts scripts",
-        "python3 scripts/run_test_groups.py --all"
-      ],
-      "selection_reason": "high-impact-path",
-      "evidence_types": [
-        "syntax",
-        "test"
-      ],
       "required_evidence_types": [
         "test"
-      ]
+      ],
+      "selection_reason": "high-impact-path"
     }
   ],
-  "managed_checkout": {
-    "source_issue": "lehard/development-backlog#170",
-    "change": "make-requirement-preauthoring-proportional",
-    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/make-requirement-preauthoring-proportional",
-    "branch": "agent/make-requirement-preauthoring-proportional",
-    "head": "428ecaf57771c9a60f3a50a42b0ccbd8abbe6f19"
-  }
+  "selection": {
+    "check_count": 1,
+    "command_count": 2,
+    "state": "ready"
+  },
+  "version": 2
 }

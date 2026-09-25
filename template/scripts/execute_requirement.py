@@ -233,7 +233,7 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
         raise RequirementExecutionError("shared delivery requires at least two verified nonterminal child receipts")
     base = _git(integration, "rev-parse", "HEAD")
     manifest = requirement_integration.assemble_candidate(integration, requirement=requirement, base=base, receipt_paths=ready)
-    slug = requirement_integration._candidate_slug(requirement)
+    slug = requirement_integration._candidate_slug(requirement_integration._public_requirement(integration, requirement))
     candidate = integration / ".claude" / "worktrees" / slug
     branch = f"agent/{slug}"
     requirement_integration.compose_candidate(
