@@ -1,0 +1,7 @@
+# Design: Bounded classified findings
+
+The two existing review prompts remain the producers. Each concise finding gains exactly one primary Russian category, a Russian confidence value, and a Russian status value. Existing process work-state groupings and architecture evidence lenses remain useful context, not substitutes for these fields. A status is chosen from current Backlog and recent merged changes; uncertain current state is marked `наблюдать` rather than invented as a new defect.
+
+Each source report starts with a bounded `## Краткие findings` list of at most five one-line findings. The existing combined-report publisher reads the private source Issues and embeds only these lines, preserving links to the full reports. It accepts only lines with one allowed category, confidence, and status, bounds line length, and marks missing or malformed excerpts unavailable. It does not interpret or score findings. This makes the combined Issue itself the requested short report while preserving the existing publication path and private boundary.
+
+The architecture workflow needs bounded read access to relevant private Backlog issues and public merged changes, using the existing read token pattern. It must keep private evidence inside the private caller. The process workflow already has this access. A failed evidence check must be stated as uncertainty and cannot justify a new-work recommendation.

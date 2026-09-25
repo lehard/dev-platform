@@ -1,7 +1,7 @@
 {
   "version": 1,
   "capability": "architecture-health-review",
-  "content_sha256": "2f447982067689d78c696a52234133b264e31048498c88ed6a5986049ad51a80",
+  "content_sha256": "b2d06c8898086ca262ca24654270d9c3ec9d6dd73eefde555f54064ff802aae0",
   "cases": [
     {"id": "positive-revision-bound-review", "expectation": "trigger", "prompt": "Produce a read-only architecture health review of this repository at the current commit.", "samples": ["triggered", "triggered", "triggered"]},
     {"id": "positive-named-subsystem", "expectation": "trigger", "prompt": "Review the lifecycle subsystem for coupling and interface leakage; do not refactor it.", "samples": ["triggered", "triggered", "triggered"]},

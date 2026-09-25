@@ -41,11 +41,13 @@ class FrictionReviewTests(unittest.TestCase):
         self.original_branch = agent_friction.current_branch
         self.original_worktree_root = agent_friction.current_worktree_root
         self.original_current_head = agent_friction.current_head
+        self.original_current_task_content = agent_friction.current_task_content
         agent_friction.destination_for = lambda event: "example/project" if event["scope"] == "project" else "lehard/dev-platform"
         agent_friction.current_branch = lambda: "test-branch"
         agent_friction.current_worktree_root = lambda: self.root
         self.head = "a" * 40
         agent_friction.current_head = lambda root: self.head
+        agent_friction.current_task_content = lambda root: None
 
     def tearDown(self) -> None:
         agent_friction.gh = self.original_gh
@@ -54,6 +56,7 @@ class FrictionReviewTests(unittest.TestCase):
         agent_friction.current_branch = self.original_branch
         agent_friction.current_worktree_root = self.original_worktree_root
         agent_friction.current_head = self.original_current_head
+        agent_friction.current_task_content = self.original_current_task_content
         self.tmp.cleanup()
 
     def checkpoint_args(
@@ -534,6 +537,20 @@ class FrictionReviewTests(unittest.TestCase):
         agent_friction.cmd_checkpoint(self.checkpoint_args(result="none"))
         agent_friction.require_checkpoint("test-branch")
         self.assertEqual(agent_friction.read_state()["checkpoints"]["test-branch"]["head"], "b" * 40)
+
+    def test_checkpoint_content_proof_survives_lifecycle_only_head_change(self) -> None:
+        proof = {"version": 1, "digest": "a" * 64, "paths": {"feature.txt": "b" * 40}, "base": "c" * 40}
+        agent_friction.current_task_content = lambda root: proof
+        agent_friction.cmd_checkpoint(self.checkpoint_args(result="none"))
+        agent_friction.current_head = lambda root: "b" * 40
+        agent_friction.require_checkpoint("test-branch")
+
+    def test_checkpoint_content_proof_rejects_task_mutation(self) -> None:
+        agent_friction.current_task_content = lambda root: {"version": 1, "digest": "a" * 64}
+        agent_friction.cmd_checkpoint(self.checkpoint_args(result="none"))
+        agent_friction.current_task_content = lambda root: {"version": 1, "digest": "b" * 64}
+        with self.assertRaisesRegex(SystemExit, "task-owned content changed"):
+            agent_friction.require_checkpoint("test-branch")
 
     def test_checkpoint_referencing_already_recorded_event_creates_no_duplicate(self) -> None:
         self.write_events(1)

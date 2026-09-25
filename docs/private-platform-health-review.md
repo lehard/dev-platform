@@ -51,6 +51,9 @@ no secret, and cannot claim a complete audit.
 Only after a successful preflight may the two independently runnable,
 read-only review jobs start. Always publish one combined private report after
 both jobs with `if: always()`; a failed review produces an unavailable section.
+The combined Issue shows up to five short classified findings from each source
+report, with links to the full private reports. Missing or malformed source
+excerpts are marked unavailable rather than silently treated as no findings.
 Optional notifications are allowed only from the private workflow and contain
 only a short summary plus the private report link.
 

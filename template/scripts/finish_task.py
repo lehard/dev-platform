@@ -313,6 +313,21 @@ def find_existing_exact_open_pr(root: Path, branch: str, main_branch: str) -> di
     return lookup.exact_open if lookup.available else None
 
 
+def resumable_remote_armed_pr(root: Path, branch: str, main_branch: str) -> dict | None:
+    """Return only a durably armed exact-head PR; unknown state fails closed."""
+    env = github_cli_env(root)
+    if env is None:
+        return None
+    lookup = publication_state.find_exact_local_branch_pr(root, env, branch, main_branch)
+    if not lookup.available or lookup.exact_open is None:
+        return None
+    pr = lookup.exact_open
+    if pr.get("autoMergeRequest") is None:
+        return None
+    checks = publication_state.required_check_state_for_ref(root, env, publication_state.stable_pr_ref(pr), str(pr.get("headRefOid", "")))
+    return pr if checks.kind in {"pending", "passed", "not_registered"} else None
+
+
 def run_status(work: Path, integration: Path, config: dict, *, as_json: bool) -> int:
     """Read publication state plus freshly observed task/main freshness; never publish or merge."""
     main_branch = str(config.get("main_branch", "main"))
@@ -716,6 +731,22 @@ def main() -> int:
     try:
         require_no_orphan_active_openspec(work)
         delivery = require_delivery_provenance(work)
+    except (ManagedTaskError, RequirementIntegrationError) as exc:
+        raise SystemExit("Managed task publication blocked: " + str(exc)) from exc
+
+    # Durable remote auto-merge is its own resumable phase. Observe it before
+    # local completion evidence/validation/publication so a bounded prior wait
+    # never repeats expensive local work or a publish mutation.
+    if mode == "pr" and branch != main_branch and pr_merge_mode(config) == "auto":
+        armed = resumable_remote_armed_pr(work, branch, main_branch)
+        if armed is not None:
+            print(
+                f"Publication remains nonterminal: exact-head PR {armed.get('url')} has auto-merge armed. "
+                "Run `python3 scripts/finish_task.py --status` to observe required checks or rerun finish after GitHub reports MERGED."
+            )
+            return 2
+
+    try:
         if delivery is not None:
             require_automated_evidence(delivery.path, root=work)
             independent_reason = require_independent_publication_exception(work, delivery)
@@ -830,7 +861,26 @@ def main() -> int:
             command += ["--title", args.title]
         if args.body:
             command += ["--body", args.body]
-        subprocess.run(command, cwd=work, check=True)
+        published = subprocess.run(command, cwd=work, check=False)
+        if published.returncode:
+            if task_pr_is_already_merged(work, branch, main_branch):
+                reconcile_confirmed_remote_pr_merge(
+                    work, integration, config, branch, main_branch, prof,
+                    cleanup=args.cleanup, timeout_seconds=args.merge_timeout,
+                )
+                emit_finish_stage("complete")
+                return 0
+            armed = resumable_remote_armed_pr(work, branch, main_branch) if pr_merge_mode(config) == "auto" else None
+            if armed is not None:
+                print(
+                    f"Publication remains nonterminal: exact-head PR {armed.get('url')} has auto-merge armed. "
+                    "Run `python3 scripts/finish_task.py --status` and retry finish after GitHub reports MERGED."
+                )
+                return 2
+            raise SystemExit(
+                f"Project publication stopped with exit {published.returncode}. "
+                "Run `python3 scripts/finish_task.py --status` to inspect the existing PR before retrying."
+            )
         if pr_merge_mode(config) == "auto":
             reconcile_confirmed_remote_pr_merge(
                 work, integration, config, branch, main_branch, prof, cleanup=args.cleanup, timeout_seconds=args.merge_timeout

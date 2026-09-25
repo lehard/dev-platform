@@ -18,7 +18,7 @@ source = "dev-platform"
 revision = "platform-managed"
 path = "dev-platform/capabilities/architecture-health-review.md"
 license = "Apache-2.0"
-content_sha256 = "2f447982067689d78c696a52234133b264e31048498c88ed6a5986049ad51a80"
+content_sha256 = "b2d06c8898086ca262ca24654270d9c3ec9d6dd73eefde555f54064ff802aae0"
 
 [eval]
 evidence = "dev-platform/evals/architecture-health-review-pilot.json"

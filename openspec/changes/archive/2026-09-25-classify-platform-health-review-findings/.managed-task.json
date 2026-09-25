@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/platform-health-review/spec.md"
+  ],
+  "change": "classify-platform-health-review-findings",
+  "imported_at": "2026-09-25T11:10:32+00:00",
+  "package_revision": "29ca3713f715ea5266f5536b38162e9d27a48cb27b5592a31752faa7486ba7d5",
+  "prepared_against": "0dc3b2075d4607a479cf8e5e69ab704e8e5abef2",
+  "private_lineage_handle": "pln_2f6c931f2e7d14e392d9a7ffd0de1f19",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "aa474a1f532977b26de53c728e251a212f2e861ba39d5321dade328aa66f4005",
+    "updated_at": "2026-09-25T08:03:29Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

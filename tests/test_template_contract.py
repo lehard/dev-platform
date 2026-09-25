@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class TemplateContractTests(unittest.TestCase):
     def test_required_template_files_exist(self) -> None:
-        required = ["copier.yml", "template/.gitlab-ci.yml.jinja", "template/scripts/gitlab_delivery.py"]
+        required = ["copier.yml", "template/.gitlab-ci.yml.jinja", "template/scripts/gitlab_delivery.py", "template/scripts/task_content_identity.py"]
         for relative in required:
             with self.subTest(relative=relative): self.assertTrue((ROOT / relative).exists(), relative)
 

@@ -32,20 +32,23 @@ SOURCES = {
         "Review context (`reviewed_at`, exact `main` SHA, previous-review boundary)",
         "Root-cause candidates",
         "Likely resolved/superseded",
+        "Подтверждённый дефект",
+        "наблюдать",
     },
     "architecture-health-review": {
         "max-ai-credits: 100",
         "max-daily-ai-credits: 100",
         "timeout-minutes: 10",
         "max-turns: 10",
-        "allowed-repos: [lehard/dev-platform]",
-        "toolsets: [repos]",
+        'allowed-repos: [lehard/dev-platform, "${{ github.repository }}"]',
+        "toolsets: [issues, pull_requests, repos]",
         "workflow_call:",
         "create-issue:",
         "dev-platform/capabilities/architecture-health-review.md",
         "openspec/specs/architecture-health/spec.md",
         "Never propose or make a code edit",
         "never create or recommend creating a managed task",
+        "relevant private\nBacklog issues and recent merged changes",
     },
 }
 AGENT_JOB_TIMEOUT_MINUTES = 30
@@ -137,7 +140,16 @@ class AgenticWorkflowTests(unittest.TestCase):
         self.assertIn("Classification: context-gap", text)
         self.assertIn("Likely context destination", text)
         self.assertIn("ordinary process-friction", text)
+        self.assertIn("## Краткие findings", text)
         self.assertIn("or close/relabel/comment on source evidence", text)
+        self.assertIn("Подтверждённый дефект", text)
+        self.assertIn("use `наблюдать`", text)
+
+    def test_architecture_review_separates_lens_from_classified_finding_fields(self) -> None:
+        capability = (ROOT / "dev-platform" / "capabilities" / "architecture-health-review.md").read_text(encoding="utf-8")
+        for value in ("evidence lens", "Подтверждённый дефект", "высокая | средняя | низкая", "новый | сохраняется | уже в работе | вероятно устранён | наблюдать"):
+            with self.subTest(value=value):
+                self.assertIn(value, capability)
 
     def test_public_repository_has_no_combined_platform_health_trigger(self) -> None:
         # The combined private review is owned by the private caller repository.
@@ -154,9 +166,12 @@ class AgenticWorkflowTests(unittest.TestCase):
             self.assertNotIn("private-to-public-flows:", source)
         self.assertIn("permission-issues: read", process)
         self.assertIn("permission-pull-requests: read", process)
+        self.assertIn("permission-issues: read", architecture)
+        self.assertIn("permission-pull-requests: read", architecture)
+        self.assertIn("## Краткие findings", architecture)
         self.assertIn('allowed-repos: [lehard/dev-platform, "${{ github.repository }}"]', process)
-        self.assertIn("repositories: dev-platform", architecture)
-        self.assertNotIn('allowed-repos: [lehard/dev-platform, "${{ github.repository }}"]', architecture)
+        self.assertIn("${{ github.event.repository.name }}", architecture)
+        self.assertIn('allowed-repos: [lehard/dev-platform, "${{ github.repository }}"]', architecture)
 
     def test_reusable_review_locks_are_self_contained_in_private_caller(self) -> None:
         for name in ("weekly-process-backlog-review", "architecture-health-review"):

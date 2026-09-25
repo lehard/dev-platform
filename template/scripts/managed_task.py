@@ -120,14 +120,24 @@ class ManagedCheckoutIdentity:
     head: str
     private_lineage_handle: str | None = None
 
-    def evidence_payload(self) -> dict[str, str]:
-        return {
+    def evidence_payload(self) -> dict[str, Any]:
+        payload = {
             **({"private_lineage_handle": self.private_lineage_handle} if self.private_lineage_handle else {"source_issue": self.source_issue}),
             "change": self.change,
             "worktree": str(self.worktree),
             "branch": self.branch,
             "head": self.head,
         }
+        # Optional for compatibility with old renders/no-origin test harnesses;
+        # current managed platform check evidence receives this proof.
+        try:
+            from task_content_identity import content_identity
+            proof = content_identity(self.worktree, self.change)
+        except Exception:
+            proof = None
+        if proof is not None:
+            payload["task_content"] = proof
+        return payload
 
 
 @dataclass(frozen=True)
