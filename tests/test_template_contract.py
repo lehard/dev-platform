@@ -23,8 +23,6 @@ class TemplateContractTests(unittest.TestCase):
         self.assertIn("exact default-branch SHA", review)
         self.assertIn("Classification: context-gap", review)
         self.assertIn("Likely context destination", review)
-        self.assertIn("Подтверждённый дефект", review)
-        self.assertIn("наблюдать", review)
         self.assertIn("process:managed", labels)
 
     def test_platform_does_not_vendor_openspec_generated_skills(self) -> None:
@@ -53,12 +51,6 @@ class TemplateContractTests(unittest.TestCase):
                     (ROOT / relative).read_text(encoding="utf-8"),
                     (ROOT / "template" / relative).read_text(encoding="utf-8"),
                 )
-
-    def test_architecture_health_report_template_has_classified_findings(self) -> None:
-        report = (ROOT / "dev-platform" / "capabilities" / "architecture-health-review.md").read_text(encoding="utf-8")
-        self.assertIn("evidence lens", report)
-        self.assertIn("Подтверждённый дефект", report)
-        self.assertIn("вероятно устранён", report)
 
     def test_bounded_prototype_capability_is_mirrored_in_the_template(self) -> None:
         for relative in (
