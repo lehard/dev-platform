@@ -218,9 +218,10 @@ The concrete runtime adapters SHALL be verified against the supported Codex and 
 #### Scenario: Native Claude subagent actually runs
 
 - **GIVEN** Claude routing selects a routine or standard child and emits a native Agent hand-off
-- **WHEN** the supervisor actually invokes that Agent and records the returned execution identifier
-- **THEN** the routing record preserves the executed Claude child participant, its selected model/profile/effort and returned bounded agent identifier
-- **AND** selected values are not mislabeled as runtime-confirmed unless the supported runtime also confirms them
+- **AND** the supported Claude runtime exposes no platform-verifiable launch receipt
+- **WHEN** the supervisor records the returned agent identifier
+- **THEN** the routing record preserves it only as a self-reported claim with its selected model/profile and unknown effort
+- **AND** the record does not mark the child as launched or as an executed participant
 
 #### Scenario: Preferred delegated executor is unavailable
 
@@ -753,4 +754,29 @@ reported successful recovery.
 - **THEN** recovery refuses without writing the task-local copy either
 - **AND** no terminal gate can observe a recovered task-local record while
   the durable record remains stale
+
+### Requirement: Self-reported delegated execution is not hard launch proof
+
+The platform SHALL NOT treat a value it cannot independently verify, such as a supervisor-supplied Claude agent identifier, as proof that a delegated executor launched. Such execution SHALL be recorded as an explicit claimed/unverified outcome whose launch state is unknown. The terminal routing gate SHALL accept a claimed routine/standard Claude outcome only on the evidence the platform can verify (exact managed identity and a clean containment postcheck) and SHALL NOT present it as a confirmed launch. Efficiency and calibration reports SHALL NOT count a self-reported execution, current or legacy, as a launched or verified execution. Execution paths whose launch the platform observes directly, such as the platform-owned Codex subprocess, and the explicit retained outcome SHALL keep their existing evidence semantics.
+
+#### Scenario: Arbitrary agent identifier is recorded
+
+- **GIVEN** a routine or standard Claude route
+- **WHEN** a caller records execution with an arbitrary non-empty agent identifier
+- **THEN** the record's outcome is claimed with self-reported launch evidence and unknown launch state
+- **AND** no executed participant is attached
+- **AND** reports classify it as claimed, not launched
+
+#### Scenario: Legacy self-reported launch record reaches the gate
+
+- **GIVEN** an older Claude routing record marks `launched: true` from a supplied agent identifier without the claimed outcome
+- **WHEN** the terminal routing gate runs
+- **THEN** it refuses the record as unverifiable launch evidence
+- **AND** directs the supervisor to re-record the claimed execution
+
+#### Scenario: Platform-observed Codex launch
+
+- **GIVEN** the platform-owned Codex launcher observed a real subprocess run
+- **WHEN** the routing gate and reports read that record
+- **THEN** its launch evidence and outcome semantics are unchanged
 
