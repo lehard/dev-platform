@@ -153,7 +153,7 @@ def read_receipt(path: Path) -> ReadyForIntegrationReceipt:
 
 
 def require_independent_publication_exception(root: Path, delivery: Any) -> str | None:
-    """Require a committed reason before separately publishing a linked child."""
+    """Allow the sole linked child to use ordinary managed publication."""
     import managed_task
     import requirement_intake
 
@@ -169,9 +169,12 @@ def require_independent_publication_exception(root: Path, delivery: Any) -> str 
     if len(parents) != 1 or requirement_intake.CHILD_LABEL not in managed_task.issue_labels(issue):
         raise RequirementIntegrationError("linked child has ambiguous Requirement provenance")
     parent = managed_task.fetch_issue(root, *managed_task.issue_ref(parents[0]))
+    children = requirement_intake.parse_requirement_body(str(parent.get("body") or ""))["children"]
     if (requirement_intake.REQUIREMENT_LABEL not in managed_task.issue_labels(parent)
-            or source_issue not in requirement_intake.parse_requirement_body(str(parent.get("body") or ""))["children"]):
+            or source_issue not in children):
         raise RequirementIntegrationError("linked child is not reciprocally listed by its Requirement")
+    if len(children) == 1:
+        return None
     verification = archive / "verification.md"
     try:
         lines = verification.read_text(encoding="utf-8").splitlines()
@@ -551,8 +554,11 @@ def _reconcile_exact_merged(root: Path, integration: Path, manifest: dict[str, A
         _verify_parent_links(integration, manifest)
         for child in manifest["children"]:
             reconcile_project(integration, "Done", source_issue=child["source_issue"])
-        # The primary card is terminal only inside this exact merged-PR proof.
-        reconcile_project(integration, "Done", source_issue=manifest["requirement"])
+        from requirement_terminal import reconcile_parent
+        reconcile_parent(integration, requirement=manifest["requirement"], merged_children={item["source_issue"] for item in manifest["children"]})
+        from worktree_cleanup import defer_completed_task, targeted_cleanup_command
+        _, cleanup_target = defer_completed_task(integration, root, branch)
+        print("Completed integration worktree cleanup: " + targeted_cleanup_command(cleanup_target))
     return {"requirement": manifest["requirement"], "branch": branch, "head": head,
             "pr": lookup.exact_merged.get("url"), "status": "merged-and-reconciled",
             "children": [child["source_issue"] for child in manifest["children"]]}

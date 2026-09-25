@@ -64,8 +64,17 @@ python3 scripts/start_managed_task.py owner/repo#M
 ```
 
 The child is labeled `type:internal-change`. Repeat once per handoff; one
-Requirement may legitimately produce multiple technical children. Requirement
-progress is a read-through projection from local pre-authoring evidence and
+Requirement may legitimately produce multiple technical children.
+A direct deterministic or bounded-evidence handoff is one executable child.
+One child finishes through its normal managed PR and exact merge; two or more
+children use shared integration only when joint delivery is required. After
+every mandatory child is delivered, terminal reconciliation marks the parent
+Project card `Done` and closes its Issue. The operation is idempotent for older
+delivered Requirements:
+`python3 scripts/requirement_terminal.py reconcile --requirement owner/repo#N`.
+No `Requirement-Integration-Exception` is required for an ordinary single child.
+
+Requirement progress is a read-through projection from local pre-authoring evidence and
 their real Project statuses:
 
 ```bash

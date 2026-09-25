@@ -516,6 +516,26 @@ def cleanup_completed_task(work: Path, integration: Path, branch: str, *, squash
     print(f"Removed completed worktree and local branch {branch}.")
 
 
+def reconcile_linked_parent(integration: Path, identity: object | None) -> None:
+    if identity is None:
+        return
+    from requirement_terminal import parent_for_child, reconcile_parent
+    import requirement_intake
+    child = identity.source_issue
+    try:
+        parent = parent_for_child(integration, child)
+        if parent is not None:
+            parent_issue = requirement_intake.fetch_issue(integration, *requirement_intake.issue_ref(parent))
+            children = requirement_intake.parse_requirement_body(str(parent_issue.get("body") or ""))["children"]
+            if len(children) > 1:
+                progress = requirement_intake.aggregate(integration, requirement=parent)
+                if progress["status"] != "Done":
+                    return
+            reconcile_parent(integration, requirement=parent, merged_children={child})
+    except Exception as exc:
+        raise SystemExit("Managed child delivered, but parent Requirement terminal reconciliation is pending: " + str(exc)) from exc
+
+
 def reconcile_confirmed_remote_pr_merge(
     work: Path,
     integration: Path,
@@ -551,6 +571,7 @@ def reconcile_confirmed_remote_pr_merge(
                 f"Managed Project status {'updated' if project.changed else 'already current'}: "
                 f"{project.source_issue} -> Done"
             )
+        reconcile_linked_parent(integration, identity)
         if getattr(identity, "process_evidence", ()):
             try:
                 implementation_sha = run_git(["rev-parse", "HEAD"], cwd=integration).stdout.strip()
@@ -848,6 +869,7 @@ def main() -> int:
                 f"Managed Project status {'updated' if project.changed else 'already current'}: "
                 f"{project.source_issue} -> Done"
             )
+        reconcile_linked_parent(integration, identity)
         if getattr(identity, "process_evidence", ()):
             try:
                 implementation_sha = run_git(["rev-parse", "HEAD"], cwd=integration).stdout.strip()

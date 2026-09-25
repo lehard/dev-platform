@@ -377,6 +377,8 @@ class RequirementIntegrationTests(unittest.TestCase):
         import integration_state
         import managed_project_status
         import publication_state
+        import requirement_terminal
+        import worktree_cleanup
 
         manifest = {"requirement": "acme/backlog#7", "children": [
             {"source_issue": "acme/backlog#8"}, {"source_issue": "acme/backlog#9"},
@@ -390,6 +392,9 @@ class RequirementIntegrationTests(unittest.TestCase):
                 mock.patch.object(finish_task, "sync_after_remote_pr_merge") as sync, \
                 mock.patch.object(managed_project_status, "reconcile") as statuses, \
                 mock.patch.object(integration, "_verify_parent_links") as links, \
+                mock.patch.object(requirement_terminal, "reconcile_parent", return_value={"status": "done"}) as parent_reconcile, \
+                mock.patch.object(worktree_cleanup, "defer_completed_task", return_value=(self.root / "record", object())) as deferred, \
+                mock.patch.object(worktree_cleanup, "targeted_cleanup_command", return_value="cleanup exact target"), \
                 mock.patch.object(publication_state, "find_exact_head_pr") as lookup:
             lookup.return_value = SimpleNamespace(available=True, exact_merged=None)
             self.assertIsNone(integration._reconcile_exact_merged(self.root, self.root, manifest, "branch", "f" * 40))
@@ -401,7 +406,9 @@ class RequirementIntegrationTests(unittest.TestCase):
             sync.assert_called_once()
             links.assert_called_once()
             self.assertEqual([call.kwargs["source_issue"] for call in statuses.call_args_list],
-                             ["acme/backlog#8", "acme/backlog#9", "acme/backlog#7"])
+                             ["acme/backlog#8", "acme/backlog#9"])
+            parent_reconcile.assert_called_once_with(self.root, requirement="acme/backlog#7", merged_children={"acme/backlog#8", "acme/backlog#9"})
+            deferred.assert_called_once_with(self.root, self.root, "branch")
 
     def test_bare_remote_main_is_authoritative_for_candidate(self) -> None:
         remote = self.root / "remote.git"
@@ -527,7 +534,7 @@ class RequirementIntegrationTests(unittest.TestCase):
         self.assertEqual(result["status"], "in-review")
         self.assertEqual(events, ["full-checks", "protected-pr"])
 
-    def test_independent_linked_child_requires_committed_exception_reason(self) -> None:
+    def test_single_linked_child_uses_ordinary_publication(self) -> None:
         import managed_task
 
         self.child("one", "one.txt")
@@ -538,8 +545,8 @@ class RequirementIntegrationTests(unittest.TestCase):
         parent_issue = {"body": "<!-- requirement-children:start -->\n- [ ] acme/backlog#8\n<!-- requirement-children:end -->",
                         "labels": [{"name": "type:requirement"}]}
         with mock.patch.object(managed_task, "fetch_issue", side_effect=[child_issue, parent_issue]):
-            with self.assertRaisesRegex(integration.RequirementIntegrationError, "requires one"):
-                integration.require_independent_publication_exception(self.root, delivery)
+            self.assertIsNone(integration.require_independent_publication_exception(self.root, delivery))
+        parent_issue["body"] = parent_issue["body"].replace("<!-- requirement-children:end -->", "- [ ] acme/backlog#9\n<!-- requirement-children:end -->")
         verification = archive / "verification.md"
         verification.write_text(verification.read_text(encoding="utf-8") +
                                 "Requirement-Integration-Exception: Bootstrap the shared publication machinery safely\n",

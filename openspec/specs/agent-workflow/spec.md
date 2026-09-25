@@ -573,7 +573,7 @@ Each internal Requirement child SHALL start or resume from its own materialized 
 
 ### Requirement: Explicit Requirement execution reaches terminal delivery
 
-An explicit Execute Requirement request SHALL drive every ready internal child through the existing managed lifecycle and shared integration boundary, stopping only for a consequential decision or external blocker. The supervisor SHALL derive its next action from canonical state rather than persist an independent child queue.
+An explicit Execute Requirement request SHALL drive every ready internal child through the existing managed lifecycle and the appropriate single-child or shared integration boundary, stopping only for a consequential decision or external blocker. The supervisor SHALL derive its next action from canonical state rather than persist an independent child queue.
 
 #### Scenario: Ready children are executed in dependency order
 
@@ -613,9 +613,22 @@ An explicit Execute Requirement request SHALL drive every ready internal child t
 
 #### Scenario: Terminal completion is authoritative
 
-- **WHEN** all required children have verified ready receipts and one shared candidate has merged through protected publication
+- **WHEN** all required children have verified ready receipts and their ordinary or shared candidate has merged through protected publication
 - **THEN** the supervisor reconciles child and local main state before reporting the Requirement complete
 - **AND** a missing child, failed check, unmerged PR or uncertain external state prevents a Done claim
+
+#### Scenario: A direct handoff enters child execution
+
+- **GIVEN** deterministic or bounded-evidence pre-authoring produces a direct handoff
+- **WHEN** the supervisor advances
+- **THEN** the handoff is materialized and executed as one managed child without ADD or intents
+
+#### Scenario: One child uses ordinary publication
+
+- **GIVEN** exactly one mandatory child is ready
+- **WHEN** the supervisor advances after archive
+- **THEN** it uses that child's ordinary exact managed PR and terminal reconciliation
+- **AND** no shared candidate or special integration exception is required
 
 ### Requirement: Requirement board status is derived from terminal authority
 
@@ -637,7 +650,14 @@ The primary Requirement Project card SHALL reflect a recomputable projection of 
 
 #### Scenario: Protected publication permits Done
 
-- **GIVEN** every required child is delivered and the exact shared candidate PR is merged with local main reconciled
+- **GIVEN** every required child is delivered and the exact ordinary child or shared candidate PR is merged with local main reconciled
 - **WHEN** the Requirement card is reconciled
 - **THEN** it reaches Done idempotently
 - **AND** child Issues remain excluded from the primary human-facing view
+
+#### Scenario: Historical delivered parent is retried
+
+- **GIVEN** all linked mandatory children are closed, Done and archived on main
+- **WHEN** terminal reconciliation is retried
+- **THEN** the parent reaches Done and closes idempotently
+

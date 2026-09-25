@@ -19,6 +19,7 @@ import finish_task  # noqa: E402
 import managed_project_status  # noqa: E402
 import project_publish  # noqa: E402
 import requirement_integration  # noqa: E402
+import requirement_terminal  # noqa: E402
 
 
 class ManagedStatusLifecycleTests(unittest.TestCase):
@@ -143,6 +144,7 @@ class ManagedStatusLifecycleTests(unittest.TestCase):
                 mock.patch.object(finish_task, "delivery_identity", return_value=identity),
                 mock.patch.object(finish_task, "sync_after_remote_pr_merge", side_effect=lambda *args: events.append("sync")),
                 mock.patch.object(finish_task, "assert_integration_identity_cross_check"),
+                mock.patch.object(requirement_terminal, "parent_for_child", return_value=None),
                 mock.patch.object(
                     finish_task,
                     "reconcile_managed_project",
@@ -206,6 +208,7 @@ class ManagedStatusLifecycleTests(unittest.TestCase):
                 mock.patch.object(finish_task, "delivery_identity", return_value=identity),
                 mock.patch.object(finish_task, "sync_after_remote_pr_merge", side_effect=lambda *args: events.append("sync")),
                 mock.patch.object(finish_task, "assert_integration_identity_cross_check"),
+                mock.patch.object(requirement_terminal, "parent_for_child", return_value=None),
                 mock.patch.object(finish_task, "reconcile_managed_project", side_effect=lambda *args, **kwargs: events.append("done")),
                 mock.patch.object(finish_task, "run_git", return_value=SimpleNamespace(stdout="a" * 40)),
                 mock.patch.object(finish_task, "resolve_process_evidence_after_delivery", side_effect=lambda *args: events.append("resolve")),

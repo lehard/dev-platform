@@ -30,7 +30,7 @@ Keep these intents distinct:
 - **Quick execution**: a small direct request remains a quick task and uses the normal start/check/finish path with no external issue and no ceremonial OpenSpec. If it becomes material, enter the configured non-trivial intake path before broadening scope.
 {% if operator_integration | default(false) or operator_config_path %}
 - **Fresh non-trivial execution**: by default create/reuse a Business Requirement, start its pre-authoring flow, drive evidence -> ADD -> intents -> handoff, author the resulting internal managed OpenSpec change(s), link each child to the Requirement, start those managed tasks, and only then implement.
-- **Execute an existing Business Requirement**: start a supplied `type:requirement` Issue with `python3 scripts/requirement_intake.py start --requirement owner/repo#N`.
+- **Execute an existing Business Requirement**: start a supplied `type:requirement` Issue with `python3 scripts/requirement_intake.py start --requirement owner/repo#N`, then resume through `python3 scripts/execute_requirement.py advance --requirement owner/repo#N`. One child uses its ordinary managed publication and terminal parent reconciliation; two or more children use shared integration when joint delivery is needed.
 - **Direct technical managed/OpenSpec path**: an explicitly supplied managed Issue/OpenSpec task, or an explicit request to create a technical managed task, continues to use `managed_task.py create`, `execute_managed_task.py`, or `start_managed_task.py`. This is not the default meaning of a generic fixation request.
 {% else %}
 - **Fresh non-trivial execution**: explicit execution first accepts the local OpenSpec package and then implements it through the repository task/check/finish lifecycle.

@@ -52,7 +52,13 @@ def _ordered_handoffs(report: dict[str, Any], requirement: str) -> list[tuple[st
         except (OSError, json.JSONDecodeError) as exc:
             raise RequirementExecutionError(f"cannot read handoff {change}: {exc}") from exc
         expected_id = f"requirement-{requirement.rsplit('#', 1)[1]}"
-        if not isinstance(envelope, dict) or envelope.get("add_id") != expected_id:
+        if not isinstance(envelope, dict):
+            raise RequirementExecutionError(f"handoff {change} is malformed")
+        if envelope.get("kind") == "direct-requirement-handoff":
+            if change != "direct" or envelope.get("requirement_id") != expected_id or len(raw) != 1:
+                raise RequirementExecutionError("direct handoff identity is ambiguous")
+            return [(change, path)]
+        if envelope.get("add_id") != expected_id:
             raise RequirementExecutionError(f"handoff {change} belongs to another Requirement")
         intents = envelope.get("intents")
         if not isinstance(intents, list) or not intents:
@@ -113,6 +119,7 @@ def _linked_children_by_change(integration: Path, requirement: str, parent: dict
 
 def _ready_receipt(
     integration: Path, receipt_dir: Path, requirement: str, child: str, change: str,
+    *, release_claim: bool = True,
 ) -> tuple[Path, requirement_integration.ReadyForIntegrationReceipt] | None:
     branch = f"agent/{change}"
     worktree = machine_path("worktrees", integration) / change
@@ -128,7 +135,8 @@ def _ready_receipt(
     )
     path = receipt_dir / f"{change}.json"
     receipt = requirement_integration.write_receipt(path, payload)
-    _release_ready_claim(integration, worktree, receipt)
+    if release_claim:
+        _release_ready_claim(integration, worktree, receipt)
     return path, receipt
 
 
@@ -177,6 +185,17 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
     )
     ordered = _ordered_handoffs(report, requirement)
     linked_by_change = _linked_children_by_change(integration, requirement, parent)
+    direct = ordered[0][0] == "direct" if len(ordered) == 1 else False
+    if direct:
+        if len(linked_by_change) == 1:
+            direct_change = next(iter(linked_by_change))
+        elif not linked_by_change:
+            direct_change = managed_task.load_authoring_bundle(
+                str(_bundle(base_dir, requirement, "direct"))
+            ).change
+        else:
+            raise RequirementExecutionError("direct handoff has multiple linked children")
+        ordered = [(direct_change, ordered[0][1])]
     current_changes = {change for change, _ in ordered}
     for historical_change, historical_child in linked_by_change.items():
         if historical_change in current_changes:
@@ -194,7 +213,7 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
         if child is None:
             linked = requirement_intake.materialize_handoff(
                 integration, requirement=requirement, handoff_file=handoff,
-                bundle_path=_bundle(base_dir, requirement, change), base_dir=base_dir,
+                bundle_path=_bundle(base_dir, requirement, "direct" if direct else change), base_dir=base_dir,
                 confirm_distinct=confirm_distinct,
             )
             child = linked["child"]
@@ -205,14 +224,17 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
             _done_child_is_delivered(integration, child, change)
             completed.append(child)
             continue
-        existing = _ready_receipt(integration, receipt_dir, requirement, child, change)
+        existing = _ready_receipt(
+            integration, receipt_dir, requirement, child, change,
+            release_claim=len(ordered) > 1,
+        )
         if existing is not None:
             path, _ = existing
             ready.append(path)
             receipts_by_change[change] = path
             continue
         envelope = json.loads(handoff.read_text(encoding="utf-8"))
-        predecessors = [receipts_by_change[dependency] for intent in envelope["intents"]
+        predecessors = [receipts_by_change[dependency] for intent in envelope.get("intents", [])
                         for dependency in intent.get("dependencies", []) if dependency in receipts_by_change]
         if len(set(predecessors)) > 1:
             raise RequirementExecutionError(f"{change} has multiple ready predecessors; select an exact dependency boundary")
@@ -227,6 +249,16 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
             "predecessor_receipt": str(predecessor) if predecessor else None,
             "next": "Perform routed bounded implementation, verify, archive and commit; rerun execute_requirement.py advance.",
         }
+    if len(ordered) == 1:
+        if ready:
+            change = ordered[0][0]
+            child = linked_by_change[change]
+            worktree = machine_path("worktrees", integration) / change
+            result = subprocess.run(["python3", "scripts/finish_task.py"], cwd=worktree)
+            if result.returncode:
+                raise RequirementExecutionError(f"single-child managed finish did not complete (exit {result.returncode})")
+        from requirement_terminal import reconcile_parent
+        return reconcile_parent(integration, requirement=requirement)
     if len(ready) < 2:
         if not ready and completed:
             return {"status": "already-delivered", "requirement": requirement, "children": completed}
