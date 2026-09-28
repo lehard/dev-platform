@@ -1,0 +1,89 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.735,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.464,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 257.059,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "scripts/repository_goal_scan.py",
+        "template/scripts/repository_goal_scan.py",
+        "tests/test_repository_goal_scan.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_6151b33bb1a409b5b70a203f2be0e345",
+    "change": "add-repository-goal-scan",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/add-repository-goal-scan",
+    "branch": "agent/add-repository-goal-scan",
+    "head": "75ab2e9c1f58886ac06d55eee040ef25852a4ae6",
+    "task_content": {
+      "version": 1,
+      "digest": "5d6c5aebbb764010aeedd9096d6f25b89fe98f4b1a4aebc5bdc3d3eb0b73062a",
+      "paths": {
+        ".gitignore": "9aee10429301b178e8c666ed727eec591962b9a0",
+        "dev-platform/capabilities/repository-goal-scan.md": "774988afe15f71109bb1174d5d4cbfef34a2f26c",
+        "dev-platform/capabilities/repository-goal-scan.toml": "57fe1053005b6ba4abf2aa15e950816dc73a286a",
+        "dev-platform/checks.toml": "2e9442f983075e7aeb3b9a3980225453fdb1712f",
+        "dev-platform/evals/repository-goal-scan-pilot.json": "54f77294320d4a4a0fb0c10b6a902bc1e39c1368",
+        "docs/engineering/engineering-capabilities.md": "59e52250336420c3a25486188c6616066cc1669c",
+        "openspec/changes/add-repository-goal-scan/.managed-task.json": "2d29133244d506b3fcc27283b888f8a73b868bf4",
+        "openspec/changes/add-repository-goal-scan/.openspec.yaml": "ee7c5448114a173e0747e643bc8c2bd9632a05e7",
+        "openspec/changes/add-repository-goal-scan/design.md": "9a48c4858804ee9cbd7a868a4ec7012ae03f2293",
+        "openspec/changes/add-repository-goal-scan/proposal.md": "64632473d274ded3db29a15d2cef689b7209f7dc",
+        "openspec/changes/add-repository-goal-scan/specs/engineering-capabilities/spec.md": "5b9309cd6db79f06a35865aea1a537516dd50d50",
+        "openspec/changes/add-repository-goal-scan/tasks.md": "210f17eb688b6b9e9c0af9593da72d732cc787d5",
+        "openspec/changes/add-repository-goal-scan/verification.md": "2885c37020e090083ce406eeb73aba752a159f3c",
+        "scripts/repository_goal_scan.py": "d2e2e3e9846dcd7b7f23ea4d547d95b3ff9d6c95",
+        "template/.gitignore.jinja": "66cacb084fc642d5df5758e3e310b05847739031",
+        "template/dev-platform/capabilities/repository-goal-scan.md": "774988afe15f71109bb1174d5d4cbfef34a2f26c",
+        "template/dev-platform/capabilities/repository-goal-scan.toml": "57fe1053005b6ba4abf2aa15e950816dc73a286a",
+        "template/dev-platform/evals/repository-goal-scan-pilot.json": "54f77294320d4a4a0fb0c10b6a902bc1e39c1368",
+        "template/docs/engineering/engineering-capabilities.md": "59e52250336420c3a25486188c6616066cc1669c",
+        "template/scripts/repository_goal_scan.py": "c70204e350c9abd38a6e101ef2a654a8ddc862d7",
+        "tests/test_repository_goal_scan.py": "05f7e53e7ba19d687f40061127bb2b89903af334"
+      },
+      "base": "a4964b0c0e5cbcb6a26961f8859dad210200cc67"
+    }
+  }
+}

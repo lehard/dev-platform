@@ -1,0 +1,26 @@
+[capability]
+id = "repository-goal-scan"
+name = "Repository goal scan"
+description = "Explicitly scan a committed repository revision through deterministic selectors and finite candidate accounting, producing advisory findings only."
+kind = "tool-backed"
+applicability = "Only an explicit broad whole-repository engineering scan whose answer requires systematic investigation; never implied for scoped implementation, debugging, tests, or focused review."
+invocation = "explicit-only"
+visibility = "project"
+owner = "dev-platform"
+safety_boundary = "Reads only the selected committed Git tree and writes only caller-named local scan state; never invokes a provider, evaluates arbitrary planner code, creates a scheduler, mutates source/Issues/managed tasks/PRs/Project state, or promotes advisory findings."
+dependencies = []
+materialization = "provider-skill-markdown"
+tool_adapter = "scripts/repository_goal_scan.py"
+update_policy = "replace-derived"
+removal_policy = "remove-derived-only"
+
+[provenance]
+source = "dev-platform"
+revision = "platform-managed"
+path = "dev-platform/capabilities/repository-goal-scan.md"
+license = "Apache-2.0"
+content_sha256 = "0cc6dc59e8419a24254be87bcf9d65aad1e168502e1f4ae8b4e521a47c24dc80"
+
+[eval]
+evidence = "dev-platform/evals/repository-goal-scan-pilot.json"
+live_eval = "deterministic-fixture"

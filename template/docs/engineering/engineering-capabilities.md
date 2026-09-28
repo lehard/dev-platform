@@ -66,6 +66,41 @@ python3 scripts/capability_manager.py evaluate capability-catalog \
 
 ## Architecture Health Review
 
+## Repository goal scan
+
+`repository-goal-scan` is an opt-in, tool-backed capability for an explicitly
+requested broad engineering investigation where a finite repository-wide queue
+is needed before findings can be reduced. It is not implied by implementation,
+debugging, focused review, or test work:
+
+```bash
+python3 scripts/capability_manager.py enable repository-goal-scan
+python3 scripts/repository_goal_scan.py plan --profile profile.json --out .dev-platform/repository-goal-scan/<run>
+```
+
+The adapter binds selection to an exact committed Git revision, supports only
+inspectable inventory/fixed/regex selectors, produces deterministic candidate
+IDs and bounded batches, and requires exactly one finding/no-finding verdict
+per candidate. `finalize` may claim 100% selected-scope processing only after
+all batches are valid; selector limitations and exclusions remain explicit.
+The profile declares `goal`, `question`, `selection_confidence` (`low`, `medium`,
+or `high`), `limitations`, `include`/`exclude` globs, `selectors` with unique
+IDs and `inventory`/`fixed`/`regex` types, and a positive
+`shard.max_candidates`. The manifest lists every selected tracked path;
+paths with no text match or non-UTF-8 content receive explicit candidates.
+Results with a `finding` verdict require a bounded description, evidence
+reference, priority, and confidence. Run output is restricted to the ignored
+`.dev-platform/repository-goal-scan/` directory.
+The current executor may map batches sequentially or use native safe read-only
+delegation, but the adapter neither schedules agents nor creates a second task
+system. State under `.dev-platform/repository-goal-scan/` is ignored and
+advisory; it cannot modify source, Issues, managed tasks, PRs, or project state.
+
+The design independently adapts Cognition's published Agentic MapReduce
+architecture (2026-07-01) and Code Scans announcement (2026-09-16):
+deterministic selection and accounting surrounds provider-neutral reasoning. No
+Cognition content or runtime is vendored or fetched.
+
 `architecture-health-review` is an opt-in, instruction-only advisory capability. Enable it only when a repository wants a bounded architecture evidence surface:
 
 ```bash

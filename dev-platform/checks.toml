@@ -154,6 +154,7 @@ targets = [
   "test_requirement_first_intake_contract",
   "test_project_context",
   "test_project_evidence",
+  "test_repository_goal_scan",
   "test_platform_doctor_workflow_mode",
   "test_pr_reconciliation_concurrency",
   "test_project_harness_doc_ownership",
