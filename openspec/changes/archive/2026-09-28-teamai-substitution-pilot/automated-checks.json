@@ -1,0 +1,92 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 2,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "git diff --check",
+      "duration_seconds": 0.066,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_docs_links.py",
+      "duration_seconds": 16.931,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "docs",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/upstream-evaluations/teamai.md",
+        "docs/engineering/upstream-substitution.md",
+        "openspec/changes/archive/2026-09-28-teamai-substitution-pilot/.managed-task.json",
+        "openspec/changes/archive/2026-09-28-teamai-substitution-pilot/.openspec.yaml",
+        "openspec/changes/archive/2026-09-28-teamai-substitution-pilot/automated-checks.json",
+        "openspec/changes/archive/2026-09-28-teamai-substitution-pilot/design.md",
+        "openspec/changes/archive/2026-09-28-teamai-substitution-pilot/proposal.md",
+        "openspec/changes/archive/2026-09-28-teamai-substitution-pilot/specs/upstream-substitution/spec.md",
+        "openspec/changes/archive/2026-09-28-teamai-substitution-pilot/tasks.md",
+        "openspec/changes/archive/2026-09-28-teamai-substitution-pilot/verification.md",
+        "openspec/changes/archive/2026-09-28-upstream-substitution-gate/.managed-task.json",
+        "openspec/changes/archive/2026-09-28-upstream-substitution-gate/.openspec.yaml",
+        "openspec/changes/archive/2026-09-28-upstream-substitution-gate/automated-checks.json",
+        "openspec/changes/archive/2026-09-28-upstream-substitution-gate/design.md",
+        "openspec/changes/archive/2026-09-28-upstream-substitution-gate/proposal.md",
+        "openspec/changes/archive/2026-09-28-upstream-substitution-gate/specs/upstream-substitution/spec.md",
+        "openspec/changes/archive/2026-09-28-upstream-substitution-gate/tasks.md",
+        "openspec/changes/archive/2026-09-28-upstream-substitution-gate/verification.md",
+        "openspec/specs/upstream-substitution/spec.md"
+      ],
+      "commands": [
+        "git diff --check",
+        "python3 scripts/check_docs_links.py"
+      ],
+      "evidence_types": [
+        "configuration",
+        "configuration"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_bb2f6b2bec272b3af305d6f86e02bc5b",
+    "change": "teamai-substitution-pilot",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/teamai-substitution-pilot",
+    "branch": "agent/teamai-substitution-pilot",
+    "head": "dcc3c7767dfaf958c9947515c356a9f5cd2861ff",
+    "task_content": {
+      "version": 1,
+      "digest": "8d001b437c04d5b2ab66c1b70941fd96da7be325fe1973fea2d0001aad907a6a",
+      "paths": {
+        "AGENTS.md": "c1a2fb671ccf2ba8453d40e5445cc4e6a71028b5",
+        "docs/engineering/upstream-evaluations/teamai.md": "7eba99f8134aef72ae40ba098144e97f6956d436",
+        "docs/engineering/upstream-substitution.md": "15f151962f901803c162f0d23b39a19e7174c5f0",
+        "openspec/changes/teamai-substitution-pilot/.managed-task.json": "39b9724dd196f9c66b373020a1ee970bc239ed16",
+        "openspec/changes/teamai-substitution-pilot/.openspec.yaml": "ee7c5448114a173e0747e643bc8c2bd9632a05e7",
+        "openspec/changes/teamai-substitution-pilot/automated-checks.json": "1bfd5f053d072ba6e0f58dbd50671c43a4f84017",
+        "openspec/changes/teamai-substitution-pilot/design.md": "45e611baba7a870255ecd26b8c18eca578c1e933",
+        "openspec/changes/teamai-substitution-pilot/proposal.md": "54d9a533182af8d3fd5f53138c5bf513e968e9b8",
+        "openspec/changes/teamai-substitution-pilot/specs/upstream-substitution/spec.md": "cfd4bee8b3261c8e1a839e788b04a1ff16706a37",
+        "openspec/changes/teamai-substitution-pilot/tasks.md": "db16fe1058aeffed72110eaec567b40e3963c08d",
+        "openspec/changes/teamai-substitution-pilot/verification.md": "e93f899e543059feebb0588ed85e940292776224",
+        "openspec/changes/archive/2026-09-28-upstream-substitution-gate/.managed-task.json": "42723207e02767bedcb7b98368a8e34cb5445705",
+        "openspec/changes/archive/2026-09-28-upstream-substitution-gate/.openspec.yaml": "ee7c5448114a173e0747e643bc8c2bd9632a05e7",
+        "openspec/changes/archive/2026-09-28-upstream-substitution-gate/automated-checks.json": "09a69c63673dc8459b125ade4da7ab6a76305ac3",
+        "openspec/changes/archive/2026-09-28-upstream-substitution-gate/design.md": "76d447c3b7d1bebe760253f21a15723ae6728d87",
+        "openspec/changes/archive/2026-09-28-upstream-substitution-gate/proposal.md": "d190dae88073653104abe1332bac8dd0c59ffdc2",
+        "openspec/changes/archive/2026-09-28-upstream-substitution-gate/specs/upstream-substitution/spec.md": "3f62baf3caffbca6237b7e4ad330028f7367bbb9",
+        "openspec/changes/archive/2026-09-28-upstream-substitution-gate/tasks.md": "09f2bda70605055bb46ccda9c88691216caed5b1",
+        "openspec/changes/archive/2026-09-28-upstream-substitution-gate/verification.md": "c2ac67eb59eafbec7233ddca781595a5e06b5f71",
+        "openspec/specs/upstream-substitution/spec.md": "f79674c29577696e467f84053a3aa334aec285fa"
+      },
+      "base": "1414fe00bce97311b2ab46302def3c21bfab365f"
+    }
+  }
+}
