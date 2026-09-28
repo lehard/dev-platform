@@ -2,7 +2,7 @@
 """Exercise the OpenSpec 1.13.x archive/delta/verify regressions against an exact CLI.
 
 The fixtures pin the correctness fixes that motivated adopting each tested
-release; the 1.13.1/1.13.2 fixtures fail against 1.13.0.
+release; the 1.13.1/1.13.2 fixtures fail against the previously tested release.
 """
 from __future__ import annotations
 

@@ -36,8 +36,13 @@ lifecycle correctness" requirement.
 - Extend the exact-CLI regression `tests/openspec_1_13_regression.py` with
   focused fixtures for the motivating upstream fixes (case-only duplicate,
   unpaired `RENAMED`, `RENAMED`+`REMOVED` archive, task-marker progress, and
-  generated verify-workflow removed/renamed/not-verified semantics). The new
-  fixtures fail against `1.13.0` and pass against `1.13.2`.
+  generated verify-workflow removed/renamed/not-verified semantics). Each
+  regression fixture fails against `1.13.0` and passes against `1.13.2`; the
+  paired `RENAMED`+`REMOVED` archive fixture is a positive control that passes
+  on both. Scenario-less requirement rejection shows no observable CLI
+  difference between the two versions (both reject it), and schema-aware task
+  progress in agent-driven archive is generated-skill guidance, so neither is
+  independently pinned beyond the task-progress and verify-workflow fixtures.
 - Retain all platform semantic verification, receipt, automated-evidence,
   routing and archive gates: the `1.13.2` verify workflow itself declares
   verification advisory and defers to archive's own checks, so no platform
@@ -65,8 +70,9 @@ release tag continues to pin `1.13.0` unchanged.
 ## Success criteria / verification evidence
 
 - No recorded copy of `1.13.0` remains outside archived history.
-- `tests/openspec_1_13_regression.py` passes against exact `1.13.2` and its
-  new fixtures demonstrably fail against `1.13.0`.
+- `tests/openspec_1_13_regression.py` passes against exact `1.13.2` and each
+  new regression fixture (not the positive control) demonstrably fails against
+  `1.13.0`.
 - `npx @fission-ai/openspec@1.13.2 validate --all --strict --no-interactive`
   passes on this repository.
 - `python3 -m compileall -q template/scripts scripts`,

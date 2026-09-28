@@ -34,11 +34,24 @@ Re-confirmed on 2026-09-28 immediately before editing: npm
   inverted REMOVED / baseline RENAMED checks (skipped-verification and
   removed/renamed-requirement cases).
 - **Regression proof.** Against exact local installs: the extended script
-  passes on `1.13.2`; on `1.13.0` every new fixture fails (case-duplicate
-  archived, unpaired rename accepted by strict validate, task progress
+  passes on `1.13.2`. Run fixture-by-fixture in fresh projects on `1.13.0`,
+  every new regression fixture fails (case-duplicate archived, unpaired
+  rename accepted by strict validate and applied by archive, task progress
   `1/1 all_done` instead of `1/4`, verify workflow lacks the advisory and
-  REMOVED/RENAMED guidance). The pre-existing `1.13.0` fixtures still pass on
-  `1.13.2`.
+  REMOVED/RENAMED guidance). The paired `RENAMED`+`REMOVED` archive fixture
+  passes on both versions and is a positive control, not a regression proof.
+  The pre-existing `1.13.0` fixtures still pass on `1.13.2`.
+- **Not independently pinned.** Scenario-less requirement rejection (`1.13.1`)
+  was probed in change deltas and main specs, strict and non-strict: both
+  versions already reject it, so there is no behavior difference to pin.
+  Schema-aware task progress in agent-driven archive (`1.13.2`) is generated
+  archive-skill guidance; its CLI basis (`instructions apply` progress with
+  `taskTrackingConfigured`) is covered by the task-marker fixture only.
+- **Independent child pass.** The routed native Claude child
+  (`ac049bb691a7123da`) re-ran the pin grep, both exact-CLI regressions,
+  the template contract tests and ruff, and reviewed each fixture in
+  isolation; it found one stale `1.13.0` docstring mention (fixed) and the
+  positive-control/unpinned wording corrected above.
 - **Repository compatibility.** `openspec@1.13.2 validate --all --strict
   --no-interactive` on this repository: 36 passed, 0 failed.
 - **Platform guard decision.** No platform guard was removed or weakened. The
