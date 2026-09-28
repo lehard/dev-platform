@@ -1,0 +1,78 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 1.197,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.849,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 369.029,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/model_routing.py",
+        "tests/test_model_routing.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_02a753f441c3e1d2ec9af3afdc6bf81d",
+    "change": "add-evidence-preserving-log-reducer",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/add-evidence-preserving-log-reducer",
+    "branch": "agent/add-evidence-preserving-log-reducer",
+    "head": "39ee114abd63ae582efc138c7e50d10fd18f148d",
+    "task_content": {
+      "version": 1,
+      "digest": "35fe88c3b748f14ba2870c3f5af17bfd092849c5a5fd4718dc6c157cae662f73",
+      "paths": {
+        "docs/engineering/model-routing.md": "018649ac41ba798efd913c7d69df7b626250019d",
+        "openspec/changes/add-evidence-preserving-log-reducer/.managed-task.json": "6e2376b6b5eebed62be15c0a46df1e10e21530b4",
+        "openspec/changes/add-evidence-preserving-log-reducer/.openspec.yaml": "ee7c5448114a173e0747e643bc8c2bd9632a05e7",
+        "openspec/changes/add-evidence-preserving-log-reducer/automated-checks.json": "2e31a9a1edd4ea7ef637f2172fe9500ecef5495a",
+        "openspec/changes/add-evidence-preserving-log-reducer/design.md": "cecec6763b7b1d114b7e235b1c42846efd0c8251",
+        "openspec/changes/add-evidence-preserving-log-reducer/proposal.md": "b71219f26280d24dbe0eb0fcf1e93bc73ed63884",
+        "openspec/changes/add-evidence-preserving-log-reducer/specs/model-routing/spec.md": "3139d971e31c52bbaeef15d580158167eaefcfd1",
+        "openspec/changes/add-evidence-preserving-log-reducer/tasks.md": "49edab3b722abea0e7f61d72d8ad29ea7077fddf",
+        "openspec/changes/add-evidence-preserving-log-reducer/verification.md": "6e2866f55a7ba9ff2a844de3579457dd87200022",
+        "openspec/specs/model-routing/spec.md": "42ba4f6c79b8004dfa81ae8c2caa7b820e3e7159",
+        "template/scripts/model_routing.py": "f2e110dc8c917ab5ea4c952b2a5b95cba9ca5d4c",
+        "tests/test_model_routing.py": "b42ec986e46d9bdc5bf10361a2bfd447cb714100"
+      },
+      "base": "45c75824f0b8241c81abd7337357096b456d8f01"
+    }
+  }
+}

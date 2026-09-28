@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/model-routing/spec.md"
+  ],
+  "change": "add-evidence-preserving-log-reducer",
+  "imported_at": "2026-09-28T10:52:30+00:00",
+  "package_revision": "8cd009a7050d5bb8101b48dea160170652b2546f659e96745b63878bc3f81765",
+  "prepared_against": "f45e06478acd93d48b9282a69666fb2d32457a36",
+  "private_lineage_handle": "pln_02a753f441c3e1d2ec9af3afdc6bf81d",
+  "routing_receipt": {
+    "assurance": "high",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "verification-efficiency"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "e8a2efe7c1ae5f3391efdca2e7d8475f7cea16d0eae98ba1f23b08c274afdba3",
+    "updated_at": "2026-09-20T04:25:31Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
