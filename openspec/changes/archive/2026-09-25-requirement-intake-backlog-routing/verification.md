@@ -6,8 +6,6 @@ Verification-Method: Manual semantic review of the Requirement outcome, proposal
 
 Automated-Checks-Evidence: automated-checks.json
 
-Requirement-Integration-Exception: Requirement lehard/development-backlog#218 has exactly one technical child, so a multi-child integration candidate cannot be assembled; publish this verified child through its exact managed PR and reconcile the parent after terminal delivery.
-
 ## Outcome and evidence
 
 - `requirement_intake.py create` resolves routing from the existing `managed_task.authoring_config` (`[development_backlog]`) and creates the Issue with `type:requirement`, the configured `project:*` label and `priority:<explicit or default_priority>`. No new configuration key or default was introduced; `--priority` is optional and limited to P0–P3.
