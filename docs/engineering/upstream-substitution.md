@@ -82,6 +82,13 @@ Write one durable record per upstream evaluation at
 same upstream updates that record with a new dated section rather than creating
 a competing file.
 
+For a consequential platform-wide conclusion, also write a concise historical
+decision in the [decision registry](../decisions/README.md) and link this
+evaluation as its detailed evidence. A later changed conclusion gets a new
+registry record with an explicit supersession link; keep the evaluation's
+dated pilot evidence and per-capability decisions intact. The registry does
+not authorize adoption or replace the OpenSpec contract.
+
 Template:
 
 ```markdown
