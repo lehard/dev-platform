@@ -1,0 +1,77 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.191,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.085,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 413.376,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/model_routing.py",
+        "tests/test_model_routing.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_bccd3a3da96d67877a72f95200d781b1",
+    "change": "refresh-model-routing-bindings",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/refresh-model-routing-bindings",
+    "branch": "agent/refresh-model-routing-bindings",
+    "head": "99fed01aba66ef81b2bc600a156da6dd96ba64f3",
+    "task_content": {
+      "version": 1,
+      "digest": "ccec287ae52dbfc6a103437f4d6baceb4fe90b1841280213d579fb2ea2ecfedb",
+      "paths": {
+        "docs/engineering/model-routing.md": "bf46e9371a00c05fac68198f400ea24d4fc38ee8",
+        "openspec/changes/refresh-model-routing-bindings/.managed-task.json": "2beef3173b8c085edaf9f1952ebe284f7e8fc1de",
+        "openspec/changes/refresh-model-routing-bindings/.openspec.yaml": "ee7c5448114a173e0747e643bc8c2bd9632a05e7",
+        "openspec/changes/refresh-model-routing-bindings/design.md": "91a73f084f106ec4240b56024a6957fb35c7d108",
+        "openspec/changes/refresh-model-routing-bindings/proposal.md": "70adbeb59e673d7db0d626ebe397d16a50a3f8cc",
+        "openspec/changes/refresh-model-routing-bindings/specs/model-routing/spec.md": "3256f4d5f112cdca7f60cfa5a009a8ea277b1c55",
+        "openspec/changes/refresh-model-routing-bindings/tasks.md": "bf891b459fe1fa8003efb111f9cf04f31d212d04",
+        "openspec/changes/refresh-model-routing-bindings/verification.md": "90e327a2b2b14172e6653a333ed24a19dbdf7d3b",
+        "template/.dev-platform.toml.jinja": "f093c5921aa9b09642baa65ea724ce57662df370",
+        "template/scripts/model_routing.py": "f8a3b5c7c61a9e3127e6faa5629e98339eadbd31",
+        "tests/test_model_routing.py": "2139a46e7dd366f3a6d52ba3d0647744877302a9"
+      },
+      "base": "d61e65fb17b8d0fef7b941ef65ff710530658f3e"
+    }
+  }
+}
