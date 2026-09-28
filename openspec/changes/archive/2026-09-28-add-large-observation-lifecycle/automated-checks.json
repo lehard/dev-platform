@@ -1,0 +1,79 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.661,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.25,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 283.54,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/model_routing.py",
+        "tests/test_model_routing.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_23629e634b08b45bc0ee2d76351d92ec",
+    "change": "add-large-observation-lifecycle",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/add-large-observation-lifecycle",
+    "branch": "agent/add-large-observation-lifecycle",
+    "head": "9447e2644f760dc0112b12061581e6fa21588a2a",
+    "task_content": {
+      "version": 1,
+      "digest": "7711245006a6200f68752dff4615c0f6bf18a6294311dd63117a6ddede75263b",
+      "paths": {
+        "docs/engineering/model-routing.md": "fb921107566f2c4bc3bafebf8f30b06e24cdc29c",
+        "openspec/changes/add-large-observation-lifecycle/.managed-task.json": "c8c6c359d2f220e914d5a7638c4f9bf1a9e3b325",
+        "openspec/changes/add-large-observation-lifecycle/.openspec.yaml": "ee7c5448114a173e0747e643bc8c2bd9632a05e7",
+        "openspec/changes/add-large-observation-lifecycle/automated-checks.json": "6fcdc1727ccb47b812c2d9ae6d880cfd08a2daa8",
+        "openspec/changes/add-large-observation-lifecycle/design.md": "760c9c5d7e5af6fbe4d918f630b90fae074f1e4f",
+        "openspec/changes/add-large-observation-lifecycle/proposal.md": "dee728d4fbb2be53252e7d814b1c931b49cb4fa7",
+        "openspec/changes/add-large-observation-lifecycle/specs/model-routing/spec.md": "fcf536a762eaf381afd962ed98f286f5b794bd51",
+        "openspec/changes/add-large-observation-lifecycle/tasks.md": "04bfa246c28375a0c0008b84a5fe8e8439fe8eb4",
+        "openspec/changes/add-large-observation-lifecycle/verification.md": "47ba17035282e743ec29d737be9fff2ac005b736",
+        "openspec/specs/model-routing/spec.md": "4877beb47b0088df1f6c00927784d93f7936b825",
+        "template/.dev-platform.toml.jinja": "e16f9f9270eb86c40d782f0f127d55ca689f53e5",
+        "template/scripts/model_routing.py": "fdfb34de052e4d6e86977b91a643ed80ca205c9b",
+        "tests/test_model_routing.py": "155dc287f1f07c05234e68ef5c80fe74ee4077e9"
+      },
+      "base": "1d766c88ef03e83de3db933547e90ec900566311"
+    }
+  }
+}

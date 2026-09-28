@@ -100,6 +100,36 @@ Codex runs only with its native `read-only` sandbox and the configured routine m
 
 Claude Code's current native Agent handoff has no supported read-only permission boundary. `context-claude` therefore records `runtime-unavailable` and retains direct targeted reading rather than launching a child based on instructions alone.
 
+## Large-observation lifecycle
+
+This is a distinct, adjacent capability from read-only context delegation above: it manages an observation a supported runtime/tool has *already returned* into a live run -- a large Read, search, command or test result -- not a pre-emptive bulk read. It cannot live inline in the routing record the way a context-delegation observation does, because the whole point is that the exact original payload can be large: an eligible observation is preserved exactly in bounded run/session-local storage (`.claude/observations/<change>/<handle>.json`, alongside the existing gitignored `.claude/model-routing/` lifecycle directory), and only a bounded hot reference -- a stable handle, source/kind metadata, original size and a bounded excerpt -- is appended to the existing local routing record's `observations` field. The full payload never lives there.
+
+The central `dev-platform` checkout enables this as soft dogfood only, exactly like `[context_delegation]`; managed projects render it disabled and may opt in deliberately. Eligibility is a configurable, evidence-driven byte threshold, not a research-specific universal invariant:
+
+```toml
+[observation_lifecycle]
+enabled = true
+min_bytes = 8000
+```
+
+Archive one already-produced observation once it is confirmed eligible:
+
+```bash
+python3 scripts/model_routing.py observation-cool --request /tmp/observation-request.json
+```
+
+`--request` is a small JSON object: `source` (a bounded free-form label, e.g. `command:pytest`), `kind` (one of `command_output`, `file_read`, `search_result`, `test_output`, `tool_result`, `other`) and `payload` (the exact original text). A disabled lifecycle or a payload below the configured `min_bytes` takes the existing direct representation with no archive/recall ceremony at all: no handle is minted, nothing is written to storage, and the routing record is not touched. An eligible observation is written to bounded local storage first; only once that succeeds is the bounded hot reference appended to the routing record. If storage fails, the platform fails open to the current full-observation behavior -- it reports the failure truthfully (`status: "storage-failed"`) and never claims a successful archive that did not happen.
+
+Recall the exact preserved original by handle:
+
+```bash
+python3 scripts/model_routing.py observation-recall --handle <handle> --request /tmp/observation-recall.json
+```
+
+Recall must be explicit and bounded: `--request` supplies either a byte range (`start_byte`/`end_byte`), a `query` substring (returned with bounded surrounding context via `context_chars`), or the explicit `full: true` escape hatch. Omitting all three is refused -- unrelated portions of a cold observation are never returned by default, and later turns never require the full original to stay hot by default. A byte-range or full recall is returned exactly as preserved (byte-for-byte); a query match is text-exact. A stale or unknown handle raises `ObservationLifecycleError` explicitly rather than fabricating recalled content, exactly like `context-reread` refuses an unknown context-delegation observation id.
+
+Evidence reuses the existing efficiency-provenance vocabulary rather than a parallel measurement scheme: each reference carries deterministic `source_payload`/`hot_payload`/`recall_payload` bytes/lines (the last is `unknown` until a recall is recorded against that handle), a `trigger` block (`eligible_bytes_threshold`, `eligible`, and a deterministic hot/source byte-reduction `intensity`), and a `usage` block using `efficiency_unknown_usage()`. This is a purely local archive/recall operation with no model call behind it, so token/cache fields always stay `{value: null, source: "unknown", status: "unknown"}` -- deterministic payload-byte reduction is never mislabelled as a measured token saving.
+
 ## Delegated write containment
 
 Platform-controlled write-capable delegation is platform-contained only with a valid assigned worktree, a proven native or fallback write boundary, and a content-aware post-check against the integration copy. `scripts/delegated_write_guard.py` remains the compatibility/post-check helper: a proven Codex `workspace-write` sandbox is the primary prevention layer, not a second custom guard. For unsupported or unprovable native modes, retain work on the parent or use the smallest supported guarded fallback. For Codex, system temp roots such as `/tmp` and `$TMPDIR` are checked with realpath semantics; unsafe topology downgrades to detection-only, or fails before launch when hard containment is required.

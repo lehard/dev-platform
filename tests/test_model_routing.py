@@ -943,6 +943,137 @@ class ModelRoutingTests(unittest.TestCase):
         with self.assertRaisesRegex(routing.ContextDelegationError, "inside the repository"):
             routing.context_request(self.task, {"question": "Read elsewhere", "scope": [{"path": "../outside.txt"}]})
 
+    def enable_observation_lifecycle(self, min_bytes: int | None = None) -> None:
+        body = (
+            "[model_routing.codex]\nstandard_model = \"cheap-codex\"\ncomplex_model = \"strong-codex\"\n"
+            "[observation_lifecycle]\nenabled = true\n"
+        )
+        if min_bytes is not None:
+            body += f"min_bytes = {min_bytes}\n"
+        (self.task / ".dev-platform.toml").write_text(body, encoding="utf-8")
+
+    def observation_store_path(self, handle: str) -> Path:
+        return self.task / ".claude" / "observations" / "routing-change" / f"{handle}.json"
+
+    def test_small_observation_takes_the_existing_direct_path_without_ceremony(self) -> None:
+        self.enable_observation_lifecycle(min_bytes=200)
+        self.prepare()
+        result = routing.cool_observation(self.task, {"source": "read:README.md", "kind": "file_read", "payload": "short output\n"})
+        self.assertEqual(result["status"], "below-threshold")
+        self.assertIsNone(result["handle"])
+        saved, _ = routing._read_route(self.task)
+        self.assertEqual(saved.observations, ())
+        self.assertFalse((self.task / ".claude" / "observations").exists())
+
+    def test_disabled_lifecycle_also_takes_the_existing_direct_path(self) -> None:
+        self.prepare()  # observation_lifecycle left unconfigured/disabled
+        payload = "x" * 20000
+        result = routing.cool_observation(self.task, {"source": "command:pytest", "kind": "test_output", "payload": payload})
+        self.assertEqual(result["status"], "disabled")
+        self.assertIsNone(result["handle"])
+        saved, _ = routing._read_route(self.task)
+        self.assertEqual(saved.observations, ())
+
+    def test_large_observation_is_cooled_into_bounded_local_storage_with_a_stable_handle(self) -> None:
+        self.enable_observation_lifecycle(min_bytes=50)
+        self.prepare()
+        payload = "line of output\n" * 300  # exceeds OBSERVATION_MAX_EXCERPT_BYTES so hot < source
+        result = routing.cool_observation(self.task, {"source": "command:pytest", "kind": "test_output", "payload": payload})
+        self.assertEqual(result["status"], "cold")
+        self.assertIsInstance(result["handle"], str)
+        self.assertTrue(result["handle"])
+        self.assertEqual(result["source_payload"]["bytes"], len(payload.encode("utf-8")))
+        self.assertLess(result["hot_payload"]["bytes"], result["source_payload"]["bytes"])
+        self.assertLessEqual(result["hot_payload"]["bytes"], routing.OBSERVATION_MAX_EXCERPT_BYTES)
+        self.assertEqual(result["usage"]["input_tokens"]["status"], "unknown")
+        saved, _ = routing._read_route(self.task)
+        self.assertEqual(len(saved.observations), 1)
+        self.assertEqual(saved.observations[0]["handle"], result["handle"])
+        self.assertNotIn("payload", saved.observations[0])
+        store_path = self.observation_store_path(result["handle"])
+        self.assertTrue(store_path.is_file())
+        stored = json.loads(store_path.read_text(encoding="utf-8"))
+        self.assertEqual(stored["payload"], payload)
+        durable = json.loads(self.durable_record_path().read_text(encoding="utf-8"))
+        self.assertEqual(durable["observations"][0]["handle"], result["handle"])
+
+    def test_exact_recall_returns_the_precise_requested_byte_region(self) -> None:
+        self.enable_observation_lifecycle(min_bytes=10)
+        self.prepare()
+        payload = "0123456789ABCDEFGHIJ"
+        cold = routing.cool_observation(self.task, {"source": "search:grep", "kind": "search_result", "payload": payload})
+        recalled = routing.recall_observation(self.task, cold["handle"], {"start_byte": 5, "end_byte": 10})
+        self.assertEqual(recalled["status"], "resolved")
+        self.assertEqual(recalled["content"], "56789")
+        self.assertEqual(recalled["recall_payload"]["bytes"], 5)
+        saved, _ = routing._read_route(self.task)
+        self.assertEqual(saved.observations[0]["recall_payload"], recalled["recall_payload"])
+
+    def test_exact_recall_by_query_returns_bounded_context_around_the_match(self) -> None:
+        self.enable_observation_lifecycle(min_bytes=10)
+        self.prepare()
+        payload = "before " + "TARGET" + " after " * 5
+        cold = routing.cool_observation(self.task, {"source": "search:grep", "kind": "search_result", "payload": payload})
+        recalled = routing.recall_observation(self.task, cold["handle"], {"query": "TARGET", "context_chars": 3})
+        self.assertEqual(recalled["status"], "resolved")
+        self.assertIn("TARGET", recalled["content"])
+        self.assertLess(len(recalled["content"]), len(payload))
+
+    def test_recall_without_explicit_bound_is_rejected(self) -> None:
+        self.enable_observation_lifecycle(min_bytes=10)
+        self.prepare()
+        cold = routing.cool_observation(self.task, {"source": "search:grep", "kind": "search_result", "payload": "0123456789ABCDEF"})
+        with self.assertRaisesRegex(routing.ObservationLifecycleError, "explicit bounded range/query"):
+            routing.recall_observation(self.task, cold["handle"], {})
+
+    def test_full_recall_escape_hatch_returns_the_entire_preserved_original(self) -> None:
+        self.enable_observation_lifecycle(min_bytes=10)
+        self.prepare()
+        payload = "full payload text " * 5
+        cold = routing.cool_observation(self.task, {"source": "command:build", "kind": "command_output", "payload": payload})
+        recalled = routing.recall_observation(self.task, cold["handle"], {"full": True})
+        self.assertTrue(recalled["full"])
+        self.assertEqual(recalled["content"], payload)
+
+    def test_recall_reports_unknown_handle_explicitly_without_fabricating_content(self) -> None:
+        self.enable_observation_lifecycle(min_bytes=10)
+        self.prepare()
+        with self.assertRaisesRegex(routing.ObservationLifecycleError, "no cold observation has handle"):
+            routing.recall_observation(self.task, "nonexistent-handle", {"full": True})
+
+    def test_recall_reports_stale_handle_explicitly_without_fabricating_content(self) -> None:
+        self.enable_observation_lifecycle(min_bytes=10)
+        self.prepare()
+        payload = "payload big enough to cool " * 3
+        cold = routing.cool_observation(self.task, {"source": "read:big.txt", "kind": "file_read", "payload": payload})
+        self.observation_store_path(cold["handle"]).unlink()
+        with self.assertRaisesRegex(routing.ObservationLifecycleError, "stale"):
+            routing.recall_observation(self.task, cold["handle"], {"full": True})
+
+    def test_storage_failure_fails_open_to_the_current_full_observation_path(self) -> None:
+        self.enable_observation_lifecycle(min_bytes=10)
+        self.prepare()
+        payload = "payload big enough to attempt cooling " * 3
+        with patch.object(routing, "atomic_write_text", side_effect=OSError("disk full")):
+            result = routing.cool_observation(self.task, {"source": "command:build", "kind": "command_output", "payload": payload})
+        self.assertEqual(result["status"], "storage-failed")
+        self.assertIn("disk full", result["reason"])
+        self.assertIsNone(result["handle"])
+        self.assertEqual(result["source_payload"]["bytes"], len(payload.encode("utf-8")))
+        saved, _ = routing._read_route(self.task)
+        self.assertEqual(saved.observations, ())
+
+    def test_route_payload_without_observations_field_defaults_to_empty_tuple(self) -> None:
+        """Backward compatibility: a record written before this field existed."""
+        self.prepare()
+        path = self.record_path()
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        self.assertIn("observations", payload)
+        del payload["observations"]
+        path.write_text(json.dumps(payload), encoding="utf-8")
+        reloaded, _ = routing._read_route(self.task)
+        self.assertEqual(reloaded.observations, ())
+
 
 class StandaloneStandardCloneRoutingTests(unittest.TestCase):
     """Standard-profile projects have no linked worktree: the task checkout
