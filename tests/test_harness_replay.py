@@ -20,13 +20,28 @@ FIXTURES = SUITE.parent / "fixtures"
 
 
 class HarnessReplayTests(unittest.TestCase):
+    def _require_history(self) -> None:
+        # The public distribution smoke test also runs this module from a
+        # fresh-history archive. That archive contains the suite but cannot
+        # contain the pinned commits; full-history CI runs these checks first.
+        suite = harness_replay.load_suite(SUITE)
+        revision = suite["cases"][0]["source_revision"]
+        present = subprocess.run(
+            ["git", "cat-file", "-e", f"{revision}^{{commit}}"],
+            cwd=ROOT, capture_output=True, check=False,
+        )
+        if present.returncode:
+            self.skipTest("historical replay needs the pinned Git history")
+
     def test_frozen_suite_has_five_reconstructable_cases(self) -> None:
+        self._require_history()
         suite = harness_replay.load_suite(SUITE)
         report = harness_replay.validate_suite(ROOT, suite)
         self.assertEqual(report["status"], "valid")
         self.assertEqual(len(report["cases"]), 5)
 
     def test_capability_failure_cannot_promote_its_resource_reduction(self) -> None:
+        self._require_history()
         suite = harness_replay.load_suite(SUITE)
         report = harness_replay.evaluate(ROOT, suite, FIXTURES / "capability-breaking-candidate.json")
         self.assertEqual(report["capability_gate"], "failed")
@@ -36,6 +51,7 @@ class HarnessReplayTests(unittest.TestCase):
         self.assertNotIn("payload_bytes", broken["efficiency"])
 
     def test_capability_equivalent_candidate_keeps_missing_metrics_unknown(self) -> None:
+        self._require_history()
         suite = harness_replay.load_suite(SUITE)
         report = harness_replay.evaluate(ROOT, suite, FIXTURES / "capability-equivalent-candidate.json")
         self.assertEqual(report["capability_gate"], "passed")
@@ -49,6 +65,7 @@ class HarnessReplayTests(unittest.TestCase):
         self.assertIn("routing", report["non_effects"])
 
     def test_unreviewed_candidate_saving_remains_advisory(self) -> None:
+        self._require_history()
         suite = harness_replay.load_suite(SUITE)
         candidate = json.loads((FIXTURES / "capability-equivalent-candidate.json").read_text(encoding="utf-8"))
         candidate["harness_changes"] = ["lazy-capability-definitions", "reduced-delegation-guidance", "cache-friendly-boundaries"]
@@ -72,6 +89,7 @@ class HarnessReplayTests(unittest.TestCase):
                 harness_replay.load_suite(path)
 
     def test_isolated_clone_does_not_change_source_checkout(self) -> None:
+        self._require_history()
         suite = harness_replay.load_suite(SUITE)
         before = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True, capture_output=True, check=True).stdout
         with harness_replay.isolated_workspace(ROOT, suite["cases"][0]["source_revision"]) as clone:

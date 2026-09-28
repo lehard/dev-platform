@@ -17,6 +17,7 @@ Automated-Checks-Evidence: automated-checks.json
 ## Checks performed
 
 - `python3 -m unittest tests.test_harness_replay -v`: 6 passed after the final changes.
+- Historical integration tests run only when their pinned Git commits are present. The public distribution snapshot smoke creates a fresh Git history, so it skips those five tests while retaining the suite-drift test; a full-history checkout is required to replay the cases.
 - `python3 scripts/run_test_groups.py --all`: passed 13 groups, 1409 declared and discovered tests, with no coverage gaps after the final changes.
 - `python3 -m compileall -q template/scripts scripts`: passed.
 - `python3 scripts/managed_projects.py validate`: passed, 3 managed projects.
