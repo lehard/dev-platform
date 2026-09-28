@@ -49,6 +49,7 @@ class RequirementFlowEndToEndTests(unittest.TestCase):
                 mock.patch.object(execution.requirement_integration, "assemble_candidate", return_value={"digest": "exact"}) as assemble, \
                 mock.patch.object(execution.requirement_integration, "compose_candidate"), \
                 mock.patch.object(execution.requirement_integration, "publish_candidate", return_value={"status": "merged-and-reconciled"}), \
+                mock.patch.object(execution.requirement_retrospective, "require_checkpoint"), \
                 mock.patch.object(requirement_terminal, "reconcile_parent", return_value={"status": "done"}) as terminal, \
                 mock.patch.object(execution.subprocess, "run") as run:
             def git_only(command, *args, **kwargs):

@@ -145,6 +145,22 @@ class AgenticWorkflowTests(unittest.TestCase):
         self.assertIn("Подтверждённый дефект", text)
         self.assertIn("use `наблюдать`", text)
 
+    def test_weekly_review_keeps_early_requirement_finding_when_children_are_clean(self) -> None:
+        source = (ROOT / ".github" / "workflows" / "weekly-process-backlog-review.md").read_text(encoding="utf-8")
+        compiled = (ROOT / ".github" / "workflows" / "weekly-process-backlog-review.lock.yml").read_text(encoding="utf-8")
+        template = (ROOT / "template" / ".github" / "workflows" / "weekly-process-backlog-review.md.jinja").read_text(encoding="utf-8")
+        for prompt in (source, compiled):
+            with self.subTest(compiled=prompt is compiled):
+                normalized = prompt.replace("\\n", "\n")
+                self.assertIn("`type:requirement` parents", normalized)
+                self.assertIn("`type:internal-change` children", normalized)
+                self.assertIn("Requirement-level\nretrospective", normalized)
+                self.assertIn("A clean technical child is not\nevidence that its parent path was clean", normalized)
+                self.assertIn("same 20\nBacklog-issue and 20 process-issue limits", normalized)
+                self.assertIn("do not create a separate improvement queue", normalized)
+        self.assertIn("Clean children do not erase an earlier or cross-child finding", template)
+        self.assertIn("never a separate improvement", template)
+
     def test_architecture_review_separates_lens_from_classified_finding_fields(self) -> None:
         capability = (ROOT / "dev-platform" / "capabilities" / "architecture-health-review.md").read_text(encoding="utf-8")
         for value in ("evidence lens", "Подтверждённый дефект", "высокая | средняя | низкая", "новый | сохраняется | уже в работе | вероятно устранён | наблюдать"):

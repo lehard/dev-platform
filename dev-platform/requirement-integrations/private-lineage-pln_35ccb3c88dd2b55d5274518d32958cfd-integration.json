@@ -1,0 +1,24 @@
+{
+  "base": "da821e5e2455d2a53aa0eb72063d37c9fc93bb75",
+  "children": [
+    {
+      "change": "requirement-retrospective",
+      "delta_base": "da821e5e2455d2a53aa0eb72063d37c9fc93bb75",
+      "digest": "e0554c6f0eb7ef5f2e95601c45b9b3d132d9c7e93722fadcf168e463e2137f02",
+      "head": "a5a4fccc0ee7d488bbdaed38b45c196238f8cfb2",
+      "source_branch": "agent/requirement-retrospective",
+      "source_issue": "pln_8f4171381082404b278acd8cd98095e4"
+    },
+    {
+      "change": "requirement-evidence-review",
+      "delta_base": "a5a4fccc0ee7d488bbdaed38b45c196238f8cfb2",
+      "digest": "093b406f25a1d452b6df3ff25fd5dfa8c3c2bc2724ff52ed36b7f421515fca45",
+      "head": "261dd4a6377d0772d25fac6ef9191e21273965eb",
+      "source_branch": "agent/requirement-evidence-review",
+      "source_issue": "pln_452bb3d21693557b57d89d3d9880ed09"
+    }
+  ],
+  "digest": "d43c434d081b614897c5425bfb0288038e456cc72d8ca2bbeb93d9f8f6899aa6",
+  "requirement": "pln_35ccb3c88dd2b55d5274518d32958cfd",
+  "version": 1
+}

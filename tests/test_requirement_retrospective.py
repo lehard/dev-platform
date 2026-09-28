@@ -1,0 +1,82 @@
+from __future__ import annotations
+
+import json
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+from unittest import mock
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "template" / "scripts"))
+import requirement_retrospective as retrospective
+import requirement_terminal
+
+REQUIREMENT = "acme/backlog#7"
+
+
+def parent(children: tuple[int, ...] = (8, 9), *, outcome: str = "Improve process") -> dict:
+    lines = "\n".join(f"- [ ] acme/backlog#{number}" for number in children)
+    return {"body": f"## Outcome\n\n{outcome}\n\n<!-- requirement-children:start -->\n{lines}\n<!-- requirement-children:end -->"}
+
+
+class RequirementRetrospectiveTests(unittest.TestCase):
+    def test_early_and_cross_child_findings_survive_clean_child_outcomes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            events = [
+                {"id": "early", "task": REQUIREMENT, "observation": "Repeated pre-authoring handoff"},
+                {"id": "cross", "task": REQUIREMENT, "observation": "Duplicate work across children"},
+            ]
+            with mock.patch.object(retrospective.requirement_intake, "fetch_issue", return_value=parent()), mock.patch.object(
+                retrospective.agent_friction, "read_events", return_value=events
+            ):
+                result = retrospective.checkpoint(root, requirement=REQUIREMENT, result="findings", event_ids=["early", "cross"])
+                receipt = retrospective.require_checkpoint(root, requirement=REQUIREMENT)
+            self.assertEqual(result["status"], "recorded")
+            self.assertEqual(receipt["event_ids"], ["early", "cross"])
+            self.assertEqual(receipt["children"], ["acme/backlog#8", "acme/backlog#9"])
+
+    def test_clean_result_is_short_and_stales_when_parent_changes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with mock.patch.object(retrospective.requirement_intake, "fetch_issue", return_value=parent()), mock.patch.object(
+                retrospective.agent_friction, "read_events", return_value=[]
+            ):
+                retrospective.checkpoint(root, requirement=REQUIREMENT, result="none", event_ids=[])
+                self.assertEqual(retrospective.require_checkpoint(root, requirement=REQUIREMENT)["result"], "none")
+            path = root / ".claude/requirement-retrospective/requirement-7.json"
+            self.assertEqual(json.loads(path.read_text())["event_ids"], [])
+            with self.assertRaisesRegex(retrospective.RequirementRetrospectiveError, "stale"):
+                retrospective.require_checkpoint(root, requirement=REQUIREMENT, parent=parent((8, 9, 10)))
+            with self.assertRaisesRegex(retrospective.RequirementRetrospectiveError, "stale"):
+                retrospective.require_checkpoint(root, requirement=REQUIREMENT, parent=parent(outcome="Changed intent"))
+
+    def test_false_or_unrelated_event_cannot_complete_parent(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with self.assertRaisesRegex(retrospective.RequirementRetrospectiveError, "missing"):
+                retrospective.require_checkpoint(root, requirement=REQUIREMENT, parent=parent())
+            with mock.patch.object(retrospective.requirement_intake, "fetch_issue", return_value=parent()), mock.patch.object(
+                retrospective.agent_friction, "read_events", return_value=[{"id": "other", "task": "acme/backlog#99"}]
+            ):
+                with self.assertRaisesRegex(retrospective.RequirementRetrospectiveError, "not attributed"):
+                    retrospective.checkpoint(root, requirement=REQUIREMENT, result="findings", event_ids=["other"])
+                with self.assertRaisesRegex(retrospective.RequirementRetrospectiveError, "requires no events"):
+                    retrospective.checkpoint(root, requirement=REQUIREMENT, result="none", event_ids=["other"])
+
+    def test_terminal_reconciliation_checks_parent_before_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with mock.patch.object(requirement_terminal.subprocess, "run", return_value=mock.Mock(stdout="main", returncode=0)), mock.patch.object(
+                requirement_terminal.requirement_intake, "fetch_issue", return_value={**parent(), "labels": [{"name": "type:requirement"}]}
+            ), mock.patch.object(requirement_terminal.requirement_retrospective, "require_checkpoint", side_effect=retrospective.RequirementRetrospectiveError("missing")), mock.patch.object(
+                requirement_terminal.managed_project_status, "reconcile"
+            ) as project:
+                with self.assertRaisesRegex(retrospective.RequirementRetrospectiveError, "missing"):
+                    requirement_terminal.reconcile_parent(root, requirement=REQUIREMENT)
+                project.assert_not_called()
+
+
+if __name__ == "__main__":
+    unittest.main()
