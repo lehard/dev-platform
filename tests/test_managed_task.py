@@ -237,6 +237,71 @@ class ManagedPackageTests(unittest.TestCase):
             managed_task.resolve_process_evidence_after_delivery(Path("/tmp/task"), identity, "b" * 40)
         run.assert_not_called()
 
+    def test_missing_evidence_requires_explicit_source_disposition(self) -> None:
+        identity = managed_task.ManagedTaskIdentity(
+            "example-org/development-backlog#1", "managed-change", ("lehard/dev-platform#17",)
+        )
+        missing = managed_task.ManagedTaskError("gh api failed: HTTP 404")
+        marker = managed_task.process_disposition_marker(identity, "lehard/dev-platform#17")
+        with (
+            patch.object(managed_task, "github_cli_env", return_value={}),
+            patch.object(managed_task, "run_json", side_effect=[missing, [{"body": marker + "\nDisposition reason: historical deletion"}]]),
+            patch.object(managed_task, "run") as run,
+        ):
+            managed_task.resolve_process_evidence_after_delivery(Path("/tmp/task"), identity, "b" * 40)
+        run.assert_not_called()
+
+    def test_missing_evidence_blocks_finish_and_read_only_observation(self) -> None:
+        identity = managed_task.ManagedTaskIdentity(
+            "example-org/development-backlog#1", "managed-change", ("lehard/dev-platform#17",)
+        )
+        missing = managed_task.ManagedTaskError("gh api failed: HTTP 404")
+        with (
+            patch.object(managed_task, "github_cli_env", return_value={}),
+            patch.object(managed_task, "run_json", side_effect=[missing, []]),
+        ):
+            observed = managed_task.observe_process_evidence_obligations(Path("/tmp/task"), identity)
+        self.assertEqual(observed[0]["state"], "unknown")
+        with (
+            patch.object(managed_task, "github_cli_env", return_value={}),
+            patch.object(managed_task, "run_json", side_effect=[missing, []]),
+            patch.object(managed_task, "run") as run,
+        ):
+            with self.assertRaisesRegex(managed_task.ManagedTaskError, "HTTP 404"):
+                managed_task.resolve_process_evidence_after_delivery(Path("/tmp/task"), identity, "b" * 40)
+        run.assert_not_called()
+
+    def test_disposition_requires_definitive_404_and_readback(self) -> None:
+        identity = managed_task.ManagedTaskIdentity(
+            "example-org/development-backlog#1", "managed-change", ("lehard/dev-platform#17",)
+        )
+        marker = managed_task.process_disposition_marker(identity, "lehard/dev-platform#17")
+        response = SimpleNamespace(returncode=1, stdout="HTTP/2.0 404 Not Found\n", stderr="gh: Not Found")
+        with (
+            patch.object(managed_task, "github_cli_env", return_value={}),
+            patch.object(managed_task, "run_json", side_effect=[{"state": "open"}, {"has_issues": True}, [], [{"body": marker + "\nDisposition reason: historical deletion"}]]),
+            patch.object(managed_task.subprocess, "run", return_value=response),
+            patch.object(managed_task, "run") as run,
+        ):
+            managed_task.dispose_missing_process_evidence(Path("/tmp/task"), identity, "lehard/dev-platform#17", "historical deletion")
+        self.assertEqual(run.call_count, 1)
+        self.assertIn("Disposition reason: historical deletion", run.call_args.args[0][-1])
+
+    def test_disposition_rejects_permission_or_transport_failure(self) -> None:
+        identity = managed_task.ManagedTaskIdentity(
+            "example-org/development-backlog#1", "managed-change", ("lehard/dev-platform#17",)
+        )
+        response = SimpleNamespace(returncode=1, stdout="HTTP/2.0 403 Forbidden\n", stderr="forbidden")
+        with (
+            patch.object(managed_task, "github_cli_env", return_value={}),
+            patch.object(managed_task, "run_json", side_effect=[{"state": "open"}, {"has_issues": True}]),
+            patch.object(managed_task.subprocess, "run", return_value=response),
+            patch.object(managed_task, "run") as run,
+        ):
+            with self.assertRaisesRegex(managed_task.ManagedTaskError, "definitive HTTP 404"):
+                managed_task.dispose_missing_process_evidence(Path("/tmp/task"), identity, "lehard/dev-platform#17", "historical deletion")
+        run.assert_not_called()
+
     def test_parse_package_round_trips_a_well_formed_routing_receipt(self) -> None:
         receipt = managed_task.recommend_start_tier(strong_trigger=None)
         package = managed_task.parse_package([package_body(routing_receipt=receipt)], "example-org/development-backlog#1")

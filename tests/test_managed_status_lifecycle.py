@@ -7,6 +7,7 @@ import sys
 import tempfile
 import types
 import unittest
+from contextlib import ExitStack
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
@@ -355,6 +356,65 @@ class SourceIssueDriftStatusTests(unittest.TestCase):
         payload = json.loads(printed.call_args.args[0])
         self.assertIsNone(payload["checkout_identity"])
         self.assertEqual(payload["checkout_identity_error"], "expected task checkout")
+
+    def test_exact_merge_with_unresolved_evidence_is_terminal_pending(self) -> None:
+        root = Path("/tmp/managed-status")
+        identity = SimpleNamespace(source_issue="example-org/development-backlog#8", process_evidence=("lehard/dev-platform#17",))
+        merged = SimpleNamespace(bucket="complete", remote_merged=True)
+        with (
+            mock.patch.object(finish_task, "current_branch", return_value="agent/managed"),
+            mock.patch.object(finish_task, "github_cli_env", return_value={}),
+            mock.patch.object(finish_task.publication_state, "observe_publication", return_value=merged),
+            mock.patch.object(finish_task.publication_state, "merge_durability_capability", return_value="full"),
+            mock.patch.object(finish_task.publication_state, "status_payload", return_value={"status": "complete", "remote_merged": True}),
+            mock.patch.object(finish_task, "delivery_identity", return_value=identity),
+            mock.patch.object(finish_task, "observe_managed_project", return_value=SimpleNamespace(current_status="Done")),
+            mock.patch.object(finish_task, "observe_process_evidence_obligations", return_value=[{"reference": "lehard/dev-platform#17", "state": "unknown", "detail": "HTTP 404"}]),
+            mock.patch.object(finish_task, "profile", return_value="standard"),
+            mock.patch.object(finish_task, "require_managed_checkout_identity", return_value=None),
+            mock.patch.object(finish_task, "observe_source_issue_drift", return_value=None),
+            mock.patch("builtins.print") as printed,
+        ):
+            self.assertEqual(0, finish_task.run_status(root, root, {}, as_json=True))
+        payload = json.loads(printed.call_args.args[0])
+        self.assertEqual(payload["status"], "terminal_pending")
+        self.assertTrue(payload["remote_merged"])
+        self.assertEqual(payload["terminal_obligations"][0]["kind"], "process-evidence")
+
+    def test_exact_merge_waits_for_cleanup_or_exact_deferred_record(self) -> None:
+        root = Path("/tmp/managed-status")
+        identity = SimpleNamespace(source_issue="example-org/development-backlog#8", process_evidence=())
+        merged = SimpleNamespace(bucket="complete", remote_merged=True)
+        common = (
+            mock.patch.object(finish_task, "current_branch", return_value="agent/managed"),
+            mock.patch.object(finish_task, "github_cli_env", return_value={}),
+            mock.patch.object(finish_task.publication_state, "observe_publication", return_value=merged),
+            mock.patch.object(finish_task.publication_state, "merge_durability_capability", return_value="full"),
+            mock.patch.object(finish_task.publication_state, "status_payload", side_effect=lambda *_: {"status": "complete", "remote_merged": True, "local_head": "a" * 40}),
+            mock.patch.object(finish_task, "delivery_identity", return_value=identity),
+            mock.patch.object(finish_task, "observe_managed_project", return_value=SimpleNamespace(current_status="Done")),
+            mock.patch.object(finish_task, "observe_process_evidence_obligations", return_value=[]),
+            mock.patch.object(finish_task, "profile", return_value="multi-agent"),
+            mock.patch.object(finish_task, "require_managed_checkout_identity", return_value=None),
+            mock.patch.object(finish_task, "observe_source_issue_drift", return_value=None),
+        )
+        with ExitStack() as stack:
+            for context in common:
+                stack.enter_context(context)
+            stack.enter_context(mock.patch.object(finish_task, "_read_deferred_cleanup", return_value=[]))
+            printed = stack.enter_context(mock.patch("builtins.print"))
+            finish_task.run_status(root, root, {}, as_json=True)
+            self.assertEqual(json.loads(printed.call_args.args[0])["status"], "terminal_pending")
+        record = {"path": str(root.resolve()), "branch": "agent/managed", "head": "a" * 40}
+        with ExitStack() as stack:
+            for context in common:
+                stack.enter_context(context)
+            stack.enter_context(mock.patch.object(finish_task, "_read_deferred_cleanup", return_value=[record]))
+            printed = stack.enter_context(mock.patch("builtins.print"))
+            finish_task.run_status(root, root, {}, as_json=True)
+            payload = json.loads(printed.call_args.args[0])
+        self.assertEqual(payload["status"], "complete")
+        self.assertEqual(payload["terminal_obligations"][0]["state"], "warning")
 
 
 class FinishTaskLegacyCleanupCompatibilityTests(unittest.TestCase):
