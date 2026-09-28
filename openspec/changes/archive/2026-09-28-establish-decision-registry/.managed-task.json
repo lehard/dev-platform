@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/decision-registry/spec.md",
+    "specs/agent-workflow/spec.md"
+  ],
+  "change": "establish-decision-registry",
+  "imported_at": "2026-09-28T18:19:45+00:00",
+  "package_revision": "e034481a5cda5e3dd685a8d1e9d1196d6ae405692fa6032938e02de71541fa00",
+  "prepared_against": "f6d3ed0e4cabc5f846832fd756b9ed371a168a07",
+  "private_lineage_handle": "pln_85f3ab337b3b564ac1cbf7c4126be761",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "aa117cec14ef2a9a58d8ef86015ae47491113375f0a0e47e5c2de77c02eedd06",
+    "updated_at": "2026-09-28T18:01:46Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
