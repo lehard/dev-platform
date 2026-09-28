@@ -166,6 +166,16 @@ python3 scripts/dogfood_task.py finish
 
 If terminal reconciliation succeeds while the invoking shell still has the task worktree as its cwd, finish records exact worktree/branch/head cleanup metadata instead of deleting that cwd synchronously. This is a successful delivery with deferred housekeeping; from the surviving integration checkout, run the exact targeted recovery command printed by finish. Recovery verifies the recorded identity and current process/board/cleanliness state before removal, and is idempotent. Global cleanup is deliberately two-step: `python3 scripts/worktree_cleanup.py cleanup --all` previews the bounded candidate set, and `python3 scripts/worktree_cleanup.py cleanup --all --apply` performs the reviewed global action.
 
+## Disposable repository sandboxes
+
+For a temporary local clone used by a pilot or other destructive experiment,
+use `python3 scripts/disposable_repository_sandbox.py create <source> <sandbox-root> <name>`.
+Run `verify <sandbox-root> <name>` before an external recursive operation, or
+use `cleanup <sandbox-root> <name>` to verify and remove the helper-owned copy.
+The helper refuses hardlinked files, object alternates, linked Git metadata,
+unowned copies and links beyond the exact copy. A failed check stops recursive
+changes; do not retry with a best-effort `chmod` or `rm -rf`.
+
 ## Scope discipline and capabilities
 
 Promote a rule/tool only when it is reusable across projects or a defined workflow profile. Keep application-domain rules, credentials, machine-local paths and one-off workarounds in the owning project.

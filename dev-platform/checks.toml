@@ -80,6 +80,10 @@ mode = "parallel"
 targets = ["test_delegated_write_guard"]
 mode = "parallel"
 
+[test_groups.disposable_repository_sandbox]
+targets = ["test_disposable_repository_sandbox"]
+mode = "parallel"
+
 [test_groups.protected_main_zero_handoff]
 targets = ["test_protected_main_zero_handoff"]
 mode = "parallel"

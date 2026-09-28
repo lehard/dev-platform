@@ -49,6 +49,16 @@ If the pending-worktree report shows forgotten work in the same area, resolve th
 
 After terminal task delivery, `finish_task.py --cleanup` records cleanup for a task worktree that is also the caller's cwd instead of deleting it synchronously. This preserves the truthful success exit. From a surviving integration checkout, run the exact targeted recovery command printed by finish; it names the recorded worktree, branch and head, removes only that identity after verifying it is clean and inactive, and repeated runs are safe.
 
+## Disposable repository sandboxes
+
+For a temporary local clone used by a pilot or other destructive experiment,
+use `python3 scripts/disposable_repository_sandbox.py create <source> <sandbox-root> <name>`.
+Use `verify <sandbox-root> <name>` before any external recursive operation, or
+`cleanup <sandbox-root> <name>` to verify then remove the helper-owned copy.
+The command fails closed for hardlinked files, alternates, linked Git
+metadata, unowned copies, and symlink escapes; do not replace a failed cleanup
+with a best-effort `chmod` or `rm -rf`.
+
 ## Task intake
 
 {% if operator_integration | default(false) or operator_config_path %}
