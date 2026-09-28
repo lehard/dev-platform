@@ -1,0 +1,29 @@
+{
+  "surface": "chatgpt-project",
+  "local_shell_used": false,
+  "intent": "connected-requirement-operator-managed-target",
+  "target_repository": "lehard/dev-platform",
+  "backlog_repository": "example-org/development-backlog",
+  "committed_config": null,
+  "committed_config_reason": "operator-managed .dev-platform.toml is intentionally untracked in this checkout",
+  "project_parameters": {
+    "BACKLOG_REPOSITORY": "example-org/development-backlog",
+    "TARGET_REPOSITORY": "lehard/dev-platform",
+    "PROJECT_LABEL": "project:example-platform",
+    "DEFAULT_PRIORITY": "P2"
+  },
+  "routing": {
+    "project_label": "project:example-platform",
+    "priority": "priority:P2"
+  },
+  "issue": {
+    "repository": "example-org/development-backlog",
+    "number": 91,
+    "state": "open",
+    "labels": [
+      {"name": "type:requirement"},
+      {"name": "project:example-platform"},
+      {"name": "priority:P2"}
+    ]
+  }
+}
