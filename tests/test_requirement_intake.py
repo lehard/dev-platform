@@ -41,7 +41,19 @@ def init_repo() -> tempfile.TemporaryDirectory[str]:
     git(root, "init", "-q")
     git(root, "config", "user.email", "test@example.com")
     git(root, "config", "user.name", "Test")
+    git(root, "remote", "add", "origin", "https://github.com/acme/billing.git")
     (root / "README.md").write_text("seed\n", encoding="utf-8")
+    (root / ".dev-platform.toml").write_text(
+        'protected_main = true\npublish_mode = "pr"\nscm_provider = "github"\nharness_mode = "platform"\n'
+        '\n[capabilities]\nopenspec = true\ngithub_sync = true\nfeature_branches = true\nplatform_git_lifecycle = true\n'
+        '\n[development_backlog]\nrepository = "acme/development-backlog"\n'
+        'project_label = "project:billing"\ndefault_priority = "P2"\n',
+        encoding="utf-8",
+    )
+    for entrypoint in ri.requirement_target_lifecycle.REQUIRED_ENTRYPOINTS:
+        path = root / entrypoint
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("# managed lifecycle fixture\n", encoding="utf-8")
     git(root, "add", ".")
     git(root, "commit", "-q", "-m", "seed")
     return temporary
@@ -444,6 +456,7 @@ class StartPreAuthoringTests(unittest.TestCase):
         }
         for section, replacement in replacements.items():
             with self.subTest(section=section):
+                git(self.root, "remote", "set-url", "origin", "https://github.com/acme/billing.git")
                 base_dir = self.root / ".claude" / f"pre-authoring-{section.replace(' ', '-') }"
                 with patch.object(ri, "fetch_issue", return_value={"body": initial}):
                     ri.start_pre_authoring(self.root, requirement="acme/development-backlog#7", base_dir=base_dir)
@@ -464,6 +477,8 @@ class StartPreAuthoringTests(unittest.TestCase):
                     "Target repository": "`acme/billing`",
                     "Exclusions": "No enterprise SSO.",
                 }[section], f"## {section}\n\n{replacement}")
+                if section == "Target repository":
+                    git(self.root, "remote", "set-url", "origin", "https://github.com/acme/accounts.git")
                 with patch.object(ri, "fetch_issue", return_value={"body": changed}):
                     ri.start_pre_authoring(self.root, requirement="acme/development-backlog#7", base_dir=base_dir)
                 self.assertEqual(snapshot.read_text(encoding="utf-8"), '{"snapshot": "retained"}\n')
@@ -802,6 +817,11 @@ class ConnectedRequirementRoutingTests(unittest.TestCase):
 
     def setUp(self) -> None:
         self.fixture = _load_fixture("chatgpt_project_requirement_operator_routing.json")
+        self.evidence = {
+            "operator_integration": True,
+            "managed_entrypoints": True,
+            "protected_publication": True,
+        }
 
     def test_resolve_connected_routing_uses_declared_parameters_when_uncommitted(self) -> None:
         self.assertIsNone(self.fixture["committed_config"])
@@ -810,11 +830,21 @@ class ConnectedRequirementRoutingTests(unittest.TestCase):
             backlog_repository=self.fixture["backlog_repository"],
             committed_config=self.fixture["committed_config"],
             project_parameters=self.fixture["project_parameters"],
+            lifecycle_evidence=self.evidence,
         )
         self.assertEqual(routing, self.fixture["routing"])
         # The read-back issue in the fixture is exactly what a successful
         # connected fixation against this routing must find.
         ri.verify_connected_requirement(self.fixture["issue"], routing=routing)
+
+    def test_connected_routing_rejects_parameters_without_lifecycle_evidence(self) -> None:
+        with self.assertRaisesRegex(ri.RequirementIntakeError, "managed lifecycle support"):
+            ri.resolve_connected_routing(
+                target_repository=self.fixture["target_repository"],
+                backlog_repository=self.fixture["backlog_repository"],
+                committed_config=None,
+                project_parameters=self.fixture["project_parameters"],
+            )
 
     def test_routing_parameters_render_matches_what_the_fixture_declares(self) -> None:
         params = self.fixture["project_parameters"]
@@ -842,6 +872,7 @@ class ConnectedRequirementRoutingTests(unittest.TestCase):
                 backlog_repository=self.fixture["backlog_repository"],
                 committed_config=committed,
                 project_parameters=self.fixture["project_parameters"],
+                lifecycle_evidence=self.evidence,
             )
 
     def test_committed_configuration_conflicting_with_declared_default_priority_stops(self) -> None:
@@ -856,6 +887,7 @@ class ConnectedRequirementRoutingTests(unittest.TestCase):
                 backlog_repository=self.fixture["backlog_repository"],
                 committed_config=committed,
                 project_parameters=self.fixture["project_parameters"],
+                lifecycle_evidence=self.evidence,
             )
 
     def test_committed_configuration_is_used_when_declared_parameters_are_absent(self) -> None:
@@ -869,6 +901,7 @@ class ConnectedRequirementRoutingTests(unittest.TestCase):
             backlog_repository=self.fixture["backlog_repository"],
             committed_config=committed,
             project_parameters={},
+            lifecycle_evidence=self.evidence,
         )
         self.assertEqual(routing, {"project_label": "project:committed-target", "priority": "priority:P1"})
 
@@ -884,6 +917,7 @@ class ConnectedRequirementRoutingTests(unittest.TestCase):
                         backlog_repository=self.fixture["backlog_repository"],
                         committed_config=None,
                         project_parameters=declared,
+                        lifecycle_evidence=self.evidence,
                     )
 
     def test_wrong_declared_backlog_repository_fails_closed(self) -> None:
@@ -895,6 +929,7 @@ class ConnectedRequirementRoutingTests(unittest.TestCase):
                 backlog_repository=self.fixture["backlog_repository"],
                 committed_config=None,
                 project_parameters=declared,
+                lifecycle_evidence=self.evidence,
             )
 
     def test_invalid_owner_name_strings_raise_requirement_intake_error_not_managed_task_error(self) -> None:
@@ -908,6 +943,7 @@ class ConnectedRequirementRoutingTests(unittest.TestCase):
                 backlog_repository=self.fixture["backlog_repository"],
                 committed_config=None,
                 project_parameters=self.fixture["project_parameters"],
+                lifecycle_evidence=self.evidence,
             )
         declared = dict(self.fixture["project_parameters"])
         declared["TARGET_REPOSITORY"] = "###bad###"
@@ -917,6 +953,7 @@ class ConnectedRequirementRoutingTests(unittest.TestCase):
                 backlog_repository=self.fixture["backlog_repository"],
                 committed_config=None,
                 project_parameters=declared,
+                lifecycle_evidence=self.evidence,
             )
         with self.assertRaises(ri.RequirementIntakeError):
             ri.resolve_connected_routing(
@@ -924,6 +961,7 @@ class ConnectedRequirementRoutingTests(unittest.TestCase):
                 backlog_repository=self.fixture["backlog_repository"],
                 committed_config={"repository": "###bad###", "project_label": "project:x", "default_priority": "P2"},
                 project_parameters={},
+                lifecycle_evidence=self.evidence,
             )
 
     def test_wrong_declared_target_repository_fails_closed(self) -> None:
@@ -935,6 +973,7 @@ class ConnectedRequirementRoutingTests(unittest.TestCase):
                 backlog_repository=self.fixture["backlog_repository"],
                 committed_config=None,
                 project_parameters=declared,
+                lifecycle_evidence=self.evidence,
             )
 
     def test_explicit_priority_overrides_declared_default(self) -> None:
@@ -944,6 +983,7 @@ class ConnectedRequirementRoutingTests(unittest.TestCase):
             committed_config=None,
             project_parameters=self.fixture["project_parameters"],
             priority="P0",
+            lifecycle_evidence=self.evidence,
         )
         self.assertEqual(routing, {"project_label": self.fixture["routing"]["project_label"], "priority": "priority:P0"})
 
@@ -1009,6 +1049,36 @@ class ConnectedRequirementRoutingTests(unittest.TestCase):
                 self.assertIn("DEFAULT_PRIORITY", text)
                 self.assertIn("untracked", text)
                 self.assertIn("operator-managed", text)
+
+
+class RequirementTargetLifecycleTests(unittest.TestCase):
+    def test_local_target_without_managed_entrypoints_fails_before_requirement_creation(self) -> None:
+        temporary = init_repo()
+        root = Path(temporary.name)
+        try:
+            (root / "scripts" / "execute_requirement.py").unlink()
+            with patch.object(ri.managed_task, "authoring_config", return_value=managed_task.AuthoringConfig(
+                "acme/development-backlog", "project:billing", "P2",
+            )):
+                with self.assertRaisesRegex(ri.RequirementIntakeError, "missing managed entrypoints"):
+                    ri.create_requirement(
+                        root, repository="acme/development-backlog", title="Guard lifecycle",
+                        outcome="Only supported targets enter Requirements.", target_repository="acme/billing",
+                    )
+        finally:
+            temporary.cleanup()
+
+    def test_local_target_with_routing_but_disabled_lifecycle_capability_fails(self) -> None:
+        temporary = init_repo()
+        root = Path(temporary.name)
+        try:
+            path = root / ".dev-platform.toml"
+            path.write_text(path.read_text(encoding="utf-8").replace("openspec = true", "openspec = false"), encoding="utf-8")
+            with self.assertRaisesRegex(ri.requirement_target_lifecycle.RequirementTargetLifecycleError,
+                                        "required managed capabilities are not enabled: openspec"):
+                ri.requirement_target_lifecycle.require_local_target_support(root, target_repository="acme/billing")
+        finally:
+            temporary.cleanup()
 
 
 if __name__ == "__main__":

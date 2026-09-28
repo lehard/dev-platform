@@ -17,6 +17,7 @@ import execute_requirement as execution
 
 
 REQUIREMENT = "acme/backlog#7"
+PARENT_BODY = "## Outcome\n\nShip it\n\n## Target repository\n\n`acme/project`\n"
 
 
 @contextmanager
@@ -82,7 +83,8 @@ class RequirementExecutionTests(unittest.TestCase):
             patches = (
                 mock.patch.object(execution, "current_worktree_root", return_value=root),
                 mock.patch.object(execution, "_git", return_value="main"),
-                mock.patch.object(execution.requirement_intake, "fetch_issue", return_value={"labels": [{"name": "type:requirement"}]}),
+                mock.patch.object(execution.requirement_target_lifecycle, "require_local_target_support"),
+                mock.patch.object(execution.requirement_intake, "fetch_issue", return_value={"body": PARENT_BODY, "labels": [{"name": "type:requirement"}]}),
                 mock.patch.object(execution.orchestrate_pre_authoring, "status", return_value={"current_stage": "complete"}),
                 mock.patch.object(execution, "_ordered_handoffs", return_value=[("first", handoff)]),
                 mock.patch.object(execution, "_linked_children_by_change", return_value={"first": "acme/backlog#8"}),
@@ -92,7 +94,7 @@ class RequirementExecutionTests(unittest.TestCase):
                 mock.patch.object(execution.requirement_intake, "materialize_handoff"),
                 mock.patch.object(execution.requirement_board, "reconcile_nonterminal"),
             )
-            with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5], patches[6], patches[7], patches[8] as start, patches[9] as materialize, patches[10] as board:
+            with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5], patches[6], patches[7], patches[8], patches[9] as start, patches[10] as materialize, patches[11] as board:
                 result = execution.advance(root, requirement=REQUIREMENT, base_dir=root)
             self.assertEqual(result["status"], "implement-child")
             self.assertEqual(result["child"], "acme/backlog#8")
@@ -110,7 +112,8 @@ class RequirementExecutionTests(unittest.TestCase):
             handoff.write_text(json.dumps({"intents": [{"id": "first", "dependencies": []}]}), encoding="utf-8")
             with mock.patch.object(execution, "current_worktree_root", return_value=root), mock.patch.object(
                 execution, "_git", return_value="main"
-            ), mock.patch.object(execution.requirement_intake, "fetch_issue", return_value={"labels": [{"name": "type:requirement"}]}), mock.patch.object(
+            ), mock.patch.object(execution.requirement_target_lifecycle, "require_local_target_support"), mock.patch.object(
+                execution.requirement_intake, "fetch_issue", return_value={"body": PARENT_BODY, "labels": [{"name": "type:requirement"}]}), mock.patch.object(
                 execution.orchestrate_pre_authoring, "status", return_value={"current_stage": "complete"}
             ), mock.patch.object(execution, "_ordered_handoffs", return_value=[("first", handoff)]), mock.patch.object(
                 execution, "_linked_children_by_change", return_value={}
@@ -137,7 +140,8 @@ class RequirementExecutionTests(unittest.TestCase):
                 return "main" if args[:2] == ("branch", "--show-current") else "a" * 40
             with mock.patch.object(execution, "current_worktree_root", return_value=root), mock.patch.object(
                 execution, "_git", side_effect=git_result
-            ), mock.patch.object(execution.requirement_intake, "fetch_issue", return_value={"labels": [{"name": "type:requirement"}]}), mock.patch.object(
+            ), mock.patch.object(execution.requirement_target_lifecycle, "require_local_target_support"), mock.patch.object(
+                execution.requirement_intake, "fetch_issue", return_value={"body": PARENT_BODY, "labels": [{"name": "type:requirement"}]}), mock.patch.object(
                 execution.orchestrate_pre_authoring, "status", return_value={"current_stage": "complete"}
             ), mock.patch.object(execution, "_ordered_handoffs", return_value=handoffs), mock.patch.object(
                 execution, "_linked_children_by_change", return_value={"first": "acme/backlog#8", "second": "acme/backlog#9"}

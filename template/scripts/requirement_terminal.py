@@ -13,6 +13,7 @@ import managed_project_status
 import managed_task
 import requirement_intake
 import requirement_retrospective
+import requirement_target_lifecycle
 from _platform_common import current_worktree_root, github_cli_env
 
 
@@ -51,6 +52,13 @@ def reconcile_parent(root: Path, *, requirement: str, merged_children: set[str] 
     parent = requirement_intake.fetch_issue(root, *requirement_intake.issue_ref(requirement))
     if requirement_intake.REQUIREMENT_LABEL not in managed_task.issue_labels(parent):
         raise RequirementTerminalError(f"{requirement} is not a Business Requirement")
+    try:
+        context = requirement_intake.canonical_requirement_context(
+            requirement_intake.parse_requirement_body(str(parent.get("body") or ""))
+        )
+        requirement_target_lifecycle.require_local_target_support(root, target_repository=context["target_repository"])
+    except (requirement_intake.RequirementIntakeError, requirement_target_lifecycle.RequirementTargetLifecycleError) as exc:
+        raise RequirementTerminalError(str(exc)) from exc
     children = requirement_intake.parse_requirement_body(str(parent.get("body") or ""))["children"]
     if not children or len(children) != len(set(children)):
         raise RequirementTerminalError("Requirement needs a nonempty, unambiguous child set")

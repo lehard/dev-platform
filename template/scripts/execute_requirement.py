@@ -23,6 +23,7 @@ import requirement_board
 import requirement_intake
 import requirement_integration
 import requirement_retrospective
+import requirement_target_lifecycle
 import start_managed_task
 from _platform_common import current_worktree_root, locked_json, machine_path
 
@@ -181,6 +182,15 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
     parent = requirement_intake.fetch_issue(integration, *requirement_intake.issue_ref(requirement))
     if requirement_intake.REQUIREMENT_LABEL not in managed_task.issue_labels(parent):
         raise RequirementExecutionError(f"{requirement} is not a Business Requirement")
+    try:
+        context = requirement_intake.canonical_requirement_context(
+            requirement_intake.parse_requirement_body(str(parent.get("body") or ""))
+        )
+        requirement_target_lifecycle.require_local_target_support(
+            integration, target_repository=context["target_repository"]
+        )
+    except (requirement_intake.RequirementIntakeError, requirement_target_lifecycle.RequirementTargetLifecycleError) as exc:
+        raise RequirementExecutionError(str(exc)) from exc
     report = orchestrate_pre_authoring.status(
         integration, requirement_id=f"requirement-{requirement.rsplit('#', 1)[1]}", base_dir=base_dir,
     )
