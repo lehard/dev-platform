@@ -285,9 +285,13 @@ candidate as work through the normal requirement-first intake contract.
 
 Each dated review report records `reviewed_at`, the exact current `main` SHA,
 and the previous-review boundary. It reads a bounded current set of open
-process issues plus relevant managed tasks and recently merged/closed work
+process issues plus relevant Requirement parents, linked technical children,
+and recently merged/closed work
 since that boundary. It classifies source evidence as unmanaged, managed,
 likely resolved/superseded, needs more evidence, or ready for human decision.
+Include pre-authoring and parent-retrospective evidence even when every child
+is clean; group cross-child symptoms by root cause. Specialized reviews feed
+the existing friction/process-issue route, not a separate improvement queue.
 Before calling an older issue resolved or superseded, inspect current repository
 evidence; stale issue prose alone is insufficient.
 

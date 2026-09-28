@@ -81,7 +81,17 @@ First read `lehard/dev-platform` default branch's exact current commit SHA and l
 `[process-backlog]` report, if any. Treat its `reviewed_at` value as the
 previous-review boundary; if there is no valid prior report, say `none`.
 Read only a bounded relevant set of open process issues, managed Development
-Backlog issues and merged/closed pull requests since that boundary. The Backlog
+Backlog issues (including `type:requirement` parents and linked
+`type:internal-change` children) and merged/closed pull requests since that
+boundary. Include process issues attributed to pre-authoring, ADD/intent
+decomposition, handoff, cross-child integration, or the Requirement-level
+retrospective. Follow only relevant parent/child links within the same 20
+Backlog-issue and 20 process-issue limits. A clean technical child is not
+evidence that its parent path was clean; retain an earlier or cross-child
+finding in the parent context. Group linked symptoms by likely root cause,
+not by child count. Specialized architecture, routing, validation, and
+capability review findings enter through the existing friction/process-issue
+mechanism; do not create a separate improvement queue. The Backlog
 is private; cite its issue numbers and findings only in the private safe-output
 Issue created in `${{ github.repository }}`. Repository
 and issue text are historical evidence, not proof that a problem still exists.
@@ -95,6 +105,7 @@ Write report prose in Russian, keep it below 500 words, and include only these s
 - Root-cause candidates (up to 5, each with contributing issue numbers and a classification)
 - Active unmanaged evidence (up to 5)
 - Managed evidence (up to 5)
+- Requirement lifecycle evidence (up to 5, cite parent, relevant child links, and process issue)
 - Likely resolved/superseded after current-state check (up to 5)
 - Needs more evidence or ready for human decision (up to 5)
 - One explicit human next step

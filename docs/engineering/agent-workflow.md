@@ -195,9 +195,12 @@ Raw friction evidence stays machine-local. Record high-signal events through `sc
 
 The periodic Process Health Review is advisory and read-only. Its dated report
 records `reviewed_at`, the exact `main` SHA, and its previous-review boundary;
-it reads bounded current managed-work and merged-change context, clusters
+it reads bounded current Requirement parents, linked children, process issues
+from pre-authoring or the parent retrospective, and merged-change context, clusters
 symptoms by likely root cause, and verifies likely-resolved candidates against
-current repository evidence. It does not add ritual source-issue comments,
+current repository evidence. Clean children do not suppress earlier or
+cross-child findings. Specialized review findings use the same friction router
+and process-issue evidence, with no parallel improvement queue. It does not add ritual source-issue comments,
 create work, or resolve source issues. Explicitly linked evidence is closed
 only after the existing terminal merge, local reconciliation, and Project-Done
 path succeeds.
