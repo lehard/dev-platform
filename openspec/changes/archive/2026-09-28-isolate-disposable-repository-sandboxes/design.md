@@ -1,0 +1,9 @@
+## Design
+
+Create a small portable Python CLI in the template and a root wrapper for central source dogfood. `create` takes an existing repository, an explicit sandbox root, and a new child name. It uses `git clone --local --no-hardlinks` into a newly created child, then verifies the result before writing a local ownership marker. It removes a failed partial clone only after proving the destination is the newly allocated child within the root.
+
+`verify` and `cleanup` require that marker and the exact root/destination relationship. Resolve paths and reject symlink escapes beyond the exact disposable copy, `.git` indirection, Git alternates, `commondir`, and linked worktree metadata. Inspect every regular file in the copy for link count greater than one; this conservatively rejects even internal hardlinks when their external linkage cannot be proven. Check the source's Git common directory is outside the sandbox and has no inode overlap with its object files. Check all traversed paths stay within the exact disposable copy; never follow links during cleanup. `cleanup` validates the entire boundary before removal and fails closed with a path-specific diagnostic.
+
+The supported command owns only the destination it created. It does not modify integration checkout, sibling worktrees, or foreign machine-local state. Existing direct shell clone/copy operations remain possible, but guidance requires this helper or equivalent independently verified standard Git/filesystem procedure for disposable sandboxes. Tests create a local source with loose objects, reproduce a plain local hardlink clone, and confirm failed verification/cleanup leaves source object modes and content unchanged. Tests also cover safe creation and cleanup, `.git` indirection/alternates, and a symlink escape.
+
+No daemon, privileged operation, or filesystem virtualization is introduced.

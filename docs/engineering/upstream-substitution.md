@@ -48,9 +48,15 @@ for one capability never authorizes another.
 
 - [ ] Isolated `HOME` and tool-install prefix dedicated to the pilot.
 - [ ] Local disposable repositories only; no real managed project is touched.
-- [ ] Copy repositories with `git clone --no-hardlinks` or `git archive`, never a
-      plain `git clone --local`: its hardlinked objects would let recursive
-      sandbox cleanup (`chmod`/`rm`) reach the shared integration object store.
+- [ ] Create local disposable repositories with
+      `python3 scripts/disposable_repository_sandbox.py create <source> <sandbox-root> <name>`.
+      Before a supported recursive cleanup, run the corresponding `verify`
+      (or use `cleanup`, which verifies first). The helper requires its
+      ownership marker, rejects hardlinked files, alternates, linked Git
+      metadata and symlink escapes, and fails closed without a best-effort
+      cleanup fallback. `git clone --no-hardlinks` or `git archive` are only
+      acceptable when equivalent Git/filesystem isolation has been proved;
+      never use a plain `git clone --local`.
 - [ ] No real credentials, tokens or accounts; use keyless or fixture backends.
 - [ ] Upstream self-update, shell-profile injection, automatically applied
       hooks or MCP servers, and outbound usage reporting are disabled, unless a

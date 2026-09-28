@@ -1,0 +1,82 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.622,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.147,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 276.825,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "scripts/disposable_repository_sandbox.py",
+        "template/scripts/disposable_repository_sandbox.py",
+        "tests/test_disposable_repository_sandbox.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_d71c5b60a213242e9f8e54ad18b067d7",
+    "change": "isolate-disposable-repository-sandboxes",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/isolate-disposable-repository-sandboxes",
+    "branch": "agent/isolate-disposable-repository-sandboxes",
+    "head": "d2177942784fc78fa397c123da7893f34d5f266e",
+    "task_content": {
+      "version": 1,
+      "digest": "77fa12779279998aebcf555dde8c2cceb61e22c50a363b3557d8e38a92dbf15a",
+      "paths": {
+        "dev-platform/checks.toml": "fff2e48621741dd8b18c9e5730eebd70ac56a575",
+        "docs/engineering/agent-workflow.md": "91cb5a89a8b3542ce045882e243473a1cfbbdf03",
+        "docs/engineering/upstream-substitution.md": "9cb3a4b5184858ba6f1176e412f997bdaae16341",
+        "openspec/changes/isolate-disposable-repository-sandboxes/.managed-task.json": "400982bc633797fb60c1cd51f5c5766195675579",
+        "openspec/changes/isolate-disposable-repository-sandboxes/.openspec.yaml": "ee7c5448114a173e0747e643bc8c2bd9632a05e7",
+        "openspec/changes/isolate-disposable-repository-sandboxes/design.md": "d2f64fc91fb4d63ea80da71576cd31cf5af62df8",
+        "openspec/changes/isolate-disposable-repository-sandboxes/proposal.md": "08b76e07b48274e617650046229cc15f3de89de0",
+        "openspec/changes/isolate-disposable-repository-sandboxes/specs/disposable-repository-sandbox/spec.md": "bb759a426ce03fdbb00608c0855c9662ff140de0",
+        "openspec/changes/isolate-disposable-repository-sandboxes/tasks.md": "9e387d43044e2ffa4f43323a3f0aacf3b7704c55",
+        "openspec/changes/isolate-disposable-repository-sandboxes/verification.md": "68330a5ad820e6e3005fca271e35f1fd56005ce9",
+        "scripts/disposable_repository_sandbox.py": "e885f82e0c1ed0bdc2196b458460d933eb6f126d",
+        "template/docs/engineering/agent-workflow.md.jinja": "e0d0608032efc90366168bdab2151865f708d460",
+        "template/scripts/disposable_repository_sandbox.py": "edacf5a5884a5b2dcb9fd1800747e1124e4f4ed1",
+        "tests/test_disposable_repository_sandbox.py": "4257a3cec88a33e34703208f738ed90d99f1d843"
+      },
+      "base": "f6d3ed0e4cabc5f846832fd756b9ed371a168a07"
+    }
+  }
+}
