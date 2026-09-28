@@ -46,12 +46,14 @@ except ModuleNotFoundError:  # Compatibility while an existing project is being 
 from managed_project_status import (
     ManagedProjectStatusError,
     block_for_scope_conflict,
+    observe as observe_managed_project,
     reconcile as reconcile_managed_project,
     resume_from_scope_conflict,
 )
 try:
-    from worktree_cleanup import defer_completed_task, targeted_cleanup_command
+    from worktree_cleanup import _read_deferred_cleanup, defer_completed_task, targeted_cleanup_command
 except ImportError:  # Compatibility while an existing project is being upgraded by Copier.
+    _read_deferred_cleanup = None
     defer_completed_task = None
     targeted_cleanup_command = None
 try:
@@ -71,6 +73,7 @@ try:
         assert_integration_identity_cross_check,
         delivery_identity,
         observe_source_issue_drift,
+        observe_process_evidence_obligations,
         require_managed_checkout_identity,
         require_no_orphan_active_openspec,
         require_delivery_provenance,
@@ -100,6 +103,9 @@ except ModuleNotFoundError:  # Compatibility while a pre-managed-intake render i
 
     def resolve_process_evidence_after_delivery(root: Path, identity, implementation_sha: str) -> None:
         return None
+
+    def observe_process_evidence_obligations(root: Path, identity) -> list[dict[str, str]]:
+        return []
 
 
 ALLOW_NO_CHECKS_ENV = "DEV_PLATFORM_ALLOW_NO_CHECKS"
@@ -368,14 +374,51 @@ def run_status(work: Path, integration: Path, config: dict, *, as_json: bool) ->
         drift = observe_source_issue_drift(work)
     except Exception:
         drift = None
+    payload = publication_state.status_payload(obs, durability)
+    obligations: list[dict[str, str]] = []
+    if payload.get("status") == publication_state.COMPLETE:
+        try:
+            identity = delivery_identity(work)
+            if identity is None:
+                obligations.append({"kind": "managed-identity", "state": "unknown", "detail": "managed identity unavailable"})
+            else:
+                project = observe_managed_project(work, source_issue=identity.source_issue)
+                if project is None or project.current_status != "Done":
+                    obligations.append({"kind": "project", "state": "pending", "detail": "managed Project is not Done"})
+                for evidence in observe_process_evidence_obligations(work, identity):
+                    if evidence["state"] not in {"fulfilled", "disposed"}:
+                        obligations.append({"kind": "process-evidence", **evidence})
+            if profile(config) == "multi-agent":
+                if _read_deferred_cleanup is None:
+                    obligations.append({"kind": "cleanup", "state": "unknown", "detail": "cleanup observer unavailable"})
+                else:
+                    records = _read_deferred_cleanup(integration, config)
+                    deferred = any(item["path"] == str(work.resolve()) and item["branch"] == branch
+                                   and item["head"] == payload.get("local_head") for item in records)
+                    if not deferred:
+                        obligations.append({"kind": "cleanup", "state": "pending", "detail": "finish has not recorded or completed exact worktree cleanup"})
+                    else:
+                        obligations.append({"kind": "cleanup", "state": "warning", "detail": "exact deferred cleanup is recorded"})
+        except Exception as exc:
+            obligations.append({"kind": "terminal-reconciliation", "state": "unknown", "detail": str(exc)})
+        if any(item["state"] != "warning" for item in obligations):
+            payload["status"] = "terminal_pending"
+            payload["detail"] = "exact PR merged; terminal reconciliation remains"
+    payload["terminal_obligations"] = obligations
     if as_json:
-        payload = {**publication_state.status_payload(obs, durability), **freshness}
+        payload.update(freshness)
         payload["source_issue_drift"] = drift
         payload["checkout_identity"] = checkout_identity.evidence_payload() if checkout_identity else None
         payload["checkout_identity_error"] = checkout_identity_error
         print(json.dumps(payload, indent=2))
     else:
-        print(publication_state.status_text(obs, durability))
+        publication_status = publication_state.status_payload(obs, durability)["status"]
+        if payload["status"] == publication_status:
+            print(publication_state.status_text(obs, durability))
+        else:
+            print(publication_state.status_text(obs, durability).replace(f"status: {publication_status}", f"status: {payload['status']}"))
+        for obligation in obligations:
+            print(f"terminal obligation: {obligation['kind']} {obligation['state']} ({obligation['detail']})")
         if freshness["task_freshness"] == "unavailable":
             print("task freshness: unavailable (authoritative main could not be observed)")
         else:

@@ -61,6 +61,7 @@ PRIORITY_RE = re.compile(r"^P[0-3]$")
 PROCESS_LABEL = "process"
 PROCESS_MANAGED_LABEL = "process:managed"
 PROCESS_BACKLINK_PREFIX = "dev-platform-process-managed"
+PROCESS_DISPOSITION_PREFIX = "dev-platform-process-disposition:v1"
 
 
 class ManagedTaskError(RuntimeError):
@@ -1716,6 +1717,90 @@ def process_resolution_marker(identity: ManagedTaskIdentity, root: Path | None =
     return f"<!-- {PROCESS_BACKLINK_PREFIX}:resolved:{source}:{identity.change} -->"
 
 
+def process_disposition_marker(identity: ManagedTaskIdentity, reference: str) -> str:
+    """Bind an exceptional disposition to one source task and evidence Issue."""
+    return f"<!-- {PROCESS_DISPOSITION_PREFIX}:{identity.source_issue}:{identity.change}:{reference} -->"
+
+
+def _has_process_disposition(root: Path, env: dict[str, str], identity: ManagedTaskIdentity, reference: str) -> bool:
+    repository, number = issue_ref(identity.source_issue)
+    comments = run_json(["gh", "api", "--paginate", f"repos/{repository}/issues/{number}/comments"], root, env)
+    if not isinstance(comments, list):
+        raise ManagedTaskError("GitHub returned an unexpected source-Issue comment payload")
+    marker = process_disposition_marker(identity, reference)
+    return any(
+        marker in str(comment.get("body", "")) and "Disposition reason: " in str(comment.get("body", ""))
+        for comment in comments if isinstance(comment, dict)
+    )
+
+
+def observe_process_evidence_obligations(root: Path, identity: ManagedTaskIdentity | None) -> list[dict[str, str]]:
+    """Read each linked evidence obligation without mutating GitHub."""
+    if identity is None or not identity.process_evidence:
+        return []
+    env = github_cli_env(root)
+    if env is None:
+        return [{"reference": ref, "state": "unknown", "detail": "GitHub authentication unavailable"}
+                for ref in identity.process_evidence]
+    observations: list[dict[str, str]] = []
+    for reference in identity.process_evidence:
+        repository, number = issue_ref(reference)
+        try:
+            issue = run_json(["gh", "api", f"repos/{repository}/issues/{number}"], root, env)
+            if not isinstance(issue, dict) or issue.get("pull_request"):
+                state, detail = "blocked", "reference is not a readable Issue"
+            elif issue.get("state") == "closed":
+                state, detail = "fulfilled", "Issue closed"
+            elif issue.get("state") == "open":
+                state, detail = "pending", "Issue remains open"
+            else:
+                state, detail = "unknown", "unrecognized Issue state"
+        except ManagedTaskError as exc:
+            try:
+                disposed = _has_process_disposition(root, env, identity, reference)
+            except ManagedTaskError:
+                disposed = False
+            state, detail = ("disposed", "explicit source-Issue disposition") if disposed else ("unknown", str(exc))
+        observations.append({"reference": reference, "state": state, "detail": detail})
+    return observations
+
+
+def dispose_missing_process_evidence(root: Path, identity: ManagedTaskIdentity, reference: str, reason: str) -> None:
+    """Record an explicit disposition only after a definite missing-Issue response."""
+    if reference not in identity.process_evidence:
+        raise ManagedTaskError(f"{reference} is not linked to {identity.source_issue}")
+    reason = reason.strip()
+    if not reason or len(reason) > 500 or "\n" in reason:
+        raise ManagedTaskError("disposition reason must be one non-empty line of at most 500 characters")
+    env = github_cli_env(root)
+    if env is None:
+        raise ManagedTaskError("GitHub authentication is required for process-evidence disposition")
+    source_repo, source_number = issue_ref(identity.source_issue)
+    source = run_json(["gh", "api", f"repos/{source_repo}/issues/{source_number}"], root, env)
+    if not isinstance(source, dict) or source.get("pull_request"):
+        raise ManagedTaskError("managed source Issue is not readable")
+    repository, number = issue_ref(reference)
+    repository_info = run_json(["gh", "api", f"repos/{repository}"], root, env)
+    if not isinstance(repository_info, dict) or repository_info.get("has_issues") is not True:
+        raise ManagedTaskError("evidence repository is not readable with Issues enabled")
+    result = subprocess.run(["gh", "api", "-i", f"repos/{repository}/issues/{number}"],
+                            cwd=root, env=env, text=True, capture_output=True)
+    # Only an HTTP status line is proof; a CLI error string may describe a
+    # permission, transport, or temporary failure as a missing resource.
+    status_line = next((line.strip() for line in result.stdout.splitlines() if line.startswith("HTTP/")), "")
+    if result.returncode == 0 or not re.fullmatch(r"HTTP/\S+ 404(?: .*)?", status_line):
+        raise ManagedTaskError("evidence absence is not proven by a definitive HTTP 404")
+    if _has_process_disposition(root, env, identity, reference):
+        return
+    marker = process_disposition_marker(identity, reference)
+    body = "\n".join((marker, f"Historical process evidence `{reference}` returned HTTP 404 after repository access was verified.",
+                      f"Disposition reason: {reason}"))
+    run(["gh", "api", "--method", "POST", f"repos/{source_repo}/issues/{source_number}/comments",
+         "--raw-field", "body=" + body], root, env)
+    if not _has_process_disposition(root, env, identity, reference):
+        raise ManagedTaskError("disposition comment was not visible on source Issue after write")
+
+
 def resolve_process_evidence_after_delivery(root: Path, identity: ManagedTaskIdentity | None, implementation_sha: str) -> None:
     """Close only still-open explicitly linked evidence after terminal success.
 
@@ -1732,7 +1817,12 @@ def resolve_process_evidence_after_delivery(root: Path, identity: ManagedTaskIde
         raise ManagedTaskError("GitHub CLI authentication is required to resolve linked process evidence")
     for reference in identity.process_evidence:
         repository, number = issue_ref(reference)
-        issue = run_json(["gh", "api", f"repos/{repository}/issues/{number}"], root, env)
+        try:
+            issue = run_json(["gh", "api", f"repos/{repository}/issues/{number}"], root, env)
+        except ManagedTaskError:
+            if _has_process_disposition(root, env, identity, reference):
+                continue
+            raise
         if not isinstance(issue, dict) or issue.get("pull_request"):
             raise ManagedTaskError(f"linked process evidence {reference} is no longer a readable GitHub issue")
         if issue.get("state") != "open":
@@ -1969,7 +2059,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Import, author or supersede one managed OpenSpec task without starting implementation.")
     creating = sys.argv[1:2] == ["create"]
     superseding = sys.argv[1:2] == ["supersede"]
-    if creating or superseding:
+    disposing = sys.argv[1:2] == ["dispose-process-evidence"]
+    if disposing:
+        parser.add_argument("command", choices=("dispose-process-evidence",))
+        parser.add_argument("--reference", required=True, metavar="OWNER/REPO#N")
+        parser.add_argument("--reason", required=True)
+    elif creating or superseding:
         parser.add_argument("command", choices=("create",) if creating else ("supersede",))
         parser.add_argument("--bundle", required=True, help="directory containing manifest.json, issue.md and declared OpenSpec artifacts")
         parser.add_argument(
@@ -1999,6 +2094,18 @@ def main() -> int:
             "value must equal the currently observed body_sha256 from the blocking diagnostic",
         )
     args = parser.parse_args()
+    if disposing:
+        try:
+            root = current_worktree_root()
+            identity = delivery_identity(root)
+            if identity is None:
+                raise ManagedTaskError("current checkout has no managed task identity")
+            dispose_missing_process_evidence(root, identity, args.reference, args.reason)
+        except ManagedTaskError as exc:
+            print(f"Process-evidence disposition blocked: {exc}")
+            return 2
+        print(f"Disposition recorded and read back for {args.reference} on {identity.source_issue}.")
+        return 0
     if superseding:
         try:
             package, activated = supersede_task(

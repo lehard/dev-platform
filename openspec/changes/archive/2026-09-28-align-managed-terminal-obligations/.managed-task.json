@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/completion-lifecycle/spec.md"
+  ],
+  "change": "align-managed-terminal-obligations",
+  "imported_at": "2026-09-28T10:52:57+00:00",
+  "package_revision": "d75d0357b0500b19b884f1bf0c7b594f7d2a8a67191f13f70a11b5d3bd97415e",
+  "prepared_against": "e028c7dece23c3900ce5d51edc7c37aa20f0c2f9",
+  "private_lineage_handle": "pln_b2934164f41cb6a8935553383d717059",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "63a9b71c1fbbee9d6f1a613f3ce4c692506e9db3cf36f092e5122bbe668ed23e",
+    "updated_at": "2026-09-28T10:49:59Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
