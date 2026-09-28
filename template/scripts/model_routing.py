@@ -115,6 +115,14 @@ class Route:
     # not a second execution/routing state machine.  Keep only bounded
     # observations here; never retain a prompt, transcript, or source text.
     context_delegations: tuple[dict[str, Any], ...] = ()
+    # Large-observation lifecycle (add-large-observation-lifecycle), distinct
+    # from context_delegations above: bounded HOT REFERENCES ONLY -- a stable
+    # handle plus source/kind metadata, original size and a bounded excerpt --
+    # for observations already returned into this run. The exact original
+    # payload never lives on the route record; it is preserved separately in
+    # bounded run/session-local storage (see `_observation_store_path`) so a
+    # large payload never bloats this routing record.
+    observations: tuple[dict[str, Any], ...] = ()
 
 
 def _snapshot_to_dict(value: GitSnapshot) -> dict[str, Any]:
@@ -251,8 +259,9 @@ def _route_from_payload(payload: dict[str, Any], *, source_issue: str, change: s
     try:
         execution = payload.get("execution")
         supervisor = payload.get("supervisor")
-        observations = payload.get("context_delegations", [])
-        route = Route(source_issue=payload["source_issue"], change=payload["change"], task_worktree=payload["task_worktree"], integration_root=payload["integration_root"], provider=payload["provider"], profile=payload["profile"], executor_model=payload["executor_model"], rationale=payload["rationale"], evidence=tuple(payload.get("evidence", [])), prepared_at=payload["prepared_at"], pre_snapshot=payload["pre_snapshot"], execution=execution if isinstance(execution, dict) else None, escalations=tuple(payload.get("escalations", [])), start_tier=payload.get("start_tier"), freshness=payload.get("freshness", "confirmed"), topology=payload.get("topology", LINKED_WORKTREE), supervisor=supervisor if isinstance(supervisor, dict) else {}, context_delegations=tuple(item for item in observations if isinstance(item, dict)))
+        context_observations = payload.get("context_delegations", [])
+        large_observations = payload.get("observations", [])
+        route = Route(source_issue=payload["source_issue"], change=payload["change"], task_worktree=payload["task_worktree"], integration_root=payload["integration_root"], provider=payload["provider"], profile=payload["profile"], executor_model=payload["executor_model"], rationale=payload["rationale"], evidence=tuple(payload.get("evidence", [])), prepared_at=payload["prepared_at"], pre_snapshot=payload["pre_snapshot"], execution=execution if isinstance(execution, dict) else None, escalations=tuple(payload.get("escalations", [])), start_tier=payload.get("start_tier"), freshness=payload.get("freshness", "confirmed"), topology=payload.get("topology", LINKED_WORKTREE), supervisor=supervisor if isinstance(supervisor, dict) else {}, context_delegations=tuple(item for item in context_observations if isinstance(item, dict)), observations=tuple(item for item in large_observations if isinstance(item, dict)))
     except (KeyError, TypeError) as exc:
         raise RoutingError(missing_detail) from exc
     if route.source_issue.lower() != source_issue.lower() or route.change != change:
@@ -2111,6 +2120,300 @@ def _context_json_file(path: Path, label: str) -> Any:
         raise ContextDelegationError(f"{label} file is not readable JSON: {path}") from exc
 
 
+# --------------------------------------------------------------------------
+# Large-observation lifecycle
+# --------------------------------------------------------------------------
+# Distinct from read-only context delegation above: this manages observations
+# that a supported runtime/tool has *already returned* into this live run
+# (a large Read, search, command or test result), not a pre-emptive bulk
+# read. An eligible large observation is preserved exactly in bounded
+# run/session-local storage, and only a bounded hot reference -- stable
+# handle, source/kind metadata, original size, bounded excerpt -- stays on
+# the Route record (`observations`). The full payload never lives there.
+OBSERVATION_LIFECYCLE_SCHEMA_VERSION = 1
+OBSERVATION_KINDS = ("command_output", "file_read", "search_result", "test_output", "tool_result", "other")
+OBSERVATION_MAX_SOURCE_CHARS = 300
+OBSERVATION_MAX_EXCERPT_BYTES = 2000
+# Soft, evidence-driven default eligibility boundary (design.md decision 4:
+# "Soft eligibility first" -- not a research-specific universal threshold).
+# `[observation_lifecycle].min_bytes` in .dev-platform.toml overrides this
+# per project as usage evidence warrants.
+OBSERVATION_DEFAULT_MIN_BYTES = 8000
+OBSERVATION_STATUS_COLD = "cold"
+OBSERVATION_STATUS_BELOW_THRESHOLD = "below-threshold"
+OBSERVATION_STATUS_DISABLED = "disabled"
+OBSERVATION_STATUS_STORAGE_FAILED = "storage-failed"
+
+
+class ObservationLifecycleError(RoutingError):
+    """An observation archive/recall request is not safe enough to trust."""
+
+
+def _observation_enabled(root: Path) -> bool:
+    settings = read_platform_config(root).get("observation_lifecycle", {})
+    return isinstance(settings, dict) and settings.get("enabled") is True
+
+
+def _observation_min_bytes(root: Path) -> int:
+    settings = read_platform_config(root).get("observation_lifecycle", {})
+    value = settings.get("min_bytes") if isinstance(settings, dict) else None
+    if isinstance(value, int) and not isinstance(value, bool) and value > 0:
+        return value
+    return OBSERVATION_DEFAULT_MIN_BYTES
+
+
+def _observation_input(request: dict[str, Any]) -> dict[str, Any]:
+    """Validate the provider-neutral archive request: a labelled text payload."""
+    if not isinstance(request, dict):
+        raise ObservationLifecycleError("observation request must be a JSON object")
+    payload = request.get("payload")
+    if not isinstance(payload, str) or not payload:
+        raise ObservationLifecycleError("observation request needs a non-empty string payload")
+    source = request.get("source")
+    if not isinstance(source, str) or not source.strip():
+        raise ObservationLifecycleError("observation request needs a non-empty source label")
+    source = source.strip()
+    if len(source) > OBSERVATION_MAX_SOURCE_CHARS:
+        raise ObservationLifecycleError(f"observation source exceeds {OBSERVATION_MAX_SOURCE_CHARS} characters")
+    kind = request.get("kind", "other")
+    if kind not in OBSERVATION_KINDS:
+        raise ObservationLifecycleError(f"observation kind must be one of: {', '.join(OBSERVATION_KINDS)}")
+    return {"payload": payload, "source": source, "kind": kind}
+
+
+def _payload_measure(payload: str) -> dict[str, int]:
+    """Deterministic exact byte/line size -- never a token estimate."""
+    data = payload.encode("utf-8")
+    lines = payload.count("\n") + (1 if data and not payload.endswith("\n") else 0)
+    return {"bytes": len(data), "lines": lines}
+
+
+def _bounded_excerpt(payload: str, limit: int = OBSERVATION_MAX_EXCERPT_BYTES) -> dict[str, Any]:
+    """A bounded, never-fabricated prefix of the exact original payload."""
+    data = payload.encode("utf-8")
+    truncated = len(data) > limit
+    text = data[:limit].decode("utf-8", errors="ignore")
+    return {"text": text, "truncated": truncated}
+
+
+def _observation_unknown_recall() -> dict[str, Any]:
+    return {"bytes": None, "lines": None, "status": "unknown"}
+
+
+def _observation_store_dir(root: Path, change: str) -> Path:
+    return root / ".claude" / "observations" / change
+
+
+def _observation_store_path(root: Path, change: str, handle: str) -> Path:
+    return _observation_store_dir(root, change) / f"{handle}.json"
+
+
+def _write_observation_store(root: Path, change: str, handle: str, normalized: dict[str, Any], measure: dict[str, int]) -> None:
+    record = {
+        "schema_version": OBSERVATION_LIFECYCLE_SCHEMA_VERSION,
+        "handle": handle,
+        "recorded_at": utc_now(),
+        "source": normalized["source"],
+        "kind": normalized["kind"],
+        "original_payload": measure,
+        "payload": normalized["payload"],
+    }
+    atomic_write_text(_observation_store_path(root, change, handle), json.dumps(record, indent=2, sort_keys=True) + "\n")
+
+
+def _read_observation_store(root: Path, change: str, handle: str) -> dict[str, Any]:
+    path = _observation_store_path(root, change, handle)
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise ObservationLifecycleError(f"preserved observation for handle {handle!r} is no longer resolvable") from exc
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ObservationLifecycleError(f"preserved observation for handle {handle!r} is unreadable") from exc
+    if not isinstance(payload, dict) or not isinstance(payload.get("payload"), str):
+        raise ObservationLifecycleError(f"preserved observation for handle {handle!r} is malformed")
+    return payload
+
+
+def _observation_result(*, status: str, reason: str | None, source: str, kind: str, measure: dict[str, int], threshold: int | None = None) -> dict[str, Any]:
+    """The truthful non-cooled shape: disabled, below threshold, or a failed archive.
+
+    Never claims a handle or a successful archive that did not happen; the
+    caller keeps using the current full observation it already has.
+    """
+    result: dict[str, Any] = {
+        "schema_version": OBSERVATION_LIFECYCLE_SCHEMA_VERSION,
+        "handle": None,
+        "source": source,
+        "kind": kind,
+        "status": status,
+        "reason": reason,
+        "source_payload": measure,
+        "recall_payload": _observation_unknown_recall(),
+        "usage": efficiency_unknown_usage(),
+    }
+    if threshold is not None:
+        result["trigger"] = {"eligible_bytes_threshold": threshold, "eligible": False}
+    return result
+
+
+def _append_observation_reference(root: Path, route: Route, reference: dict[str, Any]) -> None:
+    route_path = _record_path(root, route.change)
+    next_route = Route(**{**asdict(route), "observations": route.observations + (reference,)})
+    _write_route(route_path, next_route)
+    # Mirrors the durable copy exactly like context delegations: task-worktree
+    # cleanup must not silently erase this bounded evidence.
+    _write_route(_durable_record_path(next_route), next_route)
+
+
+def cool_observation(root: Path, request_input: dict[str, Any]) -> dict[str, Any]:
+    """Archive one eligible large observation exactly, then emit a bounded reference.
+
+    Small observations and a disabled lifecycle take the existing direct
+    representation with no archive/recall ceremony at all: no handle is
+    minted, nothing is written to storage, and the route record is not
+    touched. A storage failure on an otherwise-eligible observation fails
+    open to the current full-observation behavior instead of claiming a
+    successful archive that did not happen.
+    """
+    route, _ = _read_route(root)
+    normalized = _observation_input(request_input)
+    measure = _payload_measure(normalized["payload"])
+    if not _observation_enabled(root):
+        return _observation_result(
+            status=OBSERVATION_STATUS_DISABLED,
+            reason="observation lifecycle is not enabled in this repository",
+            source=normalized["source"],
+            kind=normalized["kind"],
+            measure=measure,
+        )
+    threshold = _observation_min_bytes(root)
+    if measure["bytes"] < threshold:
+        return _observation_result(
+            status=OBSERVATION_STATUS_BELOW_THRESHOLD,
+            reason=None,
+            source=normalized["source"],
+            kind=normalized["kind"],
+            measure=measure,
+            threshold=threshold,
+        )
+    handle = str(uuid.uuid4())
+    try:
+        _write_observation_store(root, route.change, handle, normalized, measure)
+    except OSError as exc:
+        return _observation_result(
+            status=OBSERVATION_STATUS_STORAGE_FAILED,
+            reason=f"observation archive storage failed: {exc}",
+            source=normalized["source"],
+            kind=normalized["kind"],
+            measure=measure,
+            threshold=threshold,
+        )
+    excerpt = _bounded_excerpt(normalized["payload"])
+    hot_measure = _payload_measure(excerpt["text"])
+    reference = {
+        "schema_version": OBSERVATION_LIFECYCLE_SCHEMA_VERSION,
+        "handle": handle,
+        "recorded_at": utc_now(),
+        "source": normalized["source"],
+        "kind": normalized["kind"],
+        "status": OBSERVATION_STATUS_COLD,
+        "source_payload": measure,
+        "hot_payload": hot_measure,
+        "excerpt": excerpt,
+        "recall_payload": _observation_unknown_recall(),
+        # Deterministic trigger evidence -- reuses the bytes/lines vocabulary
+        # above rather than a parallel measurement scheme. `intensity` is the
+        # deterministic hot/source byte-reduction ratio; it is never a token
+        # measurement (see `usage` below, always unknown for this purely
+        # local archive operation).
+        "trigger": {
+            "eligible_bytes_threshold": threshold,
+            "eligible": True,
+            "intensity": round(hot_measure["bytes"] / measure["bytes"], 4) if measure["bytes"] else 0.0,
+        },
+        "usage": efficiency_unknown_usage(),
+    }
+    _append_observation_reference(root, route, reference)
+    return reference
+
+
+def recall_observation(root: Path, handle: str, request_input: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Exact targeted recall against the preserved original for one handle.
+
+    The caller must supply an explicit bounded byte range, a ``query``
+    substring (returned with bounded surrounding context), or the explicit
+    ``full`` escape hatch -- unrelated portions are never returned by
+    default. A stale or unknown handle is reported explicitly by raising
+    rather than fabricating content, exactly like `record_context_reread`
+    does for an unknown context-delegation observation id.
+    """
+    route, route_path = _read_route(root)
+    handle = handle.strip() if isinstance(handle, str) else ""
+    if not handle:
+        raise ObservationLifecycleError("observation recall requires a non-empty handle")
+    reference = next((item for item in route.observations if item.get("handle") == handle), None)
+    if reference is None:
+        raise ObservationLifecycleError(f"no cold observation has handle {handle!r} in the current supported lifetime")
+    request = request_input if isinstance(request_input, dict) else {}
+    full = request.get("full") is True
+    query = request.get("query")
+    has_range = "start_byte" in request or "end_byte" in request
+    if not full and query is None and not has_range:
+        raise ObservationLifecycleError("observation recall needs an explicit bounded range/query or the full-recall escape hatch")
+    try:
+        stored = _read_observation_store(root, route.change, handle)
+    except ObservationLifecycleError as exc:
+        raise ObservationLifecycleError(f"cold observation {handle!r} is stale: {exc}") from exc
+    payload = stored["payload"]
+    if full:
+        content = payload
+    elif query is not None:
+        if not isinstance(query, str) or not query:
+            raise ObservationLifecycleError("observation recall query must be a non-empty string")
+        index = payload.find(query)
+        if index == -1:
+            raise ObservationLifecycleError("observation recall query did not match the preserved original")
+        context_chars = request.get("context_chars", 200)
+        if not isinstance(context_chars, int) or isinstance(context_chars, bool) or context_chars < 0:
+            raise ObservationLifecycleError("observation recall context_chars must be a non-negative integer")
+        start = max(0, index - context_chars)
+        end = min(len(payload), index + len(query) + context_chars)
+        content = payload[start:end]
+    else:
+        data = payload.encode("utf-8")
+        start_byte = request.get("start_byte", 0)
+        end_byte = request.get("end_byte", len(data))
+        if not isinstance(start_byte, int) or isinstance(start_byte, bool) or start_byte < 0:
+            raise ObservationLifecycleError("observation recall start_byte must be a non-negative integer")
+        if not isinstance(end_byte, int) or isinstance(end_byte, bool) or end_byte < start_byte:
+            raise ObservationLifecycleError("observation recall end_byte must be an integer not preceding start_byte")
+        content = data[start_byte : min(end_byte, len(data))].decode("utf-8", errors="ignore")
+    recall_measure = _payload_measure(content)
+    updated = dict(reference)
+    updated["recall_payload"] = recall_measure
+    observations = tuple(updated if item.get("handle") == handle else item for item in route.observations)
+    next_route = Route(**{**asdict(route), "observations": observations})
+    _write_route(route_path, next_route)
+    _write_route(_durable_record_path(next_route), next_route)
+    return {
+        "schema_version": OBSERVATION_LIFECYCLE_SCHEMA_VERSION,
+        "handle": handle,
+        "status": "resolved",
+        "full": full,
+        "content": content,
+        "recall_payload": recall_measure,
+    }
+
+
+def _observation_json_file(path: Path, label: str) -> Any:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise ObservationLifecycleError(f"{label} file does not exist: {path}") from exc
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ObservationLifecycleError(f"{label} file is not readable JSON: {path}") from exc
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Record, hand off, escalate and verify provider-local model routing.")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -2201,6 +2504,17 @@ def main() -> int:
     )
     reread_context_parser.add_argument("--id", required=True, help="context observation id")
     reread_context_parser.add_argument("--scope", type=Path, required=True, help="JSON list of bounded path/range objects")
+    observation_cool_parser = subparsers.add_parser(
+        "observation-cool",
+        help="archive one eligible large observation exactly into bounded local storage and emit a bounded hot reference",
+    )
+    observation_cool_parser.add_argument("--request", type=Path, required=True, help="JSON object with source, kind and payload")
+    observation_recall_parser = subparsers.add_parser(
+        "observation-recall",
+        help="exact targeted recall of a cold observation by handle and a bounded range/query, or the full-recall escape hatch",
+    )
+    observation_recall_parser.add_argument("--handle", required=True, help="stable handle from observation-cool")
+    observation_recall_parser.add_argument("--request", type=Path, help="JSON object with full/query/start_byte/end_byte")
     subparsers.add_parser("postcheck", help="verify the prepared native worktree route did not mutate integration")
     subparsers.add_parser("efficiency-baseline", help="report bounded local execution-efficiency evidence without changing routing")
     subparsers.add_parser("routing-calibration", help="report bounded read-only R2/R3 routing calibration evidence without changing routing")
@@ -2246,6 +2560,11 @@ def main() -> int:
             output = delegate_claude_context(root, _context_json_file(args.request, "context request"))
         elif args.command == "context-reread":
             output = record_context_reread(root, args.id, _context_json_file(args.scope, "context reread scope"))
+        elif args.command == "observation-cool":
+            output = cool_observation(root, _observation_json_file(args.request, "observation request"))
+        elif args.command == "observation-recall":
+            recall_request = _observation_json_file(args.request, "observation recall request") if args.request else {}
+            output = recall_observation(root, args.handle, recall_request)
         elif args.command == "efficiency-baseline":
             output = efficiency_baseline(root)
         elif args.command == "routing-calibration":
