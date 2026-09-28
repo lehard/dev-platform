@@ -89,6 +89,7 @@ python3 template/scripts/openspec_lifecycle.py check
 | OpenSpec contract model, semantic verification, receipts, archive, dependency policy | [docs/engineering/openspec-workflow.md](docs/engineering/openspec-workflow.md) |
 | Optional engineering capability lifecycle and the browser verification adapter | [docs/engineering/engineering-capabilities.md](docs/engineering/engineering-capabilities.md), [docs/engineering/browser-verification.md](docs/engineering/browser-verification.md) |
 | Evaluating an external upstream as a substitute for own infrastructure | [docs/engineering/upstream-substitution.md](docs/engineering/upstream-substitution.md) |
+| Informational PR code-erosion signal, its limits and baseline | [docs/engineering/code-erosion.md](docs/engineering/code-erosion.md) |
 | Provider-local executor selection, escalation, delegated write containment | [docs/engineering/model-routing.md](docs/engineering/model-routing.md) |
 | Product/domain semantics, architecture invariants, anti-patterns or representative examples | [docs/context/README.md](docs/context/README.md) when that concern is reached |
 | Consequential decision history, rejected alternatives and revisit triggers | [docs/decisions/README.md](docs/decisions/README.md) when the decision's concern is reached |
