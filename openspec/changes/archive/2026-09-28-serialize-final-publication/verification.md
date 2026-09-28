@@ -1,7 +1,7 @@
 # Verification
 
 OpenSpec-Verify: PASS
-Verification-Method: Manual semantic review of issue lehard/development-backlog#188, proposal, design, delta scenarios and implementation, plus automated checks below.
+Verification-Method: Manual semantic review of the accepted Requirement, proposal, design, delta scenarios and implementation, plus automated checks below.
 Automated-Checks-Evidence: automated-checks.json
 
 The source queue admits exact validated PR heads with GitHub comment ordering. One Actions concurrency group selects the oldest queued PR; every merge uses the actual head, required checks and an expected-head guard. The worker detects changed task heads, relevant main path overlap, failed checks and unprovable recovery. A second invocation resumes from GitHub markers and PR state. The existing finish path still handles local and managed-task terminal reconciliation. The workflow is activated only after its bootstrap PR reaches main.
