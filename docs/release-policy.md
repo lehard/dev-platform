@@ -49,7 +49,7 @@ Managed rollout must target an actually published immutable release tag using Co
 
 ## Copier version
 
-The platform tests Copier `9.17.0` exactly. Changing the tested version is an explicit platform change.
+The platform tests Copier `9.18.2` exactly. Changing the tested version is an explicit platform change.
 
 ## Version publication
 

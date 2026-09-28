@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/platform-config/spec.md"
+  ],
+  "change": "bump-copier-stable-9-18-2",
+  "imported_at": "2026-09-28T09:22:47+00:00",
+  "package_revision": "9f2b835b035742f369034e107e7244fa62e22863d168e6ef1edd38807211df29",
+  "prepared_against": "da821e5e2455d2a53aa0eb72063d37c9fc93bb75",
+  "private_lineage_handle": "pln_c6d24bba29ae9ab5cb9b5dffd16b1f3b",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "dependency-maintenance"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "7e7d3faea2ca5ce3af6df6443355c52d95a1813493498f0279454489a366331d",
+    "updated_at": "2026-09-28T09:20:24Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

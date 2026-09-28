@@ -53,7 +53,7 @@ jobs:
         run: python3 -m pip install jinja2
 
       - name: Install tested Copier
-        run: python3 -m pip install "copier==9.17.0"
+        run: python3 -m pip install "copier==9.18.2"
 
       - name: Validate release installation contract
         run: python3 scripts/validate_release_installation.py

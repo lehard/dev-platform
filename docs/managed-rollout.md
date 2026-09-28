@@ -207,7 +207,7 @@ For every `managed` repository, rollout:
 2. checks for an already-open PR for `dev-platform/rollout-vX.Y.Z`;
 3. checks out the current configured default branch;
 4. validates Copier ownership/source/version metadata and current version coherence;
-5. runs Copier `9.17.0` against the exact `vX.Y.Z` tag with `--conflict rej`;
+5. runs Copier `9.18.2` against the exact `vX.Y.Z` tag with `--conflict rej`;
 6. requires post-update version coherence and blocks on `.rej`, Git conflict markers, downgrade attempts, unexpected template source or validation failure;
 7. runs only Dev Platform Harness validation (`.rej`/diff hygiene and `scripts/platform_doctor.py`); product/application checks are owned by the downstream rollout PR's normal CI;
 8. commits and pushes a deterministic rollout branch without force;
