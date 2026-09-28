@@ -13,6 +13,7 @@ Do not treat platform sources as one flat hierarchy:
 - `openspec/changes/<active>/` — approved deltas currently changing that behavior.
 - `template/` and platform code — implementation of current specs plus active deltas.
 - `docs/` — durable architecture, adoption and operating guidance.
+- `docs/decisions/` — dated rationale and revisit conditions for consequential decisions; read relevant records when their concern is reached, while OpenSpec remains the executable contract.
 
 Target behavior during an active change is `current specs + active delta`, subject to process/safety constraints. A safety/process rule is not silently bypassed because an OpenSpec artifact conflicts with it — report the conflict. Do not create a second backlog for work represented by an active OpenSpec change.
 
@@ -90,6 +91,7 @@ python3 template/scripts/openspec_lifecycle.py check
 | Evaluating an external upstream as a substitute for own infrastructure | [docs/engineering/upstream-substitution.md](docs/engineering/upstream-substitution.md) |
 | Provider-local executor selection, escalation, delegated write containment | [docs/engineering/model-routing.md](docs/engineering/model-routing.md) |
 | Product/domain semantics, architecture invariants, anti-patterns or representative examples | [docs/context/README.md](docs/context/README.md) when that concern is reached |
+| Consequential decision history, rejected alternatives and revisit triggers | [docs/decisions/README.md](docs/decisions/README.md) when the decision's concern is reached |
 | Release identity, downstream CI ownership, rollout registry, upgrade safety | [docs/release-policy.md](docs/release-policy.md) |
 | Rollout registry ownership, GitHub App credentials, recovery | [docs/managed-rollout.md](docs/managed-rollout.md) |
 | Platform-owned versus project-owned boundaries | [docs/ownership.md](docs/ownership.md) |
