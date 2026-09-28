@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import hashlib
 import json
 import math
 import re
@@ -2144,6 +2145,15 @@ OBSERVATION_STATUS_BELOW_THRESHOLD = "below-threshold"
 OBSERVATION_STATUS_DISABLED = "disabled"
 OBSERVATION_STATUS_STORAGE_FAILED = "storage-failed"
 
+# Reducers are deliberately a receipt layer on top of cold observations, not
+# another execution system.  In particular, a receipt never feeds a check,
+# CI, or terminal outcome back into the routing record's ``execution`` field.
+LOG_REDUCER_SCHEMA_VERSION = 1
+LOG_REDUCER_SUPPORTED_KINDS = ("command_output", "test_output")
+LOG_REDUCER_STATUS_VERIFIED = "verified"
+LOG_REDUCER_STATUS_FALLBACK = "fallback-exact-source"
+LOG_REDUCER_STATUS_SOURCE_UNAVAILABLE = "source-unavailable"
+
 
 class ObservationLifecycleError(RoutingError):
     """An observation archive/recall request is not safe enough to trust."""
@@ -2178,7 +2188,23 @@ def _observation_input(request: dict[str, Any]) -> dict[str, Any]:
     kind = request.get("kind", "other")
     if kind not in OBSERVATION_KINDS:
         raise ObservationLifecycleError(f"observation kind must be one of: {', '.join(OBSERVATION_KINDS)}")
-    return {"payload": payload, "source": source, "kind": kind}
+    command_result = request.get("command_result", {})
+    if not isinstance(command_result, dict):
+        raise ObservationLifecycleError("observation command_result must be an object when supplied")
+    command = command_result.get("command")
+    exit_status = command_result.get("exit_status")
+    if command is not None and (not isinstance(command, str) or not command.strip()):
+        raise ObservationLifecycleError("observation command_result.command must be a non-empty string when supplied")
+    if exit_status is not None and (not isinstance(exit_status, int) or isinstance(exit_status, bool)):
+        raise ObservationLifecycleError("observation command_result.exit_status must be an integer when supplied")
+    # This is deterministic extraction, not an interpretation by a reducer.
+    normalized_result: dict[str, Any] = {}
+    if command is not None:
+        normalized_result["command"] = command.strip()
+    if exit_status is not None:
+        normalized_result["exit_status"] = exit_status
+        normalized_result["status"] = "passed" if exit_status == 0 else "failed"
+    return {"payload": payload, "source": source, "kind": kind, "command_result": normalized_result}
 
 
 def _payload_measure(payload: str) -> dict[str, int]:
@@ -2215,6 +2241,8 @@ def _write_observation_store(root: Path, change: str, handle: str, normalized: d
         "recorded_at": utc_now(),
         "source": normalized["source"],
         "kind": normalized["kind"],
+        "command_result": normalized["command_result"],
+        "source_digest": _source_digest(normalized["payload"]),
         "original_payload": measure,
         "payload": normalized["payload"],
     }
@@ -2316,6 +2344,8 @@ def cool_observation(root: Path, request_input: dict[str, Any]) -> dict[str, Any
         "recorded_at": utc_now(),
         "source": normalized["source"],
         "kind": normalized["kind"],
+        "command_result": normalized["command_result"],
+        "source_digest": _source_digest(normalized["payload"]),
         "status": OBSERVATION_STATUS_COLD,
         "source_payload": measure,
         "hot_payload": hot_measure,
@@ -2403,6 +2433,209 @@ def recall_observation(root: Path, handle: str, request_input: dict[str, Any] | 
         "content": content,
         "recall_payload": recall_measure,
     }
+
+
+def _source_digest(payload: str) -> str:
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _receipt_measure(receipt: dict[str, Any]) -> dict[str, int]:
+    # Canonical JSON makes this deterministic provenance, not an estimate of
+    # model tokens or cache savings.
+    return _payload_measure(json.dumps(receipt, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
+
+
+def _deterministic_log_receipt(handle: str, payload: str, command_result: dict[str, Any]) -> dict[str, Any] | None:
+    """Select one exact diagnostic/result line without interpreting log prose."""
+    candidates = list(re.finditer(r"(?im)^.{0,240}(?:error|failed|failure|passed|success|ok).{0,240}$", payload))
+    if not candidates:
+        return None
+    match = candidates[-1]
+    quote = match.group(0)
+    start = len(payload[:match.start()].encode("utf-8"))
+    return {
+        "source_handle": handle,
+        "source_digest": _source_digest(payload),
+        "command_result": command_result,
+        "confidence": "high",
+        "evidence": [{"start_byte": start, "end_byte": start + len(quote.encode("utf-8")), "quote": quote}],
+        "findings": [],
+        "uncertainty": [],
+    }
+
+
+def _verify_reducer_receipt(
+    receipt: Any, *, handle: str, payload: str, command_result: dict[str, Any]
+) -> tuple[dict[str, Any] | None, str | None]:
+    """Bind every evidence-bearing receipt field back to the preserved source.
+
+    Findings are allowed to be concise semantic navigation notes, but each
+    must point to one or more independently verified evidence entries.  This
+    prevents a reducer's prose from becoming free-standing verification
+    evidence.
+    """
+    if not isinstance(receipt, dict):
+        return None, "reducer did not return an object receipt"
+    if receipt.get("source_handle") != handle:
+        return None, "receipt source_handle does not match the cold observation"
+    if receipt.get("source_digest") != _source_digest(payload):
+        return None, "receipt source_digest does not match the preserved source"
+    confidence = receipt.get("confidence")
+    if confidence not in ("medium", "high"):
+        return None, "receipt confidence is low or unsupported"
+    supplied_result = receipt.get("command_result")
+    if supplied_result != command_result:
+        return None, "receipt command_result does not match deterministic canonical command evidence"
+    evidence = receipt.get("evidence")
+    if not isinstance(evidence, list) or not evidence:
+        return None, "receipt needs at least one exact evidence span"
+    data = payload.encode("utf-8")
+    normalized_evidence: list[dict[str, Any]] = []
+    for item in evidence:
+        if not isinstance(item, dict):
+            return None, "receipt evidence entry is not an object"
+        start, end, quote = item.get("start_byte"), item.get("end_byte"), item.get("quote")
+        if (
+            not isinstance(start, int)
+            or isinstance(start, bool)
+            or not isinstance(end, int)
+            or isinstance(end, bool)
+            or start < 0
+            or end < start
+            or end > len(data)
+            or not isinstance(quote, str)
+        ):
+            return None, "receipt evidence has an invalid byte range or quote"
+        try:
+            exact = data[start:end].decode("utf-8")
+        except UnicodeDecodeError:
+            return None, "receipt evidence range splits a UTF-8 character"
+        if exact != quote:
+            return None, "receipt quote does not exactly match its claimed source range"
+        normalized_evidence.append({"start_byte": start, "end_byte": end, "quote": quote})
+    findings = receipt.get("findings", [])
+    if not isinstance(findings, list):
+        return None, "receipt findings must be a list"
+    normalized_findings: list[dict[str, Any]] = []
+    for finding in findings:
+        if not isinstance(finding, dict) or not isinstance(finding.get("text"), str):
+            return None, "receipt finding must contain text"
+        evidence_indexes = finding.get("evidence_indexes")
+        if (
+            not isinstance(evidence_indexes, list)
+            or not evidence_indexes
+            or any(not isinstance(index, int) or isinstance(index, bool) or index < 0 or index >= len(normalized_evidence) for index in evidence_indexes)
+        ):
+            return None, "receipt finding must reference verified evidence indexes"
+        normalized_findings.append({"text": finding["text"], "evidence_indexes": evidence_indexes})
+    uncertainty = receipt.get("uncertainty", [])
+    if not isinstance(uncertainty, list) or any(not isinstance(item, str) for item in uncertainty):
+        return None, "receipt uncertainty must be a list of strings"
+    return {
+        "schema_version": LOG_REDUCER_SCHEMA_VERSION,
+        "source_handle": handle,
+        "source_digest": _source_digest(payload),
+        "command_result": command_result,
+        "confidence": confidence,
+        "evidence": normalized_evidence,
+        "findings": normalized_findings,
+        "uncertainty": uncertainty,
+    }, None
+
+
+def _record_reducer_provenance(root: Path, route: Route, reference: dict[str, Any], provenance: dict[str, Any]) -> None:
+    route_path = _record_path(root, route.change)
+    updated = {**reference, "reducer": provenance}
+    observations = tuple(updated if item.get("handle") == reference["handle"] else item for item in route.observations)
+    next_route = Route(**{**asdict(route), "observations": observations})
+    _write_route(route_path, next_route)
+    _write_route(_durable_record_path(next_route), next_route)
+
+
+def reduce_execution_log(
+    root: Path, handle: str, reducer_output: dict[str, Any] | None = None, *, profile: str = "routine", participant: str | None = None
+) -> dict[str, Any]:
+    """Optionally reduce one cold execution log while retaining exact fallback.
+
+    A provider adapter may supply ``reducer_output`` from its routine profile.
+    This provider-neutral core neither launches a model nor accepts its prose
+    as a command/check outcome.  Missing, unsupported, low-confidence, or
+    unbound output therefore records a truthful fallback to the exact source.
+    """
+    route, _ = _read_route(root)
+    handle = handle.strip() if isinstance(handle, str) else ""
+    reference = next((item for item in route.observations if item.get("handle") == handle), None)
+    if reference is None:
+        raise ObservationLifecycleError(f"no cold observation has handle {handle!r} in the current supported lifetime")
+    fallback_reason: str | None = None
+    source_available = True
+    if reference.get("status") != OBSERVATION_STATUS_COLD or reference.get("kind") not in LOG_REDUCER_SUPPORTED_KINDS:
+        fallback_reason = "only cold command_output and test_output observations are eligible for reduction"
+    elif profile != "routine":
+        fallback_reason = "semantic reduction is supported only through the routine profile"
+    try:
+        stored = _read_observation_store(root, route.change, handle)
+    except ObservationLifecycleError as exc:
+        fallback_reason = f"exact source is unavailable: {exc}"
+        source_available = False
+        stored = None
+    if stored is not None and fallback_reason is None:
+        payload = stored["payload"]
+        command_result = stored.get("command_result", reference.get("command_result", {}))
+        if not isinstance(command_result, dict):
+            command_result = {}
+        archive_digest = reference.get("source_digest")
+        if archive_digest is None:
+            archive_digest = stored.get("source_digest")
+        if archive_digest != _source_digest(payload) or (stored.get("source_digest") is not None and stored["source_digest"] != archive_digest):
+            fallback_reason = "stored source no longer matches its archive-time digest"
+            source_available = False
+        elif command_result != reference.get("command_result", {}):
+            fallback_reason = "stored command result no longer matches archived command evidence"
+        else:
+            deterministic = reducer_output is None
+            receipt = None
+            if deterministic:
+                reducer_output = _deterministic_log_receipt(handle, payload, command_result)
+            if reducer_output is None:
+                fallback_reason = "no deterministic result line and routine reducer output is unavailable"
+            else:
+                receipt, fallback_reason = _verify_reducer_receipt(
+                    reducer_output, handle=handle, payload=payload, command_result=command_result
+                )
+            if reducer_output is not None and receipt is not None:
+                receipt_measure = _receipt_measure(receipt)
+                hot_bytes = reference.get("hot_payload", {}).get("bytes")
+                if receipt_measure["bytes"] >= len(payload.encode("utf-8")) or not isinstance(hot_bytes, int) or receipt_measure["bytes"] >= hot_bytes:
+                    fallback_reason = "receipt does not reduce the existing hot payload"
+                else:
+                    provenance = {
+                        "profile": "deterministic" if deterministic else profile,
+                        "participant": "deterministic-parser" if deterministic else (participant if isinstance(participant, str) and participant.strip() else "unknown"),
+                        "source_payload": _payload_measure(payload),
+                        "receipt_payload": receipt_measure,
+                        "recall_payload": reference.get("recall_payload", _observation_unknown_recall()),
+                        "verification": {"status": LOG_REDUCER_STATUS_VERIFIED},
+                        "usage": efficiency_unknown_usage(),
+                    }
+                    _record_reducer_provenance(root, route, reference, provenance)
+                    return {"status": LOG_REDUCER_STATUS_VERIFIED, "receipt": receipt, "provenance": provenance}
+    fallback_status = LOG_REDUCER_STATUS_FALLBACK if source_available else LOG_REDUCER_STATUS_SOURCE_UNAVAILABLE
+    provenance = {
+        "profile": profile if profile in PROFILES else "unknown",
+        "participant": participant if isinstance(participant, str) and participant.strip() else "unknown",
+        "source_payload": reference.get("source_payload", _observation_unknown_recall()),
+        "receipt_payload": _observation_unknown_recall(),
+        "recall_payload": reference.get("recall_payload", _observation_unknown_recall()),
+        "verification": {"status": fallback_status, "reason": fallback_reason},
+        "fallback": {"exact_source_handle": handle} if source_available else None,
+        "usage": efficiency_unknown_usage(),
+    }
+    _record_reducer_provenance(root, route, reference, provenance)
+    result = {"status": fallback_status, "handle": handle, "reason": fallback_reason}
+    if source_available:
+        result["exact_source"] = {"handle": handle}
+    return result
 
 
 def _observation_json_file(path: Path, label: str) -> Any:
@@ -2515,6 +2748,14 @@ def main() -> int:
     )
     observation_recall_parser.add_argument("--handle", required=True, help="stable handle from observation-cool")
     observation_recall_parser.add_argument("--request", type=Path, help="JSON object with full/query/start_byte/end_byte")
+    reducer_parser = subparsers.add_parser(
+        "log-reduce",
+        help="verify an optional routine reducer receipt for one cold command/test log, falling back to exact source evidence",
+    )
+    reducer_parser.add_argument("--handle", required=True, help="stable cold-observation handle")
+    reducer_parser.add_argument("--receipt", type=Path, help="optional reducer receipt JSON; omission records an exact-source fallback")
+    reducer_parser.add_argument("--profile", default="routine", choices=PROFILES)
+    reducer_parser.add_argument("--participant", help="bounded reducer participant identity when supported by the runtime")
     subparsers.add_parser("postcheck", help="verify the prepared native worktree route did not mutate integration")
     subparsers.add_parser("efficiency-baseline", help="report bounded local execution-efficiency evidence without changing routing")
     subparsers.add_parser("routing-calibration", help="report bounded read-only R2/R3 routing calibration evidence without changing routing")
@@ -2565,6 +2806,9 @@ def main() -> int:
         elif args.command == "observation-recall":
             recall_request = _observation_json_file(args.request, "observation recall request") if args.request else {}
             output = recall_observation(root, args.handle, recall_request)
+        elif args.command == "log-reduce":
+            receipt = _observation_json_file(args.receipt, "reducer receipt") if args.receipt else None
+            output = reduce_execution_log(root, args.handle, receipt, profile=args.profile, participant=args.participant)
         elif args.command == "efficiency-baseline":
             output = efficiency_baseline(root)
         elif args.command == "routing-calibration":
