@@ -9,19 +9,19 @@
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
-      "duration_seconds": 9.756,
+      "duration_seconds": 0.668,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 -m ruff check scripts template/scripts tests",
-      "duration_seconds": 0.803,
+      "duration_seconds": 0.413,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
-      "duration_seconds": 476.871,
+      "duration_seconds": 360.223,
       "outcome": "success",
       "exit_code": 0
     }
@@ -53,14 +53,14 @@
     "change": "stabilize-bounded-recovery-helper-timeout-test",
     "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/stabilize-bounded-recovery-helper-timeout-test",
     "branch": "agent/stabilize-bounded-recovery-helper-timeout-test",
-    "head": "475b18956f1276c1322e36d36208ec37e470c830",
+    "head": "14f46f9fa36a80d53dad531f848335c4defe6cab",
     "task_content": {
       "version": 1,
-      "digest": "255c75244d0bee068f238d5603eaf49580fbd4c7a2f4128e274041b905d85afc",
+      "digest": "425d4232d679a65959d4ed89339f94fb938974493b146fbc83a9558ec51ba453",
       "paths": {
         "openspec/changes/stabilize-bounded-recovery-helper-timeout-test/.managed-task.json": "ea810aed289207f156864e596a6a90ec848f1e3a",
         "openspec/changes/stabilize-bounded-recovery-helper-timeout-test/.openspec.yaml": "ee7c5448114a173e0747e643bc8c2bd9632a05e7",
-        "openspec/changes/stabilize-bounded-recovery-helper-timeout-test/automated-checks.json": "ef03722cebd4d519c29538903ad4386415411834",
+        "openspec/changes/stabilize-bounded-recovery-helper-timeout-test/automated-checks.json": "7daf6b1ab8b6a223789bdd178867f69b8cc30e2b",
         "openspec/changes/stabilize-bounded-recovery-helper-timeout-test/design.md": "f6a60e56137bfe83f925d36eece10ff100fb5962",
         "openspec/changes/stabilize-bounded-recovery-helper-timeout-test/proposal.md": "6076d0bdb09dd295ad20d78b5d50ae825306ccdb",
         "openspec/changes/stabilize-bounded-recovery-helper-timeout-test/specs/platform-ci/spec.md": "fabfbbdc5bd618a59a5b36f91a0265edc0e7b7eb",
@@ -69,7 +69,7 @@
         "openspec/specs/platform-ci/spec.md": "586d791a65a1962f6f323a18145dd09ac6ba242c",
         "tests/test_publication_recovery_cli.py": "3ec94b78fcc1f420b3b2f330d8f71853dc2eb82b"
       },
-      "base": "da821e5e2455d2a53aa0eb72063d37c9fc93bb75"
+      "base": "b84b9a4356cebabd47daacaaefc75a0d1a3ed898"
     }
   }
 }
