@@ -1,0 +1,82 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 1.086,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 1.74,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 394.556,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        ".github/workflows/code-erosion.yml",
+        "dev-platform/checks.toml",
+        "scripts/code_erosion_report.py",
+        "tests/test_code_erosion_report.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_5fbeb9fa5b6e9e5319657702bcaab598",
+    "change": "add-code-erosion-signal",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/add-code-erosion-signal",
+    "branch": "agent/add-code-erosion-signal",
+    "head": "a76d176982dad6833b35f176e5bbb74d61128e45",
+    "task_content": {
+      "version": 1,
+      "digest": "c4c7980d3baa81f4b7366734fdaef1f3d151b260ad03fe73849acb9c07d51d03",
+      "paths": {
+        ".github/code-erosion/scb-check-version.txt": "0ea3a944b399d25f7e1b8fe684d754eb8da9fe7f",
+        ".github/workflows/code-erosion.yml": "49b696e4f5729523533c024ae77e2b66c1ceadb3",
+        "AGENTS.md": "f3595fac2044ad5281c62f5d8ed9db37953265f7",
+        "dev-platform/checks.toml": "c46b2d7c271a931242665eba2dc813529e25f0ca",
+        "docs/engineering/code-erosion.md": "1dd19376bd7b729bf0a81269e2ce29dbd33a84db",
+        "openspec/changes/add-code-erosion-signal/.managed-task.json": "d30eff30587b88ecdc0cfe129daa5be4f09d1cfc",
+        "openspec/changes/add-code-erosion-signal/.openspec.yaml": "ee7c5448114a173e0747e643bc8c2bd9632a05e7",
+        "openspec/changes/add-code-erosion-signal/design.md": "7c971bd4ca056a18d1b5715ac71d4ebe02e80890",
+        "openspec/changes/add-code-erosion-signal/proposal.md": "dc7fa30466748cd7fdb2b7dc3497bdbe47db7998",
+        "openspec/changes/add-code-erosion-signal/specs/code-erosion-signal/spec.md": "068a5d0080864a843eba4234e506e8a292755616",
+        "openspec/changes/add-code-erosion-signal/tasks.md": "be1ab19266540607b598510a78341a52ab341699",
+        "openspec/changes/add-code-erosion-signal/verification.md": "c25a6c9ba407a446f368b86c52cae8efb608293c",
+        "scripts/code_erosion_report.py": "c49fcdc6dc4eafc5d11e45fe4352651a01b0ad42",
+        "tests/test_code_erosion_report.py": "7bac42fd4597814af5b27cadb835ad014c64a025"
+      },
+      "base": "d61e65fb17b8d0fef7b941ef65ff710530658f3e"
+    }
+  }
+}
