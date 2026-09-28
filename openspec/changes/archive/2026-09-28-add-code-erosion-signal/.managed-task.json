@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/code-erosion-signal/spec.md"
+  ],
+  "change": "add-code-erosion-signal",
+  "imported_at": "2026-09-28T20:34:26+00:00",
+  "package_revision": "7b64e51ec6c2b58f074a08f77c83455e6b489b9e262de2cfeec9126d518556f3",
+  "prepared_against": "d61e65fb17b8d0fef7b941ef65ff710530658f3e",
+  "private_lineage_handle": "pln_5fbeb9fa5b6e9e5319657702bcaab598",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "412e177122db0a52531fbdd43431f6ad90604574af9b73d5404e798ba3786541",
+    "updated_at": "2026-09-28T20:32:00Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
