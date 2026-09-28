@@ -193,6 +193,8 @@ For a bounded local change, prefer `python3 scripts/select_checks.py --base orig
 
 Raw friction evidence stays machine-local. Record high-signal events through `scripts/agent_friction.py`; the normal path automatically upserts a bounded sanitized, fingerprinted process issue in the configured project or platform repository. Retry failure is durable and non-blocking for safe delivery. Process issues are evidence only: cloud triage/review must never create managed tasks, OpenSpec, implementation PRs, or code changes.
 
+If finish is blocked because an explicitly linked historical process Issue is no longer readable, status retains the exact merged PR fact and reports terminal reconciliation as pending. After confirming the reference is genuinely absent, record a narrow disposition from the managed task worktree with `python3 scripts/managed_task.py dispose-process-evidence --reference owner/repo#N --reason "..."`, then rerun finish. The command requires a definitive HTTP 404 after verifying access to the evidence repository and writes an auditable comment on the managed source Issue. A permission, authentication, or transport failure cannot authorize disposition. Open or readable evidence follows the normal resolution path.
+
 The periodic Process Health Review is advisory and read-only. Its dated report
 records `reviewed_at`, the exact `main` SHA, and its previous-review boundary;
 it reads bounded current Requirement parents, linked children, process issues
