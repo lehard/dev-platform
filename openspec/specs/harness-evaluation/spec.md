@@ -78,4 +78,3 @@ Replay execution SHALL occur only in isolated disposable workspaces bound to the
 - **WHEN** a replay execution attempts to write outside its isolated disposable workspace
 - **THEN** the run fails closed or is rejected as invalid evidence
 - **AND** integration/main and historical source truth remain unchanged
-
