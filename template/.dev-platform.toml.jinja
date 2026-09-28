@@ -47,6 +47,14 @@ complex_model = "opus"
 # Soft opt-in only. Normal repository reads remain available everywhere.
 enabled = false
 
+[observation_lifecycle]
+# Soft opt-in only, consistent with [context_delegation]. Normal observations
+# below the configured eligibility bound are never intercepted. Eligibility
+# is evidence-driven, not a research-specific universal threshold -- tune
+# min_bytes per project as usage evidence warrants.
+enabled = false
+min_bytes = 8000
+
 [independent_review]
 # Opt in only where a runtime can supply a separate fresh, read-only review
 # context. The platform validates its evidence but never launches a provider.

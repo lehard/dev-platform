@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/model-routing/spec.md"
+  ],
+  "change": "add-large-observation-lifecycle",
+  "imported_at": "2026-09-28T07:00:53+00:00",
+  "package_revision": "2b78e6dacc6ca6288de3938c369285f375602f2d7c352fef5ed71d02b20fe4c5",
+  "prepared_against": "f45e06478acd93d48b9282a69666fb2d32457a36",
+  "private_lineage_handle": "pln_23629e634b08b45bc0ee2d76351d92ec",
+  "routing_receipt": {
+    "assurance": "high",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "context-efficiency"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "a32cd7436abe947556eb7f6ef9ad3706ee1c9b5e4ed6bdf24d397691a531472e",
+    "updated_at": "2026-09-20T04:25:30Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
