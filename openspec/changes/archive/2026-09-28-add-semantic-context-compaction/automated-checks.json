@@ -1,0 +1,78 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 2.199,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.453,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 500.361,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/model_routing.py",
+        "tests/test_model_routing.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_ce8c68e96762503be7366429eb01cc04",
+    "change": "add-semantic-context-compaction",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/add-semantic-context-compaction",
+    "branch": "agent/add-semantic-context-compaction",
+    "head": "ec2d353c6067ceb9e3bc0f2711ac73dabe2e5256",
+    "task_content": {
+      "version": 1,
+      "digest": "1a9af4008191f1604b46c44806ad0430248402edbe3cfe94899a541112dfb891",
+      "paths": {
+        "docs/engineering/model-routing.md": "dda1db6424df085b2e006e46da381b2c6a27c65a",
+        "openspec/changes/add-semantic-context-compaction/.managed-task.json": "28572c41a8d2d559234e17e031a3423ea559b8c3",
+        "openspec/changes/add-semantic-context-compaction/.openspec.yaml": "ee7c5448114a173e0747e643bc8c2bd9632a05e7",
+        "openspec/changes/add-semantic-context-compaction/design.md": "0c64945eb1708c0ef9cdc98ab585c9f12043eb09",
+        "openspec/changes/add-semantic-context-compaction/proposal.md": "8ad50bda835a480b782a174bf437d4d28e3f9baf",
+        "openspec/changes/add-semantic-context-compaction/specs/agent-workflow/spec.md": "56c292d46f810d82a678d99a2bab01cf16f6cf43",
+        "openspec/changes/add-semantic-context-compaction/tasks.md": "381db563027d2730b8164e12a3c1b019e69f74f9",
+        "openspec/changes/add-semantic-context-compaction/verification.md": "10b5c9a3d3e0d82dd21f2634a3d82af20bb92415",
+        "template/.dev-platform.toml.jinja": "9c03b0e7834501b485efcdeb6de9de269736778e",
+        "template/docs/engineering/model-routing.md": "18e2736c3313d1889cf008d9dd6cffaea615494b",
+        "template/scripts/model_routing.py": "0571ea97140b99354c013ed900eb0f322b4042e4",
+        "tests/test_model_routing.py": "e509468b9a7c0558c1508d61c11c0757da708264"
+      },
+      "base": "6ee5f130e4592bd291c20fbd4fcd21156f110b82"
+    }
+  }
+}
