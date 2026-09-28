@@ -653,6 +653,8 @@ def observe_completion_blockers(
     remote_main: str,
     mode: str,
     exact_open_pr: dict | None,
+    proposed_title: str | None = None,
+    proposed_body: str | None = None,
 ) -> list[tuple[str, str]]:
     """Evaluate every safely observable read-only completion gate.
 
@@ -705,7 +707,39 @@ def observe_completion_blockers(
     except HardScopeOverlap as exc:
         blockers.append(("scope-overlap", str(exc)))
 
+    privacy_detail = observe_private_reference_blocker(work, proposed_title, proposed_body)
+    if privacy_detail is not None:
+        blockers.append(("private-reference", privacy_detail))
+
     return blockers
+
+
+def observe_private_reference_blocker(root: Path, title: str | None, body: str | None) -> str | None:
+    """Run the source-owned public-candidate guard without exposing its inputs.
+
+    The guard is optional in rendered projects.  When present, a non-zero
+    result is a fail-closed preflight blocker; its bounded diagnostics are
+    deliberately produced by the source-owned guard, which fingerprints paths
+    rather than printing private identifiers or filenames.
+    """
+    privacy_guard = root / "scripts" / "check_private_backlog_refs.py"
+    if not privacy_guard.is_file():
+        return None
+    proposed_title = title or run_git(["log", "-1", "--pretty=%s"], cwd=root).stdout.strip()
+    proposed_body = body or "Published by dev-platform after local validation and a fresh origin/main check."
+    result = subprocess.run(
+        ["python3", str(privacy_guard), "--root", str(root), "--text", proposed_title, "--text", proposed_body],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode == 0:
+        return None
+    detail = (result.stderr or result.stdout).strip()
+    if not detail:
+        detail = "private-reference guard failed without a diagnostic"
+    return detail[:2000]
 
 
 def report_completion_blockers(blockers: list[tuple[str, str]]) -> None:
@@ -866,7 +900,7 @@ def main() -> int:
     # evaluated and reported together here, BEFORE expensive validation, so two
     # independent blockers no longer cost two multi-minute finishes.
     blockers = observe_completion_blockers(
-        work, integration, branch, main_branch, remote_main, mode, exact_open_pr
+        work, integration, branch, main_branch, remote_main, mode, exact_open_pr, args.title, args.body
     )
     if blockers:
         report_completion_blockers(blockers)
@@ -878,9 +912,9 @@ def main() -> int:
     # The source repository has a public distribution boundary and a private
     # Backlog. Check the exact candidate immediately before publication. The
     # generic rendered lifecycle has no such source-owned guard.
-    privacy_guard = work / "scripts" / "check_private_backlog_refs.py"
-    if privacy_guard.is_file():
-        subprocess.run(["python3", str(privacy_guard), "--root", str(work)], cwd=work, check=True)
+    privacy_detail = observe_private_reference_blocker(work, args.title, args.body)
+    if privacy_detail is not None:
+        raise SystemExit("private-reference publication recheck blocked: " + privacy_detail)
 
     # Immediately-before-publication recheck: factual scope can have grown
     # since admission (or since the pre-validation recheck inside

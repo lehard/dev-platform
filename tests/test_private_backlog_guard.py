@@ -21,8 +21,8 @@ class PrivateBacklogGuardTests(unittest.TestCase):
     def test_explicit_repository_runs_without_local_source_contract(self) -> None:
         with tempfile.TemporaryDirectory() as directory, mock.patch(
             "sys.argv", ["guard", "--root", directory, "--repository", "example/internal-tasks"]
-        ), mock.patch.object(guard, "violations", return_value=[]) as files, mock.patch.object(
-            guard, "publication_text_violation", return_value=False
+        ), mock.patch.object(guard, "candidate_violation_categories", return_value={}) as files, mock.patch.object(
+            guard, "public_text_violation_categories", return_value=set()
         ):
             with redirect_stdout(StringIO()):
                 self.assertEqual(guard.main(), 0)
@@ -50,6 +50,25 @@ class PrivateBacklogGuardTests(unittest.TestCase):
             (root / "internal-tasks" / "issues").mkdir()
             (root / "internal-tasks" / "issues" / "218").write_text("safe text", encoding="utf-8")
             self.assertEqual(len(guard.violations(root, "example/internal-tasks")), 2)
+
+    def test_reports_file_and_path_surfaces_with_only_opaque_fingerprints(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
+            (root / "evidence.txt").write_text("example/internal-tasks#219", encoding="utf-8")
+            (root / "internal-tasks").mkdir()
+            (root / "internal-tasks" / "issues").mkdir()
+            (root / "internal-tasks" / "issues" / "220").write_text("safe", encoding="utf-8")
+
+            categories = guard.candidate_violation_categories(root, "example/internal-tasks")
+            detail = guard.diagnostic_detail(categories, {"commit-message"})
+
+            self.assertEqual(set(categories), {"candidate-file", "candidate-path"})
+            self.assertIn("candidate-file", detail)
+            self.assertIn("candidate-path", detail)
+            self.assertIn("commit-message", detail)
+            self.assertNotIn("219", detail)
+            self.assertNotIn("220", detail)
 
 
 if __name__ == "__main__":

@@ -431,6 +431,9 @@ class TemplateContractTests(unittest.TestCase):
         self.assertIn('fetch_main(integration, "origin", main_branch)', text)
         self.assertIn("fetch_main(integration", text)
         self.assertIn("harness_mode=project", text)
+        self.assertIn('blockers.append(("private-reference", privacy_detail))', text)
+        self.assertGreaterEqual(text.count("observe_private_reference_blocker("), 3)
+        self.assertLess(text.index("observe_completion_blockers("), text.index("run_checks(work, remote_main, args.no_checks)"))
 
     def test_publication_recovery_reconciler_and_status_are_wired_into_lifecycle(self) -> None:
         finish_text = (ROOT / "template" / "scripts" / "finish_task.py").read_text(encoding="utf-8")

@@ -551,13 +551,53 @@ class GitLifecycleTests(unittest.TestCase):
         self.assertIn("Current worktree is dirty", output)
         self.assertNotIn("DEV_PLATFORM_CHECK_COMMAND", output)
 
+    def test_private_reference_preflight_blocks_evidence_and_commit_before_validation(self) -> None:
+        """The source-owned guard rejects observable public leakage before checks."""
+        for name in ("select_checks.py",):
+            shutil.copy2(SCRIPT_SOURCE / name, self.repo / "scripts" / name)
+        shutil.copy2(ROOT / "scripts" / "check_private_backlog_refs.py", self.repo / "scripts" / "check_private_backlog_refs.py")
+        (self.repo / ".dev-platform.toml").write_text(
+            'main_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\n'
+            'publish_mode = "direct"\n[development_backlog]\nrepository = "example/internal-tasks"\n'
+            '[paths]\nchecks = "dev-platform/checks.toml"\n',
+            encoding="utf-8",
+        )
+        (self.repo / "dev-platform").mkdir(exist_ok=True)
+        (self.repo / "dev-platform" / "checks.toml").write_text(
+            '[settings]\nfull_commands = ["echo COSTLY_PRIVATE_GUARD_SENTINEL"]\n', encoding="utf-8"
+        )
+        git("add", ".", cwd=self.repo)
+        git("commit", "-m", "configure private reference completion guard", cwd=self.repo)
+        git("push", cwd=self.repo)
+
+        git("switch", "-c", "agent/private-reference", cwd=self.repo)
+        (self.repo / "verification.md").write_text(
+            "Evidence links to example/internal-tasks#216.\n", encoding="utf-8"
+        )
+        git("add", "verification.md", cwd=self.repo)
+        git("commit", "-m", "record example/internal-tasks#217 evidence", cwd=self.repo)
+
+        result = run("python3", "scripts/finish_task.py", cwd=self.repo, check=False)
+        output = result.stdout + result.stderr
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("[private-reference]", output)
+        self.assertIn("candidate-file", output)
+        self.assertIn("commit-message", output)
+        self.assertIn("opaque private-lineage handle", output)
+        self.assertNotIn("COSTLY_PRIVATE_GUARD_SENTINEL", output)
+        self.assertNotIn("216", output)
+        self.assertNotIn("217", output)
+
     def test_clean_preflight_streams_stage_and_validation_progress_then_publishes(self) -> None:
         """A clean preflight runs real checks and surfaces ordered stage progress."""
         for name in ("select_checks.py",):
             shutil.copy2(SCRIPT_SOURCE / name, self.repo / "scripts" / name)
+        shutil.copy2(ROOT / "scripts" / "check_private_backlog_refs.py", self.repo / "scripts" / "check_private_backlog_refs.py")
         (self.repo / ".dev-platform.toml").write_text(
             'main_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\n'
-            'publish_mode = "direct"\n[paths]\nchecks = "dev-platform/checks.toml"\n',
+            'publish_mode = "direct"\n[development_backlog]\nrepository = "example/internal-tasks"\n'
+            '[paths]\nchecks = "dev-platform/checks.toml"\n',
             encoding="utf-8",
         )
         (self.repo / "dev-platform").mkdir(exist_ok=True)
