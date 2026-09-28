@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/upstream-substitution/spec.md"
+  ],
+  "change": "teamai-substitution-pilot",
+  "imported_at": "2026-09-28T12:14:53+00:00",
+  "package_revision": "708ad01daa619fa594c297dfb9e3a56c6414e469453e1a2016b7b278c3e2d64b",
+  "prepared_against": "da821e5e2455d2a53aa0eb72063d37c9fc93bb75",
+  "private_lineage_handle": "pln_bb2f6b2bec272b3af305d6f86e02bc5b",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "c41c599bc658a763e3b083887a2069953e2f314204c76127b04f5b1db0b4273d",
+    "updated_at": "2026-09-28T09:27:57Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

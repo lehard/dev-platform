@@ -48,6 +48,9 @@ for one capability never authorizes another.
 
 - [ ] Isolated `HOME` and tool-install prefix dedicated to the pilot.
 - [ ] Local disposable repositories only; no real managed project is touched.
+- [ ] Copy repositories with `git clone --no-hardlinks` or `git archive`, never a
+      plain `git clone --local`: its hardlinked objects would let recursive
+      sandbox cleanup (`chmod`/`rm`) reach the shared integration object store.
 - [ ] No real credentials, tokens or accounts; use keyless or fixture backends.
 - [ ] Upstream self-update, shell-profile injection, automatically applied
       hooks or MCP servers, and outbound usage reporting are disabled, unless a
