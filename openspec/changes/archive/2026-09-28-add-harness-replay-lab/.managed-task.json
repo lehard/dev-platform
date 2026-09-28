@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/harness-evaluation/spec.md"
+  ],
+  "change": "add-harness-replay-lab",
+  "imported_at": "2026-09-28T14:27:46+00:00",
+  "package_revision": "b49bf9fa40c9cba1c39365cee380ce2108c9a7fbf0a9038f2c05a44806e8b08a",
+  "prepared_against": "1414fe00bce97311b2ab46302def3c21bfab365f",
+  "private_lineage_handle": "pln_64c1e87cd0c88c037b74413d14abcbf4",
+  "routing_receipt": {
+    "assurance": "high",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "platform-evaluation"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "0a6f0bd43e70a694e0de5fd1ffcd48ad48cddc5b36361c5757a7a84e15934e98",
+    "updated_at": "2026-09-28T08:51:12Z"
+  },
+  "supersedes": "8e24aa5b29b3739e1a7512063d91910832deb24d7c586e40aaa2c7d2fc279a55",
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

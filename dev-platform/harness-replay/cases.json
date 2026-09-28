@@ -1,0 +1,201 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "copier-version-config",
+      "work_shape": "small configuration and compatibility contract",
+      "source_revision": "93a5fbf7ff472f2a624883d180ce6c141fda71b6",
+      "contract": [
+        {
+          "revision": "6ee5f130e4592bd291c20fbd4fcd21156f110b82",
+          "path": "openspec/changes/archive/2026-09-28-bump-copier-stable-9-18-2/proposal.md",
+          "sha256": "757821fb22feb9fffa40ba6b177992c33e500ebc86616484002f74e368abc4d3"
+        },
+        {
+          "revision": "6ee5f130e4592bd291c20fbd4fcd21156f110b82",
+          "path": "openspec/changes/archive/2026-09-28-bump-copier-stable-9-18-2/specs/platform-config/spec.md",
+          "sha256": "6ff953549f7a811ce282e00c02c23a7698deff0e54c09d20fb8171d272eb1127"
+        }
+      ],
+      "authoritative_evidence": [
+        {
+          "revision": "6ee5f130e4592bd291c20fbd4fcd21156f110b82",
+          "path": "openspec/changes/archive/2026-09-28-bump-copier-stable-9-18-2/verification.md",
+          "sha256": "ee98209858944a9273e257e201ca6fd8b02ae235288fb559900060d29abcf427"
+        },
+        {
+          "revision": "6ee5f130e4592bd291c20fbd4fcd21156f110b82",
+          "path": "openspec/changes/archive/2026-09-28-bump-copier-stable-9-18-2/automated-checks.json",
+          "sha256": "17be9a250e66e8f1d602524be50eaf7d911c665fce3237041f9926cd4c151424"
+        }
+      ],
+      "baseline": {
+        "payload_bytes": null,
+        "wall_time_seconds": 466.213,
+        "cost_usd": null,
+        "retries": null,
+        "escalations": null,
+        "human_interventions": null,
+        "wall_time_source": "historical-automated-checks"
+      },
+      "case_sha256": "5a63f4034539ca63674ffbc6b0e67e1461f3f5559276ab6b0a8a3280ae1365eb"
+    },
+    {
+      "id": "private-reference-preflight",
+      "work_shape": "safety preflight and lifecycle contract",
+      "source_revision": "6ee5f130e4592bd291c20fbd4fcd21156f110b82",
+      "contract": [
+        {
+          "revision": "a3a4b86981c19ec091ec8ab0608c326edc268792",
+          "path": "openspec/changes/archive/2026-09-28-early-private-reference-preflight/proposal.md",
+          "sha256": "2654c4c4b3b940ceb85aa648d34301db401090e11947d331e5ae90ff0b4370c4"
+        },
+        {
+          "revision": "a3a4b86981c19ec091ec8ab0608c326edc268792",
+          "path": "openspec/changes/archive/2026-09-28-early-private-reference-preflight/specs/completion-lifecycle/spec.md",
+          "sha256": "5b52831deef21616875e1d21ac2421cdcd4855b55e1604b022b81922e15e8dd0"
+        }
+      ],
+      "authoritative_evidence": [
+        {
+          "revision": "a3a4b86981c19ec091ec8ab0608c326edc268792",
+          "path": "openspec/changes/archive/2026-09-28-early-private-reference-preflight/verification.md",
+          "sha256": "7d7ab79aaece666ddb4b5fb301d5e1fd788f316a49d5465c8c8e55057374af8d"
+        },
+        {
+          "revision": "a3a4b86981c19ec091ec8ab0608c326edc268792",
+          "path": "openspec/changes/archive/2026-09-28-early-private-reference-preflight/automated-checks.json",
+          "sha256": "bae4e1ef53397e845ed3ba09e59fe6f26fa156dd719400c0b2e241f3c7d22c29"
+        }
+      ],
+      "baseline": {
+        "payload_bytes": null,
+        "wall_time_seconds": 489.048,
+        "cost_usd": null,
+        "retries": null,
+        "escalations": null,
+        "human_interventions": null,
+        "wall_time_source": "historical-automated-checks"
+      },
+      "case_sha256": "67e0136c2b94585f3ebf1210efd33896b745fb97ca7c2038f80d290918dc8932"
+    },
+    {
+      "id": "managed-terminal-obligations",
+      "work_shape": "managed completion lifecycle alignment",
+      "source_revision": "e028c7dece23c3900ce5d51edc7c37aa20f0c2f9",
+      "contract": [
+        {
+          "revision": "45c75824f0b8241c81abd7337357096b456d8f01",
+          "path": "openspec/changes/archive/2026-09-28-align-managed-terminal-obligations/proposal.md",
+          "sha256": "6cf3727674467db4a30d43388218f7b829dc34676c064a83715f422db974584e"
+        },
+        {
+          "revision": "45c75824f0b8241c81abd7337357096b456d8f01",
+          "path": "openspec/changes/archive/2026-09-28-align-managed-terminal-obligations/specs/completion-lifecycle/spec.md",
+          "sha256": "bdd3f236c4950ab61ead268a84eb39194ff55d13692e351fd95055ccb10624e4"
+        }
+      ],
+      "authoritative_evidence": [
+        {
+          "revision": "45c75824f0b8241c81abd7337357096b456d8f01",
+          "path": "openspec/changes/archive/2026-09-28-align-managed-terminal-obligations/verification.md",
+          "sha256": "9b95e190f9933edaf4896023336fb58dd9537c6efbac09f13ffcaa24f1db6eea"
+        },
+        {
+          "revision": "45c75824f0b8241c81abd7337357096b456d8f01",
+          "path": "openspec/changes/archive/2026-09-28-align-managed-terminal-obligations/automated-checks.json",
+          "sha256": "2b7eaaf07d450b6f093d47afa5bb6912088c87ef9ef460ea17e1cd95a72b34e7"
+        }
+      ],
+      "baseline": {
+        "payload_bytes": null,
+        "wall_time_seconds": 309.526,
+        "cost_usd": null,
+        "retries": null,
+        "escalations": null,
+        "human_interventions": null,
+        "wall_time_source": "historical-automated-checks"
+      },
+      "case_sha256": "acd55a665397c5acb8c8075b3fb06d4c165377316172bcef483d0bdc328c9496"
+    },
+    {
+      "id": "health-review-orchestration",
+      "work_shape": "cross-process orchestration and notification flow",
+      "source_revision": "9b5a449cf08f131198f0ecf69b7135b49df12d2c",
+      "contract": [
+        {
+          "revision": "99bc9b7eca61bb3e2091dfbfec3ad56771a06fd5",
+          "path": "openspec/changes/archive/2026-09-23-add-platform-health-review-orchestration/proposal.md",
+          "sha256": "c4b084fb0c6ec07a7d14201b6e4f38638f2968c4c69a7b20e3ed1c9a423f75eb"
+        },
+        {
+          "revision": "99bc9b7eca61bb3e2091dfbfec3ad56771a06fd5",
+          "path": "openspec/changes/archive/2026-09-23-add-platform-health-review-orchestration/specs/platform-health-review/spec.md",
+          "sha256": "20902ba494224dc73a54b6b06060d4d9831b6bf3d7a225fb5a5f61e06296b85e"
+        }
+      ],
+      "authoritative_evidence": [
+        {
+          "revision": "99bc9b7eca61bb3e2091dfbfec3ad56771a06fd5",
+          "path": "openspec/changes/archive/2026-09-23-add-platform-health-review-orchestration/verification.md",
+          "sha256": "0f8cf36ee72f0d6a16341016b554874c91309cbf83f63afb2b7e2c6608081971"
+        },
+        {
+          "revision": "99bc9b7eca61bb3e2091dfbfec3ad56771a06fd5",
+          "path": "openspec/changes/archive/2026-09-23-add-platform-health-review-orchestration/automated-checks.json",
+          "sha256": "846ff4589bc5af631e8bd37668028cb64a593c2e5145b502bd5eacea64280343"
+        }
+      ],
+      "baseline": {
+        "payload_bytes": null,
+        "wall_time_seconds": 161.701,
+        "cost_usd": null,
+        "retries": null,
+        "escalations": null,
+        "human_interventions": null,
+        "wall_time_source": "historical-automated-checks"
+      },
+      "case_sha256": "56111ed4369175ee3dc3b012ca43b9ea3c03ced0cb05f70136914f3958ac6c22"
+    },
+    {
+      "id": "requirement-intake",
+      "work_shape": "new requirement-first intake workflow",
+      "source_revision": "179cc17d8ccea68206a9463de02acee357c945c8",
+      "contract": [
+        {
+          "revision": "32bc6e06a3b9dd494fb7745fa62dc61fc6971343",
+          "path": "openspec/changes/archive/2026-09-21-add-requirement-intake/proposal.md",
+          "sha256": "921e709b5478f348ece0e4617f66f38963f8488fc85b8f46ffe097f323cd77b6"
+        },
+        {
+          "revision": "32bc6e06a3b9dd494fb7745fa62dc61fc6971343",
+          "path": "openspec/changes/archive/2026-09-21-add-requirement-intake/specs/agent-workflow/spec.md",
+          "sha256": "d332964a05d43c8997fbafd893c61888de23956308fe997e5615e2949dcdbfb9"
+        }
+      ],
+      "authoritative_evidence": [
+        {
+          "revision": "32bc6e06a3b9dd494fb7745fa62dc61fc6971343",
+          "path": "openspec/changes/archive/2026-09-21-add-requirement-intake/verification.md",
+          "sha256": "a686eb664f0284d1e782043c7b336670e1c67bcb59ab4635376152ed799501f7"
+        },
+        {
+          "revision": "32bc6e06a3b9dd494fb7745fa62dc61fc6971343",
+          "path": "openspec/changes/archive/2026-09-21-add-requirement-intake/automated-checks.json",
+          "sha256": "54167d156a44209548aa7092cd30ca103523d7439a0b6b4765f01d6ab5cb9c45"
+        }
+      ],
+      "baseline": {
+        "payload_bytes": null,
+        "wall_time_seconds": 151.213,
+        "cost_usd": null,
+        "retries": null,
+        "escalations": null,
+        "human_interventions": null,
+        "wall_time_source": "historical-automated-checks"
+      },
+      "case_sha256": "ad219b066d8a84d9fdf1a3eeb1998f96010f44606c9a38f1f6824986f1f6c155"
+    }
+  ],
+  "suite_sha256": "e018e3ad15fdcba1c4e33328df9aaedf720954ddc96c8cd141fa943f3892df09"
+}

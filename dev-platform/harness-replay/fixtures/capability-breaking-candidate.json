@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "candidate_id": "shorter-instructions-break-required-verification",
+  "harness_changes": [
+    "shorter-instructions"
+  ],
+  "suite_sha256": "e018e3ad15fdcba1c4e33328df9aaedf720954ddc96c8cd141fa943f3892df09",
+  "capability_acceptance": {
+    "verification": "pass",
+    "reference": "match"
+  },
+  "results": [
+    {
+      "case_id": "copier-version-config",
+      "verification": "fail",
+      "reference": "mismatch",
+      "metrics": {
+        "payload_bytes": 1
+      }
+    },
+    {
+      "case_id": "private-reference-preflight",
+      "verification": "pass",
+      "reference": "match",
+      "metrics": {}
+    },
+    {
+      "case_id": "managed-terminal-obligations",
+      "verification": "pass",
+      "reference": "match",
+      "metrics": {}
+    },
+    {
+      "case_id": "health-review-orchestration",
+      "verification": "pass",
+      "reference": "match",
+      "metrics": {}
+    },
+    {
+      "case_id": "requirement-intake",
+      "verification": "pass",
+      "reference": "match",
+      "metrics": {}
+    }
+  ]
+}
