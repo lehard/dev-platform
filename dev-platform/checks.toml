@@ -72,6 +72,10 @@ mode = "parallel"
 targets = ["test_publication_state"]
 mode = "parallel"
 
+[test_groups.publication_queue]
+targets = ["test_publication_queue"]
+mode = "parallel"
+
 [test_groups.merge_lifecycle_resilience]
 targets = ["test_merge_lifecycle_resilience"]
 mode = "parallel"

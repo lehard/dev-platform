@@ -1,0 +1,90 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 1.47,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.946,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 259.555,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        ".github/workflows/publication-queue.yml",
+        "dev-platform/checks.toml",
+        "scripts/publication_queue.py",
+        "template/scripts/finish_task.py",
+        "template/scripts/project_publish.py",
+        "template/scripts/publication_queue.py",
+        "tests/test_publication_queue.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_174c6f3f0d8405cae1469427d2c52a57",
+    "change": "serialize-final-publication",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/serialize-final-publication",
+    "branch": "agent/serialize-final-publication",
+    "head": "d7b45de36b57746ec9e1972538db0cccaa457a89",
+    "task_content": {
+      "version": 1,
+      "digest": "80a740c525dc3abc78d955a12fd92d1ceb44f067ada200d12cc419cca152e81f",
+      "paths": {
+        ".github/workflows/publication-queue.yml": "f872bbd8da12633d131c3942f37ed8dbcf8e404a",
+        "dev-platform/checks.toml": "85e16bf837b4de5d05f1681c513062b0e0fc1456",
+        "docs/engineering/agent-workflow.md": "0da267de01db15bd124e4c2c6d9408bc0d5a325c",
+        "openspec/changes/serialize-final-publication/.managed-task.json": "e94beb16cd1c4c74e0f0b20b1bfdbd1e71179a7a",
+        "openspec/changes/serialize-final-publication/.openspec.yaml": "ee7c5448114a173e0747e643bc8c2bd9632a05e7",
+        "openspec/changes/serialize-final-publication/automated-checks.json": "1780defbea6138b9b81ff4856f88d87c41bab874",
+        "openspec/changes/serialize-final-publication/design.md": "e35ba570f177da16cc3fdd65925f32ae8d474e4d",
+        "openspec/changes/serialize-final-publication/proposal.md": "0b60b5b4644dc7745065d4caf35d64852ab1f033",
+        "openspec/changes/serialize-final-publication/specs/publication-queue/spec.md": "3e012ff8c9565ce0df6c148cbd116af0020f6b26",
+        "openspec/changes/serialize-final-publication/specs/publication-recovery/spec.md": "058ff8b02ea94ba5797ea3462423914af57ed3e7",
+        "openspec/changes/serialize-final-publication/tasks.md": "3c6119e9b31bf720bfadc617359b97555232144e",
+        "openspec/changes/serialize-final-publication/verification.md": "f02d996b6d7b8e6642eb8ea7d0f0b129397da8cc",
+        "openspec/specs/publication-queue/spec.md": "d69c11133a49f62f22e04265c26e8a62816c038e",
+        "openspec/specs/publication-recovery/spec.md": "5012a86b7a3eafd76a9c7a3c14219da2dc16b082",
+        "scripts/publication_queue.py": "9d98fffc378497d3ca13ea9399e1869ecb80031a",
+        "template/scripts/finish_task.py": "a9f3481c7fa0f3f6719a928af1f81dc5310a6b6d",
+        "template/scripts/project_publish.py": "6f65b4db932e0b6f755ea703b2a4d8fbdba00748",
+        "template/scripts/publication_queue.py": "aba4778a43d578dca88ae4a8078cabc42280791b",
+        "tests/test_publication_queue.py": "76f159d9e66ac90a2b29b8a259f788156ebda9c4"
+      },
+      "base": "3454d970693568cbc9044acc569d3435fc3ec5a9"
+    }
+  }
+}
