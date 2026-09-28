@@ -1,0 +1,85 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 1.466,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.211,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 638.286,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        ".github/workflows/adopt-project.yml",
+        ".github/workflows/ci.yml",
+        "template/.github/workflows/dev-platform.yml.jinja",
+        "tests/openspec_1_13_regression.py",
+        "tests/project_harness_adoption_smoke.py",
+        "tests/test_template_contract.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_596fceef04517daa1a2c7f811f414b63",
+    "change": "bump-openspec-stable-1-13-2",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/bump-openspec-stable-1-13-2",
+    "branch": "agent/bump-openspec-stable-1-13-2",
+    "head": "d429e832737f2b14c05d782ddc968f32e62dd7d4",
+    "task_content": {
+      "version": 1,
+      "digest": "a21ff7973e997508773bd133e03dd7b9bc2c973e3477ce39c45dfc307cffa6b6",
+      "paths": {
+        ".github/workflows/adopt-project.yml": "c4ad3d2490a214d3c30c282ba601d6212e81e260",
+        ".github/workflows/ci.yml": "072e31729ea500e40f5b5dd5491bca0a50df246b",
+        "README.md": "ac64d6a2cf0a1cc04c18fd77a86e4c36ffa9b4d5",
+        "openspec/changes/bump-openspec-stable-1-13-2/.managed-task.json": "b3b451c8c56aac49f123afd44a26f5b673c67af8",
+        "openspec/changes/bump-openspec-stable-1-13-2/.openspec.yaml": "ee7c5448114a173e0747e643bc8c2bd9632a05e7",
+        "openspec/changes/bump-openspec-stable-1-13-2/design.md": "1a67115ebc91baaad89f0cc00ac7934e66ac3207",
+        "openspec/changes/bump-openspec-stable-1-13-2/proposal.md": "b0553e54df68a4d78e0b39c1252896a0beb98627",
+        "openspec/changes/bump-openspec-stable-1-13-2/specs/openspec-authoring/spec.md": "5a128d80974f12db552168d4e8a2b351126d8faf",
+        "openspec/changes/bump-openspec-stable-1-13-2/tasks.md": "6a216cf4513074746f27d5171101439dfb1461d4",
+        "openspec/changes/bump-openspec-stable-1-13-2/verification.md": "6a19e0ab4621f85708da3a2edfa1350777499d69",
+        "template/.dev-platform.toml.jinja": "1e5a47bac4fadc20887f7b2b2814ece5342776e1",
+        "template/.github/workflows/dev-platform.yml.jinja": "6f4205a71ccf34d6f19e5707077f22ec239fb4f8",
+        "tests/openspec_1_13_regression.py": "15450c7665e21a7be600b0b33c67d17706b8f41a",
+        "tests/project_harness_adoption_smoke.py": "c8bdb07c9802933977cb771ba249c4a214a4f32e",
+        "tests/test_template_contract.py": "b311b1b4a3d5393da6cb3d1d2d1812703614a546"
+      },
+      "base": "f3e0490bc6e3eddb0f0295ecf98e7b1befd285ce"
+    }
+  }
+}
