@@ -1,0 +1,73 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.119,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.911,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 312.615,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "tests/test_publication_recovery_cli.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_2cd995a018812d8de3914544eba62dcf",
+    "change": "stabilize-bounded-recovery-helper-timeout-test",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/stabilize-bounded-recovery-helper-timeout-test",
+    "branch": "agent/stabilize-bounded-recovery-helper-timeout-test",
+    "head": "3768b136e87ac19c3661ba2f85e9e08e7bcfaeab",
+    "task_content": {
+      "version": 1,
+      "digest": "6dc171405d05cf9899e41ee47cf991d74d582a19ca980af209a8fbe3a4df160c",
+      "paths": {
+        "openspec/changes/stabilize-bounded-recovery-helper-timeout-test/.managed-task.json": "ea810aed289207f156864e596a6a90ec848f1e3a",
+        "openspec/changes/stabilize-bounded-recovery-helper-timeout-test/.openspec.yaml": "ee7c5448114a173e0747e643bc8c2bd9632a05e7",
+        "openspec/changes/stabilize-bounded-recovery-helper-timeout-test/design.md": "f6a60e56137bfe83f925d36eece10ff100fb5962",
+        "openspec/changes/stabilize-bounded-recovery-helper-timeout-test/proposal.md": "6076d0bdb09dd295ad20d78b5d50ae825306ccdb",
+        "openspec/changes/stabilize-bounded-recovery-helper-timeout-test/specs/platform-ci/spec.md": "fabfbbdc5bd618a59a5b36f91a0265edc0e7b7eb",
+        "openspec/changes/stabilize-bounded-recovery-helper-timeout-test/tasks.md": "ccd613e36e2c38bb27fd72d6e798854a77aef716",
+        "openspec/changes/stabilize-bounded-recovery-helper-timeout-test/verification.md": "8fe0feb896aa422599294d03cbeae8907dbe5802",
+        "tests/test_publication_recovery_cli.py": "3ec94b78fcc1f420b3b2f330d8f71853dc2eb82b"
+      },
+      "base": "da821e5e2455d2a53aa0eb72063d37c9fc93bb75"
+    }
+  }
+}
