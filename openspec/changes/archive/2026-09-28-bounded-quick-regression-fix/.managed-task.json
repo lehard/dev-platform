@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/managed-task-intake/spec.md"
+  ],
+  "change": "bounded-quick-regression-fix",
+  "imported_at": "2026-09-28T06:59:05+00:00",
+  "package_revision": "798e1fdbb6d90921b26b0644c7d2eb198f9a6ebb5e902254b4035dc46cd93119",
+  "prepared_against": "41d67fe2bae8d2936f5e40b53650b0d2e80ba954",
+  "private_lineage_handle": "pln_995ff256ba63e4567c8ed35a69a9a4c4",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "1e3f1d64bbdc82942f48ca96fd074f5af07194eb5615c64fb8c9d28fe35a1627",
+    "updated_at": "2026-09-28T06:57:07Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

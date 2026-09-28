@@ -335,6 +335,30 @@ class TemplateContractTests(unittest.TestCase):
                 self.assertIn("fixation-only", text)
                 self.assertIn("Quick execution", text)
 
+    def test_quick_regression_repair_guidance_is_rendered_and_bounded(self) -> None:
+        agent_template = jinja2.Environment().from_string(
+            (ROOT / "template" / "AGENTS.md.jinja").read_text(encoding="utf-8")
+        )
+        intake_template = jinja2.Environment().from_string(
+            (ROOT / "template" / "docs" / "engineering" / "task-intake.md.jinja").read_text(encoding="utf-8")
+        )
+        for name, text in (
+            ("portable agent map", agent_template.render(operator_config_path="")),
+            ("operator agent map", agent_template.render(operator_integration=True, operator_config_path="")),
+            ("portable intake", intake_template.render(operator_config_path="")),
+            ("operator intake", intake_template.render(operator_integration=True, operator_config_path="")),
+        ):
+            with self.subTest(surface=name):
+                normalized = " ".join(text.split())
+                self.assertIn("regression repair", normalized)
+                self.assertIn("unambiguously established", normalized)
+                self.assertIn("proportionate regression evidence", normalized)
+
+        rendered_intake = intake_template.render(operator_integration=True, operator_config_path="")
+        self.assertIn("defect before repair", rendered_intake)
+        self.assertIn("original failure path", rendered_intake)
+        self.assertIn("stop further\nimplementation and enter managed intake first", rendered_intake)
+
     def test_chatgpt_adapter_defers_to_shared_task_intake_contract(self) -> None:
         text = (ROOT / "docs" / "engineering" / "chatgpt-project-protocol.md").read_text(encoding="utf-8")
         self.assertIn("Fresh non-trivial execution", text)
