@@ -9,6 +9,7 @@ For the currently maintained context, consult these canonical sources:
 - Product and adoption boundaries: [Ownership](../ownership.md) and [Adoption](../adoption.md).
 - Instruction architecture and source ownership: [agent instructions](../engineering/agent-instructions.md).
 - Lifecycle constraints and representative changes: [agent workflow](../engineering/agent-workflow.md) and `openspec/changes/archive/`.
+- Consequential historical decisions and reconsideration conditions: [decision registry](../decisions/README.md), loaded only for the reached concern.
 
 Semantic owner: Dev Platform maintainers
 Last reviewed: 2026-09-19

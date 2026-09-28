@@ -20,6 +20,11 @@ Keep the root map bounded. Adding a new durable concern means adding one
 discoverable pointer and targeted evidence, not copying its workflow into every
 runtime adapter.
 
+The [decision registry](../decisions/README.md) preserves consequential historical
+rationale and revisit conditions. Load only records relevant to the current
+concern. Those records inform authoring but do not override OpenSpec behavior,
+active deltas, or the task-intake lifecycle.
+
 ## Project context
 
 `docs/context/README.md` is the project-owned map for stable product and domain
