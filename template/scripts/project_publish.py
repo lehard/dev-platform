@@ -510,6 +510,18 @@ def publish_pr(
         raise SystemExit(f"Unknown pr_merge_mode: {merge_mode!r}; expected 'auto' or 'manual'.")
 
     config = config or read_platform_config(root)
+    # The central source repository has a durable coordinator once its workflow
+    # is present on authoritative main. The feature introducing that workflow
+    # still publishes through the existing protected path during bootstrap.
+    if config.get("platform_version") == "source":
+        from publication_queue import admit, enabled
+
+        if enabled(root):
+            if pr.number is None:
+                raise SystemExit("Publication queue requires a numbered exact PR")
+            queued = admit(root, pr.number, expected_head)
+            print(f"Exact PR admitted to final publication queue at key {queued['position_key']}; worker owns protected integration.")
+            raise SystemExit("Publication queued; rerun finish after GitHub reports the exact PR MERGED.")
     integration = main_root()
 
     def merge_guard() -> ContextManager[None]:
