@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/managed-task-intake/spec.md"
+  ],
+  "change": "connected-requirement-operator-routing",
+  "imported_at": "2026-09-28T07:24:19+00:00",
+  "package_revision": "20abf2999a9d2ac8f009b2f4b51b8b2128a4c0dc75b9b76fbbf09a3aced53a61",
+  "prepared_against": "41d67fe2bae8d2936f5e40b53650b0d2e80ba954",
+  "private_lineage_handle": "pln_cad95e7830900ca68bddb9ea4defd180",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "ae64b83a9993912a56d2fb1da62168bce6eafdb551984e04031af1ebc5581252",
+    "updated_at": "2026-09-28T07:21:34Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

@@ -1,0 +1,79 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.997,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.577,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 309.339,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/requirement_intake.py",
+        "tests/fixtures/chatgpt_project_requirement_operator_routing.json",
+        "tests/test_requirement_intake.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_cad95e7830900ca68bddb9ea4defd180",
+    "change": "connected-requirement-operator-routing",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/connected-requirement-operator-routing",
+    "branch": "agent/connected-requirement-operator-routing",
+    "head": "4912a0057ce6350ab53cd0990f236cbd7149c03f",
+    "task_content": {
+      "version": 1,
+      "digest": "f832011fdfde057503485dcd51641a038210a6d769e3e83e2dfc27294dbfa5ba",
+      "paths": {
+        "docs/engineering/chatgpt-project-protocol.md": "897236a19b158d2483172c007dfbf5e49889c054",
+        "openspec/changes/connected-requirement-operator-routing/.managed-task.json": "671f0b0b4dcf57e344fbdabe640ea3835ae72dbf",
+        "openspec/changes/connected-requirement-operator-routing/.openspec.yaml": "ee7c5448114a173e0747e643bc8c2bd9632a05e7",
+        "openspec/changes/connected-requirement-operator-routing/design.md": "95d69ef7da6d7b6c8dfb45f295bfa261a68db080",
+        "openspec/changes/connected-requirement-operator-routing/proposal.md": "d24a23fe994fa79c5b3fce6a2fa40e235112d785",
+        "openspec/changes/connected-requirement-operator-routing/specs/managed-task-intake/spec.md": "ab7de2f42ca9832f0da998ea4f06562e3d428acb",
+        "openspec/changes/connected-requirement-operator-routing/tasks.md": "2be14187b59b786bf606d11edb0e8d292e83a194",
+        "openspec/changes/connected-requirement-operator-routing/verification.md": "fdce4123ea0c10d64208b18dd1bccda8cf76282e",
+        "template/docs/engineering/chatgpt-project-protocol.md": "897236a19b158d2483172c007dfbf5e49889c054",
+        "template/scripts/requirement_intake.py": "f35cf4c3db6ce14b3d57c019bdb9b0ebcafeab87",
+        "tests/fixtures/chatgpt_project_requirement_operator_routing.json": "9bcf16dfeed76fc7f3bdb49f8c150553f0649bfc",
+        "tests/test_requirement_intake.py": "fb1b6121a6aaefe34185caaacd97f8bda94a1e2f"
+      },
+      "base": "5d85cbe97dc57a720e97c32477818e5d0faa7247"
+    }
+  }
+}
