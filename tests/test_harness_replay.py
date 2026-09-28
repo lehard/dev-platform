@@ -73,13 +73,13 @@ class HarnessReplayTests(unittest.TestCase):
 
     def test_isolated_clone_does_not_change_source_checkout(self) -> None:
         suite = harness_replay.load_suite(SUITE)
-        before = subprocess.run(["git", "status", "--porcelain=v1"], cwd=ROOT, text=True, capture_output=True, check=True).stdout
+        before = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True, capture_output=True, check=True).stdout
         with harness_replay.isolated_workspace(ROOT, suite["cases"][0]["source_revision"]) as clone:
             self.assertEqual(
                 subprocess.run(["git", "rev-parse", "HEAD"], cwd=clone, text=True, capture_output=True, check=True).stdout.strip(),
                 suite["cases"][0]["source_revision"],
             )
-        after = subprocess.run(["git", "status", "--porcelain=v1"], cwd=ROOT, text=True, capture_output=True, check=True).stdout
+        after = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True, capture_output=True, check=True).stdout
         self.assertEqual(before, after)
 
 

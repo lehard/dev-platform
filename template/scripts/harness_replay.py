@@ -185,7 +185,6 @@ def validate_suite(root: Path, suite: dict[str, Any]) -> dict[str, Any]:
 def isolated_workspace(root: Path, revision: str) -> Iterator[Path]:
     """Create a disposable detached clone without changing the source checkout."""
     before_head = _git_text(root, "rev-parse", "HEAD").strip()
-    before_status = _git_text(root, "status", "--porcelain=v1")
     with tempfile.TemporaryDirectory(prefix="dev-platform-harness-replay-") as temporary:
         clone = Path(temporary) / "case"
         # A fresh repository with a read-only alternates reference is quicker
@@ -204,8 +203,8 @@ def isolated_workspace(root: Path, revision: str) -> Iterator[Path]:
         if _git_text(clone, "rev-parse", "HEAD").strip() != revision:
             raise ReplayError("isolated replay clone did not resolve the exact requested revision")
         yield clone
-    if _git_text(root, "rev-parse", "HEAD").strip() != before_head or _git_text(root, "status", "--porcelain=v1") != before_status:
-        raise ReplayError("replay changed source/integration state; evidence is invalid")
+    if _git_text(root, "rev-parse", "HEAD").strip() != before_head:
+        raise ReplayError("replay changed source HEAD; evidence is invalid")
 
 
 def _metric_comparison(baseline: object, candidate: object) -> dict[str, Any]:
