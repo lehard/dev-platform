@@ -34,9 +34,15 @@ implementation. A fixation-only request stops here.
 
 **Quick execution.** A small direct request may use the existing
 task/check/finish workflow without creating a Requirement, backlog issue, or
-ceremonial OpenSpec. If it expands into a material behavior, architecture,
-compatibility, data-contract, or scope change, stop implementation and enter
-the appropriate non-trivial intake route before continuing.
+ceremonial OpenSpec. This includes a small regression repair when an accepted
+spec or equivalent durable contract unambiguously establishes the expected
+behavior. Record that contract and proportionate regression evidence: where a
+reasonable test seam exists, show the defect before repair, show the check
+passing after, and rerun the original failure path. Otherwise, state the
+limitation and actual alternative check truthfully. If it expands into a
+material behavior, architecture, compatibility, data-contract, or scope
+change, stop implementation and enter the appropriate non-trivial intake route
+before continuing.
 
 **Fresh non-trivial execution / execute a Business Requirement.** By default,
 material business/product work is requirement-first. Create/reuse the

@@ -108,10 +108,18 @@ field remains child-only; `progress` adds a recomputable pre-authoring,
 design/decision, readiness, implementation, blocked/unknown, or done stage
 with source diagnostics. Do not create a second Requirement status ledger.
 
-Quick tasks remain unchanged. The direct managed/OpenSpec path remains
-available only when the user explicitly supplies an existing managed
-Issue/OpenSpec task or explicitly requests a technical managed task. In that
-case the existing `python3 scripts/managed_task.py create --bundle <directory>`,
+Quick tasks remain unchanged. A small regression repair may remain quick when
+an accepted spec or equivalent durable contract unambiguously establishes the
+expected behavior. Record that contract and proportionate regression evidence:
+where a reasonable test seam exists, show the defect before repair, show the
+check passing after, and rerun the original failure path; otherwise, state the
+limitation and actual alternative check truthfully. If the repair becomes a
+material behavior, architecture, compatibility, data-contract, or scope
+change, stop quick implementation and enter the configured non-trivial intake
+route. The direct managed/OpenSpec path remains available only when the user
+explicitly supplies an existing managed Issue/OpenSpec task or explicitly
+requests a technical managed task. In that case the existing
+`python3 scripts/managed_task.py create --bundle <directory>`,
 `python3 scripts/execute_managed_task.py --bundle <directory>`, and
 `python3 scripts/start_managed_task.py owner/repo#N` semantics remain available.
 

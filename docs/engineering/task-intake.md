@@ -30,7 +30,8 @@ creating a separate task format.
   labels by reading the Issue back before reporting success.
 - **Quick execution**: a small, clear, bounded change may use normal task
   execution without a Requirement, Backlog Issue, or ceremonial OpenSpec
-  change.
+  change. This includes a regression repair that restores behavior
+  unambiguously established by an accepted spec or equivalent durable contract.
 - **Fresh non-trivial execution**: unless the user explicitly requests a
   technical managed task/OpenSpec change, create or reuse a Business
   Requirement, start its pre-authoring flow, produce the internal managed
@@ -257,7 +258,15 @@ those internal/direct technical paths.
 
 ## Escalating quick work
 
-Keep quick work quick. If inspection reveals material behavioral,
+Keep quick work quick. A directly requested small regression repair may remain
+quick only when an accepted spec or equivalent durable contract unambiguously
+establishes the expected behavior. Record that contract and proportionate
+regression evidence. Where a reasonable test seam exists, demonstrate the
+defect before repair, show the regression check passing after, and rerun the
+original failure path. Where no reasonable automated seam exists, state the
+limitation and actual alternative check truthfully; do not fabricate evidence.
+
+If inspection reveals material behavioral,
 architectural, compatibility, data-contract, cross-session, or scope impact —
 or if a full active OpenSpec change is needed to govern the work — stop further
 implementation and enter managed intake first. Do not create a normal active

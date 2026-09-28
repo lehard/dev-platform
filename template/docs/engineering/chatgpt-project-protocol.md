@@ -239,7 +239,7 @@ guessing.
 
 ### Quick task
 
-A small, clear request that the user wants performed immediately may be handled as a quick task without creating a Backlog Issue or ceremonial OpenSpec.
+A small, clear request that the user wants performed immediately may be handled as a quick task without creating a Backlog Issue or ceremonial OpenSpec. This includes a small regression repair when an accepted spec or equivalent durable contract unambiguously establishes the expected behavior. Record that contract and proportionate regression evidence: where a reasonable test seam exists, show the defect before repair, show the check passing after, and rerun the original failure path; otherwise, state the limitation and actual alternative check truthfully.
 
 If the work expands into a material behavior, architecture, compatibility, data-contract, safety, or cross-session change, stop treating it as quick work and enter managed intake before further implementation instead of broadening scope silently.
 
