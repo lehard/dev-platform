@@ -9,19 +9,19 @@
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
-      "duration_seconds": 0.64,
+      "duration_seconds": 0.661,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 -m ruff check scripts template/scripts tests",
-      "duration_seconds": 0.49,
+      "duration_seconds": 0.25,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
-      "duration_seconds": 264.149,
+      "duration_seconds": 283.54,
       "outcome": "success",
       "exit_code": 0
     }
@@ -54,15 +54,15 @@
     "change": "add-large-observation-lifecycle",
     "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/add-large-observation-lifecycle",
     "branch": "agent/add-large-observation-lifecycle",
-    "head": "9219df79ef29fbf8d05cd4c6f5e2b093cd78e3a0",
+    "head": "9447e2644f760dc0112b12061581e6fa21588a2a",
     "task_content": {
       "version": 1,
-      "digest": "735de34b8d594f29f8248e8af9a39434420f2d643e701e755010d3f906431cf0",
+      "digest": "7711245006a6200f68752dff4615c0f6bf18a6294311dd63117a6ddede75263b",
       "paths": {
         "docs/engineering/model-routing.md": "fb921107566f2c4bc3bafebf8f30b06e24cdc29c",
         "openspec/changes/add-large-observation-lifecycle/.managed-task.json": "c8c6c359d2f220e914d5a7638c4f9bf1a9e3b325",
         "openspec/changes/add-large-observation-lifecycle/.openspec.yaml": "ee7c5448114a173e0747e643bc8c2bd9632a05e7",
-        "openspec/changes/add-large-observation-lifecycle/automated-checks.json": "96ff106b2db5d466d4f6317c51b90e0e0c4f3573",
+        "openspec/changes/add-large-observation-lifecycle/automated-checks.json": "6fcdc1727ccb47b812c2d9ae6d880cfd08a2daa8",
         "openspec/changes/add-large-observation-lifecycle/design.md": "760c9c5d7e5af6fbe4d918f630b90fae074f1e4f",
         "openspec/changes/add-large-observation-lifecycle/proposal.md": "dee728d4fbb2be53252e7d814b1c931b49cb4fa7",
         "openspec/changes/add-large-observation-lifecycle/specs/model-routing/spec.md": "fcf536a762eaf381afd962ed98f286f5b794bd51",
