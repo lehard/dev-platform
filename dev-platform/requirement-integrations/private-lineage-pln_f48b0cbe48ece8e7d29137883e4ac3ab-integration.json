@@ -1,0 +1,24 @@
+{
+  "base": "1414fe00bce97311b2ab46302def3c21bfab365f",
+  "children": [
+    {
+      "change": "upstream-substitution-gate",
+      "delta_base": "1414fe00bce97311b2ab46302def3c21bfab365f",
+      "digest": "ea173623204cd5aee722f91af1a0b8a9a3d1fa96b56ca14243449661b5ef06ef",
+      "head": "0309d31d7720f9575327a361b8e9fe57ec1050da",
+      "source_branch": "agent/upstream-substitution-gate",
+      "source_issue": "pln_85c23806ef37452625d31bbed474f7f7"
+    },
+    {
+      "change": "teamai-substitution-pilot",
+      "delta_base": "0309d31d7720f9575327a361b8e9fe57ec1050da",
+      "digest": "d7b89a73512c33665bb4a5f8665af1ba0c43d3aca630a74c9690c6c73ce1d458",
+      "head": "4ebb63018c67c5b9399378cc2daff1378d9dfc64",
+      "source_branch": "agent/teamai-substitution-pilot",
+      "source_issue": "pln_bb2f6b2bec272b3af305d6f86e02bc5b"
+    }
+  ],
+  "digest": "b82f967a62f30d6a3ebdc2cf11ea3ea55f06dda23ba9c6d975a633e76577712e",
+  "requirement": "pln_f48b0cbe48ece8e7d29137883e4ac3ab",
+  "version": 1
+}
