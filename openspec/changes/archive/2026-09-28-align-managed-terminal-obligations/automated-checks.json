@@ -1,0 +1,80 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 1.058,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.184,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 308.284,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/finish_task.py",
+        "template/scripts/managed_task.py",
+        "tests/test_managed_status_lifecycle.py",
+        "tests/test_managed_task.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_b2934164f41cb6a8935553383d717059",
+    "change": "align-managed-terminal-obligations",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/align-managed-terminal-obligations",
+    "branch": "agent/align-managed-terminal-obligations",
+    "head": "ed788a19c0caae2fa29a08036181a5cc6dc41ff8",
+    "task_content": {
+      "version": 1,
+      "digest": "67ebbdaaef04a45e7d4b288ddb0fe4e6b3843613e9790247d847b01ccdec0d56",
+      "paths": {
+        "docs/engineering/agent-workflow.md": "7751b7372d3e7e7dc2a407afcd499d67f890eaa6",
+        "openspec/changes/align-managed-terminal-obligations/.managed-task.json": "edfca0112e2f5b219c718223a746864d44e8d48c",
+        "openspec/changes/align-managed-terminal-obligations/.openspec.yaml": "ee7c5448114a173e0747e643bc8c2bd9632a05e7",
+        "openspec/changes/align-managed-terminal-obligations/design.md": "e4d71ef4b34025dabf9ee392cf29408695f62aba",
+        "openspec/changes/align-managed-terminal-obligations/proposal.md": "e3028889fc11811d24cf1f9039595635cc21d488",
+        "openspec/changes/align-managed-terminal-obligations/specs/completion-lifecycle/spec.md": "0a9c3b9e06a9aa038f3dc4bbdd89dbcfb4b0807f",
+        "openspec/changes/align-managed-terminal-obligations/tasks.md": "2689fbbc40764ccf1ff8598ac99b60a6a058dc1d",
+        "openspec/changes/align-managed-terminal-obligations/verification.md": "5da62c75172971eee87e04eba164ad1e908caf14",
+        "template/scripts/finish_task.py": "d223c5908ef7934512e0e55882f0fcf94dc04456",
+        "template/scripts/managed_task.py": "4492cb8fda4ceeab4cdc39162956c523e35a4273",
+        "tests/test_managed_status_lifecycle.py": "d7e3f02ef714b1f983c1a48adb6a1c1c4dddfe20",
+        "tests/test_managed_task.py": "d3bba1b1a5a8dc21a423692ca94b099eee9094ed"
+      },
+      "base": "e028c7dece23c3900ce5d51edc7c37aa20f0c2f9"
+    }
+  }
+}
