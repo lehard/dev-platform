@@ -478,7 +478,7 @@ class TemplateContractTests(unittest.TestCase):
         copier = (ROOT / "copier.yml").read_text(encoding="utf-8")
         config = (ROOT / "template" / ".dev-platform.toml.jinja").read_text(encoding="utf-8")
         ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
-        self.assertIn('_min_copier_version: "9.17.0"', copier); self.assertIn('[tools.copier]', config); self.assertIn('tested_version = "9.17.0"', config); self.assertIn('copier==9.17.0', ci)
+        self.assertIn('_min_copier_version: "9.18.2"', copier); self.assertIn('[tools.copier]', config); self.assertIn('tested_version = "9.18.2"', config); self.assertIn('copier==9.18.2', ci)
 
     def test_openspec_version_policy_and_regression_smoke_are_consistent(self) -> None:
         if not (ROOT / ".dev-platform.toml").is_file():

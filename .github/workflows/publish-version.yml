@@ -27,7 +27,7 @@ jobs:
 
       - name: Install tested Copier for release installation validation
         if: steps.intent.outputs.intent == 'true'
-        run: python3 -m pip install "copier==9.17.0"
+        run: python3 -m pip install "copier==9.18.2"
 
       - name: Validate release installation contract
         if: steps.intent.outputs.intent == 'true'

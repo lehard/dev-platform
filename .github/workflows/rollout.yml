@@ -211,7 +211,7 @@ jobs:
           package-manager-cache: false
 
       - name: Install tested Copier
-        run: python3 -m pip install "copier==9.17.0"
+        run: python3 -m pip install "copier==9.18.2"
 
       - name: Configure GitHub App commit identity
         shell: bash

@@ -1,0 +1,90 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.136,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 5.328,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 460.749,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        ".github/workflows/adopt-project.yml",
+        ".github/workflows/ci.yml",
+        ".github/workflows/publish-version.yml",
+        ".github/workflows/rollout.yml",
+        "template/scripts/platform_doctor.py",
+        "tests/test_template_contract.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_c6d24bba29ae9ab5cb9b5dffd16b1f3b",
+    "change": "bump-copier-stable-9-18-2",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/bump-copier-stable-9-18-2",
+    "branch": "agent/bump-copier-stable-9-18-2",
+    "head": "5e1face9097ee608b2f9d5439628554374f6af40",
+    "task_content": {
+      "version": 1,
+      "digest": "244aa07d501dad742a9fa678d423f5479f4db578102a27b4a319a9d899b15076",
+      "paths": {
+        ".github/workflows/adopt-project.yml": "50865de6fa8e986e586303be29b50d1408a44487",
+        ".github/workflows/ci.yml": "3fac567711e87ea4b1b31f8340032844db62926d",
+        ".github/workflows/publish-version.yml": "5a217a4961199351ff95bbcca465ff45cd5c864c",
+        ".github/workflows/rollout.yml": "0c5bfba011d26a06739ec4df50832b33e00b8d04",
+        "README.md": "88e1605b17a470629ac3a5eb69f650c22e0ace8c",
+        "copier.yml": "3f01321aefcf274633e407aa9fa0c2142ef035ea",
+        "docs/managed-rollout.md": "56cdb3b9006b002580f5d45fb4a2ed3436e5455f",
+        "docs/release-policy.md": "5eda542117b0e480035eeff94e66daf8297506d0",
+        "openspec/changes/bump-copier-stable-9-18-2/.managed-task.json": "f655c95a69874ec1bbb6143e4d235fc7e9b91d7c",
+        "openspec/changes/bump-copier-stable-9-18-2/.openspec.yaml": "ee7c5448114a173e0747e643bc8c2bd9632a05e7",
+        "openspec/changes/bump-copier-stable-9-18-2/automated-checks.json": "68f830aca89b8acf7d4ec9eecb96a364ca279c81",
+        "openspec/changes/bump-copier-stable-9-18-2/design.md": "8362c22e5d1b42be1eb3ee127be9d6244a11708f",
+        "openspec/changes/bump-copier-stable-9-18-2/proposal.md": "0e8ce1c7792e8d191f0fbaaa8aecce7355bc3f01",
+        "openspec/changes/bump-copier-stable-9-18-2/specs/platform-config/spec.md": "74e3d178d3288ffb62e64a2e19459a82374f4747",
+        "openspec/changes/bump-copier-stable-9-18-2/tasks.md": "bbb2b9f36e5d5e8da0c39e5a2b9a5b8a990ecd37",
+        "openspec/changes/bump-copier-stable-9-18-2/verification.md": "a45aa561fe5942224f60f2fa3fb686951e6e89dc",
+        "openspec/specs/platform-config/spec.md": "faeb3fce0cad537a71bac4f9fa638f183e43659e",
+        "template/.dev-platform.toml.jinja": "8ebb39a7d28cf60b5ff6718c5cade97b46a68bb2",
+        "template/scripts/platform_doctor.py": "bfb9041d6258cda9b04469a3f16130ab42ef31e2",
+        "tests/test_template_contract.py": "f2750f8217bb1fea3814442e316d79120520883d"
+      },
+      "base": "93a5fbf7ff472f2a624883d180ce6c141fda71b6"
+    }
+  }
+}

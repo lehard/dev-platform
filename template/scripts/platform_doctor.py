@@ -417,7 +417,7 @@ def main() -> int:
         if any((root / relative).exists() for relative in VERIFY_CANDIDATES): ok("OpenSpec verify workflow is installed")
         else: warn("OpenSpec verify workflow is not detected. Run `python3 scripts/dev.py ready` to restore platform-selected integrations.")
 
-    copier_cfg = tools.get("copier", {"min_version": "9.17.0", "tested_version": "9.17.0"})
+    copier_cfg = tools.get("copier", {"min_version": "9.18.2", "tested_version": "9.18.2"})
     check_tool_version(root, "copier", copier_cfg, failures)
 
     conflicts = find_update_conflicts(root)
