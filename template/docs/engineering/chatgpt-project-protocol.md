@@ -13,11 +13,14 @@ A ChatGPT Project should declare:
 
 - `BACKLOG_REPOSITORY` — the operator's explicitly configured Development Backlog repository;
 - one or more target repositories;
-- the Development Backlog `project:*` label used for each target.
+- the Development Backlog `project:*` label used for each target;
+- `DEFAULT_PRIORITY` — a mirror of that target's `development_backlog.default_priority`.
 
-For a single-repository project, use `TARGET_REPOSITORY` + `PROJECT_LABEL`.
+For a single-repository project, use `TARGET_REPOSITORY` + `PROJECT_LABEL` + `DEFAULT_PRIORITY`.
 
-For a multi-repository project, use an explicit mapping `repository -> project label`. Before recording a managed change, choose the concrete target repository and corresponding label. If a change genuinely spans repositories, identify the primary target and dependencies or split it deliberately; do not silently mix unrelated repository work into one change.
+For a multi-repository project, use an explicit mapping `repository -> project label` (with its own `DEFAULT_PRIORITY`); the mapping keeps one project label per repository. Before recording a managed change, choose the concrete target repository and corresponding label. If a change genuinely spans repositories, identify the primary target and dependencies or split it deliberately; do not silently mix unrelated repository work into one change.
+
+For an operator-managed target — one whose checkout intentionally keeps `.dev-platform.toml` untracked, so connected GitHub can never read it — the operator produces `BACKLOG_REPOSITORY`, `TARGET_REPOSITORY`, `PROJECT_LABEL`, and `DEFAULT_PRIORITY` by running `python3 scripts/requirement_intake.py routing-parameters` in that target's own checkout, and declares exactly that rendered output as the Project parameters. These parameters are always derived from the target's existing `[development_backlog]` configuration; they are never hand-authored and never a separate default.
 
 ## Connected-GitHub authoring
 
@@ -40,10 +43,8 @@ The resulting Development Backlog Issue MUST:
 
 - carry `type:requirement`;
 - carry exactly one `project:*` label and exactly one `priority:*` label,
-  resolved from the target repository's own committed `.dev-platform.toml`
-  (its `[development_backlog].project_label`, and either the explicitly
-  requested priority or `[development_backlog].default_priority`) — the same
-  Backlog routing a managed technical task derives, never a separate default;
+  resolved by the ordered routing rule below — the same Backlog routing a
+  managed technical task derives, never a separate default;
 - contain `## Outcome`, optional `## Context`, optional
   `## Acceptance evidence`, `## Target repository`, optional
   `## Exclusions`, plus the canonical empty requirement-children marker
@@ -51,11 +52,24 @@ The resulting Development Backlog Issue MUST:
 - contain business intent only, with no `proposal.md`, `design.md`,
   `tasks.md`, OpenSpec delta, file-level plan, or technical decomposition.
 
-Resolve `[development_backlog]` from the target repository's **default
-branch** `.dev-platform.toml` before creating anything. Stop and report the
-blocker instead of creating a Requirement without routing metadata when that
-configuration is missing, invalid, or names a Backlog repository other than
-`BACKLOG_REPOSITORY`.
+Resolve routing in this order before creating anything:
+
+1. The target repository's own committed `[development_backlog]`, read from
+   its **default branch** `.dev-platform.toml`, when present. This is
+   authoritative: a declared `PROJECT_LABEL` or `DEFAULT_PRIORITY` Project
+   parameter that disagrees with it is a conflict, and fixation stops.
+2. Otherwise — an operator-managed target intentionally keeps
+   `.dev-platform.toml` untracked, for example Dev Platform itself — the
+   declared Project parameters (`BACKLOG_REPOSITORY`, `TARGET_REPOSITORY`,
+   `PROJECT_LABEL`, `DEFAULT_PRIORITY`) rendered by
+   `requirement_intake.py routing-parameters` above.
+
+Stop and report the routing blocker instead of creating a Requirement without
+verified metadata when neither source yields a Backlog repository equal to
+`BACKLOG_REPOSITORY`, the exact target repository, a valid project label, and
+a valid default priority. `resolve_connected_routing` and
+`verify_connected_requirement` in `requirement_intake.py` are the reference
+model this ordered rule and its read-back must behave equivalently to.
 
 Before creating a new Issue, search bounded open backlog context for an
 unambiguous existing Requirement with the same accepted outcome/target. Reuse

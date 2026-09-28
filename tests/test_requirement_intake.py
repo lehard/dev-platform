@@ -783,5 +783,233 @@ class AggregateTests(unittest.TestCase):
         )
 
 
+FIXTURES = ROOT / "tests" / "fixtures"
+
+
+def _load_fixture(name: str) -> dict:
+    return json.loads((FIXTURES / name).read_text(encoding="utf-8"))
+
+
+class ConnectedRequirementRoutingTests(unittest.TestCase):
+    """Coverage for the connected ChatGPT adapter's routing reference model.
+
+    ``resolve_connected_routing``/``verify_connected_requirement`` are the
+    pure functions the connected adapter must behave equivalently to when it
+    cannot read a target's committed ``.dev-platform.toml`` -- for example an
+    operator-managed target such as Dev Platform itself, which intentionally
+    keeps that file untracked.
+    """
+
+    def setUp(self) -> None:
+        self.fixture = _load_fixture("chatgpt_project_requirement_operator_routing.json")
+
+    def test_resolve_connected_routing_uses_declared_parameters_when_uncommitted(self) -> None:
+        self.assertIsNone(self.fixture["committed_config"])
+        routing = ri.resolve_connected_routing(
+            target_repository=self.fixture["target_repository"],
+            backlog_repository=self.fixture["backlog_repository"],
+            committed_config=self.fixture["committed_config"],
+            project_parameters=self.fixture["project_parameters"],
+        )
+        self.assertEqual(routing, self.fixture["routing"])
+        # The read-back issue in the fixture is exactly what a successful
+        # connected fixation against this routing must find.
+        ri.verify_connected_requirement(self.fixture["issue"], routing=routing)
+
+    def test_routing_parameters_render_matches_what_the_fixture_declares(self) -> None:
+        params = self.fixture["project_parameters"]
+        config = managed_task.AuthoringConfig(
+            self.fixture["backlog_repository"], params["PROJECT_LABEL"], params["DEFAULT_PRIORITY"],
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with (
+                patch.object(ri.managed_task, "authoring_config", return_value=config),
+                patch.object(ri.managed_task, "origin_repository", return_value=self.fixture["target_repository"]),
+            ):
+                rendered = ri.routing_parameters(root)
+        self.assertEqual(rendered, params)
+
+    def test_committed_configuration_conflicting_with_declared_project_label_stops(self) -> None:
+        committed = {
+            "repository": self.fixture["backlog_repository"],
+            "project_label": "project:something-else",
+            "default_priority": "P2",
+        }
+        with self.assertRaisesRegex(ri.RequirementIntakeError, "conflicts with committed"):
+            ri.resolve_connected_routing(
+                target_repository=self.fixture["target_repository"],
+                backlog_repository=self.fixture["backlog_repository"],
+                committed_config=committed,
+                project_parameters=self.fixture["project_parameters"],
+            )
+
+    def test_committed_configuration_conflicting_with_declared_default_priority_stops(self) -> None:
+        committed = {
+            "repository": self.fixture["backlog_repository"],
+            "project_label": self.fixture["project_parameters"]["PROJECT_LABEL"],
+            "default_priority": "P0",
+        }
+        with self.assertRaisesRegex(ri.RequirementIntakeError, "conflicts with committed"):
+            ri.resolve_connected_routing(
+                target_repository=self.fixture["target_repository"],
+                backlog_repository=self.fixture["backlog_repository"],
+                committed_config=committed,
+                project_parameters=self.fixture["project_parameters"],
+            )
+
+    def test_committed_configuration_is_used_when_declared_parameters_are_absent(self) -> None:
+        committed = {
+            "repository": self.fixture["backlog_repository"],
+            "project_label": "project:committed-target",
+            "default_priority": "P1",
+        }
+        routing = ri.resolve_connected_routing(
+            target_repository=self.fixture["target_repository"],
+            backlog_repository=self.fixture["backlog_repository"],
+            committed_config=committed,
+            project_parameters={},
+        )
+        self.assertEqual(routing, {"project_label": "project:committed-target", "priority": "priority:P1"})
+
+    def test_missing_or_invalid_declared_parameters_fail_closed_when_uncommitted(self) -> None:
+        base = dict(self.fixture["project_parameters"])
+        for key in ("PROJECT_LABEL", "DEFAULT_PRIORITY", "BACKLOG_REPOSITORY", "TARGET_REPOSITORY"):
+            declared = dict(base)
+            del declared[key]
+            with self.subTest(missing=key):
+                with self.assertRaises(ri.RequirementIntakeError):
+                    ri.resolve_connected_routing(
+                        target_repository=self.fixture["target_repository"],
+                        backlog_repository=self.fixture["backlog_repository"],
+                        committed_config=None,
+                        project_parameters=declared,
+                    )
+
+    def test_wrong_declared_backlog_repository_fails_closed(self) -> None:
+        declared = dict(self.fixture["project_parameters"])
+        declared["BACKLOG_REPOSITORY"] = "some-other/backlog"
+        with self.assertRaisesRegex(ri.RequirementIntakeError, "BACKLOG_REPOSITORY"):
+            ri.resolve_connected_routing(
+                target_repository=self.fixture["target_repository"],
+                backlog_repository=self.fixture["backlog_repository"],
+                committed_config=None,
+                project_parameters=declared,
+            )
+
+    def test_invalid_owner_name_strings_raise_requirement_intake_error_not_managed_task_error(self) -> None:
+        """Regression: a malformed owner/name string anywhere routing
+        resolution touches (the function's own target/backlog repository, a
+        declared Project parameter, or the committed config) must surface as
+        RequirementIntakeError, not leak managed_task.repo's ManagedTaskError."""
+        with self.assertRaises(ri.RequirementIntakeError):
+            ri.resolve_connected_routing(
+                target_repository="not-a-valid-repo",
+                backlog_repository=self.fixture["backlog_repository"],
+                committed_config=None,
+                project_parameters=self.fixture["project_parameters"],
+            )
+        declared = dict(self.fixture["project_parameters"])
+        declared["TARGET_REPOSITORY"] = "###bad###"
+        with self.assertRaises(ri.RequirementIntakeError):
+            ri.resolve_connected_routing(
+                target_repository=self.fixture["target_repository"],
+                backlog_repository=self.fixture["backlog_repository"],
+                committed_config=None,
+                project_parameters=declared,
+            )
+        with self.assertRaises(ri.RequirementIntakeError):
+            ri.resolve_connected_routing(
+                target_repository=self.fixture["target_repository"],
+                backlog_repository=self.fixture["backlog_repository"],
+                committed_config={"repository": "###bad###", "project_label": "project:x", "default_priority": "P2"},
+                project_parameters={},
+            )
+
+    def test_wrong_declared_target_repository_fails_closed(self) -> None:
+        declared = dict(self.fixture["project_parameters"])
+        declared["TARGET_REPOSITORY"] = "some-other/target"
+        with self.assertRaisesRegex(ri.RequirementIntakeError, "TARGET_REPOSITORY"):
+            ri.resolve_connected_routing(
+                target_repository=self.fixture["target_repository"],
+                backlog_repository=self.fixture["backlog_repository"],
+                committed_config=None,
+                project_parameters=declared,
+            )
+
+    def test_explicit_priority_overrides_declared_default(self) -> None:
+        routing = ri.resolve_connected_routing(
+            target_repository=self.fixture["target_repository"],
+            backlog_repository=self.fixture["backlog_repository"],
+            committed_config=None,
+            project_parameters=self.fixture["project_parameters"],
+            priority="P0",
+        )
+        self.assertEqual(routing, {"project_label": self.fixture["routing"]["project_label"], "priority": "priority:P0"})
+
+    def test_verify_connected_requirement_raises_on_missing_priority_label(self) -> None:
+        routing = self.fixture["routing"]
+        issue = {
+            "state": "open",
+            "labels": [{"name": "type:requirement"}, {"name": routing["project_label"]}],
+        }
+        with self.assertRaises(ri.RequirementIntakeError):
+            ri.verify_connected_requirement(issue, routing=routing)
+
+    def test_verify_connected_requirement_raises_on_extra_conflicting_project_label(self) -> None:
+        routing = self.fixture["routing"]
+        issue = {
+            "state": "open",
+            "labels": [
+                {"name": "type:requirement"}, {"name": routing["project_label"]},
+                {"name": "project:extra"}, {"name": routing["priority"]},
+            ],
+        }
+        with self.assertRaises(ri.RequirementIntakeError):
+            ri.verify_connected_requirement(issue, routing=routing)
+
+    def test_verify_connected_requirement_rejects_closed_issue_and_pull_requests(self) -> None:
+        routing = self.fixture["routing"]
+        labels = [{"name": "type:requirement"}, {"name": routing["project_label"]}, {"name": routing["priority"]}]
+        with self.assertRaises(ri.RequirementIntakeError):
+            ri.verify_connected_requirement({"state": "closed", "labels": labels}, routing=routing)
+        with self.assertRaises(ri.RequirementIntakeError):
+            ri.verify_connected_requirement(
+                {"state": "open", "labels": labels, "pull_request": {"url": "https://example.invalid/pr/1"}}, routing=routing,
+            )
+
+    def test_cli_routing_parameters_prints_name_equals_value_lines_in_order(self) -> None:
+        params = self.fixture["project_parameters"]
+        config = managed_task.AuthoringConfig(
+            self.fixture["backlog_repository"], params["PROJECT_LABEL"], params["DEFAULT_PRIORITY"],
+        )
+        argv = ["requirement_intake.py", "routing-parameters"]
+        with (
+            patch.object(ri, "current_worktree_root", return_value=Path(".")),
+            patch.object(ri.managed_task, "authoring_config", return_value=config),
+            patch.object(ri.managed_task, "origin_repository", return_value=self.fixture["target_repository"]),
+            patch.object(sys, "argv", argv),
+        ):
+            stream = io.StringIO()
+            with redirect_stdout(stream):
+                self.assertEqual(ri.main(), 0)
+        lines = stream.getvalue().strip("\n").splitlines()
+        self.assertEqual(lines, [
+            f"BACKLOG_REPOSITORY={params['BACKLOG_REPOSITORY']}",
+            f"TARGET_REPOSITORY={params['TARGET_REPOSITORY']}",
+            f"PROJECT_LABEL={params['PROJECT_LABEL']}",
+            f"DEFAULT_PRIORITY={params['DEFAULT_PRIORITY']}",
+        ])
+
+    def test_protocol_docs_describe_routing_parameters_command_and_untracked_fallback(self) -> None:
+        for relative in ("docs/engineering/chatgpt-project-protocol.md", "template/docs/engineering/chatgpt-project-protocol.md"):
+            text = (ROOT / relative).read_text(encoding="utf-8")
+            with self.subTest(relative=relative):
+                self.assertIn("routing-parameters", text)
+                self.assertIn("DEFAULT_PRIORITY", text)
+                self.assertIn("untracked", text)
+                self.assertIn("operator-managed", text)
+
+
 if __name__ == "__main__":
     unittest.main()

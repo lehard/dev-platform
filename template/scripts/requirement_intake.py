@@ -135,6 +135,29 @@ def render_canonical_requirement_context(context: dict[str, Any]) -> str:
     return json.dumps(context, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
 
 
+def requirement_label_problems(
+    labels: set[str], project_label: str, priority_label: str,
+) -> tuple[list[str], list[str]]:
+    """Pure label-set check shared by the local read-back and the connected reference path.
+
+    ``labels`` is assumed lowercased (as ``managed_task.issue_labels`` returns
+    it). Conflicting is any ``project:*``/``priority:*`` label present that is
+    not exactly the expected one; missing is any of ``type:requirement``,
+    ``project_label``, ``priority_label`` absent from ``labels``
+    (case-insensitive).
+    """
+    expected_project = project_label.lower()
+    expected_priority = priority_label.lower()
+    conflicting = sorted(
+        label for label in labels
+        if (label.startswith("project:") and label != expected_project)
+        or (label.startswith("priority:") and label != expected_priority)
+    )
+    expected_labels = (REQUIREMENT_LABEL, project_label, priority_label)
+    missing = [label for label in expected_labels if label.lower() not in labels]
+    return conflicting, missing
+
+
 def _reconcile_requirement_labels(
     root: Path, *, repository: str, number: int, config: managed_task.AuthoringConfig, priority: str,
 ) -> None:
@@ -147,20 +170,18 @@ def _reconcile_requirement_labels(
     read-back proving the exact expected label set.
     """
     ref = f"{repository}#{number}"
-    expected_project = config.project_label.lower()
-    expected_priority = managed_task.priority_label(priority).lower()
-    expected_labels = (REQUIREMENT_LABEL, config.project_label, managed_task.priority_label(priority))
+    project_label = config.project_label
+    priority_label_value = managed_task.priority_label(priority)
 
     def _check(labels: set[str]) -> list[str]:
-        project_labels = {label for label in labels if label.startswith("project:")}
-        priority_labels = {label for label in labels if label.startswith("priority:")}
-        if project_labels - {expected_project} or priority_labels - {expected_priority}:
+        conflicting, missing = requirement_label_problems(labels, project_label, priority_label_value)
+        if conflicting:
             found = ", ".join(sorted(labels)) or "none"
             raise RequirementIntakeError(
                 f"{ref} has conflicting project/priority labels "
-                f"(expected {config.project_label!r} and {managed_task.priority_label(priority)!r}; found {found})"
+                f"(expected {project_label!r} and {priority_label_value!r}; found {found})"
             )
-        return [label for label in expected_labels if label.lower() not in labels]
+        return missing
 
     issue = fetch_issue(root, repository, number)
     labels = managed_task.issue_labels(issue)
@@ -175,13 +196,12 @@ def _reconcile_requirement_labels(
         issue = fetch_issue(root, repository, number)
         labels = managed_task.issue_labels(issue)
         missing = _check(labels)
-    project_labels = {label for label in labels if label.startswith("project:")}
-    priority_labels = {label for label in labels if label.startswith("priority:")}
-    if missing or REQUIREMENT_LABEL.lower() not in labels or project_labels != {expected_project} or priority_labels != {expected_priority}:
+    conflicting, missing = requirement_label_problems(labels, project_label, priority_label_value)
+    if missing or conflicting:
         found = ", ".join(sorted(labels)) or "none"
         raise RequirementIntakeError(
             f"{ref} does not carry the expected Requirement labels "
-            f"(expected {REQUIREMENT_LABEL!r}, {config.project_label!r} and {managed_task.priority_label(priority)!r}; found {found})"
+            f"(expected {REQUIREMENT_LABEL!r}, {project_label!r} and {priority_label_value!r}; found {found})"
         )
 
 
@@ -240,6 +260,165 @@ def create_requirement(
 
 def ensure_label(root: Path, repository: str, name: str, *, env: dict[str, str], description: str = "") -> None:
     run(["gh", "label", "create", name, "--repo", repository, "--force", "--description", description], root, env)
+
+
+def routing_parameters(root: Path) -> dict[str, str]:
+    """Render the ChatGPT Project routing parameters from this checkout's own configuration.
+
+    These are the exact values an operator-managed target (one that
+    intentionally keeps ``.dev-platform.toml`` untracked, so connected
+    ChatGPT cannot read it) declares as its Project parameters. They are
+    always derived from the same ``[development_backlog]`` configuration
+    ``create`` uses -- never hand-authored, never a second default.
+    """
+    config = managed_task.authoring_config(root)
+    origin = managed_task.origin_repository(root)
+    return {
+        "BACKLOG_REPOSITORY": config.repository,
+        "TARGET_REPOSITORY": origin,
+        "PROJECT_LABEL": config.project_label,
+        "DEFAULT_PRIORITY": config.default_priority,
+    }
+
+
+def resolve_connected_routing(
+    *,
+    target_repository: str,
+    backlog_repository: str,
+    committed_config: dict[str, Any] | None,
+    project_parameters: dict[str, str],
+    priority: str | None = None,
+) -> dict[str, str]:
+    """Reference model of the connected ChatGPT adapter's Requirement routing rule.
+
+    This is the pure resolver the connected adapter must behave equivalently
+    to. Routing resolution is ordered:
+
+    1. When ``committed_config`` (the target's committed
+       ``[development_backlog]`` table, read from its default branch) is
+       present, it is authoritative: its ``repository`` must equal
+       ``backlog_repository``, its ``project_label`` must be a
+       ``project:<slug>`` label, and its ``default_priority`` must be one of
+       P0..P3. A declared ``PROJECT_LABEL``/``DEFAULT_PRIORITY`` Project
+       parameter that disagrees with it is a conflict, and a declared
+       ``BACKLOG_REPOSITORY`` that disagrees with it is also a conflict.
+    2. Otherwise (an operator-managed target that intentionally does not
+       track that configuration) the declared Project parameters --
+       ``BACKLOG_REPOSITORY``, ``TARGET_REPOSITORY``, ``PROJECT_LABEL``,
+       ``DEFAULT_PRIORITY`` -- must all be present and valid, and
+       ``BACKLOG_REPOSITORY``/``TARGET_REPOSITORY`` must equal the intended
+       backlog/target.
+
+    Anything missing, invalid, or disagreeing raises ``RequirementIntakeError``
+    naming the routing blocker; nothing is created without resolved routing.
+    """
+    def _normalize_repo(value: Any) -> str | None:
+        """Return the normalized owner/name form, or None when ``value`` is
+        not a valid repository string. Never raises: an invalid owner/name
+        string in a routing parameter is a routing blocker
+        (``RequirementIntakeError``), not the lower-level ``ManagedTaskError``
+        that ``managed_task.repo`` raises for CLI-args use."""
+        if not isinstance(value, str):
+            return None
+        try:
+            return repo(value)
+        except ManagedTaskError:
+            return None
+
+    normalized_target = _normalize_repo(target_repository)
+    if normalized_target is None:
+        raise RequirementIntakeError(f"target_repository must be owner/name, got {target_repository!r}")
+    normalized_backlog = _normalize_repo(backlog_repository)
+    if normalized_backlog is None:
+        raise RequirementIntakeError(f"backlog_repository must be owner/name, got {backlog_repository!r}")
+
+    if committed_config is not None:
+        committed_repository = committed_config.get("repository")
+        committed_project_label = committed_config.get("project_label")
+        committed_default_priority = committed_config.get("default_priority")
+        normalized_committed_repository = _normalize_repo(committed_repository)
+        if normalized_committed_repository is None:
+            raise RequirementIntakeError("committed development_backlog.repository must be owner/name")
+        if normalized_committed_repository != normalized_backlog:
+            raise RequirementIntakeError(
+                f"committed development_backlog.repository {committed_repository!r} does not match "
+                f"BACKLOG_REPOSITORY {backlog_repository!r}"
+            )
+        if not isinstance(committed_project_label, str) or not re.fullmatch(r"project:[A-Za-z0-9_.-]+", committed_project_label):
+            raise RequirementIntakeError("committed development_backlog.project_label must be a project:<slug> label")
+        if not isinstance(committed_default_priority, str) or not managed_task.PRIORITY_RE.fullmatch(committed_default_priority):
+            raise RequirementIntakeError("committed development_backlog.default_priority must be one of P0, P1, P2 or P3")
+
+        declared_backlog = project_parameters.get("BACKLOG_REPOSITORY")
+        if declared_backlog is not None and _normalize_repo(declared_backlog) != normalized_backlog:
+            raise RequirementIntakeError(
+                f"declared BACKLOG_REPOSITORY {declared_backlog!r} conflicts with committed "
+                f"development_backlog.repository {committed_repository!r}"
+            )
+        declared_project_label = project_parameters.get("PROJECT_LABEL")
+        if declared_project_label is not None and declared_project_label.lower() != committed_project_label.lower():
+            raise RequirementIntakeError(
+                f"declared PROJECT_LABEL {declared_project_label!r} conflicts with committed "
+                f"development_backlog.project_label {committed_project_label!r}"
+            )
+        declared_default_priority = project_parameters.get("DEFAULT_PRIORITY")
+        if declared_default_priority is not None and declared_default_priority.upper() != committed_default_priority.upper():
+            raise RequirementIntakeError(
+                f"declared DEFAULT_PRIORITY {declared_default_priority!r} conflicts with committed "
+                f"development_backlog.default_priority {committed_default_priority!r}"
+            )
+        project_label = committed_project_label
+        default_priority = committed_default_priority
+    else:
+        declared_backlog = project_parameters.get("BACKLOG_REPOSITORY")
+        declared_target = project_parameters.get("TARGET_REPOSITORY")
+        declared_project_label = project_parameters.get("PROJECT_LABEL")
+        declared_default_priority = project_parameters.get("DEFAULT_PRIORITY")
+        problems: list[str] = []
+        if _normalize_repo(declared_backlog) != normalized_backlog:
+            problems.append(f"BACKLOG_REPOSITORY must equal {backlog_repository!r}")
+        if _normalize_repo(declared_target) != normalized_target:
+            problems.append(f"TARGET_REPOSITORY must equal {target_repository!r}")
+        if not isinstance(declared_project_label, str) or not re.fullmatch(r"project:[A-Za-z0-9_.-]+", declared_project_label):
+            problems.append("PROJECT_LABEL must be a project:<slug> label")
+        if not isinstance(declared_default_priority, str) or not managed_task.PRIORITY_RE.fullmatch(declared_default_priority):
+            problems.append("DEFAULT_PRIORITY must be one of P0, P1, P2 or P3")
+        if problems:
+            raise RequirementIntakeError(
+                "connected Requirement routing cannot be resolved: no committed development_backlog "
+                "configuration, and the declared Project parameters are incomplete or invalid (" + "; ".join(problems) + ")"
+            )
+        project_label = declared_project_label
+        default_priority = declared_default_priority
+
+    effective_priority = priority or default_priority
+    try:
+        priority_label_value = managed_task.priority_label(effective_priority)
+    except ManagedTaskError as exc:
+        raise RequirementIntakeError(str(exc)) from exc
+    return {"project_label": project_label, "priority": priority_label_value}
+
+
+def verify_connected_requirement(issue: dict[str, Any], *, routing: dict[str, str]) -> None:
+    """Pure read-back check that a connected Requirement Issue carries exactly the resolved routing.
+
+    Mirrors the terminal check in ``_reconcile_requirement_labels`` but
+    performs no mutation: the connected adapter's own read-back after
+    fixation must already find the resolved ``project:*``/``priority:*``
+    labels applied, on an open Issue that is not a pull request.
+    """
+    if issue.get("pull_request"):
+        raise RequirementIntakeError("connected Requirement read-back target is a pull request, not an Issue")
+    if issue.get("state") != "open":
+        raise RequirementIntakeError("connected Requirement read-back target is not open")
+    labels = managed_task.issue_labels(issue)
+    conflicting, missing = requirement_label_problems(labels, routing["project_label"], routing["priority"])
+    if conflicting or missing:
+        found = ", ".join(sorted(labels)) or "none"
+        raise RequirementIntakeError(
+            "connected Requirement read-back does not carry the expected labels "
+            f"(expected {REQUIREMENT_LABEL!r}, {routing['project_label']!r} and {routing['priority']!r}; found {found})"
+        )
 
 
 def default_base_dir(root: Path) -> Path:
@@ -538,6 +717,12 @@ def main() -> int:
     aggregate_parser = sub.add_parser("aggregate", help="report a Requirement's derived progress from pre-authoring and linked children")
     aggregate_parser.add_argument("--requirement", required=True)
 
+    sub.add_parser(
+        "routing-parameters",
+        help="render the ChatGPT Project parameters (BACKLOG_REPOSITORY, TARGET_REPOSITORY, "
+             "PROJECT_LABEL, DEFAULT_PRIORITY) from the existing [development_backlog] configuration",
+    )
+
     args = parser.parse_args()
     root = current_worktree_root()
     try:
@@ -573,6 +758,11 @@ def main() -> int:
         if args.command == "aggregate":
             payload = aggregate(root, requirement=args.requirement)
             print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+            return 0
+        if args.command == "routing-parameters":
+            payload = routing_parameters(root)
+            for name in ("BACKLOG_REPOSITORY", "TARGET_REPOSITORY", "PROJECT_LABEL", "DEFAULT_PRIORITY"):
+                print(f"{name}={payload[name]}")
             return 0
         raise RequirementIntakeError(f"unsupported command: {args.command}")  # pragma: no cover - argparse enforces the choice set
     except (RequirementIntakeError, ManagedTaskError, orchestrate_pre_authoring.OrchestratorError) as exc:
