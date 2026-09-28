@@ -9,19 +9,19 @@
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
-      "duration_seconds": 10.862,
+      "duration_seconds": 6.199,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 -m ruff check scripts template/scripts tests",
-      "duration_seconds": 8.422,
+      "duration_seconds": 1.548,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
-      "duration_seconds": 411.115,
+      "duration_seconds": 450.486,
       "outcome": "success",
       "exit_code": 0
     }
@@ -56,18 +56,20 @@
     "change": "align-task-checklist-marker-semantics",
     "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/align-task-checklist-marker-semantics",
     "branch": "agent/align-task-checklist-marker-semantics",
-    "head": "a23062eab7ea4129342814a2822b9c09c59e69a0",
+    "head": "95134cd4ef4861eae9af07a8f8d61ad5ee4bcdff",
     "task_content": {
       "version": 1,
-      "digest": "09134d15f765ac0ab6dd99debb98e950c45fc17aa94658e29fd6efce4e0ad1e1",
+      "digest": "a3a6d4656dc0d82d8b33f8eb174328b9a1c4683d19091022b7a1a146939d5bf8",
       "paths": {
         "openspec/changes/align-task-checklist-marker-semantics/.managed-task.json": "ea368086c18b000583c81fde7e002376ff2d374c",
         "openspec/changes/align-task-checklist-marker-semantics/.openspec.yaml": "ee7c5448114a173e0747e643bc8c2bd9632a05e7",
+        "openspec/changes/align-task-checklist-marker-semantics/automated-checks.json": "78024afed3fbd51c011c36c938ac1e56c6487e89",
         "openspec/changes/align-task-checklist-marker-semantics/design.md": "c97b2da501f52a5cd202c0873fccb842cc48825a",
         "openspec/changes/align-task-checklist-marker-semantics/proposal.md": "4de19434319c5c15ba5a384a6a9d1420d91eabad",
         "openspec/changes/align-task-checklist-marker-semantics/specs/completion-lifecycle/spec.md": "3ab03c69ccca69f0d4bdd4a7a749f85e084c19a1",
         "openspec/changes/align-task-checklist-marker-semantics/tasks.md": "7f6320bd2df946fa4c97c839e6b93f923651f218",
-        "openspec/changes/align-task-checklist-marker-semantics/verification.md": "342e8f982e2cfedc39afab7796b391f97ba6ca6b",
+        "openspec/changes/align-task-checklist-marker-semantics/verification.md": "547e4f37ec8a27252c681e6cade58e93c03ffdfd",
+        "openspec/specs/completion-lifecycle/spec.md": "25029c62d80c01ab52f599aebdb52b8b36658743",
         "template/scripts/managed_task.py": "a54b5041a3d88de27baeea0a0d8d0fedb14afcff",
         "template/scripts/openspec_lifecycle.py": "79f97adc544b65a44d744485eec54bda87de209b",
         "template/scripts/requirement_integration.py": "c092a1a93c5df8d70347ecb7e411cf037e9c875f",
