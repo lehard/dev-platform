@@ -3,7 +3,9 @@
 ## Purpose
 
 The completion lifecycle SHALL make semantic OpenSpec verification and archive part of the agent-owned definition of done for non-trivial work, so completed changes cannot silently remain active or depend on the human user remembering cleanup steps.
+
 ## Requirements
+
 ### Requirement: Completed OpenSpec changes cannot remain active at publication
 
 For non-trivial OpenSpec work, the platform SHALL treat a change with a completed task checklist as not publishable until the change is archived.
@@ -51,7 +53,7 @@ Repository-wide agent instructions SHALL define semantic verify, archive, and co
 
 ### Requirement: Unfinished automatic delivery remains explicit completion work
 
-For a platform-owned task configured for automatic PR delivery, an agent SHALL NOT report the task as fully delivered while its exact task PR is still open/pending or while GitHub has merged it but safe local reconciliation remains incomplete. Completion/doctor status SHALL derive that condition from current Git/GitHub state and identify the supported next operation without requiring the human user to remember a Git hand-off.
+For a platform-owned task configured for automatic PR delivery, an agent SHALL NOT report the task as fully delivered while its exact task PR is still open/pending or while GitHub has merged it but safe local reconciliation remains incomplete. Completion/doctor status SHALL derive that condition from current Git/GitHub state and identify the supported next operation without requiring the human user to remember a Git hand-off. For a managed task, read-only status SHALL distinguish confirmed exact PR merge from full terminal completion. Full completion SHALL be reported only when mandatory post-merge local, Project, linked process-evidence, and required cleanup obligations are fulfilled or have an explicitly supported terminal disposition. Status SHALL derive this from existing authoritative lifecycle and obligation evidence without a second terminal state ledger. A failed or unknown post-merge obligation SHALL be reported as pending or blocking without changing the confirmed merge fact to failure.
 
 #### Scenario: Automatic PR is still waiting remotely
 
@@ -75,6 +77,34 @@ For a platform-owned task configured for automatic PR delivery, an agent SHALL N
 - **THEN** the agent may stop automatic delivery
 - **AND** reports the specific blocker and preserved remote/local state
 - **AND** does not misrepresent the task as successfully delivered
+
+#### Scenario: Historical process evidence blocks finish after merge
+
+- **GIVEN** GitHub confirms the exact task PR is merged and local main and Project reconciliation succeed
+- **AND** linked process evidence cannot be resolved
+- **WHEN** read-only status is requested
+- **THEN** it reports the exact PR as merged, names the pending process-evidence obligation, and does not report full completion
+- **AND** finish remains resumable without republishing the PR.
+
+#### Scenario: Explicit disposition of unavailable historical evidence
+
+- **GIVEN** an exact linked historical process Issue is demonstrably unavailable with a definitive 404
+- **WHEN** an operator explicitly records a bounded reason through the supported disposition command
+- **THEN** the managed source Issue stores an auditable, exact-reference disposition and the command verifies it by read-back
+- **AND** status and finish may treat only that reference as disposed while retaining the confirmed merge fact.
+
+#### Scenario: Temporary GitHub failure
+
+- **WHEN** GitHub authentication, permission, transport, or evidence observation is unavailable without definitive proof of historical absence
+- **THEN** status reports the relevant obligation as unknown or pending and finish remains resumable
+- **AND** no disposition or full completion is inferred.
+
+#### Scenario: Required cleanup remains
+
+- **GIVEN** exact merge and other reconciliation obligations are fulfilled
+- **AND** required cleanup is deferred
+- **WHEN** read-only status is requested
+- **THEN** it reports the cleanup obligation and does not report full completion unless the existing shared cleanup policy classifies it as a terminal warning.
 
 ### Requirement: Verification evidence is truthful about executed automated coverage
 
@@ -286,4 +316,3 @@ Expected resumable states in the protected-main completion flow SHALL be surface
 - **WHEN** the finish wrapper receives that nonterminal outcome
 - **THEN** it reports the existing PR/status and next action without a raw traceback
 - **AND** preserves nonterminal state so the caller does not mistake it for completed delivery.
-
