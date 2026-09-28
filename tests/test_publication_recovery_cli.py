@@ -14,7 +14,7 @@ SCRIPT_SOURCE = ROOT / "template" / "scripts"
 sys.path.insert(0, str(SCRIPT_SOURCE))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from _concurrent_lifecycle import communicate_within_deadline  # noqa: E402
+from _concurrent_lifecycle import communicate_within_deadline, wait_for_readiness  # noqa: E402
 
 
 def run(*args: str, cwd: Path, check: bool = True, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
@@ -489,24 +489,32 @@ class BoundedTestDeadlineHelperTests(unittest.TestCase):
     def test_expired_helper_fails_with_process_identity_and_retained_output(self) -> None:
         import _concurrent_lifecycle
 
-        proc = subprocess.Popen(
-            [sys.executable, "-c", "import sys,time; print('partial', flush=True); time.sleep(30)"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
-        try:
-            with mock.patch.object(_concurrent_lifecycle, "process_deadline_seconds", return_value=0.3):
-                with self.assertRaises(_concurrent_lifecycle.HelperTimeout) as ctx:
-                    communicate_within_deadline(proc, description="hung recovery helper")
-            message = str(ctx.exception)
-            self.assertIn("hung recovery helper", message)
-            self.assertIn(f"pid={proc.pid}", message)
-            self.assertIn("partial", message)
-        finally:
-            if proc.poll() is None:
-                proc.kill()
-                proc.wait()
+        with tempfile.TemporaryDirectory() as tmp:
+            readiness = Path(tmp) / "partial-output-ready"
+            proc = subprocess.Popen(
+                [
+                    sys.executable,
+                    "-c",
+                    "import pathlib,sys,time; time.sleep(0.4); print('partial', flush=True); pathlib.Path(sys.argv[1]).touch(); time.sleep(30)",
+                    str(readiness),
+                ],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            try:
+                wait_for_readiness(readiness.exists, proc, description="hung recovery helper")
+                with mock.patch.object(_concurrent_lifecycle, "process_deadline_seconds", return_value=0.3):
+                    with self.assertRaises(_concurrent_lifecycle.HelperTimeout) as ctx:
+                        communicate_within_deadline(proc, description="hung recovery helper")
+                message = str(ctx.exception)
+                self.assertIn("hung recovery helper", message)
+                self.assertIn(f"pid={proc.pid}", message)
+                self.assertIn("partial", message)
+            finally:
+                if proc.poll() is None:
+                    proc.kill()
+                    proc.wait()
 
     def test_operator_override_env_var_changes_the_deadline(self) -> None:
         import _concurrent_lifecycle

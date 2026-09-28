@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/platform-ci/spec.md"
+  ],
+  "change": "stabilize-bounded-recovery-helper-timeout-test",
+  "imported_at": "2026-09-28T09:08:58+00:00",
+  "package_revision": "001ec76422239607657f4bda0ee07315a57591abf340586ce98aa43cd991e9d6",
+  "prepared_against": "da821e5e2455d2a53aa0eb72063d37c9fc93bb75",
+  "private_lineage_handle": "pln_2cd995a018812d8de3914544eba62dcf",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "a9efa0f71d1abb4bf94dcf9a2dbe9de3c5706c0395504f139f1c0deae9a92b7d",
+    "updated_at": "2026-09-28T09:06:10Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
