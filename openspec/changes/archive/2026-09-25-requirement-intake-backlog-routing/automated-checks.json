@@ -1,0 +1,83 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.707,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.852,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 278.985,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/requirement_intake.py",
+        "tests/test_requirement_intake.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_abd5c9b4e84befd6154641cd41b74654",
+    "change": "requirement-intake-backlog-routing",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/requirement-intake-backlog-routing",
+    "branch": "agent/requirement-intake-backlog-routing",
+    "head": "2b5be52600af122055aa4616aaccc34ad63b5f48",
+    "task_content": {
+      "version": 1,
+      "digest": "22f3a0a7096eb76f81444f3f7ed8d73136085d7efb3479b43d022704c55fd900",
+      "paths": {
+        "docs/engineering/chatgpt-project-protocol.md": "3847ea32790cd138e6c3a1b4efc4f6f516f29739",
+        "docs/engineering/task-intake.md": "af18b494fcb6317c8805d48e0029cee68664c85f",
+        "openspec/changes/requirement-intake-backlog-routing/.managed-task.json": "457ef4f14253b36147120886ae7dbc0cdd4570f9",
+        "openspec/changes/requirement-intake-backlog-routing/.openspec.yaml": "abd7c5ae1cae1c899841a849ec2ddffc4969a643",
+        "openspec/changes/requirement-intake-backlog-routing/automated-checks.json": "3d6cfd11f8a79b873c71efd3a22e1f409fbc7f0f",
+        "openspec/changes/requirement-intake-backlog-routing/design.md": "c3700c93b32c0f9aff08b1bf45b76e15c4f73211",
+        "openspec/changes/requirement-intake-backlog-routing/proposal.md": "67a8fe2c9db9b29b317586c092effd601e168ed7",
+        "openspec/changes/requirement-intake-backlog-routing/specs/agent-workflow/spec.md": "6144dab056fd5dabdbbd41d2908f3a7e40390f42",
+        "openspec/changes/requirement-intake-backlog-routing/specs/managed-task-intake/spec.md": "08634efe9baae53dc264108cbca8b945edb51028",
+        "openspec/changes/requirement-intake-backlog-routing/tasks.md": "81512a579e825e8181110d009a47a142569398eb",
+        "openspec/changes/requirement-intake-backlog-routing/verification.md": "923d1fe5d1183f73aed23cb8e8c022e52dba1552",
+        "openspec/specs/agent-workflow/spec.md": "6e987037b3d536be43317d086a8061cafb2d7566",
+        "openspec/specs/managed-task-intake/spec.md": "ea0529598631a903d432925ffc9faba295449c70",
+        "template/docs/engineering/chatgpt-project-protocol.md": "3847ea32790cd138e6c3a1b4efc4f6f516f29739",
+        "template/docs/engineering/task-intake.md.jinja": "176c164f844ec2875492ada67bf4563c932af279",
+        "template/scripts/requirement_intake.py": "de2008242b71403765d08ddfabad8484da5a8645",
+        "tests/test_requirement_intake.py": "81bfd897001a1590ef8fb3c9ec7d9702cedfd614"
+      },
+      "base": "768eb0c0cd92ec974a236f399d45ccb7b77a01a5"
+    }
+  }
+}

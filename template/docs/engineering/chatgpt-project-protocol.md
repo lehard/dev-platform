@@ -39,6 +39,11 @@ python3 scripts/requirement_intake.py create ...
 The resulting Development Backlog Issue MUST:
 
 - carry `type:requirement`;
+- carry exactly one `project:*` label and exactly one `priority:*` label,
+  resolved from the target repository's own committed `.dev-platform.toml`
+  (its `[development_backlog].project_label`, and either the explicitly
+  requested priority or `[development_backlog].default_priority`) — the same
+  Backlog routing a managed technical task derives, never a separate default;
 - contain `## Outcome`, optional `## Context`, optional
   `## Acceptance evidence`, `## Target repository`, optional
   `## Exclusions`, plus the canonical empty requirement-children marker
@@ -46,16 +51,24 @@ The resulting Development Backlog Issue MUST:
 - contain business intent only, with no `proposal.md`, `design.md`,
   `tasks.md`, OpenSpec delta, file-level plan, or technical decomposition.
 
+Resolve `[development_backlog]` from the target repository's **default
+branch** `.dev-platform.toml` before creating anything. Stop and report the
+blocker instead of creating a Requirement without routing metadata when that
+configuration is missing, invalid, or names a Backlog repository other than
+`BACKLOG_REPOSITORY`.
+
 Before creating a new Issue, search bounded open backlog context for an
 unambiguous existing Requirement with the same accepted outcome/target. Reuse
 that exact Requirement when appropriate; do not create duplicates merely
 because wording differs.
 
 After mutation, read the Issue back and verify the title/body, exact target
-repository, `type:requirement` label, and children markers. Fixation succeeds
-only after this read-back. A fixation-only request then **stops**: do not start
-pre-authoring, create OpenSpec, dispatch an executor, move lifecycle status, or
-implement anything.
+repository, `type:requirement` label, exactly the configured `project:*`
+label, and exactly one `priority:*` label matching the explicit or default
+priority, plus children markers. Fixation succeeds only after this read-back
+verifies every one of those labels. A fixation-only request then **stops**: do
+not start pre-authoring, create OpenSpec, dispatch an executor, move lifecycle
+status, or implement anything.
 
 A ChatGPT Project without a checkout must not fall back to direct
 `managed-openspec:v1` authoring merely because it cannot execute

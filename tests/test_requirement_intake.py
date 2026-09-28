@@ -232,40 +232,129 @@ class CreateRequirementTests(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = init_repo()
         self.root = Path(self.tmp.name)
+        self.config = managed_task.AuthoringConfig("acme/development-backlog", "project:billing", "P2")
+        self.issue_labels: set[str] = set()
 
     def tearDown(self) -> None:
         self.tmp.cleanup()
 
-    def test_create_issues_gh_issue_create_with_the_requirement_label(self) -> None:
+    def _fetch_issue(self, root, repository, number):
+        return {"labels": [{"name": name} for name in self.issue_labels]}
+
+    def _run_create(self, *, run_side_effect=None, priority=None, config=None, origin="acme/billing", validate_error=None):
         commands: list[list[str]] = []
 
         def fake_run(command, cwd, env=None, input_text=None):
             commands.append(command)
+            if run_side_effect is not None:
+                return run_side_effect(command)
             if command[:3] == ["gh", "issue", "create"]:
+                self.issue_labels = {ri.REQUIREMENT_LABEL, (config or self.config).project_label,
+                                      managed_task.priority_label(priority or (config or self.config).default_priority)}
                 return type("Result", (), {"stdout": "https://github.com/acme/development-backlog/issues/42\n", "returncode": 0})()
+            if command[:2] == ["gh", "api"] and "--method" in command:
+                label = command[-1].split("=", 1)[1]
+                self.issue_labels.add(label)
+                return type("Result", (), {"stdout": "", "returncode": 0})()
             return type("Result", (), {"stdout": "", "returncode": 0})()
+
+        def fake_validate(root, cfg, prio):
+            if validate_error is not None:
+                raise managed_task.ManagedTaskError(validate_error)
 
         with (
             patch.object(ri, "github_cli_env", return_value={}),
             patch.object(ri, "run", side_effect=fake_run),
+            patch.object(ri, "fetch_issue", side_effect=self._fetch_issue),
+            patch.object(ri.managed_task, "authoring_config", return_value=config or self.config),
+            patch.object(ri.managed_task, "origin_repository", return_value=origin),
+            patch.object(ri.managed_task, "validate_backlog_labels", side_effect=fake_validate),
         ):
             payload = ri.create_requirement(
                 self.root, repository="acme/development-backlog", title="Make onboarding self-serve",
-                outcome="Make onboarding self-serve.", target_repository="acme/billing",
+                outcome="Make onboarding self-serve.", target_repository="acme/billing", priority=priority,
             )
-        self.assertEqual(payload, {"repository": "acme/development-backlog", "number": 42, "slug": "requirement-42"})
+        return payload, commands
+
+    def test_create_issues_gh_issue_create_with_all_expected_labels_for_default_priority(self) -> None:
+        payload, commands = self._run_create()
+        self.assertEqual(payload, {
+            "repository": "acme/development-backlog", "number": 42, "slug": "requirement-42",
+            "project_label": "project:billing", "priority": "priority:P2",
+        })
         create_command = next(command for command in commands if command[:3] == ["gh", "issue", "create"])
         self.assertIn(ri.REQUIREMENT_LABEL, create_command)
+        self.assertIn("project:billing", create_command)
+        self.assertIn("priority:P2", create_command)
         label_command = next(command for command in commands if command[:3] == ["gh", "label", "create"])
         self.assertIn(ri.REQUIREMENT_LABEL, label_command)
 
+    def test_create_honors_explicit_priority(self) -> None:
+        payload, commands = self._run_create(priority="P0")
+        self.assertEqual(payload["priority"], "priority:P0")
+        create_command = next(command for command in commands if command[:3] == ["gh", "issue", "create"])
+        self.assertIn("priority:P0", create_command)
+
     def test_create_rejects_blank_title(self) -> None:
-        with patch.object(ri, "github_cli_env", return_value={}):
+        with (
+            patch.object(ri, "github_cli_env", return_value={}),
+            patch.object(ri.managed_task, "authoring_config", return_value=self.config),
+            patch.object(ri.managed_task, "origin_repository", return_value="acme/billing"),
+        ):
             with self.assertRaises(ri.RequirementIntakeError):
                 ri.create_requirement(
                     self.root, repository="acme/development-backlog", title="   ",
                     outcome="Ship X.", target_repository="acme/billing",
                 )
+
+    def test_create_fails_before_any_issue_when_target_repository_is_not_origin(self) -> None:
+        with self.assertRaises(ri.RequirementIntakeError):
+            self._run_create(origin="acme/other-service")
+
+    def test_create_fails_when_repository_disagrees_with_backlog_config(self) -> None:
+        other_config = managed_task.AuthoringConfig("acme/other-backlog", "project:billing", "P2")
+        with self.assertRaises(ri.RequirementIntakeError):
+            self._run_create(config=other_config)
+
+    def test_create_fails_before_creation_when_configured_label_is_unavailable(self) -> None:
+        created = []
+
+        def fake_run(command):
+            if command[:3] == ["gh", "issue", "create"]:
+                created.append(command)
+            return type("Result", (), {"stdout": "", "returncode": 0})()
+
+        with self.assertRaises(managed_task.ManagedTaskError):
+            self._run_create(run_side_effect=fake_run, validate_error="configured Development Backlog label is unavailable: project:billing")
+        self.assertEqual(created, [])
+
+    def test_create_repairs_a_read_back_missing_label_then_succeeds(self) -> None:
+        def fake_run(command):
+            if command[:3] == ["gh", "issue", "create"]:
+                # Simulate the created Issue coming back without the priority label.
+                self.issue_labels = {ri.REQUIREMENT_LABEL, self.config.project_label}
+                return type("Result", (), {"stdout": "https://github.com/acme/development-backlog/issues/42\n", "returncode": 0})()
+            if command[:2] == ["gh", "api"] and "--method" in command:
+                label = command[-1].split("=", 1)[1]
+                self.issue_labels.add(label)
+                return type("Result", (), {"stdout": "", "returncode": 0})()
+            return type("Result", (), {"stdout": "", "returncode": 0})()
+
+        payload, commands = self._run_create(run_side_effect=fake_run)
+        self.assertEqual(payload["priority"], "priority:P2")
+        self.assertIn("priority:P2", self.issue_labels)
+        repair_command = next(command for command in commands if command[:2] == ["gh", "api"] and "--method" in command)
+        self.assertIn("labels[]=priority:P2", repair_command)
+
+    def test_create_fails_by_reference_when_read_back_has_a_conflicting_label(self) -> None:
+        def fake_run(command):
+            if command[:3] == ["gh", "issue", "create"]:
+                self.issue_labels = {ri.REQUIREMENT_LABEL, "project:other-service", "priority:P2"}
+                return type("Result", (), {"stdout": "https://github.com/acme/development-backlog/issues/42\n", "returncode": 0})()
+            return type("Result", (), {"stdout": "", "returncode": 0})()
+
+        with self.assertRaisesRegex(ri.RequirementIntakeError, "acme/development-backlog#42"):
+            self._run_create(run_side_effect=fake_run)
 
 
 class StartPreAuthoringTests(unittest.TestCase):

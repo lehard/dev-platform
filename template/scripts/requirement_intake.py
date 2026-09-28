@@ -135,6 +135,56 @@ def render_canonical_requirement_context(context: dict[str, Any]) -> str:
     return json.dumps(context, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
 
 
+def _reconcile_requirement_labels(
+    root: Path, *, repository: str, number: int, config: managed_task.AuthoringConfig, priority: str,
+) -> None:
+    """Verify a created Requirement's labels, completing only missing ones.
+
+    Mirrors ``managed_task.repair_authoring_labels``: a conflicting
+    ``project:*``/``priority:*`` label fails closed by exact Issue reference,
+    while a merely missing expected label (including ``type:requirement``) is
+    completed once and re-verified. Success is never reported without this
+    read-back proving the exact expected label set.
+    """
+    ref = f"{repository}#{number}"
+    expected_project = config.project_label.lower()
+    expected_priority = managed_task.priority_label(priority).lower()
+    expected_labels = (REQUIREMENT_LABEL, config.project_label, managed_task.priority_label(priority))
+
+    def _check(labels: set[str]) -> list[str]:
+        project_labels = {label for label in labels if label.startswith("project:")}
+        priority_labels = {label for label in labels if label.startswith("priority:")}
+        if project_labels - {expected_project} or priority_labels - {expected_priority}:
+            found = ", ".join(sorted(labels)) or "none"
+            raise RequirementIntakeError(
+                f"{ref} has conflicting project/priority labels "
+                f"(expected {config.project_label!r} and {managed_task.priority_label(priority)!r}; found {found})"
+            )
+        return [label for label in expected_labels if label.lower() not in labels]
+
+    issue = fetch_issue(root, repository, number)
+    labels = managed_task.issue_labels(issue)
+    missing = _check(labels)
+    if missing:
+        env = github_cli_env(root)
+        if env is None:
+            raise RequirementIntakeError("GitHub CLI authentication is required; run gh auth login and retry")
+        endpoint = f"repos/{repository}/issues/{number}/labels"
+        for label in missing:
+            run(["gh", "api", "--method", "POST", endpoint, "-f", f"labels[]={label}"], root, env)
+        issue = fetch_issue(root, repository, number)
+        labels = managed_task.issue_labels(issue)
+        missing = _check(labels)
+    project_labels = {label for label in labels if label.startswith("project:")}
+    priority_labels = {label for label in labels if label.startswith("priority:")}
+    if missing or REQUIREMENT_LABEL.lower() not in labels or project_labels != {expected_project} or priority_labels != {expected_priority}:
+        found = ", ".join(sorted(labels)) or "none"
+        raise RequirementIntakeError(
+            f"{ref} does not carry the expected Requirement labels "
+            f"(expected {REQUIREMENT_LABEL!r}, {config.project_label!r} and {managed_task.priority_label(priority)!r}; found {found})"
+        )
+
+
 def create_requirement(
     root: Path,
     *,
@@ -145,10 +195,26 @@ def create_requirement(
     context: str = "",
     acceptance_evidence: str = "",
     exclusions: str = "",
+    priority: str | None = None,
 ) -> dict[str, Any]:
     if not title.strip():
         raise RequirementIntakeError("title must be a non-empty string")
+    config = managed_task.authoring_config(root)
     repository = repo(repository)
+    if repository != config.repository:
+        raise RequirementIntakeError(
+            f"repository {repository!r} does not match the configured development_backlog.repository {config.repository!r}"
+        )
+    normalized_target = repo(target_repository)
+    origin = managed_task.origin_repository(root)
+    if normalized_target != origin:
+        raise RequirementIntakeError(
+            f"target repository {normalized_target!r} is not this checkout's origin {origin!r}; "
+            "its project label is not configured here -- create this Requirement from the target repository's own checkout"
+        )
+    effective_priority = priority or config.default_priority
+    priority_label_value = managed_task.priority_label(effective_priority)
+    managed_task.validate_backlog_labels(root, config, effective_priority)
     env = github_cli_env(root)
     if env is None:
         raise RequirementIntakeError("GitHub CLI authentication is required; run gh auth login and retry")
@@ -158,11 +224,18 @@ def create_requirement(
         acceptance_evidence=acceptance_evidence, exclusions=exclusions,
     )
     result = run(
-        ["gh", "issue", "create", "--repo", repository, "--title", title.strip(), "--body", body, "--label", REQUIREMENT_LABEL],
+        [
+            "gh", "issue", "create", "--repo", repository, "--title", title.strip(), "--body", body,
+            "--label", REQUIREMENT_LABEL, "--label", config.project_label, "--label", priority_label_value,
+        ],
         root, env,
     )
     created_repository, number = issue_ref(result.stdout.strip())
-    return {"repository": created_repository, "number": number, "slug": requirement_slug(number)}
+    _reconcile_requirement_labels(root, repository=created_repository, number=number, config=config, priority=effective_priority)
+    return {
+        "repository": created_repository, "number": number, "slug": requirement_slug(number),
+        "project_label": config.project_label, "priority": priority_label_value,
+    }
 
 
 def ensure_label(root: Path, repository: str, name: str, *, env: dict[str, str], description: str = "") -> None:
@@ -444,6 +517,8 @@ def main() -> int:
     create_parser.add_argument("--context-file", type=Path)
     create_parser.add_argument("--acceptance-file", type=Path)
     create_parser.add_argument("--exclusions-file", type=Path)
+    create_parser.add_argument("--priority", choices=["P0", "P1", "P2", "P3"], default=None,
+                                help="defaults to the configured development_backlog.default_priority")
 
     start_parser = sub.add_parser("start", help="bridge a Requirement into orchestrate_pre_authoring.py init")
     start_parser.add_argument("--requirement", required=True)
@@ -474,8 +549,12 @@ def main() -> int:
                 context=args.context_file.read_text(encoding="utf-8") if args.context_file else "",
                 acceptance_evidence=args.acceptance_file.read_text(encoding="utf-8") if args.acceptance_file else "",
                 exclusions=args.exclusions_file.read_text(encoding="utf-8") if args.exclusions_file else "",
+                priority=args.priority,
             )
-            print(f"Requirement created: {payload['repository']}#{payload['number']} ({payload['slug']})")
+            print(
+                f"Requirement created: {payload['repository']}#{payload['number']} ({payload['slug']}) "
+                f"[{payload['project_label']}, {payload['priority']}]"
+            )
             return 0
         if args.command == "start":
             payload = start_pre_authoring(root, requirement=args.requirement, base_dir=args.base_dir)

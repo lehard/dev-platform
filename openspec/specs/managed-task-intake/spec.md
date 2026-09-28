@@ -622,14 +622,21 @@ only for isolated helpers or a project-specific recovery command.
 
 ### Requirement: Connected-GitHub authoring verifies durable managed state before reporting success
 
-When a ChatGPT Project authors an internal or explicitly requested direct technical managed task through connected GitHub, it SHALL read back and verify the Issue, labels, and one active supported `managed-openspec:v1` package before reporting technical authoring success. Generic fixation through connected GitHub SHALL instead verify the durable Business Requirement representation without requiring or publishing any managed OpenSpec package.
+When a ChatGPT Project authors an internal or explicitly requested direct technical managed task through connected GitHub, it SHALL read back and verify the Issue, labels, and one active supported `managed-openspec:v1` package before reporting technical authoring success. Generic fixation through connected GitHub SHALL instead verify the durable Business Requirement representation, including exactly one configured `project:*` label and exactly one `priority:*` label resolved from the target repository's `[development_backlog]` configuration, without requiring or publishing any managed OpenSpec package.
 
 #### Scenario: Connected authoring completes normally
 
 - **WHEN** a ChatGPT Project records an accepted generic fixation request
 - **THEN** it reads back the exact `type:requirement` Issue with business sections and target repository
+- **AND** it verifies exactly the target's configured `project:*` label and one explicit or default `priority:*` label
 - **AND** it reports successful fixation only after verifying that representation
 - **AND** it does not publish a managed OpenSpec package or start execution
+
+#### Scenario: Connected Requirement routing cannot be resolved
+
+- **WHEN** the target repository has no valid `[development_backlog]` configuration or it names another Backlog repository
+- **THEN** the adapter does not create a Requirement without project/priority metadata
+- **AND** it reports the routing blocker
 
 #### Scenario: Issue exists but package publication is incomplete
 
@@ -762,3 +769,4 @@ A managed task sourced from a private Backlog Issue SHALL keep the exact Issue r
 - **WHEN** the combined candidate is committed and published
 - **THEN** its public branch, commit messages, manifest, PR text and process-evidence comments use opaque handles
 - **AND** the exact private manifest is checked through authorized private mapping before publication
+
