@@ -1,0 +1,81 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.825,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 1.187,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 284.958,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "tests/test_template_contract.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_995ff256ba63e4567c8ed35a69a9a4c4",
+    "change": "bounded-quick-regression-fix",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/bounded-quick-regression-fix",
+    "branch": "agent/bounded-quick-regression-fix",
+    "head": "5f6f267a35c4006d4117adc39bc411c31432a9fe",
+    "task_content": {
+      "version": 1,
+      "digest": "aa1d2772a958ca17d2698ee7c0897487b33d3d3ee04f42038a00d4be3b3f01a0",
+      "paths": {
+        "AGENTS.md": "ead2d2d7cca60b7558d55bb5feabb437ace77dde",
+        "docs/engineering/agent-workflow.md": "e2fb3d9228c4a832195bbae98ddb0707bb89c286",
+        "docs/engineering/chatgpt-project-protocol.md": "d6c8c36dac5d6d49b5bb626ff9c3471c24d0ea59",
+        "docs/engineering/task-intake.md": "0f0cb2bd4de9607270ce3281873b708e56f8709a",
+        "openspec/changes/bounded-quick-regression-fix/.managed-task.json": "5433fb48310e434af4cb996a4e0d36842397c17d",
+        "openspec/changes/bounded-quick-regression-fix/.openspec.yaml": "ee7c5448114a173e0747e643bc8c2bd9632a05e7",
+        "openspec/changes/bounded-quick-regression-fix/design.md": "fe15fc617cae223ed8d04e56238fc3e59d138747",
+        "openspec/changes/bounded-quick-regression-fix/proposal.md": "607bd47415b2dadb1cab0b0ecd13ccd3695e4351",
+        "openspec/changes/bounded-quick-regression-fix/specs/managed-task-intake/spec.md": "1e0ea94ce0549fa019d879191cc8f6ed1484dab6",
+        "openspec/changes/bounded-quick-regression-fix/tasks.md": "c1c607e4fdf11db14134935e6bfc7d879276b08e",
+        "openspec/changes/bounded-quick-regression-fix/verification.md": "f3667bc7a04ada3112640128f952f51650e7885a",
+        "template/AGENTS.md.jinja": "dbf2548c9483471012ac74bfefdcc69a5d38ef54",
+        "template/docs/engineering/agent-workflow.md.jinja": "992debdf619b68c0a7abfa10b489aa7ce52a4679",
+        "template/docs/engineering/chatgpt-project-protocol.md": "d6c8c36dac5d6d49b5bb626ff9c3471c24d0ea59",
+        "template/docs/engineering/task-intake.md.jinja": "ea665fea61dc22c380da2bb2e6ee1ff9716de0e4",
+        "tests/test_template_contract.py": "af7f05b966248275b6789355179ff85e145d879c"
+      },
+      "base": "41d67fe2bae8d2936f5e40b53650b0d2e80ba954"
+    }
+  }
+}

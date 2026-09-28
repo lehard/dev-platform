@@ -27,7 +27,7 @@ Keep these intents distinct:
 {% else %}
 - **Fix a non-trivial change**: prepare the local OpenSpec proposal/spec/design/tasks package and stop for acceptance; no operator Backlog, Project mutation, or credentials are required.
 {% endif %}
-- **Quick execution**: a small direct request remains a quick task and uses the normal start/check/finish path with no external issue and no ceremonial OpenSpec. If it becomes material, enter the configured non-trivial intake path before broadening scope.
+- **Quick execution**: a small direct request, including a regression repair that restores behavior unambiguously established by an accepted contract, remains a quick task and uses the normal start/check/finish path with no external issue and no ceremonial OpenSpec. Retain proportionate regression evidence; if it becomes material, enter the configured non-trivial intake path before broadening scope.
 {% if operator_integration | default(false) or operator_config_path %}
 - **Fresh non-trivial execution**: by default create/reuse a Business Requirement, start its pre-authoring flow, drive evidence -> ADD -> intents -> handoff, author the resulting internal managed OpenSpec change(s), link each child to the Requirement, start those managed tasks, and only then implement.
 - **Execute an existing Business Requirement**: start a supplied `type:requirement` Issue with `python3 scripts/requirement_intake.py start --requirement owner/repo#N`, then resume through `python3 scripts/execute_requirement.py advance --requirement owner/repo#N`. One child uses its ordinary managed publication and terminal parent reconciliation; two or more children use shared integration when joint delivery is needed.
