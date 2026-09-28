@@ -5,4 +5,4 @@
 - [x] Preserve explicit operator-managed downstream opt-in and clear failure guidance.
 - [x] Recheck terminal target support with authoritative child delivery evidence.
 - [x] Add regression tests for supported, operator-managed and unsupported targets.
-- [ ] Run semantic OpenSpec verification, relevant tests and platform validation; record the truthful verification receipt, archive and publish.
+- [x] Run semantic OpenSpec verification, relevant tests and platform validation; record the truthful verification receipt, archive and publish.
