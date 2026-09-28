@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "candidate_id": "historical-native-control",
+  "harness_changes": [
+    "native-baseline-control"
+  ],
+  "suite_sha256": "e018e3ad15fdcba1c4e33328df9aaedf720954ddc96c8cd141fa943f3892df09",
+  "capability_acceptance": {
+    "verification": "pass",
+    "reference": "match"
+  },
+  "results": [
+    {
+      "case_id": "copier-version-config",
+      "verification": "pass",
+      "reference": "match",
+      "metrics": {
+        "wall_time_seconds": 466.213
+      }
+    },
+    {
+      "case_id": "private-reference-preflight",
+      "verification": "pass",
+      "reference": "match",
+      "metrics": {
+        "wall_time_seconds": 489.048
+      }
+    },
+    {
+      "case_id": "managed-terminal-obligations",
+      "verification": "pass",
+      "reference": "match",
+      "metrics": {
+        "wall_time_seconds": 309.526
+      }
+    },
+    {
+      "case_id": "health-review-orchestration",
+      "verification": "pass",
+      "reference": "match",
+      "metrics": {
+        "wall_time_seconds": 161.701
+      }
+    },
+    {
+      "case_id": "requirement-intake",
+      "verification": "pass",
+      "reference": "match",
+      "metrics": {
+        "wall_time_seconds": 151.213
+      }
+    }
+  ]
+}
