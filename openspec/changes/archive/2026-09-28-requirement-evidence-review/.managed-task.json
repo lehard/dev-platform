@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/platform-health-review/spec.md"
+  ],
+  "change": "requirement-evidence-review",
+  "imported_at": "2026-09-28T09:22:45+00:00",
+  "package_revision": "102b5742ef3e48d4da92c3759f87609f73078b8e23b8fe5801fbe36244f14d96",
+  "prepared_against": "da821e5e2455d2a53aa0eb72063d37c9fc93bb75",
+  "private_lineage_handle": "pln_452bb3d21693557b57d89d3d9880ed09",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "64cb46b1feb55af5b89617f5733a8b9e8ed8a36fb9c87e951a4c47ba96cb7295",
+    "updated_at": "2026-09-28T09:20:25Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

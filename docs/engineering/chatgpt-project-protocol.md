@@ -252,6 +252,11 @@ start that exact Requirement through the repository-local
 `requirement_intake.py start` and resumable pre-authoring through handoff,
 creates the internal managed OpenSpec child change(s), links every child back
 to the parent, starts those technical tasks, and only then implements.
+Before terminal Requirement delivery, the repository agent reviews the full
+path and records the bounded parent retrospective with the target repository's
+`requirement_retrospective.py` entrypoint. A clean result is concise; new
+meaningful findings use the existing friction/process-issue mechanism.
+Technical child retrospectives remain independently required.
 
 Do not ask for a second fixation phrase after the user has already authorized
 execution. A fixation-only instruction still creates/reuses the Requirement
@@ -280,9 +285,13 @@ candidate as work through the normal requirement-first intake contract.
 
 Each dated review report records `reviewed_at`, the exact current `main` SHA,
 and the previous-review boundary. It reads a bounded current set of open
-process issues plus relevant managed tasks and recently merged/closed work
+process issues plus relevant Requirement parents, linked technical children,
+and recently merged/closed work
 since that boundary. It classifies source evidence as unmanaged, managed,
 likely resolved/superseded, needs more evidence, or ready for human decision.
+Include pre-authoring and parent-retrospective evidence even when every child
+is clean; group cross-child symptoms by root cause. Specialized reviews feed
+the existing friction/process-issue route, not a separate improvement queue.
 Before calling an older issue resolved or superseded, inspect current repository
 evidence; stale issue prose alone is insufficient.
 

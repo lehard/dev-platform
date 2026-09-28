@@ -145,12 +145,15 @@ class RequirementExecutionTests(unittest.TestCase):
                 execution, "_ready_receipt", side_effect=[(root / "first-receipt.json", object()), (root / "second-receipt.json", object())]
             ), mock.patch.object(execution.requirement_integration, "assemble_candidate", return_value={"digest": "exact"}) as assemble, mock.patch.object(
                 execution.requirement_integration, "compose_candidate"
-            ) as compose, mock.patch.object(execution.requirement_integration, "publish_candidate", return_value={"status": "merged-and-reconciled"}) as publish:
+            ) as compose, mock.patch.object(execution.requirement_integration, "publish_candidate", return_value={"status": "merged-and-reconciled"}) as publish, mock.patch.object(
+                execution.requirement_retrospective, "require_checkpoint"
+            ) as retrospective:
                 result = execution.advance(root, requirement=REQUIREMENT, base_dir=root)
             self.assertEqual(result["status"], "merged-and-reconciled")
             self.assertEqual(len(assemble.call_args.kwargs["receipt_paths"]), 2)
             compose.assert_called_once()
             publish.assert_called_once()
+            retrospective.assert_called_once_with(root.resolve(), requirement=REQUIREMENT)
 
     def test_ready_child_releases_only_its_exact_board_claim(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
