@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/disposable-repository-sandbox/spec.md"
+  ],
+  "change": "isolate-disposable-repository-sandboxes",
+  "imported_at": "2026-09-28T15:25:19+00:00",
+  "package_revision": "b8d8f1474015a1cdd993e2428d4c3156dc4c6c61e77fa580908ea923d5a08a97",
+  "prepared_against": "f6d3ed0e4cabc5f846832fd756b9ed371a168a07",
+  "private_lineage_handle": "pln_d71c5b60a213242e9f8e54ad18b067d7",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "5c28b85e4833a4da3207cd4c10b64d91956217b0beb6a1e96b581991405c005a",
+    "updated_at": "2026-09-28T15:20:40Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
