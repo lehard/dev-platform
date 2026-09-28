@@ -1,0 +1,79 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 10.862,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 8.422,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 411.115,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/managed_task.py",
+        "template/scripts/openspec_lifecycle.py",
+        "template/scripts/requirement_integration.py",
+        "tests/test_openspec_lifecycle.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_bf95ba1f90fdc5ee3f7bb7280db88bf8",
+    "change": "align-task-checklist-marker-semantics",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/align-task-checklist-marker-semantics",
+    "branch": "agent/align-task-checklist-marker-semantics",
+    "head": "a23062eab7ea4129342814a2822b9c09c59e69a0",
+    "task_content": {
+      "version": 1,
+      "digest": "09134d15f765ac0ab6dd99debb98e950c45fc17aa94658e29fd6efce4e0ad1e1",
+      "paths": {
+        "openspec/changes/align-task-checklist-marker-semantics/.managed-task.json": "ea368086c18b000583c81fde7e002376ff2d374c",
+        "openspec/changes/align-task-checklist-marker-semantics/.openspec.yaml": "ee7c5448114a173e0747e643bc8c2bd9632a05e7",
+        "openspec/changes/align-task-checklist-marker-semantics/design.md": "c97b2da501f52a5cd202c0873fccb842cc48825a",
+        "openspec/changes/align-task-checklist-marker-semantics/proposal.md": "4de19434319c5c15ba5a384a6a9d1420d91eabad",
+        "openspec/changes/align-task-checklist-marker-semantics/specs/completion-lifecycle/spec.md": "3ab03c69ccca69f0d4bdd4a7a749f85e084c19a1",
+        "openspec/changes/align-task-checklist-marker-semantics/tasks.md": "7f6320bd2df946fa4c97c839e6b93f923651f218",
+        "openspec/changes/align-task-checklist-marker-semantics/verification.md": "342e8f982e2cfedc39afab7796b391f97ba6ca6b",
+        "template/scripts/managed_task.py": "a54b5041a3d88de27baeea0a0d8d0fedb14afcff",
+        "template/scripts/openspec_lifecycle.py": "79f97adc544b65a44d744485eec54bda87de209b",
+        "template/scripts/requirement_integration.py": "c092a1a93c5df8d70347ecb7e411cf037e9c875f",
+        "tests/test_openspec_lifecycle.py": "2d6f753a1f115c7ec0ea3bf6e3b2eda1bd5bdfa5"
+      },
+      "base": "d61e65fb17b8d0fef7b941ef65ff710530658f3e"
+    }
+  }
+}

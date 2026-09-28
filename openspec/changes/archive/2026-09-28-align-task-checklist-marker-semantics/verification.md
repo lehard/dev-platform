@@ -17,11 +17,12 @@ Automated-Checks-Evidence: automated-checks.json
 ## Automated checks
 
 - `python3 -m unittest tests.test_openspec_lifecycle`: passed, 25 tests.
-- `DEV_PLATFORM_TEST_JOBS=3 python3 scripts/run_test_groups.py --all`: passed, all 14 parallel groups.
-- `python3 -m compileall -q template/scripts scripts`: passed.
+- `DEV_PLATFORM_TEST_JOBS=3 python3 scripts/run_test_groups.py --all`: passed before reconciliation (14 groups at that revision).
+- After reconciliation to `main` at `d61e65f`, `python3 scripts/run_test_groups.py --all --quiet` passed 14 of 15 groups. `fast-c` failed because the worktree's ignored `.ruff_cache` contained unreadable files, which `test_root_guidance_contract` attempted to copy. After moving that cache out of the worktree, `python3 scripts/run_test_groups.py --group fast-c --quiet` passed. The same reconciled code was used for both runs.
+- `PYTHONPYCACHEPREFIX=/tmp/dev-platform-264-pycache python3 -m compileall -q template/scripts scripts`: passed after reconciliation. The default cache location had pre-existing files owned by another local account and was not writable.
 - `python3 -m ruff check scripts template/scripts tests`: passed.
 - `python3 scripts/managed_projects.py validate`: passed (3 managed projects).
-- `python3 template/scripts/openspec_lifecycle.py check`: passed.
+- `python3 template/scripts/openspec_lifecycle.py check`: reports this completed active change pending archive, as expected.
 - `openspec validate align-task-checklist-marker-semantics --strict`: passed.
 - `git diff --check`: passed.
 
