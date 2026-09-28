@@ -20,7 +20,7 @@ For a single-repository project, use `TARGET_REPOSITORY` + `PROJECT_LABEL` + `DE
 
 For a multi-repository project, use an explicit mapping `repository -> project label` (with its own `DEFAULT_PRIORITY`); the mapping keeps one project label per repository. Before recording a managed change, choose the concrete target repository and corresponding label. If a change genuinely spans repositories, identify the primary target and dependencies or split it deliberately; do not silently mix unrelated repository work into one change.
 
-For an operator-managed target — one whose checkout intentionally keeps `.dev-platform.toml` untracked, so connected GitHub can never read it — the operator produces `BACKLOG_REPOSITORY`, `TARGET_REPOSITORY`, `PROJECT_LABEL`, and `DEFAULT_PRIORITY` by running `python3 scripts/requirement_intake.py routing-parameters` in that target's own checkout, and declares exactly that rendered output as the Project parameters. These parameters are always derived from the target's existing `[development_backlog]` configuration; they are never hand-authored and never a separate default.
+For an operator-managed target — one whose checkout intentionally keeps `.dev-platform.toml` untracked, so connected GitHub can never read it — the operator produces `BACKLOG_REPOSITORY`, `TARGET_REPOSITORY`, `PROJECT_LABEL`, and `DEFAULT_PRIORITY` by running `python3 scripts/requirement_intake.py routing-parameters` in that target's own checkout, and declares exactly that rendered output as the Project parameters. These parameters are always derived from the target's existing `[development_backlog]` configuration; they are never hand-authored and never a separate default. The target must also explicitly attest its operator-managed integration and its managed entrypoints/protected publication path; routing parameters alone are not lifecycle support.
 
 ## Connected-GitHub authoring
 
@@ -64,10 +64,14 @@ Resolve routing in this order before creating anything:
    `PROJECT_LABEL`, `DEFAULT_PRIORITY`) rendered by
    `requirement_intake.py routing-parameters` above.
 
-Stop and report the routing blocker instead of creating a Requirement without
-verified metadata when neither source yields a Backlog repository equal to
-`BACKLOG_REPOSITORY`, the exact target repository, a valid project label, and
-a valid default priority. `resolve_connected_routing` and
+Before fixation, the connected surface also proves the target's managed
+OpenSpec/Requirement entrypoints and protected publication path. For an
+untracked operator-managed target, it requires the explicit target-side
+operator integration attestation as well. Stop and report the support or
+routing blocker instead of creating a Requirement when that lifecycle proof,
+a Backlog repository equal to `BACKLOG_REPOSITORY`, the exact target
+repository, a valid project label, or a valid default priority is absent.
+`resolve_connected_routing` and
 `verify_connected_requirement` in `requirement_intake.py` are the reference
 model this ordered rule and its read-back must behave equivalently to.
 

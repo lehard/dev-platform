@@ -27,6 +27,7 @@ from typing import Any
 import managed_project_status
 import managed_task
 import orchestrate_pre_authoring
+import requirement_target_lifecycle
 from _platform_common import atomic_write_text, current_worktree_root, github_cli_env
 from managed_task import ManagedTaskError, fetch_issue, issue_ref, repo, run
 
@@ -226,6 +227,10 @@ def create_requirement(
             f"repository {repository!r} does not match the configured development_backlog.repository {config.repository!r}"
         )
     normalized_target = repo(target_repository)
+    try:
+        requirement_target_lifecycle.require_local_target_support(root, target_repository=normalized_target)
+    except requirement_target_lifecycle.RequirementTargetLifecycleError as exc:
+        raise RequirementIntakeError(str(exc)) from exc
     origin = managed_task.origin_repository(root)
     if normalized_target != origin:
         raise RequirementIntakeError(
@@ -288,6 +293,7 @@ def resolve_connected_routing(
     committed_config: dict[str, Any] | None,
     project_parameters: dict[str, str],
     priority: str | None = None,
+    lifecycle_evidence: dict[str, Any] | None = None,
 ) -> dict[str, str]:
     """Reference model of the connected ChatGPT adapter's Requirement routing rule.
 
@@ -312,6 +318,13 @@ def resolve_connected_routing(
     Anything missing, invalid, or disagreeing raises ``RequirementIntakeError``
     naming the routing blocker; nothing is created without resolved routing.
     """
+    try:
+        requirement_target_lifecycle.require_connected_target_support(
+            committed_config=committed_config, lifecycle_evidence=lifecycle_evidence,
+        )
+    except requirement_target_lifecycle.RequirementTargetLifecycleError as exc:
+        raise RequirementIntakeError(str(exc)) from exc
+
     def _normalize_repo(value: Any) -> str | None:
         """Return the normalized owner/name form, or None when ``value`` is
         not a valid repository string. Never raises: an invalid owner/name
@@ -435,6 +448,10 @@ def start_pre_authoring(
         context = canonical_requirement_context(parsed)
     except RequirementIntakeError as exc:
         raise RequirementIntakeError(f"{requirement}: {exc}") from exc
+    try:
+        requirement_target_lifecycle.require_local_target_support(root, target_repository=context["target_repository"])
+    except requirement_target_lifecycle.RequirementTargetLifecycleError as exc:
+        raise RequirementIntakeError(str(exc)) from exc
     base_dir = base_dir or default_base_dir(root)
     slug = requirement_slug(number)
     directory = orchestrate_pre_authoring.requirement_dir(base_dir, slug)
@@ -504,6 +521,11 @@ def materialize_handoff(
     parent = fetch_issue(root, repository, number)
     if REQUIREMENT_LABEL not in managed_task.issue_labels(parent):
         raise RequirementIntakeError(f"{requirement_ref} is not labeled {REQUIREMENT_LABEL}")
+    try:
+        context = canonical_requirement_context(parse_requirement_body(str(parent.get("body") or "")))
+        requirement_target_lifecycle.require_local_target_support(root, target_repository=context["target_repository"])
+    except requirement_target_lifecycle.RequirementTargetLifecycleError as exc:
+        raise RequirementIntakeError(str(exc)) from exc
     slug = requirement_slug(number)
     directory = orchestrate_pre_authoring.requirement_dir(base_dir or default_base_dir(root), slug)
     report = orchestrate_pre_authoring.status(root, requirement_id=slug, base_dir=base_dir)

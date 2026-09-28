@@ -17,7 +17,7 @@ REQUIREMENT = "acme/backlog#7"
 
 def parent(children: tuple[int, ...] = (8, 9), *, outcome: str = "Improve process") -> dict:
     lines = "\n".join(f"- [ ] acme/backlog#{number}" for number in children)
-    return {"body": f"## Outcome\n\n{outcome}\n\n<!-- requirement-children:start -->\n{lines}\n<!-- requirement-children:end -->"}
+    return {"body": f"## Outcome\n\n{outcome}\n\n## Target repository\n\n`acme/project`\n\n<!-- requirement-children:start -->\n{lines}\n<!-- requirement-children:end -->"}
 
 
 class RequirementRetrospectiveTests(unittest.TestCase):
@@ -69,11 +69,26 @@ class RequirementRetrospectiveTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             with mock.patch.object(requirement_terminal.subprocess, "run", return_value=mock.Mock(stdout="main", returncode=0)), mock.patch.object(
+                requirement_terminal.requirement_target_lifecycle, "require_local_target_support"
+            ), mock.patch.object(
                 requirement_terminal.requirement_intake, "fetch_issue", return_value={**parent(), "labels": [{"name": "type:requirement"}]}
             ), mock.patch.object(requirement_terminal.requirement_retrospective, "require_checkpoint", side_effect=retrospective.RequirementRetrospectiveError("missing")), mock.patch.object(
                 requirement_terminal.managed_project_status, "reconcile"
             ) as project:
                 with self.assertRaisesRegex(retrospective.RequirementRetrospectiveError, "missing"):
+                    requirement_terminal.reconcile_parent(root, requirement=REQUIREMENT)
+                project.assert_not_called()
+
+    def test_terminal_reconciliation_refuses_unsupported_target_before_parent_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            unsupported = requirement_terminal.requirement_target_lifecycle.RequirementTargetLifecycleError("missing terminal path")
+            with mock.patch.object(requirement_terminal.subprocess, "run", return_value=mock.Mock(stdout="main", returncode=0)), mock.patch.object(
+                requirement_terminal.requirement_intake, "fetch_issue", return_value={**parent(), "labels": [{"name": "type:requirement"}]}
+            ), mock.patch.object(
+                requirement_terminal.requirement_target_lifecycle, "require_local_target_support", side_effect=unsupported
+            ), mock.patch.object(requirement_terminal.managed_project_status, "reconcile") as project:
+                with self.assertRaisesRegex(requirement_terminal.RequirementTerminalError, "missing terminal path"):
                     requirement_terminal.reconcile_parent(root, requirement=REQUIREMENT)
                 project.assert_not_called()
 

@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/agent-workflow/spec.md"
+  ],
+  "change": "guard-requirement-target-lifecycle",
+  "imported_at": "2026-09-28T13:30:34+00:00",
+  "package_revision": "3b63593abcbc985aaf52713ada81c1f076a01ad693e67aedca5e82346d06345b",
+  "prepared_against": "6ee5f130e4592bd291c20fbd4fcd21156f110b82",
+  "private_lineage_handle": "pln_3e988417b4402ab146c485a873d3a714",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "53cb67b52481b5b7c22c7befabc7b7c743aa6ecb701acccefd30238400eb9ee9",
+    "updated_at": "2026-09-28T12:46:35Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
