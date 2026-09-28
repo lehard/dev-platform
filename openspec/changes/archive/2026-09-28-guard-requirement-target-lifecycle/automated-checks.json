@@ -1,0 +1,93 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 4.363,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 2.485,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 375.996,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/execute_requirement.py",
+        "template/scripts/requirement_intake.py",
+        "template/scripts/requirement_target_lifecycle.py",
+        "template/scripts/requirement_terminal.py",
+        "tests/test_requirement_execution.py",
+        "tests/test_requirement_flow_e2e.py",
+        "tests/test_requirement_intake.py",
+        "tests/test_requirement_retrospective.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_3e988417b4402ab146c485a873d3a714",
+    "change": "guard-requirement-target-lifecycle",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/guard-requirement-target-lifecycle",
+    "branch": "agent/guard-requirement-target-lifecycle",
+    "head": "42011544ee94b4d18e7c598f78fcb063b364b3e8",
+    "task_content": {
+      "version": 1,
+      "digest": "83adf79620bc4b770f26f640c7c4bbe1aba9aac73283c8b8934cf9fb2b5190a3",
+      "paths": {
+        "docs/engineering/chatgpt-project-protocol.md": "5cd406163279070a2e971029986f1a8de1712051",
+        "docs/engineering/task-intake.md": "21f9d9599b973f63b88b83b84e53a4343d6d7dcd",
+        "openspec/changes/guard-requirement-target-lifecycle/.managed-task.json": "dc74432121c85f206f6c71a072beec8fa43a8a65",
+        "openspec/changes/guard-requirement-target-lifecycle/.openspec.yaml": "ee7c5448114a173e0747e643bc8c2bd9632a05e7",
+        "openspec/changes/guard-requirement-target-lifecycle/automated-checks.json": "2ae8df973dd5b19b1b7e3056024bd458bbadd4de",
+        "openspec/changes/guard-requirement-target-lifecycle/design.md": "40e1e67cc246a16687114159098465b2ae5ee7ab",
+        "openspec/changes/guard-requirement-target-lifecycle/proposal.md": "5392cd423d263ca58d2ad9a44969a9d253a2b36f",
+        "openspec/changes/guard-requirement-target-lifecycle/specs/agent-workflow/spec.md": "aedcd068b26fecef25777f1877c6402243c1c504",
+        "openspec/changes/guard-requirement-target-lifecycle/tasks.md": "6d42c6c90c89cfd56d2b2f706a11b71155dabc3d",
+        "openspec/changes/guard-requirement-target-lifecycle/verification.md": "00ea79cdaeb9a0e23b03d2edab2a6e931b71f742",
+        "openspec/specs/agent-workflow/spec.md": "46c5a8688d1c8fb8490fe023604d5a5447b5280d",
+        "template/docs/engineering/chatgpt-project-protocol.md": "21cdb2c48583ffcdd08d9de6bdba7ea2d2c2dd8e",
+        "template/docs/engineering/task-intake.md.jinja": "84b73147ce34e5e7c01afafbb630c318abf5097d",
+        "template/scripts/execute_requirement.py": "31da878f698130bf6d682d05bc6265a1adc1ca4f",
+        "template/scripts/requirement_intake.py": "8dedf664f2f8e1aca5c2a1058e2f92dd26accb12",
+        "template/scripts/requirement_target_lifecycle.py": "ca78297c91b700690255d89bf58f7facbba06262",
+        "template/scripts/requirement_terminal.py": "738c6eb536b29c1ec79e20f41d56bed97a9c3850",
+        "tests/test_requirement_execution.py": "a40b649290023808aa7adc5ec63cfd6bc6a406d5",
+        "tests/test_requirement_flow_e2e.py": "59712b10627ca1896c4a6b9a46fbd51e6c8e1f28",
+        "tests/test_requirement_intake.py": "74bc3bdd56df2a02d926b1e68f8d384734d86419",
+        "tests/test_requirement_retrospective.py": "c75a75c061093d85eacc61ed29012babc10dc0d5"
+      },
+      "base": "36cfabd2686f4e8909818cc02f69d341fbae5b20"
+    }
+  }
+}
