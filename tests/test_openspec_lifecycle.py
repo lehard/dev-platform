@@ -41,6 +41,33 @@ class OpenSpecLifecycleTests(unittest.TestCase):
             self.assertEqual(["done"], lifecycle.completed_active_changes(root))
             self.assertEqual(1, lifecycle.check_hygiene(root))
 
+    def test_alternative_markers_and_unknown_content_keep_change_incomplete(self) -> None:
+        for open_task in ("+ [ ] task", "* [ ] task", "1. [ ] task", "1) [ ] task", "- [~] partial", "- [-] skipped", "-[ ] tight"):
+            with self.subTest(open_task=open_task), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                change = self.make_change(root, "work", f"- [x] done\n{open_task}\n", "OpenSpec-Verify: PASS\nVerification-Method: test\n")
+                self.assertEqual((2, 1), lifecycle.task_state(change))
+                self.assertEqual([], lifecycle.completed_active_changes(root))
+                with self.assertRaisesRegex(SystemExit, "1 of 2 task"):
+                    lifecycle.require_ready(change)
+
+    def test_task_counting_matches_upstream_markers(self) -> None:
+        text = "\n".join(
+            [
+                "- [ ] open",
+                "- [x] done",
+                "- [X] done upper",
+                "+ [x] plus done",
+                "  3. [ x ] padded done",
+                "10) [] empty",
+                "- [x](https://example.com) link, not a task",
+                "- [x][ref] reference link, not a task",
+                "[ ] no marker",
+                "- plain bullet",
+            ]
+        )
+        self.assertEqual((6, 2), lifecycle.count_tasks(text))
+
     def test_archive_readiness_requires_verify_receipt(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             change = self.make_change(Path(tmp), "done", "- [x] one\n")
