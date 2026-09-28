@@ -2,7 +2,9 @@
 
 ## Purpose
 Define the authoring, validation, archival, and evidence contract for OpenSpec changes in the platform.
+
 ## Requirements
+
 ### Requirement: Non-trivial OpenSpec proposals make the desired outcome verifiable
 
 The platform SHALL guide non-trivial OpenSpec proposals to state the intended outcome and concrete success criteria or verification evidence. Success evidence MAY be quantitative, binary, or directly observable depending on the nature of the change. The platform SHALL NOT require invented numeric KPIs where they do not improve verification.
@@ -112,7 +114,7 @@ The canonical central OpenSpec workflow and the rendered downstream workflow SHA
 
 ### Requirement: OpenSpec stable-version upgrades preserve lifecycle correctness
 
-Dev Platform SHALL update its supported OpenSpec compatibility baseline only after the selected stable release passes representative managed lifecycle checks and focused regressions for correctness-sensitive upstream changes.
+Dev Platform SHALL update its supported OpenSpec compatibility baseline only after the selected stable release passes representative managed lifecycle checks and focused regressions for correctness-sensitive upstream changes. Every recorded copy of the tested OpenSpec version -- the rendered `[tools.openspec]` configuration, every platform or rendered workflow that installs or invokes the OpenSpec CLI, and the tested-version documentation -- SHALL move together, and the focused regressions for an adopted release's correctness fixes SHALL remain in the exact-CLI regression suite that platform CI runs against the pinned version.
 
 #### Scenario: Stable OpenSpec upgrade passes compatibility checks
 - **WHEN** a newer stable OpenSpec release is selected for adoption
@@ -125,6 +127,12 @@ Dev Platform SHALL update its supported OpenSpec compatibility baseline only aft
 - **WHEN** the selected stable OpenSpec release violates a Dev Platform lifecycle invariant or fails a representative regression
 - **THEN** the platform SHALL keep the existing supported contract
 - **AND** SHALL record the incompatibility instead of weakening verification, archive, or source-of-truth guarantees merely to complete the dependency bump
+
+#### Scenario: Adopted release fixes are pinned by behavior
+- **GIVEN** a stable OpenSpec release is adopted because it fixes archive, validation, task-progress or verification correctness
+- **WHEN** platform CI runs the exact-CLI regression suite against the pinned version
+- **THEN** each motivating fix is exercised by a fixture that would fail against the previously tested version
+- **AND** no recorded copy of the previous tested version remains in the platform or rendered template
 
 ### Requirement: OpenSpec proposal authoring can consume atomic intents
 

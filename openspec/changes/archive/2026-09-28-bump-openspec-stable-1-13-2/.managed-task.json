@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/openspec-authoring/spec.md"
+  ],
+  "change": "bump-openspec-stable-1-13-2",
+  "imported_at": "2026-09-28T18:09:03+00:00",
+  "package_revision": "42e28016cc7bc10e6de75703402f01a7a3091df5676c47f291f9f2a50c2731d1",
+  "prepared_against": "d09c1cc8591e08c2c42ce866d6e2ea6d96e6f2ac",
+  "private_lineage_handle": "pln_596fceef04517daa1a2c7f811f414b63",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "111fa27b3c7ebba7c0d8b93582e49d3b5bf4ef95f0b3118ab8279962b49d92e5",
+    "updated_at": "2026-09-28T18:04:42Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

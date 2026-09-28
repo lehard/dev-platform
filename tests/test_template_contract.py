@@ -497,11 +497,11 @@ class TemplateContractTests(unittest.TestCase):
         rendered_ci = (ROOT / "template" / ".github" / "workflows" / "dev-platform.yml.jinja").read_text(encoding="utf-8")
         onboarding = (ROOT / ".github" / "workflows" / "adopt-project.yml").read_text(encoding="utf-8")
         for text in (config, template):
-            self.assertIn('min_version = "1.13.0"', text)
-            self.assertIn('tested_version = "1.13.0"', text)
+            self.assertIn('min_version = "1.13.2"', text)
+            self.assertIn('tested_version = "1.13.2"', text)
         for text in (ci, rendered_ci):
-            self.assertIn("@fission-ai/openspec@1.13.0 validate --all --strict --no-interactive", text)
-        self.assertIn("npm install --global @fission-ai/openspec@1.13.0", onboarding)
+            self.assertIn("@fission-ai/openspec@1.13.2 validate --all --strict --no-interactive", text)
+        self.assertIn("npm install --global @fission-ai/openspec@1.13.2", onboarding)
         self.assertIn("tests/openspec_1_13_regression.py", ci)
 
     def test_live_openspec_specs_have_authored_purposes(self) -> None:
