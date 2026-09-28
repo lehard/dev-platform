@@ -36,6 +36,6 @@ Re-evaluate against a **stable** TeamAI release when evidence shows any material
 1. The team repository and distributed resources can be pinned to reviewed, immutable versions, with changes reaching managed projects only through a Dev Platform release and controlled rollback.
 2. TeamAI protects foreign-owned agent surfaces, honors hook opt-out, and provides project-scoped install/uninstall that restores shared settings without affecting other projects.
 3. Version-bound/on-demand skills or model profiles graduate from prerelease to stable; provider-free codebase extraction or a reviewable learnings/recall path becomes available.
-4. The proposed **Management Backend** becomes an implemented, versioned and reviewed product capability with immutable publication and rollback. The proposal is a future substitution signal, not an implemented production backend today; its relevance is recorded in [Requirement #249](https://github.com/lehard/development-backlog/issues/249).
+4. The proposed **Management Backend** becomes an implemented, versioned and reviewed product capability with immutable publication and rollback. The proposal is a future substitution signal, not an implemented production backend today; its relevance is recorded in the originating Requirement.
 
 A trigger starts a new bounded evaluation under the [upstream substitution gate](../engineering/upstream-substitution.md). It does not turn a watched capability into implementation work or change OpenSpec behavior by itself.

@@ -2,7 +2,7 @@
 
 ## Why
 
-Consequential decisions and their rationale are scattered among OpenSpec archives, evaluations and issues. Provider changes can lose the reasons and revisit conditions even when current behavior remains discoverable. Requirement lehard/development-backlog#249 requests a durable shared decision history and the TeamAI decision as its first record.
+Consequential decisions and their rationale are scattered among OpenSpec archives, evaluations and issues. Provider changes can lose the reasons and revisit conditions even when current behavior remains discoverable. The originating Requirement requests a durable shared decision history and the TeamAI decision as its first record.
 
 ## What changes
 
