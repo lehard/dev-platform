@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "specs/engineering-capabilities/spec.md",
+    "design.md",
+    "tasks.md"
+  ],
+  "change": "add-repository-goal-scan",
+  "imported_at": "2026-09-28T08:07:37+00:00",
+  "package_revision": "90f5d05ce96f4c094ebc7fe3ebd2b6147843ae2f102c5259fd4434816d53dd58",
+  "prepared_against": "14af431294ae50abaf32bcde343e4f6974b481a4",
+  "private_lineage_handle": "pln_6151b33bb1a409b5b70a203f2be0e345",
+  "routing_receipt": {
+    "assurance": "high",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "platform-capability"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "3b34ffeec0887718ca25f9790c62e6407a242601764174e60120d8021e853e54",
+    "updated_at": "2026-09-19T06:54:16Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

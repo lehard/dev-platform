@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "capability": "repository-goal-scan",
+  "content_sha256": "0cc6dc59e8419a24254be87bcf9d65aad1e168502e1f4ae8b4e521a47c24dc80",
+  "cases": [
+    {"id":"positive-deprecation","expectation":"trigger","prompt":"Explicitly scan this entire repository for all uses of the deprecated transport boundary.","samples":["triggered","triggered","triggered"]},
+    {"id":"positive-reliability","expectation":"trigger","prompt":"Do a repository-wide goal scan for reliability risks and return advisory evidence.","samples":["triggered","triggered","triggered"]},
+    {"id":"positive-security-sweep","expectation":"trigger","prompt":"Scan every tracked area of this repository for the stated broad security goal.","samples":["triggered","triggered","triggered"]},
+    {"id":"positive-migration","expectation":"trigger","prompt":"Systematically find everywhere this repository still depends on the legacy migration API.","samples":["triggered","triggered","triggered"]},
+    {"id":"positive-inventory","expectation":"trigger","prompt":"Run an explicit repository goal scan and account for every selected candidate.","samples":["triggered","triggered","triggered"]},
+    {"id":"positive-quality","expectation":"trigger","prompt":"Search the whole codebase systematically for the broad maintainability goal, with finite coverage evidence.","samples":["triggered","triggered","triggered"]},
+    {"id":"positive-compliance","expectation":"trigger","prompt":"Investigate this complete repository for all paths relevant to our stated compliance question.","samples":["triggered","triggered","triggered"]},
+    {"id":"positive-discovery","expectation":"trigger","prompt":"Find every repository location relevant to this broad engineering goal before proposing work.","samples":["triggered","triggered","triggered"]},
+    {"id":"positive-audit","expectation":"trigger","prompt":"Explicitly do a comprehensive codebase scan for unsafe serialization patterns.","samples":["triggered","triggered","triggered"]},
+    {"id":"positive-removal","expectation":"trigger","prompt":"Scan the entire repository to identify all consumers we must address before removing this feature.","samples":["triggered","triggered","triggered"]},
+    {"id":"negative-fix","expectation":"not-trigger","prompt":"Fix the null check in the payment handler.","samples":["not-triggered","not-triggered","not-triggered"]},
+    {"id":"negative-debug","expectation":"not-trigger","prompt":"Diagnose why this one API request returns 500.","samples":["not-triggered","not-triggered","not-triggered"]},
+    {"id":"negative-review","expectation":"not-trigger","prompt":"Review this pull request for a race condition.","samples":["not-triggered","not-triggered","not-triggered"]},
+    {"id":"negative-test","expectation":"not-trigger","prompt":"Run the focused unit test for this parser.","samples":["not-triggered","not-triggered","not-triggered"]},
+    {"id":"negative-refactor","expectation":"not-trigger","prompt":"Refactor the selected controller to use the new helper.","samples":["not-triggered","not-triggered","not-triggered"]},
+    {"id":"negative-format","expectation":"not-trigger","prompt":"Format this Python module.","samples":["not-triggered","not-triggered","not-triggered"]},
+    {"id":"negative-deploy","expectation":"not-trigger","prompt":"Deploy the approved release.","samples":["not-triggered","not-triggered","not-triggered"]},
+    {"id":"negative-local-search","expectation":"not-trigger","prompt":"Find references to this function in the current package.","samples":["not-triggered","not-triggered","not-triggered"]},
+    {"id":"negative-doc","expectation":"not-trigger","prompt":"Update the README for this command.","samples":["not-triggered","not-triggered","not-triggered"]},
+    {"id":"negative-commit","expectation":"not-trigger","prompt":"Write a commit message for the current diff.","samples":["not-triggered","not-triggered","not-triggered"]}
+  ],
+  "quality_comparisons": [{"id":"explicit-only-boundary","objective_verifier":"fixture-controls","baseline":"not-verified","candidate":"verified"}]
+}
