@@ -9,13 +9,13 @@
   "executed_commands": [
     {
       "command": "git diff --check",
-      "duration_seconds": 0.081,
+      "duration_seconds": 0.117,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/check_docs_links.py",
-      "duration_seconds": 92.665,
+      "duration_seconds": 0.884,
       "outcome": "success",
       "exit_code": 0
     }
@@ -57,22 +57,22 @@
     "change": "establish-decision-registry",
     "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/establish-decision-registry",
     "branch": "agent/establish-decision-registry",
-    "head": "42fed9ed5a39cbd64c75853053fa31a57a8c145d",
+    "head": "000e3d277b1b44c9987a704d3a6fe5372050ffb1",
     "task_content": {
       "version": 1,
-      "digest": "62e0b9d86c9481f3dc69b2e10f6e59108a8cb94762c8c8e9dcd470573ec20d7d",
+      "digest": "cff4dd09a4617221ee0a5dba6b7cdc23b66e7c6985cfe22cf20cbadce50f1c2b",
       "paths": {
         "AGENTS.md": "d1f690ee8f7620112fdfc4f596af9899295519a7",
         "docs/context/README.md": "5310bbfa7bf78c99d1c55f8873361009061099c1",
-        "docs/decisions/0001-teamai-substitution.md": "7079b7c95dfea15b9bcc4f3375470125018c43e7",
+        "docs/decisions/0001-teamai-substitution.md": "8bf97d652c6b85c64ec44355e32c6074332f8ac6",
         "docs/decisions/README.md": "ea7cfcc4ce167c106f0083298326730a81cc28c5",
         "docs/engineering/agent-instructions.md": "f6a544dcbf66659d0fec0bbe3f69dd009d370bbc",
         "docs/engineering/upstream-substitution.md": "fdc4d3ed5329ebee1d47f1201d2175742c614d2e",
         "openspec/changes/establish-decision-registry/.managed-task.json": "ea01ce5d51104df15510258b06dbae3c2438f4c9",
         "openspec/changes/establish-decision-registry/.openspec.yaml": "ee7c5448114a173e0747e643bc8c2bd9632a05e7",
-        "openspec/changes/establish-decision-registry/automated-checks.json": "e82505cf3f9db4b6e33266740d9f124d56989a84",
+        "openspec/changes/establish-decision-registry/automated-checks.json": "68c1dca353bfac0ce8e3440e13d601bce2080201",
         "openspec/changes/establish-decision-registry/design.md": "4eeb40522b9ba6c5b9cca61be8fed1d59178173b",
-        "openspec/changes/establish-decision-registry/proposal.md": "a6049818b53a643f82b963f4262769a202157153",
+        "openspec/changes/establish-decision-registry/proposal.md": "961fad6bbf8d51c2f9d9d2eef8ac11c3218d7b0a",
         "openspec/changes/establish-decision-registry/specs/agent-workflow/spec.md": "77ce9b52e5679bb6276993a9694097959eec9239",
         "openspec/changes/establish-decision-registry/specs/decision-registry/spec.md": "8e617ad6bb765e3e5d6179b2bd1d82d72ac718bf",
         "openspec/changes/establish-decision-registry/tasks.md": "7d25ea956dd199d6f52127ce96aff403165fde1c",
