@@ -2,7 +2,7 @@
 
 OpenSpec-Verify: PASS
 
-Verification-Method: Manual semantic review of Requirement lehard/development-backlog#233, the active proposal, design, tasks and platform-ci delta against the accepted platform-ci contract and the implemented test; focused regression and parallel full-suite execution; strict OpenSpec validation.
+Verification-Method: Manual semantic review of the source Requirement, active proposal, design, tasks and platform-ci delta against the accepted platform-ci contract and the implemented test; focused regression and parallel full-suite execution; strict OpenSpec validation.
 
 Automated-Checks-Evidence: automated-checks.json
 
