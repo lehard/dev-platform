@@ -1,7 +1,7 @@
 # harness-evaluation Specification
 
 ## Purpose
-TBD - created by archiving change add-harness-replay-lab. Update Purpose after archive.
+Define frozen historical replay cases and capability-first advisory evidence for Dev Platform harness and process optimization candidates.
 ## Requirements
 ### Requirement: Harness replay cases are bound to exact historical task identity
 
