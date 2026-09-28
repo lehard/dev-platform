@@ -1074,6 +1074,122 @@ class ModelRoutingTests(unittest.TestCase):
         reloaded, _ = routing._read_route(self.task)
         self.assertEqual(reloaded.observations, ())
 
+    def cold_execution_log(self, *, exit_status: int = 1) -> tuple[dict[str, object], str]:
+        self.enable_observation_lifecycle(min_bytes=10)
+        self.prepare()
+        payload = "running tests\n" + ("progress: still running\n" * 600) + "ERROR expected green but got red\nsummary: failed\n"
+        cold = routing.cool_observation(
+            self.task,
+            {
+                "source": "command:pytest",
+                "kind": "test_output",
+                "payload": payload,
+                "command_result": {"command": "pytest -q", "exit_status": exit_status},
+            },
+        )
+        return cold, payload
+
+    @staticmethod
+    def reducer_receipt(cold: dict[str, object], payload: str, *, exit_status: int = 1) -> dict[str, object]:
+        quote = "ERROR expected green but got red"
+        start = len(payload[: payload.index(quote)].encode("utf-8"))
+        return {
+            "source_handle": cold["handle"],
+            "source_digest": routing._source_digest(payload),
+            "command_result": {"command": "pytest -q", "exit_status": exit_status, "status": "passed" if exit_status == 0 else "failed"},
+            "confidence": "high",
+            "evidence": [{"start_byte": start, "end_byte": start + len(quote.encode("utf-8")), "quote": quote}],
+            "findings": [{"text": "pytest reported one failure", "evidence_indexes": [0]}],
+            "uncertainty": ["The receipt does not diagnose the underlying cause."],
+        }
+
+    def test_execution_log_reducer_verifies_bound_receipt_and_preserves_exact_recall(self) -> None:
+        cold, payload = self.cold_execution_log()
+        receipt = self.reducer_receipt(cold, payload)
+        result = routing.reduce_execution_log(self.task, cold["handle"], receipt, participant="routine-adapter")
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(result["receipt"]["command_result"]["status"], "failed")
+        recalled = routing.recall_observation(self.task, cold["handle"], {"query": "ERROR", "context_chars": 0})
+        self.assertEqual(recalled["content"], "ERROR")
+        saved, _ = routing._read_route(self.task)
+        reducer = saved.observations[0]["reducer"]
+        self.assertEqual(reducer["verification"]["status"], "verified")
+        self.assertEqual(reducer["participant"], "routine-adapter")
+        self.assertLess(reducer["receipt_payload"]["bytes"], reducer["source_payload"]["bytes"])
+        self.assertEqual(reducer["usage"]["input_tokens"]["status"], "unknown")
+
+    def test_execution_log_reducer_falls_back_for_wrong_digest_fabricated_quote_and_low_confidence(self) -> None:
+        cold, payload = self.cold_execution_log()
+        receipt = self.reducer_receipt(cold, payload)
+        receipt["source_digest"] = "0" * 64
+        result = routing.reduce_execution_log(self.task, cold["handle"], receipt)
+        self.assertEqual(result["status"], "fallback-exact-source")
+        self.assertIn("source_digest", result["reason"])
+        receipt = self.reducer_receipt(cold, payload)
+        receipt["evidence"] = [{"start_byte": 0, "end_byte": 7, "quote": "invented"}]
+        result = routing.reduce_execution_log(self.task, cold["handle"], receipt)
+        self.assertEqual(result["status"], "fallback-exact-source")
+        self.assertIn("quote", result["reason"])
+        receipt = self.reducer_receipt(cold, payload)
+        receipt["confidence"] = "low"
+        result = routing.reduce_execution_log(self.task, cold["handle"], receipt)
+        self.assertEqual(result["status"], "fallback-exact-source")
+        self.assertIn("confidence", result["reason"])
+
+    def test_contradictory_reducer_cannot_turn_a_failing_canonical_result_green(self) -> None:
+        cold, payload = self.cold_execution_log(exit_status=1)
+        receipt = self.reducer_receipt(cold, payload, exit_status=0)
+        result = routing.reduce_execution_log(self.task, cold["handle"], receipt)
+        self.assertEqual(result["status"], "fallback-exact-source")
+        self.assertIn("command_result", result["reason"])
+        saved, _ = routing._read_route(self.task)
+        self.assertIsNone(saved.execution, "reducer receipts must not create or change canonical execution outcomes")
+        self.assertEqual(saved.observations[0]["command_result"]["status"], "failed")
+
+    def test_reducer_unavailable_and_non_execution_logs_keep_exact_source_path(self) -> None:
+        cold, _ = self.cold_execution_log()
+        deterministic = routing.reduce_execution_log(self.task, cold["handle"])
+        self.assertEqual(deterministic["status"], "verified")
+        self.assertEqual(deterministic["provenance"]["participant"], "deterministic-parser")
+        self.enable_observation_lifecycle(min_bytes=10)
+        search = routing.cool_observation(
+            self.task, {"source": "search:rg", "kind": "search_result", "payload": "result " * 20}
+        )
+        unsupported = routing.reduce_execution_log(self.task, search["handle"])
+        self.assertEqual(unsupported["status"], "fallback-exact-source")
+        self.assertIn("only cold command_output", unsupported["reason"])
+
+    def test_reducer_returns_exact_source_for_tampered_storage_and_oversized_receipt(self) -> None:
+        cold, payload = self.cold_execution_log()
+        receipt = self.reducer_receipt(cold, payload)
+        receipt["uncertainty"] = ["x" * 4000]
+        oversized = routing.reduce_execution_log(self.task, cold["handle"], receipt)
+        self.assertEqual(oversized["status"], "fallback-exact-source")
+        self.assertIn("does not reduce", oversized["reason"])
+        store_path = self.observation_store_path(cold["handle"])
+        stored = json.loads(store_path.read_text(encoding="utf-8"))
+        stored["payload"] += "injected\n"
+        store_path.write_text(json.dumps(stored), encoding="utf-8")
+        tampered = routing.reduce_execution_log(self.task, cold["handle"], receipt)
+        self.assertEqual(tampered["status"], "source-unavailable")
+        self.assertIn("archive-time digest", tampered["reason"])
+        self.assertNotIn("exact_source", tampered)
+
+    def test_long_passing_log_uses_deterministic_receipt_and_exact_recall(self) -> None:
+        self.enable_observation_lifecycle(min_bytes=10)
+        self.prepare()
+        payload = ("progress line\n" * 600) + "42 passed in 3.2s\n"
+        cold = routing.cool_observation(self.task, {
+            "source": "command:pytest", "kind": "test_output", "payload": payload,
+            "command_result": {"command": "pytest -q", "exit_status": 0},
+        })
+        reduced = routing.reduce_execution_log(self.task, cold["handle"])
+        self.assertEqual(reduced["status"], "verified")
+        self.assertEqual(reduced["receipt"]["command_result"]["status"], "passed")
+        self.assertEqual(reduced["receipt"]["evidence"][0]["quote"], "42 passed in 3.2s")
+        self.assertLess(reduced["provenance"]["receipt_payload"]["bytes"], cold["hot_payload"]["bytes"])
+        self.assertEqual(routing.recall_observation(self.task, cold["handle"], {"full": True})["content"], payload)
+
 
 class StandaloneStandardCloneRoutingTests(unittest.TestCase):
     """Standard-profile projects have no linked worktree: the task checkout
