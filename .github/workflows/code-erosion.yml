@@ -1,0 +1,88 @@
+name: Code Erosion
+
+# Informational only. Runs the pinned upstream SlopCodeBench `scb-check` and
+# publishes its signals to the PR; it never fails on findings and is not a
+# required check. Adapted from the TeamAI Code Erosion workflow. Limits and the
+# version-bump procedure: docs/engineering/code-erosion.md.
+
+on:
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: "code-erosion-${{ github.event.pull_request.number || github.ref }}"
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  erosion:
+    name: Code erosion signal (informational)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.11"
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+
+      # scb-check exits 1 when it finds anything (normal) and 2 on path/config
+      # errors; neither may fail this job, so exit codes are recorded, not raised.
+      - name: Run scb-check
+        run: |
+          version="$(tr -d '[:space:]' < .github/code-erosion/scb-check-version.txt)"
+          mkdir -p "$RUNNER_TEMP/erosion"
+          for area in scripts template/scripts; do
+            name="${area//\//-}"
+            set +e
+            uvx --from "scb-check==${version}" scb-check check "$GITHUB_WORKSPACE/$area" --report \
+              > "$RUNNER_TEMP/erosion/$name.json" 2> "$RUNNER_TEMP/erosion/$name.err"
+            echo "$?" > "$RUNNER_TEMP/erosion/$name.exit"
+            uvx --from "scb-check==${version}" scb-check check "$GITHUB_WORKSPACE/$area" \
+              > "$RUNNER_TEMP/erosion/$name.txt" 2>/dev/null
+            set -e
+          done
+
+      - name: Render report
+        run: |
+          version="$(tr -d '[:space:]' < .github/code-erosion/scb-check-version.txt)"
+          python3 scripts/code_erosion_report.py --version "$version" \
+            --area "scripts=$RUNNER_TEMP/erosion/scripts" \
+            --area "template/scripts=$RUNNER_TEMP/erosion/template-scripts" \
+            | tee "$RUNNER_TEMP/erosion.md" >> "$GITHUB_STEP_SUMMARY" || true
+
+      # One marker-keyed comment, updated on every push. A read-only (fork) token
+      # or API error degrades to the job summary written above.
+      - name: Post or update PR comment
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- code-erosion-report -->';
+            try {
+              const body = fs.readFileSync(process.env.RUNNER_TEMP + '/erosion.md', 'utf8');
+              if (!body.includes(marker)) {
+                core.warning('code-erosion: report has no marker; skipping the PR comment. See the job summary.');
+                return;
+              }
+              const params = { owner: context.repo.owner, repo: context.repo.repo };
+              const comments = await github.paginate(github.rest.issues.listComments, {
+                ...params, issue_number: context.issue.number, per_page: 100,
+              });
+              const existing = comments.find(c => c.body && c.body.includes(marker));
+              if (existing) {
+                await github.rest.issues.updateComment({ ...params, comment_id: existing.id, body });
+              } else {
+                await github.rest.issues.createComment({ ...params, issue_number: context.issue.number, body });
+              }
+            } catch (error) {
+              core.warning(`code-erosion: could not post the PR comment (${error.message}). See the job summary.`);
+            }
