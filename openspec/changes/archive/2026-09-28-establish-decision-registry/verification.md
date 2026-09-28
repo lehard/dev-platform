@@ -15,4 +15,6 @@ Executed before archive:
 - `python3 template/scripts/openspec_lifecycle.py check` — passed.
 - `git diff --check` — passed.
 
-The archive helper will generate `automated-checks.json` for its own exact check run.
+The archive helper generated `automated-checks.json` for its exact selected check run.
+
+Archive validation initially found the generated `decision-registry` spec's placeholder Purpose. The accepted spec Purpose was filled with the registry's authority boundary before post-archive validation was repeated. `openspec validate --all --strict --no-interactive` then passed all 36 specs, and lifecycle hygiene and documentation links passed again. The first archive attempt had already applied the delta and moved this change into the archive; this receipt records that recovery rather than treating the initial command as a pass.

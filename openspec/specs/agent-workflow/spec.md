@@ -2,7 +2,9 @@
 
 ## Purpose
 Define the end-to-end agent workflow for disciplined task intake, implementation, verification, and delivery.
+
 ## Requirements
+
 ### Requirement: Unknown defects use evidence-first diagnosis
 
 Dev Platform SHALL provide a reusable diagnosis path for unknown bugs, regressions and unexplained failures that establishes an observable failure condition and tests falsifiable hypotheses before claiming a root cause.
@@ -48,12 +50,14 @@ Dev Platform SHALL support an optional refinement path for materially ambiguous 
 
 ### Requirement: Domain refinement does not create a competing implementation contract
 
-Accepted refinement SHALL be recorded in the existing managed OpenSpec artifacts and SHALL NOT require a parallel context, ADR, status or planning ledger as an authoritative source.
+Accepted refinement SHALL be recorded in existing managed OpenSpec artifacts and SHALL NOT require a parallel context, ADR, status or planning ledger as an authoritative implementation source. A repository decision registry MAY preserve consequential historical rationale and revisit conditions, but SHALL NOT override OpenSpec's accepted executable behavior or active deltas.
 
 #### Scenario: Refinement is complete
-- **WHEN** the material ambiguity is resolved
-- **THEN** the accepted decision is incorporated into proposal/spec/design as appropriate
+
+- **WHEN** material ambiguity is resolved
+- **THEN** the accepted behavior is incorporated into proposal/spec/design as appropriate
 - **AND** materialized OpenSpec remains canonical for implementation and verification
+- **AND** a relevant historical decision record may retain the rationale without becoming a second implementation contract
 
 ### Requirement: Work can be continued through an optional interoperable handoff
 
@@ -782,4 +786,3 @@ Initial compaction rollout SHALL remain advisory/dogfood and SHALL record bounde
 - **WHEN** compaction reduces deterministic active payload size but the runtime exposes no canonical cache-token measurement
 - **THEN** the deterministic reduction is recorded
 - **AND** token/cache savings remain unknown rather than estimated
-
