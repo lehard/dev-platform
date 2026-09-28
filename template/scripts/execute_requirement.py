@@ -22,6 +22,7 @@ import orchestrate_pre_authoring
 import requirement_board
 import requirement_intake
 import requirement_integration
+import requirement_retrospective
 import start_managed_task
 from _platform_common import current_worktree_root, locked_json, machine_path
 
@@ -251,6 +252,7 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
         }
     if len(ordered) == 1:
         if ready:
+            requirement_retrospective.require_checkpoint(integration, requirement=requirement)
             change = ordered[0][0]
             child = linked_by_change[change]
             worktree = machine_path("worktrees", integration) / change
@@ -263,6 +265,7 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
         if not ready and completed:
             return {"status": "already-delivered", "requirement": requirement, "children": completed}
         raise RequirementExecutionError("shared delivery requires at least two verified nonterminal child receipts")
+    requirement_retrospective.require_checkpoint(integration, requirement=requirement)
     base = _git(integration, "rev-parse", "HEAD")
     manifest = requirement_integration.assemble_candidate(integration, requirement=requirement, base=base, receipt_paths=ready)
     slug = requirement_integration._candidate_slug(requirement_integration._public_requirement(integration, requirement))
@@ -288,6 +291,7 @@ def main() -> int:
         result = advance(integration, requirement=args.requirement, base_dir=base_dir, confirm_distinct=args.confirm_distinct)
     except (
         RequirementExecutionError, requirement_intake.RequirementIntakeError,
+        requirement_retrospective.RequirementRetrospectiveError,
         requirement_integration.RequirementIntegrationError, managed_task.ManagedTaskError,
         orchestrate_pre_authoring.OrchestratorError, start_managed_task.ManagedAdmissionWait,
         requirement_board.RequirementBoardError, managed_project_status.ManagedProjectStatusError,

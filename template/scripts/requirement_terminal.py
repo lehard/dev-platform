@@ -12,6 +12,7 @@ from typing import Any
 import managed_project_status
 import managed_task
 import requirement_intake
+import requirement_retrospective
 from _platform_common import current_worktree_root, github_cli_env
 
 
@@ -53,6 +54,7 @@ def reconcile_parent(root: Path, *, requirement: str, merged_children: set[str] 
     children = requirement_intake.parse_requirement_body(str(parent.get("body") or ""))["children"]
     if not children or len(children) != len(set(children)):
         raise RequirementTerminalError("Requirement needs a nonempty, unambiguous child set")
+    requirement_retrospective.require_checkpoint(root, requirement=requirement, parent=parent)
     for child in children:
         issue = requirement_intake.fetch_issue(root, *requirement_intake.issue_ref(child))
         if requirement_intake.CHILD_LABEL not in managed_task.issue_labels(issue) or parent_for_child(root, child) != requirement:
@@ -83,7 +85,8 @@ def main() -> int:
     args = parser.parse_args()
     try:
         result = reconcile_parent(current_worktree_root(), requirement=args.requirement)
-    except (RequirementTerminalError, managed_task.ManagedTaskError, managed_project_status.ManagedProjectStatusError) as exc:
+    except (RequirementTerminalError, requirement_retrospective.RequirementRetrospectiveError,
+            managed_task.ManagedTaskError, managed_project_status.ManagedProjectStatusError) as exc:
         print(json.dumps({"status": "blocked", "reason": str(exc)}, ensure_ascii=False))
         return 2
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))

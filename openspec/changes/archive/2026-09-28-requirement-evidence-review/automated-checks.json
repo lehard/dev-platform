@@ -1,0 +1,110 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.71,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.3,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 444.723,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        ".github/workflows/weekly-process-backlog-review.lock.yml",
+        ".github/workflows/weekly-process-backlog-review.md",
+        "dev-platform/checks.toml",
+        "scripts/requirement_retrospective.py",
+        "template/.github/workflows/weekly-process-backlog-review.md.jinja",
+        "template/scripts/execute_requirement.py",
+        "template/scripts/requirement_retrospective.py",
+        "template/scripts/requirement_terminal.py",
+        "tests/test_agentic_workflows.py",
+        "tests/test_requirement_execution.py",
+        "tests/test_requirement_flow_e2e.py",
+        "tests/test_requirement_retrospective.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_452bb3d21693557b57d89d3d9880ed09",
+    "change": "requirement-evidence-review",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/requirement-evidence-review",
+    "branch": "agent/requirement-evidence-review",
+    "head": "fe1ba4de926c5d3a93654189e2fa117a39054f0c",
+    "task_content": {
+      "version": 1,
+      "digest": "ad8dc4a954620b9d9badb82620b3fca421b2176b7dc07824e972ac86b6284531",
+      "paths": {
+        ".github/workflows/weekly-process-backlog-review.lock.yml": "4dfc1a08a6767a618eb6029b3a657101bf3d8696",
+        ".github/workflows/weekly-process-backlog-review.md": "2629a612e4d67c30e113a13bff457bfb70644d7c",
+        "AGENTS.md": "d7fd9e4906567743734f0d520a2b1779d7eef9ca",
+        "dev-platform/checks.toml": "f294459d749cfa5d0247b8dfe38ba33dac18c315",
+        "docs/engineering/agent-workflow.md": "d08543641998fc7f0639ff2b1731516b684f14cd",
+        "docs/engineering/chatgpt-project-protocol.md": "43823bca2b9dc504cc9929652d32b256e7230dda",
+        "docs/engineering/task-intake.md": "f8d78a51faf794244c1b3575801106533f3a5776",
+        "openspec/changes/archive/2026-09-28-requirement-retrospective/.managed-task.json": "de47bb849db79fe2157b4046755a92c19123fb88",
+        "openspec/changes/archive/2026-09-28-requirement-retrospective/.openspec.yaml": "ee7c5448114a173e0747e643bc8c2bd9632a05e7",
+        "openspec/changes/archive/2026-09-28-requirement-retrospective/automated-checks.json": "e333ee7747e931840b774a9d6ab062cc1883dcd0",
+        "openspec/changes/archive/2026-09-28-requirement-retrospective/design.md": "da8e7235ad6dfb5c733a33e4f6dadaabf8b513ae",
+        "openspec/changes/archive/2026-09-28-requirement-retrospective/proposal.md": "c286990a09740489c69157c2954e3821ab4d522a",
+        "openspec/changes/archive/2026-09-28-requirement-retrospective/specs/agent-workflow/spec.md": "87326422a98aa01a428108a636fd143f207952d5",
+        "openspec/changes/archive/2026-09-28-requirement-retrospective/tasks.md": "fd64bccff080697dd26cd8e85e59129977936171",
+        "openspec/changes/archive/2026-09-28-requirement-retrospective/verification.md": "23d5b10c34afb8e5a84808ea907e62ed479faf31",
+        "openspec/changes/requirement-evidence-review/.managed-task.json": "b6e4ee529b8c76ed9ba283019b80bbae6cadf3da",
+        "openspec/changes/requirement-evidence-review/.openspec.yaml": "ee7c5448114a173e0747e643bc8c2bd9632a05e7",
+        "openspec/changes/requirement-evidence-review/design.md": "6e4fffb56a98e23e02df81e794f07e869ab0c152",
+        "openspec/changes/requirement-evidence-review/proposal.md": "9e6d0bf233f84d9b24f6b6b480645a3af00c94d4",
+        "openspec/changes/requirement-evidence-review/specs/platform-health-review/spec.md": "ae1deb02b8d9395013aab54d25a544e32e4b8e1c",
+        "openspec/changes/requirement-evidence-review/tasks.md": "9b5ee0bedea779f741e071a17e5ac57f09e36386",
+        "openspec/changes/requirement-evidence-review/verification.md": "ebad96d49e5f3238a53b32802622941a2ac3f986",
+        "openspec/specs/agent-workflow/spec.md": "9fa8e91c9a34faba46125338875aef28d391f3d8",
+        "scripts/requirement_retrospective.py": "1cc5593e5e601bb9564cee39a063f0d49fa4e8ca",
+        "template/.github/workflows/weekly-process-backlog-review.md.jinja": "4f3fb4ac0c46fc41619e9a5c62f6e96e3cdd3151",
+        "template/AGENTS.md.jinja": "439b962dbe72fe83cecb2345cc0d0804c7512cdc",
+        "template/docs/engineering/agent-workflow.md.jinja": "01d74022197c98dcd3817bfb7186e2b1caaa162f",
+        "template/scripts/execute_requirement.py": "f0fc54e000f4935780348c03659b186ea141d333",
+        "template/scripts/requirement_retrospective.py": "902563e4ccd52182de4520e4896d9c167ec0bc14",
+        "template/scripts/requirement_terminal.py": "69bf3fb52b6366c24f6a093dd01c092f60e76e27",
+        "tests/test_agentic_workflows.py": "34d52faf4d0566989b6d02ccc39420a0a39aea7f",
+        "tests/test_requirement_execution.py": "7dd2427522af6ed3d78b07f76d2e206cd57bcb6e",
+        "tests/test_requirement_flow_e2e.py": "01f76fbddb981f9fc65b5583325adf91313aabc2",
+        "tests/test_requirement_retrospective.py": "09c1d28b8fa2c80167fa9f4c101fe8677c4a26f1"
+      },
+      "base": "da821e5e2455d2a53aa0eb72063d37c9fc93bb75"
+    }
+  }
+}

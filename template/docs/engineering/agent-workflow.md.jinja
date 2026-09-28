@@ -101,6 +101,17 @@ delivered Requirements:
 `python3 scripts/requirement_terminal.py reconcile --requirement owner/repo#N`.
 No `Requirement-Integration-Exception` is required for an ordinary single child.
 
+Before terminal publication, review the full Requirement path from accepted
+intent through pre-authoring, decomposition, children and delivery. Record new
+meaningful findings with `scripts/agent_friction.py record --task
+owner/repo#N`, then use `scripts/requirement_retrospective.py checkpoint
+--requirement owner/repo#N --result findings --event <id>`. A clean review
+uses `--result none`. The receipt is machine-local and bound to the current
+parent and child set; it is a terminal gate, not a second status ledger.
+Each technical child keeps its own post-task retrospective. A new stage
+records meaningful process friction itself or exposes it to its enclosing
+retrospective.
+
 Use
 `python3 scripts/requirement_intake.py aggregate --requirement owner/repo#N`
 for a read-through Requirement progress projection. The compatible `status`
@@ -278,9 +289,13 @@ that evidence-backed change, author the child with repeatable
 canonical relation; linked open evidence gets the bounded `process:managed`
 label/backlink and remains open until terminal delivery. A
 Process Health Review is read-only: its dated report records the exact `main`
-SHA and previous-review boundary, checks bounded current managed work and
+SHA and previous-review boundary, checks bounded current Requirement parents,
+linked children, pre-authoring and parent-retrospective process evidence, and
 merged changes, clusters symptoms by likely root cause, and verifies
-likely-resolved candidates against current repository evidence. It never creates
+likely-resolved candidates against current repository evidence. Clean children
+do not suppress early or cross-child findings. Specialized reviews feed the
+same friction/process-issue mechanism, without a parallel improvement queue.
+It never creates
 managed work or closes/relabels source evidence.
 
 ```bash
