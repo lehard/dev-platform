@@ -9,13 +9,13 @@
   "executed_commands": [
     {
       "command": "git diff --check",
-      "duration_seconds": 0.117,
+      "duration_seconds": 0.055,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/check_docs_links.py",
-      "duration_seconds": 0.884,
+      "duration_seconds": 1.517,
       "outcome": "success",
       "exit_code": 0
     }
@@ -57,10 +57,10 @@
     "change": "establish-decision-registry",
     "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/establish-decision-registry",
     "branch": "agent/establish-decision-registry",
-    "head": "000e3d277b1b44c9987a704d3a6fe5372050ffb1",
+    "head": "fcd611ed03907a0591a439988b582c154e7d2892",
     "task_content": {
       "version": 1,
-      "digest": "cff4dd09a4617221ee0a5dba6b7cdc23b66e7c6985cfe22cf20cbadce50f1c2b",
+      "digest": "e20146e99c9737d2c60323f55f660bbc460cf4835341977a9aec9a5ef7255027",
       "paths": {
         "AGENTS.md": "d1f690ee8f7620112fdfc4f596af9899295519a7",
         "docs/context/README.md": "5310bbfa7bf78c99d1c55f8873361009061099c1",
@@ -70,7 +70,7 @@
         "docs/engineering/upstream-substitution.md": "fdc4d3ed5329ebee1d47f1201d2175742c614d2e",
         "openspec/changes/establish-decision-registry/.managed-task.json": "ea01ce5d51104df15510258b06dbae3c2438f4c9",
         "openspec/changes/establish-decision-registry/.openspec.yaml": "ee7c5448114a173e0747e643bc8c2bd9632a05e7",
-        "openspec/changes/establish-decision-registry/automated-checks.json": "68c1dca353bfac0ce8e3440e13d601bce2080201",
+        "openspec/changes/establish-decision-registry/automated-checks.json": "16c03a1b027fc766d8edfb013c4c6b8adbffd2da",
         "openspec/changes/establish-decision-registry/design.md": "4eeb40522b9ba6c5b9cca61be8fed1d59178173b",
         "openspec/changes/establish-decision-registry/proposal.md": "961fad6bbf8d51c2f9d9d2eef8ac11c3218d7b0a",
         "openspec/changes/establish-decision-registry/specs/agent-workflow/spec.md": "77ce9b52e5679bb6276993a9694097959eec9239",
@@ -80,7 +80,7 @@
         "openspec/specs/agent-workflow/spec.md": "791a882a103fca7201f0bf54669d9b2e5e69233b",
         "openspec/specs/decision-registry/spec.md": "01d775f86667292babe35470e738f519620523b1"
       },
-      "base": "f3e0490bc6e3eddb0f0295ecf98e7b1befd285ce"
+      "base": "fdff235d5fdd19cff97c2bfa08198faad13df3e1"
     }
   }
 }
