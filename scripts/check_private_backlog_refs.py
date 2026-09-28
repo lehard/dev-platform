@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Reject direct private Backlog Issue references in a public candidate tree.
 
-This intentionally reports opaque file fingerprints, because a file name can
-itself contain a private Issue number. It does not inspect Git history.
+This intentionally reports only opaque file fingerprints, because a file name
+can itself contain a private Issue number. It inspects only the current public
+candidate: tracked/untracked files, branch name, new commit messages, and
+optional proposed public text.
 """
 from __future__ import annotations
 
@@ -40,9 +42,10 @@ def candidate_paths(root: Path) -> list[Path]:
     return [root / name.decode("utf-8", errors="surrogateescape") for name in result.stdout.split(b"\0") if name]
 
 
-def violations(root: Path, repository: str) -> list[str]:
+def candidate_violation_categories(root: Path, repository: str) -> dict[str, list[str]]:
+    """Return opaque fingerprints grouped by the public candidate surface."""
     pattern = private_reference_pattern(repository)
-    hits: list[str] = []
+    hits: dict[str, list[str]] = {"candidate-file": [], "candidate-path": []}
     for path in candidate_paths(root):
         if not path.is_file() or path.is_symlink():
             continue
@@ -57,12 +60,20 @@ def violations(root: Path, repository: str) -> list[str]:
         except UnicodeError:
             continue
         relative = path.relative_to(root).as_posix()
-        if pattern.search(relative) or pattern.search(content):
-            hits.append(hashlib.sha256(relative.encode("utf-8")).hexdigest()[:12])
-    return sorted(set(hits))
+        fingerprint = hashlib.sha256(relative.encode("utf-8")).hexdigest()[:12]
+        if pattern.search(relative):
+            hits["candidate-path"].append(fingerprint)
+        if pattern.search(content):
+            hits["candidate-file"].append(fingerprint)
+    return {category: sorted(set(values)) for category, values in hits.items() if values}
 
 
-def publication_text_violation(root: Path, repository: str, extra_text: list[str]) -> bool:
+def violations(root: Path, repository: str) -> list[str]:
+    """Compatibility view of all opaque candidate-file/path fingerprints."""
+    return sorted({fingerprint for values in candidate_violation_categories(root, repository).values() for fingerprint in values})
+
+
+def public_text_violation_categories(root: Path, repository: str, extra_text: list[str]) -> set[str]:
     pattern = private_reference_pattern(repository)
     branch = subprocess.run(["git", "branch", "--show-current"], cwd=root, capture_output=True, text=True, check=False)
     commits = subprocess.run(
@@ -70,7 +81,29 @@ def publication_text_violation(root: Path, repository: str, extra_text: list[str
     )
     if branch.returncode or commits.returncode:
         raise PrivacyGuardError("cannot inspect candidate branch and commit messages")
-    return any(pattern.search(value) for value in [branch.stdout, commits.stdout, *extra_text])
+    categories: set[str] = set()
+    if pattern.search(branch.stdout):
+        categories.add("branch")
+    if pattern.search(commits.stdout):
+        categories.add("commit-message")
+    if any(pattern.search(value) for value in extra_text):
+        categories.add("proposed-pr-text")
+    return categories
+
+
+def publication_text_violation(root: Path, repository: str, extra_text: list[str]) -> bool:
+    """Compatibility predicate for public branch, commit, and PR text."""
+    return bool(public_text_violation_categories(root, repository, extra_text))
+
+
+def diagnostic_detail(file_categories: dict[str, list[str]], text_categories: set[str]) -> str:
+    """Render bounded diagnostics without filenames or any private identifiers."""
+    categories = sorted([*file_categories, *text_categories])
+    opaque_ids = sorted({fingerprint for values in file_categories.values() for fingerprint in values})
+    detail = ", ".join(categories)
+    if opaque_ids:
+        detail += "; opaque file IDs: " + ", ".join(opaque_ids[:10])
+    return detail
 
 
 def main() -> int:
@@ -88,13 +121,19 @@ def main() -> int:
             repository = config["development_backlog"]["repository"]
         if not isinstance(repository, str):
             raise PrivacyGuardError("missing configured Backlog repository")
-        hits = violations(root, repository)
-        text_hit = publication_text_violation(root, repository, args.text)
+        file_categories = candidate_violation_categories(root, repository)
+        text_categories = public_text_violation_categories(root, repository, args.text)
     except (OSError, KeyError, tomllib.TOMLDecodeError, PrivacyGuardError) as exc:
         parser.exit(2, f"private-reference guard cannot run: {exc}\n")
-    if hits or text_hit:
-        detail = f"{len(hits)} candidate file(s)" + (" and public branch/commit/PR text" if text_hit else "")
-        parser.exit(1, f"private-reference guard found direct Issue identifiers in {detail}; opaque file IDs: {', '.join(hits[:10])}\n")
+    if file_categories or text_categories:
+        detail = diagnostic_detail(file_categories, text_categories)
+        parser.exit(
+            1,
+            "private-reference guard found direct private Issue identifiers on " + detail
+            + ". Use the managed task's opaque private-lineage handle in public artifacts; "
+            "keep direct Issue references only in the private Issue or ignored local task state, "
+            "then rerun completion.\n",
+        )
     print("private-reference guard: current candidate files contain no supported direct private Issue references")
     return 0
 

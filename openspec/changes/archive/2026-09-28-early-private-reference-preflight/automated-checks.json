@@ -1,0 +1,81 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 11.368,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 30.091,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 447.589,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "scripts/check_private_backlog_refs.py",
+        "template/scripts/finish_task.py",
+        "tests/test_git_lifecycle.py",
+        "tests/test_private_backlog_guard.py",
+        "tests/test_template_contract.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_de2411fbb4908007506e3bee8d2bfe84",
+    "change": "early-private-reference-preflight",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/early-private-reference-preflight",
+    "branch": "agent/early-private-reference-preflight",
+    "head": "b03e43ff2ab69d3263cdf54649e010f3ccc35e47",
+    "task_content": {
+      "version": 1,
+      "digest": "f3845f21629705c9e877156b3e6170ce42f83c9342281efc990f5e3405c16f6c",
+      "paths": {
+        "openspec/changes/early-private-reference-preflight/.managed-task.json": "f07d2e59639596a71277d0883db407b2e2db2055",
+        "openspec/changes/early-private-reference-preflight/.openspec.yaml": "ee7c5448114a173e0747e643bc8c2bd9632a05e7",
+        "openspec/changes/early-private-reference-preflight/design.md": "e71e1419129657070da54ebf59e7dc9374913f27",
+        "openspec/changes/early-private-reference-preflight/proposal.md": "8bc5ac9c2652b5e3e9f4e388bcb49b45360ec6ab",
+        "openspec/changes/early-private-reference-preflight/specs/completion-lifecycle/spec.md": "7bbc8ba77f7b7d6de3951dba3055dccd1544f127",
+        "openspec/changes/early-private-reference-preflight/tasks.md": "baf85c2ff76a025f27a9f4e4a5d62c80058a4590",
+        "openspec/changes/early-private-reference-preflight/verification.md": "0099740c09401c6305ef69237c5cc92edead18f3",
+        "scripts/check_private_backlog_refs.py": "ce54cb9318b78a86ef342c3b4ef0effc01511d08",
+        "template/scripts/finish_task.py": "88d4e1a4d5ff03ffbb1195da5d90c1e7a4b1c7f0",
+        "tests/test_git_lifecycle.py": "2f8679bd28383bcb7624a158fcad22233ffc2c0e",
+        "tests/test_private_backlog_guard.py": "43c610686d91e1b3c6b8a42c4e98984fb47545c8",
+        "tests/test_template_contract.py": "3cd202d6afc7a6dc1e28d6d6a0b76f8fd491686e"
+      },
+      "base": "6ee5f130e4592bd291c20fbd4fcd21156f110b82"
+    }
+  }
+}
