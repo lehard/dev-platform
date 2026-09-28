@@ -101,6 +101,17 @@ delivered Requirements:
 `python3 scripts/requirement_terminal.py reconcile --requirement owner/repo#N`.
 No `Requirement-Integration-Exception` is required for an ordinary single child.
 
+Before terminal publication, review the full Requirement path from accepted
+intent through pre-authoring, decomposition, children and delivery. Record new
+meaningful findings with `scripts/agent_friction.py record --task
+owner/repo#N`, then use `scripts/requirement_retrospective.py checkpoint
+--requirement owner/repo#N --result findings --event <id>`. A clean review
+uses `--result none`. The receipt is machine-local and bound to the current
+parent and child set; it is a terminal gate, not a second status ledger.
+Each technical child keeps its own post-task retrospective. A new stage
+records meaningful process friction itself or exposes it to its enclosing
+retrospective.
+
 Use
 `python3 scripts/requirement_intake.py aggregate --requirement owner/repo#N`
 for a read-through Requirement progress projection. The compatible `status`

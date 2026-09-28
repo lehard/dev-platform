@@ -80,6 +80,16 @@ delivered Requirements:
 `python3 scripts/requirement_terminal.py reconcile --requirement owner/repo#N`.
 No `Requirement-Integration-Exception` is required for an ordinary single child.
 
+Before terminal publication, review the whole Requirement path and record its
+bounded parent retrospective through `scripts/requirement_retrospective.py`.
+Use `--result none` only after checking accepted intent, pre-authoring,
+decomposition, child interaction and delivery and finding no new meaningful
+friction. Record new findings with `scripts/agent_friction.py record --task
+owner/repo#N` and reference their ids with `--result findings --event <id>`.
+The parent checkpoint is a machine-local completion receipt, not another
+backlog or task state. Missing or stale evidence blocks parent `Done`.
+Technical children still run their own post-task retrospectives.
+
 Requirement progress is a read-through projection from local pre-authoring evidence and
 their real Project statuses:
 

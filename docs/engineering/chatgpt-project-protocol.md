@@ -252,6 +252,11 @@ start that exact Requirement through the repository-local
 `requirement_intake.py start` and resumable pre-authoring through handoff,
 creates the internal managed OpenSpec child change(s), links every child back
 to the parent, starts those technical tasks, and only then implements.
+Before terminal Requirement delivery, the repository agent reviews the full
+path and records the bounded parent retrospective with the target repository's
+`requirement_retrospective.py` entrypoint. A clean result is concise; new
+meaningful findings use the existing friction/process-issue mechanism.
+Technical child retrospectives remain independently required.
 
 Do not ask for a second fixation phrase after the user has already authorized
 execution. A fixation-only instruction still creates/reuses the Requirement
