@@ -9,19 +9,19 @@
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
-      "duration_seconds": 0.719,
+      "duration_seconds": 1.47,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 -m ruff check scripts template/scripts tests",
-      "duration_seconds": 0.457,
+      "duration_seconds": 0.946,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
-      "duration_seconds": 410.227,
+      "duration_seconds": 259.555,
       "outcome": "success",
       "exit_code": 0
     }
@@ -59,17 +59,17 @@
     "change": "serialize-final-publication",
     "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/serialize-final-publication",
     "branch": "agent/serialize-final-publication",
-    "head": "cdbabe2bbfa7b90f94ed4d955099be4f68d0dbea",
+    "head": "d7b45de36b57746ec9e1972538db0cccaa457a89",
     "task_content": {
       "version": 1,
-      "digest": "36bd2c6e18e527d37115503492f84ad37cd0b2e820aa014cfe560896e0f50857",
+      "digest": "80a740c525dc3abc78d955a12fd92d1ceb44f067ada200d12cc419cca152e81f",
       "paths": {
         ".github/workflows/publication-queue.yml": "f872bbd8da12633d131c3942f37ed8dbcf8e404a",
         "dev-platform/checks.toml": "85e16bf837b4de5d05f1681c513062b0e0fc1456",
         "docs/engineering/agent-workflow.md": "0da267de01db15bd124e4c2c6d9408bc0d5a325c",
         "openspec/changes/serialize-final-publication/.managed-task.json": "e94beb16cd1c4c74e0f0b20b1bfdbd1e71179a7a",
         "openspec/changes/serialize-final-publication/.openspec.yaml": "ee7c5448114a173e0747e643bc8c2bd9632a05e7",
-        "openspec/changes/serialize-final-publication/automated-checks.json": "20ef51eac29a5f1d646becb32fc2bcd3512f1810",
+        "openspec/changes/serialize-final-publication/automated-checks.json": "1780defbea6138b9b81ff4856f88d87c41bab874",
         "openspec/changes/serialize-final-publication/design.md": "e35ba570f177da16cc3fdd65925f32ae8d474e4d",
         "openspec/changes/serialize-final-publication/proposal.md": "0b60b5b4644dc7745065d4caf35d64852ab1f033",
         "openspec/changes/serialize-final-publication/specs/publication-queue/spec.md": "3e012ff8c9565ce0df6c148cbd116af0020f6b26",
@@ -84,7 +84,7 @@
         "template/scripts/publication_queue.py": "aba4778a43d578dca88ae4a8078cabc42280791b",
         "tests/test_publication_queue.py": "76f159d9e66ac90a2b29b8a259f788156ebda9c4"
       },
-      "base": "36cfabd2686f4e8909818cc02f69d341fbae5b20"
+      "base": "3454d970693568cbc9044acc569d3435fc3ec5a9"
     }
   }
 }
