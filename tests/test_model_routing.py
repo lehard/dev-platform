@@ -1190,6 +1190,91 @@ class ModelRoutingTests(unittest.TestCase):
         self.assertLess(reduced["provenance"]["receipt_payload"]["bytes"], cold["hot_payload"]["bytes"])
         self.assertEqual(routing.recall_observation(self.task, cold["handle"], {"full": True})["content"], payload)
 
+    def enable_same_context_compaction(self, *, observations: bool = False) -> None:
+        body = (
+            "[model_routing.codex]\nstandard_model = \"cheap-codex\"\ncomplex_model = \"strong-codex\"\n"
+            "[same_context_compaction]\nenabled = true\n"
+        )
+        if observations:
+            body += "[observation_lifecycle]\nenabled = true\nmin_bytes = 10\n"
+        (self.task / ".dev-platform.toml").write_text(body, encoding="utf-8")
+
+    def compaction_request(self, **overrides):
+        request = {
+            "opportunity": "subtask-complete",
+            "live_history": "x" * 1000,
+            "compacted_payload": "next step only",
+            "static_reductions": {
+                "repeated_instructions_bytes": 100,
+                "eager_capability_bytes": 50,
+                "prompt_boundary_bytes": 50,
+            },
+            "expected_future_replays": 3,
+            "rebuild_risk_bytes": 10,
+            "observed_subsequent_replay_bytes": 12,
+            "continuation": {
+                "verified_facts": [{"statement": "The repository has its README.", "evidence": [{"path": "README.md"}]}],
+                "assumptions": ["No runtime cache measurement is available."],
+                "blockers": ["Await the verification phase."],
+                "cold_observation_handles": [],
+                "next_intent": "Run the focused verification check.",
+            },
+        }
+        request.update(overrides)
+        return request
+
+    def test_same_context_compaction_records_keep_and_compact_gate_outcomes(self) -> None:
+        self.enable_same_context_compaction()
+        self.prepare()
+        kept = routing.evaluate_same_context_compaction(
+            self.task, self.compaction_request(expected_future_replays=0, compacted_payload="x" * 900)
+        )
+        compacted = routing.evaluate_same_context_compaction(self.task, self.compaction_request())
+        self.assertEqual(kept["decision"], "keep")
+        self.assertIn("does not materially", kept["reason"])
+        self.assertEqual(compacted["decision"], "compact")
+        self.assertEqual(compacted["continuation"]["managed_task"], {"source_issue": "owner/backlog#7", "change": "routing-change"})
+        self.assertEqual(compacted["continuation"]["blockers"], ["Await the verification phase."])
+        self.assertEqual(compacted["runtime_usage"]["input_tokens"]["status"], "unknown")
+        self.assertIsNone(compacted["observed_subsequent_replay_bytes"])
+        self.assertEqual(routing.resume_same_context_compaction(self.task)["status"], "ready")
+        saved, _ = routing._read_route(self.task)
+        self.assertEqual(len(saved.compactions), 2)
+
+    def test_same_context_compaction_validates_cold_handles_and_fails_open_when_stale(self) -> None:
+        self.enable_same_context_compaction(observations=True)
+        self.prepare()
+        cold = routing.cool_observation(self.task, {"source": "command:pytest", "kind": "test_output", "payload": "result " * 20})
+        request = self.compaction_request()
+        request["continuation"]["cold_observation_handles"] = [cold["handle"]]
+        compacted = routing.evaluate_same_context_compaction(self.task, request)
+        self.assertEqual(compacted["decision"], "compact")
+        self.observation_store_path(cold["handle"]).unlink()
+        stale = routing.evaluate_same_context_compaction(self.task, request)
+        self.assertEqual(stale["decision"], "keep")
+        self.assertIn("stale", stale["reason"])
+        self.assertIsNone(stale["continuation"])
+        self.assertEqual(routing.resume_same_context_compaction(self.task)["status"], "stale")
+
+    def test_same_context_resume_rejects_changed_repository_evidence(self) -> None:
+        self.enable_same_context_compaction()
+        self.prepare()
+        routing.evaluate_same_context_compaction(self.task, self.compaction_request())
+        (self.task / "README.md").write_text("Changed after compaction", encoding="utf-8")
+        resumed = routing.resume_same_context_compaction(self.task)
+        self.assertEqual(resumed["status"], "stale")
+        self.assertIsNone(resumed["continuation"])
+
+    def test_same_context_compaction_rejects_unbounded_continuation(self) -> None:
+        self.enable_same_context_compaction()
+        self.prepare()
+        request = self.compaction_request()
+        request["continuation"]["next_intent"] = "x" * (routing.COMPACTION_MAX_TEXT_BYTES + 1)
+        result = routing.evaluate_same_context_compaction(self.task, request)
+        self.assertEqual(result["decision"], "keep")
+        self.assertIn("at most", result["reason"])
+        self.assertIsNone(result["continuation"])
+
 
 class StandaloneStandardCloneRoutingTests(unittest.TestCase):
     """Standard-profile projects have no linked worktree: the task checkout

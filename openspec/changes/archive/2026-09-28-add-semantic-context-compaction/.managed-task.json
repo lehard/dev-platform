@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/agent-workflow/spec.md"
+  ],
+  "change": "add-semantic-context-compaction",
+  "imported_at": "2026-09-28T12:47:43+00:00",
+  "package_revision": "295fad594c011c65b1e5d268f83c2d8e84f5c0b7b58c615554a2fd775f3d13fa",
+  "prepared_against": "6ee5f130e4592bd291c20fbd4fcd21156f110b82",
+  "private_lineage_handle": "pln_ce8c68e96762503be7366429eb01cc04",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "eb8b393e16c987efbdb148bf4f51999b5b7c4d60402d39c4dcc5b3ebb7fcb783",
+    "updated_at": "2026-09-28T08:51:09Z"
+  },
+  "supersedes": "e11eb90934b1366b9ce204c888d93a44f87330897a46b20cbdcc0aabe06cd262",
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

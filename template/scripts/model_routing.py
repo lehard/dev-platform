@@ -124,6 +124,10 @@ class Route:
     # bounded run/session-local storage (see `_observation_store_path`) so a
     # large payload never bloats this routing record.
     observations: tuple[dict[str, Any], ...] = ()
+    # Same-context compaction is advisory navigation evidence, not a durable
+    # handoff or a transcript store.  Entries contain only deterministic
+    # measures and the truth-preserving continuation envelope.
+    compactions: tuple[dict[str, Any], ...] = ()
 
 
 def _snapshot_to_dict(value: GitSnapshot) -> dict[str, Any]:
@@ -262,7 +266,8 @@ def _route_from_payload(payload: dict[str, Any], *, source_issue: str, change: s
         supervisor = payload.get("supervisor")
         context_observations = payload.get("context_delegations", [])
         large_observations = payload.get("observations", [])
-        route = Route(source_issue=payload["source_issue"], change=payload["change"], task_worktree=payload["task_worktree"], integration_root=payload["integration_root"], provider=payload["provider"], profile=payload["profile"], executor_model=payload["executor_model"], rationale=payload["rationale"], evidence=tuple(payload.get("evidence", [])), prepared_at=payload["prepared_at"], pre_snapshot=payload["pre_snapshot"], execution=execution if isinstance(execution, dict) else None, escalations=tuple(payload.get("escalations", [])), start_tier=payload.get("start_tier"), freshness=payload.get("freshness", "confirmed"), topology=payload.get("topology", LINKED_WORKTREE), supervisor=supervisor if isinstance(supervisor, dict) else {}, context_delegations=tuple(item for item in context_observations if isinstance(item, dict)), observations=tuple(item for item in large_observations if isinstance(item, dict)))
+        compactions = payload.get("compactions", [])
+        route = Route(source_issue=payload["source_issue"], change=payload["change"], task_worktree=payload["task_worktree"], integration_root=payload["integration_root"], provider=payload["provider"], profile=payload["profile"], executor_model=payload["executor_model"], rationale=payload["rationale"], evidence=tuple(payload.get("evidence", [])), prepared_at=payload["prepared_at"], pre_snapshot=payload["pre_snapshot"], execution=execution if isinstance(execution, dict) else None, escalations=tuple(payload.get("escalations", [])), start_tier=payload.get("start_tier"), freshness=payload.get("freshness", "confirmed"), topology=payload.get("topology", LINKED_WORKTREE), supervisor=supervisor if isinstance(supervisor, dict) else {}, context_delegations=tuple(item for item in context_observations if isinstance(item, dict)), observations=tuple(item for item in large_observations if isinstance(item, dict)), compactions=tuple(item for item in compactions if isinstance(item, dict)))
     except (KeyError, TypeError) as exc:
         raise RoutingError(missing_detail) from exc
     if route.source_issue.lower() != source_issue.lower() or route.change != change:
@@ -2293,6 +2298,192 @@ def _append_observation_reference(root: Path, route: Route, reference: dict[str,
     _write_route(_durable_record_path(next_route), next_route)
 
 
+# Same-context compaction deliberately shares the local routing receipt with
+# observation cooling.  It never manufactures a cross-session handoff and
+# does not ask a runtime to summarize: the caller supplies bounded navigation
+# state and this core validates identity/references before recording a gate.
+COMPACTION_OPPORTUNITIES = ("plan-complete", "subtask-complete", "verification-start")
+COMPACTION_MAX_RECORDS = 32
+COMPACTION_MAX_PAYLOAD_BYTES = 16384
+COMPACTION_MAX_ITEMS = 16
+COMPACTION_MAX_TEXT_BYTES = 1024
+
+
+def _compaction_enabled(root: Path) -> bool:
+    settings = read_platform_config(root).get("same_context_compaction", {})
+    return isinstance(settings, dict) and settings.get("enabled") is True
+
+
+def _nonnegative_int(value: Any, field_name: str) -> int:
+    if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+        raise RoutingError(f"same-context compaction {field_name} must be a non-negative integer")
+    return value
+
+
+def _bounded_compaction_text(value: Any, field_name: str) -> str:
+    if not isinstance(value, str) or not value.strip() or len(value.encode("utf-8")) > COMPACTION_MAX_TEXT_BYTES:
+        raise RoutingError(f"same-context compaction {field_name} must be non-empty and at most {COMPACTION_MAX_TEXT_BYTES} bytes")
+    return value.strip()
+
+
+def _canonical_reference(root: Path, item: Any) -> dict[str, str]:
+    if not isinstance(item, dict) or not isinstance(item.get("path"), str) or not item["path"].strip():
+        raise RoutingError("same-context compaction verified facts need canonical evidence references with a path")
+    relative = Path(item["path"])
+    if relative.is_absolute() or ".." in relative.parts:
+        raise RoutingError("same-context compaction evidence path must be repository-relative")
+    path = (root / relative).resolve()
+    if root.resolve() not in path.parents and path != root.resolve():
+        raise RoutingError("same-context compaction evidence path must remain inside the repository")
+    if not path.is_file():
+        raise RoutingError(f"same-context compaction evidence is missing: {relative}")
+    digest = item.get("sha256")
+    actual = hashlib.sha256(path.read_bytes()).hexdigest()
+    if digest is not None and (not isinstance(digest, str) or digest != actual):
+        raise RoutingError(f"same-context compaction evidence is stale: {relative}")
+    return {"path": relative.as_posix(), "sha256": actual}
+
+
+def _cold_reference(route: Route, root: Path, handle: Any) -> dict[str, str]:
+    if not isinstance(handle, str) or not handle.strip():
+        raise RoutingError("same-context compaction cold evidence handles must be non-empty strings")
+    reference = next((item for item in route.observations if item.get("handle") == handle), None)
+    if reference is None or reference.get("status") != OBSERVATION_STATUS_COLD:
+        raise RoutingError(f"same-context compaction cold evidence is missing: {handle!r}")
+    try:
+        stored = _read_observation_store(root, route.change, handle)
+    except ObservationLifecycleError as exc:
+        raise RoutingError(f"same-context compaction cold evidence is stale: {handle!r}: {exc}") from exc
+    digest = reference.get("source_digest")
+    if digest != _source_digest(stored["payload"]):
+        raise RoutingError(f"same-context compaction cold evidence is stale: {handle!r}")
+    return {"handle": handle, "source_digest": digest}
+
+
+def _continuation(root: Path, route: Route, value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        raise RoutingError("same-context compaction needs a continuation object")
+    next_intent = _bounded_compaction_text(value.get("next_intent"), "next_intent")
+    facts = value.get("verified_facts", [])
+    assumptions = value.get("assumptions", [])
+    blockers = value.get("blockers", [])
+    cold_handles = value.get("cold_observation_handles", [])
+    if not all(isinstance(part, list) for part in (facts, assumptions, blockers, cold_handles)):
+        raise RoutingError("same-context compaction continuation lists are malformed")
+    if any(len(part) > COMPACTION_MAX_ITEMS for part in (facts, assumptions, blockers, cold_handles)):
+        raise RoutingError("same-context compaction continuation lists exceed the bounded item limit")
+    normalized_facts = []
+    for fact in facts:
+        if not isinstance(fact, dict):
+            raise RoutingError("same-context compaction verified facts need a statement")
+        statement = _bounded_compaction_text(fact.get("statement"), "verified fact")
+        evidence = fact.get("evidence", [])
+        if not isinstance(evidence, list) or not evidence or len(evidence) > COMPACTION_MAX_ITEMS:
+            raise RoutingError("same-context compaction verified facts need canonical evidence")
+        normalized_facts.append({"statement": statement, "evidence": [_canonical_reference(root, item) for item in evidence]})
+    for label, entries in (("assumptions", assumptions), ("blockers", blockers)):
+        entries[:] = [_bounded_compaction_text(item, label) for item in entries]
+    return {
+        "managed_task": {"source_issue": route.source_issue, "change": route.change},
+        "verified_facts": normalized_facts,
+        "assumptions": [item.strip() for item in assumptions],
+        "blockers": [item.strip() for item in blockers],
+        "cold_observations": [_cold_reference(route, root, item) for item in cold_handles],
+        "next_intent": next_intent,
+    }
+
+
+def evaluate_same_context_compaction(root: Path, request: dict[str, Any]) -> dict[str, Any]:
+    """Record an advisory semantic compaction decision and safe continuation.
+
+    Gate arithmetic is intentionally inspectable: expected replay avoided is
+    ``(residual_live_bytes - compacted_bytes) * future_replays`` and must be
+    strictly greater than the compact payload plus supplied rebuild-risk
+    bytes.  Fullness alone is never an input or a decision.
+    """
+    route, route_path = _read_route(root)
+    if not isinstance(request, dict):
+        raise RoutingError("same-context compaction request must be a JSON object")
+    opportunity = request.get("opportunity")
+    if opportunity not in COMPACTION_OPPORTUNITIES:
+        raise RoutingError(f"same-context compaction opportunity must be one of: {', '.join(COMPACTION_OPPORTUNITIES)}")
+    live_history = request.get("live_history")
+    compacted_payload = request.get("compacted_payload")
+    if not isinstance(live_history, str) or not isinstance(compacted_payload, str):
+        raise RoutingError("same-context compaction needs string live_history and compacted_payload")
+    if len(compacted_payload.encode("utf-8")) > COMPACTION_MAX_PAYLOAD_BYTES:
+        raise RoutingError("same-context compaction compacted_payload exceeds the bounded payload limit")
+    reductions_input = request.get("static_reductions", {})
+    if not isinstance(reductions_input, dict):
+        raise RoutingError("same-context compaction static_reductions must be an object")
+    reductions = {key: _nonnegative_int(reductions_input.get(key, 0), f"static_reductions.{key}") for key in ("repeated_instructions_bytes", "eager_capability_bytes", "prompt_boundary_bytes")}
+    before = _payload_measure(live_history)
+    static_total = min(before["bytes"], sum(reductions.values()))
+    residual = before["bytes"] - static_total
+    after = _payload_measure(compacted_payload)
+    future_replays = _nonnegative_int(request.get("expected_future_replays", 0), "expected_future_replays")
+    rebuild_risk = _nonnegative_int(request.get("rebuild_risk_bytes", 0), "rebuild_risk_bytes")
+    continuation: dict[str, Any] | None = None
+    failure: str | None = None
+    try:
+        continuation = _continuation(root, route, request.get("continuation"))
+    except RoutingError as exc:
+        failure = str(exc)
+    replay_avoided = max(0, residual - after["bytes"]) * future_replays
+    overhead = after["bytes"] + rebuild_risk
+    enabled = _compaction_enabled(root)
+    if not enabled:
+        decision, reason = "keep", "same-context compaction is not enabled in this repository"
+    elif failure:
+        decision, reason = "keep", failure
+    elif replay_avoided <= overhead:
+        decision, reason = "keep", "expected replay avoided does not materially exceed compaction overhead/risk"
+    else:
+        decision, reason = "compact", "expected replay avoided materially exceeds compaction overhead/risk"
+    record = {
+        "schema_version": 1,
+        "recorded_at": utc_now(),
+        "advisory": True,
+        "opportunity": opportunity,
+        "decision": decision,
+        "reason": reason,
+        "static_reductions": {**reductions, "total_bytes": static_total},
+        "before_payload": before,
+        "residual_live_history_bytes": residual,
+        "after_payload": after,
+        "gate": {"expected_future_replays": future_replays, "expected_replay_avoided_bytes": replay_avoided, "compaction_overhead_bytes": after["bytes"], "rebuild_risk_bytes": rebuild_risk, "passes": decision == "compact"},
+        "observed_subsequent_replay_bytes": None,
+        "runtime_usage": efficiency_unknown_usage(),
+        "continuation": continuation if decision == "compact" else None,
+    }
+    next_route = Route(**{**asdict(route), "compactions": (route.compactions + (record,))[-COMPACTION_MAX_RECORDS:]})
+    _write_route(route_path, next_route)
+    _write_route(_durable_record_path(next_route), next_route)
+    return record
+
+
+def resume_same_context_compaction(root: Path) -> dict[str, Any]:
+    """Revalidate the latest compact navigation state against exact sources."""
+    route, _ = _read_route(root)
+    record = next((item for item in reversed(route.compactions) if item.get("decision") == "compact"), None)
+    if record is None:
+        return {"status": "unavailable", "reason": "no compact continuation was recorded", "continuation": None}
+    continuation = record.get("continuation")
+    try:
+        if not isinstance(continuation, dict) or continuation.get("managed_task") != {"source_issue": route.source_issue, "change": route.change}:
+            raise RoutingError("same-context compaction task identity is stale")
+        for fact in continuation.get("verified_facts", []):
+            for evidence in fact["evidence"]:
+                _canonical_reference(root, evidence)
+        for cold in continuation.get("cold_observations", []):
+            current = _cold_reference(route, root, cold["handle"])
+            if current != cold:
+                raise RoutingError(f"same-context compaction cold evidence is stale: {cold['handle']!r}")
+    except (RoutingError, KeyError, TypeError) as exc:
+        return {"status": "stale", "reason": str(exc), "continuation": None}
+    return {"status": "ready", "reason": "canonical references still resolve", "continuation": continuation}
+
+
 def cool_observation(root: Path, request_input: dict[str, Any]) -> dict[str, Any]:
     """Archive one eligible large observation exactly, then emit a bounded reference.
 
@@ -2756,6 +2947,12 @@ def main() -> int:
     reducer_parser.add_argument("--receipt", type=Path, help="optional reducer receipt JSON; omission records an exact-source fallback")
     reducer_parser.add_argument("--profile", default="routine", choices=PROFILES)
     reducer_parser.add_argument("--participant", help="bounded reducer participant identity when supported by the runtime")
+    compaction_parser = subparsers.add_parser(
+        "same-context-compact",
+        help="advisory semantic same-context compaction gate with a truth-preserving continuation",
+    )
+    compaction_parser.add_argument("--request", type=Path, required=True, help="JSON object with opportunity, payload measures and continuation")
+    subparsers.add_parser("same-context-resume", help="revalidate the latest compact continuation against exact evidence")
     subparsers.add_parser("postcheck", help="verify the prepared native worktree route did not mutate integration")
     subparsers.add_parser("efficiency-baseline", help="report bounded local execution-efficiency evidence without changing routing")
     subparsers.add_parser("routing-calibration", help="report bounded read-only R2/R3 routing calibration evidence without changing routing")
@@ -2809,6 +3006,10 @@ def main() -> int:
         elif args.command == "log-reduce":
             receipt = _observation_json_file(args.receipt, "reducer receipt") if args.receipt else None
             output = reduce_execution_log(root, args.handle, receipt, profile=args.profile, participant=args.participant)
+        elif args.command == "same-context-compact":
+            output = evaluate_same_context_compaction(root, _observation_json_file(args.request, "same-context compaction request"))
+        elif args.command == "same-context-resume":
+            output = resume_same_context_compaction(root)
         elif args.command == "efficiency-baseline":
             output = efficiency_baseline(root)
         elif args.command == "routing-calibration":
