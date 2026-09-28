@@ -26,6 +26,14 @@ Codex uses its native `read-only` sandbox and the configured routine model. The 
 
 Claude Code's current native Agent handoff has no supported read-only permission boundary. `context-claude` records `runtime-unavailable` and retains direct targeted reading rather than launching a child based on instructions alone.
 
+## Advisory same-context compaction
+
+Same-context compaction is distinct from durable interoperable handoff. It is an opt-in dogfood operation at `plan-complete`, `subtask-complete`, or `verification-start`; a context-fullness percentage alone never triggers it. Record bytes attributable to repeated instructions, eager rarely-needed capability definitions, and prompt-boundary churn first, then evaluate only residual live history. The inspectable gate compacts only when expected replay avoided materially exceeds compact-payload and rebuild-risk overhead.
+
+`same-context-compact --request <json>` records deterministic before/after payload measures, never estimated token/cache savings. Observed subsequent replay stays unknown until a runtime adapter can measure it. Its continuation derives managed task identity from canonical provenance; it keeps verified facts (with current repository references) distinct from assumptions, blockers and next intent, and validates cold-observation handles. A stale/missing reference, unavailable opt-in, or failed gate keeps the current context. The bounded compact record is navigation state, never authority over OpenSpec, repository or test evidence. A `compact` decision is advisory: a runtime with supported same-context compaction may act on it and must otherwise keep the current context.
+
+Before using a recorded continuation, run `same-context-resume`. It revalidates repository digests and cold handles and returns no ready continuation when evidence changed or disappeared.
+
 ## Delegated write containment
 
 Platform-controlled write-capable delegation is platform-contained only with a valid assigned worktree, a proven native or fallback write boundary, and a content-aware post-check against the integration copy. `scripts/delegated_write_guard.py` remains the compatibility/post-check helper: a proven Codex `workspace-write` sandbox is the primary prevention layer, not a second custom guard. For unsupported or unprovable native modes, retain work on the parent or use the smallest supported guarded fallback. For Codex, system temp roots such as `/tmp` and `$TMPDIR` are checked with realpath semantics; unsafe topology downgrades to detection-only, or fails before launch when hard containment is required.

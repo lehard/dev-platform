@@ -55,6 +55,11 @@ enabled = false
 enabled = false
 min_bytes = 8000
 
+[same_context_compaction]
+# Advisory opt-in only. The gate records deterministic payload evidence and
+# preserves canonical references; it does not create a durable handoff.
+enabled = false
+
 [independent_review]
 # Opt in only where a runtime can supply a separate fresh, read-only review
 # context. The platform validates its evidence but never launches a provider.
