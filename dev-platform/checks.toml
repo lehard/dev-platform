@@ -109,6 +109,7 @@ targets = [
   "test_adopt_project",
   "test_agentic_workflows",
   "test_cloud_maintenance_preflight",
+  "test_code_erosion_report",
   "test_ci_guardrails",
   "test_central_dogfood_lifecycle",
   "test_ci_trigger_compatibility",
