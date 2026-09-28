@@ -1,0 +1,74 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 2,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "git diff --check",
+      "duration_seconds": 0.219,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_docs_links.py",
+      "duration_seconds": 26.525,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "docs",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/upstream-substitution.md",
+        "openspec/changes/archive/2026-09-28-upstream-substitution-gate/.managed-task.json",
+        "openspec/changes/archive/2026-09-28-upstream-substitution-gate/.openspec.yaml",
+        "openspec/changes/archive/2026-09-28-upstream-substitution-gate/automated-checks.json",
+        "openspec/changes/archive/2026-09-28-upstream-substitution-gate/design.md",
+        "openspec/changes/archive/2026-09-28-upstream-substitution-gate/proposal.md",
+        "openspec/changes/archive/2026-09-28-upstream-substitution-gate/specs/upstream-substitution/spec.md",
+        "openspec/changes/archive/2026-09-28-upstream-substitution-gate/tasks.md",
+        "openspec/changes/archive/2026-09-28-upstream-substitution-gate/verification.md",
+        "openspec/specs/upstream-substitution/spec.md"
+      ],
+      "commands": [
+        "git diff --check",
+        "python3 scripts/check_docs_links.py"
+      ],
+      "evidence_types": [
+        "configuration",
+        "configuration"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_85c23806ef37452625d31bbed474f7f7",
+    "change": "upstream-substitution-gate",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/upstream-substitution-gate",
+    "branch": "agent/upstream-substitution-gate",
+    "head": "4ab3f0b613fcb6ef461b551a3d5af07136462ca8",
+    "task_content": {
+      "version": 1,
+      "digest": "84698da94842a7d84f0861c638e3a873d692ac87d58506aaf28dd55e80fd3710",
+      "paths": {
+        "AGENTS.md": "c1a2fb671ccf2ba8453d40e5445cc4e6a71028b5",
+        "docs/engineering/upstream-substitution.md": "559de2b341ddb7e1d9c0801235fa0ed38186b08b",
+        "openspec/changes/upstream-substitution-gate/.managed-task.json": "42723207e02767bedcb7b98368a8e34cb5445705",
+        "openspec/changes/upstream-substitution-gate/.openspec.yaml": "ee7c5448114a173e0747e643bc8c2bd9632a05e7",
+        "openspec/changes/upstream-substitution-gate/automated-checks.json": "75ecc4b0250e27017d4ed8ef4520f4e6a9042fb3",
+        "openspec/changes/upstream-substitution-gate/design.md": "76d447c3b7d1bebe760253f21a15723ae6728d87",
+        "openspec/changes/upstream-substitution-gate/proposal.md": "d190dae88073653104abe1332bac8dd0c59ffdc2",
+        "openspec/changes/upstream-substitution-gate/specs/upstream-substitution/spec.md": "3f62baf3caffbca6237b7e4ad330028f7367bbb9",
+        "openspec/changes/upstream-substitution-gate/tasks.md": "09f2bda70605055bb46ccda9c88691216caed5b1",
+        "openspec/changes/upstream-substitution-gate/verification.md": "c2ac67eb59eafbec7233ddca781595a5e06b5f71",
+        "openspec/specs/upstream-substitution/spec.md": "6d888064c58686f01c559ec4cc4a2bbd006cfd5f"
+      },
+      "base": "1414fe00bce97311b2ab46302def3c21bfab365f"
+    }
+  }
+}
