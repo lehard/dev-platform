@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/upstream-substitution/spec.md"
+  ],
+  "change": "upstream-substitution-gate",
+  "imported_at": "2026-09-28T09:34:37+00:00",
+  "package_revision": "d99e57e031970c6c7e5531f1924726c01f4a88b48aa3c42ef7831504718fb51d",
+  "prepared_against": "da821e5e2455d2a53aa0eb72063d37c9fc93bb75",
+  "private_lineage_handle": "pln_85c23806ef37452625d31bbed474f7f7",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "81a68eb0dccfde468364a1439709ac5e105a074494b002bd487612db9a10b167",
+    "updated_at": "2026-09-28T09:24:44Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
