@@ -40,7 +40,11 @@ class RequirementFlowEndToEndTests(unittest.TestCase):
 
     def _run_with_linked(self, linked: dict[str, str], ready: list[tuple[Path, object] | None], *, publish: bool = False):
         with mock.patch.object(execution, "current_worktree_root", return_value=self.root), \
-                mock.patch.object(execution.requirement_intake, "fetch_issue", return_value={"labels": [{"name": "type:requirement"}]}), \
+                mock.patch.object(execution.requirement_intake, "fetch_issue", return_value={
+                    "labels": [{"name": "type:requirement"}],
+                    "body": "## Outcome\n\nChange billing\n\n## Target repository\n\n`acme/billing`\n",
+                }), \
+                mock.patch.object(execution.requirement_target_lifecycle, "require_local_target_support"), \
                 mock.patch.object(execution, "_linked_children_by_change", return_value=linked), \
                 mock.patch.object(execution.managed_project_status, "observe", return_value=SimpleNamespace(current_status="In progress")), \
                 mock.patch.object(execution, "_ready_receipt", side_effect=ready), \

@@ -83,6 +83,14 @@ The semantics are identical across agent surfaces:
 
 When the user asks to execute a Business Requirement, the ordered flow is:
 
+The target checkout must first prove its managed lifecycle: valid Backlog
+routing, enabled OpenSpec/Git capabilities, required Requirement and managed
+task entrypoints, and protected PR publication. Fixation and execution fail
+early with missing evidence and a supported route when this cannot be proved.
+An operator-managed downstream repository keeps its existing explicit opt-in;
+operator routing parameters alone do not prove lifecycle support. Terminal
+reconciliation checks the target again before marking the parent Done.
+
 1. Run `python3 scripts/requirement_intake.py start --requirement owner/repo#N`.
 2. Drive `scripts/orchestrate_pre_authoring.py status` resumably. Record an
    explainable `select-depth` decision bound to the complete Requirement:

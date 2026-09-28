@@ -361,6 +361,18 @@ def run_status(work: Path, integration: Path, config: dict, *, as_json: bool) ->
                    "checkout_identity_error": checkout_identity_error}
         print(json.dumps(payload) if as_json else message + (f"\ncheckout identity: {checkout_identity_error}" if checkout_identity_error else ""))
         return 0
+    if config.get("platform_version") == "source":
+        from publication_queue import enabled as queue_enabled, local_status as queue_local_status
+
+        if queue_enabled(work):
+            try:
+                queued = queue_local_status(work, branch)
+            except Exception as exc:
+                queued = {"state": "blocked", "reason": str(exc)}
+            if queued is not None:
+                queued["status"] = "terminal_pending" if queued["state"] == "merged" else "publication_" + queued["state"]
+                print(json.dumps(queued, indent=2) if as_json else f"status: {queued['status']} ({queued})")
+                return 0
     env = github_cli_env(work)
     obs = publication_state.observe_publication(work, integration, env, branch, main_branch)
     durability = publication_state.merge_durability_capability(config, env, work)
@@ -811,6 +823,26 @@ def main() -> int:
     except (ManagedTaskError, RequirementIntegrationError) as exc:
         raise SystemExit("Managed task publication blocked: " + str(exc)) from exc
 
+    if config.get("platform_version") == "source" and mode == "pr" and branch != main_branch:
+        from publication_queue import enabled as queue_enabled, local_status as queue_local_status, sync_merged_task
+
+        if queue_enabled(work):
+            try:
+                queued = queue_local_status(work, branch)
+            except Exception as exc:
+                raise SystemExit("Publication queue observation blocked: " + str(exc)) from exc
+            if queued is not None:
+                if queued["state"] in {"active", "waiting"}:
+                    print(f"Publication queue position {queued.get('position')}: {queued['state']}; coordinator owns final integration.")
+                    return 2
+                if queued["state"] == "blocked":
+                    raise SystemExit("Publication queue blocked: " + str(queued.get("reason")))
+                if queued["state"] == "merged":
+                    try:
+                        sync_merged_task(work, branch, queued["number"])
+                    except Exception as exc:
+                        raise SystemExit("Merged PR task synchronization blocked: " + str(exc)) from exc
+
     # Durable remote auto-merge is its own resumable phase. Observe it before
     # local completion evidence/validation/publication so a bounded prior wait
     # never repeats expensive local work or a publish mutation.
@@ -940,6 +972,14 @@ def main() -> int:
             command += ["--body", args.body]
         published = subprocess.run(command, cwd=work, check=False)
         if published.returncode:
+            if config.get("platform_version") == "source":
+                from publication_queue import enabled as queue_enabled, local_status as queue_local_status
+
+                if queue_enabled(work):
+                    queued = queue_local_status(work, branch)
+                    if queued is not None and queued["state"] in {"active", "waiting"}:
+                        print(f"Publication queued at position {queued.get('position')}; rerun finish after remote merge.")
+                        return 2
             if task_pr_is_already_merged(work, branch, main_branch):
                 reconcile_confirmed_remote_pr_merge(
                     work, integration, config, branch, main_branch, prof,

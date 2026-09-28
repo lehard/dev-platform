@@ -2,7 +2,9 @@
 
 ## Purpose
 Define the end-to-end agent workflow for disciplined task intake, implementation, verification, and delivery.
+
 ## Requirements
+
 ### Requirement: Unknown defects use evidence-first diagnosis
 
 Dev Platform SHALL provide a reusable diagnosis path for unknown bugs, regressions and unexplained failures that establishes an observable failure condition and tests falsifiable hypotheses before claiming a root cause.
@@ -48,12 +50,14 @@ Dev Platform SHALL support an optional refinement path for materially ambiguous 
 
 ### Requirement: Domain refinement does not create a competing implementation contract
 
-Accepted refinement SHALL be recorded in the existing managed OpenSpec artifacts and SHALL NOT require a parallel context, ADR, status or planning ledger as an authoritative source.
+Accepted refinement SHALL be recorded in existing managed OpenSpec artifacts and SHALL NOT require a parallel context, ADR, status or planning ledger as an authoritative implementation source. A repository decision registry MAY preserve consequential historical rationale and revisit conditions, but SHALL NOT override OpenSpec's accepted executable behavior or active deltas.
 
 #### Scenario: Refinement is complete
-- **WHEN** the material ambiguity is resolved
-- **THEN** the accepted decision is incorporated into proposal/spec/design as appropriate
+
+- **WHEN** material ambiguity is resolved
+- **THEN** the accepted behavior is incorporated into proposal/spec/design as appropriate
 - **AND** materialized OpenSpec remains canonical for implementation and verification
+- **AND** a relevant historical decision record may retain the rationale without becoming a second implementation contract
 
 ### Requirement: Work can be continued through an optional interoperable handoff
 
@@ -707,6 +711,41 @@ A new lifecycle stage SHALL either route its meaningful process friction through
 - **WHEN** a new stage is added before technical child execution
 - **THEN** its meaningful friction is directly recorded or guaranteed to reach the parent Requirement retrospective
 
+### Requirement: Business Requirement targets have a supported managed lifecycle
+
+A Business Requirement SHALL enter normal intake or execution only when its target repository can demonstrate the managed OpenSpec child, verification, protected publication and terminal reconciliation path required by that Requirement. Local support requires the target's managed capabilities and required lifecycle entrypoints, in addition to valid Backlog routing and protected publication configuration. Backlog routing labels or operator parameters alone SHALL NOT prove lifecycle support. The check SHALL use target-owned evidence and SHALL fail before creating a new Requirement or beginning execution of an existing one when support is absent or unreadable. A rejection SHALL identify the missing evidence and an available supported route without silently retargeting or manually closing the Requirement.
+
+#### Scenario: Unsupported operator repository has routing but no managed lifecycle
+
+- **GIVEN** a target repository can supply a Backlog repository, project label and priority
+- **AND** it lacks the managed child and publication lifecycle required for Requirement execution
+- **WHEN** a local or connected actor attempts Requirement fixation or execution
+- **THEN** the operation stops before normal Requirement progress
+- **AND** explains the missing lifecycle support and a supported target checkout or workflow route
+
+#### Scenario: Managed target proceeds
+
+- **GIVEN** a target checkout proves its configured managed OpenSpec and publication lifecycle
+- **WHEN** a Requirement is fixed or started for that target
+- **THEN** normal Requirement routing and execution remain available
+
+#### Scenario: Explicit operator-managed downstream opt-in proceeds
+
+- **GIVEN** an operator-managed downstream target has explicit integration evidence and the required managed entrypoints
+- **AND** its Backlog routing parameters derive from its target checkout configuration
+- **WHEN** local or connected Requirement intake checks that target
+- **THEN** the target is supported without requiring a committed machine-local operator configuration
+
+### Requirement: Requirement terminal state requires target delivery proof
+
+Requirement terminal reconciliation SHALL require a supported target lifecycle and the existing exact linked-child, archived verification and merged delivery evidence. A manually closed Issue, Project Done field, or empty child set SHALL NOT substitute for that proof.
+
+#### Scenario: Target lacks a terminal path
+
+- **GIVEN** a Requirement Issue appears complete or its work was delivered outside managed execution
+- **WHEN** terminal reconciliation cannot prove the target's supported managed lifecycle and exact delivered children
+- **THEN** it refuses parent Done and Issue closure
+- **AND** reports the missing terminal proof
 ### Requirement: Same-context compaction is considered at semantic work boundaries
 
 Dev Platform SHALL support bounded same-context compaction opportunities at semantic transitions in live work rather than treating context-window fullness as the sole trigger. The initial capability SHALL keep the opportunity set small and inspectable, such as completion of a bounded plan/subtask or transition into a distinct verification phase.
@@ -782,4 +821,3 @@ Initial compaction rollout SHALL remain advisory/dogfood and SHALL record bounde
 - **WHEN** compaction reduces deterministic active payload size but the runtime exposes no canonical cache-token measurement
 - **THEN** the deterministic reduction is recorded
 - **AND** token/cache savings remain unknown rather than estimated
-
