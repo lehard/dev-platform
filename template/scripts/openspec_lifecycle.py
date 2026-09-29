@@ -88,6 +88,34 @@ def verification_passed(change: Path) -> bool:
     return has_marker and has_method
 
 
+def _without_clean_base_advance(root: Path, paths: list[str], actual_content: object, expected_content: object) -> list[str]:
+    """Drop paths that arrived only through a clean merge of main.
+
+    Content-aware receipts record the merge base the task diff was proven
+    against.  When main advanced (ancestor -> descendant) without touching any
+    task-owned path, the paths main changed are not task changes.  Any overlap
+    with task-owned paths, or unknown/unrelated bases, keeps the raw range so
+    the caller still fails closed.
+    """
+    if not isinstance(actual_content, dict) or not isinstance(expected_content, dict):
+        return paths
+    old_base, new_base = actual_content.get("base"), expected_content.get("base")
+    recorded, current = actual_content.get("paths"), expected_content.get("paths")
+    if not (isinstance(old_base, str) and isinstance(new_base, str) and isinstance(recorded, dict) and isinstance(current, dict)):
+        return paths
+    if old_base == new_base:
+        return paths
+    if run_git(["merge-base", "--is-ancestor", old_base, new_base], cwd=root, check=False).returncode:
+        return paths
+    advanced = run_git(["diff", "--name-only", old_base, new_base], cwd=root, check=False)
+    if advanced.returncode:
+        return paths
+    base_paths = {line for line in advanced.stdout.splitlines() if line}
+    if not base_paths.isdisjoint(set(recorded) | set(current)):
+        return paths
+    return [path for path in paths if path not in base_paths]
+
+
 def evidence_matches_checkout(
     change: Path,
     root: Path,
@@ -147,6 +175,7 @@ def evidence_matches_checkout(
         for path in (change / "specs").glob("*/spec.md")
     }
     paths = [line for line in changed.stdout.splitlines() if line]
+    paths = _without_clean_base_advance(root, paths, actual_content, expected_content)
     allowed = bool(paths) and all(
         path.startswith(archive_prefix) or path.startswith(active_prefix) or path in materialized_specs
         for path in paths
