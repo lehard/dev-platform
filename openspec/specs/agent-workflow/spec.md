@@ -834,4 +834,3 @@ Initial compaction rollout SHALL remain advisory/dogfood and SHALL record bounde
 - **WHEN** compaction reduces deterministic active payload size but the runtime exposes no canonical cache-token measurement
 - **THEN** the deterministic reduction is recorded
 - **AND** token/cache savings remain unknown rather than estimated
-
