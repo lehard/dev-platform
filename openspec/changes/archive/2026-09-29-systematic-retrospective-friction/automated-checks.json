@@ -1,0 +1,85 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.839,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.473,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 323.958,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/agent_friction.py",
+        "template/scripts/requirement_retrospective.py",
+        "tests/test_friction_review.py",
+        "tests/test_requirement_retrospective.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_78f4449a7b7a5e0e5d258295b1ef4787",
+    "change": "systematic-retrospective-friction",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/systematic-retrospective-friction",
+    "branch": "agent/systematic-retrospective-friction",
+    "head": "cda57b69d865af8553978732d7bf0b7dbbb5b94b",
+    "task_content": {
+      "version": 1,
+      "digest": "23ed5627447044abe43129dc18ef0be047f865f279d3fe62239701a6afe29b98",
+      "paths": {
+        "AGENTS.md": "b69318cb6ef9cf0de305cf5259f90dcfb73ec1b4",
+        "docs/engineering/agent-workflow.md": "01ada7aa343be08c80b956fcedb31c4309531ac8",
+        "docs/engineering/task-intake.md": "07d252514901897ded41549a7576f6605b8a493f",
+        "openspec/changes/systematic-retrospective-friction/.managed-task.json": "18539af07f4a80c5395f4ff26af161dc0c305811",
+        "openspec/changes/systematic-retrospective-friction/.openspec.yaml": "29382a2c80fa56db41a894c8d84de17dd931a4d8",
+        "openspec/changes/systematic-retrospective-friction/design.md": "6e512d6a77e6de9820a8ecb80df32ec49aad397f",
+        "openspec/changes/systematic-retrospective-friction/proposal.md": "2191011773a3172af291e9135c72d8e97c6a79e5",
+        "openspec/changes/systematic-retrospective-friction/specs/agent-workflow/spec.md": "3da194795d89925016dee594e44a082d4186d316",
+        "openspec/changes/systematic-retrospective-friction/specs/platform-lifecycle/spec.md": "d361e7d56d2a0a00d2ab49ee40252dfc99725204",
+        "openspec/changes/systematic-retrospective-friction/tasks.md": "e7998b6ce53abc6f91675a579102d3c87e2b3aab",
+        "openspec/changes/systematic-retrospective-friction/verification.md": "cb52d456bc86762c8a461c219d9cb60e64479b0a",
+        "template/AGENTS.md.jinja": "51a543111fdac133777f6e7d7e858992d8cf3730",
+        "template/docs/engineering/agent-workflow.md.jinja": "e1732e416fbc4e8409690d5e5bea7fb3f76a78df",
+        "template/scripts/agent_friction.py": "604d80ecf9f8713459f28cb727f823128f382737",
+        "template/scripts/requirement_retrospective.py": "f775557800efd43b47623fc42d368f2faaf75358",
+        "tests/test_friction_review.py": "5b65805cd7b6838863cbc28a5dc0c8045b469358",
+        "tests/test_requirement_retrospective.py": "afb3da06a39bd807cb5540bd54aa503ab0c650ed"
+      },
+      "base": "80baaab3467cba0a7068a08db53078969424c3ca"
+    }
+  }
+}
