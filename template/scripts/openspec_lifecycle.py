@@ -39,6 +39,11 @@ except ModuleNotFoundError as exc:
                 f"{change.name}: independent review is enabled but scripts/independent_review.py is missing; "
                 "repair the incomplete platform update before archive readiness."
             )
+try:
+    from independent_review import ensure_review_evidence
+except (ImportError, ModuleNotFoundError):  # Older renders validate only; they cannot launch a reviewer.
+    def ensure_review_evidence(root: Path, change: Path, *, launcher: object = None) -> None:
+        require_review_evidence(root, change)
 
 # Mirrors upstream OpenSpec TASK_LINE_PATTERN (1.13.x dist/utils/task-progress.js): `-`, `*`, `+`,
 # `N.` and `N)` markers; only `x`/`X` content is complete, any other checkbox content is open.
@@ -261,6 +266,20 @@ def require_independent_review_receipt(change: Path) -> None:
         )
 
 
+def require_publication_review_evidence(change: Path, *, root: Path | None = None) -> None:
+    """Finish gate: required review evidence must match the current task content."""
+    work = (root or change.parents[2]).resolve()
+    if not review_is_required(work, change):
+        return
+    try:
+        require_review_evidence(work, change)
+    except SystemExit as exc:
+        raise SystemExit(
+            f"Publication refused before any remote mutation: {exc}\n"
+            "Rerun the independent review for the current candidate, commit its evidence, then rerun finish."
+        ) from exc
+
+
 def completed_active_changes(root: Path) -> list[str]:
     stale: list[str] = []
     for change in active_changes(root):
@@ -336,8 +355,12 @@ def require_managed_routing_evidence(change: Path) -> None:
         ) from exc
 
 
-def require_static_archive_readiness(change: Path, *, platform_owned: bool = False) -> None:
-    """Check deterministic archive prerequisites before checks mutate evidence."""
+def require_static_archive_readiness(change: Path, *, platform_owned: bool = False, review: bool = True) -> None:
+    """Check deterministic archive prerequisites before checks mutate evidence.
+
+    ``review=False`` lets archive defer the (possibly launching) independent
+    review until after every cheap deterministic prerequisite has passed.
+    """
     if not change.exists() or not change.is_dir():
         raise SystemExit(f"Active OpenSpec change not found: {change.name}")
     total, incomplete = task_state(change)
@@ -351,8 +374,9 @@ def require_static_archive_readiness(change: Path, *, platform_owned: bool = Fal
             f"Run /opsx:verify when available (or an equivalent documented OpenSpec verification), resolve material findings, "
             f"then record '{VERIFY_MARKER}' and a '{VERIFY_METHOD_PREFIX} <method>' line in verification.md."
         )
-    require_review_evidence(change.parents[2], change)
     require_independent_review_receipt(change)
+    if review:
+        require_review_evidence(change.parents[2], change)
     if platform_owned:
         require_managed_routing_evidence(change)
     if platform_owned:
@@ -399,9 +423,13 @@ def archive_change(root: Path, name: str) -> int:
             )
         except ManagedTaskError as exc:
             raise SystemExit(f"{name}: managed checkout identity gate blocked archive before validation: {exc}") from exc
-    require_static_archive_readiness(change, platform_owned=platform_owned)
+    require_static_archive_readiness(change, platform_owned=platform_owned, review=False)
     if platform_owned:
         require_applicable_committed_diff(root)
+    # Required independent review runs after the cheap deterministic gates and
+    # before expensive validation: a missing or stale review is launched now,
+    # and blocking findings stop archive with exact next commands.
+    ensure_review_evidence(root, change)
     if platform_owned:
         evidence = change / AUTOMATED_EVIDENCE_FILE
         run_checked(

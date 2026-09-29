@@ -40,6 +40,11 @@ except (ImportError, ModuleNotFoundError):  # Compatibility while old renders ar
     def require_automated_evidence(change: Path, *, root: Path | None = None) -> None:
         return None
 try:
+    from openspec_lifecycle import require_publication_review_evidence
+except (ImportError, ModuleNotFoundError):  # Compatibility while old renders are upgraded.
+    def require_publication_review_evidence(change: Path, *, root: Path | None = None) -> None:
+        return None
+try:
     import task_reconciliation
 except ModuleNotFoundError:  # Compatibility while an existing project is being upgraded by Copier.
     task_reconciliation = None
@@ -334,6 +339,29 @@ def resumable_remote_armed_pr(root: Path, branch: str, main_branch: str) -> dict
     return pr if checks.kind in {"pending", "passed", "not_registered"} else None
 
 
+def observe_independent_review(work: Path) -> dict:
+    """Derived, file-backed independent review state for the current managed change."""
+    try:
+        from independent_review import review_state
+        from managed_task import resolve_canonical_provenance
+    except (ImportError, ModuleNotFoundError):  # Older renders have no review gate.
+        return {"state": "not-required", "next": None, "detail": None}
+    try:
+        provenance = resolve_canonical_provenance(work)
+    except Exception as exc:
+        return {"state": "unknown", "next": None, "detail": str(exc)}
+    return review_state(work, provenance.path if provenance is not None else None)
+
+
+def print_independent_review(state: dict) -> None:
+    line = f"independent review: {state.get('state')}"
+    if state.get("next"):
+        line += f"; next: {state['next']}"
+    print(line)
+    for blocker in state.get("blockers") or []:
+        print(f"independent review finding: {blocker['perspective']}:{blocker['id']} ({blocker.get('summary')})")
+
+
 def run_status(work: Path, integration: Path, config: dict, *, as_json: bool) -> int:
     """Read publication state plus freshly observed task/main freshness; never publish or merge."""
     main_branch = str(config.get("main_branch", "main"))
@@ -354,12 +382,15 @@ def run_status(work: Path, integration: Path, config: dict, *, as_json: bool) ->
                    "checkout_identity_error": checkout_identity_error}
         print(json.dumps(payload) if as_json else message + (f"\ncheckout identity: {checkout_identity_error}" if checkout_identity_error else ""))
         return 0
+    review = observe_independent_review(work)
     if not branch or branch == main_branch:
         message = "status: not_published (no feature branch is checked out)"
         payload = {"status": "not_published", "detail": "no feature branch is checked out",
                    "checkout_identity": checkout_identity.evidence_payload() if checkout_identity else None,
-                   "checkout_identity_error": checkout_identity_error}
+                   "checkout_identity_error": checkout_identity_error, "independent_review": review}
         print(json.dumps(payload) if as_json else message + (f"\ncheckout identity: {checkout_identity_error}" if checkout_identity_error else ""))
+        if not as_json:
+            print_independent_review(review)
         return 0
     if config.get("platform_version") == "source":
         from publication_queue import enabled as queue_enabled, local_status as queue_local_status
@@ -371,6 +402,7 @@ def run_status(work: Path, integration: Path, config: dict, *, as_json: bool) ->
                 queued = {"state": "blocked", "reason": str(exc)}
             if queued is not None:
                 queued["status"] = "terminal_pending" if queued["state"] == "merged" else "publication_" + queued["state"]
+                queued["independent_review"] = review
                 print(json.dumps(queued, indent=2) if as_json else f"status: {queued['status']} ({queued})")
                 return 0
     env = github_cli_env(work)
@@ -417,6 +449,7 @@ def run_status(work: Path, integration: Path, config: dict, *, as_json: bool) ->
             payload["status"] = "terminal_pending"
             payload["detail"] = "exact PR merged; terminal reconciliation remains"
     payload["terminal_obligations"] = obligations
+    payload["independent_review"] = review
     if as_json:
         payload.update(freshness)
         payload["source_issue_drift"] = drift
@@ -449,6 +482,7 @@ def run_status(work: Path, integration: Path, config: dict, *, as_json: bool) ->
             print("checkout identity: " + checkout_identity_error)
         elif checkout_identity:
             print("checkout identity: " + json.dumps(checkout_identity.evidence_payload(), sort_keys=True))
+        print_independent_review(review)
     return 0
 
 
@@ -858,6 +892,7 @@ def main() -> int:
     try:
         if delivery is not None:
             require_automated_evidence(delivery.path, root=work)
+            require_publication_review_evidence(delivery.path, root=work)
             independent_reason = require_independent_publication_exception(work, delivery)
             if independent_reason is not None:
                 print(f"Requirement shared-integration exception: {independent_reason}")

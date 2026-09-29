@@ -47,39 +47,79 @@ Before archiving a non-trivial platform change, run relevant tests plus semantic
 
 ### Independent review evidence
 
-For a material managed change, a repository may opt into independent review with
-`[independent_review] enabled = true`. Prepare a provider-neutral review
-request against the exact committed candidate before asking an independently
-started, read-only runtime to review it:
+For a material managed change, independent review is required when the
+repository sets `[independent_review] enabled = true` (the central repository
+does; the downstream template default stays `false`, so Copier updates do not
+change a project until it opts in). Quick tasks without managed provenance are
+never reviewed.
+
+The platform launches the reviewer itself. Each of the two perspectives
+(`spec-fidelity` and `engineering-quality`) runs as a fresh, non-resumable
+process through a provider adapter:
+
+- Codex: `codex exec --sandbox read-only --ephemeral` in the task worktree;
+- Claude Code: headless print mode restricted to `Read,Grep,Glob` with
+  `--permission-mode dontAsk`, `--no-session-persistence` and no MCP servers.
+
+The reviewer provider defaults to the current task route's provider; setting
+`[independent_review] provider = "codex"` or `"claude"` is the only way to
+review across providers. The model comes from the `[model_routing]` profile
+mapping (`[independent_review] profile`, default `standard`), and
+`[independent_review] timeout_seconds` bounds each launch (default 1800). The
+Claude binary resolves from the machine-local `DEV_PLATFORM_CLAUDE_BIN`
+environment variable, then `claude` on `PATH`.
 
 ```bash
-python3 scripts/independent_review.py prepare <change> --base origin/main
+python3 scripts/independent_review.py run <change>
 ```
 
-The request binds two reports (`spec-fidelity` and `engineering-quality`) to
-the base SHA, candidate SHA and binary diff hash. The runtime records each
-report with `scripts/independent_review.py record <change> --report <path>`;
-it must identify its fresh context, attest to no write access, and report a
-limitation rather than invent findings if review was unavailable.
-The platform intentionally does not launch a provider: the generated request
-is the replaceable runtime integration, and report validation is the lifecycle
-boundary. Review execution is evidence-only and must not publish code, mutate
-Backlog/Project state, archive, or set completion state.
+`run` prepares (or reuses a current) provider-neutral review request, builds
+each prompt only from that request plus a precomputed candidate diff in a
+temporary directory outside the repository, and requires structured findings
+(`id`, `severity: material|advisory`, `summary`, `evidence`). Prompts, stdout
+and stderr are not persisted. Each report records platform-observed launch
+evidence, the enforced read-only mechanism, the selected model and a digest of
+the raw output. A content snapshot of the task worktree and the integration
+checkout before and after each launch proves read-only execution; any mutation,
+missing binary, nonzero exit, timeout or malformed output produces an
+`unavailable` report with an actionable limitation, and the platform never
+repairs or cleans a mutation. A hand-written report
+(`scripts/independent_review.py record`, kept for compatibility) does not
+satisfy a required review.
 
-Before PASS/archive, check the reports with:
+Evidence binds to the candidate's task-content identity, excluding only the
+change's `verification.md`, `evidence/`, `automated-checks.json`, review
+request/reports/dispositions and the `openspec/specs/` paths archive
+materializes from the change's own delta specs. Archive bookkeeping and a clean
+main merge that touches no task path therefore keep evidence valid; any other
+task change makes it stale and requires a fresh review.
+
+Reviewer reports are immutable. A material finding blocks until it is fixed
+(commit the fix and rerun the review) or rejected with a rationale in the
+separate disposition record, bound to the exact report digest:
 
 ```bash
-python3 scripts/independent_review.py check <change>
+python3 scripts/independent_review.py dispose <change> --perspective <perspective> --finding <id> --status rejected --rationale "<why>"
 ```
 
-When enabled, archive readiness requires both current reports. A candidate
-change invalidates old evidence. A material finding must be fixed or explicitly
-rejected with rationale; a blocker, missing disposition, or unavailable report
-blocks the archive rather than letting passing deterministic tests claim
-independent verification. The corresponding `verification.md` must cite
+`--status blocker` records a retained blocker. An unavailable perspective, a
+blocker, or a material finding without a current rejection blocks archive and
+publication rather than letting passing deterministic tests claim independent
+verification.
+
+When review is required, the archive helper runs a missing, stale or
+unavailable review automatically after its cheap deterministic checks and
+before expensive validation, then stops with the findings and the exact next
+commands if the evidence does not validate. `finish` re-validates the evidence
+against the current task content before any publication step. Task status
+(`dogfood_task.py status` / `finish_task.py --status`) and Requirement
+`advance` report the derived `independent_review` state (`not-required`,
+`missing`, `stale`, `blocked`, `ready`) and next command from the files in the
+change directory, so a new Codex or Claude Code session can resume. Inspect or
+check it directly with `python3 scripts/independent_review.py status <change>`
+or `check <change>`. The corresponding `verification.md` must cite
 `Independent-Review-Evidence: independent-review-request.json` alongside its
-PASS receipt. The capability is opt-in so quick or bounded work is not forced
-into a heavy review by default.
+PASS receipt.
 
 When a verification check fails, classify the failure relative to the authoritative base as `introduced`, `pre-existing`, or `unknown`. Claim `pre-existing` only when reproducible baseline evidence or another trustworthy unchanged-base signal proves it; missing evidence remains `unknown`, not a guess. A pre-existing failure does not excuse new regressions: the verification report must distinguish the baseline condition from failures introduced by the current change.
 
