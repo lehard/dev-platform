@@ -1,0 +1,32 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/shared-workspace-safety/spec.md"
+  ],
+  "change": "guard-shared-platform-writers",
+  "imported_at": "2026-09-29T10:34:03+00:00",
+  "package_revision": "bc7bcfaee4d95b5628fa7d66f419675825094a7bca21719e154c31a27a88263b",
+  "prepared_against": "9a4f546ab7ee578b7e38990d6ea392ffde437799",
+  "private_lineage_handle": "pln_fe613d73f37079e449aa9dd03e57f010",
+  "process_evidence": [
+    "lehard/dev-platform#198"
+  ],
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "769c1a91ad6d553fbb8d0d46b83d1b6decf75d27bc95ba7d9a23f8c02bda3abe",
+    "updated_at": "2026-09-29T10:25:59Z"
+  },
+  "supersedes": "c0a20691d871804e50b1aa69884eab84d0db6b9685c9703b5bbc92462505e352",
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

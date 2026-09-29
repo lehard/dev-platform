@@ -43,6 +43,69 @@ class SharedWorkspaceTests(unittest.TestCase):
                 os.umask(original)
             self.assertEqual(stat.S_IMODE(path.stat().st_mode) & 0o060, 0o060)
 
+    def test_report_publication_is_group_writable_under_hostile_umask_and_create_only(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self.init_repo(root)
+            original = os.umask(0o077)
+            try:
+                path = shared_workspace.publish_process_report(root, "2026-09-29-review.md", "review\n")
+            finally:
+                os.umask(original)
+            self.assertEqual(path.read_text(encoding="utf-8"), "review\n")
+            self.assertEqual(stat.S_IMODE(path.stat().st_mode) & 0o060, 0o060)
+            with self.assertRaisesRegex(shared_workspace.SharedWorkspaceError, "already exists"):
+                shared_workspace.publish_process_report(root, path.name, "replacement\n")
+            self.assertEqual(path.read_text(encoding="utf-8"), "review\n")
+
+    def test_report_publication_rejects_traversal_and_symlink(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self.init_repo(root)
+            outside = root / "outside.md"
+            outside.write_text("untouched\n", encoding="utf-8")
+            with self.assertRaisesRegex(shared_workspace.SharedWorkspaceError, "basename"):
+                shared_workspace.publish_process_report(root, "../outside.md", "wrong\n")
+            reports = root / ".claude" / "reports" / "process-improvement"
+            reports.mkdir(parents=True)
+            (reports / "linked.md").symlink_to(outside)
+            with self.assertRaisesRegex(shared_workspace.SharedWorkspaceError, "symlink"):
+                shared_workspace.publish_process_report(root, "linked.md", "wrong\n")
+            self.assertEqual(outside.read_text(encoding="utf-8"), "untouched\n")
+
+    def test_report_command_reads_stdin_and_publishes_checked_output(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self.init_repo(root)
+            result = subprocess.run(
+                [sys.executable, str(SCRIPTS / "shared_workspace.py"), "publish-report", "--name", "review.md"],
+                cwd=root, input="from stdin\n", text=True, capture_output=True, check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            path = root / ".claude" / "reports" / "process-improvement" / "review.md"
+            self.assertEqual(Path(result.stdout.strip()), path.resolve())
+            self.assertEqual(path.read_text(encoding="utf-8"), "from stdin\n")
+            self.assertEqual(stat.S_IMODE(path.stat().st_mode) & 0o060, 0o060)
+
+    def test_report_publication_uses_configured_registered_path(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self.init_repo(root)
+            (root / ".dev-platform.toml").write_text(
+                '[paths]\nfriction_reports = ".claude/custom/reports"\n', encoding="utf-8"
+            )
+            path = shared_workspace.publish_process_report(root, "review.md", "configured\n")
+            self.assertEqual(path, root.resolve() / ".claude" / "custom" / "reports" / "review.md")
+            self.assertEqual(stat.S_IMODE(path.stat().st_mode) & 0o060, 0o060)
+
+    def test_declared_raw_writer_mode_0644_fails_publication_gate(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "raw.md"
+            path.write_text("raw\n", encoding="utf-8")
+            path.chmod(0o644)
+            with self.assertRaisesRegex(shared_workspace.SharedWorkspaceError, "missing group rw"):
+                shared_workspace.verify_shared_output(path)
+
     def test_managed_intake_probe_cleans_only_its_own_directory(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary) / "project"
@@ -138,10 +201,10 @@ class SharedWorkspaceTests(unittest.TestCase):
             self.init_repo(root)
             root.chmod(0o2775)
             # The probe directory, file and nested directory all self-repair
-            # cleanly (``None``); only the final atomic-publication check
-            # reports a lingering finding.
+            # cleanly (``None``); the atomic writer's immediate publication
+            # check reports the lingering finding before the probe continues.
             with mock.patch.object(shared_workspace, "_describe", side_effect=[None, None, None, "mode=0600, missing group rw"]):
-                with self.assertRaisesRegex(shared_workspace.SharedWorkspaceError, "atomically publish"):
+                with self.assertRaisesRegex(shared_workspace.SharedWorkspaceError, "shared output verification failed"):
                     shared_workspace.session_admission_probe(root)
             self.assertEqual(list(root.glob(".dev-platform-managed-intake-*")), [])
 
