@@ -200,6 +200,36 @@ def _codex_thread_id(stdout: str) -> str | None:
     return None
 
 
+RUNTIME_ERROR_LIMIT = 200
+
+
+def runtime_error(provider: str, stdout: str) -> str | None:
+    """Extract the CLI's own bounded error message so a blocker is actionable.
+
+    Only the runtime's structured error field is read (Claude's ``result`` on
+    an error result, Codex's ``error``/``turn.failed`` event message); no
+    prompt, transcript or repository text is retained.
+    """
+    candidates: list[dict[str, Any]] = []
+    for line in stdout.splitlines() if provider == "codex" else [stdout]:
+        try:
+            value = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(value, dict):
+            candidates.append(value)
+    for event in candidates:
+        message: Any = None
+        if provider == "claude" and event.get("is_error") is True:
+            message = event.get("result")
+        elif provider == "codex" and event.get("type") in {"error", "turn.failed"}:
+            error = event.get("error")
+            message = event.get("message") or (error.get("message") if isinstance(error, dict) else error)
+        if isinstance(message, str) and message.strip():
+            return " ".join(message.split())[:RUNTIME_ERROR_LIMIT]
+    return None
+
+
 def parse_findings(raw: bytes) -> list[dict[str, str]]:
     try:
         payload = json.loads(raw.decode("utf-8"))
@@ -393,8 +423,12 @@ def run_perspective(
     if isinstance(outcome, str):
         return _report(request, perspective, reviewer, launched_at=launched_at, limitation=outcome)
     if outcome.returncode != 0:
-        return _report(request, perspective, reviewer, launched_at=launched_at,
-                       limitation=f"{provider} reviewer exited with status {outcome.returncode}; check the CLI login/model and rerun")
+        cause = runtime_error(provider, outcome.stdout)
+        return _report(request, perspective, reviewer, launched_at=launched_at, limitation=(
+            f"{provider} reviewer exited with status {outcome.returncode}"
+            + (f" ({cause})" if cause else "")
+            + "; check the CLI login and the [model_routing] model for this account, then rerun"
+        ))
     try:
         if provider == "codex":
             if not output_path.is_file():

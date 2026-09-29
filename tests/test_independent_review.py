@@ -239,6 +239,22 @@ class IndependentReviewTests(unittest.TestCase):
             "malformed output",
         )
 
+    def test_runtime_error_message_makes_the_blocker_actionable(self) -> None:
+        claude_error = json.dumps({"type": "result", "is_error": True, "result": "Not logged in · Please run /login"})
+        self.assertEqual(runner.runtime_error("claude", claude_error), "Not logged in · Please run /login")
+        codex_events = "\n".join([
+            json.dumps({"type": "thread.started", "thread_id": "t"}),
+            json.dumps({"type": "error", "message": "The 'm' model is not supported when using Codex with a ChatGPT account."}),
+        ])
+        self.assertIn("model is not supported", runner.runtime_error("codex", codex_events))
+        self.assertIsNone(runner.runtime_error("claude", "not json"))
+        self.assertLessEqual(len(runner.runtime_error("claude", json.dumps({"is_error": True, "result": "x" * 999}))), runner.RUNTIME_ERROR_LIMIT)
+        self.write_config('provider = "claude"\n')
+        self.commit("claude provider")
+        with mock.patch.object(runner, "resolve_binary", return_value=("/fake/claude", None)):
+            reports = self.run_review(FakeLauncher(returncode=1, claude_stdout=claude_error))
+        self.assert_unavailable(reports, "Not logged in")
+
     def test_workspace_mutation_invalidates_the_report_without_repair(self) -> None:
         mutated = self.root / "reviewer-output.txt"
         reports = self.run_review(FakeLauncher([material("x")], mutate=mutated))
