@@ -225,13 +225,19 @@ create work, or resolve source issues. Explicitly linked evidence is closed
 only after the existing terminal merge, local reconciliation, and Project-Done
 path succeeds.
 
-Write a machine-local Process Health Review report with
-`shared_workspace.atomic_write_text` from the repository's `template/scripts`
-package. It gives the published file the shared group-write mode even when
-the caller's editor or patch tool creates new files as `0644`. After writing,
-run `python3 scripts/shared_workspace.py check`; fix a report owned by the
-current writer before leaving the review. Do not repair another agent's files
-as part of report creation.
+Publish a new machine-local Process Health Review report with
+`python3 scripts/shared_workspace.py publish-report --name YYYY-MM-DD-topic.md < report.md`.
+The command uses the configured registered reports directory, creates only a
+new basename, and verifies group read/write on its published file before
+returning success. It refuses an existing report, path traversal, and symlinks.
+For a correction to an existing report owned by the current writer, use
+`shared_workspace.atomic_write_text` from `template/scripts` and then run
+`python3 scripts/shared_workspace.py check`. Run that read-only check after
+each review, including reports written by external editors; repair only files
+owned by the current writer. New platform script functions that create files
+must pass the direct-writer CI guard or receive explicit review of the new
+creation call and its declared output verification. An external editor is
+outside the platform writer API, so its output remains subject to the check.
 
 The weekly cloud Process Health Review is the routine cadence. Local friction
 `pending`/`review` commands remain recovery and diagnostic surfaces rather than

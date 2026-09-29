@@ -677,20 +677,110 @@ def atomic_write_text(path: Path, text: str, *, group: SharedGroup | None = None
             desired = mode | FILE_MODE
             if desired != mode:
                 os.chmod(temporary, desired)
+        published_inode = Path(temporary).stat().st_ino
         os.replace(temporary, path)
         if posix_available() and group is not None:
             # ``replace`` publishes a new inode; verify the actual published
             # path rather than trusting the inherited umask or temporary mode.
-            ensure_shared_path(path, group=group)
+            verify_shared_output(path, group=group, expected_inode=published_inode)
     finally:
         if os.path.exists(temporary):
             os.unlink(temporary)
 
 
+def create_shared_text(path: Path, text: str, *, group: SharedGroup | None = None) -> None:
+    """Create one new shared file without replacing an existing writer's output."""
+    cooperative_umask()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if posix_available():
+        group = group or resolve_shared_group(path.parent)
+        ensure_shared_path(path.parent, group=group)
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    descriptor = os.open(path, flags, 0o664)
+    inode = os.fstat(descriptor).st_ino
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8", newline="") as handle:
+            handle.write(text)
+            if posix_available() and group is not None:
+                info = os.fstat(handle.fileno())
+                if info.st_gid != group.gid:
+                    os.fchown(handle.fileno(), -1, group.gid)
+                os.fchmod(handle.fileno(), stat.S_IMODE(os.fstat(handle.fileno()).st_mode) | FILE_MODE)
+        verify_shared_output(path, group=group, expected_inode=inode)
+    except BaseException:
+        # The file was created exclusively by this call. Do not unlink a
+        # replacement installed by another writer while an error was raised.
+        try:
+            if path.lstat().st_ino == inode:
+                path.unlink()
+        except FileNotFoundError:
+            pass
+        raise
+
+
+def verify_shared_output(path: Path, *, group: SharedGroup | None = None, expected_inode: int | None = None) -> None:
+    """Read-only publication gate for one declared output, including raw writers."""
+    if not posix_available():
+        return
+    if path.is_symlink():
+        raise SharedWorkspaceError(f"refusing symlink shared output: {path}")
+    info = path.stat()
+    if expected_inode is not None and info.st_ino != expected_inode:
+        raise SharedWorkspaceError(f"shared output changed during publication: {path}")
+    group = group or resolve_shared_group(path.parent)
+    detail = _describe(path, group)
+    if detail is not None:
+        raise SharedWorkspaceError(f"shared output verification failed for {path}: {detail}")
+
+
+def publish_process_report(root: Path, name: str, text: str) -> Path:
+    """Publish a new report in the configured registered friction-report path."""
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*\.md", name) or ".." in name:
+        raise SharedWorkspaceError("report name must be a simple .md basename without '..'")
+    integration = _safe_root(integration_root(root))
+    relative = _configured_relative_path(integration, "friction_reports", LIFECYCLE_PATH_DEFAULTS["friction_reports"])
+    directory = _registered_claude_path(integration, relative)
+    group = resolve_shared_group(integration) if posix_available() else None
+    current = integration
+    for part in directory.relative_to(integration).parts:
+        current = current / part
+        if current.is_symlink():
+            raise SharedWorkspaceError(f"refusing symlink in registered reports path: {current}")
+        if current != directory:
+            current.mkdir(exist_ok=True)
+            if group is not None:
+                ensure_shared_path(current, group=group)
+    path = directory / name
+    if path.is_symlink():
+        raise SharedWorkspaceError(f"refusing symlink report path: {path}")
+    try:
+        create_shared_text(path, text, group=group)
+    except FileExistsError as exc:
+        raise SharedWorkspaceError(f"report already exists; refusing to replace another writer's output: {path}") from exc
+    except OSError as exc:
+        raise SharedWorkspaceError(f"cannot publish report {path}: {exc}") from exc
+    return path
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Check or repair bounded dev-platform shared-workspace permissions.")
-    parser.add_argument("command", choices=("check", "fix"))
+    parser.add_argument("command", choices=("check", "fix", "publish-report"))
+    parser.add_argument("--name", help="new .md basename for publish-report; content is read from stdin")
     args = parser.parse_args()
+    if args.command == "publish-report":
+        if not args.name:
+            parser.error("publish-report requires --name")
+        try:
+            path = publish_process_report(Path.cwd(), args.name, sys.stdin.read())
+        except SharedWorkspaceError as exc:
+            print(f"[fail] {exc}", file=sys.stderr)
+            return 2
+        print(path)
+        return 0
+    if args.name:
+        parser.error("--name is only valid for publish-report")
     fix = args.command == "fix"
     try:
         group, findings = audit(Path.cwd(), fix=fix)
