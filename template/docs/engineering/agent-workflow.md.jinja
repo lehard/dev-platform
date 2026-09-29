@@ -308,6 +308,14 @@ same friction/process-issue mechanism, without a parallel improvement queue.
 It never creates
 managed work or closes/relabels source evidence.
 
+Write a machine-local Process Health Review report with
+`shared_workspace.atomic_write_text` from this repository's `scripts`
+package. It gives the published file the shared group-write mode even when
+the caller's editor or patch tool creates new files as `0644`. After writing,
+run `python3 scripts/shared_workspace.py check`; fix a report owned by the
+current writer before leaving the review. Do not repair another agent's files
+as part of report creation.
+
 ```bash
 python3 scripts/agent_friction.py record --category <category> --scope project --observation <sanitized-summary> --evidence <local-evidence-summary> --hypothesis <hypothesis> --proposal <proposal>
 python3 scripts/agent_friction.py record --classification context-gap --context-concern architecture --category <category> --scope project --observation <sanitized-summary> --evidence <local-evidence-summary> --hypothesis <hypothesis> --proposal <proposal>
