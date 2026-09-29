@@ -40,7 +40,9 @@ except ModuleNotFoundError as exc:
                 "repair the incomplete platform update before archive readiness."
             )
 
-TASK_RE = re.compile(r"^\s*-\s*\[([ xX])\]\s+")
+# Mirrors upstream OpenSpec TASK_LINE_PATTERN (1.13.x dist/utils/task-progress.js): `-`, `*`, `+`,
+# `N.` and `N)` markers; only `x`/`X` content is complete, any other checkbox content is open.
+TASK_RE = re.compile(r"^\s*(?:[-*+]|\d{1,9}[.)])\s*\[(?:\s*([^\]\s]?)\s*\](?![(\[])|\s+\])")
 VERIFY_MARKER = "OpenSpec-Verify: PASS"
 VERIFY_METHOD_PREFIX = "Verification-Method:"
 AUTOMATED_EVIDENCE_PREFIX = "Automated-Checks-Evidence:"
@@ -57,19 +59,23 @@ def active_changes(root: Path) -> list[Path]:
     return sorted(path for path in changes.iterdir() if path.is_dir() and path.name != "archive")
 
 
-def task_state(change: Path) -> tuple[int, int]:
-    tasks = change / "tasks.md"
-    if not tasks.exists():
-        return 0, 0
+def count_tasks(text: str) -> tuple[int, int]:
     total = incomplete = 0
-    for line in tasks.read_text(encoding="utf-8").splitlines():
+    for line in text.splitlines():
         match = TASK_RE.match(line)
         if not match:
             continue
         total += 1
-        if match.group(1) == " ":
+        if (match.group(1) or "").lower() != "x":
             incomplete += 1
     return total, incomplete
+
+
+def task_state(change: Path) -> tuple[int, int]:
+    tasks = change / "tasks.md"
+    if not tasks.exists():
+        return 0, 0
+    return count_tasks(tasks.read_text(encoding="utf-8"))
 
 
 def verification_passed(change: Path) -> bool:

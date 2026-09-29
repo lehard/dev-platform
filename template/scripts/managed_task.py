@@ -1608,17 +1608,12 @@ def resolve_canonical_provenance(
 
 
 def _task_completion(change: Path) -> tuple[int, int]:
-    total = incomplete = 0
+    import openspec_lifecycle
+
     tasks = change / "tasks.md"
     if not tasks.is_file():
-        return total, incomplete
-    for line in tasks.read_text(encoding="utf-8").splitlines():
-        match = re.match(r"^\s*-\s*\[([ xX])\]\s+", line)
-        if match:
-            total += 1
-            if match.group(1) == " ":
-                incomplete += 1
-    return total, incomplete
+        return 0, 0
+    return openspec_lifecycle.count_tasks(tasks.read_text(encoding="utf-8"))
 
 
 def _verified(change: Path) -> bool:
