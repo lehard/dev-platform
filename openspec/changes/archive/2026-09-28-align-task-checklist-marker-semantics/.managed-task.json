@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/completion-lifecycle/spec.md"
+  ],
+  "change": "align-task-checklist-marker-semantics",
+  "imported_at": "2026-09-28T19:10:20+00:00",
+  "package_revision": "3e0b395e0f4313ec3b188c5d2c1e67424101d816c90143944d679cc1b440bd98",
+  "prepared_against": "f3e0490bc6e3eddb0f0295ecf98e7b1befd285ce",
+  "private_lineage_handle": "pln_bf95ba1f90fdc5ee3f7bb7280db88bf8",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "8f97b782d234dbe7072cb7c8845c9e2de0cd0c1b0a07ec6d8be15bc94ec670c8",
+    "updated_at": "2026-09-28T19:07:05Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

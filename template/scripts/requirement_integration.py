@@ -101,8 +101,9 @@ def create_receipt(root: Path, *, requirement: str, source_issue: str, change: s
     import managed_task
     if managed_task.source_issue_for_provenance(root, archive, expected_source=source_issue) != source_issue or provenance.get("change") != change:
         raise RequirementIntegrationError("archived managed provenance does not match the child")
-    task_lines = [line.strip() for line in tasks.splitlines() if re.match(r"^\s*-\s*\[[ xX]\]", line)]
-    if not task_lines or any(re.match(r"^-\s*\[ \]", line) for line in task_lines):
+    import openspec_lifecycle
+    total, incomplete = openspec_lifecycle.count_tasks(tasks)
+    if not total or incomplete:
         raise RequirementIntegrationError("archived managed tasks are incomplete")
     if (checks.get("outcome") != "success" or not isinstance(checks.get("executed_commands"), list)
             or not checks["executed_commands"] or any(command.get("outcome") != "success" for command in checks["executed_commands"])):
