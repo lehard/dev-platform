@@ -882,7 +882,7 @@ class ModelRoutingTests(unittest.TestCase):
 
         self.assertEqual(observation["outcome"], "completed")
         self.assertEqual(observation["profile"], "routine")
-        self.assertEqual(observation["model"], {"value": "gpt-5.6-terra", "source": "selected"})
+        self.assertEqual(observation["model"], {"value": "gpt-6-luna", "source": "selected"})
         self.assertEqual(observation["request"]["question_chars"], len(self.context_request()["question"]))
         self.assertNotIn("question", observation["request"])
         self.assertIn("read-only", captured)
