@@ -285,6 +285,93 @@ class OpenSpecLifecycleTests(unittest.TestCase):
             actual = {**identity.evidence_payload(), "head": "a" * 40, "task_content": {"version": 1, "digest": "e" * 64}}
             self.assertFalse(lifecycle.evidence_matches_checkout(change, root, identity, actual))
 
+    def _merged_main_repo(self, root: Path, main_touches_task_file: bool):
+        import subprocess
+        from task_content_identity import content_identity
+
+        def git(*args: str) -> str:
+            return subprocess.run(["git", *args], cwd=root, text=True, capture_output=True, check=True).stdout.strip()
+
+        git("init", "-b", "main")
+        git("config", "user.name", "Test")
+        git("config", "user.email", "test@example.invalid")
+        (root / "feature.txt").write_text("a\nb\nc\nd\ne\n", encoding="utf-8")
+        (root / "base.txt").write_text("base\n", encoding="utf-8")
+        git("add", ".")
+        git("commit", "-m", "base")
+        git("switch", "-c", "agent/task")
+        active = root / "openspec" / "changes" / "managed"
+        active.mkdir(parents=True)
+        (active / "tasks.md").write_text("- [x] one\n", encoding="utf-8")
+        (active / "automated-checks.json").write_text("{}\n", encoding="utf-8")
+        (active / ".managed-task.json").write_text('{"change":"managed"}\n', encoding="utf-8")
+        (active / "specs" / "cap").mkdir(parents=True)
+        (active / "specs" / "cap" / "spec.md").write_text("delta\n", encoding="utf-8")
+        (root / "feature.txt").write_text("A\nb\nc\nd\ne\n", encoding="utf-8")
+        git("add", ".")
+        git("commit", "-m", "task")
+        git("branch", "origin/main", "main")
+        validated_head = git("rev-parse", "HEAD")
+        proof = content_identity(root, "managed")
+        # main advances and is merged into the task branch, then the task archives.
+        git("switch", "main")
+        target = root / ("feature.txt" if main_touches_task_file else "other.txt")
+        target.write_text("a\nb\nc\nd\nE\n" if main_touches_task_file else "other\n", encoding="utf-8")
+        git("add", ".")
+        git("commit", "-m", "main advance")
+        git("branch", "-f", "origin/main", "main")
+        git("switch", "agent/task")
+        git("merge", "--no-edit", "main")
+        archive = root / "openspec" / "changes" / "archive" / "2026-09-28-managed"
+        archive.parent.mkdir(parents=True)
+        active.rename(archive)
+        (root / "openspec" / "specs" / "cap").mkdir(parents=True)
+        (root / "openspec" / "specs" / "cap" / "spec.md").write_text("materialized\n", encoding="utf-8")
+        git("add", ".")
+        git("commit", "-m", "archive")
+        current = content_identity(root, "managed")
+        return archive, validated_head, proof, current
+
+    def _identity(self, validated_head: str, proof: dict, current: dict, head: str):
+        identity = mock.Mock()
+        identity.evidence_payload.return_value = {
+            "source_issue": "owner/backlog#1", "change": "managed", "worktree": "/task", "branch": "agent/task",
+            "head": head, "task_content": current,
+        }
+        actual = {**identity.evidence_payload(), "head": validated_head, "task_content": proof}
+        return identity, actual
+
+    def test_content_aware_evidence_survives_clean_main_merge_plus_archive(self) -> None:
+        import subprocess
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            archive, validated_head, proof, current = self._merged_main_repo(root, main_touches_task_file=False)
+            head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, text=True, capture_output=True, check=True).stdout.strip()
+            identity, actual = self._identity(validated_head, proof, current, head)
+            self.assertNotEqual(proof["digest"], current["digest"])
+            self.assertTrue(lifecycle.evidence_matches_checkout(archive, root, identity, actual))
+
+    def test_content_aware_evidence_rejects_main_merge_touching_task_paths(self) -> None:
+        import subprocess
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            archive, validated_head, proof, current = self._merged_main_repo(root, main_touches_task_file=True)
+            head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, text=True, capture_output=True, check=True).stdout.strip()
+            identity, actual = self._identity(validated_head, proof, current, head)
+            self.assertFalse(lifecycle.evidence_matches_checkout(archive, root, identity, actual))
+
+    def test_content_aware_evidence_rejects_source_edit_alongside_main_merge(self) -> None:
+        import subprocess
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            archive, validated_head, proof, current = self._merged_main_repo(root, main_touches_task_file=False)
+            (root / "feature.txt").write_text("A\nb\nc\nd\nZ\n", encoding="utf-8")
+            subprocess.run(["git", "commit", "-am", "late source edit"], cwd=root, check=True, capture_output=True)
+            head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, text=True, capture_output=True, check=True).stdout.strip()
+            from task_content_identity import content_identity
+            identity, actual = self._identity(validated_head, proof, content_identity(root, "managed"), head)
+            self.assertFalse(lifecycle.evidence_matches_checkout(archive, root, identity, actual))
+
     def test_static_platform_readiness_rejects_missing_evidence_marker_before_checks(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             change = self.make_change(
