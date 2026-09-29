@@ -72,6 +72,7 @@ class FrictionReviewTests(unittest.TestCase):
                 "result": result,
                 "events": events or [],
                 "lifecycle_dispositions": lifecycle_dispositions or [],
+                "review_note": "Reviewed task commands, overrides, manual state changes, known issues and observed drift.",
             },
         )()
 
@@ -320,6 +321,7 @@ class FrictionReviewTests(unittest.TestCase):
 
     def test_open_fingerprint_is_updated_instead_of_creating_duplicate(self) -> None:
         event = self.event(scope="project")
+        event["triggers"] = ["known-recurrence", "nondefault-override"]
         marker = agent_friction.marker_for(agent_friction.fingerprint_for(event, "example/project"))
         calls: list[list[str]] = []
         agent_friction.shutil.which = lambda _: "/usr/bin/gh"
@@ -338,6 +340,7 @@ class FrictionReviewTests(unittest.TestCase):
         result = agent_friction.route_event(event)
         self.assertEqual(result["issue_number"], 31)
         self.assertTrue(any("repos/example/project/issues/31/comments" in command for command in calls))
+        self.assertTrue(any("Sanitized process friction occurrence" in str(command) for command in calls))
         self.assertIn(["api", "--method", "POST", "repos/example/project/issues/31/labels", "-f", "labels[]=process"], calls)
         self.assertFalse(any(command[:3] == ["api", "--method", "POST"] and command[3] == "repos/example/project/issues" for command in calls))
 
@@ -450,6 +453,31 @@ class FrictionReviewTests(unittest.TestCase):
         self.assertEqual(agent_friction.read_state()["checkpoints"]["test-branch"]["result"], "none")
         self.assertEqual(agent_friction.read_state()["checkpoints"]["test-branch"]["head"], self.head)
         self.assertEqual(agent_friction.read_state()["routes"], {})
+
+    def test_known_recurrence_and_successful_override_cannot_disappear_into_none(self) -> None:
+        event = {
+            "id": "recurrence-172", "task": "test-branch", "category": "retrospective-completeness",
+            "triggers": ["known-recurrence", "nondefault-override"], "severity": "medium",
+            "observation": "A successful override repeated an open process problem",
+        }
+        self.log.write_text(json.dumps(event) + "\n", encoding="utf-8")
+        with redirect_stdout(StringIO()) as output:
+            agent_friction.cmd_review_path(type("Args", (), {"task": "test-branch"})())
+        self.assertEqual(json.loads(output.getvalue())["recorded_signals"][0]["id"], "recurrence-172")
+        with self.assertRaisesRegex(SystemExit, "not linked"):
+            agent_friction.cmd_checkpoint(self.checkpoint_args(result="none"))
+        agent_friction.cmd_checkpoint(self.checkpoint_args(events=["recurrence-172"]))
+        agent_friction.require_checkpoint("test-branch")
+        self.assertEqual(agent_friction.read_state()["checkpoints"]["test-branch"]["event_ids"], ["recurrence-172"])
+
+    def test_late_observed_drift_invalidates_clean_checkpoint(self) -> None:
+        agent_friction.cmd_checkpoint(self.checkpoint_args(result="none"))
+        self.log.write_text(json.dumps({
+            "id": "drift", "task": "test-branch", "triggers": ["observed-drift"],
+            "category": "operator-state-drift", "severity": "medium",
+        }) + "\n", encoding="utf-8")
+        with self.assertRaisesRegex(SystemExit, "not linked"):
+            agent_friction.require_checkpoint("test-branch")
 
     def test_lifecycle_failure_rejects_none_without_explicit_disposition(self) -> None:
         self.write_lifecycle_failure()

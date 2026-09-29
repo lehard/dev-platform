@@ -2,9 +2,7 @@
 
 ## Purpose
 Define the end-to-end agent workflow for disciplined task intake, implementation, verification, and delivery.
-
 ## Requirements
-
 ### Requirement: Unknown defects use evidence-first diagnosis
 
 Dev Platform SHALL provide a reusable diagnosis path for unknown bugs, regressions and unexplained failures that establishes an observable failure condition and tests falsifiable hypotheses before claiming a root cause.
@@ -683,6 +681,8 @@ The primary Requirement Project card SHALL reflect a recomputable projection of 
 
 Before a non-trivial Business Requirement reaches terminal Done, Dev Platform SHALL require a truthful, fresh retrospective of the complete Requirement-first path: accepted Requirement, pre-authoring, handoff/decomposition, mandatory children, and delivery. New meaningful process findings SHALL use the existing friction/process-issue mechanism. A clean run MAY record a concise `none` result. The existing technical child post-task retrospective SHALL remain independently required and SHALL not be duplicated at parent level.
 
+The parent review SHALL inspect meaningful successful manual workarounds, non-default or override actions, manual state changes, recurrences of already open process problems, and observed material drift even when another operator or lifecycle owns the state. `none` requires this bounded factual path review and remains concise on a clean path.
+
 #### Scenario: Significant friction predates children
 
 - **GIVEN** pre-authoring incurred repeated rework or a manual workaround before any child was materialized
@@ -701,6 +701,18 @@ Before a non-trivial Business Requirement reaches terminal Done, Dev Platform SH
 - **WHEN** the full path reveals no new meaningful finding
 - **THEN** a concise `none` result suffices
 - **AND** missing, stale, ambiguous, or unsupported retrospective evidence blocks parent Done with a recovery action
+
+#### Scenario: Open issue recurs in Requirement delivery
+
+- **GIVEN** a known open process issue is encountered again while delivering a Requirement
+- **WHEN** the parent review runs
+- **THEN** the recurrence is retained as new occurrence evidence linked to the existing problem
+- **AND** the parent does not claim `none` merely because the issue was already known.
+
+#### Scenario: Operator-owned drift is observed
+
+- **WHEN** the agent observes material state drift outside its own ownership during the Requirement path
+- **THEN** the review considers it as process evidence regardless of who may repair it.
 
 ### Requirement: Every lifecycle stage participates in the shared process learning loop
 
@@ -746,6 +758,7 @@ Requirement terminal reconciliation SHALL require a supported target lifecycle a
 - **WHEN** terminal reconciliation cannot prove the target's supported managed lifecycle and exact delivered children
 - **THEN** it refuses parent Done and Issue closure
 - **AND** reports the missing terminal proof
+
 ### Requirement: Same-context compaction is considered at semantic work boundaries
 
 Dev Platform SHALL support bounded same-context compaction opportunities at semantic transitions in live work rather than treating context-window fullness as the sole trigger. The initial capability SHALL keep the opportunity set small and inspectable, such as completion of a bounded plan/subtask or transition into a distinct verification phase.

@@ -47,17 +47,21 @@ def _check_events(requirement: str, event_ids: list[str]) -> None:
             )
 
 
-def checkpoint(root: Path, *, requirement: str, result: str, event_ids: list[str]) -> dict[str, Any]:
+def checkpoint(root: Path, *, requirement: str, result: str, event_ids: list[str], review_note: str) -> dict[str, Any]:
     if result not in ("none", "findings"):
         raise RequirementRetrospectiveError("result must be none or findings")
     if (result == "none") != (not event_ids):
         raise RequirementRetrospectiveError("none requires no events; findings requires at least one event")
     if len(event_ids) != len(set(event_ids)):
         raise RequirementRetrospectiveError("duplicate friction event id")
+    review_note = agent_friction.normalize_text(review_note, "review note", 500)
     parent = requirement_intake.fetch_issue(root, *requirement_intake.issue_ref(requirement))
     identity = _identity(requirement, parent)
     _check_events(requirement, event_ids)
-    receipt = {"version": 1, **identity, "result": result, "event_ids": event_ids, "recorded_at": utc_now()}
+    unlinked = agent_friction.unlinked_retrospective_signals(requirement, event_ids)
+    if unlinked:
+        raise RequirementRetrospectiveError(agent_friction.retrospective_signal_instruction(unlinked))
+    receipt = {"version": 1, **identity, "result": result, "event_ids": event_ids, "review_note": review_note, "recorded_at": utc_now()}
     path = _receipt_path(root, identity["number"])
     path.parent.mkdir(parents=True, exist_ok=True)
     atomic_write_text(path, json.dumps(receipt, ensure_ascii=False, indent=2, sort_keys=True) + "\n")
@@ -68,7 +72,7 @@ def require_checkpoint(root: Path, *, requirement: str, parent: dict[str, Any] |
     parent = parent or requirement_intake.fetch_issue(root, *requirement_intake.issue_ref(requirement))
     identity = _identity(requirement, parent)
     path = _receipt_path(root, identity["number"])
-    instruction = f"run `python3 scripts/requirement_retrospective.py checkpoint --requirement {requirement} --result none` after the full-path review, or record findings and pass their --event ids"
+    instruction = f"run `python3 scripts/requirement_retrospective.py checkpoint --requirement {requirement} --result none --review-note TEXT` after the full-path review, or record findings and pass their --event ids"
     try:
         receipt = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
@@ -83,7 +87,12 @@ def require_checkpoint(root: Path, *, requirement: str, parent: dict[str, Any] |
         raise RequirementRetrospectiveError(f"Requirement retrospective receipt is malformed; {instruction}")
     if (result == "none") != (not events) or len(events) != len(set(events)):
         raise RequirementRetrospectiveError(f"Requirement retrospective result is inconsistent; {instruction}")
+    if not isinstance(receipt.get("review_note"), str) or not receipt["review_note"].strip():
+        raise RequirementRetrospectiveError(f"Requirement retrospective path review is missing; {instruction}")
     _check_events(requirement, events)
+    unlinked = agent_friction.unlinked_retrospective_signals(requirement, events)
+    if unlinked:
+        raise RequirementRetrospectiveError(agent_friction.retrospective_signal_instruction(unlinked))
     return receipt
 
 
@@ -94,13 +103,29 @@ def main() -> int:
     write.add_argument("--requirement", required=True)
     write.add_argument("--result", choices=("none", "findings"), required=True)
     write.add_argument("--event", action="append", default=[], dest="events")
+    write.add_argument("--review-note", required=True, help="short factual Requirement path reviewed, including workarounds, overrides, recurrences and drift")
+    review = sub.add_parser("review-path", help="show bounded full-Requirement review prompts and recorded signals")
+    review.add_argument("--requirement", required=True)
     check = sub.add_parser("check")
     check.add_argument("--requirement", required=True)
     args = parser.parse_args()
     root = main_root()
     try:
         if args.command == "checkpoint":
-            result = checkpoint(root, requirement=args.requirement, result=args.result, event_ids=args.events)
+            result = checkpoint(root, requirement=args.requirement, result=args.result, event_ids=args.events, review_note=args.review_note)
+        elif args.command == "review-path":
+            parent = requirement_intake.fetch_issue(root, *requirement_intake.issue_ref(args.requirement))
+            identity = _identity(args.requirement, parent)
+            result = {
+                "requirement": args.requirement,
+                "review": ["accepted intent and intake", "pre-authoring and handoff", "mandatory children",
+                           "delivery actions, overrides, workarounds, recurrences and observed drift"],
+                "children": identity["children"],
+                "recorded_signals": [
+                    {"id": str(event.get("id")), "triggers": sorted(agent_friction.RETROSPECTIVE_SIGNALS.intersection(event.get("triggers") or []))}
+                    for event in agent_friction.current_retrospective_signals(args.requirement)
+                ],
+            }
         else:
             receipt = require_checkpoint(root, requirement=args.requirement)
             result = {"status": "ready", "requirement": args.requirement, "result": receipt["result"], "event_ids": receipt["event_ids"]}

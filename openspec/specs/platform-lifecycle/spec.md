@@ -1113,6 +1113,8 @@ The retrospective SHALL distinguish problems already fixed during the task, prob
 
 The retrospective/checkpoint result SHALL be bound to current task execution state sufficiently to prevent a stale result from silently completing changed work. Supported machine-detectable lifecycle/process failures SHOULD continue recording friction directly without relying on model judgment.
 
+The bounded post-task review SHALL inspect the factual execution path, including meaningful successful manual workarounds, non-default or override actions, manual state changes, recurrences of already open process issues, and observed material drift even when another operator, runtime or lifecycle owns the state. Harmless deviations are not friction. A known open issue does not dispose of a new occurrence: the recurrence SHALL be preserved through the existing friction/process issue path. A clean path retains a concise `none` checkpoint.
+
 #### Scenario: Several unresolved semantic frictions occurred
 
 - **WHEN** a non-trivial platform-owned task reaches completion with two or more distinct high-signal semantic conditions that remain unresolved and unrecorded
@@ -1149,6 +1151,13 @@ The retrospective/checkpoint result SHALL be bound to current task execution sta
 - **WHEN** a valid positive friction checkpoint has recorded its local event but GitHub routing is temporarily unavailable
 - **THEN** completion may continue if all deterministic delivery requirements are otherwise satisfied
 - **AND** the event remains pending for later routing retry
+
+#### Scenario: Successful override and known issue recur
+
+- **GIVEN** an agent uses a non-default override to complete a task and the same process defect already has an open issue
+- **WHEN** it performs the retrospective
+- **THEN** it records the meaningful recurrence as a new occurrence through the existing friction router
+- **AND** no user prompt is required to surface it.
 
 ### Requirement: Friction evidence carries truthful bounded execution provenance
 
