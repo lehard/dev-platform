@@ -31,7 +31,12 @@ TRIGGERS = (
     "unsafe-near-miss",
     "undocumented-invariant",
     "excessive-retry",
+    "manual-workaround",
+    "nondefault-override",
+    "known-recurrence",
+    "observed-drift",
 )
+RETROSPECTIVE_SIGNALS = frozenset(TRIGGERS[-4:])
 CLASSIFICATIONS = ("process-friction", "context-gap")
 CONTEXT_CONCERNS = {
     "product": "docs/context/product.md",
@@ -810,6 +815,42 @@ def current_lifecycle_failures(branch: str | None = None) -> list[dict]:
     ]
 
 
+def current_retrospective_signals(task: str) -> list[dict]:
+    """Reuse recorded path evidence; do not invent a command-history store."""
+    return [
+        event for event in read_events(None)
+        if event.get("task") == task
+        and RETROSPECTIVE_SIGNALS.intersection(event.get("triggers") or [])
+    ]
+
+
+def unlinked_retrospective_signals(task: str, event_ids: list[str]) -> list[dict]:
+    linked = set(event_ids)
+    return [event for event in current_retrospective_signals(task) if str(event.get("id")) not in linked]
+
+
+def retrospective_signal_instruction(events: list[dict]) -> str:
+    rendered = ", ".join(str(event.get("id")) for event in events[:5])
+    return f"Recorded workaround, override, recurrence or drift evidence is not linked to this retrospective: {rendered}. Reference each occurrence with --event."
+
+
+def cmd_review_path(args: argparse.Namespace) -> int:
+    """Show a bounded factual review prompt from the existing task log."""
+    task = args.task or current_branch()
+    result = {
+        "task": task,
+        "review": ["actual commands and non-default flags", "successful manual workarounds and state changes",
+                   "known process issues encountered again", "observed material drift across owners or lifecycle stages"],
+        "recorded_signals": [
+            {"id": str(event.get("id")), "triggers": sorted(RETROSPECTIVE_SIGNALS.intersection(event.get("triggers") or []))}
+            for event in current_retrospective_signals(task)
+        ],
+        "lifecycle_failures": [str(event.get("id")) for event in current_lifecycle_failures(task)],
+    }
+    print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+    return 0
+
+
 def parse_lifecycle_dispositions(values: list[str], failures: list[dict]) -> dict[str, str]:
     """Validate concise resolved/already-recorded retrospective dispositions."""
     known = {str(event.get("id")) for event in failures}
@@ -867,7 +908,7 @@ def lifecycle_checkpoint_instruction(failures: list[dict]) -> str:
         "Post-task retrospective has unclassified high-signal lifecycle outcome(s): "
         + rendered
         + ". Classify each with `checkpoint --result none --lifecycle-disposition "
-        "<event-id>=resolved-in-task|already-recorded`, or reference its recorded finding with "
+        "<event-id>=resolved-in-task|already-recorded --review-note TEXT`, or reference its recorded finding with "
         "`checkpoint --event <event-id>` (new-recorded)."
     )
 
@@ -884,6 +925,7 @@ def cmd_checkpoint(args: argparse.Namespace) -> int:
     """
     branch = current_branch()
     root = current_worktree_root()
+    review_note = normalize_text(getattr(args, "review_note", "") or "", "review note", 500)
     explicit_none = args.result == "none"
     event_ids: list[str] = list(dict.fromkeys([*args.events, *([args.result] if args.result not in (None, "none") else [])]))
     if explicit_none and event_ids:
@@ -903,6 +945,9 @@ def cmd_checkpoint(args: argparse.Namespace) -> int:
     unresolved = unclassified_lifecycle_failures(lifecycle_failures, event_ids, lifecycle_dispositions)
     if unresolved:
         raise SystemExit(lifecycle_checkpoint_instruction(unresolved))
+    unlinked = unlinked_retrospective_signals(branch, event_ids)
+    if unlinked:
+        raise SystemExit(retrospective_signal_instruction(unlinked))
     checkpoint = {
         "result": "events" if event_ids else "none",
         "event_ids": event_ids,
@@ -911,6 +956,7 @@ def cmd_checkpoint(args: argparse.Namespace) -> int:
             for event_id, disposition in lifecycle_dispositions.items()
         ],
         "at": utc_now(),
+        "review_note": review_note,
         "branch": branch,
         "head": current_head(root),
     }
@@ -941,9 +987,11 @@ def require_checkpoint(branch: str, root: Path | None = None) -> None:
     if not isinstance(checkpoint, dict) or checkpoint.get("result") not in ("none", "events"):
         raise SystemExit(
             "Completion friction retrospective is required for this non-trivial platform task. "
-            "Run `python3 scripts/agent_friction.py checkpoint --result none` after reviewing the task for "
+            "Run `python3 scripts/agent_friction.py checkpoint --result none --review-note TEXT` after reviewing the task for "
             "unresolved friction, or `--event <id>` (repeatable) for each recorded meaningful finding."
         )
+    if not isinstance(checkpoint.get("review_note"), str) or not checkpoint["review_note"].strip():
+        raise SystemExit("Retrospective path review is missing; rerun checkpoint with --review-note describing the factual path reviewed.")
     if checkpoint.get("result") == "events":
         event_ids = checkpoint.get("event_ids") or []
         if not event_ids:
@@ -959,6 +1007,9 @@ def require_checkpoint(branch: str, root: Path | None = None) -> None:
     unresolved = unclassified_lifecycle_failures(lifecycle_failures, list(checkpoint.get("event_ids") or []), lifecycle_dispositions)
     if unresolved:
         raise SystemExit(lifecycle_checkpoint_instruction(unresolved))
+    unlinked = unlinked_retrospective_signals(branch, list(checkpoint.get("event_ids") or []))
+    if unlinked:
+        raise SystemExit(retrospective_signal_instruction(unlinked))
     resolved_root = root if root is not None else current_worktree_root()
     current = current_head(resolved_root)
     if current is None:
@@ -1092,12 +1143,17 @@ def main() -> int:
 
     p = sub.add_parser("checkpoint", help="resolve the required post-task friction retrospective")
     p.add_argument("--result", help="'none' for a clean retrospective, or a recorded friction event id")
+    p.add_argument("--review-note", required=True, help="short factual path reviewed: overrides, manual workarounds/state changes, known recurrences and observed drift; no secrets")
     p.add_argument("--event", dest="events", action="append", default=[], help="repeatable: another recorded finding id from this retrospective")
     p.add_argument(
         "--lifecycle-disposition", dest="lifecycle_dispositions", action="append", default=[],
         help="repeatable: <event-id>=resolved-in-task|already-recorded for a current-task lifecycle failure",
     )
     p.set_defaults(func=cmd_checkpoint)
+
+    p = sub.add_parser("review-path", help="show bounded task-path review prompts and already recorded signals")
+    p.add_argument("--task", help="task identity; defaults to the current branch")
+    p.set_defaults(func=cmd_review_path)
 
     p = sub.add_parser("assert-checkpoint", help="fail unless the current task checkpoint is resolved")
     p.add_argument("--branch")

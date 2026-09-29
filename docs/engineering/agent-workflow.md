@@ -80,7 +80,7 @@ delivered Requirements:
 `python3 scripts/requirement_terminal.py reconcile --requirement owner/repo#N`.
 No `Requirement-Integration-Exception` is required for an ordinary single child.
 
-Before terminal publication, review the whole Requirement path and record its
+Before terminal publication, run `python3 scripts/requirement_retrospective.py review-path --requirement owner/repo#N`, then review the whole Requirement path including successful overrides, manual workarounds and state changes, known issue recurrences, and material drift in other owners' state, and record its
 bounded parent retrospective through `scripts/requirement_retrospective.py`.
 Use `--result none` only after checking accepted intent, pre-authoring,
 decomposition, child interaction and delivery and finding no new meaningful
@@ -249,17 +249,19 @@ Record only high-signal friction: user correction, repeated failure, safety near
 
 ### Post-task retrospective
 
-Before non-trivial completion, run a distinct post-task retrospective -- not merely picking a checkpoint value. Review the task for user corrections, repeated substantive failures/retries, manual workarounds, safety near-misses, false premises, undocumented invariants, missing automation/documentation, tooling/auth/worktree/Git/OpenSpec/CI/lifecycle friction, avoidable repeated work, and problems noticed but left unresolved. A relevant user correction or repeated semantic failure may be a `context-gap` when it exposes stable project/domain knowledge that belongs in a bounded context destination; do not force ordinary agent mistakes or tooling/process defects into that category. Classify each candidate as already resolved in this task, already represented by an existing recorded event, or new and meaningful; record only the last class.
+Before non-trivial completion, run `python3 scripts/agent_friction.py review-path` to inspect the bounded checklist and task-attributed signals already in the local friction log. Then run a distinct post-task retrospective over the actual task path: inspect non-default/override flags used, successful manual workarounds and state changes, known process issues encountered again, and material drift observed in operator-owned or other lifecycle state. A successful workaround is still a candidate; an already open issue does not dispose of a new recurrence. Record meaningful occurrences with `agent_friction.py record --task <branch>` and the applicable `--trigger` value (`manual-workaround`, `nondefault-override`, `known-recurrence`, or `observed-drift`); repeat `--trigger` when needed. The existing router adds a new occurrence to a matching open process issue. Harmless deviations and routine commands are not friction. Do not copy raw shell history or secrets into the review note.
 
-The retrospective also reads the current task's existing high-signal `lifecycle-*` failure records from the friction log. It does not add a task-outcome database: a lifecycle failure must be classified as `resolved-in-task`, `already-recorded`, or `new-recorded` before the checkpoint can succeed. Clean tasks have no such records and retain the one-command `none` path.
+Review the task for user corrections, repeated substantive failures/retries, manual workarounds, safety near-misses, false premises, undocumented invariants, missing automation/documentation, tooling/auth/worktree/Git/OpenSpec/CI/lifecycle friction, avoidable repeated work, and problems noticed but left unresolved. A relevant user correction or repeated semantic failure may be a `context-gap` when it exposes stable project/domain knowledge that belongs in a bounded context destination; do not force ordinary agent mistakes or tooling/process defects into that category. Classify each candidate as already resolved in this task, already represented by an existing recorded event, or new and meaningful; record only the last class.
+
+The retrospective also reads the current task's existing high-signal `lifecycle-*` failure records and recorded workaround/override/recurrence/drift signals from the friction log. It does not add a task-outcome database: a lifecycle failure must be classified as `resolved-in-task`, `already-recorded`, or `new-recorded` before the checkpoint can succeed. Clean tasks have no such records and retain the one-command `none` path.
 
 ```bash
-python3 scripts/agent_friction.py checkpoint --result none
-python3 scripts/agent_friction.py checkpoint --event <id> [--event <id> ...]
-python3 scripts/agent_friction.py checkpoint --result none --lifecycle-disposition <event-id>=resolved-in-task|already-recorded
+python3 scripts/agent_friction.py checkpoint --result none --review-note "Reviewed actual task path and found no meaningful workaround, override, recurrence or drift"
+python3 scripts/agent_friction.py checkpoint --event <id> [--event <id> ...] --review-note "Reviewed actual task path and linked meaningful occurrences"
+python3 scripts/agent_friction.py checkpoint --result none --review-note "Reviewed actual task path and found no meaningful workaround, override, recurrence or drift" --lifecycle-disposition <event-id>=resolved-in-task|already-recorded
 ```
 
-`--result none` is valid only after the retrospective actually ran and found nothing new and every current-task high-signal lifecycle failure has an explicit disposition. Referencing its recorded event is the `new-recorded` disposition; `--lifecycle-disposition` is for the resolved/already-recorded cases. The checkpoint binds to the current branch and Git head; `require_checkpoint` rejects it as stale once new commits land (a fresh retrospective is then required), rejects a checkpoint referencing an unknown event id, and rechecks for newly unclassified lifecycle failures. A missing/stale/unclassified checkpoint blocks `finish_task.py` with an actionable instruction -- it never invents `none`.
+`--result none` is valid only after the factual path review recorded a short `--review-note` and found nothing new and every current-task high-signal lifecycle failure has an explicit disposition. Referencing its recorded event is the `new-recorded` disposition; `--lifecycle-disposition` is for the resolved/already-recorded cases. The checkpoint binds to the current branch and Git head; `require_checkpoint` rejects it as stale once new commits land (a fresh retrospective is then required), rejects a checkpoint referencing an unknown event id, and rechecks for newly unclassified lifecycle failures. A missing/stale/unclassified checkpoint blocks `finish_task.py` with an actionable instruction -- it never invents `none`.
 
 ## Completion
 
