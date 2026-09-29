@@ -1,0 +1,81 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.146,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.807,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 387.093,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "template/scripts/shared_workspace.py",
+        "tests/test_shared_workspace.py",
+        "tests/test_shared_writer_guard.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_fe613d73f37079e449aa9dd03e57f010",
+    "change": "guard-shared-platform-writers",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/guard-shared-platform-writers",
+    "branch": "agent/guard-shared-platform-writers",
+    "head": "2934a51c4b6683ddce6cd00732d089adc5a6dcf5",
+    "task_content": {
+      "version": 1,
+      "digest": "7d37c903739002bf1af23ce003b9c4c57ac373769810c5489c32467499e77e11",
+      "paths": {
+        "dev-platform/checks.toml": "7f6526e30a7dc224d32f0cf176996b6171a127ce",
+        "docs/engineering/agent-workflow.md": "83a387c01e08d4c7ef73fc0ccb779e8ff1cabf95",
+        "openspec/changes/guard-shared-platform-writers/.managed-task.json": "f917b0088eed3f25e4b82dc1869e824cb1497a4c",
+        "openspec/changes/guard-shared-platform-writers/.openspec.yaml": "29382a2c80fa56db41a894c8d84de17dd931a4d8",
+        "openspec/changes/guard-shared-platform-writers/design.md": "773a7fbda93786624403e19562089f54495257cf",
+        "openspec/changes/guard-shared-platform-writers/proposal.md": "8e66b8e0a5900798e1cf9c8d0c2e4a36890599d8",
+        "openspec/changes/guard-shared-platform-writers/specs/shared-workspace-safety/spec.md": "32c2d487781631adaf32b280260e730ec17b3b08",
+        "openspec/changes/guard-shared-platform-writers/tasks.md": "26ff082321250d5741e17dfe75628b309d48c6f5",
+        "openspec/changes/guard-shared-platform-writers/verification.md": "f46f85579397b91252a0ec03744b6c4d6d9b86a3",
+        "template/docs/engineering/agent-workflow.md.jinja": "707273e85fef19de2dcd750c041e662392f491e6",
+        "template/scripts/shared_workspace.py": "0cd2bde84df6488c7997241286488709b592cb6f",
+        "tests/test_shared_workspace.py": "edadde68d02dab341efe6ce91b6222665a089db8",
+        "tests/test_shared_writer_guard.py": "119023fa1043272756f6b6bc0576f30e2dad74bf"
+      },
+      "base": "22c0846694d65bfb985ddb58594d65b6613f074e"
+    }
+  }
+}
