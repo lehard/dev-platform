@@ -6,4 +6,4 @@
 - [x] Gate archive preflight (auto-run missing/stale review) and finish (re-validate); surface review state in status and Requirement advance.
 - [x] Enable review for dev-platform managed changes, keep the template default opt-in, and update source and rendered guidance.
 - [x] Add regression tests for adapters, failure modes, invalidation, dispositions, gating, quick-task exemption and resume.
-- [ ] Run semantic OpenSpec verification, required platform checks and a real platform-launched review of this change; write a truthful receipt, archive and publish.
+- [x] Run semantic OpenSpec verification, required platform checks and a real platform-launched review of this change; write a truthful receipt, archive and publish.

@@ -89,8 +89,9 @@ REVIEW_SCOPE = "independent-review-v1"
 def review_exclusion(root: Path, change: str, base_ref: str = "origin/main") -> Callable[[str, str], bool]:
     """Exclude lifecycle receipts, review evidence and own spec materialization.
 
-    ``openspec/specs/<capability>/`` is excluded only for capabilities the
-    change's own delta specs name, because archive materializes exactly those.
+    ``openspec/specs/<capability>/spec.md`` is excluded only after archive and
+    only for capabilities the change's own delta specs name, because archive
+    materializes exactly those files.
     """
     active = f"openspec/changes/{change}/"
     capabilities: set[str] = set()
@@ -104,13 +105,19 @@ def review_exclusion(root: Path, change: str, base_ref: str = "origin/main") -> 
                 if len(parts) >= 2 and parts[0]:
                     capabilities.add(parts[0])
 
+    # Archive materializes exactly ``openspec/specs/<capability>/spec.md`` for
+    # the delta's capabilities; before archive any accepted-spec edit counts.
+    archived = any(
+        (root / "openspec" / "changes" / "archive").glob(f"*-{change}")
+    ) and not (root / active).is_dir()
+
     def exclude(canonical: str, raw: str) -> bool:
         if canonical.startswith(active):
             relative = canonical[len(active):]
             return relative in REVIEW_EXCLUDED_FILES or relative.startswith(REVIEW_EXCLUDED_DIRS)
-        if canonical.startswith("openspec/specs/"):
+        if canonical.startswith("openspec/specs/") and archived:
             parts = canonical[len("openspec/specs/"):].split("/")
-            return bool(parts) and parts[0] in capabilities
+            return len(parts) == 2 and parts[0] in capabilities and parts[1] == "spec.md"
         return False
 
     return exclude

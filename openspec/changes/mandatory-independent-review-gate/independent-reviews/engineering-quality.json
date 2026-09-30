@@ -1,0 +1,62 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "af10f92d31c0e6079675cf187c45365eca3a2545",
+    "base_ref": "origin/main",
+    "candidate_head": "ab2113176c3ed4525ba38126d2f5849cac49f9f8",
+    "diff_sha256": "91e6e7052b3615e6811816e57122e059aef0f7b2c7368ab60b454c1b555a25c1"
+  },
+  "completed_at": "2026-09-30T08:33:13+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/task_content_identity.py, `review_exclusion.exclude`: `return bool(parts) and parts[0] in capabilities` excludes any path under a named capability. It does not check that the content equals the delta materialization. The design doc says only the paths archive materializes are excluded.",
+      "id": "spec-dir-exclusion-hides-post-review-edits",
+      "severity": "advisory",
+      "summary": "The review identity excludes the whole `openspec/specs/<capability>/` tree for every capability the change's delta names. A hand edit to the accepted spec after review therefore leaves the evidence valid, not only the edit archive materialization makes."
+    },
+    {
+      "evidence": "independent_review_runner.py `workspaces()` returns `[root, integration_root(root)]`. `_mutations` reports any snapshot difference as reviewer mutation. The report limitation reads 'reviewer mutated the workspace... Inspect and restore these paths yourself'. The repo memory index already records sibling tasks leaving files in the integration checkout.",
+      "id": "mutation-postcheck-false-positives-from-concurrent-agents",
+      "severity": "advisory",
+      "summary": "The read-only postcheck snapshots the shared integration checkout for the whole launch, which can last up to 1800s. Any concurrent legitimate activity by another agent or worktree there marks the reviewer as having mutated the workspace and makes the report `unavailable`. The design also forbids the platform from separating those two causes."
+    },
+    {
+      "evidence": "independent_review_runner.py calls `model_routing._model_for(...)`. It imports `task_content_identity._canonical_path`, and `review._validate_request` from `independent_review`. `resolve_provider` catches `except Exception` around `model_routing.read_current_durable_route`.",
+      "id": "runner-uses-private-model-routing-api",
+      "severity": "advisory",
+      "summary": "The runner calls underscore-private helpers and internals of other modules. A refactor of those modules would silently break review model resolution and the mutation postcheck. `resolve_provider` and `resolve_model` catch broad exceptions and turn them into an `unavailable` report, so the break would appear as a review blocker."
+    },
+    {
+      "evidence": "independent_review_runner.py `subprocess_launcher` uses `subprocess.run(..., timeout=timeout)` with no `start_new_session` and no process-group kill. `_mutations(before)` runs immediately after the `LaunchTimeout` is caught.",
+      "id": "launch-timeout-does-not-terminate-process-tree",
+      "severity": "advisory",
+      "summary": "`subprocess.run(timeout=...)` kills only the direct child. Any grandchildren of the provider CLI can outlive a timeout. They can keep running while the postcheck snapshot has already been taken, and they could write after the read-only check."
+    },
+    {
+      "evidence": "independent_review_runner.py `run_review`: `git diff --no-ext-diff {merge_base}...HEAD` is written in full to `candidate.diff`, and the prompt says 'Read it first'. Claude and Codex file readers page their output.",
+      "id": "unbounded-diff-for-reviewer",
+      "severity": "advisory",
+      "summary": "The candidate diff is written whole to a temp file with no size bound and no fallback. Large candidates may exceed the reviewer's readable window or its timeout, and the result is a blocker with no distinct limitation."
+    }
+  ],
+  "launched_at": "2026-09-30T08:32:30+00:00",
+  "output_sha256": "f0bf6efceea7a87e33affe325549f7ae28d6e75527aa942144f6dc65d9e046fb",
+  "perspective": "engineering-quality",
+  "request_id": "70215589-6643-4dfc-82a6-099d0f7f9f0d",
+  "reviewer": {
+    "context_id": "9cf25c24-0c13-48b2-a7fc-cca9db259e99",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content_digest": "3f60bf84bae9ce4aeb6473112a71d98eeba1f0dbcfda98dd5521fe38a3a9ffd0"
+}

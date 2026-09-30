@@ -591,6 +591,11 @@ def record_report(root: Path, change: Path, source: Path) -> Path:
     perspective = report.get("perspective")
     if perspective not in PERSPECTIVES:
         raise IndependentReviewError("independent review report must name a supported perspective")
+    reviewer = report.get("reviewer")
+    if isinstance(reviewer, dict) and reviewer.get("launch_evidence") == PLATFORM_OBSERVED:
+        raise IndependentReviewError(
+            "an imported report cannot claim platform-observed launch evidence; run the review through the platform instead"
+        )
     errors = _validate_report(report, request, perspective)
     if errors:
         raise IndependentReviewError("; ".join(errors))

@@ -1,0 +1,80 @@
+{
+  "candidate": {
+    "base_head": "af10f92d31c0e6079675cf187c45365eca3a2545",
+    "base_ref": "origin/main",
+    "candidate_head": "ab2113176c3ed4525ba38126d2f5849cac49f9f8",
+    "diff_sha256": "91e6e7052b3615e6811816e57122e059aef0f7b2c7368ab60b454c1b555a25c1"
+  },
+  "change": "openspec/changes/mandatory-independent-review-gate",
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/mandatory-independent-review-gate/design.md",
+        "openspec/changes/mandatory-independent-review-gate/proposal.md",
+        "openspec/changes/mandatory-independent-review-gate/specs/completion-lifecycle/spec.md",
+        "openspec/changes/mandatory-independent-review-gate/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/mandatory-independent-review-gate/proposal.md",
+        "openspec/changes/mandatory-independent-review-gate/design.md",
+        "openspec/changes/mandatory-independent-review-gate/tasks.md",
+        "openspec/changes/mandatory-independent-review-gate/specs/completion-lifecycle/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-09-30T08:31:59+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/mandatory-independent-review-gate/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "70215589-6643-4dfc-82a6-099d0f7f9f0d",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "af10f92d31c0e6079675cf187c45365eca3a2545",
+    "digest": "3f60bf84bae9ce4aeb6473112a71d98eeba1f0dbcfda98dd5521fe38a3a9ffd0",
+    "paths": {
+      "docs/engineering/model-routing.md": "9a871e20191ca75c7fada60991548e5325478250",
+      "docs/engineering/openspec-workflow.md": "8dcbec6c5d95de0b85573b181298d1ec48559ff8",
+      "openspec/changes/mandatory-independent-review-gate/.managed-task.json": "cc8e66b507dae2bf79157001b90414cfe4f5f546",
+      "openspec/changes/mandatory-independent-review-gate/.openspec.yaml": "29382a2c80fa56db41a894c8d84de17dd931a4d8",
+      "openspec/changes/mandatory-independent-review-gate/design.md": "e8fd7635866d4ae3dccfa604af868b47432ec7d0",
+      "openspec/changes/mandatory-independent-review-gate/proposal.md": "f402a8dcdcc8ff0bc330aefc854ed50da38b86d1",
+      "openspec/changes/mandatory-independent-review-gate/specs/completion-lifecycle/spec.md": "4e6a57a9b869ce945efe36dc51db27b4afba035e",
+      "openspec/changes/mandatory-independent-review-gate/tasks.md": "9d39df5bf8b53358197d9f8cf97c338deb4c278d",
+      "template/.dev-platform.toml.jinja": "e22015bf4e701562b41b97e17addfc35e2f1f816",
+      "template/docs/engineering/model-routing.md": "4f0a802e434af8746aa94fbea748712529e39c0b",
+      "template/docs/engineering/openspec-workflow.md": "cbcd50fb154a18c1698092cb3b1fcb9d0d9e7b17",
+      "template/scripts/execute_requirement.py": "822852f67920e9c9675f9d350caaf3ccae4a713a",
+      "template/scripts/finish_task.py": "c1d8bea846cebb86811ca1f13bc1238b5de0be21",
+      "template/scripts/independent_review.py": "5e1616a52758eb0a01fe018656402f04e261a76b",
+      "template/scripts/independent_review_runner.py": "a75d71833060323276d8a9bf8c4bbe3b989c2b80",
+      "template/scripts/openspec_lifecycle.py": "d969ee9e17c1ea912259dd65b3b994244a7d34f3",
+      "template/scripts/task_content_identity.py": "daf53593573dd39982d203fa5e26be482c101688",
+      "tests/test_independent_review.py": "36f3a1d69d0b84f6a5d8c46e38ae5bfb0f939054",
+      "tests/test_shared_writer_guard.py": "00930f815dd0024c625833727baaeb7145da1dbc"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

@@ -8,6 +8,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -322,6 +323,32 @@ class IndependentReviewTests(unittest.TestCase):
         self.assertEqual(review.resolve_change(self.root, "review-change"), archived)
         self.assertEqual(self.state(archived)["state"], "ready")
         lifecycle.require_publication_review_evidence(archived, root=self.root)
+
+    def test_accepted_spec_edit_before_archive_invalidates_evidence(self) -> None:
+        self.run_review()
+        self.commit("review evidence")
+        (self.root / "openspec" / "specs" / "review-cap").mkdir(parents=True)
+        (self.root / "openspec" / "specs" / "review-cap" / "spec.md").write_text("# hand edit\n", encoding="utf-8")
+        self.commit("hand edit of the accepted spec")
+        self.assertEqual(self.state()["state"], "stale")
+
+    def test_imported_report_cannot_claim_platform_observed_launch(self) -> None:
+        self.run_review()
+        forged = json.loads(review.report_path(self.change, "spec-fidelity").read_text(encoding="utf-8"))
+        source = self.root.parent / f"{self.root.name}-forged.json"
+        source.write_text(json.dumps(forged), encoding="utf-8")
+        self.addCleanup(source.unlink)
+        with self.assertRaisesRegex(review.IndependentReviewError, "cannot claim platform-observed"):
+            review.record_report(self.root, self.change, source)
+
+    def test_timeout_kills_the_whole_reviewer_process_group(self) -> None:
+        marker = self.root.parent / f"{self.root.name}-grandchild"
+        self.addCleanup(lambda: marker.unlink(missing_ok=True))
+        script = f"(sleep 2; touch {marker}) & sleep 30"
+        with self.assertRaises(runner.LaunchTimeout):
+            runner.subprocess_launcher(["/bin/sh", "-c", script], self.root, 0.5)
+        time.sleep(3)
+        self.assertFalse(marker.exists(), "a reviewer descendant outlived the timeout")
 
     def test_main_merge_touching_task_path_is_not_accepted(self) -> None:
         self.run_review()

@@ -22,6 +22,7 @@ import hashlib
 import json
 import os
 import shutil
+import signal
 import subprocess
 import tempfile
 import uuid
@@ -90,17 +91,38 @@ Launcher = Callable[[list[str], Path, float], LaunchResult]
 def subprocess_launcher(argv: list[str], cwd: Path, timeout: float) -> LaunchResult:
     """Run a reviewer with no stdin; stderr is discarded, never persisted."""
     try:
-        completed = subprocess.run(
+        # A new session makes the reviewer its own process group, so a timeout
+        # terminates every descendant before the read-only postcheck runs.
+        process = subprocess.Popen(
             argv, cwd=cwd, text=True, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL, timeout=timeout, check=False,
+            stderr=subprocess.DEVNULL, start_new_session=True,
         )
     except FileNotFoundError as exc:
         raise LaunchUnavailable(f"reviewer binary cannot be executed: {argv[0]}") from exc
-    except subprocess.TimeoutExpired as exc:
-        raise LaunchTimeout(f"reviewer exceeded {int(timeout)}s") from exc
     except OSError as exc:
         raise LaunchUnavailable(f"reviewer could not start: {exc}") from exc
-    return LaunchResult(completed.returncode, completed.stdout or "")
+    try:
+        stdout, _ = process.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired as exc:
+        _kill_process_group(process)
+        raise LaunchTimeout(f"reviewer exceeded {int(timeout)}s") from exc
+    finally:
+        if process.poll() is None:
+            _kill_process_group(process)
+    # Descendants that outlived a normally exiting CLI must not write after the postcheck.
+    _kill_process_group(process)
+    return LaunchResult(process.returncode, stdout or "")
+
+
+def _kill_process_group(process: subprocess.Popen) -> None:
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError):
+        pass
+    try:
+        process.communicate(timeout=10)
+    except (subprocess.TimeoutExpired, ValueError, OSError):
+        pass
 
 
 def settings(root: Path) -> dict[str, Any]:
