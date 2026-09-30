@@ -159,6 +159,69 @@ class RequirementExecutionTests(unittest.TestCase):
             publish.assert_called_once()
             retrospective.assert_called_once_with(root.resolve(), requirement=REQUIREMENT)
 
+    def test_ready_receipt_supersedes_own_stale_receipt_in_child_worktree_and_reports_it(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            worktree = root / "worktrees" / "first"
+            worktree.mkdir(parents=True)
+            archive = worktree / "openspec/changes/archive/2026-09-30-first"
+            payload = {"head": "b" * 40}
+            superseded: list[dict[str, str]] = []
+            with mock.patch.object(execution, "machine_path", return_value=root / "worktrees"), mock.patch.object(
+                execution, "_git", return_value="agent/first"
+            ), mock.patch.object(
+                execution.managed_task, "resolve_canonical_provenance",
+                return_value=SimpleNamespace(lifecycle="archived", path=archive),
+            ), mock.patch.object(execution.requirement_integration, "create_receipt", return_value=payload), mock.patch.object(
+                execution.requirement_integration, "superseded_receipt_head", return_value="a" * 40
+            ) as prove, mock.patch.object(
+                execution.requirement_integration, "write_receipt", return_value=SimpleNamespace(head="b" * 40)
+            ) as write:
+                path, _ = execution._ready_receipt(
+                    root, root / "receipts", REQUIREMENT, "acme/backlog#8", "first",
+                    release_claim=False, superseded=superseded,
+                )
+            self.assertEqual(prove.call_args.kwargs["root"], worktree)
+            self.assertEqual(write.call_args.kwargs["root"], worktree)
+            self.assertEqual(superseded, [{
+                "source_issue": "acme/backlog#8", "change": "first", "receipt": str(path),
+                "superseded_head": "a" * 40, "head": "b" * 40,
+            }])
+
+    def test_advance_reports_superseded_receipts_for_audit(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            handoffs = []
+            for change in ("first", "second"):
+                path = root / f"{change}.json"
+                path.write_text(json.dumps({"intents": [{"id": change, "dependencies": []}]}), encoding="utf-8")
+                handoffs.append((change, path))
+            def ready(_integration, _dir, _requirement, child, change, *, release_claim, superseded):
+                if change == "first":
+                    superseded.append({"source_issue": child, "change": change, "superseded_head": "a" * 40, "head": "b" * 40})
+                return root / f"{change}-receipt.json", object()
+            def git_result(_root: Path, *args: str) -> str:
+                return "main" if args[:2] == ("branch", "--show-current") else "a" * 40
+            with mock.patch.object(execution, "current_worktree_root", return_value=root), mock.patch.object(
+                execution, "_git", side_effect=git_result
+            ), mock.patch.object(execution.requirement_target_lifecycle, "require_local_target_support"), mock.patch.object(
+                execution.requirement_intake, "fetch_issue", return_value={"body": PARENT_BODY, "labels": [{"name": "type:requirement"}]}), mock.patch.object(
+                execution.orchestrate_pre_authoring, "status", return_value={"current_stage": "complete"}
+            ), mock.patch.object(execution, "_ordered_handoffs", return_value=handoffs), mock.patch.object(
+                execution, "_linked_children_by_change", return_value={"first": "acme/backlog#8", "second": "acme/backlog#9"}
+            ), mock.patch.object(execution.managed_project_status, "observe", return_value=SimpleNamespace(current_status="In progress")), mock.patch.object(
+                execution, "_ready_receipt", side_effect=ready
+            ), mock.patch.object(execution.requirement_integration, "assemble_candidate", return_value={"digest": "exact"}), mock.patch.object(
+                execution.requirement_integration, "compose_candidate"
+            ), mock.patch.object(execution.requirement_integration, "publish_candidate", return_value={"status": "merged-and-reconciled"}), mock.patch.object(
+                execution.requirement_retrospective, "require_checkpoint"
+            ):
+                result = execution.advance(root, requirement=REQUIREMENT, base_dir=root)
+            self.assertEqual(result["status"], "merged-and-reconciled")
+            self.assertEqual(result["superseded_receipts"], [
+                {"source_issue": "acme/backlog#8", "change": "first", "superseded_head": "a" * 40, "head": "b" * 40},
+            ])
+
     def test_ready_child_releases_only_its_exact_board_claim(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

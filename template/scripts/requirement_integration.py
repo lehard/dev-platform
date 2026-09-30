@@ -15,6 +15,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tomllib
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -133,13 +134,60 @@ def create_receipt(root: Path, *, requirement: str, source_issue: str, change: s
     return payload
 
 
-def write_receipt(path: Path, payload: dict[str, Any]) -> ReadyForIntegrationReceipt:
+def _encoded_receipt(receipt: ReadyForIntegrationReceipt) -> str:
+    return json.dumps(asdict(receipt), ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+
+
+def superseded_receipt_head(path: Path, payload: dict[str, Any], *, root: Path | None = None) -> str | None:
+    """Return the head of an own stale receipt that ``payload`` may supersede.
+
+    ``None`` means there is nothing to supersede (absent or identical).  A
+    differing receipt is replaceable only when it is a valid receipt with the
+    identical Requirement, child Issue, change and source branch and its head
+    is a strict ancestor of the new head in ``root`` (the child repository);
+    anything else raises with the specific reason.
+    """
+    receipt = ReadyForIntegrationReceipt.from_payload(payload)
+    if not path.exists() or path.read_text(encoding="utf-8") == _encoded_receipt(receipt):
+        return None
+    refusal = f"refusing to replace a different ready-for-integration receipt: {path}"
+    try:
+        existing = read_receipt(path)
+    except RequirementIntegrationError as exc:
+        raise RequirementIntegrationError(f"{refusal}: the existing receipt is unreadable or invalid ({exc})") from exc
+    identity = ("requirement", "source_issue", "change", "source_branch")
+    if any(getattr(existing, field) != getattr(receipt, field) for field in identity):
+        raise RequirementIntegrationError(
+            f"{refusal}: it belongs to a different Requirement, child Issue, change or source branch"
+        )
+    if existing.head == receipt.head:
+        raise RequirementIntegrationError(f"{refusal}: it records the same head {existing.head} with different content")
+    if root is None:
+        raise RequirementIntegrationError(f"{refusal}: no child repository was given to prove head advancement")
+    if subprocess.run(["git", "cat-file", "-e", f"{existing.head}^{{commit}}"], cwd=root, capture_output=True).returncode:
+        raise RequirementIntegrationError(
+            f"{refusal}: its head {existing.head} is not resolvable in {root}, so advancement cannot be proven"
+        )
+    ancestry = subprocess.run(["git", "merge-base", "--is-ancestor", existing.head, receipt.head], cwd=root, capture_output=True)
+    if ancestry.returncode == 1:
+        raise RequirementIntegrationError(
+            f"{refusal}: its head {existing.head} is not an ancestor of the new head {receipt.head} (divergent or unrelated)"
+        )
+    if ancestry.returncode:
+        raise RequirementIntegrationError(f"{refusal}: cannot prove that {existing.head} is an ancestor of {receipt.head}")
+    return existing.head
+
+
+def write_receipt(path: Path, payload: dict[str, Any], *, root: Path | None = None) -> ReadyForIntegrationReceipt:
+    """Write a receipt idempotently; supersede only an own proven-stale receipt.
+
+    Callers that must report a supersession call ``superseded_receipt_head``
+    first; this function repeats that proof before replacing anything.
+    """
     receipt = ReadyForIntegrationReceipt.from_payload(payload)
     path.parent.mkdir(parents=True, exist_ok=True)
-    encoded = json.dumps(asdict(receipt), ensure_ascii=False, indent=2, sort_keys=True) + "\n"
-    if path.exists() and path.read_text(encoding="utf-8") != encoded:
-        raise RequirementIntegrationError(f"refusing to replace a different ready-for-integration receipt: {path}")
-    path.write_text(encoded, encoding="utf-8")
+    superseded_receipt_head(path, payload, root=root)
+    path.write_text(_encoded_receipt(receipt), encoding="utf-8")
     return receipt
 
 
@@ -646,7 +694,10 @@ def main() -> int:
         if args.command == "ready":
             payload = create_receipt(root, requirement=args.requirement, source_issue=args.source_issue, change=args.change,
                                      archived_contract=args.archived_contract, verification_receipt=args.verification_receipt)
-            write_receipt(args.out, payload)
+            superseded = superseded_receipt_head(args.out, payload, root=root)
+            write_receipt(args.out, payload, root=root)
+            if superseded:
+                print(f"superseded own ready-for-integration receipt for ancestor head {superseded}", file=sys.stderr)
         elif args.command == "assemble":
             payload = assemble_candidate(root, requirement=args.requirement, base=args.base, receipt_paths=args.receipt)
             args.out.parent.mkdir(parents=True, exist_ok=True)

@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import re
 import shutil
 import stat
 import subprocess
@@ -45,20 +46,42 @@ def material(finding_id: str) -> dict:
     return {"id": finding_id, "severity": "material", "summary": "reviewer found a meaningful mismatch", "evidence": "src.py:1"}
 
 
+def probe_ok(argv: list[str]) -> runner.LaunchResult:
+    if "exec" in argv[1:2]:
+        return runner.LaunchResult(0, json.dumps({"type": "thread.started", "thread_id": "probe"}) + "\n")
+    return runner.LaunchResult(0, json.dumps({"type": "result", "is_error": False, "result": "READY"}))
+
+
 class FakeLauncher:
-    """Stand-in for a provider CLI; never launches a real process."""
+    """Stand-in for a provider CLI; never launches a real process.
+
+    Readiness probes (identified by the fixed probe prompt) are recorded in
+    ``probes`` and answered by ``probe`` (default: a ready reply); review
+    perspective launches are recorded in ``calls``.
+    """
 
     def __init__(self, findings: list[dict] | None = None, *, returncode: int = 0, output: str | None = None,
-                 raises: Exception | None = None, mutate: Path | None = None, claude_stdout: str | None = None) -> None:
+                 raises: Exception | None = None, mutate: Path | None = None, claude_stdout: str | None = None,
+                 probe: runner.LaunchResult | Exception | None = None, probe_mutate: Path | None = None) -> None:
         self.findings = findings or []
         self.returncode = returncode
         self.output = output
         self.raises = raises
         self.mutate = mutate
         self.claude_stdout = claude_stdout
+        self.probe = probe
+        self.probe_mutate = probe_mutate
         self.calls: list[tuple[list[str], Path, float]] = []
+        self.probes: list[tuple[list[str], Path, float]] = []
 
     def __call__(self, argv: list[str], cwd: Path, timeout: float) -> runner.LaunchResult:
+        if argv[-1] == runner.PREFLIGHT_PROMPT:
+            self.probes.append((list(argv), cwd, timeout))
+            if self.probe_mutate is not None:
+                self.probe_mutate.write_text("probe wrote here\n", encoding="utf-8")
+            if isinstance(self.probe, Exception):
+                raise self.probe
+            return self.probe if self.probe is not None else probe_ok(argv)
         self.calls.append((list(argv), cwd, timeout))
         if self.raises is not None:
             raise self.raises
@@ -134,6 +157,7 @@ class IndependentReviewTests(unittest.TestCase):
     def test_codex_adapter_launches_each_perspective_in_its_read_only_sandbox(self) -> None:
         launcher = FakeLauncher()
         reports = self.run_review(launcher)
+        self.assertEqual(len(launcher.probes), 1, "exactly one readiness probe precedes the perspectives")
         self.assertEqual(len(launcher.calls), 2)
         for argv, cwd, timeout in launcher.calls:
             self.assertEqual(argv[:2], ["/fake/bin/codex", "exec"])
@@ -203,6 +227,7 @@ class IndependentReviewTests(unittest.TestCase):
         with mock.patch("model_routing.read_current_durable_route", side_effect=RuntimeError("no route")):
             reports = self.run_review(launcher)
         self.assertEqual(launcher.calls, [])
+        self.assertEqual(launcher.probes, [])
         self.assertIn("route provider is unknown", reports["spec-fidelity"]["limitation"])
         self.assertEqual(self.state()["state"], "blocked")
 
@@ -221,6 +246,7 @@ class IndependentReviewTests(unittest.TestCase):
         with mock.patch.object(runner.shutil, "which", return_value=None):
             reports = self.run_review(launcher)
         self.assertEqual(launcher.calls, [])
+        self.assertEqual(launcher.probes, [])
         self.assert_unavailable(reports, "not on PATH")
 
     def test_claude_binary_override_must_be_executable_and_missing_binary_is_unavailable(self) -> None:
@@ -269,6 +295,229 @@ class IndependentReviewTests(unittest.TestCase):
         with self.assertRaisesRegex(review.IndependentReviewError, "commit the candidate"):
             self.run_review(launcher)
         self.assertEqual(launcher.calls, [])
+
+    # Runtime readiness preflight -------------------------------------------
+
+    def use_claude(self) -> Path:
+        self.write_config('provider = "claude"\n')
+        self.commit("claude provider")
+        binary = self.root.parent / f"{self.root.name}-claude"
+        binary.write_text("#!/bin/sh\n", encoding="utf-8")
+        binary.chmod(binary.stat().st_mode | stat.S_IEXEC)
+        self.addCleanup(binary.unlink)
+        patch = mock.patch.dict(os.environ, {runner.CLAUDE_BIN_ENV: str(binary)})
+        patch.start()
+        self.addCleanup(patch.stop)
+        return binary
+
+    def assert_no_review_evidence(self) -> None:
+        self.assertFalse(review.request_path(self.change).exists())
+        self.assertFalse(review.reports_dir(self.change).exists())
+
+    def test_preflight_probes_the_exact_codex_model_read_only_and_writes_no_evidence(self) -> None:
+        launcher = FakeLauncher()
+        result = runner.preflight(self.root, launcher=launcher)
+        self.assertEqual(result, {
+            "ready": True, "provider": "codex", "provider_source": "configured", "model": "gpt-6-sol",
+            "binary": "/fake/bin/codex", "limitation": None,
+        })
+        self.assertEqual(launcher.calls, [])
+        [(argv, cwd, timeout)] = launcher.probes
+        self.assertEqual(argv[:2], ["/fake/bin/codex", "exec"])
+        self.assertEqual(argv[argv.index("--sandbox") + 1], "read-only")
+        self.assertIn("--ephemeral", argv)
+        self.assertEqual(argv[argv.index("-c") + 1], "mcp_servers={}")
+        self.assertEqual(argv[argv.index("--model") + 1], "gpt-6-sol")
+        self.assertEqual(argv[-1], runner.PREFLIGHT_PROMPT)
+        self.assertEqual((cwd, timeout), (self.root, runner.DEFAULT_PREFLIGHT_TIMEOUT_SECONDS))
+        self.assert_no_review_evidence()
+        self.write_config('provider = "codex"\npreflight_timeout_seconds = 7\n')
+        runner.preflight(self.root, launcher=launcher)
+        self.assertEqual(launcher.probes[-1][2], 7)
+
+    def test_preflight_probes_the_exact_claude_model_with_read_only_tools(self) -> None:
+        binary = self.use_claude()
+        launcher = FakeLauncher()
+        result = runner.preflight(self.root, launcher=launcher)
+        self.assertTrue(result["ready"])
+        self.assertEqual((result["provider"], result["model"], result["binary"]), ("claude", "sonnet", str(binary)))
+        [(argv, _, _)] = launcher.probes
+        self.assertEqual(argv[:2], [str(binary), "-p"])
+        self.assertEqual(argv[argv.index("--tools") + 1], "Read,Grep,Glob")
+        self.assertEqual(argv[argv.index("--permission-mode") + 1], "dontAsk")
+        self.assertIn("--no-session-persistence", argv)
+        self.assertIn("--strict-mcp-config", argv)
+        self.assertEqual(argv[argv.index("--output-format") + 1], "json")
+        self.assertEqual(argv[argv.index("--model") + 1], "sonnet")
+        for write_tool in ("Bash", "Edit", "Write", "NotebookEdit"):
+            self.assertNotIn(write_tool, " ".join(argv[:-1]))
+
+    def assert_preflight_blocks(self, launcher: FakeLauncher, *texts: str, probes: int = 1) -> dict:
+        reports = self.run_review(launcher)
+        self.assertEqual(launcher.calls, [], "no perspective may launch after a failed preflight")
+        self.assertEqual(len(launcher.probes), probes, "the probe is never retried with another model or provider")
+        for text in texts:
+            self.assert_unavailable(reports, text)
+        self.assertEqual(self.state()["state"], "blocked")
+        return reports
+
+    def test_logged_out_claude_cli_blocks_before_any_perspective_with_next_step(self) -> None:
+        self.use_claude()
+        logged_out = json.dumps({"type": "result", "is_error": True, "result": "Not logged in · Please run /login"})
+        launcher = FakeLauncher(probe=runner.LaunchResult(1, logged_out))
+        self.assert_preflight_blocks(
+            launcher, "claude reviewer runtime with model 'sonnet' is not ready", "Not logged in",
+            "log the claude CLI in", runner.CLAUDE_BIN_ENV, "[model_routing]", "independent_review.py preflight",
+        )
+        self.assertEqual(launcher.probes[0][0][launcher.probes[0][0].index("--model") + 1], "sonnet")
+        with self.assertRaisesRegex(SystemExit, "independent_review.py preflight review-change"):
+            review.require_review_evidence(self.root, self.change)
+
+    def test_rejected_model_is_named_and_no_other_model_or_provider_is_tried(self) -> None:
+        rejected = "\n".join([
+            json.dumps({"type": "thread.started", "thread_id": "probe"}),
+            json.dumps({"type": "error", "message": "The 'gpt-6-sol' model is not supported when using Codex with a ChatGPT account."}),
+        ])
+        launcher = FakeLauncher(probe=runner.LaunchResult(1, rejected))
+        self.assert_preflight_blocks(launcher, "codex reviewer runtime with model 'gpt-6-sol'", "model is not supported",
+                                     "change the [model_routing] / [independent_review] binding", "no other model or provider")
+        [(argv, _, _)] = launcher.probes
+        self.assertEqual((argv[0], argv[argv.index("--model") + 1]), ("/fake/bin/codex", "gpt-6-sol"))
+        # A zero exit that still reports a runtime error is not ready either.
+        launcher = FakeLauncher(probe=runner.LaunchResult(0, rejected))
+        self.assert_preflight_blocks(launcher, "probe returned an error")
+
+    def test_claude_error_result_with_zero_exit_and_unreadable_output_are_not_ready(self) -> None:
+        self.use_claude()
+        error = json.dumps({"type": "result", "is_error": True, "subtype": "error_during_execution"})
+        self.assert_preflight_blocks(FakeLauncher(probe=runner.LaunchResult(0, error)), "error result (error_during_execution)")
+        self.assert_preflight_blocks(FakeLauncher(probe=runner.LaunchResult(0, "not json")), "not a Claude Code JSON result")
+
+    def test_probe_timeout_start_failure_and_mutation_are_not_ready(self) -> None:
+        self.assert_preflight_blocks(FakeLauncher(probe=runner.LaunchTimeout("reviewer exceeded 120s")),
+                                     "readiness probe timed out", "preflight_timeout_seconds")
+        self.assert_preflight_blocks(FakeLauncher(probe=runner.LaunchUnavailable("reviewer binary cannot be executed: x")),
+                                     "readiness probe could not start")
+        mutated = self.root / "probe-output.txt"
+        self.assert_preflight_blocks(FakeLauncher(probe_mutate=mutated), "mutated the workspace during the readiness probe")
+        self.assertTrue(mutated.is_file(), "the platform must not clean a probe mutation")
+
+    def test_unresolvable_model_or_binary_blocks_without_any_launch(self) -> None:
+        with mock.patch.object(runner, "resolve_model", side_effect=review.IndependentReviewError("profile 'x' unknown")):
+            self.assert_preflight_blocks(FakeLauncher(), "reviewer model cannot be resolved", "profile 'x' unknown", probes=0)
+        with mock.patch.object(runner.shutil, "which", return_value=None):
+            result = runner.preflight(self.root, launcher=FakeLauncher())
+        self.assertFalse(result["ready"])
+        self.assertEqual((result["provider"], result["model"], result["binary"]), ("codex", "gpt-6-sol", None))
+        self.assertIn("model 'gpt-6-sol' is not ready", result["limitation"])
+
+    def test_preflight_command_prints_readiness_and_exits_nonzero_when_not_ready(self) -> None:
+        ready = FakeLauncher()
+        with mock.patch.object(review, "current_worktree_root", return_value=self.root), \
+                mock.patch.object(runner, "subprocess_launcher", ready), \
+                mock.patch.object(sys, "argv", ["independent_review.py", "preflight", "review-change"]), \
+                mock.patch("builtins.print") as printed:
+            self.assertEqual(review.main(), 0)
+        payload = json.loads(printed.call_args.args[0])
+        self.assertEqual((payload["ready"], payload["change"], payload["model"]), (True, "review-change", "gpt-6-sol"))
+        self.assertEqual(len(ready.probes), 1)
+        failing = FakeLauncher(probe=runner.LaunchResult(1, ""))
+        with mock.patch.object(review, "current_worktree_root", return_value=self.root), \
+                mock.patch.object(runner, "subprocess_launcher", failing), \
+                mock.patch.object(sys, "argv", ["independent_review.py", "preflight"]), \
+                mock.patch("builtins.print") as printed:
+            self.assertEqual(review.main(), 2)
+        payload = json.loads(printed.call_args.args[0])
+        self.assertFalse(payload["ready"])
+        self.assertIn("probe exited with status 1", payload["limitation"])
+        self.assertEqual(failing.calls, [])
+        self.assert_no_review_evidence()
+
+    # Reviewer context ---------------------------------------------------------
+
+    def test_reviewer_diff_omits_lifecycle_evidence_and_keeps_task_paths(self) -> None:
+        self.run_review()
+        (self.change / "verification.md").write_text("OpenSpec-Verify: PASS\n", encoding="utf-8")
+        (self.change / "automated-checks.json").write_text('{"outcome": "success"}\n', encoding="utf-8")
+        (self.change / "evidence").mkdir()
+        (self.change / "evidence" / "log.txt").write_text("evidence\n", encoding="utf-8")
+        (self.change / "independent-review-dispositions.json").write_text('{"schema_version": 1, "dispositions": []}\n', encoding="utf-8")
+        (self.root / "src.py").write_text("value = 2\n", encoding="utf-8")
+        odd = "odd [name]*.py"
+        (self.root / odd).write_text("glob = True\n", encoding="utf-8")
+        self.commit("task change with committed lifecycle evidence")
+        seen: dict[str, str] = {}
+
+        class CapturingLauncher(FakeLauncher):
+            def __call__(inner, argv, cwd, timeout):
+                if argv[-1] != runner.PREFLIGHT_PROMPT:
+                    diff = re.search(r"candidate diff is in (\S+candidate\.diff)", argv[-1])
+                    seen["diff"] = Path(diff.group(1)).read_text(encoding="utf-8")
+                    seen["prompt"] = argv[-1]
+                return FakeLauncher.__call__(inner, argv, cwd, timeout)
+
+        self.run_review(CapturingLauncher())
+        lifecycle_paths = [
+            "openspec/changes/review-change/automated-checks.json",
+            "openspec/changes/review-change/evidence/log.txt",
+            "openspec/changes/review-change/independent-review-dispositions.json",
+            "openspec/changes/review-change/independent-review-request.json",
+            "openspec/changes/review-change/independent-reviews/engineering-quality.json",
+            "openspec/changes/review-change/independent-reviews/spec-fidelity.json",
+            "openspec/changes/review-change/verification.md",
+        ]
+        for path in lifecycle_paths:
+            self.assertNotIn(path, seen["diff"])
+            self.assertIn(f"- {path}", seen["prompt"])
+        for path in ("src.py", odd, "openspec/changes/review-change/proposal.md", "openspec/changes/review-change/specs/review-cap/spec.md"):
+            self.assertIn(f"b/{path}", seen["diff"])
+        self.assertIn("value = 2", seen["diff"])
+        self.assertIn("not part of the candidate", seen["prompt"])
+        self.assertIn("do not report findings about them", seen["prompt"])
+        request = json.loads(review.request_path(self.change).read_text(encoding="utf-8"))
+        self.assertEqual(request["excluded_lifecycle_paths"], lifecycle_paths)
+        self.assertEqual(request["schema_version"], 1)
+        self.assertEqual(review._validate_request({k: v for k, v in request.items() if k != "excluded_lifecycle_paths"}), [])
+
+    def test_empty_task_remainder_yields_an_empty_diff(self) -> None:
+        merge_base = git(self.root, "merge-base", "HEAD", "origin/main").strip()
+        self.assertEqual(runner.candidate_diff(self.root, merge_base, []), ("", None))
+        text, error = runner.candidate_diff(self.root, merge_base, ["src.py"])
+        self.assertIsNone(error)
+        self.assertIn("b/src.py", text)
+        self.assertNotIn("proposal.md", text)
+
+    # Representative happy path -------------------------------------------------
+
+    def test_unchanged_final_candidate_gets_exactly_one_review_round(self) -> None:
+        launcher = FakeLauncher()
+        review.ensure_review_evidence(self.root, self.change, launcher=launcher)
+        self.assertEqual((len(launcher.probes), len(launcher.calls)), (1, 2))
+        self.commit("review evidence")
+        (self.change / "automated-checks.json").write_text('{"outcome": "success"}\n', encoding="utf-8")
+        (self.change / "verification.md").write_text(
+            "OpenSpec-Verify: PASS\nIndependent-Review-Evidence: independent-review-request.json\n", encoding="utf-8"
+        )
+        self.commit("automated checks and verification receipt")
+        review.ensure_review_evidence(self.root, self.change, launcher=launcher)
+        archived = self.root / "openspec" / "changes" / "archive" / "2026-09-30-review-change"
+        archived.parent.mkdir(parents=True)
+        shutil.move(str(self.change), str(archived))
+        (self.root / "openspec" / "specs" / "review-cap").mkdir(parents=True)
+        (self.root / "openspec" / "specs" / "review-cap" / "spec.md").write_text("# materialized\n", encoding="utf-8")
+        self.commit("archive")
+        (archived / "automated-checks.json").write_text('{"outcome": "success", "refreshed": true}\n', encoding="utf-8")
+        self.commit("refresh automated check evidence")
+        review.ensure_review_evidence(self.root, archived, launcher=launcher)
+        review.require_review_evidence(self.root, archived)
+        lifecycle.require_publication_review_evidence(archived, root=self.root)
+        self.assertEqual((len(launcher.probes), len(launcher.calls)), (1, 2), "no additional review round was launched")
+        # A task-owned change after review still fails closed.
+        (self.root / "src.py").write_text("value = 9\n", encoding="utf-8")
+        self.commit("late task change")
+        self.assertEqual(self.state(archived)["state"], "stale")
+        with self.assertRaisesRegex(SystemExit, "independent_review.py run review-change"):
+            review.require_review_evidence(self.root, archived)
 
     # Evidence acceptance ----------------------------------------------------
 
@@ -495,6 +744,7 @@ class IndependentReviewTests(unittest.TestCase):
         self.assertEqual(state["state"], "missing")
         self.assertEqual(state["next"], "python3 scripts/independent_review.py run review-change")
         self.assertIn("archive helper runs a missing or stale review automatically", state["note"])
+        self.assertIn("python3 scripts/independent_review.py preflight review-change", state["note"])
         import finish_task
 
         observed = finish_task.observe_independent_review(self.root)

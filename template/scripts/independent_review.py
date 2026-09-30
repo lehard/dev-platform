@@ -65,6 +65,10 @@ def run_command(change_name: str) -> str:
     return f"python3 scripts/independent_review.py run {change_name}"
 
 
+def preflight_command(change_name: str | None = None) -> str:
+    return "python3 scripts/independent_review.py preflight" + (f" {change_name}" if change_name else "")
+
+
 def dispose_command(change_name: str, perspective: str, finding: str) -> str:
     return (
         f"python3 scripts/independent_review.py dispose {change_name} --perspective {perspective} "
@@ -155,6 +159,21 @@ def task_content(root: Path, change: Path, base_ref: str) -> dict[str, Any]:
     return proof
 
 
+def lifecycle_path_partition(root: Path, change: Path, base_ref: str, merge_base: str) -> tuple[list[str], list[str]]:
+    """``(reviewed, excluded_lifecycle)`` changed paths for the reviewer context.
+
+    The reviewed paths are exactly those the review task-content identity
+    binds; lifecycle receipts, review evidence and archive-derived spec
+    materialization are excluded so a reviewer never reviews its own evidence.
+    """
+    from task_content_identity import review_path_partition
+
+    partition = review_path_partition(root, canonical_change_name(change), base_ref, merge_base)
+    if partition is None:
+        raise IndependentReviewError(f"cannot list the independent-review candidate paths against {base_ref!r}")
+    return partition
+
+
 def _existing_paths(root: Path, paths: list[Path]) -> list[str]:
     return [str(path.relative_to(root)) for path in paths if path.is_file()]
 
@@ -184,13 +203,17 @@ def prepare_request(root: Path, change: Path, base_ref: str) -> dict[str, Any]:
     if not change.is_dir():
         raise IndependentReviewError(f"OpenSpec change not found: {change}")
     candidate = candidate_identity(root, base_ref)
+    content = task_content(root, change, base_ref)
+    _, excluded = lifecycle_path_partition(root, change, base_ref, str(content["base"]))
     request = {
         "schema_version": SCHEMA_VERSION,
         "request_id": str(uuid.uuid4()),
         "prepared_at": utc_now(),
         "change": str(change.relative_to(root)),
         "candidate": candidate,
-        "task_content": task_content(root, change, base_ref),
+        "task_content": content,
+        # Additive audit field: lifecycle evidence withheld from the reviewer.
+        "excluded_lifecycle_paths": excluded,
         "fresh_context_required": True,
         "reviewer_constraints": {
             "write_access": False,
@@ -494,7 +517,10 @@ def review_state(root: Path, change: Path | None) -> dict[str, Any]:
         "detail": "; ".join(result["errors"]) or None,
     }
     if result["state"] in {STATE_MISSING, STATE_STALE} and change.parent.name != "archive":
-        payload["note"] = "the archive helper runs a missing or stale review automatically before expensive validation"
+        payload["note"] = (
+            "the archive helper runs a missing or stale review automatically before expensive validation; "
+            f"check reviewer runtime readiness first with {preflight_command(canonical_change_name(change))}"
+        )
     if result["blockers"]:
         payload["blockers"] = [{key: item[key] for key in ("perspective", "id", "summary", "next")} for item in result["blockers"]]
     if result["unavailable"]:
@@ -515,6 +541,8 @@ def _blocking_message(change: Path, result: dict[str, Any]) -> str:
     if result["blockers"]:
         lines.append(f"  or fix the candidate, commit, and rerun: {run_command(name)}")
     else:
+        if result["unavailable"]:
+            lines.append(f"  check reviewer runtime readiness: {preflight_command(name)}")
         lines.append(f"  rerun the platform-launched review: {run_command(name)}")
     return "\n".join(lines)
 
@@ -607,6 +635,10 @@ def record_report(root: Path, change: Path, source: Path) -> Path:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Prepare, run and validate independent OpenSpec review evidence.")
     subparsers = parser.add_subparsers(dest="command", required=True)
+    readiness = subparsers.add_parser(
+        "preflight", help="prove the selected reviewer runtime and exact model are usable; writes no review evidence",
+    )
+    readiness.add_argument("change", nargs="?", help="OpenSpec change name (optional; active or archived)")
     for name in ("prepare", "check", "record", "run", "dispose", "status"):
         command = subparsers.add_parser(name)
         command.add_argument("change", help="OpenSpec change name (active or archived)")
@@ -622,6 +654,16 @@ def main() -> int:
     args = parser.parse_args()
     root = current_worktree_root()
     try:
+        if args.command == "preflight":
+            import independent_review_runner
+
+            if args.change and not resolve_change(root, args.change).is_dir():
+                raise IndependentReviewError(f"OpenSpec change not found: {args.change}")
+            readiness = independent_review_runner.preflight(root)
+            if args.change:
+                readiness = {"change": args.change, **readiness}
+            print(json.dumps(readiness, indent=2, sort_keys=True))
+            return 0 if readiness["ready"] else 2
         change = resolve_change(root, args.change)
         base = getattr(args, "base", None) or f"origin/{read_platform_config(root).get('main_branch', 'main')}"
         if args.command == "prepare":

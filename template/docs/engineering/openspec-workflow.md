@@ -82,8 +82,26 @@ Claude binary resolves from the machine-local `DEV_PLATFORM_CLAUDE_BIN`
 environment variable, then `claude` on `PATH`.
 
 ```bash
+python3 scripts/independent_review.py preflight [<change>]
 python3 scripts/independent_review.py run <change>
 ```
+
+`preflight` proves the reviewer runtime is usable on this host and account
+before any review perspective launches: it resolves the provider, the exact
+selected model and the CLI binary, then sends one small headless probe with
+that exact model through the same read-only adapter flags, under the same
+workspace mutation postcheck, bounded by
+`[independent_review] preflight_timeout_seconds` (default 120). It prints the
+resolved provider, model and binary with `ready` and an actionable
+`limitation`, exits non-zero when not ready, and writes no review evidence, so
+run it right after routing a managed task and before implementation. A
+missing binary, nonzero exit, error result or timeout names the CLI's own
+bounded error and the next step: log the CLI in, point
+`DEV_PLATFORM_CLAUDE_BIN` at the Claude Code CLI, or change the
+`[model_routing]` / `[independent_review]` binding for this account. No other
+model or provider is ever tried. `run` (and therefore archive) performs the
+same preflight first; when it fails, both perspectives are recorded as
+`unavailable` with that limitation and no perspective is launched.
 
 `run` prepares (or reuses a current) provider-neutral review request, builds
 each prompt only from that request plus a precomputed candidate diff in a
@@ -105,6 +123,16 @@ request/reports/dispositions and the `openspec/specs/` paths archive
 materializes from the change's own delta specs. Archive bookkeeping and a clean
 main merge that touches no task path therefore keep evidence valid; any other
 task change makes it stale and requires a fresh review.
+
+The reviewer context is the same set: the candidate diff covers only the
+changed paths that identity binds (passed as literal pathspecs), so committed
+lifecycle evidence — earlier review requests, reports and dispositions,
+automated checks, the verification receipt, `evidence/` and archive-derived
+spec materialization — is never presented as candidate content. The request
+records the withheld paths as `excluded_lifecycle_paths`, and the prompt tells
+the reviewer they are lifecycle evidence that must not be reported as
+findings. An unchanged final candidate therefore needs exactly one review
+round across archive, evidence commits and finish.
 
 Reviewer reports are immutable. A material finding blocks until it is fixed
 (commit the fix and rerun the review) or rejected with a rationale in the

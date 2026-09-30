@@ -15,6 +15,13 @@ proves the reviewer did not write; any mutation, launch failure, timeout or
 malformed output yields an ``unavailable`` report with an actionable
 limitation instead of findings.  The runner never repairs, cleans, publishes,
 archives or records completion state.
+
+Before any perspective launches, ``preflight`` proves the selected runtime is
+usable on this host and account with the exact selected model through one
+small probe with the same read-only flags; a failed probe records both
+perspectives as unavailable without launching them.  No other model or
+provider is ever tried.  The reviewer diff covers exactly the paths the review
+task-content identity binds; lifecycle evidence is withheld from it.
 """
 from __future__ import annotations
 
@@ -35,6 +42,11 @@ import independent_review as review
 
 
 DEFAULT_TIMEOUT_SECONDS = 1800
+DEFAULT_PREFLIGHT_TIMEOUT_SECONDS = 120
+PREFLIGHT_PROMPT = (
+    "Reviewer runtime readiness probe. Do not read files or use any tool. Reply with exactly the word READY."
+)
+DIFF_PATHSPEC_CHUNK = 200
 DEFAULT_PROFILE = "standard"
 PROVIDERS = ("codex", "claude")
 CLAUDE_BIN_ENV = "DEV_PLATFORM_CLAUDE_BIN"
@@ -130,11 +142,19 @@ def settings(root: Path) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
-def timeout_seconds(config: dict[str, Any]) -> float:
-    value = config.get("timeout_seconds")
+def _positive_seconds(config: dict[str, Any], key: str, default: int) -> float:
+    value = config.get(key)
     if isinstance(value, (int, float)) and not isinstance(value, bool) and value > 0:
         return float(value)
-    return float(DEFAULT_TIMEOUT_SECONDS)
+    return float(default)
+
+
+def timeout_seconds(config: dict[str, Any]) -> float:
+    return _positive_seconds(config, "timeout_seconds", DEFAULT_TIMEOUT_SECONDS)
+
+
+def preflight_timeout_seconds(config: dict[str, Any]) -> float:
+    return _positive_seconds(config, "preflight_timeout_seconds", DEFAULT_PREFLIGHT_TIMEOUT_SECONDS)
 
 
 def resolve_provider(root: Path, config: dict[str, Any]) -> tuple[str | None, str]:
@@ -204,6 +224,20 @@ def claude_argv(binary: str, model: str, schema: dict[str, Any], readable_dir: P
         "--no-session-persistence", "--strict-mcp-config", "--add-dir", str(readable_dir),
         "--output-format", "json", "--json-schema", json.dumps(schema, separators=(",", ":")),
         "--model", model, prompt,
+    ]
+
+
+def probe_argv(provider: str, binary: str, worktree: Path, model: str) -> list[str]:
+    """The readiness probe: the review adapter's read-only flags, exact model, no repository content."""
+    if provider == "codex":
+        return [
+            binary, "exec", "--sandbox", "read-only", "--ephemeral", "--cd", str(worktree), "--json",
+            "-c", "mcp_servers={}", "--model", model, PREFLIGHT_PROMPT,
+        ]
+    return [
+        binary, "-p", "--tools", CLAUDE_READ_ONLY_TOOLS, "--permission-mode", "dontAsk",
+        "--no-session-persistence", "--strict-mcp-config", "--output-format", "json",
+        "--model", model, PREFLIGHT_PROMPT,
     ]
 
 
@@ -305,6 +339,8 @@ def build_prompt(request: dict[str, Any], perspective: str, diff_path: Path) -> 
     candidate = request["candidate"]
     content = request.get("task_content") or {}
     paths = "\n".join(f"- {path}" for path in inputs.get("paths", [])) or "- (none)"
+    excluded = request.get("excluded_lifecycle_paths")
+    lifecycle = "\n".join(f"- {path}" for path in excluded) if isinstance(excluded, list) and excluded else "- (none)"
     return (
         f"You are an independent {perspective} reviewer for OpenSpec change {request.get('change')}.\n"
         "You are read-only: do not modify files, run commands that change state, publish, archive, or record completion.\n"
@@ -314,11 +350,108 @@ def build_prompt(request: dict[str, Any], perspective: str, diff_path: Path) -> 
         f"The exact candidate diff is in {diff_path} (outside the repository). Read it first.\n"
         "Contract and guidance files, relative to the repository root (your working directory):\n"
         f"{paths}\n\n"
+        "Lifecycle evidence paths (previous review request/reports/dispositions, automated checks, verification "
+        "receipt, evidence, archive-derived spec materialization) are not part of the candidate and are omitted from "
+        "the diff. Do not review them and do not report findings about them:\n"
+        f"{lifecycle}\n\n"
         "Report only findings supported by concrete evidence (file and line, or quoted behavior). Use severity "
         "'material' only for defects that must block completion; use 'advisory' otherwise. Give each finding a short "
         "stable kebab-case id. Do not propose or record dispositions. Return JSON matching the provided schema; "
         "return an empty findings list when there is nothing to report."
     )
+
+
+def _probe_failure(provider: str, stdout: str, returncode: int) -> str | None:
+    """Why a completed probe proves the runtime is not ready, if it does."""
+    cause = runtime_error(provider, stdout)
+    if returncode != 0:
+        return f"probe exited with status {returncode}" + (f" ({cause})" if cause else "")
+    if cause:
+        return f"probe returned an error ({cause})"
+    if provider == "claude":
+        try:
+            payload = json.loads(stdout)
+        except json.JSONDecodeError:
+            return "probe output is not a Claude Code JSON result"
+        if not isinstance(payload, dict):
+            return "probe output is not a Claude Code JSON result"
+        if payload.get("is_error") is True:
+            return f"probe returned an error result ({payload.get('subtype', 'unknown')})"
+    return None
+
+
+def _next_step(provider: str) -> str:
+    binary_hint = f", point {CLAUDE_BIN_ENV} at the Claude Code CLI" if provider == "claude" else ""
+    return (
+        f"next: log the {provider} CLI in on this host{binary_hint}, or change the [model_routing] / "
+        "[independent_review] binding for this account (no other model or provider is tried), then rerun "
+        + review.preflight_command()
+    )
+
+
+def preflight(
+    root: Path, *, config: dict[str, Any] | None = None, launcher: Launcher | None = None,
+    timeout: float | None = None,
+) -> dict[str, Any]:
+    """Prove the selected reviewer runtime and exact model are usable; write nothing.
+
+    Returns ``{ready, provider, provider_source, model, binary, limitation}``.
+    The probe runs through the same launcher and read-only flags as a review
+    perspective, under the same workspace mutation postcheck, and never
+    switches to another model or provider.
+    """
+    root = root.resolve()
+    config = settings(root) if config is None else config
+    result: dict[str, Any] = {
+        "ready": False, "provider": None, "provider_source": None, "model": None, "binary": None, "limitation": None,
+    }
+
+    def not_ready(limitation: str) -> dict[str, Any]:
+        result["limitation"] = limitation
+        return result
+
+    provider, provenance = resolve_provider(root, config)
+    if provider is None:
+        return not_ready(provenance)
+    result.update(provider=provider, provider_source=provenance)
+    try:
+        model = resolve_model(root, provider, config)
+    except Exception as exc:
+        return not_ready(
+            f"reviewer model cannot be resolved from [model_routing]: {exc}; fix the [model_routing] / "
+            "[independent_review] profile binding"
+        )
+    result["model"] = model
+    binary, binary_limitation = resolve_binary(provider)
+    if binary is None:
+        return not_ready(f"{provider} reviewer runtime for model {model!r} is not ready: {binary_limitation}")
+    result["binary"] = binary
+    label = f"{provider} reviewer runtime with model {model!r}"
+    wait = preflight_timeout_seconds(config) if timeout is None else timeout
+    try:
+        before = _snapshots(workspaces(root))
+    except Exception as exc:
+        return not_ready(f"cannot snapshot the workspace for the readiness probe postcheck: {exc}")
+    try:
+        outcome: Any = (launcher or subprocess_launcher)(probe_argv(provider, binary, root, model), root, wait)
+    except LaunchTimeout as exc:
+        outcome = f"readiness probe timed out ({exc}); rerun, or raise [independent_review] preflight_timeout_seconds"
+    except LaunchUnavailable as exc:
+        outcome = f"readiness probe could not start: {exc}"
+    try:
+        mutated = _mutations(before)
+    except Exception as exc:
+        return not_ready(f"cannot prove the readiness probe left the workspace unchanged: {exc}")
+    if mutated:
+        return not_ready(
+            f"{label} mutated the workspace during the readiness probe; nothing was repaired: "
+            + ", ".join(sorted(mutated)) + ". Inspect and restore these paths yourself, then rerun."
+        )
+    failure = outcome if isinstance(outcome, str) else _probe_failure(provider, outcome.stdout, outcome.returncode)
+    if failure:
+        return not_ready(f"{label} is not ready: {failure}; {_next_step(provider)}")
+    result["ready"] = True
+    return result
 
 
 def integration_root(root: Path) -> Path:
@@ -473,6 +606,18 @@ def run_perspective(
                    output_sha256=hashlib.sha256(raw).hexdigest())
 
 
+def candidate_diff(root: Path, merge_base: str, paths: list[str]) -> tuple[str, str | None]:
+    """Diff only the identity-bound paths as literal pathspecs; ``(text, error)``."""
+    parts: list[str] = []
+    for start in range(0, len(paths), DIFF_PATHSPEC_CHUNK):
+        pathspecs = [f":(literal){path}" for path in paths[start:start + DIFF_PATHSPEC_CHUNK]]
+        diff = run_git(["diff", "--no-ext-diff", "--no-renames", f"{merge_base}...HEAD", "--", *pathspecs], cwd=root, check=False)
+        if diff.returncode:
+            return "", "cannot calculate the candidate diff for the reviewer"
+        parts.append(diff.stdout)
+    return "".join(parts), None
+
+
 def _current_request(root: Path, change: Path) -> dict[str, Any] | None:
     try:
         request = json.loads(review.request_path(change).read_text(encoding="utf-8"))
@@ -501,27 +646,31 @@ def run_review(
     if request is None or request["candidate"].get("base_ref") != base_ref:
         request = review.prepare_request(root, change, base_ref)
     config = settings(root)
-    provider, provenance = resolve_provider(root, config)
-    limitation: str | None = None if provider else provenance
-    model = binary = None
-    if provider:
-        try:
-            model = resolve_model(root, provider, config)
-        except Exception as exc:
-            limitation = f"reviewer model cannot be resolved from [model_routing]: {exc}"
-        binary, binary_limitation = resolve_binary(provider)
-        limitation = limitation or binary_limitation
+    merge_base = request["task_content"]["base"]
+    reviewed_paths: list[str] = []
+    diff_limitation: str | None = None
+    try:
+        reviewed_paths, excluded = review.lifecycle_path_partition(root, change, request["candidate"]["base_ref"], merge_base)
+    except review.IndependentReviewError as exc:
+        diff_limitation = f"cannot calculate the candidate diff for the reviewer: {exc}"
+    else:
+        if request.get("excluded_lifecycle_paths") != excluded:
+            # A reused request records the exclusions this run actually applied.
+            request["excluded_lifecycle_paths"] = excluded
+            atomic_write_text(review.request_path(change), json.dumps(request, indent=2, sort_keys=True) + "\n")
+    # Runtime readiness is proven before any perspective launches.
+    readiness = preflight(root, config=config, launcher=launcher)
+    provider, model, binary = readiness["provider"], readiness["model"], readiness["binary"]
+    limitation: str | None = None if readiness["ready"] else readiness["limitation"]
     watched = workspaces(root)
     reports: dict[str, dict[str, Any]] = {}
     with tempfile.TemporaryDirectory(prefix="dev-platform-review-") as temporary:
         scratch = Path(temporary).resolve()
         (scratch / "findings-schema.json").write_text(json.dumps(FINDINGS_SCHEMA), encoding="utf-8")
         diff_path = scratch / "candidate.diff"
-        merge_base = request["task_content"]["base"]
-        diff = run_git(["diff", "--no-ext-diff", f"{merge_base}...HEAD"], cwd=root, check=False)
-        if diff.returncode:
-            limitation = limitation or "cannot calculate the candidate diff for the reviewer"
-        diff_path.write_text(diff.stdout if not diff.returncode else "", encoding="utf-8")
+        diff, diff_error = candidate_diff(root, merge_base, reviewed_paths)
+        limitation = limitation or diff_limitation or diff_error
+        diff_path.write_text(diff, encoding="utf-8")
         for perspective in review.PERSPECTIVES:
             report = run_perspective(
                 root, request, perspective, provider=provider, model=model, binary=binary, limitation=limitation,
