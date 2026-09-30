@@ -57,7 +57,7 @@ Ordinary work in this repository uses the committed source contract in `.dev-pla
 ```bash
 python3 scripts/requirement_intake.py start --requirement owner/repo#N
 python3 scripts/execute_requirement.py advance --requirement owner/repo#N
-python3 scripts/orchestrate_pre_authoring.py status --id requirement-N
+python3 scripts/orchestrate_pre_authoring.py --id requirement-N status
 python3 scripts/start_managed_task.py owner/repo#N
 python3 scripts/execute_managed_task.py --bundle <directory>
 python3 scripts/dogfood_task.py route-claude --profile <routine|standard|complex> --rationale "..." --evidence "..."

@@ -615,7 +615,7 @@ def record_decision(
     return document
 
 
-def main() -> int:
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Thin resumable pre-authoring orchestrator (snapshot -> ADD -> intents -> handoff).")
     parser.add_argument("--id", required=True, dest="requirement_id", help="stable requirement identity, also used as the ADD id")
     parser.add_argument("--base-dir", type=Path, default=None, help="override the default .claude/pre-authoring directory")
@@ -635,8 +635,11 @@ def main() -> int:
     decision_parser = sub.add_parser("record-decision", help="apply an accepted human answer to one open ADD decision")
     decision_parser.add_argument("--index", required=True, type=int)
     decision_parser.add_argument("--resolution", required=True)
+    return parser
 
-    args = parser.parse_args()
+
+def main() -> int:
+    args = build_parser().parse_args()
     root = current_worktree_root()
     try:
         if args.command == "init":

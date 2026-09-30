@@ -7,7 +7,11 @@ between orchestrator calls -- never duplicating their gate logic here.
 """
 from __future__ import annotations
 
+import contextlib
+import io
 import json
+import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -480,6 +484,71 @@ class OrchestratorFlowTests(unittest.TestCase):
         receipt = json.loads(orch.receipt_path(directory).read_text(encoding="utf-8"))
         for forbidden in ("priority", "assignee", "status", "project_number"):
             self.assertNotIn(forbidden, receipt)
+
+
+DOCUMENTED_COMMAND_SURFACES = (
+    "AGENTS.md",
+    "template/AGENTS.md.jinja",
+    "docs/engineering/agent-workflow.md",
+    "docs/engineering/task-intake.md",
+    "template/docs/engineering/agent-workflow.md.jinja",
+    "template/docs/engineering/task-intake.md.jinja",
+)
+SCRIPT_NAME = "orchestrate_pre_authoring.py"
+FENCE = re.compile(r"^\s*(```|~~~)")
+INLINE_CODE = re.compile(r"`([^`]+)`")
+
+
+def documented_commands(text: str) -> list[str]:
+    """Return every orchestrator command line shown in fenced blocks or inline code."""
+    commands: list[str] = []
+    fence: str | None = None
+    pending = ""
+    for line in text.splitlines():
+        match = FENCE.match(line)
+        if match and (fence is None or match.group(1) == fence):
+            fence = None if fence else match.group(1)
+            pending = ""
+            continue
+        if fence is None:
+            for span in INLINE_CODE.findall(line):
+                if SCRIPT_NAME in span and span.split(SCRIPT_NAME, 1)[1].strip():
+                    commands.append(span)
+            continue
+        stripped = line.strip()
+        if stripped.endswith("\\"):
+            pending += stripped[:-1] + " "
+            continue
+        logical, pending = pending + stripped, ""
+        if SCRIPT_NAME in logical:
+            commands.append(logical)
+    return commands
+
+
+def parse_documented(command: str) -> None:
+    tokens = shlex.split(command)
+    index = next(i for i, token in enumerate(tokens) if token.endswith(SCRIPT_NAME))
+    with contextlib.redirect_stderr(io.StringIO()):
+        orch.build_parser().parse_args(tokens[index + 1:])
+
+
+class DocumentedCommandTests(unittest.TestCase):
+    def test_documented_commands_parse_with_the_real_cli(self) -> None:
+        for relative in DOCUMENTED_COMMAND_SURFACES:
+            commands = documented_commands((ROOT / relative).read_text(encoding="utf-8"))
+            self.assertTrue(commands, f"{relative} documents no {SCRIPT_NAME} command")
+            for command in commands:
+                with self.subTest(surface=relative, command=command):
+                    try:
+                        parse_documented(command)
+                    except SystemExit as exc:
+                        self.fail(f"{relative}: documented command is rejected by the CLI (exit {exc.code}): {command}")
+
+    def test_subcommand_before_id_is_rejected(self) -> None:
+        """The extraction guard must catch the historical wrong form."""
+        with self.assertRaises(SystemExit):
+            parse_documented("python3 scripts/orchestrate_pre_authoring.py status --id requirement-N")
+        parse_documented("python3 scripts/orchestrate_pre_authoring.py --id requirement-N status")
 
 
 if __name__ == "__main__":
