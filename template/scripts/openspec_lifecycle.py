@@ -202,9 +202,22 @@ def evidence_matches_checkout(
                 # receipt after the validated commit. Its contents are checked
                 # separately by require_automated_evidence.
                 continue
+            if _is_review_evidence(path[len(archive_prefix):]) and not new.returncode:
+                # Archive also produces independent-review evidence after the
+                # validated commit; require_review_evidence binds it to the
+                # task content separately.
+                continue
             if old.returncode or new.returncode or old.stdout.strip() != new.stdout.strip():
                 return False
     return True
+
+
+REVIEW_EVIDENCE_FILES = ("independent-review-request.json", "independent-review-dispositions.json")
+REVIEW_EVIDENCE_DIR = "independent-reviews/"
+
+
+def _is_review_evidence(relative: str) -> bool:
+    return relative in REVIEW_EVIDENCE_FILES or relative.startswith(REVIEW_EVIDENCE_DIR)
 
 
 def require_automated_evidence(change: Path, *, root: Path | None = None) -> None:

@@ -27,3 +27,7 @@ The first real runs were truthfully blocked: the bundled Claude CLI reported "No
 - `python3 -m compileall -q template/scripts scripts` passed; `python3 scripts/managed_projects.py validate` passed.
 - `DEV_PLATFORM_TEST_JOBS=3 python3 scripts/run_test_groups.py --all` on the earlier candidate: 14 of 15 groups passed; `fast-d` failed only on `test_shared_writer_guard`, whose reviewed-writer baseline lacked the runner's temporary-directory writes (introduced, fixed in the same change). The final candidate is validated by the archive helper's `select_checks` run, whose record `automated-checks.json` is likewise produced by archive.
 - `openspec validate mandatory-independent-review-gate --strict` passed with OpenSpec 1.13.2.
+
+## Post-archive integration fix
+
+The first single-child finish after archive failed: the completion-evidence archive transition accepted a newly generated `automated-checks.json` but not the archive-produced review evidence (`independent-review-request.json`, `independent-reviews/`, dispositions), so it rejected the validated evidence as stale. `evidence_matches_checkout` now treats those files like the generated automated receipt, because `require_review_evidence` binds them to the task content separately; any other new archive file is still rejected. `tests.test_openspec_lifecycle` covers both cases (29 tests passed). Because the fix changed the candidate, the independent review was rerun on the archived change and automated evidence was refreshed afterwards; the committed reports and `automated-checks.json` are those runs.
