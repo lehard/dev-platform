@@ -129,6 +129,23 @@ field remains child-only; `progress` adds a recomputable pre-authoring,
 design/decision, readiness, implementation, blocked/unknown, or done stage
 with source diagnostics. Do not create a second Requirement status ledger.
 
+To judge a harness change by its end-to-end effect, use the read-only
+`python3 scripts/requirement_metrics.py report --requirement owner/repo#N`
+(`--format text`, `--offline`), or compare several Requirements with
+`python3 scripts/requirement_metrics.py aggregate` over repeated
+`--requirement` values or `--closed-since YYYY-MM-DD`. It composes existing
+sources only (Requirement and child Issues, pre-authoring evidence, managed
+provenance, routing/execution records, archived verification, automated-check
+and independent review evidence, published PR history, publication labels, CI
+runs, the friction log and counters-only Claude Code session transcripts).
+Every value is `{value, status, sources}` with status `measured`, `derived`,
+`partial` or `unknown`; missing evidence stays unknown and history rebuilt
+from published commits is a partial lower bound, never zero or an estimate.
+Runtime-specific usage stays keyed by runtime, and the output never contains
+prompts, transcript text, tool payloads, finding text or friction prose. The
+report writes nothing, produces no score and changes no policy; acting on it
+requires its own managed change.
+
 Quick tasks remain unchanged. A small regression repair may remain quick when
 an accepted spec or equivalent durable contract unambiguously establishes the
 expected behavior. Record that contract and proportionate regression evidence:

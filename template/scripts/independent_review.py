@@ -302,7 +302,36 @@ def _validate_finding(prefix: str, finding: Any, *, legacy_dispositions: bool) -
     return errors
 
 
+def _usage_field(value: Any) -> dict[str, Any]:
+    if isinstance(value, dict) and value.get("status") == "measured":
+        number = value.get("value")
+        if isinstance(number, int) and not isinstance(number, bool) and number >= 0:
+            source = value.get("source") if _nonempty_string(value.get("source")) else "unknown"
+            return {"value": number, "source": source, "status": "measured"}
+    return {"value": None, "source": "unknown", "status": "unknown"}
+
+
+def read_runtime_usage(report: dict[str, Any]) -> dict[str, Any]:
+    """Read a report's optional runtime-local usage block leniently.
+
+    Reports written before the block existed, or carrying a malformed block,
+    read as unknown rather than zero.  The block is informational: it never
+    participates in acceptance, freshness or disposition binding, so report
+    validation does not reject a report because of it.
+    """
+    block = report.get("runtime_usage")
+    if not isinstance(block, dict):
+        return {"runtime": None, "status": "unknown", "reason": "historical-record-without-field", "fields": {}}
+    raw = block.get("fields") if isinstance(block.get("fields"), dict) else {}
+    fields = {name: _usage_field(value) for name, value in raw.items() if _nonempty_string(name)}
+    runtime = block["runtime"].strip() if _nonempty_string(block.get("runtime")) else None
+    if runtime and any(field["status"] == "measured" for field in fields.values()):
+        return {"runtime": runtime, "status": "measured", "fields": fields}
+    return {"runtime": runtime, "status": "unknown", "reason": "unsupported-or-malformed", "fields": fields}
+
+
 def _validate_report(report: dict[str, Any], request: dict[str, Any], perspective: str, *, required: bool = False) -> list[str]:
+    # The optional ``runtime_usage`` block is deliberately not validated here; see read_runtime_usage.
     errors: list[str] = []
     if report.get("schema_version") != SCHEMA_VERSION:
         errors.append(f"{perspective}: report schema_version must be {SCHEMA_VERSION}")

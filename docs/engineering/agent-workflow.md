@@ -103,6 +103,33 @@ blocked/unknown, or done stage with source diagnostics. Do not write a
 parallel Requirement status ledger. The primary human-facing Project view
 should show Requirements and filter out `type:internal-change`.
 
+#### Requirement metrics
+
+To judge a harness change by its end-to-end effect, use the read-only metrics
+report for one Requirement, or compare several side by side:
+
+```bash
+python3 scripts/requirement_metrics.py report --requirement owner/repo#N [--format text] [--offline]
+python3 scripts/requirement_metrics.py aggregate --requirement owner/repo#N --requirement owner/repo#M
+python3 scripts/requirement_metrics.py aggregate --closed-since YYYY-MM-DD
+```
+
+It composes existing sources only: the Requirement and child Issues,
+pre-authoring evidence, managed provenance, routing/execution records,
+archived verification, automated-check and independent review evidence, the
+published PR commit history, publication labels, GitHub Actions runs, the
+friction log and, for Claude Code, local session transcripts (counters only,
+`--claude-projects-dir` overrides the default location). Every value is
+`{value, status, sources}` with status `measured`, `derived`, `partial` or
+`unknown`; missing evidence stays unknown and history rebuilt from published
+commits (review rounds and their rerun causes, validation cycles) is a partial
+lower bound, never zero or an estimate. `--offline` skips remote reads and
+marks those sections unknown. Runtime-specific usage and session counters stay
+keyed by runtime. The output never contains prompts, transcript text, tool
+payloads, finding text or friction prose. The report writes nothing, produces
+no score and changes no routing, budget or lifecycle policy; acting on it
+requires its own managed change.
+
 **Direct technical managed/OpenSpec path.** Preserve the existing path when the
 user explicitly supplies a managed Development Backlog Issue/OpenSpec task or
 explicitly asks to create a technical managed task. For technical authoring,

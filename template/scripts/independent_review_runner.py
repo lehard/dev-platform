@@ -9,7 +9,9 @@ runtime-enforced surface grants no repository write capability:
 
 The prompt is built only from the file-backed request, and the precomputed
 candidate diff lives in a temporary directory outside the repository.
-Prompts, stdout and stderr are never persisted.  A content snapshot of the
+Prompts, stdout and stderr are never persisted; only the runtime's
+structured usage counters are retained as a runtime-local ``runtime_usage``
+block on an available report.  A content snapshot of the
 task worktree and the integration checkout before and after every launch
 proves the reviewer did not write; any mutation, launch failure, timeout or
 malformed output yields an ``unavailable`` report with an actionable
@@ -286,6 +288,55 @@ def runtime_error(provider: str, stdout: str) -> str | None:
     return None
 
 
+CLAUDE_USAGE_FIELDS = ("input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens", "output_tokens")
+CLAUDE_RESULT_FIELDS = ("num_turns", "duration_ms", "duration_api_ms")
+# Codex runtime field names; model_routing normalizes cached_input_tokens to cache_read_tokens.
+CODEX_USAGE_FIELDS = {"input_tokens": "input_tokens", "cached_input_tokens": "cache_read_tokens", "output_tokens": "output_tokens"}
+
+
+def _usage_measurement(value: Any) -> dict[str, Any]:
+    if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+        return {"value": value, "source": "runtime-confirmed", "status": "measured"}
+    return {"value": None, "source": "unknown", "status": "unknown"}
+
+
+def runtime_usage(provider: str, stdout: str) -> dict[str, Any]:
+    """Retain the runtime-returned usage of one review launch, runtime-local.
+
+    Only integer counters from the runtime's structured result are kept, under
+    the runtime's own field names; Claude and Codex count cached input
+    differently, so nothing is mapped onto a cross-runtime field.  Monetary
+    fields are never retained, and an absent or malformed value is unknown.
+    """
+    fields: dict[str, dict[str, Any]] = {}
+    if provider == "claude":
+        try:
+            payload = json.loads(stdout)
+        except json.JSONDecodeError:
+            payload = None
+        payload = payload if isinstance(payload, dict) else {}
+        usage = payload.get("usage") if isinstance(payload.get("usage"), dict) else {}
+        fields.update({name: _usage_measurement(usage.get(name)) for name in CLAUDE_USAGE_FIELDS})
+        fields.update({name: _usage_measurement(payload.get(name)) for name in CLAUDE_RESULT_FIELDS})
+    elif provider == "codex":
+        import model_routing
+
+        events = [usage for line in stdout.splitlines() if (usage := model_routing._codex_usage_from_line(line)) is not None]
+        # More than one completion may be incremental or cumulative: unknown, never summed.
+        evidence = model_routing._codex_usage_evidence(events)
+        fields.update({name: _usage_measurement((evidence.get(normalized) or {}).get("value"))
+                       for name, normalized in CODEX_USAGE_FIELDS.items()})
+    return {"runtime": RUNTIMES.get(provider, "unresolved"), "fields": fields}
+
+
+def _launch_usage(provider: str, stdout: str) -> dict[str, Any]:
+    """Usage retention is informational: a parse failure never makes a review unavailable."""
+    try:
+        return runtime_usage(provider, stdout)
+    except Exception:
+        return {"runtime": RUNTIMES.get(provider, "unresolved"), "fields": {}}
+
+
 def parse_findings(raw: bytes) -> list[dict[str, str]]:
     try:
         payload = json.loads(raw.decode("utf-8"))
@@ -507,7 +558,7 @@ def dirty_candidate_paths(root: Path, change: Path, base_ref: str = "origin/main
 
 def _report(request: dict[str, Any], perspective: str, reviewer: dict[str, Any], *, launched_at: str,
             findings: list[dict[str, str]] | None = None, limitation: str | None = None,
-            output_sha256: str | None = None) -> dict[str, Any]:
+            output_sha256: str | None = None, usage: dict[str, Any] | None = None) -> dict[str, Any]:
     report: dict[str, Any] = {
         "schema_version": review.SCHEMA_VERSION,
         "perspective": perspective,
@@ -522,6 +573,8 @@ def _report(request: dict[str, Any], perspective: str, reviewer: dict[str, Any],
         report.update({"availability": "unavailable", "findings": [], "limitation": limitation})
     else:
         report.update({"availability": "available", "findings": findings or [], "output_sha256": output_sha256})
+        if usage is not None:
+            report["runtime_usage"] = usage
     return report
 
 
@@ -603,7 +656,7 @@ def run_perspective(
         reviewer["context_id"] = context
         reviewer["context_id_source"] = "runtime"
     return _report(request, perspective, reviewer, launched_at=launched_at, findings=findings,
-                   output_sha256=hashlib.sha256(raw).hexdigest())
+                   output_sha256=hashlib.sha256(raw).hexdigest(), usage=_launch_usage(provider, outcome.stdout))
 
 
 def candidate_diff(root: Path, merge_base: str, paths: list[str]) -> tuple[str, str | None]:

@@ -217,6 +217,79 @@ class IndependentReviewTests(unittest.TestCase):
         with self.assertRaises(runner.ReviewOutputError):
             runner.parse_claude_output(json.dumps({"is_error": True, "subtype": "error_max_turns"}))
 
+    # Runtime usage ------------------------------------------------------
+
+    def test_claude_runtime_usage_is_retained_runtime_local_without_cost(self) -> None:
+        self.write_config('provider = "claude"\n')
+        self.commit("claude provider")
+        binary = self.root.parent / f"{self.root.name}-claude"
+        binary.write_text("#!/bin/sh\n", encoding="utf-8")
+        binary.chmod(binary.stat().st_mode | stat.S_IEXEC)
+        self.addCleanup(binary.unlink)
+        stdout = json.dumps({
+            "type": "result", "is_error": False, "session_id": "session-usage", "structured_output": {"findings": []},
+            "usage": {"input_tokens": 12, "cache_read_input_tokens": 3400, "cache_creation_input_tokens": 56, "output_tokens": 78},
+            "num_turns": 4, "duration_ms": 9000, "duration_api_ms": 8000, "total_cost_usd": 0.42,
+        })
+        with mock.patch.dict(os.environ, {runner.CLAUDE_BIN_ENV: str(binary)}):
+            reports = self.run_review(FakeLauncher(claude_stdout=stdout))
+        usage = reports["spec-fidelity"]["runtime_usage"]
+        self.assertEqual(usage["runtime"], "claude-code-print")
+        self.assertEqual(usage["fields"]["cache_read_input_tokens"], {"value": 3400, "source": "runtime-confirmed", "status": "measured"})
+        self.assertEqual(usage["fields"]["num_turns"]["value"], 4)
+        self.assertEqual(usage["fields"]["duration_api_ms"]["value"], 8000)
+        self.assertNotIn("total_cost_usd", usage["fields"])
+        self.assertNotIn("cost", json.dumps(usage))
+        self.assertEqual(self.state()["state"], "ready")
+        review.validate_evidence(self.root, self.change)
+
+    def test_malformed_or_missing_runtime_usage_is_unknown_never_zero(self) -> None:
+        malformed = runner.runtime_usage("claude", json.dumps({
+            "usage": {"input_tokens": -1, "cache_read_input_tokens": True, "output_tokens": "7"}, "num_turns": 1.5,
+        }))
+        self.assertTrue(all(item == {"value": None, "source": "unknown", "status": "unknown"} for item in malformed["fields"].values()))
+        self.assertEqual(runner.runtime_usage("claude", "not json")["fields"]["output_tokens"]["status"], "unknown")
+        self.assertEqual(runner.runtime_usage("unsupported", "{}"), {"runtime": "unresolved", "fields": {}})
+
+    def test_codex_runtime_usage_follows_the_single_completion_rule(self) -> None:
+        completed = json.dumps({"type": "turn.completed", "usage": {"input_tokens": 100, "cached_input_tokens": 60, "output_tokens": 9}})
+        started = json.dumps({"type": "thread.started", "thread_id": "t"})
+        single = runner.runtime_usage("codex", f"{started}\n{completed}\n")
+        self.assertEqual(single["runtime"], "codex-exec")
+        self.assertEqual(single["fields"]["cached_input_tokens"]["value"], 60)
+        self.assertEqual(set(single["fields"]), {"input_tokens", "cached_input_tokens", "output_tokens"})
+        twice = runner.runtime_usage("codex", f"{completed}\n{completed}\n")
+        self.assertTrue(all(item["status"] == "unknown" and item["value"] is None for item in twice["fields"].values()))
+        none = runner.runtime_usage("codex", started)
+        self.assertTrue(all(item["status"] == "unknown" for item in none["fields"].values()))
+
+    def test_codex_review_without_usage_events_still_passes_with_unknown_usage(self) -> None:
+        reports = self.run_review(FakeLauncher())
+        for report in reports.values():
+            self.assertEqual(report["availability"], "available")
+            self.assertTrue(all(item["status"] == "unknown" for item in report["runtime_usage"]["fields"].values()))
+        self.assertEqual(self.state()["state"], "ready")
+
+    def test_report_validation_accepts_reports_with_without_or_with_malformed_usage(self) -> None:
+        request = {"request_id": "r", "candidate": {"base_ref": "origin/main"}}
+        base = {
+            "schema_version": review.SCHEMA_VERSION, "perspective": "spec-fidelity", "request_id": "r",
+            "candidate": {"base_ref": "origin/main"}, "availability": "available", "findings": [],
+            "reviewer": {"runtime": "claude-code-print", "context_id": "c", "fresh_context": True, "write_access": False},
+        }
+        for usage in (None, {"runtime": "claude-code-print", "fields": {"num_turns": {"value": 2, "source": "runtime-confirmed", "status": "measured"}}}, "broken"):
+            report = dict(base) if usage is None else {**base, "runtime_usage": usage}
+            self.assertEqual(review._validate_report(report, request, "spec-fidelity"), [])
+        self.assertEqual(review.read_runtime_usage(base)["status"], "unknown")
+        self.assertEqual(review.read_runtime_usage(base)["reason"], "historical-record-without-field")
+        self.assertEqual(review.read_runtime_usage({**base, "runtime_usage": "broken"})["status"], "unknown")
+        measured = review.read_runtime_usage({**base, "runtime_usage": {"runtime": "claude-code-print", "fields": {
+            "num_turns": {"value": 2, "source": "runtime-confirmed", "status": "measured"},
+            "output_tokens": {"value": -3, "source": "runtime-confirmed", "status": "measured"},
+        }}})
+        self.assertEqual(measured["status"], "measured")
+        self.assertEqual(measured["fields"]["output_tokens"], {"value": None, "source": "unknown", "status": "unknown"})
+
     def test_provider_defaults_to_task_route_and_unknown_route_is_unavailable(self) -> None:
         self.write_config("")
         self.commit("no explicit provider")
