@@ -2,10 +2,10 @@
   "candidate": {
     "base_head": "af10f92d31c0e6079675cf187c45365eca3a2545",
     "base_ref": "origin/main",
-    "candidate_head": "b1cd2f338434a8dd141e7a54c1e72f56f06bfacd",
-    "diff_sha256": "c1d0f2c55ba4b1884b06e5aab82ee55638f0c7768c34e890e991fad8dfb01753"
+    "candidate_head": "49318c67b586f9b73f7a75fa855ee429a0bf9788",
+    "diff_sha256": "23cb64efd5a139d5243552f833265fd42acce2a925b6aaff560fab227466196f"
   },
-  "change": "openspec/changes/mandatory-independent-review-gate",
+  "change": "openspec/changes/archive/2026-09-30-mandatory-independent-review-gate",
   "fresh_context_required": true,
   "perspectives": {
     "engineering-quality": {
@@ -14,32 +14,32 @@
         "AGENTS.md",
         "docs/engineering/agent-workflow.md",
         "docs/engineering/openspec-workflow.md",
-        "openspec/changes/mandatory-independent-review-gate/design.md",
-        "openspec/changes/mandatory-independent-review-gate/proposal.md",
-        "openspec/changes/mandatory-independent-review-gate/specs/completion-lifecycle/spec.md",
-        "openspec/changes/mandatory-independent-review-gate/tasks.md"
+        "openspec/changes/archive/2026-09-30-mandatory-independent-review-gate/design.md",
+        "openspec/changes/archive/2026-09-30-mandatory-independent-review-gate/proposal.md",
+        "openspec/changes/archive/2026-09-30-mandatory-independent-review-gate/specs/completion-lifecycle/spec.md",
+        "openspec/changes/archive/2026-09-30-mandatory-independent-review-gate/tasks.md"
       ]
     },
     "spec-fidelity": {
       "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
       "paths": [
-        "openspec/changes/mandatory-independent-review-gate/proposal.md",
-        "openspec/changes/mandatory-independent-review-gate/design.md",
-        "openspec/changes/mandatory-independent-review-gate/tasks.md",
-        "openspec/changes/mandatory-independent-review-gate/specs/completion-lifecycle/spec.md"
+        "openspec/changes/archive/2026-09-30-mandatory-independent-review-gate/proposal.md",
+        "openspec/changes/archive/2026-09-30-mandatory-independent-review-gate/design.md",
+        "openspec/changes/archive/2026-09-30-mandatory-independent-review-gate/tasks.md",
+        "openspec/changes/archive/2026-09-30-mandatory-independent-review-gate/specs/completion-lifecycle/spec.md"
       ]
     }
   },
-  "prepared_at": "2026-09-30T08:39:24+00:00",
+  "prepared_at": "2026-09-30T08:53:36+00:00",
   "report_contract": {
-    "output_directory": "openspec/changes/mandatory-independent-review-gate/independent-reviews",
+    "output_directory": "openspec/changes/archive/2026-09-30-mandatory-independent-review-gate/independent-reviews",
     "required_perspectives": [
       "spec-fidelity",
       "engineering-quality"
     ],
     "schema_version": 1
   },
-  "request_id": "2460550f-1197-4b1e-bdc9-6b7e3e102ffa",
+  "request_id": "86a2edb4-3b27-430e-bfed-739b9735dd17",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -52,7 +52,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "af10f92d31c0e6079675cf187c45365eca3a2545",
-    "digest": "eed35b4d0348a789b217b7aeb7356a187f84642106939a5cccaacd04c10f0303",
+    "digest": "23b1a4ba7fe7d0e3fd0364107e235d9f7622d9390fa5e236f48d861c42c1207a",
     "paths": {
       "docs/engineering/model-routing.md": "9a871e20191ca75c7fada60991548e5325478250",
       "docs/engineering/openspec-workflow.md": "8dcbec6c5d95de0b85573b181298d1ec48559ff8",
@@ -69,9 +69,10 @@
       "template/scripts/finish_task.py": "c1d8bea846cebb86811ca1f13bc1238b5de0be21",
       "template/scripts/independent_review.py": "c5a9fc295ecde195eb36f514f1a1b21d2bfdbf03",
       "template/scripts/independent_review_runner.py": "4fca5aabafd46125697d1659021d93b4db4341cb",
-      "template/scripts/openspec_lifecycle.py": "d969ee9e17c1ea912259dd65b3b994244a7d34f3",
+      "template/scripts/openspec_lifecycle.py": "f3dc8f0c4cef91fe8ed4f85e8f88f45428900167",
       "template/scripts/task_content_identity.py": "f143372e09f61400638d9e6fccbcb1fffcadfd84",
       "tests/test_independent_review.py": "46d931256fa4e7408e89d4f76721ab7c691ee80e",
+      "tests/test_openspec_lifecycle.py": "85d45a3a6018a72d25dee1642abd80f9c24a48dc",
       "tests/test_shared_writer_guard.py": "00930f815dd0024c625833727baaeb7145da1dbc"
     },
     "scope": "independent-review-v1",

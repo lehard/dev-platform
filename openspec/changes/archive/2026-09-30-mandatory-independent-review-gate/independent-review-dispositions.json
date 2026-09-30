@@ -1,0 +1,14 @@
+{
+  "dispositions": [
+    {
+      "finding": "review-evidence-stale-for-final-candidate",
+      "perspective": "spec-fidelity",
+      "rationale": "The stale files the reviewer read are the previous run's committed evidence, which this very run replaces: the reports carrying this finding are bound to candidate 49318c6 (current HEAD, task-content digest recomputed with lifecycle exclusions), and automated-checks.json is refreshed immediately after and committed alone, per the post-archive evidence order. Lifecycle evidence is excluded from the candidate identity by design; its presence in the reviewer diff is a known tooling gap recorded as friction f0a1f7276904.",
+      "recorded_at": "2026-09-30T08:55:09+00:00",
+      "report_sha256": "1a1ab1ac06db6aca079da5626bf6c46e9a876d99a75fdf0c9ba189c2790472fd",
+      "request_id": "86a2edb4-3b27-430e-bfed-739b9735dd17",
+      "status": "rejected"
+    }
+  ],
+  "schema_version": 1
+}

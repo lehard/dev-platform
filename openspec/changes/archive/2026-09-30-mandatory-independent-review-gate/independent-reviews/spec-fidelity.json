@@ -3,30 +3,36 @@
   "candidate": {
     "base_head": "af10f92d31c0e6079675cf187c45365eca3a2545",
     "base_ref": "origin/main",
-    "candidate_head": "b1cd2f338434a8dd141e7a54c1e72f56f06bfacd",
-    "diff_sha256": "c1d0f2c55ba4b1884b06e5aab82ee55638f0c7768c34e890e991fad8dfb01753"
+    "candidate_head": "49318c67b586f9b73f7a75fa855ee429a0bf9788",
+    "diff_sha256": "23cb64efd5a139d5243552f833265fd42acce2a925b6aaff560fab227466196f"
   },
-  "completed_at": "2026-09-30T08:39:53+00:00",
+  "completed_at": "2026-09-30T08:54:11+00:00",
   "findings": [
     {
-      "evidence": "proposal.md: 'dev-platform requires review for managed changes'. tasks.md task 5 is checked: 'Enable review for dev-platform managed changes'. design.md 'Scope and compatibility' says `.dev-platform.toml` is machine-local, excluded from the candidate, and the flag is 'applied to the integration checkout's copy once this change merges'. The diff contains no `.dev-platform.toml` change; only `template/.dev-platform.toml.jinja` changes, and it keeps `enabled = false`. The design documents this, but the proposal and task wording overstate what the candidate delivers.",
-      "id": "central-enablement-not-in-candidate",
-      "severity": "advisory",
-      "summary": "The proposal and tasks.md say dev-platform requires review for managed changes and mark the enablement task done. The candidate does not enable review for the central repository, so the gate is not mandatory there until an operator edits a machine-local file after merge."
+      "evidence": "independent-review-request.json (candidate diff ~line 358-380) records task_content digest eed35b4d... and candidate_head b1cd2f3. It lists template/scripts/openspec_lifecycle.py at blob d969ee9 and has no entry for tests/test_openspec_lifecycle.py. The candidate diff shows openspec_lifecycle.py ending at blob f3dc8f0 (line 2233, 'index 6504b55..f3dc8f0'). The diff also adds tests/test_openspec_lifecycle.py (line 3097). automated-checks.json likewise records head b1cd2f3, task_content digest d01844a0..., and the same d969ee9 blob, with no test_openspec_lifecycle.py path. The task-content digest for the candidate is 23b1a4ba..., which matches neither recorded digest. verification.md 'Post-archive integration fix' (diff ~line 694) says the review was rerun and the automated evidence refreshed after that fix. The review reports still carry candidate_head b1cd2f3. The worktree also shows the request file as modified. Under the 'Candidate changes after review preparation' scenario and require_publication_review_evidence, this evidence should be rejected as stale.",
+      "id": "review-evidence-stale-for-final-candidate",
+      "severity": "material",
+      "summary": "The committed review evidence and automated-checks record describe an earlier candidate (b1cd2f3), not the final head. The final head's 49318c6 fix changed openspec_lifecycle.py and tests/test_openspec_lifecycle.py. The spec requires evidence to bind to the current task content and requires a fresh review after any task-owned change. The verification.md claim that the review and evidence were rerun on the archived change is contradicted by the committed files."
     },
     {
-      "evidence": "The spec scenario 'New session resumes' says a new session reading 'task status or Requirement advance' sees the review state and exact next command. The execute_requirement.py hunk adds `\"independent_review\": _child_review_state(...)` only in the `status: implement-child` payload. verification.md concedes: 'review state is surfaced on the resume points (`implement-child`, task status) rather than every advance outcome'. The gap is disclosed, so it is advisory.",
+      "evidence": "Spec scenario 'New session resumes'. The execute_requirement.py hunk at diff lines 966-976 adds the field only to the implement-child payload. verification.md line 683 lists it as an accepted limitation.",
       "id": "advance-review-state-only-on-implement-child",
       "severity": "advisory",
-      "summary": "The spec requires Requirement advance to expose the derived review state and next command. The candidate adds `independent_review` only to the `implement-child` outcome in execute_requirement.py; other advance outcomes carry no review state."
+      "summary": "The spec says Requirement advance exposes the review state and next command. The candidate adds `independent_review` only to the `implement-child` outcome of execute_requirement.advance. verification.md discloses the gap."
+    },
+    {
+      "evidence": "proposal.md line 529 and tasks.md task 5 are marked [x]. design.md 'Scope and compatibility' says the flag is applied to the integration checkout's copy after merge. The diff contains no tracked .dev-platform.toml change.",
+      "id": "central-enablement-not-in-candidate",
+      "severity": "advisory",
+      "summary": "The proposal ('dev-platform requires review') and the checked task 5 ('Enable review for dev-platform managed changes') claim enablement. The candidate enables nothing centrally, because only template/.dev-platform.toml.jinja changes and it keeps enabled=false. design.md admits the flag is applied after merge to a machine-local file, so the gate is not mandatory in the central repository from this candidate alone."
     }
   ],
-  "launched_at": "2026-09-30T08:39:26+00:00",
-  "output_sha256": "7b0c3e692c316af87340af29ef40185e2b4fdbbcb6ed42227911c5c71acca92a",
+  "launched_at": "2026-09-30T08:53:38+00:00",
+  "output_sha256": "ef24922735320424dc80c9f3b9f7beaccb1b42b6319e8587ff2aad5ff4a03498",
   "perspective": "spec-fidelity",
-  "request_id": "2460550f-1197-4b1e-bdc9-6b7e3e102ffa",
+  "request_id": "86a2edb4-3b27-430e-bfed-739b9735dd17",
   "reviewer": {
-    "context_id": "72d6f7af-cc84-4652-979c-e0335c47ee40",
+    "context_id": "b1e17118-dc6c-4cb9-a1c4-5974141e6460",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
@@ -40,5 +46,5 @@
     "write_access": false
   },
   "schema_version": 1,
-  "task_content_digest": "eed35b4d0348a789b217b7aeb7356a187f84642106939a5cccaacd04c10f0303"
+  "task_content_digest": "23b1a4ba7fe7d0e3fd0364107e235d9f7622d9390fa5e236f48d861c42c1207a"
 }
