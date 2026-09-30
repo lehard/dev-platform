@@ -119,6 +119,77 @@ class RequirementIntegrationTests(unittest.TestCase):
         with self.assertRaisesRegex(integration.RequirementIntegrationError, "digest"):
             integration.read_receipt(receipt_path)
 
+    def advanced_payload(self, branch: str, change: str, source_issue: str) -> dict:
+        """Advance a child branch by one commit and create its new ready payload."""
+        git(self.root, "switch", branch)
+        (self.root / f"{branch}-later.txt").write_text("later\n", encoding="utf-8")
+        git(self.root, "add", f"{branch}-later.txt")
+        git(self.root, "commit", "-m", f"{branch} later")
+        archive = self.root / "openspec" / "changes" / "archive" / f"2026-09-23-{change}"
+        (self.root / ".managed-task-state.json").write_text(
+            json.dumps({"source_issue": source_issue, "change": change}), encoding="utf-8"
+        )
+        try:
+            return integration.create_receipt(
+                self.root, requirement="acme/backlog#7", source_issue=source_issue, change=change,
+                archived_contract=archive, verification_receipt=archive / "verification.md",
+            )
+        finally:
+            (self.root / ".managed-task-state.json").unlink()
+            git(self.root, "switch", "main")
+
+    @staticmethod
+    def resigned(payload: dict, **changes: str) -> dict:
+        unsigned = {key: value for key, value in payload.items() if key != "digest"}
+        unsigned.update(changes)
+        return {**unsigned, "digest": integration._digest(unsigned)}
+
+    def test_own_stale_receipt_is_superseded_on_strict_ancestor_advancement(self) -> None:
+        old_head, receipt_path = self.child("one", "one.txt")
+        payload = self.advanced_payload("one", "one", "acme/backlog#8")
+        self.assertNotEqual(payload["head"], old_head)
+        self.assertEqual(integration.superseded_receipt_head(receipt_path, payload, root=self.root), old_head)
+        receipt = integration.write_receipt(receipt_path, payload, root=self.root)
+        self.assertEqual(integration.read_receipt(receipt_path).head, receipt.head)
+        self.assertEqual(receipt.head, payload["head"])
+        # Rewriting the identical receipt stays idempotent and supersedes nothing.
+        self.assertIsNone(integration.superseded_receipt_head(receipt_path, payload, root=self.root))
+        integration.write_receipt(receipt_path, payload)
+        # The older receipt can never replace its successor.
+        original = self.resigned(payload, head=old_head)
+        with self.assertRaisesRegex(integration.RequirementIntegrationError, "not an ancestor"):
+            integration.write_receipt(receipt_path, original, root=self.root)
+
+    def test_receipt_supersession_refuses_foreign_ambiguous_or_unprovable_receipts(self) -> None:
+        old_head, receipt_path = self.child("one", "one.txt")
+        two_head, _ = self.child("two", "two.txt")
+        stored = receipt_path.read_text(encoding="utf-8")
+        payload = self.advanced_payload("one", "one", "acme/backlog#8")
+        cases = [
+            ("different Requirement", receipt_path, self.resigned(payload, requirement="acme/backlog#70"), self.root),
+            ("different Requirement", receipt_path, self.resigned(payload, source_issue="acme/backlog#80"), self.root),
+            ("different Requirement", receipt_path, self.resigned(payload, source_branch="agent/other"), self.root),
+            ("not an ancestor", receipt_path, self.resigned(payload, head=two_head), self.root),
+            ("same head", receipt_path,
+             self.resigned(json.loads(stored), archived_contract="openspec/changes/archive/2026-09-24-one"), self.root),
+            ("no child repository", receipt_path, payload, None),
+        ]
+        for reason, path, candidate, root in cases:
+            with self.subTest(reason=reason):
+                with self.assertRaisesRegex(integration.RequirementIntegrationError, f"refusing to replace.*{reason}"):
+                    integration.write_receipt(path, candidate, root=root)
+                self.assertEqual(receipt_path.read_text(encoding="utf-8"), stored, "a refused write changes nothing")
+        unresolvable = self.resigned(json.loads(stored), head="f" * 40)
+        receipt_path.write_text(json.dumps(unresolvable), encoding="utf-8")
+        with self.assertRaisesRegex(integration.RequirementIntegrationError, "not resolvable"):
+            integration.write_receipt(receipt_path, payload, root=self.root)
+        receipt_path.write_text("{not json", encoding="utf-8")
+        with self.assertRaisesRegex(integration.RequirementIntegrationError, "unreadable or invalid"):
+            integration.write_receipt(receipt_path, payload, root=self.root)
+        receipt_path.write_text(stored.replace(old_head, "e" * 40), encoding="utf-8")
+        with self.assertRaisesRegex(integration.RequirementIntegrationError, "unreadable or invalid.*digest"):
+            integration.write_receipt(receipt_path, payload, root=self.root)
+
     def test_assembly_binds_ordered_heads_and_rejects_overlap(self) -> None:
         one, one_receipt = self.child("one", "one.txt")
         two, two_receipt = self.child("two", "two.txt")

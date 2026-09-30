@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/completion-lifecycle/spec.md",
+    "specs/agent-workflow/spec.md"
+  ],
+  "change": "stabilize-independent-review-cycles",
+  "imported_at": "2026-09-30T10:40:35+00:00",
+  "package_revision": "317983c3cafb218cf9104255b6549eb5c4843961d28b23ca4de75cb43cf8f83f",
+  "prepared_against": "a1ef1623892572d023fe1ff7ab896e078b5ebfa9",
+  "private_lineage_handle": "pln_0bfa9b6ee779fb833f143ef0c5d88423",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "7ffbe65fea246a3b12cb8342970ac7198918d9fc7089e00458c6233a18a168a1",
+    "updated_at": "2026-09-30T10:39:18Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

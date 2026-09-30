@@ -126,6 +126,12 @@ reconciliation checks the target again before marking the parent Done.
    user-facing stop or manual child list. With one child it uses ordinary managed publication and reconciles the parent after the exact child merge. With two or more ready children requiring joint delivery it composes and publishes a shared candidate through the protected path.
    A verified clean ready child releases only its own active board writer
    claim; its worktree, Issue and receipt remain for shared publication.
+   When a failed earlier attempt left this lifecycle's own ready receipt for
+   an older head, `advance` supersedes it only when that receipt is valid,
+   names the identical Requirement, child Issue, change and source branch, and
+   its head is a strict ancestor of the new child head in the child worktree;
+   the result lists it under `superseded_receipts`. A foreign, unreadable,
+   divergent or same-head-different receipt stays a blocker.
    Potential same-project duplicates require an explicit reviewed
    `--confirm-distinct`; a material contract conflict still stops. OpenSpec
    becomes canonical only for each technical child after materialization.

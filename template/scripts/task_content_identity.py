@@ -123,6 +123,33 @@ def review_exclusion(root: Path, change: str, base_ref: str = "origin/main") -> 
     return exclude
 
 
+def review_path_partition(
+    root: Path, change: str, base_ref: str = "origin/main", merge_base: str | None = None,
+) -> tuple[list[str], list[str]] | None:
+    """Split changed paths into ``(reviewed, excluded_lifecycle)`` raw paths.
+
+    The reviewed set is exactly what ``review_content_identity`` binds, so what
+    a reviewer sees and what invalidates its evidence stay the same set.
+    Renames are listed as a deletion plus an addition so the reviewer also sees
+    removed task content.  Returns ``None`` when the diff cannot be listed.
+    """
+    if merge_base is None:
+        base = run_git(["merge-base", "HEAD", base_ref], cwd=root, check=False)
+        if base.returncode != 0 or not base.stdout.strip():
+            return None
+        merge_base = base.stdout.strip()
+    # ``-z`` yields unquoted names, safe for literal pathspecs.
+    changed = run_git(["diff", "--name-only", "--no-renames", "-z", f"{merge_base}...HEAD"], cwd=root, check=False)
+    if changed.returncode != 0:
+        return None
+    exclude = review_exclusion(root, change, base_ref)
+    reviewed: list[str] = []
+    excluded: list[str] = []
+    for raw in sorted(dict.fromkeys(item for item in changed.stdout.split("\0") if item)):
+        (excluded if exclude(_canonical_path(raw, change), raw) else reviewed).append(raw)
+    return reviewed, excluded
+
+
 def review_content_identity(root: Path, change: str, base_ref: str = "origin/main") -> dict[str, object] | None:
     """Task-content identity that independent review evidence binds to."""
     return content_identity(

@@ -1,0 +1,84 @@
+{
+  "candidate": {
+    "base_head": "a1ef1623892572d023fe1ff7ab896e078b5ebfa9",
+    "base_ref": "origin/main",
+    "candidate_head": "6512e3142b917063615773e3099d002fb52a4e76",
+    "diff_sha256": "907f70779ee51a462a224c8d8876b1a4850799e6b48bf5769130ad482d36de26"
+  },
+  "change": "openspec/changes/stabilize-independent-review-cycles",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/stabilize-independent-review-cycles/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/stabilize-independent-review-cycles/design.md",
+        "openspec/changes/stabilize-independent-review-cycles/proposal.md",
+        "openspec/changes/stabilize-independent-review-cycles/specs/agent-workflow/spec.md",
+        "openspec/changes/stabilize-independent-review-cycles/specs/completion-lifecycle/spec.md",
+        "openspec/changes/stabilize-independent-review-cycles/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/stabilize-independent-review-cycles/proposal.md",
+        "openspec/changes/stabilize-independent-review-cycles/design.md",
+        "openspec/changes/stabilize-independent-review-cycles/tasks.md",
+        "openspec/changes/stabilize-independent-review-cycles/specs/agent-workflow/spec.md",
+        "openspec/changes/stabilize-independent-review-cycles/specs/completion-lifecycle/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-09-30T11:09:21+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/stabilize-independent-review-cycles/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "9fb31452-edaa-415d-becf-ae47fc4fc09d",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "a1ef1623892572d023fe1ff7ab896e078b5ebfa9",
+    "digest": "f1e4192270dde56aa15f8c79dcdc274efdca62add313b07aaf4a86ce7caa80db",
+    "paths": {
+      "docs/engineering/openspec-workflow.md": "c2e6b80c15af66914c2ed943df12d2aa749e5e10",
+      "docs/engineering/task-intake.md": "f079c4732a6e199b53c198efbba0a79d1f13527f",
+      "openspec/changes/stabilize-independent-review-cycles/.managed-task.json": "24b20b9533fe09fdd3ce1ed08a672ed5445cfd5c",
+      "openspec/changes/stabilize-independent-review-cycles/.openspec.yaml": "1aca8b9150ef1888644e4286168d66eab4c6afb7",
+      "openspec/changes/stabilize-independent-review-cycles/design.md": "21dde2ca41e56abecc72d14d2055adb8db6df672",
+      "openspec/changes/stabilize-independent-review-cycles/proposal.md": "05f0caa99c78607fded8ff8fa448c4464f73864f",
+      "openspec/changes/stabilize-independent-review-cycles/specs/agent-workflow/spec.md": "60969cde5a80f29f8119584fd5eacd37d7d3d181",
+      "openspec/changes/stabilize-independent-review-cycles/specs/completion-lifecycle/spec.md": "69e2400e8fa6e2fe2334b4d99ce289b54098d40a",
+      "openspec/changes/stabilize-independent-review-cycles/tasks.md": "eea051c0cbf5185e509270ca1fb917c4b6b3e4dd",
+      "template/docs/engineering/openspec-workflow.md": "eb150c5454a6512c8a888c7ec3c446f7cb24a11c",
+      "template/scripts/execute_requirement.py": "c3a379bbe5de459062fc39afa51c95eba67504d7",
+      "template/scripts/independent_review.py": "3be1a76d2625582f3c3aaae0a393a6acd5a21c66",
+      "template/scripts/independent_review_runner.py": "60c4a7e7bbb5fa1ab4649d578129e6bba6b6701c",
+      "template/scripts/requirement_integration.py": "1c7737858e1c08e3419ff9ae5f83729c4893071d",
+      "template/scripts/task_content_identity.py": "f5322489e878cb31118e08281f2e5f5ee0eec4b0",
+      "tests/test_independent_review.py": "5374c9f1b16f665190198bfb80c1aff4216c1e2b",
+      "tests/test_requirement_execution.py": "4854ca7e2a0fc11c1bd3b1c3db889afe540ca762",
+      "tests/test_requirement_integration.py": "b6028aa095abb04a7370a65abcfbe522909dae78"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

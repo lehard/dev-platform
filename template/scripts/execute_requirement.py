@@ -121,7 +121,7 @@ def _linked_children_by_change(integration: Path, requirement: str, parent: dict
 
 def _ready_receipt(
     integration: Path, receipt_dir: Path, requirement: str, child: str, change: str,
-    *, release_claim: bool = True,
+    *, release_claim: bool = True, superseded: list[dict[str, str]] | None = None,
 ) -> tuple[Path, requirement_integration.ReadyForIntegrationReceipt] | None:
     branch = f"agent/{change}"
     worktree = machine_path("worktrees", integration) / change
@@ -136,7 +136,15 @@ def _ready_receipt(
         archived_contract=archive, verification_receipt=archive / "verification.md",
     )
     path = receipt_dir / f"{change}.json"
-    receipt = requirement_integration.write_receipt(path, payload)
+    # A failed earlier attempt may have left this lifecycle's own receipt for an
+    # ancestor head; supersede it only on proven advancement in the child worktree.
+    previous = requirement_integration.superseded_receipt_head(path, payload, root=worktree)
+    receipt = requirement_integration.write_receipt(path, payload, root=worktree)
+    if previous is not None and superseded is not None:
+        superseded.append({
+            "source_issue": child, "change": change, "receipt": str(path),
+            "superseded_head": previous, "head": receipt.head,
+        })
     if release_claim:
         _release_ready_claim(integration, worktree, receipt)
     return path, receipt
@@ -229,6 +237,12 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
             raise RequirementExecutionError(f"historical linked child {historical_child} is not terminal")
         _done_child_is_delivered(integration, historical_child, historical_change)
     receipt_dir = integration / ".claude" / "requirement-integration" / f"requirement-{requirement.rsplit('#', 1)[1]}"
+    superseded: list[dict[str, str]] = []
+
+    def audited(result: dict[str, Any]) -> dict[str, Any]:
+        # Replaced own stale receipts are reported for operator audit.
+        return {**result, "superseded_receipts": list(superseded)} if superseded else result
+
     ready: list[Path] = []
     completed: list[str] = []
     receipts_by_change: dict[str, Path] = {}
@@ -250,7 +264,7 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
             continue
         existing = _ready_receipt(
             integration, receipt_dir, requirement, child, change,
-            release_claim=len(ordered) > 1,
+            release_claim=len(ordered) > 1, superseded=superseded,
         )
         if existing is not None:
             path, _ = existing
@@ -267,16 +281,17 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
             integration, child, base_child_receipt=predecessor,
         )
         requirement_board.reconcile_nonterminal(integration, requirement=requirement)
-        return {
+        return audited({
             "status": "implement-child", "requirement": requirement, "child": child,
             "change": change, "worktree": str(started.task_root),
             "predecessor_receipt": str(predecessor) if predecessor else None,
             "independent_review": _child_review_state(Path(started.task_root), child, change),
             "next": (
                 "Perform routed bounded implementation, verify, archive and commit; rerun execute_requirement.py advance. "
-                "When independent review is required, archive runs it automatically; follow independent_review.next if it is blocked."
+                "When independent review is required, archive runs it automatically; follow independent_review.next if it is blocked. "
+                f"Check reviewer runtime readiness after routing with: python3 scripts/independent_review.py preflight {change}"
             ),
-        }
+        })
     if len(ordered) == 1:
         if ready:
             requirement_retrospective.require_checkpoint(integration, requirement=requirement)
@@ -287,10 +302,10 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
             if result.returncode:
                 raise RequirementExecutionError(f"single-child managed finish did not complete (exit {result.returncode})")
         from requirement_terminal import reconcile_parent
-        return reconcile_parent(integration, requirement=requirement)
+        return audited(reconcile_parent(integration, requirement=requirement))
     if len(ready) < 2:
         if not ready and completed:
-            return {"status": "already-delivered", "requirement": requirement, "children": completed}
+            return audited({"status": "already-delivered", "requirement": requirement, "children": completed})
         raise RequirementExecutionError("shared delivery requires at least two verified nonterminal child receipts")
     requirement_retrospective.require_checkpoint(integration, requirement=requirement)
     base = _git(integration, "rev-parse", "HEAD")
@@ -302,7 +317,7 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
         integration, manifest=manifest, receipt_paths=ready, worktree=candidate, branch=branch,
     )
     result = requirement_integration.publish_candidate(candidate, manifest=manifest, receipt_paths=ready)
-    return {**result, "completed_before_shared_integration": completed}
+    return audited({**result, "completed_before_shared_integration": completed})
 
 
 def main() -> int:
