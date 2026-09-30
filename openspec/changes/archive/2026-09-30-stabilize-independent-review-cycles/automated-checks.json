@@ -1,0 +1,91 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 1.309,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 1.633,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 514.203,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/execute_requirement.py",
+        "template/scripts/independent_review.py",
+        "template/scripts/independent_review_runner.py",
+        "template/scripts/requirement_integration.py",
+        "template/scripts/task_content_identity.py",
+        "tests/test_independent_review.py",
+        "tests/test_requirement_execution.py",
+        "tests/test_requirement_integration.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_0bfa9b6ee779fb833f143ef0c5d88423",
+    "change": "stabilize-independent-review-cycles",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/stabilize-independent-review-cycles",
+    "branch": "agent/stabilize-independent-review-cycles",
+    "head": "6512e3142b917063615773e3099d002fb52a4e76",
+    "task_content": {
+      "version": 1,
+      "digest": "455844f624f29bf3ecf88dcf637392c524ec373aa0ce5e10c3c15b596fccbe29",
+      "paths": {
+        "docs/engineering/openspec-workflow.md": "c2e6b80c15af66914c2ed943df12d2aa749e5e10",
+        "docs/engineering/task-intake.md": "f079c4732a6e199b53c198efbba0a79d1f13527f",
+        "openspec/changes/stabilize-independent-review-cycles/.managed-task.json": "24b20b9533fe09fdd3ce1ed08a672ed5445cfd5c",
+        "openspec/changes/stabilize-independent-review-cycles/.openspec.yaml": "1aca8b9150ef1888644e4286168d66eab4c6afb7",
+        "openspec/changes/stabilize-independent-review-cycles/design.md": "21dde2ca41e56abecc72d14d2055adb8db6df672",
+        "openspec/changes/stabilize-independent-review-cycles/proposal.md": "05f0caa99c78607fded8ff8fa448c4464f73864f",
+        "openspec/changes/stabilize-independent-review-cycles/specs/agent-workflow/spec.md": "60969cde5a80f29f8119584fd5eacd37d7d3d181",
+        "openspec/changes/stabilize-independent-review-cycles/specs/completion-lifecycle/spec.md": "69e2400e8fa6e2fe2334b4d99ce289b54098d40a",
+        "openspec/changes/stabilize-independent-review-cycles/tasks.md": "eea051c0cbf5185e509270ca1fb917c4b6b3e4dd",
+        "openspec/changes/stabilize-independent-review-cycles/verification.md": "905d6facaf20fc410d20e328ac49e230976b4652",
+        "template/docs/engineering/openspec-workflow.md": "eb150c5454a6512c8a888c7ec3c446f7cb24a11c",
+        "template/scripts/execute_requirement.py": "c3a379bbe5de459062fc39afa51c95eba67504d7",
+        "template/scripts/independent_review.py": "3be1a76d2625582f3c3aaae0a393a6acd5a21c66",
+        "template/scripts/independent_review_runner.py": "60c4a7e7bbb5fa1ab4649d578129e6bba6b6701c",
+        "template/scripts/requirement_integration.py": "1c7737858e1c08e3419ff9ae5f83729c4893071d",
+        "template/scripts/task_content_identity.py": "f5322489e878cb31118e08281f2e5f5ee0eec4b0",
+        "tests/test_independent_review.py": "5374c9f1b16f665190198bfb80c1aff4216c1e2b",
+        "tests/test_requirement_execution.py": "4854ca7e2a0fc11c1bd3b1c3db889afe540ca762",
+        "tests/test_requirement_integration.py": "b6028aa095abb04a7370a65abcfbe522909dae78"
+      },
+      "base": "a1ef1623892572d023fe1ff7ab896e078b5ebfa9"
+    }
+  }
+}
