@@ -1,0 +1,20 @@
+## Why
+
+Lifecycle facts about a Business Requirement already exist but are scattered: Requirement/child links on the Development Backlog, pre-authoring evidence, managed provenance and routing/execution records, archived verification and automated-check evidence, independent review evidence, PR/publication and GitHub Actions state, and the local friction log. Without one read-only view it is not possible to judge harness changes by their end-to-end effect. After mandatory independent review became a lifecycle gate, its real cost (review rounds, reviewer launches, wall time, reruns and the validation/CI cycles they trigger) is visible only by reading PR histories by hand. Reviewer runtime usage is returned by the runtime at every review launch but is discarded, so it can never be recovered afterwards.
+
+## What Changes
+
+- Add `python3 scripts/requirement_metrics.py report --requirement owner/repo#N` (JSON by default, `--format text` summary): a read-only, on-demand report of one Requirement's end-to-end execution: cycle time and observed stage timestamps, linked children, per-child start tier/task family, supervisor and executor provenance, escalations, verification and full-validation cycles, independent review cost, PR/publication cycles, CI runs and CI wall time, friction occurrences, recorded human stops, provider usage where it was recorded, and runtime-local session-quality counters.
+- Add `python3 scripts/requirement_metrics.py aggregate` over explicit Requirements or closed Requirements since a date. It shows the Requirements side by side, groups comparable subsets by child count, task family and start tier, keeps runtime/provider-specific metrics inside their own runtime/provider group, and computes summary statistics only for an adequate sample. It produces no score.
+- Every reported value is `{value, status, sources}` with status `measured`, `derived`, `partial` or `unknown`. Missing or unreadable evidence is unknown, and counts rebuilt from published history that can miss unpublished attempts are partial (lower bounds). Nothing is ever turned into zero or an estimate.
+- Reconstruct review rounds and full-validation cycles from the exact published PR commit history of the change's review and automated-check evidence files, and classify each review rerun as a substantive candidate change (the task-owned content digest changed), an unavailable reviewer, or another process rerun.
+- Retain the runtime-returned reviewer usage (tokens, turns, duration) as an additive, runtime-local `runtime_usage` block in each new independent review report, with unknown for any unsupported or malformed field. Historical reports stay valid and read as unknown.
+- Add a counters-only Claude Code session adapter that attributes local transcript entries to a Requirement by exact child branch or exact reference and reports prompt turns, interruptions, tool rejections, tool errors, re-prompts, active/session time and runtime-local token usage. Other runtimes report `unknown` (unsupported).
+
+## Impact
+
+New `template/scripts/requirement_metrics.py` with a thin `scripts/` wrapper, an additive change in `template/scripts/independent_review_runner.py` (and report validation tolerance in `independent_review.py` if needed), tests, `dev-platform/checks.toml` test-group membership, engineering workflow documentation with its template mirror, a new `requirement-metrics` capability spec, and a `completion-lifecycle` delta. The command is read-only. No lifecycle gate, routing policy, publication behavior or independent-review acceptance rule changes. Downstream projects receive the command through the normal template release, and it works there with the same sources.
+
+## Non-goals
+
+A composite productivity index or score; a database, daemon, scheduler, external telemetry service or persistent event log; automatic routing/decomposition/budget decisions; storing prompts, responses, transcripts, tool payloads or code; monetary cost estimates; fixing unrelated process friction found while measuring.

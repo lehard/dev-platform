@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "5101ba5249c3d5fc20fd59ddbe444e414454a445",
+    "base_ref": "origin/main",
+    "candidate_head": "3f7ff126cf0d5ec4e9b2f15493b86c1dcd4f125a",
+    "diff_sha256": "9b621bd43d52f1538ecda1916eb876e50758e09372de9b3ab1dc7bf99ebe1dd2"
+  },
+  "completed_at": "2026-09-30T13:27:21+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/requirement_metrics.py, `_publication`: `gh.pages(f\"repos/{target}/issues/{number}/events\", limit=MAX_EVENTS)[0]` drops the `complete` flag, then `queued.append(derived(labels.count(PUBLICATION_QUEUED), ...))`. `_pull_requests` does the same with `gh.pages(..., limit=100)[0]`. A PR with more than 300 events, or a branch with more than 100 PRs, silently yields a truncated `publication_cycles`, `queue_blocked_events` or `pr_count` marked `derived`. `_ci` handles the same situation correctly with `count()`, which returns `partial(..., \"bounded\")`.",
+      "id": "truncated-listings-reported-as-derived",
+      "severity": "advisory",
+      "summary": "Publication-event and PR listings can be cut off by a bound, but the counts built from them are reported as `derived` rather than `partial`. This contradicts the module's rule that incomplete coverage is a lower bound."
+    },
+    {
+      "evidence": "`_history` calls `gh.get(f\"repos/{target}/commits/{sha}\")` for every commit, up to MAX_PR_COMMITS=250. It then makes up to MAX_EVIDENCE_READS=200 `gh.raw` content reads, each with a 60s timeout. `main` calls `build_report` for every ref in `aggregate` (up to 10 pages x 100 for `--closed-since`). A rate-limit or auth failure degrades the remaining sections to unknown, which is graceful. Separately, `build_report` raises `RequirementMetricsError` for an unreadable or non-Requirement Issue. `main` does not catch it per ref, so one bad Requirement aborts the whole aggregate, even though design.md says only the report command fails this way.",
+      "id": "per-commit-api-fan-out",
+      "severity": "advisory",
+      "summary": "History reconstruction makes one commit-detail request per PR commit and then one contents request per evidence file. Each child can therefore cost several hundred `gh` calls, which multiplies across `aggregate` and `--closed-since`. An unreadable Requirement also aborts the whole aggregate."
+    }
+  ],
+  "launched_at": "2026-09-30T13:26:33+00:00",
+  "output_sha256": "9cd90e9f0f7c826b27fb0fd980f82f337fdc00e6df017081639669a67bf0377f",
+  "perspective": "engineering-quality",
+  "request_id": "e1ee9f93-fcff-4d67-94e6-07718f0ec0f4",
+  "reviewer": {
+    "context_id": "0b6270ef-cb8f-4271-bb21-f2138a6f2162",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-55118120-9621-4846-ac87-640080e64e96",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 80145
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 257711
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 43815
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 45461
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4886
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "314eafd7739767f1dda7d481f392eb9a0831b27f7cf8006d12c3cae26a483539"
+}

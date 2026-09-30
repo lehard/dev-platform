@@ -1,0 +1,88 @@
+{
+  "candidate": {
+    "base_head": "5101ba5249c3d5fc20fd59ddbe444e414454a445",
+    "base_ref": "origin/main",
+    "candidate_head": "3f7ff126cf0d5ec4e9b2f15493b86c1dcd4f125a",
+    "diff_sha256": "9b621bd43d52f1538ecda1916eb876e50758e09372de9b3ab1dc7bf99ebe1dd2"
+  },
+  "change": "openspec/changes/archive/2026-09-30-add-requirement-metrics-report",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/archive/2026-09-30-add-requirement-metrics-report/automated-checks.json",
+    "openspec/changes/archive/2026-09-30-add-requirement-metrics-report/independent-review-request.json",
+    "openspec/changes/archive/2026-09-30-add-requirement-metrics-report/independent-reviews/engineering-quality.json",
+    "openspec/changes/archive/2026-09-30-add-requirement-metrics-report/independent-reviews/spec-fidelity.json",
+    "openspec/changes/archive/2026-09-30-add-requirement-metrics-report/verification.md",
+    "openspec/specs/completion-lifecycle/spec.md",
+    "openspec/specs/requirement-metrics/spec.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/archive/2026-09-30-add-requirement-metrics-report/design.md",
+        "openspec/changes/archive/2026-09-30-add-requirement-metrics-report/proposal.md",
+        "openspec/changes/archive/2026-09-30-add-requirement-metrics-report/specs/completion-lifecycle/spec.md",
+        "openspec/changes/archive/2026-09-30-add-requirement-metrics-report/specs/requirement-metrics/spec.md",
+        "openspec/changes/archive/2026-09-30-add-requirement-metrics-report/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/archive/2026-09-30-add-requirement-metrics-report/proposal.md",
+        "openspec/changes/archive/2026-09-30-add-requirement-metrics-report/design.md",
+        "openspec/changes/archive/2026-09-30-add-requirement-metrics-report/tasks.md",
+        "openspec/changes/archive/2026-09-30-add-requirement-metrics-report/specs/completion-lifecycle/spec.md",
+        "openspec/changes/archive/2026-09-30-add-requirement-metrics-report/specs/requirement-metrics/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-09-30T13:25:49+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/archive/2026-09-30-add-requirement-metrics-report/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "e1ee9f93-fcff-4d67-94e6-07718f0ec0f4",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "5101ba5249c3d5fc20fd59ddbe444e414454a445",
+    "digest": "314eafd7739767f1dda7d481f392eb9a0831b27f7cf8006d12c3cae26a483539",
+    "paths": {
+      "dev-platform/checks.toml": "68a8d7d07c0d91fc84f1571dc22dcc07ac093411",
+      "docs/engineering/agent-workflow.md": "038974fe19d59437a2da5426ae4254d84298b7a7",
+      "openspec/changes/add-requirement-metrics-report/.managed-task.json": "f7a71c1afb59855f1ddc0f3a58c3d74c8a50bbea",
+      "openspec/changes/add-requirement-metrics-report/.openspec.yaml": "1aca8b9150ef1888644e4286168d66eab4c6afb7",
+      "openspec/changes/add-requirement-metrics-report/design.md": "e45fea3f63146748187a45421f3d2271119bb469",
+      "openspec/changes/add-requirement-metrics-report/proposal.md": "1f2c5ca2b7168604ac3ddda06478bf336d298b49",
+      "openspec/changes/add-requirement-metrics-report/specs/completion-lifecycle/spec.md": "e3702fd639a9b77694017ba2d21728ad74c08d4c",
+      "openspec/changes/add-requirement-metrics-report/specs/requirement-metrics/spec.md": "93ac3cb77ae8b48e607ab66e67c9215fbbb0ea4e",
+      "openspec/changes/add-requirement-metrics-report/tasks.md": "17d088c19455827749c8691c36363032f749b816",
+      "scripts/requirement_metrics.py": "0732f88177cba9a3803f274f480d81174b0065f5",
+      "template/docs/engineering/agent-workflow.md.jinja": "c500fe7bef9d694c607dec0008b40f3aa17a6612",
+      "template/scripts/independent_review.py": "08226bba0e5e2d688e2f5d9afa06847991653fd1",
+      "template/scripts/independent_review_runner.py": "366526b0629a46dedaca3197759733b2f95a2db7",
+      "template/scripts/requirement_metrics.py": "1f7f96c816e6955e4b9787a77b9f79041978759e",
+      "tests/test_independent_review.py": "a2a904a3f1914c55ec34c6e03688894c438a5423",
+      "tests/test_requirement_metrics.py": "336e08a4f9ed537910b3ecc9c64ab5b34b1f22b8"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

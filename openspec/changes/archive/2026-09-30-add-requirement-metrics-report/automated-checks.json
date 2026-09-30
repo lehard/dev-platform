@@ -1,0 +1,94 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.144,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.144,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 448.657,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "scripts/requirement_metrics.py",
+        "template/scripts/independent_review.py",
+        "template/scripts/independent_review_runner.py",
+        "template/scripts/requirement_metrics.py",
+        "tests/test_independent_review.py",
+        "tests/test_requirement_metrics.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_0efc8b6dc392a1d350137a3cd7b38bb8",
+    "change": "add-requirement-metrics-report",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/add-requirement-metrics-report",
+    "branch": "agent/add-requirement-metrics-report",
+    "head": "fe1812db1b162d2881d2183486e687cf786f7620",
+    "task_content": {
+      "version": 1,
+      "digest": "84d5d2b6293c3785ef2ed6a0f5efd74c49517f6d4630f489c9006bf4b6054a1e",
+      "paths": {
+        "dev-platform/checks.toml": "68a8d7d07c0d91fc84f1571dc22dcc07ac093411",
+        "docs/engineering/agent-workflow.md": "038974fe19d59437a2da5426ae4254d84298b7a7",
+        "openspec/changes/add-requirement-metrics-report/.managed-task.json": "f7a71c1afb59855f1ddc0f3a58c3d74c8a50bbea",
+        "openspec/changes/add-requirement-metrics-report/.openspec.yaml": "1aca8b9150ef1888644e4286168d66eab4c6afb7",
+        "openspec/changes/add-requirement-metrics-report/automated-checks.json": "30681e8359b90e072b56eed87f50b3a6021673be",
+        "openspec/changes/add-requirement-metrics-report/design.md": "e45fea3f63146748187a45421f3d2271119bb469",
+        "openspec/changes/add-requirement-metrics-report/independent-review-request.json": "0bbae335bc1a6e55bd6ef2112201b3523e818e57",
+        "openspec/changes/add-requirement-metrics-report/independent-reviews/engineering-quality.json": "990d3640a3e4995fafb7ae40d3b35399aadea33e",
+        "openspec/changes/add-requirement-metrics-report/independent-reviews/spec-fidelity.json": "c9bfb2bcd0a1422c5577ba9e221aef5f25148e3a",
+        "openspec/changes/add-requirement-metrics-report/proposal.md": "1f2c5ca2b7168604ac3ddda06478bf336d298b49",
+        "openspec/changes/add-requirement-metrics-report/specs/completion-lifecycle/spec.md": "e3702fd639a9b77694017ba2d21728ad74c08d4c",
+        "openspec/changes/add-requirement-metrics-report/specs/requirement-metrics/spec.md": "93ac3cb77ae8b48e607ab66e67c9215fbbb0ea4e",
+        "openspec/changes/add-requirement-metrics-report/tasks.md": "17d088c19455827749c8691c36363032f749b816",
+        "openspec/changes/add-requirement-metrics-report/verification.md": "8106968517ef62d850add8dc7bd565f807957370",
+        "openspec/specs/completion-lifecycle/spec.md": "841d80e5fa11d1977d500765f9007d592901f7f5",
+        "openspec/specs/requirement-metrics/spec.md": "7266aa9598d5ea6cd05996f8d84282768430d1b6",
+        "scripts/requirement_metrics.py": "0732f88177cba9a3803f274f480d81174b0065f5",
+        "template/docs/engineering/agent-workflow.md.jinja": "c500fe7bef9d694c607dec0008b40f3aa17a6612",
+        "template/scripts/independent_review.py": "08226bba0e5e2d688e2f5d9afa06847991653fd1",
+        "template/scripts/independent_review_runner.py": "366526b0629a46dedaca3197759733b2f95a2db7",
+        "template/scripts/requirement_metrics.py": "1f7f96c816e6955e4b9787a77b9f79041978759e",
+        "tests/test_independent_review.py": "a2a904a3f1914c55ec34c6e03688894c438a5423",
+        "tests/test_requirement_metrics.py": "336e08a4f9ed537910b3ecc9c64ab5b34b1f22b8"
+      },
+      "base": "5101ba5249c3d5fc20fd59ddbe444e414454a445"
+    }
+  }
+}

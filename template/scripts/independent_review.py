@@ -33,6 +33,14 @@ REQUEST_FILE = "independent-review-request.json"
 REPORTS_DIR = "independent-reviews"
 DISPOSITIONS_FILE = "independent-review-dispositions.json"
 PLATFORM_OBSERVED = "platform-observed"
+# The only runtime-local usage fields a report may carry, per reviewer runtime.
+RUNTIME_USAGE_FIELDS = {
+    "claude-code-print": (
+        "input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens", "output_tokens",
+        "num_turns", "duration_ms", "duration_api_ms",
+    ),
+    "codex-exec": ("input_tokens", "cached_input_tokens", "output_tokens"),
+}
 
 STATE_NOT_REQUIRED = "not-required"
 STATE_MISSING = "missing"
@@ -302,7 +310,39 @@ def _validate_finding(prefix: str, finding: Any, *, legacy_dispositions: bool) -
     return errors
 
 
+def _usage_field(value: Any) -> dict[str, Any]:
+    if isinstance(value, dict) and value.get("status") == "measured" and value.get("source") == "runtime-confirmed":
+        number = value.get("value")
+        if isinstance(number, int) and not isinstance(number, bool) and number >= 0:
+            return {"value": number, "source": "runtime-confirmed", "status": "measured"}
+    return {"value": None, "source": "unknown", "status": "unknown"}
+
+
+def read_runtime_usage(report: dict[str, Any]) -> dict[str, Any]:
+    """Read a report's optional runtime-local usage block leniently.
+
+    Reports written before the block existed, or carrying a malformed block,
+    read as unknown rather than zero.  Only a known reviewer runtime and its
+    allowlisted fields are read; anything else in the block is dropped.  The
+    block is informational: it never
+    participates in acceptance, freshness or disposition binding, so report
+    validation does not reject a report because of it.
+    """
+    block = report.get("runtime_usage")
+    if not isinstance(block, dict):
+        return {"runtime": None, "status": "unknown", "reason": "historical-record-without-field", "fields": {}}
+    runtime = block.get("runtime")
+    if runtime not in RUNTIME_USAGE_FIELDS:
+        return {"runtime": None, "status": "unknown", "reason": "unsupported-runtime", "fields": {}}
+    raw = block.get("fields") if isinstance(block.get("fields"), dict) else {}
+    fields = {name: _usage_field(raw.get(name)) for name in RUNTIME_USAGE_FIELDS[runtime]}
+    if any(field["status"] == "measured" for field in fields.values()):
+        return {"runtime": runtime, "status": "measured", "fields": fields}
+    return {"runtime": runtime, "status": "unknown", "reason": "unsupported-or-malformed", "fields": fields}
+
+
 def _validate_report(report: dict[str, Any], request: dict[str, Any], perspective: str, *, required: bool = False) -> list[str]:
+    # The optional ``runtime_usage`` block is deliberately not validated here; see read_runtime_usage.
     errors: list[str] = []
     if report.get("schema_version") != SCHEMA_VERSION:
         errors.append(f"{perspective}: report schema_version must be {SCHEMA_VERSION}")

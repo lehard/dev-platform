@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/requirement-metrics/spec.md",
+    "specs/completion-lifecycle/spec.md"
+  ],
+  "change": "add-requirement-metrics-report",
+  "imported_at": "2026-09-30T12:27:10+00:00",
+  "package_revision": "2f466867d1fcba2c559af42130e792837b25e82b353fa43ad688fe5f33516921",
+  "prepared_against": "5101ba5249c3d5fc20fd59ddbe444e414454a445",
+  "private_lineage_handle": "pln_0efc8b6dc392a1d350137a3cd7b38bb8",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "b9310005623d3e6133375ab2f7ebeec87ad646ecb17bea4feb044c088bb9becf",
+    "updated_at": "2026-09-30T12:21:57Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
