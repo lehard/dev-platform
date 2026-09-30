@@ -8,6 +8,15 @@
       "report_sha256": "1a1ab1ac06db6aca079da5626bf6c46e9a876d99a75fdf0c9ba189c2790472fd",
       "request_id": "86a2edb4-3b27-430e-bfed-739b9735dd17",
       "status": "rejected"
+    },
+    {
+      "finding": "review-evidence-stale-for-head",
+      "perspective": "spec-fidelity",
+      "rationale": "The stale files the reviewer read are the previous run's committed evidence, which this run replaces: the reports carrying this finding are bound to candidate bc922bf (current HEAD, lifecycle-excluded task-content digest), and automated-checks.json is refreshed immediately afterwards and committed alone per the post-archive evidence order. Lifecycle evidence in the reviewer diff is the known tooling gap recorded as friction f0a1f7276904.",
+      "recorded_at": "2026-09-30T09:29:52+00:00",
+      "report_sha256": "69dc4b52a82ab3a5c540ab6e4804d42f561e404415ad3ec01c73a0ae8dbf7e8d",
+      "request_id": "20bc72a9-f379-430c-a832-ace3d3926e29",
+      "status": "rejected"
     }
   ],
   "schema_version": 1

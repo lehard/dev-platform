@@ -3,57 +3,58 @@
   "candidate": {
     "base_head": "af10f92d31c0e6079675cf187c45365eca3a2545",
     "base_ref": "origin/main",
-    "candidate_head": "49318c67b586f9b73f7a75fa855ee429a0bf9788",
-    "diff_sha256": "23cb64efd5a139d5243552f833265fd42acce2a925b6aaff560fab227466196f"
+    "candidate_head": "bc922bf5adea15e319b71b9628fabc79eb144986",
+    "diff_sha256": "0360139ff00fadb3ec0cd83eb668ad0aca2b31b3092b4400910ffe87c4b5fc66"
   },
-  "completed_at": "2026-09-30T08:54:53+00:00",
+  "completed_at": "2026-09-30T09:29:40+00:00",
   "findings": [
     {
-      "evidence": "The candidate head is 49318c6, and its task-content digest is 23b1a4ba.... The committed independent-review-request.json (candidate.diff:300-385) and both reports show candidate_head b1cd2f3 and task_content digest eed35b4d.... automated-checks.json records head b1cd2f3 and digest d01844a0.... verification.md 'Post-archive integration fix' (candidate.diff:694) says the review was rerun on the archived change and that 'the committed reports and automated-checks.json are those runs'. Only the request and spec-fidelity.json are modified in the working tree (uncommitted), and engineering-quality.json is not. So the candidate as committed contradicts its own receipt, and finish's require_publication_review_evidence would see a digest mismatch unless the refreshed files are committed first.",
-      "id": "committed-review-evidence-stale-vs-head",
+      "evidence": "The committed independent-review-request.json has candidate_head 49318c6 and task_content digest 23b1a4ba\u2026. The prompt for this review gives digest f21db1b6\u2026. The committed reports' `reviewer` blocks lack the `launch_id` field that `run_perspective` in independent_review_runner.py adds in bc922bf. Git status shows the request and spec-fidelity.json as modified but uncommitted. Until the refreshed evidence is committed, `require_publication_review_evidence` in the finish gate will see a stale digest.",
+      "id": "committed-review-evidence-predates-head",
       "severity": "advisory",
-      "summary": "The review evidence in the candidate tree binds to an earlier commit than the candidate head, and verification.md's claim that the committed reports are the post-fix reruns does not match it."
+      "summary": "The review request and reports committed in the candidate describe an earlier commit, not head bc922bf. They carry no `launch_id`, although the runner at head writes one."
     },
     {
-      "evidence": "independent_review.record_report rejects reports with reviewer.launch_evidence == PLATFORM_OBSERVED (candidate.diff:1633-1637). Nothing binds a report to the runner beyond that string and an output_sha256 of data the same file holds. A hand-written file placed in independent-reviews/ with launch_evidence 'platform-observed' and a matching request_id and digest would satisfy validate_evidence. The evidence_matches_checkout change also accepts any content under independent-reviews/ (openspec_lifecycle.py, _is_review_evidence). This is 'mandatory' only against accidental omission, not against fabrication, so the docs should not describe it as proof.",
-      "id": "platform-observed-marker-is-self-attested-string",
+      "evidence": "independent_review._validate_report(required=True) checks only that `reviewer.launch_evidence == 'platform-observed'`, a non-empty mechanism and model, and a non-empty `output_sha256`. All of these are plain strings inside the same JSON file. `record_report` is the only place that rejects the marker. openspec_lifecycle `_is_review_evidence` and the `review_exclusion` exclusion set accept any content under independent-reviews/. The docs should not present the marker as proof.",
+      "id": "platform-observed-marker-is-self-attested",
       "severity": "advisory",
-      "summary": "The 'platform-observed' launch proof is a plain string in a JSON report that any writer can produce. Only the `record` CLI refuses it."
+      "summary": "Nothing stops another writer from producing a report with `launch_evidence: platform-observed`. Only the `record` CLI refuses that marker, so \"mandatory\" guards against omission, not fabrication."
     },
     {
-      "evidence": "template/scripts/independent_review_runner.py: after communicate() returns normally, `_kill_process_group(process)` runs os.killpg(process.pid, SIGKILL) unconditionally, and ProcessLookupError and PermissionError are swallowed. Once the leader is reaped, its pgid can be reused by an unrelated group leader.",
+      "evidence": "In independent_review_runner.subprocess_launcher, `_kill_process_group(process)` runs unconditionally after `communicate()` returns. It calls `os.killpg(process.pid, SIGKILL)` and swallows ProcessLookupError and PermissionError. Once the leader is reaped, its pid/pgid can be reused.",
       "id": "killpg-after-reap-pid-reuse",
       "severity": "advisory",
-      "summary": "subprocess_launcher unconditionally SIGKILLs the process group after the reviewer has exited and been reaped, so a reused PID could take the signal."
+      "summary": "`subprocess_launcher` sends SIGKILL to the reviewer's process group after the leader has exited and been reaped. The pgid could then belong to an unrelated process group."
     },
     {
-      "evidence": "claude_argv uses `--tools Read,Grep,Glob --permission-mode dontAsk --add-dir <scratch>`, and codex uses `--sandbox read-only`. Both can read arbitrary local files. parse_findings stores the `evidence` strings as returned, and run_review writes them to independent-reviews/*.json, which are committed with the archive.",
-      "id": "review-read-scope-unbounded",
-      "severity": "advisory",
-      "summary": "The read-only guarantee covers writes only. The reviewer's read tools are not confined to the repository, and finding evidence is persisted verbatim in committed reports."
-    },
-    {
-      "evidence": "task_content_identity.py review_exclusion: `archived = any((root/'openspec'/'changes'/'archive').glob(f\"*-{change}\")) and not (root/active).is_dir()`. Any archive directory ending in `-<change>` matches, unlike independent_review.resolve_change, which uses canonical_change_name.",
-      "id": "archived-detection-glob-overmatch",
-      "severity": "advisory",
-      "summary": "review_exclusion decides that a change is archived with a loose suffix glob that is inconsistent with the canonical-name check used elsewhere."
-    },
-    {
-      "evidence": "independent_review_runner.workspaces() returns [root, integration_root(root)], and _mutations() reports any change in either. run_perspective turns that into an 'unavailable' report saying the reviewer mutated the workspace. ensure_review_evidence reruns on unavailable-only state, so archive can repeatedly fail or re-launch while another task writes to the integration checkout. AGENTS.md says that state belongs to other agents.",
+      "evidence": "`workspaces()` returns [root, integration_root(root)], and `_mutations` reports any change in either. `run_perspective` turns that into a 'reviewer mutated the workspace' limitation. `ensure_review_evidence` reruns when the state is blocked with only unavailable perspectives. AGENTS.md says other agents' integration state is off limits and shared.",
       "id": "false-mutation-from-concurrent-integration-writes",
       "severity": "advisory",
-      "summary": "The read-only postcheck snapshots the shared integration checkout, so legitimate concurrent work by another agent marks the review unavailable, and each retry costs two full launches."
+      "summary": "The read-only postcheck snapshots the shared integration checkout, so legitimate work by another agent marks the review `unavailable`. Archive then re-runs both launches on retry."
+    },
+    {
+      "evidence": "task_content_identity.review_exclusion: `any((root/'openspec'/'changes'/'archive').glob(f\"*-{change}\")) and not (root/active).is_dir()`. Any archive directory whose name ends in `-<change>` matches. `independent_review.resolve_change` additionally requires `canonical_change_name(path) == name`. A mismatch would wrongly exclude `openspec/specs/<cap>/spec.md` from the identity.",
+      "id": "archived-detection-glob-overmatch",
+      "severity": "advisory",
+      "summary": "`review_exclusion` decides a change is archived with a loose `*-<change>` glob. `resolve_change` and `canonical_change_name` use a stricter canonical-name check, so the two can disagree."
+    },
+    {
+      "evidence": "`claude_argv` uses `--tools Read,Grep,Glob` with `--add-dir <scratch>`, and codex uses `--sandbox read-only`. Neither confines reads to the repository. `parse_findings` keeps `evidence` strings as returned. `run_review` writes them to independent-reviews/*.json, which are committed with the archive.",
+      "id": "review-read-scope-unbounded",
+      "severity": "advisory",
+      "summary": "The read-only guarantee covers writes only. The reviewer can read arbitrary local files, and its finding `evidence` text is stored verbatim in reports that are committed."
     }
   ],
-  "launched_at": "2026-09-30T08:54:11+00:00",
-  "output_sha256": "2f7bc403d3c3852cc047c3dc8239ee63e00d3c806bb4b185f76e49deee7f324b",
+  "launched_at": "2026-09-30T09:28:58+00:00",
+  "output_sha256": "54900a7de7923a5d553c645a7ccf2010cf0556deaba6f5f5bc43712bc603c4a7",
   "perspective": "engineering-quality",
-  "request_id": "86a2edb4-3b27-430e-bfed-739b9735dd17",
+  "request_id": "20bc72a9-f379-430c-a832-ace3d3926e29",
   "reviewer": {
-    "context_id": "9a6bc99a-c18c-4e9e-bb86-944942e6a7de",
+    "context_id": "0c82792c-16fb-47a7-89f4-155df90fc5d3",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-1b4ff3bc-37da-42a6-8442-42255bca91f3",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -64,5 +65,5 @@
     "write_access": false
   },
   "schema_version": 1,
-  "task_content_digest": "23b1a4ba7fe7d0e3fd0364107e235d9f7622d9390fa5e236f48d861c42c1207a"
+  "task_content_digest": "f21db1b667ecbdc1ffe741c148db6bd3d278f4820367893e2f045ea1ad3ce78c"
 }

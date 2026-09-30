@@ -3,39 +3,40 @@
   "candidate": {
     "base_head": "af10f92d31c0e6079675cf187c45365eca3a2545",
     "base_ref": "origin/main",
-    "candidate_head": "49318c67b586f9b73f7a75fa855ee429a0bf9788",
-    "diff_sha256": "23cb64efd5a139d5243552f833265fd42acce2a925b6aaff560fab227466196f"
+    "candidate_head": "bc922bf5adea15e319b71b9628fabc79eb144986",
+    "diff_sha256": "0360139ff00fadb3ec0cd83eb668ad0aca2b31b3092b4400910ffe87c4b5fc66"
   },
-  "completed_at": "2026-09-30T08:54:11+00:00",
+  "completed_at": "2026-09-30T09:28:58+00:00",
   "findings": [
     {
-      "evidence": "independent-review-request.json (candidate diff ~line 358-380) records task_content digest eed35b4d... and candidate_head b1cd2f3. It lists template/scripts/openspec_lifecycle.py at blob d969ee9 and has no entry for tests/test_openspec_lifecycle.py. The candidate diff shows openspec_lifecycle.py ending at blob f3dc8f0 (line 2233, 'index 6504b55..f3dc8f0'). The diff also adds tests/test_openspec_lifecycle.py (line 3097). automated-checks.json likewise records head b1cd2f3, task_content digest d01844a0..., and the same d969ee9 blob, with no test_openspec_lifecycle.py path. The task-content digest for the candidate is 23b1a4ba..., which matches neither recorded digest. verification.md 'Post-archive integration fix' (diff ~line 694) says the review was rerun and the automated evidence refreshed after that fix. The review reports still carry candidate_head b1cd2f3. The worktree also shows the request file as modified. Under the 'Candidate changes after review preparation' scenario and require_publication_review_evidence, this evidence should be rejected as stale.",
-      "id": "review-evidence-stale-for-final-candidate",
+      "evidence": "The task requires digest f21db1b6... at head bc922bf. The committed independent-review-request.json and both reports record candidate_head 49318c67... and task_content digest 23b1a4ba.... automated-checks.json records head 3dcd736 and digest 369171067.... Head bc922bf changed template/scripts/independent_review_runner.py (launch_id at candidate.diff:2140-2147) and tests, so the digest changed. The committed reports carry no launch_id, so they predate that change. verification.md ('Post-archive integration fix', candidate.diff:733) claims 'The review and automated evidence were rerun again for this candidate', but the committed files show otherwise. git status also shows independent-review-request.json modified and uncommitted. This contradicts the spec scenario 'Candidate changes after review preparation' and the 'Finish with stale review' requirement to re-validate evidence against current content before publication.",
+      "id": "review-evidence-stale-for-head",
       "severity": "material",
-      "summary": "The committed review evidence and automated-checks record describe an earlier candidate (b1cd2f3), not the final head. The final head's 49318c6 fix changed openspec_lifecycle.py and tests/test_openspec_lifecycle.py. The spec requires evidence to bind to the current task content and requires a fresh review after any task-owned change. The verification.md claim that the review and evidence were rerun on the archived change is contradicted by the committed files."
+      "summary": "The committed review evidence and automated-checks record do not bind to the candidate head. The spec requires a fresh review after any task-owned change, and the head commit changed task-owned runner code."
     },
     {
-      "evidence": "Spec scenario 'New session resumes'. The execute_requirement.py hunk at diff lines 966-976 adds the field only to the implement-child payload. verification.md line 683 lists it as an accepted limitation.",
+      "evidence": "The execute_requirement.py hunk at candidate.diff:981-1017 adds the field only to the implement-child payload. openspec-workflow.md claims that `advance` reports the derived state generally.",
       "id": "advance-review-state-only-on-implement-child",
       "severity": "advisory",
-      "summary": "The spec says Requirement advance exposes the review state and next command. The candidate adds `independent_review` only to the `implement-child` outcome of execute_requirement.advance. verification.md discloses the gap."
+      "summary": "The spec scenario 'New session resumes' says Requirement advance exposes the review state and next command. The candidate adds `independent_review` only to the implement-child outcome of execute_requirement.advance."
     },
     {
-      "evidence": "proposal.md line 529 and tasks.md task 5 are marked [x]. design.md 'Scope and compatibility' says the flag is applied to the integration checkout's copy after merge. The diff contains no tracked .dev-platform.toml change.",
+      "evidence": "The candidate changes only template/.dev-platform.toml.jinja, which keeps enabled=false. design.md 'Scope and compatibility' says the flag is applied to a machine-local file after merge. proposal.md line 'dev-platform requires review for managed changes' and openspec-workflow.md ('the central repository does') therefore overstate what the candidate delivers.",
       "id": "central-enablement-not-in-candidate",
       "severity": "advisory",
-      "summary": "The proposal ('dev-platform requires review') and the checked task 5 ('Enable review for dev-platform managed changes') claim enablement. The candidate enables nothing centrally, because only template/.dev-platform.toml.jinja changes and it keeps enabled=false. design.md admits the flag is applied after merge to a machine-local file, so the gate is not mandatory in the central repository from this candidate alone."
+      "summary": "The proposal says dev-platform requires review, and the docs say the central repository sets enabled=true. The candidate enables nothing centrally."
     }
   ],
-  "launched_at": "2026-09-30T08:53:38+00:00",
-  "output_sha256": "ef24922735320424dc80c9f3b9f7beaccb1b42b6319e8587ff2aad5ff4a03498",
+  "launched_at": "2026-09-30T09:28:41+00:00",
+  "output_sha256": "bf6d1576920df284ab0e68745413f4b5b4295e20e155a4d16489e7d5e6d90681",
   "perspective": "spec-fidelity",
-  "request_id": "86a2edb4-3b27-430e-bfed-739b9735dd17",
+  "request_id": "20bc72a9-f379-430c-a832-ace3d3926e29",
   "reviewer": {
-    "context_id": "b1e17118-dc6c-4cb9-a1c4-5974141e6460",
+    "context_id": "bc1e334f-86e2-45db-9ae0-ef1b41fd39be",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-cb64a2ae-dca3-4561-8fb9-5c4062b355e9",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -46,5 +47,5 @@
     "write_access": false
   },
   "schema_version": 1,
-  "task_content_digest": "23b1a4ba7fe7d0e3fd0364107e235d9f7622d9390fa5e236f48d861c42c1207a"
+  "task_content_digest": "f21db1b667ecbdc1ffe741c148db6bd3d278f4820367893e2f045ea1ad3ce78c"
 }
