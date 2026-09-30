@@ -1,0 +1,82 @@
+{
+  "candidate": {
+    "base_head": "5101ba5249c3d5fc20fd59ddbe444e414454a445",
+    "base_ref": "origin/main",
+    "candidate_head": "b8d0a756dc05cb4b4fa104299ad88a07085d7a11",
+    "diff_sha256": "e31cc543c2321e5f1881192a3b45e37f502f4276dd50dbc87347dea95f815863"
+  },
+  "change": "openspec/changes/add-requirement-metrics-report",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/add-requirement-metrics-report/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/add-requirement-metrics-report/design.md",
+        "openspec/changes/add-requirement-metrics-report/proposal.md",
+        "openspec/changes/add-requirement-metrics-report/specs/completion-lifecycle/spec.md",
+        "openspec/changes/add-requirement-metrics-report/specs/requirement-metrics/spec.md",
+        "openspec/changes/add-requirement-metrics-report/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/add-requirement-metrics-report/proposal.md",
+        "openspec/changes/add-requirement-metrics-report/design.md",
+        "openspec/changes/add-requirement-metrics-report/tasks.md",
+        "openspec/changes/add-requirement-metrics-report/specs/completion-lifecycle/spec.md",
+        "openspec/changes/add-requirement-metrics-report/specs/requirement-metrics/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-09-30T13:07:07+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/add-requirement-metrics-report/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "33fee811-66ef-416e-8466-c9d906df481d",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "5101ba5249c3d5fc20fd59ddbe444e414454a445",
+    "digest": "2d273bc9a1a28907d205c8d803443b5277b057e406eed510605ab92b53e8cdfb",
+    "paths": {
+      "dev-platform/checks.toml": "68a8d7d07c0d91fc84f1571dc22dcc07ac093411",
+      "docs/engineering/agent-workflow.md": "038974fe19d59437a2da5426ae4254d84298b7a7",
+      "openspec/changes/add-requirement-metrics-report/.managed-task.json": "f7a71c1afb59855f1ddc0f3a58c3d74c8a50bbea",
+      "openspec/changes/add-requirement-metrics-report/.openspec.yaml": "1aca8b9150ef1888644e4286168d66eab4c6afb7",
+      "openspec/changes/add-requirement-metrics-report/design.md": "f777a6587fd0c54838abd59e93b4c9dae5be4cbb",
+      "openspec/changes/add-requirement-metrics-report/proposal.md": "1f2c5ca2b7168604ac3ddda06478bf336d298b49",
+      "openspec/changes/add-requirement-metrics-report/specs/completion-lifecycle/spec.md": "e3702fd639a9b77694017ba2d21728ad74c08d4c",
+      "openspec/changes/add-requirement-metrics-report/specs/requirement-metrics/spec.md": "93ac3cb77ae8b48e607ab66e67c9215fbbb0ea4e",
+      "openspec/changes/add-requirement-metrics-report/tasks.md": "17d088c19455827749c8691c36363032f749b816",
+      "scripts/requirement_metrics.py": "0732f88177cba9a3803f274f480d81174b0065f5",
+      "template/docs/engineering/agent-workflow.md.jinja": "c500fe7bef9d694c607dec0008b40f3aa17a6612",
+      "template/scripts/independent_review.py": "cdcd82b7655ff374fa79ecbfa1b70e75789ad2e7",
+      "template/scripts/independent_review_runner.py": "366526b0629a46dedaca3197759733b2f95a2db7",
+      "template/scripts/requirement_metrics.py": "5753bcdde73e8ea368da3cf27e223aa8017ff443",
+      "tests/test_independent_review.py": "7811e2565f0aecb74490fce348e996b1d39589d7",
+      "tests/test_requirement_metrics.py": "cfe95f63bcd8cd9d70cff7e98275ec0fab074b5f"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

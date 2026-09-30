@@ -1,0 +1,97 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "5101ba5249c3d5fc20fd59ddbe444e414454a445",
+    "base_ref": "origin/main",
+    "candidate_head": "b8d0a756dc05cb4b4fa104299ad88a07085d7a11",
+    "diff_sha256": "e31cc543c2321e5f1881192a3b45e37f502f4276dd50dbc87347dea95f815863"
+  },
+  "completed_at": "2026-09-30T13:09:21+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/requirement_metrics.py closed_requirements(): `ctx.github.get(\"search/issues?\" + urlencode({\"q\": query, \"per_page\": 100, \"sort\": \"created\", \"order\": \"asc\"}))`. The result is used as-is, with no total_count check and no diagnostic.",
+      "id": "closed-since-search-silently-truncated",
+      "severity": "advisory",
+      "summary": "`aggregate --closed-since` issues a single search request with per_page=100 and never paginates or flags truncation. A window with more than 100 closed Requirements yields a partial set with no partial/unknown marker, which conflicts with the report's own rule that incomplete coverage is labelled."
+    },
+    {
+      "evidence": "template/scripts/requirement_metrics.py _child_report: `target = info.target or (repo(provenance[\"target_repository\"]) if provenance and isinstance(provenance.get(\"target_repository\"), str) else None)`. `repo()` raises ManagedTaskError on a bad value, and main() handles `except (RequirementMetricsError, ManagedTaskError)` with `return 1`.",
+      "id": "target-repository-error-aborts-whole-report",
+      "severity": "advisory",
+      "summary": "A malformed `target_repository` in an archived `.managed-task.json` raises ManagedTaskError inside `_child_report`. main() catches it and exits 1 for the whole report or aggregate. The design says only the affected section should become unknown, and that the command fails only when the Requirement Issue itself cannot be read."
+    },
+    {
+      "evidence": "template/scripts/independent_review.py read_runtime_usage: `fields = {name: _usage_field(value) for name, value in raw.items() if _nonempty_string(name)}`, and `runtime = block[\"runtime\"].strip()`. Both are emitted by `_usage_view` in requirement_metrics.py.",
+      "id": "review-usage-field-names-copied-unbounded",
+      "severity": "advisory",
+      "summary": "`read_runtime_usage` and `_usage_view` copy arbitrary field names and the runtime string from a review report into the metrics output, with no allowlist or length bound. The output-privacy guarantee then relies on report content being trusted. Values are validated as integers, but names and the `source` string are not."
+    },
+    {
+      "evidence": "template/scripts/requirement_metrics.py `_history` (MAX_PR_COMMITS=250 per-commit `gh.get(repos/{target}/commits/{sha})`, MAX_EVIDENCE_READS=200) is called per child from `_child_report`. `main` loops over all refs in `aggregate` with no shared cap.",
+      "id": "per-child-remote-call-volume-unbounded-across-aggregate",
+      "severity": "advisory",
+      "summary": "The 'bounded calls per child' claim holds per child, but each child still costs up to about 250 commit-detail calls, 200 content reads, plus event and run listings. Aggregate multiplies this across every Requirement and child with no overall budget or progress indication, and every commit detail is fetched even when few commits touch evidence files."
+    }
+  ],
+  "launched_at": "2026-09-30T13:08:23+00:00",
+  "output_sha256": "83e00796b6553f44a98e699bc801f23bbf76d0834175f5247e8e928a4323b473",
+  "perspective": "engineering-quality",
+  "request_id": "33fee811-66ef-416e-8466-c9d906df481d",
+  "reviewer": {
+    "context_id": "6c1ab77a-7216-4850-a56e-5e26bc5e749c",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-3ebe777c-5dde-4aaf-8de8-6c1ef367598e",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 79603
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 262050
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 53649
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 56092
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6363
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "2d273bc9a1a28907d205c8d803443b5277b057e406eed510605ab92b53e8cdfb"
+}
