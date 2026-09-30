@@ -31,3 +31,7 @@ The first real runs were truthfully blocked: the bundled Claude CLI reported "No
 ## Post-archive integration fix
 
 The first single-child finish after archive failed: the completion-evidence archive transition accepted a newly generated `automated-checks.json` but not the archive-produced review evidence (`independent-review-request.json`, `independent-reviews/`, dispositions), so it rejected the validated evidence as stale. `evidence_matches_checkout` now treats those files like the generated automated receipt, because `require_review_evidence` binds them to the task content separately; any other new archive file is still rejected. `tests.test_openspec_lifecycle` covers both cases (29 tests passed). Because the fix changed the candidate, the independent review was rerun on the archived change and automated evidence was refreshed afterwards; the committed reports and `automated-checks.json` are those runs.
+
+## CI-found nondeterminism
+
+Platform CI (`validate`, group fast-b) failed `test_disposition_bound_to_a_superseded_report_digest_is_rejected`: two runs with identical findings inside one second produced byte-identical reports, so a disposition for the superseded run stayed valid. Every report now carries a per-launch `launch_id`, and the test pins identical timestamps; it fails without the fix and passes with it (34 review tests passed). The review and automated evidence were rerun again for this candidate.

@@ -399,7 +399,10 @@ class IndependentReviewTests(unittest.TestCase):
         for perspective in review.PERSPECTIVES:
             review.dispose(self.root, self.change, perspective=perspective, finding="finding", status="rejected", rationale="ok")
         self.assertEqual(self.state()["state"], "ready")
-        self.run_review(FakeLauncher([material("finding")]))
+        first = json.loads(review.report_path(self.change, "spec-fidelity").read_text(encoding="utf-8"))
+        # Identical findings and timestamps must still yield a distinct report.
+        with mock.patch.object(runner, "utc_now", return_value=first["launched_at"]):
+            self.run_review(FakeLauncher([material("finding")]))
         self.assertEqual(self.state()["state"], "blocked")
 
     def test_advisory_findings_do_not_block(self) -> None:

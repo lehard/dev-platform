@@ -401,6 +401,9 @@ def run_perspective(
     reviewer: dict[str, Any] = {
         "runtime": RUNTIMES.get(provider or "", "unresolved"),
         "provider": provider or "unknown",
+        # Always unique per launch, so a disposition binds to one exact run
+        # even when two runs return identical findings within one second.
+        "launch_id": launch_id,
         "context_id": launch_id,
         "context_id_source": "platform-launch",
         "fresh_context": True,
