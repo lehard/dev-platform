@@ -92,11 +92,11 @@ operator routing parameters alone do not prove lifecycle support. Terminal
 reconciliation checks the target again before marking the parent Done.
 
 1. Run `python3 scripts/requirement_intake.py start --requirement owner/repo#N`.
-2. Drive `scripts/orchestrate_pre_authoring.py status` resumably. Record an
-   explainable `select-depth` decision bound to the complete Requirement:
-   `deterministic`, `bounded-evidence` (with explicit `--concern` scope), or
-   `material-design`. An unchanged selection is reused; a changed Requirement
-   invalidates it and its derived artifacts.
+2. Drive `scripts/orchestrate_pre_authoring.py --id requirement-N status`
+   resumably. Record an explainable `select-depth` decision bound to the
+   complete Requirement: `deterministic`, `bounded-evidence` (with explicit
+   `--concern` scope), or `material-design`. An unchanged selection is reused;
+   a changed Requirement invalidates it and its derived artifacts.
 3. The deterministic path produces a direct handoff without snapshot or model
    work. Bounded evidence builds only selected projections through the routine
    read-only route and then produces a direct handoff. Neither path creates ADD
@@ -241,7 +241,7 @@ To execute or resume an existing Requirement:
 
 ```bash
 python3 scripts/requirement_intake.py start --requirement owner/repo#N
-python3 scripts/orchestrate_pre_authoring.py status --id requirement-N
+python3 scripts/orchestrate_pre_authoring.py --id requirement-N status
 ```
 
 Follow the orchestrator's bounded next action until handoff is complete. Author

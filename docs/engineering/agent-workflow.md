@@ -50,7 +50,7 @@ Requirement if necessary, then run:
 
 ```bash
 python3 scripts/requirement_intake.py start --requirement owner/repo#N
-python3 scripts/orchestrate_pre_authoring.py status --id requirement-N
+python3 scripts/orchestrate_pre_authoring.py --id requirement-N status
 ```
 
 Drive the orchestrator resumably through a recorded depth selection. A
@@ -162,6 +162,8 @@ For managed tasks, publication reconciles an exact reviewable PR to `In review`,
 In `dev-platform`, after the queue workflow reaches `main`, `dogfood_task.py finish` admits the exact verified PR to a GitHub-backed ordered queue. The PR comment records its admission and order; `publication:queued`, `publication:active`, and `publication:blocked` labels show its current phase. `python3 scripts/dogfood_task.py status` reports the queue position and reason. A GitHub Actions coordinator handles one PR at a time and wakes on admission and every five minutes. Waiting task agents can leave their independent worktrees and resume `finish` after the exact PR merges; `finish` then completes local and managed-task reconciliation.
 
 The coordinator uses the Dev Platform GitHub App token. The App must be able to read PRs, write PR comments and labels, update PR branches, and merge into protected `main`. If an admission or coordinator mutation is denied, inspect the `Dev Platform publication queue` workflow run and repair the App permission or credential. The worker does not bypass branch protection or required `validate` checks.
+
+The coordinator workflow wakes on the label through `pull_request_target`, so every trigger runs the workflow and worker from the default branch and never executes PR-controlled content with the App token. That token is scoped to this repository with only contents write and pull requests write. If a mutation is denied for a missing permission, widen the token deliberately rather than carrying extra permissions by default.
 
 When a PR receives `publication:blocked`, read the reason in `dogfood_task.py status` and the latest queue marker comment. A changed task head, overlapping main path, conflict, or failed check requires agent review and correction. After a new task commit, run the normal validation and `finish` again; this creates a new admission slot on the same PR after the prior block. A stale unchanged head remains blocked. `python3 scripts/publication_queue.py worker` can also be run by an authorized operator to retry a waiting queue head; the scheduled workflow normally handles recovery. Do not edit queue comments or labels by hand.
 

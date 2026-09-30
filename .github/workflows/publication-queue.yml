@@ -1,7 +1,10 @@
 name: Dev Platform publication queue
 
 on:
-  pull_request:
+  # pull_request_target runs this workflow and checks out the default branch, so
+  # the worker always executes reviewed base-branch code. No step may check out
+  # or run PR-controlled content while holding the App token.
+  pull_request_target:
     types: [labeled]
   schedule:
     - cron: '*/5 * * * *'
@@ -16,7 +19,7 @@ concurrency:
 
 jobs:
   publish-next:
-    if: github.event_name != 'pull_request' || github.event.label.name == 'publication:queued'
+    if: github.event_name != 'pull_request_target' || github.event.label.name == 'publication:queued'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -26,11 +29,18 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.11'
+      - name: Resolve current repository name
+        id: repo
+        run: echo "name=${GITHUB_REPOSITORY#*/}" >> "$GITHUB_OUTPUT"
       - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         id: app-token
         with:
           app-id: ${{ vars.DEV_PLATFORM_APP_CLIENT_ID }}
           private-key: ${{ secrets.DEV_PLATFORM_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ steps.repo.outputs.name }}
+          permission-contents: write
+          permission-pull-requests: write
       - name: Process next admitted PR
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}

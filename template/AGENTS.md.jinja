@@ -85,7 +85,7 @@ python3 scripts/agent_doctor.py
 python3 scripts/start_task.py <slug> --task "<task>" --scope "<files/modules>"
 {% if operator_integration | default(false) or operator_config_path %}
 python3 scripts/requirement_intake.py start --requirement owner/repo#N
-python3 scripts/orchestrate_pre_authoring.py status --id requirement-N
+python3 scripts/orchestrate_pre_authoring.py --id requirement-N status
 python3 scripts/managed_task.py create --bundle <directory>
 python3 scripts/start_managed_task.py owner/repo#N
 python3 scripts/execute_managed_task.py --bundle <directory>

@@ -5,6 +5,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+import yaml
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "template" / "scripts"))
 import publication_queue as queue  # noqa: E402
@@ -250,6 +252,52 @@ class WorkerTests(unittest.TestCase):
             with self.assertRaisesRegex(queue.QueueError, "main changed task paths"):
                 queue._prepare(ROOT_PATH, REPO, 1, admission(1, 20), pr(1))
         gh.assert_not_called()
+
+
+class WorkflowTrustBoundaryTests(unittest.TestCase):
+    """The coordinator must run default-branch code with a least-privilege App token."""
+
+    def setUp(self) -> None:
+        path = ROOT / ".github" / "workflows" / "publication-queue.yml"
+        self.workflow = yaml.safe_load(path.read_text(encoding="utf-8"))
+        # PyYAML parses the bare `on:` key as boolean True.
+        self.triggers = self.workflow.get("on", self.workflow.get(True))
+        self.steps = [step for job in self.workflow["jobs"].values() for step in job.get("steps", [])]
+
+    def test_label_trigger_runs_default_branch_code(self) -> None:
+        self.assertNotIn("pull_request", self.triggers)
+        self.assertEqual(self.triggers["pull_request_target"], {"types": ["labeled"]})
+        job = self.workflow["jobs"]["publish-next"]
+        self.assertIn("pull_request_target", job["if"])
+        self.assertIn("publication:queued", job["if"])
+
+    def test_no_step_checks_out_pull_request_content(self) -> None:
+        for step in self.steps:
+            if not str(step.get("uses", "")).startswith("actions/checkout@"):
+                continue
+            with self.subTest(step=step):
+                options = step.get("with") or {}
+                self.assertNotIn("repository", options)
+                ref = str(options.get("ref", ""))
+                self.assertNotIn("pull_request", ref)
+                self.assertNotIn("refs/pull", ref)
+                self.assertNotIn("head", ref)
+
+    def test_app_token_is_scoped_to_repository_and_queue_permissions(self) -> None:
+        token_steps = [step for step in self.steps
+                       if str(step.get("uses", "")).startswith("actions/create-github-app-token@")]
+        self.assertEqual(len(token_steps), 1)
+        options = token_steps[0]["with"]
+        self.assertEqual(options.get("owner"), "${{ github.repository_owner }}")
+        # schedule payloads may lack github.event.repository, which would leave
+        # `repositories` empty and widen the token to the whole installation.
+        self.assertEqual(options.get("repositories"), "${{ steps.repo.outputs.name }}")
+        repo_steps = [step for step in self.steps if step.get("id") == "repo"]
+        self.assertEqual(len(repo_steps), 1)
+        self.assertIn("GITHUB_REPOSITORY", repo_steps[0]["run"])
+        permissions = {key: value for key, value in options.items() if key.startswith("permission-")}
+        self.assertEqual(permissions, {"permission-contents": "write", "permission-pull-requests": "write"})
+        self.assertEqual(self.workflow["permissions"], {"contents": "read"})
 
 
 if __name__ == "__main__":

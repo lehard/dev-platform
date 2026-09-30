@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/publication-queue/spec.md",
+    "specs/agent-instructions/spec.md"
+  ],
+  "change": "harden-publication-queue-and-entrypoint-docs",
+  "imported_at": "2026-09-30T19:39:49+00:00",
+  "package_revision": "13b439faf4ecd755f99db8f9568b82ac589c41a892fbbae0a641d89bb1ac334c",
+  "prepared_against": "b5b627e4f017139dfa247a98f6c0b71494492dc1",
+  "private_lineage_handle": "pln_2f503de5a1e7b64175dc0356ab6c77cb",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "dd3f9956b831ea21fcef1fbe6b234a91eb92880d5531df4be6cbc5540da68635",
+    "updated_at": "2026-09-30T19:38:20Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
