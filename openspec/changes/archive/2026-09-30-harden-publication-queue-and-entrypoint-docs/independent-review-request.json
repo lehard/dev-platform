@@ -1,0 +1,83 @@
+{
+  "candidate": {
+    "base_head": "b5b627e4f017139dfa247a98f6c0b71494492dc1",
+    "base_ref": "origin/main",
+    "candidate_head": "cdae87a716704e4a94029ef0dc0131e4dc704ea8",
+    "diff_sha256": "d56099cfb34f07c40f9fd4435b41a88429d287693fa0949f719fe3914ac80830"
+  },
+  "change": "openspec/changes/harden-publication-queue-and-entrypoint-docs",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/harden-publication-queue-and-entrypoint-docs/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/harden-publication-queue-and-entrypoint-docs/design.md",
+        "openspec/changes/harden-publication-queue-and-entrypoint-docs/proposal.md",
+        "openspec/changes/harden-publication-queue-and-entrypoint-docs/specs/agent-instructions/spec.md",
+        "openspec/changes/harden-publication-queue-and-entrypoint-docs/specs/publication-queue/spec.md",
+        "openspec/changes/harden-publication-queue-and-entrypoint-docs/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/harden-publication-queue-and-entrypoint-docs/proposal.md",
+        "openspec/changes/harden-publication-queue-and-entrypoint-docs/design.md",
+        "openspec/changes/harden-publication-queue-and-entrypoint-docs/tasks.md",
+        "openspec/changes/harden-publication-queue-and-entrypoint-docs/specs/agent-instructions/spec.md",
+        "openspec/changes/harden-publication-queue-and-entrypoint-docs/specs/publication-queue/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-09-30T20:18:02+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/harden-publication-queue-and-entrypoint-docs/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "168daaa7-d502-4598-8acd-e642a88a7136",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "b5b627e4f017139dfa247a98f6c0b71494492dc1",
+    "digest": "59cc404953f387c6c59305e4602bf2fcd79be778f50815d02dda916b49b29652",
+    "paths": {
+      ".github/workflows/publication-queue.yml": "251250ed05b6bde52fab77e40930438c787bf020",
+      "AGENTS.md": "91e2fa2c05d202fa4796a19d701d1129e6c8f2b0",
+      "docs/engineering/agent-workflow.md": "72799b20c2167674bc8cea7ba7000c9e43db3718",
+      "docs/engineering/task-intake.md": "cec2501c686ca6d6b993bb77d83f8a1152edc937",
+      "openspec/changes/harden-publication-queue-and-entrypoint-docs/.managed-task.json": "dade26fa0067749c800c6be85d91582f0d772893",
+      "openspec/changes/harden-publication-queue-and-entrypoint-docs/.openspec.yaml": "1aca8b9150ef1888644e4286168d66eab4c6afb7",
+      "openspec/changes/harden-publication-queue-and-entrypoint-docs/design.md": "d38b9ad4468cd7d86e343830ea2f53ce89391813",
+      "openspec/changes/harden-publication-queue-and-entrypoint-docs/proposal.md": "7e993bdf67d317f1ed6d632098e1ff75310b12c3",
+      "openspec/changes/harden-publication-queue-and-entrypoint-docs/specs/agent-instructions/spec.md": "34f5015a744ab9a27b0a387dc03384eb03f1f18b",
+      "openspec/changes/harden-publication-queue-and-entrypoint-docs/specs/publication-queue/spec.md": "2ca0eceb017e485a27b59c572972fd2bcde7fb59",
+      "openspec/changes/harden-publication-queue-and-entrypoint-docs/tasks.md": "55a46bf7ccdd6e8a69de06250e60f87c039062df",
+      "template/AGENTS.md.jinja": "03f7edce314ab88374f2742c0ab71a154acfa5bd",
+      "template/docs/engineering/agent-workflow.md.jinja": "18a1ba8a71865f004e8ee36b186b7e2cc83b0c50",
+      "template/docs/engineering/task-intake.md.jinja": "1d5ab99065e09abfa1d3a1e454984e9f03267935",
+      "template/scripts/orchestrate_pre_authoring.py": "a2db737230b91ccaab153624e7a0bb7576e058db",
+      "tests/test_orchestrate_pre_authoring.py": "054e29c0c48096bd31c612791e1ed76a4ee5cc94",
+      "tests/test_publication_queue.py": "c01967a62bcb8a834d0cb2d7134e89d9a17a2d68"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

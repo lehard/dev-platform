@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "b5b627e4f017139dfa247a98f6c0b71494492dc1",
+    "base_ref": "origin/main",
+    "candidate_head": "cdae87a716704e4a94029ef0dc0131e4dc704ea8",
+    "diff_sha256": "d56099cfb34f07c40f9fd4435b41a88429d287693fa0949f719fe3914ac80830"
+  },
+  "completed_at": "2026-09-30T20:20:04+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/orchestrate_pre_authoring.py:370: \"orchestrate_pre_authoring.py record-decision --index N --resolution TEXT\" has no --id, and build_parser() marks --id required=True.",
+      "id": "runtime-hint-omits-id",
+      "severity": "advisory",
+      "summary": "The orchestrator's own next-action text for needs-decision shows a record-decision command without the required top-level --id. It is runtime output rather than a documented instruction surface, so it is outside the literal scope of the spec requirement. It would still fail to parse as written and sits in the same drift class the change targets."
+    }
+  ],
+  "launched_at": "2026-09-30T20:19:42+00:00",
+  "output_sha256": "095e570260cf7fd19354fa898ab5c981165292726928a28519a3393aa1b4fe85",
+  "perspective": "spec-fidelity",
+  "request_id": "168daaa7-d502-4598-8acd-e642a88a7136",
+  "reviewer": {
+    "context_id": "65f85e7e-b495-4a2e-8f7a-81bbb6866681",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-cb8a42fc-20f9-4d58-bde2-c422a98d0fbd",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 27553
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 66103
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 11126
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 11874
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1310
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "59cc404953f387c6c59305e4602bf2fcd79be778f50815d02dda916b49b29652"
+}
