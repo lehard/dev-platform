@@ -3,34 +3,21 @@
   "candidate": {
     "base_head": "5101ba5249c3d5fc20fd59ddbe444e414454a445",
     "base_ref": "origin/main",
-    "candidate_head": "b8d0a756dc05cb4b4fa104299ad88a07085d7a11",
-    "diff_sha256": "e31cc543c2321e5f1881192a3b45e37f502f4276dd50dbc87347dea95f815863"
+    "candidate_head": "3f7ff126cf0d5ec4e9b2f15493b86c1dcd4f125a",
+    "diff_sha256": "9b621bd43d52f1538ecda1916eb876e50758e09372de9b3ab1dc7bf99ebe1dd2"
   },
-  "completed_at": "2026-09-30T13:08:23+00:00",
-  "findings": [
-    {
-      "evidence": "In `build_report` (`template/scripts/requirement_metrics.py`), `_children` returns `unknown(\"offline\")` for `children_count` when there are no receipts, so `infos` is empty. `children_total` then calls `total([])`, which returns `derived(0)`. Because `children_count.status` is not measured or derived, it wraps that in `lower_bound`, which returns `partial(0, ..., \"offline\")`. As a result `executions`, `review_rounds`, `ci_runs` and the other totals show 0 with status partial. The spec says: \"The report SHALL NOT substitute zero or an estimate for unknown evidence\". Unknown would match the spec better when the child set itself is unknown.",
-      "id": "offline-empty-children-totals-partial-zero",
-      "severity": "advisory",
-      "summary": "When the report runs offline and no local receipts identify any child, headline totals come out as a partial 0 instead of unknown. The requirement-metrics spec says unknown evidence must not be replaced by zero."
-    },
-    {
-      "evidence": "The spec (`requirement-metrics` \"The report exposes the cost of mandatory independent review\") says the report SHALL show \"per round the reviewer launches, per-perspective ... wall time, findings by severity and dispositions\". In `_review`, `round_details` holds no dispositions. `_dispositions(archive, versions, rounds)` builds a single section from the final `independent-review-dispositions.json`. It computes `material_findings` from `rounds[-1]` only. Dispositions from earlier published rounds are therefore not shown. `rejected` and `blocker` are counted only from the final record, so any earlier record is ignored.",
-      "id": "review-dispositions-not-per-round",
-      "severity": "advisory",
-      "summary": "The review-cost requirement asks for dispositions per round. The implementation reports one aggregate disposition block per child, and its `material_findings` counts only the last round."
-    }
-  ],
-  "launched_at": "2026-09-30T13:07:14+00:00",
-  "output_sha256": "949dfd3a73a9555c95b5176bddf0eb45b8d0d86f4660c5049d344556a63de176",
+  "completed_at": "2026-09-30T13:26:33+00:00",
+  "findings": [],
+  "launched_at": "2026-09-30T13:25:55+00:00",
+  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "spec-fidelity",
-  "request_id": "33fee811-66ef-416e-8466-c9d906df481d",
+  "request_id": "e1ee9f93-fcff-4d67-94e6-07718f0ec0f4",
   "reviewer": {
-    "context_id": "22588dfe-11d7-4b10-8e30-94e3a6e60923",
+    "context_id": "2a54393d-4fcc-45b9-8395-e015254ff785",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-6ab66efb-9e03-44d3-92f4-761c93abfee5",
+    "launch_id": "platform-launch-b824219b-27c9-454a-96c5-cf47fcb17094",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -45,41 +32,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 100976
+        "value": 83034
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 499682
+        "value": 293532
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 63953
+        "value": 34741
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 66360
+        "value": 35348
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 16
+        "value": 12
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 13
+        "value": 11
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 5903
+        "value": 4128
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "2d273bc9a1a28907d205c8d803443b5277b057e406eed510605ab92b53e8cdfb"
+  "task_content_digest": "314eafd7739767f1dda7d481f392eb9a0831b27f7cf8006d12c3cae26a483539"
 }

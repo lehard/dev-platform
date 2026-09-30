@@ -41,3 +41,5 @@ The first platform-launched review reported no material findings and six advisor
 - Reviewer usage is read through an allowlist of runtimes and fields.
 
 The remote call volume per child remains a documented trade-off. After the fix, the targeted unit tests (77), test-group coverage, strict validation of all specs and the private-reference guard passed, and the dogfood reports for Requirement 176 (online and offline) were re-run. The fixed candidate is reviewed again by the platform, and its automated-check evidence is refreshed.
+
+The second review round of the fixed candidate reported no material findings. It left two advisories that are accepted as known limitations. First, counts from PR/event listings that reach their hard bound are labelled `derived` rather than `partial`. Second, history reconstruction costs one API call per PR commit, which multiplies across an aggregate, and an unreadable Requirement Issue stops an aggregate as documented.
