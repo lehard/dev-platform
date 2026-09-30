@@ -66,8 +66,14 @@ def pair(request: str, digest: str | None, launched: str, completed: str, **kwar
 ROUND1 = pair("r1", "D1", "2026-01-02T09:50:00Z", "2026-01-02T09:55:00Z", material=1)
 ROUND2 = pair("r2", "D2", "2026-01-02T10:20:00Z", "2026-01-02T10:25:00Z", available=False)
 ROUND3 = pair("r3", "D2", "2026-01-02T10:50:00Z", "2026-01-02T10:58:00Z", material=1)
+# Round 1's blocker survives only in an earlier published version: dispose replaces a finding's record.
+EARLY_DISPOSITIONS = {"schema_version": 1, "dispositions": [
+    {"perspective": "spec-fidelity", "finding": "f0", "status": "blocker", "rationale": "SECRET-DISPOSITION-RATIONALE",
+     "request_id": "r1"},
+]}
 DISPOSITIONS = {"schema_version": 1, "dispositions": [
-    {"perspective": "spec-fidelity", "finding": "f0", "status": "rejected", "rationale": "SECRET-DISPOSITION-RATIONALE"},
+    {"perspective": "spec-fidelity", "finding": "f0", "status": "rejected", "rationale": "SECRET-DISPOSITION-RATIONALE",
+     "request_id": "r3", "report_sha256": metrics.review.report_digest(ROUND3["spec-fidelity"])},
 ]}
 
 
@@ -90,7 +96,8 @@ def commit_files(prefix: str, *, reports: dict[str, dict] | None = None, automat
 COMMITS = [
     ("c1", "2026-01-02T09:40:00Z", commit_files(ACTIVE, automated=checks(1.0, full=False))),
     ("c2", "2026-01-02T10:00:00Z", commit_files(ACTIVE, reports=ROUND1)),
-    ("c3", "2026-01-02T10:30:00Z", commit_files(ACTIVE, reports=ROUND2, automated=checks(2.0, full=False))),
+    ("c3", "2026-01-02T10:30:00Z", commit_files(ACTIVE, reports=ROUND2, automated=checks(2.0, full=False),
+                                                dispositions=EARLY_DISPOSITIONS)),
     ("c4", "2026-01-02T11:00:00Z", commit_files(ACTIVE, reports=ROUND3)),
     ("c5", "2026-01-02T11:30:00Z", commit_files(ARCHIVE, reports=ROUND3, automated=checks(3.0, full=True), dispositions=DISPOSITIONS)),
 ]
@@ -321,8 +328,26 @@ class RequirementReportTests(RequirementMetricsTestCase):
         self.assertEqual((perspective["model"]["value"], perspective["model_source"]["value"]), ("sonnet", "selected"))
         self.assertEqual(perspective["runtime_usage"]["status"], "unknown")
         self.assertEqual(review["dispositions"]["rejected"]["value"], 1)
-        self.assertEqual(review["dispositions"]["blocker"]["value"], 0)
-        self.assertEqual(review["dispositions"]["material_findings"]["value"], 1)
+        self.assertEqual(review["dispositions"]["blocker"]["value"], 1)
+        self.assertEqual(review["dispositions"]["material_findings"]["value"], 2, "material findings of every round")
+
+    def test_dispositions_are_attached_per_round_by_binding(self) -> None:
+        details = self.report()["children"][0]["review"]["round_details"]
+        per_round = [
+            (item["dispositions"]["material_findings"]["value"], item["dispositions"]["rejected"]["value"],
+             item["dispositions"]["blocker"]["value"])
+            for item in details
+        ]
+        self.assertEqual(per_round, [(1, 0, 1), (0, 0, 0), (1, 1, 0)])
+        self.assertEqual(details[0]["dispositions"]["blocker"]["status"], "partial")
+        self.assertIn(f"gh:commit:c3:{ACTIVE}/independent-review-dispositions.json", details[0]["dispositions"]["blocker"]["sources"])
+
+    def test_unbound_disposition_leaves_round_counts_unknown(self) -> None:
+        unbound = {"schema_version": 1, "dispositions": [{"perspective": "spec-fidelity", "finding": "f0", "status": "rejected"}]}
+        self.write(f"{ARCHIVE}/independent-review-dispositions.json", unbound)
+        details = self.report(offline=True)["children"][0]["review"]["round_details"]
+        self.assertEqual(details[0]["dispositions"]["rejected"]["reason"], "unbound-disposition")
+        self.assertEqual(details[0]["dispositions"]["material_findings"]["value"], 1)
 
     def test_same_digest_after_available_round_is_a_process_rerun_and_missing_digest_unknown(self) -> None:
         def versions(*rounds: dict[str, dict]) -> list[metrics.EvidenceVersion]:
@@ -369,9 +394,9 @@ class RequirementReportTests(RequirementMetricsTestCase):
         self.assertEqual(report["friction"]["by_trigger"]["manual-workaround"]["value"], 2)
         stops = report["human_stops"]
         self.assertEqual(stops["pre_authoring_decisions"]["value"], 1)
-        self.assertEqual(stops["review_blockers"]["value"], 0)
+        self.assertEqual(stops["review_blockers"]["value"], 1)
         self.assertEqual(stops["project_blocked"]["status"], "unknown")
-        self.assertEqual((stops["total"]["value"], stops["total"]["status"]), (1, "partial"))
+        self.assertEqual((stops["total"]["value"], stops["total"]["status"]), (2, "partial"))
         self.assertEqual(report["session_quality"]["codex"], {"runtime": "codex", "status": "unknown", "reason": "unsupported-runtime"})
         self.assertEqual(report["provider_usage"]["executor/codex"]["input_tokens"]["value"], 50)
         self.assertEqual(report["provider_usage"]["reviewer/claude-code-print"]["launches_without_usage"]["value"], 6)
@@ -405,6 +430,45 @@ class RequirementReportTests(RequirementMetricsTestCase):
         self.assertEqual(child["managed"]["start_tier"]["value"], "R2")
         self.assertEqual(report["cycle"]["total_s"]["reason"], "offline")
         self.assertEqual(report["totals"]["ci_runs"]["status"], "unknown")
+
+    def test_offline_without_local_child_evidence_keeps_children_totals_unknown(self) -> None:
+        (self.root / ".claude" / "requirement-integration" / "requirement-7" / "alpha-change.json").unlink()
+        report = self.report(offline=True)
+        self.assertEqual(report["children"], [])
+        self.assertEqual(report["requirement"]["children_count"]["reason"], "offline")
+        for name in ("executions", "escalations", "review_rounds", "review_launches", "validation_cycles", "full_validations",
+                     "ci_runs", "ci_cycles", "ci_wall_time_s", "publication_cycles"):
+            with self.subTest(name=name):
+                self.assertEqual((report["totals"][name]["value"], report["totals"][name]["status"]), (None, "unknown"))
+                self.assertEqual(report["totals"][name]["reason"], "offline")
+        self.assertEqual(report["totals"]["review_reruns_by_cause"]["process-rerun"]["status"], "unknown")
+        self.assertEqual(report["human_stops"]["review_blockers"]["status"], "unknown")
+        self.assertEqual(report["totals"]["human_stops"]["status"], "partial", "pre-authoring decisions are still known")
+
+    def test_malformed_target_repository_makes_only_that_childs_remote_sections_unknown(self) -> None:
+        managed = self.root / ARCHIVE / ".managed-task.json"
+        provenance = json.loads(managed.read_text(encoding="utf-8"))
+        provenance["target_repository"] = "not a repository"
+        managed.write_text(json.dumps(provenance), encoding="utf-8")
+        gh = FakeGitHub()
+        gh.responses["repos/acme/backlog/issues/8"]["body"] = f"**OpenSpec change:** `{CHANGE}`\n\nRequirement: {REQUIREMENT}\n"  # type: ignore[index]
+        report = self.report(gh=gh)
+        child = report["children"][0]
+        self.assertEqual(child["publication"]["publication_cycles"]["reason"], "malformed-target-repository")
+        self.assertEqual(child["ci"]["runs"]["reason"], "malformed-target-repository")
+        self.assertEqual(child["managed"]["start_tier"]["value"], "R2")
+        self.assertEqual((child["review"]["rounds"]["value"], child["review"]["rounds"]["status"]), (1, "partial"))
+        self.assertEqual(report["diagnostics"], [{"section": f"child {CHILD}", "reason": "managed provenance target_repository is not owner/name"}])
+
+    def test_unexpected_child_source_error_does_not_abort_the_report_or_aggregate(self) -> None:
+        with mock.patch.object(metrics, "_routing_record", side_effect=RuntimeError("broken record")):
+            report = self.report(offline=True)
+        child = report["children"][0]
+        self.assertEqual(child["change"]["value"], CHANGE)
+        self.assertEqual(child["review"]["rounds"]["reason"], "unreadable")
+        self.assertEqual(report["totals"]["review_rounds"]["status"], "unknown")
+        self.assertEqual(report["diagnostics"][0]["reason"], "RuntimeError: broken record")
+        self.assertEqual(metrics.aggregate([report])["rows"][0]["metrics"]["review_rounds"]["status"], "unknown")
 
     def test_remote_failure_makes_only_the_dependent_section_unknown(self) -> None:
         report = self.report(gh=FakeGitHub(fail=("actions/runs",)))
@@ -553,25 +617,50 @@ class AggregateTests(RequirementMetricsTestCase):
         text = metrics.render_aggregate_text(result)
         self.assertIn("Group start_tier=R2: n=5 adequacy=adequate", text)
 
-    def test_closed_since_selects_closed_requirements_through_one_search(self) -> None:
-        gh = FakeGitHub()
-        ctx = self.context(gh=gh)
-        gh.responses["search/issues"] = {"items": [{"number": 9}, {"number": 7}]}
-        original = gh.__call__
+    def search_context(self, pages: list[dict]) -> tuple[metrics.Context, list[str]]:
+        ctx = self.context()
+        queries: list[str] = []
 
         def search(args: list[str]) -> str:
-            if args[-1].startswith("search/issues?"):
-                query = args[-1]
-                self.assertIn("label%3Atype%3Arequirement", query)
-                self.assertIn("label%3Aproject%3Ademo", query)
-                self.assertIn("closed%3A%3E%3D2026-01-01", query)
-                return json.dumps(gh.responses["search/issues"])
-            return original(args)
+            queries.append(args[-1])
+            page = int(dict(part.split("=", 1) for part in args[-1].split("?", 1)[1].split("&"))["page"])
+            return json.dumps(pages[page - 1] if page <= len(pages) else {"items": [], "total_count": 0})
 
         ctx.github = metrics.GitHub(search)
-        self.assertEqual(metrics.closed_requirements(ctx, "2026-01-01"), ["acme/backlog#7", "acme/backlog#9"])
+        return ctx, queries
+
+    def test_closed_since_selects_closed_requirements_through_the_search(self) -> None:
+        ctx, queries = self.search_context([{"total_count": 2, "items": [{"number": 9}, {"number": 7}]}])
+        refs, selection = metrics.closed_requirements(ctx, "2026-01-01")
+        self.assertEqual(refs, ["acme/backlog#7", "acme/backlog#9"])
+        self.assertEqual((selection["requirements"]["value"], selection["requirements"]["status"]), (2, "derived"))
+        self.assertEqual(len(queries), 1)
+        for fragment in ("label%3Atype%3Arequirement", "label%3Aproject%3Ademo", "closed%3A%3E%3D2026-01-01"):
+            self.assertIn(fragment, queries[0])
+        self.assertEqual(ctx.diagnostics, [])
         with self.assertRaisesRegex(metrics.RequirementMetricsError, "--offline"):
             metrics.closed_requirements(self.context(offline=True), "2026-01-01")
+
+    def test_closed_since_paginates_and_marks_a_truncated_selection_partial(self) -> None:
+        full_page = {"total_count": 1500, "items": [{"number": number} for number in range(1, 101)]}
+        pages = [{"total_count": 1500, "items": [{"number": page * 100 + number} for number in range(1, 101)]} for page in range(10)]
+        ctx, queries = self.search_context([full_page, *pages[1:]])
+        refs, selection = metrics.closed_requirements(ctx, "2026-01-01")
+        self.assertEqual(len(queries), metrics.MAX_SEARCH_PAGES)
+        self.assertEqual(len(refs), 1000)
+        self.assertEqual(selection["requirements"]["status"], "partial")
+        self.assertEqual(selection["requirements"]["reason"], "search-truncated")
+        self.assertEqual(selection["total_count"]["value"], 1500)
+        self.assertIn("1000 of 1500", ctx.diagnostics[0]["reason"])
+        result = metrics.aggregate([], selection, ctx.diagnostics)
+        self.assertEqual(result["selection"]["requirements"]["status"], "partial")
+        self.assertEqual(result["diagnostics"][0]["section"], "closed-since selection")
+        two_pages, _ = self.search_context([
+            {"total_count": 150, "items": [{"number": number} for number in range(1, 101)]},
+            {"total_count": 150, "items": [{"number": number} for number in range(101, 151)]},
+        ])
+        refs, selection = metrics.closed_requirements(two_pages, "2026-01-01")
+        self.assertEqual((len(refs), selection["requirements"]["status"]), (150, "derived"))
 
 
 if __name__ == "__main__":

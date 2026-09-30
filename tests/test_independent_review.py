@@ -290,6 +290,27 @@ class IndependentReviewTests(unittest.TestCase):
         self.assertEqual(measured["status"], "measured")
         self.assertEqual(measured["fields"]["output_tokens"], {"value": None, "source": "unknown", "status": "unknown"})
 
+    def test_read_runtime_usage_keeps_only_allowlisted_runtimes_fields_and_sources(self) -> None:
+        block = {"runtime": "codex-exec", "fields": {
+            "input_tokens": {"value": 5, "source": "runtime-confirmed", "status": "measured"},
+            "cached_input_tokens": {"value": 3, "source": "free text copied from somewhere", "status": "measured"},
+            "prompt_text_leak": {"value": 1, "source": "runtime-confirmed", "status": "measured"},
+            "total_cost_usd": {"value": 1, "source": "runtime-confirmed", "status": "measured"},
+        }}
+        usage = review.read_runtime_usage({"runtime_usage": block})
+        self.assertEqual(set(usage["fields"]), {"input_tokens", "cached_input_tokens", "output_tokens"})
+        self.assertEqual(usage["fields"]["input_tokens"], {"value": 5, "source": "runtime-confirmed", "status": "measured"})
+        self.assertEqual(usage["fields"]["cached_input_tokens"], {"value": None, "source": "unknown", "status": "unknown"})
+        self.assertNotIn("free text", json.dumps(usage))
+        foreign = review.read_runtime_usage({"runtime_usage": {"runtime": "x" * 500, "fields": block["fields"]}})
+        self.assertEqual(foreign, {"runtime": None, "status": "unknown", "reason": "unsupported-runtime", "fields": {}})
+
+    def test_runner_emits_only_allowlisted_usage_fields(self) -> None:
+        claude = runner.runtime_usage("claude", json.dumps({"usage": {"input_tokens": 1}}))
+        codex = runner.runtime_usage("codex", "")
+        self.assertEqual(tuple(claude["fields"]), review.RUNTIME_USAGE_FIELDS[claude["runtime"]])
+        self.assertEqual(tuple(codex["fields"]), review.RUNTIME_USAGE_FIELDS[codex["runtime"]])
+
     def test_provider_defaults_to_task_route_and_unknown_route_is_unavailable(self) -> None:
         self.write_config("")
         self.commit("no explicit provider")

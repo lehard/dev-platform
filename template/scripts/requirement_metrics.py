@@ -60,6 +60,7 @@ MAX_PR_COMMITS = 250
 MAX_EVIDENCE_READS = 200
 MAX_RUNS = 300
 MAX_EVENTS = 300
+MAX_SEARCH_PAGES = 10
 GH_TIMEOUT_SECONDS = 60
 DIAGNOSTIC_LIMIT = 200
 ACTIVE_GAP_CAP_SECONDS = 300
@@ -583,9 +584,9 @@ def _evidence_file(change: str, path: str) -> str | None:
     return None
 
 
-def _pull_requests(ctx: Context, target: str | None, change: str) -> tuple[list[dict[str, Any]] | None, str | None]:
+def _pull_requests(ctx: Context, target: str | None, change: str, reason: str | None = None) -> tuple[list[dict[str, Any]] | None, str | None]:
     if target is None:
-        return None, "source-missing" if ctx.github is not None else "offline"
+        return None, reason or ("source-missing" if ctx.github is not None else "offline")
     owner = target.split("/")[0]
     branch = urllib.parse.quote(f"{owner}:agent/{change}", safe=":/")
     items, reason = ctx.remote(
@@ -823,7 +824,7 @@ def _review(archive: str | None, archived: list[EvidenceVersion], history: Histo
         ), lower) if count["status"] != UNKNOWN else unknown(lower)
         for cause in causes
     }
-    dispositions = _dispositions(archive, versions, rounds)
+    dispositions = _dispositions(archive, versions, rounds, details, lower)
     first_completed = _round_times(rounds[0])[1] if rounds else None
     perspectives = [p for item in details for p in item["perspectives"].values()]
     section = {
@@ -841,30 +842,86 @@ def _review(archive: str | None, archived: list[EvidenceVersion], history: Histo
     return section, first_completed
 
 
-def _dispositions(archive: str | None, versions: list[EvidenceVersion], rounds: list[dict[str, Any]]) -> dict[str, Any]:
-    final = next((version for version in reversed(versions) if version.file == review.DISPOSITIONS_FILE), None)
-    material = total(
-        derived(sum(1 for item in (report.get("findings") or []) if isinstance(item, dict) and item.get("severity") == "material"),
-                rounds[-1]["sources"])
-        for report in rounds[-1]["reports"].values()
-    ) if rounds else unknown("source-missing")
-    if final is None:
+def _disposition_items(versions: list[EvidenceVersion]) -> tuple[list[tuple[dict[str, Any], str]], bool, bool]:
+    """Distinct dispositions across every published record version: ``(items, seen, readable)``.
+
+    ``dispose`` replaces an earlier disposition of the same finding, so older
+    rounds' dispositions survive only in earlier published versions; the latest
+    version of the same binding wins.
+    """
+    items: dict[tuple[Any, ...], tuple[dict[str, Any], str]] = {}
+    seen = False
+    readable = True
+    for version in versions:
+        if version.file != review.DISPOSITIONS_FILE:
+            continue
+        seen = True
+        payload = _json_object(version.content)
+        entries = payload.get("dispositions") if payload else None
+        if not isinstance(entries, list):
+            readable = False
+            continue
+        for item in entries:
+            if isinstance(item, dict):
+                key = (item.get("request_id"), item.get("perspective"), item.get("finding"), item.get("report_sha256"))
+                items[key] = (item, version.source)
+    return list(items.values()), seen, readable
+
+
+def _disposition_round(item: dict[str, Any], rounds: list[dict[str, Any]]) -> int | None:
+    """The round a disposition binds to: its report digest, else a unique request id; ``None`` when ambiguous."""
+    perspective = item.get("perspective")
+    digest = item.get("report_sha256")
+    if digest:
+        matches = [
+            index for index, round_ in enumerate(rounds)
+            if perspective in round_["reports"] and review.report_digest(round_["reports"][perspective]) == digest
+        ]
+        if len(matches) == 1:
+            return matches[0]
+    request = item.get("request_id")
+    matches = [index for index, round_ in enumerate(rounds) if request and round_["request_id"] == request and perspective in round_["reports"]]
+    return matches[0] if len(matches) == 1 else None
+
+
+def _dispositions(archive: str | None, versions: list[EvidenceVersion], rounds: list[dict[str, Any]],
+                  details: list[dict[str, Any]], lower: str) -> dict[str, Any]:
+    """Attach per-round disposition counts to ``details`` and return the child-level aggregate."""
+    items, seen, readable = _disposition_items(versions)
+    bound = [(item, source, _disposition_round(item, rounds)) for item, source in items]
+    unbound = any(index is None for _, _, index in bound)
+    for index, detail in enumerate(details):
+        material = total(p["findings"]["material"] for p in detail["perspectives"].values())
+        mine = [(item, source) for item, source, bound_index in bound if bound_index == index]
+        sources = [*rounds[index]["sources"], *(source for _, source in mine)]
+        if not readable or unbound:
+            why = "unreadable" if not readable else "unbound-disposition"
+            rejected = blocker = unknown(why, sources)
+        elif not seen and archive is None:
+            rejected = blocker = unknown("source-missing", sources)
+        else:
+            statuses = [item.get("status") for item, _ in mine]
+            rejected = lower_bound(derived(statuses.count("rejected"), sources), lower)
+            blocker = lower_bound(derived(statuses.count("blocker"), sources), lower)
+        detail["dispositions"] = {"material_findings": material, "rejected": rejected, "blocker": blocker}
+    material_total = lower_bound(total(detail["dispositions"]["material_findings"] for detail in details), lower) if details else unknown("source-missing")
+    all_sources = [source for _, source in items]
+    if not readable:
+        broken = unknown("unreadable", all_sources)
+        return {"material_findings": material_total, "rejected": broken, "blocker": broken}
+    if not seen:
         if archive is None:
             missing = unknown("source-missing")
-            return {"material_findings": material, "rejected": missing, "blocker": missing}
+            return {"material_findings": material_total, "rejected": missing, "blocker": missing}
         # A delivered change without a disposition record had nothing disposed.
         sources = rounds[-1]["sources"] if rounds else [archive]
-        return {"material_findings": material, "rejected": derived(0, sources), "blocker": derived(0, sources)}
-    payload = _json_object(final.content)
-    items = payload.get("dispositions") if payload else None
-    if not isinstance(items, list):
-        broken = unknown("unreadable", [final.source])
-        return {"material_findings": material, "rejected": broken, "blocker": broken}
-    statuses = [item.get("status") for item in items if isinstance(item, dict)]
+        return {"material_findings": material_total, "rejected": lower_bound(derived(0, sources), lower),
+                "blocker": lower_bound(derived(0, sources), lower)}
+    statuses = [item.get("status") for item, _ in items]
     return {
-        "material_findings": material,
-        "rejected": derived(statuses.count("rejected"), [final.source]),
-        "blocker": derived(statuses.count("blocker"), [final.source]),
+        "material_findings": material_total,
+        "rejected": lower_bound(derived(statuses.count("rejected"), all_sources), lower),
+        "blocker": lower_bound(derived(statuses.count("blocker"), all_sources), lower),
     }
 
 
@@ -1383,40 +1440,64 @@ class ClaudeTranscripts:
 # Report assembly -----------------------------------------------------------
 
 
-def _child_report(ctx: Context, info: ChildInfo, events: list[dict[str, Any]] | None, friction_source: str) -> tuple[dict[str, Any], dict[str, Any]]:
-    """Return ``(child section, runtime providers observed for it)``."""
-    change = info.change
+def _child_base(info: ChildInfo) -> dict[str, Any]:
     child_sources = info.sources or [f"gh:issue:{info.ref}"]
     issue = info.issue or {}
     reason = info.issue_reason or "source-missing"
-    facts: dict[str, Any] = {"providers": set()}
-    base = {
+    return {
         "ref": info.ref,
         "state": measured(issue.get("state"), child_sources) if info.issue else unknown(reason, child_sources),
         "created_at": measured(issue.get("created_at"), child_sources) if info.issue else unknown(reason, child_sources),
         "closed_at": measured(issue.get("closed_at"), child_sources, missing="open") if info.issue else unknown(reason, child_sources),
     }
+
+
+def _unknown_child(ctx: Context, info: ChildInfo, why: str, events: list[dict[str, Any]] | None, friction_source: str) -> dict[str, Any]:
+    """A child whose change identity or sources cannot be resolved: every section unknown with ``why``."""
+    child_sources = info.sources or [f"gh:issue:{info.ref}"]
+    return {
+        **_child_base(info),
+        "change": measured(info.change, child_sources) if info.change else unknown(why, child_sources),
+        "managed": _managed(ctx, None, None, why),
+        "routing": _routing(None, "", why),
+        "execution_efficiency": {"runtime": None, "elapsed_ms": unknown(why, child_sources), "usage": {}},
+        "verification": _verification(ctx, None, why),
+        "validation": _validation(None, None, why, []),
+        "review": _review(None, [], None, why)[0],
+        "publication": _publication(ctx, None, None, why, {}),
+        "ci": _ci(ctx, None, "", why)[0],
+        "cycles_after_first_review": _cycles_after_first_review(None, {}, None, None),
+        "friction": _friction_summary(_child_friction(events, info.ref, info.change), friction_source),
+    }
+
+
+def _target(ctx: Context, info: ChildInfo, provenance: dict[str, Any] | None) -> tuple[str | None, str | None]:
+    """The child's target repository; a malformed value makes only its remote sections unknown."""
+    if info.target:
+        return info.target, None
+    value = (provenance or {}).get("target_repository")
+    if value is None:
+        return None, None
+    try:
+        return repo(str(value)), None
+    except ManagedTaskError:
+        ctx.note(f"child {info.ref}", "managed provenance target_repository is not owner/name")
+        return None, "malformed-target-repository"
+
+
+def _child_report(ctx: Context, info: ChildInfo, events: list[dict[str, Any]] | None, friction_source: str) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Return ``(child section, runtime providers observed for it)``."""
+    change = info.change
+    child_sources = info.sources or [f"gh:issue:{info.ref}"]
+    facts: dict[str, Any] = {"providers": set()}
+    base = _child_base(info)
     if change is None:
-        why = info.change_reason or "source-missing"
-        section = {
-            **base,
-            "change": unknown(why, child_sources),
-            "managed": _managed(ctx, None, None, why),
-            "routing": _routing(None, "", why),
-            "execution_efficiency": {"runtime": None, "elapsed_ms": unknown(why, child_sources), "usage": {}},
-            "verification": _verification(ctx, None, why),
-            "validation": _validation(None, None, why, []),
-            "review": _review(None, [], None, why)[0],
-            "publication": _publication(ctx, None, None, why, {}),
-            "ci": _ci(ctx, None, "", why)[0],
-            "cycles_after_first_review": _cycles_after_first_review(None, {}, None, None),
-            "friction": _friction_summary(_child_friction(events, info.ref, None), friction_source),
-        }
-        return section, facts
+        return _unknown_child(ctx, info, info.change_reason or "source-missing", events, friction_source), facts
     archive, provenance, state = _archive(ctx, change)
-    target = info.target or (repo(provenance["target_repository"]) if provenance and isinstance(provenance.get("target_repository"), str) else None)
+    target, target_reason = _target(ctx, info, provenance)
     record, routing_source, routing_reason = _routing_record(ctx, change, info.ref)
-    prs, pr_reason = _pull_requests(ctx, target, change)
+    prs, pr_reason = _pull_requests(ctx, target, change, target_reason)
+
     history: History | None = None
     commit_counts: dict[int, int] = {}
     history_reason = pr_reason
@@ -1426,7 +1507,7 @@ def _child_report(ctx: Context, info: ChildInfo, events: list[dict[str, Any]] | 
     archive_source = ctx.file_ref(archive / ".managed-task.json") if archive else None
     review_section, first_completed = _review(archive_source, archived, history, history_reason)
     validation = _validation(archive, history, history_reason, archived)
-    ci, primary_runs = _ci(ctx, target, change)
+    ci, primary_runs = _ci(ctx, target, change, target_reason)
     routing = _routing(record, routing_source, routing_reason)
     section = {
         **base,
@@ -1571,7 +1652,11 @@ def build_report(ctx: Context, requirement_ref: str) -> dict[str, Any]:
     providers: set[str] = set()
     child_event_ids: set[str] = set()
     for info in infos:
-        section, facts = _child_report(ctx, info, events, friction_source)
+        try:
+            section, facts = _child_report(ctx, info, events, friction_source)
+        except Exception as exc:  # One child's unexpected source never aborts the report.
+            ctx.note(f"child {info.ref}", f"{type(exc).__name__}: {exc}")
+            section, facts = _unknown_child(ctx, info, "unreadable", events, friction_source), {"providers": set()}
         child_sections.append(section)
         providers.update(facts["providers"])
         child_event_ids.update(section["friction"]["ids"])
@@ -1589,7 +1674,16 @@ def build_report(ctx: Context, requirement_ref: str) -> dict[str, Any]:
     session_quality: dict[str, Any] = {CLAUDE_RUNTIME: session}
     for provider in sorted(providers - {"claude"}):
         session_quality[provider] = {"runtime": provider, "status": UNKNOWN, "reason": "unsupported-runtime"}
-    review_blockers = total(child["review"]["dispositions"]["blocker"] for child in child_sections)
+    def children_total(path: Callable[[dict[str, Any]], dict[str, Any]]) -> dict[str, Any]:
+        """A sum over children is unknown when the child set is unknown, never zero."""
+        if children_count["status"] == UNKNOWN:
+            return unknown(children_count.get("reason") or "source-missing", children_count["sources"])
+        value = total(path(child) for child in child_sections)
+        if children_count["status"] in (MEASURED, DERIVED):
+            return value
+        return lower_bound(value, children_count.get("reason") or "incomplete-inputs")
+
+    review_blockers = children_total(lambda child: child["review"]["dispositions"]["blocker"])
     project_blocked = unknown("no-recorded-history")
     human_stops = {
         "pre_authoring_decisions": pre["decisions_answered"],
@@ -1598,10 +1692,6 @@ def build_report(ctx: Context, requirement_ref: str) -> dict[str, Any]:
         "session_interruptions": session.get("interruptions") or unknown(session.get("reason") or "source-missing"),
         "total": total([pre["decisions_answered"], review_blockers, project_blocked]),
     }
-
-    def children_total(path: Callable[[dict[str, Any]], dict[str, Any]]) -> dict[str, Any]:
-        value = total(path(child) for child in child_sections)
-        return value if children_count["status"] in (MEASURED, DERIVED) else lower_bound(value, children_count.get("reason") or "incomplete-inputs")
 
     causes = ("substantive-candidate-change", "reviewer-unavailable", "process-rerun", "unknown")
     totals = {
@@ -1723,7 +1813,8 @@ def _group_statistics(rows: list[dict[str, Any]], minimum: int) -> dict[str, Any
     return {"n": len(rows), "adequacy": "adequate", "minimum": minimum, "metrics": metrics}
 
 
-def aggregate(reports: list[dict[str, Any]]) -> dict[str, Any]:
+def aggregate(reports: list[dict[str, Any]], selection: dict[str, Any] | None = None,
+              diagnostics: list[dict[str, str]] | None = None) -> dict[str, Any]:
     minimum = _min_observations()
     rows = []
     for report in reports:
@@ -1760,15 +1851,17 @@ def aggregate(reports: list[dict[str, Any]]) -> dict[str, Any]:
         "generated_at": utc_now(),
         "head": _head(),
         "requirements": [row["requirement"] for row in rows],
+        "selection": selection or {"method": "explicit", "requirements": derived(len(rows))},
         "rows": rows,
         "groups": groups,
         "runtime_groups": {key: {"n": len(value), "requirements": value} for key, value in sorted(runtime_groups.items())},
         "advice": ADVICE,
-        "diagnostics": [item for report in reports for item in report["diagnostics"]],
+        "diagnostics": [*(diagnostics or []), *(item for report in reports for item in report["diagnostics"])],
     }
 
 
-def closed_requirements(ctx: Context, since: str) -> list[str]:
+def closed_requirements(ctx: Context, since: str) -> tuple[list[str], dict[str, Any]]:
+    """Closed Requirements since a date and the selection coverage (partial when the search was cut short)."""
     if ctx.github is None:
         raise RequirementMetricsError("--closed-since needs GitHub; pass explicit --requirement values with --offline")
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", since):
@@ -1780,15 +1873,36 @@ def closed_requirements(ctx: Context, since: str) -> list[str]:
         f"repo:{backlog['repository']} is:issue is:closed label:{REQUIREMENT_LABEL} "
         f"label:{backlog['project_label']} closed:>={since}"
     )
-    try:
-        payload = ctx.github.get("search/issues?" + urllib.parse.urlencode({"q": query, "per_page": 100, "sort": "created", "order": "asc"}))
-    except GitHubUnavailable as exc:
-        raise RequirementMetricsError(f"cannot list closed Requirements: {_bounded(str(exc))}") from exc
-    items = payload.get("items") if isinstance(payload, dict) else None
-    if not isinstance(items, list):
-        raise RequirementMetricsError("cannot list closed Requirements: unexpected GitHub payload")
-    refs = [f"{repo(str(backlog['repository']))}#{item['number']}" for item in items if isinstance(item, dict) and isinstance(item.get("number"), int)]
-    return sorted(refs, key=lambda ref: int(ref.split("#")[1]))
+    items: list[Any] = []
+    total_count: int | None = None
+    incomplete = False
+    for page in range(1, MAX_SEARCH_PAGES + 1):
+        params = {"q": query, "per_page": 100, "page": page, "sort": "created", "order": "asc"}
+        try:
+            payload = ctx.github.get("search/issues?" + urllib.parse.urlencode(params))
+        except GitHubUnavailable as exc:
+            raise RequirementMetricsError(f"cannot list closed Requirements: {_bounded(str(exc))}") from exc
+        batch = payload.get("items") if isinstance(payload, dict) else None
+        if not isinstance(batch, list):
+            raise RequirementMetricsError("cannot list closed Requirements: unexpected GitHub payload")
+        total_count = _int(payload.get("total_count"))
+        incomplete = incomplete or payload.get("incomplete_results") is True
+        items.extend(batch)
+        if len(batch) < 100 or (total_count is not None and len(items) >= total_count):
+            break
+    refs = sorted(
+        {f"{repo(str(backlog['repository']))}#{item['number']}" for item in items if isinstance(item, dict) and isinstance(item.get("number"), int)},
+        key=lambda ref: int(ref.split("#")[1]),
+    )
+    source = ["gh:search:issues"]
+    if incomplete or total_count is None or total_count > len(items):
+        reason = "search-incomplete" if incomplete else "search-truncated"
+        ctx.note("closed-since selection", f"search listed {len(items)} of {total_count if total_count is not None else 'unknown'} closed Requirements")
+        count = partial(len(refs), source, reason)
+    else:
+        count = derived(len(refs), source)
+    return refs, {"method": "closed-since", "since": since, "requirements": count,
+                  "total_count": measured(total_count, source, missing="unreadable")}
 
 
 # Text output ---------------------------------------------------------------
@@ -1860,7 +1974,8 @@ def render_report_text(report: dict[str, Any]) -> str:
 
 
 def render_aggregate_text(result: dict[str, Any]) -> str:
-    lines = [f"Requirements: {len(result['rows'])}"]
+    lines = [f"Requirements: {len(result['rows'])} (selection {result['selection']['method']}: "
+             f"{_fmt(result['selection']['requirements'])})"]
     for row in result["rows"]:
         lines.append(
             f"{row['requirement']} family={row['task_family']} tier={row['start_tier']} "
@@ -1871,6 +1986,8 @@ def render_aggregate_text(result: dict[str, Any]) -> str:
             lines.append(f"Group {dimension}={key}: n={group['n']} adequacy={group['adequacy']}")
     for key, group in result["runtime_groups"].items():
         lines.append(f"Runtime group {key}: n={group['n']}")
+    for item in result["diagnostics"]:
+        lines.append(f"Diagnostic [{item['section']}]: {item['reason']}")
     lines.append(result["advice"])
     return "\n".join(lines) + "\n"
 
@@ -1904,12 +2021,17 @@ def main(argv: list[str] | None = None) -> int:
             report = build_report(ctx, args.requirement)
             output = render_report_text(report) if args.format == "text" else json.dumps(report, indent=2, sort_keys=True) + "\n"
         else:
-            refs = args.requirement or closed_requirements(ctx, args.closed_since)
+            selection: dict[str, Any] | None = None
+            if args.requirement:
+                refs = args.requirement
+            else:
+                refs, selection = closed_requirements(ctx, args.closed_since)
+            selection_diagnostics = list(ctx.diagnostics)
             reports = []
             for ref in dict.fromkeys(refs):
                 ctx.diagnostics = []
                 reports.append(build_report(ctx, ref))
-            result = aggregate(reports)
+            result = aggregate(reports, selection, selection_diagnostics)
             output = render_aggregate_text(result) if args.format == "text" else json.dumps(result, indent=2, sort_keys=True) + "\n"
     except (RequirementMetricsError, ManagedTaskError) as exc:
         print(f"requirement_metrics: {exc}", file=sys.stderr)
