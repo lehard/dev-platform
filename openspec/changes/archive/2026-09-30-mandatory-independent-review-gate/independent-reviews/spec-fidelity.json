@@ -1,0 +1,44 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "af10f92d31c0e6079675cf187c45365eca3a2545",
+    "base_ref": "origin/main",
+    "candidate_head": "b1cd2f338434a8dd141e7a54c1e72f56f06bfacd",
+    "diff_sha256": "c1d0f2c55ba4b1884b06e5aab82ee55638f0c7768c34e890e991fad8dfb01753"
+  },
+  "completed_at": "2026-09-30T08:39:53+00:00",
+  "findings": [
+    {
+      "evidence": "proposal.md: 'dev-platform requires review for managed changes'. tasks.md task 5 is checked: 'Enable review for dev-platform managed changes'. design.md 'Scope and compatibility' says `.dev-platform.toml` is machine-local, excluded from the candidate, and the flag is 'applied to the integration checkout's copy once this change merges'. The diff contains no `.dev-platform.toml` change; only `template/.dev-platform.toml.jinja` changes, and it keeps `enabled = false`. The design documents this, but the proposal and task wording overstate what the candidate delivers.",
+      "id": "central-enablement-not-in-candidate",
+      "severity": "advisory",
+      "summary": "The proposal and tasks.md say dev-platform requires review for managed changes and mark the enablement task done. The candidate does not enable review for the central repository, so the gate is not mandatory there until an operator edits a machine-local file after merge."
+    },
+    {
+      "evidence": "The spec scenario 'New session resumes' says a new session reading 'task status or Requirement advance' sees the review state and exact next command. The execute_requirement.py hunk adds `\"independent_review\": _child_review_state(...)` only in the `status: implement-child` payload. verification.md concedes: 'review state is surfaced on the resume points (`implement-child`, task status) rather than every advance outcome'. The gap is disclosed, so it is advisory.",
+      "id": "advance-review-state-only-on-implement-child",
+      "severity": "advisory",
+      "summary": "The spec requires Requirement advance to expose the derived review state and next command. The candidate adds `independent_review` only to the `implement-child` outcome in execute_requirement.py; other advance outcomes carry no review state."
+    }
+  ],
+  "launched_at": "2026-09-30T08:39:26+00:00",
+  "output_sha256": "7b0c3e692c316af87340af29ef40185e2b4fdbbcb6ed42227911c5c71acca92a",
+  "perspective": "spec-fidelity",
+  "request_id": "2460550f-1197-4b1e-bdc9-6b7e3e102ffa",
+  "reviewer": {
+    "context_id": "72d6f7af-cc84-4652-979c-e0335c47ee40",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content_digest": "eed35b4d0348a789b217b7aeb7356a187f84642106939a5cccaacd04c10f0303"
+}

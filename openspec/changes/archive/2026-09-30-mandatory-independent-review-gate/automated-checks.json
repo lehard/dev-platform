@@ -1,0 +1,92 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.853,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 1.56,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 391.597,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/execute_requirement.py",
+        "template/scripts/finish_task.py",
+        "template/scripts/independent_review.py",
+        "template/scripts/independent_review_runner.py",
+        "template/scripts/openspec_lifecycle.py",
+        "template/scripts/task_content_identity.py",
+        "tests/test_independent_review.py",
+        "tests/test_shared_writer_guard.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_03dd491b58babbf432b3f1713d559f83",
+    "change": "mandatory-independent-review-gate",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/mandatory-independent-review-gate",
+    "branch": "agent/mandatory-independent-review-gate",
+    "head": "b1cd2f338434a8dd141e7a54c1e72f56f06bfacd",
+    "task_content": {
+      "version": 1,
+      "digest": "d01844a0066c6aa9ccfd5330db60c816c61b4e0d69cad122212537e949b538ad",
+      "paths": {
+        "docs/engineering/model-routing.md": "9a871e20191ca75c7fada60991548e5325478250",
+        "docs/engineering/openspec-workflow.md": "8dcbec6c5d95de0b85573b181298d1ec48559ff8",
+        "openspec/changes/mandatory-independent-review-gate/.managed-task.json": "cc8e66b507dae2bf79157001b90414cfe4f5f546",
+        "openspec/changes/mandatory-independent-review-gate/.openspec.yaml": "29382a2c80fa56db41a894c8d84de17dd931a4d8",
+        "openspec/changes/mandatory-independent-review-gate/design.md": "e8fd7635866d4ae3dccfa604af868b47432ec7d0",
+        "openspec/changes/mandatory-independent-review-gate/proposal.md": "f402a8dcdcc8ff0bc330aefc854ed50da38b86d1",
+        "openspec/changes/mandatory-independent-review-gate/specs/completion-lifecycle/spec.md": "4e6a57a9b869ce945efe36dc51db27b4afba035e",
+        "openspec/changes/mandatory-independent-review-gate/tasks.md": "2465a16d16678a0a11a2bd0ec114dab3ae55643d",
+        "openspec/changes/mandatory-independent-review-gate/verification.md": "280bb93b869f6ffe59775bfac0ebf783bebf36c9",
+        "template/.dev-platform.toml.jinja": "e22015bf4e701562b41b97e17addfc35e2f1f816",
+        "template/docs/engineering/model-routing.md": "4f0a802e434af8746aa94fbea748712529e39c0b",
+        "template/docs/engineering/openspec-workflow.md": "cbcd50fb154a18c1698092cb3b1fcb9d0d9e7b17",
+        "template/scripts/execute_requirement.py": "822852f67920e9c9675f9d350caaf3ccae4a713a",
+        "template/scripts/finish_task.py": "c1d8bea846cebb86811ca1f13bc1238b5de0be21",
+        "template/scripts/independent_review.py": "c5a9fc295ecde195eb36f514f1a1b21d2bfdbf03",
+        "template/scripts/independent_review_runner.py": "4fca5aabafd46125697d1659021d93b4db4341cb",
+        "template/scripts/openspec_lifecycle.py": "d969ee9e17c1ea912259dd65b3b994244a7d34f3",
+        "template/scripts/task_content_identity.py": "f143372e09f61400638d9e6fccbcb1fffcadfd84",
+        "tests/test_independent_review.py": "46d931256fa4e7408e89d4f76721ab7c691ee80e",
+        "tests/test_shared_writer_guard.py": "00930f815dd0024c625833727baaeb7145da1dbc"
+      },
+      "base": "af10f92d31c0e6079675cf187c45365eca3a2545"
+    }
+  }
+}

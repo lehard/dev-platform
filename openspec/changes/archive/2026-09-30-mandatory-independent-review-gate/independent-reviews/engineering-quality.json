@@ -1,0 +1,68 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "af10f92d31c0e6079675cf187c45365eca3a2545",
+    "base_ref": "origin/main",
+    "candidate_head": "b1cd2f338434a8dd141e7a54c1e72f56f06bfacd",
+    "diff_sha256": "c1d0f2c55ba4b1884b06e5aab82ee55638f0c7768c34e890e991fad8dfb01753"
+  },
+  "completed_at": "2026-09-30T08:40:35+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/independent_review_runner.py, subprocess_launcher: after `process.communicate(...)` returns normally, the code unconditionally calls `_kill_process_group(process)`, which runs `os.killpg(process.pid, signal.SIGKILL)`. `ProcessLookupError` and `PermissionError` are swallowed, so a wrong-target kill would be silent. The window is narrow, but the kill is destructive. Restrict the sweep to the case where descendants are known to be alive, or check that the group still exists first.",
+      "id": "killpg-after-reap-pid-reuse",
+      "severity": "advisory",
+      "summary": "The launcher SIGKILLs the reviewer's process group after the leader has already exited and been reaped. If that PID has been reused by an unrelated group leader, the kill hits the wrong group."
+    },
+    {
+      "evidence": "claude_argv passes `--tools Read,Grep,Glob --permission-mode dontAsk --add-dir <scratch>`. Nothing restricts reads to the worktree. Finding `evidence` strings are written verbatim into `independent-reviews/*.json`, which are committed with the archive. The design and docs describe only the no-write property. The Codex `read-only` sandbox has the same read scope. This is worth documenting or scoping.",
+      "id": "claude-read-tool-unscoped",
+      "severity": "advisory",
+      "summary": "The Claude adapter's read-only guarantee covers writes only. The `Read`, `Grep` and `Glob` tools are not confined to the repository, so the reviewer can read arbitrary local files and echo them into findings that get persisted."
+    },
+    {
+      "evidence": "tasks.md: `- [x] Enable review for dev-platform managed changes...`. The diff has no change to a tracked `.dev-platform.toml`; the template default stays `enabled = false`. design.md \"Scope and compatibility\" and verification.md admit the flag is applied to the excluded local file after merge. Completion is therefore not enforced by any tracked artifact, and the checked task overstates what the candidate delivers.",
+      "id": "central-enablement-not-in-candidate",
+      "severity": "advisory",
+      "summary": "The task list marks central enablement as done, and the proposal says dev-platform requires review. The candidate contains no change that enables it. The gate stays off in the central repo until an out-of-band edit to a machine-local file is made."
+    },
+    {
+      "evidence": "template/scripts/task_content_identity.py: `archived = any((root/'openspec'/'changes'/'archive').glob(f\"*-{change}\")) and not (root/active).is_dir()`. Glob matches on suffix only, unlike `independent_review.resolve_change`, which also verifies `canonical_change_name`. The `not (root/active).is_dir()` guard limits the effect, but the two lookups are inconsistent.",
+      "id": "archived-detection-glob-overmatch",
+      "severity": "advisory",
+      "summary": "`review_exclusion` decides that a change is archived with a loose `*-{change}` glob. An unrelated archived change whose name ends in `-<change>` can cause the accepted-spec exclusion to apply while the change is still active."
+    },
+    {
+      "evidence": "independent_review_runner.py calls `model_routing._model_for` and imports `task_content_identity._canonical_path`. It also calls `independent_review._validate_request` (as `review._validate_request`) and `delegation_containment.snapshot/check_containment`. verification.md accepts this as a documented limitation. Promoting these to public functions would keep future refactors from breaking the review gate.",
+      "id": "private-helper-coupling",
+      "severity": "advisory",
+      "summary": "The runner and the lifecycle code depend on underscore-private helpers of sibling modules, which raises the risk of silent breakage when those modules change."
+    },
+    {
+      "evidence": "independent_review_runner.py: `workspaces(root)` returns `[root, integration_root(root)]`, and `_mutations` reports any change in either. ensure_review_evidence reruns on an unavailable-only state, so each retry costs a full two-perspective launch. verification.md acknowledges this as an accepted limitation.",
+      "id": "false-mutation-on-concurrent-agents",
+      "severity": "advisory",
+      "summary": "The read-only postcheck snapshots the shared integration checkout. Another agent's legitimate concurrent write there marks the review `unavailable` (fail-closed). That contradicts the repo rule that one task's state must not disturb another's, and it can repeatedly block archive."
+    }
+  ],
+  "launched_at": "2026-09-30T08:39:53+00:00",
+  "output_sha256": "085d439c665eef0f621c179a3381f1e8d44dad279aedb4e408cf717edc0a26b5",
+  "perspective": "engineering-quality",
+  "request_id": "2460550f-1197-4b1e-bdc9-6b7e3e102ffa",
+  "reviewer": {
+    "context_id": "13bba8d5-9c09-4252-838d-0eaade38dc3f",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content_digest": "eed35b4d0348a789b217b7aeb7356a187f84642106939a5cccaacd04c10f0303"
+}
