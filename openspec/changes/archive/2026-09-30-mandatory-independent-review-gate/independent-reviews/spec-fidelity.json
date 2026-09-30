@@ -1,0 +1,51 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "af10f92d31c0e6079675cf187c45365eca3a2545",
+    "base_ref": "origin/main",
+    "candidate_head": "bc922bf5adea15e319b71b9628fabc79eb144986",
+    "diff_sha256": "0360139ff00fadb3ec0cd83eb668ad0aca2b31b3092b4400910ffe87c4b5fc66"
+  },
+  "completed_at": "2026-09-30T09:28:58+00:00",
+  "findings": [
+    {
+      "evidence": "The task requires digest f21db1b6... at head bc922bf. The committed independent-review-request.json and both reports record candidate_head 49318c67... and task_content digest 23b1a4ba.... automated-checks.json records head 3dcd736 and digest 369171067.... Head bc922bf changed template/scripts/independent_review_runner.py (launch_id at candidate.diff:2140-2147) and tests, so the digest changed. The committed reports carry no launch_id, so they predate that change. verification.md ('Post-archive integration fix', candidate.diff:733) claims 'The review and automated evidence were rerun again for this candidate', but the committed files show otherwise. git status also shows independent-review-request.json modified and uncommitted. This contradicts the spec scenario 'Candidate changes after review preparation' and the 'Finish with stale review' requirement to re-validate evidence against current content before publication.",
+      "id": "review-evidence-stale-for-head",
+      "severity": "material",
+      "summary": "The committed review evidence and automated-checks record do not bind to the candidate head. The spec requires a fresh review after any task-owned change, and the head commit changed task-owned runner code."
+    },
+    {
+      "evidence": "The execute_requirement.py hunk at candidate.diff:981-1017 adds the field only to the implement-child payload. openspec-workflow.md claims that `advance` reports the derived state generally.",
+      "id": "advance-review-state-only-on-implement-child",
+      "severity": "advisory",
+      "summary": "The spec scenario 'New session resumes' says Requirement advance exposes the review state and next command. The candidate adds `independent_review` only to the implement-child outcome of execute_requirement.advance."
+    },
+    {
+      "evidence": "The candidate changes only template/.dev-platform.toml.jinja, which keeps enabled=false. design.md 'Scope and compatibility' says the flag is applied to a machine-local file after merge. proposal.md line 'dev-platform requires review for managed changes' and openspec-workflow.md ('the central repository does') therefore overstate what the candidate delivers.",
+      "id": "central-enablement-not-in-candidate",
+      "severity": "advisory",
+      "summary": "The proposal says dev-platform requires review, and the docs say the central repository sets enabled=true. The candidate enables nothing centrally."
+    }
+  ],
+  "launched_at": "2026-09-30T09:28:41+00:00",
+  "output_sha256": "bf6d1576920df284ab0e68745413f4b5b4295e20e155a4d16489e7d5e6d90681",
+  "perspective": "spec-fidelity",
+  "request_id": "20bc72a9-f379-430c-a832-ace3d3926e29",
+  "reviewer": {
+    "context_id": "bc1e334f-86e2-45db-9ae0-ef1b41fd39be",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-cb64a2ae-dca3-4561-8fb9-5c4062b355e9",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content_digest": "f21db1b667ecbdc1ffe741c148db6bd3d278f4820367893e2f045ea1ad3ce78c"
+}

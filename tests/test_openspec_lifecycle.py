@@ -285,7 +285,7 @@ class OpenSpecLifecycleTests(unittest.TestCase):
             actual = {**identity.evidence_payload(), "head": "a" * 40, "task_content": {"version": 1, "digest": "e" * 64}}
             self.assertFalse(lifecycle.evidence_matches_checkout(change, root, identity, actual))
 
-    def _merged_main_repo(self, root: Path, main_touches_task_file: bool):
+    def _merged_main_repo(self, root: Path, main_touches_task_file: bool, extra_archive_files: tuple[str, ...] = ()):
         import subprocess
         from task_content_identity import content_identity
 
@@ -325,6 +325,9 @@ class OpenSpecLifecycleTests(unittest.TestCase):
         archive = root / "openspec" / "changes" / "archive" / "2026-09-28-managed"
         archive.parent.mkdir(parents=True)
         active.rename(archive)
+        for name in extra_archive_files:
+            (archive / name).parent.mkdir(parents=True, exist_ok=True)
+            (archive / name).write_text("{}\n", encoding="utf-8")
         (root / "openspec" / "specs" / "cap").mkdir(parents=True)
         (root / "openspec" / "specs" / "cap" / "spec.md").write_text("materialized\n", encoding="utf-8")
         git("add", ".")
@@ -350,6 +353,22 @@ class OpenSpecLifecycleTests(unittest.TestCase):
             identity, actual = self._identity(validated_head, proof, current, head)
             self.assertNotEqual(proof["digest"], current["digest"])
             self.assertTrue(lifecycle.evidence_matches_checkout(archive, root, identity, actual))
+
+    def test_content_aware_evidence_accepts_archive_produced_review_evidence(self) -> None:
+        import subprocess
+        review_files = (
+            "independent-review-request.json", "independent-reviews/spec-fidelity.json",
+            "independent-reviews/engineering-quality.json", "independent-review-dispositions.json",
+        )
+        for extra, accepted in ((review_files, True), (("unreviewed-notes.json",), False)):
+            with self.subTest(extra=extra), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                archive, validated_head, proof, current = self._merged_main_repo(
+                    root, main_touches_task_file=False, extra_archive_files=extra
+                )
+                head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, text=True, capture_output=True, check=True).stdout.strip()
+                identity, actual = self._identity(validated_head, proof, current, head)
+                self.assertEqual(lifecycle.evidence_matches_checkout(archive, root, identity, actual), accepted)
 
     def test_content_aware_evidence_rejects_main_merge_touching_task_paths(self) -> None:
         import subprocess

@@ -174,6 +174,19 @@ def _release_ready_claim(
             items.remove(matches[0])
 
 
+def _child_review_state(worktree: Path, child: str, change: str) -> dict[str, Any]:
+    """Derived independent review state of a child, read from its change files."""
+    try:
+        from independent_review import review_state
+    except (ImportError, ModuleNotFoundError):
+        return {"state": "not-required", "next": None, "detail": None}
+    try:
+        canonical = managed_task.resolve_canonical_provenance(worktree, source_issue=child, change=change)
+        return review_state(worktree, canonical.path if canonical is not None else None)
+    except Exception as exc:  # Resume guidance must not fail on unreadable evidence.
+        return {"state": "unknown", "next": None, "detail": str(exc)}
+
+
 def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_distinct: bool = False) -> dict[str, Any]:
     """Run deterministic transitions; return one bounded agent action or delivery result."""
     integration = integration.resolve()
@@ -258,7 +271,11 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
             "status": "implement-child", "requirement": requirement, "child": child,
             "change": change, "worktree": str(started.task_root),
             "predecessor_receipt": str(predecessor) if predecessor else None,
-            "next": "Perform routed bounded implementation, verify, archive and commit; rerun execute_requirement.py advance.",
+            "independent_review": _child_review_state(Path(started.task_root), child, change),
+            "next": (
+                "Perform routed bounded implementation, verify, archive and commit; rerun execute_requirement.py advance. "
+                "When independent review is required, archive runs it automatically; follow independent_review.next if it is blocked."
+            ),
         }
     if len(ordered) == 1:
         if ready:

@@ -24,7 +24,7 @@ python3 scripts/model_routing.py context-codex --request /tmp/context-request.js
 
 Codex uses its native `read-only` sandbox and the configured routine model. The existing local routing record keeps only the question length and path/range identity, source/result/re-read payload volumes, timing, outcome, and truthful selected/unknown provenance—never question text, a generated prompt, transcript, or source text. A malformed, failed, unavailable, or low-confidence result records a direct-read fallback. When a later direct reread is explicitly observable, use `context-reread --id <observation-id> --scope /tmp/reread-scope.json`; otherwise that volume remains unknown.
 
-Claude Code's current native Agent handoff has no supported read-only permission boundary. `context-claude` records `runtime-unavailable` and retains direct targeted reading rather than launching a child based on instructions alone.
+Claude Code's current native Agent handoff has no supported read-only permission boundary. `context-claude` records `runtime-unavailable` and retains direct targeted reading rather than launching a child based on instructions alone. Platform-launched independent review is a different surface: it starts a headless `claude -p` process with a runtime-enforced read-only tool allowlist and a before/after workspace check (see [OpenSpec workflow](openspec-workflow.md#independent-review-evidence)).
 
 ## Advisory same-context compaction
 

@@ -1,0 +1,81 @@
+{
+  "candidate": {
+    "base_head": "af10f92d31c0e6079675cf187c45365eca3a2545",
+    "base_ref": "origin/main",
+    "candidate_head": "bc922bf5adea15e319b71b9628fabc79eb144986",
+    "diff_sha256": "0360139ff00fadb3ec0cd83eb668ad0aca2b31b3092b4400910ffe87c4b5fc66"
+  },
+  "change": "openspec/changes/archive/2026-09-30-mandatory-independent-review-gate",
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/archive/2026-09-30-mandatory-independent-review-gate/design.md",
+        "openspec/changes/archive/2026-09-30-mandatory-independent-review-gate/proposal.md",
+        "openspec/changes/archive/2026-09-30-mandatory-independent-review-gate/specs/completion-lifecycle/spec.md",
+        "openspec/changes/archive/2026-09-30-mandatory-independent-review-gate/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/archive/2026-09-30-mandatory-independent-review-gate/proposal.md",
+        "openspec/changes/archive/2026-09-30-mandatory-independent-review-gate/design.md",
+        "openspec/changes/archive/2026-09-30-mandatory-independent-review-gate/tasks.md",
+        "openspec/changes/archive/2026-09-30-mandatory-independent-review-gate/specs/completion-lifecycle/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-09-30T09:28:39+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/archive/2026-09-30-mandatory-independent-review-gate/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "20bc72a9-f379-430c-a832-ace3d3926e29",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "af10f92d31c0e6079675cf187c45365eca3a2545",
+    "digest": "f21db1b667ecbdc1ffe741c148db6bd3d278f4820367893e2f045ea1ad3ce78c",
+    "paths": {
+      "docs/engineering/model-routing.md": "9a871e20191ca75c7fada60991548e5325478250",
+      "docs/engineering/openspec-workflow.md": "8dcbec6c5d95de0b85573b181298d1ec48559ff8",
+      "openspec/changes/mandatory-independent-review-gate/.managed-task.json": "cc8e66b507dae2bf79157001b90414cfe4f5f546",
+      "openspec/changes/mandatory-independent-review-gate/.openspec.yaml": "29382a2c80fa56db41a894c8d84de17dd931a4d8",
+      "openspec/changes/mandatory-independent-review-gate/design.md": "e8fd7635866d4ae3dccfa604af868b47432ec7d0",
+      "openspec/changes/mandatory-independent-review-gate/proposal.md": "f402a8dcdcc8ff0bc330aefc854ed50da38b86d1",
+      "openspec/changes/mandatory-independent-review-gate/specs/completion-lifecycle/spec.md": "4e6a57a9b869ce945efe36dc51db27b4afba035e",
+      "openspec/changes/mandatory-independent-review-gate/tasks.md": "2465a16d16678a0a11a2bd0ec114dab3ae55643d",
+      "template/.dev-platform.toml.jinja": "e22015bf4e701562b41b97e17addfc35e2f1f816",
+      "template/docs/engineering/model-routing.md": "4f0a802e434af8746aa94fbea748712529e39c0b",
+      "template/docs/engineering/openspec-workflow.md": "cbcd50fb154a18c1698092cb3b1fcb9d0d9e7b17",
+      "template/scripts/execute_requirement.py": "822852f67920e9c9675f9d350caaf3ccae4a713a",
+      "template/scripts/finish_task.py": "c1d8bea846cebb86811ca1f13bc1238b5de0be21",
+      "template/scripts/independent_review.py": "c5a9fc295ecde195eb36f514f1a1b21d2bfdbf03",
+      "template/scripts/independent_review_runner.py": "4369dce5c7c45ebda6769fb3780b0f4f08b3caba",
+      "template/scripts/openspec_lifecycle.py": "f3dc8f0c4cef91fe8ed4f85e8f88f45428900167",
+      "template/scripts/task_content_identity.py": "f143372e09f61400638d9e6fccbcb1fffcadfd84",
+      "tests/test_independent_review.py": "27f8805f2ce015cefed70e08e5acf41512505c54",
+      "tests/test_openspec_lifecycle.py": "85d45a3a6018a72d25dee1642abd80f9c24a48dc",
+      "tests/test_shared_writer_guard.py": "00930f815dd0024c625833727baaeb7145da1dbc"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

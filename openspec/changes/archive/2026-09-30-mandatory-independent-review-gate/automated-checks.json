@@ -1,0 +1,100 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.285,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.471,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 321.363,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/execute_requirement.py",
+        "template/scripts/finish_task.py",
+        "template/scripts/independent_review.py",
+        "template/scripts/independent_review_runner.py",
+        "template/scripts/openspec_lifecycle.py",
+        "template/scripts/task_content_identity.py",
+        "tests/test_independent_review.py",
+        "tests/test_openspec_lifecycle.py",
+        "tests/test_shared_writer_guard.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_03dd491b58babbf432b3f1713d559f83",
+    "change": "mandatory-independent-review-gate",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/mandatory-independent-review-gate",
+    "branch": "agent/mandatory-independent-review-gate",
+    "head": "8bdc0f131917c70a360142cf02f77d98277e5314",
+    "task_content": {
+      "version": 1,
+      "digest": "12a5775a770eb9481ab8d19c517afa8f4f1832d0c5c1f908d7bd49684446fb9e",
+      "paths": {
+        "docs/engineering/model-routing.md": "9a871e20191ca75c7fada60991548e5325478250",
+        "docs/engineering/openspec-workflow.md": "8dcbec6c5d95de0b85573b181298d1ec48559ff8",
+        "openspec/changes/mandatory-independent-review-gate/.managed-task.json": "cc8e66b507dae2bf79157001b90414cfe4f5f546",
+        "openspec/changes/mandatory-independent-review-gate/.openspec.yaml": "29382a2c80fa56db41a894c8d84de17dd931a4d8",
+        "openspec/changes/mandatory-independent-review-gate/automated-checks.json": "8f23e64916a47b415b59db1ae6338ce00bdfb81f",
+        "openspec/changes/mandatory-independent-review-gate/design.md": "e8fd7635866d4ae3dccfa604af868b47432ec7d0",
+        "openspec/changes/mandatory-independent-review-gate/independent-review-dispositions.json": "77426aa56b5e5844e314e98937a09f4d5b58227d",
+        "openspec/changes/mandatory-independent-review-gate/independent-review-request.json": "64540ef928b249d9ab9ed8609d943149ff7d33b6",
+        "openspec/changes/mandatory-independent-review-gate/independent-reviews/engineering-quality.json": "1c50e8e2f6cea049a1a971872b626fdd9e31e540",
+        "openspec/changes/mandatory-independent-review-gate/independent-reviews/spec-fidelity.json": "47ea353240e9294b082ea79ea0a51a75fa071557",
+        "openspec/changes/mandatory-independent-review-gate/proposal.md": "f402a8dcdcc8ff0bc330aefc854ed50da38b86d1",
+        "openspec/changes/mandatory-independent-review-gate/specs/completion-lifecycle/spec.md": "4e6a57a9b869ce945efe36dc51db27b4afba035e",
+        "openspec/changes/mandatory-independent-review-gate/tasks.md": "2465a16d16678a0a11a2bd0ec114dab3ae55643d",
+        "openspec/changes/mandatory-independent-review-gate/verification.md": "57f6e90c390a988fd78573745584d98545575beb",
+        "openspec/specs/completion-lifecycle/spec.md": "b661040c9e8f9767e25ecc1c1e7a4c037b486d03",
+        "template/.dev-platform.toml.jinja": "e22015bf4e701562b41b97e17addfc35e2f1f816",
+        "template/docs/engineering/model-routing.md": "4f0a802e434af8746aa94fbea748712529e39c0b",
+        "template/docs/engineering/openspec-workflow.md": "cbcd50fb154a18c1698092cb3b1fcb9d0d9e7b17",
+        "template/scripts/execute_requirement.py": "822852f67920e9c9675f9d350caaf3ccae4a713a",
+        "template/scripts/finish_task.py": "c1d8bea846cebb86811ca1f13bc1238b5de0be21",
+        "template/scripts/independent_review.py": "c5a9fc295ecde195eb36f514f1a1b21d2bfdbf03",
+        "template/scripts/independent_review_runner.py": "4369dce5c7c45ebda6769fb3780b0f4f08b3caba",
+        "template/scripts/openspec_lifecycle.py": "f3dc8f0c4cef91fe8ed4f85e8f88f45428900167",
+        "template/scripts/task_content_identity.py": "f143372e09f61400638d9e6fccbcb1fffcadfd84",
+        "tests/test_independent_review.py": "27f8805f2ce015cefed70e08e5acf41512505c54",
+        "tests/test_openspec_lifecycle.py": "85d45a3a6018a72d25dee1642abd80f9c24a48dc",
+        "tests/test_shared_writer_guard.py": "00930f815dd0024c625833727baaeb7145da1dbc"
+      },
+      "base": "af10f92d31c0e6079675cf187c45365eca3a2545"
+    }
+  }
+}

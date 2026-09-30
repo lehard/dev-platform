@@ -61,8 +61,9 @@ min_bytes = 8000
 enabled = false
 
 [independent_review]
-# Opt in only where a runtime can supply a separate fresh, read-only review
-# context. The platform validates its evidence but never launches a provider.
+# Opt in to require independent review for managed changes. When enabled,
+# archive launches a fresh read-only reviewer through the task route's provider
+# (or an explicit `provider = "codex"|"claude"`) and finish re-validates it.
 enabled = false
 
 # Optional developer-preview backend. Merely rendering this configuration does
