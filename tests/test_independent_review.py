@@ -165,7 +165,7 @@ class IndependentReviewTests(unittest.TestCase):
             self.assertIn("--ephemeral", argv)
             self.assertEqual(argv[argv.index("--cd") + 1], str(self.root))
             self.assertIn("--output-schema", argv)
-            self.assertEqual(argv[argv.index("--model") + 1], "gpt-6-sol")
+            self.assertEqual(argv[argv.index("--model") + 1], "gpt-6.1-sol")
             self.assertEqual(cwd, self.root)
             self.assertEqual(timeout, runner.DEFAULT_TIMEOUT_SECONDS)
             self.assertFalse(Path(argv[argv.index("--output-last-message") + 1]).is_relative_to(self.root))
@@ -173,7 +173,7 @@ class IndependentReviewTests(unittest.TestCase):
             reviewer = report["reviewer"]
             self.assertEqual(report["availability"], "available")
             self.assertEqual(reviewer["launch_evidence"], "platform-observed")
-            self.assertEqual(reviewer["model"], {"value": "gpt-6-sol", "source": "selected"})
+            self.assertEqual(reviewer["model"], {"value": "gpt-6.1-sol", "source": "selected"})
             self.assertTrue(reviewer["context_id"].startswith("thread-"))
             self.assertTrue(reviewer["fresh_context"])
             self.assertFalse(reviewer["write_access"])
@@ -412,7 +412,7 @@ class IndependentReviewTests(unittest.TestCase):
         launcher = FakeLauncher()
         result = runner.preflight(self.root, launcher=launcher)
         self.assertEqual(result, {
-            "ready": True, "provider": "codex", "provider_source": "configured", "model": "gpt-6-sol",
+            "ready": True, "provider": "codex", "provider_source": "configured", "model": "gpt-6.1-sol",
             "binary": "/fake/bin/codex", "limitation": None,
         })
         self.assertEqual(launcher.calls, [])
@@ -421,7 +421,7 @@ class IndependentReviewTests(unittest.TestCase):
         self.assertEqual(argv[argv.index("--sandbox") + 1], "read-only")
         self.assertIn("--ephemeral", argv)
         self.assertEqual(argv[argv.index("-c") + 1], "mcp_servers={}")
-        self.assertEqual(argv[argv.index("--model") + 1], "gpt-6-sol")
+        self.assertEqual(argv[argv.index("--model") + 1], "gpt-6.1-sol")
         self.assertEqual(argv[-1], runner.PREFLIGHT_PROMPT)
         self.assertEqual((cwd, timeout), (self.root, runner.DEFAULT_PREFLIGHT_TIMEOUT_SECONDS))
         self.assert_no_review_evidence()
@@ -470,13 +470,13 @@ class IndependentReviewTests(unittest.TestCase):
     def test_rejected_model_is_named_and_no_other_model_or_provider_is_tried(self) -> None:
         rejected = "\n".join([
             json.dumps({"type": "thread.started", "thread_id": "probe"}),
-            json.dumps({"type": "error", "message": "The 'gpt-6-sol' model is not supported when using Codex with a ChatGPT account."}),
+            json.dumps({"type": "error", "message": "The 'gpt-6.1-sol' model is not supported when using Codex with a ChatGPT account."}),
         ])
         launcher = FakeLauncher(probe=runner.LaunchResult(1, rejected))
-        self.assert_preflight_blocks(launcher, "codex reviewer runtime with model 'gpt-6-sol'", "model is not supported",
+        self.assert_preflight_blocks(launcher, "codex reviewer runtime with model 'gpt-6.1-sol'", "model is not supported",
                                      "change the [model_routing] / [independent_review] binding", "no other model or provider")
         [(argv, _, _)] = launcher.probes
-        self.assertEqual((argv[0], argv[argv.index("--model") + 1]), ("/fake/bin/codex", "gpt-6-sol"))
+        self.assertEqual((argv[0], argv[argv.index("--model") + 1]), ("/fake/bin/codex", "gpt-6.1-sol"))
         # A zero exit that still reports a runtime error is not ready either.
         launcher = FakeLauncher(probe=runner.LaunchResult(0, rejected))
         self.assert_preflight_blocks(launcher, "probe returned an error")
@@ -502,8 +502,8 @@ class IndependentReviewTests(unittest.TestCase):
         with mock.patch.object(runner.shutil, "which", return_value=None):
             result = runner.preflight(self.root, launcher=FakeLauncher())
         self.assertFalse(result["ready"])
-        self.assertEqual((result["provider"], result["model"], result["binary"]), ("codex", "gpt-6-sol", None))
-        self.assertIn("model 'gpt-6-sol' is not ready", result["limitation"])
+        self.assertEqual((result["provider"], result["model"], result["binary"]), ("codex", "gpt-6.1-sol", None))
+        self.assertIn("model 'gpt-6.1-sol' is not ready", result["limitation"])
 
     def test_preflight_command_prints_readiness_and_exits_nonzero_when_not_ready(self) -> None:
         ready = FakeLauncher()
@@ -513,7 +513,7 @@ class IndependentReviewTests(unittest.TestCase):
                 mock.patch("builtins.print") as printed:
             self.assertEqual(review.main(), 0)
         payload = json.loads(printed.call_args.args[0])
-        self.assertEqual((payload["ready"], payload["change"], payload["model"]), (True, "review-change", "gpt-6-sol"))
+        self.assertEqual((payload["ready"], payload["change"], payload["model"]), (True, "review-change", "gpt-6.1-sol"))
         self.assertEqual(len(ready.probes), 1)
         failing = FakeLauncher(probe=runner.LaunchResult(1, ""))
         with mock.patch.object(review, "current_worktree_root", return_value=self.root), \
