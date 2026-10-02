@@ -155,6 +155,9 @@ def checkout(root: Path, policy: dict, *, integration_only: bool = False) -> Pat
         raise PolicyError(f'command requires checkout root: {top}')
     common = Path(git(root, 'rev-parse', '--path-format=absolute', '--git-common-dir'))
     integration = absolute(policy['checkout'])
+    workspaces = [absolute(value) for value in policy['workspace_roots']]
+    if not any(root == workspace or workspace in root.parents for workspace in workspaces):
+        raise PolicyError(f'checkout is outside reviewed workspace roots: {root}')
     if common != integration / '.git' or git(root, 'remote', 'get-url', 'origin') != policy['origin']:
         raise PolicyError(f'repository identity mismatch: {root}')
     if integration_only and root != integration:
@@ -215,6 +218,9 @@ def audit(root: Path, policy: dict, *, repair: bool = False) -> list[str]:
     tracked = subprocess.run(['git', '-c', 'core.fsmonitor=false', '-C', str(root), 'ls-files', '-z'], env=env,
                              capture_output=True, check=True).stdout
     candidates = {root}
+    findings = []
+    def traversal_error(exc):
+        findings.append(f'{exc.filename}: cannot enumerate approved source/admin directory: {exc}')
     for name in tracked.decode('utf-8', 'surrogateescape').split('\0'):
         if name and any(Path(name) == base or base in Path(name).parents for base in allowed) and not excluded(Path(name), extra):
             candidates.add(root / relative(name))
@@ -228,7 +234,7 @@ def audit(root: Path, policy: dict, *, repair: bool = False) -> list[str]:
             continue
         if base.exists():
             candidates.add(base)
-            for current, directories, files in os.walk(base, followlinks=False):
+            for current, directories, files in os.walk(base, followlinks=False, onerror=traversal_error):
                 parent = Path(current)
                 directories[:] = [name for name in directories if not excluded((parent / name).relative_to(root), extra)
                                   and not (parent / name).is_symlink()]
@@ -241,10 +247,9 @@ def audit(root: Path, policy: dict, *, repair: bool = False) -> list[str]:
         admin = absolute(Path(git(root, 'rev-parse', '--absolute-git-dir')))
         candidates.add(admin)
         candidates.add(root / '.git')
-        for current, directories, files in os.walk(admin, followlinks=False):
+        for current, directories, files in os.walk(admin, followlinks=False, onerror=traversal_error):
             directories[:] = [name for name in directories if not (Path(current) / name).is_symlink()]
             candidates.update(Path(current) / name for name in [*directories, *files])
-    findings = []
     for path in sorted(candidates):
         fd = None
         try:
@@ -322,7 +327,7 @@ def attach(root: Path, policy_path: Path, runtime: Path) -> None:
         original_dir = Path(git(root, 'rev-parse', '--path-format=absolute', '--git-path', 'hooks'))
         state = {'version': VERSION, 'checkout': str(root), 'original_config': configured,
                  'original_directory': str(original_dir), 'effective_config': git(root, 'config', '--get', 'core.hooksPath', optional=True), 'dispatcher': str(dispatcher),
-                 'runtime': str(runtime), 'python': sys.executable}
+                 'runtime': str(runtime), 'python': 'python3'}
         write_json(state_path, state)
     dispatcher = absolute(dispatcher)
     shared_directory(dispatcher)
@@ -368,13 +373,22 @@ def detach(root: Path) -> None:
     state_path.unlink()
 
 
+def external_path(path: Path) -> Path:
+    path = absolute(path)
+    for ancestor in (path, *path.parents):
+        if (ancestor / '.git').exists() or (ancestor / '.git').is_symlink():
+            raise PolicyError(f'runtime/registry must be outside all project checkouts: {path}')
+    return path
+
+
 def sync(registry_path: Path) -> list[str]:
     if os.name != 'posix':
         raise PolicyError('local workspace sync requires POSIX permissions')
     import fcntl
 
     os.umask(0o002)
-    runtime_dir = absolute(read_json(registry_path)['runtime_dir'])
+    external_path(registry_path)
+    runtime_dir = external_path(read_json(registry_path)['runtime_dir'])
     shared_directory(runtime_dir)
     fd = os.open(runtime_dir / '.sync.lock', os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o660)
     try:
@@ -426,7 +440,8 @@ def _sync(registry_path: Path) -> list[str]:
                 key = hashlib.sha256(str(root).encode()).hexdigest()[:24]
                 policy_path = runtime_dir / 'policies' / (key + '.json')
                 policy = {'version': VERSION, 'checkout': str(root), 'origin': origin, 'group': project['group'],
-                          'source_roots': project['source_roots'], 'exclude': project.get('exclude', [])}
+                          'source_roots': project['source_roots'], 'exclude': project.get('exclude', []),
+                          'workspace_roots': registry['workspace_roots']}
                 # Validate roots before attaching; malformed registries must not widen scope.
                 for value in policy['source_roots']:
                     if excluded(relative(value), policy['exclude']):
@@ -466,7 +481,11 @@ def launchagent(registry: Path, destination: Path, *, remove: bool = False) -> N
     if destination != Path.home() / 'Library/LaunchAgents/dev.platform.local-workspace.plist':
         raise PolicyError('LaunchAgent destination must be the current user Library/LaunchAgents')
     if remove:
-        subprocess.run(['launchctl', 'bootout', f'gui/{os.geteuid()}', str(destination)], check=False)
+        label = f'gui/{os.geteuid()}/dev.platform.local-workspace'
+        if subprocess.run(['launchctl', 'print', label], capture_output=True).returncode == 0:
+            result = subprocess.run(['launchctl', 'bootout', f'gui/{os.geteuid()}', str(destination)], capture_output=True)
+            if result.returncode:
+                raise PolicyError('LaunchAgent unload failed; keep plist and resolve launchctl error before detaching')
         if destination.exists():
             if absolute(destination).stat().st_uid != os.geteuid():
                 raise PolicyError('foreign LaunchAgent owner')
@@ -482,7 +501,11 @@ def launchagent(registry: Path, destination: Path, *, remove: bool = False) -> N
                              'StandardOutPath': str(runtime.parent / f'sync-{os.geteuid()}.log'),
                              'StandardErrorPath': str(runtime.parent / f'sync-{os.geteuid()}.log')})
     if not destination.exists() or destination.read_bytes() != content:
-        subprocess.run(['launchctl', 'bootout', f'gui/{os.geteuid()}', str(destination)], check=False)
+        label = f'gui/{os.geteuid()}/dev.platform.local-workspace'
+        if subprocess.run(['launchctl', 'print', label], capture_output=True).returncode == 0:
+            result = subprocess.run(['launchctl', 'bootout', f'gui/{os.geteuid()}', str(destination)], capture_output=True)
+            if result.returncode:
+                raise PolicyError('LaunchAgent unload failed; refusing replacement')
         write(destination, content, 0o600)
         subprocess.run(['launchctl', 'bootstrap', f'gui/{os.geteuid()}', str(destination)], check=True)
     else:
@@ -538,11 +561,10 @@ def main() -> int:
             if options.command == 'sync':
                 config = read_json(registry)
                 runtime = absolute(config['runtime_dir']) / 'local_workspace.py'
-                payload = reviewed_runtime(config)
-                if Path(__file__).resolve() == runtime and runtime.read_bytes() != payload:
-                    write(runtime, payload, 0o770)
-                    os.execv(sys.executable, [sys.executable, str(runtime), 'sync', '--registry', str(registry)])
+                executing_payload = Path(__file__).read_bytes()
                 findings = sync(registry)
+                if Path(__file__).resolve() == runtime and runtime.read_bytes() != executing_payload:
+                    os.execv(sys.executable, [sys.executable, str(runtime), 'sync', '--registry', str(registry)])
                 for finding in findings:
                     print(finding, file=sys.stderr)
                 return int(bool(findings))

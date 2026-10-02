@@ -11,7 +11,7 @@ chosen local group; restart sessions after enrollment. The runtime never uses
 sudo. The shared external runtime directory must already be accessible to that
 group, with group write/traversal and directory setgid. Use a non-symlink,
 absolute path outside all project checkouts. Each user must have Python 3.11+
-and Git on the machine. LaunchAgents use the installing user's Python executable.
+and Git on the machine. LaunchAgents use the installing user's Python executable; shared Git hooks resolve `python3` from the invoking user's PATH.
 
 Create an external registry with this shape, replacing the illustrative values
 with reviewed machine-local values:
@@ -105,7 +105,7 @@ creates or replaces the external registry or hooks receipts.
 
 Only current-user owned paths can be repaired, after group-membership and
 repository-identity checks. Foreign-owner drift reports the path, uid, gid,
-mode and minimal owner action. A linked task must have current-user owned root,
+mode and minimal owner action. Direct execution and hooks also require the task to stay within reviewed workspace roots. A linked task must have current-user owned root,
 Git marker and administration directory; otherwise launch and repair refuse.
 The post-checkout hook audits the new current-user task's source and exact Git
 administration directory. Periodic sync audits current-user tasks only when
@@ -121,7 +121,7 @@ python3 /reviewed/local-runtime/local_workspace.py remove-agent --registry /revi
 python3 /reviewed/local-runtime/local_workspace.py remove --root /reviewed/workspace/project
 ```
 
-Removal restores the original `core.hooksPath`, unsets the policy key and removes
+A live LaunchAgent must unload successfully before its plist is removed; failures are reported with the plist retained. Removal restores the original `core.hooksPath`, unsets the policy key and removes
 only verified generated dispatcher hooks/attachment receipt. Modified dispatcher
 hooks cause refusal. Original hooks and unknown files remain. The external
 registry, policies and runtime remain for operator review; stop every user's

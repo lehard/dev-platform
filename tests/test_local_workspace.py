@@ -42,7 +42,7 @@ class LocalWorkspaceTests(unittest.TestCase):
                      'projects': [{'origin': 'https://example.invalid/approved.git',
                                    'group': os.getegid(), 'source_roots': ['src']}]}
         self.registry.write_text(json.dumps(self.data))
-        self.policy = {'version': 1, 'checkout': str(self.root), **self.data['projects'][0]}
+        self.policy = {'version': 1, 'checkout': str(self.root), 'workspace_roots': [str(self.workspace)], **self.data['projects'][0]}
         self.root.chmod(self.root.stat().st_mode | stat.S_ISGID)
         self.retains_setgid = bool(self.root.stat().st_mode & stat.S_ISGID)
         self.bits = local.expected_bits
@@ -128,7 +128,7 @@ class LocalWorkspaceTests(unittest.TestCase):
         self.assertEqual(stat.S_IMODE(source.stat().st_mode), 0o600)
 
     def test_foreign_worktree_refuses_launch_and_repair(self):
-        task = self.base / 'task'
+        task = self.workspace / 'task'
         self.git('worktree', 'add', '-qb', 'task', str(task))
         with mock.patch.object(local.os, 'geteuid', return_value=os.geteuid() + 100000):
             with self.assertRaisesRegex(local.PolicyError, 'foreign active worktree'):
@@ -136,7 +136,7 @@ class LocalWorkspaceTests(unittest.TestCase):
         self.assertFalse((task / 'ran').exists())
 
     def test_owner_worktree_source_and_admin_repair(self):
-        task = self.base / 'task'
+        task = self.workspace / 'task'
         self.git('worktree', 'add', '-qb', 'task', str(task))
         source = task / 'src/main.py'
         source.chmod(0o600)
@@ -351,6 +351,53 @@ class LocalWorkspaceTests(unittest.TestCase):
         findings = local.sync(self.registry)
         self.assertTrue(any('unavailable registered origin' in item for item in findings))
         self.assertIsNone(local.policy_for(self.root))
+
+    def test_external_runtime_cannot_overwrite_application_source(self):
+        source = self.root / 'src/local_workspace.py'
+        source.write_text('application source')
+        self.data['runtime_dir'] = str(source.parent)
+        self.registry.write_text(json.dumps(self.data))
+        with self.assertRaisesRegex(local.PolicyError, 'outside all project'):
+            local.sync(self.registry)
+        self.assertEqual(source.read_text(), 'application source')
+        self.assertFalse((source.parent / '.sync.lock').exists())
+
+    def test_owned_worktree_outside_reviewed_workspace_is_rejected(self):
+        task = self.base / 'outside-task'
+        self.git('worktree', 'add', '-qb', 'outside-task', str(task))
+        source = task / 'src/main.py'
+        source.chmod(0o600)
+        with self.assertRaisesRegex(local.PolicyError, 'outside reviewed workspace'):
+            local.audit(task, self.policy, repair=True)
+        self.assertEqual(stat.S_IMODE(source.stat().st_mode), 0o600)
+
+    def test_shared_hook_uses_current_users_python_lookup(self):
+        policy = self.attach()
+        state = local.read_json(policy.with_suffix('.attachment.json'))
+        self.assertEqual(state['python'], 'python3')
+        dispatcher = Path(state['dispatcher']) / 'pre-commit'
+        self.assertIn('exec python3 ', dispatcher.read_text())
+
+    def test_agent_unload_failure_preserves_plist_and_reports_error(self):
+        self.attach()
+        home = self.base / 'home'
+        home.mkdir()
+        destination = home / 'Library/LaunchAgents/dev.platform.local-workspace.plist'
+        with mock.patch.object(local.sys, 'platform', 'darwin'), mock.patch.object(local.Path, 'home', return_value=home), mock.patch.object(local.subprocess, 'run', return_value=mock.Mock(returncode=0)):
+            local.launchagent(self.registry, destination)
+            with mock.patch.object(local.subprocess, 'run', side_effect=[mock.Mock(returncode=0), mock.Mock(returncode=5)]):
+                with self.assertRaisesRegex(local.PolicyError, 'unload failed'):
+                    local.launchagent(self.registry, destination, remove=True)
+            self.assertTrue(destination.exists())
+
+    def test_source_enumeration_error_blocks_admission(self):
+        local.audit(self.root, self.policy, repair=True)
+        def walk(path, **kwargs):
+            kwargs['onerror'](PermissionError(13, 'cannot enumerate', str(path)))
+            return iter([])
+        with mock.patch.object(local.os, 'walk', side_effect=walk):
+            findings = local.audit(self.root, self.policy)
+        self.assertTrue(any('cannot enumerate' in item for item in findings))
 
     def test_identity_group_and_broad_root_refused(self):
         bad = dict(self.policy, origin='https://example.invalid/wrong.git')
