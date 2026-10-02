@@ -312,6 +312,46 @@ class LocalWorkspaceTests(unittest.TestCase):
         self.assertEqual(public.stat().st_mode & 0o060, 0o060)
         self.assertEqual(stat.S_IMODE(private.stat().st_mode), 0o600)
 
+    def test_post_index_change_hook_is_preserved(self):
+        hook = self.root / '.git/hooks/post-index-change'
+        hook.write_text('#!/bin/sh\nexit 47\n')
+        hook.chmod(0o770)
+        self.attach()
+        dispatcher = Path(self.git('config', 'core.hooksPath')) / 'post-index-change'
+        self.assertEqual(subprocess.run([str(dispatcher), '1', '0'], cwd=self.root).returncode, 47)
+
+    def test_inherited_relative_hooks_follow_linked_worktree(self):
+        config = self.base / 'global.gitconfig'
+        config.write_text('[core]\n hooksPath = operator-hooks\n')
+        hooks = self.root / 'operator-hooks'
+        hooks.mkdir()
+        (hooks / 'pre-commit').write_text('#!/bin/sh\nexit 19\n')
+        (hooks / 'pre-commit').chmod(0o770)
+        self.git('add', 'operator-hooks')
+        self.git('commit', '-qm', 'hook fixture')
+        task = self.workspace / 'task'
+        self.git('worktree', 'add', '-qb', 'task', str(task))
+        (task / 'operator-hooks/pre-commit').write_text('#!/bin/sh\nexit 31\n')
+        with mock.patch.dict(os.environ, {'GIT_CONFIG_GLOBAL': str(config)}):
+            # git() intentionally removes Git operation context; inject a HOME-based
+            # inherited config to exercise actual normal global configuration.
+            home = self.base / 'global-home'
+            home.mkdir()
+            (home / '.gitconfig').write_bytes(config.read_bytes())
+            with mock.patch.dict(os.environ, {'HOME': str(home)}):
+                self.attach()
+                dispatcher = Path(self.git('config', 'core.hooksPath')) / 'pre-commit'
+                self.assertEqual(subprocess.run([str(dispatcher)], cwd=task).returncode, 31)
+        local.detach(self.root)
+        self.assertIsNone(local.git(self.root, 'config', '--local', '--get', 'core.hooksPath', optional=True))
+
+    def test_excluded_clone_does_not_mask_absent_canonical_checkout(self):
+        self.data['projects'][0]['checkout_names'] = ['absent-project']
+        self.registry.write_text(json.dumps(self.data))
+        findings = local.sync(self.registry)
+        self.assertTrue(any('unavailable registered origin' in item for item in findings))
+        self.assertIsNone(local.policy_for(self.root))
+
     def test_identity_group_and_broad_root_refused(self):
         bad = dict(self.policy, origin='https://example.invalid/wrong.git')
         with self.assertRaisesRegex(local.PolicyError, 'identity mismatch'):

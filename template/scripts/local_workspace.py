@@ -30,7 +30,7 @@ SECRET_PATTERNS = ('.npmrc', '.netrc', '.pypirc', '.env*', '*.pem', '*.key', '*c
 HOOKS = ('applypatch-msg', 'pre-applypatch', 'post-applypatch', 'pre-commit',
          'pre-merge-commit', 'prepare-commit-msg', 'commit-msg', 'post-commit',
          'pre-rebase', 'post-checkout', 'post-merge', 'pre-push', 'pre-auto-gc',
-         'post-rewrite', 'sendemail-validate', 'reference-transaction',
+         'post-rewrite', 'sendemail-validate', 'fsmonitor-watchman', 'post-index-change', 'reference-transaction',
          'push-to-checkout', 'pre-receive', 'update', 'post-receive', 'post-update', 'proc-receive')
 
 
@@ -69,6 +69,12 @@ def shared_directory(path: Path) -> None:
     info = path.stat()
     if not stat.S_ISDIR(info.st_mode):
         raise PolicyError(f'expected shared directory: {path}')
+    groups = set(os.getgroups()) | {os.getegid()}
+    if info.st_gid not in groups:
+        if info.st_uid != os.geteuid():
+            raise PolicyError(f'owner must enroll generated directory in a shared group: {path}')
+        os.chown(path, -1, os.getegid())
+        info = path.stat()
     bits = 0o2070
     if info.st_mode & bits != bits:
         if info.st_uid != os.geteuid():
@@ -315,7 +321,7 @@ def attach(root: Path, policy_path: Path, runtime: Path) -> None:
             raise PolicyError(f'policy already configured; operator review required: {root}')
         original_dir = Path(git(root, 'rev-parse', '--path-format=absolute', '--git-path', 'hooks'))
         state = {'version': VERSION, 'checkout': str(root), 'original_config': configured,
-                 'original_directory': str(original_dir), 'dispatcher': str(dispatcher),
+                 'original_directory': str(original_dir), 'effective_config': git(root, 'config', '--get', 'core.hooksPath', optional=True), 'dispatcher': str(dispatcher),
                  'runtime': str(runtime), 'python': sys.executable}
         write_json(state_path, state)
     dispatcher = absolute(dispatcher)
@@ -412,10 +418,10 @@ def _sync(registry_path: Path) -> list[str]:
                 matches = [item for item in projects if item['origin'] == origin]
                 if not matches:
                     continue
-                found.add(origin)
                 project = matches[0]
                 if project.get('checkout_names') and root.name not in project['checkout_names']:
                     continue
+                found.add(origin)
                 group_id(project['group'])
                 key = hashlib.sha256(str(root).encode()).hexdigest()[:24]
                 policy_path = runtime_dir / 'policies' / (key + '.json')
@@ -488,7 +494,7 @@ def launchagent(registry: Path, destination: Path, *, remove: bool = False) -> N
 
 def delegate_hooks(root: Path, state: dict, name: str, args: list[str]) -> int:
     original = Path(state['original_directory']) / name
-    configured_original = state['original_config']
+    configured_original = state.get('effective_config', state['original_config'])
     if configured_original is not None and not Path(configured_original).is_absolute():
         original = Path.cwd() / configured_original / name
     hooks = [original] if original.is_file() and os.access(original, os.X_OK) else []
@@ -567,6 +573,8 @@ def main() -> int:
             result = delegate_hooks(root, state, options.name, options.args)
             if result:
                 return result
+            if options.name == 'fsmonitor-watchman':
+                return 0  # Preserve the fsmonitor protocol; auditing here would recursively query Git.
             findings = audit(root, policy, repair=True)
             for finding in findings:
                 print(finding, file=sys.stderr)
