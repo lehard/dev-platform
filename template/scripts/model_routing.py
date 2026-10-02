@@ -66,7 +66,7 @@ PROVIDERS = ("codex", "claude")
 LINKED_WORKTREE = "linked-worktree"
 STANDALONE_CLONE = "standalone-clone"
 DEFAULT_MODELS = {
-    "codex": {"routine": "gpt-6-luna", "standard": "gpt-6-sol", "complex": "gpt-6-sol"},
+    "codex": {"routine": "gpt-6-luna", "standard": "gpt-6.1-sol", "complex": "gpt-6.1-sol"},
     "claude": {"routine": "haiku", "standard": "sonnet", "complex": "opus"},
 }
 
