@@ -50,7 +50,7 @@ class ManagedStatusLifecycleTests(unittest.TestCase):
 
     def test_shared_pr_skips_only_single_child_project_reconciliation(self) -> None:
         root = Path("/tmp/shared-review")
-        lookup = SimpleNamespace(available=True, exact_open={"number": 12}, exact_merged=None)
+        lookup = SimpleNamespace(available=True, exact_open={"number": 12}, exact_merged=None, stale_open=None)
         manifest = Path("dev-platform/requirement-integrations/candidate.json")
         with (
             mock.patch.object(project_publish, "validate_shared_manifest", return_value={}) as validate,
@@ -65,6 +65,74 @@ class ManagedStatusLifecycleTests(unittest.TestCase):
             self.assertEqual(project_publish.publish_pr(root, "origin", "main", None, None, "manual", shared_manifest=manifest), 0)
         validate.assert_called_once_with(root, manifest)
         reconcile.assert_not_called()
+
+    def shared_publish(self, *, complete: bool, lookup, ensure=None):
+        root = Path("/tmp/shared-review")
+        manifest = Path("dev-platform/requirement-integrations/candidate.json")
+        payload = {"expected_changes": ["a", "b"], "children": [{"change": "a"}] + ([{"change": "b"}] if complete else [])}
+        stack = ExitStack()
+        mocks = {
+            "push": stack.enter_context(mock.patch.object(project_publish, "push_feature_branch")),
+            "ensure": stack.enter_context(mock.patch.object(project_publish, "ensure_pr", return_value=project_publish.PrRef(12, "https://example/pr/12"))),
+            "ready": stack.enter_context(mock.patch.object(project_publish, "_set_pr_draft")),
+            "merge": stack.enter_context(mock.patch.object(project_publish, "request_protected_merge", return_value="merged")),
+        }
+        stack.enter_context(mock.patch.object(project_publish, "validate_shared_manifest", return_value=payload))
+        stack.enter_context(mock.patch.object(project_publish, "_validate_feature_branch", return_value="agent/shared"))
+        stack.enter_context(mock.patch.object(project_publish, "require_gh_environment", return_value={}))
+        stack.enter_context(mock.patch.object(project_publish, "run_git", return_value=SimpleNamespace(stdout="a" * 40)))
+        stack.enter_context(mock.patch.object(project_publish, "find_exact_head_pr", return_value=lookup))
+        stack.enter_context(mock.patch.object(project_publish, "main_root", return_value=root))
+        with stack:
+            result = project_publish.publish_pr(root, "origin", "main", None, None, "auto",
+                                                config={"platform_version": "x"}, shared_manifest=manifest)
+        return result, mocks
+
+    def test_incomplete_shared_candidate_publishes_draft_without_ready_or_merge(self) -> None:
+        lookup = SimpleNamespace(available=True, exact_open=None, exact_merged=None, stale_open=None)
+        result, mocks = self.shared_publish(complete=False, lookup=lookup)
+        self.assertEqual(result, 0)
+        self.assertTrue(mocks["ensure"].call_args.kwargs["draft"])
+        mocks["ready"].assert_not_called()
+        mocks["merge"].assert_not_called()
+
+    def test_incomplete_shared_candidate_puts_a_ready_pr_back_to_draft(self) -> None:
+        lookup = SimpleNamespace(available=True, exact_open={"number": 12, "isDraft": False}, exact_merged=None, stale_open=None)
+        _, mocks = self.shared_publish(complete=False, lookup=lookup)
+        mocks["ready"].assert_called_once()
+        self.assertTrue(mocks["ready"].call_args.kwargs["draft"])
+        mocks["merge"].assert_not_called()
+
+    def test_complete_shared_candidate_marks_the_same_draft_ready_before_merge(self) -> None:
+        lookup = SimpleNamespace(available=True, exact_open={"number": 12, "isDraft": True}, exact_merged=None, stale_open=None)
+        result, mocks = self.shared_publish(complete=True, lookup=lookup)
+        self.assertEqual(result, 0)
+        self.assertFalse(mocks["ensure"].call_args.kwargs["draft"])
+        mocks["ready"].assert_called_once()
+        self.assertFalse(mocks["ready"].call_args.kwargs["draft"])
+        mocks["merge"].assert_called_once()
+
+    def test_appended_head_reuses_the_existing_pr_without_fresh_base_or_duplicate(self) -> None:
+        stale = SimpleNamespace(available=True, exact_open=None, exact_merged=None, stale_open={"number": 12})
+        reobserved = SimpleNamespace(available=True, exact_open={"number": 12, "isDraft": True}, exact_merged=None, stale_open=None)
+        result, mocks = self.shared_publish_with(stale, reobserved)
+        self.assertEqual(result, 0)
+        self.assertFalse(mocks["push"].call_args.kwargs["require_fresh_base"])
+
+    def shared_publish_with(self, first, second):
+        root = Path("/tmp/shared-review")
+        manifest = Path("dev-platform/requirement-integrations/candidate.json")
+        payload = {"expected_changes": ["a", "b"], "children": [{"change": "a"}]}
+        with ExitStack() as stack:
+            push = stack.enter_context(mock.patch.object(project_publish, "push_feature_branch"))
+            stack.enter_context(mock.patch.object(project_publish, "ensure_pr", return_value=project_publish.PrRef(12, "https://example/pr/12")))
+            stack.enter_context(mock.patch.object(project_publish, "validate_shared_manifest", return_value=payload))
+            stack.enter_context(mock.patch.object(project_publish, "_validate_feature_branch", return_value="agent/shared"))
+            stack.enter_context(mock.patch.object(project_publish, "require_gh_environment", return_value={}))
+            stack.enter_context(mock.patch.object(project_publish, "run_git", return_value=SimpleNamespace(stdout="a" * 40)))
+            stack.enter_context(mock.patch.object(project_publish, "find_exact_head_pr", side_effect=[first, second]))
+            result = project_publish.publish_pr(root, "origin", "main", None, None, "auto", shared_manifest=manifest)
+        return result, {"push": push}
 
     def test_invalid_shared_manifest_blocks_before_pr_mutation(self) -> None:
         root = Path("/tmp/shared-review")
@@ -96,7 +164,7 @@ class ManagedStatusLifecycleTests(unittest.TestCase):
 
     def test_reviewable_pr_reconciles_in_review_before_manual_stop(self) -> None:
         root = Path("/tmp/managed-review")
-        lookup = SimpleNamespace(available=True, exact_open={"number": 12}, exact_merged=None)
+        lookup = SimpleNamespace(available=True, exact_open={"number": 12}, exact_merged=None, stale_open=None)
         project = SimpleNamespace(changed=True, source_issue="example-org/development-backlog#8")
         with (
             mock.patch.object(project_publish, "_validate_feature_branch", return_value="agent/managed"),
@@ -112,7 +180,7 @@ class ManagedStatusLifecycleTests(unittest.TestCase):
 
     def test_project_failure_after_pr_creation_is_explicit_and_resumable(self) -> None:
         root = Path("/tmp/managed-review")
-        lookup = SimpleNamespace(available=True, exact_open={"number": 12}, exact_merged=None)
+        lookup = SimpleNamespace(available=True, exact_open={"number": 12}, exact_merged=None, stale_open=None)
         with (
             mock.patch.object(project_publish, "_validate_feature_branch", return_value="agent/managed"),
             mock.patch.object(project_publish, "require_gh_environment", return_value={}),
