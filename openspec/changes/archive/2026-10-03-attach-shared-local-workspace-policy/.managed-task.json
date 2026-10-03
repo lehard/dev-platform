@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/shared-workspace/spec.md"
+  ],
+  "change": "attach-shared-local-workspace-policy",
+  "imported_at": "2026-10-02T22:20:26+00:00",
+  "package_revision": "a47bd3a30168fbc83282625aea333679b357552a46c3e13cb6b79ccd43fdf4ae",
+  "prepared_against": "93aaf8c954c4369f1234db4a37d1b262f3ae3b12",
+  "private_lineage_handle": "pln_32bae9babc418d4233335080999724e9",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "df72d4747c1ae966db040f819fff9954df5df83e48f72a86dd701dd030555a2b",
+    "updated_at": "2026-10-02T22:19:06Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

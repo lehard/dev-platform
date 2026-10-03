@@ -562,8 +562,19 @@ def session_admission_probe(root: Path) -> None:
             shutil.rmtree(probe, ignore_errors=True)
 
 
+def _admit_local_source(root: Path) -> None:
+    """Independent opt-in admission; never expands platform registered paths."""
+    from local_workspace import PolicyError, admit
+
+    try:
+        admit(root)
+    except (PolicyError, OSError, ValueError, KeyError) as exc:
+        raise SharedWorkspaceError(str(exc)) from exc
+
+
 def admit_managed_intake(root: Path) -> None:
     """Fail closed before managed intake mutates task, package, or Project state."""
+    _admit_local_source(root)
     if not shared_workspace_applicable(root):
         return
 
@@ -635,6 +646,7 @@ def preflight(
     required repair is serialized through the existing integration boundary and
     rechecked before the lifecycle continues.
     """
+    _admit_local_source(root)
     cooperative_umask()
     group, findings = audit(root, fix=fix)
     if group is None:

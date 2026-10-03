@@ -1,0 +1,83 @@
+{
+  "candidate": {
+    "base_head": "09a732d8d7c88256f30a79786a20909a687bab56",
+    "base_ref": "origin/main",
+    "candidate_head": "dcde5346514a94cca06bbd7964d136a4a99a8d54",
+    "diff_sha256": "fc812e19466d8bc4c32bb66f720f4ecad4c0376c640be0e2b1000e2f73a86dde"
+  },
+  "change": "openspec/changes/attach-shared-local-workspace-policy",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/attach-shared-local-workspace-policy/independent-review-request.json",
+    "openspec/changes/attach-shared-local-workspace-policy/independent-reviews/engineering-quality.json",
+    "openspec/changes/attach-shared-local-workspace-policy/independent-reviews/spec-fidelity.json",
+    "openspec/changes/attach-shared-local-workspace-policy/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/attach-shared-local-workspace-policy/design.md",
+        "openspec/changes/attach-shared-local-workspace-policy/proposal.md",
+        "openspec/changes/attach-shared-local-workspace-policy/specs/shared-workspace/spec.md",
+        "openspec/changes/attach-shared-local-workspace-policy/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/attach-shared-local-workspace-policy/proposal.md",
+        "openspec/changes/attach-shared-local-workspace-policy/design.md",
+        "openspec/changes/attach-shared-local-workspace-policy/tasks.md",
+        "openspec/changes/attach-shared-local-workspace-policy/specs/shared-workspace/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-03T08:42:24+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/attach-shared-local-workspace-policy/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "29a12fc1-fdfe-4704-8d3a-d24561053d4b",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "09a732d8d7c88256f30a79786a20909a687bab56",
+    "digest": "39df49d68b6f35b3e937bbd4f36ed809f501353a7afa251dda1e2501482c962e",
+    "paths": {
+      "dev-platform/checks.toml": "a9a5a2c441b7b9f881e219f866ebe692c311dbc8",
+      "docs/engineering/agent-workflow.md": "16801637a4b831c7f2f1e5dfc9d3bcbad9729e19",
+      "docs/engineering/local-workspace.md": "aa2fc96ee7048992686c4d44ce9bb16de1be8f2e",
+      "openspec/changes/attach-shared-local-workspace-policy/.managed-task.json": "dc9530c0f7b98d395509581e3daacd533469c0ce",
+      "openspec/changes/attach-shared-local-workspace-policy/.openspec.yaml": "6a87d2b26f2d3cac87ce2fb22f0cf3df632b5a3c",
+      "openspec/changes/attach-shared-local-workspace-policy/design.md": "4c85f9f9a9a34e58b84a7e74c85a275fb9b0efb0",
+      "openspec/changes/attach-shared-local-workspace-policy/proposal.md": "a2c05cf442bf61ca3b420e63fd168f1c29687d74",
+      "openspec/changes/attach-shared-local-workspace-policy/specs/shared-workspace/spec.md": "70b540af3cf59f190330834592045984c605e145",
+      "openspec/changes/attach-shared-local-workspace-policy/tasks.md": "f9014118d812154b917b2609d258203f91d9af7c",
+      "scripts/local_workspace.py": "e7f7fbd4d95b537fd54820b8b626799cbd16bf51",
+      "template/docs/engineering/agent-workflow.md.jinja": "930aaa715df492661a6845bcb7a0c65159289778",
+      "template/docs/engineering/local-workspace.md": "aa2fc96ee7048992686c4d44ce9bb16de1be8f2e",
+      "template/scripts/local_workspace.py": "ec6f0124671c8c87cfb9f0fc637635996083c14d",
+      "template/scripts/shared_workspace.py": "6609b88870795cd52d593dc4426aaeb5e5c42c28",
+      "tests/test_local_workspace.py": "f58c00ebd59698d5b2569048cc2876656251be75",
+      "tests/test_shared_writer_guard.py": "80ab75d669cc1af289ad2409931786b7573ec318"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

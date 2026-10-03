@@ -219,6 +219,10 @@ Promote a rule/tool only when it is reusable across projects or a defined workfl
 
 A change to a downstream managed file must consider both new-project rendering and Copier update behavior for existing projects.
 
+Opt-in application source permissions, external hook attachment and per-user
+automation are documented in [local-workspace.md](local-workspace.md). The
+operator-local policy is checked separately from platform shared state.
+
 The shared lifecycle is composable. `light`, `standard`, and `multi-agent` profiles select capabilities rather than forking the template. GitHub sync/publish, checks, OpenSpec policy and release pinning are core; worktrees/board are multi-agent capabilities. In multi-agent admission, only a valid active board record with a proven worktree/branch identity can block a concrete file claim; degraded or terminal sibling records remain hygiene diagnostics, while unreadable or un-lockable board state fails closed.
 
 ## Validation

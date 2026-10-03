@@ -196,6 +196,7 @@ targets = [
   "test_rollout_validation_ownership",
   "test_select_checks",
   "test_shared_workspace",
+  "test_local_workspace",
   "test_shared_writer_guard",
   "test_task_freshness",
   "test_template_contract",

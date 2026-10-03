@@ -90,6 +90,13 @@ REVIEWED_BASELINE: dict[str, int] = {
     'independent_review_runner.py:run_review:write_text': 2,
     'integration_state.py:local_state_matches_remote_target:mkstemp': 1,
     'integration_state.py:serialized_integration:open': 1,
+    # Operator-local generated artifacts: atomic, explicit modes, cooperative generated-state replacement.
+    # _open uses no-follow descriptors (read-only, write-only fallback for owner-created 0200 sources) for bounded repair.
+    'local_workspace.py:write:mkstemp': 1,
+    'local_workspace.py:write:replace': 1,
+    'local_workspace.py:_open:open': 3,
+    # The external fleet lock is no-follow, regular/single-link checked and group writable.
+    'local_workspace.py:sync:open': 1,
     'model_routing.py:delegate_codex_context:write_text': 1,
     'platform_bootstrap.py:ensure_project_context_map:write_text': 1,
     'platform_bootstrap.py:initialize_openspec:write_text': 1,
