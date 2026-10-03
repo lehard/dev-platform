@@ -36,18 +36,42 @@ def _receipt_path(root: Path, number: int) -> Path:
 
 
 def _check_events(requirement: str, event_ids: list[str]) -> None:
-    known = {str(event.get("id")): event for event in agent_friction.read_events()}
+    known = {str(event.get("id")) for event in agent_friction.read_events()}
+    attributed = {str(event.get("id")) for event in agent_friction.events_for_task(requirement)}
     for event_id in event_ids:
-        event = known.get(event_id)
-        if event is None:
+        if event_id not in known:
             raise RequirementRetrospectiveError(f"unknown friction event {event_id}; record the finding first")
-        if event.get("task") != requirement:
+        if event_id not in attributed:
             raise RequirementRetrospectiveError(
                 f"friction event {event_id} is not attributed to {requirement}; record it with --task {requirement}"
             )
 
 
-def checkpoint(root: Path, *, requirement: str, result: str, event_ids: list[str], review_note: str) -> dict[str, Any]:
+def _explain_signals(requirement: str, event_ids: list[str], dispositions: dict[str, str], accepted_gaps: list[str]) -> None:
+    """Every mandatory signal is linked or classified, and no evidence source is silently degraded."""
+    failures = agent_friction.current_lifecycle_failures(requirement)
+    unresolved = agent_friction.unclassified_lifecycle_failures(failures, event_ids, dispositions)
+    if unresolved:
+        raise RequirementRetrospectiveError(agent_friction.lifecycle_checkpoint_instruction(unresolved))
+    unlinked = agent_friction.unlinked_retrospective_signals(requirement, event_ids, dispositions)
+    if unlinked:
+        raise RequirementRetrospectiveError(agent_friction.retrospective_signal_instruction(unlinked))
+    gaps = agent_friction.unaccepted_gaps(agent_friction.evidence_source_status(), accepted_gaps)
+    if gaps:
+        raise RequirementRetrospectiveError(agent_friction.gap_instruction(gaps))
+
+
+def _parse_dispositions(requirement: str, values: list[str]) -> dict[str, str]:
+    try:
+        return agent_friction.parse_lifecycle_dispositions(values, agent_friction.mandatory_signals(requirement))
+    except SystemExit as exc:
+        raise RequirementRetrospectiveError(str(exc)) from exc
+
+
+def checkpoint(
+    root: Path, *, requirement: str, result: str, event_ids: list[str], review_note: str,
+    dispositions: list[str] | None = None, accepted_gaps: list[str] | None = None,
+) -> dict[str, Any]:
     if result not in ("none", "findings"):
         raise RequirementRetrospectiveError("result must be none or findings")
     if (result == "none") != (not event_ids):
@@ -58,14 +82,22 @@ def checkpoint(root: Path, *, requirement: str, result: str, event_ids: list[str
     parent = requirement_intake.fetch_issue(root, *requirement_intake.issue_ref(requirement))
     identity = _identity(requirement, parent)
     _check_events(requirement, event_ids)
-    unlinked = agent_friction.unlinked_retrospective_signals(requirement, event_ids)
-    if unlinked:
-        raise RequirementRetrospectiveError(agent_friction.retrospective_signal_instruction(unlinked))
-    receipt = {"version": 1, **identity, "result": result, "event_ids": event_ids, "review_note": review_note, "recorded_at": utc_now()}
+    parsed = _parse_dispositions(requirement, list(dispositions or []))
+    accepted = sorted(set(accepted_gaps or []))
+    _explain_signals(requirement, event_ids, parsed, accepted)
+    receipt = {
+        "version": 1, **identity, "result": result, "event_ids": event_ids,
+        "dispositions": [{"event_id": key, "disposition": value} for key, value in parsed.items()],
+        "accepted_gaps": accepted, "review_note": review_note, "recorded_at": utc_now(),
+    }
     path = _receipt_path(root, identity["number"])
     path.parent.mkdir(parents=True, exist_ok=True)
     atomic_write_text(path, json.dumps(receipt, ensure_ascii=False, indent=2, sort_keys=True) + "\n")
-    return {"status": "recorded", "requirement": requirement, "result": result, "event_ids": event_ids, "receipt": str(path)}
+    output = {"status": "recorded", "requirement": requirement, "result": result, "event_ids": event_ids, "receipt": str(path)}
+    ambiguous = [str(event.get("id")) for event in agent_friction.ambiguous_attribution_events()]
+    if ambiguous:
+        output["ambiguous_attribution_not_attributed"] = ambiguous[:10]
+    return output
 
 
 def require_checkpoint(root: Path, *, requirement: str, parent: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -90,9 +122,12 @@ def require_checkpoint(root: Path, *, requirement: str, parent: dict[str, Any] |
     if not isinstance(receipt.get("review_note"), str) or not receipt["review_note"].strip():
         raise RequirementRetrospectiveError(f"Requirement retrospective path review is missing; {instruction}")
     _check_events(requirement, events)
-    unlinked = agent_friction.unlinked_retrospective_signals(requirement, events)
-    if unlinked:
-        raise RequirementRetrospectiveError(agent_friction.retrospective_signal_instruction(unlinked))
+    stored = receipt.get("dispositions") or []
+    if not isinstance(stored, list) or not all(isinstance(i, dict) for i in stored):
+        raise RequirementRetrospectiveError(f"Requirement retrospective receipt is malformed; {instruction}")
+    parsed = _parse_dispositions(requirement, [f"{i.get('event_id')}={i.get('disposition')}" for i in stored])
+    gaps = receipt.get("accepted_gaps") or []
+    _explain_signals(requirement, events, parsed, [g for g in gaps if isinstance(g, str)])
     return receipt
 
 
@@ -103,6 +138,9 @@ def main() -> int:
     write.add_argument("--requirement", required=True)
     write.add_argument("--result", choices=("none", "findings"), required=True)
     write.add_argument("--event", action="append", default=[], dest="events")
+    write.add_argument("--disposition", action="append", default=[], dest="dispositions",
+                       help="<event-id>=resolved-in-task|already-recorded|expected-behavior for a mandatory signal (a known-recurrence can only be linked)")
+    write.add_argument("--accept-gap", action="append", default=[], dest="accept_gaps", help="accept a named unreadable/partial evidence source")
     write.add_argument("--review-note", required=True, help="short factual Requirement path reviewed, including workarounds, overrides, recurrences and drift")
     review = sub.add_parser("review-path", help="show bounded full-Requirement review prompts and recorded signals")
     review.add_argument("--requirement", required=True)
@@ -112,7 +150,8 @@ def main() -> int:
     root = main_root()
     try:
         if args.command == "checkpoint":
-            result = checkpoint(root, requirement=args.requirement, result=args.result, event_ids=args.events, review_note=args.review_note)
+            result = checkpoint(root, requirement=args.requirement, result=args.result, event_ids=args.events, review_note=args.review_note,
+                                    dispositions=args.dispositions, accepted_gaps=args.accept_gaps)
         elif args.command == "review-path":
             parent = requirement_intake.fetch_issue(root, *requirement_intake.issue_ref(args.requirement))
             identity = _identity(args.requirement, parent)
@@ -125,6 +164,11 @@ def main() -> int:
                     {"id": str(event.get("id")), "triggers": sorted(agent_friction.RETROSPECTIVE_SIGNALS.intersection(event.get("triggers") or []))}
                     for event in agent_friction.current_retrospective_signals(args.requirement)
                 ],
+                "lifecycle_failures": [str(event.get("id")) for event in agent_friction.current_lifecycle_failures(args.requirement)],
+                "inferred_attribution": agent_friction.inferred_event_ids(args.requirement),
+                "ambiguous_attribution": [str(event.get("id")) for event in agent_friction.ambiguous_attribution_events()][:10],
+                "evidence_sources": agent_friction.evidence_source_status(),
+                **agent_friction.review_guidance(root, None),
             }
         else:
             receipt = require_checkpoint(root, requirement=args.requirement)

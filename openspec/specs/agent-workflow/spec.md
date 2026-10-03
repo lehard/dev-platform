@@ -685,6 +685,8 @@ Before a non-trivial Business Requirement reaches terminal Done, Dev Platform SH
 
 The parent review SHALL inspect meaningful successful manual workarounds, non-default or override actions, manual state changes, recurrences of already open process problems, and observed material drift even when another operator or lifecycle owns the state. `none` requires this bounded factual path review and remains concise on a clean path.
 
+The parent review SHALL use the same mandatory-signal set, dispositions and evidence-gap rules as the task retrospective for signals attributed to the Requirement during pre-authoring and between children, including legacy events attributed by branch or source issue, and SHALL name an unreadable evidence source instead of treating it as clean.
+
 #### Scenario: Significant friction predates children
 
 - **GIVEN** pre-authoring incurred repeated rework or a manual workaround before any child was materialized
@@ -715,6 +717,12 @@ The parent review SHALL inspect meaningful successful manual workarounds, non-de
 
 - **WHEN** the agent observes material state drift outside its own ownership during the Requirement path
 - **THEN** the review considers it as process evidence regardless of who may repair it.
+
+#### Scenario: Requirement signal is unexplained
+
+- **GIVEN** a workaround event is attributed to the Requirement and not linked or classified
+- **WHEN** the parent checkpoint is attempted with `none`
+- **THEN** it is refused naming the event.
 
 ### Requirement: Every lifecycle stage participates in the shared process learning loop
 

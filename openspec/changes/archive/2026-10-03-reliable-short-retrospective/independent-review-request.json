@@ -1,0 +1,88 @@
+{
+  "candidate": {
+    "base_head": "93aaf8c954c4369f1234db4a37d1b262f3ae3b12",
+    "base_ref": "origin/main",
+    "candidate_head": "554a1c49b2af2b88826c09001fcc8945167a7946",
+    "diff_sha256": "4c5a0a68c766398536c450535c2fd6e1b2854365c6169ecc3df100690d7a9964"
+  },
+  "change": "openspec/changes/reliable-short-retrospective",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/reliable-short-retrospective/independent-review-request.json",
+    "openspec/changes/reliable-short-retrospective/independent-reviews/engineering-quality.json",
+    "openspec/changes/reliable-short-retrospective/independent-reviews/spec-fidelity.json",
+    "openspec/changes/reliable-short-retrospective/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/reliable-short-retrospective/design.md",
+        "openspec/changes/reliable-short-retrospective/proposal.md",
+        "openspec/changes/reliable-short-retrospective/specs/agent-workflow/spec.md",
+        "openspec/changes/reliable-short-retrospective/specs/completion-lifecycle/spec.md",
+        "openspec/changes/reliable-short-retrospective/specs/platform-lifecycle/spec.md",
+        "openspec/changes/reliable-short-retrospective/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/reliable-short-retrospective/proposal.md",
+        "openspec/changes/reliable-short-retrospective/design.md",
+        "openspec/changes/reliable-short-retrospective/tasks.md",
+        "openspec/changes/reliable-short-retrospective/specs/agent-workflow/spec.md",
+        "openspec/changes/reliable-short-retrospective/specs/completion-lifecycle/spec.md",
+        "openspec/changes/reliable-short-retrospective/specs/platform-lifecycle/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-03T06:17:55+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/reliable-short-retrospective/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "f20b94ae-d4da-46c0-8450-3bac0e9772d4",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "93aaf8c954c4369f1234db4a37d1b262f3ae3b12",
+    "digest": "4384ea80f29252b8355cfc7da96886da5412392626da85e63d3b519a6bd8a095",
+    "paths": {
+      "copier.yml": "e88309f175e93a7430e7374a735e291adaf67994",
+      "dev-platform/checks.toml": "b90a750d7cd89fecb0f5ce05c7b942df8af5dae7",
+      "docs/engineering/agent-workflow.md": "7852863fa238c1ca103bdf2110aa9f074bd2ca26",
+      "docs/engineering/task-intake.md": "31a92e9bed0bc886c82472fd5ff793b661d9a69e",
+      "openspec/changes/reliable-short-retrospective/.managed-task.json": "d92b0d066977cb27fc997a1a24fafc19b1f534cc",
+      "openspec/changes/reliable-short-retrospective/.openspec.yaml": "6a87d2b26f2d3cac87ce2fb22f0cf3df632b5a3c",
+      "openspec/changes/reliable-short-retrospective/design.md": "425c7cdcc373d662db93011eb8d3edb8ccd9ad44",
+      "openspec/changes/reliable-short-retrospective/proposal.md": "33d88ccc0f09789769ecef7e1de01acf6cc0437a",
+      "openspec/changes/reliable-short-retrospective/specs/agent-workflow/spec.md": "bf47e11ef1d021a22c52ca724dbcd06c12748b2d",
+      "openspec/changes/reliable-short-retrospective/specs/completion-lifecycle/spec.md": "b5f9ff2720768e7750a79abf8e5acbba833b0f58",
+      "openspec/changes/reliable-short-retrospective/specs/platform-lifecycle/spec.md": "f359a5a045d96c9c61a1cb0a96821d13951a40b2",
+      "openspec/changes/reliable-short-retrospective/tasks.md": "ebd41b7edc05a6a2e50d0301a162941bed88c937",
+      "template/dev-platform/retrospective.toml": "3561ff55309d14fe800cf2842003c7cf35023099",
+      "template/docs/engineering/agent-workflow.md.jinja": "87c3f0320b3f99865d5e22767e2840a0801ea12d",
+      "template/scripts/agent_friction.py": "0a684b59d1fc66a75ec47be385d7cae79a56dd47",
+      "template/scripts/requirement_retrospective.py": "42e7c6d145bd9ce218ec662d5d1089ac83438af9",
+      "tests/test_retrospective_attribution.py": "7662753c4083996c5dcd499ad718c32fc61883f1"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

@@ -1,0 +1,89 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 1.359,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.223,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 347.228,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "template/scripts/agent_friction.py",
+        "template/scripts/requirement_retrospective.py",
+        "tests/test_retrospective_attribution.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_21a43f77427e7aa609249f6ffd9f7c7a",
+    "change": "reliable-short-retrospective",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/reliable-short-retrospective",
+    "branch": "agent/reliable-short-retrospective",
+    "head": "c121df4dac4592a60956271ba8b582445060b11e",
+    "task_content": {
+      "version": 1,
+      "digest": "465ef0320afbc484989933dc0ab03de7920092706b9f70ef984463b5d80d86c6",
+      "paths": {
+        "copier.yml": "e88309f175e93a7430e7374a735e291adaf67994",
+        "dev-platform/checks.toml": "b90a750d7cd89fecb0f5ce05c7b942df8af5dae7",
+        "docs/engineering/agent-workflow.md": "7852863fa238c1ca103bdf2110aa9f074bd2ca26",
+        "docs/engineering/task-intake.md": "31a92e9bed0bc886c82472fd5ff793b661d9a69e",
+        "openspec/changes/reliable-short-retrospective/.managed-task.json": "d92b0d066977cb27fc997a1a24fafc19b1f534cc",
+        "openspec/changes/reliable-short-retrospective/.openspec.yaml": "6a87d2b26f2d3cac87ce2fb22f0cf3df632b5a3c",
+        "openspec/changes/reliable-short-retrospective/design.md": "425c7cdcc373d662db93011eb8d3edb8ccd9ad44",
+        "openspec/changes/reliable-short-retrospective/independent-review-request.json": "d9ee61dcee2c07d6a143cfcd3718f2d836727a91",
+        "openspec/changes/reliable-short-retrospective/independent-reviews/engineering-quality.json": "bb24fb12e840166bd6892585923f190185953d1e",
+        "openspec/changes/reliable-short-retrospective/independent-reviews/spec-fidelity.json": "497e4e892f69d398ba7348b88ad3c9bdaa6c05ea",
+        "openspec/changes/reliable-short-retrospective/proposal.md": "33d88ccc0f09789769ecef7e1de01acf6cc0437a",
+        "openspec/changes/reliable-short-retrospective/specs/agent-workflow/spec.md": "bf47e11ef1d021a22c52ca724dbcd06c12748b2d",
+        "openspec/changes/reliable-short-retrospective/specs/completion-lifecycle/spec.md": "b5f9ff2720768e7750a79abf8e5acbba833b0f58",
+        "openspec/changes/reliable-short-retrospective/specs/platform-lifecycle/spec.md": "f359a5a045d96c9c61a1cb0a96821d13951a40b2",
+        "openspec/changes/reliable-short-retrospective/tasks.md": "ebd41b7edc05a6a2e50d0301a162941bed88c937",
+        "openspec/changes/reliable-short-retrospective/verification.md": "913135152d31e2a249cab8cebe5b261cd4c2b045",
+        "template/dev-platform/retrospective.toml": "3561ff55309d14fe800cf2842003c7cf35023099",
+        "template/docs/engineering/agent-workflow.md.jinja": "87c3f0320b3f99865d5e22767e2840a0801ea12d",
+        "template/scripts/agent_friction.py": "0a684b59d1fc66a75ec47be385d7cae79a56dd47",
+        "template/scripts/requirement_retrospective.py": "42e7c6d145bd9ce218ec662d5d1089ac83438af9",
+        "tests/test_retrospective_attribution.py": "7662753c4083996c5dcd499ad718c32fc61883f1"
+      },
+      "base": "93aaf8c954c4369f1234db4a37d1b262f3ae3b12"
+    }
+  }
+}

@@ -1,0 +1,7 @@
+# Project-owned additions to the shared task retrospective (Dev Platform never overwrites this file).
+# Add at most five questions about this project's own risks; the shared template always applies and is not repeated here.
+# `paths` (optional glob list) limits a question to tasks that change a matching file; without it the question applies to every task.
+#
+# [[question]]
+# text = "Did the change keep <project-specific invariant> true, and what showed it?"
+# paths = ["src/payments/*"]
