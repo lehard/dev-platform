@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "6acfcb57df7bb5c8eaadc38dc75c8b105dc76f5b",
+    "base_ref": "origin/main",
+    "candidate_head": "0bc81ef8e398a340d70652d9a7d63968a28861a3",
+    "diff_sha256": "bee50da3fb30951b615b985f80ed45bf4cd3b21d4a889f37fcd79c1450324ff0"
+  },
+  "completed_at": "2026-10-03T23:42:44+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/execute_requirement.py:217 calls requirement_board.reconcile_nonterminal before any terminal check. requirement_board.py:20-24 maps stage 'done' to 'In progress', and lines 41-44 write whenever the current status differs. Earlier, the only reconcile was after a child start (line 286), so a Done card was never touched on a terminal rerun. The change does not show that this path is guarded.",
+      "id": "advance-entry-claim-may-regress-done-card",
+      "severity": "advisory",
+      "summary": "The unconditional card reconcile at advance() entry can rewrite an already terminal (Done) Requirement card back to In progress if advance is rerun after delivery."
+    },
+    {
+      "evidence": "tests/test_requirement_card_claim.py exercises only requirement_intake start. tests/test_requirement_execution.py only changes an expected call count to 2 and adds mock.patch.object(execution.requirement_board, 'reconcile_nonterminal') to two tests. The spec scenario 'a card still showing Ready is repaired to In progress at entry' has no direct test.",
+      "id": "advance-entry-claim-lacks-dedicated-test",
+      "severity": "advisory",
+      "summary": "Nothing tests the new advance-entry claim itself: that it runs before slow steps, repairs a Ready card, or surfaces a reconcile failure."
+    }
+  ],
+  "launched_at": "2026-10-03T23:42:19+00:00",
+  "output_sha256": "6f9573c3f6352a569997c8baa213e11ef08a069c8e268bdb2d8fe438022d4fef",
+  "perspective": "engineering-quality",
+  "request_id": "51570536-f443-4cc0-80e8-2d3a7d23e69b",
+  "reviewer": {
+    "context_id": "29d0bce5-0829-4751-a426-4673600c345c",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-266ef58c-948d-4187-8549-1643d5ecb6e2",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 20234
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 84257
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 18600
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 19900
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1920
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "56ed1965230c1f2adba69af0d6729255c7ae267e90e0aa6f127ba325f32555e1"
+}

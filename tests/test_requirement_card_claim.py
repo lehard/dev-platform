@@ -12,6 +12,7 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "template" / "scripts"))
 
+import execute_requirement as execution  # noqa: E402
 import requirement_board  # noqa: E402
 import requirement_intake as ri  # noqa: E402
 
@@ -90,6 +91,58 @@ class RequirementCardClaimTests(unittest.TestCase):
         code, _ = run_start(board)
         self.assertEqual(code, 0)
         self.assertFalse(board.is_free_for_capture())
+
+
+PARENT_BODY = "## Outcome\n\nShip it\n\n## Target repository\n\n`acme/project`\n"
+
+
+class Stop(Exception):
+    pass
+
+
+def run_advance(board: FakeBoard, *, progress_stage: str = "pre-authoring", observed_at_status=None):
+    """Run advance up to the first slow step; return what the card showed when that step began."""
+    seen: list[str] = []
+
+    def slow_step(*args, **kwargs):
+        seen.append(board.status)
+        raise Stop()
+
+    root = Path("/unused")
+    with patch.object(execution, "current_worktree_root", return_value=root.resolve()), \
+            patch.object(execution, "_git", return_value="main"), \
+            patch.object(execution.requirement_target_lifecycle, "require_local_target_support"), \
+            patch.object(execution.requirement_intake, "fetch_issue", return_value={"body": PARENT_BODY, "labels": [{"name": "type:requirement"}]}), \
+            patch.object(execution.requirement_intake, "aggregate", return_value={"requirement": REQUIREMENT, "progress": {"stage": progress_stage}}), \
+            patch.object(execution.managed_project_status, "observe", side_effect=board.observe), \
+            patch.object(execution.managed_project_status, "reconcile", side_effect=board.reconcile), \
+            patch.object(execution.orchestrate_pre_authoring, "status", side_effect=slow_step):
+        try:
+            execution.advance(root, requirement=REQUIREMENT, base_dir=root)
+        except Stop:
+            pass
+    return seen
+
+
+class AdvanceEntryClaimTests(unittest.TestCase):
+    def test_resume_repairs_a_ready_card_before_the_first_slow_step(self) -> None:
+        board = FakeBoard("Ready")
+        self.assertEqual(run_advance(board), ["In progress"])
+        self.assertNotIn("Ready", board.writes)
+
+    def test_resume_does_not_regress_a_done_card(self) -> None:
+        board = FakeBoard("Done")
+        self.assertEqual(run_advance(board), ["Done"])
+        self.assertEqual(board.writes, [])
+
+    def test_claim_failure_at_entry_reports_kept_state_and_skips_slow_steps(self) -> None:
+        board = FakeBoard("Ready")
+        with patch.object(execution.requirement_board, "reconcile_nonterminal", side_effect=requirement_board.RequirementBoardError("no card")):
+            with self.assertRaises(execution.RequirementExecutionError) as caught:
+                run_advance(board)
+        self.assertIn("state is kept", str(caught.exception))
+        self.assertIn("rerun", str(caught.exception))
+        self.assertNotIn("Ready", board.writes)
 
 
 if __name__ == "__main__":

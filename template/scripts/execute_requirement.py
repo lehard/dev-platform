@@ -195,6 +195,19 @@ def _child_review_state(worktree: Path, child: str, change: str) -> dict[str, An
         return {"state": "unknown", "next": None, "detail": str(exc)}
 
 
+def _claim_card(integration: Path, requirement: str) -> None:
+    """Idempotently project the started Requirement onto its card; never touches a terminal Done card."""
+    try:
+        observation = managed_project_status.observe(integration, source_issue=requirement)
+        if observation is not None and observation.current_status == "Done":
+            return
+        requirement_board.reconcile_nonterminal(integration, requirement=requirement)
+    except (requirement_board.RequirementBoardError, managed_project_status.ManagedProjectStatusError) as exc:
+        raise RequirementExecutionError(
+            f"{requirement} card could not be claimed ({exc}); its state is kept and advance is safe to rerun"
+        ) from exc
+
+
 def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_distinct: bool = False) -> dict[str, Any]:
     """Run deterministic transitions; return one bounded agent action or delivery result."""
     integration = integration.resolve()
@@ -214,7 +227,7 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
         raise RequirementExecutionError(str(exc)) from exc
     # Claim the card before any slow evidence, duplicate-check or materialization step, so resume
     # also repairs a card that still reads Ready.
-    requirement_board.reconcile_nonterminal(integration, requirement=requirement)
+    _claim_card(integration, requirement)
     report = orchestrate_pre_authoring.status(
         integration, requirement_id=f"requirement-{requirement.rsplit('#', 1)[1]}", base_dir=base_dir,
     )
