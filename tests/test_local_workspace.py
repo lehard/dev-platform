@@ -137,6 +137,29 @@ class LocalWorkspaceTests(unittest.TestCase):
         local.audit(self.root, self.policy, repair=True)
         self.assertEqual(stat.S_IMODE(inner.stat().st_mode), 0o600)
 
+    def test_source_root_inside_nested_checkout_is_refused(self):
+        nested = self.root / 'src/component'
+        nested.mkdir()
+        subprocess.run(['git', '-C', str(nested), 'init', '-q'], check=True)
+        (nested / 'public').mkdir()
+        (nested / 'public/main.py').write_text('x')
+        for roots in (['src/component'], ['src/component/public']):
+            policy = {**self.policy, 'source_roots': roots}
+            with self.assertRaises(local.PolicyError):
+                local.audit(self.root, policy, repair=True)
+
+    def test_tilde_hooks_path_is_expanded(self):
+        with tempfile.TemporaryDirectory() as home:
+            hooks = Path(home) / 'operator-hooks'
+            hooks.mkdir()
+            hook = hooks / 'pre-commit'
+            hook.write_text('#!/bin/sh\nexit 7\n')
+            hook.chmod(0o755)
+            state = {'original_directory': str(hooks), 'original_config': '~/operator-hooks',
+                     'effective_config': '~/operator-hooks'}
+            with mock.patch.dict(os.environ, {'HOME': home}):
+                self.assertEqual(local.delegate_hooks(self.root, state, 'pre-commit', []), 7)
+
     def test_unreadable_foreign_file_keeps_owner_diagnostic(self):
         source = self.root / 'src/main.py'
         source.chmod(0o600)

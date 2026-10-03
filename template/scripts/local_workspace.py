@@ -228,6 +228,9 @@ def audit(root: Path, policy: dict, *, repair: bool = False) -> list[str]:
         if excluded(local, extra):
             raise PolicyError(f'source root is excluded: {local}')
         base = root / local
+        for boundary in (base, *(parent for parent in base.parents if parent != root and root in parent.parents)):
+            if os.path.lexists(boundary / '.git'):
+                raise PolicyError(f'source root crosses into a nested checkout; review source_roots: {boundary}')
         try:
             absolute(base)
         except PolicyError:
@@ -529,8 +532,9 @@ def launchagent(registry: Path, destination: Path, *, remove: bool = False) -> N
 def delegate_hooks(root: Path, state: dict, name: str, args: list[str]) -> int:
     original = Path(state['original_directory']) / name
     configured_original = state.get('effective_config', state['original_config'])
-    if configured_original is not None and not Path(configured_original).is_absolute():
-        original = Path.cwd() / configured_original / name
+    if configured_original is not None:
+        expanded = Path(os.path.expanduser(configured_original))
+        original = (expanded if expanded.is_absolute() else Path.cwd() / expanded) / name
     hooks = [original] if original.is_file() and os.access(original, os.X_OK) else []
     if name in ('pre-commit', 'pre-merge-commit'):
         doctor = Path(git(root, 'rev-parse', '--path-format=absolute', '--git-common-dir')) / 'hooks' / name
