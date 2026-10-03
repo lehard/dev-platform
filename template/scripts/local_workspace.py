@@ -206,6 +206,34 @@ def expected_bits(info: os.stat_result) -> int:
     return 0o2070 if stat.S_ISDIR(info.st_mode) else 0o060
 
 
+def _unreadable(path: Path, gid: int, repair: bool) -> list[str]:
+    """Inspect and owner-repair an entry its owner cannot open, via the no-follow parent descriptor."""
+    pfd = None
+    try:
+        pfd = _open(path.parent)
+        info = os.stat(path.name, dir_fd=pfd, follow_symlinks=False)
+        if not (stat.S_ISDIR(info.st_mode) or (stat.S_ISREG(info.st_mode) and info.st_nlink == 1)):
+            return []
+        bits = expected_bits(info)
+        if info.st_uid == os.geteuid() and repair:
+            if info.st_gid != gid:
+                os.chown(path.name, -1, gid, dir_fd=pfd, follow_symlinks=False)
+            os.chmod(path.name, stat.S_IMODE(info.st_mode) | bits, dir_fd=pfd, follow_symlinks=False)
+            info = os.stat(path.name, dir_fd=pfd, follow_symlinks=False)
+        if info.st_gid == gid and info.st_mode & bits == bits:
+            return []
+        return [f'{path}: owner uid={info.st_uid}, gid={info.st_gid}, mode={stat.S_IMODE(info.st_mode):04o}; '
+                f'owner must run chgrp {gid} {shlex.quote(str(path))} && chmod '
+                f'{"g+rwxs" if stat.S_ISDIR(info.st_mode) else "g+rw"} {shlex.quote(str(path))}']
+    except FileNotFoundError:
+        return []
+    except (OSError, NotImplementedError) as exc:
+        return [f'{path}: cannot inspect/repair: {exc}']
+    finally:
+        if pfd is not None:
+            os.close(pfd)
+
+
 def audit(root: Path, policy: dict, *, repair: bool = False) -> list[str]:
     root = checkout(root, policy)
     gid = group_id(policy['group'])
@@ -254,7 +282,12 @@ def audit(root: Path, policy: dict, *, repair: bool = False) -> list[str]:
         for current, directories, files in os.walk(admin, followlinks=False, onerror=traversal_error):
             directories[:] = [name for name in directories if not (Path(current) / name).is_symlink()]
             candidates.update(Path(current) / name for name in [*directories, *files])
+    def nested(path: Path) -> bool:
+        return any(os.path.lexists(item / '.git') for item in (path, *path.parents) if item != root and root in item.parents)
+
     for path in sorted(candidates):
+        if nested(path):
+            continue
         fd = None
         try:
             fd = _open(path)
@@ -291,15 +324,8 @@ def audit(root: Path, policy: dict, *, repair: bool = False) -> list[str]:
             # Symlinks are deliberately skipped, including parent escapes.
             import errno
             if exc.errno == errno.EACCES:
-                try:
-                    info = path.lstat()
-                except OSError:
-                    info = None
-                if info is not None and info.st_uid != os.geteuid():
-                    findings.append(f'{path}: owner uid={info.st_uid}, gid={info.st_gid}, mode={stat.S_IMODE(info.st_mode):04o}; '
-                                    f'owner must run chgrp {gid} {shlex.quote(str(path))} && chmod '
-                                    f'{"g+rwxs" if stat.S_ISDIR(info.st_mode) else "g+rw"} {shlex.quote(str(path))}')
-                    continue
+                findings.extend(_unreadable(path, gid, repair))
+                continue
             if exc.errno not in (errno.ELOOP, errno.ENOTDIR):
                 findings.append(f'{path}: cannot inspect/repair: {exc}')
         finally:
@@ -529,10 +555,21 @@ def launchagent(registry: Path, destination: Path, *, remove: bool = False) -> N
             subprocess.run(['launchctl', 'bootstrap', f'gui/{os.geteuid()}', str(destination)], check=True)
 
 
+def inherited_hooks_path(root: Path) -> str | None:
+    result = subprocess.run(['git', '-C', str(root), 'config', '--show-scope', '--get-all', 'core.hooksPath'],
+                            capture_output=True, text=True)
+    values = [line.split('\t', 1)[1] for line in result.stdout.splitlines()
+              if '\t' in line and line.split('\t', 1)[0] not in ('local', 'worktree')]
+    return values[-1] if values else None
+
+
 def delegate_hooks(root: Path, state: dict, name: str, args: list[str]) -> int:
     original = Path(state['original_directory']) / name
-    configured_original = state.get('effective_config', state['original_config'])
-    if configured_original is not None:
+    # A repository-local hooksPath is shared; an inherited one belongs to the invoking user.
+    configured_original = state['original_config'] if state['original_config'] is not None else inherited_hooks_path(root)
+    if configured_original is None:
+        original = Path(git(root, 'rev-parse', '--path-format=absolute', '--git-common-dir')) / 'hooks' / name
+    else:
         expanded = Path(os.path.expanduser(configured_original))
         original = (expanded if expanded.is_absolute() else Path.cwd() / expanded) / name
     hooks = [original] if original.is_file() and os.access(original, os.X_OK) else []

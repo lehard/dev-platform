@@ -160,6 +160,37 @@ class LocalWorkspaceTests(unittest.TestCase):
             with mock.patch.dict(os.environ, {'HOME': home}):
                 self.assertEqual(local.delegate_hooks(self.root, state, 'pre-commit', []), 7)
 
+    def test_tracked_paths_under_nested_checkout_are_not_repaired(self):
+        tracked = self.root / 'src/nested'
+        tracked.mkdir()
+        (tracked / 'file.py').write_text('x')
+        (tracked / 'file.py').chmod(0o600)
+        self.git('add', '.')
+        self.git('commit', '-qm', 'tracked')
+        subprocess.run(['git', '-C', str(tracked), 'init', '-q'], check=True)
+        local.audit(self.root, self.policy, repair=True)
+        self.assertEqual(stat.S_IMODE((tracked / 'file.py').stat().st_mode), 0o600)
+
+    def test_write_only_owned_file_is_repaired(self):
+        source = self.root / 'src/main.py'
+        source.chmod(0o200)
+        findings = local.audit(self.root, self.policy, repair=True)
+        self.assertEqual(findings, [])
+        self.assertEqual(stat.S_IMODE(source.stat().st_mode) & 0o060, 0o060)
+
+    def test_inherited_hooks_path_is_per_invoking_user(self):
+        with tempfile.TemporaryDirectory() as home:
+            hooks = Path(home) / 'mine'
+            hooks.mkdir()
+            hook = hooks / 'pre-push'
+            hook.write_text('#!/bin/sh\nexit 9\n')
+            hook.chmod(0o755)
+            (Path(home) / '.gitconfig').write_text(f'[core]\n\thooksPath = {hooks}\n')
+            state = {'original_directory': '/users/a/hooks', 'original_config': None, 'effective_config': '/users/a/hooks'}
+            env = {'HOME': home, 'XDG_CONFIG_HOME': str(Path(home) / 'xdg'), 'GIT_CONFIG_NOSYSTEM': '1'}
+            with mock.patch.dict(os.environ, env):
+                self.assertEqual(local.delegate_hooks(self.root, state, 'pre-push', []), 9)
+
     def test_unreadable_foreign_file_keeps_owner_diagnostic(self):
         source = self.root / 'src/main.py'
         source.chmod(0o600)
