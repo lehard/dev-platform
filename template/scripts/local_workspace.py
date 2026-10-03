@@ -236,8 +236,9 @@ def audit(root: Path, policy: dict, *, repair: bool = False) -> list[str]:
             candidates.add(base)
             for current, directories, files in os.walk(base, followlinks=False, onerror=traversal_error):
                 parent = Path(current)
+                # Nested checkouts (own .git entry) are other repositories or foreign worktrees; never descend.
                 directories[:] = [name for name in directories if not excluded((parent / name).relative_to(root), extra)
-                                  and not (parent / name).is_symlink()]
+                                  and not (parent / name).is_symlink() and not os.path.lexists(parent / name / '.git')]
                 candidates.update(parent / name for name in [*directories, *files]
                                   if not excluded((parent / name).relative_to(root), extra))
     for path in list(candidates):
@@ -286,6 +287,16 @@ def audit(root: Path, policy: dict, *, repair: bool = False) -> list[str]:
         except OSError as exc:
             # Symlinks are deliberately skipped, including parent escapes.
             import errno
+            if exc.errno == errno.EACCES:
+                try:
+                    info = path.lstat()
+                except OSError:
+                    info = None
+                if info is not None and info.st_uid != os.geteuid():
+                    findings.append(f'{path}: owner uid={info.st_uid}, gid={info.st_gid}, mode={stat.S_IMODE(info.st_mode):04o}; '
+                                    f'owner must run chgrp {gid} {shlex.quote(str(path))} && chmod '
+                                    f'{"g+rwxs" if stat.S_ISDIR(info.st_mode) else "g+rw"} {shlex.quote(str(path))}')
+                    continue
             if exc.errno not in (errno.ELOOP, errno.ENOTDIR):
                 findings.append(f'{path}: cannot inspect/repair: {exc}')
         finally:

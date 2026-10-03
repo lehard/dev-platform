@@ -127,6 +127,30 @@ class LocalWorkspaceTests(unittest.TestCase):
         self.assertTrue(any(str(source) in line and 'owner uid=' in line for line in findings))
         self.assertEqual(stat.S_IMODE(source.stat().st_mode), 0o600)
 
+    def test_nested_checkout_is_not_descended_or_repaired(self):
+        nested = self.root / 'src/vendor-clone'
+        nested.mkdir()
+        subprocess.run(['git', '-C', str(nested), 'init', '-q'], check=True)
+        inner = nested / 'file.py'
+        inner.write_text('foreign')
+        inner.chmod(0o600)
+        local.audit(self.root, self.policy, repair=True)
+        self.assertEqual(stat.S_IMODE(inner.stat().st_mode), 0o600)
+
+    def test_unreadable_foreign_file_keeps_owner_diagnostic(self):
+        source = self.root / 'src/main.py'
+        source.chmod(0o600)
+        real_open = local._open
+
+        def deny(path):
+            if path == source:
+                raise PermissionError(local.errno.EACCES if hasattr(local, 'errno') else 13, 'denied')
+            return real_open(path)
+        with mock.patch.object(local, '_open', side_effect=deny), \
+             mock.patch.object(local.os, 'geteuid', return_value=os.geteuid() + 100000):
+            findings = local.audit(self.root, self.policy, repair=True)
+        self.assertTrue(any(str(source) in line and 'owner uid=' in line and 'owner must run' in line for line in findings))
+
     def test_foreign_worktree_refuses_launch_and_repair(self):
         task = self.workspace / 'task'
         self.git('worktree', 'add', '-qb', 'task', str(task))
