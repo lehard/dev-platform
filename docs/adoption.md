@@ -23,6 +23,24 @@ Repository state is deliberately separate from lifecycle ownership. For a first-
 
 The result JSON, adoption PR and workflow summary report the derived plan and the detector reasons. Repository size can move a target out of the fresh fast path, but size alone never selects project-owned lifecycle authority.
 
+### Copier parameters
+
+The adoption planner derives these automatically; they matter when rendering with Copier by hand (see `copier.yml`). Values are recorded in `.dev-platform.toml`.
+
+| Parameter | Values (default) | Meaning |
+| --- | --- | --- |
+| `project_name`, `project_slug`, `project_description` | text | Project identity. |
+| `main_branch` | `main` | Integration branch. |
+| `workflow_profile` | `light`, `standard` (default), `multi-agent` | Capability composition; see the README. |
+| `harness_mode` | `platform` (default), `project` | Who owns the Git/task/worktree/test-coordination harness. |
+| `protected_main` | bool (`false` for `light`, else `true`) | Whether the integration branch is protected; protected branches require PR publication. |
+| `publish_mode` | `pr`, `direct` (`direct` for `light`, else `pr`) | How completed work reaches the SCM. `light` rejects `pr`; `protected_main=true` rejects `direct`. |
+| `pr_merge_mode` | `auto` (default), `manual` | Whether task PRs merge automatically after required checks or stop for manual review. |
+| `scm_provider` | `github` (default), `gitlab` | Delivery adapter; both share the standard lifecycle. |
+| `agent_tools` | `claude,codex` | Comma-separated OpenSpec tool IDs. |
+| `platform_ci_ref` | legacy | Schema-v2 compatibility metadata only; generated CI does not execute it. |
+| `operator_config_path`, `operator_integration` | blank / `false` | Opt in to operator-owned configuration or the generic environment-backed operator integration; leave unset for ordinary project work. |
+
 ### Fresh fast path
 
 A fresh repository receives `standard` workflow, platform-owned harness and `direct` publish mode by default. Onboarding:
