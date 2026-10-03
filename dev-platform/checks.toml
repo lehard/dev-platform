@@ -118,6 +118,7 @@ targets = [
   "test_dev_entrypoint",
   "test_direct_main_health",
   "test_friction_review",
+  "test_retrospective_attribution",
   "test_gitlab_delivery",
   "test_harness_safety",
   "test_notify_platform_health_review",
