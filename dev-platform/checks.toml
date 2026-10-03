@@ -156,6 +156,7 @@ targets = [
   "test_requirement_retrospective",
   "test_requirement_metrics",
   "test_requirement_board",
+  "test_requirement_card_claim",
   "test_docs_semantic_checks",
 ]
 mode = "parallel"

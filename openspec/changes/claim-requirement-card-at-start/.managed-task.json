@@ -1,0 +1,28 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/agent-workflow/spec.md"
+  ],
+  "change": "claim-requirement-card-at-start",
+  "imported_at": "2026-10-03T22:18:23+00:00",
+  "package_revision": "8c22412a74955550257f5bdc8e37ef28cfd1ba014e0180591f5b2f4d729057e3",
+  "prepared_against": "6acfcb57df7bb5c8eaadc38dc75c8b105dc76f5b",
+  "private_lineage_handle": "pln_1fb9190f9377a03abcfbd947cc2b9ea4",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "d425d498d0669b76004e2841da821c7497ad29ec4abe2dd199579cee78e30340",
+    "updated_at": "2026-10-03T22:06:21Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

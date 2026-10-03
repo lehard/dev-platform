@@ -467,6 +467,23 @@ def start_pre_authoring(
     return {"requirement": f"{repository}#{number}", "slug": slug, "state": state}
 
 
+def claim_started_requirement(root: Path, *, requirement: str) -> None:
+    """Project the started Requirement onto its card so it never looks free during preparation.
+
+    Runs after durable state init; a failure keeps that state and is safe to retry. The
+    projection never writes ``Ready``.
+    """
+    import requirement_board  # imports this module; imported lazily to avoid a cycle
+
+    try:
+        requirement_board.reconcile_nonterminal(root, requirement=requirement)
+    except Exception as exc:
+        raise RequirementIntakeError(
+            f"{requirement} has started and its pre-authoring state is kept, but its card could not be "
+            f"claimed ({exc}); rerun `requirement_intake.py start --requirement {requirement}`"
+        ) from exc
+
+
 def link_child(root: Path, *, requirement: str, child: str) -> dict[str, Any]:
     requirement_repository, requirement_number = issue_ref(requirement)
     child_repository, child_number = issue_ref(child)
@@ -766,6 +783,7 @@ def main() -> int:
         if args.command == "start":
             payload = start_pre_authoring(root, requirement=args.requirement, base_dir=args.base_dir)
             print(f"Pre-authoring initialized for {payload['requirement']} ({payload['slug']})")
+            claim_started_requirement(root, requirement=payload["requirement"])
             return 0
         if args.command == "link-child":
             payload = link_child(root, requirement=args.requirement, child=args.child)

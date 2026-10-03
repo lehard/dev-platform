@@ -212,6 +212,9 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
         )
     except (requirement_intake.RequirementIntakeError, requirement_target_lifecycle.RequirementTargetLifecycleError) as exc:
         raise RequirementExecutionError(str(exc)) from exc
+    # Claim the card before any slow evidence, duplicate-check or materialization step, so resume
+    # also repairs a card that still reads Ready.
+    requirement_board.reconcile_nonterminal(integration, requirement=requirement)
     report = orchestrate_pre_authoring.status(
         integration, requirement_id=f"requirement-{requirement.rsplit('#', 1)[1]}", base_dir=base_dir,
     )

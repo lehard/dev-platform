@@ -100,7 +100,8 @@ class RequirementExecutionTests(unittest.TestCase):
             self.assertEqual(result["child"], "acme/backlog#8")
             self.assertIsNone(start.call_args.kwargs["base_child_receipt"])
             materialize.assert_not_called()
-            board.assert_called_once_with(root.resolve(), requirement=REQUIREMENT)
+            # Once at entry (claim before slow steps) and once after the child start.
+            self.assertEqual(board.call_args_list, [mock.call(root.resolve(), requirement=REQUIREMENT)] * 2)
 
     def test_advance_materializes_missing_child_then_starts_it(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -145,7 +146,7 @@ class RequirementExecutionTests(unittest.TestCase):
                 execution.orchestrate_pre_authoring, "status", return_value={"current_stage": "complete"}
             ), mock.patch.object(execution, "_ordered_handoffs", return_value=handoffs), mock.patch.object(
                 execution, "_linked_children_by_change", return_value={"first": "acme/backlog#8", "second": "acme/backlog#9"}
-            ), mock.patch.object(execution.managed_project_status, "observe", return_value=SimpleNamespace(current_status="In progress")), mock.patch.object(
+            ), mock.patch.object(execution.requirement_board, "reconcile_nonterminal"), mock.patch.object(execution.managed_project_status, "observe", return_value=SimpleNamespace(current_status="In progress")), mock.patch.object(
                 execution, "_ready_receipt", side_effect=[(root / "first-receipt.json", object()), (root / "second-receipt.json", object())]
             ), mock.patch.object(execution.requirement_integration, "assemble_candidate", return_value={"digest": "exact"}) as assemble, mock.patch.object(
                 execution.requirement_integration, "compose_candidate"
@@ -209,7 +210,7 @@ class RequirementExecutionTests(unittest.TestCase):
                 execution.orchestrate_pre_authoring, "status", return_value={"current_stage": "complete"}
             ), mock.patch.object(execution, "_ordered_handoffs", return_value=handoffs), mock.patch.object(
                 execution, "_linked_children_by_change", return_value={"first": "acme/backlog#8", "second": "acme/backlog#9"}
-            ), mock.patch.object(execution.managed_project_status, "observe", return_value=SimpleNamespace(current_status="In progress")), mock.patch.object(
+            ), mock.patch.object(execution.requirement_board, "reconcile_nonterminal"), mock.patch.object(execution.managed_project_status, "observe", return_value=SimpleNamespace(current_status="In progress")), mock.patch.object(
                 execution, "_ready_receipt", side_effect=ready
             ), mock.patch.object(execution.requirement_integration, "assemble_candidate", return_value={"digest": "exact"}), mock.patch.object(
                 execution.requirement_integration, "compose_candidate"
