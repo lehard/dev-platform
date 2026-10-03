@@ -1,0 +1,97 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "6acfcb57df7bb5c8eaadc38dc75c8b105dc76f5b",
+    "base_ref": "origin/main",
+    "candidate_head": "3a92844d2ca6ce327b763058ffba18a568b41d74",
+    "diff_sha256": "c11371df97b74eaeb961f939273f2cb7cb9ededae7522d509ccd750ae6613f75"
+  },
+  "completed_at": "2026-10-03T23:14:34+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/execute_requirement.py calls requirement_retrospective.require_checkpoint just before the complete publication. project_publish.publish_pr (the diff hunk around `_set_pr_draft(root, env, pr, draft=False)`) and requirement_integration.publish_candidate gate readiness only on manifest_complete(). `_reconcile_exact_merged` also checks only completeness. A direct `publish_candidate` or `project_publish --shared-manifest` call on a complete manifest can therefore mark the PR ready and merge it without the checkpoint. The checkpoint gate was already supervisor-only before this change, so this may be an accepted boundary, but the spec wording is broader.",
+      "id": "retrospective-gate-only-in-supervisor",
+      "severity": "advisory",
+      "summary": "The platform-lifecycle delta says ready, merge arming, queue admission and terminal reconciliation SHALL require the Requirement retrospective checkpoint. The candidate enforces that checkpoint only in the supervisor path."
+    },
+    {
+      "evidence": "project_publish.publish_pr: `if incomplete: print(\"Shared Requirement candidate is incomplete (missing: ...): draft PR only...\"); return 0`. No refusal or non-zero exit occurs, and ready/merge are never attempted at all. The missing children are named only in a printed message. Only the terminal path (`_reconcile_exact_merged`) raises RequirementIntegrationError naming the missing changes. The behavior is safe, but it differs from the scenario's literal 'refused'.",
+      "id": "incomplete-attempt-returns-success-not-refusal",
+      "severity": "advisory",
+      "summary": "The agent-workflow scenario 'An incomplete Requirement cannot be delivered' says ready/merge/queue/auto-merge attempts are refused with the missing children named. For an incomplete manifest the publisher instead returns success after publishing or keeping the draft."
+    },
+    {
+      "evidence": "proposal.md Impact: 'Affects ... requirement_terminal.py'. The diff has no hunk for template/scripts/requirement_terminal.py. reconcile_parent there (lines ~47-86) works from the parent's linked children and does not check the shared manifest's completeness. The 'terminal reconciliation requires a complete manifest' behavior therefore depends on callers going through _reconcile_exact_merged.",
+      "id": "requirement-terminal-listed-but-unchanged",
+      "severity": "advisory",
+      "summary": "The proposal's Impact section lists requirement_terminal.py as affected, but the candidate does not modify it. The terminal incomplete-merge guard lives only in requirement_integration._reconcile_exact_merged."
+    },
+    {
+      "evidence": "design.md: 'a derived `complete` flag, true only when `children` equals `expected_changes`'. In requirement_integration.assemble_candidate only `expected_changes` is added to the unsigned manifest, and the new `manifest_complete()` function computes completeness. This is a design/implementation wording mismatch with no behavioral effect.",
+      "id": "complete-flag-derived-not-stored",
+      "severity": "advisory",
+      "summary": "design.md says the manifest gains a derived `complete` flag. The implementation adds no such field and derives completeness through manifest_complete()."
+    }
+  ],
+  "launched_at": "2026-10-03T23:13:57+00:00",
+  "output_sha256": "d6200bb2628ba56e36e46bc3a3fe1ae968072db2ed82af1810867ffddae80e06",
+  "perspective": "spec-fidelity",
+  "request_id": "2dd2dd77-1894-4998-8c7a-31332362627d",
+  "reviewer": {
+    "context_id": "a5d215c1-1fdd-432e-b4b2-c4c3e6fffc74",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-7861ff7a-7088-4f46-ac9f-ee3f9eacc772",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 52467
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 146908
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 33288
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 34065
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4332
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "16ed944ae1fdaf6ce859c28439263998210df84b6af33b86d8c41ddfd9850dc0"
+}

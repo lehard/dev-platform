@@ -1,0 +1,88 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 8.331,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 3.187,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1084.443,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/execute_requirement.py",
+        "template/scripts/project_publish.py",
+        "template/scripts/publication_state.py",
+        "template/scripts/requirement_integration.py",
+        "tests/test_managed_status_lifecycle.py",
+        "tests/test_requirement_execution.py",
+        "tests/test_requirement_integration.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_22daf6a19dff65cc5aea4de1601ecb39",
+    "change": "early-shared-requirement-pr",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/early-shared-requirement-pr",
+    "branch": "agent/early-shared-requirement-pr",
+    "head": "3a92844d2ca6ce327b763058ffba18a568b41d74",
+    "task_content": {
+      "version": 1,
+      "digest": "2cfdf4a849bc9eebc2248f4068e6f04dc6e9754262d9cb212a543f2cf641bb25",
+      "paths": {
+        "docs/engineering/task-intake.md": "47f28b3d2c7a9a0922bdbb4c75ff70c46eaebb3c",
+        "openspec/changes/early-shared-requirement-pr/.managed-task.json": "60f5fd23456eaf6e334802f379e1a179e236e0cb",
+        "openspec/changes/early-shared-requirement-pr/.openspec.yaml": "f98e139fb307ee57d69f587d7c892ef2ff4575e0",
+        "openspec/changes/early-shared-requirement-pr/design.md": "01d0e7017a3dcf10b9b22949c29fde4dd8faa39a",
+        "openspec/changes/early-shared-requirement-pr/proposal.md": "9a894c326c82af368fbdc236e90d13d6facb31c4",
+        "openspec/changes/early-shared-requirement-pr/specs/agent-workflow/spec.md": "f259b50cbe5856b4c6223e37623c638f41ed8404",
+        "openspec/changes/early-shared-requirement-pr/specs/platform-lifecycle/spec.md": "989722cd8f5cbeb15d73c5b20520d48d0977b8cd",
+        "openspec/changes/early-shared-requirement-pr/tasks.md": "1f28b6a553eb79dd409d091e1585dcea77dd2a38",
+        "openspec/changes/early-shared-requirement-pr/verification.md": "a9ba1843d684e5e5ac4bd26426dd1f6b1d1a0b86",
+        "template/docs/engineering/task-intake.md.jinja": "3e7865b0fd1b8e48a5bda5af210f1dc81d2f6681",
+        "template/scripts/execute_requirement.py": "3d133d12301ac1cf41ecc62f6d2491d585ac1eec",
+        "template/scripts/project_publish.py": "e0fc30c7aeef497b6fba52088589552ebf20c42b",
+        "template/scripts/publication_state.py": "1603d14e46c6a1ef5f283783c1b492549f24e2f1",
+        "template/scripts/requirement_integration.py": "d72fe7400860344ef02cc4058713d2ce13fe1ef4",
+        "tests/test_managed_status_lifecycle.py": "eb026c5a3ec8d1498a63ab2f9ed8e76ea86f0186",
+        "tests/test_requirement_execution.py": "a92384f72943a139a8e06d43b9ae947267949d48",
+        "tests/test_requirement_integration.py": "7bdc2101a3acee7a634aeae7e33d4b63fd5fd800"
+      },
+      "base": "6acfcb57df7bb5c8eaadc38dc75c8b105dc76f5b"
+    }
+  }
+}
