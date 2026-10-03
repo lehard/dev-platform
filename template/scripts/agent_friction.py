@@ -61,6 +61,7 @@ LIFECYCLE_FAILURE_PREFIX = "lifecycle-"
 LIFECYCLE_DISPOSITIONS = ("resolved-in-task", "already-recorded", "expected-behavior")
 NON_TASK_BRANCHES = frozenset({"unknown", "main", "master"})
 AMBIGUOUS_WINDOW_DAYS = 14
+MAX_STATUS_LINES = 500
 MAX_PROJECT_QUESTIONS = 5
 PROJECT_QUESTIONS_FILE = "dev-platform/retrospective.toml"
 SHARED_REVIEW_TEMPLATE = (
@@ -241,7 +242,7 @@ def evidence_source_status() -> dict[str, str]:
         lines = [line for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
     except (OSError, UnicodeDecodeError):
         return {"friction-log": "unreadable"}
-    for line in lines:
+    for line in lines[-MAX_STATUS_LINES:]:
         try:
             json.loads(line)
         except ValueError:

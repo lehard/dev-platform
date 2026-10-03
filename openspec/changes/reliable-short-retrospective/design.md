@@ -14,7 +14,7 @@ A failing regression test that is the intended red step is not an event and cost
 
 ## Evidence source availability
 
-The friction log read reports `available`, `partial` (malformed lines skipped) or `unreadable`. A non-available source must be named with `--accept-gap friction-log` for a checkpoint to be recorded, and the accepted gaps are stored in the receipt. A missing log file is a normal clean state. The Requirement review additionally reads the pre-authoring state; if it cannot be read, that source is reported the same way.
+The friction log read reports `available`, `partial` (malformed lines skipped) or `unreadable`. A non-available source must be named with `--accept-gap friction-log` for a checkpoint to be recorded, and the accepted gaps are stored in the receipt. A missing log file is a normal clean state. Only the most recent 500 log lines are checked for malformed content, so one old bad line does not become permanent ceremony. Pre-authoring state is deliberately not an evidence source (it is machine-local and may legitimately be gone).
 
 ## Requirement retrospective
 

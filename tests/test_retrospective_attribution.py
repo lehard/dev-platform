@@ -76,6 +76,18 @@ class AttributionTests(Fixture):
         self.assertIn("task", json.loads(self.log.read_text().splitlines()[0]))  # history is not rewritten
         self.assertIsNone(json.loads(self.log.read_text().splitlines()[0])["task"])
 
+    def test_source_issue_alias_of_the_managed_task_recovers_attribution(self) -> None:
+        self.write(self.signal("by-alias", task=None, branch="main", run={"source_issue": "acme/project#9"}))
+        self.assertEqual(friction.current_retrospective_signals(BRANCH), [])
+        state = mock.Mock(return_value={"source_issue": "acme/project#9", "change": "x"})
+        with mock.patch("managed_task.read_task_state", state):
+            self.assertEqual([e["id"] for e in friction.current_retrospective_signals(BRANCH)], ["by-alias"])
+
+    def test_old_malformed_line_outside_recent_window_is_not_a_gap(self) -> None:
+        good = json.dumps(self.signal("ok")) + "\n"
+        self.log.write_text("{bad\n" + good * friction.MAX_STATUS_LINES, encoding="utf-8")
+        self.assertEqual(friction.evidence_source_status(), {"friction-log": "available"})
+
     def test_unattributable_event_is_reported_not_assigned_or_hidden(self) -> None:
         self.write(self.signal("orphan", task=None, branch="main", at=friction.utc_now()))
         self.assertEqual(friction.current_retrospective_signals(BRANCH), [])

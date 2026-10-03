@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "93aaf8c954c4369f1234db4a37d1b262f3ae3b12",
+    "base_ref": "origin/main",
+    "candidate_head": "7473e897a91510220ad72f4aeec0d3a64226c0d9",
+    "diff_sha256": "0a2243c4e467e6fd644159df6e759d83c0affab1fee15aa8dc7dab4e79b960ca"
+  },
+  "completed_at": "2026-10-03T06:15:06+00:00",
+  "findings": [
+    {
+      "evidence": "design.md, 'Evidence source availability': \"The Requirement review additionally reads the pre-authoring state; if it cannot be read, that source is reported the same way.\" In template/scripts/requirement_retrospective.py, review-path emits `evidence_sources: agent_friction.evidence_source_status()`, which only covers `friction-log`. `_explain_signals` checks the same single source. No pre-authoring source is read or gated.",
+      "id": "requirement-preauthoring-source-not-reported",
+      "severity": "advisory",
+      "summary": "The design says the Requirement review also reads the pre-authoring state and reports it as an evidence source if it is unreadable. The candidate does not implement this."
+    },
+    {
+      "evidence": "docs/engineering/agent-workflow.md line 43 and the matching line in template/docs/engineering/agent-workflow.md.jinja say `--result none` needs only \"every current-task high-signal lifecycle failure\" to have a disposition, and that \"`--lifecycle-disposition` is for the resolved/already-recorded cases\". The new text says all mandatory signals need a link or disposition, the flag is now `--disposition`, and `expected-behavior` is accepted.",
+      "id": "workflow-doc-stale-disposition-sentence",
+      "severity": "advisory",
+      "summary": "The same docs paragraph still describes the old, narrower disposition contract. It contradicts the new paragraphs added directly above it."
+    }
+  ],
+  "launched_at": "2026-10-03T06:14:47+00:00",
+  "output_sha256": "c6850d8d6d2e9258032d91d9341e286ce3a8dc191855bc5e6ddb5337d9ca89bf",
+  "perspective": "spec-fidelity",
+  "request_id": "a6910dbe-eb9d-4bde-bccc-974399af4a7a",
+  "reviewer": {
+    "context_id": "736737c3-d11d-4d36-b5dd-a0470bd16427",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-4a4b2500-0f61-4e46-bf2e-ef76c31260e3",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 46928
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 50473
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16790
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16948
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2065
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "af497e346d0019c16e3ab9aa5ac996ec6dcb68f34f7050fc95932a2b0a4b0e07"
+}
