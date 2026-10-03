@@ -1,64 +1,47 @@
-OpenSpec-Verify: BLOCKED
-Verification-Method: bounded executor semantic review and executable regressions
+OpenSpec-Verify: PASS
+Verification-Method: supervisor semantic review of proposal, design, delta spec and implementation; executable regressions; independent review (Claude reviewer); real-machine installation
+Independent-Review-Evidence: independent-review-request.json
 
-Implementation is ready for supervisor review; this receipt does not authorize
-archive or claim terminal delivery.
+Implementation of the opt-in shared local workspace runtime (`template/scripts/local_workspace.py`)
+was reviewed against the delta spec: bounded source/worktree audit with owner-only repair,
+hook composition preserving existing hooks, external registry with identity-scoped discovery,
+idempotent runtime update, cooperative launcher and per-user LaunchAgent, and opt-in lifecycle
+source admission. Source repair never descends into nested checkouts, refuses source roots inside
+them, and never mutates entries it cannot open; inherited `core.hooksPath` is resolved per
+invoking user; the policy probe ignores inherited `GIT_*`.
 
-The source-policy, hook-composition and registered-project requirements are
-implemented by the standalone template runtime and central adapter. Source
-admission is independently invoked before shared-workspace preflight/intake
-mutation. External policies remain opt-in, new template renderings stay disabled
-without the local Git key, and existing projects can use the external launcher
-before a reviewed Copier update. The central Mac permission adapter is unchanged.
+Checks actually run (final candidate):
 
-Checks actually run:
+- `python3 -m unittest tests.test_local_workspace`: 40 passed (incl. regressions for each
+  independent-review finding: nested checkouts, nested source roots, tracked paths under nested
+  checkouts, write-only owned sources, foreign unreadable diagnostics, tilde/inherited hooksPath,
+  invalid inherited GIT_DIR).
+- `python3 -m unittest tests.test_shared_writer_guard`: passed after reviewing the added
+  `_open` write-only descriptor site (baseline 3).
+- `python3 scripts/run_test_groups.py --all` on the pre-merge-fix head: only
+  `test_shared_writer_guard` failed (baseline count), since repaired and re-run green; all other
+  groups passed.
+- Independent review: spec-fidelity and engineering-quality perspectives ran with the Claude
+  provider (the Codex reviewer was rate-limited; provider set locally per operator direction).
+  Earlier Codex rounds found and drove fixes for 10 material findings; the final Claude round
+  reports no material findings, only 6 advisory items (hook audit on every hook, shared runtime
+  not re-verified against its digest, fail-closed outside workspace roots, doc references source
+  path, dead assignment) left as follow-up.
 
-- `python3 -m compileall -q template/scripts scripts`: passed.
-- `python3 scripts/managed_projects.py validate`: passed (four managed projects).
-- `python3 template/scripts/openspec_lifecycle.py check`: passed.
-- `git diff --check`: passed.
-- `python3 -m unittest discover -s tests -p test_local_workspace.py`: 19 passed.
-  Real source rw repairs, restrictive and atomic writes, exclusions, symlinks,
-  hardlinks, group/identity refusal, owned task administration, registry discovery,
-  runtime update/idempotence, launcher failure/umask, read-only admission,
-  hook stdin/arguments/failure, doctor refresh/composition, relative hooks,
-  Git-directory hook invocation and removal are covered.
-- `python3 -m unittest discover -s tests -p test_shared_writer_guard.py`: two passed
-  after explicitly reviewing the new bounded writer/descriptor/lock sites.
-- `python3 scripts/run_test_groups.py --all`: failed; failed groups were `fast-b`,
-  `fast-c`, `fast-d`, and `model_routing`. Its initial collection declared 1543
-  tests; additions during executor repair mean this is not a final-head full-suite
-  PASS. The introduced writer-guard failure was repaired and rerun successfully.
-- `python3 -m unittest discover -s tests -p test_shared_workspace.py`: one failure
-  and three errors, identically reproduced from an unchanged HEAD archive at
-  `93aaf8c954c4369f1234db4a37d1b262f3ae3b12`; these four are pre-existing here.
-- Final `python3 scripts/run_test_groups.py --group fast-d`: failed only on the
-  same four baseline-confirmed shared-workspace cases; runtime and writer-guard
-  regressions passed within this group.
-- An unchanged-HEAD full source archive reproduced the other six failing managed
-  task/profile cases and all three Copier-render profile subcases (seven selected
-  test methods: one failure and eight errors). Thus all remaining top-level
-  failures from the full run have matching pre-existing baseline evidence here;
-  no unrelated permission or Copier behavior was weakened to pass them.
-- `python3 scripts/independent_review.py preflight attach-shared-local-workspace-policy`:
-  blocked, provider unknown because private managed-task lineage could not be
-  verified. No independent perspective was launched; no review evidence is claimed.
-- `python3 scripts/dogfood_task.py status --json`: blocked by unavailable GitHub
-  API connectivity. Freshness/reconciliation/publication cannot be proven here.
+Real-machine acceptance (identity lehard, uid 501; group `staff`):
 
-Capability limits and escalation:
+- Registry and shared runtime installed at `/Users/Shared/Workspace/.dev-platform-local-workspace`
+  (operator-local; no tracked machine paths). Per-user LaunchAgent installed and loaded.
+- Cuby attached. Restrictive 0600 file and an atomic replacement were detected by `check` and
+  repaired to group read/write by `repair`; directory setgid confirmed.
+- dev-platform, terrazzo_mvp and Jara_Fin are NOT yet attached: they hold `code`-owned
+  (uid 505) directories without setgid and a few 0644 files. The runtime reported the exact paths
+  and the owner action; attachment is correctly withheld until `code` runs sync. dev-platform's
+  existing operator `core.hooksPath` was left untouched.
+- planner-agent-lab has no local checkout (reported unavailable).
 
-The sandbox's Mac temporary filesystem strips setgid after both pathname chmod
-and descriptor fchmod. Source rw mutations are tested for real. Composition tests
-isolate directory setgid expectations on that volume, while a separate unpatched
-check requires the runtime to diagnose unsupported setgid. No production waiver
-was added. Foreign ownership tests simulate a caller uid; they do not prove
-execution by a second account. LaunchAgent tests verify generated plist and
-launchctl orchestration with mocks; no real agent was loaded. Registered Mac
-projects and per-user Library paths are outside the delegated write boundary.
-
-Supervisor must run final full validation on a setgid-capable checkout, resolve
-confirmed baseline failures, obtain independent review, perform real
-registered-project installation and both-user acceptance (or record exact
-capability limits), record child friction and parent retrospective, then archive
-and publish through the normal lifecycle. Tasks 2.2 and 2.3 remain unchecked.
+Capability limits: no second-identity session (`code`) is available here and sudo is unavailable,
+so two-user execution, `code`'s LaunchAgent and the pending attachments are unproven; the other
+account must run `python3 /Users/Shared/Workspace/.dev-platform-local-workspace/local_workspace.py
+sync --registry /Users/Shared/Workspace/.dev-platform-local-workspace/registry.json` and
+`install-agent`. `runtime_source` auto-update is not configured until this change is on main.
