@@ -1,6 +1,7 @@
 OpenSpec-Verify: PASS
 Verification-Method: supervisor semantic review of proposal, design, delta spec and implementation; executable regressions; independent review (Claude reviewer); real-machine installation
 Independent-Review-Evidence: independent-review-request.json
+Automated-Checks-Evidence: automated-checks.json
 
 Implementation of the opt-in shared local workspace runtime (`template/scripts/local_workspace.py`)
 was reviewed against the delta spec: bounded source/worktree audit with owner-only repair,
