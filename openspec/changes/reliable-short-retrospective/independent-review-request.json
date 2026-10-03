@@ -2,11 +2,14 @@
   "candidate": {
     "base_head": "93aaf8c954c4369f1234db4a37d1b262f3ae3b12",
     "base_ref": "origin/main",
-    "candidate_head": "7473e897a91510220ad72f4aeec0d3a64226c0d9",
-    "diff_sha256": "0a2243c4e467e6fd644159df6e759d83c0affab1fee15aa8dc7dab4e79b960ca"
+    "candidate_head": "87da0d2d56b51bc8dfb8663972759f971586cf26",
+    "diff_sha256": "171fc668b124cdb29ee2a5016e1fcdf452a4c61cb755576c219719d675df95f8"
   },
   "change": "openspec/changes/reliable-short-retrospective",
   "excluded_lifecycle_paths": [
+    "openspec/changes/reliable-short-retrospective/independent-review-request.json",
+    "openspec/changes/reliable-short-retrospective/independent-reviews/engineering-quality.json",
+    "openspec/changes/reliable-short-retrospective/independent-reviews/spec-fidelity.json",
     "openspec/changes/reliable-short-retrospective/verification.md"
   ],
   "fresh_context_required": true,
@@ -37,7 +40,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-03T06:14:30+00:00",
+  "prepared_at": "2026-10-03T06:16:42+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/reliable-short-retrospective/independent-reviews",
     "required_perspectives": [
@@ -46,7 +49,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "a6910dbe-eb9d-4bde-bccc-974399af4a7a",
+  "request_id": "0bf35211-ff90-4850-b8fb-e8188854c30a",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -59,25 +62,25 @@
   "schema_version": 1,
   "task_content": {
     "base": "93aaf8c954c4369f1234db4a37d1b262f3ae3b12",
-    "digest": "af497e346d0019c16e3ab9aa5ac996ec6dcb68f34f7050fc95932a2b0a4b0e07",
+    "digest": "db8681afbb706cc42d3523222e1a773d4c51a8ec37d927f723297047d08c653f",
     "paths": {
       "copier.yml": "e88309f175e93a7430e7374a735e291adaf67994",
       "dev-platform/checks.toml": "b90a750d7cd89fecb0f5ce05c7b942df8af5dae7",
-      "docs/engineering/agent-workflow.md": "682807cbbc4069b0661d8b453821a78d533feb7f",
+      "docs/engineering/agent-workflow.md": "7852863fa238c1ca103bdf2110aa9f074bd2ca26",
       "docs/engineering/task-intake.md": "31a92e9bed0bc886c82472fd5ff793b661d9a69e",
       "openspec/changes/reliable-short-retrospective/.managed-task.json": "d92b0d066977cb27fc997a1a24fafc19b1f534cc",
       "openspec/changes/reliable-short-retrospective/.openspec.yaml": "6a87d2b26f2d3cac87ce2fb22f0cf3df632b5a3c",
-      "openspec/changes/reliable-short-retrospective/design.md": "b645f9e452764ce085ab13f18e9771091ecabb2f",
+      "openspec/changes/reliable-short-retrospective/design.md": "425c7cdcc373d662db93011eb8d3edb8ccd9ad44",
       "openspec/changes/reliable-short-retrospective/proposal.md": "33d88ccc0f09789769ecef7e1de01acf6cc0437a",
       "openspec/changes/reliable-short-retrospective/specs/agent-workflow/spec.md": "bf47e11ef1d021a22c52ca724dbcd06c12748b2d",
       "openspec/changes/reliable-short-retrospective/specs/completion-lifecycle/spec.md": "b5f9ff2720768e7750a79abf8e5acbba833b0f58",
       "openspec/changes/reliable-short-retrospective/specs/platform-lifecycle/spec.md": "f359a5a045d96c9c61a1cb0a96821d13951a40b2",
       "openspec/changes/reliable-short-retrospective/tasks.md": "ebd41b7edc05a6a2e50d0301a162941bed88c937",
       "template/dev-platform/retrospective.toml": "3561ff55309d14fe800cf2842003c7cf35023099",
-      "template/docs/engineering/agent-workflow.md.jinja": "6b0472f8dec12fc78e75e1ecd1431d6bccf35e3e",
-      "template/scripts/agent_friction.py": "470d7db70e0e23cc0e4bbd22052332493c699475",
+      "template/docs/engineering/agent-workflow.md.jinja": "87c3f0320b3f99865d5e22767e2840a0801ea12d",
+      "template/scripts/agent_friction.py": "0d8af13d1d60aba873d4f12d87ff5936c7540ba4",
       "template/scripts/requirement_retrospective.py": "42e7c6d145bd9ce218ec662d5d1089ac83438af9",
-      "tests/test_retrospective_attribution.py": "4de51214a09112f572b89eff9964f5ebcdbbef56"
+      "tests/test_retrospective_attribution.py": "7662753c4083996c5dcd499ad718c32fc61883f1"
     },
     "scope": "independent-review-v1",
     "version": 1

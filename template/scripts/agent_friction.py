@@ -980,11 +980,17 @@ def project_questions(root: Path, changed: list[str] | None) -> dict:
 
 def changed_paths(root: Path) -> list[str] | None:
     """Files this task changed relative to the integration branch; ``None`` when unknowable."""
-    main = str(read_platform_config(root).get("main_branch", "main")) if root else "main"
+    try:
+        main = str(read_platform_config(root).get("main_branch", "main"))
+    except Exception:
+        main = "main"
     names: set[str] = set()
     readable = False
     for command in (["git", "diff", "--name-only", f"origin/{main}...HEAD"], ["git", "diff", "--name-only", "HEAD"]):
-        result = subprocess.run(command, cwd=root, text=True, capture_output=True)
+        try:
+            result = subprocess.run(command, cwd=root, text=True, capture_output=True)
+        except OSError:
+            return None
         if result.returncode == 0:
             readable = True
             names.update(line for line in result.stdout.splitlines() if line)

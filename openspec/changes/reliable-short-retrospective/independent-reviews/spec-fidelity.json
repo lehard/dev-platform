@@ -3,34 +3,21 @@
   "candidate": {
     "base_head": "93aaf8c954c4369f1234db4a37d1b262f3ae3b12",
     "base_ref": "origin/main",
-    "candidate_head": "7473e897a91510220ad72f4aeec0d3a64226c0d9",
-    "diff_sha256": "0a2243c4e467e6fd644159df6e759d83c0affab1fee15aa8dc7dab4e79b960ca"
+    "candidate_head": "87da0d2d56b51bc8dfb8663972759f971586cf26",
+    "diff_sha256": "171fc668b124cdb29ee2a5016e1fcdf452a4c61cb755576c219719d675df95f8"
   },
-  "completed_at": "2026-10-03T06:15:06+00:00",
-  "findings": [
-    {
-      "evidence": "design.md, 'Evidence source availability': \"The Requirement review additionally reads the pre-authoring state; if it cannot be read, that source is reported the same way.\" In template/scripts/requirement_retrospective.py, review-path emits `evidence_sources: agent_friction.evidence_source_status()`, which only covers `friction-log`. `_explain_signals` checks the same single source. No pre-authoring source is read or gated.",
-      "id": "requirement-preauthoring-source-not-reported",
-      "severity": "advisory",
-      "summary": "The design says the Requirement review also reads the pre-authoring state and reports it as an evidence source if it is unreadable. The candidate does not implement this."
-    },
-    {
-      "evidence": "docs/engineering/agent-workflow.md line 43 and the matching line in template/docs/engineering/agent-workflow.md.jinja say `--result none` needs only \"every current-task high-signal lifecycle failure\" to have a disposition, and that \"`--lifecycle-disposition` is for the resolved/already-recorded cases\". The new text says all mandatory signals need a link or disposition, the flag is now `--disposition`, and `expected-behavior` is accepted.",
-      "id": "workflow-doc-stale-disposition-sentence",
-      "severity": "advisory",
-      "summary": "The same docs paragraph still describes the old, narrower disposition contract. It contradicts the new paragraphs added directly above it."
-    }
-  ],
-  "launched_at": "2026-10-03T06:14:47+00:00",
-  "output_sha256": "c6850d8d6d2e9258032d91d9341e286ce3a8dc191855bc5e6ddb5337d9ca89bf",
+  "completed_at": "2026-10-03T06:17:08+00:00",
+  "findings": [],
+  "launched_at": "2026-10-03T06:16:50+00:00",
+  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "spec-fidelity",
-  "request_id": "a6910dbe-eb9d-4bde-bccc-974399af4a7a",
+  "request_id": "0bf35211-ff90-4850-b8fb-e8188854c30a",
   "reviewer": {
-    "context_id": "736737c3-d11d-4d36-b5dd-a0470bd16427",
+    "context_id": "7a51fe19-3306-43d4-9e02-b59d0a769ef7",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-4a4b2500-0f61-4e46-bf2e-ef76c31260e3",
+    "launch_id": "platform-launch-4afaa7e5-4857-4ab5-8d50-6d268c1d67a3",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -45,22 +32,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 46928
+        "value": 40767
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 50473
+        "value": 55591
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 16790
+        "value": 14997
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 16948
+        "value": 15235
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -75,11 +62,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2065
+        "value": 1667
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "af497e346d0019c16e3ab9aa5ac996ec6dcb68f34f7050fc95932a2b0a4b0e07"
+  "task_content_digest": "db8681afbb706cc42d3523222e1a773d4c51a8ec37d927f723297047d08c653f"
 }

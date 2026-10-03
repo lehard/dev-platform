@@ -3,46 +3,40 @@
   "candidate": {
     "base_head": "93aaf8c954c4369f1234db4a37d1b262f3ae3b12",
     "base_ref": "origin/main",
-    "candidate_head": "7473e897a91510220ad72f4aeec0d3a64226c0d9",
-    "diff_sha256": "0a2243c4e467e6fd644159df6e759d83c0affab1fee15aa8dc7dab4e79b960ca"
+    "candidate_head": "87da0d2d56b51bc8dfb8663972759f971586cf26",
+    "diff_sha256": "171fc668b124cdb29ee2a5016e1fcdf452a4c61cb755576c219719d675df95f8"
   },
-  "completed_at": "2026-10-03T06:15:39+00:00",
+  "completed_at": "2026-10-03T06:17:33+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/agent_friction.py `evidence_source_status` parses every line of the whole log with no recency window, while `ambiguous_attribution_events` uses a 14-day window. `require_checkpoint` re-evaluates the gap on every call. A stale historic bad line therefore becomes permanent ceremony and weakens the 'clean task stays one command' goal. Consider scoping the check to the retention window or to the lines that `read_events` actually skips.",
-      "id": "log-gap-whole-file-sticky",
+      "evidence": "In template/scripts/agent_friction.py, `changed_paths` calls `read_platform_config(root).get(\"main_branch\", \"main\")` with no try/except. `non_task_names` wraps the same call in try/except. `cmd_review_path` calls `changed_paths(current_worktree_root())` unconditionally, so a config read failure aborts the whole review. Also, `subprocess.run` is not guarded against a missing `git`.",
+      "id": "changed-paths-config-unguarded",
       "severity": "advisory",
-      "summary": "A single malformed line anywhere in the shared friction log makes `evidence_source_status` return `partial`. That forces `--accept-gap friction-log` on every later task and Requirement checkpoint until the log is hand-edited."
+      "summary": "`review-path` can crash on a config read error instead of degrading, which contradicts the design that a project-file problem leaves the shared path working."
     },
     {
-      "evidence": "tests/test_retrospective_attribution.py `test_lost_task_attribution_is_recovered_from_branch_and_source_issue` uses `run={\"source_issue\": BRANCH}`. `task_aliases` (agent_friction.py) imports `managed_task.read_task_state` and swallows all exceptions, returning an empty set. Any import failure or a key or format mismatch between `state[\"source_issue\"]` and `run.source_issue` would silently disable inference with no signal.",
-      "id": "alias-inference-untested",
+      "evidence": "The diff changes `read_events` to `except (OSError, UnicodeDecodeError): return []  # reported as an unreadable evidence source by evidence_source_status`. Only the retrospective checkpoint paths consult `evidence_source_status`. Other `read_events` callers, such as routing or duplicate detection, silently treat an unreadable log as having no events.",
+      "id": "read-events-silent-empty-on-unreadable",
       "severity": "advisory",
-      "summary": "The managed-task source-issue alias path is the real #284 recovery case, but no test exercises it. The 'by-issue' test sets `run.source_issue` equal to the branch name instead of going through `task_aliases`."
+      "summary": "`read_events` now returns [] when the log is unreadable. Callers other than the retrospective checks see an empty history instead of an error."
     },
     {
-      "evidence": "`default_attribution` returns (None, 'unattributed') for main. `event_identities` excludes the main branch name. `ambiguous_attribution_events` is not filtered by task, so `ambiguous_attribution_not_attributed` lands in every checkpoint result in the repo. This is informational only, but it adds noise to the otherwise short path.",
-      "id": "ambiguous-noise-on-main-events",
+      "evidence": "`default_attribution` returns `(None, \"unattributed\")` on main. `ambiguous_attribution_events` lists any event with no task and no usable identity within `AMBIGUOUS_WINDOW_DAYS=14`, and `event_identities` excludes main/master branches. The list is unrelated to the task under review, so it can become routine noise (capped at 10). The `ambiguous_attribution_not_attributed` key is added to every checkpoint output.",
+      "id": "ambiguous-attribution-noise",
       "severity": "advisory",
-      "summary": "Events recorded on the integration branch without `--task` are now stored as `unattributed` with branch `main`. They count as 'ambiguous' for 14 days and are printed on every unrelated task's review-path and checkpoint output."
-    },
-    {
-      "evidence": "docs/engineering/agent-workflow.md line 43 (and the .jinja equivalent) still says `--result none` requires 'every current-task high-signal lifecycle failure has an explicit disposition' and that `--lifecycle-disposition` is 'for the resolved/already-recorded cases'. The new text makes `--disposition` canonical, adds `expected-behavior`, and covers all mandatory signals.",
-      "id": "central-doc-stale-disposition-wording",
-      "severity": "advisory",
-      "summary": "The retained paragraph in the central and template workflow docs still describes the old narrower semantics. That contradicts the new paragraphs added just above it."
+      "summary": "Events recorded from an integration checkout are always marked unattributed. `ambiguous_attribution_events()` then lists them in every task's `review-path` and checkpoint output for 14 days."
     }
   ],
-  "launched_at": "2026-10-03T06:15:06+00:00",
-  "output_sha256": "15153a83c72d183b54d11c471f8919c782010b26c579103c68d45d421226cf97",
+  "launched_at": "2026-10-03T06:17:08+00:00",
+  "output_sha256": "8330ef1b373af0712bbeb5365df20c4de800c0329d5cb5c1c887e76bc321f893",
   "perspective": "engineering-quality",
-  "request_id": "a6910dbe-eb9d-4bde-bccc-974399af4a7a",
+  "request_id": "0bf35211-ff90-4850-b8fb-e8188854c30a",
   "reviewer": {
-    "context_id": "7ec2758e-bf43-4341-bfb1-d61f7bf42de5",
+    "context_id": "a278509f-6e07-48cc-ae24-ab68333fb7fc",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-67717697-b790-49e7-b29d-6436622bdabd",
+    "launch_id": "platform-launch-57607242-e0b4-4ff3-9c19-23bfbc918298",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -57,22 +51,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 39327
+        "value": 40385
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 52665
+        "value": 52893
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 29081
+        "value": 21226
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 29874
+        "value": 22208
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -87,11 +81,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 3474
+        "value": 2439
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "af497e346d0019c16e3ab9aa5ac996ec6dcb68f34f7050fc95932a2b0a4b0e07"
+  "task_content_digest": "db8681afbb706cc42d3523222e1a773d4c51a8ec37d927f723297047d08c653f"
 }

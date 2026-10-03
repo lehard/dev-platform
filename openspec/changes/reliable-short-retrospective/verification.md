@@ -17,3 +17,5 @@ Checks completed before archive:
 - `openspec validate reliable-short-retrospective --strict` — passed.
 
 Independent review (spec-fidelity and engineering-quality) returned six advisory findings. Fixed: stale disposition sentence in both workflow docs, design text claiming a pre-authoring evidence source, sticky whole-file malformed-line gap (now the latest 500 lines), untested managed-task alias recovery (test added). Accepted as is: informational `ambiguous_attribution` listing on checkpoint output, bounded to a 14-day window and ten ids, because unattributed events must not disappear silently.
+
+Second review round: spec-fidelity returned no findings. Engineering-quality returned three advisories: the unguarded config/git read in `changed_paths` was fixed; `read_events` returning an empty list for an unreadable log is kept because the retrospective paths report it through `evidence_source_status`; the ambiguous-attribution listing is kept as described above.
