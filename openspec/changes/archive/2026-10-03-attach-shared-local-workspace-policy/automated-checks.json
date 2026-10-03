@@ -1,0 +1,90 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.7,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.798,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 330.302,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "scripts/local_workspace.py",
+        "template/scripts/local_workspace.py",
+        "template/scripts/shared_workspace.py",
+        "tests/test_local_workspace.py",
+        "tests/test_shared_writer_guard.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_32bae9babc418d4233335080999724e9",
+    "change": "attach-shared-local-workspace-policy",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/attach-shared-local-workspace-policy",
+    "branch": "agent/attach-shared-local-workspace-policy",
+    "head": "dcde5346514a94cca06bbd7964d136a4a99a8d54",
+    "task_content": {
+      "version": 1,
+      "digest": "85fb8ec47fd77861965eb69b89378f01d344792cf43c17ee43592f3a875a0959",
+      "paths": {
+        "dev-platform/checks.toml": "a9a5a2c441b7b9f881e219f866ebe692c311dbc8",
+        "docs/engineering/agent-workflow.md": "16801637a4b831c7f2f1e5dfc9d3bcbad9729e19",
+        "docs/engineering/local-workspace.md": "aa2fc96ee7048992686c4d44ce9bb16de1be8f2e",
+        "openspec/changes/attach-shared-local-workspace-policy/.managed-task.json": "dc9530c0f7b98d395509581e3daacd533469c0ce",
+        "openspec/changes/attach-shared-local-workspace-policy/.openspec.yaml": "6a87d2b26f2d3cac87ce2fb22f0cf3df632b5a3c",
+        "openspec/changes/attach-shared-local-workspace-policy/design.md": "4c85f9f9a9a34e58b84a7e74c85a275fb9b0efb0",
+        "openspec/changes/attach-shared-local-workspace-policy/independent-review-request.json": "58000f7cc9a5e628754366d1826a4f13979061d1",
+        "openspec/changes/attach-shared-local-workspace-policy/independent-reviews/engineering-quality.json": "bbd65d8f8f7379675f0e6d655aa96915b0df12f3",
+        "openspec/changes/attach-shared-local-workspace-policy/independent-reviews/spec-fidelity.json": "4d4adf4ae99fb5b642eadaf55b2ceeb7f58aee91",
+        "openspec/changes/attach-shared-local-workspace-policy/proposal.md": "a2c05cf442bf61ca3b420e63fd168f1c29687d74",
+        "openspec/changes/attach-shared-local-workspace-policy/specs/shared-workspace/spec.md": "70b540af3cf59f190330834592045984c605e145",
+        "openspec/changes/attach-shared-local-workspace-policy/tasks.md": "f9014118d812154b917b2609d258203f91d9af7c",
+        "openspec/changes/attach-shared-local-workspace-policy/verification.md": "53b7fca474c03bcf5e943ee96f60b11b9d50b3cc",
+        "scripts/local_workspace.py": "e7f7fbd4d95b537fd54820b8b626799cbd16bf51",
+        "template/docs/engineering/agent-workflow.md.jinja": "930aaa715df492661a6845bcb7a0c65159289778",
+        "template/docs/engineering/local-workspace.md": "aa2fc96ee7048992686c4d44ce9bb16de1be8f2e",
+        "template/scripts/local_workspace.py": "ec6f0124671c8c87cfb9f0fc637635996083c14d",
+        "template/scripts/shared_workspace.py": "6609b88870795cd52d593dc4426aaeb5e5c42c28",
+        "tests/test_local_workspace.py": "f58c00ebd59698d5b2569048cc2876656251be75",
+        "tests/test_shared_writer_guard.py": "80ab75d669cc1af289ad2409931786b7573ec318"
+      },
+      "base": "09a732d8d7c88256f30a79786a20909a687bab56"
+    }
+  }
+}

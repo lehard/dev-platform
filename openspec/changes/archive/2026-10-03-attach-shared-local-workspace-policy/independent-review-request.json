@@ -2,11 +2,14 @@
   "candidate": {
     "base_head": "09a732d8d7c88256f30a79786a20909a687bab56",
     "base_ref": "origin/main",
-    "candidate_head": "5aa6004513964e6f0c1a78fb12959b510cd0d718",
-    "diff_sha256": "a824de9caa6eb37e2a69d9c6b6bde0d8fe410a6594755954bbddbbc5f850e334"
+    "candidate_head": "dcde5346514a94cca06bbd7964d136a4a99a8d54",
+    "diff_sha256": "fc812e19466d8bc4c32bb66f720f4ecad4c0376c640be0e2b1000e2f73a86dde"
   },
   "change": "openspec/changes/attach-shared-local-workspace-policy",
   "excluded_lifecycle_paths": [
+    "openspec/changes/attach-shared-local-workspace-policy/independent-review-request.json",
+    "openspec/changes/attach-shared-local-workspace-policy/independent-reviews/engineering-quality.json",
+    "openspec/changes/attach-shared-local-workspace-policy/independent-reviews/spec-fidelity.json",
     "openspec/changes/attach-shared-local-workspace-policy/verification.md"
   ],
   "fresh_context_required": true,
@@ -33,7 +36,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-03T08:32:54+00:00",
+  "prepared_at": "2026-10-03T08:42:24+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/attach-shared-local-workspace-policy/independent-reviews",
     "required_perspectives": [
@@ -42,7 +45,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "54f29356-25d7-4cb3-a70f-a3d6005892d2",
+  "request_id": "29a12fc1-fdfe-4704-8d3a-d24561053d4b",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -55,7 +58,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "09a732d8d7c88256f30a79786a20909a687bab56",
-    "digest": "385ed65f2dd06bcaacc1ee1aaa3f154245c28ef76927c60d3da59c68e30ed761",
+    "digest": "39df49d68b6f35b3e937bbd4f36ed809f501353a7afa251dda1e2501482c962e",
     "paths": {
       "dev-platform/checks.toml": "a9a5a2c441b7b9f881e219f866ebe692c311dbc8",
       "docs/engineering/agent-workflow.md": "16801637a4b831c7f2f1e5dfc9d3bcbad9729e19",
@@ -65,7 +68,7 @@
       "openspec/changes/attach-shared-local-workspace-policy/design.md": "4c85f9f9a9a34e58b84a7e74c85a275fb9b0efb0",
       "openspec/changes/attach-shared-local-workspace-policy/proposal.md": "a2c05cf442bf61ca3b420e63fd168f1c29687d74",
       "openspec/changes/attach-shared-local-workspace-policy/specs/shared-workspace/spec.md": "70b540af3cf59f190330834592045984c605e145",
-      "openspec/changes/attach-shared-local-workspace-policy/tasks.md": "ee79943e07a74a8bf976f2142bc672c7cda8bc47",
+      "openspec/changes/attach-shared-local-workspace-policy/tasks.md": "f9014118d812154b917b2609d258203f91d9af7c",
       "scripts/local_workspace.py": "e7f7fbd4d95b537fd54820b8b626799cbd16bf51",
       "template/docs/engineering/agent-workflow.md.jinja": "930aaa715df492661a6845bcb7a0c65159289778",
       "template/docs/engineering/local-workspace.md": "aa2fc96ee7048992686c4d44ce9bb16de1be8f2e",

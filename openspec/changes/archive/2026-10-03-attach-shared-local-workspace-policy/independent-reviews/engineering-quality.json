@@ -1,0 +1,91 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "09a732d8d7c88256f30a79786a20909a687bab56",
+    "base_ref": "origin/main",
+    "candidate_head": "dcde5346514a94cca06bbd7964d136a4a99a8d54",
+    "diff_sha256": "fc812e19466d8bc4c32bb66f720f4ecad4c0376c640be0e2b1000e2f73a86dde"
+  },
+  "completed_at": "2026-10-03T08:43:48+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/local_workspace.py: HOOKS tuple (lines ~517-521, includes 'reference-transaction', 'post-index-change'); hook branch in main(): `findings = audit(root, policy, repair=True) ... return int(bool(findings))`. Only 'fsmonitor-watchman' is exempted. Consider limiting the blocking audit to commit-time hooks and making the rest non-blocking, or running them with a lightweight check.",
+      "id": "hook-audit-blocks-all-git-hooks",
+      "severity": "advisory",
+      "summary": "The dispatcher is installed for all 24 hooks, including reference-transaction, post-index-change and fsmonitor-watchman. After each delegated hook succeeds it runs a full audit(repair=True), which does an `ls-files` plus a tree walk, and any remaining finding makes the hook fail. A single foreign-owned or hardlinked file can therefore make hooks such as reference-transaction fail on ref updates and block ordinary Git operations. Those operations include recovery, because the owner has to act first. Every index write also pays for a full audit."
+    },
+    {
+      "evidence": "_sync writes the runtime with mode 0o770 via write()/shared_directory(); the LaunchAgent ProgramArguments run `sys.executable runtime sync`; the dispatcher payload is `exec python3 <runtime> hook ...`. No hash check happens before exec; runtime.json 'sha256' is write-only.",
+      "id": "shared-writable-runtime-cross-user-exec",
+      "severity": "advisory",
+      "summary": "The runtime, the hook dispatchers and the policy JSON live in a group-writable directory. Each user's LaunchAgent and every Git hook execute them with that user's own privileges. Any group member, or any process running as one, can therefore replace the runtime or a dispatcher and get code execution as the other user. The runtime digest is recorded in runtime.json but is never verified before execution. The design calls this 'cooperative', but the trust boundary is not stated as a risk in design.md or local-workspace.md."
+    },
+    {
+      "evidence": "template/scripts/local_workspace.py delegate_hooks (first `original =` assignment is overwritten in both if/else branches); _sync worktree loop: `except PolicyError as exc: if 'foreign active worktree' in str(exc): continue; raise`.",
+      "id": "dead-original-directory-and-partial-worktree-abort",
+      "severity": "advisory",
+      "summary": "Two maintainability issues. First, delegate_hooks assigns `original = Path(state['original_directory'])/name`, but every branch below it overwrites that value, so the receipt field `original_directory` has no effect on delegation. Second, in _sync a non-'foreign active worktree' PolicyError for one linked task raises out of the loop. That skips the remaining worktrees of that checkout and reports a single root-level finding."
+    }
+  ],
+  "launched_at": "2026-10-03T08:43:05+00:00",
+  "output_sha256": "1d2c3ae93cbc0a64499059eb02faae8e908bebfecb9947c009201ed67a3cbf62",
+  "perspective": "engineering-quality",
+  "request_id": "29a12fc1-fdfe-4704-8d3a-d24561053d4b",
+  "reviewer": {
+    "context_id": "7415db2c-9a95-4445-9eab-9d6303fb6de2",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-cd7db21b-9ddd-4255-88b1-63c374a99631",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 39829
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 99571
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 40800
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 41682
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4615
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "39df49d68b6f35b3e937bbd4f36ed809f501353a7afa251dda1e2501482c962e"
+}

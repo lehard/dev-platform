@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "09a732d8d7c88256f30a79786a20909a687bab56",
+    "base_ref": "origin/main",
+    "candidate_head": "dcde5346514a94cca06bbd7964d136a4a99a8d54",
+    "diff_sha256": "fc812e19466d8bc4c32bb66f720f4ecad4c0376c640be0e2b1000e2f73a86dde"
+  },
+  "completed_at": "2026-10-03T08:43:05+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/local_workspace.py, _sync(): `except PolicyError as exc: if 'foreign active worktree' in str(exc): continue`. No finding is appended for that skipped worktree. The spec's \"Both user identities\" scenario and the design's \"foreign-owner drift is diagnosed with path, owner and minimal action\" cover only what each user's own audit reports.",
+      "id": "foreign-worktree-drift-not-reported",
+      "severity": "advisory",
+      "summary": "The spec requires automatic sync to \"report unavailable projects or foreign-owner drift\". Sync skips another user's linked worktree silently, so drift inside it is never reported. The design says a foreign active task is never touched, so skipping is correct; only the reporting is missing. Drift in the integration checkout itself is reported."
+    }
+  ],
+  "launched_at": "2026-10-03T08:42:32+00:00",
+  "output_sha256": "b90968d33007696468d78017abf0bd3bc974110fef22df8a5dc12429dbd01454",
+  "perspective": "spec-fidelity",
+  "request_id": "29a12fc1-fdfe-4704-8d3a-d24561053d4b",
+  "reviewer": {
+    "context_id": "e7d9ad3f-38bd-4433-bbf1-8c82417478ac",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-614af609-9282-4d50-a8d9-713b7146193a",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 35706
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 110517
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 29044
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 30815
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3042
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "39df49d68b6f35b3e937bbd4f36ed809f501353a7afa251dda1e2501482c962e"
+}
