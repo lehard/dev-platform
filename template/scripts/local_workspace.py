@@ -7,6 +7,7 @@ Policies and attachment receipts live in the reviewed external runtime directory
 from __future__ import annotations
 
 import argparse
+import errno
 import fnmatch
 import hashlib
 import json
@@ -193,7 +194,16 @@ def _open(path: Path) -> int:
             flags = os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK
             if i < len(parts) - 1:
                 flags |= os.O_DIRECTORY
-            new = os.open(name, flags, dir_fd=fd)
+            try:
+                new = os.open(name, flags, dir_fd=fd)
+            except PermissionError:
+                if i < len(parts) - 1:
+                    raise
+                # Owner-created write-only sources still yield a stable descriptor for fchmod/fchown.
+                try:
+                    new = os.open(name, os.O_WRONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=fd)
+                except OSError:
+                    raise PermissionError(errno.EACCES, os.strerror(errno.EACCES), name) from None
             os.close(fd)
             fd = new
         return fd
@@ -206,8 +216,8 @@ def expected_bits(info: os.stat_result) -> int:
     return 0o2070 if stat.S_ISDIR(info.st_mode) else 0o060
 
 
-def _unreadable(path: Path, gid: int, repair: bool) -> list[str]:
-    """Inspect and owner-repair an entry its owner cannot open, via the no-follow parent descriptor."""
+def _unreadable(path: Path, gid: int) -> list[str]:
+    """Diagnose, never mutate, an entry that cannot be opened, via the no-follow parent descriptor."""
     pfd = None
     try:
         pfd = _open(path.parent)
@@ -215,11 +225,6 @@ def _unreadable(path: Path, gid: int, repair: bool) -> list[str]:
         if not (stat.S_ISDIR(info.st_mode) or (stat.S_ISREG(info.st_mode) and info.st_nlink == 1)):
             return []
         bits = expected_bits(info)
-        if info.st_uid == os.geteuid() and repair:
-            if info.st_gid != gid:
-                os.chown(path.name, -1, gid, dir_fd=pfd, follow_symlinks=False)
-            os.chmod(path.name, stat.S_IMODE(info.st_mode) | bits, dir_fd=pfd, follow_symlinks=False)
-            info = os.stat(path.name, dir_fd=pfd, follow_symlinks=False)
         if info.st_gid == gid and info.st_mode & bits == bits:
             return []
         return [f'{path}: owner uid={info.st_uid}, gid={info.st_gid}, mode={stat.S_IMODE(info.st_mode):04o}; '
@@ -322,9 +327,8 @@ def audit(root: Path, policy: dict, *, repair: bool = False) -> list[str]:
             continue
         except OSError as exc:
             # Symlinks are deliberately skipped, including parent escapes.
-            import errno
             if exc.errno == errno.EACCES:
-                findings.extend(_unreadable(path, gid, repair))
+                findings.extend(_unreadable(path, gid))
                 continue
             if exc.errno not in (errno.ELOOP, errno.ENOTDIR):
                 findings.append(f'{path}: cannot inspect/repair: {exc}')
@@ -336,7 +340,8 @@ def audit(root: Path, policy: dict, *, repair: bool = False) -> list[str]:
 
 def policy_for(root: Path) -> Path | None:
     # Staged/non-Git fixtures have no opt-in contract yet.
-    probe = subprocess.run(['git', '-C', str(root), 'rev-parse', '--git-dir'], capture_output=True)
+    env = {k: v for k, v in os.environ.items() if not k.startswith('GIT_')}
+    probe = subprocess.run(['git', '-C', str(root), 'rev-parse', '--git-dir'], capture_output=True, env=env)
     if probe.returncode:
         return None
     value = git(root, 'config', '--local', '--get', POLICY_KEY, optional=True)

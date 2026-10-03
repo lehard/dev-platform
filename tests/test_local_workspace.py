@@ -191,6 +191,11 @@ class LocalWorkspaceTests(unittest.TestCase):
             with mock.patch.dict(os.environ, env):
                 self.assertEqual(local.delegate_hooks(self.root, state, 'pre-push', []), 9)
 
+    def test_invalid_inherited_git_dir_does_not_opt_out(self):
+        self.attach()
+        with mock.patch.dict(os.environ, {'GIT_DIR': str(self.base / 'missing')}):
+            self.assertIsNotNone(local.policy_for(self.root))
+
     def test_unreadable_foreign_file_keeps_owner_diagnostic(self):
         source = self.root / 'src/main.py'
         source.chmod(0o600)
