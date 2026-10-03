@@ -3,7 +3,9 @@
 ## Purpose
 
 The platform lifecycle SHALL define safe, agent-driven task execution from synchronization through publication while preserving OpenSpec contract coherence and avoiding routine human Git hand-offs.
+
 ## Requirements
+
 ### Requirement: GitHub-aware task lifecycle
 
 The platform SHALL fetch and compare the configured remote integration branch before starting work and again immediately before publication. It SHALL abort rather than auto-resolve divergent histories and SHALL never force-push.
@@ -1115,6 +1117,8 @@ The retrospective/checkpoint result SHALL be bound to current task execution sta
 
 The bounded post-task review SHALL inspect the factual execution path, including meaningful successful manual workarounds, non-default or override actions, manual state changes, recurrences of already open process issues, and observed material drift even when another operator, runtime or lifecycle owns the state. Harmless deviations are not friction. A known open issue does not dispose of a new occurrence: the recurrence SHALL be preserved through the existing friction/process issue path. A clean path retains a concise `none` checkpoint.
 
+An evidence source that is unreadable or only partially readable SHALL be named in the review and SHALL NOT be reported as the absence of problems; a checkpoint over such a source SHALL require an explicit acceptance of that gap, recorded in the receipt.
+
 #### Scenario: Several unresolved semantic frictions occurred
 
 - **WHEN** a non-trivial platform-owned task reaches completion with two or more distinct high-signal semantic conditions that remain unresolved and unrecorded
@@ -1132,6 +1136,13 @@ The bounded post-task review SHALL inspect the factual execution path, including
 - **WHEN** a non-trivial platform-owned task reaches the completion boundary without a current retrospective result
 - **THEN** the lifecycle refuses terminal completion with an actionable instruction to perform the bounded review
 - **AND** it does not invent a friction event on the agent's behalf
+
+#### Scenario: Evidence source is degraded
+
+- **GIVEN** the friction log has unreadable or malformed content
+- **WHEN** the agent records `none` without accepting the named gap
+- **THEN** the checkpoint is refused and names the degraded source
+- **AND** an explicit acceptance of that gap is stored in the receipt
 
 #### Scenario: Stale retrospective is reused
 
@@ -1497,3 +1508,36 @@ When a verified Requirement child chain changes after an earlier shared merge ca
 - **WHEN** another preparation is attempted
 - **THEN** the occupied-generation guard blocks duplication rather than overwriting it
 
+### Requirement: Friction events carry resolvable task attribution
+
+New friction events SHALL record an explicit task when given, otherwise the current task branch, and SHALL mark an event recorded with neither as unattributed; an integration checkout or unknown branch SHALL NOT be assumed to be a task. Retrospective selection SHALL attribute a legacy event whose task is empty by its recorded branch or source issue without rewriting or duplicating history. An event that cannot be attributed SHALL be reported as an explicit ambiguity in review and checkpoint output, SHALL NOT be assigned to the task under review, and SHALL NOT disappear silently.
+
+#### Scenario: Event lost its task but kept branch and source issue
+
+- **GIVEN** a recorded event has an empty task and a branch equal to the task under review
+- **WHEN** the retrospective selects mandatory signals
+- **THEN** the event is included as an inferred-attribution signal and must be explained
+- **AND** the stored event is not modified
+
+#### Scenario: Event cannot be attributed
+
+- **GIVEN** a recent event has an empty task and no usable branch or source issue
+- **WHEN** a retrospective runs
+- **THEN** the event is listed as ambiguous attribution
+- **AND** it is not required to be explained by, nor assigned to, the task under review
+
+### Requirement: Retrospective uses a short shared template with bounded project additions
+
+The review-path SHALL present a short shared template covering what happened and its basis, the confirmed cause kept apart from a hypothesis (an unknown cause is acceptable), the fix kept apart from a workaround, repeats and remaining problems, and the required action with a verifiable result or the reason for none. A project MAY add up to five questions in a project-owned file, each optionally limited to changed paths; questions beyond five SHALL be ignored with a report, and a missing or invalid file SHALL leave the shared path working. Project questions SHALL NOT be mandatory for every task and SHALL NOT replace the shared template.
+
+#### Scenario: Project adds a path-scoped question
+
+- **GIVEN** a project question is limited to a path pattern
+- **WHEN** the task changes a matching file
+- **THEN** the review-path presents the question after the shared template
+- **AND** a task that changes no matching file does not see it
+
+#### Scenario: Project has no additions
+
+- **WHEN** the project-owned file is absent
+- **THEN** the shared template alone is presented and completion is unaffected
