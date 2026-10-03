@@ -35,7 +35,7 @@ state `managed` are eligible for central rollout. `candidate` means reviewed
 first-time adoption is still expected; `excluded` records an intentional
 non-adoption decision. The generic public core does not contain this registry.
 
-After a version is published, the release workflow dispatches the rollout workflow for that exact immutable tag. Rollout uses a least-privilege GitHub App with separate read-only platform-source and target-write tokens. The target token includes Workflows write because platform-managed updates can include `.github/workflows/*`. Rollout performs Copier update/doctor/project checks on a deterministic automation branch and opens a downstream PR. It does not auto-merge by default.
+After a version is published and the operator has enabled managed rollout (`DEV_PLATFORM_MANAGED_ROLLOUT_ENABLED` repository variable), the release workflow dispatches the rollout workflow for that exact immutable tag. Rollout uses a least-privilege GitHub App with separate read-only platform-source and target-write tokens. The target token includes Workflows write because platform-managed updates can include `.github/workflows/*`. Rollout performs Copier update/doctor/project checks on a deterministic automation branch and opens a downstream PR. It does not auto-merge by default.
 
 A blocked project does not stop other matrix entries. Conflicts, wrong/missing Copier ownership metadata, downgrade attempts, validation failures or unexpected branch collisions fail closed without changing the downstream default branch.
 
@@ -53,4 +53,4 @@ The platform tests Copier `9.18.2` exactly. Changing the tested version is an ex
 
 ## Version publication
 
-`VERSION` changes only in an explicit release PR. After merge, `.github/workflows/publish-version.yml` creates `v<VERSION>` at that exact commit, refuses to move an existing tag, and dispatches managed rollout for the exact published tag.
+`VERSION` changes only in an explicit release PR. After merge, `.github/workflows/publish-version.yml` creates `v<VERSION>` at that exact commit, refuses to move an existing tag, and — only when the operator has opted in with the repository variable `DEV_PLATFORM_MANAGED_ROLLOUT_ENABLED=true` (checked by `scripts/rollout_dispatch_gate.py`) — dispatches managed rollout for the exact published tag. Publishing a release never implies fleet rollout; without the variable the dispatch step is skipped.

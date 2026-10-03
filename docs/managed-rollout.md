@@ -197,7 +197,7 @@ same fail-closed behavior as any other unrecognized harness shape.
 
 ## Automatic release rollout
 
-`publish-version.yml` publishes the immutable release and then dispatches `.github/workflows/rollout.yml` with that exact tag.
+`publish-version.yml` publishes the immutable release and then, if the operator has set the repository **variable** (not a secret) `DEV_PLATFORM_MANAGED_ROLLOUT_ENABLED` to `true`, dispatches `.github/workflows/rollout.yml` with that exact tag. Managed rollout is an optional operator capability: without the variable `scripts/rollout_dispatch_gate.py` reports `dispatch=false` and the release is published without dispatching rollout.
 
 Before any cross-repository token is created, rollout confirms the requested tag is an actually published **immutable** GitHub Release. A manually entered but unpublished version is rejected.
 
