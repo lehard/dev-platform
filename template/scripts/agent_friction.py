@@ -58,7 +58,18 @@ MAX_DUPLICATE_CANDIDATES = 5
 GENERATED_FRICTION_TITLE_PREFIX = "[process-friction] "
 FINGERPRINT_MARKER_RE = re.compile(r"<!-- dev-platform-friction:[a-f0-9]{24} -->")
 LIFECYCLE_FAILURE_PREFIX = "lifecycle-"
-LIFECYCLE_DISPOSITIONS = ("resolved-in-task", "already-recorded")
+LIFECYCLE_DISPOSITIONS = ("resolved-in-task", "already-recorded", "expected-behavior")
+NON_TASK_BRANCHES = frozenset({"unknown", "main", "master"})
+AMBIGUOUS_WINDOW_DAYS = 14
+MAX_PROJECT_QUESTIONS = 5
+PROJECT_QUESTIONS_FILE = "dev-platform/retrospective.toml"
+SHARED_REVIEW_TEMPLATE = (
+    "What happened, and what evidence is it based on?",
+    "Which cause is confirmed, and which is only a hypothesis? An unknown cause is an acceptable answer.",
+    "Which part was a fix and which only a workaround?",
+    "What repeated or remains unresolved?",
+    "What action follows with a verifiable result, or why is none needed?",
+)
 ROOT_CAUSE_STOP_WORDS = {
     "about", "after", "agent", "and", "are", "been", "before", "being", "but", "can", "cause", "change",
     "could", "does", "event", "for", "from", "have", "into", "issue", "its", "missing", "new", "not",
@@ -163,6 +174,92 @@ def current_task_content(root: Path) -> dict | None:
         return None
 
 
+def non_task_names(root: Path | None = None) -> frozenset[str]:
+    names = set(NON_TASK_BRANCHES)
+    try:
+        names.add(str(read_platform_config(root or current_worktree_root()).get("main_branch", "main")))
+    except Exception:
+        pass
+    return frozenset(names)
+
+
+def default_attribution(explicit: str | None) -> tuple[str | None, str]:
+    """Task for a new event: explicit, else the current task branch, else unattributed."""
+    if explicit:
+        return normalize_text(explicit, "task", 300), "explicit"
+    branch = current_branch()
+    if branch in non_task_names():
+        return None, "unattributed"
+    return branch, "branch"
+
+
+def event_identities(event: dict) -> set[str]:
+    """Attribution evidence a legacy event kept even when its task is empty."""
+    excluded = non_task_names()
+    run = event.get("run") if isinstance(event.get("run"), dict) else {}
+    return {
+        value for value in (event.get("branch"), run.get("source_issue"))
+        if isinstance(value, str) and value and value not in excluded
+    }
+
+
+def task_aliases(task: str) -> set[str]:
+    """Source issue of the current managed task, only when ``task`` is its branch."""
+    if task != current_branch():
+        return set()
+    try:
+        from managed_task import read_task_state
+        state = read_task_state(current_worktree_root())
+    except Exception:
+        return set()
+    return {str(state["source_issue"])} if state else set()
+
+
+def events_for_task(task: str) -> list[dict]:
+    """Events recorded for the task, plus legacy task-less events it can be inferred from."""
+    identities = {task} | task_aliases(task)
+    return [
+        event for event in read_events(None)
+        if event.get("task") == task or (not event.get("task") and event_identities(event) & identities)
+    ]
+
+
+def inferred_event_ids(task: str) -> list[str]:
+    return [str(event.get("id")) for event in events_for_task(task) if not event.get("task")]
+
+
+def ambiguous_attribution_events() -> list[dict]:
+    """Recent events with neither a task nor usable branch/source-issue evidence."""
+    return [event for event in read_events(AMBIGUOUS_WINDOW_DAYS) if not event.get("task") and not event_identities(event)]
+
+
+def evidence_source_status() -> dict[str, str]:
+    path = log_path()
+    if not path.exists():
+        return {"friction-log": "available"}
+    try:
+        lines = [line for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    except (OSError, UnicodeDecodeError):
+        return {"friction-log": "unreadable"}
+    for line in lines:
+        try:
+            json.loads(line)
+        except ValueError:
+            return {"friction-log": "partial"}
+    return {"friction-log": "available"}
+
+
+def unaccepted_gaps(sources: dict[str, str], accepted: list[str]) -> list[str]:
+    return [f"{name} ({status})" for name, status in sorted(sources.items()) if status != "available" and name not in accepted]
+
+
+def gap_instruction(gaps: list[str]) -> str:
+    return (
+        "Evidence source(s) not fully readable: " + ", ".join(gaps)
+        + ". This is not the absence of problems; repair the source or accept the gap with `--accept-gap <name>`."
+    )
+
+
 def _unknown_run_provenance(role: str) -> dict:
     return {"source_issue": None, "change": None, "role": role, "supervisor": None, "participant": None}
 
@@ -209,11 +306,13 @@ def cmd_record(args: argparse.Namespace) -> int:
         ensure_shared_path(path)
     triggers = sorted(set(args.trigger or [args.category]))
     context = context_metadata_for(args)
+    task, attribution = default_attribution(args.task)
     event = {
         "id": uuid.uuid4().hex[:12],
         "at": utc_now(),
         "branch": current_branch(),
-        "task": normalize_text(args.task, "task", 300) if args.task else None,
+        "task": task,
+        "attribution": attribution,
         "category": normalize_text(args.category, "category", 100),
         "triggers": triggers,
         "severity": args.severity,
@@ -254,7 +353,11 @@ def read_events(days: int | None = None) -> list[dict]:
         return []
     cutoff = datetime.now(timezone.utc) - timedelta(days=days) if days is not None else None
     events: list[dict] = []
-    for index, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return []  # reported as an unreadable evidence source by evidence_source_status
+    for index, line in enumerate(text.splitlines(), start=1):
         if not line.strip():
             continue
         try:
@@ -808,9 +911,8 @@ def current_lifecycle_failures(branch: str | None = None) -> list[dict]:
     branch = branch or current_branch()
     return [
         event
-        for event in read_events(None)
-        if event.get("task") == branch
-        and str(event.get("category", "")).startswith(LIFECYCLE_FAILURE_PREFIX)
+        for event in events_for_task(branch)
+        if str(event.get("category", "")).startswith(LIFECYCLE_FAILURE_PREFIX)
         and event.get("severity") in {"high", "critical"}
     ]
 
@@ -818,20 +920,84 @@ def current_lifecycle_failures(branch: str | None = None) -> list[dict]:
 def current_retrospective_signals(task: str) -> list[dict]:
     """Reuse recorded path evidence; do not invent a command-history store."""
     return [
-        event for event in read_events(None)
-        if event.get("task") == task
-        and RETROSPECTIVE_SIGNALS.intersection(event.get("triggers") or [])
+        event for event in events_for_task(task)
+        if RETROSPECTIVE_SIGNALS.intersection(event.get("triggers") or [])
     ]
 
 
-def unlinked_retrospective_signals(task: str, event_ids: list[str]) -> list[dict]:
-    linked = set(event_ids)
-    return [event for event in current_retrospective_signals(task) if str(event.get("id")) not in linked]
+def unlinked_retrospective_signals(task: str, event_ids: list[str], dispositions: dict[str, str] | None = None) -> list[dict]:
+    explained = set(event_ids) | set(dispositions or {})
+    return [event for event in current_retrospective_signals(task) if str(event.get("id")) not in explained]
 
 
 def retrospective_signal_instruction(events: list[dict]) -> str:
     rendered = ", ".join(str(event.get("id")) for event in events[:5])
-    return f"Recorded workaround, override, recurrence or drift evidence is not linked to this retrospective: {rendered}. Reference each occurrence with --event."
+    return (
+        f"Recorded workaround, override, recurrence or drift evidence is not linked to this retrospective: {rendered}. "
+        "Reference each occurrence with --event, or classify it with "
+        "--disposition <event-id>=resolved-in-task|already-recorded|expected-behavior "
+        "(a known-recurrence occurrence can only be linked)."
+    )
+
+
+def mandatory_signals(task: str) -> list[dict]:
+    """High-signal lifecycle failures plus recorded workaround/override/recurrence/drift events."""
+    merged: dict[str, dict] = {}
+    for event in [*current_lifecycle_failures(task), *current_retrospective_signals(task)]:
+        merged.setdefault(str(event.get("id")), event)
+    return list(merged.values())
+
+
+def project_questions(root: Path, changed: list[str] | None) -> dict:
+    """Up to five project-owned questions; path-scoped ones apply only to matching changed files."""
+    path = root / PROJECT_QUESTIONS_FILE
+    result: dict = {"questions": [], "ignored": 0, "problem": None}
+    if not path.is_file():
+        return result
+    try:
+        import tomllib
+        raw = tomllib.loads(path.read_text(encoding="utf-8")).get("question", [])
+        if not isinstance(raw, list):
+            raise ValueError("question must be an array of tables")
+    except Exception as exc:
+        result["problem"] = f"{PROJECT_QUESTIONS_FILE} is unreadable ({type(exc).__name__}); shared template only"
+        return result
+    valid = [q for q in raw if isinstance(q, dict) and isinstance(q.get("text"), str) and q["text"].strip()]
+    result["ignored"] = max(0, len(valid) - MAX_PROJECT_QUESTIONS) + (len(raw) - len(valid))
+    import fnmatch
+    for question in valid[:MAX_PROJECT_QUESTIONS]:
+        paths = question.get("paths")
+        if paths is None:
+            applies = True
+        else:
+            patterns = [p for p in paths if isinstance(p, str)] if isinstance(paths, list) else []
+            applies = bool(changed) and any(fnmatch.fnmatch(f, pat) for f in changed for pat in patterns)
+        if applies:
+            result["questions"].append(normalize_text(question["text"], "project question", 300))
+    return result
+
+
+def changed_paths(root: Path) -> list[str] | None:
+    """Files this task changed relative to the integration branch; ``None`` when unknowable."""
+    main = str(read_platform_config(root).get("main_branch", "main")) if root else "main"
+    names: set[str] = set()
+    readable = False
+    for command in (["git", "diff", "--name-only", f"origin/{main}...HEAD"], ["git", "diff", "--name-only", "HEAD"]):
+        result = subprocess.run(command, cwd=root, text=True, capture_output=True)
+        if result.returncode == 0:
+            readable = True
+            names.update(line for line in result.stdout.splitlines() if line)
+    return sorted(names) if readable else None
+
+
+def review_guidance(root: Path, changed: list[str] | None) -> dict:
+    questions = project_questions(root, changed)
+    return {
+        "template": list(SHARED_REVIEW_TEMPLATE),
+        "project_questions": questions["questions"],
+        "project_questions_ignored": questions["ignored"],
+        "project_questions_problem": questions["problem"],
+    }
 
 
 def cmd_review_path(args: argparse.Namespace) -> int:
@@ -846,6 +1012,10 @@ def cmd_review_path(args: argparse.Namespace) -> int:
             for event in current_retrospective_signals(task)
         ],
         "lifecycle_failures": [str(event.get("id")) for event in current_lifecycle_failures(task)],
+        "inferred_attribution": inferred_event_ids(task),
+        "ambiguous_attribution": [str(event.get("id")) for event in ambiguous_attribution_events()][:10],
+        "evidence_sources": evidence_source_status(),
+        **review_guidance(current_worktree_root(), changed_paths(current_worktree_root())),
     }
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
     return 0
@@ -853,19 +1023,23 @@ def cmd_review_path(args: argparse.Namespace) -> int:
 
 def parse_lifecycle_dispositions(values: list[str], failures: list[dict]) -> dict[str, str]:
     """Validate concise resolved/already-recorded retrospective dispositions."""
-    known = {str(event.get("id")) for event in failures}
+    known = {str(event.get("id")): event for event in failures}
     dispositions: dict[str, str] = {}
     for value in values:
         event_id, separator, disposition = value.partition("=")
         if not separator or not event_id or not disposition:
             raise SystemExit(
-                "--lifecycle-disposition must use <event-id>=resolved-in-task|already-recorded"
+                "--disposition must use <event-id>=resolved-in-task|already-recorded|expected-behavior"
             )
         if event_id not in known:
-            raise SystemExit(f"Lifecycle outcome is not a current-task high-signal failure: {event_id}")
+            raise SystemExit(f"Event is not a current-task mandatory signal: {event_id}")
         if disposition not in LIFECYCLE_DISPOSITIONS:
             raise SystemExit(
-                f"Unsupported lifecycle disposition {disposition!r}; use resolved-in-task or already-recorded."
+                f"Unsupported disposition {disposition!r}; use resolved-in-task, already-recorded or expected-behavior."
+            )
+        if "known-recurrence" in (known[event_id].get("triggers") or []):
+            raise SystemExit(
+                f"{event_id} is a known-recurrence occurrence and cannot be dismissed; link it with --event."
             )
         if event_id in dispositions:
             raise SystemExit(f"Lifecycle outcome is classified more than once: {event_id}")
@@ -907,8 +1081,8 @@ def lifecycle_checkpoint_instruction(failures: list[dict]) -> str:
     return (
         "Post-task retrospective has unclassified high-signal lifecycle outcome(s): "
         + rendered
-        + ". Classify each with `checkpoint --result none --lifecycle-disposition "
-        "<event-id>=resolved-in-task|already-recorded --review-note TEXT`, or reference its recorded finding with "
+        + ". Classify each with `checkpoint --result none --disposition "
+        "<event-id>=resolved-in-task|already-recorded|expected-behavior --review-note TEXT`, or reference its recorded finding with "
         "`checkpoint --event <event-id>` (new-recorded)."
     )
 
@@ -940,14 +1114,18 @@ def cmd_checkpoint(args: argparse.Namespace) -> int:
         raise SystemExit(f"Friction event not found: {', '.join(missing)}")
     lifecycle_failures = current_lifecycle_failures(branch)
     lifecycle_dispositions = parse_lifecycle_dispositions(
-        list(getattr(args, "lifecycle_dispositions", []) or []), lifecycle_failures
+        list(getattr(args, "lifecycle_dispositions", []) or []), mandatory_signals(branch)
     )
     unresolved = unclassified_lifecycle_failures(lifecycle_failures, event_ids, lifecycle_dispositions)
     if unresolved:
         raise SystemExit(lifecycle_checkpoint_instruction(unresolved))
-    unlinked = unlinked_retrospective_signals(branch, event_ids)
+    unlinked = unlinked_retrospective_signals(branch, event_ids, lifecycle_dispositions)
     if unlinked:
         raise SystemExit(retrospective_signal_instruction(unlinked))
+    accepted_gaps = sorted(set(getattr(args, "accept_gaps", []) or []))
+    gaps = unaccepted_gaps(evidence_source_status(), accepted_gaps)
+    if gaps:
+        raise SystemExit(gap_instruction(gaps))
     checkpoint = {
         "result": "events" if event_ids else "none",
         "event_ids": event_ids,
@@ -955,6 +1133,7 @@ def cmd_checkpoint(args: argparse.Namespace) -> int:
             {"event_id": event_id, "disposition": disposition}
             for event_id, disposition in lifecycle_dispositions.items()
         ],
+        "accepted_gaps": accepted_gaps,
         "at": utc_now(),
         "review_note": review_note,
         "branch": branch,
@@ -967,7 +1146,11 @@ def cmd_checkpoint(args: argparse.Namespace) -> int:
         state = read_state()
         state["checkpoints"][branch] = checkpoint
         atomic_write_json(state_path(), state)
-    print(json.dumps({"status": "recorded", "checkpoint": checkpoint}, ensure_ascii=False))
+    result = {"status": "recorded", "checkpoint": checkpoint}
+    ambiguous = [str(event.get("id")) for event in ambiguous_attribution_events()]
+    if ambiguous:
+        result["ambiguous_attribution_not_attributed"] = ambiguous[:10]
+    print(json.dumps(result, ensure_ascii=False))
     return 0
 
 
@@ -1003,13 +1186,16 @@ def require_checkpoint(branch: str, root: Path | None = None) -> None:
                 f"Retrospective checkpoint references unknown friction event id(s): {', '.join(missing)}; rerun the retrospective."
             )
     lifecycle_failures = current_lifecycle_failures(branch)
-    lifecycle_dispositions = checkpoint_lifecycle_dispositions(checkpoint, lifecycle_failures)
+    lifecycle_dispositions = checkpoint_lifecycle_dispositions(checkpoint, mandatory_signals(branch))
     unresolved = unclassified_lifecycle_failures(lifecycle_failures, list(checkpoint.get("event_ids") or []), lifecycle_dispositions)
     if unresolved:
         raise SystemExit(lifecycle_checkpoint_instruction(unresolved))
-    unlinked = unlinked_retrospective_signals(branch, list(checkpoint.get("event_ids") or []))
+    unlinked = unlinked_retrospective_signals(branch, list(checkpoint.get("event_ids") or []), lifecycle_dispositions)
     if unlinked:
         raise SystemExit(retrospective_signal_instruction(unlinked))
+    gaps = unaccepted_gaps(evidence_source_status(), list(checkpoint.get("accepted_gaps") or []))
+    if gaps:
+        raise SystemExit(gap_instruction(gaps))
     resolved_root = root if root is not None else current_worktree_root()
     current = current_head(resolved_root)
     if current is None:
@@ -1146,8 +1332,12 @@ def main() -> int:
     p.add_argument("--review-note", required=True, help="short factual path reviewed: overrides, manual workarounds/state changes, known recurrences and observed drift; no secrets")
     p.add_argument("--event", dest="events", action="append", default=[], help="repeatable: another recorded finding id from this retrospective")
     p.add_argument(
-        "--lifecycle-disposition", dest="lifecycle_dispositions", action="append", default=[],
-        help="repeatable: <event-id>=resolved-in-task|already-recorded for a current-task lifecycle failure",
+        "--disposition", "--lifecycle-disposition", dest="lifecycle_dispositions", action="append", default=[],
+        help="repeatable: <event-id>=resolved-in-task|already-recorded|expected-behavior for a current-task mandatory signal (a known-recurrence can only be linked)",
+    )
+    p.add_argument(
+        "--accept-gap", dest="accept_gaps", action="append", default=[],
+        help="repeatable: accept a named unreadable/partial evidence source (e.g. friction-log) instead of treating it as clean",
     )
     p.set_defaults(func=cmd_checkpoint)
 
