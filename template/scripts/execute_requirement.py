@@ -195,6 +195,66 @@ def _child_review_state(worktree: Path, child: str, change: str) -> dict[str, An
         return {"state": "unknown", "next": None, "detail": str(exc)}
 
 
+def _expected_changes(ordered: list[tuple[str, Path]], linked_by_change: dict[str, str], completed: list[str]) -> list[str]:
+    """Mandatory changes still to be delivered, in handoff order."""
+    return [change for change, _ in ordered if linked_by_change.get(change) not in completed]
+
+
+def _existing_candidate(integration: Path, requirement: str, ready: list[Path]) -> dict[str, Any] | None:
+    """Find the one early candidate whose committed children are an exact prefix of the ready chain."""
+    slug = requirement_integration._candidate_slug(requirement_integration._public_requirement(integration, requirement))
+    path = requirement_integration._candidate_manifest_path(requirement, integration).as_posix()
+    heads: list[str] | None = None
+    matches: list[dict[str, Any]] = []
+    for branch in _git(integration, "for-each-ref", "--format=%(refname:short)", f"refs/heads/agent/{slug}*").splitlines():
+        shown = subprocess.run(["git", "show", f"{branch}:{path}"], cwd=integration, text=True, capture_output=True)
+        if shown.returncode:
+            continue
+        try:
+            manifest = json.loads(shown.stdout)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(manifest, dict) or manifest.get("expected_changes") is None:
+            continue
+        if heads is None:
+            heads = [requirement_integration.read_receipt(item).head for item in ready]
+        committed = [child.get("head") for child in manifest.get("children", [])]
+        if committed and committed == heads[:len(committed)] and branch == "agent/" + requirement_integration._candidate_slug(
+                manifest["requirement"], manifest.get("generation")):
+            matches.append(manifest)
+    if len(matches) > 1:
+        raise RequirementExecutionError("multiple shared candidates match this Requirement's ready children; resolve the ambiguity")
+    return matches[0] if matches else None
+
+
+def _candidate_for(integration: Path, requirement: str, ready: list[Path], expected: list[str]) -> tuple[dict[str, Any], Path, str]:
+    """Resume the existing early candidate (keeping its base) or bind a new one to current main."""
+    existing = _existing_candidate(integration, requirement, ready)
+    base = existing["base"] if existing is not None else _git(integration, "rev-parse", "HEAD")
+    manifest = requirement_integration.assemble_candidate(
+        integration, requirement=requirement, base=base, receipt_paths=ready, expected_changes=expected,
+    )
+    slug = requirement_integration._candidate_slug(
+        requirement_integration._public_requirement(integration, requirement), manifest.get("generation"),
+    )
+    return manifest, integration / ".claude" / "worktrees" / slug, f"agent/{slug}"
+
+
+def _publish_early_draft(
+    integration: Path, requirement: str, ordered: list[tuple[str, Path]], linked_by_change: dict[str, str],
+    ready: list[Path], completed: list[str],
+) -> dict[str, Any] | None:
+    """Open or grow the one shared draft PR while later mandatory children are still in progress."""
+    expected = _expected_changes(ordered, linked_by_change, completed)
+    if len(expected) < 2:
+        return None
+    manifest, candidate, branch = _candidate_for(integration, requirement, ready, expected)
+    requirement_integration.compose_candidate(
+        integration, manifest=manifest, receipt_paths=ready, worktree=candidate, branch=branch,
+    )
+    return requirement_integration.publish_candidate(candidate, manifest=manifest, receipt_paths=ready)
+
+
 def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_distinct: bool = False) -> dict[str, Any]:
     """Run deterministic transitions; return one bounded agent action or delivery result."""
     integration = integration.resolve()
@@ -271,6 +331,7 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
             ready.append(path)
             receipts_by_change[change] = path
             continue
+        draft = _publish_early_draft(integration, requirement, ordered, linked_by_change, ready, completed) if ready else None
         envelope = json.loads(handoff.read_text(encoding="utf-8"))
         predecessors = [receipts_by_change[dependency] for intent in envelope.get("intents", [])
                         for dependency in intent.get("dependencies", []) if dependency in receipts_by_change]
@@ -285,6 +346,7 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
             "status": "implement-child", "requirement": requirement, "child": child,
             "change": change, "worktree": str(started.task_root),
             "predecessor_receipt": str(predecessor) if predecessor else None,
+            "shared_draft": draft,
             "independent_review": _child_review_state(Path(started.task_root), child, change),
             "next": (
                 "Perform routed bounded implementation, verify, archive and commit; rerun execute_requirement.py advance. "
@@ -308,11 +370,8 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
             return audited({"status": "already-delivered", "requirement": requirement, "children": completed})
         raise RequirementExecutionError("shared delivery requires at least two verified nonterminal child receipts")
     requirement_retrospective.require_checkpoint(integration, requirement=requirement)
-    base = _git(integration, "rev-parse", "HEAD")
-    manifest = requirement_integration.assemble_candidate(integration, requirement=requirement, base=base, receipt_paths=ready)
-    slug = requirement_integration._candidate_slug(requirement_integration._public_requirement(integration, requirement))
-    candidate = integration / ".claude" / "worktrees" / slug
-    branch = f"agent/{slug}"
+    expected = _expected_changes(ordered, linked_by_change, completed)
+    manifest, candidate, branch = _candidate_for(integration, requirement, ready, expected)
     requirement_integration.compose_candidate(
         integration, manifest=manifest, receipt_paths=ready, worktree=candidate, branch=branch,
     )

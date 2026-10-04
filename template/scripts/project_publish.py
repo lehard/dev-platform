@@ -153,6 +153,8 @@ def ensure_pr(
     body: str | None,
     expected_head: str,
     lookup: ExactHeadPrLookup | None = None,
+    *,
+    draft: bool = False,
 ) -> PrRef:
     """Reuse an exact-head PR if one exists; otherwise create one.
 
@@ -179,7 +181,8 @@ def ensure_pr(
     if body is None:
         body = "Published by dev-platform after local validation and a fresh origin/main check."
     created = subprocess.run(
-        ["gh", "pr", "create", "--base", main_branch, "--head", current, "--title", title, "--body", body],
+        ["gh", "pr", "create", "--base", main_branch, "--head", current, "--title", title, "--body", body,
+         *(["--draft"] if draft else [])],
         cwd=root,
         env=env,
         text=True,
@@ -206,6 +209,14 @@ def ensure_pr(
         return _pr_ref(retry.exact_open)
     detail = created.stderr.strip() or created.stdout.strip() or f"exit {created.returncode}"
     raise SystemExit(f"gh pr create failed: {detail}")
+
+
+def _set_pr_draft(root: Path, env: dict[str, str], pr: PrRef, *, draft: bool) -> None:
+    command = ["gh", "pr", "ready", pr.ref] + (["--undo"] if draft else [])
+    result = subprocess.run(command, cwd=root, env=env, text=True, capture_output=True, check=False)
+    if result.returncode:
+        detail = result.stderr.strip() or result.stdout.strip() or f"exit {result.returncode}"
+        raise SystemExit(f"Could not set shared PR {'draft' if draft else 'ready'} state: {detail}")
 
 
 def wait_for_pr_checks(root: Path, env: dict[str, str], pr: PrRef, expected_head: str) -> None:
@@ -416,12 +427,18 @@ def validate_shared_manifest(root: Path, path: Path) -> dict:
     if (payload.get("digest") != requirement_integration._digest(unsigned)
             or not isinstance(requirement, str)
             or (not requirement_integration.ISSUE_RE.fullmatch(requirement) and not (opaque and re.fullmatch(r"pln_[0-9a-f]{32}", requirement)))
-            or not isinstance(children, list) or len(children) < 2
+            or not isinstance(children, list) or len(children) < requirement_integration._min_children(payload)
             or any(not isinstance(child, dict) or not isinstance(child.get("source_issue"), str)
                    or not (re.fullmatch(r"pln_[0-9a-f]{32}", child["source_issue"])
                            if opaque else requirement_integration.ISSUE_RE.fullmatch(child["source_issue"])) for child in children)
             or len({child["source_issue"] for child in children}) != len(children)):
         raise RequirementIntegrationError("shared manifest identity or digest is invalid")
+    expected_changes = payload.get("expected_changes")
+    if expected_changes is not None and (
+        not isinstance(expected_changes, list) or len(expected_changes) < 2 or len(set(expected_changes)) != len(expected_changes)
+        or [child.get("change") for child in children] != expected_changes[:len(children)]
+    ):
+        raise RequirementIntegrationError("shared manifest expected changes are invalid")
     if opaque:
         if not isinstance(private_manifest, dict) or requirement_integration._public_manifest(main_root(), private_manifest) != payload:
             raise RequirementIntegrationError("public manifest does not match exact private lineage")
@@ -454,9 +471,12 @@ def publish_pr(
             require_independent_publication_exception(root, delivery)
     except (ManagedTaskError, RequirementIntegrationError) as exc:
         raise SystemExit("Managed task publication blocked: " + str(exc)) from exc
+    incomplete = False
+    shared_candidate: dict = {}
     if shared_manifest is not None:
         try:
-            validate_shared_manifest(root, shared_manifest)
+            shared_candidate = validate_shared_manifest(root, shared_manifest)
+            incomplete = not requirement_integration.manifest_complete(shared_candidate)
         except RequirementIntegrationError as exc:
             raise SystemExit("Shared Requirement publication blocked: " + str(exc)) from exc
     privacy_guard = root / "scripts" / "check_private_backlog_refs.py"
@@ -482,16 +502,34 @@ def publish_pr(
     lookup = find_exact_head_pr(root, env, current, main_branch, expected_head)
     if not lookup.available:
         raise SystemExit("GitHub PR state is unavailable; publication remains resumable without local-main mutation.")
+    # An early shared candidate grows by fast-forward pushes to the one existing PR; that PR
+    # (open with an older head) already proves first publication, so no fresh-base rule applies.
+    grows_existing = shared_manifest is not None and lookup.stale_open is not None
     if lookup.exact_merged is None:
-        push_feature_branch(root, remote, main_branch, require_fresh_base=lookup.exact_open is None)
+        push_feature_branch(root, remote, main_branch, require_fresh_base=lookup.exact_open is None and not grows_existing)
+        if grows_existing:
+            lookup = find_exact_head_pr(root, env, current, main_branch, expected_head)
+            if not lookup.available or lookup.exact_open is None:
+                raise SystemExit("Shared candidate push did not leave one exact-head PR; refusing to create a competing PR.")
 
-    pr = ensure_pr(root, env, current, main_branch, title, body, expected_head, lookup=lookup)
+    pr = ensure_pr(root, env, current, main_branch, title, body, expected_head, lookup=lookup, draft=incomplete)
     if pr.already_merged:
         if not exact_merged_state(root, env, pr, expected_head):
             raise SystemExit("Previously discovered merged PR no longer proves MERGED at the exact validated head; refusing cleanup.")
         delete_remote_branch(root, remote, current)
         print(f"PR for {current} was already merged on GitHub for the exact validated head; nothing further to merge.")
         return 0
+    if shared_manifest is not None:
+        is_draft = bool(lookup.exact_open.get("isDraft")) if lookup.exact_open is not None else incomplete
+        if incomplete and not is_draft:
+            _set_pr_draft(root, env, pr, draft=True)
+        if incomplete:
+            print("Shared Requirement candidate is incomplete (missing: "
+                  + ", ".join(requirement_integration.missing_changes(shared_candidate))
+                  + "): draft PR only; ready, merge and queue are not attempted.")
+            return 0
+        if is_draft:
+            _set_pr_draft(root, env, pr, draft=False)
     try:
         project = None if shared_manifest is not None else reconcile_managed_project(root, "In review")
     except ManagedProjectStatusError as exc:

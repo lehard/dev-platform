@@ -1,0 +1,97 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "6acfcb57df7bb5c8eaadc38dc75c8b105dc76f5b",
+    "base_ref": "origin/main",
+    "candidate_head": "3a92844d2ca6ce327b763058ffba18a568b41d74",
+    "diff_sha256": "c11371df97b74eaeb961f939273f2cb7cb9ededae7522d509ccd750ae6613f75"
+  },
+  "completed_at": "2026-10-03T23:15:20+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/execute_requirement.py `_existing_candidate` (diff lines 246-270). tests/test_requirement_execution.py patches it with `return_value=None` or a fixed dict in every new test. The zero-match, one-match and multi-match (ambiguity block) paths and the prefix-of-ready-heads rule are never exercised. A mismatch here could silently create a second candidate on a different generation branch.",
+      "id": "existing-candidate-discovery-untested",
+      "severity": "advisory",
+      "summary": "`_existing_candidate`, which decides whether to resume or start a new candidate and which blocks on ambiguity, has no direct test. Tests mock it out."
+    },
+    {
+      "evidence": "template/scripts/project_publish.py:507 `grows_existing = shared_manifest is not None and lookup.stale_open is not None`, then `require_fresh_base=lookup.exact_open is None and not grows_existing`. design.md says 'an existing PR with a strict-ancestor head counts as the same PR'. There is no ancestor assertion and no test for a divergent remote head. The publisher tests only mock `push_feature_branch`.",
+      "id": "grows-existing-not-verified-ancestor",
+      "severity": "advisory",
+      "summary": "`project_publish` skips the fresh-base rule for any open PR with a different head. The 'strict-ancestor head' check in the design is not performed there. Safety rests entirely on the non-force push failing."
+    },
+    {
+      "evidence": "`_candidate_for` reuses `existing['base']`, and `compose_candidate` allows `authoritative != base` when the branch exists. For incomplete candidates `publish_candidate` skips `_run_full_checks` (requirement_integration.py ~702-705). It relies on GitHub required checks on the draft, but nothing verifies that those workflows run on draft PRs. The final readiness gate therefore tests the tree without current main, and merge-time protection depends on the unchanged protected path. This is acceptable by design but worth confirming.",
+      "id": "final-publish-on-stale-base-and-draft-checks",
+      "severity": "advisory",
+      "summary": "The final complete candidate keeps its original, possibly stale base, and the local full checks run on that stale tree. The draft's GitHub checks may also not run, depending on workflow triggers."
+    },
+    {
+      "evidence": "execute_requirement.py:308 `draft = _publish_early_draft(...) if ready else None` runs before `start_managed_task` and has no error isolation. design.md 'Failure behavior' says it stops before any ready transition. It does not say that child implementation must stop too.",
+      "id": "draft-publish-failure-blocks-child-start",
+      "severity": "advisory",
+      "summary": "A failed draft publication (network, `gh` or push error) raises out of `advance` before the next child is started, so an optional early-signal step blocks forward progress."
+    }
+  ],
+  "launched_at": "2026-10-03T23:14:34+00:00",
+  "output_sha256": "748857e2134ed2574000e14c3145ca2409195479a51a2b6551bdee8d36138067",
+  "perspective": "engineering-quality",
+  "request_id": "2dd2dd77-1894-4998-8c7a-31332362627d",
+  "reviewer": {
+    "context_id": "23484563-1f4a-405c-9fdd-f6640e530015",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-9d397374-117f-48ff-87eb-d5d5d758c7f4",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 42087
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 96846
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 41220
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 42323
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5084
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "16ed944ae1fdaf6ce859c28439263998210df84b6af33b86d8c41ddfd9850dc0"
+}

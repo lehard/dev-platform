@@ -9,7 +9,7 @@ from typing import Any
 from _platform_common import pr_merge_mode, run_git
 
 
-PR_VIEW_FIELDS = "number,url,state,headRefOid,baseRefName,headRefName,headRepositoryOwner,autoMergeRequest,mergeStateStatus"
+PR_VIEW_FIELDS = "number,url,state,headRefOid,baseRefName,headRefName,headRepositoryOwner,autoMergeRequest,mergeStateStatus,isDraft"
 
 PASSED_CHECK_STATES = {"SUCCESS", "NEUTRAL", "SKIPPING", "SKIPPED"}
 FAILED_CHECK_STATES = {"FAILURE", "CANCELLED", "TIMED_OUT", "ACTION_REQUIRED", "STALE", "ERROR"}
