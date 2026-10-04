@@ -11,16 +11,13 @@ from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
 from unittest import mock
+from _platform_modules import load_platform_module  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_ROOT = ROOT / "template" / "scripts"
 sys.path.insert(0, str(SCRIPT_ROOT))
 
-spec = importlib.util.spec_from_file_location("agent_friction_under_test", SCRIPT_ROOT / "agent_friction.py")
-agent_friction = importlib.util.module_from_spec(spec)
-assert spec and spec.loader
-sys.modules[spec.name] = agent_friction
-spec.loader.exec_module(agent_friction)
+agent_friction = load_platform_module("agent_friction_under_test", SCRIPT_ROOT / "agent_friction.py")
 
 
 class FrictionReviewTests(unittest.TestCase):

@@ -8,20 +8,13 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from _platform_modules import load_platform_module  # noqa: E402
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SPEC = importlib.util.spec_from_file_location("capability_manager", ROOT / "template" / "scripts" / "capability_manager.py")
-assert SPEC and SPEC.loader
-manager = importlib.util.module_from_spec(SPEC)
-sys.modules[SPEC.name] = manager
-SPEC.loader.exec_module(manager)
+manager = load_platform_module("capability_manager", ROOT / "template" / "scripts" / "capability_manager.py")
 
-EVAL_SPEC = importlib.util.spec_from_file_location("capability_evals", ROOT / "template" / "scripts" / "capability_evals.py")
-assert EVAL_SPEC and EVAL_SPEC.loader
-evals = importlib.util.module_from_spec(EVAL_SPEC)
-sys.modules[EVAL_SPEC.name] = evals
-EVAL_SPEC.loader.exec_module(evals)
+evals = load_platform_module("capability_evals", ROOT / "template" / "scripts" / "capability_evals.py")
 
 
 # A fake `claude` executable so the native-adapter tests stay keyless and

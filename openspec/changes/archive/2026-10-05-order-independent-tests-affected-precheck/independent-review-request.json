@@ -1,0 +1,113 @@
+{
+  "candidate": {
+    "base_head": "ddf2a6270e70ba5a4988388f456f1eb63ef5b6ff",
+    "base_ref": "origin/main",
+    "candidate_head": "5313fb8f44083388f20231963fbef299458209b9",
+    "diff_sha256": "b173837c3f0c70d133453763834525b33d51a116c3002100596160930405011f"
+  },
+  "change": "openspec/changes/order-independent-tests-affected-precheck",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/order-independent-tests-affected-precheck/evidence/full-suite-timing.md",
+    "openspec/changes/order-independent-tests-affected-precheck/independent-review-request.json",
+    "openspec/changes/order-independent-tests-affected-precheck/independent-reviews/engineering-quality.json",
+    "openspec/changes/order-independent-tests-affected-precheck/independent-reviews/spec-fidelity.json",
+    "openspec/changes/order-independent-tests-affected-precheck/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/order-independent-tests-affected-precheck/design.md",
+        "openspec/changes/order-independent-tests-affected-precheck/proposal.md",
+        "openspec/changes/order-independent-tests-affected-precheck/specs/platform-ci/spec.md",
+        "openspec/changes/order-independent-tests-affected-precheck/specs/platform-lifecycle/spec.md",
+        "openspec/changes/order-independent-tests-affected-precheck/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/order-independent-tests-affected-precheck/proposal.md",
+        "openspec/changes/order-independent-tests-affected-precheck/design.md",
+        "openspec/changes/order-independent-tests-affected-precheck/tasks.md",
+        "openspec/changes/order-independent-tests-affected-precheck/specs/platform-ci/spec.md",
+        "openspec/changes/order-independent-tests-affected-precheck/specs/platform-lifecycle/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-04T22:10:55+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/order-independent-tests-affected-precheck/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "02107ad0-01e2-49d3-b1b7-51e5db3b6d3f",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "ddf2a6270e70ba5a4988388f456f1eb63ef5b6ff",
+    "digest": "53016aa79fd8e5a7c4a464c93555d96aa3fd654ed39b4d17d4b69ee0e1f1e060",
+    "paths": {
+      "dev-platform/checks.toml": "2bd5ec9bcd49f689e9dcfa62d13e9366f7b2a9e1",
+      "docs/engineering/agent-workflow.md": "931b5a83c311fa3c4c7a0cbf7945d4c0aa11b9c1",
+      "openspec/changes/order-independent-tests-affected-precheck/.managed-task.json": "14e58b22e5743988aa1eab480caa13c30f19f0e1",
+      "openspec/changes/order-independent-tests-affected-precheck/.openspec.yaml": "f98e139fb307ee57d69f587d7c892ef2ff4575e0",
+      "openspec/changes/order-independent-tests-affected-precheck/design.md": "17d374ac50d5f518c5dad356e42365330e7cc7b3",
+      "openspec/changes/order-independent-tests-affected-precheck/proposal.md": "1cf9d3be01f6723f478f9fffa555c86a093b0ea2",
+      "openspec/changes/order-independent-tests-affected-precheck/specs/platform-ci/spec.md": "674a81fc120884f2a389c29ea9559940c87e7f0a",
+      "openspec/changes/order-independent-tests-affected-precheck/specs/platform-lifecycle/spec.md": "0bbd907d5ea3608c3a73818881c421bf31b682c0",
+      "openspec/changes/order-independent-tests-affected-precheck/tasks.md": "66255d3f708f263a6e1766c2939895d03afe3a18",
+      "template/scripts/affected_test_groups.py": "f1bbbb2650bf671b765c3e8ab420a535054341c2",
+      "template/scripts/run_test_groups.py": "4b734e135f74bef422550dcbd7f36c38f6255332",
+      "template/scripts/select_checks.py": "7f6543770227ddcc20b26756c34dcdf39986154b",
+      "tests/_platform_modules.py": "f9a2b3be163a0f47a837959b78c4a07173bccc6d",
+      "tests/fixtures/module_identity_sample.py": "2840bfc0606eb1652dfb668daca1cae35a2de727",
+      "tests/managed_start_transaction_cases.py": "221e5e599a11abe8139474fbb4d148773c04c4a4",
+      "tests/managed_task_exact_state_cases.py": "ccf7a6be50c2320b960759ffa164694ea5da5976",
+      "tests/test_affected_precheck.py": "5c7642ebc8f318f72ecef5b259c8d533fb54f176",
+      "tests/test_br_publication_identity.py": "fb11c85d7845a818e316b4c104673bb3683c170f",
+      "tests/test_browser_verification.py": "3a193fa2af342992376993eb274f18117a054f85",
+      "tests/test_capability_manager.py": "d967445c7e8cdea3604c929f3bb5fc5d3267e909",
+      "tests/test_central_dogfood_lifecycle.py": "d353ff60759aedaffa900c3f8cf7eea295468f7c",
+      "tests/test_deepseek_harness_runtime.py": "c503416c50c9bee2f1508996ec320758d63c2491",
+      "tests/test_delegated_write_guard.py": "ab90f7cd0899bcabd5d142bb6c30e94a04aa4336",
+      "tests/test_delegation_containment.py": "83596c934106a64344de1a79be3cacaa57f96af3",
+      "tests/test_disposable_repository_sandbox.py": "8a6c2c37b41d3d01a9860e59394ae1d24f4ba482",
+      "tests/test_friction_review.py": "aa171ffac5b58080d0f105def58a1389cad13081",
+      "tests/test_independent_review.py": "d0cec77d054146d5c79812f4b4a740d2b5bcf760",
+      "tests/test_managed_execution_intake.py": "b2fd0a4d7070276f2d800a0f62d39ef2b3647d3e",
+      "tests/test_managed_project_promotion.py": "449a43fbe31af9446f7cc33c70e2d3eefcbfecde",
+      "tests/test_managed_task.py": "a9f3eee98827800a9f65566595274dc3be333558",
+      "tests/test_model_routing.py": "f891a0dc4aa5b7623f5e4f815f96261c31bb5194",
+      "tests/test_openspec_lifecycle.py": "ab694049bc64702962eec9e51fb0aa167200cebb",
+      "tests/test_platform_module_identity.py": "e053880326a6cf1b4cae2fe4a66a9f3bb0833988",
+      "tests/test_pr_reconciliation_concurrency.py": "42e999b82fa7a745fe7403006f1a345c8fc61559",
+      "tests/test_project_evidence.py": "7b2a2e16523f6bfc427694ca9b98eaae30e75a2b",
+      "tests/test_repository_goal_scan.py": "dd2537ef0616e8bc5655cc66ac391fcbffa7cd58",
+      "tests/test_requirement_integration.py": "e1e5e24f18157329e6d08ff177ada573ce42b673",
+      "tests/test_select_checks.py": "37ab0e31c34b382b1284aad71a9901fd5bc10581",
+      "tests/test_shared_workspace.py": "f1190128d44f2d36faa5aad4b2e956873f3cb7c0",
+      "tests/test_smoke_bootstrap_skip.py": "b39eba540ad1fab7f123be5eb5e1651fe6f7c626",
+      "tests/test_standard_profile_lifecycle_compatibility.py": "8e95b9be9108066f0339a61845f31e4104f72454",
+      "tests/test_start_tier_routing.py": "44327e89a0241a30699e17d20f9b8d01ac3ed164",
+      "tests/test_worktree_hygiene.py": "9c90658b1a5b1f6f8a7a6c5d418ced83a91629d2"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

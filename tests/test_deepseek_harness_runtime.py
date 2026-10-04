@@ -9,18 +9,12 @@ import tempfile
 import textwrap
 import unittest
 from pathlib import Path
+from _platform_modules import load_platform_module  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE_SCRIPTS = ROOT / "template" / "scripts"
 sys.path.insert(0, str(TEMPLATE_SCRIPTS))
-SPEC = importlib.util.spec_from_file_location(
-    "deepseek_harness_runtime_under_test",
-    TEMPLATE_SCRIPTS / "deepseek_harness_adapter.py",
-)
-assert SPEC and SPEC.loader
-dsh = importlib.util.module_from_spec(SPEC)
-sys.modules[SPEC.name] = dsh
-SPEC.loader.exec_module(dsh)
+dsh = load_platform_module("deepseek_harness_runtime_under_test", TEMPLATE_SCRIPTS / "deepseek_harness_adapter.py")
 
 
 def write_config(root: Path, *, enabled: bool = False, version: str = dsh.PINNED_SDK_VERSION) -> None:

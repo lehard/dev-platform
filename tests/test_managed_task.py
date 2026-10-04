@@ -12,22 +12,15 @@ from pathlib import Path
 from io import StringIO
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
+from _platform_modules import load_platform_module  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "template" / "scripts" / "managed_task.py"
 sys.path.insert(0, str(SOURCE.parent))
-spec = importlib.util.spec_from_file_location("managed_task", SOURCE)
-assert spec and spec.loader
-managed_task = importlib.util.module_from_spec(spec)
-sys.modules[spec.name] = managed_task
-spec.loader.exec_module(managed_task)
+managed_task = load_platform_module("managed_task", SOURCE)
 
 START_SOURCE = ROOT / "template" / "scripts" / "start_managed_task.py"
-start_spec = importlib.util.spec_from_file_location("start_managed_task", START_SOURCE)
-assert start_spec and start_spec.loader
-start_managed_task = importlib.util.module_from_spec(start_spec)
-sys.modules[start_spec.name] = start_managed_task
-start_spec.loader.exec_module(start_managed_task)
+start_managed_task = load_platform_module("start_managed_task", START_SOURCE)
 task_start = sys.modules["start_task"]
 import rollout_preflight  # noqa: E402
 
@@ -632,10 +625,7 @@ class ManagedPackageTests(unittest.TestCase):
                 patch.object(start_managed_task, "refresh_context", return_value=None) as refresh,
                 patch.object(start_managed_task, "admit_task", return_value={"decision": "RUN", "claims": []}),
                 patch.object(start_managed_task, "reconcile", return_value=SimpleNamespace(changed=False)),
-                patch.object(sys.modules["managed_task"], "_allocate_work_identity", allocator) as allocate,
-                # reconcile_work_identity is bound at import to its defining module instance,
-                # which other test modules may have replaced in sys.modules.
-                patch.dict(start_managed_task.reconcile_work_identity.__globals__, {"_allocate_work_identity": allocator}),
+                patch.object(managed_task, "_allocate_work_identity", allocator) as allocate,
             ):
                 start_managed_task.start_managed_task(root, package.source_issue)
                 self.assertEqual(allocate.call_count, 2)

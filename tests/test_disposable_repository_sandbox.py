@@ -9,15 +9,12 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from _platform_modules import load_platform_module  # noqa: E402
 
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "template" / "scripts" / "disposable_repository_sandbox.py"
-SPEC = importlib.util.spec_from_file_location("disposable_repository_sandbox", SCRIPT)
-assert SPEC and SPEC.loader
-sandbox = importlib.util.module_from_spec(SPEC)
-sys.modules[SPEC.name] = sandbox
-SPEC.loader.exec_module(sandbox)
+sandbox = load_platform_module("disposable_repository_sandbox", SCRIPT)
 
 
 def git(path: Path, *arguments: str) -> None:

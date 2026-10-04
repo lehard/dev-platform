@@ -6,6 +6,11 @@ full_commands = [
 ]
 full_evidence_types = ["syntax", "syntax", "test"]
 full_required_evidence_types = ["test"]
+# Early feedback before the full set: run only test modules that directly
+# reference changed Python paths (see run_test_groups.py --changed-file).
+# Never a substitute for the full or protected validation set.
+affected_precheck = true
+affected_source_roots = ["template/scripts", "scripts"]
 # control-plane: unknown/ambiguous paths and selector/CI/lifecycle surfaces stay
 # full-suite triggers (see [checks.*] below for the narrower risk classes).
 full_trigger_patterns = [
@@ -60,6 +65,100 @@ required_evidence_types = ["test"]
 # `mode = "serial"` groups run one at a time behind an explicit boundary.
 # run_test_groups.py --verify-coverage proves these are exactly the tests
 # `unittest discover -s tests` collects, with no gaps and no duplicates.
+# Heavy groups are declared first: the runner submits groups in declaration
+# order, so long groups starting early keep them off the critical path.
+[test_groups.fast-b]
+targets = [
+  "test_independent_review",
+  "test_docs_semantic_checks",
+  "test_capability_manager",
+  "test_requirement_retrospective",
+  "test_public_distribution",
+  "test_requirement_child_context",
+  "test_managed_status_lifecycle",
+  "test_managed_rollout",
+  "test_managed_project_status",
+  "test_browser_verification",
+]
+mode = "parallel"
+
+[test_groups.fast-e]
+targets = [
+  "test_requirement_integration",
+  "test_requirement_intake",
+  "test_openspec_lifecycle",
+  "test_managed_task",
+  "test_requirement_metrics",
+  "test_platform_doctor",
+  "test_managed_project_promotion",
+  "test_requirement_execution",
+  "test_requirement_board",
+  "test_private_backlog_guard",
+]
+mode = "parallel"
+
+[test_groups.fast-f]
+targets = [
+  "test_project_terminal_reconciliation",
+  "test_managed_execution_intake",
+  "test_platform_bootstrap",
+  "test_platform_common",
+  "test_operator_config",
+  "test_add_intents",
+  "test_orchestrate_pre_authoring",
+  "test_br_publication_identity",
+  "test_requirement_flow_e2e",
+  "test_requirement_card_claim",
+]
+mode = "parallel"
+
+[test_groups.fast-c]
+targets = [
+  "test_agent_instruction_architecture",
+  "test_requirement_first_intake_contract",
+  "test_project_context",
+  "test_project_evidence",
+  "test_repository_goal_scan",
+  "test_harness_replay",
+  "test_platform_doctor_workflow_mode",
+  "test_pr_reconciliation_concurrency",
+  "test_project_harness_doc_ownership",
+  "test_protected_publish_contract",
+  "test_release_intent",
+  "test_release_installation_validation",
+  "test_rollout_dispatch_gate",
+  "test_rollout_control_plane_regressions",
+  "test_rollout_diagnostic_envelope",
+  "test_smoke_bootstrap_skip",
+  "test_rollout_diagnostics",
+  "test_rollout_failure_streak",
+  "test_rollout_failure_streak_workflow",
+  "test_run_test_groups",
+  "test_root_guidance_contract",
+  "test_platform_module_identity",
+]
+mode = "parallel"
+
+[test_groups.fast-d]
+targets = [
+  "test_managed_intake_project_harness_isolation",
+  "test_managed_checkout_identity",
+  "test_rollout_preflight",
+  "test_rollout_recopy",
+  "test_rollout_supersession",
+  "test_rollout_validation_ownership",
+  "test_select_checks",
+  "test_affected_precheck",
+  "test_shared_workspace",
+  "test_local_workspace",
+  "test_shared_writer_guard",
+  "test_task_freshness",
+  "test_template_contract",
+  "test_task_content_identity",
+  "test_module_isolation",
+]
+mode = "parallel"
+
 [test_groups.publication_recovery_cli]
 targets = ["test_publication_recovery_cli"]
 mode = "parallel"
@@ -127,82 +226,3 @@ targets = [
 ]
 mode = "parallel"
 
-[test_groups.fast-b]
-targets = [
-  "test_managed_project_promotion",
-  "test_managed_project_status",
-  "test_managed_rollout",
-  "test_managed_status_lifecycle",
-  "test_project_terminal_reconciliation",
-  "test_managed_task",
-  "test_managed_execution_intake",
-  "test_independent_review",
-  "test_openspec_lifecycle",
-  "test_platform_bootstrap",
-  "test_platform_common",
-  "test_operator_config",
-  "test_public_distribution",
-  "test_private_backlog_guard",
-  "test_platform_doctor",
-  "test_capability_manager",
-  "test_browser_verification",
-  "test_add_intents",
-  "test_orchestrate_pre_authoring",
-  "test_requirement_intake",
-  "test_requirement_integration",
-  "test_br_publication_identity",
-  "test_requirement_child_context",
-  "test_requirement_execution",
-  "test_requirement_flow_e2e",
-  "test_requirement_retrospective",
-  "test_requirement_metrics",
-  "test_requirement_board",
-  "test_requirement_card_claim",
-  "test_docs_semantic_checks",
-]
-mode = "parallel"
-
-[test_groups.fast-c]
-targets = [
-  "test_agent_instruction_architecture",
-  "test_requirement_first_intake_contract",
-  "test_project_context",
-  "test_project_evidence",
-  "test_repository_goal_scan",
-  "test_harness_replay",
-  "test_platform_doctor_workflow_mode",
-  "test_pr_reconciliation_concurrency",
-  "test_project_harness_doc_ownership",
-  "test_protected_publish_contract",
-  "test_release_intent",
-  "test_release_installation_validation",
-  "test_rollout_dispatch_gate",
-  "test_rollout_control_plane_regressions",
-  "test_rollout_diagnostic_envelope",
-  "test_smoke_bootstrap_skip",
-  "test_rollout_diagnostics",
-  "test_rollout_failure_streak",
-  "test_rollout_failure_streak_workflow",
-  "test_run_test_groups",
-  "test_root_guidance_contract",
-]
-mode = "parallel"
-
-[test_groups.fast-d]
-targets = [
-  "test_managed_intake_project_harness_isolation",
-  "test_managed_checkout_identity",
-  "test_rollout_preflight",
-  "test_rollout_recopy",
-  "test_rollout_supersession",
-  "test_rollout_validation_ownership",
-  "test_select_checks",
-  "test_shared_workspace",
-  "test_local_workspace",
-  "test_shared_writer_guard",
-  "test_task_freshness",
-  "test_template_contract",
-  "test_task_content_identity",
-  "test_module_isolation",
-]
-mode = "parallel"

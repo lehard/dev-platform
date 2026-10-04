@@ -15,25 +15,13 @@ import tempfile
 import textwrap
 import unittest
 from pathlib import Path
+from _platform_modules import load_platform_module  # noqa: E402
 
 
 ROOT = Path(__file__).resolve().parents[1]
 
-SPEC = importlib.util.spec_from_file_location(
-    "browser_verification", ROOT / "template" / "scripts" / "browser_verification.py"
-)
-assert SPEC and SPEC.loader
-bv = importlib.util.module_from_spec(SPEC)
-sys.modules[SPEC.name] = bv
-SPEC.loader.exec_module(bv)
-
-MANAGER_SPEC = importlib.util.spec_from_file_location(
-    "capability_manager", ROOT / "template" / "scripts" / "capability_manager.py"
-)
-assert MANAGER_SPEC and MANAGER_SPEC.loader
-manager = importlib.util.module_from_spec(MANAGER_SPEC)
-sys.modules[MANAGER_SPEC.name] = manager
-MANAGER_SPEC.loader.exec_module(manager)
+bv = load_platform_module("browser_verification", ROOT / "template" / "scripts" / "browser_verification.py")
+manager = load_platform_module("capability_manager", ROOT / "template" / "scripts" / "capability_manager.py")
 
 FIXTURE_APP = ROOT / "tests" / "fixtures" / "browser-verification-app"
 

@@ -14,6 +14,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
 from unittest import mock
+from _platform_modules import load_platform_module  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_ROOT = ROOT / "template" / "scripts"
@@ -22,12 +23,7 @@ sys.path.insert(0, str(SCRIPT_ROOT))
 
 def load(name: str):
     path = SCRIPT_ROOT / f"{name}.py"
-    spec = importlib.util.spec_from_file_location(f"{name}_under_test", path)
-    module = importlib.util.module_from_spec(spec)
-    assert spec and spec.loader
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
+    return load_platform_module(f"{name}_under_test", path)
 
 
 agent_board = load("agent_board")

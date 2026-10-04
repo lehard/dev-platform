@@ -15,11 +15,9 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "template" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 import _platform_common  # noqa: E402
+from _platform_modules import load_platform_module  # noqa: E402
 
-SPEC = importlib.util.spec_from_file_location("select_checks", SCRIPTS / "select_checks.py")
-assert SPEC and SPEC.loader
-select_checks = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(select_checks)
+select_checks = load_platform_module("select_checks", SCRIPTS / "select_checks.py")
 
 
 class SelectChecksTests(unittest.TestCase):

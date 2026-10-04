@@ -7,18 +7,14 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
+from _platform_modules import load_platform_module  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def load(name: str, relative: str):
     path = ROOT / relative
-    spec = importlib.util.spec_from_file_location(name, path)
-    module = importlib.util.module_from_spec(spec)
-    assert spec and spec.loader
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
+    return load_platform_module(name, path)
 
 
 upgrade_smoke = load("upgrade_smoke_under_test", "tests/upgrade_smoke.py")

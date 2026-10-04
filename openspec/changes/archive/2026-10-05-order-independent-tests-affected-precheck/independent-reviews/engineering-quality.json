@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "ddf2a6270e70ba5a4988388f456f1eb63ef5b6ff",
+    "base_ref": "origin/main",
+    "candidate_head": "5313fb8f44083388f20231963fbef299458209b9",
+    "diff_sha256": "b173837c3f0c70d133453763834525b33d51a116c3002100596160930405011f"
+  },
+  "completed_at": "2026-10-04T22:12:22+00:00",
+  "findings": [
+    {
+      "evidence": "tests/test_platform_module_identity.py: test_identity_holds_in_forward_and_reverse_import_order runs subprocess.run(..., timeout=600) over all test_*.py modules for each order. The guard sits in fast-c, which is already the largest group at 22 targets.",
+      "id": "identity-guard-imports-whole-suite-twice",
+      "severity": "advisory",
+      "summary": "The order guard imports every test module in a fresh process twice, forward and reversed, with a 600s timeout. It adds import cost to the group that holds it, and any import-time side effect in any test module can now fail this one test."
+    },
+    {
+      "evidence": "tests/test_affected_precheck.py fixture() writes tests/test_uses_alpha.py at diff lines 863 and 867. Converted tests such as test_managed_project_promotion.py, test_start_tier_routing.py and test_repository_goal_scan.py still import importlib.util after the spec_from_file_location calls were removed.",
+      "id": "precheck-fixture-and-dead-imports",
+      "severity": "advisory",
+      "summary": "Minor hygiene: the test fixture writes test_uses_alpha.py twice, and several converted tests keep `import importlib.util` that is now unused."
+    }
+  ],
+  "launched_at": "2026-10-04T22:11:37+00:00",
+  "output_sha256": "2f5720546bee5e163a69f3c48f484e09de09c9c6150c65b2905062528ff195ee",
+  "perspective": "engineering-quality",
+  "request_id": "02107ad0-01e2-49d3-b1b7-51e5db3b6d3f",
+  "reviewer": {
+    "context_id": "7bdf2ebf-8eeb-45c4-9ca9-820f68fa76c2",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-6c177ddd-a7ed-4060-86d5-818b85f11986",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 51906
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 275353
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 37895
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 41549
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3387
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "53016aa79fd8e5a7c4a464c93555d96aa3fd654ed39b4d17d4b69ee0e1f1e060"
+}

@@ -7,6 +7,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from _platform_modules import load_platform_module  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_PATH = ROOT / "template" / "scripts" / "delegation_containment.py"
@@ -14,11 +15,7 @@ SCRIPT_PATH = ROOT / "template" / "scripts" / "delegation_containment.py"
 # read_platform_config`; that sibling module must be importable too.
 sys.path.insert(0, str(SCRIPT_PATH.parent))
 
-SPEC = importlib.util.spec_from_file_location("delegation_containment", SCRIPT_PATH)
-assert SPEC and SPEC.loader
-delegation_containment = importlib.util.module_from_spec(SPEC)
-sys.modules[SPEC.name] = delegation_containment
-SPEC.loader.exec_module(delegation_containment)
+delegation_containment = load_platform_module("delegation_containment", SCRIPT_PATH)
 
 
 def git(
