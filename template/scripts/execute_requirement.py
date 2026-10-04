@@ -275,6 +275,8 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
     report = orchestrate_pre_authoring.status(
         integration, requirement_id=f"requirement-{requirement.rsplit('#', 1)[1]}", base_dir=base_dir,
     )
+    # Claim the card before child discovery so a resumed Requirement is not left in the free queue.
+    requirement_board.claim_started(integration, requirement=requirement)
     ordered = _ordered_handoffs(report, requirement)
     linked_by_change = _linked_children_by_change(integration, requirement, parent)
     direct = ordered[0][0] == "direct" if len(ordered) == 1 else False

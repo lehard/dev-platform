@@ -1,0 +1,80 @@
+{
+  "candidate": {
+    "base_head": "617befcf0288f74cfb6ce9fbb237c2a6e2477f39",
+    "base_ref": "origin/main",
+    "candidate_head": "05e0bc28aea9b4804e611a0ffd91ca4673537921",
+    "diff_sha256": "bd19bd3c8535e2e8fbc6bc57f358344a133ed363423e002f71db67d51800c0a9"
+  },
+  "change": "openspec/changes/claim-requirement-card-at-start",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/claim-requirement-card-at-start/independent-review-request.json",
+    "openspec/changes/claim-requirement-card-at-start/independent-reviews/engineering-quality.json",
+    "openspec/changes/claim-requirement-card-at-start/independent-reviews/spec-fidelity.json",
+    "openspec/changes/claim-requirement-card-at-start/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/claim-requirement-card-at-start/design.md",
+        "openspec/changes/claim-requirement-card-at-start/proposal.md",
+        "openspec/changes/claim-requirement-card-at-start/specs/agent-workflow/spec.md",
+        "openspec/changes/claim-requirement-card-at-start/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/claim-requirement-card-at-start/proposal.md",
+        "openspec/changes/claim-requirement-card-at-start/design.md",
+        "openspec/changes/claim-requirement-card-at-start/tasks.md",
+        "openspec/changes/claim-requirement-card-at-start/specs/agent-workflow/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-04T06:44:51+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/claim-requirement-card-at-start/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "345b475a-7bfa-43cd-808d-8b658a208a32",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "617befcf0288f74cfb6ce9fbb237c2a6e2477f39",
+    "digest": "0cca7d0bb5a2755f48c686bd1d191b57bd255cf1d695cbf6bb9df7fc21e312b7",
+    "paths": {
+      "dev-platform/checks.toml": "941e2862e0886986b8d60155816d07bbdbdb6243",
+      "docs/engineering/task-intake.md": "10337d74bbb5dd5d4ec3e6b59163e5d4416c3cce",
+      "openspec/changes/claim-requirement-card-at-start/.managed-task.json": "6098d40bf12efa61a7f24b09672257505578f051",
+      "openspec/changes/claim-requirement-card-at-start/.openspec.yaml": "f98e139fb307ee57d69f587d7c892ef2ff4575e0",
+      "openspec/changes/claim-requirement-card-at-start/design.md": "2b835e7cea52f05d3caa3413e40018bf269dae26",
+      "openspec/changes/claim-requirement-card-at-start/proposal.md": "4cea096d995aaff62279138fe0afe233f2a9b517",
+      "openspec/changes/claim-requirement-card-at-start/specs/agent-workflow/spec.md": "b4ab6c1aa8090a3ed06904dd148a310108ef08ab",
+      "openspec/changes/claim-requirement-card-at-start/tasks.md": "2a64310722c620898c93206b94fe10a89c413e44",
+      "template/scripts/execute_requirement.py": "bce3392d5c934e9b56163c9d8130b26d8f9d1a34",
+      "template/scripts/requirement_board.py": "37b6e5a7f08c7a76361aab522c279712beac0d1c",
+      "template/scripts/requirement_intake.py": "ff2a8b0442b89bee6c8df222beb143b3d0a7fc8e",
+      "tests/test_requirement_card_claim.py": "76856f4ae9924ce4ace1092ebcb7e8579fd9a647",
+      "tests/test_requirement_execution.py": "572ac2c8c35f17ce709edf07ac73a191fe156139"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

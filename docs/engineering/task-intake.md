@@ -140,6 +140,7 @@ reconciliation checks the target again before marking the parent Done.
    change identity even when a refreshed handoff has a different digest.
 
 The Requirement's primary Project card is a projection of the same evidence.
+`requirement_intake.py start` claims the card (`In progress`) as soon as pre-authoring state is durable, and `execute_requirement.py advance` repeats the idempotent claim at entry, so a Requirement under preparation never reads `Ready` to another agent. If the claim fails after the durable start the state is kept and the command is safe to rerun; the platform never writes `Ready` itself.
 Started pre-authoring, ready handoff and child execution display `In progress`;
 an unknown or blocked source displays `Blocked`. The richer read-through stage
 and its reason remain available through `requirement_intake.py aggregate`.
