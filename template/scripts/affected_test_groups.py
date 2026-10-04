@@ -46,14 +46,15 @@ def _string_references(tree: ast.Module) -> set[str]:
     return names
 
 
-def _module_stems(root: Path, source_roots: list[str]) -> dict[str, Path]:
-    stems: dict[str, Path] = {}
+def _module_files(root: Path, source_roots: list[str]) -> dict[Path, str]:
+    """Every Python file in the source roots, keyed by resolved path, valued by module name."""
+    files: dict[Path, str] = {}
     for relative in source_roots:
         directory = root / relative
         if directory.is_dir():
             for path in sorted(directory.glob("*.py")):
-                stems.setdefault(path.stem, path)
-    return stems
+                files[path.resolve()] = path.stem
+    return files
 
 
 def affected_groups(
@@ -73,7 +74,7 @@ def affected_groups(
             if module not in references:
                 tree = _parse(tests / f"{module}.py")
                 references[module] = set() if tree is None else _imports(tree) | _string_references(tree)
-    stems = _module_stems(root, [*source_roots, start_dir])
+    files = _module_files(root, [*source_roots, start_dir])
     tests_prefix = start_dir.rstrip("/") + "/"
 
     selected: dict[str, list[str]] = {}
@@ -81,17 +82,16 @@ def affected_groups(
     for path in changed:
         candidate = Path(path)
         matched = False
-        if candidate.suffix == ".py" and candidate.stem in stems:
-            stem = candidate.stem
+        stem = files.get((root / path).resolve()) if candidate.suffix == ".py" else None
+        if stem is not None:
             direct_test = path.startswith(tests_prefix) and stem in references
-            if direct_test or (root / path).resolve() == stems[stem].resolve():
-                for group, rule in groups.items():
-                    for target in rule["targets"]:
-                        module = target.split(".")[0]
-                        if (direct_test and module == stem) or (not direct_test and stem in references[module]):
-                            matched = True
-                            if target not in selected.setdefault(group, []):
-                                selected[group].append(target)
+            for group, rule in groups.items():
+                for target in rule["targets"]:
+                    module = target.split(".")[0]
+                    if (direct_test and module == stem) or (not direct_test and stem in references[module]):
+                        matched = True
+                        if target not in selected.setdefault(group, []):
+                            selected[group].append(target)
         if not matched:
             unmapped.append(path)
     return {"groups": {group: selected[group] for group in sorted(selected)}, "unmapped": unmapped}

@@ -2,16 +2,16 @@
 
 ### Requirement: Test groups are independent of module order and substitution
 
-Platform test modules SHALL NOT leave substituted platform modules in `sys.modules` beyond the scope of the test that needs them, so that code under test and the test share one module instance. A selected canonical test group SHALL produce the same result when run in isolation and inside its group. The platform SHALL include an automated guard that fails when a test leaks a substituted platform module.
+Platform test modules SHALL register platform modules in `sys.modules` only through one shared loader that reuses the instance already registered for the same file, and SHALL scope any temporary stand-in with patching that restores `sys.modules`, so that code under test and every test in a process share one module instance. A selected canonical test group SHALL produce the same result when run in isolation and inside its group. The platform SHALL include an automated guard that fails when a test registers a platform module outside the shared loader, or when, after importing test modules in forward or reverse order, a test holds a platform module that differs from the registered instance of the same name.
 
 #### Scenario: Group runs in isolation and in its group
 - **GIVEN** a canonical test group containing modules that previously replaced platform modules at import time
 - **WHEN** the group runs alone and as part of its configured group order
 - **THEN** both runs produce the same result
 
-#### Scenario: A test leaks a substituted module
-- **WHEN** a test module leaves a substituted platform module in `sys.modules` after it finishes
-- **THEN** the guard fails with the module name and the leaking test module
+#### Scenario: A test substitutes a module instance
+- **WHEN** a test module assigns a platform module into `sys.modules` directly, or holds an instance different from the registered one
+- **THEN** the guard fails naming the test module and the module
 
 ### Requirement: Full-suite timing decisions are evidence-based
 

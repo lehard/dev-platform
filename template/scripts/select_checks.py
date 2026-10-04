@@ -187,6 +187,8 @@ def select(config: dict[str, Any], paths: list[str], *, declare_behavior_change:
 
 
 PRECHECK_REASONS = {"high-impact-path", "unknown-path"}
+# run_test_groups.py exits 1 for failed tests and 2 for configuration errors.
+PRECHECK_TEST_FAILURE = 1
 
 
 def precheck_paths(config: dict[str, Any], checks: list[dict[str, Any]]) -> list[str]:
@@ -340,7 +342,12 @@ def execute(
     precheck_record = None
     if precheck:
         precheck_record, result = run_precheck(root, precheck)
-    if precheck_record is not None and result.returncode != 0:
+        if result.returncode not in (0, PRECHECK_TEST_FAILURE):
+            # A runner/configuration error leaves no feedback; the full set
+            # still decides, so tooling trouble never blocks validation.
+            precheck_record["outcome"] = "unavailable"
+            print("Affected-test precheck was unavailable (exit %d); continuing with the full set." % result.returncode, flush=True)
+    if precheck_record is not None and result.returncode == PRECHECK_TEST_FAILURE:
         if evidence_path is not None:
             write_evidence(evidence_path, checks, selection_status(checks), records, "failure", managed_checkout, precheck_record)
         descriptor = failure_descriptor(checks, precheck_record["command"], result)

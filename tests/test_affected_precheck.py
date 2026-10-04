@@ -54,6 +54,15 @@ class AffectedMappingTests(unittest.TestCase):
             groups = fixture(root)
             self.assertEqual(self.map(root, groups, ["tests/test_unrelated.py"]), {"groups": {"one": ["test_unrelated"]}, "unmapped": []})
 
+    def test_same_stem_in_two_source_roots_maps_by_actual_file(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            groups = fixture(root)
+            (root / "wrappers").mkdir()
+            (root / "wrappers" / "alpha.py").write_text("# wrapper\n", encoding="utf-8")
+            result = affected.affected_groups(root, groups, ["wrappers/alpha.py"], start_dir="tests", source_roots=["lib", "wrappers"])
+            self.assertEqual(result, {"groups": {"one": ["test_uses_alpha"]}, "unmapped": []})
+
     def test_unreferenced_and_non_python_paths_are_unmapped(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -136,6 +145,23 @@ class SelectChecksPrecheckTests(unittest.TestCase):
         self.assertEqual(payload["outcome"], "failure")
         self.assertEqual(payload["executed_commands"], [])
         self.assertEqual(payload["affected_precheck"]["outcome"], "failure")
+
+    def test_precheck_tooling_error_does_not_block_the_full_set(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            evidence = Path(directory) / "evidence.json"
+            real_run = subprocess.run
+
+            def fake(command, **kwargs):
+                if "run_test_groups.py" in command:
+                    return subprocess.CompletedProcess(command, 2, "", "config error")
+                return real_run(command, **kwargs)
+
+            with mock.patch.object(select_checks.subprocess, "run", side_effect=fake):
+                outcome = select_checks.execute(Path(directory), [{"id": "full-trigger", "commands": ["printf one"]}], evidence, None, ["a.py"])
+            payload = json.loads(evidence.read_text(encoding="utf-8"))
+        self.assertEqual(outcome, 0)
+        self.assertEqual(payload["outcome"], "success")
+        self.assertEqual(payload["affected_precheck"]["outcome"], "unavailable")
 
     def test_passing_precheck_still_runs_every_full_command(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

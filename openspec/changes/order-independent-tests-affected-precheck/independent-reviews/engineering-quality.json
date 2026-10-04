@@ -1,0 +1,91 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "ddf2a6270e70ba5a4988388f456f1eb63ef5b6ff",
+    "base_ref": "origin/main",
+    "candidate_head": "fa70667cb82351919edc1118f5ac56e4bf2835ab",
+    "diff_sha256": "53d4d3faa6c39f82bf273dc3122f428ee769f8fbd6665ac056e28c50921fd701"
+  },
+  "completed_at": "2026-10-04T21:53:39+00:00",
+  "findings": [
+    {
+      "evidence": "tests/test_platform_module_identity.py:1433-1443 (forward/reverse import plus identity_violations only); tests/_platform_modules.py:720-734 (identity_violations compares namespace attributes to sys.modules). Spec scenario 'Group runs in isolation and in its group' has no corresponding test in the diff.",
+      "id": "order-guard-narrower-than-contract",
+      "severity": "advisory",
+      "summary": "The order-independence guard only checks that no test namespace holds a platform module that differs from the one registered in sys.modules, and it checks this after importing all test modules forward and in reverse. The platform-ci spec and tasks 1.2 say a selected group must give the same result alone and inside its group. No test runs a group in isolation and in group order and compares the results. The guard also cannot see stubs installed with mock.patch.dict or sys.modules entries left over at runtime. It covers import-time substitution only."
+    },
+    {
+      "evidence": "template/scripts/affected_test_groups.py:431-438 (stems.setdefault) and :466-469 (`(root / path).resolve() == stems[stem].resolve()`).",
+      "id": "affected-map-stem-collision-unmapped",
+      "severity": "advisory",
+      "summary": "_module_stems uses setdefault on the file stem, with template/scripts scanned before scripts. A changed path whose stem matches a file in an earlier source root, but which is a different file, fails the resolve() equality check and is silently unmapped. The precheck then skips it, with no sign that the path was dropped because of a name clash. The effect is limited to early feedback, because the full run still happens. Wrappers such as scripts/run_test_groups.py share a stem with the template script, so a change to a wrapper maps to nothing."
+    },
+    {
+      "evidence": "template/scripts/select_checks.py:603-613 (`result.returncode != 0` returns the failure unconditionally); template/scripts/run_test_groups.py:520-530 (the runner returns the same non-zero code for selection errors).",
+      "id": "precheck-infra-error-blocks-full-run",
+      "severity": "advisory",
+      "summary": "Any non-zero exit from the precheck command stops the full validation, including runner or configuration errors such as a TestGroupError from a bad config or a failed import of affected_test_groups. Those cases are reported as 'Affected-test precheck failed' with phase affected-precheck, the same as a real test failure. A broken feedback-only step can therefore block archive and finish, and the descriptor does not say whether a test failed or the tooling did."
+    }
+  ],
+  "launched_at": "2026-10-04T21:52:50+00:00",
+  "output_sha256": "09bb2120c274123d2576d37648b09e3b5dc31414e4bbb567a73f28bcddb7b0a8",
+  "perspective": "engineering-quality",
+  "request_id": "28a99f12-1a92-4f92-82f2-d076a6368a7f",
+  "reviewer": {
+    "context_id": "57426f4b-1748-453c-9f8d-ff90c1764ad5",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-ceec00b7-0e8e-41ad-85f4-4dccfcce8007",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 50327
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 159090
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 42615
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 44201
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 7
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4410
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "2d8240a55d674223508eb4fdf607ca30c576c7eaf7f50fd8c1d469ca9419ba15"
+}

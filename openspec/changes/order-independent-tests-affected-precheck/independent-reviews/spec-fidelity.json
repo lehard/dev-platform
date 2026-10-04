@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "ddf2a6270e70ba5a4988388f456f1eb63ef5b6ff",
+    "base_ref": "origin/main",
+    "candidate_head": "fa70667cb82351919edc1118f5ac56e4bf2835ab",
+    "diff_sha256": "53d4d3faa6c39f82bf273dc3122f428ee769f8fbd6665ac056e28c50921fd701"
+  },
+  "completed_at": "2026-10-04T21:52:50+00:00",
+  "findings": [
+    {
+      "evidence": "tests/test_platform_module_identity.py (candidate.diff ~1379-1460): it does two things. It scans statically for `sys.modules[...] =` assignments. It also imports every test module in forward and reverse order and checks `identity_violations` on module namespaces. No test compares `sys.modules` before and after a test or module, for example by catching a `mock.patch.dict` stand-in that outlives its test. No test compares an isolated group run with an in-group run (spec scenario \"Group runs in isolation and in its group\"). The report format is `<owner>.<attribute> holds a substituted <name> instance`, which does name both the module and the test module as the scenario requires.",
+      "id": "guard-does-not-check-runtime-sys-modules-leak",
+      "severity": "advisory",
+      "summary": "The delta requires a guard that fails when a test leaves a substituted platform module in `sys.modules` after it finishes. The guard checks this only indirectly. The proposal's second trigger, where a selected group's result depends on module order, is also not checked."
+    }
+  ],
+  "launched_at": "2026-10-04T21:52:22+00:00",
+  "output_sha256": "b5d239511e630df18b50f510755d2626c7a88211012cc140aeed967ff038de2b",
+  "perspective": "spec-fidelity",
+  "request_id": "28a99f12-1a92-4f92-82f2-d076a6368a7f",
+  "reviewer": {
+    "context_id": "0b11f653-d027-4424-a377-e58fdf300097",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-9dcc2e05-e20d-4b80-8385-df2e851a4536",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 54722
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 104317
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 22356
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 23608
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2645
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "2d8240a55d674223508eb4fdf607ca30c576c7eaf7f50fd8c1d469ca9419ba15"
+}
