@@ -11,7 +11,7 @@ Platform test modules SHALL register platform modules in `sys.modules` only thro
 
 #### Scenario: A test substitutes a module instance
 - **WHEN** a test module assigns a platform module into `sys.modules` directly, or holds an instance different from the registered one
-- **THEN** the guard fails naming the test module and the module
+- **THEN** the guard fails naming the test file and the offending line or duplicated module
 
 ### Requirement: Full-suite timing decisions are evidence-based
 

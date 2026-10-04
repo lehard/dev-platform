@@ -3,34 +3,34 @@
   "candidate": {
     "base_head": "ddf2a6270e70ba5a4988388f456f1eb63ef5b6ff",
     "base_ref": "origin/main",
-    "candidate_head": "62949b3792aedc0979dbbba502cfb15b5063de3a",
-    "diff_sha256": "70d7d57d68b580c3a130ce23c7d1f16960c6bab6052bc430dbdc18db33fc526b"
+    "candidate_head": "4d5134e0d0887969efffa72ab9a3b4a9cfcd7c36",
+    "diff_sha256": "ecff9b828a79df89a5d94fc0fc89d30707b3b5b556a21aa142cee486b38e742e"
   },
-  "completed_at": "2026-10-04T22:04:13+00:00",
+  "completed_at": "2026-10-04T22:06:46+00:00",
   "findings": [
     {
-      "evidence": "tests/test_platform_module_identity.py: test_identity_holds_in_forward_and_reverse_import_order (subprocess.run ... timeout=600 per order); direct_registrations only matches ast.Assign/AugAssign/AnnAssign subscripts and the update/setdefault/__setitem__ calls; test_platform_module_identity is listed in [test_groups.fast-c] in dev-platform/checks.toml.",
-      "id": "identity-guard-cost-and-scope",
+      "evidence": "template/scripts/affected_test_groups.py:469-475. For a changed file under tests/, `direct_test` is true only if the stem is itself a test module key in `references`. `_platform_modules` is not, so the code falls to `stem in references[module]`. Nearly every test now has `from _platform_modules import load_platform_module`, so almost all groups are selected. The design (design.md decision 2) rejects transitive fan-out for exactly this reason.",
+      "id": "precheck-helper-change-selects-whole-suite",
       "severity": "advisory",
-      "summary": "The forward/reverse import guard imports every test module twice in fresh subprocesses with a 600s timeout, and it runs inside the parallel fast-c group. It adds wall-clock to the critical path and depends on all test modules being import-safe. The static scanner also only flags `sys.modules[...] =` and update/setdefault/__setitem__; `sys.modules.pop`, `del` and `setattr` bypass it."
+      "summary": "Changing a shared test helper such as tests/_platform_modules.py makes the precheck select nearly every test module, roughly doubling the full run. This contradicts the design's goal of a cheap precheck."
     },
     {
-      "evidence": "template/scripts/affected_test_groups.py _string_references: `if IDENTIFIER.fullmatch(node.value): names.add(node.value)`; affected_groups: `not direct_test and stem in references[module]` selects all importers of a changed helper.",
-      "id": "precheck-string-heuristic-imprecision",
+      "evidence": "tests/test_platform_module_identity.py:1509-1519 runs `importlib.import_module` over all `test_*.py` modules, twice, with timeout=600 each. Several test modules do work at import (loading modules, path edits). Any such side effect or slow import fails or slows this guard, and the 600s ceiling is large. The test was added to fast-c in dev-platform/checks.toml.",
+      "id": "identity-probe-imports-all-tests-twice",
       "severity": "advisory",
-      "summary": "The affected map treats any string constant that is a bare identifier as a module reference, and a changed tests/ helper (for example tests/_platform_modules.py) selects every importing test module. Over-selection is harmless to correctness. Under-selection is possible for modules referenced only through dynamic names or transitive imports, which the design accepts. The precheck is feedback only and the full set always runs, so this is not blocking."
+      "summary": "The forward/reverse identity guard imports every test module in two fresh subprocesses. This adds a long-running test to the already heavy fast-c group, and it executes arbitrary import-time side effects of all test modules."
     }
   ],
-  "launched_at": "2026-10-04T22:03:28+00:00",
-  "output_sha256": "0658adb555e39e993e63edc8bc5d4b60eea3d61b1f974fed36fd25d3a88c7020",
+  "launched_at": "2026-10-04T22:06:13+00:00",
+  "output_sha256": "70a4d7a023d41e47f11a4678f51f1256197e94708c793b1f709fdfb6b85bfbce",
   "perspective": "engineering-quality",
-  "request_id": "966c2f80-7538-4239-b388-7e14e2a43b0b",
+  "request_id": "867b12e1-ffa4-45b6-a041-74a48c56e3f5",
   "reviewer": {
-    "context_id": "008a054c-840c-479c-8e7d-fbd79a2d409e",
+    "context_id": "ae30677a-007b-4df4-b94b-b942f7689997",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-2eeceda9-404b-4399-97ce-e832251f49cc",
+    "launch_id": "platform-launch-5c403359-a33c-41e4-98d6-3b639b1a88e2",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -45,41 +45,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 52680
+        "value": 50994
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 163127
+        "value": 106956
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 39237
+        "value": 27562
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 42418
+        "value": 29263
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10
+        "value": 8
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 7
+        "value": 6
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4407
+        "value": 3054
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "ef6262a57e14c78d7f5f6aaf0020a2574d76a6ed84b1e0fd87a6db99d021bcdd"
+  "task_content_digest": "8c8978f518b5b8eccadf404f58bb7989e8f25f567fab8c403bede7200ff27b6e"
 }

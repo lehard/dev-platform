@@ -30,6 +30,8 @@ def fixture(root: Path) -> dict[str, dict[str, object]]:
     (root / "tests" / "test_uses_alpha.py").write_text("import alpha\n" + PASSING, encoding="utf-8")
     (root / "tests" / "test_names_beta.py").write_text('PATH = "lib/beta.py"\n' + PASSING, encoding="utf-8")
     (root / "tests" / "test_unrelated.py").write_text(PASSING, encoding="utf-8")
+    (root / "tests" / "_helper.py").write_text("SHARED = 1\n", encoding="utf-8")
+    (root / "tests" / "test_uses_alpha.py").write_text("import alpha\nimport _helper\n" + PASSING, encoding="utf-8")
     return {
         "one": {"targets": ["test_uses_alpha", "test_unrelated"], "mode": "parallel"},
         "two": {"targets": ["test_names_beta.T"], "mode": "serial"},
@@ -68,8 +70,8 @@ class AffectedMappingTests(unittest.TestCase):
             root = Path(directory)
             groups = fixture(root)
             self.assertEqual(
-                self.map(root, groups, ["lib/gamma.py", "dev-platform/checks.toml", "docs/x.md"]),
-                {"groups": {}, "unmapped": ["lib/gamma.py", "dev-platform/checks.toml", "docs/x.md"]},
+                self.map(root, groups, ["lib/gamma.py", "dev-platform/checks.toml", "docs/x.md", "tests/_helper.py"]),
+                {"groups": {}, "unmapped": ["lib/gamma.py", "dev-platform/checks.toml", "docs/x.md", "tests/_helper.py"]},
             )
 
 

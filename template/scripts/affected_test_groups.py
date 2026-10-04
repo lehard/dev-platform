@@ -85,6 +85,10 @@ def affected_groups(
         candidate = Path(path)
         matched = False
         stem = files.get((root / path).resolve()) if candidate.suffix == ".py" else None
+        # A shared test helper (a non-test module under the test root) feeds
+        # nearly every test module; it goes straight to the full set instead.
+        if stem is not None and path.startswith(tests_prefix) and stem not in references:
+            stem = None
         if stem is not None:
             direct_test = path.startswith(tests_prefix) and stem in references
             for group, rule in groups.items():

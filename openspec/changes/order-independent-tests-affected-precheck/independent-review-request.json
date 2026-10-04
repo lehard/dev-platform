@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "ddf2a6270e70ba5a4988388f456f1eb63ef5b6ff",
     "base_ref": "origin/main",
-    "candidate_head": "62949b3792aedc0979dbbba502cfb15b5063de3a",
-    "diff_sha256": "70d7d57d68b580c3a130ce23c7d1f16960c6bab6052bc430dbdc18db33fc526b"
+    "candidate_head": "4d5134e0d0887969efffa72ab9a3b4a9cfcd7c36",
+    "diff_sha256": "ecff9b828a79df89a5d94fc0fc89d30707b3b5b556a21aa142cee486b38e742e"
   },
   "change": "openspec/changes/order-independent-tests-affected-precheck",
   "excluded_lifecycle_paths": [
@@ -38,7 +38,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-04T22:02:36+00:00",
+  "prepared_at": "2026-10-04T22:05:33+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/order-independent-tests-affected-precheck/independent-reviews",
     "required_perspectives": [
@@ -47,7 +47,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "966c2f80-7538-4239-b388-7e14e2a43b0b",
+  "request_id": "867b12e1-ffa4-45b6-a041-74a48c56e3f5",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -60,7 +60,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "ddf2a6270e70ba5a4988388f456f1eb63ef5b6ff",
-    "digest": "ef6262a57e14c78d7f5f6aaf0020a2574d76a6ed84b1e0fd87a6db99d021bcdd",
+    "digest": "8c8978f518b5b8eccadf404f58bb7989e8f25f567fab8c403bede7200ff27b6e",
     "paths": {
       "dev-platform/checks.toml": "2bd5ec9bcd49f689e9dcfa62d13e9366f7b2a9e1",
       "docs/engineering/agent-workflow.md": "931b5a83c311fa3c4c7a0cbf7945d4c0aa11b9c1",
@@ -68,7 +68,7 @@
       "openspec/changes/order-independent-tests-affected-precheck/.openspec.yaml": "f98e139fb307ee57d69f587d7c892ef2ff4575e0",
       "openspec/changes/order-independent-tests-affected-precheck/design.md": "4a9561d2e406ec7780823a8ed9b40774ad648899",
       "openspec/changes/order-independent-tests-affected-precheck/proposal.md": "1cf9d3be01f6723f478f9fffa555c86a093b0ea2",
-      "openspec/changes/order-independent-tests-affected-precheck/specs/platform-ci/spec.md": "5774ff3702e196925c1278ff9995841de6719fba",
+      "openspec/changes/order-independent-tests-affected-precheck/specs/platform-ci/spec.md": "5fb6f083b15ca5453489dca710b9bbf661149dd4",
       "openspec/changes/order-independent-tests-affected-precheck/specs/platform-lifecycle/spec.md": "0bbd907d5ea3608c3a73818881c421bf31b682c0",
       "openspec/changes/order-independent-tests-affected-precheck/tasks.md": "5470b102a1164e8a876e85bc4cf131e6059a58a9",
       "template/scripts/affected_test_groups.py": "3611a399180fec9a75052689f04acb58bd89b435",

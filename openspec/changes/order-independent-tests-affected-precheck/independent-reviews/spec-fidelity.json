@@ -3,28 +3,40 @@
   "candidate": {
     "base_head": "ddf2a6270e70ba5a4988388f456f1eb63ef5b6ff",
     "base_ref": "origin/main",
-    "candidate_head": "62949b3792aedc0979dbbba502cfb15b5063de3a",
-    "diff_sha256": "70d7d57d68b580c3a130ce23c7d1f16960c6bab6052bc430dbdc18db33fc526b"
+    "candidate_head": "4d5134e0d0887969efffa72ab9a3b4a9cfcd7c36",
+    "diff_sha256": "ecff9b828a79df89a5d94fc0fc89d30707b3b5b556a21aa142cee486b38e742e"
   },
-  "completed_at": "2026-10-04T22:03:28+00:00",
+  "completed_at": "2026-10-04T22:06:13+00:00",
   "findings": [
     {
-      "evidence": "tests/managed_task_exact_state_cases.py loads managed_task.py as \"managed_task_exact_state\", tests/managed_start_transaction_cases.py loads start_managed_task.py as \"managed_start_transaction_cases_impl\", and tests/test_worktree_hygiene.py uses f\"{name}_under_test\". Each of these is a separate instance of a file that other tests load under its canonical name. tests/_platform_modules.py identity_violations() says 'A private instance under a name nothing registers is self-contained' and does not flag them. The spec's guard clause covers only a differing instance 'of the same name', so this is consistent with the guard text but not with the broader 'share one module instance' sentence.",
-      "id": "alias-instances-not-shared",
+      "evidence": "candidate.diff dev-platform/checks.toml: new [test_groups.fast-e] and [test_groups.fast-f] are added. fast-b, fast-c and fast-d have their targets changed, and the old fast-b through fast-d blocks are deleted from the end of the file. The before/after timing evidence is a lifecycle path outside this review, so I could not confirm it supports a multi-group rebalance. Recording the rebalance as the one decision, or narrowing it, would keep the artifacts consistent.",
+      "id": "timing-decision-exceeds-one-structural-change",
       "severity": "advisory",
-      "summary": "The platform-ci requirement says code under test and every test in a process share one module instance. Several tests still load the same source file under a private alias name, which creates a second instance of that file. The guard allows this by design, so the 'one instance' wording is stricter than what is enforced."
+      "summary": "The checks.toml change re-partitions five groups (fast-b, c, d, plus new fast-e and fast-f) and reorders declarations. design.md Decision 4 allows at most one structural change, a split or rebalance of the slowest group, and only with lower wall-clock and identical --verify-coverage."
+    },
+    {
+      "evidence": "candidate.diff, tests/test_pr_reconciliation_concurrency.py: wait_for_ready changes from `timeout: float = 10.0` to `timeout: float | None = None` with `deadline = process_deadline_seconds() if timeout is None else timeout`. The docstring ties this to concurrent heavy groups, which is a side effect of the rebalance. design.md does not mention it, which is a small gap against the no-silent-divergence invariant.",
+      "id": "unplanned-concurrency-test-timeout-change",
+      "severity": "advisory",
+      "summary": "tests/test_pr_reconciliation_concurrency.py changes the lock-holder readiness deadline from a 10s default to process_deadline_seconds(). This is not described in proposal.md, design.md, tasks.md or the spec deltas."
+    },
+    {
+      "evidence": "tests/test_platform_module_identity.py `test_tests_register_modules_only_through_the_shared_loader` builds `offenders = {path.name: lines}`. `direct_registrations` returns only `node.lineno` values. The forward and reverse identity check does name both the owner and the module through `identity_violations`.",
+      "id": "direct-registration-guard-omits-module-name",
+      "severity": "advisory",
+      "summary": "The platform-ci scenario says the guard fails 'naming the test module and the module'. The direct-registration check reports only the file name and line numbers, not which platform module was registered."
     }
   ],
-  "launched_at": "2026-10-04T22:02:56+00:00",
-  "output_sha256": "d1a07d7b41831da0d402bc5cab0561d187b8a4ce96ae289f43c494d6e66104dc",
+  "launched_at": "2026-10-04T22:05:44+00:00",
+  "output_sha256": "7ab57ac9245f2e82a28ab4f269cb4e39396b4c891ab11a6f51f4d11ca1900687",
   "perspective": "spec-fidelity",
-  "request_id": "966c2f80-7538-4239-b388-7e14e2a43b0b",
+  "request_id": "867b12e1-ffa4-45b6-a041-74a48c56e3f5",
   "reviewer": {
-    "context_id": "6ffc4f16-69d1-409e-943a-28d5fc6f5de8",
+    "context_id": "126e0166-84b1-4ac8-aa6f-59a15c87ffd6",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-4d827ef8-0073-4a93-b320-33da3e184f3b",
+    "launch_id": "platform-launch-22e00327-cda8-4a07-b862-0648c1ac91d9",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,41 +51,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 53030
+        "value": 51732
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 221560
+        "value": 112171
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 25224
+        "value": 24745
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 27311
+        "value": 25515
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 12
+        "value": 8
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 9
+        "value": 8
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2810
+        "value": 2554
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "ef6262a57e14c78d7f5f6aaf0020a2574d76a6ed84b1e0fd87a6db99d021bcdd"
+  "task_content_digest": "8c8978f518b5b8eccadf404f58bb7989e8f25f567fab8c403bede7200ff27b6e"
 }
