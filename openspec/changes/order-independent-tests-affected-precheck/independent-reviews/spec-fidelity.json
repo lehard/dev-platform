@@ -3,21 +3,28 @@
   "candidate": {
     "base_head": "ddf2a6270e70ba5a4988388f456f1eb63ef5b6ff",
     "base_ref": "origin/main",
-    "candidate_head": "e25a739bb0fb13a9032d1a8c5f6893f599ae8983",
-    "diff_sha256": "296584ceae31be7782a5c5333a9524f03de06027715ae99f861ee9a0fe331b3e"
+    "candidate_head": "62949b3792aedc0979dbbba502cfb15b5063de3a",
+    "diff_sha256": "70d7d57d68b580c3a130ce23c7d1f16960c6bab6052bc430dbdc18db33fc526b"
   },
-  "completed_at": "2026-10-04T22:00:39+00:00",
-  "findings": [],
-  "launched_at": "2026-10-04T22:00:04+00:00",
-  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
+  "completed_at": "2026-10-04T22:03:28+00:00",
+  "findings": [
+    {
+      "evidence": "tests/managed_task_exact_state_cases.py loads managed_task.py as \"managed_task_exact_state\", tests/managed_start_transaction_cases.py loads start_managed_task.py as \"managed_start_transaction_cases_impl\", and tests/test_worktree_hygiene.py uses f\"{name}_under_test\". Each of these is a separate instance of a file that other tests load under its canonical name. tests/_platform_modules.py identity_violations() says 'A private instance under a name nothing registers is self-contained' and does not flag them. The spec's guard clause covers only a differing instance 'of the same name', so this is consistent with the guard text but not with the broader 'share one module instance' sentence.",
+      "id": "alias-instances-not-shared",
+      "severity": "advisory",
+      "summary": "The platform-ci requirement says code under test and every test in a process share one module instance. Several tests still load the same source file under a private alias name, which creates a second instance of that file. The guard allows this by design, so the 'one instance' wording is stricter than what is enforced."
+    }
+  ],
+  "launched_at": "2026-10-04T22:02:56+00:00",
+  "output_sha256": "d1a07d7b41831da0d402bc5cab0561d187b8a4ce96ae289f43c494d6e66104dc",
   "perspective": "spec-fidelity",
-  "request_id": "a60ca491-63fd-4f34-89e6-9668247ffbc9",
+  "request_id": "966c2f80-7538-4239-b388-7e14e2a43b0b",
   "reviewer": {
-    "context_id": "3614e5eb-6c7b-4b30-b789-ac82ade2c93a",
+    "context_id": "6ffc4f16-69d1-409e-943a-28d5fc6f5de8",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-f1830302-f2ea-4fcf-abc4-ed62d2a1135e",
+    "launch_id": "platform-launch-4d827ef8-0073-4a93-b320-33da3e184f3b",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -32,41 +39,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 53028
+        "value": 53030
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 111945
+        "value": 221560
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 30079
+        "value": 25224
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 30798
+        "value": 27311
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 12
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 9
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 3090
+        "value": 2810
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "9c4a774a6b73b0fd3288aa32108516671932a08be424e8883913fe0cbf900b1f"
+  "task_content_digest": "ef6262a57e14c78d7f5f6aaf0020a2574d76a6ed84b1e0fd87a6db99d021bcdd"
 }

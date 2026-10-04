@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "ddf2a6270e70ba5a4988388f456f1eb63ef5b6ff",
     "base_ref": "origin/main",
-    "candidate_head": "e25a739bb0fb13a9032d1a8c5f6893f599ae8983",
-    "diff_sha256": "296584ceae31be7782a5c5333a9524f03de06027715ae99f861ee9a0fe331b3e"
+    "candidate_head": "62949b3792aedc0979dbbba502cfb15b5063de3a",
+    "diff_sha256": "70d7d57d68b580c3a130ce23c7d1f16960c6bab6052bc430dbdc18db33fc526b"
   },
   "change": "openspec/changes/order-independent-tests-affected-precheck",
   "excluded_lifecycle_paths": [
@@ -38,7 +38,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-04T21:59:50+00:00",
+  "prepared_at": "2026-10-04T22:02:36+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/order-independent-tests-affected-precheck/independent-reviews",
     "required_perspectives": [
@@ -47,7 +47,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "a60ca491-63fd-4f34-89e6-9668247ffbc9",
+  "request_id": "966c2f80-7538-4239-b388-7e14e2a43b0b",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -60,7 +60,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "ddf2a6270e70ba5a4988388f456f1eb63ef5b6ff",
-    "digest": "9c4a774a6b73b0fd3288aa32108516671932a08be424e8883913fe0cbf900b1f",
+    "digest": "ef6262a57e14c78d7f5f6aaf0020a2574d76a6ed84b1e0fd87a6db99d021bcdd",
     "paths": {
       "dev-platform/checks.toml": "2bd5ec9bcd49f689e9dcfa62d13e9366f7b2a9e1",
       "docs/engineering/agent-workflow.md": "931b5a83c311fa3c4c7a0cbf7945d4c0aa11b9c1",
@@ -73,12 +73,12 @@
       "openspec/changes/order-independent-tests-affected-precheck/tasks.md": "5470b102a1164e8a876e85bc4cf131e6059a58a9",
       "template/scripts/affected_test_groups.py": "3611a399180fec9a75052689f04acb58bd89b435",
       "template/scripts/run_test_groups.py": "4b734e135f74bef422550dcbd7f36c38f6255332",
-      "template/scripts/select_checks.py": "68fcaef174be081adfb83ccd6f25d07d4422f2dd",
+      "template/scripts/select_checks.py": "7f6543770227ddcc20b26756c34dcdf39986154b",
       "tests/_platform_modules.py": "f9a2b3be163a0f47a837959b78c4a07173bccc6d",
       "tests/fixtures/module_identity_sample.py": "2840bfc0606eb1652dfb668daca1cae35a2de727",
       "tests/managed_start_transaction_cases.py": "221e5e599a11abe8139474fbb4d148773c04c4a4",
       "tests/managed_task_exact_state_cases.py": "ccf7a6be50c2320b960759ffa164694ea5da5976",
-      "tests/test_affected_precheck.py": "c975a141d9599ea474c1378059d18969820fb218",
+      "tests/test_affected_precheck.py": "6a2a3cfd19608c83fb399a52160cab90713db996",
       "tests/test_br_publication_identity.py": "fb11c85d7845a818e316b4c104673bb3683c170f",
       "tests/test_browser_verification.py": "3a193fa2af342992376993eb274f18117a054f85",
       "tests/test_capability_manager.py": "d967445c7e8cdea3604c929f3bb5fc5d3267e909",
