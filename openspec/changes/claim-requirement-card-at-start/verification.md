@@ -3,9 +3,10 @@
 OpenSpec-Verify: PASS
 Verification-Method: Manual scenario-by-scenario review of Requirement development-backlog#333, the proposal, design, the agent-workflow delta spec, the changes in requirement_intake.py and execute_requirement.py, the task-intake doc and the new regression tests; the platform check suite.
 
+Automated-Checks-Evidence: automated-checks.json
 Independent-Review-Evidence: independent-review-request.json
 
-Scenarios: (1) Card claimed before slow preparation: `start` calls `claim_started_requirement` right after durable state init; test_second_agent_does_not_see_started_requirement_as_free. (2) Restart continues: rerun is idempotent and `advance` reconciles at entry; test_rerun_continues_without_parallel_ownership_or_ready_write and the updated advance tests (entry plus post-start reconcile). (3) Failure after durable start: state kept, rerun instruction reported, `Ready` never written; test_claim_failure_keeps_state_reports_rerun_and_never_writes_ready. The `advance` entry claim is covered by AdvanceEntryClaimTests: a Ready card is repaired before the first slow step, a Done card is left untouched, and an entry failure is reported with state kept and rerun guidance.
+Scenarios: (1) Card claimed before slow preparation: `start` calls `requirement_board.claim_started` right after durable state init; test_second_agent_does_not_see_started_requirement_as_free. (2) Restart continues: rerun is idempotent and `advance` reconciles at entry; test_rerun_continues_without_parallel_ownership_or_ready_write and the updated advance tests (entry plus post-start reconcile). (3) Failure after durable start: state kept, rerun instruction reported, `Ready` never written; test_claim_failure_keeps_state_reports_rerun_and_never_writes_ready. The `advance` entry claim is covered by AdvanceEntryClaimTests: a Ready card is repaired before the first slow step, a Done card is left untouched, and an entry failure is reported with state kept and rerun guidance.
 
 Defect demonstrated before repair: with the claim call disabled, 3 of 4 new tests failed; with it restored all pass.
 
