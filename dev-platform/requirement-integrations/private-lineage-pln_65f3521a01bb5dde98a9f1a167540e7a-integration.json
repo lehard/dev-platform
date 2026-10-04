@@ -8,9 +8,17 @@
       "head": "91b686cc3200a9df5e7f5db867693e6f675c7fbd",
       "source_branch": "agent/stable-br-work-identity",
       "source_issue": "pln_0c88e051f669005d3810172259883ffd"
+    },
+    {
+      "change": "propagate-br-publication-identity",
+      "delta_base": "91b686cc3200a9df5e7f5db867693e6f675c7fbd",
+      "digest": "4008a8f2defa8e62d059883dcdbf182e36d21b6268b896f8051d5e9cd3816ce5",
+      "head": "d1921eead646947a81b8bbc964e9209982716876",
+      "source_branch": "agent/propagate-br-publication-identity",
+      "source_issue": "pln_11d70116bebd322dc3edeef57383bb02"
     }
   ],
-  "digest": "d5e2d82a5a54d36c293da65faf3d5c6095f1988747d7bf3aea01d4f58874a5a7",
+  "digest": "c1c853e998f46da2ed6827dd9e7bae7a906bf06b70739985cb4eb829bceb5321",
   "expected_changes": [
     "stable-br-work-identity",
     "propagate-br-publication-identity"
