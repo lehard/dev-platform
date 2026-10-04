@@ -22,6 +22,7 @@ class ManagedProjectRegistryTests(unittest.TestCase):
         matrix = managed_projects.matrix_payload(data)
         repos = {item["repository"] for item in matrix["include"]}
         self.assertEqual(repos, {"example/managed"})
+        self.assertEqual(matrix["include"][0]["repo_owner"], "example")
         self.assertEqual(len(data["projects"]), 3)
         self.assertEqual(sum(1 for item in data["projects"] if item["state"] == "excluded"), 1)
 
@@ -191,6 +192,7 @@ class RolloutWorkflowContractTests(unittest.TestCase):
         self.assertIn("repositories: dev-platform", workflow)
         self.assertIn("permission-contents: read", workflow)
         self.assertIn("id: target-token", workflow)
+        self.assertIn("owner: ${{ matrix.repo_owner }}", workflow)
         self.assertIn("repositories: ${{ matrix.repo_name }}", workflow)
         self.assertIn("permission-contents: write", workflow)
         self.assertIn("permission-pull-requests: write", workflow)
@@ -200,6 +202,11 @@ class RolloutWorkflowContractTests(unittest.TestCase):
         self.assertIn("gh pr create", workflow)
         self.assertNotIn("gh pr merge", workflow)
         self.assertNotIn("--auto-merge", workflow)
+
+    def test_reconcile_scopes_target_token_to_each_repository_owner(self) -> None:
+        workflow = (ROOT / ".github" / "workflows" / "reconcile-stale-rollouts.yml").read_text(encoding="utf-8")
+        self.assertIn("owner: ${{ matrix.repo_owner }}", workflow)
+        self.assertIn("repositories: ${{ matrix.repo_name }}", workflow)
 
     def test_rollout_reads_the_managed_registry_from_the_private_operator_repository(self) -> None:
         """The public repo must never itself hold the managed fleet registry
