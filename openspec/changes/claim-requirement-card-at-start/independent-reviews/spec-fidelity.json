@@ -1,30 +1,23 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "6acfcb57df7bb5c8eaadc38dc75c8b105dc76f5b",
+    "base_head": "617befcf0288f74cfb6ce9fbb237c2a6e2477f39",
     "base_ref": "origin/main",
-    "candidate_head": "13098fdaa40dcb9be6c52640977c4c5e6cd072ea",
-    "diff_sha256": "4e7c4bfc0c334077f70e8eec22ab1c4034db51ff865d7636a1afbff7f2d3e53f"
+    "candidate_head": "05e0bc28aea9b4804e611a0ffd91ca4673537921",
+    "diff_sha256": "bd19bd3c8535e2e8fbc6bc57f358344a133ed363423e002f71db67d51800c0a9"
   },
-  "completed_at": "2026-10-04T00:14:12+00:00",
-  "findings": [
-    {
-      "evidence": "template/scripts/execute_requirement.py:215-220: `requirement_board.claim_started(...)` runs before `orchestrate_pre_authoring.status(...)`. The new spec requires the claim to follow durable initialisation, and the design says \"The beginning of `execute_requirement.advance`\". Neither requires or checks that state exists first.",
-      "id": "advance-claims-without-durable-state",
-      "severity": "advisory",
-      "summary": "`advance` claims the card before checking that durable pre-authoring state exists. The delta ties the claim to a started Requirement (\"durably initialised\", \"every resume\"). A never-started Requirement passed to `advance` is projected to `In progress`, and `orchestrate_pre_authoring.status` then fails or reports not started. The card would then show occupied with no state behind it."
-    }
-  ],
-  "launched_at": "2026-10-04T00:13:55+00:00",
-  "output_sha256": "b91bf94e6642373f26f95b8e57fe3193b00e8a4178611c2bdaad156af6933cf4",
+  "completed_at": "2026-10-04T06:45:17+00:00",
+  "findings": [],
+  "launched_at": "2026-10-04T06:45:03+00:00",
+  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "spec-fidelity",
-  "request_id": "95fa6002-d4e1-407b-9abb-28df004648cf",
+  "request_id": "345b475a-7bfa-43cd-808d-8b658a208a32",
   "reviewer": {
-    "context_id": "e501c788-79d7-4555-bf1f-f7906466276a",
+    "context_id": "cc99120f-f4bd-4803-8cf0-a1f4ec3d2808",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-0e1fde71-9f50-44c6-b6f0-ce8f2987d9a7",
+    "launch_id": "platform-launch-833b0f6c-f1ac-4222-9933-220ea8d01687",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,41 +32,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 21713
+        "value": 27321
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 40893
+        "value": 62846
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10921
+        "value": 10893
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 12285
+        "value": 12212
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 8
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 7
+        "value": 8
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1185
+        "value": 1082
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "33d167d9930c06d4b3d25df7be3e1d2931207bd0cb76476cce82334eeaa5271d"
+  "task_content_digest": "0cca7d0bb5a2755f48c686bd1d191b57bd255cf1d695cbf6bb9df7fc21e312b7"
 }
