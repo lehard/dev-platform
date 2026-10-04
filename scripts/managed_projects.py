@@ -126,6 +126,7 @@ def managed_projects(data: dict[str, Any], repository: str | None = None) -> lis
     return [
         {
             "repository": item["repository"],
+            "repo_owner": item["repository"].split("/", 1)[0],
             "repo_name": item["repository"].split("/", 1)[1],
             "default_branch": item["default_branch"],
             "operator_integration": item.get("operator_integration", False),
