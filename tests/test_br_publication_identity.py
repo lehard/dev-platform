@@ -33,10 +33,6 @@ def claims(source='acme/backlog#8', value='BR-7/T1'):
 
 class IdentityPublicationTests(unittest.TestCase):
     def setUp(self):
-        # Other repository fixtures reload this module under the canonical name.
-        # Patch the instance used by the helper's lazy imports, never live GitHub.
-        global managed_task
-        managed_task = sys.modules['managed_task']
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name).resolve()

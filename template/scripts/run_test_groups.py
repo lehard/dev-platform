@@ -58,6 +58,11 @@ def start_dir_name(config: dict[str, Any]) -> str:
     return str(config.get("settings", {}).get("test_discovery_start", DEFAULT_START_DIR))
 
 
+def affected_source_roots(config: dict[str, Any]) -> list[str]:
+    roots = config.get("settings", {}).get("affected_source_roots", ["scripts"])
+    return [str(item) for item in roots] if isinstance(roots, list) else ["scripts"]
+
+
 def read_groups(config: dict[str, Any]) -> dict[str, dict[str, Any]]:
     raw = config.get("test_groups", {})
     if not isinstance(raw, dict) or not raw:
@@ -225,6 +230,12 @@ def main() -> int:
     parser.add_argument("--verify-coverage", action="store_true", help="Only prove group/discovery equivalence, then exit.")
     parser.add_argument("--evidence", help="Write group-level result and duration evidence to this JSON file.")
     parser.add_argument("--quiet", action="store_true", help="Do not pass -v to the group processes.")
+    parser.add_argument(
+        "--changed-file",
+        action="append",
+        default=[],
+        help="Run only test modules that directly reference these changed paths (repeatable); early feedback that never claims coverage.",
+    )
     args = parser.parse_args()
 
     root = current_worktree_root()
@@ -246,10 +257,23 @@ def main() -> int:
 
         if args.group and args.all:
             raise TestGroupError("--all and --group are mutually exclusive; --group is a bounded local subset.")
-        if not args.group and not args.all:
+        if args.changed_file and (args.all or args.group):
+            raise TestGroupError("--changed-file selects an affected subset and cannot be combined with --all or --group.")
+        if not args.group and not args.all and not args.changed_file:
             args.all = True
 
-        if args.all:
+        if args.changed_file:
+            from affected_test_groups import affected_groups
+
+            mapping = affected_groups(
+                root, groups, args.changed_file, start_dir=start_dir, source_roots=affected_source_roots(config)
+            )
+            print("DEV_PLATFORM_AFFECTED_SELECTION: " + json.dumps(mapping, ensure_ascii=False, sort_keys=True), flush=True)
+            selected = {gid: {"targets": targets, "mode": groups[gid]["mode"]} for gid, targets in mapping["groups"].items()}
+            if not selected:
+                print("No test modules reference the changed paths; nothing to run.")
+                return 0
+        elif args.all:
             selected = groups
             report = coverage_report(root, start_dir, groups)
             require_total_coverage(report)
@@ -277,7 +301,7 @@ def main() -> int:
     total = round(sum(record["duration_seconds"] for record in records), 3)
     slowest = max((record["duration_seconds"] for record in records), default=0.0)
     aggregate = {
-        "mode": "all" if args.all else "selected",
+        "mode": "all" if args.all else "affected" if args.changed_file else "selected",
         "group_count": len(records),
         "failed_groups": sorted(failed),
         "outcome": "failure" if failed else "success",

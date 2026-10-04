@@ -10,21 +10,14 @@ from contextlib import nullcontext
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
+from _platform_modules import load_platform_module  # noqa: E402
 
 
 ROOT = Path(__file__).resolve().parents[1]
 HELPER = ROOT / "template" / "scripts" / "requirement_integration.py"
 sys.path.insert(0, str(HELPER.parent))
-SPEC = importlib.util.spec_from_file_location("requirement_integration", HELPER)
-assert SPEC and SPEC.loader
-integration = importlib.util.module_from_spec(SPEC)
-sys.modules[SPEC.name] = integration
-SPEC.loader.exec_module(integration)
-MERGE_SPEC = importlib.util.spec_from_file_location("requirement_merge_recovery", HELPER.parent / "requirement_merge_recovery.py")
-assert MERGE_SPEC and MERGE_SPEC.loader
-merge_recovery = importlib.util.module_from_spec(MERGE_SPEC)
-sys.modules[MERGE_SPEC.name] = merge_recovery
-MERGE_SPEC.loader.exec_module(merge_recovery)
+integration = load_platform_module("requirement_integration", HELPER)
+merge_recovery = load_platform_module("requirement_merge_recovery", HELPER.parent / "requirement_merge_recovery.py")
 
 
 def git(root: Path, *args: str) -> str:

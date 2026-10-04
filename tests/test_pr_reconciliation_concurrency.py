@@ -30,9 +30,15 @@ def git(*args: str, cwd: Path) -> str:
     return subprocess.run(["git", *args], cwd=cwd, text=True, capture_output=True, check=True).stdout.strip()
 
 
-def wait_for_ready(path: Path, process: subprocess.Popen[object], *, timeout: float = 10.0) -> None:
-    """Wait for the helper's explicit startup signal, never scheduler timing."""
-    wait_for_readiness(path.exists, process, description="lock-holder", deadline_seconds=timeout)
+def wait_for_ready(path: Path, process: subprocess.Popen[object], *, timeout: float | None = None) -> None:
+    """Wait for the helper's explicit startup signal, never scheduler timing.
+
+    The lock-holder imports the whole finish_task chain before signalling, which
+    under concurrent heavy groups can exceed a short start window; the shared
+    bounded process deadline still fails a genuinely hung helper.
+    """
+    deadline = process_deadline_seconds() if timeout is None else timeout
+    wait_for_readiness(path.exists, process, description="lock-holder", deadline_seconds=deadline)
 
 
 class StructuredRequiredCheckStateTests(unittest.TestCase):

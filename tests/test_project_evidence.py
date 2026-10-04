@@ -9,17 +9,14 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+from _platform_modules import load_platform_module  # noqa: E402
 
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "template" / "scripts" / "project_evidence.py"
 if str(SCRIPT.parent) not in sys.path:
     sys.path.insert(0, str(SCRIPT.parent))
-SPEC = importlib.util.spec_from_file_location("project_evidence", SCRIPT)
-assert SPEC and SPEC.loader
-project_evidence = importlib.util.module_from_spec(SPEC)
-sys.modules[SPEC.name] = project_evidence
-SPEC.loader.exec_module(project_evidence)
+project_evidence = load_platform_module("project_evidence", SCRIPT)
 
 
 def git(root: Path, *args: str) -> None:

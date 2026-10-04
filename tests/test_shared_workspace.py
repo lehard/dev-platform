@@ -9,16 +9,13 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
+from _platform_modules import load_platform_module  # noqa: E402
 
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "template" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
-SPEC = importlib.util.spec_from_file_location("shared_workspace_under_test", SCRIPTS / "shared_workspace.py")
-shared_workspace = importlib.util.module_from_spec(SPEC)
-sys.modules[SPEC.name] = shared_workspace
-assert SPEC.loader is not None
-SPEC.loader.exec_module(shared_workspace)
+shared_workspace = load_platform_module("shared_workspace_under_test", SCRIPTS / "shared_workspace.py")
 
 
 class SharedWorkspaceTests(unittest.TestCase):

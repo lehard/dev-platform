@@ -9,15 +9,12 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
+from _platform_modules import load_platform_module  # noqa: E402
 
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "scripts" / "dogfood_task.py"
-SPEC = importlib.util.spec_from_file_location("dogfood_task", SOURCE)
-assert SPEC and SPEC.loader
-dogfood_task = importlib.util.module_from_spec(SPEC)
-sys.modules[SPEC.name] = dogfood_task
-SPEC.loader.exec_module(dogfood_task)
+dogfood_task = load_platform_module("dogfood_task", SOURCE)
 
 
 def git(root: Path, *args: str) -> None:

@@ -7,15 +7,13 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
+from _platform_modules import load_platform_module  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "template" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
-spec = importlib.util.spec_from_file_location("openspec_lifecycle", SCRIPTS / "openspec_lifecycle.py")
-assert spec and spec.loader
-lifecycle = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(lifecycle)
+lifecycle = load_platform_module("openspec_lifecycle", SCRIPTS / "openspec_lifecycle.py")
 
 
 class OpenSpecLifecycleTests(unittest.TestCase):

@@ -14,6 +14,7 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
+from _platform_modules import load_platform_module  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_ROOT = ROOT / "template" / "scripts"
@@ -21,12 +22,7 @@ sys.path.insert(0, str(SCRIPT_ROOT))
 
 
 def _load(module_name: str, filename: str):
-    spec = importlib.util.spec_from_file_location(module_name, SCRIPT_ROOT / filename)
-    assert spec and spec.loader
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
+    return load_platform_module(module_name, SCRIPT_ROOT / filename)
 
 
 delegation_containment = _load("delegation_containment", "delegation_containment.py")

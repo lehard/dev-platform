@@ -9,15 +9,12 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
+from _platform_modules import load_platform_module  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "template" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
-spec = importlib.util.spec_from_file_location("managed_start_transaction_cases_impl", SCRIPTS / "start_managed_task.py")
-assert spec and spec.loader
-managed_start = importlib.util.module_from_spec(spec)
-sys.modules[spec.name] = managed_start
-spec.loader.exec_module(managed_start)
+managed_start = load_platform_module("managed_start_transaction_cases_impl", SCRIPTS / "start_managed_task.py")
 import managed_task  # noqa: E402
 
 

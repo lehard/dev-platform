@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import fnmatch
 import json
+import shlex
 import subprocess
 import time
 from pathlib import Path
@@ -185,6 +186,31 @@ def select(config: dict[str, Any], paths: list[str], *, declare_behavior_change:
     return selected
 
 
+PRECHECK_REASONS = {"high-impact-path", "unknown-path"}
+
+
+def precheck_paths(config: dict[str, Any], checks: list[dict[str, Any]]) -> list[str]:
+    """Changed Python paths eligible for the affected-test precheck before a full run."""
+    if not config.get("settings", {}).get("affected_precheck") or not config.get("test_groups"):
+        return []
+    paths: list[str] = []
+    for check in checks:
+        if str(check.get("selection_reason", "")) in PRECHECK_REASONS:
+            paths.extend(path for path in check.get("paths", []) if path.endswith(".py") and path not in paths)
+    return paths
+
+
+def run_precheck(root: Path, paths: list[str]) -> tuple[dict[str, Any], subprocess.CompletedProcess[str]]:
+    command = "python3 scripts/run_test_groups.py --quiet " + " ".join(f"--changed-file {shlex.quote(path)}" for path in paths)
+    print(f"DEV_PLATFORM_PRECHECK_COMMAND: {command}", flush=True)
+    started = time.monotonic()
+    result = subprocess.run(command, cwd=root, shell=True, capture_output=True, text=True, env=validation_subprocess_env())
+    record = command_result(command, result, time.monotonic() - started)
+    record["role"] = "affected-precheck feedback; not validation coverage"
+    print("DEV_PLATFORM_PRECHECK_RESULT: " + json.dumps(record, ensure_ascii=False), flush=True)
+    return record, result
+
+
 def commands_for(checks: list[dict[str, Any]]) -> list[str]:
     commands: list[str] = []
     for check in checks:
@@ -300,6 +326,7 @@ def execute(
     checks: list[dict[str, Any]],
     evidence_path: Path | None = None,
     managed_checkout: object | None = None,
+    precheck: list[str] | None = None,
 ) -> int:
     commands = commands_for(checks)
     records: list[dict[str, Any]] = []
@@ -309,6 +336,21 @@ def execute(
         if evidence_path is not None:
             write_evidence(evidence_path, checks, selection_status(checks), records, "not-applicable", managed_checkout)
         return 0
+
+    precheck_record = None
+    if precheck:
+        precheck_record, result = run_precheck(root, precheck)
+    if precheck_record is not None and result.returncode != 0:
+        if evidence_path is not None:
+            write_evidence(evidence_path, checks, selection_status(checks), records, "failure", managed_checkout, precheck_record)
+        descriptor = failure_descriptor(checks, precheck_record["command"], result)
+        descriptor["phase"] = "affected-precheck"
+        print("DEV_PLATFORM_CHECK_FAILURE: " + json.dumps(descriptor, ensure_ascii=False, sort_keys=True), flush=True)
+        detail = diagnostic_tail((result.stdout or "") + (result.stderr or ""))
+        if detail:
+            print("DEV_PLATFORM_CHECK_DIAGNOSTIC:\n" + detail.rstrip(), flush=True)
+        print("Affected-test precheck failed; the full validation set was not started.", flush=True)
+        return result.returncode
 
     for command in commands:
         print(f"DEV_PLATFORM_CHECK_COMMAND: {command}", flush=True)
@@ -327,14 +369,14 @@ def execute(
         if result.returncode != 0:
             outcome = "failure"
             if evidence_path is not None:
-                write_evidence(evidence_path, checks, selection_status(checks), records, outcome, managed_checkout)
+                write_evidence(evidence_path, checks, selection_status(checks), records, outcome, managed_checkout, precheck_record)
             print("DEV_PLATFORM_CHECK_FAILURE: " + json.dumps(failure_descriptor(checks, command, result), ensure_ascii=False, sort_keys=True), flush=True)
             detail = diagnostic_tail((result.stdout or "") + (result.stderr or ""))
             if detail:
                 print("DEV_PLATFORM_CHECK_DIAGNOSTIC:\n" + detail.rstrip(), flush=True)
             return result.returncode
     if evidence_path is not None:
-        write_evidence(evidence_path, checks, selection_status(checks), records, outcome, managed_checkout)
+        write_evidence(evidence_path, checks, selection_status(checks), records, outcome, managed_checkout, precheck_record)
     return 0
 
 
@@ -345,6 +387,7 @@ def write_evidence(
     records: list[dict[str, Any]],
     outcome: str,
     managed_checkout: object | None = None,
+    precheck: dict[str, Any] | None = None,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
@@ -356,6 +399,8 @@ def write_evidence(
     }
     if managed_checkout is not None:
         payload["managed_checkout"] = managed_checkout.evidence_payload()
+    if precheck is not None:
+        payload["affected_precheck"] = precheck
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
@@ -435,7 +480,7 @@ def main() -> int:
             except HardScopeOverlap as exc:
                 block_for_scope_conflict(root, str(exc))
                 raise SystemExit(str(exc)) from exc
-        return execute(root, checks, evidence_path, managed_checkout)
+        return execute(root, checks, evidence_path, managed_checkout, precheck_paths(config, checks))
     return 0
 
 

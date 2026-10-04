@@ -1,0 +1,97 @@
+"""Map changed Python paths to the test modules that exercise them directly.
+
+The map is derived statically from source: a test module references a Python
+module by importing it or by naming it in a string (``"managed_task"``,
+``"managed_task.py"``, ``".../managed_task.py"``). Transitive importers are
+deliberately not followed: lifecycle scripts import each other so densely that
+the closure selects nearly the whole suite. The result is early feedback only;
+a path with no mapping contributes nothing, and callers still run the complete
+validation set.
+"""
+from __future__ import annotations
+
+import ast
+import re
+from pathlib import Path
+from typing import Any
+
+IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+
+
+def _parse(path: Path) -> ast.Module | None:
+    try:
+        return ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    except (OSError, SyntaxError, UnicodeDecodeError):
+        return None
+
+
+def _imports(tree: ast.Module) -> set[str]:
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            names.update(alias.name.split(".")[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module and not node.level:
+            names.add(node.module.split(".")[0])
+    return names
+
+
+def _string_references(tree: ast.Module) -> set[str]:
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            for token in re.split(r"[\s/\\'\"(),=]+", node.value):
+                stem = token[:-3] if token.endswith(".py") else token
+                if IDENTIFIER.fullmatch(stem):
+                    names.add(stem)
+    return names
+
+
+def _module_stems(root: Path, source_roots: list[str]) -> dict[str, Path]:
+    stems: dict[str, Path] = {}
+    for relative in source_roots:
+        directory = root / relative
+        if directory.is_dir():
+            for path in sorted(directory.glob("*.py")):
+                stems.setdefault(path.stem, path)
+    return stems
+
+
+def affected_groups(
+    root: Path,
+    groups: dict[str, dict[str, Any]],
+    changed: list[str],
+    *,
+    start_dir: str,
+    source_roots: list[str],
+) -> dict[str, Any]:
+    """Return mapped test targets per canonical group and the unmapped paths."""
+    tests = root / start_dir
+    references: dict[str, set[str]] = {}
+    for rule in groups.values():
+        for target in rule["targets"]:
+            module = target.split(".")[0]
+            if module not in references:
+                tree = _parse(tests / f"{module}.py")
+                references[module] = set() if tree is None else _imports(tree) | _string_references(tree)
+    stems = _module_stems(root, [*source_roots, start_dir])
+    tests_prefix = start_dir.rstrip("/") + "/"
+
+    selected: dict[str, list[str]] = {}
+    unmapped: list[str] = []
+    for path in changed:
+        candidate = Path(path)
+        matched = False
+        if candidate.suffix == ".py" and candidate.stem in stems:
+            stem = candidate.stem
+            direct_test = path.startswith(tests_prefix) and stem in references
+            if direct_test or (root / path).resolve() == stems[stem].resolve():
+                for group, rule in groups.items():
+                    for target in rule["targets"]:
+                        module = target.split(".")[0]
+                        if (direct_test and module == stem) or (not direct_test and stem in references[module]):
+                            matched = True
+                            if target not in selected.setdefault(group, []):
+                                selected[group].append(target)
+        if not matched:
+            unmapped.append(path)
+    return {"groups": {group: selected[group] for group in sorted(selected)}, "unmapped": unmapped}

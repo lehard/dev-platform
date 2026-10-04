@@ -7,15 +7,12 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+from _platform_modules import load_platform_module  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "template" / "scripts" / "managed_task.py"
 sys.path.insert(0, str(SOURCE.parent))
-spec = importlib.util.spec_from_file_location("managed_task_exact_state", SOURCE)
-assert spec and spec.loader
-managed_task = importlib.util.module_from_spec(spec)
-sys.modules[spec.name] = managed_task
-spec.loader.exec_module(managed_task)
+managed_task = load_platform_module("managed_task_exact_state", SOURCE)
 
 
 def run(*args: str, cwd: Path, check: bool = True) -> subprocess.CompletedProcess[str]:

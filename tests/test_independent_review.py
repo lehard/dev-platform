@@ -13,29 +13,18 @@ import time
 import unittest
 from pathlib import Path
 from unittest import mock
+from _platform_modules import load_platform_module  # noqa: E402
 
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "template" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
-SPEC = importlib.util.spec_from_file_location("independent_review", SCRIPTS / "independent_review.py")
-assert SPEC and SPEC.loader
-review = importlib.util.module_from_spec(SPEC)
-sys.modules[SPEC.name] = review
-SPEC.loader.exec_module(review)
+review = load_platform_module("independent_review", SCRIPTS / "independent_review.py")
 
-RUNNER_SPEC = importlib.util.spec_from_file_location("independent_review_runner", SCRIPTS / "independent_review_runner.py")
-assert RUNNER_SPEC and RUNNER_SPEC.loader
-runner = importlib.util.module_from_spec(RUNNER_SPEC)
-sys.modules[RUNNER_SPEC.name] = runner
-RUNNER_SPEC.loader.exec_module(runner)
+runner = load_platform_module("independent_review_runner", SCRIPTS / "independent_review_runner.py")
 
-LIFECYCLE_SPEC = importlib.util.spec_from_file_location("openspec_lifecycle", SCRIPTS / "openspec_lifecycle.py")
-assert LIFECYCLE_SPEC and LIFECYCLE_SPEC.loader
-lifecycle = importlib.util.module_from_spec(LIFECYCLE_SPEC)
-sys.modules[LIFECYCLE_SPEC.name] = lifecycle
-LIFECYCLE_SPEC.loader.exec_module(lifecycle)
+lifecycle = load_platform_module("openspec_lifecycle", SCRIPTS / "openspec_lifecycle.py")
 
 
 def git(root: Path, *args: str) -> str:

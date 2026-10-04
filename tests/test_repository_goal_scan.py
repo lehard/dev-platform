@@ -7,14 +7,11 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from _platform_modules import load_platform_module  # noqa: E402
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SPEC = importlib.util.spec_from_file_location("repository_goal_scan", ROOT / "template" / "scripts" / "repository_goal_scan.py")
-assert SPEC and SPEC.loader
-scan = importlib.util.module_from_spec(SPEC)
-sys.modules[SPEC.name] = scan
-SPEC.loader.exec_module(scan)
+scan = load_platform_module("repository_goal_scan", ROOT / "template" / "scripts" / "repository_goal_scan.py")
 
 
 class RepositoryGoalScanTests(unittest.TestCase):
