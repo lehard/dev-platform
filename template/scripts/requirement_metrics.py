@@ -584,19 +584,23 @@ def _evidence_file(change: str, path: str) -> str | None:
     return None
 
 
-def _pull_requests(ctx: Context, target: str | None, change: str, reason: str | None = None, branch_ref: str | None = None) -> tuple[list[dict[str, Any]] | None, str | None]:
+def _pull_requests(ctx: Context, target: str | None, change: str, reason: str | None = None, branch_refs: list[str] | None = None) -> tuple[list[dict[str, Any]] | None, str | None]:
     if target is None:
         return None, reason or ("source-missing" if ctx.github is not None else "offline")
     owner = target.split("/")[0]
-    branch = urllib.parse.quote(f"{owner}:{branch_ref or f'agent/{change}'}", safe=":/")
-    items, reason = ctx.remote(
-        f"pull requests for {change}",
-        lambda gh: gh.pages(f"repos/{target}/pulls?state=all&head={branch}", limit=100)[0],
-    )
-    if items is None:
-        return None, reason
-    prs = [item for item in items if isinstance(item, dict) and isinstance(item.get("number"), int)]
-    return sorted(prs, key=lambda item: item["number"]), None
+    prs: dict[int, dict[str, Any]] = {}
+    for branch_ref in branch_refs or [f"agent/{change}"]:
+        branch = urllib.parse.quote(f"{owner}:{branch_ref}", safe=":/")
+        items, reason = ctx.remote(
+            f"pull requests for {change}",
+            lambda gh: gh.pages(f"repos/{target}/pulls?state=all&head={branch}", limit=100)[0],
+        )
+        if items is None:
+            return None, reason
+        for item in items:
+            if isinstance(item, dict) and isinstance(item.get("number"), int):
+                prs[item["number"]] = item
+    return [prs[number] for number in sorted(prs)], None
 
 
 def _history(ctx: Context, target: str, change: str, prs: list[dict[str, Any]]) -> tuple[History, dict[int, int]]:
@@ -1020,22 +1024,30 @@ def _publication(ctx: Context, target: str | None, prs: list[dict[str, Any]] | N
     }
 
 
-def _ci(ctx: Context, target: str | None, change: str, reason: str | None = None, branch_ref: str | None = None) -> tuple[dict[str, Any], list[dict[str, Any]] | None]:
+def _ci(ctx: Context, target: str | None, change: str, reason: str | None = None, branch_refs: list[str] | None = None) -> tuple[dict[str, Any], list[dict[str, Any]] | None]:
     if target is None:
         missing = unknown(reason or ("source-missing" if ctx.github is not None else "offline"))
         return {"runs": missing, "by_workflow": {}, "distinct_heads": missing, "failed_runs": missing,
                 "rerun_attempts": missing, "wall_time_total_s": missing}, None
-    branch = urllib.parse.quote(branch_ref or f"agent/{change}", safe="")
-    listing, reason = ctx.remote(
-        f"CI runs for {change}",
-        lambda gh: gh.pages(f"repos/{target}/actions/runs?branch={branch}", limit=MAX_RUNS, key="workflow_runs"),
-    )
-    if listing is None:
-        missing = unknown(reason or "unreadable")
-        return {"runs": missing, "by_workflow": {}, "distinct_heads": missing, "failed_runs": missing,
-                "rerun_attempts": missing, "wall_time_total_s": missing}, None
-    runs, complete = listing
-    runs = [run for run in runs if isinstance(run, dict)]
+    runs: list[dict[str, Any]] = []
+    seen: set[Any] = set()
+    complete = True
+    for branch_ref in branch_refs or [f"agent/{change}"]:
+        branch = urllib.parse.quote(branch_ref, safe="")
+        listing, reason = ctx.remote(
+            f"CI runs for {change}",
+            lambda gh: gh.pages(f"repos/{target}/actions/runs?branch={branch}", limit=MAX_RUNS, key="workflow_runs"),
+        )
+        if listing is None:
+            missing = unknown(reason or "unreadable")
+            return {"runs": missing, "by_workflow": {}, "distinct_heads": missing, "failed_runs": missing,
+                    "rerun_attempts": missing, "wall_time_total_s": missing}, None
+        items, branch_complete = listing
+        complete = complete and branch_complete
+        for run in items:
+            if isinstance(run, dict) and run.get("id") not in seen:
+                seen.add(run.get("id"))
+                runs.append(run)
     sources = [f"gh:run:{run.get('id')}" for run in runs]
 
     def count(value: int, items: list[str]) -> dict[str, Any]:
@@ -1136,7 +1148,7 @@ def _friction_summary(events: list[dict[str, Any]] | None, source: str) -> dict[
     }
 
 
-def _child_friction(events: list[dict[str, Any]] | None, child: str, change: str | None, branch_ref: str | None = None) -> list[dict[str, Any]] | None:
+def _child_friction(events: list[dict[str, Any]] | None, child: str, change: str | None, branch_refs: list[str] | None = None) -> list[dict[str, Any]] | None:
     if events is None:
         return None
     matched = []
@@ -1144,7 +1156,7 @@ def _child_friction(events: list[dict[str, Any]] | None, child: str, change: str
         run = event.get("run") if isinstance(event.get("run"), dict) else {}
         if (
             _canonical_ref(event.get("task")) == child
-            or (change and event.get("branch") in {f"agent/{change}", branch_ref})
+            or (change and event.get("branch") in {f"agent/{change}", *(branch_refs or [])})
             or _canonical_ref(run.get("source_issue")) == child
             or (change and run.get("change") == change)
         ):
@@ -1494,6 +1506,24 @@ def _branch_ref(change: str, provenance: dict[str, Any] | None) -> str:
         return f"agent/{change}"
 
 
+def _branch_refs(change: str, provenance: dict[str, Any] | None) -> list[str]:
+    """Every supported branch form; a resumed legacy child keeps its plain ``agent/<change>`` branch."""
+    refs = [_branch_ref(change, provenance)]
+    legacy = f"agent/{change}"
+    if legacy not in refs:
+        refs.append(legacy)
+    return refs
+
+
+def _published_branch(prs: list[dict[str, Any]] | None, branch_refs: list[str]) -> str:
+    """The branch that actually carried publication, else the preferred form."""
+    for pr in prs or []:
+        ref = (pr.get("head") or {}).get("ref") if isinstance(pr.get("head"), dict) else None
+        if ref in branch_refs:
+            return ref
+    return branch_refs[0]
+
+
 def _child_report(ctx: Context, info: ChildInfo, events: list[dict[str, Any]] | None, friction_source: str) -> tuple[dict[str, Any], dict[str, Any]]:
     """Return ``(child section, runtime providers observed for it)``."""
     change = info.change
@@ -1503,10 +1533,10 @@ def _child_report(ctx: Context, info: ChildInfo, events: list[dict[str, Any]] | 
     if change is None:
         return _unknown_child(ctx, info, info.change_reason or "source-missing", events, friction_source), facts
     archive, provenance, state = _archive(ctx, change)
-    branch_ref = _branch_ref(change, provenance)
+    branch_refs = _branch_refs(change, provenance)
     target, target_reason = _target(ctx, info, provenance)
     record, routing_source, routing_reason = _routing_record(ctx, change, info.ref)
-    prs, pr_reason = _pull_requests(ctx, target, change, target_reason, branch_ref)
+    prs, pr_reason = _pull_requests(ctx, target, change, target_reason, branch_refs)
 
     history: History | None = None
     commit_counts: dict[int, int] = {}
@@ -1517,12 +1547,12 @@ def _child_report(ctx: Context, info: ChildInfo, events: list[dict[str, Any]] | 
     archive_source = ctx.file_ref(archive / ".managed-task.json") if archive else None
     review_section, first_completed = _review(archive_source, archived, history, history_reason)
     validation = _validation(archive, history, history_reason, archived)
-    ci, primary_runs = _ci(ctx, target, change, target_reason, branch_ref)
+    ci, primary_runs = _ci(ctx, target, change, target_reason, branch_refs)
     routing = _routing(record, routing_source, routing_reason)
     section = {
         **base,
         "change": measured(change, child_sources),
-        "branch": derived(branch_ref, child_sources),
+        "branch": derived(_published_branch(prs, branch_refs), child_sources),
         "managed": _managed(ctx, archive, provenance, state),
         "routing": routing,
         "execution_efficiency": _execution_efficiency(record, routing_source, routing_reason),
@@ -1532,7 +1562,7 @@ def _child_report(ctx: Context, info: ChildInfo, events: list[dict[str, Any]] | 
         "publication": _publication(ctx, target, prs, pr_reason, commit_counts),
         "ci": ci,
         "cycles_after_first_review": _cycles_after_first_review(first_completed, validation, primary_runs, ci["runs"].get("reason")),
-        "friction": _friction_summary(_child_friction(events, info.ref, change, branch_ref), friction_source),
+        "friction": _friction_summary(_child_friction(events, info.ref, change, branch_refs), friction_source),
     }
     for provider in (routing["supervisor"]["provider"]["value"], routing["executor"]["provider"]["value"]):
         if isinstance(provider, str):
