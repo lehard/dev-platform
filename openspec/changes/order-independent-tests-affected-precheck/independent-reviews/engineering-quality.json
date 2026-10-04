@@ -3,34 +3,28 @@
   "candidate": {
     "base_head": "ddf2a6270e70ba5a4988388f456f1eb63ef5b6ff",
     "base_ref": "origin/main",
-    "candidate_head": "c3e90a832524dae774d103f42576e7475ff6b3a4",
-    "diff_sha256": "81172f84e8f6049a79192afc49975a05c4b191c98a97237cc44c76f0d0b9bb24"
+    "candidate_head": "e25a739bb0fb13a9032d1a8c5f6893f599ae8983",
+    "diff_sha256": "296584ceae31be7782a5c5333a9524f03de06027715ae99f861ee9a0fe331b3e"
   },
-  "completed_at": "2026-10-04T21:57:59+00:00",
+  "completed_at": "2026-10-04T22:01:22+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/select_checks.py defines PRECHECK_TEST_FAILURE = 1 and only treats other exit codes as 'unavailable'. template/scripts/run_test_groups.py imports `affected_test_groups` inside main() outside the TestGroupError handling, so a Python traceback also exits with 1. Only the `--all`/`--changed-file` conflict and configuration errors are tested for exit 2. The precheck subprocess also has no timeout.",
-      "id": "precheck-crash-exit-1-blocks-full-set",
+      "evidence": "template/scripts/select_checks.py (precheck_outcome): `aggregate = json.loads(line.split(\": \", 1)[1])` and the same for `selection`, with no try/except ValueError. The scanned stdout includes the output of every group's tests, and the runner is invoked with --quiet but still forwards group output. Also, run_precheck calls subprocess.run with no timeout, so a hung precheck blocks the full-suite path.",
+      "id": "precheck-outcome-unguarded-json",
       "severity": "advisory",
-      "summary": "The precheck treats runner exit code 1 as a test failure and blocks the full set. An uncaught runner exception also exits with 1, for example an ImportError from the lazy `from affected_test_groups import affected_groups`. That would block validation even though the design says tooling trouble must not block it."
-    },
-    {
-      "evidence": "template/scripts/affected_test_groups.py `_string_references` splits every ast.Constant str on whitespace and punctuation and adds every identifier-like token. `affected_groups` then selects a test if `stem in references[module]`. Matching does not distinguish module names from ordinary words.",
-      "id": "string-reference-overselection",
-      "severity": "advisory",
-      "summary": "The string-reference mapping matches any identifier-like token in any string constant against module stems. Short or generic stems such as 'status' or 'common' would then select unrelated test modules, which makes the precheck slower and noisier than the 'direct reference' contract suggests."
+      "summary": "precheck_outcome parses marker lines from captured test output with a bare json.loads. A malformed or truncated marker line would raise out of execute() instead of being classified as 'unavailable'. That breaks the stated rule that tooling trouble never blocks validation."
     }
   ],
-  "launched_at": "2026-10-04T21:57:24+00:00",
-  "output_sha256": "eba2a50c52e438db549f1eb38948808caef916f9754ffcd3c59f01c8ca34abaf",
+  "launched_at": "2026-10-04T22:00:39+00:00",
+  "output_sha256": "c31679473a9236ab5d22a9fcf60bfd32706a5a3498fad1abfd5f5cc3eb1d2ded",
   "perspective": "engineering-quality",
-  "request_id": "51c9d031-8ce6-48e1-8c36-f45d4a3a99cb",
+  "request_id": "a60ca491-63fd-4f34-89e6-9668247ffbc9",
   "reviewer": {
-    "context_id": "a6210817-e338-48d4-a783-f10c1fd71a91",
+    "context_id": "932c6458-d92d-4751-8afd-c3afe5889f53",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-295354f0-3e60-4ecf-9c51-2af5057beb6a",
+    "launch_id": "platform-launch-46053690-9852-4ea5-a413-28df6eeab9e3",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -45,41 +39,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 54649
+        "value": 50750
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 164429
+        "value": 215992
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 29819
+        "value": 35004
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 31922
+        "value": 38668
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10
+        "value": 12
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 10
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2927
+        "value": 3226
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "34791f68510b7689e67c9405c999c32d08beca06fe76c9b73b4fae581d7f1a70"
+  "task_content_digest": "9c4a774a6b73b0fd3288aa32108516671932a08be424e8883913fe0cbf900b1f"
 }

@@ -194,11 +194,16 @@ def precheck_outcome(result: subprocess.CompletedProcess[str]) -> str:
     output = result.stdout or ""
     aggregate = None
     selection = None
-    for line in output.splitlines():
-        if line.startswith("DEV_PLATFORM_TEST_AGGREGATE: "):
-            aggregate = json.loads(line.split(": ", 1)[1])
-        elif line.startswith("DEV_PLATFORM_AFFECTED_SELECTION: "):
-            selection = json.loads(line.split(": ", 1)[1])
+    try:
+        for line in output.splitlines():
+            if line.startswith("DEV_PLATFORM_TEST_AGGREGATE: "):
+                aggregate = json.loads(line.split(": ", 1)[1])
+            elif line.startswith("DEV_PLATFORM_AFFECTED_SELECTION: "):
+                selection = json.loads(line.split(": ", 1)[1])
+    except json.JSONDecodeError:
+        return "unavailable"
+    if not isinstance(aggregate, (dict, type(None))) or not isinstance(selection, (dict, type(None))):
+        return "unavailable"
     if result.returncode == 0 and aggregate is None and selection is not None and not selection.get("groups"):
         return "not-applicable"
     if aggregate is None:

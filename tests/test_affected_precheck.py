@@ -128,6 +128,7 @@ class SelectChecksPrecheckTests(unittest.TestCase):
         run = lambda code, out: subprocess.CompletedProcess("pre", code, out, "")  # noqa: E731
         self.assertEqual(select_checks.precheck_outcome(run(1, 'DEV_PLATFORM_TEST_AGGREGATE: {"failed_groups": ["g"]}')), "failure")
         self.assertEqual(select_checks.precheck_outcome(run(1, "Traceback: ImportError")), "unavailable")
+        self.assertEqual(select_checks.precheck_outcome(run(1, "DEV_PLATFORM_TEST_AGGREGATE: {trunc")), "unavailable")
         self.assertEqual(select_checks.precheck_outcome(run(0, 'DEV_PLATFORM_AFFECTED_SELECTION: {"groups": {}, "unmapped": ["a.py"]}')), "not-applicable")
         self.assertEqual(select_checks.precheck_outcome(run(0, 'DEV_PLATFORM_TEST_AGGREGATE: {"failed_groups": []}')), "success")
 
