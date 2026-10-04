@@ -3,34 +3,34 @@
   "candidate": {
     "base_head": "6acfcb57df7bb5c8eaadc38dc75c8b105dc76f5b",
     "base_ref": "origin/main",
-    "candidate_head": "5aa46462324ce59acce8d176bb930c84f0729f8f",
-    "diff_sha256": "92f21028a14fc6ab82507d987eb0ebd4de03632bdb860c149ec145c560486b9b"
+    "candidate_head": "13098fdaa40dcb9be6c52640977c4c5e6cd072ea",
+    "diff_sha256": "4e7c4bfc0c334077f70e8eec22ab1c4034db51ff865d7636a1afbff7f2d3e53f"
   },
-  "completed_at": "2026-10-03T23:47:29+00:00",
+  "completed_at": "2026-10-04T00:14:31+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/requirement_intake.py `claim_started_requirement` calls `requirement_board.reconcile_nonterminal` directly. template/scripts/execute_requirement.py `_claim_card` skips the claim when `observation.current_status == \"Done\"`. `reconcile_nonterminal` (requirement_board.py:30-48) writes the desired status whenever it differs from the current one, with no Done check. I did not check whether `start_pre_authoring` rejects a closed or Done Requirement earlier. tests/test_requirement_card_claim.py covers the Done case only for `advance`.",
-      "id": "start-claim-lacks-done-guard",
+      "evidence": "template/scripts/requirement_board.py:58-61 calls observe() for the Done guard, then reconcile_nonterminal (lines 31 and 38) runs aggregate() and observe() again. The Done guard could reuse the observation or sit inside reconcile_nonterminal. This is not a correctness defect.",
+      "id": "claim-started-redundant-github-reads",
       "severity": "advisory",
-      "summary": "The claim in `requirement_intake.py start` has no terminal-status guard, though the `advance` claim does. Rerunning `start` on a Requirement whose card is already `Done` may move it back to `In progress`."
+      "summary": "claim_started observes the card, then reconcile_nonterminal runs a full requirement_intake.aggregate and observes the card again. Every start and advance entry pays for these extra GitHub reads, and the claim sits in the window the change is meant to shorten."
     },
     {
-      "evidence": "template/scripts/requirement_intake.py `claim_started_requirement`: `except Exception as exc: raise RequirementIntakeError(...)`. Compare execute_requirement.py `_claim_card`: `except (requirement_board.RequirementBoardError, managed_project_status.ManagedProjectStatusError)`. The test `test_claim_failure_keeps_state_reports_rerun_and_never_writes_ready` injects `RuntimeError`, which only the broad catch handles.",
-      "id": "claim-broad-exception-catch",
+      "evidence": "template/scripts/execute_requirement.py:217 calls claim_started before orchestrate_pre_authoring.status (line 218). The 'has started and its state is kept' wording in requirement_board.py:63-66 is shared by both call sites, including advance.",
+      "id": "advance-claims-unstarted-requirement",
       "severity": "advisory",
-      "summary": "`claim_started_requirement` catches bare `Exception`, while the `advance` claim catches only the board and status error types. The two differ in what they handle, and the broad catch hides programming errors behind a 'rerun' message."
+      "summary": "advance claims the card without checking that pre-authoring state exists. On a Requirement that was never started, advance can move the card to In progress and only afterwards fail in orchestrate_pre_authoring.status. The error text then says the Requirement 'has started and its state is kept', which would be false."
     }
   ],
-  "launched_at": "2026-10-03T23:46:46+00:00",
-  "output_sha256": "c3445f9006d0d336dccda48db5ff42993c963b38886e97e40d8428de833e608b",
+  "launched_at": "2026-10-04T00:14:12+00:00",
+  "output_sha256": "500ed7181e58f2c3d14f468730ad3d6ba764caa2ef02eddc50487f8a3dbf1020",
   "perspective": "engineering-quality",
-  "request_id": "413030b5-0217-478f-80d4-5612037d639b",
+  "request_id": "95fa6002-d4e1-407b-9abb-28df004648cf",
   "reviewer": {
-    "context_id": "0faee3d0-e1e5-43fd-bd08-0a9da31c2a30",
+    "context_id": "2638b5f4-d4d2-4ab4-ac95-354bc78e5927",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-e2eff122-1f1f-421c-ab30-957e520ca868",
+    "launch_id": "platform-launch-ee6bb27a-0fe6-4fd4-b596-6236d95fc6c2",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -45,22 +45,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 18829
+        "value": 21190
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 62410
+        "value": 63736
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 15046
+        "value": 14563
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 38255
+        "value": 15029
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -70,16 +70,16 @@
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 7
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1508
+        "value": 1499
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "ed78cfff0ca94fde82c0c539c07b3dc7b5691331f54a6c3032dc28ea0f5c2bed"
+  "task_content_digest": "33d167d9930c06d4b3d25df7be3e1d2931207bd0cb76476cce82334eeaa5271d"
 }

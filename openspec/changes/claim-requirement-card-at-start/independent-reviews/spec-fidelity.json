@@ -3,34 +3,28 @@
   "candidate": {
     "base_head": "6acfcb57df7bb5c8eaadc38dc75c8b105dc76f5b",
     "base_ref": "origin/main",
-    "candidate_head": "5aa46462324ce59acce8d176bb930c84f0729f8f",
-    "diff_sha256": "92f21028a14fc6ab82507d987eb0ebd4de03632bdb860c149ec145c560486b9b"
+    "candidate_head": "13098fdaa40dcb9be6c52640977c4c5e6cd072ea",
+    "diff_sha256": "4e7c4bfc0c334077f70e8eec22ab1c4034db51ff865d7636a1afbff7f2d3e53f"
   },
-  "completed_at": "2026-10-03T23:46:45+00:00",
+  "completed_at": "2026-10-04T00:14:12+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/requirement_intake.py:205-219 (`claim_started_requirement` calls `requirement_board.reconcile_nonterminal` directly). template/scripts/requirement_board.py:20-27 maps stage `done` to `In progress`, and :41-44 writes it over a Done card. template/scripts/execute_requirement.py:198-208 (`_claim_card`) skips Done cards. The tests cover the Done guard only for advance, in tests/test_requirement_card_claim.py::test_resume_does_not_regress_a_done_card.",
-      "id": "start-claim-lacks-done-guard",
+      "evidence": "template/scripts/execute_requirement.py:215-220: `requirement_board.claim_started(...)` runs before `orchestrate_pre_authoring.status(...)`. The new spec requires the claim to follow durable initialisation, and the design says \"The beginning of `execute_requirement.advance`\". Neither requires or checks that state exists first.",
+      "id": "advance-claims-without-durable-state",
       "severity": "advisory",
-      "summary": "`requirement_intake.py start` claims the card without the terminal-Done guard that `advance` has. Rerunning `start` on a Requirement whose card is already Done would project it back to `In progress`. The spec and design don't mention this asymmetry."
-    },
-    {
-      "evidence": "template/scripts/execute_requirement.py:216-230: `fetch_issue`, `require_local_target_support` and the claim comment all precede `_claim_card`. design.md lines 7-8 state the validation-first ordering. spec.md line 7 does not mention it.",
-      "id": "claim-after-validation-not-in-spec",
-      "severity": "advisory",
-      "summary": "design.md says `start` and `advance` claim only after validation, so an invalid Requirement is not claimed. The spec requirement and scenarios don't state this. They say 'as soon as pre-authoring state is durably initialised' and 'at the entry of every resume'. In `advance`, the Issue fetch, label check and target-support check run before the claim, so a slow GitHub call there still precedes it. This is consistent with the design but is a narrower guarantee than the spec text suggests."
+      "summary": "`advance` claims the card before checking that durable pre-authoring state exists. The delta ties the claim to a started Requirement (\"durably initialised\", \"every resume\"). A never-started Requirement passed to `advance` is projected to `In progress`, and `orchestrate_pre_authoring.status` then fails or reports not started. The card would then show occupied with no state behind it."
     }
   ],
-  "launched_at": "2026-10-03T23:46:26+00:00",
-  "output_sha256": "19233ce0293f31ab0294c7cf1f0c518b7f4d8e5ba415e38198d642385257d7be",
+  "launched_at": "2026-10-04T00:13:55+00:00",
+  "output_sha256": "b91bf94e6642373f26f95b8e57fe3193b00e8a4178611c2bdaad156af6933cf4",
   "perspective": "spec-fidelity",
-  "request_id": "413030b5-0217-478f-80d4-5612037d639b",
+  "request_id": "95fa6002-d4e1-407b-9abb-28df004648cf",
   "reviewer": {
-    "context_id": "fab818f4-9661-4a03-ad31-e5d6e3b4a40d",
+    "context_id": "e501c788-79d7-4555-bf1f-f7906466276a",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-7e560dcf-588a-425d-88ba-fbdf064d1689",
+    "launch_id": "platform-launch-0e1fde71-9f50-44c6-b6f0-ce8f2987d9a7",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -45,41 +39,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 22413
+        "value": 21713
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 67268
+        "value": 40893
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 16790
+        "value": 10921
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 17132
+        "value": 12285
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 6
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 7
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1885
+        "value": 1185
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "ed78cfff0ca94fde82c0c539c07b3dc7b5691331f54a6c3032dc28ea0f5c2bed"
+  "task_content_digest": "33d167d9930c06d4b3d25df7be3e1d2931207bd0cb76476cce82334eeaa5271d"
 }

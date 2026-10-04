@@ -122,7 +122,8 @@ def run_advance(board: FakeBoard, *, progress_stage: str = "pre-authoring", obse
             patch.object(execution.requirement_intake, "aggregate", return_value={"requirement": REQUIREMENT, "progress": {"stage": progress_stage}}), \
             patch.object(execution.managed_project_status, "observe", side_effect=board.observe), \
             patch.object(execution.managed_project_status, "reconcile", side_effect=board.reconcile), \
-            patch.object(execution.orchestrate_pre_authoring, "status", side_effect=slow_step):
+            patch.object(execution.orchestrate_pre_authoring, "status", return_value={"current_stage": "complete"}), \
+            patch.object(execution, "_ordered_handoffs", side_effect=slow_step):
         try:
             execution.advance(root, requirement=REQUIREMENT, base_dir=root)
         except Stop:
