@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "ddf2a6270e70ba5a4988388f456f1eb63ef5b6ff",
+    "base_ref": "origin/main",
+    "candidate_head": "5313fb8f44083388f20231963fbef299458209b9",
+    "diff_sha256": "b173837c3f0c70d133453763834525b33d51a116c3002100596160930405011f"
+  },
+  "completed_at": "2026-10-04T22:11:37+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/select_checks.py, `precheck_outcome` returns \"unavailable\" for a non-zero exit without `failed_groups`. `execute` prints \"continuing with the full set\". specs/platform-lifecycle/spec.md says \"SHALL stop before the full set when the precheck fails\". design.md decision 3 does not mention the tooling-error case.",
+      "id": "precheck-unavailable-continues-to-full",
+      "severity": "advisory",
+      "summary": "The spec says the lifecycle SHALL stop before the full set when the precheck fails. The implementation stops only on the `failure` outcome, meaning failed test groups were reported. A non-zero runner exit with no aggregate, or with a malformed aggregate, is classified `unavailable` and the full set continues. This is a deliberate choice recorded in a code comment and a test, but neither the spec nor design.md states it."
+    }
+  ],
+  "launched_at": "2026-10-04T22:11:12+00:00",
+  "output_sha256": "97ca1f0ceafe1d8e0c50ad1abec950b34c3dc0eab5a343933a7fa347c6ff430d",
+  "perspective": "spec-fidelity",
+  "request_id": "02107ad0-01e2-49d3-b1b7-51e5db3b6d3f",
+  "reviewer": {
+    "context_id": "ce672706-0e64-48ce-9f4b-6334a3c60221",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-e4206733-0c50-4b25-b5ac-033709fc0753",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 49917
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 55645
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 20897
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 21937
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2241
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "53016aa79fd8e5a7c4a464c93555d96aa3fd654ed39b4d17d4b69ee0e1f1e060"
+}
