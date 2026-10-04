@@ -3,34 +3,34 @@
   "candidate": {
     "base_head": "6acfcb57df7bb5c8eaadc38dc75c8b105dc76f5b",
     "base_ref": "origin/main",
-    "candidate_head": "0bc81ef8e398a340d70652d9a7d63968a28861a3",
-    "diff_sha256": "bee50da3fb30951b615b985f80ed45bf4cd3b21d4a889f37fcd79c1450324ff0"
+    "candidate_head": "5aa46462324ce59acce8d176bb930c84f0729f8f",
+    "diff_sha256": "92f21028a14fc6ab82507d987eb0ebd4de03632bdb860c149ec145c560486b9b"
   },
-  "completed_at": "2026-10-03T23:42:44+00:00",
+  "completed_at": "2026-10-03T23:47:29+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/execute_requirement.py:217 calls requirement_board.reconcile_nonterminal before any terminal check. requirement_board.py:20-24 maps stage 'done' to 'In progress', and lines 41-44 write whenever the current status differs. Earlier, the only reconcile was after a child start (line 286), so a Done card was never touched on a terminal rerun. The change does not show that this path is guarded.",
-      "id": "advance-entry-claim-may-regress-done-card",
+      "evidence": "template/scripts/requirement_intake.py `claim_started_requirement` calls `requirement_board.reconcile_nonterminal` directly. template/scripts/execute_requirement.py `_claim_card` skips the claim when `observation.current_status == \"Done\"`. `reconcile_nonterminal` (requirement_board.py:30-48) writes the desired status whenever it differs from the current one, with no Done check. I did not check whether `start_pre_authoring` rejects a closed or Done Requirement earlier. tests/test_requirement_card_claim.py covers the Done case only for `advance`.",
+      "id": "start-claim-lacks-done-guard",
       "severity": "advisory",
-      "summary": "The unconditional card reconcile at advance() entry can rewrite an already terminal (Done) Requirement card back to In progress if advance is rerun after delivery."
+      "summary": "The claim in `requirement_intake.py start` has no terminal-status guard, though the `advance` claim does. Rerunning `start` on a Requirement whose card is already `Done` may move it back to `In progress`."
     },
     {
-      "evidence": "tests/test_requirement_card_claim.py exercises only requirement_intake start. tests/test_requirement_execution.py only changes an expected call count to 2 and adds mock.patch.object(execution.requirement_board, 'reconcile_nonterminal') to two tests. The spec scenario 'a card still showing Ready is repaired to In progress at entry' has no direct test.",
-      "id": "advance-entry-claim-lacks-dedicated-test",
+      "evidence": "template/scripts/requirement_intake.py `claim_started_requirement`: `except Exception as exc: raise RequirementIntakeError(...)`. Compare execute_requirement.py `_claim_card`: `except (requirement_board.RequirementBoardError, managed_project_status.ManagedProjectStatusError)`. The test `test_claim_failure_keeps_state_reports_rerun_and_never_writes_ready` injects `RuntimeError`, which only the broad catch handles.",
+      "id": "claim-broad-exception-catch",
       "severity": "advisory",
-      "summary": "Nothing tests the new advance-entry claim itself: that it runs before slow steps, repairs a Ready card, or surfaces a reconcile failure."
+      "summary": "`claim_started_requirement` catches bare `Exception`, while the `advance` claim catches only the board and status error types. The two differ in what they handle, and the broad catch hides programming errors behind a 'rerun' message."
     }
   ],
-  "launched_at": "2026-10-03T23:42:19+00:00",
-  "output_sha256": "6f9573c3f6352a569997c8baa213e11ef08a069c8e268bdb2d8fe438022d4fef",
+  "launched_at": "2026-10-03T23:46:46+00:00",
+  "output_sha256": "c3445f9006d0d336dccda48db5ff42993c963b38886e97e40d8428de833e608b",
   "perspective": "engineering-quality",
-  "request_id": "51570536-f443-4cc0-80e8-2d3a7d23e69b",
+  "request_id": "413030b5-0217-478f-80d4-5612037d639b",
   "reviewer": {
-    "context_id": "29d0bce5-0829-4751-a426-4673600c345c",
+    "context_id": "0faee3d0-e1e5-43fd-bd08-0a9da31c2a30",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-266ef58c-948d-4187-8549-1643d5ecb6e2",
+    "launch_id": "platform-launch-e2eff122-1f1f-421c-ab30-957e520ca868",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -45,41 +45,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 20234
+        "value": 18829
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 84257
+        "value": 62410
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 18600
+        "value": 15046
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 19900
+        "value": 38255
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10
+        "value": 8
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 6
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1920
+        "value": 1508
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "56ed1965230c1f2adba69af0d6729255c7ae267e90e0aa6f127ba325f32555e1"
+  "task_content_digest": "ed78cfff0ca94fde82c0c539c07b3dc7b5691331f54a6c3032dc28ea0f5c2bed"
 }

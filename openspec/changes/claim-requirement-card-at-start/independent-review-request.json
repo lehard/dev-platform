@@ -2,11 +2,14 @@
   "candidate": {
     "base_head": "6acfcb57df7bb5c8eaadc38dc75c8b105dc76f5b",
     "base_ref": "origin/main",
-    "candidate_head": "0bc81ef8e398a340d70652d9a7d63968a28861a3",
-    "diff_sha256": "bee50da3fb30951b615b985f80ed45bf4cd3b21d4a889f37fcd79c1450324ff0"
+    "candidate_head": "5aa46462324ce59acce8d176bb930c84f0729f8f",
+    "diff_sha256": "92f21028a14fc6ab82507d987eb0ebd4de03632bdb860c149ec145c560486b9b"
   },
   "change": "openspec/changes/claim-requirement-card-at-start",
   "excluded_lifecycle_paths": [
+    "openspec/changes/claim-requirement-card-at-start/independent-review-request.json",
+    "openspec/changes/claim-requirement-card-at-start/independent-reviews/engineering-quality.json",
+    "openspec/changes/claim-requirement-card-at-start/independent-reviews/spec-fidelity.json",
     "openspec/changes/claim-requirement-card-at-start/verification.md"
   ],
   "fresh_context_required": true,
@@ -33,7 +36,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-03T23:41:46+00:00",
+  "prepared_at": "2026-10-03T23:45:21+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/claim-requirement-card-at-start/independent-reviews",
     "required_perspectives": [
@@ -42,7 +45,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "51570536-f443-4cc0-80e8-2d3a7d23e69b",
+  "request_id": "413030b5-0217-478f-80d4-5612037d639b",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -55,7 +58,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "6acfcb57df7bb5c8eaadc38dc75c8b105dc76f5b",
-    "digest": "56ed1965230c1f2adba69af0d6729255c7ae267e90e0aa6f127ba325f32555e1",
+    "digest": "ed78cfff0ca94fde82c0c539c07b3dc7b5691331f54a6c3032dc28ea0f5c2bed",
     "paths": {
       "dev-platform/checks.toml": "941e2862e0886986b8d60155816d07bbdbdb6243",
       "docs/engineering/task-intake.md": "2ff2f8d92e39ba492aa184724fca8dbe4a4f141f",
@@ -65,9 +68,9 @@
       "openspec/changes/claim-requirement-card-at-start/proposal.md": "4cea096d995aaff62279138fe0afe233f2a9b517",
       "openspec/changes/claim-requirement-card-at-start/specs/agent-workflow/spec.md": "b125df95c36097a22e09de675532ca52aff8f3d6",
       "openspec/changes/claim-requirement-card-at-start/tasks.md": "2a64310722c620898c93206b94fe10a89c413e44",
-      "template/scripts/execute_requirement.py": "72f0880ee05edfc0ed78ca355b20a03f8c19bfb8",
+      "template/scripts/execute_requirement.py": "ecb99643714a5e901ee5eede9bc1e9aa6e9aa92e",
       "template/scripts/requirement_intake.py": "0cdf675a86204ea8c9b1b88474eea632b7a1d411",
-      "tests/test_requirement_card_claim.py": "3db38db0e60d99f884c4a38c349cf17921066ec6",
+      "tests/test_requirement_card_claim.py": "c2c57eeac6b485615c09f8a02862c9b10e7db63a",
       "tests/test_requirement_execution.py": "715e10e6f602bdc4ec4f2714503b9de6bf694da8"
     },
     "scope": "independent-review-v1",

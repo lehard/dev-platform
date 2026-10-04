@@ -3,34 +3,34 @@
   "candidate": {
     "base_head": "6acfcb57df7bb5c8eaadc38dc75c8b105dc76f5b",
     "base_ref": "origin/main",
-    "candidate_head": "0bc81ef8e398a340d70652d9a7d63968a28861a3",
-    "diff_sha256": "bee50da3fb30951b615b985f80ed45bf4cd3b21d4a889f37fcd79c1450324ff0"
+    "candidate_head": "5aa46462324ce59acce8d176bb930c84f0729f8f",
+    "diff_sha256": "92f21028a14fc6ab82507d987eb0ebd4de03632bdb860c149ec145c560486b9b"
   },
-  "completed_at": "2026-10-03T23:42:19+00:00",
+  "completed_at": "2026-10-03T23:46:45+00:00",
   "findings": [
     {
-      "evidence": "tests/test_requirement_card_claim.py only drives `requirement_intake.main start`. The edits to tests/test_requirement_execution.py only change the expected `reconcile_nonterminal` call count to 2 and mock it in two tests. Nothing checks that the entry claim runs before `orchestrate_pre_authoring.status` or `_linked_children_by_change`, or that a `Ready` card is repaired. The spec delta's 'Restart continues\u2026' scenario promises this behavior.",
-      "id": "advance-entry-claim-untested",
+      "evidence": "template/scripts/requirement_intake.py:205-219 (`claim_started_requirement` calls `requirement_board.reconcile_nonterminal` directly). template/scripts/requirement_board.py:20-27 maps stage `done` to `In progress`, and :41-44 writes it over a Done card. template/scripts/execute_requirement.py:198-208 (`_claim_card`) skips Done cards. The tests cover the Done guard only for advance, in tests/test_requirement_card_claim.py::test_resume_does_not_regress_a_done_card.",
+      "id": "start-claim-lacks-done-guard",
       "severity": "advisory",
-      "summary": "The spec scenario that `advance` repairs a card showing `Ready` at entry, before slow steps, has no dedicated regression test."
+      "summary": "`requirement_intake.py start` claims the card without the terminal-Done guard that `advance` has. Rerunning `start` on a Requirement whose card is already Done would project it back to `In progress`. The spec and design don't mention this asymmetry."
     },
     {
-      "evidence": "template/scripts/execute_requirement.py:217 calls `requirement_board.reconcile_nonterminal` bare. Its `RequirementBoardError` or other exceptions propagate unwrapped. `requirement_intake.claim_started_requirement` adds the 'state is kept\u2026 rerun' message only on the `start` path. The spec scenario 'Failure after durable start does not free the card' requires the failure to be reported with a rerun that converges. No `advance` test covers a claim failure.",
-      "id": "advance-claim-failure-unreported-state-kept",
+      "evidence": "template/scripts/execute_requirement.py:216-230: `fetch_issue`, `require_local_target_support` and the claim comment all precede `_claim_card`. design.md lines 7-8 state the validation-first ordering. spec.md line 7 does not mention it.",
+      "id": "claim-after-validation-not-in-spec",
       "severity": "advisory",
-      "summary": "A card-claim failure at the entry of `advance` is not wrapped like the one in `start`, so it does not state that state is kept and the command is safe to rerun."
+      "summary": "design.md says `start` and `advance` claim only after validation, so an invalid Requirement is not claimed. The spec requirement and scenarios don't state this. They say 'as soon as pre-authoring state is durably initialised' and 'at the entry of every resume'. In `advance`, the Issue fetch, label check and target-support check run before the claim, so a slow GitHub call there still precedes it. This is consistent with the design but is a narrower guarantee than the spec text suggests."
     }
   ],
-  "launched_at": "2026-10-03T23:41:56+00:00",
-  "output_sha256": "927ca4fdd31e5b0147c72d2c8917256a1fc1dcf3a3f6ff9e41b49a8e4326c934",
+  "launched_at": "2026-10-03T23:46:26+00:00",
+  "output_sha256": "19233ce0293f31ab0294c7cf1f0c518b7f4d8e5ba415e38198d642385257d7be",
   "perspective": "spec-fidelity",
-  "request_id": "51570536-f443-4cc0-80e8-2d3a7d23e69b",
+  "request_id": "413030b5-0217-478f-80d4-5612037d639b",
   "reviewer": {
-    "context_id": "4b233e0a-e001-4f9a-87ac-26718cf6eeda",
+    "context_id": "fab818f4-9661-4a03-ad31-e5d6e3b4a40d",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-b25bc021-0575-4522-a0de-fdd00dcc05de",
+    "launch_id": "platform-launch-7e560dcf-588a-425d-88ba-fbdf064d1689",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -45,22 +45,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 20003
+        "value": 22413
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 62862
+        "value": 67268
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 15067
+        "value": 16790
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 16304
+        "value": 17132
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -75,11 +75,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1765
+        "value": 1885
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "56ed1965230c1f2adba69af0d6729255c7ae267e90e0aa6f127ba325f32555e1"
+  "task_content_digest": "ed78cfff0ca94fde82c0c539c07b3dc7b5691331f54a6c3032dc28ea0f5c2bed"
 }

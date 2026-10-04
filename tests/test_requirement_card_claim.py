@@ -78,13 +78,19 @@ class RequirementCardClaimTests(unittest.TestCase):
     def test_claim_failure_keeps_state_reports_rerun_and_never_writes_ready(self) -> None:
         board = FakeBoard("Ready")
         prepared: list[bool] = []
-        with patch.object(requirement_board, "reconcile_nonterminal", side_effect=RuntimeError("github timeout")):
+        with patch.object(requirement_board, "reconcile_nonterminal", side_effect=requirement_board.RequirementBoardError("github timeout")):
             code, output = run_start(board, prepare=lambda: prepared.append(True))
         self.assertEqual(code, 2)
         self.assertTrue(prepared)
-        self.assertIn("pre-authoring state is kept", output)
+        self.assertIn("state is kept", output)
         self.assertIn("rerun", output)
         self.assertNotIn("Ready", board.writes)
+
+    def test_start_does_not_regress_a_done_card(self) -> None:
+        board = FakeBoard("Done")
+        code, _ = run_start(board)
+        self.assertEqual(code, 0)
+        self.assertEqual(board.writes, [])
 
     def test_unreadable_card_after_start_is_blocked_not_free(self) -> None:
         board = FakeBoard("Blocked")
@@ -137,8 +143,8 @@ class AdvanceEntryClaimTests(unittest.TestCase):
 
     def test_claim_failure_at_entry_reports_kept_state_and_skips_slow_steps(self) -> None:
         board = FakeBoard("Ready")
-        with patch.object(execution.requirement_board, "reconcile_nonterminal", side_effect=requirement_board.RequirementBoardError("no card")):
-            with self.assertRaises(execution.RequirementExecutionError) as caught:
+        with patch.object(requirement_board, "reconcile_nonterminal", side_effect=requirement_board.RequirementBoardError("no card")):
+            with self.assertRaises(requirement_board.RequirementBoardError) as caught:
                 run_advance(board)
         self.assertIn("state is kept", str(caught.exception))
         self.assertIn("rerun", str(caught.exception))

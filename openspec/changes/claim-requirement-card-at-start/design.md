@@ -2,7 +2,7 @@
 
 ## Decision
 
-Reuse `requirement_board.reconcile_nonterminal` (stage `pre-authoring` already maps to `In progress`). Call it from two seams:
+Both seams call one shared helper, `requirement_board.claim_started`, which skips a terminal `Done` card and wraps failures with the kept-state and rerun message. It reuses `requirement_board.reconcile_nonterminal` (stage `pre-authoring` already maps to `In progress`). Call it from two seams:
 
 1. `requirement_intake.main` for `start`, after `start_pre_authoring` returns, i.e. after `orchestrate_pre_authoring.init` wrote durable state. Validation (Issue fetch, body parse, target lifecycle) stays before the claim, so an invalid or unsupported Requirement is not claimed.
 2. The beginning of `execute_requirement.advance`, before child discovery, duplicate checks and materialisation.

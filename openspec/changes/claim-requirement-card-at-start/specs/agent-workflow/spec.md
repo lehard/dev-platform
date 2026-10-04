@@ -4,7 +4,7 @@
 
 ### Requirement: Started Requirement is claimed on its card before preparation continues
 
-When Requirement execution starts, the primary Requirement Project card SHALL be projected to its existing nonterminal status as soon as pre-authoring state is durably initialised, and again at the entry of every resume, before duplicate checks, evidence gathering or child materialisation. The platform SHALL NOT add a new status for this interval, and no error after the durable start SHALL write or leave a free-looking `Ready` projection by its own action.
+When Requirement execution starts, the primary Requirement Project card SHALL be projected to its existing nonterminal status as soon as pre-authoring state is durably initialised, and again at the entry of every resume, before duplicate checks, evidence gathering or child materialisation. The claim follows Requirement validation, so an invalid or unsupported Requirement is not claimed, and it SHALL NOT rewrite a terminal `Done` card. The platform SHALL NOT add a new status for this interval, and no error after the durable start SHALL write or leave a free-looking `Ready` projection by its own action.
 
 #### Scenario: Card is claimed before slow preparation
 
