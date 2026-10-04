@@ -46,21 +46,3 @@ def reconcile_nonterminal(root: Path, *, requirement: str) -> dict[str, Any]:
         raise RequirementBoardError("Requirement primary Project card disappeared during reconciliation")
     return {"requirement": requirement, "stage": progress["stage"], "status": changed.current_status,
             "changed": changed.changed, "reason": progress.get("reason")}
-
-
-def claim_started(root: Path, *, requirement: str) -> None:
-    """Idempotently claim a started Requirement's card; a terminal Done card is never touched.
-
-    Used by both ``start`` and ``advance``. Failure is reported as a board error that states the
-    durable state is kept and the command is safe to rerun; this never writes ``Ready``.
-    """
-    try:
-        observation = managed_project_status.observe(root, source_issue=requirement)
-        if observation is not None and observation.current_status == "Done":
-            return
-        reconcile_nonterminal(root, requirement=requirement)
-    except (RequirementBoardError, managed_project_status.ManagedProjectStatusError) as exc:
-        raise RequirementBoardError(
-            f"{requirement} has started and its state is kept, but its card could not be claimed ({exc}); "
-            "the command is safe to rerun"
-        ) from exc

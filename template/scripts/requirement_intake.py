@@ -766,12 +766,6 @@ def main() -> int:
         if args.command == "start":
             payload = start_pre_authoring(root, requirement=args.requirement, base_dir=args.base_dir)
             print(f"Pre-authoring initialized for {payload['requirement']} ({payload['slug']})")
-            import requirement_board  # imports this module; imported lazily to avoid a cycle
-
-            try:
-                requirement_board.claim_started(root, requirement=payload["requirement"])
-            except requirement_board.RequirementBoardError as exc:
-                raise RequirementIntakeError(str(exc)) from exc
             return 0
         if args.command == "link-child":
             payload = link_child(root, requirement=args.requirement, child=args.child)
