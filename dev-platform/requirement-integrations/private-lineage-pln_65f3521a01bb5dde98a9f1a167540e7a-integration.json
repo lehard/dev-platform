@@ -1,0 +1,20 @@
+{
+  "base": "ff69a8d5f115d3815b9d333c4bb40fd72689dca4",
+  "children": [
+    {
+      "change": "stable-br-work-identity",
+      "delta_base": "ff69a8d5f115d3815b9d333c4bb40fd72689dca4",
+      "digest": "79612a6bbeee07a1d82bf8c910d06f12457cba71f7f823d358f73f02fd3f6cbb",
+      "head": "91b686cc3200a9df5e7f5db867693e6f675c7fbd",
+      "source_branch": "agent/stable-br-work-identity",
+      "source_issue": "pln_0c88e051f669005d3810172259883ffd"
+    }
+  ],
+  "digest": "d5e2d82a5a54d36c293da65faf3d5c6095f1988747d7bf3aea01d4f58874a5a7",
+  "expected_changes": [
+    "stable-br-work-identity",
+    "propagate-br-publication-identity"
+  ],
+  "requirement": "pln_65f3521a01bb5dde98a9f1a167540e7a",
+  "version": 1
+}
