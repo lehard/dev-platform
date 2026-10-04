@@ -177,7 +177,7 @@ jobs:
         with:
           client-id: ${{ vars.DEV_PLATFORM_APP_CLIENT_ID }}
           private-key: ${{ secrets.DEV_PLATFORM_APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
+          owner: ${{ matrix.repo_owner }}
           repositories: ${{ matrix.repo_name }}
           permission-contents: write
           permission-pull-requests: write
