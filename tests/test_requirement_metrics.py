@@ -278,6 +278,15 @@ class BranchRefTests(unittest.TestCase):
         self.assertEqual(metrics._branch_ref("change", None), "agent/change")
         self.assertEqual(metrics._branch_ref("change", {"work_identity": "bad"}), "agent/change")
 
+    def test_identified_child_also_queries_the_legacy_branch_it_may_have_kept(self):
+        self.assertEqual(metrics._branch_refs("change", {"work_identity": "BR-7/T2"}), ["agent/br-7-t2-change", "agent/change"])
+        self.assertEqual(metrics._branch_refs("change", {}), ["agent/change"])
+
+    def test_published_branch_follows_the_pull_request_head(self):
+        refs = ["agent/br-7-t2-change", "agent/change"]
+        self.assertEqual(metrics._published_branch([{"head": {"ref": "agent/change"}}], refs), "agent/change")
+        self.assertEqual(metrics._published_branch([], refs), "agent/br-7-t2-change")
+
 
 class ValueModelTests(unittest.TestCase):
     def test_unknown_is_never_zero_and_partial_propagates(self) -> None:
