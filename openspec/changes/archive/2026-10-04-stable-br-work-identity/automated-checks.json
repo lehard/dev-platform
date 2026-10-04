@@ -1,0 +1,89 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.753,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.577,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 652.231,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/managed_task.py",
+        "template/scripts/managed_work_identity.py",
+        "template/scripts/requirement_intake.py",
+        "template/scripts/start_managed_task.py",
+        "tests/test_managed_task.py",
+        "tests/test_requirement_intake.py",
+        "tests/test_shared_writer_guard.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_0c88e051f669005d3810172259883ffd",
+    "change": "stable-br-work-identity",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/stable-br-work-identity",
+    "branch": "agent/stable-br-work-identity",
+    "head": "964900796db3208934001baac29092cc36019f24",
+    "task_content": {
+      "version": 1,
+      "digest": "5112f3ae8c62b621c744845d107699ff5786163fdaf6d6ae990e04ae1879a139",
+      "paths": {
+        "docs/decisions/0002-public-br-identity.md": "86c4d53569c3fd8b1ea7f29f29ad60c343404144",
+        "docs/decisions/README.md": "8542175fe423593e0b74bf8e3cb7ca5428ce5a28",
+        "docs/engineering/task-intake.md": "28a9d3e059e855baee953b76e726bfeae6c7061a",
+        "openspec/changes/stable-br-work-identity/.managed-task.json": "b6e08f630751d99f33e11b84c737c060bfb3cc33",
+        "openspec/changes/stable-br-work-identity/.openspec.yaml": "f98e139fb307ee57d69f587d7c892ef2ff4575e0",
+        "openspec/changes/stable-br-work-identity/design.md": "bb77a05e6544965be8799076853984e9c5e6ca54",
+        "openspec/changes/stable-br-work-identity/proposal.md": "d73652b0b98a4051ff98c9153e45571ab30ee5bf",
+        "openspec/changes/stable-br-work-identity/specs/managed-task-intake/spec.md": "492cb40307bf6482f5723f105f86a0170771331b",
+        "openspec/changes/stable-br-work-identity/specs/managed-work-identity/spec.md": "729f91a1f4ce57e2027fd2ea817f56fe3403b450",
+        "openspec/changes/stable-br-work-identity/tasks.md": "744d4ae62042bbe6bda05969765c38d3e0f08331",
+        "template/docs/engineering/task-intake.md.jinja": "9e4c4067daf9cf588cf0989c30fbb42fea64ae2a",
+        "template/scripts/managed_task.py": "635e82a5431a5a2989263c2244fc9371a1685721",
+        "template/scripts/managed_work_identity.py": "c51f89d73f74aaf0270a310570d837501eeeccfc",
+        "template/scripts/requirement_intake.py": "15b8687f1ba4af05f04ac9b83c31cf33abbeba17",
+        "template/scripts/start_managed_task.py": "ea581e6a1ab04342c474315bd891d0828cb9723b",
+        "tests/test_managed_task.py": "7e30ef3b562e5e7c883c5f30ecb744d13be7b505",
+        "tests/test_requirement_intake.py": "c7ce749fbd9a70d3a1810c46c1a4ac7b8224b3e1",
+        "tests/test_shared_writer_guard.py": "e4cc1007e6eb969ce7a2769c079b87c0b6c59477"
+      },
+      "base": "ff69a8d5f115d3815b9d333c4bb40fd72689dca4"
+    }
+  }
+}

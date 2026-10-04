@@ -300,3 +300,24 @@ This document is platform-owned and arrives through normal release rollout.
 Project-owned root `AGENTS.md` keeps local rules, but must include the stable
 reference inserted by the rollout migration. The migration is additive and
 marked; it does not replace project/domain or module-level instructions.
+
+## Readable managed work identity
+
+Requirement creation exposes `Work identity: BR-N`, derived from its Issue
+number. Normal child linking, handoff materialization and import allocate and
+read back `BR-N/Tn`, retaining the exact private `Requirement: owner/repo#N`
+line. Ordinal reservations remain in the parent's existing Issue body when
+checklist links are removed; child Issue claims support interrupted-write
+recovery. Do not edit or delete those reservations when reordering the
+checklist. Conflicting claims, duplicate ordinals and lost identity claims observable on
+readback fail closed;
+inspect both Issue records before retrying. GitHub body edits have no atomic
+compare-and-swap: avoid concurrent manual prose edits while linking. A change
+observed before replacement stops the operation, but an unseen edit overwritten
+between that read and replacement cannot be detected. No separate registry is used.
+
+Only validated BR tokens may supplement opaque public technical provenance.
+This permission does not disclose the private Backlog name, URL, exact Issue
+reference or Requirement prose. Native GitHub Assignee and project-owned area
+and optional kind labels continue to own responsibility and taxonomy. Branch
+and PR propagation is delivered separately.

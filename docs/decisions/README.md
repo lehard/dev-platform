@@ -5,6 +5,7 @@ This registry preserves the reasons behind consequential Dev Platform decisions 
 | ID | Decision | Scope | Status |
 | --- | --- | --- | --- |
 | [DEC-0001](0001-teamai-substitution.md) | TeamAI substitution after the v0.25.0 pilot | External agent infrastructure | Current |
+| [DEC-0002](0002-public-br-identity.md) | Public BR identity with private technical lineage | Managed identity and public privacy | Current |
 
 ## Record contract
 

@@ -26,6 +26,7 @@ from typing import Any
 
 import managed_project_status
 import managed_task
+import managed_work_identity as work_identity
 import orchestrate_pre_authoring
 import requirement_target_lifecycle
 from _platform_common import atomic_write_text, current_worktree_root, github_cli_env
@@ -95,6 +96,8 @@ def parse_requirement_body(body: str) -> dict[str, Any]:
         block = body[children_start + len(CHILDREN_START):children_end]
         children = [match.group("ref") for match in CHILD_ITEM_RE.finditer(block)]
         section_source = body[:children_start] + body[children_end + len(CHILDREN_END):]
+    section_source = re.sub(r"^Work identity: .*\n?", "", section_source, flags=re.MULTILINE)
+    section_source = work_identity.RESERVATION.sub("", section_source)
     sections: dict[str, str] = {}
     matches = list(SECTION_RE.finditer(section_source))
     for index, match in enumerate(matches):
@@ -257,6 +260,9 @@ def create_requirement(
     )
     created_repository, number = issue_ref(result.stdout.strip())
     _reconcile_requirement_labels(root, repository=created_repository, number=number, config=config, priority=effective_priority)
+    reconcile_requirement_identity(
+        root, f"{created_repository}#{number}", fetch_issue(root, created_repository, number),
+    )
     return {
         "repository": created_repository, "number": number, "slug": requirement_slug(number),
         "project_label": config.project_label, "priority": priority_label_value,
@@ -438,6 +444,37 @@ def default_base_dir(root: Path) -> Path:
     return orchestrate_pre_authoring.default_base_dir(root)
 
 
+def reconcile_requirement_identity(root: Path, requirement: str, issue: dict[str, Any]) -> dict[str, Any]:
+    repository, number = issue_ref(requirement)
+    requirement = f"{repository}#{number}"
+    try:
+        with work_identity.allocation_lock(requirement):
+            return _reconcile_requirement_identity(root, requirement, issue)
+    except work_identity.IdentityError as exc:
+        raise RequirementIntakeError(str(exc)) from exc
+
+
+def _reconcile_requirement_identity(root: Path, requirement: str, issue: dict[str, Any]) -> dict[str, Any]:
+    repository, number = issue_ref(requirement)
+    body = str(issue.get("body") or "")
+    try:
+        expected = work_identity.with_identity(body, work_identity.parent_identity(requirement))
+    except work_identity.IdentityError as exc:
+        raise RequirementIntakeError(str(exc)) from exc
+    if expected == body:
+        return issue
+    env = github_cli_env(root)
+    if env is None:
+        raise RequirementIntakeError("GitHub CLI authentication is required for Requirement identity recovery")
+    if str(fetch_issue(root, repository, number).get("body") or "") != body:
+        raise RequirementIntakeError("Requirement changed during identity recovery; inspect and retry")
+    run(["gh", "issue", "edit", str(number), "--repo", repository, "--body", expected], root, env)
+    observed = fetch_issue(root, repository, number)
+    if str(observed.get("body") or "") != expected:
+        raise RequirementIntakeError("Requirement identity recovery readback failed; inspect and retry")
+    return observed
+
+
 def start_pre_authoring(
     root: Path, *, requirement: str, base_dir: Path | None = None
 ) -> dict[str, Any]:
@@ -452,6 +489,7 @@ def start_pre_authoring(
         requirement_target_lifecycle.require_local_target_support(root, target_repository=context["target_repository"])
     except requirement_target_lifecycle.RequirementTargetLifecycleError as exc:
         raise RequirementIntakeError(str(exc)) from exc
+    reconcile_requirement_identity(root, f"{repository}#{number}", issue)
     base_dir = base_dir or default_base_dir(root)
     slug = requirement_slug(number)
     directory = orchestrate_pre_authoring.requirement_dir(base_dir, slug)
@@ -467,43 +505,118 @@ def start_pre_authoring(
     return {"requirement": f"{repository}#{number}", "slug": slug, "state": state}
 
 
+def _identity_siblings(root: Path, requirement: str, env: dict[str, str]) -> dict[str, str]:
+    repository, _ = issue_ref(requirement)
+    issues = managed_task.run_json(
+        ["gh", "api", "--paginate", "--slurp", f"repos/{repository}/issues?state=all&per_page=100"], root, env,
+    )
+    if not isinstance(issues, list) or any(not isinstance(page, list) for page in issues):
+        raise RequirementIntakeError("cannot read sibling Issue pages")
+    issues = [issue for page in issues for issue in page]
+    if any(not isinstance(issue, dict) for issue in issues):
+        raise RequirementIntakeError("cannot read sibling Issue claims")
+    result = {}
+    for issue in issues:
+        body = str(issue.get("body") or "")
+        if "pull_request" not in issue and re.search(
+            rf"^Requirement: {re.escape(requirement)}\s*$", body, re.MULTILINE,
+        ):
+            result[f"{repository}#{managed_task.issue_number(issue)}"] = body
+    return result
+
+
 def link_child(root: Path, *, requirement: str, child: str) -> dict[str, Any]:
-    requirement_repository, requirement_number = issue_ref(requirement)
+    repository, number = issue_ref(requirement)
+    requirement = f"{repository}#{number}"
+    try:
+        with work_identity.allocation_lock(requirement):
+            return _link_child_identity(root, requirement=requirement, child=child)
+    except work_identity.IdentityError as exc:
+        raise RequirementIntakeError(str(exc)) from exc
+
+
+def _link_child_identity(root: Path, *, requirement: str, child: str) -> dict[str, Any]:
+    repository, number = issue_ref(requirement)
     child_repository, child_number = issue_ref(child)
+    requirement = f"{repository}#{number}"
+    child = f"{child_repository}#{child_number}"
+    if child_repository != repository or child == requirement:
+        raise RequirementIntakeError("child must be a distinct Issue in the Requirement Backlog repository")
     env = github_cli_env(root)
     if env is None:
-        raise RequirementIntakeError("GitHub CLI authentication is required; run gh auth login and retry")
-    requirement_ref = f"{requirement_repository}#{requirement_number}"
-    child_ref = f"{child_repository}#{child_number}"
-
-    child_issue = fetch_issue(root, child_repository, child_number)
-    child_body = str(child_issue.get("body") or "")
-    other_parents = re.findall(r"^Requirement: (\S+/\S+#\d+)\s*$", child_body, re.MULTILINE)
-    if other_parents and set(other_parents) != {requirement_ref}:
-        raise RequirementIntakeError(f"{child_ref} already references a different Requirement: {other_parents}")
-
-    parent_issue = fetch_issue(root, requirement_repository, requirement_number)
-    parent_body = str(parent_issue.get("body") or "")
+        raise RequirementIntakeError("GitHub CLI authentication is required")
+    parent_body = str(fetch_issue(root, repository, number).get("body") or "")
+    child_body = str(fetch_issue(root, child_repository, child_number).get("body") or "")
     parsed = parse_requirement_body(parent_body)
-    if child_ref not in parsed["children"]:
-        start = parent_body.find(CHILDREN_START)
-        end = parent_body.find(CHILDREN_END)
-        if start == -1 or end == -1 or end < start:
-            raise RequirementIntakeError(f"{requirement_ref} is missing its children block; it is not a valid Requirement body")
-        insertion_point = start + len(CHILDREN_START)
-        block = parent_body[insertion_point:end]
-        updated_block = block.rstrip("\n") + f"\n- [ ] {child_ref}\n"
-        new_body = parent_body[:insertion_point] + updated_block + parent_body[end:]
-        run(["gh", "issue", "edit", str(requirement_number), "--repo", requirement_repository, "--body", new_body], root, env)
-
-    ensure_label(root, child_repository, CHILD_LABEL, env=env)
-    back_reference = f"{BACK_REFERENCE_PREFIX}{requirement_ref}"
-    if not re.search(rf"^{re.escape(back_reference)}\s*$", child_body, re.MULTILINE):
-        new_child_body = child_body.rstrip("\n") + f"\n\n{back_reference}\n"
-        run(["gh", "issue", "edit", str(child_number), "--repo", child_repository, "--body", new_child_body, "--add-label", CHILD_LABEL], root, env)
-    else:
-        run(["gh", "issue", "edit", str(child_number), "--repo", child_repository, "--add-label", CHILD_LABEL], root, env)
-    return {"requirement": requirement_ref, "child": child_ref}
+    siblings = _identity_siblings(root, requirement, env)
+    # Read legacy links too; deleted checklist entries remain in reservations/claims.
+    if len(parsed["children"]) != len(set(parsed["children"])):
+        raise RequirementIntakeError("duplicate child checklist links")
+    reserved_refs = [ref for ref, _ in work_identity.RESERVATION.findall(parent_body)]
+    for ref in set(parsed["children"] + reserved_refs):
+        if issue_ref(ref)[0] != repository:
+            raise RequirementIntakeError("child reservation points outside the Requirement Backlog")
+        siblings[ref] = str(fetch_issue(root, *issue_ref(ref)).get("body") or "")
+    siblings[child] = child_body
+    allocated = work_identity.assignments(parent_body, requirement, siblings)
+    ordinal = allocated.get(child, max(allocated.values(), default=0) + 1)
+    identity = f"{work_identity.parent_identity(requirement)}/T{ordinal}"
+    start, end = parent_body.find(CHILDREN_START), parent_body.find(CHILDREN_END)
+    if start < 0 or end < start or parent_body.count(CHILDREN_START) != 1 or parent_body.count(CHILDREN_END) != 1:
+        raise RequirementIntakeError("Requirement is missing a unique valid children block")
+    new_child = work_identity.with_identity(child_body, identity)
+    back_reference = f"Requirement: {requirement}"
+    if not re.search(rf"^{re.escape(back_reference)}\s*$", new_child, re.MULTILINE):
+        new_child = new_child.rstrip("\n") + f"\n\n{back_reference}\n"
+    if str(fetch_issue(root, repository, child_number).get("body") or "") != child_body:
+        raise RequirementIntakeError("child changed during allocation; retry after inspecting its Issue")
+    ensure_label(root, repository, CHILD_LABEL, env=env)
+    args = ["gh", "issue", "edit", str(child_number), "--repo", repository, "--add-label", CHILD_LABEL]
+    if new_child != child_body:
+        args += ["--body", new_child]
+    run(args, root, env)
+    # Claim-first makes interrupted allocations recoverable from the child.
+    allocated[child] = ordinal
+    new_parent = parent_body
+    if child not in parsed["children"]:
+        new_parent = parent_body[:end] + f"- [ ] {child}\n" + parent_body[end:]
+    new_parent = work_identity.with_identity(new_parent, work_identity.parent_identity(requirement))
+    for ref, value in allocated.items():
+        marker = f"<!-- br-child:{ref}:{value} -->"
+        if marker not in new_parent:
+            new_parent = new_parent.rstrip("\n") + f"\n{marker}\n"
+    if str(fetch_issue(root, repository, number).get("body") or "") != parent_body:
+        raise RequirementIntakeError("Requirement changed during allocation; retry to reconcile child claim")
+    if new_parent != parent_body:
+        run(["gh", "issue", "edit", str(number), "--repo", repository, "--body", new_parent], root, env)
+    final_parent = str(fetch_issue(root, repository, number).get("body") or "")
+    final_child = str(fetch_issue(root, repository, child_number).get("body") or "")
+    final_siblings = _identity_siblings(root, requirement, env)
+    final_refs = set(allocated) | set(parse_requirement_body(final_parent)["children"])
+    final_refs.update(ref for ref, _ in work_identity.RESERVATION.findall(final_parent))
+    for ref in final_refs:
+        if issue_ref(ref)[0] != repository:
+            raise RequirementIntakeError("child reservation points outside the Requirement Backlog")
+        final_siblings[ref] = str(fetch_issue(root, *issue_ref(ref)).get("body") or "")
+    final_child = final_siblings[child]
+    observed = work_identity.assignments(final_parent, requirement, final_siblings)
+    for ref, value in allocated.items():
+        retained = final_siblings.get(ref, "")
+        parents = re.findall(r"^Requirement: (\S+)\s*$", retained, re.MULTILINE)
+        if (work_identity.identity_in(retained) != f"{work_identity.parent_identity(requirement)}/T{value}"
+                or parents != [requirement]):
+            raise RequirementIntakeError("allocated child claim missing or changed during readback; inspect Issue records")
+    reservations = dict((ref, int(value)) for ref, value in work_identity.RESERVATION.findall(final_parent))
+    if (final_parent != new_parent or final_child != new_child
+            or work_identity.identity_in(final_parent) != work_identity.parent_identity(requirement)
+            or not set(parsed["children"]).issubset(parse_requirement_body(final_parent)["children"])
+            or any(reservations.get(ref) != value for ref, value in observed.items())
+            or any(observed.get(ref) != value for ref, value in allocated.items())
+            or child not in parse_requirement_body(final_parent)["children"]
+            or work_identity.identity_in(final_child) != identity
+            or not re.search(rf"^{re.escape(back_reference)}\s*$", final_child, re.MULTILINE)):
+        raise RequirementIntakeError("identity readback incomplete or concurrent update lost; retry after inspecting Issue claims")
+    return {"requirement": requirement, "child": child, "work_identity": identity}
 
 
 def materialize_handoff(

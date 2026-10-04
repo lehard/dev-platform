@@ -30,6 +30,7 @@ from managed_task import (
     import_task,
     issue_ref,
     read_task_state,
+    reconcile_work_identity,
     resolve_canonical_provenance,
     write_task_state,
 )
@@ -346,6 +347,7 @@ def _resume_existing_managed_task(
     base_receipt: ReadyForIntegrationReceipt | None = None,
 ) -> tuple[StartedTask, str, bool]:
     resolve_canonical_provenance(existing_root, source_issue=package.source_issue, change=package.change)
+    package = reconcile_work_identity(existing_root, package)
     # Bounded migration for tasks created before task-level state was
     # introduced. It records identity only and never reimports the transport
     # package over the repository-local change.

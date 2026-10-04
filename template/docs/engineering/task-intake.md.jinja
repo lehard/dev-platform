@@ -293,3 +293,24 @@ Provider adapters create or reuse the configured review object; GitLab stops at
 green exact-head CI for human merge/acceptance. Do not require access to this
 platform repository or to an operator installation to perform ordinary work.
 {% endif -%}
+
+## Readable managed work identity
+
+Requirement creation exposes `Work identity: BR-N`, derived from its Issue
+number. Normal child linking, handoff materialization and import allocate and
+read back `BR-N/Tn`, retaining the exact private `Requirement: owner/repo#N`
+line. Ordinal reservations remain in the parent's existing Issue body when
+checklist links are removed; child Issue claims support interrupted-write
+recovery. Do not edit or delete those reservations when reordering the
+checklist. Conflicting claims, duplicate ordinals and lost identity claims observable on
+readback fail closed;
+inspect both Issue records before retrying. GitHub body edits have no atomic
+compare-and-swap: avoid concurrent manual prose edits while linking. A change
+observed before replacement stops the operation, but an unseen edit overwritten
+between that read and replacement cannot be detected. No separate registry is used.
+
+Only validated BR tokens may supplement opaque public technical provenance.
+This permission does not disclose the private Backlog name, URL, exact Issue
+reference or Requirement prose. Native GitHub Assignee and project-owned area
+and optional kind labels continue to own responsibility and taxonomy. Branch
+and PR propagation is delivered separately.

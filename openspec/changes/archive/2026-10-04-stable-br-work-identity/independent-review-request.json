@@ -1,0 +1,82 @@
+{
+  "candidate": {
+    "base_head": "ff69a8d5f115d3815b9d333c4bb40fd72689dca4",
+    "base_ref": "origin/main",
+    "candidate_head": "964900796db3208934001baac29092cc36019f24",
+    "diff_sha256": "d1de1d42749d6b72fcbe96f720e2f6e1361bef93c1963ae526fe2b78d18d776a"
+  },
+  "change": "openspec/changes/stable-br-work-identity",
+  "excluded_lifecycle_paths": [],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/stable-br-work-identity/design.md",
+        "openspec/changes/stable-br-work-identity/proposal.md",
+        "openspec/changes/stable-br-work-identity/specs/managed-task-intake/spec.md",
+        "openspec/changes/stable-br-work-identity/specs/managed-work-identity/spec.md",
+        "openspec/changes/stable-br-work-identity/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/stable-br-work-identity/proposal.md",
+        "openspec/changes/stable-br-work-identity/design.md",
+        "openspec/changes/stable-br-work-identity/tasks.md",
+        "openspec/changes/stable-br-work-identity/specs/managed-task-intake/spec.md",
+        "openspec/changes/stable-br-work-identity/specs/managed-work-identity/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-04T12:38:58+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/stable-br-work-identity/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "c129d341-da73-4905-b5d2-4e504478f64f",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "ff69a8d5f115d3815b9d333c4bb40fd72689dca4",
+    "digest": "468307b2e7edfd435fcada08da5adc1c401c57e451f93e7b0cbcc77c990087d9",
+    "paths": {
+      "docs/decisions/0002-public-br-identity.md": "86c4d53569c3fd8b1ea7f29f29ad60c343404144",
+      "docs/decisions/README.md": "8542175fe423593e0b74bf8e3cb7ca5428ce5a28",
+      "docs/engineering/task-intake.md": "28a9d3e059e855baee953b76e726bfeae6c7061a",
+      "openspec/changes/stable-br-work-identity/.managed-task.json": "b6e08f630751d99f33e11b84c737c060bfb3cc33",
+      "openspec/changes/stable-br-work-identity/.openspec.yaml": "f98e139fb307ee57d69f587d7c892ef2ff4575e0",
+      "openspec/changes/stable-br-work-identity/design.md": "bb77a05e6544965be8799076853984e9c5e6ca54",
+      "openspec/changes/stable-br-work-identity/proposal.md": "d73652b0b98a4051ff98c9153e45571ab30ee5bf",
+      "openspec/changes/stable-br-work-identity/specs/managed-task-intake/spec.md": "492cb40307bf6482f5723f105f86a0170771331b",
+      "openspec/changes/stable-br-work-identity/specs/managed-work-identity/spec.md": "729f91a1f4ce57e2027fd2ea817f56fe3403b450",
+      "openspec/changes/stable-br-work-identity/tasks.md": "744d4ae62042bbe6bda05969765c38d3e0f08331",
+      "template/docs/engineering/task-intake.md.jinja": "9e4c4067daf9cf588cf0989c30fbb42fea64ae2a",
+      "template/scripts/managed_task.py": "635e82a5431a5a2989263c2244fc9371a1685721",
+      "template/scripts/managed_work_identity.py": "c51f89d73f74aaf0270a310570d837501eeeccfc",
+      "template/scripts/requirement_intake.py": "15b8687f1ba4af05f04ac9b83c31cf33abbeba17",
+      "template/scripts/start_managed_task.py": "ea581e6a1ab04342c474315bd891d0828cb9723b",
+      "tests/test_managed_task.py": "7e30ef3b562e5e7c883c5f30ecb744d13be7b505",
+      "tests/test_requirement_intake.py": "c7ce749fbd9a70d3a1810c46c1a4ac7b8224b3e1",
+      "tests/test_shared_writer_guard.py": "e4cc1007e6eb969ce7a2769c079b87c0b6c59477"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

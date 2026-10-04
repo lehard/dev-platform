@@ -611,6 +611,44 @@ class ManagedPackageTests(unittest.TestCase):
             reconcile.assert_called_once_with(task_root.resolve(), "In progress", source_issue=package.source_issue)
             self.assertTrue((task_root / ".managed-task-state.json").is_file())
 
+    def test_existing_worktree_resume_reconciles_legacy_identity_and_refuses_conflict(self) -> None:
+        package = replace(managed_task.parse_package([package_body()], "example-org/development-backlog#1"),
+                          parent_requirement="example-org/development-backlog#42")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "integration"
+            task_root = Path(tmp) / "worktrees" / package.change
+            root.mkdir()
+            canonical = canonical_change(task_root, package)
+            (canonical / "proposal.md").write_text("Locally authored canonical proposal\n", encoding="utf-8")
+            proposal = (canonical / "proposal.md").read_bytes()
+            allocated = replace(package, work_identity="BR-42/T1")
+            with (
+                patch.object(start_managed_task, "discover_task", return_value=package),
+                patch.object(start_managed_task, "read_platform_config", return_value={"workflow_profile": "multi-agent"}),
+                patch.object(start_managed_task, "machine_path", return_value=task_root.parent),
+                patch.object(start_managed_task, "run_git", return_value=SimpleNamespace(stdout="agent/resumed\n")),
+                patch.object(start_managed_task, "refresh_context", return_value=None) as refresh,
+                patch.object(start_managed_task, "admit_task", return_value={"decision": "RUN", "claims": []}),
+                patch.object(start_managed_task, "reconcile", return_value=SimpleNamespace(changed=False)),
+                patch.object(managed_task, "_allocate_work_identity", return_value=allocated) as allocate,
+            ):
+                start_managed_task.start_managed_task(root, package.source_issue)
+                allocate.assert_called_once_with(task_root.resolve(), package)
+                self.assertEqual(refresh.call_args.args[1].work_identity, "BR-42/T1")
+                self.assertEqual(managed_task.read_provenance(canonical)["work_identity"], "BR-42/T1")
+                self.assertEqual((canonical / "proposal.md").read_bytes(), proposal)
+                allocate.side_effect = managed_task.ManagedTaskError("duplicate ordinal")
+                refresh.reset_mock()
+                with self.assertRaisesRegex(managed_task.ManagedTaskError, "duplicate ordinal"):
+                    start_managed_task.start_managed_task(root, package.source_issue)
+                refresh.assert_not_called()
+                allocate.side_effect = None
+                lost = replace(package, parent_requirement=None, work_identity=None)
+                with patch.object(start_managed_task, "discover_task", return_value=lost):
+                    with self.assertRaisesRegex(managed_task.ManagedTaskError, "lost its canonical Requirement"):
+                        start_managed_task.start_managed_task(root, package.source_issue)
+                refresh.assert_not_called()
+
     def test_managed_wait_preserves_materialized_worktree_and_blocks_project(self) -> None:
         package = managed_task.parse_package([package_body()], "example-org/development-backlog#1")
         with tempfile.TemporaryDirectory() as tmp:

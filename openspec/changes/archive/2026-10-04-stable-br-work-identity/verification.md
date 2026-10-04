@@ -1,0 +1,18 @@
+OpenSpec-Verify: PASS
+Verification-Method: equivalent semantic OpenSpec review of completeness, correctness and coherence against accepted specs plus this active delta
+Automated-Checks-Evidence: automated-checks.json
+Independent-Review-Evidence: independent-review-request.json
+
+Reviewed the implementation at 964900796db3208934001baac29092cc36019f24 against the stable identity and private-lineage requirements. Parent identities derive only from existing Requirement numbers; child ordinals reconcile existing Issue claims and immutable parent reservations. Retry, removal/reordering and interrupted allocation preserve assignments without a second registry. Requirement creation/recovery and child allocation share the host advisory lock. Conflicting, duplicated, missing retained or mismatched canonical claims refuse rather than changing ownership.
+
+Legacy import and resume retain authored artifacts, original package revisions and opaque exact provenance. The additive public field accepts only validated BR tokens. Historical raw-body revision comparison removes only the deterministic appended identity suffix; actual authored scope edits remain detectable. Native Assignee and local optional taxonomy remain independent of identity. Branch/PR propagation is the dependent change's scope.
+
+Evidence actually checked: 77 intake/identity regression tests passed, including concurrent parent recovery/link serialization; 92 managed-task tests passed on the preceding candidate, including lost-claim resume/import and legacy revision cases. Ruff and the public private-reference guard passed after the final correction. Both fresh read-only independent review perspectives report no findings for this committed candidate. An authenticated live allocation retry preserved the existing two-child identities. Full host test groups previously passed; the archive helper's automated-checks.json records its required final-candidate checks before accepting archive.
+
+Real Copier fresh-render and upgrade validation passed for the preceding committed candidate across supported profiles, including helper inclusion. The final release installation validation remains a release gate. Public evidence uses synthetic sources or safe identities only.
+
+GitHub body edits have no compare-and-swap. The protocol refuses observed stale bodies and conflicts, and serializes cooperating same-host writers. An unobserved concurrent manual prose edit overwritten between freshness read and replacement cannot be guaranteed; the contract documents this limitation. Cross-host conflicting claims observable on readback stop for explicit recovery.
+
+Completeness: implemented checklist is complete; independent review is clear. Correctness: tests exercise allocation, compatibility, fail-closed recovery and privacy boundaries. Coherence: code, design, delta specs, mirrored guidance and DEC-0002 agree with the approved public BR-only decision. Publication, release and downstream acceptance are subsequent delivery gates and are not claimed by this receipt.
+
+Final archive evidence: the helper ran compilation, repository Ruff and the complete 15-group test suite successfully on the final implementation candidate (suite command duration 652.231 seconds). It materialized and archived the delta. Post-archive strict validation rejected the CLI-generated Purpose placeholder for the new capability; the supervisor replaced that placeholder with the capability purpose, without changing requirements or implementation. Subsequent strict validation passed all 42 specs, lifecycle hygiene passed, independent review remained ready and the private-reference guard passed.
