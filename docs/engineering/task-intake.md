@@ -123,7 +123,7 @@ reconciliation checks the target again before marking the parent Done.
    returns `implement-child` when the current agent must perform routed code
    work and verification in that worktree; rerun the same command after the
    child archive is committed. This is an internal agent continuation, not a
-   user-facing stop or manual child list. With one child it uses ordinary managed publication and reconciles the parent after the exact child merge. With two or more ready children requiring joint delivery it composes and publishes a shared candidate through the protected path.
+   user-facing stop or manual child list. With one child it uses ordinary managed publication and reconciles the parent after the exact child merge. With two or more ready children requiring joint delivery it composes and publishes a shared candidate through the protected path. Once the first child is verified and ready and two or more mandatory children are planned, `advance` opens one shared draft PR (never mergeable, queued or auto-merged) and appends each later ready child to the same branch and PR by fast-forward push; only when every mandatory child is present, the Requirement retrospective checkpoint exists and full checks pass on the exact final head is that PR marked ready and merged. Rerunning resumes the same PR.
    A verified clean ready child releases only its own active board writer
    claim; its worktree, Issue and receipt remain for shared publication.
    When a failed earlier attempt left this lifecycle's own ready receipt for

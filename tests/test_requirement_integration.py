@@ -571,6 +571,112 @@ class RequirementIntegrationTests(unittest.TestCase):
             start_managed_task._start_new_managed_task(self.root, package, package.source_issue, "", None, receipt)
         self.assertLess(events.index("git merge"), events.index("import"))
 
+    def early_candidate(self):
+        one, one_receipt = self.child("one", "one.txt")
+        two, two_receipt = self.child("two", "two.txt", base_ref=one)
+        expected = ["one", "two"]
+        slug = integration._candidate_slug("acme/backlog#7")
+        candidate = self.root / ".claude/worktrees" / slug
+        return one_receipt, two_receipt, expected, candidate, slug
+
+    def test_early_candidate_grows_by_fast_forward_on_the_same_branch(self) -> None:
+        one_receipt, two_receipt, expected, candidate, slug = self.early_candidate()
+        first_manifest = integration.assemble_candidate(self.root, requirement="acme/backlog#7", base=self.base,
+                                                        receipt_paths=[one_receipt], expected_changes=expected)
+        self.assertFalse(integration.manifest_complete(first_manifest))
+        first = integration.compose_candidate(self.root, manifest=first_manifest, receipt_paths=[one_receipt],
+                                              worktree=candidate, branch="agent/" + slug)
+        self.assertEqual(git(candidate, "rev-list", "--count", f"{self.base}..HEAD"), "2")
+        # Main advances; the recorded candidate base stays valid for an append.
+        (self.root / "other.txt").write_text("other\n", encoding="utf-8")
+        git(self.root, "add", "other.txt")
+        git(self.root, "commit", "-m", "unrelated main change")
+        manifest = integration.assemble_candidate(self.root, requirement="acme/backlog#7", base=self.base,
+                                                  receipt_paths=[one_receipt, two_receipt], expected_changes=expected)
+        self.assertTrue(integration.manifest_complete(manifest))
+        kwargs = {"manifest": manifest, "receipt_paths": [one_receipt, two_receipt], "worktree": candidate,
+                  "branch": "agent/" + slug}
+        grown = integration.compose_candidate(self.root, **kwargs)
+        self.assertFalse(grown["resumed"])
+        self.assertEqual(git(candidate, "rev-list", "--count", f"{self.base}..HEAD"), "4")
+        self.assertEqual(subprocess.run(["git", "merge-base", "--is-ancestor", first["head"], grown["head"]], cwd=candidate).returncode, 0)
+        self.assertEqual((candidate / "two.txt").read_text(encoding="utf-8"), "two\n")
+        self.assertTrue(integration.compose_candidate(self.root, **kwargs)["resumed"])
+        branch, head = integration._validate_candidate_checkout(candidate, manifest)
+        self.assertEqual((branch, head), ("agent/" + slug, grown["head"]))
+
+    def test_incomplete_candidate_is_not_a_complete_checkout(self) -> None:
+        one_receipt, _, expected, candidate, slug = self.early_candidate()
+        manifest = integration.assemble_candidate(self.root, requirement="acme/backlog#7", base=self.base,
+                                                  receipt_paths=[one_receipt], expected_changes=expected)
+        integration.compose_candidate(self.root, manifest=manifest, receipt_paths=[one_receipt], worktree=candidate,
+                                      branch="agent/" + slug)
+        self.assertEqual(integration._validate_candidate_checkout(candidate, manifest)[0], "agent/" + slug)
+        self.assertFalse(integration.manifest_complete(manifest))
+
+    def test_early_candidate_rejects_out_of_order_or_single_expected_change(self) -> None:
+        one_receipt, two_receipt, _, _, _ = self.early_candidate()
+        with self.assertRaisesRegex(integration.RequirementIntegrationError, "ordered prefix"):
+            integration.assemble_candidate(self.root, requirement="acme/backlog#7", base=self.base,
+                                           receipt_paths=[two_receipt], expected_changes=["one", "two"])
+        with self.assertRaisesRegex(integration.RequirementIntegrationError, "at least two"):
+            integration.assemble_candidate(self.root, requirement="acme/backlog#7", base=self.base,
+                                           receipt_paths=[one_receipt], expected_changes=["one"])
+        with self.assertRaisesRegex(integration.RequirementIntegrationError, "at least two child receipts"):
+            integration.assemble_candidate(self.root, requirement="acme/backlog#7", base=self.base,
+                                           receipt_paths=[one_receipt])
+
+    def test_diverged_candidate_history_blocks_append(self) -> None:
+        one_receipt, two_receipt, expected, candidate, slug = self.early_candidate()
+        first = integration.assemble_candidate(self.root, requirement="acme/backlog#7", base=self.base,
+                                               receipt_paths=[one_receipt], expected_changes=expected)
+        integration.compose_candidate(self.root, manifest=first, receipt_paths=[one_receipt], worktree=candidate,
+                                      branch="agent/" + slug)
+        (candidate / "stray.txt").write_text("stray\n", encoding="utf-8")
+        git(candidate, "add", "stray.txt")
+        git(candidate, "commit", "-m", "unexpected")
+        manifest = integration.assemble_candidate(self.root, requirement="acme/backlog#7", base=self.base,
+                                                  receipt_paths=[one_receipt, two_receipt], expected_changes=expected)
+        with self.assertRaisesRegex(integration.RequirementIntegrationError, "unexpected child provenance"):
+            integration.compose_candidate(self.root, manifest=manifest, receipt_paths=[one_receipt, two_receipt],
+                                          worktree=candidate, branch="agent/" + slug)
+
+    def test_incomplete_publication_is_draft_only_and_skips_full_checks(self) -> None:
+        import _platform_common
+
+        one_receipt, _, expected, candidate, slug = self.early_candidate()
+        manifest = integration.assemble_candidate(self.root, requirement="acme/backlog#7", base=self.base,
+                                                  receipt_paths=[one_receipt], expected_changes=expected)
+        composed = integration.compose_candidate(self.root, manifest=manifest, receipt_paths=[one_receipt],
+                                                 worktree=candidate, branch="agent/" + slug)
+        with mock.patch.object(_platform_common, "main_root", return_value=self.root), \
+                mock.patch.object(_platform_common, "read_platform_config", return_value={"publish_mode": "pr", "pr_merge_mode": "auto"}), \
+                mock.patch.object(integration, "_validate_candidate_checkout", return_value=("agent/" + slug, composed["head"])), \
+                mock.patch.object(integration, "_reconcile_exact_merged", return_value=None), \
+                mock.patch.object(integration, "compose_candidate", return_value={**composed, "resumed": True}), \
+                mock.patch.object(integration, "_verify_parent_links"), \
+                mock.patch.object(integration, "_run_full_checks") as checks, \
+                mock.patch.object(integration.subprocess, "run", return_value=SimpleNamespace(returncode=0)) as run:
+            result = integration.publish_candidate(candidate, manifest=manifest, receipt_paths=[one_receipt])
+        self.assertEqual(result["status"], "draft-published")
+        self.assertEqual(result["expected_changes"], expected)
+        checks.assert_not_called()
+        run.assert_called_once()
+
+    def test_merged_incomplete_candidate_is_never_reconciled_terminal(self) -> None:
+        import _platform_common
+        import publication_state
+
+        one_receipt, _, expected, _, _ = self.early_candidate()
+        manifest = integration.assemble_candidate(self.root, requirement="acme/backlog#7", base=self.base,
+                                                  receipt_paths=[one_receipt], expected_changes=expected)
+        merged = SimpleNamespace(available=True, exact_merged={"url": "https://example/pr/1"})
+        with mock.patch.object(_platform_common, "read_platform_config", return_value={"main_branch": "main"}), \
+                mock.patch.object(_platform_common, "github_cli_env", return_value={}), \
+                mock.patch.object(publication_state, "find_exact_head_pr", return_value=merged):
+            with self.assertRaisesRegex(integration.RequirementIntegrationError, "incomplete Requirement candidate \\(missing: two\\)"):
+                integration._reconcile_exact_merged(self.root, self.root, manifest, "agent/x", "a" * 40)
+
     def test_publisher_invokes_protected_primitive_once_after_full_checks(self) -> None:
         import _platform_common
 

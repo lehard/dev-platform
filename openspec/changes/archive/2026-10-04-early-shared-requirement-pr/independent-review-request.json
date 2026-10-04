@@ -1,0 +1,82 @@
+{
+  "candidate": {
+    "base_head": "6acfcb57df7bb5c8eaadc38dc75c8b105dc76f5b",
+    "base_ref": "origin/main",
+    "candidate_head": "3a92844d2ca6ce327b763058ffba18a568b41d74",
+    "diff_sha256": "c11371df97b74eaeb961f939273f2cb7cb9ededae7522d509ccd750ae6613f75"
+  },
+  "change": "openspec/changes/early-shared-requirement-pr",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/early-shared-requirement-pr/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/early-shared-requirement-pr/design.md",
+        "openspec/changes/early-shared-requirement-pr/proposal.md",
+        "openspec/changes/early-shared-requirement-pr/specs/agent-workflow/spec.md",
+        "openspec/changes/early-shared-requirement-pr/specs/platform-lifecycle/spec.md",
+        "openspec/changes/early-shared-requirement-pr/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/early-shared-requirement-pr/proposal.md",
+        "openspec/changes/early-shared-requirement-pr/design.md",
+        "openspec/changes/early-shared-requirement-pr/tasks.md",
+        "openspec/changes/early-shared-requirement-pr/specs/agent-workflow/spec.md",
+        "openspec/changes/early-shared-requirement-pr/specs/platform-lifecycle/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-03T23:13:36+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/early-shared-requirement-pr/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "2dd2dd77-1894-4998-8c7a-31332362627d",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "6acfcb57df7bb5c8eaadc38dc75c8b105dc76f5b",
+    "digest": "16ed944ae1fdaf6ce859c28439263998210df84b6af33b86d8c41ddfd9850dc0",
+    "paths": {
+      "docs/engineering/task-intake.md": "47f28b3d2c7a9a0922bdbb4c75ff70c46eaebb3c",
+      "openspec/changes/early-shared-requirement-pr/.managed-task.json": "60f5fd23456eaf6e334802f379e1a179e236e0cb",
+      "openspec/changes/early-shared-requirement-pr/.openspec.yaml": "f98e139fb307ee57d69f587d7c892ef2ff4575e0",
+      "openspec/changes/early-shared-requirement-pr/design.md": "01d0e7017a3dcf10b9b22949c29fde4dd8faa39a",
+      "openspec/changes/early-shared-requirement-pr/proposal.md": "9a894c326c82af368fbdc236e90d13d6facb31c4",
+      "openspec/changes/early-shared-requirement-pr/specs/agent-workflow/spec.md": "f259b50cbe5856b4c6223e37623c638f41ed8404",
+      "openspec/changes/early-shared-requirement-pr/specs/platform-lifecycle/spec.md": "989722cd8f5cbeb15d73c5b20520d48d0977b8cd",
+      "openspec/changes/early-shared-requirement-pr/tasks.md": "1f28b6a553eb79dd409d091e1585dcea77dd2a38",
+      "template/docs/engineering/task-intake.md.jinja": "3e7865b0fd1b8e48a5bda5af210f1dc81d2f6681",
+      "template/scripts/execute_requirement.py": "3d133d12301ac1cf41ecc62f6d2491d585ac1eec",
+      "template/scripts/project_publish.py": "e0fc30c7aeef497b6fba52088589552ebf20c42b",
+      "template/scripts/publication_state.py": "1603d14e46c6a1ef5f283783c1b492549f24e2f1",
+      "template/scripts/requirement_integration.py": "d72fe7400860344ef02cc4058713d2ce13fe1ef4",
+      "tests/test_managed_status_lifecycle.py": "eb026c5a3ec8d1498a63ab2f9ed8e76ea86f0186",
+      "tests/test_requirement_execution.py": "a92384f72943a139a8e06d43b9ae947267949d48",
+      "tests/test_requirement_integration.py": "7bdc2101a3acee7a634aeae7e33d4b63fd5fd800"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

@@ -241,7 +241,28 @@ def require_independent_publication_exception(root: Path, delivery: Any) -> str 
     return reasons[0]
 
 
-def assemble_candidate(root: Path, *, requirement: str, base: str, receipt_paths: list[Path]) -> dict[str, Any]:
+def _min_children(manifest_or_expected: Any) -> int:
+    """An early (incomplete) candidate may hold one child when it expects two or more."""
+    expected = manifest_or_expected.get("expected_changes") if isinstance(manifest_or_expected, dict) else manifest_or_expected
+    return 1 if isinstance(expected, list) and len(expected) >= 2 else 2
+
+
+def manifest_complete(manifest: dict[str, Any]) -> bool:
+    """A manifest without expected_changes is a legacy, complete candidate."""
+    expected = manifest.get("expected_changes")
+    if expected is None:
+        return True
+    return [child.get("change") for child in manifest.get("children", [])] == expected
+
+
+def missing_changes(manifest: dict[str, Any]) -> list[str]:
+    """Mandatory changes an incomplete candidate does not contain yet."""
+    present = {child.get("change") for child in manifest.get("children", [])}
+    return [change for change in manifest.get("expected_changes") or [] if change not in present]
+
+
+def assemble_candidate(root: Path, *, requirement: str, base: str, receipt_paths: list[Path],
+                       expected_changes: list[str] | None = None) -> dict[str, Any]:
     """Bind an ordered candidate, rejecting stale heads and overlapping paths.
 
     The caller supplies receipts in semantic dependency order.  This operation
@@ -250,9 +271,16 @@ def assemble_candidate(root: Path, *, requirement: str, base: str, receipt_paths
     """
     if not ISSUE_RE.fullmatch(requirement) or not SHA_RE.fullmatch(base):
         raise RequirementIntegrationError("requirement and base are invalid")
-    if len(receipt_paths) < 2:
+    if expected_changes is not None and (
+        not isinstance(expected_changes, list) or len(expected_changes) < 2 or len(set(expected_changes)) != len(expected_changes)
+        or any(not isinstance(item, str) or not item for item in expected_changes)
+    ):
+        raise RequirementIntegrationError("expected changes must be an ordered unique list of at least two changes")
+    if len(receipt_paths) < _min_children(expected_changes):
         raise RequirementIntegrationError("shared integration requires at least two child receipts")
     receipts = [read_receipt(path) for path in receipt_paths]
+    if expected_changes is not None and [item.change for item in receipts] != expected_changes[:len(receipts)]:
+        raise RequirementIntegrationError("child receipts are not an ordered prefix of the expected Requirement changes")
     if any(item.requirement != requirement for item in receipts):
         raise RequirementIntegrationError("all child receipts must belong to the same Requirement")
     identities = [(item.source_issue, item.change) for item in receipts]
@@ -303,6 +331,8 @@ def assemble_candidate(root: Path, *, requirement: str, base: str, receipt_paths
         children.append({"source_issue": receipt.source_issue, "change": receipt.change, "source_branch": receipt.source_branch, "head": receipt.head,
                          "delta_base": delta_base, "digest": receipt.digest})
     unsigned = {"version": 1, "requirement": requirement, "base": base, "children": children}
+    if expected_changes is not None:
+        unsigned["expected_changes"] = list(expected_changes)
     if replayed:
         unsigned["generation"] = base[:12]
     return {**unsigned, "digest": _digest(unsigned)}
@@ -410,6 +440,57 @@ def _child_commit_message(child: dict[str, str]) -> str:
             f"Requirement-Receipt: {child['digest']}")
 
 
+def _bind_message(public_requirement: str) -> str:
+    return f"Bind integrated Requirement {public_requirement} candidate"
+
+
+def _candidate_history(root: Path, worktree: Path, base: str, manifest: dict[str, Any],
+                       public_manifest: dict[str, Any], path: Path) -> tuple[int, bool]:
+    """Validate a candidate branch as ordered child commits interleaved with bind commits.
+
+    Returns how many exact child commits exist and whether the tip is a bind commit
+    for that many children.  A bind records an exact prefix of the final manifest, so
+    an early candidate can grow by fast-forward without rewriting history.
+    """
+    children = manifest["children"]
+    public_children = public_manifest["children"]
+    bind = _bind_message(public_manifest["requirement"])
+    commits = _git(worktree, "rev-list", "--reverse", f"{base}..HEAD").splitlines()
+    done = 0
+    previous = base
+    tip_bound = False
+    for commit in commits:
+        message = _git(worktree, "show", "-s", "--format=%B", commit)
+        if message == bind:
+            if done == 0 or _git(worktree, "diff-tree", "--no-commit-id", "--name-only", "-r", commit) != path.as_posix():
+                raise RequirementIntegrationError("candidate manifest commit has unexpected changes")
+            try:
+                committed = json.loads(_git(worktree, "show", f"{commit}:{path.as_posix()}"))
+            except (RequirementIntegrationError, json.JSONDecodeError) as exc:
+                raise RequirementIntegrationError("candidate manifest commit has unexpected provenance") from exc
+            if done == len(children):
+                if committed != public_manifest:
+                    raise RequirementIntegrationError("candidate branch has a different committed integration manifest")
+            else:
+                unsigned = {key: value for key, value in committed.items() if key != "digest"}
+                if (committed.get("digest") != _digest(unsigned) or committed.get("children") != public_children[:done]
+                        or any(committed.get(key) != public_manifest.get(key) for key in ("requirement", "base", "generation", "expected_changes"))):
+                    raise RequirementIntegrationError("candidate branch has a different committed integration manifest")
+            tip_bound = True
+        else:
+            if done >= len(children):
+                raise RequirementIntegrationError("candidate branch has unexpected commits")
+            child = children[done]
+            if not isinstance(child, dict) or message != _child_commit_message(public_children[done]):
+                raise RequirementIntegrationError("candidate branch has unexpected child provenance or order")
+            if _git(worktree, "diff", "--binary", previous, commit) != _git(root, "diff", "--binary", child["delta_base"], child["head"]):
+                raise RequirementIntegrationError("candidate child commit differs from its exact source tree change")
+            done += 1
+            tip_bound = False
+        previous = commit
+    return done, tip_bound
+
+
 def compose_candidate(root: Path, *, manifest: dict[str, Any], receipt_paths: list[Path], worktree: Path, branch: str) -> dict[str, Any]:
     """Create or resume an owned candidate worktree from exact child trees.
 
@@ -438,15 +519,23 @@ def compose_candidate(root: Path, *, manifest: dict[str, Any], receipt_paths: li
         raise RequirementIntegrationError("candidate worktree must be its dedicated configured worktree path")
     base = manifest.get("base")
     children = manifest.get("children")
-    if not isinstance(base, str) or not SHA_RE.fullmatch(base) or not isinstance(children, list) or len(children) < 2:
+    if not isinstance(base, str) or not SHA_RE.fullmatch(base) or not isinstance(children, list) or len(children) < _min_children(manifest):
         raise RequirementIntegrationError("candidate base or child list is invalid")
     has_origin = subprocess.run(["git", "remote", "get-url", "origin"], cwd=root, capture_output=True).returncode == 0
     if has_origin:
         _git(root, "fetch", "origin", main_branch)
     authoritative = _git(root, "rev-parse", f"refs/remotes/origin/{main_branch}" if has_origin else f"refs/heads/{main_branch}")
+    existing_branch = subprocess.run(["git", "show-ref", "--verify", "--quiet", "refs/heads/" + branch], cwd=root).returncode == 0
     if authoritative != base:
-        raise RequirementIntegrationError("authoritative main changed after candidate assembly")
-    if assemble_candidate(root, requirement=requirement, base=base, receipt_paths=receipt_paths) != manifest:
+        # A candidate that already has its own history keeps its recorded base while
+        # children are appended; only a brand-new candidate must start from current main.
+        grown = existing_branch and subprocess.run(
+            ["git", "merge-base", "--is-ancestor", base, authoritative], cwd=root, capture_output=True,
+        ).returncode == 0
+        if not grown:
+            raise RequirementIntegrationError("authoritative main changed after candidate assembly")
+    if assemble_candidate(root, requirement=requirement, base=base, receipt_paths=receipt_paths,
+                          expected_changes=manifest.get("expected_changes")) != manifest:
         raise RequirementIntegrationError("child handoff evidence changed after candidate assembly")
     registered = _registered_worktrees(root)
     if worktree in registered:
@@ -465,28 +554,11 @@ def compose_candidate(root: Path, *, manifest: dict[str, Any], receipt_paths: li
     _provision_local_contract(root, worktree)
     if _git(worktree, "status", "--porcelain"):
         raise RequirementIntegrationError("candidate worktree has uncommitted changes; refusing takeover")
-    commits = _git(worktree, "rev-list", "--reverse", f"{base}..HEAD").splitlines()
-    if len(commits) > len(children) + 1:
-        raise RequirementIntegrationError("candidate branch has unexpected commits")
-    for index, commit in enumerate(commits[:len(children)]):
-        child = children[index]
-        if not isinstance(child, dict) or _git(worktree, "show", "-s", "--format=%B", commit) != _child_commit_message(public_manifest["children"][index]):
-            raise RequirementIntegrationError("candidate branch has unexpected child provenance or order")
-        previous = base if index == 0 else commits[index - 1]
-        if _git(worktree, "diff", "--binary", previous, commit) != _git(root, "diff", "--binary", child["delta_base"], child["head"]):
-            raise RequirementIntegrationError("candidate child commit differs from its exact source tree change")
-    if len(commits) == len(children) + 1:
-        expected_path = _candidate_manifest_path(public_requirement)
-        if _git(worktree, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD") != expected_path.as_posix():
-            raise RequirementIntegrationError("candidate manifest commit has unexpected changes")
-        if _git(worktree, "show", "-s", "--format=%B", "HEAD") != f"Bind integrated Requirement {public_requirement} candidate":
-            raise RequirementIntegrationError("candidate manifest commit has unexpected provenance")
-        existing = _git(worktree, "show", f"HEAD:{expected_path.as_posix()}")
-        expected = json.dumps(public_manifest, ensure_ascii=False, indent=2, sort_keys=True)
-        if existing != expected:
-            raise RequirementIntegrationError("candidate branch has a different committed integration manifest")
+    expected_path = _candidate_manifest_path(public_requirement)
+    done, tip_bound = _candidate_history(root, worktree, base, manifest, public_manifest, expected_path)
+    if done == len(children) and tip_bound:
         return {"worktree": str(worktree), "branch": branch, "head": _git(worktree, "rev-parse", "HEAD"), "resumed": True}
-    for index, child in enumerate(children[len(commits):], start=len(commits)):
+    for index, child in enumerate(children[done:], start=done):
         if not isinstance(child, dict) or not SHA_RE.fullmatch(str(child.get("head", ""))):
             raise RequirementIntegrationError("candidate child provenance is malformed")
         if _git(root, "rev-parse", str(child.get("source_branch", ""))) != child["head"]:
@@ -506,7 +578,7 @@ def compose_candidate(root: Path, *, manifest: dict[str, Any], receipt_paths: li
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     manifest_path.write_text(json.dumps(public_manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     _git(worktree, "add", str(manifest_path.relative_to(worktree)))
-    _git(worktree, "commit", "-m", f"Bind integrated Requirement {public_requirement} candidate")
+    _git(worktree, "commit", "-m", _bind_message(public_requirement))
     return {"worktree": str(worktree), "branch": branch, "head": _git(worktree, "rev-parse", "HEAD"), "resumed": False}
 
 
@@ -519,7 +591,7 @@ def _validate_candidate_checkout(root: Path, manifest: dict[str, Any]) -> tuple[
         raise RequirementIntegrationError("candidate manifest digest is invalid")
     base = manifest.get("base")
     children = manifest.get("children")
-    if not isinstance(base, str) or not SHA_RE.fullmatch(base) or not isinstance(children, list) or len(children) < 2:
+    if not isinstance(base, str) or not SHA_RE.fullmatch(base) or not isinstance(children, list) or len(children) < _min_children(manifest):
         raise RequirementIntegrationError("candidate history manifest is malformed")
     public_manifest = _public_manifest(root, manifest)
     public_requirement = public_manifest["requirement"]
@@ -533,18 +605,9 @@ def _validate_candidate_checkout(root: Path, manifest: dict[str, Any]) -> tuple[
         raise RequirementIntegrationError("candidate manifest is not committed at the exact branch head") from exc
     if committed != public_manifest or json.loads((root / path).read_text(encoding="utf-8")) != public_manifest:
         raise RequirementIntegrationError("candidate checkout does not match its committed manifest")
-    commits = _git(root, "rev-list", "--reverse", f"{base}..HEAD").splitlines()
-    if len(commits) != len(children) + 1:
+    done, tip_bound = _candidate_history(root, root, base, manifest, public_manifest, path)
+    if done != len(children) or not tip_bound:
         raise RequirementIntegrationError("candidate history does not contain every exact child and manifest commit")
-    for index, child in enumerate(children):
-        commit = commits[index]
-        previous = base if index == 0 else commits[index - 1]
-        if (not isinstance(child, dict) or _git(root, "show", "-s", "--format=%B", commit) != _child_commit_message(public_manifest["children"][index])
-                or _git(root, "diff", "--binary", previous, commit) != _git(root, "diff", "--binary", child["delta_base"], child["head"])):
-            raise RequirementIntegrationError("candidate history differs from exact child provenance")
-    if (_git(root, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD") != path.as_posix()
-            or _git(root, "show", "-s", "--format=%B", "HEAD") != f"Bind integrated Requirement {public_requirement} candidate"):
-        raise RequirementIntegrationError("candidate manifest commit has unexpected content")
     if _git(root, "status", "--porcelain"):
         raise RequirementIntegrationError("candidate worktree has uncommitted changes")
     return branch, _git(root, "rev-parse", "HEAD")
@@ -598,6 +661,11 @@ def _reconcile_exact_merged(root: Path, integration: Path, manifest: dict[str, A
         raise RequirementIntegrationError("exact PR state is unavailable; no terminal status was changed")
     if lookup.exact_merged is None:
         return None
+    if not manifest_complete(manifest):
+        raise RequirementIntegrationError(
+            "exact PR merged with an incomplete Requirement candidate (missing: " + ", ".join(missing_changes(manifest))
+            + "); no terminal status was changed"
+        )
     with serialized_integration(integration, config, 60.0):
         sync_after_remote_pr_merge(root, integration, config, main_branch)
         _verify_parent_links(integration, manifest)
@@ -631,7 +699,10 @@ def publish_candidate(root: Path, *, manifest: dict[str, Any], receipt_paths: li
     if composed["head"] != head or not composed["resumed"]:
         raise RequirementIntegrationError("candidate head changed before publication")
     _verify_parent_links(integration, manifest)
-    _run_full_checks(root)
+    complete = manifest_complete(manifest)
+    if complete:
+        # An early draft is checked by GitHub's required checks; the full local suite gates readiness.
+        _run_full_checks(root)
     # Reobserve every exact input after potentially long validation, before a
     # push or PR mutation. Existing exact-head PRs are resumed by the existing
     # publisher; a changed source or main stops at this gate.
@@ -651,6 +722,10 @@ def publish_candidate(root: Path, *, manifest: dict[str, Any], receipt_paths: li
     result = subprocess.run(command, cwd=root, env=environment)
     if result.returncode:
         raise RequirementIntegrationError(f"protected PR publication did not complete (exit {result.returncode})")
+    if not complete:
+        return {"requirement": manifest["requirement"], "branch": branch, "head": head, "status": "draft-published",
+                "children": [child["source_issue"] for child in manifest["children"]],
+                "expected_changes": manifest["expected_changes"]}
     merged = _reconcile_exact_merged(root, integration, manifest, branch, head)
     if merged is not None:
         return merged
@@ -673,6 +748,7 @@ def main() -> int:
     assemble = sub.add_parser("assemble", help="bind ordered child heads for a protected integration candidate")
     assemble.add_argument("--requirement", required=True)
     assemble.add_argument("--base", required=True)
+    assemble.add_argument("--expected-change", action="append", help="ordered mandatory change; makes the candidate an early draft until all are present")
     assemble.add_argument("--receipt", required=True, type=Path, action="append")
     assemble.add_argument("--out", required=True, type=Path)
     compose = sub.add_parser("compose", help="create or resume the exact combined candidate in its dedicated worktree")
@@ -699,7 +775,8 @@ def main() -> int:
             if superseded:
                 print(f"superseded own ready-for-integration receipt for ancestor head {superseded}", file=sys.stderr)
         elif args.command == "assemble":
-            payload = assemble_candidate(root, requirement=args.requirement, base=args.base, receipt_paths=args.receipt)
+            payload = assemble_candidate(root, requirement=args.requirement, base=args.base, receipt_paths=args.receipt,
+                                         expected_changes=args.expected_change)
             args.out.parent.mkdir(parents=True, exist_ok=True)
             encoded = json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
             if args.out.exists() and args.out.read_text(encoding="utf-8") != encoded:

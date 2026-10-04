@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/agent-workflow/spec.md",
+    "specs/platform-lifecycle/spec.md"
+  ],
+  "change": "early-shared-requirement-pr",
+  "imported_at": "2026-10-03T22:41:22+00:00",
+  "package_revision": "110faa12944df4c4330354e9f7a0c28de5c6d44613bc75dce3f45e36ee2eea1b",
+  "prepared_against": "6acfcb57df7bb5c8eaadc38dc75c8b105dc76f5b",
+  "private_lineage_handle": "pln_22daf6a19dff65cc5aea4de1601ecb39",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "492876784cb20e6e7f3ffeda50a64a1319dcc1818ceaac1e51116dce4e668cea",
+    "updated_at": "2026-10-03T22:32:37Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
