@@ -7,5 +7,5 @@
 ## 3. Timing decision
 - [x] 3.1 Measure per-group wall-clock over comparable runs, identify the slowest groups and record one measurable decision with coverage parity evidence.
 ## 4. Verification
-- [ ] 4.1 Demonstrate on a real change touching several template scripts that the full suite finds nothing the precheck would have found.
-- [ ] 4.2 Run required platform checks, semantic verification and independent review; record truthful verification evidence; archive and commit through the lifecycle helper.
+- [x] 4.1 Demonstrate on a real change touching several template scripts that the full suite finds nothing the precheck would have found.
+- [x] 4.2 Run required platform checks, semantic verification and independent review; record truthful verification evidence; archive and commit through the lifecycle helper.
