@@ -3,28 +3,34 @@
   "candidate": {
     "base_head": "ddf2a6270e70ba5a4988388f456f1eb63ef5b6ff",
     "base_ref": "origin/main",
-    "candidate_head": "fa70667cb82351919edc1118f5ac56e4bf2835ab",
-    "diff_sha256": "53d4d3faa6c39f82bf273dc3122f428ee769f8fbd6665ac056e28c50921fd701"
+    "candidate_head": "c3e90a832524dae774d103f42576e7475ff6b3a4",
+    "diff_sha256": "81172f84e8f6049a79192afc49975a05c4b191c98a97237cc44c76f0d0b9bb24"
   },
-  "completed_at": "2026-10-04T21:52:50+00:00",
+  "completed_at": "2026-10-04T21:57:24+00:00",
   "findings": [
     {
-      "evidence": "tests/test_platform_module_identity.py (candidate.diff ~1379-1460): it does two things. It scans statically for `sys.modules[...] =` assignments. It also imports every test module in forward and reverse order and checks `identity_violations` on module namespaces. No test compares `sys.modules` before and after a test or module, for example by catching a `mock.patch.dict` stand-in that outlives its test. No test compares an isolated group run with an in-group run (spec scenario \"Group runs in isolation and in its group\"). The report format is `<owner>.<attribute> holds a substituted <name> instance`, which does name both the module and the test module as the scenario requires.",
-      "id": "guard-does-not-check-runtime-sys-modules-leak",
+      "evidence": "template/scripts/select_checks.py `precheck_paths` includes every `.py` path from high-impact-path or unknown-path checks, whether or not it maps to a test. `run_precheck` always spawns run_test_groups.py. For an unmapped path the runner prints \"No test modules reference the changed paths; nothing to run.\" and returns 0 (run_test_groups.py, `if not selected: ... return 0`). `execute` then stores a record with outcome success and role \"affected-precheck feedback\", so the evidence shows a passing precheck that ran no tests. Unmapped .py paths such as `lib/gamma.py` in tests/test_affected_precheck.py are covered only at the runner level, not at the `select_checks` evidence level.",
+      "id": "unmapped-python-path-records-successful-precheck",
       "severity": "advisory",
-      "summary": "The delta requires a guard that fails when a test leaves a substituted platform module in `sys.modules` after it finishes. The guard checks this only indirectly. The proposal's second trigger, where a selected group's result depends on module order, is also not checked."
+      "summary": "A changed .py path with no mapped test module still runs the precheck subprocess and is recorded as a successful `affected_precheck`. The platform-lifecycle scenario \"Unmapped control-plane path\" says no precheck is claimed and full validation runs directly."
+    },
+    {
+      "evidence": "tests/test_platform_module_identity.py `direct_registrations` matches only ast.Assign, AugAssign and AnnAssign nodes whose target is a Subscript on `sys.modules`. `sys.modules.setdefault(...)`, `sys.modules.update(...)` and `from sys import modules` are not flagged. The forward/reverse identity probe may catch a resulting duplicate instance, but the registration rule itself is enforced only for one syntactic form.",
+      "id": "guard-detects-only-subscript-assignment",
+      "severity": "advisory",
+      "summary": "The guard only detects `sys.modules[...] = ...` assignments. The spec requires failing when a test registers a platform module outside the shared loader, and other registration forms get past the scanner."
     }
   ],
-  "launched_at": "2026-10-04T21:52:22+00:00",
-  "output_sha256": "b5d239511e630df18b50f510755d2626c7a88211012cc140aeed967ff038de2b",
+  "launched_at": "2026-10-04T21:56:51+00:00",
+  "output_sha256": "7cb8ab08024755d4054e2924d7c690750ce8eb05209d91791c9b78916fbfc634",
   "perspective": "spec-fidelity",
-  "request_id": "28a99f12-1a92-4f92-82f2-d076a6368a7f",
+  "request_id": "51c9d031-8ce6-48e1-8c36-f45d4a3a99cb",
   "reviewer": {
-    "context_id": "0b11f653-d027-4424-a377-e58fdf300097",
+    "context_id": "c528878c-04c7-492c-a4fc-d84c7559c2c6",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-9dcc2e05-e20d-4b80-8385-df2e851a4536",
+    "launch_id": "platform-launch-ec46238e-8521-4cff-b985-bb8dc1b2267c",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,41 +45,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 54722
+        "value": 49305
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 104317
+        "value": 56572
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 22356
+        "value": 29062
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 23608
+        "value": 29803
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 6
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 9
+        "value": 7
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2645
+        "value": 3209
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "2d8240a55d674223508eb4fdf607ca30c576c7eaf7f50fd8c1d469ca9419ba15"
+  "task_content_digest": "34791f68510b7689e67c9405c999c32d08beca06fe76c9b73b4fae581d7f1a70"
 }

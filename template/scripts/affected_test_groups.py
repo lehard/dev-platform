@@ -36,13 +36,15 @@ def _imports(tree: ast.Module) -> set[str]:
 
 
 def _string_references(tree: ast.Module) -> set[str]:
+    """Module names a string names exactly (``"x"``) or as a file (``"x.py"``, ``".../x.py"``)."""
     names: set[str] = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            if IDENTIFIER.fullmatch(node.value):
+                names.add(node.value)
             for token in re.split(r"[\s/\\'\"(),=]+", node.value):
-                stem = token[:-3] if token.endswith(".py") else token
-                if IDENTIFIER.fullmatch(stem):
-                    names.add(stem)
+                if token.endswith(".py") and IDENTIFIER.fullmatch(token[:-3]):
+                    names.add(token[:-3])
     return names
 
 

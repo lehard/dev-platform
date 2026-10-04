@@ -124,6 +124,13 @@ class RunnerAffectedModeTests(unittest.TestCase):
 
 
 class SelectChecksPrecheckTests(unittest.TestCase):
+    def test_outcome_distinguishes_failures_crashes_and_empty_selection(self) -> None:
+        run = lambda code, out: subprocess.CompletedProcess("pre", code, out, "")  # noqa: E731
+        self.assertEqual(select_checks.precheck_outcome(run(1, 'DEV_PLATFORM_TEST_AGGREGATE: {"failed_groups": ["g"]}')), "failure")
+        self.assertEqual(select_checks.precheck_outcome(run(1, "Traceback: ImportError")), "unavailable")
+        self.assertEqual(select_checks.precheck_outcome(run(0, 'DEV_PLATFORM_AFFECTED_SELECTION: {"groups": {}, "unmapped": ["a.py"]}')), "not-applicable")
+        self.assertEqual(select_checks.precheck_outcome(run(0, 'DEV_PLATFORM_TEST_AGGREGATE: {"failed_groups": []}')), "success")
+
     CONFIG = {"settings": {"affected_precheck": True}, "test_groups": {"one": {"targets": ["test_x"]}}}
 
     def test_precheck_paths_only_for_opted_in_full_selections(self) -> None:
@@ -134,7 +141,7 @@ class SelectChecksPrecheckTests(unittest.TestCase):
         self.assertEqual(select_checks.precheck_paths(self.CONFIG, mapped), [])
 
     def test_failed_precheck_stops_before_full_commands_and_keeps_command_evidence_clean(self) -> None:
-        failed = subprocess.CompletedProcess("pre", 1, "precheck-detail", "")
+        failed = subprocess.CompletedProcess("pre", 1, 'precheck-detail\nDEV_PLATFORM_TEST_AGGREGATE: {"failed_groups": ["one"]}\n', "")
         with tempfile.TemporaryDirectory() as directory, mock.patch.object(select_checks.subprocess, "run", return_value=failed) as run:
             evidence = Path(directory) / "evidence.json"
             outcome = select_checks.execute(Path(directory), [{"id": "full-trigger", "commands": ["full-suite"]}], evidence, None, ["a.py"])
@@ -170,7 +177,7 @@ class SelectChecksPrecheckTests(unittest.TestCase):
 
             def fake(command, **kwargs):
                 if "run_test_groups.py" in command:
-                    return subprocess.CompletedProcess(command, 0, "", "")
+                    return subprocess.CompletedProcess(command, 0, 'DEV_PLATFORM_TEST_AGGREGATE: {"failed_groups": []}\n', "")
                 return real_run(command, **kwargs)
 
             with mock.patch.object(select_checks.subprocess, "run", side_effect=fake):

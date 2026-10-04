@@ -33,7 +33,17 @@ def direct_registrations(path: Path) -> list[int]:
                 and target.value.value.id == "sys"
             ):
                 lines.append(node.lineno)
-    return lines
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr in {"update", "setdefault", "__setitem__"}
+            and isinstance(node.func.value, ast.Attribute)
+            and node.func.value.attr == "modules"
+            and isinstance(node.func.value.value, ast.Name)
+            and node.func.value.value.id == "sys"
+        ):
+            lines.append(node.lineno)
+    return sorted(lines)
 
 
 PROBE = textwrap.dedent(
@@ -70,7 +80,7 @@ class PlatformModuleIdentityTests(unittest.TestCase):
 
     def test_scanner_detects_direct_registration(self) -> None:
         sample = TESTS / "fixtures" / "module_identity_sample.py"
-        self.assertEqual(direct_registrations(sample), [6])
+        self.assertEqual(direct_registrations(sample), [6, 7])
 
     def test_identity_holds_in_forward_and_reverse_import_order(self) -> None:
         names = [name for name in test_module_names() if name != Path(__file__).stem]

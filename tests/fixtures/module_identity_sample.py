@@ -4,3 +4,4 @@ from types import ModuleType
 
 stand_in = ModuleType("managed_task")
 sys.modules["managed_task"] = stand_in
+sys.modules.setdefault("start_task", stand_in)

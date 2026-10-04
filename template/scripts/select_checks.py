@@ -187,8 +187,25 @@ def select(config: dict[str, Any], paths: list[str], *, declare_behavior_change:
 
 
 PRECHECK_REASONS = {"high-impact-path", "unknown-path"}
-# run_test_groups.py exits 1 for failed tests and 2 for configuration errors.
-PRECHECK_TEST_FAILURE = 1
+
+
+def precheck_outcome(result: subprocess.CompletedProcess[str]) -> str:
+    """Classify the runner result: only reported failed test groups block."""
+    output = result.stdout or ""
+    aggregate = None
+    selection = None
+    for line in output.splitlines():
+        if line.startswith("DEV_PLATFORM_TEST_AGGREGATE: "):
+            aggregate = json.loads(line.split(": ", 1)[1])
+        elif line.startswith("DEV_PLATFORM_AFFECTED_SELECTION: "):
+            selection = json.loads(line.split(": ", 1)[1])
+    if result.returncode == 0 and aggregate is None and selection is not None and not selection.get("groups"):
+        return "not-applicable"
+    if aggregate is None:
+        return "unavailable"
+    if result.returncode != 0 and aggregate.get("failed_groups"):
+        return "failure"
+    return "success" if result.returncode == 0 else "unavailable"
 
 
 def precheck_paths(config: dict[str, Any], checks: list[dict[str, Any]]) -> list[str]:
@@ -342,12 +359,12 @@ def execute(
     precheck_record = None
     if precheck:
         precheck_record, result = run_precheck(root, precheck)
-        if result.returncode not in (0, PRECHECK_TEST_FAILURE):
+        precheck_record["outcome"] = precheck_outcome(result)
+        if precheck_record["outcome"] == "unavailable":
             # A runner/configuration error leaves no feedback; the full set
             # still decides, so tooling trouble never blocks validation.
-            precheck_record["outcome"] = "unavailable"
             print("Affected-test precheck was unavailable (exit %d); continuing with the full set." % result.returncode, flush=True)
-    if precheck_record is not None and result.returncode == PRECHECK_TEST_FAILURE:
+    if precheck_record is not None and precheck_record["outcome"] == "failure":
         if evidence_path is not None:
             write_evidence(evidence_path, checks, selection_status(checks), records, "failure", managed_checkout, precheck_record)
         descriptor = failure_descriptor(checks, precheck_record["command"], result)
