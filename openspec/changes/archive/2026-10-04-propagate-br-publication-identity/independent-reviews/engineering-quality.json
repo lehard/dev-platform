@@ -1,0 +1,91 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "ff69a8d5f115d3815b9d333c4bb40fd72689dca4",
+    "base_ref": "origin/main",
+    "candidate_head": "e3149a9e607a605d9388ab5ed8aada43b478f948",
+    "diff_sha256": "f777ba9f063937e6b077e30b8962fd8c752a2da2d6d72981d388fe0470d73659"
+  },
+  "completed_at": "2026-10-04T15:54:33+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/project_publish.py `ensure_pr`: `return _repair_pr_identity(root, env, _pr_ref(lookup.exact_merged, already_merged=True), ...)`. `_repair_pr_identity` runs `subprocess.run([\"gh\",\"pr\",\"edit\",...], check=True, capture_output=True)` and has no except clause. A cosmetic title/body repair can therefore block the merged-state reconciliation that follows in `publish_pr`. Consider making repair best-effort once the PR is MERGED, or converting the failure to a clear SystemExit.",
+      "id": "merged-pr-repair-unhandled-failure",
+      "severity": "advisory",
+      "summary": "The identity repair on an already-merged exact-head PR calls `gh pr edit` with check=True and no error handling. If GitHub refuses the edit, the raw CalledProcessError aborts publication resume, including cleanup of a PR that is already merged."
+    },
+    {
+      "evidence": "template/scripts/requirement_intake.py `_identity_siblings` runs `gh api --paginate --slurp repos/{repo}/issues?state=all&per_page=100`. `_link_child_identity` calls it once before and once after the edit, plus one `fetch_issue` per sibling in each pass. `start_managed_task` calls `_allocate_work_identity`, then `import_task` calls it again, and `reconcile_work_identity` calls it on resume. All of these go through `link_child`.",
+      "id": "identity-allocation-api-cost",
+      "severity": "advisory",
+      "summary": "Each child allocation scans every Issue in the Backlog repository (paginated, state=all) twice and refetches each sibling individually. `start_managed_task` can trigger the allocation up to three times per start, so API cost and latency grow with Backlog size."
+    },
+    {
+      "evidence": "template/scripts/managed_work_identity.py `allocation_lock`: `Path(tempfile.gettempdir()) / f\"dev-platform-br-{key}.lock\"`, with the uid check `info.st_uid != os.getuid()`. If a different user already owns the file (shared /tmp), the lock fails closed with 'unsafe allocation lock', which blocks that second user's link operations.",
+      "id": "allocation-lock-tmpdir-scope",
+      "severity": "advisory",
+      "summary": "The allocation lock is a host-local file in `tempfile.gettempdir()`. It serializes writers only for the same user on the same temp directory, so different TMPDIRs or hosts get no serialization. The design documents this limit, but the lock's effective scope depends on the environment's TMPDIR."
+    }
+  ],
+  "launched_at": "2026-10-04T15:53:43+00:00",
+  "output_sha256": "04e3c85fdab3e289393531e2743f0644e1d722f5c2c161c8d77d867b26c5ecd3",
+  "perspective": "engineering-quality",
+  "request_id": "c3f1f86b-a2fd-4710-983a-d6827d49fce5",
+  "reviewer": {
+    "context_id": "0493d9aa-4399-42f5-8ed5-939ebc93fa49",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-b5416248-145f-4ee5-a19f-b5eeb38a7675",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 70242
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 211819
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 38661
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 45587
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 7
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3739
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "a7e96de4520f50da05a7f3deacf4d5f1c58959e5bbd601caa5b6b7844684a5e9"
+}

@@ -11,7 +11,7 @@ from dataclasses import replace
 from pathlib import Path
 from io import StringIO
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "template" / "scripts" / "managed_task.py"
@@ -622,18 +622,25 @@ class ManagedPackageTests(unittest.TestCase):
             (canonical / "proposal.md").write_text("Locally authored canonical proposal\n", encoding="utf-8")
             proposal = (canonical / "proposal.md").read_bytes()
             allocated = replace(package, work_identity="BR-42/T1")
+            allocator = MagicMock(return_value=allocated)
             with (
                 patch.object(start_managed_task, "discover_task", return_value=package),
                 patch.object(start_managed_task, "read_platform_config", return_value={"workflow_profile": "multi-agent"}),
                 patch.object(start_managed_task, "machine_path", return_value=task_root.parent),
+                patch.object(start_managed_task, "_registered_worktree_branches", return_value={task_root.resolve(): "agent/resumed"}),
                 patch.object(start_managed_task, "run_git", return_value=SimpleNamespace(stdout="agent/resumed\n")),
                 patch.object(start_managed_task, "refresh_context", return_value=None) as refresh,
                 patch.object(start_managed_task, "admit_task", return_value={"decision": "RUN", "claims": []}),
                 patch.object(start_managed_task, "reconcile", return_value=SimpleNamespace(changed=False)),
-                patch.object(managed_task, "_allocate_work_identity", return_value=allocated) as allocate,
+                patch.object(sys.modules["managed_task"], "_allocate_work_identity", allocator) as allocate,
+                # reconcile_work_identity is bound at import to its defining module instance,
+                # which other test modules may have replaced in sys.modules.
+                patch.dict(start_managed_task.reconcile_work_identity.__globals__, {"_allocate_work_identity": allocator}),
             ):
                 start_managed_task.start_managed_task(root, package.source_issue)
-                allocate.assert_called_once_with(task_root.resolve(), package)
+                self.assertEqual(allocate.call_count, 2)
+                self.assertEqual(allocate.call_args_list[0].args, (root, package))
+                self.assertEqual(allocate.call_args_list[1].args, (task_root.resolve(), allocated))
                 self.assertEqual(refresh.call_args.args[1].work_identity, "BR-42/T1")
                 self.assertEqual(managed_task.read_provenance(canonical)["work_identity"], "BR-42/T1")
                 self.assertEqual((canonical / "proposal.md").read_bytes(), proposal)

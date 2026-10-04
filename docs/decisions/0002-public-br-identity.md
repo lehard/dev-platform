@@ -28,8 +28,8 @@ readable work tracking does not require exposing those private facts. Keeping
 all work identity opaque is rejected for this approved iteration because it
 prevents readable parent/child association. Native Issue-number synchronization,
 a separate identity registry, owner labels and a shared product taxonomy are
-outside the approved boundary. Branch and PR formatting is deferred to the
-dependent child; this decision does not implement that propagation.
+outside the approved boundary. Branch and PR formatting is implemented by the dependent child
+(`propagate-br-publication-identity`); this decision defines only the boundary.
 
 ## Revisit triggers
 

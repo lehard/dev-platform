@@ -102,3 +102,73 @@ def allocation_lock(requirement: str):
             yield
         finally:
             fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
+
+
+def task_branch(change: str, identity: str | None = None) -> str:
+    """Change owns the path; validated presentation only decorates a new ref."""
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", change) or '..' in change or change.endswith(('.', '.lock')):
+        raise IdentityError("invalid managed branch change")
+    prefix = validate(identity, child=True).lower().replace('/t', '-t') + '-' if identity else ''
+    return f"agent/{prefix}{change}"
+
+
+def canonical_child_identity(root: Path, source: str, *, provenance: dict | None = None,
+                             requirement: str | None = None) -> str | None:
+    """Prove readable identity from reciprocal canonical claims, never prose."""
+    import managed_task
+    import requirement_intake
+    issue = managed_task.fetch_issue(root, *managed_task.issue_ref(source))
+    body = str(issue.get('body') or '')
+    parents = re.findall(r'^Requirement: (\S+)\s*$', body, re.MULTILINE)
+    value = identity_in(body)
+    recorded = (provenance or {}).get('work_identity')
+    if not parents:
+        if value is not None or recorded is not None or requirement is not None:
+            raise IdentityError('work identity lacks canonical parent')
+        return None
+    if len(parents) != 1 or (requirement is not None and parents != [requirement]):
+        raise IdentityError('ambiguous or conflicting canonical parent')
+    parent = parents[0]
+    parent_identity(parent)
+    parent_issue = managed_task.fetch_issue(root, *managed_task.issue_ref(parent))
+    parent_body = str(parent_issue.get('body') or '')
+    if (requirement_intake.CHILD_LABEL not in managed_task.issue_labels(issue)
+            or requirement_intake.REQUIREMENT_LABEL not in managed_task.issue_labels(parent_issue)
+            or source not in requirement_intake.parse_requirement_body(parent_body)['children']):
+        raise IdentityError('work identity lacks reciprocal canonical linkage')
+    validate(value, child=True)
+    claims = {source: body}
+    for sibling in requirement_intake.parse_requirement_body(parent_body)['children']:
+        if sibling not in claims:
+            claims[sibling] = str(managed_task.fetch_issue(root, *managed_task.issue_ref(sibling)).get('body') or '')
+    assignments(parent_body, parent, claims)
+    if recorded is not None and validate(recorded, child=True) != value:
+        raise IdentityError('work identity disagrees with committed provenance')
+    return value
+
+
+BLOCK_START = '<!-- dev-platform:br-identity -->'
+BLOCK_END = '<!-- /dev-platform:br-identity -->'
+
+
+def presentation(title: str, body: str, identity: str, children: list[str] | None = None) -> tuple[str, str]:
+    validate(identity, child=children is None)
+    if children is not None:
+        if not children or len(set(children)) != len(children):
+            raise IdentityError('missing or duplicate shared child identity')
+        for child in children:
+            if not validate(child, child=True).startswith(identity + '/T'):
+                raise IdentityError('shared child identity disagrees with parent')
+    title = re.sub(r'^\[BR-[1-9][0-9]*(?:/T[1-9][0-9]*)?\]\s*', '', title)
+    block = f'{BLOCK_START}\nWork identity: {identity}\n'
+    if children is not None:
+        block += 'Included children: ' + ', '.join(children) + '\n'
+    block += BLOCK_END
+    if BLOCK_START in body or BLOCK_END in body:
+        if body.count(BLOCK_START) != 1 or body.count(BLOCK_END) != 1 or body.index(BLOCK_START) > body.index(BLOCK_END):
+            raise IdentityError('malformed standard BR identity block')
+        start, end = body.index(BLOCK_START), body.index(BLOCK_END) + len(BLOCK_END)
+        body = body[:start] + block + body[end:]
+    else:
+        body += ('\n\n' if body else '') + block
+    return f'[{identity}] {title}', body

@@ -269,6 +269,7 @@ def assemble_candidate(root: Path, *, requirement: str, base: str, receipt_paths
     intentionally stops before writing a worktree or publishing: it is safe to
     retry, and leaves the existing protected worktree/PR authority in charge.
     """
+    import managed_work_identity
     if not ISSUE_RE.fullmatch(requirement) or not SHA_RE.fullmatch(base):
         raise RequirementIntegrationError("requirement and base are invalid")
     if expected_changes is not None and (
@@ -328,9 +329,21 @@ def assemble_candidate(root: Path, *, requirement: str, base: str, receipt_paths
                 f"child edits overlap ({receipt.source_issue} with {claimed[overlap[0]][0]}): {', '.join(overlap[:5])}"
             )
         claimed.update({path: (receipt.source_issue, receipt.head) for path in paths})
+        provenance = json.loads(_git(root, "show", f"{receipt.head}:{receipt.archived_contract}/.managed-task.json"))
+        readable = provenance.get("work_identity")
+        if readable is not None:
+            try:
+                managed_work_identity.validate(readable, child=True)
+                if not readable.startswith(managed_work_identity.parent_identity(requirement) + "/T"):
+                    raise managed_work_identity.IdentityError("child provenance disagrees with parent")
+            except managed_work_identity.IdentityError as exc:
+                raise RequirementIntegrationError(str(exc)) from exc
         children.append({"source_issue": receipt.source_issue, "change": receipt.change, "source_branch": receipt.source_branch, "head": receipt.head,
-                         "delta_base": delta_base, "digest": receipt.digest})
+                         "delta_base": delta_base, "digest": receipt.digest,
+                         **({"work_identity": readable} if readable is not None else {})})
     unsigned = {"version": 1, "requirement": requirement, "base": base, "children": children}
+    if any(child.get("work_identity") is not None for child in children):
+        unsigned["work_identity"] = managed_work_identity.parent_identity(requirement)
     if expected_changes is not None:
         unsigned["expected_changes"] = list(expected_changes)
     if replayed:
@@ -360,7 +373,20 @@ def _public_requirement(root: Path, requirement: str) -> str:
 
 
 def _public_manifest(root: Path, manifest: dict[str, Any]) -> dict[str, Any]:
+    import managed_work_identity
     import private_lineage
+    try:
+        parent = managed_work_identity.parent_identity(manifest["requirement"])
+        if manifest.get("work_identity") is not None and managed_work_identity.validate(manifest["work_identity"], child=False) != parent:
+            raise managed_work_identity.IdentityError("manifest work identity disagrees with Requirement")
+        identities = [child["work_identity"] for child in manifest["children"] if "work_identity" in child]
+        if len(set(identities)) != len(identities):
+            raise managed_work_identity.IdentityError("duplicate manifest child identity")
+        for identity in identities:
+            if not managed_work_identity.validate(identity, child=True).startswith(parent + "/T"):
+                raise managed_work_identity.IdentityError("manifest child identity disagrees with Requirement")
+    except managed_work_identity.IdentityError as exc:
+        raise RequirementIntegrationError(str(exc)) from exc
     if not private_lineage.enabled(root):
         return manifest
     unsigned = {key: value for key, value in manifest.items() if key != "digest"}
@@ -444,6 +470,23 @@ def _bind_message(public_requirement: str) -> str:
     return f"Bind integrated Requirement {public_requirement} candidate"
 
 
+def _presentation_upgrade(committed: dict[str, Any], expected: dict[str, Any]) -> bool:
+    """Accept only additive readable fields; exact technical lineage is immutable."""
+    previous = {key: value for key, value in committed.items() if key != "digest"}
+    target = {key: value for key, value in expected.items() if key != "digest"}
+    if committed.get("digest") != _digest(previous):
+        return False
+    if "work_identity" not in previous:
+        target.pop("work_identity", None)
+    target["children"] = [dict(child) for child in target["children"]]
+    if len(previous.get("children", [])) != len(target["children"]):
+        return False
+    for old, new in zip(previous["children"], target["children"]):
+        if "work_identity" not in old:
+            new.pop("work_identity", None)
+    return previous == target
+
+
 def _candidate_history(root: Path, worktree: Path, base: str, manifest: dict[str, Any],
                        public_manifest: dict[str, Any], path: Path) -> tuple[int, bool]:
     """Validate a candidate branch as ordered child commits interleaved with bind commits.
@@ -468,15 +511,12 @@ def _candidate_history(root: Path, worktree: Path, base: str, manifest: dict[str
                 committed = json.loads(_git(worktree, "show", f"{commit}:{path.as_posix()}"))
             except (RequirementIntegrationError, json.JSONDecodeError) as exc:
                 raise RequirementIntegrationError("candidate manifest commit has unexpected provenance") from exc
-            if done == len(children):
-                if committed != public_manifest:
-                    raise RequirementIntegrationError("candidate branch has a different committed integration manifest")
-            else:
-                unsigned = {key: value for key, value in committed.items() if key != "digest"}
-                if (committed.get("digest") != _digest(unsigned) or committed.get("children") != public_children[:done]
-                        or any(committed.get(key) != public_manifest.get(key) for key in ("requirement", "base", "generation", "expected_changes"))):
-                    raise RequirementIntegrationError("candidate branch has a different committed integration manifest")
-            tip_bound = True
+            prefix = {key: value for key, value in public_manifest.items() if key != "digest"}
+            prefix["children"] = public_children[:done]
+            prefix["digest"] = _digest({key: value for key, value in prefix.items() if key != "digest"})
+            if not _presentation_upgrade(committed, prefix):
+                raise RequirementIntegrationError("candidate branch has a different committed integration manifest")
+            tip_bound = committed == public_manifest
         else:
             if done >= len(children):
                 raise RequirementIntegrationError("candidate branch has unexpected commits")
@@ -630,6 +670,45 @@ def _verify_parent_links(integration: Path, manifest: dict[str, Any]) -> None:
             raise RequirementIntegrationError(f"candidate child lacks internal-change identity: {source}")
 
 
+def publication_identities(integration: Path, manifest: dict[str, Any]) -> tuple[str, list[str]]:
+    """Validate every included child against its exact archived provenance and live claims."""
+    import managed_work_identity
+    import private_lineage
+    import managed_task
+    try:
+        parent = managed_work_identity.parent_identity(manifest["requirement"])
+        if manifest.get("work_identity") not in (None, parent):
+            raise managed_work_identity.IdentityError("manifest parent identity mismatch")
+        identities = []
+        for child in manifest["children"]:
+            paths = _git(integration, "ls-tree", "-r", "--name-only", child["head"], "openspec/changes/archive").splitlines()
+            paths = [path for path in paths if path.endswith('-' + child['change'] + '/.managed-task.json')]
+            if len(paths) != 1:
+                raise RequirementIntegrationError("child exact archived provenance is ambiguous or absent")
+            provenance = json.loads(_git(integration, "show", f"{child['head']}:{paths[0]}"))
+            if provenance.get("change") != child["change"]:
+                raise RequirementIntegrationError("child exact provenance change mismatch")
+            if "source_issue" in provenance:
+                if "private_lineage_handle" in provenance:
+                    raise RequirementIntegrationError("child exact provenance mixes identity forms")
+                if provenance["source_issue"] != child["source_issue"]:
+                    raise RequirementIntegrationError("child exact provenance source mismatch")
+            else:
+                handle = provenance.get("private_lineage_handle")
+                if not isinstance(handle, str):
+                    raise RequirementIntegrationError("child exact provenance lacks source identity")
+                private_lineage.require_handle(integration, child["source_issue"], child["change"], handle)
+            value = managed_work_identity.canonical_child_identity(integration, child["source_issue"],
+                provenance=provenance, requirement=manifest["requirement"])
+            if child.get("work_identity") not in (None, value):
+                raise managed_work_identity.IdentityError("manifest child identity disagrees with canonical claims")
+            identities.append(value)
+        managed_work_identity.presentation('', '', parent, identities)
+        return parent, identities
+    except (managed_work_identity.IdentityError, ValueError, private_lineage.PrivateLineageError, managed_task.ManagedTaskError) as exc:
+        raise RequirementIntegrationError(str(exc)) from exc
+
+
 def _run_full_checks(root: Path) -> None:
     commands = [
         ["python3", "-m", "compileall", "-q", "template/scripts", "scripts"],
@@ -683,6 +762,7 @@ def _reconcile_exact_merged(root: Path, integration: Path, manifest: dict[str, A
 
 def publish_candidate(root: Path, *, manifest: dict[str, Any], receipt_paths: list[Path], title: str | None = None) -> dict[str, Any]:
     """Validate and publish one shared candidate through the protected PR primitive."""
+    import managed_work_identity
     from _platform_common import main_root, pr_merge_mode, publish_mode, read_platform_config
 
     root = root.resolve()
@@ -699,6 +779,7 @@ def publish_candidate(root: Path, *, manifest: dict[str, Any], receipt_paths: li
     if composed["head"] != head or not composed["resumed"]:
         raise RequirementIntegrationError("candidate head changed before publication")
     _verify_parent_links(integration, manifest)
+    readable_parent, readable_children = publication_identities(integration, manifest)
     complete = manifest_complete(manifest)
     if complete:
         # An early draft is checked by GitHub's required checks; the full local suite gates readiness.
@@ -710,12 +791,15 @@ def publish_candidate(root: Path, *, manifest: dict[str, Any], receipt_paths: li
                                  worktree=root, branch=branch)
     if composed["head"] != head:
         raise RequirementIntegrationError("candidate head changed after validation")
+    if publication_identities(integration, manifest) != (readable_parent, readable_children):
+        raise RequirementIntegrationError("canonical BR identities changed after validation")
     public_requirement = _public_requirement(root, manifest["requirement"])
     command = ["python3", "scripts/project_publish.py", "--mode", "pr",
                "--shared-manifest", _candidate_manifest_path(public_requirement).as_posix()]
-    if title:
-        command += ["--title", title]
-    command += ["--body", f"Shared Requirement integration for {public_requirement}\n\nExact candidate: {head}\nManifest: {_candidate_manifest_path(public_requirement)}"]
+    public_title, public_body = managed_work_identity.presentation(
+        title or "Shared Requirement integration", f"Shared Requirement integration for {public_requirement}\n\nExact candidate: {head}\nManifest: {_candidate_manifest_path(public_requirement)}",
+        readable_parent, readable_children)
+    command += ["--title", public_title, "--body", public_body]
     environment = os.environ.copy()
     if public_requirement != manifest["requirement"]:
         environment["DEV_PLATFORM_PRIVATE_MANIFEST"] = json.dumps(manifest, ensure_ascii=False)

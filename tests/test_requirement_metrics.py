@@ -271,6 +271,14 @@ class RequirementMetricsTestCase(unittest.TestCase):
         return metrics.build_report(self.context(**kwargs), REQUIREMENT)
 
 
+class BranchRefTests(unittest.TestCase):
+    def test_readable_identity_decorates_branch_and_legacy_stays_plain(self):
+        self.assertEqual(metrics._branch_ref("change", {"work_identity": "BR-7/T2"}), "agent/br-7-t2-change")
+        self.assertEqual(metrics._branch_ref("change", {}), "agent/change")
+        self.assertEqual(metrics._branch_ref("change", None), "agent/change")
+        self.assertEqual(metrics._branch_ref("change", {"work_identity": "bad"}), "agent/change")
+
+
 class ValueModelTests(unittest.TestCase):
     def test_unknown_is_never_zero_and_partial_propagates(self) -> None:
         self.assertEqual(metrics.total([])["value"], 0)

@@ -24,6 +24,14 @@ import requirement_terminal  # noqa: E402
 
 
 class ManagedStatusLifecycleTests(unittest.TestCase):
+    def setUp(self) -> None:
+        # These lifecycle tests use skeletal manifests; identity proof against exact
+        # archived provenance and live claims is covered in test_br_publication_identity.
+        patcher = mock.patch.object(requirement_integration, "publication_identities",
+                                    return_value=("BR-7", ["BR-7/T1", "BR-7/T2"]))
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def test_shared_manifest_is_exact_committed_candidate_identity(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

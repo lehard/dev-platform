@@ -655,6 +655,7 @@ class RequirementIntegrationTests(unittest.TestCase):
                 mock.patch.object(integration, "_reconcile_exact_merged", return_value=None), \
                 mock.patch.object(integration, "compose_candidate", return_value={**composed, "resumed": True}), \
                 mock.patch.object(integration, "_verify_parent_links"), \
+                mock.patch.object(integration, "publication_identities", return_value=("BR-7", ["BR-7/T1"])), \
                 mock.patch.object(integration, "_run_full_checks") as checks, \
                 mock.patch.object(integration.subprocess, "run", return_value=SimpleNamespace(returncode=0)) as run:
             result = integration.publish_candidate(candidate, manifest=manifest, receipt_paths=[one_receipt])
@@ -705,6 +706,7 @@ class RequirementIntegrationTests(unittest.TestCase):
                 mock.patch.object(integration, "_reconcile_exact_merged", side_effect=[None, None]), \
                 mock.patch.object(integration, "compose_candidate", return_value={**composed, "resumed": True}), \
                 mock.patch.object(integration, "_verify_parent_links"), \
+                mock.patch.object(integration, "publication_identities", return_value=("BR-7", ["BR-7/T1", "BR-7/T2"])), \
                 mock.patch.object(integration, "_run_full_checks", side_effect=checked), \
                 mock.patch.object(integration.subprocess, "run", side_effect=published):
             result = integration.publish_candidate(candidate, manifest=manifest, receipt_paths=receipts)

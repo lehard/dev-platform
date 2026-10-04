@@ -46,7 +46,8 @@ def assemble(root: Path, requirement: str, receipts: list[Path]) -> dict[str, An
     overlap = sorted(set(source_paths) & _paths(root, common, base))
     unsigned = {"version": 1, "mode": "exact-parent-merge", "requirement": requirement,
                 "base": base, "source_head": source, "generation": _generation(base, source),
-                "children": children, "source_paths": source_paths, "overlap_paths": overlap}
+                "children": children, "source_paths": source_paths, "overlap_paths": overlap,
+                **({"work_identity": ordinary["work_identity"]} if "work_identity" in ordinary else {})}
     return {**unsigned, "digest": ri._digest(unsigned)}
 
 
@@ -183,17 +184,22 @@ def publish(root: Path, manifest: dict[str, Any], receipts: list[Path], title: s
     if ri._git(integration, "rev-parse", f"origin/{main_branch}") != manifest["base"]:
         raise ri.RequirementIntegrationError("authoritative main changed before merge publication")
     ri._verify_parent_links(integration, manifest)
+    readable_parent, readable_children = ri.publication_identities(integration, manifest)
     ri._run_full_checks(root)
     _validate_checkout(root, manifest, receipts)
     ri._git(integration, "fetch", "origin", main_branch)
     if ri._git(integration, "rev-parse", f"origin/{main_branch}") != manifest["base"]:
         raise ri.RequirementIntegrationError("authoritative main changed after merge validation")
+    if ri.publication_identities(integration, manifest) != (readable_parent, readable_children):
+        raise ri.RequirementIntegrationError("canonical BR identities changed after merge validation")
     command = ["python3", "scripts/project_publish.py", "--mode", "pr",
                "--shared-manifest", _manifest_path(manifest, root).as_posix()]
-    if title:
-        command += ["--title", title]
     public_requirement = ri._public_requirement(root, manifest["requirement"])
-    command += ["--body", f"Shared exact-parent merge for {public_requirement}\n\nCandidate: {head}\nManifest: {_manifest_path(manifest, root)}"]
+    import managed_work_identity
+    public_title, public_body = managed_work_identity.presentation(
+        title or "Shared exact-parent merge", f"Shared exact-parent merge for {public_requirement}\n\nCandidate: {head}\nManifest: {_manifest_path(manifest, root)}",
+        readable_parent, readable_children)
+    command += ["--title", public_title, "--body", public_body]
     environment = os.environ.copy()
     if public_requirement != manifest["requirement"]:
         environment["DEV_PLATFORM_PRIVATE_MANIFEST"] = json.dumps(manifest, ensure_ascii=False)

@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "ff69a8d5f115d3815b9d333c4bb40fd72689dca4",
+    "base_ref": "origin/main",
+    "candidate_head": "e3149a9e607a605d9388ab5ed8aada43b478f948",
+    "diff_sha256": "f777ba9f063937e6b077e30b8962fd8c752a2da2d6d72981d388fe0470d73659"
+  },
+  "completed_at": "2026-10-04T15:53:43+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/requirement_metrics.py `_branch_ref` calls `managed_work_identity.task_branch(change, provenance['work_identity'])`. `template/scripts/managed_task.py` `reconcile_work_identity` sets `provenance['work_identity']` on active provenance for resumed legacy tasks. design.md: \"Receipt discovery reads the registered branch rather than reconstructing its spelling.\" Contrast `execute_requirement._ready_receipt`, which does use `_registered_worktrees`.",
+      "id": "metrics-branch-ref-ignores-legacy-branch",
+      "severity": "advisory",
+      "summary": "requirement_metrics reconstructs a child's branch from provenance work_identity instead of reading the registered branch. A legacy child resumed on `agent/<change>` gets `work_identity` written into its provenance by `reconcile_work_identity`. Metrics then report and query `agent/br-N-tM-<change>`, which was never created. This contradicts the design's statement that discovery reads the registered branch rather than reconstructing its spelling."
+    },
+    {
+      "evidence": "template/scripts/start_managed_task.py `_supports_branch_name`: `\"branch_name\" in parameters or any(parameter.kind == inspect.Parameter.VAR_KEYWORD ...)`. `_start_new_managed_task` passes `**branch_options` to `start_task` and never compares `started.branch` with `selected_branch`. Spec scenario \"Project-owned helper predates branch identity\".",
+      "id": "var-keyword-start-helper-may-drop-branch-name",
+      "severity": "advisory",
+      "summary": "`_supports_branch_name()` treats any `**kwargs` signature as accepting `branch_name`. A project-owned start helper that takes `**kwargs` but ignores `branch_name` would pass the pre-creation guard and silently create `agent/<change>` without the BR identity. Nothing checks `started.branch` against the selected branch afterwards. The spec requires that intake stop before branch creation when the helper cannot honor the BR branch."
+    }
+  ],
+  "launched_at": "2026-10-04T15:52:55+00:00",
+  "output_sha256": "17a2f64c5d4461f009c80b45a6a3fd5cddc774a64f0445ba9f68f7d2844d763c",
+  "perspective": "spec-fidelity",
+  "request_id": "c3f1f86b-a2fd-4710-983a-d6827d49fce5",
+  "reviewer": {
+    "context_id": "92d13bf0-6592-4da8-818e-9910241e297a",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-b5749f8a-d2de-4b7a-b271-6de1cdb13182",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 73308
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 111809
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 42272
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 43696
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 7
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4644
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "a7e96de4520f50da05a7f3deacf4d5f1c58959e5bbd601caa5b6b7844684a5e9"
+}

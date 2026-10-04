@@ -87,7 +87,7 @@ def admission_reason(decision: dict[str, object]) -> str:
     )
 
 
-def start_task(root: Path, slug_value: str, task: str, scope: str = "", *, admission: bool = True) -> StartedTask:
+def start_task(root: Path, slug_value: str, task: str, scope: str = "", *, admission: bool = True, branch_name: str | None = None) -> StartedTask:
     root = root.resolve()
     preflight(root)
     config = read_platform_config(root)
@@ -115,14 +115,14 @@ def start_task(root: Path, slug_value: str, task: str, scope: str = "", *, admis
             raise RuntimeError(f"light profile expects {main_branch!r} checked out; found {checked_out!r}.")
         return StartedTask(profile=prof, branch=main_branch, task_root=root)
     if prof == "standard":
-        branch = f"agent/{slug_value}"
+        branch = branch_name or f"agent/{slug_value}"
         exists = run_git(["show-ref", "--verify", "--quiet", f"refs/heads/{branch}"], cwd=root, check=False)
         if exists.returncode == 0:
             raise RuntimeError(f"Branch already exists: {branch}")
         run_git(["switch", "-c", branch, main_branch], cwd=root)
         return StartedTask(profile=prof, branch=branch, task_root=root)
     if prof == "multi-agent":
-        started: StartedWorktree = create_worktree(root, slug_value, task, scope, sync=False)
+        started: StartedWorktree = create_worktree(root, slug_value, task, scope, sync=False, **({"branch_name": branch_name} if branch_name else {}))
         task_started = StartedTask(profile=prof, branch=started.branch, task_root=started.worktree, board_id=started.board_id)
         if admission:
             decision = admit_task(root, task_started, scope)
