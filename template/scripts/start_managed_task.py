@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import inspect
 import json
 import re
 import subprocess
@@ -30,12 +31,15 @@ from managed_task import (
     import_task,
     issue_ref,
     read_task_state,
+    reconcile_work_identity,
     resolve_canonical_provenance,
     write_task_state,
 )
 from managed_project_status import ManagedProjectStatusError, reconcile
 from requirement_integration import ReadyForIntegrationReceipt, RequirementIntegrationError, read_receipt
 from requirement_child_context import refresh_context
+from requirement_integration import _registered_worktrees as _registered_worktree_branches
+import managed_work_identity
 from start_task import StartedTask, cleanup_started_task, start_task
 from start_task import admission_reason, admit_task
 from shared_workspace import admit_managed_intake
@@ -52,6 +56,11 @@ def _transaction_path(worktrees_root: Path, change: str) -> Path:
     return worktrees_root / START_TRANSACTION_DIR / f"{change}.json"
 
 
+def _supports_branch_name() -> bool:
+    parameters = inspect.signature(start_task).parameters
+    return "branch_name" in parameters or any(parameter.kind == inspect.Parameter.VAR_KEYWORD for parameter in parameters.values())
+
+
 @contextmanager
 def managed_start_transaction(
     root: Path, package: Package, base_receipt: ReadyForIntegrationReceipt | None = None
@@ -64,7 +73,7 @@ def managed_start_transaction(
     """
     worktrees_root = machine_path("worktrees", root)
     worktree = (worktrees_root / package.change).resolve()
-    branch = f"agent/{package.change}"
+    branch = managed_work_identity.task_branch(package.change, package.work_identity)
     path = _transaction_path(worktrees_root, package.change)
     completed = False
 
@@ -85,6 +94,19 @@ def managed_start_transaction(
 
     with locked_json(path) as data:
         created = "source_issue" not in data
+        if not created and data.get("branch") == f"agent/{package.change}":
+            # A recorded legacy transaction owns its ref even after identity allocation.
+            branch = str(data["branch"])
+        registered = _registered_worktree_branches(root).get(worktree) if package.work_identity and worktree.exists() else None
+        if registered is not None:
+            if canonical_provenance_candidates(worktree, package.change):
+                resolve_canonical_provenance(worktree, source_issue=package.source_issue, change=package.change)
+                branch = registered
+            elif registered != branch:
+                raise ManagedTaskError("registered branch lacks exact canonical task ownership; refusing takeover")
+
+        if package.work_identity and not _supports_branch_name() and branch != f"agent/{package.change}":
+            raise ManagedTaskError("project-owned start helper must accept branch_name before creating a new linked BR branch")
 
         expected = {
             "version": 1,
@@ -346,6 +368,7 @@ def _resume_existing_managed_task(
     base_receipt: ReadyForIntegrationReceipt | None = None,
 ) -> tuple[StartedTask, str, bool]:
     resolve_canonical_provenance(existing_root, source_issue=package.source_issue, change=package.change)
+    package = reconcile_work_identity(existing_root, package)
     # Bounded migration for tasks created before task-level state was
     # introduced. It records identity only and never reimports the transport
     # package over the repository-local change.
@@ -382,13 +405,21 @@ def _start_new_managed_task(
     scope: str,
     acknowledge_source_issue_revision: str | None,
     base_receipt: ReadyForIntegrationReceipt | None = None,
+    branch_name: str | None = None,
 ) -> tuple[StartedTask, str, bool]:
+    readable = getattr(package, "work_identity", None)
+    supports_branch = _supports_branch_name()
+    selected_branch = branch_name or managed_work_identity.task_branch(package.change, readable)
+    if readable and not supports_branch and selected_branch != f"agent/{package.change}":
+        raise ManagedTaskError("project-owned start helper must accept branch_name before creating a new linked BR branch")
+    branch_options = {"branch_name": branch_name or managed_work_identity.task_branch(package.change, readable)} if supports_branch and (branch_name or readable) else {}
     started = start_task(
         root,
         package.change,
         task=f"Managed task {package.source_issue}",
         scope=scope or f"openspec/changes/{package.change}",
         admission=False,
+        **branch_options,
     )
     try:
         if base_receipt is not None:
@@ -401,7 +432,9 @@ def _start_new_managed_task(
             expected_revision=package.revision,
             acknowledge_source_issue_revision=acknowledge_source_issue_revision,
         )
-        context = refresh_context(started.task_root, package, predecessor=base_receipt)
+        if getattr(imported, "work_identity", None) != readable:
+            raise ManagedTaskError("managed child identity changed during branch creation; retry canonical intake")
+        context = refresh_context(started.task_root, imported, predecessor=base_receipt)
         if context is not None:
             print(f"Bounded Requirement child context prepared: {context}")
         decision = admit_task(root, started, scope if scope else None)
@@ -436,6 +469,9 @@ def start_managed_task(
     """Discover before task creation, then materialize in the task checkout only."""
     admit_managed_intake(root)
     package = discover_task(root, reference)
+    if package.parent_requirement:
+        from managed_task import _allocate_work_identity
+        package = _allocate_work_identity(root, package)
     predecessor = read_receipt(base_child_receipt) if base_child_receipt else None
     if predecessor is not None:
         if predecessor.source_issue == package.source_issue:
@@ -460,7 +496,7 @@ def start_managed_task(
             return _resume_existing_managed_task(root, package, existing_root, scope, predecessor)
 
         recover_incomplete_managed_start(root, package, transaction)
-        return _start_new_managed_task(root, package, reference, scope, acknowledge_source_issue_revision, predecessor)
+        return _start_new_managed_task(root, package, reference, scope, acknowledge_source_issue_revision, predecessor, str(transaction["branch"]))
 
 
 def main() -> int:

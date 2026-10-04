@@ -33,6 +33,7 @@ from _platform_common import (
 )
 import managed_project_status
 import private_lineage
+import managed_work_identity
 from start_tier_routing import (
     ASSURANCE_VALUES,
     EFFORT_HINT_VALUES,
@@ -84,6 +85,7 @@ class Package:
     # Derived at discovery from the already fetched Issue body; not part of
     # the serialized managed package or its immutable authoring revision.
     parent_requirement: str | None = None
+    work_identity: str | None = None
 
 
 @dataclass(frozen=True)
@@ -266,7 +268,8 @@ def normalized_issue_body(body: object) -> str:
     receipt, while GitHub's body representation can preserve or normalize its
     final newline.
     """
-    return AUTHORING_RECEIPT_RE.sub("", str(body or "")).rstrip()
+    source = re.sub(r"^Work identity: BR-[1-9][0-9]*/T[1-9][0-9]*\s*$", "", str(body or ""), flags=re.MULTILINE)
+    return AUTHORING_RECEIPT_RE.sub("", source).rstrip()
 
 
 def _issue_revision_evidence(issue: dict[str, Any], body: str) -> dict[str, str]:
@@ -311,6 +314,12 @@ def source_issue_revision_matches(recorded_hash: str, current_issue: dict[str, A
     legacy = legacy_issue_revision_evidence(current_issue)
     if legacy["body_sha256"] == recorded_hash:
         return legacy, True
+    body = str(current_issue.get("body") or "")
+    suffix = re.search(r"\n\nWork identity: BR-[1-9][0-9]*/T[1-9][0-9]*\n\Z", body)
+    if suffix is not None:
+        before_identity = _issue_revision_evidence(current_issue, body[:suffix.start()])
+        if before_identity["body_sha256"] == recorded_hash:
+            return before_identity, True
     return current, False
 
 
@@ -1255,6 +1264,11 @@ def read_provenance(root: Path) -> dict[str, Any]:
         raise ManagedTaskError(f"managed-task provenance is invalid JSON: {exc.msg}") from exc
     if not isinstance(value, dict):
         raise ManagedTaskError("managed-task provenance is invalid")
+    if "work_identity" in value:
+        try:
+            managed_work_identity.validate(value["work_identity"], child=True)
+        except managed_work_identity.IdentityError as exc:
+            raise ManagedTaskError(str(exc)) from exc
     return value
 
 
@@ -1870,6 +1884,10 @@ def assert_integration_identity_cross_check(
 
 
 def write_provenance(root: Path, package: Package) -> None:
+    if package.work_identity is not None:
+        managed_work_identity.validate(package.work_identity, child=True)
+        if package.parent_requirement and not package.work_identity.startswith(managed_work_identity.parent_identity(package.parent_requirement) + "/T"):
+            raise ManagedTaskError("work identity disagrees with canonical Requirement")
     repository_root = root.parents[2]
     if private_lineage.enabled(repository_root):
         identity = {"private_lineage_handle": private_lineage.handle_for_issue(repository_root, package.source_issue, package.change, create=True)}
@@ -1881,6 +1899,8 @@ def write_provenance(root: Path, package: Package) -> None:
         "package_revision": package.revision, "artifacts": list(package.artifacts),
         "imported_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
     }
+    if package.work_identity is not None:
+        payload["work_identity"] = managed_work_identity.validate(package.work_identity, child=True)
     if package.routing_receipt is not None:
         payload["routing_receipt"] = package.routing_receipt
     if package.source_issue_evidence is not None:
@@ -1936,8 +1956,16 @@ def discover_task(root: Path, reference: str) -> Package:
     parents = re.findall(r"^Requirement: ([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+#[1-9][0-9]*)\s*$", bodies[0], re.MULTILINE)
     if len(parents) > 1:
         raise ManagedTaskError(f"{requested} has ambiguous parent Requirement references")
+    try:
+        readable = managed_work_identity.identity_in(bodies[0])
+        if readable is not None:
+            managed_work_identity.validate(readable, child=True)
+            if not parents or not readable.startswith(managed_work_identity.parent_identity(parents[0]) + "/T"):
+                raise managed_work_identity.IdentityError("child identity disagrees with canonical Requirement")
+    except managed_work_identity.IdentityError as exc:
+        raise ManagedTaskError(str(exc)) from exc
     if parents:
-        package = replace(package, parent_requirement=parents[0])
+        package = replace(package, parent_requirement=parents[0], work_identity=readable)
     if package.target_repository != origin_repository(root):
         raise ManagedTaskError(f"package targets {package.target_repository}, not this checkout; no files changed")
     return package
@@ -1984,6 +2012,36 @@ def direct_materialization_is_forbidden(root: Path) -> bool:
     return root.resolve() == integration.resolve() and branch == str(config.get("main_branch", "main"))
 
 
+def _allocate_work_identity(root: Path, package: Package) -> Package:
+    if package.parent_requirement:
+        import requirement_intake
+        try:
+            linked = requirement_intake.link_child(root, requirement=package.parent_requirement, child=package.source_issue)
+        except requirement_intake.RequirementIntakeError as exc:
+            raise ManagedTaskError(str(exc)) from exc
+        package = replace(package, work_identity=linked["work_identity"])
+    return package
+
+
+def reconcile_work_identity(root: Path, package: Package) -> Package:
+    """Reconcile legacy/resumed claims without replacing authored artifacts."""
+    canonical = resolve_canonical_provenance(root, source_issue=package.source_issue, change=package.change)
+    if canonical is None:
+        raise ManagedTaskError("managed resume has no canonical provenance")
+    provenance = read_provenance(canonical.path)
+    if not package.parent_requirement:
+        if provenance.get("work_identity") is not None or package.work_identity is not None:
+            raise ManagedTaskError("identified child lost its canonical Requirement claim; inspect the source Issue")
+        return package
+    package = _allocate_work_identity(root, package)
+    if provenance.get("work_identity") not in (None, package.work_identity):
+        raise ManagedTaskError("imported work identity conflicts with canonical Issue claims")
+    if canonical.lifecycle == "active" and provenance.get("work_identity") != package.work_identity:
+        provenance["work_identity"] = package.work_identity
+        atomic_write(canonical.path / PROVENANCE, json.dumps(provenance, sort_keys=True, indent=2) + "\n")
+    return package
+
+
 def import_task(
     root: Path,
     reference: str,
@@ -2015,12 +2073,22 @@ def import_task(
     if state_matches_package:
         archived = resolve_canonical_provenance(root, source_issue=package.source_issue, change=package.change)
         if archived is not None and archived.lifecycle == "archived":
+            package = _allocate_work_identity(root, package)
+            archived_identity = read_provenance(archived.path).get("work_identity")
+            if archived_identity not in (None, package.work_identity):
+                raise ManagedTaskError("archived work identity conflicts with canonical Issue claims")
             write_task_state(root, package)
             return package, current_main, True
     if destination_exists:
         provenance = read_provenance(destination)
         if source_issue_for_provenance(root, destination, expected_source=package.source_issue).lower() != package.source_issue.lower():
             raise ManagedTaskError("same-name OpenSpec change belongs to a different source issue")
+        package = _allocate_work_identity(root, package)
+        if provenance.get("work_identity") not in (None, package.work_identity):
+            raise ManagedTaskError("imported work identity conflicts with canonical Issue claims")
+        if package.work_identity:
+            provenance["work_identity"] = package.work_identity
+            atomic_write(destination / PROVENANCE, json.dumps(provenance, sort_keys=True, indent=2) + "\n")
         check_schema(root, package)
         validate_change(root, package.change)
         write_task_state(root, package)
@@ -2028,6 +2096,7 @@ def import_task(
     if shutil.which("openspec") is None:
         raise ManagedTaskError("installed OpenSpec CLI is required")
     require_no_unacknowledged_source_issue_drift(root, reference, package, acknowledge_source_issue_revision)
+    package = _allocate_work_identity(root, package)
     created = False
     try:
         run_json(["openspec", "new", "change", package.change, "--json"], root)

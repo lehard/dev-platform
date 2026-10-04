@@ -144,6 +144,32 @@ def push_feature_branch(root: Path, remote: str, main_branch: str, *, require_fr
     return current
 
 
+def _safe_presentation(root: Path, title: str, body: str, identity: str,
+                       children: list[str] | None) -> tuple[str, str]:
+    import managed_work_identity
+    title, body = managed_work_identity.presentation(title, body, identity, children)
+    guard = root / "scripts" / "check_private_backlog_refs.py"
+    if guard.is_file():
+        subprocess.run(["python3", str(guard), "--root", str(root), "--text", title, "--text", body], cwd=root, check=True)
+    return title, body
+
+
+def _repair_pr_identity(root: Path, env: dict[str, str], pr: PrRef, expected_head: str,
+                        identity: str | None, children: list[str] | None) -> PrRef:
+    if identity is None:
+        return pr
+    observed = subprocess.run(["gh", "pr", "view", pr.ref, "--json", "title,body,headRefOid"],
+                              cwd=root, env=env, text=True, capture_output=True, check=True)
+    payload = json.loads(observed.stdout)
+    if payload.get("headRefOid") != expected_head:
+        raise SystemExit("PR head changed before BR identity repair; publication remains resumable.")
+    title, body = _safe_presentation(root, payload["title"], payload.get("body") or "", identity, children)
+    if (title, body) != (payload["title"], payload.get("body") or ""):
+        subprocess.run(["gh", "pr", "edit", pr.ref, "--title", title, "--body", body],
+                       cwd=root, env=env, text=True, capture_output=True, check=True)
+    return pr
+
+
 def ensure_pr(
     root: Path,
     env: dict[str, str],
@@ -155,6 +181,8 @@ def ensure_pr(
     lookup: ExactHeadPrLookup | None = None,
     *,
     draft: bool = False,
+    identity: str | None = None,
+    children: list[str] | None = None,
 ) -> PrRef:
     """Reuse an exact-head PR if one exists; otherwise create one.
 
@@ -170,16 +198,18 @@ def ensure_pr(
     if lookup.exact_open is not None:
         url = str(lookup.exact_open.get("url", ""))
         print(f"PR already exists for exact task head: {url}")
-        return _pr_ref(lookup.exact_open)
+        return _repair_pr_identity(root, env, _pr_ref(lookup.exact_open), expected_head, identity, children)
     if lookup.exact_merged is not None:
         url = str(lookup.exact_merged.get("url", ""))
         print(f"PR already merged on GitHub for exact task head: {url}")
-        return _pr_ref(lookup.exact_merged, already_merged=True)
+        return _repair_pr_identity(root, env, _pr_ref(lookup.exact_merged, already_merged=True), expected_head, identity, children)
 
     if not title:
         title = run_git(["log", "-1", "--pretty=%s"], cwd=root).stdout.strip() or current
     if body is None:
         body = "Published by dev-platform after local validation and a fresh origin/main check."
+    if identity is not None:
+        title, body = _safe_presentation(root, title, body, identity, children)
     created = subprocess.run(
         ["gh", "pr", "create", "--base", main_branch, "--head", current, "--title", title, "--body", body,
          *(["--draft"] if draft else [])],
@@ -196,7 +226,7 @@ def ensure_pr(
         if created_lookup.available and created_lookup.exact_open is not None:
             pr = _pr_ref(created_lookup.exact_open)
             print(pr.url)
-            return pr
+            return _repair_pr_identity(root, env, pr, expected_head, identity, children)
         raise SystemExit("PR creation returned success, but GitHub did not expose one stable exact-head PR; refusing to continue.")
 
     # A concurrent publisher may have created the exact PR between our lookup
@@ -206,7 +236,7 @@ def ensure_pr(
     if retry.available and retry.exact_open is not None:
         url = str(retry.exact_open.get("url", ""))
         print(f"PR creation lost a race with a concurrent publisher; reusing exact PR: {url}")
-        return _pr_ref(retry.exact_open)
+        return _repair_pr_identity(root, env, _pr_ref(retry.exact_open), expected_head, identity, children)
     detail = created.stderr.strip() or created.stdout.strip() or f"exit {created.returncode}"
     raise SystemExit(f"gh pr create failed: {detail}")
 
@@ -448,9 +478,15 @@ def validate_shared_manifest(root: Path, path: Path) -> dict:
         expected += "-merge"
     elif payload.get("mode") is not None:
         raise RequirementIntegrationError("shared manifest mode is unsupported")
-    if path.name != expected + ".json" or branch(root) != "agent/" + expected:
+    canonical_path = requirement_integration._candidate_manifest_path(requirement)
+    if payload.get("mode") == "exact-parent-merge":
+        import requirement_merge_recovery
+        canonical_path = requirement_merge_recovery._manifest_path(payload)
+    if path != canonical_path or branch(root) != "agent/" + expected:
         raise RequirementIntegrationError("shared manifest does not identify the candidate branch")
-    requirement_integration._verify_parent_links(main_root(), private_manifest if opaque else payload)
+    exact = private_manifest if opaque else payload
+    requirement_integration._verify_parent_links(main_root(), exact)
+    requirement_integration.publication_identities(main_root(), exact)
     return payload
 
 
@@ -479,6 +515,20 @@ def publish_pr(
             incomplete = not requirement_integration.manifest_complete(shared_candidate)
         except RequirementIntegrationError as exc:
             raise SystemExit("Shared Requirement publication blocked: " + str(exc)) from exc
+    identity = None
+    child_identities = None
+    if shared_manifest is not None or delivery is not None:
+        import managed_work_identity
+        try:
+            if shared_manifest is not None:
+                exact = json.loads(os.environ["DEV_PLATFORM_PRIVATE_MANIFEST"]) if os.environ.get("DEV_PLATFORM_PRIVATE_MANIFEST") else shared_candidate
+                identity, child_identities = requirement_integration.publication_identities(main_root(), exact)
+            elif delivery is not None:
+                import managed_task
+                identity = managed_work_identity.canonical_child_identity(root, delivery.source_issue,
+                    provenance=managed_task.read_provenance(delivery.path))
+        except (managed_work_identity.IdentityError, RequirementIntegrationError, ManagedTaskError) as exc:
+            raise SystemExit("BR publication identity blocked: " + str(exc)) from exc
     privacy_guard = root / "scripts" / "check_private_backlog_refs.py"
     if privacy_guard.is_file():
         proposed_title = title or run_git(["log", "-1", "--pretty=%s"], cwd=root).stdout.strip()
@@ -512,7 +562,7 @@ def publish_pr(
             if not lookup.available or lookup.exact_open is None:
                 raise SystemExit("Shared candidate push did not leave one exact-head PR; refusing to create a competing PR.")
 
-    pr = ensure_pr(root, env, current, main_branch, title, body, expected_head, lookup=lookup, draft=incomplete)
+    pr = ensure_pr(root, env, current, main_branch, title, body, expected_head, lookup=lookup, draft=incomplete, **({"identity": identity, "children": child_identities} if identity else {}))
     if pr.already_merged:
         if not exact_merged_state(root, env, pr, expected_head):
             raise SystemExit("Previously discovered merged PR no longer proves MERGED at the exact validated head; refusing cleanup.")

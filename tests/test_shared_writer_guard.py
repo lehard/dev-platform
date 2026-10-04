@@ -97,6 +97,9 @@ REVIEWED_BASELINE: dict[str, int] = {
     'local_workspace.py:_open:open': 3,
     # The external fleet lock is no-follow, regular/single-link checked and group writable.
     'local_workspace.py:sync:open': 1,
+    # Empty owner-local advisory lock in system temp: no-follow, regular/single-link
+    # checked; no identity data, registry, integration writes or inode-removal race.
+    'managed_work_identity.py:allocation_lock:open': 1,
     'model_routing.py:delegate_codex_context:write_text': 1,
     'platform_bootstrap.py:ensure_project_context_map:write_text': 1,
     'platform_bootstrap.py:initialize_openspec:write_text': 1,

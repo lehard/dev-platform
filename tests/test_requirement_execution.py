@@ -230,7 +230,7 @@ class RequirementExecutionTests(unittest.TestCase):
             archive = worktree / "openspec/changes/archive/2026-09-30-first"
             payload = {"head": "b" * 40}
             superseded: list[dict[str, str]] = []
-            with mock.patch.object(execution, "machine_path", return_value=root / "worktrees"), mock.patch.object(
+            with mock.patch.object(execution.requirement_integration, "_registered_worktrees", return_value={worktree.resolve(): "agent/first"}), mock.patch.object(execution, "machine_path", return_value=root / "worktrees"), mock.patch.object(
                 execution, "_git", return_value="agent/first"
             ), mock.patch.object(
                 execution.managed_task, "resolve_canonical_provenance",

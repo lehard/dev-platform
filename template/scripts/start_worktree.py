@@ -25,14 +25,15 @@ class StartedWorktree:
     board_id: str
 
 
-def create_worktree(root: Path, slug_value: str, task: str, scope: str = "", *, base: str | None = None, sync: bool = True) -> StartedWorktree:
+def create_worktree(root: Path, slug_value: str, task: str, scope: str = "", *, base: str | None = None, sync: bool = True, branch_name: str | None = None) -> StartedWorktree:
     root = root.resolve()
     preflight(root)
     config = read_platform_config(root)
     if profile(config) != "multi-agent":
         raise RuntimeError("start_worktree.py is only valid for workflow_profile=multi-agent. Use start_task.py.")
     main_branch = base or str(config.get("main_branch", "main"))
-    branch = f"agent/{slug_value}"
+    branch = branch_name or f"agent/{slug_value}"
+    run_git(["check-ref-format", "--branch", branch], cwd=root)
     worktrees_root = machine_path("worktrees", root)
     worktree = worktrees_root / slug_value
     worktrees_root.mkdir(parents=True, exist_ok=True)

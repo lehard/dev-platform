@@ -1,0 +1,106 @@
+{
+  "candidate": {
+    "base_head": "ff69a8d5f115d3815b9d333c4bb40fd72689dca4",
+    "base_ref": "origin/main",
+    "candidate_head": "e3149a9e607a605d9388ab5ed8aada43b478f948",
+    "diff_sha256": "f777ba9f063937e6b077e30b8962fd8c752a2da2d6d72981d388fe0470d73659"
+  },
+  "change": "openspec/changes/propagate-br-publication-identity",
+  "excluded_lifecycle_paths": [],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/propagate-br-publication-identity/design.md",
+        "openspec/changes/propagate-br-publication-identity/proposal.md",
+        "openspec/changes/propagate-br-publication-identity/specs/managed-work-identity/spec.md",
+        "openspec/changes/propagate-br-publication-identity/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/propagate-br-publication-identity/proposal.md",
+        "openspec/changes/propagate-br-publication-identity/design.md",
+        "openspec/changes/propagate-br-publication-identity/tasks.md",
+        "openspec/changes/propagate-br-publication-identity/specs/managed-work-identity/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-04T15:52:26+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/propagate-br-publication-identity/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "c3f1f86b-a2fd-4710-983a-d6827d49fce5",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "ff69a8d5f115d3815b9d333c4bb40fd72689dca4",
+    "digest": "a7e96de4520f50da05a7f3deacf4d5f1c58959e5bbd601caa5b6b7844684a5e9",
+    "paths": {
+      "dev-platform/checks.toml": "1f0857de7049378ca2c0c2a4911e55454dc85b4a",
+      "docs/decisions/0002-public-br-identity.md": "75bbd32c7552df591a81e2427e1a35558e14efce",
+      "docs/decisions/README.md": "8542175fe423593e0b74bf8e3cb7ca5428ce5a28",
+      "docs/engineering/task-intake.md": "206897aabdef3c3e9fbe218041347e25d34b8fac",
+      "openspec/changes/archive/2026-10-04-stable-br-work-identity/.managed-task.json": "b6e08f630751d99f33e11b84c737c060bfb3cc33",
+      "openspec/changes/archive/2026-10-04-stable-br-work-identity/.openspec.yaml": "f98e139fb307ee57d69f587d7c892ef2ff4575e0",
+      "openspec/changes/archive/2026-10-04-stable-br-work-identity/automated-checks.json": "237aaa597506fb3c4b8751b8cd1fdd0cd09ec61f",
+      "openspec/changes/archive/2026-10-04-stable-br-work-identity/design.md": "bb77a05e6544965be8799076853984e9c5e6ca54",
+      "openspec/changes/archive/2026-10-04-stable-br-work-identity/independent-review-request.json": "5fcae06901bc211e76fa33bc73932434298ab9f2",
+      "openspec/changes/archive/2026-10-04-stable-br-work-identity/independent-reviews/engineering-quality.json": "d6e0ce71c314dbd97d21384a9e930e7961495ced",
+      "openspec/changes/archive/2026-10-04-stable-br-work-identity/independent-reviews/spec-fidelity.json": "a6b6004547759ed08d235d3d06e1e365e6039652",
+      "openspec/changes/archive/2026-10-04-stable-br-work-identity/proposal.md": "d73652b0b98a4051ff98c9153e45571ab30ee5bf",
+      "openspec/changes/archive/2026-10-04-stable-br-work-identity/specs/managed-task-intake/spec.md": "492cb40307bf6482f5723f105f86a0170771331b",
+      "openspec/changes/archive/2026-10-04-stable-br-work-identity/specs/managed-work-identity/spec.md": "729f91a1f4ce57e2027fd2ea817f56fe3403b450",
+      "openspec/changes/archive/2026-10-04-stable-br-work-identity/tasks.md": "744d4ae62042bbe6bda05969765c38d3e0f08331",
+      "openspec/changes/archive/2026-10-04-stable-br-work-identity/verification.md": "8d8e005de9122f8a40b0636fd1e7ec99c70084ae",
+      "openspec/changes/propagate-br-publication-identity/.managed-task.json": "0d9a86bf8f440d3887c216f99dc08729ea3a76e3",
+      "openspec/changes/propagate-br-publication-identity/.openspec.yaml": "f98e139fb307ee57d69f587d7c892ef2ff4575e0",
+      "openspec/changes/propagate-br-publication-identity/design.md": "55b44ac7b4691c98d70fc479ff86705c5438d74b",
+      "openspec/changes/propagate-br-publication-identity/proposal.md": "caa0434308c2a032739257ec699f4f9365884d5d",
+      "openspec/changes/propagate-br-publication-identity/specs/managed-work-identity/spec.md": "95999f1f5c7e92134858639e36d872ffdd1ca268",
+      "openspec/changes/propagate-br-publication-identity/tasks.md": "789c53731dbaf35d104a3b6fb2e550cb2b930c76",
+      "openspec/specs/managed-task-intake/spec.md": "cc7ef9436d8a8128a488da7c2c25cf6da7a1827f",
+      "openspec/specs/managed-work-identity/spec.md": "f7336f5cb8cb973563cfb378a307ec5f7337cbf9",
+      "template/docs/engineering/task-intake.md.jinja": "7e17ed9cce770edd126d2a2271b1d39c1b4108c1",
+      "template/scripts/execute_requirement.py": "3f376df271815ac16b236987b2919a5e393eb967",
+      "template/scripts/managed_task.py": "635e82a5431a5a2989263c2244fc9371a1685721",
+      "template/scripts/managed_work_identity.py": "f41d9e7770c4f7ed2ddfd0fea1521a360a790158",
+      "template/scripts/project_publish.py": "8b4518c241abac080ffd09b5176c61d3911c020f",
+      "template/scripts/requirement_intake.py": "15b8687f1ba4af05f04ac9b83c31cf33abbeba17",
+      "template/scripts/requirement_integration.py": "6683633f2736037d61fb9acae2dc1609ab04cf0c",
+      "template/scripts/requirement_merge_recovery.py": "20f253461c4629f9fd4415995b21f0e986487dc4",
+      "template/scripts/requirement_metrics.py": "6e06c09f8a1dcda18c04793a86d100dbe7aee069",
+      "template/scripts/start_managed_task.py": "a19ff803c3d9a8164dc4d26ecc6a98e45c3db766",
+      "template/scripts/start_task.py": "3c3fa98d31f515592d68c52f9d0b0788d62786f1",
+      "template/scripts/start_worktree.py": "9347b961380faf078523bd7105917ae35d9b37e4",
+      "tests/test_br_publication_identity.py": "7ff656eb549249cecae16866bb9cd05c5899bf6b",
+      "tests/test_managed_status_lifecycle.py": "2eafd6031edf371a343943c1bf5af5338e89d345",
+      "tests/test_managed_task.py": "fc1f2fe471b01de3c39c001bf15a26abc05a7b41",
+      "tests/test_requirement_execution.py": "d2f27a824341a9c36fd0e1a411ab48d690cab5a6",
+      "tests/test_requirement_intake.py": "c7ce749fbd9a70d3a1810c46c1a4ac7b8224b3e1",
+      "tests/test_requirement_integration.py": "6c3c40724345b5a33278c2dee08c355e4b3874d0",
+      "tests/test_requirement_metrics.py": "683d4a9887ff565d06715526598cd70e1d3ac7e4",
+      "tests/test_shared_writer_guard.py": "e4cc1007e6eb969ce7a2769c079b87c0b6c59477"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

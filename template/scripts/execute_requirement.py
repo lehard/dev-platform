@@ -123,9 +123,11 @@ def _ready_receipt(
     integration: Path, receipt_dir: Path, requirement: str, child: str, change: str,
     *, release_claim: bool = True, superseded: list[dict[str, str]] | None = None,
 ) -> tuple[Path, requirement_integration.ReadyForIntegrationReceipt] | None:
-    branch = f"agent/{change}"
     worktree = machine_path("worktrees", integration) / change
-    if not worktree.is_dir() or _git(worktree, "branch", "--show-current") != branch:
+    if not worktree.is_dir():
+        return None
+    branch = requirement_integration._registered_worktrees(integration).get(worktree.resolve())
+    if not branch or _git(worktree, "branch", "--show-current") != branch:
         return None
     canonical = managed_task.resolve_canonical_provenance(worktree, source_issue=child, change=change)
     if canonical is None or canonical.lifecycle != "archived":

@@ -12,8 +12,10 @@ import json
 import subprocess
 import sys
 import tempfile
+import threading
 import unittest
-from contextlib import redirect_stdout
+from contextlib import contextmanager, redirect_stdout
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest.mock import patch
 
@@ -246,18 +248,21 @@ class CreateRequirementTests(unittest.TestCase):
         self.root = Path(self.tmp.name)
         self.config = managed_task.AuthoringConfig("acme/development-backlog", "project:billing", "P2")
         self.issue_labels: set[str] = set()
+        self.issue_body = ""
 
     def tearDown(self) -> None:
         self.tmp.cleanup()
 
     def _fetch_issue(self, root, repository, number):
-        return {"labels": [{"name": name} for name in self.issue_labels]}
+        return {"body": self.issue_body, "labels": [{"name": name} for name in self.issue_labels]}
 
     def _run_create(self, *, run_side_effect=None, priority=None, config=None, origin="acme/billing", validate_error=None):
         commands: list[list[str]] = []
 
         def fake_run(command, cwd, env=None, input_text=None):
             commands.append(command)
+            if command[:3] == ["gh", "issue", "edit"] and "--body" in command:
+                self.issue_body = command[command.index("--body") + 1]
             if run_side_effect is not None:
                 return run_side_effect(command)
             if command[:3] == ["gh", "issue", "create"]:
@@ -378,6 +383,23 @@ class StartPreAuthoringTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.tmp.cleanup()
 
+    def test_start_repairs_legacy_parent_identity_and_refuses_conflicting_identity(self):
+        issue = {"body": ri.render_requirement_body(outcome="Ship", target_repository="acme/billing")}
+        def write(command, root, env):
+            issue["body"] = command[command.index("--body") + 1]
+        with (patch.object(ri, "fetch_issue", side_effect=lambda *args: dict(issue)),
+              patch.object(ri, "github_cli_env", return_value={}),
+              patch.object(ri, "run", side_effect=write) as edit):
+            ri.start_pre_authoring(self.root, requirement="acme/development-backlog#7", base_dir=self.base_dir)
+            self.assertEqual(ri.work_identity.identity_in(issue["body"]), "BR-7")
+            edit.assert_called_once()
+            ri.start_pre_authoring(self.root, requirement="acme/development-backlog#7", base_dir=self.base_dir)
+            edit.assert_called_once()
+            issue["body"] = issue["body"].replace("BR-7", "BR-99")
+            with self.assertRaisesRegex(ri.RequirementIntakeError, "conflicting work identity"):
+                ri.start_pre_authoring(self.root, requirement="acme/development-backlog#7", base_dir=self.base_dir)
+            edit.assert_called_once()
+
     def test_start_bridges_a_requirement_issue_into_orchestrator_init(self) -> None:
         body = (
             "## Outcome\n\nMake onboarding self-serve.\n\n"
@@ -387,7 +409,7 @@ class StartPreAuthoringTests(unittest.TestCase):
             "## Exclusions\n\nDoes not cover enterprise SSO.\n\n"
             f"{ri.CHILDREN_START}\n{ri.CHILDREN_END}\n"
         )
-        with patch.object(ri, "fetch_issue", return_value={"body": body}):
+        with patch.object(ri, "fetch_issue", return_value={"body": body + "\nWork identity: BR-7\n"}):
             payload = ri.start_pre_authoring(self.root, requirement="acme/development-backlog#7", base_dir=self.base_dir)
         self.assertEqual(payload["slug"], "requirement-7")
         directory = ri.orchestrate_pre_authoring.requirement_dir(self.base_dir, "requirement-7")
@@ -419,7 +441,7 @@ class StartPreAuthoringTests(unittest.TestCase):
             "## Target repository\n\n acme/billing \n\n"
             "## Exclusions\n\nNo enterprise SSO.\n"
         )
-        with patch.object(ri, "fetch_issue", return_value={"body": initial}):
+        with patch.object(ri, "fetch_issue", return_value={"body": initial + "\nWork identity: BR-7\n"}):
             first = ri.start_pre_authoring(self.root, requirement="acme/development-backlog#7", base_dir=self.base_dir)
         directory = ri.orchestrate_pre_authoring.requirement_dir(self.base_dir, "requirement-7")
         add_file = ri.orchestrate_pre_authoring.add_path(directory)
@@ -431,7 +453,7 @@ class StartPreAuthoringTests(unittest.TestCase):
         handoff_file = ri.orchestrate_pre_authoring.handoff_dir(directory) / "intent.json"
         handoff_file.parent.mkdir()
         handoff_file.write_text('{"preserved": "handoff"}\n', encoding="utf-8")
-        with patch.object(ri, "fetch_issue", return_value={"body": reformatted}):
+        with patch.object(ri, "fetch_issue", return_value={"body": reformatted + "\nWork identity: BR-7\n"}):
             second = ri.start_pre_authoring(self.root, requirement="acme/development-backlog#7", base_dir=self.base_dir)
         self.assertEqual(first["state"], second["state"])
         self.assertEqual(add_file.read_text(encoding="utf-8"), '{"preserved": true}\n')
@@ -458,7 +480,7 @@ class StartPreAuthoringTests(unittest.TestCase):
             with self.subTest(section=section):
                 git(self.root, "remote", "set-url", "origin", "https://github.com/acme/billing.git")
                 base_dir = self.root / ".claude" / f"pre-authoring-{section.replace(' ', '-') }"
-                with patch.object(ri, "fetch_issue", return_value={"body": initial}):
+                with patch.object(ri, "fetch_issue", return_value={"body": initial + "\nWork identity: BR-7\n"}):
                     ri.start_pre_authoring(self.root, requirement="acme/development-backlog#7", base_dir=base_dir)
                 directory = ri.orchestrate_pre_authoring.requirement_dir(base_dir, "requirement-7")
                 snapshot = ri.orchestrate_pre_authoring.snapshot_path(directory)
@@ -479,7 +501,7 @@ class StartPreAuthoringTests(unittest.TestCase):
                 }[section], f"## {section}\n\n{replacement}")
                 if section == "Target repository":
                     git(self.root, "remote", "set-url", "origin", "https://github.com/acme/accounts.git")
-                with patch.object(ri, "fetch_issue", return_value={"body": changed}):
+                with patch.object(ri, "fetch_issue", return_value={"body": changed + "\nWork identity: BR-7\n"}):
                     ri.start_pre_authoring(self.root, requirement="acme/development-backlog#7", base_dir=base_dir)
                 self.assertEqual(snapshot.read_text(encoding="utf-8"), '{"snapshot": "retained"}\n')
                 self.assertFalse(add_file.exists())
@@ -503,7 +525,7 @@ class StartPreAuthoringTests(unittest.TestCase):
             "created_at": "2024-01-01T00:00:00Z",
         }), encoding="utf-8")
         ri.orchestrate_pre_authoring.add_path(directory).write_text('{"legacy": true}\n', encoding="utf-8")
-        with patch.object(ri, "fetch_issue", return_value={"body": body}):
+        with patch.object(ri, "fetch_issue", return_value={"body": body + "\nWork identity: BR-7\n"}):
             ri.start_pre_authoring(self.root, requirement="acme/development-backlog#7", base_dir=self.base_dir)
         self.assertEqual(json.loads(state_path.read_text(encoding="utf-8"))["version"], ri.orchestrate_pre_authoring.STATE_VERSION)
         self.assertFalse(ri.orchestrate_pre_authoring.add_path(directory).exists())
@@ -538,16 +560,19 @@ class LinkChildTests(unittest.TestCase):
 
         def fake_run(command, cwd, env=None, input_text=None):
             commands.append(command)
+            if command[:3] == ["gh", "issue", "edit"] and "--body" in command:
+                fetched[f"{command[command.index('--repo') + 1]}#{command[3]}"] = command[command.index("--body") + 1]
             return type("Result", (), {"stdout": "", "returncode": 0})()
 
         with (
             patch.object(ri, "github_cli_env", return_value={}),
             patch.object(ri, "fetch_issue", side_effect=fake_fetch_issue),
             patch.object(ri, "run", side_effect=fake_run),
+            patch.object(ri, "_identity_siblings", return_value={}),
         ):
             payload = ri.link_child(self.root, requirement="acme/development-backlog#7", child="acme/development-backlog#20")
 
-        self.assertEqual(payload, {"requirement": "acme/development-backlog#7", "child": "acme/development-backlog#20"})
+        self.assertEqual(payload["work_identity"], "BR-7/T1")
         edit_commands = [command for command in commands if command[:3] == ["gh", "issue", "edit"]]
         parent_edit = next(command for command in edit_commands if command[3] == "7")
         self.assertIn("acme/development-backlog#20", parent_edit[parent_edit.index("--body") + 1])
@@ -561,7 +586,8 @@ class LinkChildTests(unittest.TestCase):
         parent_body = (
             f"## Outcome\n\nShip X.\n\n{ri.CHILDREN_START}\n- [ ] acme/development-backlog#20\n{ri.CHILDREN_END}\n"
         )
-        child_body = "Some managed task body.\n\nRequirement: acme/development-backlog#7\n"
+        child_body = "Some managed task body.\n\nRequirement: acme/development-backlog#7\nWork identity: BR-7/T1\n"
+        parent_body += "Work identity: BR-7\n<!-- br-child:acme/development-backlog#20:1 -->\n"
         fetched = {"acme/development-backlog#7": parent_body, "acme/development-backlog#20": child_body}
         commands: list[list[str]] = []
 
@@ -570,12 +596,15 @@ class LinkChildTests(unittest.TestCase):
 
         def fake_run(command, cwd, env=None, input_text=None):
             commands.append(command)
+            if command[:3] == ["gh", "issue", "edit"] and "--body" in command:
+                fetched[f"{command[command.index('--repo') + 1]}#{command[3]}"] = command[command.index("--body") + 1]
             return type("Result", (), {"stdout": "", "returncode": 0})()
 
         with (
             patch.object(ri, "github_cli_env", return_value={}),
             patch.object(ri, "fetch_issue", side_effect=fake_fetch_issue),
             patch.object(ri, "run", side_effect=fake_run),
+            patch.object(ri, "_identity_siblings", return_value={}),
         ):
             ri.link_child(self.root, requirement="acme/development-backlog#7", child="acme/development-backlog#20")
 
@@ -606,12 +635,15 @@ class LinkChildTests(unittest.TestCase):
 
         def fake_run(command, cwd, env=None, input_text=None):
             commands.append(command)
+            if command[:3] == ["gh", "issue", "edit"] and "--body" in command:
+                fetched[f"{command[command.index('--repo') + 1]}#{command[3]}"] = command[command.index("--body") + 1]
             return type("Result", (), {"stdout": "", "returncode": 0})()
 
         with (
             patch.object(ri, "github_cli_env", return_value={}),
             patch.object(ri, "fetch_issue", side_effect=fake_fetch_issue),
             patch.object(ri, "run", side_effect=fake_run),
+            patch.object(ri, "_identity_siblings", return_value={}),
         ):
             ri.link_child(self.root, requirement="acme/development-backlog#7", child="acme/development-backlog#20")
 
@@ -625,7 +657,8 @@ class LinkChildTests(unittest.TestCase):
         parent_body = (
             f"## Outcome\n\nShip X.\n\n{ri.CHILDREN_START}\n  - [ ] acme/development-backlog#20\n{ri.CHILDREN_END}\n"
         )
-        child_body = "Some managed task body.\n\nRequirement: acme/development-backlog#7\n"
+        child_body = "Some managed task body.\n\nRequirement: acme/development-backlog#7\nWork identity: BR-7/T1\n"
+        parent_body += "Work identity: BR-7\n<!-- br-child:acme/development-backlog#20:1 -->\n"
         fetched = {"acme/development-backlog#7": parent_body, "acme/development-backlog#20": child_body}
         commands: list[list[str]] = []
 
@@ -634,12 +667,15 @@ class LinkChildTests(unittest.TestCase):
 
         def fake_run(command, cwd, env=None, input_text=None):
             commands.append(command)
+            if command[:3] == ["gh", "issue", "edit"] and "--body" in command:
+                fetched[f"{command[command.index('--repo') + 1]}#{command[3]}"] = command[command.index("--body") + 1]
             return type("Result", (), {"stdout": "", "returncode": 0})()
 
         with (
             patch.object(ri, "github_cli_env", return_value={}),
             patch.object(ri, "fetch_issue", side_effect=fake_fetch_issue),
             patch.object(ri, "run", side_effect=fake_run),
+            patch.object(ri, "_identity_siblings", return_value={}),
         ):
             ri.link_child(self.root, requirement="acme/development-backlog#7", child="acme/development-backlog#20")
 
@@ -1079,6 +1115,305 @@ class RequirementTargetLifecycleTests(unittest.TestCase):
                 ri.requirement_target_lifecycle.require_local_target_support(root, target_repository="acme/billing")
         finally:
             temporary.cleanup()
+
+
+
+
+class StableIdentityRegressionTests(unittest.TestCase):
+    """Persisted synthetic Issues exercise the complete allocation transaction."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        self.parent = "example-org/private-backlog#42"
+        self.records = {42: ri.render_requirement_body(outcome="Ship", target_repository="example-org/app"),
+                        10: "Technical task\n", 11: "Technical task\n", 12: "Technical task\n"}
+        self.interrupt = False
+        self.race = False
+        self.patches = [
+            patch.object(ri, "github_cli_env", return_value={}),
+            patch.object(ri, "fetch_issue", side_effect=self.fetch),
+            patch.object(ri, "run", side_effect=self.write),
+            patch.object(ri.managed_task, "run_json", side_effect=self.list_issues),
+        ]
+        for item in self.patches:
+            item.start()
+
+    def tearDown(self):
+        for item in reversed(self.patches):
+            item.stop()
+        self.tmp.cleanup()
+
+    def fetch(self, root, repository, number):
+        return {"body": self.records[number], "number": number}
+
+    def list_issues(self, command, root, env):
+        self.assertIn("state=all", command[-1])
+        self.assertIn("--slurp", command)
+        return [[{"number": number, "body": body} for number, body in self.records.items()]]
+
+    def write(self, command, root, env=None):
+        if command[:3] == ["gh", "issue", "edit"] and "--body" in command:
+            number = int(command[3])
+            if number == 42 and self.interrupt:
+                self.interrupt = False
+                raise ri.RequirementIntakeError("synthetic interruption")
+            self.records[number] = command[command.index("--body") + 1]
+            if number == 42 and self.race:
+                self.records[12] = f"Requirement: {self.parent}\nWork identity: BR-42/T1\n"
+        return type("Result", (), {"stdout": "", "returncode": 0})()
+
+    def link(self, number):
+        return ri.link_child(self.root, requirement=self.parent, child=f"example-org/private-backlog#{number}")
+
+    def test_parent_recovery_serializes_with_child_link_and_preserves_reservation(self):
+        initial = self.fetch(self.root, "example-org/private-backlog", 42)
+        recovery_freshness = threading.Event()
+        release_recovery = threading.Event()
+        link_attempted_lock = threading.Event()
+        link_fetched = threading.Event()
+        original_fetch = self.fetch
+        original_lock = ri.work_identity.allocation_lock
+
+        @contextmanager
+        def observed_lock(requirement):
+            if threading.current_thread().name.startswith("link"):
+                link_attempted_lock.set()
+            with original_lock(requirement):
+                yield
+
+        def fetch(root, repository, number):
+            if threading.current_thread().name.startswith("recovery") and not recovery_freshness.is_set():
+                recovery_freshness.set()
+                if not release_recovery.wait(5):
+                    raise AssertionError("recovery release was not signaled")
+            if threading.current_thread().name.startswith("link"):
+                link_fetched.set()
+            return original_fetch(root, repository, number)
+
+        with (patch.object(ri.work_identity, "allocation_lock", side_effect=observed_lock),
+              patch.object(ri, "fetch_issue", side_effect=fetch),
+              ThreadPoolExecutor(max_workers=1, thread_name_prefix="recovery") as recovery_pool,
+              ThreadPoolExecutor(max_workers=1, thread_name_prefix="link") as link_pool):
+            recovery = recovery_pool.submit(ri.reconcile_requirement_identity, self.root, self.parent, initial)
+            try:
+                self.assertTrue(recovery_freshness.wait(5))
+                link = link_pool.submit(self.link, 10)
+                self.assertTrue(link_attempted_lock.wait(5))
+                self.assertFalse(link_fetched.is_set(), "link must wait before reading/writing Issues")
+            finally:
+                release_recovery.set()
+            self.assertEqual(ri.work_identity.identity_in(recovery.result()["body"]), "BR-42")
+            self.assertEqual(link.result()["work_identity"], "BR-42/T1")
+        self.assertIn("example-org/private-backlog#10", ri.parse_requirement_body(self.records[42])["children"])
+        self.assertIn("<!-- br-child:example-org/private-backlog#10:1 -->", self.records[42])
+        with self.assertRaisesRegex(ri.RequirementIntakeError, "Requirement changed"):
+            ri.reconcile_requirement_identity(self.root, self.parent, initial)
+        self.assertIn("<!-- br-child:example-org/private-backlog#10:1 -->", self.records[42])
+
+    def test_sibling_scan_flattens_multiple_api_pages(self):
+        pages = [[{"number": 10, "body": f"Requirement: {self.parent}\nWork identity: BR-42/T1\n"}],
+                 [{"number": 11, "body": f"Requirement: {self.parent}\nWork identity: BR-42/T2\n"}]]
+        with patch.object(ri.managed_task, "run_json", return_value=pages) as api:
+            siblings = ri._identity_siblings(self.root, self.parent, {})
+        self.assertEqual(set(siblings), {"example-org/private-backlog#10", "example-org/private-backlog#11"})
+        self.assertIn("--slurp", api.call_args.args[0])
+
+    def test_crlf_identity_is_preserved_on_retry(self):
+        self.link(10)
+        self.records = {number: body.replace("\n", "\r\n") for number, body in self.records.items()}
+        self.assertEqual(self.link(10)["work_identity"], "BR-42/T1")
+
+    def test_observed_concurrent_requirement_prose_edit_stops_before_replacement(self):
+        original = self.fetch
+        calls = 0
+        def fetch(root, repository, number):
+            nonlocal calls
+            if number == 42:
+                calls += 1
+                if calls == 2:
+                    self.records[42] = self.records[42].replace("Ship", "Concurrent outcome")
+            return original(root, repository, number)
+        with patch.object(ri, "fetch_issue", side_effect=fetch):
+            with self.assertRaisesRegex(ri.RequirementIntakeError, "Requirement changed"):
+                self.link(10)
+        self.assertIn("Concurrent outcome", self.records[42])
+        self.assertIn("BR-42/T1", self.records[10])
+        self.assertEqual(self.link(10)["work_identity"], "BR-42/T1")
+
+    def test_two_children_retry_removed_and_reordered_links(self):
+        self.assertEqual(self.link(10)["work_identity"], "BR-42/T1")
+        self.assertEqual(self.link(11)["work_identity"], "BR-42/T2")
+        before = dict(self.records)
+        self.link(10)
+        self.assertEqual(before, self.records)
+        self.records[42] = self.records[42].replace("- [ ] example-org/private-backlog#10\n", "")
+        self.assertEqual(self.link(12)["work_identity"], "BR-42/T3")
+        self.assertEqual(self.link(10)["work_identity"], "BR-42/T1")
+        lines = self.records[42].splitlines()
+        checklist = [line for line in lines if line.startswith("- [ ]")]
+        self.records[42] = "\n".join([line for line in lines if not line.startswith("- [ ]")])
+        self.records[42] = self.records[42].replace(ri.CHILDREN_END, "\n".join(reversed(checklist)) + "\n" + ri.CHILDREN_END)
+        self.assertEqual(self.link(11)["work_identity"], "BR-42/T2")
+        parsed = ri.parse_requirement_body(self.records[42])
+        self.assertEqual(ri.canonical_requirement_context(parsed)["target_repository"], "example-org/app")
+
+    def test_interruption_after_child_claim_preserves_assignment(self):
+        self.interrupt = True
+        with self.assertRaisesRegex(ri.RequirementIntakeError, "interruption"):
+            self.link(10)
+        self.assertIn("BR-42/T1", self.records[10])
+        self.assertEqual(self.link(11)["work_identity"], "BR-42/T2")
+        self.assertEqual(self.link(10)["work_identity"], "BR-42/T1")
+
+    def test_concurrent_duplicate_claim_fails_readback(self):
+        self.race = True
+        with self.assertRaisesRegex(ri.RequirementIntakeError, "duplicate child ordinal"):
+            self.link(10)
+
+    def test_lost_parent_write_fails_readback(self):
+        original = self.write
+        def lost(command, root, env=None):
+            if command[:4] == ["gh", "issue", "edit", "42"]:
+                return type("Result", (), {"stdout": "", "returncode": 0})()
+            return original(command, root, env)
+        with patch.object(ri, "run", side_effect=lost):
+            with self.assertRaisesRegex(ri.RequirementIntakeError, "readback incomplete"):
+                self.link(10)
+
+    def test_conflicting_parent_and_duplicate_ordinals_do_not_write(self):
+        self.records[10] = "Requirement: example-org/private-backlog#99\nWork identity: BR-99/T1\n"
+        before = dict(self.records)
+        with self.assertRaisesRegex(ri.RequirementIntakeError, "canonical parent"):
+            self.link(10)
+        self.assertEqual(before, self.records)
+        self.records[10] = f"Requirement: {self.parent}\nWork identity: BR-42/T1\n"
+        self.records[11] = f"Requirement: {self.parent}\nWork identity: BR-42/T1\n"
+        with self.assertRaisesRegex(ri.RequirementIntakeError, "duplicate child ordinal"):
+            self.link(12)
+
+    def test_legacy_links_receive_stable_identities(self):
+        self.records[42] = self.records[42].replace(ri.CHILDREN_END, "- [ ] example-org/private-backlog#10\n" + ri.CHILDREN_END)
+        self.records[10] += f"\nRequirement: {self.parent}\n"
+        self.assertEqual(self.link(10)["work_identity"], "BR-42/T1")
+        self.assertEqual(self.link(11)["work_identity"], "BR-42/T2")
+
+    def test_public_provenance_retains_opaque_handle_and_rejects_unsafe_identity(self):
+        from dataclasses import replace
+        package = managed_task.Package("example-org/private-backlog#10", "example-org/app", "synthetic", "a" * 40, (), {}, "b" * 64, work_identity="BR-42/T1")
+        directory = self.root / "openspec" / "changes" / "synthetic"
+        directory.mkdir(parents=True)
+        with (patch.object(managed_task.private_lineage, "enabled", return_value=True),
+              patch.object(managed_task.private_lineage, "handle_for_issue", return_value="opaque-synthetic-handle")):
+            managed_task.write_provenance(directory, package)
+            text = (directory / managed_task.PROVENANCE).read_text()
+            self.assertNotIn("private-backlog", text)
+            self.assertNotIn("source_issue", json.loads(text))
+            self.assertEqual(json.loads(text)["work_identity"], "BR-42/T1")
+            for unsafe in ("BR-0/T1", "BR-42/T0", "BR-42/T1 private content", "BR-042/T1", 42):
+                with self.assertRaises(ri.work_identity.IdentityError):
+                    managed_task.write_provenance(directory, replace(package, work_identity=unsafe))
+        (directory / managed_task.PROVENANCE).write_text('{"version": 1}')
+        self.assertNotIn("work_identity", managed_task.read_provenance(directory))
+
+    def test_legacy_raw_revision_survives_identity_append_without_hiding_scope_edits(self):
+        for ending in ["", "\n", "\n\n", "\r\n"]:
+            with self.subTest(ending=repr(ending)):
+                body = f"Scope\n\nRequirement: {self.parent}" + ending
+                issue = {"title": "Synthetic", "body": body, "updated_at": "now"}
+                recorded = managed_task.legacy_issue_revision_evidence(issue)["body_sha256"]
+                issue["body"] = ri.work_identity.with_identity(body, "BR-42/T1")
+                self.assertTrue(managed_task.source_issue_revision_matches(recorded, issue)[1])
+                issue["body"] = issue["body"].replace("Scope", "Changed scope")
+                self.assertFalse(managed_task.source_issue_revision_matches(recorded, issue)[1])
+
+    def test_deleted_reserved_sibling_identity_or_parent_is_rejected_on_readback(self):
+        for deleted in ["Work identity: BR-42/T1", f"Requirement: {self.parent}"]:
+            with self.subTest(deleted=deleted):
+                self.records = {42: ri.render_requirement_body(outcome="Ship", target_repository="example-org/app"),
+                                10: "Technical task\n", 11: "Technical task\n", 12: "Technical task\n"}
+                self.link(10)
+                original = self.write
+                def write(command, root, env=None):
+                    result = original(command, root, env)
+                    if command[:4] == ["gh", "issue", "edit", "42"] and "--body" in command:
+                        self.records[10] = self.records[10].replace(deleted, "")
+                    return result
+                with patch.object(ri, "run", side_effect=write):
+                    with self.assertRaisesRegex(ri.RequirementIntakeError, "claim missing"):
+                        self.link(11)
+
+    def test_reserved_child_parent_change_cannot_escape_filtered_readback(self):
+        self.link(10)
+        original = self.write
+        def write(command, root, env=None):
+            result = original(command, root, env)
+            if command[:4] == ["gh", "issue", "edit", "42"] and "--body" in command:
+                self.records[10] = self.records[10].replace(self.parent, "example-org/private-backlog#99")
+            return result
+        with patch.object(ri, "run", side_effect=write):
+            with self.assertRaisesRegex(ri.RequirementIntakeError, "conflicting canonical parent"):
+                self.link(11)
+
+    def test_identity_metadata_does_not_create_source_scope_drift(self):
+        issue = {"title": "Synthetic", "body": f"Scope\n\nRequirement: {self.parent}\n", "updated_at": "now"}
+        recorded = managed_task.issue_revision_evidence(issue)["body_sha256"]
+        issue["body"] = ri.work_identity.with_identity(issue["body"], "BR-42/T1")
+        self.assertTrue(managed_task.source_issue_revision_matches(recorded, issue)[1])
+
+    def test_import_and_resume_assign_legacy_identity_without_changing_package_revision(self):
+        from dataclasses import replace
+        self.records[10] += f"\nRequirement: {self.parent}\n"
+        package = managed_task.Package("example-org/private-backlog#10", "example-org/app", "synthetic", "a" * 40, (), {}, "b" * 64, parent_requirement=self.parent)
+        directory = self.root / "openspec" / "changes" / "synthetic"
+        directory.mkdir(parents=True)
+        managed_task.write_provenance(directory, replace(package, parent_requirement=None))
+        with (patch.object(managed_task, "discover_task", return_value=package),
+              patch.object(managed_task, "target_main", return_value="a" * 40),
+              patch.object(managed_task, "check_schema"), patch.object(managed_task, "validate_change"),
+              patch.object(managed_task, "write_task_state")):
+            imported, _, reused = managed_task.import_task(self.root, package.source_issue)
+            self.assertTrue(reused)
+            self.assertEqual(imported.work_identity, "BR-42/T1")
+            self.assertEqual(imported.revision, package.revision)
+            self.assertEqual(managed_task.read_provenance(directory)["work_identity"], "BR-42/T1")
+            again, _, _ = managed_task.import_task(self.root, package.source_issue)
+            self.assertEqual(again.work_identity, imported.work_identity)
+        lost = replace(package, parent_requirement=None, work_identity=None)
+        with (patch.object(managed_task, "discover_task", return_value=lost),
+              patch.object(managed_task, "target_main", return_value="a" * 40),
+              patch.object(managed_task, "check_schema"), patch.object(managed_task, "validate_change"),
+              patch.object(managed_task, "write_task_state")):
+            with self.assertRaisesRegex(managed_task.ManagedTaskError, "conflicts with canonical"):
+                managed_task.import_task(self.root, package.source_issue)
+
+    def test_shared_helper_is_copier_managed_for_render_and_upgrade(self):
+        source = ROOT / "template" / "scripts" / "managed_work_identity.py"
+        self.assertTrue(source.is_file())
+        import yaml
+        config = yaml.safe_load((ROOT / "copier.yml").read_text())
+        self.assertEqual(config["_subdirectory"], "template")
+        for pattern in config.get("_exclude", []) + config.get("_skip_if_exists", []):
+            self.assertNotEqual(pattern, "scripts/managed_work_identity.py")
+
+    def test_allocation_lock_refuses_symlinks_and_hardlinks(self):
+        import hashlib
+        import os
+        key = hashlib.sha256(self.parent.encode()).hexdigest()
+        lock = self.root / f"dev-platform-br-{key}.lock"
+        victim = self.root / "synthetic-victim"
+        victim.write_text("preserve")
+        with patch.object(ri.work_identity.tempfile, "gettempdir", return_value=str(self.root)):
+            lock.symlink_to(victim)
+            with self.assertRaisesRegex(ri.work_identity.IdentityError, "safe allocation lock"):
+                with ri.work_identity.allocation_lock(self.parent):
+                    self.fail("unsafe lock was acquired")
+            lock.unlink()
+            os.link(victim, lock)
+            with self.assertRaisesRegex(ri.work_identity.IdentityError, "single-link"):
+                with ri.work_identity.allocation_lock(self.parent):
+                    self.fail("unsafe lock was acquired")
+            self.assertEqual(victim.read_text(), "preserve")
 
 
 if __name__ == "__main__":
