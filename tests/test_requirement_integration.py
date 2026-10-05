@@ -70,6 +70,38 @@ class RequirementIntegrationTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.temp.cleanup()
 
+    def test_full_checks_use_platform_battery_only_inside_dev_platform(self) -> None:
+        (self.root / "template" / "scripts").mkdir(parents=True)
+        (self.root / "scripts").mkdir()
+        (self.root / "scripts" / "managed_projects.py").write_text("", encoding="utf-8")
+        self.assertEqual(integration._full_check_commands(self.root), list(integration.PLATFORM_FULL_CHECK_COMMANDS))
+
+    def test_full_checks_in_installed_project_use_declared_full_commands(self) -> None:
+        (self.root / ".dev-platform.toml").write_text('[paths]\nchecks = "ci/checks.toml"\n', encoding="utf-8")
+        (self.root / "ci").mkdir()
+        (self.root / "ci" / "checks.toml").write_text(
+            '[settings]\nfull_commands = ["git diff --check", "python3 scripts/check_app.py --label \'full gate\'"]\n',
+            encoding="utf-8",
+        )
+        commands = integration._full_check_commands(self.root)
+        self.assertEqual(commands, ["git diff --check", "python3 scripts/check_app.py --label 'full gate'"])
+        self.assertFalse(any("managed_projects.py" in command or "template/scripts" in command for command in commands))
+        with mock.patch.object(integration.subprocess, "run", return_value=SimpleNamespace(returncode=0)) as run:
+            integration._run_full_checks(self.root)
+        self.assertEqual([call.args[0] for call in run.call_args_list], commands)
+        self.assertTrue(all(call.kwargs == {"cwd": self.root, "shell": True} for call in run.call_args_list))
+
+    def test_full_checks_in_installed_project_fail_closed_without_declaration(self) -> None:
+        with self.assertRaisesRegex(integration.RequirementIntegrationError, "dev-platform/checks.toml not found"):
+            integration._full_check_commands(self.root)
+        (self.root / "dev-platform").mkdir()
+        (self.root / "dev-platform" / "checks.toml").write_text("[settings]\nfull_commands = []\n", encoding="utf-8")
+        with self.assertRaisesRegex(integration.RequirementIntegrationError, "non-empty \\[settings\\].full_commands"):
+            integration._full_check_commands(self.root)
+        with mock.patch.object(integration.subprocess, "run") as run, self.assertRaises(integration.RequirementIntegrationError):
+            integration._run_full_checks(self.root)
+        run.assert_not_called()
+
     def child(self, name: str, path: str, *, base_ref: str | None = None) -> tuple[str, Path]:
         git(self.root, "switch", "-c", name, base_ref or self.base)
         (self.root / path).write_text(name + "\n", encoding="utf-8")

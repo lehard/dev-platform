@@ -709,18 +709,45 @@ def publication_identities(integration: Path, manifest: dict[str, Any]) -> tuple
         raise RequirementIntegrationError(str(exc)) from exc
 
 
+PLATFORM_FULL_CHECK_COMMANDS = (
+    "python3 -m compileall -q template/scripts scripts",
+    "python3 scripts/managed_projects.py validate",
+    "python3 scripts/run_test_groups.py --all",
+    "python3 template/scripts/openspec_lifecycle.py check",
+)
+
+
+def _full_check_commands(root: Path) -> list[str]:
+    """Return the authoritative full validation set for this repository layout.
+
+    The dev-platform repository dogfoods its own battery; an installed project
+    uses the same declared `[settings].full_commands` as task finish.
+    """
+    if (root / "template" / "scripts").is_dir() and (root / "scripts" / "managed_projects.py").is_file():
+        return list(PLATFORM_FULL_CHECK_COMMANDS)
+    from _platform_common import read_platform_config
+
+    relative = str(read_platform_config(root).get("paths", {}).get("checks", "dev-platform/checks.toml"))
+    path = root / relative
+    if not path.is_file():
+        raise RequirementIntegrationError(f"full candidate validation needs check configuration: {relative} not found")
+    try:
+        with path.open("rb") as handle:
+            settings = tomllib.load(handle).get("settings", {})
+    except tomllib.TOMLDecodeError as exc:
+        raise RequirementIntegrationError(f"full candidate validation cannot read {relative}: {exc}") from exc
+    commands = settings.get("full_commands", []) if isinstance(settings, dict) else []
+    if not isinstance(commands, list) or not commands or not all(isinstance(item, str) and item.strip() for item in commands):
+        raise RequirementIntegrationError(f"full candidate validation needs non-empty [settings].full_commands in {relative}")
+    return list(commands)
+
+
 def _run_full_checks(root: Path) -> None:
-    commands = [
-        ["python3", "-m", "compileall", "-q", "template/scripts", "scripts"],
-        ["python3", "scripts/managed_projects.py", "validate"],
-        ["python3", "scripts/run_test_groups.py", "--all"],
-        ["python3", "template/scripts/openspec_lifecycle.py", "check"],
-    ]
-    for command in commands:
-        print("Requirement integration validation:", " ".join(command), flush=True)
-        result = subprocess.run(command, cwd=root)
+    for command in _full_check_commands(root):
+        print("Requirement integration validation:", command, flush=True)
+        result = subprocess.run(command, cwd=root, shell=True)
         if result.returncode:
-            raise RequirementIntegrationError(f"full candidate validation failed: {' '.join(command)} (exit {result.returncode})")
+            raise RequirementIntegrationError(f"full candidate validation failed: {command} (exit {result.returncode})")
 
 
 def _reconcile_exact_merged(root: Path, integration: Path, manifest: dict[str, Any], branch: str, head: str) -> dict[str, Any] | None:
