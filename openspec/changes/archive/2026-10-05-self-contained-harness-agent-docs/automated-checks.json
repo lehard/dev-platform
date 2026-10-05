@@ -1,0 +1,83 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.351,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.36,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 388.98,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "tests/test_template_contract.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_a8c3175828a33cd759cc91ad2336d74a",
+    "change": "self-contained-harness-agent-docs",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/self-contained-harness-agent-docs",
+    "branch": "agent/br-380-t1-self-contained-harness-agent-docs",
+    "head": "48f2c795436773bc8374e3b56218464bdbfff4a8",
+    "task_content": {
+      "version": 1,
+      "digest": "02087c873efd85e5a764947ed89e0261c927fa0a8ff22b8b1c609a013e0ba80b",
+      "paths": {
+        "openspec/changes/self-contained-harness-agent-docs/.managed-task.json": "962e35aed699b4761af470385db41aef28dba4b8",
+        "openspec/changes/self-contained-harness-agent-docs/.openspec.yaml": "e3966d7a159d3f2cfcfef99b6a84e530965c6b0d",
+        "openspec/changes/self-contained-harness-agent-docs/design.md": "b1939d0df19780fb97dc83d9b942153d4ad5cdc7",
+        "openspec/changes/self-contained-harness-agent-docs/proposal.md": "bf29745f97460fc83d72d468f92d4c9b563d8e29",
+        "openspec/changes/self-contained-harness-agent-docs/specs/agent-instructions/spec.md": "a5552955a062bc1bdc368b270ab3ec4242677bd7",
+        "openspec/changes/self-contained-harness-agent-docs/tasks.md": "95b229fdb1f6d9c451c272860dfec438378a556a",
+        "openspec/changes/self-contained-harness-agent-docs/verification.md": "ae9773cd68679657a23163ff6b065c065d26d3d4",
+        "template/AGENTS.md.jinja": "8a1db98fbde7e3addb4e517cb036118fe17ae214",
+        "template/docs/README.md": "9dffcdb3195d9fc74eb32fd85991bb60c4ea85b0",
+        "template/docs/engineering/openspec-workflow.md": "5c8df4173088e6647f709961deca16b8bdb7607e",
+        "tests/test_template_contract.py": "398baf742b26870930db55ce8b1b77c509e3d7d2"
+      },
+      "base": "98db9ed844c92cf916b34b62d2545d622d576619"
+    }
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file tests/test_template_contract.py",
+    "duration_seconds": 3.521,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
