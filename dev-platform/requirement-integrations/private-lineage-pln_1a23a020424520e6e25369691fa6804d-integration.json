@@ -1,0 +1,28 @@
+{
+  "base": "f8b91ae924c28f8bf4529ff1f532d87a81c99218",
+  "children": [
+    {
+      "change": "coordinator-candidate-states",
+      "delta_base": "f8b91ae924c28f8bf4529ff1f532d87a81c99218",
+      "digest": "6dfd9e147ab5786596251107a831bae5feb53fba9a0eadd870df4c87e5c5963c",
+      "head": "e28840deafe2dd063ec66798866e72609eb8dc1b",
+      "source_branch": "agent/br-353-t2-coordinator-candidate-states",
+      "source_issue": "pln_a634fc03eeee7c253b93312430e289d4",
+      "work_identity": "BR-353/T2"
+    }
+  ],
+  "digest": "bb3d9cc31455c07dc4f8a0f09c24dac05e30af691befe6b2be96204df05a0139",
+  "expected_changes": [
+    "coordinator-candidate-states",
+    "relevant-drift-and-transient-retry",
+    "bounded-worker-contract",
+    "pr-review-repair-gate",
+    "post-review-finalization",
+    "autonomous-integration-contour",
+    "requirement-contribution-composition",
+    "parallel-lifecycle-acceptance"
+  ],
+  "requirement": "pln_1a23a020424520e6e25369691fa6804d",
+  "version": 1,
+  "work_identity": "BR-353"
+}
