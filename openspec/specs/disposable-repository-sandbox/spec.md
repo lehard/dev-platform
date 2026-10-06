@@ -2,7 +2,9 @@
 
 ## Purpose
 Define how disposable Git repository copies are created and verified so ordinary changes and cleanup cannot mutate shared object stores or other workspaces.
+
 ## Requirements
+
 ### Requirement: Disposable repository copies have independent mutable state
 
 Dev Platform SHALL provide a supported disposable repository creation path that uses standard Git and filesystem operations to make a standalone copy under an explicit sandbox root. The copy SHALL NOT share mutable Git object inodes, object alternates, Git common-directory metadata, or hardlinked workspace files with its source or another worktree. A failed isolation check SHALL prevent the copy from being reported usable.
@@ -45,3 +47,12 @@ Agent-facing instructions for disposable repository copies SHALL identify the su
 - **WHEN** the agent follows the platform sandbox guidance
 - **THEN** it uses the supported isolated copy path or proves equivalent isolation before recursive cleanup
 - **AND** an unsafe copy is not cleaned by a best-effort fallback
+
+### Requirement: Parallel lifecycle acceptance is reproducible in a sandbox
+
+The platform SHALL provide a deterministic offline scenario in a disposable repository that drives several parallel candidates through review, at least one repair, finalization and sequential integration while main moves, using the real coordinator and worker code with fake provider and GitHub adapters.
+
+#### Scenario: Scenario runs
+- **WHEN** the scenario is executed twice
+- **THEN** both runs merge every candidate and record the same lifecycle transitions without manual steps
+- **AND** a finalized managed candidate whose integration repair changed its content is re-reviewed against its archived artifacts and returns through finalization to integration

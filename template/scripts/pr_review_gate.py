@@ -209,7 +209,7 @@ def execute_review(checkout: Path, job: dict, *, source_repo: str, branch: str,
                    claim_current=lambda: True) -> dict:
     """Run the existing reviewer; only the harness commits and pushes evidence."""
     from requirement_composition import run_child_review
-    from independent_review import PERSPECTIVES, _validate_report, read_dispositions
+    from independent_review import PERSPECTIVES, _validate_report, read_dispositions, resolve_change
 
     if job["task_identity"].get("kind") == "requirement-composition":
         from requirement_composition import execute_composition_review
@@ -219,7 +219,9 @@ def execute_review(checkout: Path, job: dict, *, source_repo: str, branch: str,
                                           claim_current=claim_current, push_env=push_env)
     checkout = checkout.resolve()
     identity = job["task_identity"]
-    change = checkout / "openspec" / "changes" / identity["change"]
+    # A finalized candidate that returns to review (integration repair changed its content) is reviewed
+    # against its archived artifacts; the active directory no longer exists.
+    change = resolve_change(checkout, identity["change"])
     actual = refresh_identity(checkout, identity)
     if actual != identity:
         raise workers.WorkerError("review checkout does not match the published task identity")

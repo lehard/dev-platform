@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/disposable-repository-sandbox/spec.md"
+  ],
+  "change": "parallel-lifecycle-acceptance",
+  "imported_at": "2026-10-06T12:56:33+00:00",
+  "package_revision": "bd6689b0252f4aeb697449e2c18d9deaff6e4dce382ca39ff35eb383bfe91815",
+  "prepared_against": "f8b91ae924c28f8bf4529ff1f532d87a81c99218",
+  "private_lineage_handle": "pln_43eca805cda74cc2cec03ef24c859a45",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "8337dd69e928a9417d89871fcd8113385f41780101bc1c22ebaa205701fa7656",
+    "updated_at": "2026-10-05T07:59:14Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-353/T8"
+}
