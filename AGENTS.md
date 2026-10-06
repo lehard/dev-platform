@@ -37,7 +37,7 @@ Goal refinement is a selective layer before authoring, used only for explicit go
 ## Always-on invariants
 
 - **No silent divergence.** If implementation changes intent, behavior, design, or execution dependencies, update the corresponding proposal/spec/design/tasks artifact *first*. Do not knowingly let code drift from the active contract.
-- **Verification is not a checkbox count.** A platform change is complete only after relevant tests, semantic OpenSpec verification, a truthful `verification.md` receipt, archive through the lifecycle helper, committed spec/archive changes, and publication — in that order. Completed-but-active changes are lifecycle debt and are blocked by platform CI.
+- **Verification is not a checkbox count.** A platform change is complete only after relevant tests, semantic OpenSpec verification, a truthful `verification.md` receipt, archive through the lifecycle helper, committed spec/archive changes, and publication — in that order. For coordinator-managed source candidates, developer completion is an earlier handoff: content-bound selected checks, semantic verification receipt, exact-head PR and developer friction checkpoint; admission releases the developer claim. Review and bounded repair run as candidate jobs. Terminal delivery still requires verification, archive, committed specs and publication. Completed-but-active changes outside that handoff remain lifecycle debt and are blocked by platform CI.
 - **Never fabricate a verification receipt.** The report must state what was actually checked and which method was used.
 - **Managed contract conflicts stop.** Repair formal/schema mismatches in an imported package; a material product-contract conflict returns to the user.
 - **Quick tasks do not silently grow.** If one expands into a material behavior, architecture, compatibility, data-contract or scope change, stop and enter requirement-first intake by default; use direct managed fixation only for explicit technical intent.
@@ -67,7 +67,7 @@ python3 template/scripts/openspec_lifecycle.py archive <change>
 python3 scripts/dogfood_task.py finish
 ```
 
-`status` is read-only and reports task freshness before expensive validation. If it requires reconciliation, run `python3 scripts/dogfood_task.py reconcile`; it refuses dirty or ambiguous state, merges current main without history rewrite, and a published exact PR is fast-forward pushed on the same branch. Rerun validation before `finish`, which delegates to the authoritative GitHub-backed publication lifecycle and is resumable. Do not report source work as complete until GitHub reports the exact PR `MERGED` and local `main` has been reconciled.
+`status` is read-only and reports task freshness before expensive validation. If it requires reconciliation, run `python3 scripts/dogfood_task.py reconcile`; it refuses dirty or ambiguous state, merges current main without history rewrite, and a published exact PR is fast-forward pushed on the same branch. Rerun validation before `finish`, which delegates to the authoritative GitHub-backed publication lifecycle and is resumable. A coordinator-managed developer handoff ends at the admitted review-pending PR without waiting for CI or merge; report it as a handoff. Do not report terminal source delivery complete until GitHub reports the exact PR `MERGED` and local `main` has been reconciled.
 
 Minimum validation before finishing:
 

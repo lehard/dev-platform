@@ -1,0 +1,30 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/publication-queue/spec.md",
+    "specs/platform-lifecycle/spec.md"
+  ],
+  "change": "autonomous-integration-contour",
+  "imported_at": "2026-10-06T00:01:36+00:00",
+  "package_revision": "2038870459e80a06be44f1b50ff0e7f7059f8bbe1f9d5abfd965062a6c1f9901",
+  "prepared_against": "f8b91ae924c28f8bf4529ff1f532d87a81c99218",
+  "private_lineage_handle": "pln_965196c502b24742bdb893894afc2cbf",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "75f5c11ce5aa4ee09df34ffef1e3800d6c3d38b6b54c00eba0d812f7ee38f45c",
+    "updated_at": "2026-10-05T07:27:38Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-353/T6"
+}

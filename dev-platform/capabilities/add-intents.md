@@ -47,8 +47,8 @@ python3 scripts/add_intents.py validate-add <path>
 
 `validate-add` proves only *structural* properties: schema validity, a bound
 requirement digest, a non-empty `target_repository`, an exact
-`prepared_against` revision plus its freshness against the current worktree
-HEAD, well-formed evidence/reused-constraint/element/assumption entries, and
+`prepared_against` revision (kept as provenance) plus its source-bound
+freshness, well-formed evidence/reused-constraint/element/assumption entries, and
 that `approved: true` is never set while an `unresolved_choices` entry is
 `status: "open"` or a `contradictions` entry is `resolved: false`. It never
 claims the ADD itself is the right design.
@@ -114,7 +114,17 @@ load-bearing: `decompose` re-proves every such entry against the snapshot
 file (via `project_evidence.validate_snapshot`) and **refuses to run**, not
 merely warns, if the snapshot was rebuilt/changed since the ADD recorded it,
 if its digest no longer matches, or if the referenced projection is not
-`fresh`. Free-form evidence entries (any other `kind`) are unaffected.
+`fresh`.
+
+Freshness is source-bound. An ADD is fresh at its `prepared_against` revision,
+and stays fresh after unrelated HEAD movement, only while its snapshot evidence
+re-proves and every other bound source -- each non-snapshot evidence `source`
+and each `reused_constraints` `source` (a `#anchor` binds the whole file) --
+still has exactly its blob content at `prepared_against` in the checkout. An
+untracked, missing or edited bound source makes a snapshot-bound ADD stale,
+including uncommitted edits at the prepared revision itself. An ADD without
+snapshot evidence is fresh only at its exact `prepared_against` revision, with
+its existing bound source files unedited.
 
 ## Intent decomposition
 
@@ -126,7 +136,7 @@ python3 scripts/add_intents.py validate-intents <intents-path> --add <add-path>
 ```
 
 `decompose` refuses an ADD that is not `approved`, that fails
-`validate-add`, that is stale against the current worktree HEAD, or whose
+`validate-add`, whose bound sources changed (see above), or whose
 required snapshot evidence is no longer provably fresh (see above). It
 mechanically carries the approved ADD's content digest and any
 `project-evidence-snapshot` evidence entries forward onto the scaffolded

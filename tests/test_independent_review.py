@@ -13,12 +13,12 @@ import time
 import unittest
 from pathlib import Path
 from unittest import mock
-from _platform_modules import load_platform_module  # noqa: E402
 
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "template" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
+from _platform_modules import load_platform_module  # noqa: E402
 
 review = load_platform_module("independent_review", SCRIPTS / "independent_review.py")
 
@@ -403,6 +403,7 @@ class IndependentReviewTests(unittest.TestCase):
         self.assertEqual(result, {
             "ready": True, "provider": "codex", "provider_source": "configured", "model": "gpt-6.1-sol",
             "binary": "/fake/bin/codex", "limitation": None,
+            "requested_provider": "codex", "executed_provider": "codex", "fallback_reason": None,
         })
         self.assertEqual(launcher.calls, [])
         [(argv, cwd, timeout)] = launcher.probes

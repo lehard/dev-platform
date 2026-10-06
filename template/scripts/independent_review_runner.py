@@ -22,7 +22,7 @@ Before any perspective launches, ``preflight`` proves the selected runtime is
 usable on this host and account with the exact selected model through one
 small probe with the same read-only flags; a failed probe records both
 perspectives as unavailable without launching them.  No other model or
-provider is ever tried.  The reviewer diff covers exactly the paths the review
+provider is tried unless an ordered providers list explicitly permits it. The reviewer diff covers exactly the paths the review
 task-content identity binds; lifecycle evidence is withheld from it.
 """
 from __future__ import annotations
@@ -102,14 +102,14 @@ class ReviewOutputError(Exception):
 Launcher = Callable[[list[str], Path, float], LaunchResult]
 
 
-def subprocess_launcher(argv: list[str], cwd: Path, timeout: float) -> LaunchResult:
+def subprocess_launcher(argv: list[str], cwd: Path, timeout: float, *, env: dict | None = None) -> LaunchResult:
     """Run a reviewer with no stdin; stderr is discarded, never persisted."""
     try:
         # A new session makes the reviewer its own process group, so a timeout
         # terminates every descendant before the read-only postcheck runs.
         process = subprocess.Popen(
             argv, cwd=cwd, text=True, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL, start_new_session=True,
+            stderr=subprocess.DEVNULL, start_new_session=True, env=env,
         )
     except FileNotFoundError as exc:
         raise LaunchUnavailable(f"reviewer binary cannot be executed: {argv[0]}") from exc
@@ -440,7 +440,7 @@ def _next_step(provider: str) -> str:
     )
 
 
-def preflight(
+def _preflight_one(
     root: Path, *, config: dict[str, Any] | None = None, launcher: Launcher | None = None,
     timeout: float | None = None,
 ) -> dict[str, Any]:
@@ -502,6 +502,38 @@ def preflight(
     if failure:
         return not_ready(f"{label} is not ready: {failure}; {_next_step(provider)}")
     result["ready"] = True
+    return result
+
+
+def preflight(root: Path, *, config: dict[str, Any] | None = None,
+              launcher: Launcher | None = None, timeout: float | None = None) -> dict[str, Any]:
+    """Probe only explicitly allowed providers, in configuration order."""
+    config = settings(root) if config is None else config
+    providers = config.get("providers")
+    if providers is None:
+        result = _preflight_one(root, config=config, launcher=launcher, timeout=timeout)
+        return {**result, "requested_provider": result["provider"],
+                "executed_provider": result["provider"] if result["ready"] else None,
+                "fallback_reason": None}
+    if (not isinstance(providers, list) or not providers
+            or any(provider not in PROVIDERS for provider in providers)
+            or len(set(providers)) != len(providers)):
+        return {"ready": False, "provider": None, "model": None, "binary": None,
+                "provider_source": "configured-list", "requested_provider": None,
+                "executed_provider": None, "fallback_reason": None,
+                "limitation": "[independent_review] providers must be a nonempty ordered list of unique codex/claude providers"}
+    failures = []
+    for provider in providers:
+        result = _preflight_one(root, config={**config, "provider": provider}, launcher=launcher, timeout=timeout)
+        result.update(requested_provider=providers[0], executed_provider=provider if result["ready"] else None,
+                      provider_source="configured-list", fallback_reason="; ".join(failures) or None)
+        if result["ready"]:
+            return result
+        failures.append(result["limitation"])
+        # Mutation or an unprovable containment boundary is not a runtime outage.
+        if "mutated" in result["limitation"] or "snapshot" in result["limitation"] or "unchanged" in result["limitation"]:
+            break
+    result.update(limitation="; ".join(failures), fallback_reason="; ".join(failures))
     return result
 
 
@@ -683,6 +715,7 @@ def _current_request(root: Path, change: Path) -> dict[str, Any] | None:
 
 def run_review(
     root: Path, change: Path, *, base_ref: str | None = None, launcher: Launcher | None = None,
+    config: dict[str, Any] | None = None,
 ) -> dict[str, dict[str, Any]]:
     """Prepare (or reuse a current) request and launch every perspective."""
     root = root.resolve()
@@ -698,7 +731,7 @@ def run_review(
     request = _current_request(root, change)
     if request is None or request["candidate"].get("base_ref") != base_ref:
         request = review.prepare_request(root, change, base_ref)
-    config = settings(root)
+    config = settings(root) if config is None else dict(config)
     merge_base = request["task_content"]["base"]
     reviewed_paths: list[str] = []
     diff_limitation: str | None = None
@@ -730,6 +763,8 @@ def run_review(
                 launcher=launcher or subprocess_launcher, timeout=timeout_seconds(config), scratch=scratch,
                 diff_path=diff_path, watched=watched,
             )
+            report["reviewer"].update({key: readiness.get(key) for key in
+                                       ("requested_provider", "executed_provider", "fallback_reason")})
             atomic_write_text(review.report_path(change, perspective), json.dumps(report, indent=2, sort_keys=True) + "\n")
             reports[perspective] = report
     return reports

@@ -1,0 +1,59 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "f8b91ae924c28f8bf4529ff1f532d87a81c99218",
+    "base_ref": "origin/main",
+    "candidate_head": "85491a4b3031cf4acbac8cca0cec1f42dd8d5dae",
+    "diff_sha256": "8399373cdd252009977075336ade226be9596754ec90d9a81e2fc75b98fe4c2c"
+  },
+  "completed_at": "2026-10-05T12:09:29+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/publication_queue.py:399\u2013403 calls _transition(..., \"ready\", refuse_from=STATES) without cross_head_claims=True. candidate_lifecycle.py:191\u2013196 preserves an earlier-head claim but leaves task_identity=None; consequently publication_queue.py:226\u2013228 does not recognize its ownership during admission. An in-memory reproduction through admit(), with a trusted reviewing record on head A and an admission on current head B, published a ready record with next_job=null. This replaces the newest claim that worker():726\u2013731 otherwise respects.",
+      "id": "admission-overwrites-cross-head-claim",
+      "severity": "material",
+      "summary": "Admission can erase an active review, repair, or finalization claim after the PR head changes, allowing integration to take over unfinished work."
+    }
+  ],
+  "launched_at": "2026-10-05T12:06:21+00:00",
+  "output_sha256": "03636ebd928962380020fcfdd64fd7d728bcf0a9b131e44f64fcc1369fbe1330",
+  "perspective": "engineering-quality",
+  "request_id": "c5a47de3-c671-440a-ad53-7a5dfddd0adf",
+  "reviewer": {
+    "context_id": "01a10bf5-3817-7b63-912c-dedaedfa49ae",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-246d4552-c11e-408a-86b9-a9e461a7bda2",
+    "model": {
+      "source": "selected",
+      "value": "gpt-6.1-sol"
+    },
+    "provider": "codex",
+    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
+    "runtime": "codex-exec",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cached_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 498816
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 586636
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3284
+      }
+    },
+    "runtime": "codex-exec"
+  },
+  "schema_version": 1,
+  "task_content_digest": "7585d26bbebd1584a848f8f5855b64d9e7ff8d7d71404cf5ca0fb739522d84e9"
+}

@@ -29,6 +29,8 @@ from _platform_common import (
     profile,
     read_platform_config,
     run_git,
+    is_github_read,
+    run_github_with_retry,
     utc_now,
 )
 import managed_project_status
@@ -211,7 +213,10 @@ def origin_repository(root: Path) -> str:
 
 
 def run(command: list[str], root: Path, env: dict[str, str] | None = None, input_text: str | None = None) -> subprocess.CompletedProcess[str]:
-    result = subprocess.run(command, cwd=root, env=env, text=True, capture_output=True, input=input_text)
+    if is_github_read(command):
+        result = run_github_with_retry(command, cwd=root, env=env, input_text=input_text)
+    else:
+        result = subprocess.run(command, cwd=root, env=env, text=True, capture_output=True, input=input_text)
     if result.returncode:
         detail = (result.stderr or result.stdout).strip()
         raise ManagedTaskError(f"{' '.join(command[:2])} failed: {detail or 'unknown error'}")

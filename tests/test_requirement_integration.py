@@ -89,7 +89,9 @@ class RequirementIntegrationTests(unittest.TestCase):
         with mock.patch.object(integration.subprocess, "run", return_value=SimpleNamespace(returncode=0)) as run:
             integration._run_full_checks(self.root)
         self.assertEqual([call.args[0] for call in run.call_args_list], commands)
-        self.assertTrue(all(call.kwargs == {"cwd": self.root, "shell": True} for call in run.call_args_list))
+        self.assertTrue(all(call.kwargs["cwd"] == self.root and call.kwargs["shell"] is True
+                            and call.kwargs["stdin"] == subprocess.DEVNULL and "env" in call.kwargs
+                            for call in run.call_args_list))
 
     def test_full_checks_in_installed_project_fail_closed_without_declaration(self) -> None:
         with self.assertRaisesRegex(integration.RequirementIntegrationError, "dev-platform/checks.toml not found"):

@@ -167,6 +167,12 @@ The coordinator workflow wakes on the label through `pull_request_target`, so ev
 
 When a PR receives `publication:blocked`, read the reason in `dogfood_task.py status` and the latest queue marker comment. A changed task head, overlapping main path, conflict, or failed check requires agent review and correction. After a new task commit, run the normal validation and `finish` again; this creates a new admission slot on the same PR after the prior block. A stale unchanged head remains blocked. `python3 scripts/publication_queue.py worker` can also be run by an authorized operator to retry a waiting queue head; the scheduled workflow normally handles recovery. Do not edit queue comments or labels by hand.
 
+Each coordinator transition also publishes a `dev-platform-publication-queue:v2` handoff record (state, exact head, task identity, gate bindings, red gate, items not re-verified, attempts, next job) and projects it into one `lifecycle:<state>` label. State is derived from the latest valid v2 record for the exact PR head plus labels and required checks; a record for an older head contributes no gates, a malformed record blocks with its reason, and v1 admissions still read as `ready`/`integrating`. A transition re-observes the head and latest record first, carries gates and attempts forward and is not re-published when nothing changed; the worker skips a candidate whose current-head record is owned by review, repair, finalization, escalation or integration repair, and integrates the next one. Only records written by proven repository writers (owner, or members/collaborators with write permission) or the configured coordinator App count: the workflow exports its App slug as `DEV_PLATFORM_COORDINATOR_APP`, and a local reader sets `[publication] coordinator_app` in the external operator config (or project config). `python3 scripts/publication_queue.py status --pr N` or `--requirement owner/repo#N` (add `--json` for machine output) renders the state, red gate, attempts and next action read-only from any checkout.
+
+### Lifecycle workers
+
+`python3 scripts/lifecycle_workers.py work-next --repo owner/repo --kinds review,repair [--dry-run]` lets any worker (local, server or agent session) claim one job the coordinator published for a PR: review, repair, integration-repair, finalize, retrospective, terminal-reconciliation or cleanup, each bound to the exact head, task identity and attempt. A claim is a trusted `dev-platform-lifecycle-claim:v1` PR comment with a time limit; the earliest valid unexpired claim for that job and head wins by comment order, a worker re-reads after posting and abandons if it lost, expired or head-stale claims are reclaimable, and a result for a different head is discarded. LLM processes run in a disposable checkout with `stdin` closed and with GitHub tokens, credential helpers and SSH agents removed from the environment. A write result (repair and integration-repair only; review has no write path) is accepted only as a fast-forward from the expected head within candidate paths with no workflow or lifecycle-evidence edits, and the harness alone pushes it with `--force-with-lease` bound to the expected head. `work-next --run --llm-command "<cmd>" --source <repo> --branch <branch> --allow <path>` executes the claimed job: the LLM works in its own disposable checkout; the harness re-reads the PR head (a moved head discards the result), then validates in a separate fresh harness clone that fetches only the result commit and performs the only push from there, so hooks, remotes or credential settings planted in the LLM checkout are never used. A compact `dev-platform-lifecycle-result:v1` comment records the outcome. LLM processes run with a scratch `HOME`/`XDG_*` and an empty `GH_CONFIG_DIR`; only files named with `--llm-home-file` (the LLM CLI's own login, e.g. `.codex/auth.json`; never `.config/gh` or `.ssh`) are copied in. An OS credential store such as the macOS Keychain cannot be hidden without an OS sandbox: on an operator workstation that remains a residual risk, so prefer hosted workers without operator credentials for untrusted content. Merge authority stays with the coordinator.
+
 Use `python3 scripts/managed_project_status.py block --reason "..."` only for a genuine external/human stop, `resume` after it clears, and `status --json` for read-only recovery evidence. These commands require GitHub Projects read/write authorization (`gh auth refresh -s project`). Quick tasks without managed provenance do not mutate the Development Backlog Project.
 
 ## Selective goal definition
@@ -184,6 +190,20 @@ Goal refinement creates no goal file, backlog entry, decision log, resume artifa
 For a business requirement that implies a genuine system-design delta (new/changed capabilities, boundaries, contracts, data ownership, invariants, security/trust concerns, or material non-functional behavior), the opt-in `add-intents` capability inserts two bounded pre-authoring stages ahead of OpenSpec proposal authoring: an Architecture Design Delta (ADD) against the current accepted system, then atomic Intent decomposition of the approved ADD. A clear bounded change with no useful design delta skips this and goes straight to normal task intake. See [dev-platform/capabilities/add-intents.md](../../dev-platform/capabilities/add-intents.md) for the full contract, gates, and `scripts/add_intents.py` usage; ADD/intents remain bounded pre-authoring evidence, never a second backlog or implementation contract.
 
 `scripts/orchestrate_pre_authoring.py` sequences snapshot build/reuse (`scripts/project_evidence.py`), the ADD/Intents stages above, and OpenSpec handoff into one resumable `status`/`record-decision` surface: it re-validates the actual artifact files on every call, so a fresh stage is reused after a restart and an upstream mutation invalidates only its dependent downstream stages, without a second stateful lifecycle. `scripts/requirement_intake.py` binds a human-facing business Requirement Issue (`type:requirement`, business language only, no OpenSpec) to that orchestrator, and later links each resulting internal managed OpenSpec Issue back to it (`type:internal-change`) with read-through status aggregation from the existing Development Backlog Project — the Requirement stays the one thing a human normally manages.
+
+Snapshot-bound ADDs, intents and handoffs remain fresh across unrelated HEAD
+movement when their bound source identities and evidence digests still match;
+`prepared_against` remains provenance. A bound source change requires refresh.
+After every recorded handoff digest is carried by a linked child Issue's exact
+Requirement handoff marker, `execute_requirement.py advance` can use those
+recorded handoffs for child ordering and terminal reconciliation without fresh
+pre-authoring. Missing materialization and child contract conflicts still stop.
+
+Lifecycle GitHub reads retry classified transient transport/server failures
+with at most `DEV_PLATFORM_GITHUB_RETRY_ATTEMPTS` attempts (default 4), waiting
+1, 2, 4 seconds between the default attempts; further delays cap at 8 seconds.
+Non-transient failures return immediately, and mutations are never retried
+automatically.
 
 ## Central source dogfood lifecycle
 
@@ -318,3 +338,19 @@ Before reporting a non-trivial platform task as complete:
 - the post-task retrospective ran and the friction checkpoint reflects its current result.
 
 The final report states that the retrospective ran and either lists its findings or says explicitly that none were found. If any required completion step is blocked, report the blocker instead of saying the task is done.
+
+For coordinator-managed source candidates, `finish` ends at developer handoff,
+with the change still active. Before finish, run selected checks with
+`python3 scripts/select_checks.py --base origin/main --execute --evidence openspec/changes/<change>/automated-checks.json`,
+record semantic verification, commit the candidate and evidence, then record
+the developer friction checkpoint at that exact head. Finish publishes an exact-head PR, admits it as
+`review-pending`, and releases the developer board claim without waiting for CI,
+review or merge. This is developer completion; terminal delivery still requires
+archive and confirmed merge. The worker entrypoint
+`python3 scripts/lifecycle_workers.py work-next --repo owner/repo --kinds review --run`
+launches the existing independent reviewer in an exact-head disposable checkout.
+Repair workers use `--kinds repair --run --llm-command <writer> --allow <path>`
+(repeat `--allow` for the bounded candidate scope). The harness supplies findings,
+validates the commits and pushes them; changed content repeats review. Material
+rejection proposals or three unsuccessful review rounds require human escalation.
+Unavailable reviewer runtimes publish a new retryable review attempt automatically.

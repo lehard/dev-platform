@@ -86,8 +86,7 @@ run it right after routing a managed task and before implementation. A
 missing binary, nonzero exit, error result or timeout names the CLI's own
 bounded error and the next step: log the CLI in, point
 `DEV_PLATFORM_CLAUDE_BIN` at the Claude Code CLI, or change the
-`[model_routing]` / `[independent_review]` binding for this account. No other
-model or provider is ever tried. `run` (and therefore archive) performs the
+`[model_routing]` / `[independent_review]` binding for this account. No other model or provider is tried unless `[independent_review] providers = ["codex", "claude"]` explicitly declares that ordered fallback. Only listed providers are probed; reports retain requested provider, executed provider and fallback reason. If all are unavailable, coordinator candidates become `blocked-retryable` with a fresh review job. `run` (and therefore archive) performs the
 same preflight first; when it fails, both perspectives are recorded as
 `unavailable` with that limitation and no perspective is launched.
 
@@ -179,3 +178,23 @@ Do not fabricate a verification receipt. The verification report must state what
 ## OpenSpec dependency policy
 
 OpenSpec is external; do not vendor generated Claude/Codex skills. `.dev-platform.toml` records minimum/tested CLI versions. The doctor may warn/fail on version compatibility but must not silently mutate a user's global OpenSpec installation.
+
+Coordinator-managed source candidates publish their active change at developer
+handoff before independent review or archive. Review/repair jobs use the shared
+candidate records and worker harness; passing review hands off as
+`finalize-pending`. Archive validates existing review evidence instead of
+launching a reviewer for these candidates. Selected-check evidence records the
+same lifecycle-excluding task-content proof as review and is reused during
+archive when unchanged. Missing or changed proofs fail closed. Required-check
+gates also carry candidate identity; GitHub protected merge still requires its
+own exact-head checks. A `finalize` job (`post_review_finalization.py`) then runs
+`openspec_lifecycle.py archive <change> --finalize` in a disposable checkout,
+reusing the review and selected-check evidence for the unchanged task-content
+identity, and the candidate becomes `ready`; a later task-content change returns
+it to review. A completed-but-active change is blocked at integration admission
+and merge (`openspec_lifecycle.py check --stage integration`, strict on `main`
+and for non-coordinator finish), not at PR publication. When main changed only
+the archive-derived current-spec paths of the candidate's own capabilities, the
+coordinator re-derives them by replaying the archived deltas on main; this is
+bookkeeping, required checks still run, and a failed replay is integration
+repair. This handoff does not claim terminal delivery.

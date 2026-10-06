@@ -265,7 +265,15 @@ class HarnessModeGateTests(unittest.TestCase):
         self.assertIn("scripts/finish_task.py:sync_after_remote_pr_merge", message)
 
     def test_loader_populates_real_helpers_when_platform_modules_are_present(self) -> None:
+        # Another test module may have put the source-adapter wrappers in scripts/
+        # ahead of template/scripts on sys.path; importing such a wrapper (even
+        # transitively) runs its CLI. Resolve the platform modules as a platform
+        # harness would: from template/scripts only.
+        template = str(ROOT / "template" / "scripts")
+        wrappers = str(ROOT / "scripts")
+        resolved = [template, *(entry for entry in sys.path if entry not in {template, wrappers})]
         with (
+            patch.object(sys, "path", resolved),
             patch.object(rollout_preflight, "request_protected_merge", None),
             patch.object(rollout_preflight, "sync_after_remote_pr_merge", None),
         ):

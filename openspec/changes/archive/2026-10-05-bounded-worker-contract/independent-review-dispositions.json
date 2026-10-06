@@ -1,0 +1,32 @@
+{
+  "dispositions": [
+    {
+      "finding": "llm-env-keeps-home-credentials",
+      "perspective": "spec-fidelity",
+      "rationale": "Fixed for HOME: the LLM now runs with a scratch HOME/XDG and an empty GH_CONFIG_DIR containing only explicitly allowlisted LLM-CLI login files (never .config/gh or .ssh), tested. The remaining exposure is an OS credential store (macOS Keychain) reachable by any same-user process; hiding it needs an OS sandbox that is outside this change. It is documented as residual risk with hosted, credential-free workers recommended for untrusted content; publication authority stays bounded by the harness-only, validated, expected-head-leased push.",
+      "recorded_at": "2026-10-05T17:23:01+00:00",
+      "report_sha256": "28f319c4bb7927d26b35294c44c99639485913d8870e7826cc8f238747c316b4",
+      "request_id": "557911c5-e062-49c3-bba9-0c6ef90fcda8",
+      "status": "rejected"
+    },
+    {
+      "finding": "llm-process-keeps-home-credentials",
+      "perspective": "engineering-quality",
+      "rationale": "Fixed for HOME: the LLM now runs with a scratch HOME/XDG and an empty GH_CONFIG_DIR containing only explicitly allowlisted LLM-CLI login files (never .config/gh or .ssh), tested. The remaining exposure is an OS credential store (macOS Keychain) reachable by any same-user process; hiding it needs an OS sandbox that is outside this change. It is documented as residual risk with hosted, credential-free workers recommended for untrusted content; publication authority stays bounded by the harness-only, validated, expected-head-leased push.",
+      "recorded_at": "2026-10-05T17:23:01+00:00",
+      "report_sha256": "6eb98f386da5e3149d277e61ac237c8342404a5225e55896a15ede1748adce15",
+      "request_id": "557911c5-e062-49c3-bba9-0c6ef90fcda8",
+      "status": "rejected"
+    },
+    {
+      "finding": "coordinator-never-publishes-jobs",
+      "perspective": "spec-fidelity",
+      "rationale": "The approved BR-353 decomposition (ADD intents and their dependency chain) assigns publication of review/repair jobs to pr-review-repair-gate, finalize to post-review-finalization, and integration-repair, retrospective, terminal-reconciliation and cleanup to autonomous-integration-contour, whose delta explicitly requires post-handoff obligations as jobs. This child is their prerequisite and delivers the job/claim/worker contract plus the coordinator entrypoint publish_job those children call; wiring every transition here would implement their scope ahead of their contracts. The integration marker is the coordinator's own claim, not a worker job.",
+      "recorded_at": "2026-10-05T17:28:59+00:00",
+      "report_sha256": "4bd45cebd426ef78bfc339aabd998b6fae3771a00c99ab5ac42ce1b1b8703b03",
+      "request_id": "d8446cf8-630e-4c9d-9080-6531a95c3b44",
+      "status": "rejected"
+    }
+  ],
+  "schema_version": 1
+}

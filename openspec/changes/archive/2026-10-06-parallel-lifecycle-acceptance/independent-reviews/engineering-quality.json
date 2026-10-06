@@ -1,0 +1,94 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "98db9ed844c92cf916b34b62d2545d622d576619",
+    "base_ref": "origin/main",
+    "candidate_head": "fe78f8f1afceb24563825e9d1a145ae30442d3e1",
+    "diff_sha256": "21a2ec970719994a92f1c2809e6dfa8703cb519ae2c9650d616edaec641e4810"
+  },
+  "completed_at": "2026-10-06T13:59:52+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/parallel_lifecycle_acceptance.py setup(): `os.environ.clear()`, `subprocess.run = routed`, `os.chdir(self.root)`. finish()/run() never restore them. tests/test_parallel_lifecycle_acceptance.py currently launches it through Popen, so the tests are unaffected. Any future in-process caller of `run()` would be polluted.",
+      "id": "global-state-mutation-not-restored",
+      "severity": "advisory",
+      "summary": "Scenario.setup() permanently mutates process-global state (clears and replaces os.environ, monkeypatches subprocess.run, os.chdir, sys.path.insert). Nothing restores it, so run() is only safe as a one-shot process."
+    },
+    {
+      "evidence": "developer_handoff: `candidate.get(\"attempts\", {}).get(\"finalize\", 0) + 1`; candidate_files: `issue = {\"A\": 11, \"B\": 12, \"C\": 13}[letter]` and `if change is None: return files`; admit_all: `if change is None:  # quick task` is unreachable.",
+      "id": "implicit-defaults-and-dead-quick-path",
+      "severity": "advisory",
+      "summary": "Some defaults and branches conflict with the explicit-failure rule or are dead code. `attempts.get('finalize', 0)` silently assumes attempt 0 when the field is absent. `candidate_files` and `admit_all` still handle `change is None`, but every entry in CANDIDATES has a change. `candidate_files` also repeats the issue numbers already held in CANDIDATES."
+    },
+    {
+      "evidence": "`self.sandboxes = (...)` is assigned before the creation loop, so a failure inside the loop skips the `hasattr(self, \"sandboxes\")` guard in finish() only if the attribute was not yet set. `self.github` and the later fields are assigned after the loop, so a failure in `git(path, \"fetch\", ...)` raises before `self.github` exists and the trace is not written. Cleanup also runs `cleanup` on sandbox names that may not exist yet, which can produce a misleading containment error that replaces the original failure.",
+      "id": "partial-setup-leaks-sandboxes",
+      "severity": "advisory",
+      "summary": "If sandbox creation or a later setup step fails partway, finish() skips cleanup, so sandboxes already created are left behind without containment verification."
+    }
+  ],
+  "launched_at": "2026-10-06T13:59:26+00:00",
+  "output_sha256": "c7ef4bbbadd27efc5f21aba35f02354a9e33a2f4f163165c74cfb0b75d7b99b3",
+  "perspective": "engineering-quality",
+  "request_id": "c56d3334-ca4c-466d-8e6c-bad74f4ca0f9",
+  "reviewer": {
+    "context_id": "3d185ac3-31ca-49e1-80d5-1ad3643f10d6",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-5b861f73-4998-4dce-aa9c-8286a5396788",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 38879
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 93653
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 22284
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 23096
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2259
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "03147e5d2e964f158b7ef23dee1719e4522cc32573168a3b15781ccb4eae6b64"
+}

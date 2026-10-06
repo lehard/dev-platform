@@ -1,0 +1,91 @@
+{
+  "base": "98db9ed844c92cf916b34b62d2545d622d576619",
+  "children": [
+    {
+      "change": "coordinator-candidate-states",
+      "delta_base": "98db9ed844c92cf916b34b62d2545d622d576619",
+      "digest": "ca392a35fa4bf7bfe5770e4dd817486e3dd1c15da444e64dfb66605dcdc609d7",
+      "head": "8d0f93e7fc4b2cd26b73858a8d47d190c87c4d11",
+      "source_branch": "agent/br-353-t2-coordinator-candidate-states",
+      "source_issue": "pln_a634fc03eeee7c253b93312430e289d4",
+      "work_identity": "BR-353/T2"
+    },
+    {
+      "change": "bounded-worker-contract",
+      "delta_base": "8d0f93e7fc4b2cd26b73858a8d47d190c87c4d11",
+      "digest": "ad45f4f3d0ad1f464cbcf1752cdd0f62c60b8f583cdb0a96153a629977fbc776",
+      "head": "389b7810e95a541aba532050fea22f6db4fb41fd",
+      "source_branch": "agent/br-353-t3-bounded-worker-contract",
+      "source_issue": "pln_f63775fc6458ea5505c0dc006e070618",
+      "work_identity": "BR-353/T3"
+    },
+    {
+      "change": "pr-review-repair-gate",
+      "delta_base": "389b7810e95a541aba532050fea22f6db4fb41fd",
+      "digest": "c08a506e7267faaf31b943451b302a0aac0995cabf0bf0533603606fe8a0df64",
+      "head": "27fe99752b7537162131ce210f0ba1d20d5ae75d",
+      "source_branch": "agent/br-353-t4-pr-review-repair-gate",
+      "source_issue": "pln_c24e0feffe5c112e32c3fa81bac02a4b",
+      "work_identity": "BR-353/T4"
+    },
+    {
+      "change": "post-review-finalization",
+      "delta_base": "27fe99752b7537162131ce210f0ba1d20d5ae75d",
+      "digest": "b8c8088a395bba04e78301984e05a1c559a4e2ecdf0b7534e1055bc355466b57",
+      "head": "93fc4dcbfe946ea8ee91c951233d60036bc29449",
+      "source_branch": "agent/br-353-t5-post-review-finalization",
+      "source_issue": "pln_648e6230bb7533048c4866420a3668d5",
+      "work_identity": "BR-353/T5"
+    },
+    {
+      "change": "autonomous-integration-contour",
+      "delta_base": "93fc4dcbfe946ea8ee91c951233d60036bc29449",
+      "digest": "a5f25efdcd818d3bf1e57a311e16c5264f3e4a9497e125338403b55cf5e0bd7b",
+      "head": "1401bd04e00ef999c184a86590a4c2622da59d0d",
+      "source_branch": "agent/br-353-t6-autonomous-integration-contour",
+      "source_issue": "pln_965196c502b24742bdb893894afc2cbf",
+      "work_identity": "BR-353/T6"
+    },
+    {
+      "change": "requirement-contribution-composition",
+      "delta_base": "1401bd04e00ef999c184a86590a4c2622da59d0d",
+      "digest": "5ff461acd28a18fa07b273785c8ca2b426d6bef8a6ebd17c6da1c88f4aac403d",
+      "head": "e9a8f7fa0ec6b844e1800a086f5cca46126b326d",
+      "source_branch": "agent/br-353-t7-requirement-contribution-composition",
+      "source_issue": "pln_e535bf9e488ee77bc6b25ff979ad4df4",
+      "work_identity": "BR-353/T7"
+    },
+    {
+      "change": "parallel-lifecycle-acceptance",
+      "delta_base": "e9a8f7fa0ec6b844e1800a086f5cca46126b326d",
+      "digest": "4a273979f8cfdb54faf74ce9584f63cf4dbec44e89cba7038a7ed28ae96e3581",
+      "head": "db4deac29d6319ff1c80b0e6447d5173e23ca776",
+      "source_branch": "agent/br-353-t8-parallel-lifecycle-acceptance",
+      "source_issue": "pln_43eca805cda74cc2cec03ef24c859a45",
+      "work_identity": "BR-353/T8"
+    },
+    {
+      "change": "relevant-drift-and-transient-retry",
+      "delta_base": "db4deac29d6319ff1c80b0e6447d5173e23ca776",
+      "digest": "a5b34a9cf580d842132755c46dc21fa0b0a5d419173e3839b0f3f235a5157cdd",
+      "head": "c3a13f820de147f46bf7b0430f7dae4c743a84b8",
+      "source_branch": "agent/br-353-t1-relevant-drift-and-transient-retry",
+      "source_issue": "pln_4e612aa5281274527f9f8c2559446f86",
+      "work_identity": "BR-353/T1"
+    }
+  ],
+  "digest": "dbc5b074c37cbdf6a273d5e528589d9b3786e8da968b8a22d0b4da223b85b29e",
+  "expected_changes": [
+    "coordinator-candidate-states",
+    "bounded-worker-contract",
+    "pr-review-repair-gate",
+    "post-review-finalization",
+    "autonomous-integration-contour",
+    "requirement-contribution-composition",
+    "parallel-lifecycle-acceptance",
+    "relevant-drift-and-transient-retry"
+  ],
+  "requirement": "pln_1a23a020424520e6e25369691fa6804d",
+  "version": 1,
+  "work_identity": "BR-353"
+}

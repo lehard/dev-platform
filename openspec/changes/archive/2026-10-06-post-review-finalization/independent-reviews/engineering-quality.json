@@ -1,0 +1,82 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "98db9ed844c92cf916b34b62d2545d622d576619",
+    "base_ref": "origin/main",
+    "candidate_head": "a8335e8098658e8d2e4ea752da8a746e5c5a7dd5",
+    "diff_sha256": "ba8f45ddb2f29129c7a103f18f3985600907bfa70203aafccff2ca0202a6494b"
+  },
+  "completed_at": "2026-10-05T23:46:17+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/post_review_finalization.py, `rederive_archived_specs`: `set(workers._git(checkout, \"diff\", \"--name-only\", \"--diff-filter=U\").split()) - spec_paths` and the `both` computation use whitespace splitting. `derived_merge_only` uses `splitlines()` with the same quoting problem. By contrast, `validate_finalization_paths` and `execute_finalize` use `-z`. These checks gate which paths are treated as archive-derived, so they should use NUL-delimited output as the finalization checks do. The `outside` conflict guard fails closed on an odd path because the odd path then cannot be in `spec_paths`. The `both - spec_paths` guard can be defeated only in unusual cases.",
+      "id": "rederive-unconfined-path-parsing",
+      "severity": "advisory",
+      "summary": "The re-derivation safety checks parse `git diff --name-only` output with `.split()` and without `-z`. Paths containing whitespace or special characters are split or quoted, so they can be misclassified as inside or outside the allowed spec paths."
+    }
+  ],
+  "launched_at": "2026-10-05T23:45:52+00:00",
+  "output_sha256": "c97fe058440ca75e904422925c8cc30e09f549ead661e3f61735095240d241e2",
+  "perspective": "engineering-quality",
+  "request_id": "768dd910-37a4-4c25-8023-6b90f9af5cc8",
+  "reviewer": {
+    "context_id": "0bc9f59e-6adc-4a70-a113-7eaf8be3fa06",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-7428ef9a-b689-4b47-bcd1-654230867902",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 25381
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 75406
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 21709
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 22844
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2103
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "f8081db86160358d6b32ca0c247380839bce4e2548391a04e282cb8feabf5cd1"
+}

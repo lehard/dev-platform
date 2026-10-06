@@ -1,0 +1,123 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.33,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.457,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 287.463,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        ".github/workflows/publication-queue.yml",
+        "dev-platform/checks.toml",
+        "scripts/candidate_lifecycle.py",
+        "scripts/lifecycle_workers.py",
+        "template/scripts/candidate_lifecycle.py",
+        "template/scripts/finish_task.py",
+        "template/scripts/lifecycle_workers.py",
+        "template/scripts/publication_queue.py",
+        "tests/test_candidate_lifecycle.py",
+        "tests/test_lifecycle_workers.py",
+        "tests/test_publication_queue.py",
+        "tests/test_rollout_preflight.py",
+        "tests/test_shared_writer_guard.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_f63775fc6458ea5505c0dc006e070618",
+    "change": "bounded-worker-contract",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/bounded-worker-contract",
+    "branch": "agent/br-353-t3-bounded-worker-contract",
+    "head": "4d064309b4d3d50c8aaf0daed13ec61df83a76a6",
+    "task_content": {
+      "version": 1,
+      "digest": "94cdbbfa4af505b142804f84e89bfbd237cd9caf7d215ad9296dcf3d25d660cf",
+      "paths": {
+        ".github/workflows/publication-queue.yml": "85b475a0e417ac8c43a940eafaaee094d57ebf20",
+        "dev-platform/checks.toml": "61d3ab1cfbe384724f449f1ca8a2e9a1dcb5fe84",
+        "docs/engineering/agent-workflow.md": "05c68f100221f4a19c7dece2427238215ff13afe",
+        "openspec/changes/archive/2026-10-05-coordinator-candidate-states/.managed-task.json": "bc0c39d3b6cd42acf456a6fc0d726cc7bdf8a3cd",
+        "openspec/changes/archive/2026-10-05-coordinator-candidate-states/.openspec.yaml": "e3966d7a159d3f2cfcfef99b6a84e530965c6b0d",
+        "openspec/changes/archive/2026-10-05-coordinator-candidate-states/automated-checks.json": "5c5afb97d9f9d00be5bbfc0e2322564353e77689",
+        "openspec/changes/archive/2026-10-05-coordinator-candidate-states/design.md": "bb3a7dd9f90ea3aa7fcfaa34b8638080cf2d19b3",
+        "openspec/changes/archive/2026-10-05-coordinator-candidate-states/independent-review-dispositions.json": "0e8a4dd75a6bdbd18372124118be88cad7717136",
+        "openspec/changes/archive/2026-10-05-coordinator-candidate-states/independent-review-request.json": "fbdc551c685c0b25148d2f62f5679efc2d1fe849",
+        "openspec/changes/archive/2026-10-05-coordinator-candidate-states/independent-reviews/engineering-quality.json": "e83c036a5313da40de287a5ec4a5ea0d6d61fe00",
+        "openspec/changes/archive/2026-10-05-coordinator-candidate-states/independent-reviews/spec-fidelity.json": "0532dce61dba87ec49fcf82fbae6f5097b36cb7f",
+        "openspec/changes/archive/2026-10-05-coordinator-candidate-states/proposal.md": "6e13a6d390cb43b27345b7f40c6821697a4df091",
+        "openspec/changes/archive/2026-10-05-coordinator-candidate-states/specs/publication-queue/spec.md": "18d62ee01525d0048db07547b821f12b2e8a216b",
+        "openspec/changes/archive/2026-10-05-coordinator-candidate-states/tasks.md": "c340ed5a7b60d2b4d71f2ec70021488b5178ea0d",
+        "openspec/changes/archive/2026-10-05-coordinator-candidate-states/verification.md": "37480162791f728efe4c2f6002911fc304e07b20",
+        "openspec/changes/bounded-worker-contract/.managed-task.json": "1e1ff1ded5e6f74f261c89637d94d06e49e07ba1",
+        "openspec/changes/bounded-worker-contract/.openspec.yaml": "e3966d7a159d3f2cfcfef99b6a84e530965c6b0d",
+        "openspec/changes/bounded-worker-contract/automated-checks.json": "a2dac54a5cfcd8e9ad2850fc5d7a02cd40285761",
+        "openspec/changes/bounded-worker-contract/design.md": "c0ef56c64d0b8364cc759780e6d861fc12fdd2df",
+        "openspec/changes/bounded-worker-contract/independent-review-dispositions.json": "b1e95700ed246913459b8cdbffc0d7a1ef746c0b",
+        "openspec/changes/bounded-worker-contract/independent-review-request.json": "f683b04b9a258c774d1e3ce6d05f99fb914a0aeb",
+        "openspec/changes/bounded-worker-contract/independent-reviews/engineering-quality.json": "d2647147c55f2e40007c88af7d8bb54aae5e6bd1",
+        "openspec/changes/bounded-worker-contract/independent-reviews/spec-fidelity.json": "54a22434c6f81ea78dab28204ba7afb902b1de2d",
+        "openspec/changes/bounded-worker-contract/proposal.md": "479d3b09265f6626d7961c220a63755b316b5001",
+        "openspec/changes/bounded-worker-contract/specs/lifecycle-workers/spec.md": "cb60d458f9633f121659198ce094e2a93958f1f8",
+        "openspec/changes/bounded-worker-contract/tasks.md": "f5571daa2355d431eef462e13a18ceb447fad4af",
+        "openspec/changes/bounded-worker-contract/verification.md": "933fff3765fb3990a48e89fd84a88ee59a4f277b",
+        "openspec/specs/publication-queue/spec.md": "e45d0ff0ea9b1c3c1b0b4711acdba5a5d4d5c0ab",
+        "scripts/candidate_lifecycle.py": "f21693177b5f9281be739d3d4f88548982cbe906",
+        "scripts/lifecycle_workers.py": "8df99a8d79fc2c0ef3fb899e9787fec3b8168930",
+        "template/scripts/candidate_lifecycle.py": "5ea96cb604d892bd570d81d05cbc908b84523fbc",
+        "template/scripts/finish_task.py": "aa5cb9b60faa0ec5a5d7a02bd88550d936e137d0",
+        "template/scripts/lifecycle_workers.py": "e4b7c2b2762e6853fcfceecb21a57775d6c9c3cd",
+        "template/scripts/publication_queue.py": "78d6cac20f0e1aa02984908ec6d879dc449e52e2",
+        "tests/test_candidate_lifecycle.py": "1220d55c36c14e9b1764e78c0eeba7c73dc88f19",
+        "tests/test_lifecycle_workers.py": "18a74945eb742155e3c35b73886c6668903cfca9",
+        "tests/test_publication_queue.py": "fecd2f3c8ab1c6cbdfda9923bf32ebc029ac22d5",
+        "tests/test_rollout_preflight.py": "8a8db20c570361b97859d9e881e6b8d13582d1fe",
+        "tests/test_shared_writer_guard.py": "3d459a60325342f3f60ec55b5401ca63c22aa0ac"
+      },
+      "base": "98db9ed844c92cf916b34b62d2545d622d576619"
+    }
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file scripts/candidate_lifecycle.py --changed-file scripts/lifecycle_workers.py --changed-file template/scripts/candidate_lifecycle.py --changed-file template/scripts/finish_task.py --changed-file template/scripts/lifecycle_workers.py --changed-file template/scripts/publication_queue.py --changed-file tests/test_candidate_lifecycle.py --changed-file tests/test_lifecycle_workers.py --changed-file tests/test_publication_queue.py --changed-file tests/test_rollout_preflight.py --changed-file tests/test_shared_writer_guard.py",
+    "duration_seconds": 189.896,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}

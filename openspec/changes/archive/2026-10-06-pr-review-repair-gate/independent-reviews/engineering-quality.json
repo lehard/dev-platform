@@ -1,0 +1,100 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "98db9ed844c92cf916b34b62d2545d622d576619",
+    "base_ref": "origin/main",
+    "candidate_head": "f8ea4386caa58b3ff0c23acb70e96df5d4f33d61",
+    "diff_sha256": "f232cd226e8e6d1177bd6e8323fd4e2c1216b06bbf7fe757dde0bea29b88be03"
+  },
+  "completed_at": "2026-10-05T22:50:39+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/finish_task.py:2001 (`agent_board.py finish ... check=True`) and finish_developer_handoff at 2114-2117, where finish_board runs only after publish_pr returned 0. The change is not scoped to the handoff path.",
+      "id": "finish-board-now-hard-fails",
+      "severity": "advisory",
+      "summary": "finish_board changed from check=False to check=True for every caller. A board-release failure now raises CalledProcessError. In finish_developer_handoff this happens after the PR is already published and admitted, so the developer sees a crash with no clean 'handoff done, board release failed' report."
+    },
+    {
+      "evidence": "template/scripts/independent_review_runner.py:2235: `if \"mutated\" in result[\"limitation\"] or \"snapshot\" in result[\"limitation\"] or \"unchanged\" in result[\"limitation\"]: break`. A structured failure kind from _preflight_one would be more robust.",
+      "id": "provider-fallback-string-matching",
+      "severity": "advisory",
+      "summary": "preflight decides whether an unavailable-runtime failure may fall back to the next provider by substring-matching the human-readable limitation text ('mutated', 'snapshot', 'unchanged'). Rewording any limitation message silently turns a containment failure into a fallback to another provider."
+    },
+    {
+      "evidence": "template/scripts/publication_queue.py:4017 and 4023-4036: status now calls candidate_status and returns after render_status. The legacy status() is only exercised in tests, and the only CLI test I found (tests/test_candidate_lifecycle.py:268) covers the new form.",
+      "id": "queue-status-cli-output-changed",
+      "severity": "advisory",
+      "summary": "`publication_queue.py status --pr N` used to print the legacy JSON status (state/position). It now prints a text rendering unless --json is passed, and the JSON content is the derived candidate rather than the legacy status() result. Any script or doc that parses the old output breaks without notice."
+    },
+    {
+      "evidence": "template/scripts/candidate_lifecycle.py:1958-1959 `elif checks and checks.get(\"head\") != head: result.update(state=\"blocked-retryable\", ..., gates={}, next_job=None)`. This branch is not limited to ready/integrating states, unlike the branch at line 1936. candidate_status sets checks['head']=None on a concurrent push (publication_queue.py:3770), which triggers it.",
+      "id": "derive-mismatched-checks-clobber-claim",
+      "severity": "advisory",
+      "summary": "In derive_candidate, a checks snapshot whose head differs from the PR head sets state blocked-retryable, gates={} and next_job=None regardless of the current state. A momentary head mismatch therefore hides an in-flight reviewing/repairing claim and its job in the derived view, including the view that worker and queue paths consume."
+    }
+  ],
+  "launched_at": "2026-10-05T22:49:50+00:00",
+  "output_sha256": "2ec0469409e82ee4fc5490d6a9b6aa41d9ea93dae8dd097598479f9867fa7f97",
+  "perspective": "engineering-quality",
+  "request_id": "2c3c3476-48d6-4c90-8f06-398ee66d9d35",
+  "reviewer": {
+    "context_id": "3fa39832-1220-4506-8acb-842b550ed58d",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-60096f22-4a38-4979-9dd8-41fbf90f0b52",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 74637
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 211793
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 30121
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 46972
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3379
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "48ce322d9da06d7c4955b429c7e81249253deba53793e86ba238cd249d851c7d"
+}

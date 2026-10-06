@@ -404,13 +404,83 @@ class SnapshotEvidenceFreshnessTests(unittest.TestCase):
         with self.assertRaises(AddIntentsError):
             add_intents.decompose(self.root, add_path=self.add_path, out=self.root / "intents.json")
 
-    def test_decompose_blocks_on_stale_add_revision(self) -> None:
-        # prepared_against left at a fake SHA rather than the current HEAD.
-        document = _approved_add(evidence=[self.evidence_entry])
-        self.add_path.write_text(json.dumps(document), encoding="utf-8")
-        with self.assertRaises(AddIntentsError) as ctx:
+    def test_unrelated_commit_keeps_add_and_decomposition_fresh(self) -> None:
+        document = self._write_add()
+        (self.root / "unrelated.bin").write_text("unbound content\n", encoding="utf-8")
+        git("add", "unrelated.bin", cwd=self.root)
+        git("commit", "-q", "-m", "unrelated", cwd=self.root)
+        report = add_intents.validate_add(self.root, self.add_path)
+        self.assertEqual(report.freshness, "fresh")
+        self.assertNotEqual(document["prepared_against"], add_intents.current_revision(self.root))
+        payload = add_intents.decompose(self.root, add_path=self.add_path, out=self.root / "intents.json")
+        self.assertEqual(payload["approved_add_digest"], document["approval"]["digest"])
+
+    def test_mixed_evidence_stays_fresh_until_a_bound_evidence_file_changes(self) -> None:
+        spec = self.root / "evidence" / "design-note.md"
+        spec.parent.mkdir(parents=True, exist_ok=True)
+        spec.write_text("accepted\n", encoding="utf-8")
+        git("add", str(spec.relative_to(self.root)), cwd=self.root)
+        git("commit", "-q", "-m", "spec", cwd=self.root)
+        self._write_add(evidence=[self.evidence_entry,
+                                  {"source": "evidence/design-note.md", "kind": "design-note", "digest": "b" * 64}])
+        (self.root / "unrelated.bin").write_text("unbound content\n", encoding="utf-8")
+        git("add", "unrelated.bin", cwd=self.root)
+        git("commit", "-q", "-m", "unrelated", cwd=self.root)
+        self.assertEqual(add_intents.validate_add(self.root, self.add_path).freshness, "fresh")
+        spec.write_text("changed\n", encoding="utf-8")
+        git("add", str(spec.relative_to(self.root)), cwd=self.root)
+        git("commit", "-q", "-m", "spec changed", cwd=self.root)
+        self.assertEqual(add_intents.validate_add(self.root, self.add_path).freshness, "stale-needs-semantic-preflight")
+
+    def test_reused_constraint_source_change_makes_add_stale(self) -> None:
+        policy = self.root / "evidence" / "policy.md"
+        policy.parent.mkdir(parents=True, exist_ok=True)
+        policy.write_text("limit 1\n", encoding="utf-8")
+        git("add", "evidence/policy.md", cwd=self.root)
+        git("commit", "-q", "-m", "policy", cwd=self.root)
+        self._write_add(reused_constraints=[{"source": "evidence/policy.md#limit", "statement": "Keep the limit."}])
+        (self.root / "unrelated.bin").write_text("unbound content\n", encoding="utf-8")
+        git("add", "unrelated.bin", cwd=self.root)
+        git("commit", "-q", "-m", "unrelated", cwd=self.root)
+        self.assertEqual(add_intents.validate_add(self.root, self.add_path).freshness, "fresh")
+        policy.write_text("limit 2\n", encoding="utf-8")
+        git("add", "evidence/policy.md", cwd=self.root)
+        git("commit", "-q", "-m", "policy changed", cwd=self.root)
+        self.assertEqual(add_intents.validate_add(self.root, self.add_path).freshness, "stale-needs-semantic-preflight")
+
+    def test_unprovable_or_locally_edited_sources_keep_the_add_stale(self) -> None:
+        policy = self.root / "evidence" / "policy.md"
+        policy.parent.mkdir(parents=True, exist_ok=True)
+        policy.write_text("limit 1\n", encoding="utf-8")
+        git("add", "evidence/policy.md", cwd=self.root)
+        git("commit", "-q", "-m", "policy", cwd=self.root)
+        constraint = [{"source": "evidence/policy.md#limit", "statement": "Keep the limit."}]
+        self._write_add(reused_constraints=constraint)
+        self.assertEqual(add_intents.validate_add(self.root, self.add_path).freshness, "fresh")
+        # An uncommitted edit at the prepared revision itself counts.
+        policy.write_text("limit 2\n", encoding="utf-8")
+        self.assertEqual(add_intents.validate_add(self.root, self.add_path).freshness, "stale-needs-semantic-preflight")
+        policy.write_text("limit 1\n", encoding="utf-8")
+        # An untracked or missing source cannot be proven.
+        (self.root / "evidence" / "untracked.md").write_text("draft\n", encoding="utf-8")
+        self._write_add(reused_constraints=[{"source": "evidence/untracked.md", "statement": "Untracked."}])
+        self.assertEqual(add_intents.validate_add(self.root, self.add_path).freshness, "stale-needs-semantic-preflight")
+        self._write_add(reused_constraints=[{"source": "evidence/missing.md", "statement": "Missing."}])
+        self.assertEqual(add_intents.validate_add(self.root, self.add_path).freshness, "stale-needs-semantic-preflight")
+        # Deleting a tracked bound source at the prepared revision counts as a change.
+        self._write_add(reused_constraints=constraint)
+        policy.unlink()
+        self.assertEqual(add_intents.validate_add(self.root, self.add_path).freshness, "stale-needs-semantic-preflight")
+
+    def test_bound_source_commit_makes_add_stale(self) -> None:
+        self._write_add()
+        (self.root / "README.md").write_text("changed source\n", encoding="utf-8")
+        git("add", "README.md", cwd=self.root)
+        git("commit", "-q", "-m", "bound source", cwd=self.root)
+        report = add_intents.validate_add(self.root, self.add_path)
+        self.assertEqual(report.freshness, "stale-needs-semantic-preflight")
+        with self.assertRaisesRegex(AddIntentsError, "stale"):
             add_intents.decompose(self.root, add_path=self.add_path, out=self.root / "intents.json")
-        self.assertIn("stale", str(ctx.exception).lower())
 
 
 class DecomposeTests(unittest.TestCase):
