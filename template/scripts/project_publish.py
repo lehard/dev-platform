@@ -150,7 +150,7 @@ def _safe_presentation(root: Path, title: str, body: str, identity: str,
     title, body = managed_work_identity.presentation(title, body, identity, children)
     guard = root / "scripts" / "check_private_backlog_refs.py"
     if guard.is_file():
-        subprocess.run(["python3", str(guard), "--root", str(root), "--text", title, "--text", body], cwd=root, check=True)
+        subprocess.run(["python3", str(guard), "--root", str(root), "--text", title, "--text", body], cwd=root, check=True, stdin=subprocess.DEVNULL)
     return title, body
 
 
@@ -159,14 +159,14 @@ def _repair_pr_identity(root: Path, env: dict[str, str], pr: PrRef, expected_hea
     if identity is None:
         return pr
     observed = subprocess.run(["gh", "pr", "view", pr.ref, "--json", "title,body,headRefOid"],
-                              cwd=root, env=env, text=True, capture_output=True, check=True)
+                              cwd=root, env=env, text=True, capture_output=True, check=True, stdin=subprocess.DEVNULL)
     payload = json.loads(observed.stdout)
     if payload.get("headRefOid") != expected_head:
         raise SystemExit("PR head changed before BR identity repair; publication remains resumable.")
     title, body = _safe_presentation(root, payload["title"], payload.get("body") or "", identity, children)
     if (title, body) != (payload["title"], payload.get("body") or ""):
         subprocess.run(["gh", "pr", "edit", pr.ref, "--title", title, "--body", body],
-                       cwd=root, env=env, text=True, capture_output=True, check=True)
+                       cwd=root, env=env, text=True, capture_output=True, check=True, stdin=subprocess.DEVNULL)
     return pr
 
 
@@ -218,6 +218,7 @@ def ensure_pr(
         text=True,
         capture_output=True,
         check=False,
+        stdin=subprocess.DEVNULL,
     )
     if created.returncode == 0:
         # The create command's URL is not yet proof that it names the current
@@ -243,7 +244,7 @@ def ensure_pr(
 
 def _set_pr_draft(root: Path, env: dict[str, str], pr: PrRef, *, draft: bool) -> None:
     command = ["gh", "pr", "ready", pr.ref] + (["--undo"] if draft else [])
-    result = subprocess.run(command, cwd=root, env=env, text=True, capture_output=True, check=False)
+    result = subprocess.run(command, cwd=root, env=env, text=True, capture_output=True, check=False, stdin=subprocess.DEVNULL)
     if result.returncode:
         detail = result.stderr.strip() or result.stdout.strip() or f"exit {result.returncode}"
         raise SystemExit(f"Could not set shared PR {'draft' if draft else 'ready'} state: {detail}")
@@ -298,6 +299,7 @@ def exact_merged_state(root: Path, env: dict[str, str], pr: PrRef, expected_head
         text=True,
         capture_output=True,
         check=False,
+        stdin=subprocess.DEVNULL,
     )
     if result.returncode != 0:
         return False
@@ -378,7 +380,7 @@ def request_protected_merge(
                 text=True,
                 capture_output=True,
                 check=False,
-            )
+             stdin=subprocess.DEVNULL)
         if result.stdout.strip():
             print(result.stdout.strip())
         detail = result.stderr.strip() or result.stdout.strip() or f"exit {result.returncode}"
@@ -402,7 +404,7 @@ def request_protected_merge(
         observed = subprocess.run(
             ["gh", "pr", "view", pr.ref, "--json", "headRefOid"],
             cwd=root, env=env, text=True, capture_output=True, check=False,
-        )
+         stdin=subprocess.DEVNULL)
         try:
             actual_head = str(json.loads(observed.stdout).get("headRefOid", "")).strip() if observed.returncode == 0 else None
         except json.JSONDecodeError:
@@ -500,12 +502,28 @@ def publish_pr(
     *,
     config: dict | None = None,
     shared_manifest: Path | None = None,
+    developer_handoff: bool = False,
 ) -> int:
+    # The coordinator stack loads only for a developer handoff; ordinary
+    # downstream publication never depends on it.
+    WorkerError: type[Exception] = ManagedTaskError
+    if developer_handoff:
+        from lifecycle_workers import WorkerError
+
     try:
-        delivery = require_delivery_provenance(root)
-        if delivery is not None:
+        if developer_handoff:
+            from managed_task import resolve_canonical_provenance
+            from pr_review_gate import managed_candidate, handoff_gates
+
+            if shared_manifest is not None or not managed_candidate(root):
+                raise ManagedTaskError("developer handoff requires a coordinator-managed active child")
+            delivery = resolve_canonical_provenance(root)
+            handoff_identity, gates = handoff_gates(root, delivery.path)
+        else:
+            delivery = require_delivery_provenance(root)
+        if delivery is not None and not developer_handoff:
             require_independent_publication_exception(root, delivery)
-    except (ManagedTaskError, RequirementIntegrationError) as exc:
+    except (ManagedTaskError, RequirementIntegrationError, WorkerError) as exc:
         raise SystemExit("Managed task publication blocked: " + str(exc)) from exc
     incomplete = False
     shared_candidate: dict = {}
@@ -536,7 +554,7 @@ def publish_pr(
         subprocess.run(
             ["python3", str(privacy_guard), "--root", str(root), "--text", proposed_title, "--text", proposed_body],
             cwd=root, check=True,
-        )
+         stdin=subprocess.DEVNULL)
     current = _validate_feature_branch(root, remote, main_branch)
     env = require_gh_environment(root)
     expected_head = run_git(["rev-parse", current], cwd=root).stdout.strip()
@@ -591,6 +609,14 @@ def publish_pr(
             f"Managed Project status {'updated' if project.changed else 'already current'}: "
             f"{project.source_issue} -> In review"
         )
+    if developer_handoff:
+        from publication_queue import admit
+
+        if pr.number is None:
+            raise SystemExit("Developer handoff requires a numbered exact-head PR")
+        admit(root, pr.number, expected_head, handoff={"task_identity": handoff_identity, "gates": gates})
+        print(f"Developer handoff complete: PR #{pr.number}; coordinator owns review and repair.")
+        return 0
     if merge_mode == "manual":
         print("PR published for manual review; pr_merge_mode=manual, so no merge was attempted.")
         return 0

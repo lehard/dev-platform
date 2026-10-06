@@ -265,7 +265,9 @@ class ValidationTests(unittest.TestCase):
         cases = [("docs/x.md", "outside candidate scope"), (".github/workflows/ci.yml", "workflow"),
                  ("openspec/changes/c/verification.md", "evidence"), ("openspec/changes/c/automated-checks.json", "evidence"),
                  ("openspec/changes/c/independent-review-1.json", "evidence"),
-                 ("openspec/changes/c/independent-reviews/r.json", "evidence")]
+                 ("openspec/changes/c/independent-reviews/r.json", "evidence"),
+                 ("openspec/changes/c/evidence/test-result.json", "evidence"),
+                 ("openspec/changes/c/nested/evidence/deep.json", "evidence")]
         for path, message in cases:
             with self.subTest(path=path):
                 git(self.repo, "checkout", "-q", "--detach", self.base)
@@ -320,10 +322,10 @@ class JobRecordTests(unittest.TestCase):
         with patch.object(queue, "_pr", return_value=pr), patch.object(queue, "_comments", return_value=[handoff_comment()]), \
                 patch.object(queue, "_derive", wraps=lambda r, p, c, checks=None: lifecycle.derive_candidate(p, c)), \
                 patch.object(queue, "_transition", return_value={}) as transition:
-            queue.publish_job(Path("."), "o/r", 7, "repair", HEAD, task_identity="t")
+            queue.publish_job(Path("."), "o/r", 7, "repair", HEAD, task_identity="t", providers=["claude"])
         args, kwargs = transition.call_args
         self.assertEqual(args[3], "review-pending")
-        self.assertEqual(kwargs["next_job"], workers.job_record("repair", HEAD, "t", 0))
+        self.assertEqual(kwargs["next_job"], workers.job_record("repair", HEAD, "t", 0, providers=["claude"]))
 
 
 FAKE_LLM = r"""

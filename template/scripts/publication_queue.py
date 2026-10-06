@@ -41,7 +41,7 @@ def _gh(root: Path, *args: str, data: dict[str, str] | None = None) -> Any:
     if data:
         for key, value in data.items():
             cmd += ["-f", f"{key}={value}"]
-    result = subprocess.run(cmd, cwd=root, text=True, capture_output=True, check=False)
+    result = subprocess.run(cmd, cwd=root, text=True, capture_output=True, check=False, stdin=subprocess.DEVNULL)
     if result.returncode:
         raise QueueError(result.stderr.strip() or result.stdout.strip() or f"gh exit {result.returncode}")
     if not result.stdout.strip():
@@ -185,7 +185,7 @@ def _label(root: Path, repo: str, number: int, label: str, *, present: bool) -> 
     if present:
         _gh(root, "api", "-X", "POST", f"repos/{repo}/issues/{number}/labels", data={"labels[]": label})
     else:
-        result = subprocess.run(["gh", "api", "-X", "DELETE", f"repos/{repo}/issues/{number}/labels/{label.replace(':', '%3A')}"], cwd=root, capture_output=True, text=True)
+        result = subprocess.run(["gh", "api", "-X", "DELETE", f"repos/{repo}/issues/{number}/labels/{label.replace(':', '%3A')}"], cwd=root, capture_output=True, text=True, stdin=subprocess.DEVNULL)
         if result.returncode and "404" not in result.stderr:
             raise QueueError(result.stderr.strip() or "cannot remove publication label")
 
@@ -194,6 +194,7 @@ def _transition(
     root: Path, repo: str, number: int, state: str, head: str, *,
     task_identity: str | dict[str, Any], red_gate: dict[str, Any] | None = None,
     gates: dict[str, Any] | None = None, attempt: str | None = None,
+    set_attempts: dict[str, int] | None = None,
     refuse_from: set[str] | frozenset[str] = frozenset(), inherit_identity: bool = True,
     cross_head_claims: bool = False, next_job: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
@@ -223,6 +224,8 @@ def _transition(
     lineage = _latest(root, number, comments) or {}
     if refuse_from:
         owner = None
+        if review_owned(current) and "review-pending" in refuse_from:
+            owner = current["state"]
         if current.get("head") == head and current.get("task_identity") is not None and current["state"] in refuse_from:
             owner = current["state"]
         elif cross_head_claims and lineage.get("state") in CLAIM_STATES & set(refuse_from):
@@ -233,13 +236,26 @@ def _transition(
             raise LifecycleOwnershipChanged(f"candidate is now {owner or current['state']}; {current.get('reason') or current.get('next_action')}")
     new_gates = any(previous.get("gates", {}).get(name) != gate for name, gate in (gates or {}).items())
     new_job = next_job is not None and next_job != previous.get("next_job")
-    if previous.get("state") == state and red_gate in (None, previous.get("red_gate")) and not new_gates and not new_job:
+    identity_changed = not inherit_identity and previous.get("task_identity") != task_identity
+    new_attempts = any(previous.get("attempts", {}).get(k) != v for k, v in (set_attempts or {}).items())
+    if not identity_changed and not new_attempts and previous.get("state") == state and red_gate in (None, previous.get("red_gate")) and not new_gates and not new_job:
         _project_lifecycle_label(root, repo, number, observed, state)
         return previous
-    merged_gates = {**previous.get("gates", {}), **(gates or {})}
+    # A proven coordinator update can retain content-bound gates from lineage.
+    # Head-only legacy gates never survive a head move.
+    if not previous and inherit_identity and isinstance(lineage.get("task_identity"), dict):
+        carried = {name: gate for name, gate in lineage.get("gates", {}).items()
+                   if gate.get("identity") == lineage["task_identity"] and lineage["task_identity"].get("task_content")}
+    else:
+        carried = previous.get("gates", {})
+    merged_gates = {**(carried if inherit_identity or previous.get("task_identity") == task_identity else {}),
+                    **(gates or {})}
     attempts = dict(previous.get("attempts") or lineage.get("attempts") or {})
-    if attempt is not None and previous.get("state") != state:
+    if attempt is not None and previous.get("state") != state and state not in {"reviewing", "repairing"}:
         attempts[attempt] = attempts.get(attempt, 0) + 1
+    if isinstance(next_job, dict) and type(next_job.get("attempt")) is int:
+        attempts[next_job["kind"]] = next_job["attempt"]
+    attempts.update(set_attempts or {})
     record = build_handoff_record(
         number=number, state=state, head=head,
         task_identity=(previous.get("task_identity") or lineage.get("task_identity") or task_identity)
@@ -247,7 +263,7 @@ def _transition(
         gates=merged_gates, red_gate=red_gate,
         not_reverified=list(previous.get("not_reverified") or lineage.get("not_reverified") or []),
         attempts=attempts,
-        next_job=next_job if next_job is not None else (previous.get("next_job") if state == previous.get("state") else None),
+        next_job=next_job if next_job is not None else (previous.get("next_job") if state == previous.get("state") or state in {"reviewing", "repairing"} else None),
         at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
     )
     _gh(root, "api", "-X", "POST", f"repos/{repo}/issues/{number}/comments", data={"body": marker_body(record)})
@@ -256,7 +272,8 @@ def _transition(
 
 
 def publish_job(root: Path, repo: str, number: int, kind: str, head: str, *,
-                task_identity: str | dict[str, Any], attempt: int | None = None) -> dict[str, Any] | None:
+                task_identity: str | dict[str, Any], attempt: int | None = None,
+                providers=None) -> dict[str, Any] | None:
     """Publish a head-bound job record for the candidate's current state (no new state)."""
     from lifecycle_workers import job_record
 
@@ -264,9 +281,18 @@ def publish_job(root: Path, repo: str, number: int, kind: str, head: str, *,
     current = _derive(root, observed, _comments(root, repo, number))
     if attempt is None:
         attempt = current.get("attempts", {}).get(kind, 0)
+    if providers is None and kind in {"review", "repair"}:
+        from independent_review_runner import settings, resolve_provider
+
+        config = settings(root)
+        providers = config.get("providers")
+        if providers is None:
+            provider, _ = resolve_provider(root, config)
+            providers = [provider or "unresolved-originating-task-route"]
     return _transition(root, repo, number, current["state"], head,
                        task_identity=current.get("task_identity") or task_identity,
-                       next_job=job_record(kind, head, current.get("task_identity") or task_identity, attempt))
+                       next_job=job_record(kind, head, current.get("task_identity") or task_identity, attempt,
+                                           providers=providers))
 
 
 def _raise_if_owned_elsewhere(root: Path, repo: str, number: int, head: str) -> None:
@@ -291,7 +317,7 @@ def _project_lifecycle_label(root: Path, repo: str, number: int, observed: dict[
         if name != wanted and name in present:
             _label(root, repo, number, name, present=False)
     if wanted not in present:
-        subprocess.run(["gh", "label", "create", wanted, "--color", "c5def5", "--force"], cwd=root, capture_output=True, text=True)
+        subprocess.run(["gh", "label", "create", wanted, "--color", "c5def5", "--force"], cwd=root, capture_output=True, text=True, stdin=subprocess.DEVNULL)
         _label(root, repo, number, wanted, present=True)
 
 
@@ -303,9 +329,15 @@ NOT_INTEGRABLE = {
 }
 
 
+def review_owned(candidate: dict) -> bool:
+    return (candidate.get("state") == "blocked-retryable"
+            and ((candidate.get("next_job") or {}).get("kind") == "review"
+                 or (candidate.get("red_gate") or {}).get("name") == "review"))
+
+
 def _ensure_labels(root: Path) -> None:
     for name, color in ((QUEUE, "a2eeef"), (ACTIVE, "fbca04"), (BLOCKED, "b60205")):
-        result = subprocess.run(["gh", "label", "create", name, "--color", color, "--force"], cwd=root, capture_output=True, text=True)
+        result = subprocess.run(["gh", "label", "create", name, "--color", color, "--force"], cwd=root, capture_output=True, text=True, stdin=subprocess.DEVNULL)
         if result.returncode:
             raise QueueError(result.stderr.strip() or f"cannot ensure label {name}")
 
@@ -387,7 +419,7 @@ def _archived_verification_gate(root: Path) -> dict[str, Any]:
     }}
 
 
-def admit(root: Path, number: int, expected_head: str) -> dict[str, Any]:
+def admit(root: Path, number: int, expected_head: str, *, handoff: dict | None = None) -> dict[str, Any]:
     repo = _repo(root)
     pr = _pr(root, repo, number)
     if pr.get("state") != "open" or pr.get("base", {}).get("ref") != "main" or pr.get("head", {}).get("sha") != expected_head:
@@ -413,10 +445,16 @@ def admit(root: Path, number: int, expected_head: str) -> dict[str, Any]:
     current = _derive(root, _pr(root, repo, number), _comments(root, repo, number))
     if current.get("task_identity") is None or current.get("head") != expected_head:
         try:
-            _transition(root, repo, number, "ready", expected_head, inherit_identity=False,
-                        refuse_from=STATES, **_admission_handoff(root, branch, expected_head))
+            _transition(root, repo, number, "review-pending" if handoff else "ready", expected_head, inherit_identity=False,
+                        refuse_from=STATES, **(handoff or _admission_handoff(root, branch, expected_head)))
         except LifecycleOwnershipChanged:
             pass  # lifecycle work recorded this head in the meantime; never rewind it
+    if handoff:
+        confirmed = _latest(root, number, _comments(root, repo, number), expected_head)
+        if confirmed is None or _pr(root, repo, number).get("head", {}).get("sha") != expected_head:
+            raise QueueError("developer handoff admission is not confirmed at the exact PR head")
+        if confirmed["state"] == "review-pending":
+            publish_job(root, repo, number, "review", expected_head, task_identity=handoff["task_identity"])
     _label(root, repo, number, QUEUE, present=True)
     return {"number": number, "position_key": admitted["comment_id"], "head": expected_head, "state": "queued"}
 
@@ -475,6 +513,7 @@ def candidate_status(root: Path, number: int, *, repo: str | None = None) -> dic
     response = subprocess.run(
         ["gh", "pr", "checks", str(number), "--required", "--json", "name,state,workflow,link"],
         cwd=root, text=True, capture_output=True, check=False,
+        stdin=subprocess.DEVNULL,
     )
     checks = {"head": head, "kind": "unknown", "detail": "required checks unavailable"}
     if response.returncode in {0, 1, 8}:
@@ -525,6 +564,7 @@ def requirement_status(root: Path, requirement: str) -> dict[str, Any]:
     listed = subprocess.run(
         ["gh", "api", "--paginate", f"repos/{repo}/pulls?state=all&per_page=100", "--jq", ".[] | [.number, .head.ref] | @tsv"],
         cwd=root, text=True, capture_output=True, check=False,
+        stdin=subprocess.DEVNULL,
     )
     if listed.returncode:
         raise QueueError(listed.stderr.strip() or "Requirement candidate inventory is unavailable")
@@ -548,6 +588,7 @@ def local_status(root: Path, branch: str) -> dict[str, Any] | None:
     result = subprocess.run(
         ["gh", "pr", "view", branch, "--json", "number,baseRefName,headRefName"],
         cwd=root, text=True, capture_output=True, check=False,
+        stdin=subprocess.DEVNULL,
     )
     if result.returncode:
         candidates = _gh(root, "pr", "list", "--state", "all", "--head", branch,
@@ -743,7 +784,7 @@ def worker(root: Path) -> dict[str, Any]:
             if active(number):
                 _label(root, repo, number, ACTIVE, present=False)  # relinquish to the claiming work
             continue
-        if exact_head_record and current["state"] in NOT_INTEGRABLE:
+        if exact_head_record and (current["state"] in NOT_INTEGRABLE or review_owned(current)):
             # A candidate owned by other work does not hold up the rest of the queue.
             skipped.append(f"#{number} {current['state']}: {current['next_action']}")
             if active(number):
@@ -756,11 +797,18 @@ def worker(root: Path) -> dict[str, Any]:
     try:
         head, base = _prepare(root, repo, number, admission, pr)
         identity = {"branch": admission.get("branch"), "head": head}
-        _transition(root, repo, number, "integrating", head, task_identity=identity, attempt="integration",
+        integrating = _transition(root, repo, number, "integrating", head, task_identity=identity, attempt="integration",
                     refuse_from=NOT_INTEGRABLE, cross_head_claims=True,
                     next_job={"kind": "integration", "claim": "publication-queue workflow", "head": head})
+        if integrating is not None:
+            identity = integrating["task_identity"]
         deadline = time.monotonic() + CHECK_WAIT_SECONDS
         while True:
+            from candidate_lifecycle import passed_content_gate
+
+            if integrating is not None and passed_content_gate(integrating, "required-checks"):
+                checks_evidence = integrating["gates"]["required-checks"]["evidence"]
+                break
             state = required_check_state_for_ref(root, os.environ.copy(), str(number), head)
             if state.kind == "passed":
                 checks_evidence = state.detail or "required checks passed"
@@ -777,17 +825,21 @@ def worker(root: Path) -> dict[str, Any]:
             if time.monotonic() >= deadline:
                 return {"state": "waiting", "number": number, "reason": "required CI pending"}
             time.sleep(10)
+        if isinstance(identity, dict) and isinstance(identity.get("task_content"), dict):
+            _transition(root, repo, number, "integrating", head, task_identity=identity,
+                        gates={"required-checks": {"result": "passed", "identity": identity,
+                                                   "evidence": checks_evidence}})
         if _main(root) != base or _pr(root, repo, number).get("head", {}).get("sha") != head:
             return {"state": "waiting", "number": number, "reason": "main or PR head moved; coordinator will re-evaluate"}
         # Review or repair may have claimed this head during the check wait.
         _raise_if_owned_elsewhere(root, repo, number, head)
-        result = subprocess.run(["gh", "pr", "merge", str(number), "--squash", "--match-head-commit", head], cwd=root, text=True, capture_output=True)
+        result = subprocess.run(["gh", "pr", "merge", str(number), "--squash", "--match-head-commit", head], cwd=root, text=True, capture_output=True, stdin=subprocess.DEVNULL)
         if _pr(root, repo, number).get("merged"):
             _label(root, repo, number, ACTIVE, present=False)
             _label(root, repo, number, QUEUE, present=False)
             try:
                 _transition(root, repo, number, "merged", head, task_identity=identity,
-                            gates={"required-checks": {"result": "passed", "identity": head, "evidence": checks_evidence}})
+                            gates={"required-checks": {"result": "passed", "identity": identity, "evidence": checks_evidence}})
             except QueueError:
                 # The merge is the authoritative fact; a lost record must not turn it into a block.
                 pass

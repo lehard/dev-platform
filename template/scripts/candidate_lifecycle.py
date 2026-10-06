@@ -83,9 +83,51 @@ def build_handoff_record(*, number: int, state: str, head: str,
     return record
 
 
+MAX_MARKER_CHARS = 60000  # GitHub caps a comment at 65536 characters
+_IDENTITY_REF = {"$ref": "task_identity"}
+
+
+def _compact_identity(record: dict) -> dict:
+    """Reference the record's identity from gates instead of repeating its path map."""
+    identity = record.get("task_identity")
+    if not isinstance(identity, dict):
+        return record
+    compact = dict(record)
+    compact["gates"] = {name: {**gate, "identity": _IDENTITY_REF} if gate.get("identity") == identity else gate
+                        for name, gate in record["gates"].items()}
+    red = record.get("red_gate")
+    if isinstance(red, dict) and red.get("identity") == identity:
+        compact["red_gate"] = {**red, "identity": _IDENTITY_REF}
+    job = record.get("next_job")
+    if isinstance(job, dict) and job.get("task_identity") == identity:
+        compact["next_job"] = {**job, "task_identity": _IDENTITY_REF}
+    return compact
+
+
+def _expand_identity(record):
+    if not isinstance(record, dict) or not isinstance(record.get("task_identity"), dict):
+        return record
+    identity = record["task_identity"]
+    if isinstance(record.get("gates"), dict):
+        record["gates"] = {name: {**gate, "identity": deepcopy(identity)}
+                           if isinstance(gate, dict) and gate.get("identity") == _IDENTITY_REF else gate
+                           for name, gate in record["gates"].items()}
+    red = record.get("red_gate")
+    if isinstance(red, dict) and red.get("identity") == _IDENTITY_REF:
+        record["red_gate"] = {**red, "identity": deepcopy(identity)}
+    job = record.get("next_job")
+    if isinstance(job, dict) and job.get("task_identity") == _IDENTITY_REF:
+        record["next_job"] = {**job, "task_identity": deepcopy(identity)}
+    return record
+
+
 def marker_body(record: dict) -> str:
     validate_marker(record)
-    return PREFIX + json.dumps(record, sort_keys=True, separators=(",", ":"))
+    body = PREFIX + json.dumps(_compact_identity(record), sort_keys=True, separators=(",", ":"))
+    if len(body) > MAX_MARKER_CHARS:
+        raise ValueError(f"lifecycle record is {len(body)} characters, above the {MAX_MARKER_CHARS} bound; "
+                         "store compact evidence references instead of full evidence")
+    return body
 
 
 def label_projection(candidate: dict) -> list[str]:
@@ -128,7 +170,7 @@ def latest_record(number: int, comments: list[dict], *, trusted_apps: frozenset[
         if not isinstance(body, str) or not body.startswith(PREFIX) or not trusted_marker_comment(row, trusted_apps, trusted_writers):
             continue
         try:
-            record = json.loads(body[len(PREFIX):])
+            record = _expand_identity(json.loads(body[len(PREFIX):]))
             validate_marker(record)
         except (ValueError, TypeError):
             continue
@@ -161,6 +203,8 @@ def derive_candidate(pr: dict, comments: list[dict], checks: dict | None = None,
         try:
             record = json.loads(body[len(PREFIX if v2 else V1_PREFIX):])
             if v2:
+                record = _expand_identity(record)
+            if v2:
                 validate_marker(record)
             elif not isinstance(record, dict) or record.get("version") != 1:
                 raise ValueError("invalid v1 marker")
@@ -188,13 +232,87 @@ def derive_candidate(pr: dict, comments: list[dict], checks: dict | None = None,
             reason = next(event for event in reversed(legacy) if event.get("kind") == "block").get("reason", "publication blocked")
             result.update(state="blocked-escalation", reason=reason, next_job=None,
                           red_gate={"name": "publication", "identity": head, "evidence": reason})
+        if result["state"] == "reviewing" and isinstance(result.get("next_job"), dict):
+            # A review result posted before the interrupted advancement never retained its reports: repeat review.
+            from lifecycle_workers import RESULT_PREFIX, job_id
+
+            old = {**result["next_job"], "number": number}
+            for row in comments:
+                body = row.get("body", "")
+                if not isinstance(body, str) or not body.startswith(RESULT_PREFIX) or not trusted_marker_comment(row, trusted_apps, trusted_writers):
+                    continue
+                try:
+                    receipt = json.loads(body[len(RESULT_PREFIX):])
+                except ValueError:
+                    continue
+                if (isinstance(receipt, dict) and receipt.get("job") == job_id(old) and receipt.get("head") == head
+                        and receipt.get("outcome") == "reviewed" and receipt.get("pushed_head") == head):
+                    attempts = deepcopy(result.get("attempts", {}))
+                    attempts["review"] = attempts.get("review", 0) + 1
+                    result.update(state="review-pending", attempts=attempts,
+                                  next_job={**{k: deepcopy(v) for k, v in old.items() if k != "number"},
+                                            "attempt": attempts["review"]},
+                                  reason="recover completed review result without advancement; repeat review")
+                    break
+        if result["state"] == "repairing" and isinstance(result.get("next_job"), dict):
+            # A repair result posted before the interrupted advancement still decides the job.
+            from lifecycle_workers import RESULT_PREFIX, job_id
+
+            job = {**result["next_job"], "number": number}
+            for row in comments:
+                body = row.get("body", "")
+                if not isinstance(body, str) or not body.startswith(RESULT_PREFIX) or not trusted_marker_comment(row, trusted_apps, trusted_writers):
+                    continue
+                try:
+                    receipt = json.loads(body[len(RESULT_PREFIX):])
+                except ValueError:
+                    continue
+                outcome = str(receipt.get("outcome", "")) if isinstance(receipt, dict) else ""
+                if (receipt.get("job") == job_id(job) and receipt.get("head") == head
+                        and outcome.split(":")[0] in {"no-change", "failed", "rejected", "proposed-rejection"}):
+                    result.update(state="blocked-escalation", next_job=None,
+                                  reason="recover completed repair result without a change",
+                                  red_gate={"name": "repair", "identity": result.get("task_identity"), "evidence": outcome})
+                    break
     elif newest is not None and newest["state"] in CLAIM_STATES:
         # A review/repair/finalization claim survives a coordinator branch update:
         # show its job and attempts (its gates were bound to the earlier head).
         result.update(state=newest["state"], next_job=deepcopy(newest.get("next_job")),
                       attempts=deepcopy(newest.get("attempts", {})),
                       reason=f"claim recorded on earlier head {newest['head'][:12]}")
-    elif legacy:
+    # A harness publishes the validated destination and its content proof before
+    # pushing. Recover only that exact destination, never an unrelated head move.
+    if not matching and newest is not None and newest["state"] in {"reviewing", "repairing"}:
+        from lifecycle_workers import RESULT_PREFIX, job_id
+
+        kind = "review" if newest["state"] == "reviewing" else "repair"
+        old_job = {"number": number, "kind": kind, "head": newest["head"],
+                   "attempt": newest.get("attempts", {}).get(kind, 0)}
+        for row in sorted(comments, key=lambda item: item.get("id", 0), reverse=True):
+            body = row.get("body", "")
+            if not isinstance(body, str) or not body.startswith(RESULT_PREFIX) or not trusted_marker_comment(row, trusted_apps, trusted_writers):
+                continue
+            try:
+                receipt = json.loads(body[len(RESULT_PREFIX):])
+            except ValueError:
+                continue
+            if (isinstance(receipt, dict) and receipt.get("outcome") == "validated-push"
+                    and receipt.get("job") == job_id(old_job) and receipt.get("head") == newest["head"]
+                    and receipt.get("pushed_head") == head and isinstance(receipt.get("task_identity"), dict)
+                    and receipt["task_identity"].get("task_content")
+                    and isinstance(newest.get("task_identity"), dict)
+                    and receipt["task_identity"].get("change") == newest["task_identity"].get("change")):
+                attempts = deepcopy(newest.get("attempts", {}))
+                attempts["review"] = attempts.get("review", 0) + 1
+                carried = (newest.get("next_job") or {}) if isinstance(newest.get("next_job"), dict) else {}
+                recovered_job = {"kind": "review", "head": head, "task_identity": deepcopy(receipt["task_identity"]),
+                                 "attempt": attempts["review"],
+                                 **{key: deepcopy(carried[key]) for key in ("provider", "providers") if key in carried}}
+                result.update(state="review-pending", task_identity=deepcopy(receipt["task_identity"]),
+                              attempts=attempts, gates={}, next_job=recovered_job,
+                              reason="recover validated worker push; repeat review")
+                break
+    if not matching and not (newest is not None and newest["state"] in CLAIM_STATES) and legacy:
         latest = legacy[-1]
         labels = {label if isinstance(label, str) else label.get("name") for label in pr.get("labels", [])}
         admissions = [event for event in legacy if event.get("kind") == "admit"]
@@ -209,12 +327,20 @@ def derive_candidate(pr: dict, comments: list[dict], checks: dict | None = None,
     elif checks and checks.get("head") == head and result["state"] in {"ready", "integrating"}:
         kind = checks.get("kind")
         if kind == "failed":
-            failing = {"name": "required-checks", "identity": head, "evidence": deepcopy(checks)}
+            binding = result.get("task_identity") or head
+            failing = {"name": "required-checks", "identity": binding, "evidence": deepcopy(checks)}
             result.update(state="integration-repair-pending" if result["state"] == "integrating" else "repair-pending",
                           red_gate=failing,
-                          gates={**result["gates"], "required-checks": {"result": "failed", "identity": head,
+                          gates={**result["gates"], "required-checks": {"result": "failed", "identity": binding,
                                                                        "evidence": deepcopy(checks)}})
             result["next_job"] = None
+        elif kind == "passed":
+            result["gates"]["required-checks"] = {
+                "result": "passed", "identity": result.get("task_identity") or head,
+                "evidence": deepcopy(checks)}
+        elif passed_content_gate(result, "required-checks"):
+            # A trusted, content-bound pass survives bookkeeping-only heads.
+            pass
         elif kind == "pending" and result["state"] == "integrating":
             # Integration (and its claim) remains active while exact-head checks run.
             result["reason"] = checks.get("detail") or "awaiting exact-head required checks"
@@ -223,6 +349,19 @@ def derive_candidate(pr: dict, comments: list[dict], checks: dict | None = None,
     elif checks and checks.get("head") != head:
         result.update(state="blocked-retryable", reason="checks do not match candidate head", gates={}, next_job=None)
     return _action(result)
+
+
+def passed_content_gate(candidate: dict, name: str) -> bool:
+    """Accept only a passed gate bound to this candidate's proven content."""
+    identity = candidate.get("task_identity")
+    gate = candidate.get("gates", {}).get(name)
+    proof = identity.get("task_content") if isinstance(identity, dict) else None
+    return (isinstance(proof, dict) and proof.get("version") == 1
+            and isinstance(proof.get("paths"), dict)
+            and isinstance(proof.get("base"), str) and bool(proof["base"])
+            and isinstance(proof.get("digest"), str) and bool(proof["digest"])
+            and isinstance(gate, dict) and gate.get("result") == "passed"
+            and gate.get("identity") == identity)
 
 
 def _action(candidate: dict) -> dict:

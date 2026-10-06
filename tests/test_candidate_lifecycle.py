@@ -118,7 +118,7 @@ class CandidateLifecycleTests(unittest.TestCase):
             result = lifecycle.derive_candidate(pr(), [comment(handoff(state))],
                 {"head": HEAD, "kind": "failed", "detail": "tests failed"})
             self.assertEqual(result["state"], expected)
-            self.assertEqual(result["red_gate"]["identity"], HEAD)
+            self.assertEqual(result["red_gate"]["identity"], "task-content-digest")
             self.assertIsNone(result["next_job"])
         result = lifecycle.derive_candidate(pr(), [comment(handoff("ready"))], {"head": NEW_HEAD, "kind": "passed"})
         self.assertEqual(result["state"], "blocked-retryable")
@@ -129,6 +129,24 @@ class CandidateLifecycleTests(unittest.TestCase):
         result = lifecycle.derive_candidate(pr(), rows, {"head": HEAD, "kind": "pending"})
         self.assertEqual(result["state"], "blocked-retryable")
         self.assertEqual(lifecycle.derive_candidate({**pr(), "merged": True}, rows)["state"], "merged")
+
+    def test_required_check_reuse_needs_same_proven_content_and_keeps_failure_authoritative(self):
+        record = handoff("ready")
+        identity = {"change": "example", "task_content": {"version": 1, "paths": {}, "base": HEAD, "digest": "a" * 64}}
+        record["task_identity"] = identity
+        record["gates"]["required-checks"] = {"result": "passed", "identity": deepcopy(identity), "evidence": "log"}
+        checks = {"head": HEAD, "kind": "pending"}
+        self.assertEqual(lifecycle.derive_candidate(pr(), [comment(record)], checks)["state"], "ready")
+        checks["kind"] = "failed"
+        self.assertEqual(lifecycle.derive_candidate(pr(), [comment(record)], checks)["state"], "repair-pending")
+        checks["kind"] = "pending"
+        record["task_identity"] = {"change": "example", "task_content": {"digest": "b" * 64}}
+        self.assertEqual(lifecycle.derive_candidate(pr(), [comment(record)], checks)["state"], "blocked-retryable")
+        record["task_identity"] = "unproven"
+        self.assertFalse(lifecycle.passed_content_gate(record, "required-checks"))
+        record["task_identity"] = {"task_content": {}}
+        record["gates"]["required-checks"]["identity"] = record["task_identity"]
+        self.assertFalse(lifecycle.passed_content_gate(record, "required-checks"))
 
     def test_status_rendering(self):
         result = lifecycle.derive_candidate(pr(), [comment(handoff())])
@@ -256,6 +274,33 @@ class CandidateLifecycleTests(unittest.TestCase):
                 self.assertEqual(json.loads(output.getvalue()), result)
             else:
                 self.assertIn("PR #7: reviewing", output.getvalue())
+
+
+class MarkerSizeTests(unittest.TestCase):
+    def record(self, evidence="ok"):
+        identity = {"change": "c", "task_content": {"version": 1, "digest": "d", "base": HEAD,
+                                                    "paths": {f"src/file{i}.py": "x" * 40 for i in range(100)}}}
+        gates = {name: {"result": "passed", "identity": identity, "evidence": evidence}
+                 for name in ("a", "b", "c", "d")}
+        return lifecycle.build_handoff_record(
+            number=7, state="reviewing", head=HEAD, task_identity=identity, gates=gates,
+            red_gate={"name": "review", "identity": identity, "evidence": "e"}, not_reverified=[],
+            attempts={}, next_job={"kind": "review", "head": HEAD, "task_identity": identity, "attempt": 0},
+            at="2026-10-05T08:00:00Z")
+
+    def test_identity_is_referenced_not_repeated_and_round_trips(self):
+        record = self.record()
+        body = lifecycle.marker_body(record)
+        self.assertLess(len(body), len(json.dumps(record)) // 3)
+        row = {"id": 1, "author_association": "OWNER", "body": body}
+        self.assertEqual(lifecycle.latest_record(7, [row]), record)
+        derived = lifecycle.derive_candidate({"number": 7, "head": {"sha": HEAD}, "state": "open"}, [row])
+        self.assertEqual(derived["gates"], record["gates"])
+        self.assertEqual(derived["next_job"], record["next_job"])
+
+    def test_oversized_record_is_rejected_before_posting(self):
+        with self.assertRaisesRegex(ValueError, "above the"):
+            lifecycle.marker_body(self.record("x" * 70000))
 
 
 class CoordinatorAppTrustTests(unittest.TestCase):

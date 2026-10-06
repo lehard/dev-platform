@@ -146,7 +146,7 @@ def find_board_id(main: Path, worktree: Path, config: dict) -> str | None:
 def finish_board(main: Path, worktree: Path, config: dict) -> None:
     board_id = find_board_id(main, worktree, config)
     if board_id:
-        subprocess.run(["python3", str(main / "scripts" / "agent_board.py"), "finish", "--id", board_id, "--quiet"], cwd=main, check=False)
+        subprocess.run(["python3", str(main / "scripts" / "agent_board.py"), "finish", "--id", board_id, "--quiet"], cwd=main, check=True, stdin=subprocess.DEVNULL)
 
 
 def emit_finish_stage(label: str) -> None:
@@ -170,6 +170,7 @@ def run_checks(root: Path, base: str, no_checks: bool) -> None:
     proc = subprocess.Popen(
         ["python3", str(root / "scripts" / "select_checks.py"), "--base", base, "--execute"],
         cwd=root, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        stdin=subprocess.DEVNULL,
     )
     chunks: list[str] = []
     assert proc.stdout is not None
@@ -207,7 +208,7 @@ def run_openspec_hygiene(root: Path) -> str | None:
     is preserved so operator review still has the signal.
     """
     script = root / "scripts" / "openspec_lifecycle.py"
-    result = subprocess.run(["python3", str(script), "check"], cwd=root, text=True, capture_output=True)
+    result = subprocess.run(["python3", str(script), "check"], cwd=root, text=True, capture_output=True, stdin=subprocess.DEVNULL)
     if result.stdout:
         print(result.stdout, end="")
     if result.stderr:
@@ -237,6 +238,7 @@ def record_lifecycle_friction(root: Path, category: str, observation: str, evide
             "--task", current_branch(root),
         ],
         cwd=root, text=True, capture_output=True, check=False,
+        stdin=subprocess.DEVNULL,
     )
 
 
@@ -255,7 +257,7 @@ def run_friction_route_pending_retry(root: Path) -> None:
     try:
         result = subprocess.run(
             ["python3", str(helper), "route-pending"], cwd=root, text=True, capture_output=True, check=False, timeout=15,
-        )
+         stdin=subprocess.DEVNULL)
     except subprocess.TimeoutExpired:
         print("WARNING: friction routing retry timed out after 15 seconds; safe publication may continue.")
         return
@@ -278,6 +280,7 @@ def observe_friction_checkpoint_blocker(root: Path, branch: str) -> str | None:
         return None
     checkpoint = subprocess.run(
         ["python3", str(helper), "assert-checkpoint", "--branch", branch], cwd=root, text=True, capture_output=True, check=False,
+        stdin=subprocess.DEVNULL,
     )
     if checkpoint.returncode:
         return checkpoint.stderr.strip() or checkpoint.stdout.strip() or "Completion friction checkpoint is required."
@@ -511,7 +514,7 @@ def integrate_and_publish_direct(work: Path, integration: Path, config: dict, br
         print(f"Integrated {branch} -> {main_branch} locally.")
     env = os.environ.copy()
     env[DIRECT_PUBLISH_GUARD] = "1"
-    subprocess.run(["python3", str(integration / "scripts" / "project_publish.py"), "--mode", "direct"], cwd=integration, check=True, env=env)
+    subprocess.run(["python3", str(integration / "scripts" / "project_publish.py"), "--mode", "direct"], cwd=integration, check=True, env=env, stdin=subprocess.DEVNULL)
 
 
 def sync_after_remote_pr_merge(work: Path, integration: Path, config: dict, main_branch: str) -> None:
@@ -570,7 +573,7 @@ def _caller_cwd_is_within(worktree: Path) -> bool:
                 capture_output=True,
                 check=False,
                 timeout=5,
-            )
+             stdin=subprocess.DEVNULL)
             for line in observed.stdout.splitlines():
                 if line.startswith("n"):
                     return Path(line[1:]).resolve().is_relative_to(worktree.resolve())
@@ -786,6 +789,7 @@ def observe_private_reference_blocker(root: Path, title: str | None, body: str |
         capture_output=True,
         text=True,
         check=False,
+        stdin=subprocess.DEVNULL,
     )
     if result.returncode == 0:
         return None
@@ -803,6 +807,36 @@ def report_completion_blockers(blockers: list[tuple[str, str]]) -> None:
     )
     for stage_label, detail in blockers:
         print(f"  - [{stage_label}] {detail}", flush=True)
+
+
+def finish_developer_handoff(work: Path, integration: Path, config: dict, branch: str,
+                             title: str | None, body: str | None) -> int:
+    """Release only this developer's board claim after confirmed PR admission."""
+    from managed_task import resolve_canonical_provenance
+    from pr_review_gate import handoff_gates
+    from lifecycle_workers import WorkerError
+    from project_publish import publish_pr
+
+    require_no_orphan_active_openspec(work)
+    delivery = resolve_canonical_provenance(work)
+    try:
+        handoff_gates(work, delivery.path)
+    except WorkerError as exc:
+        raise SystemExit("Developer handoff blocked: " + str(exc)) from exc
+    checkpoint = observe_friction_checkpoint_blocker(work, branch)
+    if checkpoint:
+        raise SystemExit(checkpoint)
+    if not clean(work):
+        raise SystemExit("Developer handoff requires a clean committed candidate and evidence")
+    enforce_scope_gate(integration, work, branch)
+    privacy = observe_private_reference_blocker(work, title, body)
+    if privacy:
+        raise SystemExit(privacy)
+    result = publish_pr(work, "origin", str(config.get("main_branch", "main")), title, body,
+                        pr_merge_mode(config), config=config, developer_handoff=True)
+    if result == 0:
+        finish_board(integration, work, config)
+    return result
 
 
 def main() -> int:
@@ -833,7 +867,7 @@ def main() -> int:
     provider = scm_provider(config)
     if args.status:
         if provider == "gitlab":
-            return subprocess.run(["python3", str(work / "scripts" / "gitlab_delivery.py"), "status"], cwd=work).returncode
+            return subprocess.run(["python3", str(work / "scripts" / "gitlab_delivery.py"), "status"], cwd=work, stdin=subprocess.DEVNULL).returncode
         return run_status(work, integration, config, as_json=args.json)
     if args.reconcile:
         if task_reconciliation is None:
@@ -858,6 +892,14 @@ def main() -> int:
     if not branch:
         raise SystemExit("Detached HEAD is not publishable through the platform lifecycle.")
     validate_publication_config(work, config, prof, mode)
+    # Only Dev Platform source checkouts can be coordinator-managed candidates;
+    # check that first so downstream finish never loads the coordinator stack.
+    if (mode == "pr" and provider == "github" and branch != main_branch
+            and config.get("platform_version") == "source"):
+        from pr_review_gate import managed_candidate
+
+        if managed_candidate(work):
+            return finish_developer_handoff(work, integration, config, branch, args.title, args.body)
     try:
         require_no_orphan_active_openspec(work)
         delivery = require_delivery_provenance(work)
@@ -938,7 +980,7 @@ def main() -> int:
             command += ["--title", args.title]
         if args.body:
             command += ["--body", args.body]
-        result = subprocess.run(command, cwd=work)
+        result = subprocess.run(command, cwd=work, stdin=subprocess.DEVNULL)
         if result.returncode == 0:
             emit_finish_stage("complete")
         return result.returncode
@@ -1012,7 +1054,7 @@ def main() -> int:
             command += ["--title", args.title]
         if args.body:
             command += ["--body", args.body]
-        published = subprocess.run(command, cwd=work, check=False)
+        published = subprocess.run(command, cwd=work, check=False, stdin=subprocess.DEVNULL)
         if published.returncode:
             if config.get("platform_version") == "source":
                 from publication_queue import enabled as queue_enabled, local_status as queue_local_status

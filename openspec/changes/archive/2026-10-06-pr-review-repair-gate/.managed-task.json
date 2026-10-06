@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/completion-lifecycle/spec.md"
+  ],
+  "change": "pr-review-repair-gate",
+  "imported_at": "2026-10-05T18:48:56+00:00",
+  "package_revision": "d6000c0e59e6b78e834e8afb0c53a60c2050c5ad95df7e110456b37b896ec147",
+  "prepared_against": "f8b91ae924c28f8bf4529ff1f532d87a81c99218",
+  "private_lineage_handle": "pln_c24e0feffe5c112e32c3fa81bac02a4b",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "76e2118455ef20ef9a171cb1fda7f800603ede868cb75be0a2a950eb8ea59376",
+    "updated_at": "2026-10-05T07:12:04Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-353/T4"
+}

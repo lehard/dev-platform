@@ -141,6 +141,20 @@ def evidence_matches_checkout(
     # New evidence is content-aware.  Keep exact SHA as provenance but accept
     # it across only a mechanically equal task-content proof.  Legacy receipts
     # retain the narrower archive-only transition below.
+    # New selected-check receipts use the same lifecycle exclusions as review.
+    # Keep checkout provenance stable while allowing evidence-only commits.
+    try:
+        evidence = json.loads((change / AUTOMATED_EVIDENCE_FILE).read_text())
+    except (OSError, ValueError):
+        evidence = {}
+    recorded_gate = evidence.get("gate_task_content")
+    if recorded_gate is not None:
+        from task_content_identity import review_content_identity, equivalent_proofs
+
+        stable_expected = {key: value for key, value in expected.items() if key not in {"head", "task_content"}}
+        stable_actual = {key: value for key, value in actual.items() if key not in {"head", "task_content"}}
+        return (stable_actual == stable_expected
+                and equivalent_proofs(root, recorded_gate, review_content_identity(root, identity.change)))
     expected_content = expected.get("task_content")
     actual_content = actual.get("task_content") if isinstance(actual, dict) else None
     if isinstance(expected_content, dict) or isinstance(actual_content, dict):
@@ -416,7 +430,7 @@ def require_applicable_committed_diff(root: Path) -> None:
 
 def run_checked(command: list[str], root: Path) -> None:
     print("+ " + " ".join(command), flush=True)
-    result = subprocess.run(command, cwd=root)
+    result = subprocess.run(command, cwd=root, stdin=subprocess.DEVNULL)
     if result.returncode != 0:
         raise SystemExit(result.returncode)
 
@@ -442,8 +456,17 @@ def archive_change(root: Path, name: str) -> int:
     # Required independent review runs after the cheap deterministic gates and
     # before expensive validation: a missing or stale review is launched now,
     # and blocking findings stop archive with exact next commands.
-    ensure_review_evidence(root, change)
-    if platform_owned:
+    from pr_review_gate import managed_candidate
+
+    coordinator_managed = managed_candidate(root)
+    if coordinator_managed:
+        require_review_evidence(root, change)
+    else:
+        ensure_review_evidence(root, change)
+    if platform_owned and coordinator_managed:
+        # Validate content-bound selected checks; never rerun unchanged evidence.
+        require_automated_evidence(change, root=root)
+    elif platform_owned:
         evidence = change / AUTOMATED_EVIDENCE_FILE
         run_checked(
             ["python3", "scripts/select_checks.py", "--base", "origin/main", "--execute", "--evidence", str(evidence)],

@@ -408,6 +408,19 @@ class WorkerLifecycleTests(unittest.TestCase):
         self.assertIn("reviewing", result["reason"])
         prepare.assert_not_called()
 
+    def test_worker_does_not_integrate_a_blocked_retryable_review(self) -> None:
+        from candidate_lifecycle import build_handoff_record, marker_body
+
+        record = build_handoff_record(number=1, state="blocked-retryable", head=HEAD, task_identity="digest", gates={},
+                                      red_gate={"name": "review", "identity": "digest", "evidence": {}},
+                                      not_reverified=[], attempts={"review": 1},
+                                      next_job={"kind": "review", "head": HEAD, "task_identity": "digest", "attempt": 1},
+                                      at="2026-10-05T08:00:00Z")
+        result, prepare = self._worker(marker_body(record))
+        self.assertEqual(result["state"], "waiting")
+        self.assertIn("blocked-retryable", result["reason"])
+        prepare.assert_not_called()
+
     def test_worker_blocks_on_a_malformed_lifecycle_record(self) -> None:
         result, prepare = self._worker("dev-platform-publication-queue:v2 {broken")
         self.assertEqual(result["state"], "blocked")
