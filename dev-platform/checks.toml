@@ -190,7 +190,7 @@ targets = ["test_delegated_write_guard"]
 mode = "parallel"
 
 [test_groups.disposable_repository_sandbox]
-targets = ["test_disposable_repository_sandbox"]
+targets = ["test_disposable_repository_sandbox", "test_parallel_lifecycle_acceptance"]
 mode = "parallel"
 
 [test_groups.protected_main_zero_handoff]

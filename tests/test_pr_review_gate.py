@@ -539,6 +539,30 @@ class EndToEndTests(unittest.TestCase):
                 self.assertTrue(gate.reusable(self.root, passed, proof))
                 self.assertEqual(fixture.candidate()["attempts"], {"review": 2, "repair": 1, "review-unavailable": 0})
 
+    def test_finalized_candidate_returning_to_review_is_reviewed_against_its_archive(self):
+        # Integration repair changes the content of an already archived change: review must still run.
+        root = self.root
+        archive = root / "openspec/changes/archive"
+        archive.mkdir(parents=True)
+        git(root, "mv", "openspec/changes/example", str(archive.relative_to(root) / "2026-01-01-example"))
+        git(root, "commit", "-qm", "archive example")
+        git(root, "push", "-q", "origin", "HEAD:refs/heads/agent/example")
+        identity = gate.task_identity(root, "example")
+        job = {"kind": "review", "number": 7, "head": self.remote_head(), "attempt": 1, "task_identity": identity}
+        launch, calls = self.launcher([])
+        with mock.patch.object(reviewer, "resolve_binary", return_value=("fake-codex", None)), \
+                tempfile.TemporaryDirectory(dir=self.tmp.name) as workdir:
+            checkout = workers.prepare_checkout(self.remote.as_uri(), workdir, "review", job["head"])
+            self.assertFalse((checkout / "openspec/changes/example").exists())
+            outcome = gate.execute_review(checkout, job, source_repo=self.remote.as_uri(), branch="agent/example",
+                                          current_head=self.remote_head, runner=subprocess.run, launcher=launch,
+                                          review_config={"provider": "codex"})
+            self.assertEqual(outcome["status"], "reviewed")
+            self.assertEqual(len(calls), 2)
+            tree = git(self.remote, "ls-tree", "-r", "--name-only", self.remote_head())
+            self.assertIn("openspec/changes/archive/2026-01-01-example/independent-reviews/", tree + "/")
+            self.assertNotIn("openspec/changes/example/", tree)
+
     def test_selected_check_binding_survives_evidence_commit_but_not_source_edit(self):
         change = self.root / "openspec/changes/example"
         checkout = managed.ManagedCheckoutIdentity("owner/backlog#1", "example", self.root, "agent/example",
