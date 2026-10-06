@@ -2,12 +2,15 @@
   "candidate": {
     "base_head": "8c49616d6b4a3f0a981db53f96dc99025f2f6bb0",
     "base_ref": "origin/main",
-    "candidate_head": "48d00df401eee045badfcb23773fea7b682653f4",
-    "diff_sha256": "586eeb5498213cdf40c1592d39dce50956d6f2dd23a53bccc6cb9968f398ba34"
+    "candidate_head": "ef266868aa129584ec2825f50efd62cb300ff71b",
+    "diff_sha256": "dd1ab866a27907ce355e608007f720938bb5e8668fc4047efc5b1946546568a0"
   },
   "change": "openspec/changes/workspace-local-authoring-validation",
   "excluded_lifecycle_paths": [
     "openspec/changes/workspace-local-authoring-validation/automated-checks.json",
+    "openspec/changes/workspace-local-authoring-validation/independent-review-request.json",
+    "openspec/changes/workspace-local-authoring-validation/independent-reviews/engineering-quality.json",
+    "openspec/changes/workspace-local-authoring-validation/independent-reviews/spec-fidelity.json",
     "openspec/changes/workspace-local-authoring-validation/verification.md"
   ],
   "fresh_context_required": true,
@@ -34,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-06T23:41:24+00:00",
+  "prepared_at": "2026-10-06T23:43:21+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/workspace-local-authoring-validation/independent-reviews",
     "required_perspectives": [
@@ -43,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "7b270dfc-a2d3-4589-94f1-5b17fe554490",
+  "request_id": "a22e2327-1894-4533-90b1-beafa44685e2",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
