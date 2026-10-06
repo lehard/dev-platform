@@ -1,0 +1,103 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 1.619,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 1.111,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 496.253,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/managed_task.py",
+        "template/scripts/worktree_cleanup.py",
+        "tests/managed_task_exact_state_cases.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_56dd006c3d4e23b98acdb893ff423d54",
+    "change": "workspace-local-authoring-validation",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/workspace-local-authoring-validation",
+    "branch": "agent/br-367-t1-workspace-local-authoring-validation",
+    "head": "4d174302eb89c97da2ad6c49415359097e3e063d",
+    "task_content": {
+      "version": 1,
+      "digest": "ea13a7fd8fafe827965ae93596ddc3db8b8e74ba573345d771b4bab83f98eedb",
+      "paths": {
+        "docs/engineering/local-workspace.md": "faab826447c9c7da63e083c2a6e9a4cf788fe375",
+        "openspec/changes/workspace-local-authoring-validation/.managed-task.json": "59940d8400e23fcf1dabc05984dc6a42c31a66c5",
+        "openspec/changes/workspace-local-authoring-validation/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+        "openspec/changes/workspace-local-authoring-validation/design.md": "709aa41cb5bc199627aa97896e89821d72646b13",
+        "openspec/changes/workspace-local-authoring-validation/proposal.md": "141a14d71a0e09185f1503386877616f8d78d5b4",
+        "openspec/changes/workspace-local-authoring-validation/specs/managed-task-intake/spec.md": "64642ae9a0cfa6caddebe455cab10bebbd0e97d4",
+        "openspec/changes/workspace-local-authoring-validation/tasks.md": "bfec75243adb9b547bfe3bb60206d4226b7c401f",
+        "openspec/changes/workspace-local-authoring-validation/verification.md": "322e7f0af6855c7e13c98a8da8b97c500773e96f",
+        "template/scripts/managed_task.py": "2c4d05c552b9904e90bdf01f1dafebb3ef8b7f43",
+        "template/scripts/worktree_cleanup.py": "a8d2419c62a4bfec4bd38fccb4aaecf8cc8b8f5a",
+        "tests/managed_task_exact_state_cases.py": "01f936fc3b020d60b1e6487fb4276cdb0669271b"
+      },
+      "base": "8c49616d6b4a3f0a981db53f96dc99025f2f6bb0"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "a4cd3bed1b342747cadf8f307334db04c7a9151f1de4e1ebdc5f77e76fbf8992",
+    "paths": {
+      "docs/engineering/local-workspace.md": "faab826447c9c7da63e083c2a6e9a4cf788fe375",
+      "openspec/changes/workspace-local-authoring-validation/.managed-task.json": "59940d8400e23fcf1dabc05984dc6a42c31a66c5",
+      "openspec/changes/workspace-local-authoring-validation/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+      "openspec/changes/workspace-local-authoring-validation/design.md": "709aa41cb5bc199627aa97896e89821d72646b13",
+      "openspec/changes/workspace-local-authoring-validation/proposal.md": "141a14d71a0e09185f1503386877616f8d78d5b4",
+      "openspec/changes/workspace-local-authoring-validation/specs/managed-task-intake/spec.md": "64642ae9a0cfa6caddebe455cab10bebbd0e97d4",
+      "openspec/changes/workspace-local-authoring-validation/tasks.md": "bfec75243adb9b547bfe3bb60206d4226b7c401f",
+      "template/scripts/managed_task.py": "2c4d05c552b9904e90bdf01f1dafebb3ef8b7f43",
+      "template/scripts/worktree_cleanup.py": "a8d2419c62a4bfec4bd38fccb4aaecf8cc8b8f5a",
+      "tests/managed_task_exact_state_cases.py": "01f936fc3b020d60b1e6487fb4276cdb0669271b"
+    },
+    "base": "8c49616d6b4a3f0a981db53f96dc99025f2f6bb0",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/managed_task.py --changed-file template/scripts/worktree_cleanup.py --changed-file tests/managed_task_exact_state_cases.py",
+    "duration_seconds": 261.404,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
