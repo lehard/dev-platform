@@ -16,6 +16,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import tomllib
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -252,7 +253,10 @@ def manifest_complete(manifest: dict[str, Any]) -> bool:
     expected = manifest.get("expected_changes")
     if expected is None:
         return True
-    return [child.get("change") for child in manifest.get("children", [])] == expected
+    present = [child.get("change") for child in manifest.get("children", [])]
+    if manifest.get("version") == 2:
+        return len(present) == len(expected) and len(set(present)) == len(present) and set(present) == set(expected)
+    return present == expected
 
 
 def missing_changes(manifest: dict[str, Any]) -> list[str]:
@@ -743,11 +747,16 @@ def _full_check_commands(root: Path) -> list[str]:
 
 
 def _run_full_checks(root: Path) -> None:
-    for command in _full_check_commands(root):
-        print("Requirement integration validation:", command, flush=True)
-        result = subprocess.run(command, cwd=root, shell=True)
-        if result.returncode:
-            raise RequirementIntegrationError(f"full candidate validation failed: {command} (exit {result.returncode})")
+    from lifecycle_workers import credential_free_env
+
+    commands = _full_check_commands(root)
+    with tempfile.TemporaryDirectory(prefix="composition-check-home-") as temporary:
+        env = credential_free_env(dict(os.environ), Path(temporary))
+        for command in commands:
+            print("Requirement integration validation:", command, flush=True)
+            result = subprocess.run(command, cwd=root, shell=True, stdin=subprocess.DEVNULL, env=env)
+            if result.returncode:
+                raise RequirementIntegrationError(f"full candidate validation failed: {command} (exit {result.returncode})")
 
 
 def _reconcile_exact_merged(root: Path, integration: Path, manifest: dict[str, Any], branch: str, head: str) -> dict[str, Any] | None:
@@ -830,7 +839,7 @@ def publish_candidate(root: Path, *, manifest: dict[str, Any], receipt_paths: li
     environment = os.environ.copy()
     if public_requirement != manifest["requirement"]:
         environment["DEV_PLATFORM_PRIVATE_MANIFEST"] = json.dumps(manifest, ensure_ascii=False)
-    result = subprocess.run(command, cwd=root, env=environment)
+    result = subprocess.run(command, cwd=root, env=environment, stdin=subprocess.DEVNULL)
     if result.returncode:
         raise RequirementIntegrationError(f"protected PR publication did not complete (exit {result.returncode})")
     if not complete:

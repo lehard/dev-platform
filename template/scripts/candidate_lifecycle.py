@@ -16,6 +16,7 @@ STATES = frozenset({
     "review-pending", "reviewing", "repair-pending", "repairing",
     "finalize-pending", "ready", "integrating", "integration-repair-pending",
     "merged", "blocked-retryable", "blocked-escalation",
+    "contribution-integration-pending", "contribution-integrated",
 })
 # Work that claims a candidate; such a claim survives a coordinator branch update.
 CLAIM_STATES = frozenset({"review-pending", "reviewing", "repair-pending", "repairing", "finalize-pending"})
@@ -24,6 +25,8 @@ NEXT_ACTION = {
     "repair-pending": "start repair", "repairing": "continue repair",
     "finalize-pending": "finalize candidate", "ready": "await integration",
     "integrating": "continue integration", "integration-repair-pending": "repair integration",
+    "contribution-integration-pending": "integrate contribution",
+    "contribution-integrated": "await Requirement composition",
     "merged": "reconcile delivery", "blocked-retryable": "retry red gate",
     "blocked-escalation": "human escalation required",
 }
@@ -42,6 +45,13 @@ def validate_marker(record: dict) -> None:
     identity = record.get("task_identity")
     if not isinstance(identity, (str, dict)) or not identity:
         raise ValueError("missing task-content identity")
+    if isinstance(identity, dict) and identity.get("kind") in {"contribution", "requirement-composition"}:
+        if not isinstance(identity.get("requirement"), str) or not identity.get("task_content"):
+            raise ValueError("missing Requirement candidate identity")
+        if identity["kind"] == "contribution" and (not identity.get("target_branch") or not identity.get("contribution_base")):
+            raise ValueError("missing contribution target boundary")
+        if identity["kind"] == "requirement-composition" and not identity.get("children"):
+            raise ValueError("missing composition children")
     gates = record.get("gates")
     if not isinstance(gates, dict):
         raise ValueError("invalid gates")
@@ -325,6 +335,10 @@ def derive_candidate(pr: dict, comments: list[dict], checks: dict | None = None,
                                   gates={name: {**deepcopy(gate), "identity": deepcopy(receipt["task_identity"])}
                                          for name, gate in newest.get("gates", {}).items()},
                                   next_job=None, reason="recover validated finalization push")
+                    if receipt["task_identity"].get("kind") == "requirement-composition":
+                        result.update(state="finalize-pending", next_job={
+                            "kind": "finalize", "head": head, "task_identity": deepcopy(receipt["task_identity"]),
+                            "attempt": newest.get("attempts", {}).get("finalize", 0) + 1})
                     break
                 attempts = deepcopy(newest.get("attempts", {}))
                 attempts["review"] = attempts.get("review", 0) + 1
@@ -344,14 +358,18 @@ def derive_candidate(pr: dict, comments: list[dict], checks: dict | None = None,
             result.update(state="blocked-escalation", reason=latest.get("reason", "publication blocked"))
         elif admissions and latest.get("head") == head:
             result["state"] = "integrating" if "publication:active" in labels else "ready"
-    if pr.get("merged") or pr.get("mergedAt"):
+    contribution = isinstance(result.get("task_identity"), dict) and result["task_identity"].get("kind") == "contribution"
+    if (pr.get("merged") or pr.get("mergedAt")) and contribution:
+        result.update(state="contribution-integrated" if result["state"] == "contribution-integrated"
+                      else "contribution-integration-pending", next_job=None)
+    elif pr.get("merged") or pr.get("mergedAt"):
         job, reason = post_merge_job(result, comments, trusted_apps, trusted_writers)
         result.update(state="merged", next_job=job)
         if reason:
             result["reason"] = reason
     elif pr.get("state", "").lower() == "closed":
         result.update(state="blocked-escalation", reason="PR closed without merge")
-    elif checks and checks.get("head") == head and result["state"] in {"ready", "integrating"}:
+    if checks and checks.get("head") == head and result["state"] in {"ready", "integrating", "contribution-integration-pending"}:
         kind = checks.get("kind")
         if kind == "failed":
             binding = result.get("task_identity") or head

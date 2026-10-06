@@ -29,7 +29,7 @@ def _canonical_path(path: str, change: str) -> str:
 
 def content_identity(
     root: Path,
-    change: str,
+    change: str | list[str],
     base_ref: str = "origin/main",
     *,
     exclude: Callable[[str, str], bool] | None = None,
@@ -57,7 +57,9 @@ def content_identity(
     # Read the final tree, collapsing active/archive aliases to one stable
     # logical path. Archive wins if both appear during the move.
     for raw in sorted(line for line in changed.stdout.splitlines() if line):
-        canonical = _canonical_path(raw, change)
+        canonical = raw
+        for name in ([change] if isinstance(change, str) else change):
+            canonical = _canonical_path(canonical, name)
         if exclude is not None and exclude(canonical, raw):
             continue
         blob = run_git(["rev-parse", f"HEAD:{raw}"], cwd=root, check=False)
@@ -152,6 +154,12 @@ def review_path_partition(
 
 def review_content_identity(root: Path, change: str, base_ref: str = "origin/main") -> dict[str, object] | None:
     """Task-content identity that independent review evidence binds to."""
+    if base_ref == "origin/main":
+        context = root / ".claude/requirement-child-context" / f"{change}.json"
+        if context.is_file():
+            contribution = json.loads(context.read_text()).get("contribution")
+            if contribution:
+                base_ref = contribution["head"]
     return content_identity(
         root, change, base_ref, exclude=review_exclusion(root, change, base_ref), scope=REVIEW_SCOPE
     )
@@ -181,3 +189,16 @@ def equivalent_proofs(root: Path, recorded: object, current: object) -> bool:
         return False
     task_paths = set(recorded["paths"]) | set(current["paths"])
     return task_paths.isdisjoint(changed.stdout.splitlines())
+
+
+def composition_content_identity(root: Path, changes: list[str], base_ref: str = "origin/main") -> dict | None:
+    """Normalize archive moves and lifecycle evidence for every included change."""
+    # Use current main when available so unrelated clean main merges do not widen the reviewed patch.
+    if base_ref != "origin/main" and run_git(["merge-base", "--is-ancestor", base_ref, "origin/main"], cwd=root, check=False).returncode == 0:
+        base_ref = "origin/main"
+    exclusions = [(name, review_exclusion(root, name, base_ref)) for name in changes]
+    def exclude(canonical: str, raw: str) -> bool:
+        return (raw.startswith("dev-platform/requirement-integrations/")
+                or raw.startswith("dev-platform/requirement-evidence/")
+                or any(test(_canonical_path(raw, name), raw) for name, test in exclusions))
+    return content_identity(root, changes, base_ref, exclude=exclude, scope="requirement-composition-v1")

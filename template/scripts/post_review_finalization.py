@@ -34,6 +34,10 @@ ARCHIVED_DELTA = re.compile(r"(openspec/changes/archive/(\d{4}-\d{2}-\d{2}-[^/]+
 ARCHIVE_NAME = re.compile(r"\d{4}-\d{2}-\d{2}-(.+)")
 
 
+class SemanticVerificationRequired(workers.WorkerError):
+    """Changed content needs a fresh developer semantic-verification handoff."""
+
+
 class RederivationFailed(RuntimeError):
     """A deterministic spec re-derivation could not be completed: integration repair."""
 
@@ -83,18 +87,18 @@ def verify_reused_evidence(checkout: Path, gates: dict, identity: dict) -> list[
     return problems
 
 
-def validate_finalization_paths(repo: Path, base: str, result: str, change: str) -> list[str]:
+def validate_finalization_paths(repo: Path, base: str, result: str, change: str | list[str]) -> list[str]:
     """Only the change's own archive move and its own spec materialization may change."""
     done = subprocess.run(["git", *workers.SAFE_GIT, "merge-base", "--is-ancestor", base, result], cwd=repo,
                           capture_output=True, check=False, stdin=subprocess.DEVNULL)
     if done.returncode:
         raise workers.WorkerError("finalization is not a fast-forward from the claimed head")
     changed = [p for p in workers._git(repo, "diff", "--name-only", "--no-renames", "-z", base, result).split("\0") if p]
-    active = f"openspec/changes/{change}/"
-    archived = re.compile(rf"openspec/changes/archive/\d{{4}}-\d{{2}}-\d{{2}}-{re.escape(change)}/")
+    changes = [change] if isinstance(change, str) else change
+    active = tuple(f"openspec/changes/{name}/" for name in changes)
+    archived = re.compile(r"openspec/changes/archive/\d{4}-\d{2}-\d{2}-(?:" + "|".join(re.escape(n) for n in changes) + r")/")
     tree = workers._git(repo, "ls-tree", "-r", "--name-only", result, "openspec/changes/archive").splitlines()
-    capabilities = {cap for caps in archived_deltas(
-        p for p in tree if archived.match(p)).values() for cap in caps}
+    capabilities = {cap for caps in archived_deltas(p for p in tree if archived.match(p)).values() for cap in caps}
     for path in changed:
         match = SPEC_PATH.fullmatch(path)
         if not (path.startswith(active) or archived.match(path) or (match and match.group(1) in capabilities)):
@@ -124,18 +128,10 @@ def trusted_checks_runner(checkout: Path, env: dict[str, str]) -> None:
 
 def reestablish_gates(checkout: Path, gates: dict, identity: dict, head: str,
                       checks_runner: Callable[..., None]) -> dict:
-    """Bind selected-checks and semantic-verification to a repaired identity.
-
-    A repair changes task content, so only still-proven gates carry over. The harness
-    reruns the selected checks in the disposable checkout and re-binds the receipt that
-    repairs may not edit; the review gate is never re-established here.
-    """
-    from openspec_lifecycle import verification_passed
-
+    """Rerun selected checks; semantic evidence must already bind the repaired content."""
     gates = dict(gates)
     if not review_gate.reusable(checkout, gates.get("review"), identity):
         raise workers.WorkerError("review evidence is missing or not bound to the current task content")
-    change = checkout / "openspec" / "changes" / identity["change"]
     if not review_gate.reusable(checkout, gates.get("selected-checks"), identity):
         env = workers.credential_free_env(dict(os.environ), checkout.parent / "llm-home")
         checks_runner(checkout, env)
@@ -143,11 +139,9 @@ def reestablish_gates(checkout: Path, gates: dict, identity: dict, head: str,
             "harness_executed": True, "head": workers._git(checkout, "rev-parse", "HEAD").strip(),
             "command": "select_checks --base origin/main --execute"}}
     if not review_gate.reusable(checkout, gates.get("semantic-verification"), identity):
-        receipt = change / "verification.md"
-        if not receipt.is_file() or not verification_passed(change):
-            raise workers.WorkerError("semantic verification receipt is missing or not passing")
-        gates["semantic-verification"] = {"result": "passed", "identity": identity,
-                                          "evidence": review_gate.file_reference(checkout, receipt)}
+        raise SemanticVerificationRequired(
+            "fresh semantic verification required for changed task content; the developer must "
+            "perform semantic verification and refresh the content-bound receipt through handoff")
     return gates
 
 
@@ -156,16 +150,26 @@ def execute_finalize(checkout: Path, job: dict, gates: dict, *, source_repo: str
                      before_push=None, claim_current=lambda: True,
                      checks_runner: Callable[..., None] | None = None) -> dict:
     """Archive the reviewed candidate in its disposable checkout; only the harness commits and pushes."""
+    if job["task_identity"].get("kind") == "requirement-composition":
+        from requirement_composition import execute_composition_finalize
+        return execute_composition_finalize(checkout, job, gates, source_repo=source_repo, branch=branch,
+                                            current_head=current_head, runner=runner, archiver=archiver,
+                                            push_env=push_env, before_push=before_push,
+                                            claim_current=claim_current, checks_runner=checks_runner)
     checkout = checkout.resolve()
     identity = job["task_identity"]
     change_name = identity["change"]
-    actual = review_gate.task_identity(checkout, change_name)
+    actual = review_gate.refresh_identity(checkout, identity)
     if not equivalent_proofs(checkout, identity.get("task_content"), actual["task_content"]):
         return {"status": "changed", "identity": actual}
     gates = reestablish_gates(checkout, gates, actual, job["head"], checks_runner or trusted_checks_runner)
     problems = verify_reused_evidence(checkout, gates, actual)
     if problems:
         raise workers.WorkerError("finalization cannot reuse evidence: " + "; ".join(problems))
+    if actual.get("kind") == "contribution":
+        if current_head() != job["head"] or not claim_current():
+            return {"status": "discarded"}
+        return {"status": "finalized", "identity": actual, "gates": gates}
     if (checkout / "openspec" / "changes" / change_name).is_dir():
         env = workers.credential_free_env(dict(os.environ), checkout.parent / "llm-home")
         (archiver or trusted_archiver)(checkout, change_name, env)
@@ -229,7 +233,7 @@ def run_claimed_finalize(root: Path, repo: str, candidate: dict, job: dict, *, s
         if not claim_current():
             return
         workers._git(harness, "checkout", "--detach", head)
-        fresh = review_gate.task_identity(harness, identity["change"])
+        fresh = review_gate.refresh_identity(harness, identity)
         post_result(workers.result_body(job, worker, "validated-push", head, task_identity=fresh))
 
     def blocked(reason: str) -> dict:
@@ -245,6 +249,13 @@ def run_claimed_finalize(root: Path, repo: str, candidate: dict, job: dict, *, s
         outcome = execute_finalize(checkout, job, gates, source_repo=source_repo, branch=branch,
                                    current_head=current_head, runner=runner, archiver=archiver, push_env=push_env,
                                    before_push=before_push, claim_current=claim_current, checks_runner=checks_runner)
+    except SemanticVerificationRequired as exc:
+        if claim_current():
+            adapter._transition(root, repo, number, "blocked-retryable", job["head"], task_identity=identity,
+                                inherit_identity=False, gates=gates,
+                                red_gate={"name": "semantic-verification", "identity": identity, "evidence": str(exc)})
+            post_result(workers.result_body(job, worker, "blocked: fresh semantic verification required"))
+        return {"status": "blocked-retryable", "reason": str(exc)}
     except workers.WorkerError as exc:
         return blocked(str(exc))
     if outcome["status"] == "discarded":
@@ -262,9 +273,16 @@ def run_claimed_finalize(root: Path, repo: str, candidate: dict, job: dict, *, s
         adapter._comment(root, repo, number, {"kind": "update", "previous": job["head"], "head": head,
                                               "worker_job": workers.job_id(job)})
     fresh = outcome["identity"]
-    adapter._transition(root, repo, number, "ready", head, task_identity=fresh, inherit_identity=False,
+    state = ("blocked-retryable" if fresh.get("kind") == "requirement-composition" else
+             "contribution-integration-pending" if fresh.get("kind") == "contribution" else "ready")
+    adapter._transition(root, repo, number, state, head, task_identity=fresh, inherit_identity=False,
                         gates={name: {**gate, "identity": fresh} for name, gate in outcome.get("gates", gates).items()
                                if review_gate.reusable(checkout, gate, fresh)})
+    if fresh.get("kind") == "contribution":
+        adapter.publish_job(root, repo, number, "contribution-integration", head, task_identity=fresh,
+                            target_head=adapter.branch_head(root, fresh["target_branch"]))
+    elif fresh.get("kind") == "requirement-composition":
+        adapter.publish_job(root, repo, number, "retrospective", head, task_identity=fresh, phase="pre-merge")
     post_result(workers.result_body(job, worker, "finalized", outcome.get("pushed_head")))
     return {"status": "finalized", "pushed_head": outcome.get("pushed_head")}
 
@@ -314,18 +332,36 @@ def rederive_archived_specs(*, source_repo: str, branch: str, head: str, task_pa
     if not deltas:
         raise RederivationFailed("candidate has no archived delta specs to re-derive from")
     names = {ARCHIVE_NAME.fullmatch(Path(d).name).group(1) for d in deltas}
-    if len(names) != 1:
+    composition = branch.startswith("requirement/BR-")
+    if len(names) != 1 and not composition:
         raise RederivationFailed("candidate archives more than one change; cannot re-derive")
-    change = names.pop()
+    change = next(iter(names)) if not composition else branch.split("/")[-1]
     capabilities = {cap for caps in deltas.values() for cap in caps}
     spec_paths = {f"openspec/specs/{cap}/spec.md" for cap in capabilities}
     checkout = workers.prepare_checkout(source_repo, str(Path(workdir).resolve()), "rederive-checkout", head)
     workers._git(checkout, "fetch", "--no-tags", "origin", "main")
     main_sha = workers._git(checkout, "rev-parse", "FETCH_HEAD").strip()
+    manifest = None
+    if composition:
+        from requirement_composition import composition_identity
+        from requirement_contributions import read_manifest
+        import json
+        candidates = []
+        for path in workers.harness_git(checkout, "ls-tree", "-r", "--name-only", "HEAD", "dev-platform/requirement-integrations").splitlines():
+            if not path.endswith(".json"):
+                continue
+            value = json.loads(workers.harness_git(checkout, "show", f"HEAD:{path}"))
+            if value.get("integration_branch") == branch:
+                candidates.append(value)
+        if len(candidates) != 1:
+            raise RederivationFailed("composition branch has no unique owned manifest")
+        manifest = read_manifest(checkout, candidates[0]["requirement"])
+        if names != set(manifest["expected_changes"]):
+            raise RederivationFailed("composition archive set differs from mandatory children")
     if subprocess.run(["git", *workers.SAFE_GIT, "merge-base", "--is-ancestor", main_sha, head], cwd=checkout,
                       capture_output=True, check=False, stdin=subprocess.DEVNULL).returncode == 0:
         return head, main_sha  # idempotent: the head already contains this main
-    before = review_gate.task_identity(checkout, change)
+    before = composition_identity(checkout, manifest) if composition else review_gate.task_identity(checkout, change)
     merge = subprocess.run(["git", *workers.SAFE_GIT, "merge", "--no-commit", "--no-ff", main_sha], cwd=checkout,
                            text=True, capture_output=True, check=False, stdin=subprocess.DEVNULL)
     merging = (checkout / ".git" / "MERGE_HEAD").is_file()
@@ -340,7 +376,11 @@ def rederive_archived_specs(*, source_repo: str, branch: str, head: str, task_pa
             workers._git(checkout, "checkout", main_sha, "--", path)
         else:
             workers._git(checkout, "rm", "-q", "-f", "--ignore-unmatch", "--", path)
-    for archive_dir in sorted(deltas):
+    ordered_deltas = sorted(deltas)
+    if composition:
+        ordered_deltas = [next(d for d in deltas if ARCHIVE_NAME.fullmatch(Path(d).name).group(1) == child["change"])
+                          for child in manifest["children"]]
+    for archive_dir in ordered_deltas:
         (replay or _replay_archived_delta)(checkout, archive_dir)
     (validate or (lambda path: _openspec(path, "validate", "--all", "--strict", "--no-interactive")))(checkout)
     workers._git(checkout, "add", "-A")
@@ -357,12 +397,16 @@ def rederive_archived_specs(*, source_repo: str, branch: str, head: str, task_pa
     if both - spec_paths:
         raise RederivationFailed("re-derivation changed paths beyond archive-derived specs: "
                                  + ", ".join(sorted(both - spec_paths)[:8]))
-    after = review_gate.task_identity(checkout, change)
+    after = composition_identity(checkout, manifest) if composition else review_gate.task_identity(checkout, change)
     if not equivalent_proofs(checkout, before["task_content"], after["task_content"]):
         raise RederivationFailed("re-derivation changed the task-content identity")
     if not claim_current():
         raise RederivationFailed("claim lost before push")
-    workers.push_validated(checkout, branch, head, result, runner=runner, env=push_env)
+    if composition:
+        from requirement_contributions import push_fast_forward
+        push_fast_forward(checkout, branch, head, result, runner=runner)
+    else:
+        workers.push_validated(checkout, branch, head, result, runner=runner, env=push_env)
     return result, main_sha
 
 

@@ -64,6 +64,10 @@ def creation_calls(scripts: Path = SCRIPTS) -> collections.Counter[str]:
 # Existing direct creation sites, reviewed when this guard was introduced.
 # Keep the counts exact: adding a call inside an existing function also fails.
 REVIEWED_BASELINE: dict[str, int] = {
+    # Trusted harness manifests/evidence and private reviewer scratch inputs.
+    'requirement_composition.py:execute_composition_review:write_text': 4,
+    'requirement_composition.py:run_child_review:write_text': 2,
+    'requirement_contributions.py:write_manifest:write_text': 1,
     '_platform_common.py:atomic_write_text:mkstemp': 1,
     '_platform_common.py:atomic_write_text:replace': 1,
     '_platform_common.py:locked_json:open': 1,

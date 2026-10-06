@@ -129,83 +129,88 @@ class RequirementExecutionTests(unittest.TestCase):
             self.assertEqual(result["status"], "implement-child")
             self.assertTrue(materialize.call_args.kwargs["confirm_distinct"])
 
-    def test_advance_publishes_only_after_two_exact_ready_receipts(self) -> None:
+    def test_multi_child_advance_dispatches_to_contribution_supervisor(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            handoffs = []
-            for change in ("first", "second"):
-                path = root / f"{change}.json"
-                path.write_text(json.dumps({"intents": [{"id": change, "dependencies": []}]}), encoding="utf-8")
-                handoffs.append((change, path))
-            def git_result(_root: Path, *args: str) -> str:
-                return "main" if args[:2] == ("branch", "--show-current") else "a" * 40
+            handoffs = [("first", root / "first.json"), ("second", root / "second.json")]
             with mock.patch.object(execution, "current_worktree_root", return_value=root), mock.patch.object(
-                execution, "_git", side_effect=git_result
-            ), mock.patch.object(execution.requirement_target_lifecycle, "require_local_target_support"), mock.patch.object(
-                execution.requirement_intake, "fetch_issue", return_value={"body": PARENT_BODY, "labels": [{"name": "type:requirement"}]}), mock.patch.object(
-                execution.orchestrate_pre_authoring, "status", return_value={"current_stage": "complete"}
-            ), mock.patch.object(execution, "_ordered_handoffs", return_value=handoffs), mock.patch.object(
-                execution, "_linked_children_by_change", return_value={"first": "acme/backlog#8", "second": "acme/backlog#9"}
-            ), mock.patch.object(execution.requirement_board, "reconcile_nonterminal"), mock.patch.object(execution.managed_project_status, "observe", return_value=SimpleNamespace(current_status="In progress")), mock.patch.object(
-                execution, "_ready_receipt", side_effect=[(root / "first-receipt.json", object()), (root / "second-receipt.json", object())]
-            ), mock.patch.object(execution.requirement_integration, "assemble_candidate", return_value={"digest": "exact"}) as assemble, mock.patch.object(
-                execution.requirement_integration, "compose_candidate"
-            ) as compose, mock.patch.object(execution.requirement_integration, "publish_candidate", return_value={"status": "merged-and-reconciled"}) as publish, mock.patch.object(
-                execution.requirement_retrospective, "require_checkpoint"
-            ) as retrospective:
-                result = execution.advance(root, requirement=REQUIREMENT, base_dir=root)
-            self.assertEqual(result["status"], "merged-and-reconciled")
-            self.assertEqual(len(assemble.call_args.kwargs["receipt_paths"]), 2)
-            compose.assert_called_once()
-            publish.assert_called_once()
-            retrospective.assert_called_once_with(root.resolve(), requirement=REQUIREMENT)
-
-    def test_advance_opens_shared_draft_after_first_ready_child_then_starts_next(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            handoffs = []
-            for change in ("first", "second"):
-                path = root / f"{change}.json"
-                path.write_text(json.dumps({"intents": [{"id": change, "dependencies": []}]}), encoding="utf-8")
-                handoffs.append((change, path))
-
-            def git_result(_root: Path, *args: str) -> str:
-                return "main" if args[:2] == ("branch", "--show-current") else "a" * 40
-
-            with mock.patch.object(execution, "current_worktree_root", return_value=root), mock.patch.object(
-                execution, "_git", side_effect=git_result
+                execution, "_git", return_value="main"
             ), mock.patch.object(execution.requirement_target_lifecycle, "require_local_target_support"), mock.patch.object(
                 execution.requirement_intake, "fetch_issue", return_value={"body": PARENT_BODY, "labels": [{"name": "type:requirement"}]}
-            ), mock.patch.object(
-                execution.orchestrate_pre_authoring, "status", return_value={"current_stage": "complete"}
-            ), mock.patch.object(execution, "_ordered_handoffs", return_value=handoffs), mock.patch.object(
+            ), mock.patch.object(execution.orchestrate_pre_authoring, "status", return_value={"current_stage": "complete"}), mock.patch.object(
+                execution, "_ordered_handoffs", return_value=handoffs
+            ), mock.patch.object(execution, "_linked_children_by_change", return_value={"first": "acme/backlog#8", "second": "acme/backlog#9"}), mock.patch.object(
+                execution, "_advance_contributions", return_value={"status": "implement-children"}
+            ) as contributions, mock.patch.object(execution, "_contribution_publication_supported", return_value=True), mock.patch.object(execution.requirement_board, "claim_started"), mock.patch.object(execution.requirement_integration, "assemble_candidate") as legacy:
+                result = execution.advance(root, requirement=REQUIREMENT, base_dir=root)
+            self.assertEqual(result["status"], "implement-children")
+            contributions.assert_called_once()
+            legacy.assert_not_called()
+
+    def test_downstream_multi_child_uses_existing_supervisor_path(self):
+        import _platform_common
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            handoff = root / "first.json"
+            handoff.write_text(json.dumps({"intents": [{"id": "first", "dependencies": []}]}))
+            with mock.patch.object(execution, "current_worktree_root", return_value=root), mock.patch.object(
+                execution, "_git", return_value="main"
+            ), mock.patch.object(_platform_common, "read_platform_config", return_value={"platform_version": "1.0"}), mock.patch.object(
+                execution.requirement_target_lifecycle, "require_local_target_support"
+            ), mock.patch.object(execution.requirement_intake, "fetch_issue", return_value={"body": PARENT_BODY, "labels": [{"name": "type:requirement"}]}), mock.patch.object(
+                execution.orchestrate_pre_authoring, "status", return_value={}
+            ), mock.patch.object(execution, "_ordered_handoffs", return_value=[("first", handoff), ("second", handoff)]), mock.patch.object(
                 execution, "_linked_children_by_change", return_value={"first": "acme/backlog#8", "second": "acme/backlog#9"}
-            ), mock.patch.object(
-                execution.managed_project_status, "observe", return_value=SimpleNamespace(current_status="In progress")
-            ), mock.patch.object(
-                execution, "_ready_receipt", side_effect=[(root / "first-receipt.json", object()), None]
-            ), mock.patch.object(
-                execution, "_existing_candidate", return_value=None
-            ), mock.patch.object(
-                execution.requirement_integration, "assemble_candidate", return_value={"digest": "exact"}
-            ) as assemble, mock.patch.object(execution.requirement_integration, "compose_candidate") as compose, mock.patch.object(
-                execution.requirement_integration, "publish_candidate", return_value={"status": "draft-published"}
-            ) as publish, mock.patch.object(
-                execution.start_managed_task, "start_managed_task",
-                return_value=(SimpleNamespace(task_root=root / "child"), "head", False),
-            ) as start, mock.patch.object(execution.requirement_board, "reconcile_nonterminal"), mock.patch.object(
-                execution.requirement_retrospective, "require_checkpoint"
-            ) as retrospective:
+            ), mock.patch.object(execution.managed_project_status, "observe", return_value=SimpleNamespace(current_status="Ready")), mock.patch.object(
+                execution, "_ready_receipt", return_value=None
+            ), mock.patch.object(execution.start_managed_task, "start_managed_task", return_value=(SimpleNamespace(task_root=root), "head", False)) as start, mock.patch.object(
+                execution.requirement_board, "claim_started"
+            ), mock.patch.object(execution.requirement_board, "reconcile_nonterminal"), mock.patch.object(execution, "_advance_contributions") as contributions:
                 result = execution.advance(root, requirement=REQUIREMENT, base_dir=root)
             self.assertEqual(result["status"], "implement-child")
-            self.assertEqual(result["child"], "acme/backlog#9")
-            self.assertEqual(result["shared_draft"], {"status": "draft-published"})
-            self.assertEqual(assemble.call_args.kwargs["expected_changes"], ["first", "second"])
-            self.assertEqual(len(assemble.call_args.kwargs["receipt_paths"]), 1)
-            compose.assert_called_once()
-            publish.assert_called_once()
-            start.assert_called_once()
-            retrospective.assert_not_called()
+            contributions.assert_not_called()
+            self.assertNotIn("contribution", start.call_args.kwargs)
+
+    def test_single_child_active_coordinator_candidate_publishes_before_archive(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            worktree = root / "first"; worktree.mkdir()
+            change = worktree / "openspec/changes/first"; change.mkdir(parents=True)
+            (change / "tasks.md").write_text("- [x] Implement\n")
+            with mock.patch.object(execution, "_contribution_publication_supported", return_value=True), mock.patch.object(
+                execution, "machine_path", return_value=root
+            ), mock.patch.object(execution, "_single_child_in_flight", return_value=False), mock.patch.object(execution.managed_task, "resolve_canonical_provenance", return_value=SimpleNamespace(lifecycle="active", path=change)), mock.patch.object(
+                execution.subprocess, "run", return_value=SimpleNamespace(returncode=0)
+            ) as finish:
+                self.assertTrue(execution._publish_active_child(root, "acme/backlog#8", "first"))
+            self.assertEqual(finish.call_args.kwargs["cwd"], worktree)
+            self.assertEqual(finish.call_args.kwargs["stdin"], execution.subprocess.DEVNULL)
+            self.assertTrue(change.is_dir())
+
+    def test_single_child_resume_observes_handoff_and_newer_remote_head_without_republishing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "first").mkdir()
+            for state, remote_head in (("review-pending", "a" * 40), ("repairing", "b" * 40),
+                                       ("finalize-pending", "b" * 40), (None, "b" * 40)):
+                with self.subTest(state=state):
+                    adapter = SimpleNamespace(
+                        _repo=lambda *a: "acme/project", _gh=lambda *a: [{"number": 8}],
+                        _pr=lambda *a: {"head": {"ref": "agent/first", "sha": remote_head},
+                                       "base": {"ref": "main"}},
+                        _comments=lambda *a: [], _derive=lambda *a: {}, _malformed=lambda *a: False,
+                        _latest=lambda *a: {"state": state} if state else None,
+                        _events=lambda *a: [], _admission=lambda *a: None)
+                    observe = execution._single_child_in_flight
+                    with mock.patch.object(execution, "_git", side_effect=["agent/first", "a" * 40]), \
+                            mock.patch.object(execution, "_contribution_publication_supported", return_value=True), \
+                            mock.patch.object(execution, "machine_path", return_value=root), \
+                            mock.patch.object(execution, "_single_child_in_flight", side_effect=lambda w: observe(w, adapter=adapter)), \
+                            mock.patch.object(execution.subprocess, "run") as finish, \
+                            mock.patch.object(execution.managed_task, "resolve_canonical_provenance") as provenance:
+                        self.assertTrue(execution._publish_active_child(root, "acme/backlog#8", "first"))
+                        finish.assert_not_called()
+                        provenance.assert_not_called()
 
     def test_single_mandatory_change_never_opens_a_shared_draft(self) -> None:
         self.assertIsNone(execution._publish_early_draft(
@@ -250,40 +255,6 @@ class RequirementExecutionTests(unittest.TestCase):
                 "source_issue": "acme/backlog#8", "change": "first", "receipt": str(path),
                 "superseded_head": "a" * 40, "head": "b" * 40,
             }])
-
-    def test_advance_reports_superseded_receipts_for_audit(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            handoffs = []
-            for change in ("first", "second"):
-                path = root / f"{change}.json"
-                path.write_text(json.dumps({"intents": [{"id": change, "dependencies": []}]}), encoding="utf-8")
-                handoffs.append((change, path))
-            def ready(_integration, _dir, _requirement, child, change, *, release_claim, superseded):
-                if change == "first":
-                    superseded.append({"source_issue": child, "change": change, "superseded_head": "a" * 40, "head": "b" * 40})
-                return root / f"{change}-receipt.json", object()
-            def git_result(_root: Path, *args: str) -> str:
-                return "main" if args[:2] == ("branch", "--show-current") else "a" * 40
-            with mock.patch.object(execution, "current_worktree_root", return_value=root), mock.patch.object(
-                execution, "_git", side_effect=git_result
-            ), mock.patch.object(execution.requirement_target_lifecycle, "require_local_target_support"), mock.patch.object(
-                execution.requirement_intake, "fetch_issue", return_value={"body": PARENT_BODY, "labels": [{"name": "type:requirement"}]}), mock.patch.object(
-                execution.orchestrate_pre_authoring, "status", return_value={"current_stage": "complete"}
-            ), mock.patch.object(execution, "_ordered_handoffs", return_value=handoffs), mock.patch.object(
-                execution, "_linked_children_by_change", return_value={"first": "acme/backlog#8", "second": "acme/backlog#9"}
-            ), mock.patch.object(execution.requirement_board, "reconcile_nonterminal"), mock.patch.object(execution.managed_project_status, "observe", return_value=SimpleNamespace(current_status="In progress")), mock.patch.object(
-                execution, "_ready_receipt", side_effect=ready
-            ), mock.patch.object(execution.requirement_integration, "assemble_candidate", return_value={"digest": "exact"}), mock.patch.object(
-                execution.requirement_integration, "compose_candidate"
-            ), mock.patch.object(execution.requirement_integration, "publish_candidate", return_value={"status": "merged-and-reconciled"}), mock.patch.object(
-                execution.requirement_retrospective, "require_checkpoint"
-            ):
-                result = execution.advance(root, requirement=REQUIREMENT, base_dir=root)
-            self.assertEqual(result["status"], "merged-and-reconciled")
-            self.assertEqual(result["superseded_receipts"], [
-                {"source_issue": "acme/backlog#8", "change": "first", "superseded_head": "a" * 40, "head": "b" * 40},
-            ])
 
     def test_ready_child_releases_only_its_exact_board_claim(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

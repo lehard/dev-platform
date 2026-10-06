@@ -236,9 +236,11 @@ def use_default_friction_sink(root: Path) -> None:
 
 def emit_friction(number: int, branch: str | None, kind: str, head: str, detail: str, *,
                   attempts: dict[str, int] | None = None) -> None:
-    """Hand one lifecycle event to the registered sink; never let bookkeeping break a transition."""
-    if _friction_sink is None or not isinstance(branch, str) or not branch:
+    """Record required friction before publishing a transition; failures leave it retryable."""
+    if _friction_sink is None:
         return
+    if not isinstance(branch, str) or not branch:
+        raise QueueError("friction recording requires a candidate branch; retry transition")
     import hashlib
 
     spec = _FRICTION_STATES.get(kind)
@@ -252,8 +254,8 @@ def emit_friction(number: int, branch: str | None, kind: str, head: str, detail:
                         "hypothesis": "Recorded automatically by the publication coordinator; see the PR lifecycle records.",
                         "proposal": "Review whether the gate, the evidence or the repair path should change.",
                         "dedupe_key": f"coordinator:{key}"})
-    except (Exception, SystemExit):
-        pass
+    except (Exception, SystemExit) as exc:
+        raise QueueError(f"friction recording failed for PR #{number} ({kind}); retry transition: {exc}") from exc
 
 
 def _transition(
@@ -306,10 +308,10 @@ def _transition(
     new_attempts = any(previous.get("attempts", {}).get(k) != v for k, v in (set_attempts or {}).items())
     branch = observed.get("head", {}).get("ref")
     if not identity_changed and not new_attempts and previous.get("state") == state and red_gate in (None, previous.get("red_gate")) and not new_gates and not new_job:
-        _project_lifecycle_label(root, repo, number, observed, state)
         if state in _FRICTION_STATES:
             emit_friction(number, branch, state, head, str((previous.get("red_gate") or {}).get("evidence", ""))[:300],
                           attempts=previous.get("attempts"))
+        _project_lifecycle_label(root, repo, number, observed, state)
         return previous
     # A proven coordinator update can retain content-bound gates from lineage.
     # Head-only legacy gates never survive a head move.
@@ -336,16 +338,16 @@ def _transition(
         next_job=next_job if next_job is not None else (previous.get("next_job") if state == previous.get("state") or state in {"reviewing", "repairing"} else None),
         at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
     )
-    _gh(root, "api", "-X", "POST", f"repos/{repo}/issues/{number}/comments", data={"body": marker_body(record)})
-    _project_lifecycle_label(root, repo, number, observed, state)
     if state in _FRICTION_STATES:
         emit_friction(number, branch, state, head, str((red_gate or {}).get("evidence", ""))[:300], attempts=attempts)
+    _gh(root, "api", "-X", "POST", f"repos/{repo}/issues/{number}/comments", data={"body": marker_body(record)})
+    _project_lifecycle_label(root, repo, number, observed, state)
     return record
 
 
 def publish_job(root: Path, repo: str, number: int, kind: str, head: str, *,
                 task_identity: str | dict[str, Any], attempt: int | None = None,
-                providers=None) -> dict[str, Any] | None:
+                providers=None, target_head=None, phase=None) -> dict[str, Any] | None:
     """Publish a head-bound job record for the candidate's current state (no new state)."""
     from lifecycle_workers import job_record
 
@@ -366,9 +368,9 @@ def publish_job(root: Path, repo: str, number: int, kind: str, head: str, *,
                       f"{kind} job could not resolve the originating task route and falls back to the default provider")
     return _transition(root, repo, number, current["state"], head,
                        task_identity=current.get("task_identity") or task_identity,
-                       red_gate=current.get("red_gate") if kind == "integration-repair" else None,
+                       red_gate=current.get("red_gate") if kind in {"repair", "integration-repair"} else None,
                        next_job=job_record(kind, head, current.get("task_identity") or task_identity, attempt,
-                                           providers=providers))
+                                           providers=providers, target_head=target_head, phase=phase))
 
 
 def _raise_if_owned_elsewhere(root: Path, repo: str, number: int, head: str) -> None:
@@ -498,18 +500,52 @@ def _archived_verification_gate(root: Path) -> dict[str, Any]:
 def admit(root: Path, number: int, expected_head: str, *, handoff: dict | None = None) -> dict[str, Any]:
     repo = _repo(root)
     pr = _pr(root, repo, number)
-    if pr.get("state") != "open" or pr.get("base", {}).get("ref") != "main" or pr.get("head", {}).get("sha") != expected_head:
+    identity = (handoff or {}).get("task_identity", {})
+    target = identity.get("target_branch", "main") if isinstance(identity, dict) else "main"
+    if pr.get("state") != "open" or pr.get("base", {}).get("ref") != target or pr.get("head", {}).get("sha") != expected_head:
         raise QueueError("queue admission requires one open PR at the exact validated head against main")
     branch = pr.get("head", {}).get("ref")
-    if not isinstance(branch, str) or not branch.startswith("agent/"):
+    if isinstance(branch, str) and branch.startswith("requirement/BR-") and not handoff:
+        identity = (_latest(root, number, _comments(root, repo, number), expected_head) or {}).get("task_identity", {})
+    if not isinstance(branch, str) or not (branch.startswith("agent/")
+        or (identity.get("kind") == "requirement-composition" and branch.startswith("requirement/BR-"))):
         raise QueueError("queue admission requires an owned task branch")
+    if target == "main" and branch.startswith("requirement/BR-"):
+        require_composition_finalized(root, repo, number, expected_head)
     events = _events(root, repo, number)
     admitted = _admission(events, number)
+    if admitted and handoff:
+        prior = _latest(root, number, _comments(root, repo, number))
+        old_identity = prior.get("task_identity") if prior else None
+        keys = ("kind", "change", "requirement", "source_issue", "work_identity", "target_branch", "contribution_base")
+        updates = [event for event in events if event.get("kind") == "update"
+                   and event.get("comment_id", 0) > admitted.get("comment_id", 0)]
+        proven = updates[-1].get("head") if updates else admitted.get("head")
+        if (prior and prior.get("head") == proven and prior.get("head") != expected_head
+                and prior.get("state") == "blocked-retryable"
+                and prior.get("red_gate", {}).get("name") == "semantic-verification"
+                and isinstance(old_identity, dict) and old_identity.get("kind") == "contribution"
+                and all(old_identity.get(k) == identity.get(k) for k in keys)
+                and prior["red_gate"].get("identity") == old_identity
+                and handoff.get("gates", {}).get("developer-friction", {}).get("evidence", {}).get("head") == expected_head
+                and all(handoff.get("gates", {}).get(g, {}).get("result") == "passed"
+                        and handoff["gates"][g].get("identity") == identity
+                        and handoff["gates"][g].get("evidence")
+                        for g in ("developer-friction", "selected-checks", "semantic-verification"))):
+            _comment(root, repo, number, {"kind": "block", "head": prior["head"],
+                                        "reason": "fresh semantic-verification developer handoff"})
+            events = _events(root, repo, number)
+            admitted = _admission(events, number)
+            if admitted is not None:
+                raise QueueError("semantic-verification admission reset was not confirmed")
     if admitted:
-        if admitted.get("head") != expected_head:
+        updates = [event for event in events if event.get("kind") == "update"
+                   and event.get("comment_id", 0) > admitted.get("comment_id", 0)]
+        proven = updates[-1].get("head") if updates else admitted.get("head")
+        if proven != expected_head:
             raise QueueError("PR has an earlier or ambiguous admission; resolve it before re-admission")
     else:
-        base = _main(root)
+        base = identity["contribution_base"] if identity.get("kind") == "contribution" else _main(root)
         _ensure_labels(root)
         _comment(root, repo, number, {"kind": "admit", "head": expected_head, "base": base, "branch": branch})
         admitted = _admission(_events(root, repo, number), number)
@@ -536,9 +572,11 @@ def admit(root: Path, number: int, expected_head: str, *, handoff: dict | None =
 
 
 def _queued(root: Path, repo: str) -> list[tuple[int, int, dict[str, Any]]]:
-    rows = _gh(root, "pr", "list", "--state", "open", "--limit", "100", "--json", "number,labels")
+    # Filter remotely before bounding. Merged queued contributions still need
+    # recovery if the worker stopped between GitHub merge and manifest publication.
+    rows = _gh(root, "pr", "list", "--state", "all", "--label", QUEUE, "--limit", "100", "--json", "number,labels")
     if not isinstance(rows, list) or len(rows) >= 100:
-        raise QueueError("open PR inventory is unavailable or exceeds the bounded limit")
+        raise QueueError("queued PR inventory is unavailable or exceeds the bounded limit")
     queue = []
     for row in rows:
         if not isinstance(row, dict) or QUEUE not in {label.get("name") for label in row.get("labels", []) if isinstance(label, dict)}:
@@ -650,7 +688,9 @@ def requirement_status(root: Path, requirement: str) -> dict[str, Any]:
 
     child_prefix = "agent/" + parent_identity(requirement).lower() + "-t"
     children = re.escape(child_prefix) + r"[1-9][0-9]*-[A-Za-z0-9][A-Za-z0-9._-]*"
-    pattern = re.compile(re.escape(branch) + r"(?:-[0-9a-f]{12})?|" + children if branch else children)
+    shared = re.escape("requirement/" + parent_identity(requirement))
+    legacy = re.escape(branch) + r"(?:-[0-9a-f]{12})?|" if branch else ""
+    pattern = re.compile(legacy + shared + "|" + children)
     numbers = sorted({int(number) for number, _, ref in (line.partition("\t") for line in listed.stdout.splitlines())
                       if number.isdigit() and pattern.fullmatch(ref)})
     result: dict[str, Any] = {"requirement": requirement, "candidates": [candidate_status(root, number, repo=repo) for number in numbers]}
@@ -792,6 +832,8 @@ def _prepare(root: Path, repo: str, number: int, admission: dict[str, Any], pr: 
     events = _events(root, repo, number)
     updates = [e for e in events if e.get("kind") == "update" and e.get("comment_id", 0) > admission["comment_id"]]
     proven = admission.get("head") if not updates else updates[-1].get("head")
+    if pr.get("head", {}).get("ref", "").startswith("requirement/BR-"):
+        require_composition_finalized(root, repo, number, head)
     if head != proven:
         # A runner can die after GitHub updates the branch but before it writes
         # the update comment. Recover only a clean merge of proven head + main.
@@ -906,10 +948,40 @@ def worker(root: Path) -> dict[str, Any]:
     queue = sorted(queue, key=lambda item: not active(item[1]))
     for _, number, admission in queue:
         pr = observed_prs[number]
+        comments = _comments(root, repo, number)
+        identity = (_latest(root, number, comments) or {}).get("task_identity", {})
+        if isinstance(identity, dict) and identity.get("kind") == "contribution":
+            from requirement_contributions import merge_reviewed_contribution, ContributionError
+            current = candidate_status(root, number, repo=repo)
+            if (current["state"] == "repair-pending"
+                    and (current.get("red_gate") or {}).get("name") == "required-checks"
+                    and (current.get("next_job") or {}).get("kind") != "repair"):
+                failure = current["red_gate"]
+                if "required-checks" in failure["evidence"]:
+                    red_gate = failure  # State was recorded before an interrupted job publication.
+                else:
+                    red_gate = {**failure, "evidence": {"required-checks": {"findings": [{
+                        "id": "required-checks-failed", "severity": "material",
+                        "summary": "Repair failed required contribution checks", "evidence": failure["evidence"]}]}}}
+                _transition(root, repo, number, "repair-pending", current["head"],
+                            task_identity=current["task_identity"], inherit_identity=False,
+                            gates=current.get("gates", {}), red_gate=red_gate)
+                publish_job(root, repo, number, "repair", current["head"], task_identity=current["task_identity"],
+                            attempt=max(1, current.get("attempts", {}).get("repair", 0) + 1))
+                return {"state": "repair-pending", "number": number}
+            if current["state"] in {"contribution-integration-pending", "contribution-integrated"}:
+                try:
+                    outcome = merge_reviewed_contribution(root, repo, current)
+                except (ContributionError, QueueError) as exc:
+                    skipped.append(f"#{number} contribution: {exc}")
+                    continue
+                _label(root, repo, number, QUEUE, present=False)
+                return outcome
+            skipped.append(f"#{number} contribution: {current['state']}")
+            continue
         if pr.get("merged"):
             _label(root, repo, number, QUEUE, present=False)
             return {"state": "merged", "number": number}
-        comments = _comments(root, repo, number)
         # Without any v2 record the v1 admission alone governs (it reads as ready).
         has_v2 = any(str(row.get("body", "")).startswith(V2_PREFIX) for row in comments)
         current = _derive(root, pr, comments) if has_v2 else {"state": "ready"}
@@ -973,6 +1045,8 @@ def _integrate(root: Path, repo: str, number: int, admission: dict[str, Any], pr
     try:
         _require_finalized(root, number, pr.get("head", {}).get("sha"))
         head, base = _prepare(root, repo, number, admission, pr)
+        if pr.get("head", {}).get("ref", "").startswith("requirement/BR-") and head != pr["head"]["sha"]:
+            refresh_composition_checks(root, repo, number, head)
         identity = {"branch": admission.get("branch"), "head": head}
         integrating = _transition(root, repo, number, "integrating", head, task_identity=identity, attempt="integration",
                     refuse_from=NOT_INTEGRABLE, cross_head_claims=True,
@@ -1012,6 +1086,8 @@ def _integrate(root: Path, repo: str, number: int, admission: dict[str, Any], pr
         # Review or repair may have claimed this head during the check wait.
         _raise_if_owned_elsewhere(root, repo, number, head)
         _require_finalized(root, number, head)
+        if pr.get("head", {}).get("ref", "").startswith("requirement/BR-"):
+            require_composition_finalized(root, repo, number, head)
         result = subprocess.run(["gh", "pr", "merge", str(number), "--squash", "--match-head-commit", head], cwd=root, text=True, capture_output=True, stdin=subprocess.DEVNULL)
         if _pr(root, repo, number).get("merged"):
             _label(root, repo, number, ACTIVE, present=False)
@@ -1148,6 +1224,50 @@ def main() -> int:
         return 0
     print(json.dumps(result, sort_keys=True))
     return 0 if result.get("state") in {"merged", "empty", "queued", "active", "waiting", "not-admitted"} else 2
+
+
+
+
+
+def branch_head(root: Path, branch: str) -> str:
+    result = run_git(["ls-remote", "origin", f"refs/heads/{branch}"], cwd=root).stdout.split()
+    if not result:
+        raise QueueError("integration target branch is unavailable")
+    return result[0]
+
+
+def require_composition_finalized(root: Path, repo: str, number: int, head: str) -> None:
+    import tempfile
+    from lifecycle_workers import prepare_checkout
+    from requirement_composition import candidate_manifest, require_final_gates
+    from requirement_contributions import ContributionError
+
+    current = _derive(root, _pr(root, repo, number), _comments(root, repo, number))
+    identity = current.get("task_identity")
+    if not isinstance(identity, dict) or identity.get("kind") != "requirement-composition":
+        raise QueueError("Requirement publication lacks composition identity")
+    try:
+        with tempfile.TemporaryDirectory(prefix="requirement-merge-gates-") as temporary:
+            checkout = prepare_checkout(f"https://github.com/{repo}.git", temporary, "harness", head)
+            manifest = candidate_manifest(checkout, identity["requirement"])
+            require_final_gates(checkout, manifest, current, head)
+    except ContributionError as exc:
+        raise QueueError(str(exc)) from exc
+
+
+def refresh_composition_checks(root: Path, repo: str, number: int, head: str) -> None:
+    import tempfile
+    from lifecycle_workers import prepare_checkout
+    from requirement_composition import candidate_manifest, advance_final_publication
+
+    candidate = _derive(root, _pr(root, repo, number), _comments(root, repo, number))
+    identity = candidate.get("task_identity", {})
+    with tempfile.TemporaryDirectory(prefix="composition-main-refresh-") as temporary:
+        checkout = prepare_checkout(f"https://github.com/{repo}.git", temporary, "harness", head)
+        manifest = candidate_manifest(checkout, identity["requirement"])
+    result = advance_final_publication(root, repo, manifest, head, number, adapter=sys.modules[__name__], enqueue=False)
+    if result["status"] != "ready":
+        raise QueueError("Requirement final-head checks await fresh composition gates")
 
 
 if __name__ == "__main__":

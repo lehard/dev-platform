@@ -1,0 +1,16 @@
+OpenSpec-Verify: PASS
+Verification-Method: equivalent semantic OpenSpec review of completeness, correctness and coherence against the accepted platform-lifecycle, completion-lifecycle and publication-queue specs plus this active delta
+Automated-Checks-Evidence: automated-checks.json
+Independent-Review-Evidence: independent-review-request.json
+
+Implementation was delegated to the Codex `standard` executor (gpt-6.1-sol, workspace-write containment in this worktree, stdin closed) from a read-only plan it prepared earlier, and reviewed by the supervisor. After four review-fix rounds the Codex quota ran low; a Claude Sonnet subagent performed the final verification pass and the last review ran with the Claude reviewer.
+
+Contributions. Multi-child Requirements in coordinator-enabled source checkouts get a Requirement integration branch; children publish contribution PRs into it and independent children start in parallel. Reviewed contributions merge into the integration branch only through the coordinator, which records a contribution manifest with exact child heads. Downstream multi-child publication keeps the existing path.
+
+Composition. The Requirement PR receives a composition-scope review over the archived child artifacts and one finalization; composition identity accepts later reviewed contributions that extend files changed by earlier children (validated through preserved child heads and reviewed identities). The single-child path is preserved and publishes an active coordinator-managed child for review before archive.
+
+Independent review rounds (material findings fixed with regression tests): round 1 — shared-file composition, repaired-contribution gates, contribution-mode scope, pre-archive single-child review, pre-merge Requirement retrospective job; round 2 — fresh semantic verification after content-changing repair (no rebinding of the old receipt), archived artifact paths in the composition review diff, interrupted finalization recovery, runnable repair jobs for failed contribution checks, credential-free composition checks; round 3 — in-flight contributions on resume, re-admission after a verification refresh, child post-merge obligation fan-out, open-PR queue inventory, explicit composition reviewer providers, harness-scoped clone push authentication; round 4 — authenticated harness pushes centralized in `push_validated`, composition friction attribution to the Requirement, single-child in-flight resume, surfaced friction-recording failures. Round 5: ready.
+
+Known limitations (advisory, accepted): `_block` tolerates a failed blocked-escalation transition; queue inventory relies on the queue label being cleared on merge/block; the retrospective job does not catch a full-check failure from final publication and persists its gate through a blocked-retryable transition; composition identity re-clones each child per call (cost).
+
+Checks: compileall, ruff, `tests/test_requirement_contribution_composition.py` with affected requirement, queue, lifecycle, worker and finalization tests, import-isolation, module-identity and shared-writer guards, `openspec_lifecycle.py check`, `run_test_groups.py --all` (17 groups green after round 4), and the selected full validation (automated-checks.json). Completeness: tasks 1.1-3.2. Correctness and coherence: behavior matches the delta scenarios.

@@ -37,6 +37,26 @@ def comment(record, ident=1):
 
 
 class CandidateLifecycleTests(unittest.TestCase):
+    def test_interrupted_composition_finalization_reoffers_finalize_job(self):
+        import lifecycle_workers as workers
+        identity = {"kind": "requirement-composition", "change": "br-7", "requirement": "owner/backlog#7",
+                    "children": [{"change": "child", "head": HEAD}],
+                    "task_content": {"digest": "d" * 64, "paths": {"app.py": "blob"}}}
+        gates = {name: {"result": "passed", "identity": identity, "evidence": {"checked": True}}
+                 for name in ("review", "selected-checks", "semantic-verification")}
+        record = lifecycle.build_handoff_record(number=7, state="finalize-pending", head=HEAD,
+            task_identity=identity, gates=gates, red_gate=None, not_reverified=[], attempts={"finalize": 1},
+            next_job=workers.job_record("finalize", HEAD, identity, 1), at="2026-10-05T08:00:00Z")
+        job = workers.build_job({**record, "number": 7})
+        receipt = {"id": 2, "author_association": "OWNER", "body": workers.result_body(
+            job, "worker", "validated-push", NEW_HEAD, task_identity=identity)}
+        candidate = lifecycle.derive_candidate(pr(NEW_HEAD), [comment(record), receipt])
+        recovered = workers.build_job(candidate)
+        self.assertEqual(candidate["state"], "finalize-pending")
+        self.assertEqual(recovered["kind"], "finalize")
+        self.assertEqual(recovered["head"], NEW_HEAD)
+        self.assertEqual(candidate["gates"], gates)
+
     def test_restart_derives_identical_state_without_mutation(self):
         snapshot = (pr(labels=("lifecycle:ready",)), [comment(handoff())])
         before = deepcopy(snapshot)

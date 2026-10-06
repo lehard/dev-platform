@@ -570,6 +570,39 @@ class FrictionAttributionTests(FrictionFixture):
             self.assertEqual((events[0]["task"], events[0]["requirement"]), ("agent/br-7-t7-task", REQUIREMENT))
             self.assertEqual(events[0]["category"], "lifecycle-blocked-escalation")
 
+    def test_composition_friction_lineage_is_selected_by_premerge_requirement_checkpoint(self):
+        import managed_task
+        with mock.patch.object(managed_task, "authoring_config", return_value=SimpleNamespace(repository="acme/backlog")):
+            self.assertEqual(contour.resolve_lineage(self.root, "requirement/BR-7"),
+                             {"requirement": REQUIREMENT, "child": None})
+            sink = contour.default_friction_sink(self.root)
+            sink({"task": "requirement/BR-7", "category": "coordinator-retry", "severity": "medium",
+                  "triggers": ["excessive-retry"], "observation": "retry", "evidence": "repair",
+                  "hypothesis": "h", "proposal": "p", "dedupe_key": "composition-retry"})
+        event = self.events()[0]
+        self.assertEqual(event["requirement"], REQUIREMENT)
+        ops = FakeOps()
+        contour.ensure_requirement_checkpoint(ops, self.root, REQUIREMENT, CHILDREN)
+        self.assertEqual(ops.calls, [("requirement-checkpoint", (event["id"],))])
+
+    def test_friction_failure_prevents_transition_and_retry_records_event_before_handoff(self):
+        with Multi({7: HEAD}) as multi:
+            multi.ready(7)
+            before = list(multi.comments[7])
+            sink = mock.Mock(side_effect=OSError("friction storage denied"))
+            queue.set_friction_sink(sink)
+            self.addCleanup(queue.set_friction_sink, None)
+            for failure in (OSError("friction storage denied"), SystemExit("invalid lineage")):
+                sink.side_effect = failure
+                with self.assertRaisesRegex(queue.QueueError, "friction recording failed.*retry transition"):
+                    queue._transition(ROOT, "o/r", 7, "repair-pending", HEAD, task_identity={"head": "x"})
+                self.assertEqual(multi.comments[7], before)
+            sink.side_effect = contour.default_friction_sink(
+                self.root, lineage=lambda *a: {"requirement": REQUIREMENT, "child": CHILDREN[0]})
+            result = queue._transition(ROOT, "o/r", 7, "repair-pending", HEAD, task_identity={"head": "x"})
+            self.assertEqual(result["state"], "repair-pending")
+            self.assertEqual(len(self.events()), 1)
+
     def test_no_sink_means_no_friction_log(self):
         queue.set_friction_sink(None)
         with Multi({7: HEAD}) as multi:
@@ -737,7 +770,8 @@ class LineageTests(unittest.TestCase):
             self.assertEqual(contour.resolve_lineage(ROOT, "agent/br-7-t6-change"),
                              {"requirement": "acme/backlog#7", "child": "acme/backlog#8"})
         with mock.patch("managed_task.authoring_config", side_effect=RuntimeError("no config")):
-            self.assertIsNone(contour.resolve_lineage(ROOT, "agent/br-7-t6-change"))
+            with self.assertRaisesRegex(RuntimeError, "no config"):
+                contour.resolve_lineage(ROOT, "agent/br-7-t6-change")
 
 
 if __name__ == "__main__":

@@ -9,6 +9,7 @@ markers. The LLM process never holds a credential: only this harness pushes.
 from __future__ import annotations
 
 import argparse
+import base64
 from datetime import datetime, timezone
 import json
 import os
@@ -26,12 +27,13 @@ import disposable_repository_sandbox
 
 CLAIM_PREFIX = "dev-platform-lifecycle-claim:v1 "
 JOB_KINDS = frozenset({"review", "repair", "integration-repair", "finalize", "retrospective",
-                       "terminal-reconciliation", "cleanup"})
+                       "terminal-reconciliation", "cleanup", "contribution-integration"})
 WRITE_KINDS = frozenset({"repair", "integration-repair"})
 POST_MERGE_KINDS = frozenset({"retrospective", "terminal-reconciliation", "cleanup"})
 STATE_KIND = {"review-pending": "review", "reviewing": "review", "repair-pending": "repair",
               "repairing": "repair", "finalize-pending": "finalize",
-              "integration-repair-pending": "integration-repair"}
+              "integration-repair-pending": "integration-repair",
+              "contribution-integration-pending": "contribution-integration"}
 HEAD = re.compile(r"[0-9a-f]{40}")
 RESULT_PREFIX = "dev-platform-lifecycle-result:v1 "
 # Hardening for every harness git invocation (never trust repo-local hooks or fsmonitor).
@@ -65,17 +67,24 @@ def _parse_time(value: Any) -> datetime | None:
 # ---- jobs -----------------------------------------------------------------
 
 def job_id(job: dict) -> str:
-    return f"pr{job['number']}:{job['kind']}:{job['head']}:a{job['attempt']}"
+    suffix = ":t" + job["target_head"] if job.get("target_head") else ""
+    return f"pr{job['number']}:{job['kind']}:{job['head']}:a{job['attempt']}" + suffix + (":pre-merge" if job.get("phase") == "pre-merge" else "")
 
 
-def job_record(kind: str, head: str, task_identity: str | dict, attempt: int, *, providers=None) -> dict:
+def job_record(kind: str, head: str, task_identity: str | dict, attempt: int, *, providers=None, target_head=None, phase=None) -> dict:
     """The explicit ``next_job`` a coordinator publishes in a handoff record."""
     if kind not in JOB_KINDS or not HEAD.fullmatch(str(head)) or type(attempt) is not int or attempt < 0:
         raise ValueError("invalid job record")
     if not isinstance(task_identity, (str, dict)) or not task_identity:
         raise ValueError("missing task identity")
+    if kind == "contribution-integration" and not HEAD.fullmatch(str(target_head)):
+        raise ValueError("contribution integration job requires exact target head")
+    if phase is not None and (phase != "pre-merge" or kind != "retrospective"):
+        raise ValueError("invalid job phase")
     return {"kind": kind, "head": head, "task_identity": task_identity, "attempt": attempt,
-            **({"providers": list(providers)} if providers is not None else {})}
+            **({"phase": phase} if phase else {}),
+            **({"providers": list(providers)} if providers is not None else {}),
+            **({"target_head": target_head} if target_head is not None else {})}
 
 
 def build_job(candidate: dict) -> dict | None:
@@ -104,7 +113,7 @@ def build_job(candidate: dict) -> dict | None:
         attempt = candidate.get("attempts", {}).get(kind, 0)
     return {"kind": kind, "number": candidate["number"], "head": job_head,
             "task_identity": explicit.get("task_identity", candidate.get("task_identity")), "attempt": attempt,
-            **{key: explicit[key] for key in ("provider", "providers") if key in explicit}}
+            **{key: explicit[key] for key in ("provider", "providers", "target_head", "phase") if key in explicit}}
 
 
 def claim_body(job: dict, worker: str, expires_at: str) -> str:
@@ -297,13 +306,40 @@ def push_command(branch: str, expected_head: str, result_head: str) -> list[str]
             f"--force-with-lease=refs/heads/{branch}:{expected_head}"]
 
 
+def harness_push_env(checkout: Path, env: dict[str, str] | None = None) -> dict[str, str]:
+    """One push process only; no token in argv, config files or writer checkouts."""
+    from urllib.parse import urlsplit
+
+    result = dict(os.environ if env is None else env)
+    origin = harness_git(checkout, "remote", "get-url", "--push", "origin").strip()
+    parsed = urlsplit(origin)
+    if not origin:
+        raise WorkerError("harness push origin is missing")
+    if parsed.scheme == "file" or (not parsed.scheme and (checkout / origin).is_dir()):
+        return result  # local harness repositories do not require hosted credentials
+    if parsed.scheme != "https" or parsed.hostname != "github.com" or parsed.username or parsed.password:
+        raise WorkerError("harness push requires an uncredentialed GitHub HTTPS origin")
+    token = result.get("GH_TOKEN")
+    if not isinstance(token, str) or not token.strip():
+        raise WorkerError("harness GitHub push requires coordinator GH_TOKEN")
+    result = {k: v for k, v in result.items() if not k.startswith("GIT_CONFIG_")}
+    encoded = base64.b64encode(("x-access-token:" + token).encode()).decode()
+    result.update(GIT_TERMINAL_PROMPT="0", GIT_CONFIG_GLOBAL=os.devnull,
+                  GIT_CONFIG_SYSTEM=os.devnull, GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_COUNT="2",
+                  GIT_CONFIG_KEY_0="credential.helper", GIT_CONFIG_VALUE_0="",
+                  GIT_CONFIG_KEY_1=f"http.{origin}.extraheader",
+                  GIT_CONFIG_VALUE_1="AUTHORIZATION: basic " + encoded)
+    return result
+
+
 def push_validated(repo: Path, branch: str, expected_head: str, result_head: str, *,
                    runner: Callable[..., Any] = subprocess.run, env: dict[str, str] | None = None) -> Any:
     """The only push to a candidate branch. Callers must validate first."""
-    done = runner(push_command(branch, expected_head, result_head), cwd=repo, env=env,
+    done = runner(push_command(branch, expected_head, result_head), cwd=repo,
+                  env=harness_push_env(repo) if env is None else env,
                   stdin=subprocess.DEVNULL, capture_output=True, text=True, check=False)
     if done.returncode:
-        raise WorkerError(f"push rejected: {(done.stderr or done.stdout).strip()}")
+        raise WorkerError(f"push rejected (git push exited {done.returncode})")
     return done
 
 
@@ -587,7 +623,7 @@ def main(argv: list[str] | None = None) -> int:
 
     def list_prs() -> list[dict]:
         listed = _gh_json("api", "--paginate", f"repos/{repo}/pulls?state=open&per_page=100")
-        if set(args.kinds.split(",")) & POST_MERGE_KINDS:
+        if set(args.kinds.split(",")) & (POST_MERGE_KINDS | {"contribution-integration"}):
             # Post-merge obligations belong to recently merged candidates: one bounded page of the
             # most recently updated closed PRs. Older merges offer nothing from here.
             closed = _gh_json("api", f"repos/{repo}/pulls?state=closed&sort=updated&direction=desc&per_page=50")
@@ -604,7 +640,7 @@ def main(argv: list[str] | None = None) -> int:
         return _gh_json("api", f"repos/{repo}/pulls/{number}")
 
     try:
-        needs_writer = set(args.kinds.split(",")) - {"review", "finalize", "integration-repair"} - POST_MERGE_KINDS
+        needs_writer = set(args.kinds.split(",")) - {"review", "finalize", "integration-repair", "contribution-integration"} - POST_MERGE_KINDS
         if args.run and "integration-repair" in args.kinds.split(",") and not args.llm_command:
             raise WorkerError("--run needs --llm-command for integration repair")
         if args.run and needs_writer and (not args.llm_command or not args.allow):
@@ -646,6 +682,22 @@ def main(argv: list[str] | None = None) -> int:
                         current_head=lambda: pr_info(job["number"])["head"]["sha"],
                         post_result=lambda body: post_comment(job["number"], body),
                         workdir=workdir, worker=args.worker)
+                elif job["kind"] == "contribution-integration":
+                    from requirement_contributions import merge_reviewed_contribution
+                    import publication_queue
+
+                    candidate = publication_queue.candidate_status(Path.cwd(), job["number"], repo=repo)
+                    def contribution_claim_current():
+                        comments = comments_for(job["number"])
+                        return i_won(job, args.worker, comments,
+                                     trusted_apps=publication_queue.trusted_apps(Path.cwd()),
+                                     trusted_writers=publication_queue.trusted_writers(
+                                         Path.cwd(), comments, (CLAIM_PREFIX,), repo=repo))
+
+                    outcome = merge_reviewed_contribution(Path.cwd(), repo, candidate,
+                                                          source_repo=args.source, expected_target_head=job["target_head"],
+                                                          claim_current=contribution_claim_current)
+                    post_comment(job["number"], result_body(job, args.worker, outcome["state"]))
                 elif job["kind"] == "integration-repair":
                     from integration_contour import run_claimed_integration_repair
                     import publication_queue
@@ -659,6 +711,15 @@ def main(argv: list[str] | None = None) -> int:
                         current_head=lambda: pr_info(job["number"])["head"]["sha"],
                         post_result=lambda body: post_comment(job["number"], body),
                         workdir=workdir, home_files=args.llm_home_file, worker=args.worker)
+                elif (job["kind"] == "retrospective" and isinstance(job["task_identity"], dict) and job["task_identity"].get("kind") == "requirement-composition"
+                      and job.get("phase") == "pre-merge" and not pr_info(job["number"]).get("merged")):
+                    from requirement_composition import run_claimed_retrospective
+                    import publication_queue
+
+                    candidate = publication_queue.candidate_status(Path.cwd(), job["number"], repo=repo)
+                    outcome = run_claimed_retrospective(
+                        Path.cwd(), repo, candidate, job, source_repo=args.source or f"https://github.com/{repo}.git",
+                        post_result=lambda body: post_comment(job["number"], body), worker=args.worker)
                 elif job["kind"] in POST_MERGE_KINDS:
                     from integration_contour import run_claimed_post_merge
                     import publication_queue

@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "template" / "scripts"))
@@ -233,6 +234,7 @@ class ValidationTests(unittest.TestCase):
         git(self.repo, "add", "-A")
         git(self.repo, "commit", "-qm", "base")
         self.base = git(self.repo, "rev-parse", "HEAD")
+        git(self.repo, "remote", "add", "origin", self.repo.as_uri())
 
     def write(self, path, text):
         full = self.repo / path
@@ -279,6 +281,34 @@ class ValidationTests(unittest.TestCase):
         result = self.commit("src/a.py")
         with self.assertRaisesRegex(workers.WorkerError, "no write path"):
             workers.validate_worker_result(self.repo, self.base, result, ["src/"], kind="review")
+
+    def test_default_harness_push_auth_is_scoped_and_errors_do_not_log_credentials(self):
+        import base64
+        origin = "https://github.com/acme/project.git"
+        token = "coordinator-secret"
+        encoded = base64.b64encode(("x-access-token:" + token).encode()).decode()
+        git(self.repo, "remote", "set-url", "origin", origin)
+        before = (self.repo / ".git/config").read_bytes()
+        runner = mock.Mock(return_value=subprocess.CompletedProcess([], 0, "", ""))
+        with mock.patch.dict(os.environ, {"GH_TOKEN": token}, clear=True):
+            workers.push_validated(self.repo, "task/x", self.base, NEW, runner=runner)
+            command, kwargs = runner.call_args.args[0], runner.call_args.kwargs
+            self.assertNotIn(token, str(command))
+            self.assertEqual(kwargs["env"]["GIT_CONFIG_KEY_1"], f"http.{origin}.extraheader")
+            self.assertEqual(kwargs["env"]["GIT_CONFIG_VALUE_1"], "AUTHORIZATION: basic " + encoded)
+            self.assertIs(kwargs["stdin"], subprocess.DEVNULL)
+            self.assertEqual((self.repo / ".git/config").read_bytes(), before)
+            runner.return_value = subprocess.CompletedProcess([], 1, token, encoded)
+            with self.assertRaises(workers.WorkerError) as error:
+                workers.push_validated(self.repo, "task/x", self.base, NEW, runner=runner)
+            self.assertNotIn(token, str(error.exception))
+            self.assertNotIn(encoded, str(error.exception))
+        explicit = {"explicit": "environment"}
+        with mock.patch.object(workers, "harness_push_env") as auth:
+            runner.return_value = subprocess.CompletedProcess([], 0, "", "")
+            workers.push_validated(self.repo, "task/x", self.base, NEW, runner=runner, env=explicit)
+            auth.assert_not_called()
+            self.assertIs(runner.call_args.kwargs["env"], explicit)
 
     def test_push_uses_expected_head_lease(self):
         calls = []
