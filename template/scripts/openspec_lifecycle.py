@@ -314,6 +314,7 @@ STAGE_INTEGRATION = "integration"
 # Reserved context variable: set only in the environment of the single validation
 # subprocess that ``archive`` launches, so hygiene exempts exactly the archive target.
 ARCHIVE_TARGET_ENV = "DEV_PLATFORM_ARCHIVE_TARGET"
+ARCHIVE_ROOT_ENV = "DEV_PLATFORM_ARCHIVE_ROOT"
 ARCHIVE_TARGET_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 
 
@@ -333,6 +334,7 @@ def archive_target_environment(root: Path, target: str) -> dict[str, str]:
     require_archive_target(root, target, source="archive")
     env = dict(os.environ)
     env[ARCHIVE_TARGET_ENV] = target
+    env[ARCHIVE_ROOT_ENV] = os.path.realpath(root)
     return env
 
 
@@ -389,7 +391,14 @@ def check_hygiene(root: Path, stage: str | None = None) -> int:
         stage = STAGE_CANDIDATE if _candidate_context(root) else STAGE_INTEGRATION
     stale = completed_active_changes(root)
     archive_target = os.environ.get(ARCHIVE_TARGET_ENV)
-    if archive_target is not None:
+    archive_root = os.environ.get(ARCHIVE_ROOT_ENV)
+    if (archive_target is None) != (archive_root is None):
+        raise SystemExit(
+            f"hygiene: malformed archive context: {ARCHIVE_TARGET_ENV} and {ARCHIVE_ROOT_ENV} must be set together"
+        )
+    # A context issued for another checkout (e.g. a test tree run under archive) is not ours:
+    # hygiene then runs as the ordinary check, with no exemption and no error.
+    if archive_target is not None and os.path.realpath(archive_root) == os.path.realpath(root):
         require_archive_target(root, archive_target, source=f"hygiene ({ARCHIVE_TARGET_ENV})")
         stale = [name for name in stale if name != archive_target]
     if stage == STAGE_CANDIDATE:

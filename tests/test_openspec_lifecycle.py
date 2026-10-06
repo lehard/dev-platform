@@ -20,6 +20,15 @@ lifecycle = load_platform_module("openspec_lifecycle", SCRIPTS / "openspec_lifec
 
 
 class OpenSpecLifecycleTests(unittest.TestCase):
+    def setUp(self) -> None:
+        # Tests that assert exact context handling start from a clean slate; tests of an
+        # inherited context for another checkout set it explicitly.
+        patcher = mock.patch.dict(os.environ)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        for name in (lifecycle.ARCHIVE_TARGET_ENV, lifecycle.ARCHIVE_ROOT_ENV):
+            os.environ.pop(name, None)
+
     def make_change(self, root: Path, name: str, tasks: str, verification: str | None = None) -> Path:
         change = root / "openspec" / "changes" / name
         change.mkdir(parents=True)
@@ -497,11 +506,11 @@ class OpenSpecLifecycleTests(unittest.TestCase):
             self.make_change(root, "target", "- [x] done\n")
             self.make_change(root, "other", "- [x] done\n")
             self.assertEqual(1, lifecycle.check_hygiene(root))
-            with mock.patch.dict(os.environ, {lifecycle.ARCHIVE_TARGET_ENV: "target"}):
+            with mock.patch.dict(os.environ, self.archive_context(root, "target")):
                 for stage in (lifecycle.STAGE_CANDIDATE, lifecycle.STAGE_INTEGRATION):
                     self.assertEqual(1, lifecycle.check_hygiene(root, stage))
             shutil.rmtree(root / "openspec" / "changes" / "other")
-            with mock.patch.dict(os.environ, {lifecycle.ARCHIVE_TARGET_ENV: "target"}):
+            with mock.patch.dict(os.environ, self.archive_context(root, "target")):
                 self.assertEqual(0, lifecycle.check_hygiene(root))
             self.assertEqual(1, lifecycle.check_hygiene(root))
 
@@ -511,7 +520,7 @@ class OpenSpecLifecycleTests(unittest.TestCase):
             self.make_change(root, "done", "- [x] done\n")
             self.make_change(root, "open", "- [ ] todo\n")
             for target in ("", "missing", "open", "archive", "../done", "done/", "DONE", "a b"):
-                with self.subTest(target=target), mock.patch.dict(os.environ, {lifecycle.ARCHIVE_TARGET_ENV: target}):
+                with self.subTest(target=target), mock.patch.dict(os.environ, self.archive_context(root, target)):
                     with self.assertRaisesRegex(SystemExit, "archive target"):
                         lifecycle.check_hygiene(root)
 
@@ -533,7 +542,53 @@ class OpenSpecLifecycleTests(unittest.TestCase):
             self.make_change(root, "done", "- [x] done\n")
             env = lifecycle.archive_target_environment(root, "done")
             self.assertEqual("done", env[lifecycle.ARCHIVE_TARGET_ENV])
+            self.assertEqual(os.path.realpath(root), env[lifecycle.ARCHIVE_ROOT_ENV])
             self.assertNotEqual("done", os.environ.get(lifecycle.ARCHIVE_TARGET_ENV))
+            self.assertNotIn(lifecycle.ARCHIVE_ROOT_ENV, os.environ)
+
+    def archive_context(self, root: Path | str, target: str) -> dict[str, str]:
+        return {lifecycle.ARCHIVE_TARGET_ENV: target, lifecycle.ARCHIVE_ROOT_ENV: os.path.realpath(root)}
+
+    def test_context_issued_for_another_checkout_is_ignored(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as other:
+            root = Path(tmp)
+            self.make_change(root, "done", "- [x] done\n")
+            for context in (self.archive_context(other, "done"), self.archive_context("/nonexistent", "x")):
+                with self.subTest(context=context), mock.patch.dict(os.environ, context):
+                    self.assertEqual(1, lifecycle.check_hygiene(root))
+
+    def test_context_for_same_root_exempts_only_the_target(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.make_change(root, "target", "- [x] done\n")
+            self.make_change(root, "other", "- [x] done\n")
+            with mock.patch.dict(os.environ, self.archive_context(root, "target")):
+                self.assertEqual(1, lifecycle.check_hygiene(root))
+            shutil.rmtree(root / "openspec" / "changes" / "other")
+            with mock.patch.dict(os.environ, self.archive_context(root, "target")):
+                self.assertEqual(0, lifecycle.check_hygiene(root))
+
+    def test_half_set_archive_context_fails_explicitly(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.make_change(root, "done", "- [x] done\n")
+            for context in ({lifecycle.ARCHIVE_TARGET_ENV: "done"}, {lifecycle.ARCHIVE_ROOT_ENV: os.path.realpath(root)}):
+                with self.subTest(context=context), mock.patch.dict(os.environ, context):
+                    with self.assertRaisesRegex(SystemExit, "malformed archive context"):
+                        lifecycle.check_hygiene(root)
+
+    def test_finalize_rejects_invalid_target_before_any_state_change(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.make_change(root, "open", "- [ ] todo\n")
+            with mock.patch.object(lifecycle, "run_checked") as run_checked, \
+                    mock.patch.object(lifecycle, "require_review_evidence") as review:
+                for target in ("missing", "open", "../open"):
+                    with self.subTest(target=target), self.assertRaisesRegex(SystemExit, "archive target"):
+                        lifecycle.archive_change(root, target, finalize=True)
+            run_checked.assert_not_called()
+            review.assert_not_called()
+            self.assertTrue((root / "openspec" / "changes" / "open").is_dir())
 
     # End-to-end: real select_checks.py and the real standard template check mapping.
 
@@ -585,7 +640,7 @@ class OpenSpecLifecycleTests(unittest.TestCase):
         ]
         gate = load_platform_module("pr_review_gate", SCRIPTS / "pr_review_gate.py")
         patches.append(mock.patch.object(gate, "managed_candidate", return_value=False))
-        env = {k: v for k, v in os.environ.items() if k != lifecycle.ARCHIVE_TARGET_ENV}
+        env = {k: v for k, v in os.environ.items() if k not in (lifecycle.ARCHIVE_TARGET_ENV, lifecycle.ARCHIVE_ROOT_ENV)}
         with mock.patch.dict(os.environ, env, clear=True):
             for patch in patches:
                 patch.start()
@@ -595,7 +650,7 @@ class OpenSpecLifecycleTests(unittest.TestCase):
                 mock.patch.stopall()
 
     def ordinary_check(self, root: Path) -> subprocess.CompletedProcess:
-        env = {k: v for k, v in os.environ.items() if k != lifecycle.ARCHIVE_TARGET_ENV}
+        env = {k: v for k, v in os.environ.items() if k not in (lifecycle.ARCHIVE_TARGET_ENV, lifecycle.ARCHIVE_ROOT_ENV)}
         return subprocess.run(
             ["python3", "scripts/openspec_lifecycle.py", "check"], cwd=root, env=env, capture_output=True, text=True
         )
@@ -607,7 +662,7 @@ class OpenSpecLifecycleTests(unittest.TestCase):
             self.make_change(root, "done", "- [x] done\n", "OpenSpec-Verify: PASS\nVerification-Method: test\n")
             self.commit_all(root)
             # Old behavior: the same select_checks invocation without the scoped target deadlocks.
-            env = {k: v for k, v in os.environ.items() if k != lifecycle.ARCHIVE_TARGET_ENV}
+            env = {k: v for k, v in os.environ.items() if k not in (lifecycle.ARCHIVE_TARGET_ENV, lifecycle.ARCHIVE_ROOT_ENV)}
             old = subprocess.run(
                 ["python3", "scripts/select_checks.py", "--base", "origin/main", "--execute"],
                 cwd=root, env=env, capture_output=True, text=True,
