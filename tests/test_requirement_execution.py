@@ -409,6 +409,31 @@ class RequirementExecutionTests(unittest.TestCase):
             contributions.assert_called_once()
             legacy.assert_not_called()
 
+    def test_requirement_with_shared_candidate_receipts_stays_on_legacy_path(self):
+        class LegacyPath(Exception):
+            pass
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            receipts = root / ".claude" / "requirement-integration" / f"requirement-{REQUIREMENT.rsplit('#', 1)[1]}"
+            receipts.mkdir(parents=True)
+            (receipts / "first.json").write_text("{}")
+            handoffs = [("first", root / "first.json"), ("second", root / "second.json")]
+            with mock.patch.object(execution, "current_worktree_root", return_value=root), mock.patch.object(
+                execution, "_git", return_value="main"
+            ), mock.patch.object(execution.requirement_target_lifecycle, "require_local_target_support"), mock.patch.object(
+                execution.requirement_intake, "fetch_issue", return_value={"body": PARENT_BODY, "labels": [{"name": "type:requirement"}]}
+            ), mock.patch.object(execution.orchestrate_pre_authoring, "status", return_value={"current_stage": "complete"}), mock.patch.object(
+                execution, "_ordered_handoffs", return_value=handoffs
+            ), mock.patch.object(execution, "_linked_children_by_change", return_value={"first": "acme/backlog#8", "second": "acme/backlog#9"}), mock.patch.object(
+                execution, "_advance_contributions"
+            ) as contributions, mock.patch.object(execution, "_contribution_publication_supported", return_value=True), mock.patch.object(
+                execution.managed_project_status, "observe", side_effect=LegacyPath
+            ):
+                with self.assertRaises(LegacyPath):
+                    execution.advance(root, requirement=REQUIREMENT, base_dir=root)
+            contributions.assert_not_called()
+
     def test_downstream_multi_child_uses_existing_supervisor_path(self):
         import _platform_common
         with tempfile.TemporaryDirectory() as tmp:

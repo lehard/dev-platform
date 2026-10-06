@@ -536,9 +536,12 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
         if observation is None or observation.current_status != "Done":
             raise RequirementExecutionError(f"historical linked child {historical_child} is not terminal")
         _done_child_is_delivered(integration, historical_child, historical_change)
-    if len(ordered) > 1 and _contribution_publication_supported(integration):
-        return _advance_contributions(integration, requirement, ordered, linked_by_change, base_dir, confirm_distinct)
     receipt_dir = integration / ".claude" / "requirement-integration" / f"requirement-{requirement.rsplit('#', 1)[1]}"
+    # A Requirement already delivering through shared-candidate receipts stays on that
+    # path to terminal reconciliation; switching mid-flight would mint a new integration branch.
+    legacy_receipts = receipt_dir.is_dir() and any(receipt_dir.glob("*.json"))
+    if len(ordered) > 1 and not legacy_receipts and _contribution_publication_supported(integration):
+        return _advance_contributions(integration, requirement, ordered, linked_by_change, base_dir, confirm_distinct)
     superseded: list[dict[str, str]] = []
 
     def audited(result: dict[str, Any]) -> dict[str, Any]:
