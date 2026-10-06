@@ -26,16 +26,39 @@ def managed_candidate(root: Path) -> bool:
 
 
 def task_identity(root: Path, change: str) -> dict:
-    proof = review_content_identity(root, change)
+    from requirement_child_context import context_path
+    context = context_path(root, change)
+    contribution = json.loads(context.read_text()).get("contribution") if context.is_file() else None
+    proof = review_content_identity(root, change, contribution["head"] if contribution else "origin/main")
     if proof is None:
         raise workers.WorkerError("cannot prove candidate task-content identity")
+    from requirement_child_context import context_path
+    path = context_path(root, change)
+    contribution = json.loads(path.read_text()).get("contribution") if path.is_file() else None
+    if contribution:
+        context = json.loads(path.read_text())
+        requirement, source = context["requirement"], context["source_issue"]
+        from managed_task import read_provenance
+        from requirement_integration import _public_requirement
+        import private_lineage
+        provenance = read_provenance(root / "openspec/changes" / change) or {}
+        if private_lineage.enabled(root):
+            requirement = _public_requirement(root, requirement)
+            source = provenance.get("private_lineage_handle")
+            if not source:
+                raise workers.WorkerError("private contribution lacks authorized public lineage")
+        return {"kind": "contribution", "change": change, "task_content": proof,
+                "requirement": requirement, "source_issue": source,
+                **({"work_identity": provenance["work_identity"]} if provenance.get("work_identity") else {}),
+                "target_branch": contribution["target_branch"], "contribution_base": contribution["head"]}
     return {"change": change, "task_content": proof}
 
 
 def reusable(root: Path, gate: dict | None, identity: dict) -> bool:
     return (isinstance(gate, dict) and gate.get("result") == "passed"
             and isinstance(gate.get("identity"), dict)
-            and gate["identity"].get("change") == identity.get("change")
+            and all(gate["identity"].get(k) == identity.get(k) for k in
+                    ("change", "kind", "requirement", "source_issue", "work_identity", "contribution_base", "target_branch", "children"))
             and equivalent_proofs(root, gate["identity"].get("task_content"), identity.get("task_content")))
 
 
@@ -185,13 +208,19 @@ def execute_review(checkout: Path, job: dict, *, source_repo: str, branch: str,
                    current_head, runner, push_env=None, launcher=None, review_config=None, before_push=None,
                    claim_current=lambda: True) -> dict:
     """Run the existing reviewer; only the harness commits and pushes evidence."""
-    from independent_review_runner import run_review
+    from requirement_composition import run_child_review
     from independent_review import PERSPECTIVES, _validate_report, read_dispositions
 
+    if job["task_identity"].get("kind") == "requirement-composition":
+        from requirement_composition import execute_composition_review
+        return execute_composition_review(checkout, job, source_repo=source_repo, branch=branch,
+                                          current_head=current_head, runner=runner, launcher=launcher,
+                                          review_config=review_config, before_push=before_push,
+                                          claim_current=claim_current, push_env=push_env)
     checkout = checkout.resolve()
     identity = job["task_identity"]
     change = checkout / "openspec" / "changes" / identity["change"]
-    actual = task_identity(checkout, identity["change"])
+    actual = refresh_identity(checkout, identity)
     if actual != identity:
         raise workers.WorkerError("review checkout does not match the published task identity")
     if launcher is None:
@@ -200,7 +229,8 @@ def execute_review(checkout: Path, job: dict, *, source_repo: str, branch: str,
 
         clean = workers.credential_free_env(dict(os.environ), checkout.parent / "llm-home")
         launcher = lambda argv, cwd, timeout: subprocess_launcher(argv, cwd, timeout, env=clean)
-    reports = run_review(checkout, change, launcher=launcher, config=review_config)
+    reports = run_child_review(checkout, change, launcher=launcher, config=review_config,
+                               base_ref=identity.get("contribution_base", "origin/main"))
     request = json.loads((change / "independent-review-request.json").read_text())
     if set(reports) != set(PERSPECTIVES) or any(
             _validate_report(reports[p], request, p, required=True) for p in PERSPECTIVES):
@@ -289,7 +319,7 @@ def run_claimed(root: Path, repo: str, candidate: dict, job: dict, *, source_rep
         if not claim_current():
             return
         workers._git(harness, "checkout", "--detach", head)
-        fresh = task_identity(harness, identity["change"])
+        fresh = refresh_identity(harness, identity)
         post_result(workers.result_body(job, worker, "validated-push", head, task_identity=fresh))
 
     def review_handler(checkout):
@@ -328,7 +358,7 @@ def run_claimed(root: Path, repo: str, candidate: dict, job: dict, *, source_rep
     elif kind == "repair" and outcome["status"] == "pushed":
         harness = Path(workdir) / "harness"
         workers._git(harness, "checkout", "--detach", head)
-        fresh = task_identity(harness, identity["change"])
+        fresh = refresh_identity(harness, identity)
         # Every changed identity must repeat review and checks; retain only proven gates.
         gates = {name: gate for name, gate in running["gates"].items() if reusable(harness, gate, fresh)}
         offer(root, repo, job["number"], head, fresh, "review", gates=gates,
@@ -337,3 +367,15 @@ def run_claimed(root: Path, repo: str, candidate: dict, job: dict, *, source_rep
         adapter._transition(root, repo, job["number"], "blocked-escalation", head,
                             task_identity=identity, red_gate={"name": kind, "evidence": outcome})
     return outcome
+
+
+def refresh_identity(root: Path, identity: dict) -> dict:
+    if identity.get("kind") == "requirement-composition":
+        from requirement_composition import composition_identity, candidate_manifest
+        return composition_identity(root, candidate_manifest(root, identity["requirement"]))
+    if identity.get("kind") == "contribution":
+        proof = review_content_identity(root, identity["change"], identity["contribution_base"])
+        if proof is None:
+            raise workers.WorkerError("cannot prove contribution content")
+        return {**identity, "task_content": proof}
+    return task_identity(root, identity["change"])

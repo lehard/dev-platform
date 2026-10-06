@@ -308,20 +308,18 @@ class FinalizeTests(unittest.TestCase):
             self.assertEqual(fixture.candidate()["state"], "blocked-escalation")
             self.assertIn("failed: clone failed", results[-1])
 
-    def test_repaired_candidate_re_establishes_checks_and_reaches_ready(self):
-        # After a content-changing repair only the freshly passed review gate is retained.
+    def test_repaired_candidate_requires_developer_semantic_handoff(self):
         with RemoteFixture(self.repo) as fixture:
             self.offer(fixture, gates={"review": self.gates()["review"]})
             ran = []
             outcome, _ = self.finalize(fixture, checks_runner=lambda checkout, env: ran.append(checkout))
-            self.assertEqual(outcome["status"], "finalized")
+            self.assertEqual(outcome["status"], "blocked-retryable")
             self.assertEqual(len(ran), 1)
             candidate = fixture.candidate()
-            self.assertEqual(candidate["state"], "ready")
-            self.assertEqual(sorted(candidate["gates"]), ["review", "selected-checks", "semantic-verification"])
-            self.assertTrue(candidate["gates"]["selected-checks"]["evidence"]["harness_executed"])
-            self.assertEqual(candidate["gates"]["selected-checks"]["identity"]["task_content"]["digest"],
-                             self.identity["task_content"]["digest"])
+            self.assertEqual(candidate["state"], "blocked-retryable")
+            self.assertEqual(candidate["red_gate"]["name"], "semantic-verification")
+            self.assertNotIn("semantic-verification", candidate["gates"])
+            self.assertIsNone(candidate["next_job"])
 
     def test_failing_checks_or_missing_review_block_without_archiving(self):
         def failing(checkout, env):

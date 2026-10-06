@@ -96,6 +96,7 @@ targets = [
   "test_platform_doctor",
   "test_managed_project_promotion",
   "test_requirement_execution",
+  "test_requirement_contribution_composition",
   "test_requirement_board",
   "test_private_backlog_guard",
 ]

@@ -31,6 +31,7 @@ import post_review_finalization as final
 import publication_queue as queue
 
 MAX_INTEGRATION_REPAIRS = queue.MAX_INTEGRATION_REPAIRS
+COMPOSITION_IDENTITY = re.compile(r"requirement/BR-([1-9][0-9]*)$")
 BRANCH_IDENTITY = re.compile(r"agent/br-([1-9][0-9]*)-t([1-9][0-9]*)-")
 CONFLICT_MARKER = re.compile(r"^(<{7}|>{7}) ", re.MULTILINE)
 POST_MERGE_KINDS = ("retrospective", "terminal-reconciliation", "cleanup")
@@ -45,25 +46,26 @@ class JobBlocked(RuntimeError):
 def resolve_lineage(root: Path, branch: str) -> dict[str, str | None] | None:
     """The Requirement (and child Issue) a managed task branch belongs to, from its BR identity.
 
-    ``agent/br-353-t6-change`` names Requirement BR-353 task T6 in the configured Development
-    Backlog repository; the child Issue comes from the parent's ordinal reservations.
-    Returns ``None`` when the branch has no managed identity or the lookup is unavailable.
+    ``agent/br-353-t6-change`` names a child; ``requirement/BR-353`` names the
+    composition. Unmanaged branches have no lineage; managed lookup failures raise.
     """
-    match = BRANCH_IDENTITY.match(branch or "")
+    composition = COMPOSITION_IDENTITY.fullmatch(branch)
+    match = composition or BRANCH_IDENTITY.match(branch)
     if not match:
         return None
-    try:
-        import managed_task
-        import managed_work_identity
-        import requirement_intake
+    import managed_task
+    import managed_work_identity
+    import requirement_intake
 
-        repository = managed_task.authoring_config(root).repository
-        requirement = f"{repository}#{int(match[1])}"
-        body = str(requirement_intake.fetch_issue(root, repository, int(match[1])).get("body") or "")
-        child = next((ref for ref, ordinal in managed_work_identity.RESERVATION.findall(body)
-                      if int(ordinal) == int(match[2])), None)
-    except Exception:
-        return None
+    repository = managed_task.authoring_config(root).repository
+    requirement = f"{repository}#{int(match[1])}"
+    if composition:
+        return {"requirement": requirement, "child": None}
+    body = str(requirement_intake.fetch_issue(root, repository, int(match[1]))["body"])
+    child = next((ref for ref, ordinal in managed_work_identity.RESERVATION.findall(body)
+                  if int(ordinal) == int(match[2])), None)
+    if child is None:
+        raise JobBlocked(f"managed branch {branch} has no child reservation in {requirement}")
     return {"requirement": requirement, "child": child}
 
 
@@ -147,7 +149,8 @@ def execute_integration_repair(job: dict, brief: dict, *, source_repo: str, bran
     """Merge current main into a disposable checkout, let the writer resolve it, validate, push once."""
     root = Path(workdir).resolve()
     checkout = workers.prepare_checkout(source_repo, str(root), "integration-checkout", job["head"])
-    workers._git(checkout, "fetch", "--no-tags", "origin", "main")
+    target_branch = job.get("task_identity", {}).get("target_branch", "main") if isinstance(job.get("task_identity"), dict) else "main"
+    workers._git(checkout, "fetch", "--no-tags", "origin", target_branch)
     main_sha = workers._git(checkout, "rev-parse", "FETCH_HEAD").strip()
     merging = False
     if not _contains(checkout, main_sha, job["head"]):
@@ -173,7 +176,7 @@ def execute_integration_repair(job: dict, brief: dict, *, source_repo: str, bran
     # harness-owned clone that repeats the merge of main, so repository config, attributes drivers and
     # hooks planted by the writer can never execute, and every harness git runs without credentials.
     harness = workers.prepare_checkout(source_repo, str(root), "harness", job["head"])
-    workers.harness_git(harness, "fetch", "--no-tags", "origin", "main")
+    workers.harness_git(harness, "fetch", "--no-tags", "origin", target_branch)
     if workers.harness_git(harness, "rev-parse", "FETCH_HEAD").strip() != main_sha:
         return {"status": "discarded"}  # main moved while the writer ran; re-evaluated by the next run
     merging = False
@@ -224,9 +227,10 @@ def advance_after_repair(root: Path, repo: str, candidate: dict, head: str, fres
         # checks gate is never carried to the new head, so the coordinator reruns it on the merged head.
         gates = {name: {**gate, "identity": fresh} for name, gate in candidate.get("gates", {}).items()
                  if name != "required-checks" and review_gate.reusable(harness or root, gate, fresh)}
-        adapter._transition(root, repo, candidate["number"], "ready", head, task_identity=fresh,
+        state = "contribution-integration-pending" if fresh.get("kind") == "contribution" else "ready"
+        adapter._transition(root, repo, candidate["number"], state, head, task_identity=fresh,
                             inherit_identity=False, gates=gates)
-        return "ready"
+        return state
     if managed:
         final.return_to_review(harness or root, repo, candidate, head, fresh, adapter=adapter)
         return "review-pending"
@@ -263,7 +267,7 @@ def run_claimed_integration_repair(root: Path, repo: str, candidate: dict, job: 
         if not claim_current():
             return
         workers._git(harness, "checkout", "--detach", head)
-        fresh = (review_gate.task_identity(harness, identity["change"])
+        fresh = (review_gate.refresh_identity(harness, identity)
                  if isinstance(identity, dict) and identity.get("change") else {"branch": branch, "head": head})
         post_result(workers.result_body(job, worker, "validated-push", head, task_identity=fresh))
 
@@ -300,7 +304,7 @@ def run_claimed_integration_repair(root: Path, repo: str, candidate: dict, job: 
                                           "base": outcome["main"], "worker_job": workers.job_id(job)})
     harness = Path(workdir).resolve() / "harness"
     workers._git(harness, "checkout", "--detach", head)
-    fresh = (review_gate.task_identity(harness, identity["change"])
+    fresh = (review_gate.refresh_identity(harness, identity)
              if isinstance(identity, dict) and identity.get("change") else {"branch": branch, "head": head})
     state = advance_after_repair(root, repo, observed, head, fresh, harness, adapter=adapter)
     post_result(workers.result_body(job, worker, "integrated", head))
@@ -511,7 +515,25 @@ def run_claimed_post_merge(root: Path, repo: str, candidate: dict, job: dict, *,
     ops = ops or LifecycleOps()
     run = {"retrospective": run_retrospective, "terminal-reconciliation": run_terminal, "cleanup": run_cleanup}[kind]
     try:
-        outcome, status = run(ops, root, job["number"], branch, job["head"]), "done"
+        if isinstance(job.get("task_identity"), dict) and job["task_identity"].get("kind") == "requirement-composition":
+            import tempfile
+            from requirement_composition import candidate_manifest, reconcile_composition
+            with tempfile.TemporaryDirectory(prefix="composition-terminal-job-") as temporary:
+                checkout = workers.prepare_checkout(f"https://github.com/{repo}.git", temporary, "harness", job["head"])
+                manifest = candidate_manifest(checkout, job["task_identity"]["requirement"])
+            if kind == "terminal-reconciliation":
+                outcome = reconcile_composition(root, repo, manifest, job["head"], job["number"], adapter=adapter)["status"]
+            else:
+                # The manifest is bounded by its mandatory set. Retrying after interruption
+                # repeats idempotent child operations before closing the parent obligation.
+                for child in manifest["children"]:
+                    if not claim_current():
+                        return {"status": "discarded"}
+                    run(ops, root, child["pr_number"], child["source_branch"], child["head"])
+                outcome = run(ops, root, job["number"], branch, job["head"])
+            status = "done"
+        else:
+            outcome, status = run(ops, root, job["number"], branch, job["head"]), "done"
     except JobBlocked as exc:
         outcome, status = "blocked: " + str(exc)[:200], "blocked"
     except Exception as exc:  # a lost operator credential or network error is retried, never fatal

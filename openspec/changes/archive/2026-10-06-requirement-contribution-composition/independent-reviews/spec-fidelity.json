@@ -1,0 +1,88 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "98db9ed844c92cf916b34b62d2545d622d576619",
+    "base_ref": "origin/main",
+    "candidate_head": "569069053d9de3e0f9939d4cdd6e3c3633c865e7",
+    "diff_sha256": "c2127d0265a935deed75c276426b6eb0a688dd601eee5e329ae235ea8259c424"
+  },
+  "completed_at": "2026-10-06T12:35:27+00:00",
+  "findings": [
+    {
+      "evidence": "candidate.diff:8637-8641, template/scripts/publication_queue.py `_block`: `try: _transition(... \"blocked-escalation\" ...) except QueueError: pass  # status still derives the block from the v1 marker written above`. The failure is neither raised nor reported.",
+      "id": "block-transition-error-swallowed",
+      "severity": "advisory",
+      "summary": "Publication `_block` swallows a failed `blocked-escalation` lifecycle transition and continues, so a block can leave no v2 lifecycle record. This contradicts the fail-explicitly rule and the delta's exact-head lifecycle-state contract."
+    },
+    {
+      "evidence": "candidate.diff:8512-8518 (`_queued`): the filter is label-based across all PR states, with `len(rows) >= 100` raising `QueueError`. Spec scenario 'Historical PRs do not consume the queue bound'. I did not verify that every merge path removes the label.",
+      "id": "queue-inventory-merged-bound",
+      "severity": "advisory",
+      "summary": "`_queued` now lists `--state all --label QUEUE --limit 100` and raises at 100 or more rows. The delta says the bound applies only to queued candidates and historical PRs must not consume it. If the queue label is not always removed on merge or block, merged PRs would count toward the bound. No check in this diff shows the label is always cleared on merge."
+    }
+  ],
+  "launched_at": "2026-10-06T12:34:46+00:00",
+  "output_sha256": "6a7922aa22d703e3f90535a2fb4a6e9c94ffe220ab56dde0b57327212e0724fc",
+  "perspective": "spec-fidelity",
+  "request_id": "e03179cb-8dbf-427a-ae48-42e20a1e2fe4",
+  "reviewer": {
+    "context_id": "6a4d8777-ed06-4903-9524-dc45702c311d",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-0c6be237-c983-4dba-83d8-1163247c6953",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 76337
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 390903
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 36879
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 38738
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 18
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3418
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "0a7b1e82fab78ed7496037cb9cbe29bd13391528c087eff3b354578f210d61ee"
+}

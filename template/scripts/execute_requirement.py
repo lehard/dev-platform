@@ -33,7 +33,7 @@ class RequirementExecutionError(RuntimeError):
 
 
 def _git(root: Path, *args: str) -> str:
-    result = subprocess.run(["git", *args], cwd=root, text=True, capture_output=True)
+    result = subprocess.run(["git", *args], cwd=root, text=True, capture_output=True, stdin=subprocess.DEVNULL)
     if result.returncode:
         raise RequirementExecutionError(result.stderr.strip() or "Git state is unavailable")
     return result.stdout.strip()
@@ -71,6 +71,11 @@ def _ordered_handoffs(report: dict[str, Any], requirement: str) -> list[tuple[st
                 raise RequirementExecutionError("handoff intents are ambiguous")
             intent_to_change[identity] = change
         envelopes[change] = envelope
+    for change, envelope in envelopes.items():
+        for intent in envelope["intents"]:
+            for dependency in intent.get("dependencies", []):
+                if dependency not in intent_to_change:
+                    raise RequirementExecutionError(f"{change}: unknown dependency {dependency}")
     pending = set(envelopes)
     ordered: list[tuple[str, Path]] = []
     while pending:
@@ -117,6 +122,68 @@ def _linked_children_by_change(integration: Path, requirement: str, parent: dict
             requirement_intake.link_child(integration, requirement=requirement, child=child)
         result[package.change] = child
     return result
+
+
+def _contribution_publication_supported(root: Path) -> bool:
+    from _platform_common import read_platform_config
+    config = read_platform_config(root)
+    if (config.get("platform_version") != "source" or config.get("publish_mode", "pr") != "pr"
+            or config.get("scm_provider", "github").lower() != "github"
+            or config.get("harness_mode", "platform") != "platform"):
+        return False
+    import publication_queue
+    return publication_queue.enabled(root)
+
+
+def _single_child_in_flight(worktree: Path, *, adapter=None) -> bool:
+    """Observe trusted handoff ownership and remote advancement before developer publication."""
+    if adapter is None:
+        import publication_queue as adapter
+    branch = _git(worktree, "branch", "--show-current")
+    head = _git(worktree, "rev-parse", "HEAD")
+    repo = adapter._repo(worktree)
+    rows = adapter._gh(worktree, "pr", "list", "--state", "all", "--head", branch,
+                       "--base", "main", "--limit", "100", "--json", "number")
+    if not isinstance(rows, list) or len(rows) >= 100:
+        raise RequirementExecutionError("single-child PR inventory unavailable or exceeds bound")
+    owned = []
+    for row in rows:
+        number = row["number"]
+        pr = adapter._pr(worktree, repo, number)
+        if pr["head"]["ref"] != branch or pr["base"]["ref"] != "main":
+            raise RequirementExecutionError("single-child PR identity changed during observation")
+        comments = adapter._comments(worktree, repo, number)
+        current = adapter._derive(worktree, pr, comments)
+        if adapter._malformed(current):
+            raise RequirementExecutionError(f"malformed coordinator ownership for single-child PR #{number}")
+        if (adapter._latest(worktree, number, comments) is not None
+                or adapter._admission(adapter._events(worktree, repo, number), number) is not None
+                or pr["head"]["sha"] != head):
+            owned.append(number)
+    if len(owned) > 1:
+        raise RequirementExecutionError("multiple coordinator candidates for the single child")
+    return bool(owned)
+
+
+def _publish_active_child(integration: Path, child: str, change: str) -> bool:
+    if not _contribution_publication_supported(integration):
+        return False
+    worktree = machine_path("worktrees", integration) / change
+    if not worktree.is_dir():
+        return False
+    if _single_child_in_flight(worktree):
+        return True
+    canonical = managed_task.resolve_canonical_provenance(worktree, source_issue=child, change=change)
+    if canonical is None or canonical.lifecycle != "active":
+        return False
+    from openspec_lifecycle import task_state
+    total, incomplete = task_state(canonical.path)
+    if not total or incomplete:
+        return False
+    result = subprocess.run(["python3", "scripts/finish_task.py"], cwd=worktree, stdin=subprocess.DEVNULL)
+    if result.returncode:
+        raise RequirementExecutionError(f"single-child developer handoff blocked (exit {result.returncode})")
+    return True
 
 
 def _ready_receipt(
@@ -300,6 +367,8 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
         if observation is None or observation.current_status != "Done":
             raise RequirementExecutionError(f"historical linked child {historical_child} is not terminal")
         _done_child_is_delivered(integration, historical_child, historical_change)
+    if len(ordered) > 1 and _contribution_publication_supported(integration):
+        return _advance_contributions(integration, requirement, ordered, linked_by_change, base_dir, confirm_distinct)
     receipt_dir = integration / ".claude" / "requirement-integration" / f"requirement-{requirement.rsplit('#', 1)[1]}"
     superseded: list[dict[str, str]] = []
 
@@ -326,6 +395,9 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
             _done_child_is_delivered(integration, child, change)
             completed.append(child)
             continue
+        if len(ordered) == 1 and _publish_active_child(integration, child, change):
+            return audited({"status": "await-child-review", "requirement": requirement, "child": child,
+                            "change": change, "reason": "child handed off; coordinator work is in flight"})
         existing = _ready_receipt(
             integration, receipt_dir, requirement, child, change,
             release_claim=len(ordered) > 1, superseded=superseded,
@@ -353,6 +425,9 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
             "shared_draft": draft,
             "independent_review": _child_review_state(Path(started.task_root), child, change),
             "next": (
+                "Perform routed bounded implementation, establish selected checks and semantic verification, and commit; "
+                "rerun execute_requirement.py advance to publish the active child for coordinator review and finalization."
+                if len(ordered) == 1 and _contribution_publication_supported(integration) else
                 "Perform routed bounded implementation, verify, archive and commit; rerun execute_requirement.py advance. "
                 "When independent review is required, archive runs it automatically; follow independent_review.next if it is blocked. "
                 f"Check reviewer runtime readiness after routing with: python3 scripts/independent_review.py preflight {change}"
@@ -364,7 +439,7 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
             change = ordered[0][0]
             child = linked_by_change[change]
             worktree = machine_path("worktrees", integration) / change
-            result = subprocess.run(["python3", "scripts/finish_task.py"], cwd=worktree)
+            result = subprocess.run(["python3", "scripts/finish_task.py"], cwd=worktree, stdin=subprocess.DEVNULL)
             if result.returncode:
                 raise RequirementExecutionError(f"single-child managed finish did not complete (exit {result.returncode})")
         from requirement_terminal import reconcile_parent
@@ -405,6 +480,72 @@ def main() -> int:
         return 2
     print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
     return 0
+
+
+
+
+
+def _handoff_dependencies(ordered: list[tuple[str, Path]]) -> dict[str, list[str]]:
+    envelopes = {change: json.loads(path.read_text()) for change, path in ordered}
+    owners = {intent["id"]: change for change, envelope in envelopes.items() for intent in envelope.get("intents", [])}
+    return {change: sorted({owners[d] for intent in envelope.get("intents", [])
+                            for d in intent.get("dependencies", []) if owners[d] != change})
+            for change, envelope in envelopes.items()}
+
+
+def _advance_contributions(integration: Path, requirement: str, ordered: list[tuple[str, Path]],
+                           linked: dict[str, str], base_dir: Path, confirm_distinct: bool) -> dict:
+    from requirement_contributions import ensure_integration_branch, in_flight_children
+    from _platform_common import read_platform_config
+    from requirement_composition import publish_composition
+
+    # Materialize all identities before starting work. No sibling backlog is invented.
+    for change, handoff in ordered:
+        if change not in linked:
+            linked[change] = requirement_intake.materialize_handoff(
+                integration, requirement=requirement, handoff_file=handoff,
+                bundle_path=_bundle(base_dir, requirement, change), base_dir=base_dir,
+                confirm_distinct=confirm_distinct)["child"]
+    config = read_platform_config(integration)
+    repository = str(config.get("repository") or managed_task.origin_repository(integration))
+    graph = _handoff_dependencies(ordered)
+    boundary = ensure_integration_branch(integration, requirement=requirement, repository=repository,
+                                         expected_changes=[c for c, _ in ordered], dependencies=graph)
+    branch, head, manifest = boundary["branch"], boundary["head"], boundary["manifest"]
+    _git(integration, "fetch", "origin", f"{branch}:refs/remotes/origin/{branch}")
+    integrated = {child["change"]: child for child in manifest["children"]}
+    in_flight = in_flight_children(integration, repository, requirement, branch)
+    actions, waiting = [], []
+    for change, _ in ordered:
+        if change in integrated:
+            continue
+        if change in in_flight:
+            waiting.append(in_flight[change])
+            continue
+        missing = [d for d in graph[change] if d not in integrated]
+        if missing:
+            waiting.append({"change": change, "dependencies": missing})
+            continue
+        contribution = {"requirement": requirement, "branch": f"origin/{branch}", "target_branch": branch,
+                        "head": head, "dependencies": [integrated[d] for d in graph[change]]}
+        # A resumed child keeps its original exact base even as other contributions arrive.
+        from requirement_child_context import context_path
+        cached = context_path(machine_path("worktrees", integration) / change, change)
+        if cached.is_file():
+            contribution = json.loads(cached.read_text()).get("contribution") or contribution
+        try:
+            started, _, _ = start_managed_task.start_managed_task(integration, linked[change], contribution=contribution)
+        except start_managed_task.ManagedAdmissionWait as exc:
+            waiting.append({"change": change, "reason": str(exc)})
+            continue
+        actions.append({"child": linked[change], "change": change, "worktree": str(started.task_root),
+                        "contribution_base": contribution["head"], "target_branch": branch,
+                        "next": "Perform routed implementation and developer handoff; rerun advance after contribution integration."})
+    requirement_board.reconcile_nonterminal(integration, requirement=requirement)
+    draft = publish_composition(integration, repository, manifest, head)
+    return {"status": draft["status"] if draft["status"] == "merged-and-reconciled" else
+            "implement-children" if actions else "await-contributions", "requirement": requirement,
+            "actions": actions, "waiting": waiting, "shared_draft": draft}
 
 
 if __name__ == "__main__":

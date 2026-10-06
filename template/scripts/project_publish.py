@@ -445,6 +445,12 @@ def validate_shared_manifest(root: Path, path: Path) -> dict:
         raise RequirementIntegrationError("shared manifest is absent or not committed at exact HEAD") from exc
     if not isinstance(payload, dict) or payload != committed:
         raise RequirementIntegrationError("shared manifest differs from exact committed HEAD")
+    if payload.get("version") == 2:
+        from requirement_contributions import validate
+        validate(payload)
+        if path != requirement_integration._candidate_manifest_path(payload["requirement"], root) or branch(root) != payload["integration_branch"]:
+            raise RequirementIntegrationError("reviewed contribution manifest branch or path changed")
+        return payload
     unsigned = {key: value for key, value in payload.items() if key != "digest"}
     requirement = payload.get("requirement")
     children = payload.get("children")
@@ -519,6 +525,8 @@ def publish_pr(
                 raise ManagedTaskError("developer handoff requires a coordinator-managed active child")
             delivery = resolve_canonical_provenance(root)
             handoff_identity, gates = handoff_gates(root, delivery.path)
+            if handoff_identity.get("kind") == "contribution":
+                main_branch = handoff_identity["target_branch"]
         else:
             delivery = require_delivery_provenance(root)
         if delivery is not None and not developer_handoff:
@@ -530,6 +538,12 @@ def publish_pr(
     if shared_manifest is not None:
         try:
             shared_candidate = validate_shared_manifest(root, shared_manifest)
+            if shared_candidate.get("version") == 2:
+                from requirement_composition import publish_composition
+                result = publish_composition(main_root(), shared_candidate["repository"], shared_candidate,
+                                             run_git(["rev-parse", "HEAD"], cwd=root).stdout.strip())
+                print(json.dumps(result, sort_keys=True))
+                return 0
             incomplete = not requirement_integration.manifest_complete(shared_candidate)
         except RequirementIntegrationError as exc:
             raise SystemExit("Shared Requirement publication blocked: " + str(exc)) from exc
@@ -574,7 +588,8 @@ def publish_pr(
     # (open with an older head) already proves first publication, so no fresh-base rule applies.
     grows_existing = shared_manifest is not None and lookup.stale_open is not None
     if lookup.exact_merged is None:
-        push_feature_branch(root, remote, main_branch, require_fresh_base=lookup.exact_open is None and not grows_existing)
+        push_feature_branch(root, remote, main_branch, require_fresh_base=lookup.exact_open is None and not grows_existing
+                            and not (developer_handoff and handoff_identity.get("kind") == "contribution"))
         if grows_existing:
             lookup = find_exact_head_pr(root, env, current, main_branch, expected_head)
             if not lookup.available or lookup.exact_open is None:

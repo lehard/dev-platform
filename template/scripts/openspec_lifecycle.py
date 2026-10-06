@@ -376,7 +376,7 @@ def check_hygiene(root: Path, stage: str | None = None) -> int:
     return 1
 
 
-def require_ready(change: Path, *, platform_owned: bool = False) -> None:
+def require_ready(change: Path, *, platform_owned: bool = False, reviewed_composition: bool = False) -> None:
     if not change.exists() or not change.is_dir():
         raise SystemExit(f"Active OpenSpec change not found: {change.name}")
     total, incomplete = task_state(change)
@@ -390,7 +390,8 @@ def require_ready(change: Path, *, platform_owned: bool = False) -> None:
             f"Run /opsx:verify when available (or an equivalent documented OpenSpec verification), resolve material findings, "
             f"then record '{VERIFY_MARKER}' and a '{VERIFY_METHOD_PREFIX} <method>' line in verification.md."
         )
-    require_review_evidence(change.parents[2], change)
+    if not reviewed_composition:
+        require_review_evidence(change.parents[2], change)
     require_independent_review_receipt(change)
     if platform_owned:
         require_automated_evidence(change)
@@ -508,7 +509,11 @@ def archive_change(root: Path, name: str, *, finalize: bool = False) -> int:
     require_static_archive_readiness(change, platform_owned=platform_owned, review=False, routing=not finalize)
     if platform_owned and not finalize:
         require_applicable_committed_diff(root)
-    if finalize:
+    composition = os.environ.get("DEV_PLATFORM_COMPOSITION_FINALIZATION") if finalize else None
+    if composition:
+        from requirement_composition import require_archive_evidence
+        require_archive_evidence(root, name, composition)
+    elif finalize:
         require_review_evidence(root, change)
     else:
         # Required independent review runs after the cheap deterministic gates and
@@ -530,7 +535,7 @@ def archive_change(root: Path, name: str, *, finalize: bool = False) -> int:
                 ["python3", "scripts/select_checks.py", "--base", "origin/main", "--execute", "--evidence", str(evidence)],
                 root,
             )
-    require_ready(change, platform_owned=platform_owned and not finalize)
+    require_ready(change, platform_owned=platform_owned and not finalize, reviewed_composition=bool(composition))
     executable = shutil.which("openspec")
     if not executable:
         raise SystemExit("OpenSpec CLI is required to archive a verified change")

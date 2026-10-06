@@ -51,6 +51,50 @@ class AdmissionTests(unittest.TestCase):
         handoff.start()
         self.addCleanup(handoff.stop)
 
+    def test_refreshed_contribution_handoff_readmits_only_semantic_stop_same_candidate(self):
+        old = {"kind": "contribution", "change": "first", "requirement": "owner/backlog#7",
+               "source_issue": "owner/backlog#8", "target_branch": "requirement/BR-7",
+               "contribution_base": BASE, "task_content": {"digest": "old"}}
+        identity = {**old, "task_content": {"digest": "repaired"}}
+        handoff = {"task_identity": identity, "gates": {g: {"result": "passed", "identity": identity,
+                   "evidence": {"receipt": "fresh"}} for g in ("developer-friction", "selected-checks", "semantic-verification")}}
+        handoff["gates"]["developer-friction"]["evidence"]["head"] = NEW_HEAD
+        prior = {"head": HEAD, "state": "blocked-retryable", "task_identity": old,
+                 "red_gate": {"name": "semantic-verification", "identity": old}}
+        observed = pr(1, NEW_HEAD); observed["base"]["ref"] = "requirement/BR-7"
+        events = [admission(1, 17)]
+        def comment(root, repo, number, payload):
+            events.append({**payload, "comment_id": len(events) + 17})
+        with patch.object(queue, "_repo", return_value=REPO), patch.object(queue, "_pr", return_value=observed), \
+             patch.object(queue, "_events", side_effect=lambda *a: list(events)), patch.object(queue, "_comment", side_effect=comment), \
+             patch.object(queue, "_latest", return_value=prior), patch.object(queue, "_derive", return_value={}), \
+             patch.object(queue, "_ensure_labels"), patch.object(queue, "_label"):
+            for bad in ({**prior, "state": "reviewing"}, {**prior, "red_gate": {"name": "review", "identity": old}},
+                        {**prior, "task_identity": {**old, "change": "different"}}):
+                with patch.object(queue, "_latest", return_value=bad), self.assertRaisesRegex(queue.QueueError, "earlier or ambiguous"):
+                    queue.admit(ROOT_PATH, 1, NEW_HEAD, handoff=handoff)
+            # Return the refreshed review record for confirmation after the transition.
+            def latest(root, number, comments, head=None):
+                return {"head": NEW_HEAD, "state": "review-pending"} if head else prior
+            with patch.object(queue, "_latest", side_effect=latest), patch.object(queue, "publish_job") as offer:
+                result = queue.admit(ROOT_PATH, 1, NEW_HEAD, handoff=handoff)
+            self.assertEqual(result["position_key"], 19)
+            self.assertEqual([e["kind"] for e in events], ["admit", "block", "admit"])
+            self.assertEqual(self.transition.call_args.args[3], "review-pending")
+            offer.assert_called_once()
+
+    def test_historical_pr_inventory_does_not_consume_queued_bound(self):
+        history = [{"number": n, "labels": [], "state": "closed"} for n in range(150)]
+        queued = [{"number": 151, "labels": [{"name": queue.QUEUE}], "state": "open"}]
+        def gh(root, *args):
+            self.assertEqual(args[args.index("--state") + 1], "all")
+            self.assertEqual(args[args.index("--label") + 1], queue.QUEUE)
+            return [r for r in history + queued if r["labels"]]
+        with patch.object(queue, "_gh", side_effect=gh), patch.object(queue, "_events", return_value=[admission(151, 17)]):
+            self.assertEqual(queue._queued(ROOT_PATH, REPO)[0][1], 151)
+        with patch.object(queue, "_gh", return_value=queued * 100), self.assertRaisesRegex(queue.QueueError, "bounded limit"):
+            queue._queued(ROOT_PATH, REPO)
+
     def test_concurrent_identical_admissions_reuse_oldest_slot(self) -> None:
         events = [admission(1, 19), admission(1, 17)]
         with patch.object(queue, "_repo", return_value=REPO), \
