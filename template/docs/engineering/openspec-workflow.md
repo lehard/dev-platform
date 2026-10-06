@@ -2,6 +2,54 @@
 
 OpenSpec is the planning contract for non-trivial product and architecture changes. It complements repository process rules and project-specific verification.
 
+## OpenSpec model used by Dev Platform
+
+This section is sufficient to run the standard lifecycle without external OpenSpec documentation.
+
+### Layout and artifact roles
+
+- `openspec/specs/` holds the accepted current behavior, organized by capability.
+- `openspec/changes/<change>/` holds one active change:
+  - `proposal.md` states why, what changes, success evidence, constraints and non-goals.
+  - `specs/<capability>/spec.md` is the delta spec: the observable behavior this change adds, modifies or removes.
+  - `design.md` records the technical approach, decisions, risks and mitigations.
+  - `tasks.md` is the ordered execution checklist.
+  - `verification.md` is the truthful receipt of what was actually checked and how.
+- `openspec/changes/archive/` holds completed changes. Archiving merges the delta into `openspec/specs/`.
+
+Accepted specs describe what is true now; the active delta describes what is approved to become true. Target behavior is the two combined.
+
+### Requirements and scenarios
+
+A delta spec groups requirements under `## ADDED Requirements`, `## MODIFIED Requirements` and `## REMOVED Requirements`. Each requirement is a `### Requirement: <name>` with a normative statement using SHALL/MUST, followed by one or more scenarios:
+
+```
+#### Scenario: <name>
+
+- **WHEN** <condition>
+- **THEN** <observable result>
+```
+
+A modified requirement restates the full updated requirement. Scenarios must be concrete and verifiable.
+
+### Changing the contract during implementation
+
+When implementation shows the plan must change, update the owning artifact first, then continue: intent or scope in `proposal.md`, observable behavior in the delta specs, approach in `design.md`, order or dependencies in `tasks.md`. Never let code and artifacts knowingly disagree.
+
+### Verify, archive, publish
+
+1. Run project tests and checks.
+2. Perform semantic verification: re-read the change and the implementation and assess completeness, correctness and coherence. This is distinct from structural validation (`openspec validate`), which checks only artifact format.
+3. Record the result in `verification.md`, stating what was checked and by which method.
+4. Archive with `python3 scripts/openspec_lifecycle.py archive <change>`; verify hygiene with `python3 scripts/openspec_lifecycle.py check`.
+5. Publish with `python3 scripts/finish_task.py`.
+
+Managed tasks start with `python3 scripts/start_managed_task.py`. Check the installed OpenSpec version against the policy below with `python3 scripts/platform_doctor.py`.
+
+### Upstream OpenSpec versus Dev Platform
+
+Upstream OpenSpec documentation is supplementary reference only. Use the Dev Platform entrypoints above rather than the raw `openspec` CLI archive command, because they enforce lifecycle hygiene, receipts and publication rules that upstream does not.
+
 ## Contract model
 
 Do not model these as a flat precedence ladder:
