@@ -67,13 +67,14 @@ def job_id(job: dict) -> str:
     return f"pr{job['number']}:{job['kind']}:{job['head']}:a{job['attempt']}"
 
 
-def job_record(kind: str, head: str, task_identity: str | dict, attempt: int) -> dict:
+def job_record(kind: str, head: str, task_identity: str | dict, attempt: int, *, providers=None) -> dict:
     """The explicit ``next_job`` a coordinator publishes in a handoff record."""
     if kind not in JOB_KINDS or not HEAD.fullmatch(str(head)) or type(attempt) is not int or attempt < 0:
         raise ValueError("invalid job record")
     if not isinstance(task_identity, (str, dict)) or not task_identity:
         raise ValueError("missing task identity")
-    return {"kind": kind, "head": head, "task_identity": task_identity, "attempt": attempt}
+    return {"kind": kind, "head": head, "task_identity": task_identity, "attempt": attempt,
+            **({"providers": list(providers)} if providers is not None else {})}
 
 
 def build_job(candidate: dict) -> dict | None:
@@ -101,7 +102,8 @@ def build_job(candidate: dict) -> dict | None:
     if type(attempt) is not int:
         attempt = candidate.get("attempts", {}).get(kind, 0)
     return {"kind": kind, "number": candidate["number"], "head": job_head,
-            "task_identity": explicit.get("task_identity", candidate.get("task_identity")), "attempt": attempt}
+            "task_identity": explicit.get("task_identity", candidate.get("task_identity")), "attempt": attempt,
+            **{key: explicit[key] for key in ("provider", "providers") if key in explicit}}
 
 
 def claim_body(job: dict, worker: str, expires_at: str) -> str:
@@ -160,6 +162,7 @@ def job_completed(job: dict, comments: list[dict], *, trusted_apps=frozenset(), 
         except json.JSONDecodeError:
             continue
         if (isinstance(record, dict) and record.get("job") == job_id(job) and record.get("head") == job["head"]
+                and record.get("outcome") != "validated-push"
                 and not str(record.get("outcome", "")).startswith("discarded")):
             return True
     return False
@@ -253,7 +256,8 @@ def _forbidden(path: str) -> str | None:
     parts = path.split("/")
     if parts[:2] == ["openspec", "changes"]:
         name = parts[-1]
-        if name in EVIDENCE_NAMES or name.startswith("independent-review") or "independent-reviews" in parts:
+        if (name in EVIDENCE_NAMES or name.startswith("independent-review")
+                or any(part in {"independent-reviews", "evidence"} for part in parts[3:])):
             return "lifecycle evidence edit"
     return None
 
@@ -354,9 +358,11 @@ def work_next(kinds: frozenset[str], *, list_prs: Callable[[], list[dict]],
     return {"status": "claimed", "job": job, "expires_at": expires}
 
 
-def result_body(job: dict, worker: str, outcome: str, pushed_head: str | None = None) -> str:
+def result_body(job: dict, worker: str, outcome: str, pushed_head: str | None = None, *, task_identity=None) -> str:
     record = {"job": job_id(job), "worker": worker, "head": job["head"], "outcome": outcome,
               "pushed_head": pushed_head}
+    if task_identity is not None:
+        record["task_identity"] = task_identity
     return RESULT_PREFIX + json.dumps(record, sort_keys=True, separators=(",", ":"))
 
 
@@ -364,11 +370,27 @@ def _checkout_state(checkout: Path) -> tuple[str, str]:
     return (_git(checkout, "rev-parse", "HEAD").strip(), _git(checkout, "status", "--porcelain"))
 
 
+def prepare_harness(source_repo: str, checkout: Path, root: Path, result_head: str) -> Path:
+    """Import only result commits into a separate trusted clone for validation/push."""
+    harness = root / "harness"
+    for step in (["clone", "--no-local", "--no-checkout", source_repo, str(harness)],
+                 ["fetch", "--no-tags", str(checkout), result_head]):
+        cwd = harness if step[0] == "fetch" else root
+        proc = subprocess.run(["git", *SAFE_GIT, "-c", "protocol.file.allow=always", *step],
+                              cwd=cwd, text=True, capture_output=True, check=False, stdin=subprocess.DEVNULL)
+        if proc.returncode:
+            raise WorkerError(proc.stderr.strip()[:200])
+    return harness
+
+
 def execute_job(job: dict, *, source_repo: str, branch: str, allowed_paths, llm_command,
                 current_head: Callable[[], str], post_result: Callable[[str], None], workdir: str,
                 kind: str | None = None, worker: str = "worker",
                 runner: Callable[..., Any] = subprocess.run, env: dict[str, str] | None = None,
-                push_env: dict[str, str] | None = None, home_files: list[str] | tuple[str, ...] = ()) -> dict:
+                push_env: dict[str, str] | None = None, home_files: list[str] | tuple[str, ...] = (),
+                review_handler: Callable[[Path], dict] | None = None,
+                before_push: Callable[[Path, str], None] | None = None,
+                claim_current: Callable[[], bool] = lambda: True) -> dict:
     """Run one claimed job. The LLM only ever touches its own disposable checkout.
 
     Validation and the only push happen in a separate harness-owned clone that
@@ -379,13 +401,21 @@ def execute_job(job: dict, *, source_repo: str, branch: str, allowed_paths, llm_
     if kind != job["kind"] or kind not in WRITE_KINDS | {"review"}:
         raise WorkerError(f"no executor for {kind} jobs")
     command = shlex.split(llm_command) if isinstance(llm_command, str) else list(llm_command)
-    root = Path(workdir)
+    root = Path(workdir).resolve()
     checkout = prepare_checkout(source_repo, str(root), "llm-checkout", job["head"])
 
     def finish(outcome: str, pushed: str | None = None, status: str | None = None) -> dict:
+        if not claim_current():
+            return {"status": "discarded"}
         post_result(result_body(job, worker, outcome, pushed))
         return {"status": status or outcome.split(":")[0], "outcome": outcome, "pushed_head": pushed}
 
+    if kind == "review" and review_handler is not None:
+        outcome = review_handler(checkout)
+        if outcome["status"] == "discarded" or not claim_current():
+            return {"status": "discarded"}
+        post_result(result_body(job, worker, outcome["status"], outcome.get("pushed_head")))
+        return outcome
     before = _checkout_state(checkout)
     done = run_llm(command, checkout, env=env, runner=runner, home=scratch_home(root, home_files))
     if done.returncode:
@@ -394,22 +424,27 @@ def execute_job(job: dict, *, source_repo: str, branch: str, allowed_paths, llm_
         if _checkout_state(checkout) != before:
             return finish("failed: review modified the checkout", status="failed")
         return finish("reviewed", status="reviewed")
+    try:
+        proposal = json.loads(done.stdout or "null")
+    except (ValueError, AttributeError):
+        proposal = None
+    if isinstance(proposal, dict) and proposal.get("reject_material") is True:
+        return finish("proposed-rejection", status="proposed-rejection")
     result_head = _git(checkout, "rev-parse", "HEAD").strip()
     if result_head == job["head"]:
         return finish("no-change", status="no-change")
     if current_head() != job["head"]:
         return finish("discarded: head moved", status="discarded")
-    harness = root / "harness"
-    for step in (["clone", "--no-local", "--no-checkout", source_repo, str(harness)],
-                 ["fetch", "--no-tags", str(checkout), result_head]):
-        cwd = harness if step[0] == "fetch" else root
-        extra = ["-c", "protocol.file.allow=always"]
-        proc = subprocess.run(["git", *SAFE_GIT, *extra, *step], cwd=cwd, text=True, capture_output=True,
-                              check=False, stdin=subprocess.DEVNULL)
-        if proc.returncode:
-            return finish("rejected: " + proc.stderr.strip()[:200], status="rejected")
+    try:
+        harness = prepare_harness(source_repo, checkout, root, result_head)
+    except WorkerError as exc:
+        return finish(f"rejected: {exc}", status="rejected")
     try:
         validate_worker_result(harness, job["head"], result_head, allowed_paths, kind=kind)
+        if before_push is not None:
+            before_push(harness, result_head)
+        if not claim_current():
+            return {"status": "discarded"}
         push_validated(harness, branch, job["head"], result_head, runner=runner, env=push_env)
     except WorkerError as exc:
         return finish(f"rejected: {exc}", status="rejected")
@@ -480,7 +515,7 @@ def main(argv: list[str] | None = None) -> int:
         return _gh_json("api", f"repos/{repo}/pulls/{number}")
 
     try:
-        if args.run and (not args.llm_command or not args.allow):
+        if args.run and set(args.kinds.split(",")) != {"review"} and (not args.llm_command or not args.allow):
             raise WorkerError("--run needs --llm-command and at least one --allow path")
         result = work_next(frozenset(k for k in args.kinds.split(",") if k), list_prs=list_prs,
                            comments_for=comments_for, post_comment=post_comment, worker=args.worker,
@@ -490,12 +525,26 @@ def main(argv: list[str] | None = None) -> int:
         if args.run and result["status"] == "claimed":
             job = result["job"]
             with tempfile.TemporaryDirectory(prefix="lifecycle-worker-") as workdir:
-                outcome = execute_job(
-                    job, source_repo=args.source or f"https://github.com/{repo}.git",
-                    branch=args.branch or pr_info(job["number"])["head"]["ref"], allowed_paths=args.allow,
-                    llm_command=args.llm_command, worker=args.worker, workdir=workdir, home_files=args.llm_home_file,
-                    current_head=lambda: pr_info(job["number"])["head"]["sha"],
-                    post_result=lambda body: post_comment(job["number"], body))
+                if job["kind"] in {"review", "repair"} and isinstance(job["task_identity"], dict) and job["task_identity"].get("change"):
+                    from pr_review_gate import run_claimed
+                    import publication_queue
+
+                    candidate = publication_queue.candidate_status(Path.cwd(), job["number"], repo=repo)
+                    outcome = run_claimed(
+                        Path.cwd(), repo, candidate, job,
+                        source_repo=args.source or f"https://github.com/{repo}.git",
+                        branch=args.branch or pr_info(job["number"])["head"]["ref"],
+                        allowed_paths=args.allow, llm_command=args.llm_command,
+                        current_head=lambda: pr_info(job["number"])["head"]["sha"],
+                        post_result=lambda body: post_comment(job["number"], body),
+                        workdir=workdir, home_files=args.llm_home_file, worker=args.worker)
+                else:
+                    outcome = execute_job(
+                        job, source_repo=args.source or f"https://github.com/{repo}.git",
+                        branch=args.branch or pr_info(job["number"])["head"]["ref"], allowed_paths=args.allow,
+                        llm_command=args.llm_command, worker=args.worker, workdir=workdir, home_files=args.llm_home_file,
+                        current_head=lambda: pr_info(job["number"])["head"]["sha"],
+                        post_result=lambda body: post_comment(job["number"], body))
             result = {**result, "execution": outcome}
     except (WorkerError, ValueError) as exc:
         print(f"lifecycle worker: {exc}", file=sys.stderr)

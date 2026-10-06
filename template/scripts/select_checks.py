@@ -428,6 +428,11 @@ def write_evidence(
     }
     if managed_checkout is not None:
         payload["managed_checkout"] = managed_checkout.evidence_payload()
+        from task_content_identity import review_content_identity
+
+        change = payload["managed_checkout"].get("change")
+        if isinstance(change, str):
+            payload["gate_task_content"] = review_content_identity(managed_checkout.worktree, change)
     if precheck is not None:
         payload["affected_precheck"] = precheck
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

@@ -1162,11 +1162,11 @@ def cmd_checkpoint(args: argparse.Namespace) -> int:
 
 
 def cmd_assert_checkpoint(args: argparse.Namespace) -> int:
-    require_checkpoint(args.branch or current_branch(), current_worktree_root())
+    require_checkpoint(args.branch or current_branch(), current_worktree_root(), exact_head=getattr(args, "exact_head", False))
     return 0
 
 
-def require_checkpoint(branch: str, root: Path | None = None) -> None:
+def require_checkpoint(branch: str, root: Path | None = None, *, exact_head: bool = False) -> None:
     """Reject a missing, malformed or stale post-task retrospective receipt.
 
     Freshness reuses the task's own branch/head instead of a second identity
@@ -1207,6 +1207,8 @@ def require_checkpoint(branch: str, root: Path | None = None) -> None:
     current = current_head(resolved_root)
     if current is None:
         raise SystemExit("Could not determine the current task head to verify retrospective freshness.")
+    if exact_head and checkpoint.get("head") != current:
+        raise SystemExit("Developer friction checkpoint must be recorded at the exact handoff head; rerun checkpoint.")
     recorded_content = checkpoint.get("task_content")
     current_content = current_task_content(resolved_root)
     if isinstance(recorded_content, dict):
@@ -1354,6 +1356,7 @@ def main() -> int:
 
     p = sub.add_parser("assert-checkpoint", help="fail unless the current task checkpoint is resolved")
     p.add_argument("--branch")
+    p.add_argument("--exact-head", action="store_true", help="require the developer handoff head rather than equivalent content")
     p.set_defaults(func=cmd_assert_checkpoint)
 
     p = sub.add_parser("pending")

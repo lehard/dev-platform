@@ -188,6 +188,8 @@ class SelectChecksTests(unittest.TestCase):
 
     def test_execution_evidence_records_managed_checkout_identity(self) -> None:
         class Identity:
+            worktree = Path("/tmp/task")
+
             def evidence_payload(self):
                 return {
                     "source_issue": "example-org/development-backlog#7",
@@ -199,13 +201,17 @@ class SelectChecksTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as directory:
             evidence_path = Path(directory) / "evidence.json"
-            outcome = select_checks.execute(
-                Path(directory), [{"id": "test", "commands": ["printf ok"]}], evidence_path, Identity()
-            )
+            import task_content_identity
+
+            with mock.patch.object(task_content_identity, "review_content_identity", return_value={"digest": "d"}):
+                outcome = select_checks.execute(
+                    Path(directory), [{"id": "test", "commands": ["printf ok"]}], evidence_path, Identity()
+                )
             evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
         self.assertEqual(outcome, 0)
         self.assertEqual(evidence["version"], 2)
         self.assertEqual(evidence["managed_checkout"]["branch"], "agent/managed-checkout")
+        self.assertEqual(evidence["gate_task_content"], {"digest": "d"})
 
     def test_successful_command_emits_compact_machine_readable_timing(self) -> None:
         with tempfile.TemporaryDirectory() as directory, mock.patch.object(select_checks, "time") as clock:

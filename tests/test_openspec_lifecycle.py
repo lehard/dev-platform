@@ -25,6 +25,22 @@ class OpenSpecLifecycleTests(unittest.TestCase):
             (change / "verification.md").write_text(verification, encoding="utf-8")
         return change
 
+    def test_normal_archive_launches_review_before_expensive_validation(self):
+        gate = load_platform_module("pr_review_gate", SCRIPTS / "pr_review_gate.py")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.make_change(root, "work", "- [x] done\n")
+            with mock.patch.object(lifecycle, "read_platform_config", return_value={"harness_mode": "platform"}), \
+                    mock.patch.object(lifecycle, "require_static_archive_readiness"), \
+                    mock.patch.object(lifecycle, "require_applicable_committed_diff"), \
+                    mock.patch.object(gate, "managed_candidate", return_value=False), \
+                    mock.patch.object(lifecycle, "ensure_review_evidence", side_effect=SystemExit("review blocked")) as review, \
+                    mock.patch.object(lifecycle, "run_checked") as validate:
+                with self.assertRaisesRegex(SystemExit, "review blocked"):
+                    lifecycle.archive_change(root, "work")
+                review.assert_called_once_with(root, root / "openspec/changes/work")
+                validate.assert_not_called()
+
     def test_incomplete_change_is_not_stale(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

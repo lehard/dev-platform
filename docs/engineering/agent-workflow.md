@@ -324,3 +324,19 @@ Before reporting a non-trivial platform task as complete:
 - the post-task retrospective ran and the friction checkpoint reflects its current result.
 
 The final report states that the retrospective ran and either lists its findings or says explicitly that none were found. If any required completion step is blocked, report the blocker instead of saying the task is done.
+
+For coordinator-managed source candidates, `finish` ends at developer handoff,
+with the change still active. Before finish, run selected checks with
+`python3 scripts/select_checks.py --base origin/main --execute --evidence openspec/changes/<change>/automated-checks.json`,
+record semantic verification, commit the candidate and evidence, then record
+the developer friction checkpoint at that exact head. Finish publishes an exact-head PR, admits it as
+`review-pending`, and releases the developer board claim without waiting for CI,
+review or merge. This is developer completion; terminal delivery still requires
+archive and confirmed merge. The worker entrypoint
+`python3 scripts/lifecycle_workers.py work-next --repo owner/repo --kinds review --run`
+launches the existing independent reviewer in an exact-head disposable checkout.
+Repair workers use `--kinds repair --run --llm-command <writer> --allow <path>`
+(repeat `--allow` for the bounded candidate scope). The harness supplies findings,
+validates the commits and pushes them; changed content repeats review. Material
+rejection proposals or three unsuccessful review rounds require human escalation.
+Unavailable reviewer runtimes publish a new retryable review attempt automatically.
