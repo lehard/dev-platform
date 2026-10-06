@@ -40,3 +40,18 @@ Exact-target validation SHALL clean only its own verified temporary worktree and
 - **THEN** available identity evidence supports explicit bounded recovery via the existing cleanup mechanism
 - **AND** repeated recovery of already removed helper state is safe
 - **AND** foreign, changed or ambiguous worktree state is preserved with an explicit diagnostic
+
+#### Scenario: Unknown or unavailable cwd observation
+
+- **WHEN** recovery receives malformed, unknown, incomplete, non-absolute or unreadable cwd records, or strict path resolution fails
+- **THEN** recovery fails explicitly before removing helper state
+- **AND** process and cwd descriptor headers are validated as structure
+
+#### Scenario: Final directory removal fails or is interrupted
+
+- **WHEN** cleanup has removed the exact Git worktree and reaches empty-directory removal
+- **THEN** it first publishes the ownership receipt at the exact sibling `<helper-directory>.cleanup-owner.json` through an atomic hard link that cannot overwrite existing state
+- **AND** an interruption between link and inner-receipt unlink is recoverable only for identical receipt inodes with no Git registration
+- **AND** failure or interruption retains independently verifiable identity until empty-directory removal succeeds
+- **AND** recovery verifies owner/process/cwd and directory inode when present, then removes only the empty directory and receipt
+- **AND** an absent directory with a verified sibling receipt permits only receipt removal

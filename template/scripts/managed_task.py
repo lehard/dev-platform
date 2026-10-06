@@ -681,7 +681,34 @@ def validation_active_cwds() -> set[Path]:
     result = subprocess.run([executable, "-a", "-d", "cwd", "-Fn"], text=True, capture_output=True, timeout=10)
     if result.returncode != 0 or result.stderr.strip():
         raise ManagedTaskError(f"validation cleanup active cwd inspection failed (exit {result.returncode}): {result.stderr.strip()}")
-    return {Path(line[1:]).resolve() for line in result.stdout.splitlines() if line.startswith("n/")}
+    paths: set[Path] = set()
+    process = False
+    descriptor = False
+    named = False
+    for line in result.stdout.splitlines():
+        if line.startswith("p") and re.fullmatch(r"[0-9]+", line[1:]) is not None and int(line[1:]) > 0:
+            if process and not named:
+                raise ManagedTaskError("validation cleanup incomplete cwd observation")
+            process, descriptor, named = True, False, False
+        elif line == "fcwd" and process and not descriptor:
+            descriptor = True
+        elif line.startswith("n") and process and descriptor and not named:
+            path = Path(line[1:])
+            if not path.is_absolute():
+                raise ManagedTaskError(f"validation cleanup unreadable/non-absolute cwd name: {line!r}")
+            try:
+                resolved = path.resolve(strict=True)
+                if not resolved.is_dir():
+                    raise ManagedTaskError(f"validation cleanup cwd is not a directory: {path}")
+            except (OSError, RuntimeError, ValueError) as exc:
+                raise ManagedTaskError(f"validation cleanup unreadable cwd path: {path}: {exc}") from exc
+            paths.add(resolved)
+            named = True
+        else:
+            raise ManagedTaskError(f"validation cleanup unknown/malformed cwd record: {line!r}")
+    if not process or not named:
+        raise ManagedTaskError("validation cleanup incomplete cwd observation")
+    return paths
 
 
 def cleanup_validation_context(root: Path, directory: Path, *, creating_process: bool = False) -> None:
@@ -694,13 +721,22 @@ def cleanup_validation_context(root: Path, directory: Path, *, creating_process:
         raise ManagedTaskError(f"refusing validation cleanup outside exact helper storage: {directory}")
     worktree = directory / "exact-target"
     matches = [item for item in _list_worktrees(integration) if item.path == worktree]
-    if not directory.exists():
+    pending_receipt = storage / f"{directory.name}.cleanup-owner.json"
+    inner_receipt = directory / VALIDATION_RECEIPT
+    finalizing = pending_receipt.exists() or pending_receipt.is_symlink()
+    linked = finalizing and (inner_receipt.exists() or inner_receipt.is_symlink())
+    if finalizing and matches:
+        raise ManagedTaskError(f"validation cleanup finalizing state has Git registration: {directory}")
+    if not directory.exists() and not finalizing:
         if matches:
             raise ManagedTaskError(f"validation cleanup has registration but no ownership receipt: {directory}")
         return
-    receipt_path = directory / VALIDATION_RECEIPT
-    if not directory.is_dir() or receipt_path.is_symlink() or not receipt_path.is_file():
+    receipt_path = pending_receipt if finalizing else inner_receipt
+    if (directory.exists() and not directory.is_dir()) or receipt_path.is_symlink() or not receipt_path.is_file():
         raise ManagedTaskError(f"validation cleanup requires an owned directory and regular receipt: {directory}")
+    if linked:
+        if inner_receipt.is_symlink() or not inner_receipt.is_file() or not inner_receipt.samefile(pending_receipt):
+            raise ManagedTaskError(f"validation cleanup refuses ambiguous ownership receipts: {directory}")
     try:
         receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
@@ -708,14 +744,16 @@ def cleanup_validation_context(root: Path, directory: Path, *, creating_process:
     expected = {"version", "integration", "directory", "device", "inode", "uid", "pid", "sha"}
     if not isinstance(receipt, dict) or set(receipt) != expected:
         raise ManagedTaskError(f"invalid validation ownership receipt: {receipt_path}")
-    info = directory.stat()
-    if (receipt["version"] != 1 or receipt["integration"] != str(integration) or receipt["directory"] != str(directory)
-            or receipt["device"] != info.st_dev or receipt["inode"] != info.st_ino
+    info = directory.stat() if directory.exists() else None
+    if (type(receipt["version"]) is not int or receipt["version"] != 1 or receipt["integration"] != str(integration) or receipt["directory"] != str(directory)
+            or type(receipt["device"]) is not int or type(receipt["inode"]) is not int
+            or receipt["device"] < 0 or receipt["inode"] <= 0
+            or (info is not None and (receipt["device"] != info.st_dev or receipt["inode"] != info.st_ino))
             or not isinstance(receipt["sha"], str) or not SHA_RE.fullmatch(receipt["sha"])
             or type(receipt["pid"]) is not int or receipt["pid"] <= 0):
         raise ManagedTaskError(f"validation cleanup ownership identity mismatch: {receipt_path}")
     if shared_workspace.posix_available():
-        if receipt["uid"] != os.geteuid() or info.st_uid != os.geteuid() or receipt_path.stat().st_uid != os.geteuid():
+        if type(receipt["uid"]) is not int or receipt["uid"] != os.geteuid() or (info is not None and info.st_uid != os.geteuid()) or receipt_path.stat().st_uid != os.geteuid():
             raise ManagedTaskError(f"validation cleanup refuses foreign ownership: {directory}")
         if creating_process:
             if receipt["pid"] != os.getpid():
@@ -731,7 +769,15 @@ def cleanup_validation_context(root: Path, directory: Path, *, creating_process:
                 raise ManagedTaskError(f"validation cleanup refuses live owner process {receipt['pid']}: {directory}")
     elif not creating_process:
         raise ManagedTaskError("validation recovery requires POSIX owner-process checks")
-    if {item.name for item in directory.iterdir()} - {VALIDATION_RECEIPT, "exact-target"}:
+    if not creating_process:
+        active_cwds = validation_active_cwds()
+        if any(cwd == directory or directory in cwd.parents for cwd in active_cwds):
+            raise ManagedTaskError(f"validation cleanup refuses active worktree: {worktree}")
+    if info is None:
+        receipt_path.unlink()
+        return
+    allowed = {VALIDATION_RECEIPT} if linked else set() if finalizing else {VALIDATION_RECEIPT, "exact-target"}
+    if {item.name for item in directory.iterdir()} - allowed:
         raise ManagedTaskError(f"validation cleanup refuses unexpected helper contents: {directory}")
     if worktree.is_symlink():
         raise ManagedTaskError(f"validation cleanup refuses symlink worktree: {worktree}")
@@ -760,17 +806,19 @@ def cleanup_validation_context(root: Path, directory: Path, *, creating_process:
                     path = Path(walk_root) / name
                     if path.lstat().st_uid != os.geteuid():
                         raise ManagedTaskError(f"validation cleanup refuses foreign contents: {path}")
-        if not creating_process:
-            active_cwds = validation_active_cwds()
-            if any(cwd == directory or directory in cwd.parents for cwd in active_cwds):
-                raise ManagedTaskError(f"validation cleanup refuses active worktree: {worktree}")
         removed = run_git(["worktree", "remove", "--force", str(worktree)], cwd=integration, check=False)
         if removed.returncode:
             raise ManagedTaskError(f"validation worktree remove failed for {worktree}: {removed.stderr.strip()}")
     elif worktree.exists():
         raise ManagedTaskError(f"validation cleanup refuses unregistered worktree contents: {worktree}")
-    receipt_path.unlink()
+    if not finalizing:
+        # Atomic, no-overwrite publication: link failure remains an error.
+        os.link(inner_receipt, pending_receipt)
+        linked = True
+    if linked:
+        inner_receipt.unlink()
     directory.rmdir()
+    pending_receipt.unlink()
 
 
 @contextmanager

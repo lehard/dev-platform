@@ -1,7 +1,7 @@
 ## 1. Regression evidence
 
 - [x] 1.1 Reproduce system-temp checkout rejection using real Git and local workspace policy without changing TMPDIR.
-- [x] 1.2 Cover failed checkout registration, validation exceptions, interruption, cleanup failures and ambiguous/foreign recovery state.
+- [x] 1.2 Cover failed checkout registration, validation exceptions, interruption at every final receipt/directory transition, no-overwrite receipt publication, strict cwd observation and ambiguous/foreign recovery state.
 
 ## 2. Runtime repair
 

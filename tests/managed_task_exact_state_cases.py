@@ -176,8 +176,12 @@ with managed_task.exact_target_context(Path(sys.argv[2]), sys.argv[3]) as worktr
                 managed_task.cleanup_validation_context(self.root, directory)
             child.kill()
             child.wait(timeout=10)
-            managed_task.cleanup_validation_context(self.root, directory)
-            managed_task.cleanup_validation_context(self.root, directory)
+            # Keep real Git and SIGKILL; isolate observation from unrelated host
+            # processes whose cwd permissions are outside this unit fixture.
+            # Unknown/unreadable observations are separate fail-closed tests.
+            with patch.object(managed_task, 'validation_active_cwds', return_value={self.base.resolve()}):
+                managed_task.cleanup_validation_context(self.root, directory)
+                managed_task.cleanup_validation_context(self.root, directory)
             self.assertFalse(directory.exists())
             self.assertEqual(git('worktree', 'list', '--porcelain', cwd=self.root).stdout.count('worktree '), 1)
         finally:
@@ -244,10 +248,163 @@ with managed_task.exact_target_context(Path(sys.argv[2]), sys.argv[3]) as worktr
             with patch.object(managed_task.subprocess, 'run', return_value=subprocess.CompletedProcess([], 2, '', 'inspection denied')):
                 with self.assertRaisesRegex(managed_task.ManagedTaskError, 'inspection denied'):
                     managed_task.validation_active_cwds()
-            with patch.object(managed_task.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, 'n/observed\n', '')):
+            with patch.object(managed_task.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, 'p123\nfcwd\nn/observed\n', '')):
                 with patch.object(Path, 'resolve', side_effect=OSError('cwd unreadable')):
-                    with self.assertRaisesRegex(OSError, 'cwd unreadable'):
+                    with self.assertRaisesRegex(managed_task.ManagedTaskError, 'cwd unreadable'):
                         managed_task.validation_active_cwds()
+
+    def test_cwd_records_require_complete_structure_and_strict_existing_paths(self) -> None:
+        good = f'p123\nfcwd\nn{self.base}\n'
+        invalid = (
+            '', 'p123\n', 'p123\nfcwd\n', 'p0\nfcwd\nn/\n',
+            'n/\n', 'p123\nn/\n', 'p123\nfbad\nn/\n',
+            'p123\nfcwd\nn\n', 'p123\nfcwd\nnrelative\n',
+            'p123\nfcwd\nn(unknown)\n',
+            f'p123\nfcwd\nn{self.base / "missing-cwd"}\n',
+            f'p123\nfcwd\nn{self.root / "marker.txt"}\n',
+            good + 'zunknown\n', good + 'p456\nfcwd\n', good + 'n/\n',
+        )
+        with patch.object(managed_task.shutil, 'which', return_value='/usr/sbin/lsof'):
+            for output in invalid:
+                with self.subTest(output=output), patch.object(
+                    managed_task.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, output, '')
+                ):
+                    with self.assertRaises(managed_task.ManagedTaskError):
+                        managed_task.validation_active_cwds()
+            with patch.object(managed_task.subprocess, 'run', return_value=subprocess.CompletedProcess(
+                [], 0, good + 'p456\nfcwd\nn/\n', ''
+            )):
+                self.assertEqual(managed_task.validation_active_cwds(), {self.base.resolve(), Path('/')})
+
+    def test_invalid_cwd_observation_preserves_registered_helper(self) -> None:
+        with managed_task.exact_target_context(self.root, self.seed_sha) as worktree:
+            receipt_path = worktree.parent / managed_task.VALIDATION_RECEIPT
+            original = receipt_path.read_text()
+            receipt = json.loads(original)
+            exited = subprocess.Popen([sys.executable, '-c', 'pass'])
+            exited.wait(timeout=10)
+            receipt['pid'] = exited.pid
+            receipt_path.write_text(json.dumps(receipt))
+            try:
+                observer = managed_task.validation_active_cwds
+                for name in ('unknown', str(self.base / 'missing-cwd')):
+                    def invalid_observation():
+                        with patch.object(managed_task.shutil, 'which', return_value='/usr/sbin/lsof'), patch.object(
+                            managed_task.subprocess, 'run', return_value=subprocess.CompletedProcess(
+                                [], 0, f'p123\nfcwd\nn{name}\n', ''
+                            )
+                        ):
+                            return observer()
+                    with self.subTest(name=name), patch.object(managed_task, 'validation_active_cwds', side_effect=invalid_observation):
+                        with self.assertRaises(managed_task.ManagedTaskError):
+                            managed_task.cleanup_validation_context(self.root, worktree.parent)
+                    self.assertTrue(worktree.is_dir())
+                    self.assertEqual(json.loads(receipt_path.read_text()), receipt)
+                    self.assertEqual(git('worktree', 'list', '--porcelain', cwd=self.root).stdout.count('worktree '), 2)
+            finally:
+                receipt_path.write_text(original)
+
+    def test_final_cleanup_failures_retain_receipt_in_each_transition(self) -> None:
+        real_unlink, real_rmdir = Path.unlink, Path.rmdir
+        for stage in ('inner', 'directory', 'sibling'):
+            for failure in (OSError('final removal failed'), KeyboardInterrupt()):
+                captured = []
+                def unlink(path, *args, **kwargs):
+                    match = (stage == 'inner' and path.name == managed_task.VALIDATION_RECEIPT
+                             or stage == 'sibling' and path.name.endswith('.cleanup-owner.json'))
+                    if match:
+                        captured.append(path.parent if stage == 'inner' else path.with_name(path.name.removesuffix('.cleanup-owner.json')))
+                        raise failure
+                    return real_unlink(path, *args, **kwargs)
+                def rmdir(path, *args, **kwargs):
+                    if stage == 'directory' and managed_task.VALIDATION_DIRECTORY_RE.fullmatch(path.name):
+                        captured.append(path)
+                        raise failure
+                    return real_rmdir(path, *args, **kwargs)
+                with self.subTest(stage=stage, failure=type(failure).__name__), patch.object(Path, 'unlink', unlink), patch.object(Path, 'rmdir', rmdir):
+                    with self.assertRaises((managed_task.ManagedTaskError, KeyboardInterrupt)):
+                        with managed_task.exact_target_context(self.root, self.seed_sha) as worktree:
+                            original = (worktree.parent / managed_task.VALIDATION_RECEIPT).read_text()
+                directory = captured[0]
+                pending = directory.with_name(directory.name + '.cleanup-owner.json')
+                self.assertEqual(pending.read_text(), original)
+                self.assertEqual(directory.exists(), stage != 'sibling')
+                inner = directory / managed_task.VALIDATION_RECEIPT
+                self.assertEqual(inner.exists(), stage == 'inner')
+                if stage == 'inner':
+                    self.assertTrue(inner.samefile(pending))
+                self.assertEqual(git('worktree', 'list', '--porcelain', cwd=self.root).stdout.count('worktree '), 1)
+                with self.assertRaisesRegex(managed_task.ManagedTaskError, 'live owner'):
+                    managed_task.cleanup_validation_context(self.root, directory)
+                receipt = json.loads(original)
+                exited = subprocess.Popen([sys.executable, '-c', 'pass'])
+                exited.wait(timeout=10)
+                receipt['pid'] = exited.pid
+                pending.write_text(json.dumps(receipt))
+                with patch.object(managed_task, 'validation_active_cwds', return_value={directory}):
+                    with self.assertRaisesRegex(managed_task.ManagedTaskError, 'active worktree'):
+                        managed_task.cleanup_validation_context(self.root, directory)
+                with patch.object(managed_task, 'validation_active_cwds', return_value={self.base}):
+                    managed_task.cleanup_validation_context(self.root, directory)
+                    managed_task.cleanup_validation_context(self.root, directory)
+                self.assertFalse(directory.exists())
+                self.assertFalse(pending.exists())
+
+    def test_final_receipt_publication_does_not_overwrite_existing_identity(self) -> None:
+        real_link = os.link
+        captured = []
+        def occupied(source, destination, *args, **kwargs):
+            Path(destination).write_text('preserve pre-existing state')
+            captured.append(Path(destination))
+            return real_link(source, destination, *args, **kwargs)
+        with patch.object(managed_task.os, 'link', occupied):
+            with self.assertRaisesRegex(managed_task.ManagedTaskError, 'File exists'):
+                with managed_task.exact_target_context(self.root, self.seed_sha) as worktree:
+                    directory = worktree.parent
+                    original = (directory / managed_task.VALIDATION_RECEIPT).read_text()
+        pending = captured[0]
+        self.assertEqual(pending.read_text(), 'preserve pre-existing state')
+        self.assertEqual((directory / managed_task.VALIDATION_RECEIPT).read_text(), original)
+        with self.assertRaisesRegex(managed_task.ManagedTaskError, 'ambiguous'):
+            managed_task.cleanup_validation_context(self.root, directory, creating_process=True)
+        pending.unlink()
+        managed_task.cleanup_validation_context(self.root, directory, creating_process=True)
+
+    def test_finalizing_state_preserves_changed_and_unexpected_identity(self) -> None:
+        real_rmdir = Path.rmdir
+        def interrupted(path, *args, **kwargs):
+            if managed_task.VALIDATION_DIRECTORY_RE.fullmatch(path.name):
+                raise OSError('final rmdir failed')
+            return real_rmdir(path, *args, **kwargs)
+        with patch.object(Path, 'rmdir', interrupted):
+            with self.assertRaises(managed_task.ManagedTaskError):
+                with managed_task.exact_target_context(self.root, self.seed_sha) as worktree:
+                    directory = worktree.parent
+        pending = directory.with_name(directory.name + '.cleanup-owner.json')
+        original = pending.read_text()
+        receipt = json.loads(original)
+        receipt['inode'] += 1
+        pending.write_text(json.dumps(receipt))
+        with self.assertRaisesRegex(managed_task.ManagedTaskError, 'identity mismatch'):
+            managed_task.cleanup_validation_context(self.root, directory, creating_process=True)
+        pending.write_text(original)
+        unexpected = directory / 'keep'
+        unexpected.write_text('preserve')
+        with self.assertRaisesRegex(managed_task.ManagedTaskError, 'unexpected helper contents'):
+            managed_task.cleanup_validation_context(self.root, directory, creating_process=True)
+        self.assertEqual(pending.read_text(), original)
+        unexpected.unlink()
+        pending.unlink()
+        pending.symlink_to(self.root / 'marker.txt')
+        with self.assertRaisesRegex(managed_task.ManagedTaskError, 'regular receipt'):
+            managed_task.cleanup_validation_context(self.root, directory, creating_process=True)
+        pending.unlink()
+        pending.write_text(original)
+        git('worktree', 'add', '--detach', str(worktree), self.seed_sha, cwd=self.root)
+        with self.assertRaisesRegex(managed_task.ManagedTaskError, 'finalizing state has Git registration'):
+            managed_task.cleanup_validation_context(self.root, directory, creating_process=True)
+        git('worktree', 'remove', '--force', str(worktree), cwd=self.root)
+        managed_task.cleanup_validation_context(self.root, directory, creating_process=True)
 
     def test_cleanup_rejects_foreign_contents_and_active_or_unknown_cwds(self) -> None:
         from types import SimpleNamespace

@@ -140,6 +140,18 @@ state. If termination occurred before the ownership receipt was published, or
 the worktree marker is missing or changed, recovery refuses rather than guessing;
 retain the path for explicit owner investigation.
 
+Final cleanup hard-links the ownership receipt to the exact sibling
+`<helper-directory>.cleanup-owner.json` without overwriting any existing path.
+It removes the inner receipt, the empty helper directory, and finally the
+sibling receipt in that order. A failed or interrupted final step therefore
+retains recovery evidence. Recovery accepts two receipts only when they have
+the same inode and Git registration has already been removed; unrelated
+duplicates remain errors. If only the sibling receipt survives after directory
+removal, recovery verifies that receipt before removing it. The same ownership,
+owner-process and active-cwd checks remain required. Unknown, incomplete or
+unreadable lsof cwd observations and unavailable directory paths block recovery
+explicitly; they never disappear from the observation.
+
 Remove each user's automation, then detach each integration checkout explicitly:
 
 ```bash

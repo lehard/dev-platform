@@ -14,6 +14,10 @@ Cleanup must inspect exact helper directory and Git registration identity, remov
 
 ## Risks and Mitigations
 
+Final cleanup uses an explicit receipt state machine after Git removal. Atomically hard-link the regular ownership receipt to the exact sibling `<helper-directory>.cleanup-owner.json` without overwriting an existing path, then unlink the inner receipt. An interruption with both receipts is recoverable only when they are the same device/inode and no Git registration remains. A sibling-only receipt proves finalizing state: verify the original directory inode while it exists, remove only its empty directory, then unlink the sibling receipt. An absent directory plus a verified sibling receipt and no registration permits only removal of that receipt. Failures remain errors and retain evidence; unknown duplicates, changed identity, symlinks and unexpected contents remain refused. Recovery retains owner-process and active-cwd checks in every surviving state.
+
+The cwd observer validates lsof process (`p`) and cwd descriptor (`fcwd`) records, requires one absolute directory name for each process, and resolves paths strictly. Unknown, malformed, incomplete, non-absolute and unavailable observations fail before cleanup. Recognized headers are structure rather than candidate paths.
+
 - Directory placement participates in local admission and group inheritance: use existing reviewed storage, owner checks and permission primitives; test attached policy without bypass.
 - Failed Git checkout can leave registered state: exercise hook failures with real Git and inspect registration before deletion.
 - Cleanup could affect sibling work: require helper ownership, exact path and detached SHA identity; preserve foreign or changed state with actionable failure.
