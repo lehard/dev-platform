@@ -28,6 +28,7 @@ CLAIM_PREFIX = "dev-platform-lifecycle-claim:v1 "
 JOB_KINDS = frozenset({"review", "repair", "integration-repair", "finalize", "retrospective",
                        "terminal-reconciliation", "cleanup"})
 WRITE_KINDS = frozenset({"repair", "integration-repair"})
+POST_MERGE_KINDS = frozenset({"retrospective", "terminal-reconciliation", "cleanup"})
 STATE_KIND = {"review-pending": "review", "reviewing": "review", "repair-pending": "repair",
               "repairing": "repair", "finalize-pending": "finalize",
               "integration-repair-pending": "integration-repair"}
@@ -366,8 +367,90 @@ def result_body(job: dict, worker: str, outcome: str, pushed_head: str | None = 
     return RESULT_PREFIX + json.dumps(record, sort_keys=True, separators=(",", ":"))
 
 
-def _checkout_state(checkout: Path) -> tuple[str, str]:
-    return (_git(checkout, "rev-parse", "HEAD").strip(), _git(checkout, "status", "--porcelain"))
+def harness_git(repo: Path, *args: str) -> str:
+    """Harness git for a harness-owned repository, with no credential and no operator git config.
+
+    Every git command that runs after a writer or reviewer touched a checkout uses this (and only
+    on a harness-owned clone), so configuration planted in the writer's checkout is never consulted.
+    """
+    done = subprocess.run(["git", *SAFE_GIT, *args], cwd=repo, text=True, capture_output=True, check=False,
+                          stdin=subprocess.DEVNULL, env=credential_free_env(dict(os.environ), repo.parent / "harness-home"))
+    if done.returncode:
+        raise WorkerError(f"git {' '.join(args)} failed: {done.stderr.strip() or done.stdout.strip()}")
+    return done.stdout
+
+
+def tree_snapshot(path: Path) -> str:
+    """A content digest of a working tree read from the filesystem only (no git, no filters), excluding ``.git``."""
+    import hashlib
+
+    digest = hashlib.sha256()
+    for directory, names, files in os.walk(path):
+        names[:] = sorted(name for name in names if name != ".git")
+        for name in sorted(files):
+            target = Path(directory) / name
+            digest.update(str(target.relative_to(path)).encode() + b"\0")
+            if target.is_symlink():
+                digest.update(b"L" + os.readlink(target).encode())
+            else:
+                digest.update(b"F" + str(target.stat().st_mode & 0o111).encode() + target.read_bytes())
+    return digest.hexdigest()
+
+
+def _harness_dir(target: Path, relative: Path) -> Path:
+    """Create ``target/relative`` as real directories, replacing any symlink or file on the way."""
+    current = target
+    for part in relative.parts:
+        current = current / part
+        if current.is_symlink() or (current.exists() and not current.is_dir()):
+            current.unlink()
+        if not current.exists():
+            current.mkdir()
+    return current
+
+
+def _clear(path: Path) -> None:
+    if path.is_symlink() or path.is_file():
+        path.unlink()
+    elif path.is_dir():
+        shutil.rmtree(path)
+
+
+def import_worktree(source: Path, target: Path) -> None:
+    """Make ``target``'s working tree match ``source``'s files without running git in ``source``.
+
+    Only file content, executable bits and symlinks are copied; ``.git`` of either side is never read
+    or written, so a writer's repository configuration, attributes drivers or hooks cannot execute.
+    Symlinks (to files or directories) are recreated as links and never followed on either side, so
+    writer content cannot be redirected outside the harness clone.
+    """
+    wanted: set[Path] = set()
+    for directory, names, files in os.walk(source):
+        base = Path(directory).relative_to(source)
+        parent = _harness_dir(target, base)
+        links = [name for name in names if (Path(directory) / name).is_symlink()]
+        names[:] = sorted(name for name in names if name != ".git" and name not in links)
+        for name in sorted(files + links):
+            if not base.parts and name == ".git":
+                continue
+            relative, origin, copy = base / name, Path(directory) / name, parent / name
+            wanted.add(relative)
+            _clear(copy)
+            if origin.is_symlink():
+                os.symlink(os.readlink(origin), copy)
+            elif origin.is_file():
+                shutil.copyfile(origin, copy)
+                copy.chmod(0o755 if origin.stat().st_mode & 0o111 else 0o644)
+        for name in names:
+            wanted.add(base / name)
+    for directory, names, files in os.walk(target, topdown=False):
+        here = Path(directory).relative_to(target)
+        if here.parts and here.parts[0] == ".git":
+            continue
+        for name in files + [name for name in names if (Path(directory) / name).is_symlink()]:
+            relative = here / name
+            if relative not in wanted and relative.parts[0] != ".git":
+                (Path(directory) / name).unlink()
 
 
 def prepare_harness(source_repo: str, checkout: Path, root: Path, result_head: str) -> Path:
@@ -416,12 +499,12 @@ def execute_job(job: dict, *, source_repo: str, branch: str, allowed_paths, llm_
             return {"status": "discarded"}
         post_result(result_body(job, worker, outcome["status"], outcome.get("pushed_head")))
         return outcome
-    before = _checkout_state(checkout)
+    before = (_git(checkout, "rev-parse", "HEAD").strip(), tree_snapshot(checkout))
     done = run_llm(command, checkout, env=env, runner=runner, home=scratch_home(root, home_files))
     if done.returncode:
         return finish("failed: llm exited %s" % done.returncode, status="failed")
     if kind == "review":
-        if _checkout_state(checkout) != before:
+        if (harness_git(checkout, "rev-parse", "HEAD").strip(), tree_snapshot(checkout)) != before:
             return finish("failed: review modified the checkout", status="failed")
         return finish("reviewed", status="reviewed")
     try:
@@ -430,7 +513,7 @@ def execute_job(job: dict, *, source_repo: str, branch: str, allowed_paths, llm_
         proposal = None
     if isinstance(proposal, dict) and proposal.get("reject_material") is True:
         return finish("proposed-rejection", status="proposed-rejection")
-    result_head = _git(checkout, "rev-parse", "HEAD").strip()
+    result_head = harness_git(checkout, "rev-parse", "HEAD").strip()
     if result_head == job["head"]:
         return finish("no-change", status="no-change")
     if current_head() != job["head"]:
@@ -503,7 +586,13 @@ def main(argv: list[str] | None = None) -> int:
     repo = args.repo
 
     def list_prs() -> list[dict]:
-        return _gh_json("api", "--paginate", f"repos/{repo}/pulls?state=open&per_page=100")
+        listed = _gh_json("api", "--paginate", f"repos/{repo}/pulls?state=open&per_page=100")
+        if set(args.kinds.split(",")) & POST_MERGE_KINDS:
+            # Post-merge obligations belong to recently merged candidates: one bounded page of the
+            # most recently updated closed PRs. Older merges offer nothing from here.
+            closed = _gh_json("api", f"repos/{repo}/pulls?state=closed&sort=updated&direction=desc&per_page=50")
+            listed = [*listed, *({**pr, "merged": True} for pr in closed if pr.get("merged_at"))]
+        return listed
 
     def comments_for(number: int) -> list[dict]:
         return _gh_json("api", "--paginate", f"repos/{repo}/issues/{number}/comments?per_page=100")
@@ -515,8 +604,15 @@ def main(argv: list[str] | None = None) -> int:
         return _gh_json("api", f"repos/{repo}/pulls/{number}")
 
     try:
-        if args.run and not set(args.kinds.split(",")) <= {"review", "finalize"} and (not args.llm_command or not args.allow):
+        needs_writer = set(args.kinds.split(",")) - {"review", "finalize", "integration-repair"} - POST_MERGE_KINDS
+        if args.run and "integration-repair" in args.kinds.split(",") and not args.llm_command:
+            raise WorkerError("--run needs --llm-command for integration repair")
+        if args.run and needs_writer and (not args.llm_command or not args.allow):
             raise WorkerError("--run needs --llm-command and at least one --allow path")
+        if args.run:
+            import publication_queue
+
+            publication_queue.use_default_friction_sink(Path.cwd())
         result = work_next(frozenset(k for k in args.kinds.split(",") if k), list_prs=list_prs,
                            comments_for=comments_for, post_comment=post_comment, worker=args.worker,
                            ttl_seconds=args.ttl, dry_run=args.dry_run,
@@ -550,6 +646,27 @@ def main(argv: list[str] | None = None) -> int:
                         current_head=lambda: pr_info(job["number"])["head"]["sha"],
                         post_result=lambda body: post_comment(job["number"], body),
                         workdir=workdir, worker=args.worker)
+                elif job["kind"] == "integration-repair":
+                    from integration_contour import run_claimed_integration_repair
+                    import publication_queue
+
+                    candidate = publication_queue.candidate_status(Path.cwd(), job["number"], repo=repo)
+                    outcome = run_claimed_integration_repair(
+                        Path.cwd(), repo, candidate, job,
+                        source_repo=args.source or f"https://github.com/{repo}.git",
+                        branch=args.branch or pr_info(job["number"])["head"]["ref"],
+                        allowed_paths=args.allow, llm_command=args.llm_command,
+                        current_head=lambda: pr_info(job["number"])["head"]["sha"],
+                        post_result=lambda body: post_comment(job["number"], body),
+                        workdir=workdir, home_files=args.llm_home_file, worker=args.worker)
+                elif job["kind"] in POST_MERGE_KINDS:
+                    from integration_contour import run_claimed_post_merge
+                    import publication_queue
+
+                    candidate = publication_queue.candidate_status(Path.cwd(), job["number"], repo=repo)
+                    outcome = run_claimed_post_merge(
+                        Path.cwd(), repo, candidate, job, branch=args.branch or pr_info(job["number"])["head"]["ref"],
+                        post_result=lambda body: post_comment(job["number"], body), worker=args.worker)
                 else:
                     outcome = execute_job(
                         job, source_repo=args.source or f"https://github.com/{repo}.git",

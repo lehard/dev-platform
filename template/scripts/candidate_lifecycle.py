@@ -282,10 +282,12 @@ def derive_candidate(pr: dict, comments: list[dict], checks: dict | None = None,
                       reason=f"claim recorded on earlier head {newest['head'][:12]}")
     # A harness publishes the validated destination and its content proof before
     # pushing. Recover only that exact destination, never an unrelated head move.
-    if not matching and newest is not None and newest["state"] in {"reviewing", "repairing", "finalize-pending"}:
+    if not matching and newest is not None and newest["state"] in {
+            "reviewing", "repairing", "finalize-pending", "integration-repair-pending"}:
         from lifecycle_workers import RESULT_PREFIX, job_id
 
-        kind = {"reviewing": "review", "repairing": "repair"}.get(newest["state"], "finalize")
+        kind = {"reviewing": "review", "repairing": "repair",
+                "integration-repair-pending": "integration-repair"}.get(newest["state"], "finalize")
         old_job = {"number": number, "kind": kind, "head": newest["head"],
                    "attempt": newest.get("attempts", {}).get(kind, 0)}
         for row in sorted(comments, key=lambda item: item.get("id", 0), reverse=True):
@@ -302,6 +304,20 @@ def derive_candidate(pr: dict, comments: list[dict], checks: dict | None = None,
                     and receipt["task_identity"].get("task_content")
                     and isinstance(newest.get("task_identity"), dict)
                     and receipt["task_identity"].get("change") == newest["task_identity"].get("change")):
+                if kind == "integration-repair":
+                    old_content = (newest.get("task_identity") or {}).get("task_content")
+                    new_content = receipt["task_identity"].get("task_content")
+                    if (isinstance(old_content, dict) and isinstance(new_content, dict)
+                            and old_content.get("digest") == new_content.get("digest")):
+                        # The harness pushed a repair that left task content unchanged: existing
+                        # review/finalization evidence is reused; checks must rerun on the new head.
+                        result.update(state="ready", task_identity=deepcopy(receipt["task_identity"]),
+                                      gates={name: {**deepcopy(gate), "identity": deepcopy(receipt["task_identity"])}
+                                             for name, gate in newest.get("gates", {}).items()
+                                             if name != "required-checks"},
+                                      attempts=deepcopy(newest.get("attempts", {})), red_gate=None,
+                                      next_job=None, reason="recover validated integration-repair push")
+                        break
                 if kind == "finalize":
                     # The harness pushed the archive of this exact task content: it is ready,
                     # keeping the gates the finalization reused (identity is unchanged).
@@ -329,7 +345,10 @@ def derive_candidate(pr: dict, comments: list[dict], checks: dict | None = None,
         elif admissions and latest.get("head") == head:
             result["state"] = "integrating" if "publication:active" in labels else "ready"
     if pr.get("merged") or pr.get("mergedAt"):
-        result.update(state="merged", next_job=None)
+        job, reason = post_merge_job(result, comments, trusted_apps, trusted_writers)
+        result.update(state="merged", next_job=job)
+        if reason:
+            result["reason"] = reason
     elif pr.get("state", "").lower() == "closed":
         result.update(state="blocked-escalation", reason="PR closed without merge")
     elif checks and checks.get("head") == head and result["state"] in {"ready", "integrating"}:
@@ -357,6 +376,53 @@ def derive_candidate(pr: dict, comments: list[dict], checks: dict | None = None,
     elif checks and checks.get("head") != head:
         result.update(state="blocked-retryable", reason="checks do not match candidate head", gates={}, next_job=None)
     return _action(result)
+
+
+POST_MERGE_KINDS = ("retrospective", "terminal-reconciliation", "cleanup")
+MAX_POST_MERGE_ATTEMPTS = 3
+POST_MERGE_FLAG = "post-merge"
+
+
+def post_merge_job(candidate: dict, comments: list[dict], trusted_apps: frozenset[str] = frozenset(),
+                   trusted_writers: frozenset[str] = frozenset()) -> tuple[dict | None, str]:
+    """The next post-merge obligation of a merged candidate, derived only from trusted result receipts.
+
+    A candidate the coordinator merged carries ``attempts["post-merge"] = 1``; anything merged
+    earlier or elsewhere offers nothing. The chain is retrospective, terminal reconciliation,
+    then cleanup. A receipt whose outcome starts with ``failed`` or ``blocked`` leaves the same
+    obligation open for a new attempt, bounded by ``MAX_POST_MERGE_ATTEMPTS``; any other outcome
+    completes it. Nothing is stored, so an interrupted run resumes by re-deriving.
+    """
+    from lifecycle_workers import RESULT_PREFIX, job_id
+
+    identity = candidate.get("task_identity")
+    if candidate.get("attempts", {}).get(POST_MERGE_FLAG) != 1 or identity is None:
+        return None, ""
+    outcomes: dict[str, list[str]] = {}
+    for row in sorted(comments, key=lambda item: item.get("id", 0)):
+        body = row.get("body", "")
+        if not isinstance(body, str) or not body.startswith(RESULT_PREFIX) or not trusted_marker_comment(row, trusted_apps, trusted_writers):
+            continue
+        try:
+            receipt = json.loads(body[len(RESULT_PREFIX):])
+        except ValueError:
+            continue
+        outcome = str(receipt.get("outcome", "")) if isinstance(receipt, dict) else ""
+        if (isinstance(receipt, dict) and receipt.get("head") == candidate["head"]
+                and outcome != "validated-push" and not outcome.startswith("discarded")):
+            outcomes.setdefault(str(receipt.get("job")), []).append(outcome)
+    for kind in POST_MERGE_KINDS:
+        for attempt in range(MAX_POST_MERGE_ATTEMPTS):
+            job = {"number": candidate["number"], "kind": kind, "head": candidate["head"], "attempt": attempt}
+            seen = outcomes.get(job_id(job))
+            if not seen:
+                return {"kind": kind, "head": candidate["head"], "task_identity": deepcopy(identity),
+                        "attempt": attempt}, ""
+            if not seen[-1].startswith(("failed", "blocked")):
+                break
+        else:
+            return None, f"post-merge {kind} exhausted {MAX_POST_MERGE_ATTEMPTS} attempts; operator action required"
+    return None, ""
 
 
 def passed_content_gate(candidate: dict, name: str) -> bool:

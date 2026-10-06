@@ -1,0 +1,106 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "98db9ed844c92cf916b34b62d2545d622d576619",
+    "base_ref": "origin/main",
+    "candidate_head": "50e96b08badf1e3ba6e13e6186d945937989ea81",
+    "diff_sha256": "63928a3ca59a6b720af859ade308cf33fce54dce34be9fda0395206c329fefe3"
+  },
+  "completed_at": "2026-10-06T05:47:28+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/lifecycle_workers.py diff lines ~5263: `harness_git(checkout, \"rev-parse\", \"HEAD\")` runs on `llm-checkout` after `run_llm`. Harness_git is documented at ~5127-5131 as \"for a harness-owned repository\". SAFE_GIT (hooksPath, fsmonitor) and the credential-free env limit the exposure, and `rev-parse` is low risk. The review path still reads repository config that the LLM could have written, which contradicts the stated invariant. tree_snapshot already reads the filesystem without git. The HEAD could be read from `.git/HEAD` directly, or the check could be done in a fresh clone.",
+      "id": "harness-git-on-writer-review-checkout",
+      "severity": "advisory",
+      "summary": "After the review LLM runs, execute_job runs git in the LLM's own checkout through harness_git. harness_git's docstring and the docs say it is used only on harness-owned clones."
+    },
+    {
+      "evidence": "template/scripts/integration_contour.py:4300-4308. `resolve_lineage` catches every `Exception` and returns None (4293-4294). The sink then does `cache[task] = found[\"requirement\"] if found else None` and `if task not in cache` never retries. Events are appended with `requirement=None`, so the Requirement retrospective, which uses `events_for_task(requirement, children)`, may miss them.",
+      "id": "friction-sink-caches-transient-lineage-failure",
+      "severity": "advisory",
+      "summary": "default_friction_sink caches a failed lineage lookup as `None` for the lifetime of the sink. A transient GitHub error therefore records every later event for that task without Requirement attribution."
+    },
+    {
+      "evidence": "template/scripts/integration_contour.py:4590-4595 (`result=\"findings\" if event_ids else \"none\"`, a fixed review_note) and 4675-4680 (`record_checkpoint(... event_ids=ids ...)` with a fixed note). The check covers only events already recorded in the friction log. Developer-side friction that was never recorded is not examined. The checkpoint therefore satisfies the gate on structural evidence alone. It does not review the actual path, even though the note's wording presents it as one.",
+      "id": "automated-retrospective-records-none-without-review",
+      "severity": "advisory",
+      "summary": "The automated retrospective and Requirement checkpoint record result `none` whenever no friction events were recorded, with a fixed review note. AGENTS.md requires `--result none` only after an actual review of the task path."
+    },
+    {
+      "evidence": "template/scripts/publication_queue.py diff ~7289-7299. A released blocked outcome is stored in `blocked` and then `continue`s. If a later candidate returns a non-released outcome, the function returns at 7297 (`outcome[\"skipped\"] = skipped; return outcome`) without consulting `blocked`. main() exits 0 for states merged, empty, queued, active, waiting and not-admitted. The \"run still reports a block (non-zero exit)\" behaviour applies only when no candidate integrates.",
+      "id": "queue-worker-masks-block-behind-later-candidate",
+      "severity": "advisory",
+      "summary": "When one candidate is blocked and a later candidate returns an outcome, worker() returns only the later outcome. The block shows up only in the `skipped` text, and the exit code stays 0."
+    },
+    {
+      "evidence": "template/scripts/publication_queue.py diff ~7246-7248 returns `{\"state\": \"merged\"}` after `_label(... QUEUE, present=False)`. Nothing is written there. The `_integrate` path likewise swallows a failed `merged` transition (~7362-7364, `except QueueError: pass`). derive_candidate's `post_merge_job` (candidate_lifecycle diff ~3877) returns no job unless the latest record carries the flag. Today the flag arrives with the `integrating` record, so this works. The post-merge obligations (retrospective, terminal reconciliation, cleanup) depend on a record that is never refreshed on those two paths. A later transition that drops `set_attempts` would silently disable them.",
+      "id": "merged-pr-seen-first-by-worker-skips-merged-record",
+      "severity": "advisory",
+      "summary": "A PR that GitHub merged after the coordinator logged \"merge accepted; awaiting confirmation\" is handled by the early `pr.get(\"merged\")` branch in worker(). That branch only removes labels and records no `merged` transition. Post-merge job derivation depends on the latest record carrying `attempts[post-merge]=1`."
+    }
+  ],
+  "launched_at": "2026-10-06T05:45:50+00:00",
+  "output_sha256": "b6cc3f1f919c96d69eb2dd1c2ec5ce214833268e5b38990e350d9a286a9de9af",
+  "perspective": "engineering-quality",
+  "request_id": "aab35bd6-4bd5-491e-ae08-a10a55cdb2b1",
+  "reviewer": {
+    "context_id": "2e34a01d-92b4-48fb-880b-e1b06d5d3151",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-1d7f3500-eb53-4bb3-a589-884d24a23941",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 80367
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 696105
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 92800
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 94771
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 26
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9020
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "6f71c912ca9120c1d52279be4eb20f5fe07f052866b1fb9800117b50127bfdd6"
+}

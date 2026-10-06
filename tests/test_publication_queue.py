@@ -230,17 +230,19 @@ class WorkerTests(unittest.TestCase):
                              (NEW_HEAD, BASE))
         self.assertEqual(comment.call_args.args[-1]["kind"], "update")
 
-    def test_failed_required_check_blocks_before_merge(self) -> None:
+    def test_failed_required_check_becomes_integration_repair_before_merge(self) -> None:
         with patch.object(queue, "_repo", return_value=REPO), \
              patch.object(queue, "_queued", return_value=[(20, 1, admission(1, 20))]), \
              patch.object(queue, "_pr", return_value=pr(1)), \
              patch.object(queue, "_label"), \
              patch.object(queue, "_prepare", return_value=(HEAD, BASE)), \
              patch.object(queue, "required_check_state_for_ref", return_value=RequiredCheckState("failed", "validate")), \
+             patch.object(queue, "_integration_repair", return_value={"state": "waiting", "number": 1}) as repair, \
              patch.object(queue, "_block", return_value={"state": "blocked"}) as block, \
              patch.object(queue.subprocess, "run") as process:
-            self.assertEqual(queue.worker(ROOT_PATH)["state"], "blocked")
-        block.assert_called_once()
+            self.assertEqual(queue.worker(ROOT_PATH)["state"], "waiting")
+        block.assert_not_called()
+        self.assertEqual(repair.call_args.args[-1].gate, "required-checks")
         process.assert_not_called()
 
     def test_main_movement_prevents_merge_under_old_evidence(self) -> None:
@@ -269,21 +271,41 @@ class WorkerTests(unittest.TestCase):
             with self.assertRaisesRegex(queue.QueueError, "outside coordinator control"):
                 queue._prepare(ROOT_PATH, REPO, 1, admission(1, 20), pr(1, NEW_HEAD))
 
-    def test_conflicting_main_path_blocks_before_branch_update(self) -> None:
+    def _prepare_overlapping(self, conflicts: list[str]):
         from subprocess import CompletedProcess
+
         def git(args: list[str], **_kwargs: object) -> CompletedProcess[str]:
             if args[0] == "merge-base":
-                return CompletedProcess(args, 0, "", "")
+                return CompletedProcess(args, 0 if args[2] == BASE else 1, "", "")
             if args[0] == "diff":
                 return CompletedProcess(args, 0, "task.py\n", "")
+            if args[0] == "merge-tree":
+                return CompletedProcess(args, 1 if conflicts else 0, "tree\n" + "".join(c + "\n" for c in conflicts), "")
             return CompletedProcess(args, 0, "", "")
+        heads = iter([NEW_HEAD])
         with patch.object(queue, "_events", return_value=[admission(1, 20)]), \
              patch.object(queue, "_main", return_value=NEW_HEAD), \
              patch.object(queue, "run_git", side_effect=git), \
              patch.object(queue, "_task_paths", return_value={"task.py"}), \
+             patch.object(queue, "_raise_if_owned_elsewhere"), \
+             patch.object(queue, "_comment"), \
+             patch.object(queue.time, "sleep"), \
+             patch.object(queue, "_pr", side_effect=lambda *a: pr(1, next(heads, NEW_HEAD))), \
              patch.object(queue, "_gh") as gh:
-            with self.assertRaisesRegex(queue.QueueError, "main changed task paths"):
-                queue._prepare(ROOT_PATH, REPO, 1, admission(1, 20), pr(1))
+            try:
+                return queue._prepare(ROOT_PATH, REPO, 1, admission(1, 20), pr(1)), gh
+            except queue.QueueError as exc:
+                return exc, gh
+
+    def test_path_overlap_with_a_clean_merge_does_not_block_branch_update(self) -> None:
+        result, gh = self._prepare_overlapping([])
+        self.assertEqual(result, (NEW_HEAD, NEW_HEAD))
+        self.assertEqual(gh.call_args.args[1:4], ("api", "-X", "PUT"))
+
+    def test_real_merge_conflict_needs_integration_repair_before_branch_update(self) -> None:
+        result, gh = self._prepare_overlapping(["task.py"])
+        self.assertIsInstance(result, queue.IntegrationRepairNeeded)
+        self.assertIn("task.py", str(result))
         gh.assert_not_called()
 
 
@@ -768,7 +790,7 @@ class Round14Tests(unittest.TestCase):
              patch.object(queue, "_prepare", side_effect=queue.QueueError("stop")) as prepare, \
              patch.object(queue, "_block", return_value={"state": "blocked"}):
             queue.worker(ROOT_PATH)
-        self.assertEqual(prepare.call_args.args[2], 2)
+        self.assertEqual(prepare.call_args_list[0].args[2], 2)
 
     def test_prepare_rechecks_ownership_before_updating_the_branch(self) -> None:
         calls: list[tuple] = []

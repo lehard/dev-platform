@@ -209,24 +209,27 @@ def execute_review(checkout: Path, job: dict, *, source_repo: str, branch: str,
     if len(set(contexts)) != len(contexts):
         raise workers.WorkerError("review perspectives reused the same context")
     rejected = current_rejections(reports, read_dispositions(change))
-    changed = [p for p in workers._git(checkout, "diff", "--name-only").splitlines() if p]
-    prefix = change.relative_to(checkout).as_posix() + "/"
-    if any(not p.startswith(prefix + "independent-review") for p in changed):
-        raise workers.WorkerError("review harness modified candidate content")
     if current_head() != job["head"]:
         return {"status": "discarded", "reports": reports}
+    prefix = change.relative_to(checkout).as_posix() + "/"
+    # The reviewer's checkout is data only: its files are imported into a harness-owned clone and every
+    # git command below runs there without credentials, never against configuration the reviewer could plant.
+    harness = workers.prepare_checkout(source_repo, str(checkout.parent), "harness", job["head"])
+    workers.import_worktree(checkout, harness)
+    evidence = [prefix + "independent-review-request.json", prefix + "independent-reviews"]
+    touched = [p for p in workers.harness_git(harness, "diff", "--name-only", "-z").split("\0") if p]
+    if any(not p.startswith(prefix + "independent-review") for p in touched):
+        raise workers.WorkerError("review harness modified candidate content")
     # Git commits contain only allowlisted review evidence created by the existing runner.
-    workers._git(checkout, "add", "--", str(change / "independent-review-request.json"),
-                 str(change / "independent-reviews"))
-    if workers._git(checkout, "diff", "--cached", "--name-only").strip():
-        workers._git(checkout, "-c", "user.name=Lifecycle harness", "-c", "user.email=lifecycle@localhost",
-                     "commit", "-m", "Record independent review evidence")
-    head = workers._git(checkout, "rev-parse", "HEAD").strip()
+    existing = [p for p in evidence if (harness / p).exists()]
+    if existing:
+        workers.harness_git(harness, "add", "--", *existing)
+    head = job["head"]
+    if workers.harness_git(harness, "diff", "--cached", "--name-only").strip():
+        workers.harness_git(harness, "-c", "user.name=Lifecycle harness", "-c", "user.email=lifecycle@localhost",
+                            "commit", "-m", "Record independent review evidence")
+        head = workers.harness_git(harness, "rev-parse", "HEAD").strip()
     if head != job["head"]:
-        harness = workers.prepare_harness(source_repo, checkout, checkout.parent, head)
-        paths = workers._git(harness, "diff", "--name-only", job["head"], head).splitlines()
-        if any(not p.startswith(prefix + "independent-review") for p in paths):
-            raise workers.WorkerError("review result includes non-evidence paths")
         if before_push is not None:
             before_push(harness, head)
         if not claim_current():

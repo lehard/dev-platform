@@ -334,6 +334,11 @@ mode = os.environ.get("FAKE_MODE", "commit")
 def g(*a): subprocess.run(["git", *a], check=True, env={**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"})
 if mode == "review-write":
     open("src/a.py", "w").write("dirty")
+elif mode == "review-filter":
+    open("src/a.py", "w").write("dirty")
+    open(".gitattributes", "w").write("* filter=evil diff=evil\n")
+    g("config", "filter.evil.clean", "touch " + os.environ["HOOK_MARK"] + " #")
+    g("config", "diff.evil.textconv", "touch " + os.environ["HOOK_MARK"] + " #")
 elif mode in ("commit", "malicious", "workflow"):
     path = ".github/workflows/ci.yml" if mode == "workflow" else "src/a.py"
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -415,6 +420,44 @@ class ExecuteJobTests(unittest.TestCase):
         result = self.run_job("review-write", kind="review")
         self.assertEqual(result["status"], "failed")
         self.assertEqual(git(self.src, "rev-parse", "refs/heads/task"), self.head)
+
+    def test_review_filters_planted_in_the_checkout_never_execute(self):
+        result = self.run_job("review-filter", kind="review")
+        self.assertEqual(result["status"], "failed")
+        self.assertFalse(self.mark.exists())
+
+    def test_import_worktree_copies_content_without_reading_git(self):
+        src, dst = Path(self.tmp.name) / "a", Path(self.tmp.name) / "b"
+        (src / ".git").mkdir(parents=True), (dst / ".git").mkdir(parents=True)
+        (src / ".git/config").write_text("[filter \"x\"]\n clean = touch " + str(self.mark) + "\n")
+        (src / "d").mkdir()
+        (src / "d/f.sh").write_text("x")
+        (src / "d/f.sh").chmod(0o755)
+        (dst / "stale.txt").write_text("old")
+        (dst / ".git/keep").write_text("k")
+        workers.import_worktree(src, dst)
+        self.assertEqual((dst / "d/f.sh").read_text(), "x")
+        self.assertTrue((dst / "d/f.sh").stat().st_mode & 0o111)
+        self.assertFalse((dst / "stale.txt").exists())
+        self.assertTrue((dst / ".git/keep").exists())
+        self.assertFalse((dst / ".git/config").exists())
+        self.assertFalse(self.mark.exists())
+
+    def test_import_worktree_never_writes_through_symlinks(self):
+        root = Path(self.tmp.name)
+        src, dst, outside = root / "a", root / "b", root / "outside"
+        for path in (src, dst, outside):
+            path.mkdir()
+        (dst / "a").symlink_to(outside)          # candidate head: directory symlink
+        (src / "a").mkdir()                       # writer replaces it with a real directory
+        (src / "a/payload").write_text("evil")
+        (src / "link").symlink_to(outside)        # writer adds a directory symlink
+        workers.import_worktree(src, dst)
+        self.assertEqual(list(outside.iterdir()), [])
+        self.assertFalse((dst / "a").is_symlink())
+        self.assertEqual((dst / "a/payload").read_text(), "evil")
+        self.assertTrue((dst / "link").is_symlink())
+        self.assertEqual(os.readlink(dst / "link"), str(outside))
 
     def test_work_next_abandons_when_head_moved_after_claim(self):
         pr = {"number": 7, "head": {"sha": HEAD}, "state": "open"}

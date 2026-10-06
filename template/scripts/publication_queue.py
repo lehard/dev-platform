@@ -18,7 +18,7 @@ from typing import Any
 
 from _platform_common import current_worktree_root, read_platform_config, run_git
 from publication_state import _classify_required_checks, required_check_state_for_ref
-from candidate_lifecycle import CLAIM_STATES, PREFIX as V2_PREFIX, STATES, latest_record, build_handoff_record, derive_candidate, label_projection, marker_body, render_status
+from candidate_lifecycle import CLAIM_STATES, POST_MERGE_FLAG, PREFIX as V2_PREFIX, STATES, latest_record, build_handoff_record, derive_candidate, label_projection, marker_body, render_status
 
 PREFIX = "dev-platform-publication-queue:v1 "
 QUEUE = "publication:queued"
@@ -26,6 +26,7 @@ ACTIVE = "publication:active"
 BLOCKED = "publication:blocked"
 WORKFLOW = ".github/workflows/publication-queue.yml"
 CHECK_WAIT_SECONDS = 240
+MAX_INTEGRATION_REPAIRS = 2  # bounded integration-repair attempts before a candidate is blocked
 
 
 class QueueError(RuntimeError):
@@ -33,7 +34,15 @@ class QueueError(RuntimeError):
 
 
 class IntegrationRepairNeeded(QueueError):
-    """Integration preparation failed deterministically and needs integration repair, not a block."""
+    """Integration preparation failed deterministically and needs integration repair, not a block.
+
+    ``gate`` names the red gate: a real merge conflict is ``integration``; failing required
+    checks on the actual merged candidate are ``required-checks``.
+    """
+
+    def __init__(self, message: str, *, gate: str = "integration"):
+        super().__init__(message)
+        self.gate = gate
 
 
 class NotFinalized(QueueError):
@@ -198,6 +207,55 @@ def _label(root: Path, repo: str, number: int, label: str, *, present: bool) -> 
             raise QueueError(result.stderr.strip() or "cannot remove publication label")
 
 
+# Coordinator friction: recorded automatically, attributed to the candidate task and its
+# Requirement. The sink is registered explicitly by real coordinator/worker entrypoints
+# (``use_default_friction_sink``) so library use and tests never write a friction log.
+_friction_sink = None
+_FRICTION_STATES = {
+    "repair-pending": ("coordinator-review-repair", "medium", ["repeated-error"],
+                       "Independent review found material findings and a repair job was offered"),
+    "blocked-retryable": ("coordinator-retry", "medium", ["excessive-retry"],
+                          "A lifecycle gate was unavailable or failed and a bounded retry was scheduled"),
+    "integration-repair-pending": ("coordinator-integration-repair", "medium", ["repeated-error"],
+                                   "Integration found a real conflict or failing check and an integration-repair job was offered"),
+    "blocked-escalation": ("lifecycle-blocked-escalation", "high", ["repeated-error"],
+                           "The candidate was blocked and needs human escalation"),
+}
+
+
+def set_friction_sink(sink) -> None:
+    global _friction_sink
+    _friction_sink = sink
+
+
+def use_default_friction_sink(root: Path) -> None:
+    from integration_contour import default_friction_sink
+
+    set_friction_sink(default_friction_sink(root))
+
+
+def emit_friction(number: int, branch: str | None, kind: str, head: str, detail: str, *,
+                  attempts: dict[str, int] | None = None) -> None:
+    """Hand one lifecycle event to the registered sink; never let bookkeeping break a transition."""
+    if _friction_sink is None or not isinstance(branch, str) or not branch:
+        return
+    import hashlib
+
+    spec = _FRICTION_STATES.get(kind)
+    category, severity, triggers, observation = spec if spec else (
+        "coordinator-" + kind, "medium", ["nondefault-override"], detail)
+    key = hashlib.sha256(json.dumps([number, kind, head, sorted((attempts or {}).items())]).encode()).hexdigest()[:24]
+    try:
+        _friction_sink({"task": branch, "number": number, "category": category, "severity": severity,
+                        "triggers": triggers, "observation": observation,
+                        "evidence": f"PR #{number} {kind} at head {head[:12]}: {detail}"[:1000],
+                        "hypothesis": "Recorded automatically by the publication coordinator; see the PR lifecycle records.",
+                        "proposal": "Review whether the gate, the evidence or the repair path should change.",
+                        "dedupe_key": f"coordinator:{key}"})
+    except (Exception, SystemExit):
+        pass
+
+
 def _transition(
     root: Path, repo: str, number: int, state: str, head: str, *,
     task_identity: str | dict[str, Any], red_gate: dict[str, Any] | None = None,
@@ -246,8 +304,12 @@ def _transition(
     new_job = next_job is not None and next_job != previous.get("next_job")
     identity_changed = not inherit_identity and previous.get("task_identity") != task_identity
     new_attempts = any(previous.get("attempts", {}).get(k) != v for k, v in (set_attempts or {}).items())
+    branch = observed.get("head", {}).get("ref")
     if not identity_changed and not new_attempts and previous.get("state") == state and red_gate in (None, previous.get("red_gate")) and not new_gates and not new_job:
         _project_lifecycle_label(root, repo, number, observed, state)
+        if state in _FRICTION_STATES:
+            emit_friction(number, branch, state, head, str((previous.get("red_gate") or {}).get("evidence", ""))[:300],
+                          attempts=previous.get("attempts"))
         return previous
     # A proven coordinator update can retain content-bound gates from lineage.
     # Head-only legacy gates never survive a head move.
@@ -276,6 +338,8 @@ def _transition(
     )
     _gh(root, "api", "-X", "POST", f"repos/{repo}/issues/{number}/comments", data={"body": marker_body(record)})
     _project_lifecycle_label(root, repo, number, observed, state)
+    if state in _FRICTION_STATES:
+        emit_friction(number, branch, state, head, str((red_gate or {}).get("evidence", ""))[:300], attempts=attempts)
     return record
 
 
@@ -297,8 +361,12 @@ def publish_job(root: Path, repo: str, number: int, kind: str, head: str, *,
         if providers is None:
             provider, _ = resolve_provider(root, config)
             providers = [provider or "unresolved-originating-task-route"]
+    if providers and "unresolved-originating-task-route" in providers:
+        emit_friction(number, observed.get("head", {}).get("ref"), "fallback", head,
+                      f"{kind} job could not resolve the originating task route and falls back to the default provider")
     return _transition(root, repo, number, current["state"], head,
                        task_identity=current.get("task_identity") or task_identity,
+                       red_gate=current.get("red_gate") if kind == "integration-repair" else None,
                        next_job=job_record(kind, head, current.get("task_identity") or task_identity, attempt,
                                            providers=providers))
 
@@ -759,8 +827,10 @@ def _prepare(root: Path, repo: str, number: int, admission: dict[str, Any], pr: 
     from post_review_finalization import derived_spec_paths
 
     derived = derived_spec_paths(task_paths, overlap)
-    if overlap - derived:
-        raise QueueError("main changed task paths: " + ", ".join(sorted(overlap - derived)[:8]))
+    if overlap != derived:
+        # Path overlap alone never blocks: a clean merge is judged by the merge result and the
+        # checks on the actual merged candidate; a real conflict becomes integration repair.
+        derived = set()
     run_git(["fetch", "origin", pr["head"]["ref"]], cwd=root)
     if derived and run_git(["merge-base", "--is-ancestor", current_main, head], cwd=root, check=False).returncode == 0:
         return head, current_main  # already re-derived on this main: nothing to redo
@@ -779,10 +849,18 @@ def _prepare(root: Path, repo: str, number: int, admission: dict[str, Any], pr: 
     run_git(["fetch", "origin", pr["head"]["ref"]], cwd=root)
     if run_git(["merge-base", "--is-ancestor", current_main, head], cwd=root, check=False).returncode == 0:
         return head, current_main
-    # Last observation before mutating the branch: never update a head that review
-    # or repair claimed meanwhile (atomic job claims arrive with the worker contract).
+    conflicts = merge_conflicts(root, head, current_main)
+    if conflicts:
+        raise IntegrationRepairNeeded("merge of current main conflicts in: " + ", ".join(conflicts[:8]))
+    # Last observation before mutating the branch: never update a head that review or repair
+    # claimed meanwhile (atomic job claims arrive with the worker contract).
     _raise_if_owned_elsewhere(root, repo, number, head)
-    _gh(root, "api", "-X", "PUT", f"repos/{repo}/pulls/{number}/update-branch", data={"expected_head_sha": head})
+    try:
+        _gh(root, "api", "-X", "PUT", f"repos/{repo}/pulls/{number}/update-branch", data={"expected_head_sha": head})
+    except QueueError as exc:
+        if "conflict" in str(exc).lower():
+            raise IntegrationRepairNeeded(f"GitHub could not merge current main cleanly: {exc}") from exc
+        raise
     deadline = time.monotonic() + 90
     while time.monotonic() < deadline:
         observed = _pr(root, repo, number).get("head", {}).get("sha")
@@ -793,12 +871,31 @@ def _prepare(root: Path, repo: str, number: int, admission: dict[str, Any], pr: 
     raise QueueError("GitHub branch update is still pending; retry coordinator")
 
 
+def merge_conflicts(root: Path, head: str, main: str) -> list[str]:
+    """Paths a deterministic merge of ``main`` into ``head`` cannot resolve (empty means a clean merge)."""
+    done = run_git(["merge-tree", "--write-tree", "--name-only", "--no-messages", head, main], cwd=root, check=False)
+    if done.returncode == 0:
+        return []
+    if done.returncode == 1:
+        names = [line.strip() for line in done.stdout.splitlines()[1:] if line.strip()]
+        return names or ["(conflict paths unavailable)"]
+    raise QueueError("cannot evaluate the merge of main: " + (done.stderr or done.stdout).strip()[:200])
+
+
 def worker(root: Path) -> dict[str, Any]:
+    """Integrate ready candidates one at a time; a candidate that cannot proceed never stalls the rest.
+
+    A candidate owned by other lifecycle work, blocked, awaiting finalization or integration
+    repair is skipped and the next ready candidate is evaluated in the same run. A candidate
+    that holds final integration ownership (checks pending, main moved, merge accepted) ends
+    the run so at most one candidate integrates at a time.
+    """
     repo = _repo(root)
     queue = _queued(root, repo)
     if not queue:
         return {"state": "empty"}
     skipped: list[str] = []
+    blocked: dict[str, Any] | None = None
     # At most one candidate holds final integration ownership: resume the one
     # already active before granting ownership to any other.
     observed_prs = {number: _pr(root, repo, number) for _, number, _ in queue}
@@ -816,8 +913,17 @@ def worker(root: Path) -> dict[str, Any]:
         # Without any v2 record the v1 admission alone governs (it reads as ready).
         has_v2 = any(str(row.get("body", "")).startswith(V2_PREFIX) for row in comments)
         current = _derive(root, pr, comments) if has_v2 else {"state": "ready"}
+        if has_v2 and str(current.get("reason", "")).startswith("recover validated integration-repair push"):
+            # A repair job pushed its validated result but was interrupted before advancing: record it.
+            from integration_contour import recover_integration_repair
+
+            if recover_integration_repair(root, repo, number, pr, comments):
+                comments = _comments(root, repo, number)
+                current = _derive(root, pr, comments)
         if current["state"] == "blocked-escalation" and current.get("reason", "").startswith("malformed marker"):
-            return _block(root, repo, number, current["reason"])
+            blocked = _block(root, repo, number, current["reason"])
+            skipped.append(f"#{number} blocked: {current['reason']}"[:300])
+            continue
         # Only a record for the exact current head can hand the candidate to other
         # work; otherwise _prepare must still recover an interrupted branch update.
         exact_head_record = current.get("task_identity") is not None and current.get("head") == pr.get("head", {}).get("sha")
@@ -832,12 +938,37 @@ def worker(root: Path) -> dict[str, Any]:
         if exact_head_record and (current["state"] in NOT_INTEGRABLE or review_owned(current)):
             # A candidate owned by other work does not hold up the rest of the queue.
             skipped.append(f"#{number} {current['state']}: {current['next_action']}")
+            if current["state"] == "integration-repair-pending" and not current.get("next_job"):
+                # Interrupted between the state record and its job: publish the missing job (idempotent).
+                try:
+                    publish_job(root, repo, number, "integration-repair", current["head"],
+                                task_identity=current["task_identity"],
+                                attempt=max(1, current.get("attempts", {}).get("integration-repair", 1)))
+                except QueueError:
+                    pass
             if active(number):
                 _label(root, repo, number, ACTIVE, present=False)
             continue
-        break
-    else:
-        return {"state": "waiting", "reason": "no integrable candidate; " + "; ".join(skipped)}
+        outcome = _integrate(root, repo, number, admission, pr)
+        if outcome.pop("released", False):
+            skipped.append(f"#{number} {outcome.get('state')}: {outcome.get('reason', '')}"[:300])
+            if outcome.get("state") == "blocked":
+                blocked = outcome
+            continue
+        if skipped:
+            outcome["skipped"] = skipped
+        return outcome
+    if blocked is not None:
+        return {**blocked, "skipped": skipped}  # the run still reports a block (non-zero exit), after trying the rest
+    return {"state": "waiting", "reason": "no integrable candidate; " + "; ".join(skipped)}
+
+
+def _released(result: dict[str, Any]) -> dict[str, Any]:
+    """Mark a result as one that leaves integration ownership, so the queue moves on."""
+    return {**result, "released": True}
+
+
+def _integrate(root: Path, repo: str, number: int, admission: dict[str, Any], pr: dict[str, Any]) -> dict[str, Any]:
     _label(root, repo, number, ACTIVE, present=True)
     try:
         _require_finalized(root, number, pr.get("head", {}).get("sha"))
@@ -845,27 +976,28 @@ def worker(root: Path) -> dict[str, Any]:
         identity = {"branch": admission.get("branch"), "head": head}
         integrating = _transition(root, repo, number, "integrating", head, task_identity=identity, attempt="integration",
                     refuse_from=NOT_INTEGRABLE, cross_head_claims=True,
+                    set_attempts={POST_MERGE_FLAG: 1},
                     next_job={"kind": "integration", "claim": "publication-queue workflow", "head": head})
         if integrating is not None:
             identity = integrating["task_identity"]
         deadline = time.monotonic() + CHECK_WAIT_SECONDS
         while True:
-            from candidate_lifecycle import passed_content_gate
-
-            if integrating is not None and passed_content_gate(integrating, "required-checks"):
+            if integrating is not None and _checks_proven_on(integrating, base):
                 checks_evidence = integrating["gates"]["required-checks"]["evidence"]
                 break
             state = required_check_state_for_ref(root, os.environ.copy(), str(number), head)
             if state.kind == "passed":
-                checks_evidence = state.detail or "required checks passed"
+                checks_evidence = {"detail": state.detail or "required checks passed", "main": base, "head": head}
                 break
             if state.kind in {"failed", "not_registered"}:
                 # Review or repair may have claimed the head while checks ran.
                 _raise_if_owned_elsewhere(root, repo, number, head)
             if state.kind == "failed":
-                return _block(root, repo, number, "required check failed: " + state.detail, head=head)
+                # A failing integration check is repaired within a bound, not an immediate block.
+                raise IntegrationRepairNeeded("required check failed on the integrated candidate: " + state.detail,
+                                              gate="required-checks")
             if state.kind == "not_registered":
-                return _block(root, repo, number, "required check is not registered for the PR head", head=head)
+                return _released(_block(root, repo, number, "required check is not registered for the PR head", head=head))
             if state.kind == "unknown":
                 raise QueueError("required check state is unknown: " + state.detail)
             if time.monotonic() >= deadline:
@@ -896,13 +1028,13 @@ def worker(root: Path) -> dict[str, Any]:
         return {"state": "waiting", "number": number, "reason": "merge accepted; awaiting GitHub confirmation"}
     except LifecycleOwnershipChanged as exc:
         _label(root, repo, number, ACTIVE, present=False)
-        return {"state": "waiting", "number": number, "reason": str(exc)}
+        return _released({"state": "waiting", "number": number, "reason": str(exc)})
     except NotFinalized as exc:
         head_now = _pr(root, repo, number).get("head", {}).get("sha")
         current = _derive(root, _pr(root, repo, number), _comments(root, repo, number))
         identity_now = current.get("task_identity")
         if not (isinstance(identity_now, dict) and identity_now.get("change") and current.get("head") == head_now):
-            return _block(root, repo, number, str(exc))  # no coordinator identity to finalize
+            return _released(_block(root, repo, number, str(exc)))  # no coordinator identity to finalize
         try:
             _transition(root, repo, number, "finalize-pending", head_now, task_identity=identity_now,
                         refuse_from=CLAIM_STATES - {"finalize-pending"}, cross_head_claims=True)
@@ -910,18 +1042,9 @@ def worker(root: Path) -> dict[str, Any]:
         except LifecycleOwnershipChanged:
             pass
         _label(root, repo, number, ACTIVE, present=False)
-        return {"state": "waiting", "number": number, "reason": str(exc)}
+        return _released({"state": "waiting", "number": number, "reason": str(exc)})
     except IntegrationRepairNeeded as exc:
-        head_now = _pr(root, repo, number).get("head", {}).get("sha")
-        try:
-            _transition(root, repo, number, "integration-repair-pending", head_now,
-                        task_identity={"branch": admission.get("branch"), "head": head_now},
-                        red_gate={"name": "integration", "identity": head_now, "evidence": str(exc)[:500]},
-                        refuse_from=CLAIM_STATES, cross_head_claims=True)
-        except LifecycleOwnershipChanged:
-            pass
-        _label(root, repo, number, ACTIVE, present=False)
-        return {"state": "waiting", "number": number, "reason": str(exc)}
+        return _released(_integration_repair(root, repo, number, admission, exc))
     except (QueueError, subprocess.CalledProcessError) as exc:
         head_now = pr.get("head", {}).get("sha")
         try:
@@ -930,14 +1053,57 @@ def worker(root: Path) -> dict[str, Any]:
                 _raise_if_owned_elsewhere(root, repo, number, head_now)
         except LifecycleOwnershipChanged as owned:
             _label(root, repo, number, ACTIVE, present=False)
-            return {"state": "waiting", "number": number, "reason": str(owned)}
+            return _released({"state": "waiting", "number": number, "reason": str(owned)})
         except QueueError as unobservable:
             # Ownership cannot be observed: never overwrite a possible claim with a
             # block; the next coordinator run re-evaluates.
             _label(root, repo, number, ACTIVE, present=False)
-            return {"state": "waiting", "number": number,
-                    "reason": f"{exc}; lifecycle ownership unobservable: {unobservable}"}
-        return _block(root, repo, number, str(exc))
+            return _released({"state": "waiting", "number": number,
+                              "reason": f"{exc}; lifecycle ownership unobservable: {unobservable}"})
+        return _released(_block(root, repo, number, str(exc)))
+
+
+def _checks_proven_on(candidate: dict[str, Any], base: str) -> bool:
+    """A recorded content-bound check pass is reused only for the main it was proven against.
+
+    Evidence written by this contour names the main it ran on; a pass recorded against an earlier
+    main is not proof for the current merged candidate. Legacy evidence without that binding keeps
+    its previous reuse rule.
+    """
+    from candidate_lifecycle import passed_content_gate
+
+    if not passed_content_gate(candidate, "required-checks"):
+        return False
+    evidence = candidate["gates"]["required-checks"].get("evidence")
+    return not (isinstance(evidence, dict) and evidence.get("main") not in (None, base))
+
+
+def _integration_repair(root: Path, repo: str, number: int, admission: dict[str, Any],
+                        exc: IntegrationRepairNeeded) -> dict[str, Any]:
+    """Offer a bounded integration-repair job, or block the candidate once the bound is spent."""
+    observed = _pr(root, repo, number)
+    head_now = observed.get("head", {}).get("sha")
+    comments = _comments(root, repo, number)
+    current = _derive(root, observed, comments)
+    lineage = _latest(root, number, comments) or {}
+    spent = max(current.get("attempts", {}).get("integration-repair", 0),
+                lineage.get("attempts", {}).get("integration-repair", 0))
+    _label(root, repo, number, ACTIVE, present=False)
+    if spent >= MAX_INTEGRATION_REPAIRS:
+        return _block(root, repo, number,
+                      f"integration repair exhausted after {spent} attempts: {exc}"[:500], head=head_now)
+    fallback = current.get("task_identity") or lineage.get("task_identity") or {
+        "branch": admission.get("branch"), "head": head_now}
+    try:
+        _transition(root, repo, number, "integration-repair-pending", head_now, task_identity=fallback,
+                    red_gate={"name": exc.gate, "identity": head_now, "evidence": str(exc)[:500]},
+                    set_attempts={"integration-repair": spent + 1},
+                    refuse_from=CLAIM_STATES, cross_head_claims=True)
+        publish_job(root, repo, number, "integration-repair", head_now,
+                    task_identity=fallback, attempt=spent + 1)
+    except LifecycleOwnershipChanged:
+        pass
+    return {"state": "waiting", "number": number, "reason": str(exc)}
 
 
 def main() -> int:
@@ -954,6 +1120,8 @@ def main() -> int:
     sub.add_parser("worker")
     args = parser.parse_args()
     root = current_worktree_root()
+    if args.command == "worker":
+        use_default_friction_sink(root)  # real coordinator runs record friction automatically
     try:
         if args.command == "admit":
             result = admit(root, args.pr, args.head)
