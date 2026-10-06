@@ -187,5 +187,14 @@ launching a reviewer for these candidates. Selected-check evidence records the
 same lifecycle-excluding task-content proof as review and is reused during
 archive when unchanged. Missing or changed proofs fail closed. Required-check
 gates also carry candidate identity; GitHub protected merge still requires its
-own exact-head checks. Finalization/archive placement is defined separately;
-this handoff does not claim terminal delivery.
+own exact-head checks. A `finalize` job (`post_review_finalization.py`) then runs
+`openspec_lifecycle.py archive <change> --finalize` in a disposable checkout,
+reusing the review and selected-check evidence for the unchanged task-content
+identity, and the candidate becomes `ready`; a later task-content change returns
+it to review. A completed-but-active change is blocked at integration admission
+and merge (`openspec_lifecycle.py check --stage integration`, strict on `main`
+and for non-coordinator finish), not at PR publication. When main changed only
+the archive-derived current-spec paths of the candidate's own capabilities, the
+coordinator re-derives them by replaying the archived deltas on main; this is
+bookkeeping, required checks still run, and a failed replay is integration
+repair. This handoff does not claim terminal delivery.

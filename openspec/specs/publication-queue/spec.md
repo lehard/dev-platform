@@ -104,3 +104,12 @@ A read-only status SHALL show for a candidate and for a Requirement the current 
 #### Scenario: Operator checks a Requirement
 - **WHEN** status is requested for a Requirement
 - **THEN** it lists each candidate's state and next action without mutating anything
+
+### Requirement: Archive-derived spec conflicts are re-derived deterministically
+
+When preparing a candidate on current main, conflicts confined to archive-derived current-spec paths SHALL be resolved by re-applying the candidate's archived delta specs on the actual base. A failed re-application SHALL become integration repair. A successful re-application SHALL be bookkeeping only: it SHALL NOT replace required checks on the actual candidate and SHALL NOT mask a semantic or contract conflict.
+
+#### Scenario: Two candidates extend one capability
+- **GIVEN** candidate A merged a change to a capability spec
+- **WHEN** candidate B, archived earlier against older main, is prepared
+- **THEN** B's deltas are re-applied on the new spec and checks run on the result

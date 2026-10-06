@@ -6,23 +6,6 @@ The completion lifecycle SHALL make semantic OpenSpec verification and archive p
 
 ## Requirements
 
-### Requirement: Completed OpenSpec changes cannot remain active at publication
-
-For non-trivial OpenSpec work, the platform SHALL treat a change with a completed task checklist as not publishable until the change is archived.
-
-#### Scenario: Completed active change blocks finish
-
-- **GIVEN** an active OpenSpec change with one or more task checkboxes
-- **AND** every task checkbox is complete
-- **WHEN** the agent runs the platform completion or publication flow
-- **THEN** the flow fails with an instruction to verify and archive the change
-
-#### Scenario: In-progress active change is allowed
-
-- **GIVEN** an active OpenSpec change with at least one incomplete task
-- **WHEN** lifecycle hygiene is checked
-- **THEN** the change is not treated as stale solely because it is active
-
 ### Requirement: Archive requires semantic verification evidence
 
 The supported platform archive entrypoint SHALL require a successful semantic OpenSpec verification receipt before archiving a non-trivial change. Agents SHALL prefer `/opsx:verify` when available; environments without that workflow MAY perform the documented equivalent review across completeness, correctness, and coherence.
@@ -529,3 +512,28 @@ Required-check, selected-check and review evidence SHALL be bound to the task-co
 #### Scenario: Bookkeeping commit after review
 - **WHEN** only lifecycle evidence paths change
 - **THEN** review and check evidence remain valid
+
+### Requirement: Completed OpenSpec changes cannot remain active at integration
+
+For non-trivial OpenSpec work, the platform SHALL treat a change with a completed task checklist as not admissible to integration and not mergeable until the change is archived. A coordinator-managed candidate MAY be published as a PR while its completed change is still active, until review and repair have finished.
+
+#### Scenario: Completed active change blocks finish
+
+- **GIVEN** an active OpenSpec change with one or more task checkboxes
+- **AND** every task checkbox is complete
+- **WHEN** the candidate is admitted to integration or merged, or a non-coordinator flow publishes it
+- **THEN** the flow fails with an instruction to verify and archive the change
+
+#### Scenario: In-progress active change is allowed
+
+- **GIVEN** an active OpenSpec change with at least one incomplete task
+- **WHEN** lifecycle hygiene is checked
+- **THEN** the change is not treated as stale solely because it is active
+
+### Requirement: Finalization follows review and repair
+
+A coordinator-managed candidate SHALL be archived by a finalize job only after required checks and Independent Review pass for its current task-content identity, using that reused evidence. Finalization SHALL NOT change task-content identity; a later task-content change SHALL return the candidate to review and finalization.
+
+#### Scenario: Review passes
+- **WHEN** review and checks pass for the candidate identity
+- **THEN** finalize archives the change and the candidate becomes ready

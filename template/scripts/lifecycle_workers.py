@@ -515,7 +515,7 @@ def main(argv: list[str] | None = None) -> int:
         return _gh_json("api", f"repos/{repo}/pulls/{number}")
 
     try:
-        if args.run and set(args.kinds.split(",")) != {"review"} and (not args.llm_command or not args.allow):
+        if args.run and not set(args.kinds.split(",")) <= {"review", "finalize"} and (not args.llm_command or not args.allow):
             raise WorkerError("--run needs --llm-command and at least one --allow path")
         result = work_next(frozenset(k for k in args.kinds.split(",") if k), list_prs=list_prs,
                            comments_for=comments_for, post_comment=post_comment, worker=args.worker,
@@ -538,6 +538,18 @@ def main(argv: list[str] | None = None) -> int:
                         current_head=lambda: pr_info(job["number"])["head"]["sha"],
                         post_result=lambda body: post_comment(job["number"], body),
                         workdir=workdir, home_files=args.llm_home_file, worker=args.worker)
+                elif job["kind"] == "finalize" and isinstance(job["task_identity"], dict) and job["task_identity"].get("change"):
+                    from post_review_finalization import run_claimed_finalize
+                    import publication_queue
+
+                    candidate = publication_queue.candidate_status(Path.cwd(), job["number"], repo=repo)
+                    outcome = run_claimed_finalize(
+                        Path.cwd(), repo, candidate, job,
+                        source_repo=args.source or f"https://github.com/{repo}.git",
+                        branch=args.branch or pr_info(job["number"])["head"]["ref"],
+                        current_head=lambda: pr_info(job["number"])["head"]["sha"],
+                        post_result=lambda body: post_comment(job["number"], body),
+                        workdir=workdir, worker=args.worker)
                 else:
                     outcome = execute_job(
                         job, source_repo=args.source or f"https://github.com/{repo}.git",

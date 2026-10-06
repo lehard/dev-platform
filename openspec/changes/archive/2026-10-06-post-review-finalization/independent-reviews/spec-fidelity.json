@@ -1,0 +1,88 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "98db9ed844c92cf916b34b62d2545d622d576619",
+    "base_ref": "origin/main",
+    "candidate_head": "a8335e8098658e8d2e4ea752da8a746e5c5a7dd5",
+    "diff_sha256": "ba8f45ddb2f29129c7a103f18f3985600907bfa70203aafccff2ca0202a6494b"
+  },
+  "completed_at": "2026-10-05T23:45:52+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/post_review_finalization.py:4015-4041 (reestablish_gates calls checks_runner and records a gate with evidence {'harness_executed': True, ...}). verify_reused_evidence at :3967-3968 skips the evidence-file digest check for any gate marked harness_executed. design.md:5 still states checks are never rerun in finalization. This breaks the 'no silent divergence' invariant in AGENTS.md. It also leaves automated-checks.json unbound to the repaired content, with the gate vouched for only by a self-asserted flag.",
+      "id": "finalize-reruns-checks-contrary-to-design",
+      "severity": "advisory",
+      "summary": "The finalize job can rerun selected checks and re-bind gates for a repaired identity. design.md decision 1 says finalization 'never launches a review or reruns checks' and requires evidence files to match recorded digests. The spec says finalize archives 'using that reused evidence'. The design was not updated for this behavior."
+    },
+    {
+      "evidence": "template/scripts/openspec_lifecycle.py:3757-3769 (_candidate_context and the .managed-task.json filter). The gate does not check for a coordinator admission or lifecycle record. Strictness for non-coordinator publication relies on finish passing --stage integration, which is outside this check.",
+      "id": "candidate-stage-hygiene-contextual-allowance",
+      "severity": "advisory",
+      "summary": "With no --stage, check_hygiene treats any source-repo non-main branch or PR as candidate stage and exempts every change that has a .managed-task.json, whether or not a coordinator manages it. A completed-but-active managed change therefore passes the hygiene check on a PR branch. The spec allows this only for coordinator-managed candidates until review and repair finish. It still requires failure for a non-coordinator flow that publishes."
+    }
+  ],
+  "launched_at": "2026-10-05T23:45:20+00:00",
+  "output_sha256": "bcf70bcd3a7d5ce332452078eeedc18dd1094b8dcce85e7ce14b2a28d04b7c40",
+  "perspective": "spec-fidelity",
+  "request_id": "768dd910-37a4-4c25-8023-6b90f9af5cc8",
+  "reviewer": {
+    "context_id": "744854a1-3a93-491f-b336-569350a87b67",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-d8be18ee-84db-4be8-b1be-2565c48a202d",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 68643
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 159453
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 29032
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 29912
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 11
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3258
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "f8081db86160358d6b32ca0c247380839bce4e2548391a04e282cb8feabf5cd1"
+}

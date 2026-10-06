@@ -282,10 +282,10 @@ def derive_candidate(pr: dict, comments: list[dict], checks: dict | None = None,
                       reason=f"claim recorded on earlier head {newest['head'][:12]}")
     # A harness publishes the validated destination and its content proof before
     # pushing. Recover only that exact destination, never an unrelated head move.
-    if not matching and newest is not None and newest["state"] in {"reviewing", "repairing"}:
+    if not matching and newest is not None and newest["state"] in {"reviewing", "repairing", "finalize-pending"}:
         from lifecycle_workers import RESULT_PREFIX, job_id
 
-        kind = "review" if newest["state"] == "reviewing" else "repair"
+        kind = {"reviewing": "review", "repairing": "repair"}.get(newest["state"], "finalize")
         old_job = {"number": number, "kind": kind, "head": newest["head"],
                    "attempt": newest.get("attempts", {}).get(kind, 0)}
         for row in sorted(comments, key=lambda item: item.get("id", 0), reverse=True):
@@ -302,6 +302,14 @@ def derive_candidate(pr: dict, comments: list[dict], checks: dict | None = None,
                     and receipt["task_identity"].get("task_content")
                     and isinstance(newest.get("task_identity"), dict)
                     and receipt["task_identity"].get("change") == newest["task_identity"].get("change")):
+                if kind == "finalize":
+                    # The harness pushed the archive of this exact task content: it is ready,
+                    # keeping the gates the finalization reused (identity is unchanged).
+                    result.update(state="ready", task_identity=deepcopy(receipt["task_identity"]),
+                                  gates={name: {**deepcopy(gate), "identity": deepcopy(receipt["task_identity"])}
+                                         for name, gate in newest.get("gates", {}).items()},
+                                  next_job=None, reason="recover validated finalization push")
+                    break
                 attempts = deepcopy(newest.get("attempts", {}))
                 attempts["review"] = attempts.get("review", 0) + 1
                 carried = (newest.get("next_job") or {}) if isinstance(newest.get("next_job"), dict) else {}
