@@ -1,0 +1,14 @@
+{
+  "dispositions": [
+    {
+      "finding": "admission-overwrites-cross-head-claim",
+      "perspective": "engineering-quality",
+      "rationale": "Admission happens only when the developer republishes a new, locally validated head through finish. A review/repair/finalization claim is head-bound: the accepted BR-353 worker contract (bounded-worker-contract child) requires a job result for a different head to be discarded and re-evaluated for the current head, so the old-head claim is stale by definition and must not veto the new admission. Review round 8 required exactly this (old-head lifecycle must not block re-admission of a freshly validated head); keeping the claim would reintroduce that defect. Cross-head claims are still honoured for coordinator branch updates, which change the head without new task content.",
+      "recorded_at": "2026-10-05T12:09:50+00:00",
+      "report_sha256": "677f6b6a9100381db2262c9ec8628ca01bb2bbb705f64876c0b16b7e44704506",
+      "request_id": "c5a47de3-c671-440a-ad53-7a5dfddd0adf",
+      "status": "rejected"
+    }
+  ],
+  "schema_version": 1
+}

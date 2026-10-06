@@ -44,4 +44,5 @@ jobs:
       - name: Process next admitted PR
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          DEV_PLATFORM_COORDINATOR_APP: ${{ steps.app-token.outputs.app-slug }}
         run: python3 scripts/publication_queue.py worker

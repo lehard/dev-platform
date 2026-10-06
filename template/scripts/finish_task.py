@@ -403,6 +403,13 @@ def run_status(work: Path, integration: Path, config: dict, *, as_json: bool) ->
             if queued is not None:
                 queued["status"] = "terminal_pending" if queued["state"] == "merged" else "publication_" + queued["state"]
                 queued["independent_review"] = review
+                if isinstance(queued.get("number"), int):
+                    from publication_queue import lifecycle_summary
+
+                    try:
+                        queued["candidate_lifecycle"] = lifecycle_summary(work, queued["number"])
+                    except Exception as exc:  # status stays read-only and best-effort
+                        queued["candidate_lifecycle"] = {"state": "unknown", "reason": str(exc)}
                 print(json.dumps(queued, indent=2) if as_json else f"status: {queued['status']} ({queued})")
                 return 0
     env = github_cli_env(work)

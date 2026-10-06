@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -16,7 +17,8 @@ from pathlib import Path
 from typing import Any
 
 from _platform_common import current_worktree_root, read_platform_config, run_git
-from publication_state import required_check_state_for_ref
+from publication_state import _classify_required_checks, required_check_state_for_ref
+from candidate_lifecycle import CLAIM_STATES, PREFIX as V2_PREFIX, STATES, latest_record, build_handoff_record, derive_candidate, label_projection, marker_body, render_status
 
 PREFIX = "dev-platform-publication-queue:v1 "
 QUEUE = "publication:queued"
@@ -28,6 +30,10 @@ CHECK_WAIT_SECONDS = 240
 
 class QueueError(RuntimeError):
     pass
+
+
+class LifecycleOwnershipChanged(QueueError):
+    """Another lifecycle job took the candidate between observation and transition."""
 
 
 def _gh(root: Path, *args: str, data: dict[str, str] | None = None) -> Any:
@@ -44,6 +50,70 @@ def _gh(root: Path, *args: str, data: dict[str, str] | None = None) -> Any:
         return json.loads(result.stdout)
     except json.JSONDecodeError as exc:
         raise QueueError("GitHub returned non-JSON queue state") from exc
+
+
+COORDINATOR_APP_ENV = "DEV_PLATFORM_COORDINATOR_APP"
+
+
+def trusted_apps(root: Path) -> frozenset[str]:
+    """The coordinator App whose comments count as lifecycle records.
+
+    The workflow exports the slug of the App token it minted. A local reader
+    takes it from ``[publication] coordinator_app`` in the external operator
+    config (operator identity stays out of committed project config) or the
+    project config. No other App is trusted.
+    """
+    from _platform_common import read_operator_config
+
+    names = {os.environ.get(COORDINATOR_APP_ENV, "").strip()}
+    for reader in (read_platform_config, read_operator_config):
+        try:
+            configured = reader(root).get("publication", {})
+        except Exception:
+            continue
+        if isinstance(configured, dict):
+            names.add(str(configured.get("coordinator_app", "")).strip())
+    return frozenset(name for name in names if name)
+
+
+_WRITER_PERMISSIONS = {"admin", "maintain", "write"}
+_writer_cache: dict[tuple[str, str], bool] = {}
+
+
+def trusted_writers(root: Path, comments: list[dict[str, Any]]) -> frozenset[str]:
+    """MEMBER/COLLABORATOR marker authors whose repository write permission is proven."""
+    repo: str | None = None
+    writers: set[str] = set()
+    for row in comments:
+        user = row.get("user")
+        login = user.get("login") if isinstance(user, dict) else None
+        body = str(row.get("body", ""))
+        if (not isinstance(login, str) or row.get("author_association") not in {"MEMBER", "COLLABORATOR"}
+                or not body.startswith(("dev-platform-publication-queue:v1 ", V2_PREFIX))):
+            continue
+        repo = repo or _repo(root)
+        key = (repo, login)
+        if key not in _writer_cache:
+            try:
+                data = _gh(root, "api", f"repos/{repo}/collaborators/{login}/permission")
+            except QueueError as exc:
+                # Fail closed and uncached: an unprovable author must neither be
+                # trusted nor silently ignored (that could erase a real claim).
+                raise QueueError(f"cannot prove write permission of marker author {login}: {exc}") from exc
+            _writer_cache[key] = isinstance(data, dict) and data.get("permission") in _WRITER_PERMISSIONS
+        if _writer_cache[key]:
+            writers.add(login)
+    return frozenset(writers)
+
+
+def _derive(root: Path, pr: dict[str, Any], comments: list[dict[str, Any]], checks: dict[str, Any] | None = None) -> dict[str, Any]:
+    return derive_candidate(pr, comments, checks, trusted_apps=trusted_apps(root),
+                            trusted_writers=trusted_writers(root, comments))
+
+
+def _latest(root: Path, number: int, comments: list[dict[str, Any]], head: str | None = None) -> dict[str, Any] | None:
+    return latest_record(number, comments, trusted_apps=trusted_apps(root), head=head,
+                         trusted_writers=trusted_writers(root, comments))
 
 
 def _repo(root: Path) -> str:
@@ -69,10 +139,15 @@ def _comments(root: Path, repo: str, number: int) -> list[dict[str, Any]]:
 
 
 def _events(root: Path, repo: str, number: int) -> list[dict[str, Any]]:
+    from candidate_lifecycle import trusted_marker_comment
+
     events = []
-    for row in _comments(root, repo, number):
+    comments = _comments(root, repo, number)
+    apps, writers = trusted_apps(root), trusted_writers(root, comments)
+    for row in comments:
         body = row.get("body")
-        if not isinstance(body, str) or not body.startswith(PREFIX):
+        # Queue consumers and lifecycle status read the same trusted records.
+        if not isinstance(body, str) or not body.startswith(PREFIX) or not trusted_marker_comment(row, apps, writers):
             continue
         try:
             payload = json.loads(body[len(PREFIX):])
@@ -115,6 +190,105 @@ def _label(root: Path, repo: str, number: int, label: str, *, present: bool) -> 
             raise QueueError(result.stderr.strip() or "cannot remove publication label")
 
 
+def _transition(
+    root: Path, repo: str, number: int, state: str, head: str, *,
+    task_identity: str | dict[str, Any], red_gate: dict[str, Any] | None = None,
+    gates: dict[str, Any] | None = None, attempt: str | None = None,
+    refuse_from: set[str] | frozenset[str] = frozenset(), inherit_identity: bool = True,
+    cross_head_claims: bool = False, next_job: dict[str, Any] | None = None,
+) -> dict[str, Any] | None:
+    """Publish the v2 handoff record for one transition and project its lifecycle label.
+
+    v1 admission/update markers stay authoritative for the existing queue; the
+    v2 record is what a later executor or ``status`` reads to continue. The PR
+    head and latest record are re-observed first: a moved head publishes
+    nothing; a current-head record in ``refuse_from`` (another job's ownership)
+    raises ``LifecycleOwnershipChanged``; a transition carrying nothing new is
+    not re-published (scheduled retries must not grow the bounded comment
+    page) but still repairs the label projection. Gates, items not re-verified
+    and the next job carry forward from the latest exact-head record; task
+    identity and attempt counters carry forward across coordinator head updates
+    unless the caller proves a fresh identity (``inherit_identity=False``).
+    """
+    from datetime import datetime, timezone
+
+    observed = _pr(root, repo, number)
+    if observed.get("head", {}).get("sha") != head:
+        return None
+    comments = _comments(root, repo, number)
+    current = _derive(root, observed, comments)
+    # Carry-forward and de-duplication use the persisted record, not the derived
+    # view (which overlays checks, labels and a later v1 block).
+    previous = _latest(root, number, comments, head) or {}
+    lineage = _latest(root, number, comments) or {}
+    if refuse_from:
+        owner = None
+        if current.get("head") == head and current.get("task_identity") is not None and current["state"] in refuse_from:
+            owner = current["state"]
+        elif cross_head_claims and lineage.get("state") in CLAIM_STATES & set(refuse_from):
+            # A claim recorded on the head observed before a coordinator branch
+            # update still owns the candidate.
+            owner = lineage["state"]
+        if owner is not None or _malformed(current):
+            raise LifecycleOwnershipChanged(f"candidate is now {owner or current['state']}; {current.get('reason') or current.get('next_action')}")
+    new_gates = any(previous.get("gates", {}).get(name) != gate for name, gate in (gates or {}).items())
+    new_job = next_job is not None and next_job != previous.get("next_job")
+    if previous.get("state") == state and red_gate in (None, previous.get("red_gate")) and not new_gates and not new_job:
+        _project_lifecycle_label(root, repo, number, observed, state)
+        return previous
+    merged_gates = {**previous.get("gates", {}), **(gates or {})}
+    attempts = dict(previous.get("attempts") or lineage.get("attempts") or {})
+    if attempt is not None and previous.get("state") != state:
+        attempts[attempt] = attempts.get(attempt, 0) + 1
+    record = build_handoff_record(
+        number=number, state=state, head=head,
+        task_identity=(previous.get("task_identity") or lineage.get("task_identity") or task_identity)
+        if inherit_identity else task_identity,
+        gates=merged_gates, red_gate=red_gate,
+        not_reverified=list(previous.get("not_reverified") or lineage.get("not_reverified") or []),
+        attempts=attempts,
+        next_job=next_job if next_job is not None else (previous.get("next_job") if state == previous.get("state") else None),
+        at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    )
+    _gh(root, "api", "-X", "POST", f"repos/{repo}/issues/{number}/comments", data={"body": marker_body(record)})
+    _project_lifecycle_label(root, repo, number, observed, state)
+    return record
+
+
+def _raise_if_owned_elsewhere(root: Path, repo: str, number: int, head: str) -> None:
+    comments = _comments(root, repo, number)
+    claimed = _derive(root, _pr(root, repo, number), comments)
+    newest = _latest(root, number, comments) or {}
+    exact_owner = claimed.get("head") == head and claimed.get("task_identity") is not None and claimed["state"] in NOT_INTEGRABLE
+    if _malformed(claimed) or exact_owner or newest.get("state") in CLAIM_STATES:
+        raise LifecycleOwnershipChanged(
+            f"candidate is now {newest.get('state') or claimed['state']}; {claimed.get('reason') or claimed.get('next_action')}")
+
+
+def _malformed(candidate: dict[str, Any]) -> bool:
+    return candidate.get("state") == "blocked-escalation" and str(candidate.get("reason", "")).startswith("malformed marker")
+
+
+def _project_lifecycle_label(root: Path, repo: str, number: int, observed: dict[str, Any], state: str) -> None:
+    wanted = label_projection({"state": state})[0]
+    present = {label.get("name") for label in observed.get("labels", []) if isinstance(label, dict)}
+    for other in sorted(STATES):
+        name = f"lifecycle:{other}"
+        if name != wanted and name in present:
+            _label(root, repo, number, name, present=False)
+    if wanted not in present:
+        subprocess.run(["gh", "label", "create", wanted, "--color", "c5def5", "--force"], cwd=root, capture_output=True, text=True)
+        _label(root, repo, number, wanted, present=True)
+
+
+# v2 states owned by other lifecycle work; the integration worker must not take them over.
+# Escalation and integration repair must be resolved first; integration never clears a red gate.
+NOT_INTEGRABLE = {
+    "review-pending", "reviewing", "repair-pending", "repairing", "finalize-pending",
+    "blocked-escalation", "integration-repair-pending",
+}
+
+
 def _ensure_labels(root: Path) -> None:
     for name, color in ((QUEUE, "a2eeef"), (ACTIVE, "fbca04"), (BLOCKED, "b60205")):
         result = subprocess.run(["gh", "label", "create", name, "--color", color, "--force"], cwd=root, capture_output=True, text=True)
@@ -135,6 +309,68 @@ def _main(root: Path) -> str:
     if len(sha) != 40:
         raise QueueError("authoritative main SHA is unavailable")
     return sha
+
+
+def _admission_handoff(root: Path, branch: str, head: str) -> dict[str, Any]:
+    """Task-content identity for the admitted head.
+
+    A managed task checked out at the admitted head binds its task-content
+    digest; otherwise (quick task, or a checkout elsewhere) exact-head identity.
+    """
+    proof = None
+    # Only a checkout at the admitted head can vouch for its validation.
+    try:
+        local_head = run_git(["rev-parse", "HEAD"], cwd=root, check=False).stdout.strip()
+    except OSError:
+        local_head = ""
+    if local_head == head:
+        try:
+            from agent_friction import current_task_content
+
+            proof = current_task_content(root)
+        except Exception:
+            proof = None
+    digest = proof.get("digest") if isinstance(proof, dict) else None
+    if not (isinstance(digest, str) and digest):
+        return {"task_identity": {"branch": branch, "head": head}, "gates": {}}
+    return {"task_identity": {"task_content": digest}, "gates": _archived_verification_gate(root)}
+
+
+def _archived_verification_gate(root: Path) -> dict[str, Any]:
+    """The archived automated-checks evidence of this managed task, as a satisfied gate.
+
+    Admission itself proves no validation; it binds the gate the archive helper
+    already recorded (successful outcome, the task content and head it ran on,
+    and the evidence file digest). Without that evidence no gate is claimed.
+    """
+    import hashlib
+
+    try:
+        from managed_task import read_task_state
+
+        state = read_task_state(root) or {}
+    except Exception:
+        return {}
+    change = state.get("change")
+    if not isinstance(change, str) or not change:
+        return {}
+    matches = sorted((root / "openspec" / "changes" / "archive").glob(f"*-{change}/automated-checks.json"))
+    if len(matches) != 1:
+        return {}
+    raw = matches[0].read_bytes()
+    try:
+        evidence = json.loads(raw)
+    except json.JSONDecodeError:
+        return {}
+    checkout = evidence.get("managed_checkout") if isinstance(evidence, dict) else None
+    content = checkout.get("task_content") if isinstance(checkout, dict) else None
+    if evidence.get("outcome") != "success" or not isinstance(content, dict) or not content.get("digest"):
+        return {}
+    return {"archived-verification": {
+        "result": "passed",
+        "identity": {"task_content": content["digest"], "head": checkout.get("head")},
+        "evidence": {"path": matches[0].relative_to(root).as_posix(), "sha256": hashlib.sha256(raw).hexdigest()},
+    }}
 
 
 def admit(root: Path, number: int, expected_head: str) -> dict[str, Any]:
@@ -158,6 +394,15 @@ def admit(root: Path, number: int, expected_head: str) -> dict[str, Any]:
         if admitted is None or admitted.get("head") != expected_head:
             raise QueueError("admission comment was not confirmed")
         _label(root, repo, number, BLOCKED, present=False)
+    # A retry after an interrupted admission recovers the missing record, but never
+    # rewinds a candidate that later lifecycle work already advanced on this head.
+    current = _derive(root, _pr(root, repo, number), _comments(root, repo, number))
+    if current.get("task_identity") is None or current.get("head") != expected_head:
+        try:
+            _transition(root, repo, number, "ready", expected_head, inherit_identity=False,
+                        refuse_from=STATES, **_admission_handoff(root, branch, expected_head))
+        except LifecycleOwnershipChanged:
+            pass  # lifecycle work recorded this head in the meantime; never rewind it
     _label(root, repo, number, QUEUE, present=True)
     return {"number": number, "position_key": admitted["comment_id"], "head": expected_head, "state": "queued"}
 
@@ -203,6 +448,85 @@ def status(root: Path, number: int) -> dict[str, Any]:
             return {"state": "active" if active else "waiting", "number": number, "position": index, "owner": "publication-queue workflow" if active else None}
     return {"state": "blocked", "number": number, "reason": "admitted PR lacks queue label"}
 
+
+
+def candidate_status(root: Path, number: int, *, repo: str | None = None) -> dict[str, Any]:
+    """Observe a lifecycle handoff without changing v1 queue consumers."""
+    repo = repo or _repo(root)
+    pr = _pr(root, repo, number)
+    comments = _comments(root, repo, number)
+    head = pr.get("head", {}).get("sha", "")
+    # gh uses 1 for failed checks and 8 for pending checks. Those are readable
+    # snapshots, not transport failures. Leave the legacy worker observer alone.
+    response = subprocess.run(
+        ["gh", "pr", "checks", str(number), "--required", "--json", "name,state,workflow,link"],
+        cwd=root, text=True, capture_output=True, check=False,
+    )
+    checks = {"head": head, "kind": "unknown", "detail": "required checks unavailable"}
+    if response.returncode in {0, 1, 8}:
+        try:
+            rows = json.loads(response.stdout)
+        except json.JSONDecodeError:
+            rows = None
+        if isinstance(rows, list):
+            observed = _classify_required_checks(rows)
+            checks.update(kind=observed.kind, detail=observed.detail, checks=list(observed.checks))
+    # A concurrent push invalidates this observation, including every gate.
+    if _pr(root, repo, number).get("head", {}).get("sha") != head:
+        checks["head"] = None
+    return _derive(root, pr, comments, checks)
+
+
+def lifecycle_summary(root: Path, number: int) -> dict[str, Any]:
+    """Compact derived lifecycle state for task status, including exact-head checks."""
+    candidate = candidate_status(root, number)
+    return {key: candidate.get(key) for key in ("state", "head", "red_gate", "attempts", "next_action", "reason")}
+
+
+def requirement_status(root: Path, requirement: str) -> dict[str, Any]:
+    """List shared candidate generations by canonical branch identity, read-only."""
+    from requirement_integration import ISSUE_RE, _candidate_slug
+
+    if not ISSUE_RE.fullmatch(requirement):
+        raise QueueError("Requirement must be owner/repository#number")
+    public_requirement: str | None = requirement
+    lineage_note: str | None = None
+    import private_lineage
+
+    if private_lineage.enabled(root):
+        try:
+            public_requirement = private_lineage.handle_for_issue(
+                root, requirement, "requirement-integration", create=False)
+        except private_lineage.PrivateLineageError as exc:
+            # No resolvable shared candidate lineage (single child, not yet
+            # composed, or a lookup failure): child branches are still listed and
+            # the missing shared lineage is reported, never silently omitted.
+            public_requirement = None
+            lineage_note = f"shared candidate lineage unavailable: {exc}"
+    branch = "agent/" + _candidate_slug(public_requirement) if public_requirement else None
+    repo = _repo(root)
+    # Candidate generations keep their PRs after their branches are deleted, so
+    # the repository's PR list is read in full (paginated, filtered server-side
+    # output) rather than inferred from live branches or one bounded page.
+    listed = subprocess.run(
+        ["gh", "api", "--paginate", f"repos/{repo}/pulls?state=all&per_page=100", "--jq", ".[] | [.number, .head.ref] | @tsv"],
+        cwd=root, text=True, capture_output=True, check=False,
+    )
+    if listed.returncode:
+        raise QueueError(listed.stderr.strip() or "Requirement candidate inventory is unavailable")
+    # Shared candidates plus the Requirement's own child branches, which carry a
+    # single-child (or not yet composed) publication directly.
+    from managed_work_identity import parent_identity
+
+    child_prefix = "agent/" + parent_identity(requirement).lower() + "-t"
+    children = re.escape(child_prefix) + r"[1-9][0-9]*-[A-Za-z0-9][A-Za-z0-9._-]*"
+    pattern = re.compile(re.escape(branch) + r"(?:-[0-9a-f]{12})?|" + children if branch else children)
+    numbers = sorted({int(number) for number, _, ref in (line.partition("\t") for line in listed.stdout.splitlines())
+                      if number.isdigit() and pattern.fullmatch(ref)})
+    result: dict[str, Any] = {"requirement": requirement, "candidates": [candidate_status(root, number, repo=repo) for number in numbers]}
+    if lineage_note:
+        result["shared_lineage"] = lineage_note
+    return result
 
 
 def local_status(root: Path, branch: str) -> dict[str, Any] | None:
@@ -276,11 +600,25 @@ def sync_merged_task(root: Path, branch: str, number: int) -> None:
     run_git(["merge", "--ff-only", remote_head], cwd=root)
 
 
-def _block(root: Path, repo: str, number: int, reason: str) -> dict[str, Any]:
+def _block(root: Path, repo: str, number: int, reason: str, *, head: str | None = None) -> dict[str, Any]:
     _comment(root, repo, number, {"kind": "block", "reason": reason[:500]})
+    # Dequeue first: the v1 block already invalidated the admission, so a queued
+    # label left behind would stall every later candidate's inventory.
     _label(root, repo, number, BLOCKED, present=True)
     _label(root, repo, number, ACTIVE, present=False)
     _label(root, repo, number, QUEUE, present=False)
+    if head is None:
+        observed = _pr(root, repo, number).get("head", {})
+        head = observed.get("sha") if isinstance(observed, dict) else None
+    if isinstance(head, str) and len(head) == 40:
+        try:
+            # The blocked head may be unproven (changed outside the coordinator), so
+            # it never inherits the previous candidate's task-content identity.
+            _transition(root, repo, number, "blocked-escalation", head, task_identity={"head": head},
+                        inherit_identity=False,
+                        red_gate={"name": "publication", "identity": head, "evidence": reason[:500]})
+        except QueueError:
+            pass  # status still derives the block from the v1 marker written above
     return {"state": "blocked", "number": number, "reason": reason}
 
 
@@ -341,6 +679,9 @@ def _prepare(root: Path, repo: str, number: int, admission: dict[str, Any], pr: 
     run_git(["fetch", "origin", pr["head"]["ref"]], cwd=root)
     if run_git(["merge-base", "--is-ancestor", current_main, head], cwd=root, check=False).returncode == 0:
         return head, current_main
+    # Last observation before mutating the branch: never update a head that review
+    # or repair claimed meanwhile (atomic job claims arrive with the worker contract).
+    _raise_if_owned_elsewhere(root, repo, number, head)
     _gh(root, "api", "-X", "PUT", f"repos/{repo}/pulls/{number}/update-branch", data={"expected_head_sha": head})
     deadline = time.monotonic() + 90
     while time.monotonic() < deadline:
@@ -357,23 +698,66 @@ def worker(root: Path) -> dict[str, Any]:
     queue = _queued(root, repo)
     if not queue:
         return {"state": "empty"}
-    _, number, admission = queue[0]
-    pr = _pr(root, repo, number)
-    if pr.get("merged"):
-        _label(root, repo, number, QUEUE, present=False)
-        return {"state": "merged", "number": number}
+    skipped: list[str] = []
+    # At most one candidate holds final integration ownership: resume the one
+    # already active before granting ownership to any other.
+    observed_prs = {number: _pr(root, repo, number) for _, number, _ in queue}
+
+    def active(number: int) -> bool:
+        return ACTIVE in {label.get("name") for label in observed_prs[number].get("labels", []) if isinstance(label, dict)}
+
+    queue = sorted(queue, key=lambda item: not active(item[1]))
+    for _, number, admission in queue:
+        pr = observed_prs[number]
+        if pr.get("merged"):
+            _label(root, repo, number, QUEUE, present=False)
+            return {"state": "merged", "number": number}
+        comments = _comments(root, repo, number)
+        # Without any v2 record the v1 admission alone governs (it reads as ready).
+        has_v2 = any(str(row.get("body", "")).startswith(V2_PREFIX) for row in comments)
+        current = _derive(root, pr, comments) if has_v2 else {"state": "ready"}
+        if current["state"] == "blocked-escalation" and current.get("reason", "").startswith("malformed marker"):
+            return _block(root, repo, number, current["reason"])
+        # Only a record for the exact current head can hand the candidate to other
+        # work; otherwise _prepare must still recover an interrupted branch update.
+        exact_head_record = current.get("task_identity") is not None and current.get("head") == pr.get("head", {}).get("sha")
+        newest = (_latest(root, number, comments) or {}) if has_v2 else {}
+        if newest.get("state") in CLAIM_STATES:
+            # A review/repair claim on an earlier head still owns the candidate:
+            # never prepare (update or block) it under that work.
+            skipped.append(f"#{number} {newest['state']} claim on {str(newest.get('head'))[:12]}")
+            if active(number):
+                _label(root, repo, number, ACTIVE, present=False)  # relinquish to the claiming work
+            continue
+        if exact_head_record and current["state"] in NOT_INTEGRABLE:
+            # A candidate owned by other work does not hold up the rest of the queue.
+            skipped.append(f"#{number} {current['state']}: {current['next_action']}")
+            if active(number):
+                _label(root, repo, number, ACTIVE, present=False)
+            continue
+        break
+    else:
+        return {"state": "waiting", "reason": "no integrable candidate; " + "; ".join(skipped)}
     _label(root, repo, number, ACTIVE, present=True)
     try:
         head, base = _prepare(root, repo, number, admission, pr)
+        identity = {"branch": admission.get("branch"), "head": head}
+        _transition(root, repo, number, "integrating", head, task_identity=identity, attempt="integration",
+                    refuse_from=NOT_INTEGRABLE, cross_head_claims=True,
+                    next_job={"kind": "integration", "claim": "publication-queue workflow", "head": head})
         deadline = time.monotonic() + CHECK_WAIT_SECONDS
         while True:
             state = required_check_state_for_ref(root, os.environ.copy(), str(number), head)
             if state.kind == "passed":
+                checks_evidence = state.detail or "required checks passed"
                 break
+            if state.kind in {"failed", "not_registered"}:
+                # Review or repair may have claimed the head while checks ran.
+                _raise_if_owned_elsewhere(root, repo, number, head)
             if state.kind == "failed":
-                return _block(root, repo, number, "required check failed: " + state.detail)
+                return _block(root, repo, number, "required check failed: " + state.detail, head=head)
             if state.kind == "not_registered":
-                return _block(root, repo, number, "required check is not registered for the PR head")
+                return _block(root, repo, number, "required check is not registered for the PR head", head=head)
             if state.kind == "unknown":
                 raise QueueError("required check state is unknown: " + state.detail)
             if time.monotonic() >= deadline:
@@ -381,15 +765,40 @@ def worker(root: Path) -> dict[str, Any]:
             time.sleep(10)
         if _main(root) != base or _pr(root, repo, number).get("head", {}).get("sha") != head:
             return {"state": "waiting", "number": number, "reason": "main or PR head moved; coordinator will re-evaluate"}
+        # Review or repair may have claimed this head during the check wait.
+        _raise_if_owned_elsewhere(root, repo, number, head)
         result = subprocess.run(["gh", "pr", "merge", str(number), "--squash", "--match-head-commit", head], cwd=root, text=True, capture_output=True)
         if _pr(root, repo, number).get("merged"):
             _label(root, repo, number, ACTIVE, present=False)
             _label(root, repo, number, QUEUE, present=False)
+            try:
+                _transition(root, repo, number, "merged", head, task_identity=identity,
+                            gates={"required-checks": {"result": "passed", "identity": head, "evidence": checks_evidence}})
+            except QueueError:
+                # The merge is the authoritative fact; a lost record must not turn it into a block.
+                pass
             return {"state": "merged", "number": number, "head": head}
         if result.returncode:
             return {"state": "waiting", "number": number, "reason": "protected merge refused; will re-evaluate: " + (result.stderr.strip() or "unknown")[:300]}
         return {"state": "waiting", "number": number, "reason": "merge accepted; awaiting GitHub confirmation"}
+    except LifecycleOwnershipChanged as exc:
+        _label(root, repo, number, ACTIVE, present=False)
+        return {"state": "waiting", "number": number, "reason": str(exc)}
     except (QueueError, subprocess.CalledProcessError) as exc:
+        head_now = pr.get("head", {}).get("sha")
+        try:
+            # Never block a candidate that review or repair claimed meanwhile.
+            if isinstance(head_now, str):
+                _raise_if_owned_elsewhere(root, repo, number, head_now)
+        except LifecycleOwnershipChanged as owned:
+            _label(root, repo, number, ACTIVE, present=False)
+            return {"state": "waiting", "number": number, "reason": str(owned)}
+        except QueueError as unobservable:
+            # Ownership cannot be observed: never overwrite a possible claim with a
+            # block; the next coordinator run re-evaluates.
+            _label(root, repo, number, ACTIVE, present=False)
+            return {"state": "waiting", "number": number,
+                    "reason": f"{exc}; lifecycle ownership unobservable: {unobservable}"}
         return _block(root, repo, number, str(exc))
 
 
@@ -400,7 +809,10 @@ def main() -> int:
     add.add_argument("--pr", type=int, required=True)
     add.add_argument("--head", required=True)
     show = sub.add_parser("status")
-    show.add_argument("--pr", type=int, required=True)
+    target = show.add_mutually_exclusive_group(required=True)
+    target.add_argument("--pr", type=int)
+    target.add_argument("--requirement")
+    show.add_argument("--json", action="store_true")
     sub.add_parser("worker")
     args = parser.parse_args()
     root = current_worktree_root()
@@ -408,12 +820,26 @@ def main() -> int:
         if args.command == "admit":
             result = admit(root, args.pr, args.head)
         elif args.command == "status":
-            result = status(root, args.pr)
+            result = requirement_status(root, args.requirement) if args.requirement else candidate_status(root, args.pr)
         else:
             result = worker(root)
     except QueueError as exc:
         print(json.dumps({"state": "error", "reason": str(exc)}))
         return 2
+    if args.command == "status":
+        if args.json:
+            print(json.dumps(result, sort_keys=True))
+        elif args.requirement:
+            print("Requirement " + args.requirement)
+            for candidate in result["candidates"]:
+                print(render_status(candidate))
+            if not result["candidates"]:
+                print("No candidate PRs")
+            if result.get("shared_lineage"):
+                print(result["shared_lineage"])
+        else:
+            print(render_status(result))
+        return 0
     print(json.dumps(result, sort_keys=True))
     return 0 if result.get("state") in {"merged", "empty", "queued", "active", "waiting", "not-admitted"} else 2
 
