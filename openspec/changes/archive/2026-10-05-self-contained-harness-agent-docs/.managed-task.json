@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/agent-instructions/spec.md"
+  ],
+  "change": "self-contained-harness-agent-docs",
+  "imported_at": "2026-10-05T17:11:32+00:00",
+  "package_revision": "2a21f077ac72e780b0a855af3173b2f9e40cfa72f7df1e80ed2b8d27c05a75d4",
+  "prepared_against": "98db9ed844c92cf916b34b62d2545d622d576619",
+  "private_lineage_handle": "pln_a8c3175828a33cd759cc91ad2336d74a",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "a922a3c4716221d8a9682a8d9e2e6e81f9d585a40522129fc8484f7ceaa58619",
+    "updated_at": "2026-10-05T17:06:06Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-380/T1"
+}
