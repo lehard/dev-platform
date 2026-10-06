@@ -8,9 +8,11 @@ import json
 import os
 import re
 import shutil
+import shlex
 import subprocess
 import sys
 import tempfile
+import tomllib
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
@@ -36,6 +38,8 @@ from _platform_common import (
 import managed_project_status
 import private_lineage
 import managed_work_identity
+import local_workspace
+import shared_workspace
 from start_tier_routing import (
     ASSURANCE_VALUES,
     EFFORT_HINT_VALUES,
@@ -630,6 +634,137 @@ def authoring_receipt(
     return digest.hexdigest()
 
 
+VALIDATION_RECEIPT = "validation-owner.json"
+VALIDATION_DIRECTORY_RE = re.compile(r"dev-platform-authoring-validate-[a-z0-9_]+")
+
+
+def validation_storage(root: Path) -> tuple[Path, Path]:
+    """Resolve one explicit platform storage location, retaining source admission."""
+    integration = shared_workspace.integration_root(root)
+    config_path = integration / ".dev-platform.toml"
+    if config_path.is_symlink() or not config_path.is_file():
+        raise ManagedTaskError(f"validation storage requires a regular configuration file: {config_path}")
+    try:
+        with config_path.open("rb") as handle:
+            config = tomllib.load(handle)
+    except (OSError, tomllib.TOMLDecodeError) as exc:
+        raise ManagedTaskError(f"validation storage configuration failed at {config_path}: {exc}") from exc
+    paths = config.get("paths")
+    if not isinstance(paths, dict) or not isinstance(paths.get("worktrees"), str) or not paths["worktrees"]:
+        raise ManagedTaskError(f"validation storage requires explicit paths.worktrees in {config_path}")
+    relative = Path(paths["worktrees"])
+    if relative.is_absolute() or ".." in relative.parts or not relative.parts or relative == Path("."):
+        raise ManagedTaskError(f"validation storage requires a bounded relative paths.worktrees: {relative}")
+    local_workspace.admit(root)
+    group = shared_workspace.resolve_shared_group(integration) if shared_workspace.posix_available() else None
+    current = integration
+    for part in relative.parts:
+        current = current / part
+        if current.is_symlink():
+            raise ManagedTaskError(f"validation storage refuses symlink: {current}")
+        if not current.exists():
+            current.mkdir()
+            shared_workspace.ensure_shared_path(current, group=group)
+            shared_workspace.verify_shared_output(current, group=group)
+        if not current.is_dir():
+            raise ManagedTaskError(f"validation storage is not a directory: {current}")
+    if shared_workspace.posix_available() and current.stat().st_uid != os.geteuid():
+        raise ManagedTaskError(f"validation storage has foreign ownership: {current}")
+    shared_workspace.verify_shared_output(current, group=group)
+    return integration, current
+
+
+def cleanup_validation_context(root: Path, directory: Path, *, creating_process: bool = False) -> None:
+    """Remove only an exact helper-owned detached checkout; recovery is idempotent."""
+    from worktree_cleanup import _active_cwds, _list_worktrees
+
+    integration, storage = validation_storage(root)
+    directory = directory.absolute()
+    if directory.parent != storage or not VALIDATION_DIRECTORY_RE.fullmatch(directory.name) or directory.is_symlink():
+        raise ManagedTaskError(f"refusing validation cleanup outside exact helper storage: {directory}")
+    worktree = directory / "exact-target"
+    matches = [item for item in _list_worktrees(integration) if item.path == worktree]
+    if not directory.exists():
+        if matches:
+            raise ManagedTaskError(f"validation cleanup has registration but no ownership receipt: {directory}")
+        return
+    receipt_path = directory / VALIDATION_RECEIPT
+    if not directory.is_dir() or receipt_path.is_symlink() or not receipt_path.is_file():
+        raise ManagedTaskError(f"validation cleanup requires an owned directory and regular receipt: {directory}")
+    try:
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise ManagedTaskError(f"validation ownership receipt cannot be read: {receipt_path}: {exc}") from exc
+    expected = {"version", "integration", "directory", "device", "inode", "uid", "pid", "sha"}
+    if not isinstance(receipt, dict) or set(receipt) != expected:
+        raise ManagedTaskError(f"invalid validation ownership receipt: {receipt_path}")
+    info = directory.stat()
+    if (receipt["version"] != 1 or receipt["integration"] != str(integration) or receipt["directory"] != str(directory)
+            or receipt["device"] != info.st_dev or receipt["inode"] != info.st_ino
+            or not isinstance(receipt["sha"], str) or not SHA_RE.fullmatch(receipt["sha"])
+            or type(receipt["pid"]) is not int or receipt["pid"] <= 0):
+        raise ManagedTaskError(f"validation cleanup ownership identity mismatch: {receipt_path}")
+    if shared_workspace.posix_available():
+        if receipt["uid"] != os.geteuid() or info.st_uid != os.geteuid() or receipt_path.stat().st_uid != os.geteuid():
+            raise ManagedTaskError(f"validation cleanup refuses foreign ownership: {directory}")
+        if creating_process:
+            if receipt["pid"] != os.getpid():
+                raise ManagedTaskError(f"validation cleanup creating process mismatch: {directory}")
+        else:
+            try:
+                os.kill(receipt["pid"], 0)
+            except ProcessLookupError:
+                owner_exited = True
+            else:
+                owner_exited = False
+            if not owner_exited:
+                raise ManagedTaskError(f"validation cleanup refuses live owner process {receipt['pid']}: {directory}")
+    elif not creating_process:
+        raise ManagedTaskError("validation recovery requires POSIX owner-process checks")
+    if {item.name for item in directory.iterdir()} - {VALIDATION_RECEIPT, "exact-target"}:
+        raise ManagedTaskError(f"validation cleanup refuses unexpected helper contents: {directory}")
+    if worktree.is_symlink():
+        raise ManagedTaskError(f"validation cleanup refuses symlink worktree: {worktree}")
+    if len(matches) > 1:
+        raise ManagedTaskError(f"validation cleanup found ambiguous Git registration: {worktree}")
+    if matches:
+        match = matches[0]
+        if match.head != receipt["sha"] or match.branch is not None or match.locked:
+            raise ManagedTaskError(f"validation cleanup Git identity mismatch: {worktree}")
+        if not worktree.is_dir() or not (worktree / ".git").is_file() or (worktree / ".git").is_symlink():
+            raise ManagedTaskError(f"validation cleanup cannot verify worktree marker: {worktree}")
+        admin = Path(run_git(["rev-parse", "--absolute-git-dir"], cwd=worktree).stdout.strip())
+        common = integration / ".git"
+        if any(path.is_symlink() for path in (common, common / "worktrees", admin)) or admin.parent != common / "worktrees":
+            raise ManagedTaskError(f"validation cleanup administration escapes repository: {admin}")
+        if (admin / "gitdir").is_symlink() or (admin / "gitdir").read_text().strip() != str(worktree / ".git"):
+            raise ManagedTaskError(f"validation cleanup administration back-reference mismatch: {admin}")
+        if shared_workspace.posix_available() and any(path.stat().st_uid != os.geteuid() for path in (worktree, worktree / ".git", admin)):
+            raise ManagedTaskError(f"validation cleanup refuses foreign worktree: {worktree}")
+        if shared_workspace.posix_available():
+            def fail_walk(error: OSError) -> None:
+                raise error
+
+            for walk_root, directories, files in os.walk(worktree, followlinks=False, onerror=fail_walk):
+                for name in directories + files:
+                    path = Path(walk_root) / name
+                    if path.lstat().st_uid != os.geteuid():
+                        raise ManagedTaskError(f"validation cleanup refuses foreign contents: {path}")
+        if not creating_process:
+            active_cwds = _active_cwds()
+            if active_cwds is None:
+                raise ManagedTaskError("validation cleanup cannot inspect active working directories")
+            if any(cwd == directory or directory in cwd.parents for cwd in active_cwds):
+                raise ManagedTaskError(f"validation cleanup refuses active worktree: {worktree}")
+        removed = run_git(["worktree", "remove", "--force", str(worktree)], cwd=integration, check=False)
+        if removed.returncode:
+            raise ManagedTaskError(f"validation worktree remove failed for {worktree}: {removed.stderr.strip()}")
+    elif worktree.exists():
+        raise ManagedTaskError(f"validation cleanup refuses unregistered worktree contents: {worktree}")
+    receipt_path.unlink()
+    directory.rmdir()
+
+
 @contextmanager
 def exact_target_context(root: Path, sha: str) -> Iterator[Path]:
     """Yield a short-lived detached worktree checked out at ``sha``.
@@ -648,18 +783,34 @@ def exact_target_context(root: Path, sha: str) -> Iterator[Path]:
         raise ManagedTaskError(
             f"target revision {sha} is not available in this checkout; fetch the target repository and retry"
         )
-    tmp_parent = Path(tempfile.mkdtemp(prefix="dev-platform-authoring-validate-"))
-    worktree = tmp_parent / "exact-target"
-    added = run_git(["worktree", "add", "--detach", "--quiet", str(worktree), sha], cwd=root, check=False)
-    if added.returncode != 0:
-        shutil.rmtree(tmp_parent, ignore_errors=True)
-        detail = (added.stderr or added.stdout).strip()
-        raise ManagedTaskError(f"unable to establish an exact validation context for {sha}: {detail or 'git worktree add failed'}")
+    integration, storage = validation_storage(root)
+    tmp_parent = Path(tempfile.mkdtemp(prefix="dev-platform-authoring-validate-", dir=storage))
+    info = tmp_parent.stat()
     try:
+        shared_workspace.create_shared_text(tmp_parent / VALIDATION_RECEIPT, json.dumps({
+            "version": 1, "integration": str(integration), "directory": str(tmp_parent),
+            "device": info.st_dev, "inode": info.st_ino,
+            "uid": info.st_uid, "pid": os.getpid(), "sha": sha,
+        }) + "\n")
+    except BaseException:
+        if tmp_parent.is_symlink() or tmp_parent.stat().st_ino != info.st_ino:
+            raise ManagedTaskError(f"validation helper allocation identity changed: {tmp_parent}")
+        tmp_parent.rmdir()
+        raise
+    worktree = tmp_parent / "exact-target"
+    recovery = shlex.join(["python3", "scripts/worktree_cleanup.py", "cleanup-validation", "--directory", str(tmp_parent)])
+    try:
+        shared_workspace.verify_shared_output(tmp_parent)
+        added = run_git(["worktree", "add", "--detach", "--quiet", str(worktree), sha], cwd=root, check=False)
+        if added.returncode != 0:
+            raise ManagedTaskError(f"unable to establish an exact validation context for {sha}: stdout={added.stdout!r}; stderr={added.stderr!r}")
+        local_workspace.admit(worktree)
         yield worktree
     finally:
-        run_git(["worktree", "remove", "--force", str(worktree)], cwd=root, check=False)
-        shutil.rmtree(tmp_parent, ignore_errors=True)
+        try:
+            cleanup_validation_context(root, tmp_parent, creating_process=True)
+        except (RuntimeError, OSError, ValueError, SystemExit) as exc:
+            raise ManagedTaskError(f"validation cleanup failed: {exc}; retained helper identity at {tmp_parent}; recovery: {recovery}") from exc
 
 
 def validate_package_against_prepared_revision(root: Path, package: Package) -> None:
