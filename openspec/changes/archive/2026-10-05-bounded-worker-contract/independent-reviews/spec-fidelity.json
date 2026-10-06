@@ -1,0 +1,97 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "98db9ed844c92cf916b34b62d2545d622d576619",
+    "base_ref": "origin/main",
+    "candidate_head": "4d064309b4d3d50c8aaf0daed13ec61df83a76a6",
+    "diff_sha256": "62c45c4415efa22c2faed088e4b18f4a8cbc29155479d88cb1109e6bdb195e04"
+  },
+  "completed_at": "2026-10-05T18:34:15+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/lifecycle_workers.py:1170-1178 winning_claim returns the earliest unexpired trusted claim, with no check that its author is still working. work_next at lines 1382-1386 posts the claim and returns status 'lost' without retracting the comment.",
+      "id": "loser-claim-becomes-owner-after-expiry",
+      "severity": "advisory",
+      "summary": "A claim from a worker that lost a race stays a valid claim comment. It can become the winning claim when the real winner's claim expires, even though that worker abandoned the job. Nobody runs the job until the loser's own TTL elapses. This is a side effect of abandoning, and it delays the 'worker dies, another worker can claim' scenario."
+    },
+    {
+      "evidence": "template/scripts/publication_queue.py:1735 defines publish_job. A grep of the diff finds callers only in tests/test_lifecycle_workers.py:2798. publication_queue.py:2049 publishes next_job={\"kind\":\"integration\",...}, and 'integration' is not in JOB_KINDS (lifecycle_workers.py:1063).",
+      "id": "coordinator-job-publication-has-no-production-caller",
+      "severity": "advisory",
+      "summary": "The spec requires the coordinator to publish review, repair, integration-repair, finalize, retrospective, terminal-reconciliation and cleanup jobs bound to head, identity and attempt. publish_job exists but nothing outside tests calls it. Jobs are otherwise inferred by build_job from state names. The v2 record's next_job is only ever set to an 'integration' job, which is not a lifecycle job kind and is ignored by build_job."
+    },
+    {
+      "evidence": "lifecycle_workers.py:1063 JOB_KINDS and work_next at 1359-1389 accept all kinds. execute_job at 1414-1415 raises 'no executor for {kind} jobs' after the claim is already posted.",
+      "id": "claimable-kinds-without-executor",
+      "severity": "advisory",
+      "summary": "work-next accepts and claims finalize, retrospective, terminal-reconciliation and cleanup jobs, but execute_job only handles review, repair and integration-repair. With --run, a worker that claims one of the other kinds raises WorkerError after claiming. It posts no result, so the job stays locked until the claim expires."
+    },
+    {
+      "evidence": "lifecycle_workers.py:1296-1321 _allowed and validate_worker_result check only against allowed_paths. Line 1499 and the check at 1518 take --allow from the CLI. Nothing ties it to the candidate.",
+      "id": "write-scope-is-operator-supplied",
+      "severity": "advisory",
+      "summary": "The spec says a write result must stay within the candidate's scope. The harness takes that scope only from caller-supplied --allow paths and does not derive it from the candidate's task content or branch. A broad --allow such as '.' permits any non-workflow, non-evidence path, including another candidate's paths."
+    }
+  ],
+  "launched_at": "2026-10-05T18:33:27+00:00",
+  "output_sha256": "32e76f33886269ee2c5d61a073efa0f9508c3b5f5592bbabb2137f8dc586e81d",
+  "perspective": "spec-fidelity",
+  "request_id": "d5881bde-a4e5-4912-a0cc-d70c5e18283a",
+  "reviewer": {
+    "context_id": "5a1e3ccd-8083-43fc-8888-2258595eeaa7",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-6333b175-2149-43b6-b22c-6c49a6701e6d",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 58614
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 273043
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 43822
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 45645
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4645
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "ff1ef32378af254e766ed0c6d5db9f035c67dc1b65b06a263debea2242899749"
+}

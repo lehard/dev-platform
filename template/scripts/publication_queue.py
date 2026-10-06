@@ -80,16 +80,16 @@ _WRITER_PERMISSIONS = {"admin", "maintain", "write"}
 _writer_cache: dict[tuple[str, str], bool] = {}
 
 
-def trusted_writers(root: Path, comments: list[dict[str, Any]]) -> frozenset[str]:
+def trusted_writers(root: Path, comments: list[dict[str, Any]],
+                    prefixes: tuple[str, ...] = (), *, repo: str | None = None) -> frozenset[str]:
     """MEMBER/COLLABORATOR marker authors whose repository write permission is proven."""
-    repo: str | None = None
     writers: set[str] = set()
     for row in comments:
         user = row.get("user")
         login = user.get("login") if isinstance(user, dict) else None
         body = str(row.get("body", ""))
         if (not isinstance(login, str) or row.get("author_association") not in {"MEMBER", "COLLABORATOR"}
-                or not body.startswith(("dev-platform-publication-queue:v1 ", V2_PREFIX))):
+                or not body.startswith(("dev-platform-publication-queue:v1 ", V2_PREFIX, *prefixes))):
             continue
         repo = repo or _repo(root)
         key = (repo, login)
@@ -253,6 +253,20 @@ def _transition(
     _gh(root, "api", "-X", "POST", f"repos/{repo}/issues/{number}/comments", data={"body": marker_body(record)})
     _project_lifecycle_label(root, repo, number, observed, state)
     return record
+
+
+def publish_job(root: Path, repo: str, number: int, kind: str, head: str, *,
+                task_identity: str | dict[str, Any], attempt: int | None = None) -> dict[str, Any] | None:
+    """Publish a head-bound job record for the candidate's current state (no new state)."""
+    from lifecycle_workers import job_record
+
+    observed = _pr(root, repo, number)
+    current = _derive(root, observed, _comments(root, repo, number))
+    if attempt is None:
+        attempt = current.get("attempts", {}).get(kind, 0)
+    return _transition(root, repo, number, current["state"], head,
+                       task_identity=current.get("task_identity") or task_identity,
+                       next_job=job_record(kind, head, current.get("task_identity") or task_identity, attempt))
 
 
 def _raise_if_owned_elsewhere(root: Path, repo: str, number: int, head: str) -> None:

@@ -1,0 +1,508 @@
+#!/usr/bin/env python3
+"""Head-bound lifecycle jobs, claims and the credential-free worker harness.
+
+Claim and validation decisions are pure functions over snapshots; GitHub and
+process I/O is injected so everything is testable with fixtures. Jobs reuse the
+v2 candidate lifecycle records (``next_job``); claims are separate PR comment
+markers. The LLM process never holds a credential: only this harness pushes.
+"""
+from __future__ import annotations
+
+import argparse
+from datetime import datetime, timezone
+import json
+import os
+import re
+import shlex
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+from typing import Any, Callable
+
+from candidate_lifecycle import derive_candidate, trusted_marker_comment
+import disposable_repository_sandbox
+
+CLAIM_PREFIX = "dev-platform-lifecycle-claim:v1 "
+JOB_KINDS = frozenset({"review", "repair", "integration-repair", "finalize", "retrospective",
+                       "terminal-reconciliation", "cleanup"})
+WRITE_KINDS = frozenset({"repair", "integration-repair"})
+STATE_KIND = {"review-pending": "review", "reviewing": "review", "repair-pending": "repair",
+              "repairing": "repair", "finalize-pending": "finalize",
+              "integration-repair-pending": "integration-repair"}
+HEAD = re.compile(r"[0-9a-f]{40}")
+RESULT_PREFIX = "dev-platform-lifecycle-result:v1 "
+# Hardening for every harness git invocation (never trust repo-local hooks or fsmonitor).
+SAFE_GIT = ("-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false")
+EVIDENCE_NAMES = ("verification.md", "automated-checks.json")
+CREDENTIAL_VARS = frozenset({
+    "GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN",
+    "GIT_ASKPASS", "SSH_ASKPASS", "SSH_AUTH_SOCK", "GH_HOST_TOKEN", "GITHUB_PAT",
+    "DEV_PLATFORM_COORDINATOR_APP_KEY", "GCM_CREDENTIAL_CACHE_OPTIONS"})
+# Any GitHub-scoped variable (GH_*, GITHUB_*, *_GITHUB_TOKEN/API_KEY...) is dropped; the LLM
+# provider's own key (e.g. ANTHROPIC_API_KEY) is not a repository credential and is kept.
+_CREDENTIAL_PATTERN = re.compile(r"^(GH|GITHUB)_|(GH|GITHUB)\w*_(TOKEN|API_KEY)$|^(GIT|SSH)_ASKPASS$")
+
+
+class WorkerError(RuntimeError):
+    pass
+
+
+def _now(now: datetime | None) -> datetime:
+    return now or datetime.now(timezone.utc)
+
+
+def _parse_time(value: Any) -> datetime | None:
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo else None
+
+
+# ---- jobs -----------------------------------------------------------------
+
+def job_id(job: dict) -> str:
+    return f"pr{job['number']}:{job['kind']}:{job['head']}:a{job['attempt']}"
+
+
+def job_record(kind: str, head: str, task_identity: str | dict, attempt: int) -> dict:
+    """The explicit ``next_job`` a coordinator publishes in a handoff record."""
+    if kind not in JOB_KINDS or not HEAD.fullmatch(str(head)) or type(attempt) is not int or attempt < 0:
+        raise ValueError("invalid job record")
+    if not isinstance(task_identity, (str, dict)) or not task_identity:
+        raise ValueError("missing task identity")
+    return {"kind": kind, "head": head, "task_identity": task_identity, "attempt": attempt}
+
+
+def build_job(candidate: dict) -> dict | None:
+    """The head-bound job a derived candidate currently offers, if any.
+
+    Explicit fields of the published ``next_job`` win; the candidate's head,
+    identity and attempts fill only what is absent. A job published for another
+    head than the candidate's current one is stale and offers nothing, and a PR
+    without any trusted coordinator record (no task identity) offers no job.
+    """
+    if candidate.get("task_identity") is None:
+        return None
+    head = candidate.get("head")
+    if not isinstance(head, str) or not HEAD.fullmatch(head):
+        return None
+    next_job = candidate.get("next_job")
+    explicit = next_job if isinstance(next_job, dict) else {}
+    kind = explicit.get("kind") if explicit else STATE_KIND.get(candidate.get("state"))
+    if kind not in JOB_KINDS:
+        return None
+    job_head = explicit.get("head", head)
+    if job_head != head:
+        return None
+    attempt = explicit.get("attempt")
+    if type(attempt) is not int:
+        attempt = candidate.get("attempts", {}).get(kind, 0)
+    return {"kind": kind, "number": candidate["number"], "head": job_head,
+            "task_identity": explicit.get("task_identity", candidate.get("task_identity")), "attempt": attempt}
+
+
+def claim_body(job: dict, worker: str, expires_at: str) -> str:
+    if job.get("kind") not in JOB_KINDS or not HEAD.fullmatch(str(job.get("head", ""))):
+        raise ValueError("invalid job")
+    if _parse_time(expires_at) is None:
+        raise ValueError("invalid expiry")
+    record = {"job": job_id(job), "worker": worker, "head": job["head"], "expires_at": expires_at}
+    return CLAIM_PREFIX + json.dumps(record, sort_keys=True, separators=(",", ":"))
+
+
+def _claims(job: dict, comments: list[dict], trusted_apps, trusted_writers) -> list[tuple[dict, dict]]:
+    found = []
+    for row in sorted(comments, key=lambda item: item.get("id", 0)):
+        body = row.get("body", "")
+        if not isinstance(body, str) or not body.startswith(CLAIM_PREFIX):
+            continue
+        if not trusted_marker_comment(row, trusted_apps, trusted_writers):
+            continue
+        try:
+            record = json.loads(body[len(CLAIM_PREFIX):])
+        except ValueError:
+            continue
+        if (isinstance(record, dict) and record.get("job") == job_id(job)
+                and record.get("head") == job["head"] and isinstance(record.get("worker"), str)
+                and _parse_time(record.get("expires_at")) is not None):
+            found.append((row, record))
+    return found
+
+
+def winning_claim(job: dict, comments: list[dict], *, now: datetime | None = None,
+                  trusted_apps: frozenset[str] = frozenset(),
+                  trusted_writers: frozenset[str] = frozenset()) -> dict | None:
+    """Earliest valid, unexpired, trusted claim for this job and exact head."""
+    current = _now(now)
+    for row, record in _claims(job, comments, trusted_apps, trusted_writers):
+        if _parse_time(record["expires_at"]) > current:
+            return {**record, "comment_id": row.get("id")}
+    return None
+
+
+def job_completed(job: dict, comments: list[dict], *, trusted_apps=frozenset(), trusted_writers=frozenset()) -> bool:
+    """Whether a trusted result was already recorded for this exact job (head and attempt).
+
+    A completed job is not offered again after its claim expires; a new attempt or
+    a new head is a different job. A discarded result (head moved) completes nothing.
+    """
+    for row in comments:
+        body = row.get("body")
+        if not isinstance(body, str) or not body.startswith(RESULT_PREFIX):
+            continue
+        if not trusted_marker_comment(row, trusted_apps, trusted_writers):
+            continue
+        try:
+            record = json.loads(body[len(RESULT_PREFIX):])
+        except json.JSONDecodeError:
+            continue
+        if (isinstance(record, dict) and record.get("job") == job_id(job) and record.get("head") == job["head"]
+                and not str(record.get("outcome", "")).startswith("discarded")):
+            return True
+    return False
+
+
+def is_claimable(job: dict, comments: list[dict], **kwargs) -> bool:
+    trust = {key: kwargs[key] for key in ("trusted_apps", "trusted_writers") if key in kwargs}
+    return winning_claim(job, comments, **kwargs) is None and not job_completed(job, comments, **trust)
+
+
+def i_won(job: dict, worker: str, comments: list[dict], **kwargs) -> bool:
+    claim = winning_claim(job, comments, **kwargs)
+    return claim is not None and claim["worker"] == worker
+
+
+def result_is_current(job: dict, result_head: str, current_head: str) -> bool:
+    """A result for any head other than the job's and the PR's current head is discarded."""
+    return job["head"] == result_head == current_head
+
+
+# ---- environment ----------------------------------------------------------
+
+def credential_free_env(env: dict[str, str], home: Path | None = None) -> dict[str, str]:
+    clean = {key: value for key, value in env.items()
+             if key not in CREDENTIAL_VARS and not _CREDENTIAL_PATTERN.search(key)
+             and not key.startswith("GIT_CONFIG_")}
+    clean.update(GIT_TERMINAL_PROMPT="0", GIT_CONFIG_GLOBAL=os.devnull,
+                 GIT_CONFIG_SYSTEM=os.devnull, GIT_CONFIG_NOSYSTEM="1")
+    if home is not None:
+        # A scratch home: the operator's ~/.config/gh, ~/.ssh and git config are absent.
+        clean.update(HOME=str(home), XDG_CONFIG_HOME=str(home / ".config"), XDG_DATA_HOME=str(home / ".local/share"),
+                     XDG_CACHE_HOME=str(home / ".cache"), GH_CONFIG_DIR=str(home / ".config" / "gh-disabled"))
+    return clean
+
+
+def scratch_home(root: Path, home_files: list[str] | tuple[str, ...] = (), *, source_home: Path | None = None) -> Path:
+    """Create a scratch HOME holding only the LLM CLI's own login files (relative to the real HOME)."""
+    source = source_home or Path.home()
+    home = root / "llm-home"
+    home.mkdir(parents=True, exist_ok=True)
+    for relative in home_files:
+        path = Path(relative)
+        if path.is_absolute() or ".." in path.parts or path.parts[:2] in ((".config", "gh"),) or path.parts[:1] == (".ssh",):
+            raise WorkerError(f"refusing to copy {relative} into the LLM home")
+        if (source / path).is_file():
+            (home / path).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source / path, home / path)
+    return home
+
+
+def run_llm(command: list[str], checkout: Path, *, env: dict[str, str] | None = None,
+            runner: Callable[..., Any] = subprocess.run, timeout: int | None = None,
+            home: Path | None = None) -> Any:
+    """Run the LLM command in a checkout with no credential, a scratch home and no inherited stdin."""
+    return runner(command, cwd=checkout, env=credential_free_env(dict(os.environ if env is None else env), home),
+                  stdin=subprocess.DEVNULL, capture_output=True, text=True, check=False, timeout=timeout)
+
+
+def prepare_checkout(source: str, root: str, name: str, head: str) -> Path:
+    """Disposable checkout detached at the exact head (local sources reuse the sandbox helper)."""
+    if Path(source).is_absolute() and Path(source).is_dir():
+        create = disposable_repository_sandbox.create
+        path = create(source, root, name)
+        with (path / ".git" / "info" / "exclude").open("a", encoding="utf-8") as handle:
+            handle.write("\n.dev-platform-disposable-repository.json\n")  # sandbox marker is not candidate content
+        steps = [["checkout", "--detach", head]]
+    else:
+        path = Path(root) / name
+        steps = [["clone", "--no-local", "--no-checkout", source, str(path)], ["checkout", "--detach", head]]
+    for step in steps:
+        done = subprocess.run(["git", *SAFE_GIT, *step], cwd=path if path.exists() else root, text=True,
+                              capture_output=True, check=False, stdin=subprocess.DEVNULL)
+        if done.returncode:
+            raise WorkerError(f"git {step[0]} failed for {head}: {done.stderr.strip()}")
+    return path
+
+
+# ---- harness validation and push -------------------------------------------
+
+def _git(repo: Path, *args: str) -> str:
+    done = subprocess.run(["git", *SAFE_GIT, *args], cwd=repo, text=True, capture_output=True,
+                          check=False, stdin=subprocess.DEVNULL)
+    if done.returncode:
+        raise WorkerError(f"git {' '.join(args)} failed: {done.stderr.strip() or done.stdout.strip()}")
+    return done.stdout
+
+
+def _forbidden(path: str) -> str | None:
+    if path.startswith(".github/workflows/"):
+        return "workflow edit"
+    parts = path.split("/")
+    if parts[:2] == ["openspec", "changes"]:
+        name = parts[-1]
+        if name in EVIDENCE_NAMES or name.startswith("independent-review") or "independent-reviews" in parts:
+            return "lifecycle evidence edit"
+    return None
+
+
+def _allowed(path: str, allowed_paths) -> bool:
+    return any(path == a or path.startswith(a.rstrip("/") + "/") for a in allowed_paths)
+
+
+def validate_worker_result(repo: Path, expected_head: str, result_head: str,
+                           allowed_paths, kind: str = "repair") -> list[str]:
+    """Return the changed paths of an acceptable result or raise WorkerError."""
+    if kind not in WRITE_KINDS:
+        raise WorkerError(f"{kind} jobs have no write path")
+    for value in (expected_head, result_head):
+        if not HEAD.fullmatch(value):
+            raise WorkerError("invalid head")
+    if result_head == expected_head:
+        raise WorkerError("result has no new commits")
+    done = subprocess.run(["git", *SAFE_GIT, "merge-base", "--is-ancestor", expected_head, result_head], cwd=repo,
+                          capture_output=True, check=False, stdin=subprocess.DEVNULL)
+    if done.returncode != 0:
+        raise WorkerError("result is not a fast-forward from the expected head")
+    changed = [p for p in _git(repo, "diff", "--name-only", "--no-renames", "-z",
+                               expected_head, result_head).split("\0") if p]
+    for path in changed:
+        reason = _forbidden(path)
+        if reason:
+            raise WorkerError(f"{reason}: {path}")
+        if not _allowed(path, allowed_paths):
+            raise WorkerError(f"path outside candidate scope: {path}")
+    return changed
+
+
+def push_command(branch: str, expected_head: str, result_head: str) -> list[str]:
+    return ["git", *SAFE_GIT, "-c", "credential.useHttpPath=true", "push", "origin", f"{result_head}:refs/heads/{branch}",
+            f"--force-with-lease=refs/heads/{branch}:{expected_head}"]
+
+
+def push_validated(repo: Path, branch: str, expected_head: str, result_head: str, *,
+                   runner: Callable[..., Any] = subprocess.run, env: dict[str, str] | None = None) -> Any:
+    """The only push to a candidate branch. Callers must validate first."""
+    done = runner(push_command(branch, expected_head, result_head), cwd=repo, env=env,
+                  stdin=subprocess.DEVNULL, capture_output=True, text=True, check=False)
+    if done.returncode:
+        raise WorkerError(f"push rejected: {(done.stderr or done.stdout).strip()}")
+    return done
+
+
+# ---- work-next ------------------------------------------------------------
+
+def select_job(candidates: list[dict], kinds: frozenset[str], claims_by_pr: dict[int, list[dict]], *,
+               now: datetime | None = None, trusted_apps=frozenset(), trusted_writers=frozenset()) -> dict | None:
+    for candidate in sorted(candidates, key=lambda item: item.get("number", 0)):
+        job = build_job(candidate)
+        if job and job["kind"] in kinds and is_claimable(
+                job, claims_by_pr.get(job["number"], []), now=now,
+                trusted_apps=trusted_apps, trusted_writers=trusted_writers):
+            return job
+    return None
+
+
+def work_next(kinds: frozenset[str], *, list_prs: Callable[[], list[dict]],
+              comments_for: Callable[[int], list[dict]], post_comment: Callable[[int, str], None],
+              worker: str, ttl_seconds: int = 1800, dry_run: bool = False, now: datetime | None = None,
+              current_head: Callable[[int], str] | None = None,
+              trusted_apps=frozenset(), trusted_writers=frozenset()) -> dict:
+    """Select, claim, re-read and confirm one job; abandon if another worker won."""
+    unknown = kinds - JOB_KINDS
+    if unknown:
+        raise WorkerError(f"unknown job kinds: {sorted(unknown)}")
+    current = _now(now)
+
+    def writers(comments: list[dict]) -> frozenset[str]:
+        # ``trusted_writers`` may resolve proven writers per comment set (repository permission API).
+        return frozenset(trusted_writers(comments)) if callable(trusted_writers) else frozenset(trusted_writers)
+
+    candidates, claims, all_writers = [], {}, set()
+    for pr in list_prs():
+        comments = comments_for(pr["number"])
+        claims[pr["number"]] = comments
+        proven = writers(comments)
+        all_writers |= proven
+        candidates.append(derive_candidate(pr, comments, trusted_apps=trusted_apps, trusted_writers=proven))
+    trust = dict(now=current, trusted_apps=trusted_apps, trusted_writers=frozenset(all_writers))
+    job = select_job(candidates, kinds, claims, **trust)
+    if job is None:
+        return {"status": "idle", "job": None}
+    if dry_run:
+        return {"status": "dry-run", "job": job}
+    expires = datetime.fromtimestamp(current.timestamp() + ttl_seconds, timezone.utc).isoformat().replace("+00:00", "Z")
+    post_comment(job["number"], claim_body(job, worker, expires))
+    reread = comments_for(job["number"])
+    trust["trusted_writers"] = frozenset(all_writers) | writers(reread)
+    if not i_won(job, worker, reread, **trust):
+        return {"status": "lost", "job": job}
+    if current_head is not None and current_head(job["number"]) != job["head"]:
+        return {"status": "stale", "job": job}  # head moved after the claim: abandon, re-evaluated next run
+    return {"status": "claimed", "job": job, "expires_at": expires}
+
+
+def result_body(job: dict, worker: str, outcome: str, pushed_head: str | None = None) -> str:
+    record = {"job": job_id(job), "worker": worker, "head": job["head"], "outcome": outcome,
+              "pushed_head": pushed_head}
+    return RESULT_PREFIX + json.dumps(record, sort_keys=True, separators=(",", ":"))
+
+
+def _checkout_state(checkout: Path) -> tuple[str, str]:
+    return (_git(checkout, "rev-parse", "HEAD").strip(), _git(checkout, "status", "--porcelain"))
+
+
+def execute_job(job: dict, *, source_repo: str, branch: str, allowed_paths, llm_command,
+                current_head: Callable[[], str], post_result: Callable[[str], None], workdir: str,
+                kind: str | None = None, worker: str = "worker",
+                runner: Callable[..., Any] = subprocess.run, env: dict[str, str] | None = None,
+                push_env: dict[str, str] | None = None, home_files: list[str] | tuple[str, ...] = ()) -> dict:
+    """Run one claimed job. The LLM only ever touches its own disposable checkout.
+
+    Validation and the only push happen in a separate harness-owned clone that
+    receives nothing but the result commit, so hooks, remotes and credential
+    settings planted in the LLM checkout are never consulted.
+    """
+    kind = kind or job["kind"]
+    if kind != job["kind"] or kind not in WRITE_KINDS | {"review"}:
+        raise WorkerError(f"no executor for {kind} jobs")
+    command = shlex.split(llm_command) if isinstance(llm_command, str) else list(llm_command)
+    root = Path(workdir)
+    checkout = prepare_checkout(source_repo, str(root), "llm-checkout", job["head"])
+
+    def finish(outcome: str, pushed: str | None = None, status: str | None = None) -> dict:
+        post_result(result_body(job, worker, outcome, pushed))
+        return {"status": status or outcome.split(":")[0], "outcome": outcome, "pushed_head": pushed}
+
+    before = _checkout_state(checkout)
+    done = run_llm(command, checkout, env=env, runner=runner, home=scratch_home(root, home_files))
+    if done.returncode:
+        return finish("failed: llm exited %s" % done.returncode, status="failed")
+    if kind == "review":
+        if _checkout_state(checkout) != before:
+            return finish("failed: review modified the checkout", status="failed")
+        return finish("reviewed", status="reviewed")
+    result_head = _git(checkout, "rev-parse", "HEAD").strip()
+    if result_head == job["head"]:
+        return finish("no-change", status="no-change")
+    if current_head() != job["head"]:
+        return finish("discarded: head moved", status="discarded")
+    harness = root / "harness"
+    for step in (["clone", "--no-local", "--no-checkout", source_repo, str(harness)],
+                 ["fetch", "--no-tags", str(checkout), result_head]):
+        cwd = harness if step[0] == "fetch" else root
+        extra = ["-c", "protocol.file.allow=always"]
+        proc = subprocess.run(["git", *SAFE_GIT, *extra, *step], cwd=cwd, text=True, capture_output=True,
+                              check=False, stdin=subprocess.DEVNULL)
+        if proc.returncode:
+            return finish("rejected: " + proc.stderr.strip()[:200], status="rejected")
+    try:
+        validate_worker_result(harness, job["head"], result_head, allowed_paths, kind=kind)
+        push_validated(harness, branch, job["head"], result_head, runner=runner, env=push_env)
+    except WorkerError as exc:
+        return finish(f"rejected: {exc}", status="rejected")
+    return finish("pushed", result_head, status="pushed")
+
+
+def _decode_all(text: str) -> Any:
+    """Decode one JSON value, or the concatenated arrays ``gh --paginate`` prints."""
+    decoder, index, items, single = json.JSONDecoder(), 0, [], None
+    text = text.strip()
+    while index < len(text):
+        value, index = decoder.raw_decode(text, index)
+        while index < len(text) and text[index].isspace():
+            index += 1
+        if isinstance(value, list):
+            items.extend(value)
+        else:
+            single = value
+    return items if single is None and text else single
+
+
+def _gh_json(*args: str) -> Any:
+    done = subprocess.run(["gh", *args], text=True, capture_output=True, check=False, stdin=subprocess.DEVNULL)
+    if done.returncode:
+        raise WorkerError(done.stderr.strip() or "gh failed")
+    return _decode_all(done.stdout or "null")
+
+
+def _coordinator_trust(root: Path, repo: str | None = None) -> dict[str, Any]:
+    """The coordinator's own trust model: its configured App and proven repository writers."""
+    import publication_queue
+
+    return {"trusted_apps": publication_queue.trusted_apps(root),
+            # Claim authors need proven write permission too, not only record authors.
+            # Permissions are proven against the repository the worker serves (--repo).
+            "trusted_writers": lambda comments: publication_queue.trusted_writers(root, comments, (CLAIM_PREFIX,), repo=repo)}
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Lifecycle worker contract")
+    sub = parser.add_subparsers(dest="command", required=True)
+    nxt = sub.add_parser("work-next")
+    nxt.add_argument("--kinds", required=True)
+    nxt.add_argument("--worker", default=os.environ.get("DEV_PLATFORM_WORKER", f"worker-{os.getpid()}"))
+    nxt.add_argument("--repo", required=True, help="owner/repo")
+    nxt.add_argument("--ttl", type=int, default=1800)
+    nxt.add_argument("--dry-run", action="store_true")
+    nxt.add_argument("--run", action="store_true", help="execute the claimed job")
+    nxt.add_argument("--llm-command")
+    nxt.add_argument("--source", help="repository URL or absolute path (default: the GitHub repo)")
+    nxt.add_argument("--branch", help="candidate branch (default: the PR head ref)")
+    nxt.add_argument("--allow", action="append", default=[], help="path a write result may change (repeatable)")
+    nxt.add_argument("--llm-home-file", action="append", default=[],
+                     help="file under HOME the LLM CLI needs for its own login, e.g. .codex/auth.json (repeatable)")
+    args = parser.parse_args(argv)
+    repo = args.repo
+
+    def list_prs() -> list[dict]:
+        return _gh_json("api", "--paginate", f"repos/{repo}/pulls?state=open&per_page=100")
+
+    def comments_for(number: int) -> list[dict]:
+        return _gh_json("api", "--paginate", f"repos/{repo}/issues/{number}/comments?per_page=100")
+
+    def post_comment(number: int, body: str) -> None:
+        _gh_json("api", f"repos/{repo}/issues/{number}/comments", "-f", f"body={body}")
+
+    def pr_info(number: int) -> dict:
+        return _gh_json("api", f"repos/{repo}/pulls/{number}")
+
+    try:
+        if args.run and (not args.llm_command or not args.allow):
+            raise WorkerError("--run needs --llm-command and at least one --allow path")
+        result = work_next(frozenset(k for k in args.kinds.split(",") if k), list_prs=list_prs,
+                           comments_for=comments_for, post_comment=post_comment, worker=args.worker,
+                           ttl_seconds=args.ttl, dry_run=args.dry_run,
+                           current_head=lambda n: pr_info(n)["head"]["sha"],
+                           **_coordinator_trust(Path.cwd(), repo))
+        if args.run and result["status"] == "claimed":
+            job = result["job"]
+            with tempfile.TemporaryDirectory(prefix="lifecycle-worker-") as workdir:
+                outcome = execute_job(
+                    job, source_repo=args.source or f"https://github.com/{repo}.git",
+                    branch=args.branch or pr_info(job["number"])["head"]["ref"], allowed_paths=args.allow,
+                    llm_command=args.llm_command, worker=args.worker, workdir=workdir, home_files=args.llm_home_file,
+                    current_head=lambda: pr_info(job["number"])["head"]["sha"],
+                    post_result=lambda body: post_comment(job["number"], body))
+            result = {**result, "execution": outcome}
+    except (WorkerError, ValueError) as exc:
+        print(f"lifecycle worker: {exc}", file=sys.stderr)
+        return 2
+    print(json.dumps(result, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

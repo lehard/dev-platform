@@ -86,6 +86,9 @@ REVIEWED_BASELINE: dict[str, int] = {
     'disposable_repository_sandbox.py:create:write_text': 1,
     'harness_replay.py:isolated_workspace:write_text': 1,
     'harness_replay.py:main:write_text': 1,
+    # Disposable LLM checkout and its scratch HOME live in a private worker temp directory.
+    'lifecycle_workers.py:prepare_checkout:open': 1,
+    'lifecycle_workers.py:scratch_home:copy2': 1,
     # Reviewer schema and candidate diff go to a private temporary directory outside the repository.
     'independent_review_runner.py:run_review:write_text': 2,
     'integration_state.py:local_state_matches_remote_target:mkstemp': 1,
