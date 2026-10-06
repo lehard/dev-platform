@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "98db9ed844c92cf916b34b62d2545d622d576619",
+    "base_ref": "origin/main",
+    "candidate_head": "48f2c795436773bc8374e3b56218464bdbfff4a8",
+    "diff_sha256": "87618038c2c62f1c45c51baa4420368e43d4ce21a667651daf81403367a3225f"
+  },
+  "completed_at": "2026-10-05T17:26:41+00:00",
+  "findings": [
+    {
+      "evidence": "copier.yml:24-25 excludes docs/engineering/openspec-workflow.md and agent-workflow.md for harness_mode == 'project'. template/docs/README.md (candidate.diff lines 167-168) links both unconditionally. tests/test_template_contract.py (diff lines 255-258) resolves links against template/docs, not a render. The pre-existing AGENTS.md.jinja:114-115 has the same unconditional links, so this may be an accepted limitation. The spec and design do not mention it.",
+      "id": "docs-map-links-unrendered-in-project-harness-mode",
+      "severity": "advisory",
+      "summary": "The docs map links to engineering/agent-workflow.md and engineering/openspec-workflow.md unconditionally, but copier.yml excludes both files when harness_mode == 'project'. In that mode the delivered docs/README.md has dangling links. This conflicts with the scenario clause 'every local link resolves'. The new test checks only the template source tree, not a rendered project."
+    }
+  ],
+  "launched_at": "2026-10-05T17:26:22+00:00",
+  "output_sha256": "ba185497fc2249b2507d14771213f900c8e72824f86c377ce7f420c4f8dafd4c",
+  "perspective": "spec-fidelity",
+  "request_id": "bd11cf2e-0f19-42b5-8575-fd50e0193319",
+  "reviewer": {
+    "context_id": "f6ec2554-297d-4775-a90f-d7ec97050645",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-7d5472cb-c56d-4e18-b7d4-eb4f8d683bdc",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 18356
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 81414
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16458
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16765
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1632
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "bf6ed3e33b1d01afdb231275fc4025d0622e406e6c9c8c514a3f689d6161d29c"
+}

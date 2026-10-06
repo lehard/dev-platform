@@ -520,6 +520,30 @@ class TemplateContractTests(unittest.TestCase):
             for ref in pattern.findall(text):
                 with self.subTest(workflow=workflow.name, ref=ref): self.assertRegex(ref, r"^[0-9a-f]{40}$")
 
+    def test_delivered_docs_map_and_openspec_model_are_self_contained(self) -> None:
+        template = ROOT / "template"
+        agents = (template / "AGENTS.md.jinja").read_text(encoding="utf-8")
+        self.assertIn("(docs/README.md)", agents)
+        self.assertLess(len(agents.splitlines()), 200)
+        docs_map = (template / "docs" / "README.md").read_text(encoding="utf-8")
+        for ref in re.findall(r"\]\((engineering/[^)#]+)\)", docs_map):
+            with self.subTest(ref=ref):
+                target = template / "docs" / ref
+                self.assertTrue(target.exists() or target.with_name(target.name + ".jinja").exists(), ref)
+        for topic in ["`AGENTS.md`", "`openspec/specs/`", "`openspec/changes/<active>/`", "`context/README.md`", "project-rules.md", "supplementary"]:
+            with self.subTest(topic=topic): self.assertIn(topic, docs_map)
+        workflow = (template / "docs" / "engineering" / "openspec-workflow.md").read_text(encoding="utf-8")
+        for topic in [
+            "## OpenSpec model used by Dev Platform", "### Layout and artifact roles", "### Requirements and scenarios",
+            "### Changing the contract during implementation", "### Verify, archive, publish", "### Upstream OpenSpec versus Dev Platform",
+            "proposal.md", "design.md", "tasks.md", "verification.md", "archive/", "ADDED", "MODIFIED", "REMOVED",
+            "#### Scenario:", "WHEN", "THEN", "completeness, correctness and coherence", "supplementary",
+        ]:
+            with self.subTest(topic=topic): self.assertIn(topic, workflow)
+        self.assertLess(workflow.index("## OpenSpec model used by Dev Platform"), workflow.index("## Contract model"))
+        for script in set(re.findall(r"scripts/([a-z_]+\.py)", workflow + docs_map)):
+            with self.subTest(script=script): self.assertTrue((template / "scripts" / script).exists(), script)
+
     def test_upgrade_smoke_is_part_of_ci(self) -> None:
         ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"); self.assertIn("tests/upgrade_smoke.py", ci); self.assertIn("fetch-depth: 0", ci)
 
