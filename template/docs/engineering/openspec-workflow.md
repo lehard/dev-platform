@@ -188,6 +188,8 @@ The helper requires all tasks to be complete and the PASS receipt plus method, r
 
 `finish_task.py` and CI run lifecycle hygiene. If all task checkboxes in an active change are complete but the change is still active, publication is blocked. This turns “remember to archive” into a repository invariant rather than a human reminder.
 
+While `archive <change>` runs the mandatory selected or protected checks, the hygiene check inside them (`openspec_lifecycle.py check`, which stays in the check groups) exempts exactly that archive target, so a verified change does not deadlock on its own archive. The helper validates the target (a valid name of an existing, completed active change) before any state changes and passes it only through the reserved `DEV_PLATFORM_ARCHIVE_TARGET` variable in the environment of that single validation subprocess. A set variable that does not name a completed active change makes hygiene fail explicitly, any other completed-but-active change still blocks, and nothing persists after a failed archive: the next ordinary `check` blocks again. Do not export this variable by hand.
+
 Where `/opsx:verify` is the selected method, the expanded OpenSpec verify workflow must be enabled for the repository (`openspec config profile`, then `openspec update`). `platform_doctor.py` detects whether that generated workflow is present, but absence is not a reason to skip semantic verification: use the documented equivalent review if the current agent surface cannot invoke it.
 
 ## OpenSpec version policy

@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import builtins
 import importlib.util
+import os
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -485,6 +488,165 @@ class OpenSpecLifecycleTests(unittest.TestCase):
             archived.mkdir(parents=True)
             (archived / "tasks.md").write_text("- [x] done\n", encoding="utf-8")
             self.assertEqual([], lifecycle.completed_active_changes(root))
+
+    # --- Archive-scoped hygiene exemption (BR-386 / archive-exact-target-hygiene) ---
+
+    def test_archive_target_exempts_only_exact_change_in_hygiene(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.make_change(root, "target", "- [x] done\n")
+            self.make_change(root, "other", "- [x] done\n")
+            self.assertEqual(1, lifecycle.check_hygiene(root))
+            with mock.patch.dict(os.environ, {lifecycle.ARCHIVE_TARGET_ENV: "target"}):
+                for stage in (lifecycle.STAGE_CANDIDATE, lifecycle.STAGE_INTEGRATION):
+                    self.assertEqual(1, lifecycle.check_hygiene(root, stage))
+            shutil.rmtree(root / "openspec" / "changes" / "other")
+            with mock.patch.dict(os.environ, {lifecycle.ARCHIVE_TARGET_ENV: "target"}):
+                self.assertEqual(0, lifecycle.check_hygiene(root))
+            self.assertEqual(1, lifecycle.check_hygiene(root))
+
+    def test_invalid_archive_target_fails_closed_in_hygiene(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.make_change(root, "done", "- [x] done\n")
+            self.make_change(root, "open", "- [ ] todo\n")
+            for target in ("", "missing", "open", "archive", "../done", "done/", "DONE", "a b"):
+                with self.subTest(target=target), mock.patch.dict(os.environ, {lifecycle.ARCHIVE_TARGET_ENV: target}):
+                    with self.assertRaisesRegex(SystemExit, "archive target"):
+                        lifecycle.check_hygiene(root)
+
+    def test_archive_rejects_invalid_target_before_any_state_change(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.make_change(root, "open", "- [ ] todo\n")
+            with mock.patch.object(lifecycle, "run_checked") as run_checked, \
+                    mock.patch.object(lifecycle, "ensure_review_evidence") as review:
+                for target in ("missing", "open", "../open", ""):
+                    with self.subTest(target=target), self.assertRaisesRegex(SystemExit, "archive target"):
+                        lifecycle.archive_change(root, target)
+            run_checked.assert_not_called()
+            review.assert_not_called()
+
+    def test_archive_target_environment_is_a_copy_not_the_process_environment(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.make_change(root, "done", "- [x] done\n")
+            env = lifecycle.archive_target_environment(root, "done")
+            self.assertEqual("done", env[lifecycle.ARCHIVE_TARGET_ENV])
+            self.assertNotEqual("done", os.environ.get(lifecycle.ARCHIVE_TARGET_ENV))
+
+    # End-to-end: real select_checks.py and the real standard template check mapping.
+
+    FAKE_OPENSPEC = (
+        "#!/bin/sh\n"
+        'if [ "$1" = archive ]; then\n'
+        '  mkdir -p openspec/changes/archive && mv "openspec/changes/$2" "openspec/changes/archive/2026-01-01-$2"\n'
+        "fi\nexit 0\n"
+    )
+
+    def make_standard_repo(self, root: Path) -> None:
+        shutil.copytree(SCRIPTS, root / "scripts", ignore=shutil.ignore_patterns("__pycache__"))
+        (root / "dev-platform").mkdir()
+        shutil.copy(ROOT / "template" / "dev-platform" / "checks.toml", root / "dev-platform" / "checks.toml")
+        (root / ".dev-platform.toml").write_text(
+            'schema_version = 2\nplatform_version = "customer"\nproject_name = "p"\nproject_slug = "p"\n'
+            'main_branch = "main"\nharness_mode = "platform"\n',
+            encoding="utf-8",
+        )
+        bin_dir = root / "bin"
+        bin_dir.mkdir()
+        openspec = bin_dir / "openspec"
+        openspec.write_text(self.FAKE_OPENSPEC, encoding="utf-8")
+        openspec.chmod(0o755)
+        git = lambda *args: subprocess.run(["git", *args], cwd=root, check=True, capture_output=True)  # noqa: E731
+        git("init", "-q", "-b", "main")
+        git("config", "user.email", "t@example.com")
+        git("config", "user.name", "t")
+        git("add", "-A")
+        git("commit", "-q", "-m", "base")
+        origin = Path(tempfile.mkdtemp(suffix="-origin.git"))
+        self.addCleanup(shutil.rmtree, origin, True)
+        subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(origin)], check=True, capture_output=True)
+        git("remote", "add", "origin", str(origin))
+        git("push", "-q", "origin", "main")
+        git("fetch", "-q", "origin")
+
+    def commit_all(self, root: Path) -> None:
+        for args in (["add", "-A"], ["commit", "-q", "-m", "change"]):
+            subprocess.run(["git", *args], cwd=root, check=True, capture_output=True)
+
+    def run_archive_e2e(self, root: Path, name: str) -> int:
+        patches = [
+            mock.patch.object(lifecycle, "require_static_archive_readiness"),
+            mock.patch.object(lifecycle, "require_applicable_committed_diff"),
+            mock.patch.object(lifecycle, "ensure_review_evidence"),
+            mock.patch.object(lifecycle, "require_ready"),
+            mock.patch.object(lifecycle.shutil, "which", return_value=str(root / "bin" / "openspec")),
+        ]
+        gate = load_platform_module("pr_review_gate", SCRIPTS / "pr_review_gate.py")
+        patches.append(mock.patch.object(gate, "managed_candidate", return_value=False))
+        env = {k: v for k, v in os.environ.items() if k != lifecycle.ARCHIVE_TARGET_ENV}
+        with mock.patch.dict(os.environ, env, clear=True):
+            for patch in patches:
+                patch.start()
+            try:
+                return lifecycle.archive_change(root, name)
+            finally:
+                mock.patch.stopall()
+
+    def ordinary_check(self, root: Path) -> subprocess.CompletedProcess:
+        env = {k: v for k, v in os.environ.items() if k != lifecycle.ARCHIVE_TARGET_ENV}
+        return subprocess.run(
+            ["python3", "scripts/openspec_lifecycle.py", "check"], cwd=root, env=env, capture_output=True, text=True
+        )
+
+    def test_e2e_standard_mapping_reproduces_deadlock_and_archive_passes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.make_standard_repo(root)
+            self.make_change(root, "done", "- [x] done\n", "OpenSpec-Verify: PASS\nVerification-Method: test\n")
+            self.commit_all(root)
+            # Old behavior: the same select_checks invocation without the scoped target deadlocks.
+            env = {k: v for k, v in os.environ.items() if k != lifecycle.ARCHIVE_TARGET_ENV}
+            old = subprocess.run(
+                ["python3", "scripts/select_checks.py", "--base", "origin/main", "--execute"],
+                cwd=root, env=env, capture_output=True, text=True,
+            )
+            self.assertNotEqual(0, old.returncode, old.stdout + old.stderr)
+            self.assertIn("done: all tasks are complete", old.stdout + old.stderr)
+            self.assertEqual(1, self.ordinary_check(root).returncode)
+            # New behavior: archive of that exact target completes through the real mapping.
+            self.assertEqual(0, self.run_archive_e2e(root, "done"))
+            self.assertFalse((root / "openspec" / "changes" / "done").exists())
+            self.assertEqual(0, self.ordinary_check(root).returncode)
+
+    def test_e2e_second_completed_change_blocks_and_leaves_no_bypass(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.make_standard_repo(root)
+            self.make_change(root, "done", "- [x] done\n", "OpenSpec-Verify: PASS\nVerification-Method: test\n")
+            self.make_change(root, "stale", "- [x] done\n")
+            self.commit_all(root)
+            with self.assertRaises(SystemExit):
+                self.run_archive_e2e(root, "done")
+            self.assertTrue((root / "openspec" / "changes" / "done").is_dir())
+            self.assertTrue((root / "openspec" / "changes" / "stale").is_dir())
+            self.assertNotIn(lifecycle.ARCHIVE_TARGET_ENV, os.environ)
+            blocked = self.ordinary_check(root)
+            self.assertEqual(1, blocked.returncode)
+            self.assertIn("done:", blocked.stdout)
+            self.assertIn("stale:", blocked.stdout)
+
+    def test_e2e_invalid_target_changes_no_canonical_state(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.make_standard_repo(root)
+            self.make_change(root, "done", "- [x] done\n")
+            for target in ("missing", "../done", ""):
+                with self.subTest(target=target), self.assertRaisesRegex(SystemExit, "archive target"):
+                    self.run_archive_e2e(root, target)
+            self.assertTrue((root / "openspec" / "changes" / "done").is_dir())
+            self.assertEqual(1, self.ordinary_check(root).returncode)
 
 
 if __name__ == "__main__":

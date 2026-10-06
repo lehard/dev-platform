@@ -173,6 +173,8 @@ python3 template/scripts/openspec_lifecycle.py archive <change>
 
 Completed-but-active changes are treated as lifecycle debt and are blocked by platform CI.
 
+While `archive <change>` runs the mandatory selected or protected checks, the hygiene check inside them (`openspec_lifecycle.py check`, which stays in the check groups) exempts exactly that archive target, so a verified change does not deadlock on its own archive. The helper validates the target (a valid name of an existing, completed active change) before any state changes and passes it only through the reserved `DEV_PLATFORM_ARCHIVE_TARGET` variable in the environment of that single validation subprocess. A set variable that does not name a completed active change makes hygiene fail explicitly, any other completed-but-active change still blocks, and nothing persists after a failed archive: the next ordinary `check` blocks again. Do not export this variable by hand.
+
 Do not fabricate a verification receipt. The verification report must state what was actually checked and which method was used.
 
 ## OpenSpec dependency policy

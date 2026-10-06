@@ -311,6 +311,30 @@ def require_publication_review_evidence(change: Path, *, root: Path | None = Non
 STAGE_CANDIDATE = "candidate"
 STAGE_INTEGRATION = "integration"
 
+# Reserved context variable: set only in the environment of the single validation
+# subprocess that ``archive`` launches, so hygiene exempts exactly the archive target.
+ARCHIVE_TARGET_ENV = "DEV_PLATFORM_ARCHIVE_TARGET"
+ARCHIVE_TARGET_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
+
+
+def require_archive_target(root: Path, target: str, *, source: str) -> None:
+    """Fail closed unless ``target`` names exactly one existing completed active change."""
+    if not ARCHIVE_TARGET_RE.fullmatch(target) or target == "archive":
+        raise SystemExit(f"{source}: archive target {target!r} is not a valid OpenSpec change name")
+    matches = [path for path in active_changes(root) if path.name == target]
+    if len(matches) != 1:
+        raise SystemExit(f"{source}: archive target {target!r} is not an existing active OpenSpec change")
+    if target not in completed_active_changes(root):
+        raise SystemExit(f"{source}: archive target {target!r} is not a completed active change (no tasks or tasks incomplete)")
+
+
+def archive_target_environment(root: Path, target: str) -> dict[str, str]:
+    """Validated environment for the one validation subprocess of an archive invocation."""
+    require_archive_target(root, target, source="archive")
+    env = dict(os.environ)
+    env[ARCHIVE_TARGET_ENV] = target
+    return env
+
 
 def completed_active_changes(root: Path) -> list[str]:
     stale: list[str] = []
@@ -364,6 +388,10 @@ def check_hygiene(root: Path, stage: str | None = None) -> int:
     if stage is None:
         stage = STAGE_CANDIDATE if _candidate_context(root) else STAGE_INTEGRATION
     stale = completed_active_changes(root)
+    archive_target = os.environ.get(ARCHIVE_TARGET_ENV)
+    if archive_target is not None:
+        require_archive_target(root, archive_target, source=f"hygiene ({ARCHIVE_TARGET_ENV})")
+        stale = [name for name in stale if name != archive_target]
     if stage == STAGE_CANDIDATE:
         stale = [name for name in stale if not (root / "openspec" / "changes" / name / ".managed-task.json").is_file()]
     if not stale:
@@ -477,9 +505,9 @@ def require_applicable_committed_diff(root: Path) -> None:
         raise SystemExit("OpenSpec archive could not determine committed diff against origin/main.")
 
 
-def run_checked(command: list[str], root: Path) -> None:
+def run_checked(command: list[str], root: Path, *, env: dict[str, str] | None = None) -> None:
     print("+ " + " ".join(command), flush=True)
-    result = subprocess.run(command, cwd=root, stdin=subprocess.DEVNULL)
+    result = subprocess.run(command, cwd=root, stdin=subprocess.DEVNULL, env=env)
     if result.returncode != 0:
         raise SystemExit(result.returncode)
 
@@ -492,6 +520,8 @@ def archive_change(root: Path, name: str, *, finalize: bool = False) -> int:
     and the local task-checkout identity gates do not apply because the trusted
     coordinator already proved the content-bound gates before invoking it.
     """
+    # Fail closed on a nonexistent, malformed or not-completed target before any state changes.
+    require_archive_target(root, name, source="archive")
     change = root / "openspec" / "changes" / name
     platform_owned = harness_mode(read_platform_config(root)) == "platform"
     if platform_owned and not finalize and (change / ".managed-task.json").is_file():
@@ -534,6 +564,7 @@ def archive_change(root: Path, name: str, *, finalize: bool = False) -> int:
             run_checked(
                 ["python3", "scripts/select_checks.py", "--base", "origin/main", "--execute", "--evidence", str(evidence)],
                 root,
+                env=archive_target_environment(root, name),
             )
     require_ready(change, platform_owned=platform_owned and not finalize, reviewed_composition=bool(composition))
     executable = shutil.which("openspec")
