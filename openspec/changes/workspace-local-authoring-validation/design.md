@@ -21,4 +21,4 @@ Cleanup must inspect exact helper directory and Git registration identity, remov
 
 ## Verification
 
-Regression tests cover an external system TMPDIR, exact revision despite stale local checkout, supported reviewed placement, hook failure, body exception, KeyboardInterrupt, cleanup failure, idempotent recovery, and rejection of symlink/foreign identity. Existing exact-state tests remain passing. Perform semantic contract review and required platform checks before publication.
+Regression tests cover an external system TMPDIR, exact revision despite stale local checkout, supported reviewed placement, hook failure, body exception, KeyboardInterrupt, cleanup failure, idempotent recovery, and rejection of symlink/foreign identity. Existing exact-state tests remain passing. Real-Git unit fixtures explicitly isolate directory setgid expectations from host filesystem behavior; separate shared-permission tests and the real reviewed-workspace validation retain unmodified permission checks. Perform semantic contract review and required platform checks before publication.

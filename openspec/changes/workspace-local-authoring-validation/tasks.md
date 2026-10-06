@@ -11,6 +11,6 @@
 
 ## 3. Delivery evidence
 
-- [ ] 3.1 Run relevant real-Git, workspace and managed-task regressions plus required platform checks.
-- [ ] 3.2 Verify proposal/spec/design completeness, correctness and coherence and record truthful verification evidence.
-- [ ] 3.3 Complete task and parent retrospectives and configured protected publication lifecycle.
+- [x] 3.1 Run relevant real-Git, workspace and managed-task regressions plus required platform checks.
+- [x] 3.2 Verify proposal/spec/design completeness, correctness and coherence and record truthful verification evidence.
+- [x] 3.3 Record task and parent retrospectives and prepare the candidate for the configured protected publication lifecycle. Coordinator review, archive and confirmed merge remain terminal delivery gates.

@@ -39,14 +39,14 @@ def validation_configuration(case: unittest.TestCase, root: Path) -> None:
     storage.chmod(0o2775)
     with (root / '.git/info/exclude').open('a') as handle:
         handle.write('\n.dev-platform.toml\n.claude/\n')
-    # The Mac system-temp volume strips setgid. Isolate that filesystem limit
-    # from Git/policy tests, retaining checks for group rwx, gids and ownership.
-    if not storage.stat().st_mode & stat.S_ISGID:
-        original = managed_task.shared_workspace._expected_bits
-        patcher = patch.object(managed_task.shared_workspace, '_expected_bits',
-                               side_effect=lambda path: original(path) & ~stat.S_ISGID if path.is_dir() else original(path))
-        patcher.start()
-        case.addCleanup(patcher.stop)
+    # Explicit fixture boundary: exercise Git/policy independently of directory
+    # setgid support, retaining checks for group rwx, gids and ownership.
+    # Actual shared permission enforcement is checked separately on the host.
+    original = managed_task.shared_workspace._expected_bits
+    patcher = patch.object(managed_task.shared_workspace, '_expected_bits',
+                           side_effect=lambda path: original(path) & ~stat.S_ISGID if path.is_dir() else original(path))
+    patcher.start()
+    case.addCleanup(patcher.stop)
 
 
 class ExactTargetContextTests(unittest.TestCase):
@@ -160,9 +160,8 @@ from pathlib import Path
 sys.path.insert(0, sys.argv[1])
 import managed_task
 storage = Path(sys.argv[2]) / '.claude/worktrees'
-if not storage.stat().st_mode & stat.S_ISGID:
-    original = managed_task.shared_workspace._expected_bits
-    managed_task.shared_workspace._expected_bits = lambda path: original(path) & ~stat.S_ISGID if path.is_dir() else original(path)
+original = managed_task.shared_workspace._expected_bits
+managed_task.shared_workspace._expected_bits = lambda path: original(path) & ~stat.S_ISGID if path.is_dir() else original(path)
 with managed_task.exact_target_context(Path(sys.argv[2]), sys.argv[3]) as worktree:
     print(worktree.parent, flush=True)
     sys.stdin.read()
