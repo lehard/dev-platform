@@ -9,12 +9,14 @@ agent reruns this same command after committing and archiving that child.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import subprocess
 from pathlib import Path
 from typing import Any
 
+import add_intents
 import agent_board
 import managed_project_status
 import managed_task
@@ -79,8 +81,9 @@ def _ordered_handoffs(report: dict[str, Any], requirement: str) -> list[tuple[st
     pending = set(envelopes)
     ordered: list[tuple[str, Path]] = []
     while pending:
+        # A dependency between intents of one cohesive group stays inside its change.
         ready = sorted(change for change in pending if all(
-            intent_to_change.get(dependency) not in pending
+            intent_to_change.get(dependency) not in pending or intent_to_change.get(dependency) == change
             for intent in envelopes[change]["intents"] for dependency in intent.get("dependencies", [])
         ))
         if not ready:
@@ -89,6 +92,158 @@ def _ordered_handoffs(report: dict[str, Any], requirement: str) -> list[tuple[st
             ordered.append((change, Path(raw[change]).resolve()))
             pending.remove(change)
     return ordered
+
+
+def _materialized_handoff_report(
+    integration: Path, requirement: str, base_dir: Path, linked_by_change: dict[str, str],
+) -> dict[str, Any] | None:
+    """Recover recorded handoffs only when every exact digest has a linked child."""
+    directory = base_dir / f"requirement-{requirement.rsplit('#', 1)[1]}"
+    paths = sorted((directory / "handoff").glob("*.json"))
+    direct_path = orchestrate_pre_authoring.direct_handoff_path(directory)
+    if direct_path.is_file():
+        paths.append(direct_path)
+    if not paths or not linked_by_change:
+        return None
+    # The recorded set must be complete: one handoff per ready intent of the
+    # approved intent set, so a lost handoff file cannot silently drop work.
+    try:
+        intents_document = json.loads(orchestrate_pre_authoring.intents_path(directory).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        intents_document = None
+    expected: set[str] | None = None
+    # The mandatory set comes from the exact intent set the handoffs were bound
+    # to: an intents.json edited after materialization cannot shrink it.
+    if isinstance(intents_document, dict) and isinstance(intents_document.get("intents"), list):
+        recorded_intents_digest = add_intents._content_digest(intents_document)
+        expected = {item.get("id") for item in intents_document["intents"]
+                    if isinstance(item, dict) and item.get("ready") is True and isinstance(item.get("id"), str)}
+    bodies = {
+        child: str(requirement_intake.fetch_issue(
+            integration, *requirement_intake.issue_ref(child)
+        ).get("body") or "")
+        for child in linked_by_change.values()
+    }
+    handoffs: dict[str, str] = {}
+    intent_ids: set[str] = set()
+    handoff_digests: dict[str, str] = {}
+    for path in paths:
+        try:
+            envelope = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return None
+        if not isinstance(envelope, dict):
+            return None
+        direct = envelope.get("kind") == "direct-requirement-handoff"
+        digest = envelope.get("digest")
+        if not direct and digest != add_intents._content_digest({key: value for key, value in envelope.items() if key != "digest"}):
+            return None  # edited after materialization: its contract is not the linked one
+        bindings = envelope.get("source_bindings") if isinstance(envelope.get("source_bindings"), dict) else {}
+        if not direct and (expected is None or bindings.get("intents_digest") != recorded_intents_digest):
+            return None  # the intent set changed since these handoffs were prepared
+        if direct and digest is not None:
+            return None  # a direct handoff is identified by its whole content, never a stored digest
+        if digest is None and direct:
+            digest = hashlib.sha256(json.dumps(
+                envelope, sort_keys=True, ensure_ascii=False, separators=(",", ":")
+            ).encode()).hexdigest()
+        if not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
+            return None
+        marker = f"<!-- requirement-handoff:v1:{requirement}:{digest} -->"
+        matches = [child for child, body in bodies.items() if marker in body]
+        if not matches and not direct:
+            # A refreshed handoff reused for an existing child (same authored contract)
+            # carries no marker on that child; apply the same rule as re-keying.
+            reused = _bundle_reused_child(integration, base_dir, requirement, path.stem, linked_by_change)
+            matches = [reused] if reused else []
+        if len(matches) != 1:
+            return None
+        # Handoff files are named by intent id, children by their authored change;
+        # the exact digest marker, not the file name, identifies the child.
+        change = "direct" if direct else next(
+            (name for name, child in linked_by_change.items() if child == matches[0]), None)
+        if change is None:
+            return None
+        if not direct:
+            # A cohesive group covers several intents in one envelope.
+            intent_ids.update(intent.get("id") for intent in envelope.get("intents", []) if isinstance(intent, dict))
+        if change in handoff_digests:
+            if handoff_digests[change] == digest:
+                continue  # the same grouped envelope recorded under another intent's file name
+            return None
+        handoff_digests[change] = digest
+        if change in handoffs:
+            return None
+        handoffs[change] = str(path)
+    if "direct" not in handoffs:
+        if expected is None or intent_ids != expected:
+            return None
+        known = {intent.get("id") for path in handoffs.values()
+                 for intent in json.loads(Path(path).read_text(encoding="utf-8")).get("intents", []) if isinstance(intent, dict)}
+        for path in handoffs.values():
+            for intent in json.loads(Path(path).read_text(encoding="utf-8")).get("intents", []):
+                if any(dependency not in known for dependency in (intent.get("dependencies") or [])):
+                    return None
+    return {"current_stage": "complete", "handoffs": handoffs}
+
+
+def _bundle_reused_child(
+    integration: Path, base_dir: Path, requirement: str, intent: str, linked_by_change: dict[str, str],
+) -> str | None:
+    """The linked child an intent's authored bundle names, if its contract is unchanged.
+
+    Same rule as materialization: an existing child is reused only while its
+    contract equals the authored bundle; a changed contract stops explicitly.
+    """
+    try:
+        bundle = managed_task.load_authoring_bundle(str(_bundle(base_dir, requirement, intent)))
+    except Exception:
+        return None
+    child = linked_by_change.get(bundle.change)
+    if child is None:
+        return None
+    package = managed_task.discover_task(integration, child)
+    if package.artifacts != bundle.artifacts or package.contents != bundle.contents:
+        raise RequirementExecutionError(
+            f"refreshed handoff {intent} changes the contract of linked child {child} ({bundle.change}); "
+            "resolve the conflict explicitly")
+    return child
+
+
+def _rekey_by_linked_child(
+    integration: Path, requirement: str, handoffs: dict[str, str], linked_by_change: dict[str, str],
+    base_dir: Path | None = None,
+) -> dict[str, str]:
+    """Key each handoff whose exact digest marker is on a linked child by that child's change."""
+    bodies = {
+        child: str(requirement_intake.fetch_issue(integration, *requirement_intake.issue_ref(child)).get("body") or "")
+        for child in linked_by_change.values()
+    }
+    owner = {child: change for change, child in linked_by_change.items()}
+    rekeyed: dict[str, str] = {}
+    digests: dict[str, Any] = {}
+    for key, location in handoffs.items():
+        try:
+            digest = json.loads(Path(location).read_text(encoding="utf-8")).get("digest")
+        except (OSError, json.JSONDecodeError):
+            digest = None
+        marker = f"<!-- requirement-handoff:v1:{requirement}:{digest} -->" if isinstance(digest, str) else None
+        matches = [child for child, body in bodies.items() if marker and marker in body]
+        # Names never pair children by coincidence: an exact marker maps a handoff; after a
+        # pre-authoring refresh changed its digest, the intent's authored bundle names the
+        # change the child was materialized as.
+        name = owner[matches[0]] if len(matches) == 1 else key
+        if not matches and base_dir is not None:
+            reused = _bundle_reused_child(integration, base_dir, requirement, key, linked_by_change)
+            if reused:
+                name = owner[reused]
+        if name in rekeyed:
+            if digests[name] == digest and digest is not None:
+                continue  # one cohesive group recorded under several intent names
+            raise RequirementExecutionError(f"handoffs {key} and another both map to change {name}")
+        rekeyed[name] = location
+        digests[name] = digest
+    return rekeyed
 
 
 def _bundle(base_dir: Path, requirement: str, change: str) -> Path:
@@ -341,13 +496,27 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
         )
     except (requirement_intake.RequirementIntakeError, requirement_target_lifecycle.RequirementTargetLifecycleError) as exc:
         raise RequirementExecutionError(str(exc)) from exc
-    report = orchestrate_pre_authoring.status(
-        integration, requirement_id=f"requirement-{requirement.rsplit('#', 1)[1]}", base_dir=base_dir,
-    )
+    try:
+        report = orchestrate_pre_authoring.status(
+            integration, requirement_id=f"requirement-{requirement.rsplit('#', 1)[1]}", base_dir=base_dir,
+        )
+    except orchestrate_pre_authoring.OrchestratorError as exc:
+        # Unreadable obsolete pre-authoring state must not block a Requirement whose
+        # handoffs are already materialized; recovery below decides.
+        report = {"current_stage": "unavailable", "blocker": str(exc)}
     # Claim the card before child discovery so a resumed Requirement is not left in the free queue.
     requirement_board.claim_started(integration, requirement=requirement)
-    ordered = _ordered_handoffs(report, requirement)
     linked_by_change = _linked_children_by_change(integration, requirement, parent)
+    if report.get("current_stage") != "complete":
+        materialized = _materialized_handoff_report(integration, requirement, base_dir, linked_by_change)
+        if materialized is not None:
+            report = materialized
+    elif isinstance(report.get("handoffs"), dict) and report["handoffs"] and "direct" not in report["handoffs"] and linked_by_change:
+        # Fresh reports key handoffs by intent id, children by authored change name:
+        # re-key each already materialized handoff through its exact digest marker.
+        report = {**report, "handoffs": _rekey_by_linked_child(
+            integration, requirement, report["handoffs"], linked_by_change, base_dir)}
+    ordered = _ordered_handoffs(report, requirement)
     direct = ordered[0][0] == "direct" if len(ordered) == 1 else False
     if direct:
         if len(linked_by_change) == 1:
@@ -379,6 +548,15 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
     ready: list[Path] = []
     completed: list[str] = []
     receipts_by_change: dict[str, Path] = {}
+    intent_owner: dict[str, str] = {}
+    for owner_change, owner_handoff in ordered:
+        try:
+            owner_intents = json.loads(owner_handoff.read_text(encoding="utf-8")).get("intents", [])
+        except (OSError, json.JSONDecodeError):
+            owner_intents = []
+        for owner_intent in owner_intents if isinstance(owner_intents, list) else []:
+            if isinstance(owner_intent, dict) and isinstance(owner_intent.get("id"), str):
+                intent_owner[owner_intent["id"]] = owner_change
     for change, handoff in ordered:
         child = linked_by_change.get(change)
         if child is None:
@@ -409,8 +587,10 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
             continue
         draft = _publish_early_draft(integration, requirement, ordered, linked_by_change, ready, completed) if ready else None
         envelope = json.loads(handoff.read_text(encoding="utf-8"))
-        predecessors = [receipts_by_change[dependency] for intent in envelope.get("intents", [])
-                        for dependency in intent.get("dependencies", []) if dependency in receipts_by_change]
+        # Dependencies name intents; receipts are kept per authored change name.
+        predecessors = [receipts_by_change[intent_owner.get(dependency, dependency)]
+                        for intent in envelope.get("intents", []) for dependency in intent.get("dependencies", [])
+                        if intent_owner.get(dependency, dependency) in receipts_by_change]
         if len(set(predecessors)) > 1:
             raise RequirementExecutionError(f"{change} has multiple ready predecessors; select an exact dependency boundary")
         predecessor = predecessors[0] if predecessors else None
@@ -446,6 +626,11 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
         return audited(reconcile_parent(integration, requirement=requirement))
     if len(ready) < 2:
         if not ready and completed:
+            if len(completed) == len(ordered) and str(parent.get("state", "")).upper() != "CLOSED":
+                # Every mandatory child is delivered: finish the parent (idempotent),
+                # e.g. after shared delivery was interrupted before reconciliation.
+                from requirement_terminal import reconcile_parent
+                return audited(reconcile_parent(integration, requirement=requirement))
             return audited({"status": "already-delivered", "requirement": requirement, "children": completed})
         raise RequirementExecutionError("shared delivery requires at least two verified nonterminal child receipts")
     requirement_retrospective.require_checkpoint(integration, requirement=requirement)

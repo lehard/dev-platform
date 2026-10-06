@@ -108,6 +108,7 @@ targets = [
   "test_managed_execution_intake",
   "test_platform_bootstrap",
   "test_platform_common",
+  "test_github_retry",
   "test_operator_config",
   "test_add_intents",
   "test_orchestrate_pre_authoring",

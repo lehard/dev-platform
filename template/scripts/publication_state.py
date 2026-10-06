@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from _platform_common import pr_merge_mode, run_git
+from _platform_common import pr_merge_mode, run_git, run_github_with_retry
 
 
 PR_VIEW_FIELDS = "number,url,state,headRefOid,baseRefName,headRefName,headRepositoryOwner,autoMergeRequest,mergeStateStatus,isDraft"
@@ -97,14 +97,7 @@ def required_check_state_for_ref(root: Path, env: dict[str, str], ref: str, expe
     observation and this check -- used for rollout PR reconciliation, where
     the platform never checks out the PR's branch locally.
     """
-    pr = subprocess.run(
-        ["gh", "pr", "view", ref, "--json", "state,headRefOid"],
-        cwd=root,
-        env=env,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+    pr = run_github_with_retry(["gh", "pr", "view", ref, "--json", "state,headRefOid"], cwd=root, env=env)
     if pr.returncode != 0:
         return RequiredCheckState("unknown", "GitHub PR state is unavailable")
     try:
@@ -115,14 +108,7 @@ def required_check_state_for_ref(root: Path, env: dict[str, str], ref: str, expe
     if remote_head != expected_head:
         return RequiredCheckState("unknown", "GitHub PR head does not match the expected observed head")
 
-    checks = subprocess.run(
-        ["gh", "pr", "checks", ref, "--required", "--json", "name,state,workflow,link"],
-        cwd=root,
-        env=env,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+    checks = run_github_with_retry(["gh", "pr", "checks", ref, "--required", "--json", "name,state,workflow,link"], cwd=root, env=env)
     if checks.returncode != 0:
         return RequiredCheckState("unknown", "GitHub required-check state is unavailable")
     try:
@@ -169,10 +155,10 @@ def _pr_candidates(root: Path, env: dict[str, str], branch: str, base_branch: st
     reused GitHub can select a historical merged PR.  The list response gives
     every candidate that must be compared against the full identity tuple.
     """
-    result = subprocess.run(
+    result = run_github_with_retry(
         ["gh", "pr", "list", "--state", "all", "--head", branch, "--base", base_branch,
          "--limit", "100", "--json", PR_VIEW_FIELDS],
-        cwd=root, env=env, text=True, capture_output=True, check=False,
+        cwd=root, env=env,
     )
     if result.returncode != 0:
         return False, [], "GitHub PR candidate list is unavailable"
@@ -250,13 +236,9 @@ def current_pr_head(root: Path, env: dict[str, str], ref: str) -> str | None:
     transient read error alone; the merge command's own result is still the
     authoritative signal for whether the request was accepted.
     """
-    result = subprocess.run(
+    result = run_github_with_retry(
         ["gh", "pr", "view", ref, "--json", "headRefOid", "--jq", ".headRefOid"],
-        cwd=root,
-        env=env,
-        text=True,
-        capture_output=True,
-        check=False,
+        cwd=root, env=env,
     )
     if result.returncode != 0:
         return None
@@ -266,13 +248,9 @@ def current_pr_head(root: Path, env: dict[str, str], ref: str) -> str | None:
 
 def pr_head_repository_owner(root: Path, env: dict[str, str], ref: str) -> str | None:
     """Read the exact PR head repository owner for reconciliation ownership checks."""
-    result = subprocess.run(
+    result = run_github_with_retry(
         ["gh", "pr", "view", ref, "--json", "headRepositoryOwner"],
-        cwd=root,
-        env=env,
-        text=True,
-        capture_output=True,
-        check=False,
+        cwd=root, env=env,
     )
     if result.returncode != 0:
         return None
@@ -286,13 +264,9 @@ def pr_head_repository_owner(root: Path, env: dict[str, str], ref: str) -> str |
 
 
 def github_repo_name(root: Path, env: dict[str, str]) -> str | None:
-    result = subprocess.run(
+    result = run_github_with_retry(
         ["gh", "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"],
-        cwd=root,
-        env=env,
-        text=True,
-        capture_output=True,
-        check=False,
+        cwd=root, env=env,
     )
     name = result.stdout.strip()
     return name if result.returncode == 0 and name else None
@@ -307,13 +281,9 @@ def repo_auto_merge_capability(root: Path, env: dict[str, str]) -> bool | None:
     name = github_repo_name(root, env)
     if name is None:
         return None
-    result = subprocess.run(
+    result = run_github_with_retry(
         ["gh", "api", f"repos/{name}", "--jq", ".allow_auto_merge"],
-        cwd=root,
-        env=env,
-        text=True,
-        capture_output=True,
-        check=False,
+        cwd=root, env=env,
     )
     if result.returncode != 0:
         return None

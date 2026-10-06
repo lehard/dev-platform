@@ -331,7 +331,7 @@ def _snapshot_status(root: Path, directory: Path, concerns: list[str]) -> dict[s
                 + f" {scope}"
             ),
         }
-    if report["freshness"] not in ("fresh",):
+    if not project_evidence.source_bound_fresh(report["freshness"]) or report["changed_sources"]:
         return {
             "stage": "snapshot",
             "state": "stale",

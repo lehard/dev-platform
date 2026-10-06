@@ -158,8 +158,11 @@ def _repair_pr_identity(root: Path, env: dict[str, str], pr: PrRef, expected_hea
                         identity: str | None, children: list[str] | None) -> PrRef:
     if identity is None:
         return pr
-    observed = subprocess.run(["gh", "pr", "view", pr.ref, "--json", "title,body,headRefOid"],
-                              cwd=root, env=env, text=True, capture_output=True, check=True, stdin=subprocess.DEVNULL)
+    from _platform_common import run_github_with_retry
+
+    observed = run_github_with_retry(["gh", "pr", "view", pr.ref, "--json", "title,body,headRefOid"], cwd=root, env=env)
+    if observed.returncode:
+        raise subprocess.CalledProcessError(observed.returncode, observed.args, observed.stdout, observed.stderr)
     payload = json.loads(observed.stdout)
     if payload.get("headRefOid") != expected_head:
         raise SystemExit("PR head changed before BR identity repair; publication remains resumable.")

@@ -23,6 +23,7 @@ import argparse
 import hashlib
 import json
 import re
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -206,6 +207,33 @@ def _validate_snapshot_evidence_entry(item: dict[str, Any], where: str) -> list[
     return errors
 
 
+def _tracked_at(root: Path, revision: str, path: str) -> bool:
+    if not path or Path(path).is_absolute() or ".." in Path(path).parts:
+        return False
+    return subprocess.run(["git", "cat-file", "-e", f"{revision}:{path}"], cwd=root, capture_output=True).returncode == 0
+
+
+def _sources_unchanged_since(root: Path, revision: str, sources: list[Any]) -> bool:
+    """Whether each evidence source's checkout content is exactly its blob at ``revision``.
+
+    A ``#anchor`` names a section of a file and binds the whole file. A source
+    that is absent at ``revision`` (untracked, misspelled) or missing from the
+    checkout cannot be proven and keeps the ADD stale.
+    """
+    for source in sources:
+        if not isinstance(source, str):
+            return False
+        path = source.split("#", 1)[0]
+        if not path or Path(path).is_absolute() or ".." in Path(path).parts or not (root / path).is_file():
+            return False
+        recorded = subprocess.run(["git", "rev-parse", "--verify", "--quiet", f"{revision}:{path}"],
+                                  cwd=root, capture_output=True, text=True)
+        current = subprocess.run(["git", "hash-object", "--", path], cwd=root, capture_output=True, text=True)
+        if recorded.returncode or current.returncode or recorded.stdout.strip() != current.stdout.strip():
+            return False
+    return True
+
+
 def _snapshot_evidence_freshness_errors(root: Path, evidence: list[Any]) -> list[str]:
     """Re-prove each `project-evidence-snapshot` entry against project_evidence.py.
 
@@ -235,7 +263,7 @@ def _snapshot_evidence_freshness_errors(root: Path, evidence: list[Any]) -> list
         if snapshot.get("digest") != item.get("snapshot_digest"):
             errors.append(f"{where}: recorded snapshot_digest no longer matches the snapshot file (it was rebuilt or changed)")
             continue
-        if report["freshness"] != "fresh":
+        if not project_evidence.source_bound_fresh(report["freshness"]):
             errors.append(f"{where}: snapshot is {report['freshness']}, not fresh; refresh it before relying on this evidence")
             continue
         concern = item.get("projection")
@@ -292,7 +320,29 @@ def _validate_add_document(root: Path, document: dict[str, Any], *, check_freshn
     freshness: str | None = None
     if check_freshness and isinstance(prepared_against, str) and SHA_RE.fullmatch(prepared_against.lower()):
         try:
-            freshness = "fresh" if current_revision(root) == prepared_against.lower() else "stale-needs-semantic-preflight"
+            evidence_entries = [item for item in document.get("evidence", []) or [] if isinstance(item, dict)]
+            snapshot_entries = [item for item in evidence_entries if item.get("kind") == EVIDENCE_KIND_SNAPSHOT]
+            bound_sources = [item.get("source") for item in evidence_entries if item.get("kind") != EVIDENCE_KIND_SNAPSHOT] + [
+                item.get("source") for item in document.get("reused_constraints", []) or [] if isinstance(item, dict)
+            ]
+            same_revision = current_revision(root) == prepared_against.lower()
+            # Source-bound freshness: snapshot evidence is re-proven and every other
+            # bound source (evidence files, reused constraints) still has its
+            # prepared content -- also at the prepared revision, so uncommitted
+            # edits count. Without any snapshot, exact revision equality remains
+            # the only proof for snapshot-less ADDs.
+            if snapshot_entries:
+                bound = not _snapshot_evidence_freshness_errors(root, snapshot_entries) and _sources_unchanged_since(
+                    root, prepared_against.lower(), bound_sources)
+            else:
+                # Sources that existed at the prepared revision must still match (a deletion
+                # counts); free-form sources that were never tracked are not file evidence.
+                bound = same_revision and _sources_unchanged_since(root, prepared_against.lower(), [
+                    source for source in bound_sources
+                    if isinstance(source, str) and _tracked_at(root, prepared_against.lower(), source.split("#", 1)[0])])
+            freshness = "fresh" if (
+                bound
+            ) else "stale-needs-semantic-preflight"
         except Exception:  # pragma: no cover - defensive: git must remain advisory here
             freshness = "unknown"
 
@@ -474,9 +524,10 @@ def decompose(root: Path, *, add_path: Path, out: Path, business_context: str = 
     if add_document.get("approved") is not True:
         raise AddIntentsError("cannot decompose an ADD that is not approved yet")
     if report.freshness not in (None, "fresh"):
+        detail = _snapshot_evidence_freshness_errors(root, add_document.get("evidence", []) or [])
         raise AddIntentsError(
-            f"cannot decompose a {report.freshness} ADD; the ADD's prepared_against revision no longer matches "
-            "the current worktree HEAD -- refresh/semantic-preflight it first"
+            f"cannot decompose a {report.freshness} ADD; its bound source evidence cannot be proven current "
+            "-- refresh/semantic-preflight it first" + (": " + "; ".join(detail) if detail else "")
         )
     evidence = add_document.get("evidence", []) or []
     snapshot_errors = _snapshot_evidence_freshness_errors(root, evidence)
