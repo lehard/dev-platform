@@ -1,0 +1,30 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/openspec-authoring/spec.md",
+    "specs/platform-lifecycle/spec.md"
+  ],
+  "change": "relevant-drift-and-transient-retry",
+  "imported_at": "2026-10-05T12:43:12+00:00",
+  "package_revision": "629be816f292921e4516f8eeb8d190090962d7532613a6079971ea4d369bebbb",
+  "prepared_against": "f8b91ae924c28f8bf4529ff1f532d87a81c99218",
+  "private_lineage_handle": "pln_4e612aa5281274527f9f8c2559446f86",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "4e3872d14c41cd05eb54ef7400637cca663e1ed5811ac5557748c6324f03e3e8",
+    "updated_at": "2026-10-05T06:48:19Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-353/T1"
+}

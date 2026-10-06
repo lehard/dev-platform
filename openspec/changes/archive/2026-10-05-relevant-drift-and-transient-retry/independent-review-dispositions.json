@@ -1,0 +1,14 @@
+{
+  "dispositions": [
+    {
+      "finding": "materialized-recovery-requires-current-intents",
+      "perspective": "spec-fidelity",
+      "rationale": "Every recorded handoff binds the exact intent set by source_bindings.intents_digest. After intents.json changes, the original set cannot be reconstructed, so recovery cannot distinguish a benign note from a hidden or re-scoped intent (review round 4 required rejecting exactly that edit). The active platform-lifecycle delta keeps an explicit stop for a contract conflict; a changed intent set is such a change, and fresh pre-authoring then re-binds the handoffs. Recovery covers the intended case: an unchanged materialized contract with stale or unreadable pre-authoring.",
+      "recorded_at": "2026-10-05T17:02:21+00:00",
+      "report_sha256": "93f82ed44441af2303f0018ef5f11657e7abe6a5cc3c8f1bb14163ea4ddfe81a",
+      "request_id": "3ec492f8-dd65-4c7a-86f7-3cacbb6e1fce",
+      "status": "rejected"
+    }
+  ],
+  "schema_version": 1
+}

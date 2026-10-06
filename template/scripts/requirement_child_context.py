@@ -27,7 +27,7 @@ def context_path(root: Path, change: str) -> Path:
 
 def derive_context(
     root: Path, package: Package, *, issue_body: str | None = None,
-    predecessor: ReadyForIntegrationReceipt | None = None,
+    predecessor: ReadyForIntegrationReceipt | None = None, contribution: dict | None = None,
 ) -> dict[str, Any] | None:
     """Read canonical state only; never copy a sibling body or pre-authoring artifact."""
     parents = PARENT_LINE.findall(issue_body) if issue_body is not None else ([package.parent_requirement] if getattr(package, "parent_requirement", None) else [])
@@ -50,7 +50,20 @@ def derive_context(
             raise ManagedTaskError("dependent child receipt belongs to a different Requirement")
         if run_git(["merge-base", "--is-ancestor", predecessor.head, "HEAD"], cwd=root, check=False).returncode:
             raise ManagedTaskError("dependent child does not contain the exact predecessor head")
+    if contribution is not None:
+        if contribution.get("requirement") != parent:
+            raise ManagedTaskError("contribution context belongs to another Requirement")
+        expected = "requirement/BR-" + parent.rsplit("#", 1)[1]
+        if contribution.get("target_branch") != expected or contribution.get("branch") != "origin/" + expected:
+            raise ManagedTaskError("contribution target is outside its Requirement")
+        if run_git(["merge-base", "--is-ancestor", contribution["head"], "HEAD"], cwd=root, check=False).returncode:
+            raise ManagedTaskError("contribution does not contain its exact integration base")
+        for dependency in contribution.get("dependencies", []):
+            if run_git(["merge-base", "--is-ancestor", dependency["integrated_head"], "HEAD"],
+                       cwd=root, check=False).returncode:
+                raise ManagedTaskError("contribution does not contain an integrated dependency")
     return {
+        **({"contribution": contribution} if contribution else {}),
         "version": CONTEXT_VERSION,
         "requirement": parent,
         "source_issue": package.source_issue,
@@ -58,7 +71,7 @@ def derive_context(
         "repository_head": head,
         "managed_package": canonical.path.resolve().relative_to(root.resolve()).as_posix(),
         "managed_provenance_sha256": _sha256(provenance),
-        "dependencies": ([{
+        "dependencies": contribution["dependencies"] if contribution else ([{
             "source_issue": predecessor.source_issue,
             "change": predecessor.change,
             "head": predecessor.head,
@@ -69,9 +82,12 @@ def derive_context(
 
 def refresh_context(
     root: Path, package: Package, *, predecessor: ReadyForIntegrationReceipt | None = None,
+    contribution: dict | None = None,
 ) -> Path | None:
     """Refresh the local view from discovered linkage and exact imported package."""
-    context = derive_context(root, package, predecessor=predecessor)
+    if contribution is None and context_path(root, package.change).is_file():
+        contribution = json.loads(context_path(root, package.change).read_text()).get("contribution")
+    context = derive_context(root, package, predecessor=predecessor, contribution=contribution)
     path = context_path(root, package.change)
     if context is None:
         return None
@@ -88,7 +104,8 @@ def validate_context(
         cached = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise ManagedTaskError(f"Requirement child context is unavailable: {exc}") from exc
-    expected = derive_context(root, package, issue_body=issue_body, predecessor=predecessor)
+    expected = derive_context(root, package, issue_body=issue_body, predecessor=predecessor,
+                              contribution=cached.get("contribution"))
     if expected is None or cached != expected:
         raise ManagedTaskError("Requirement child context is stale; refresh it from canonical source and dependency receipts")
     return expected

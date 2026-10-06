@@ -213,7 +213,11 @@ def _graphql(root: Path, env: dict[str, str], query: str, variables: dict[str, o
             # ID (for example "98236657") must remain a String.
             flag = "-F" if isinstance(value, int) and not isinstance(value, bool) else "-f"
             command += [flag, f"{key}={value}"]
-    result = subprocess.run(command, cwd=root, env=env, text=True, capture_output=True, check=False)
+    from _platform_common import run_github_with_retry
+
+    # Queries are reads and retry classified transient failures; mutations run once.
+    is_query = not query.lstrip().startswith("mutation")
+    result = run_github_with_retry(command, cwd=root, env=env, read=is_query)
     if result.returncode != 0:
         detail = result.stderr.strip() or result.stdout.strip() or f"exit {result.returncode}"
         if "scope" in detail.lower() or "resource not accessible" in detail.lower():

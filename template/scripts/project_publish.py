@@ -150,7 +150,7 @@ def _safe_presentation(root: Path, title: str, body: str, identity: str,
     title, body = managed_work_identity.presentation(title, body, identity, children)
     guard = root / "scripts" / "check_private_backlog_refs.py"
     if guard.is_file():
-        subprocess.run(["python3", str(guard), "--root", str(root), "--text", title, "--text", body], cwd=root, check=True)
+        subprocess.run(["python3", str(guard), "--root", str(root), "--text", title, "--text", body], cwd=root, check=True, stdin=subprocess.DEVNULL)
     return title, body
 
 
@@ -158,15 +158,18 @@ def _repair_pr_identity(root: Path, env: dict[str, str], pr: PrRef, expected_hea
                         identity: str | None, children: list[str] | None) -> PrRef:
     if identity is None:
         return pr
-    observed = subprocess.run(["gh", "pr", "view", pr.ref, "--json", "title,body,headRefOid"],
-                              cwd=root, env=env, text=True, capture_output=True, check=True)
+    from _platform_common import run_github_with_retry
+
+    observed = run_github_with_retry(["gh", "pr", "view", pr.ref, "--json", "title,body,headRefOid"], cwd=root, env=env)
+    if observed.returncode:
+        raise subprocess.CalledProcessError(observed.returncode, observed.args, observed.stdout, observed.stderr)
     payload = json.loads(observed.stdout)
     if payload.get("headRefOid") != expected_head:
         raise SystemExit("PR head changed before BR identity repair; publication remains resumable.")
     title, body = _safe_presentation(root, payload["title"], payload.get("body") or "", identity, children)
     if (title, body) != (payload["title"], payload.get("body") or ""):
         subprocess.run(["gh", "pr", "edit", pr.ref, "--title", title, "--body", body],
-                       cwd=root, env=env, text=True, capture_output=True, check=True)
+                       cwd=root, env=env, text=True, capture_output=True, check=True, stdin=subprocess.DEVNULL)
     return pr
 
 
@@ -218,6 +221,7 @@ def ensure_pr(
         text=True,
         capture_output=True,
         check=False,
+        stdin=subprocess.DEVNULL,
     )
     if created.returncode == 0:
         # The create command's URL is not yet proof that it names the current
@@ -243,7 +247,7 @@ def ensure_pr(
 
 def _set_pr_draft(root: Path, env: dict[str, str], pr: PrRef, *, draft: bool) -> None:
     command = ["gh", "pr", "ready", pr.ref] + (["--undo"] if draft else [])
-    result = subprocess.run(command, cwd=root, env=env, text=True, capture_output=True, check=False)
+    result = subprocess.run(command, cwd=root, env=env, text=True, capture_output=True, check=False, stdin=subprocess.DEVNULL)
     if result.returncode:
         detail = result.stderr.strip() or result.stdout.strip() or f"exit {result.returncode}"
         raise SystemExit(f"Could not set shared PR {'draft' if draft else 'ready'} state: {detail}")
@@ -298,6 +302,7 @@ def exact_merged_state(root: Path, env: dict[str, str], pr: PrRef, expected_head
         text=True,
         capture_output=True,
         check=False,
+        stdin=subprocess.DEVNULL,
     )
     if result.returncode != 0:
         return False
@@ -378,7 +383,7 @@ def request_protected_merge(
                 text=True,
                 capture_output=True,
                 check=False,
-            )
+             stdin=subprocess.DEVNULL)
         if result.stdout.strip():
             print(result.stdout.strip())
         detail = result.stderr.strip() or result.stdout.strip() or f"exit {result.returncode}"
@@ -402,7 +407,7 @@ def request_protected_merge(
         observed = subprocess.run(
             ["gh", "pr", "view", pr.ref, "--json", "headRefOid"],
             cwd=root, env=env, text=True, capture_output=True, check=False,
-        )
+         stdin=subprocess.DEVNULL)
         try:
             actual_head = str(json.loads(observed.stdout).get("headRefOid", "")).strip() if observed.returncode == 0 else None
         except json.JSONDecodeError:
@@ -443,6 +448,12 @@ def validate_shared_manifest(root: Path, path: Path) -> dict:
         raise RequirementIntegrationError("shared manifest is absent or not committed at exact HEAD") from exc
     if not isinstance(payload, dict) or payload != committed:
         raise RequirementIntegrationError("shared manifest differs from exact committed HEAD")
+    if payload.get("version") == 2:
+        from requirement_contributions import validate
+        validate(payload)
+        if path != requirement_integration._candidate_manifest_path(payload["requirement"], root) or branch(root) != payload["integration_branch"]:
+            raise RequirementIntegrationError("reviewed contribution manifest branch or path changed")
+        return payload
     unsigned = {key: value for key, value in payload.items() if key != "digest"}
     requirement = payload.get("requirement")
     children = payload.get("children")
@@ -500,18 +511,42 @@ def publish_pr(
     *,
     config: dict | None = None,
     shared_manifest: Path | None = None,
+    developer_handoff: bool = False,
 ) -> int:
+    # The coordinator stack loads only for a developer handoff; ordinary
+    # downstream publication never depends on it.
+    WorkerError: type[Exception] = ManagedTaskError
+    if developer_handoff:
+        from lifecycle_workers import WorkerError
+
     try:
-        delivery = require_delivery_provenance(root)
-        if delivery is not None:
+        if developer_handoff:
+            from managed_task import resolve_canonical_provenance
+            from pr_review_gate import managed_candidate, handoff_gates
+
+            if shared_manifest is not None or not managed_candidate(root):
+                raise ManagedTaskError("developer handoff requires a coordinator-managed active child")
+            delivery = resolve_canonical_provenance(root)
+            handoff_identity, gates = handoff_gates(root, delivery.path)
+            if handoff_identity.get("kind") == "contribution":
+                main_branch = handoff_identity["target_branch"]
+        else:
+            delivery = require_delivery_provenance(root)
+        if delivery is not None and not developer_handoff:
             require_independent_publication_exception(root, delivery)
-    except (ManagedTaskError, RequirementIntegrationError) as exc:
+    except (ManagedTaskError, RequirementIntegrationError, WorkerError) as exc:
         raise SystemExit("Managed task publication blocked: " + str(exc)) from exc
     incomplete = False
     shared_candidate: dict = {}
     if shared_manifest is not None:
         try:
             shared_candidate = validate_shared_manifest(root, shared_manifest)
+            if shared_candidate.get("version") == 2:
+                from requirement_composition import publish_composition
+                result = publish_composition(main_root(), shared_candidate["repository"], shared_candidate,
+                                             run_git(["rev-parse", "HEAD"], cwd=root).stdout.strip())
+                print(json.dumps(result, sort_keys=True))
+                return 0
             incomplete = not requirement_integration.manifest_complete(shared_candidate)
         except RequirementIntegrationError as exc:
             raise SystemExit("Shared Requirement publication blocked: " + str(exc)) from exc
@@ -536,7 +571,7 @@ def publish_pr(
         subprocess.run(
             ["python3", str(privacy_guard), "--root", str(root), "--text", proposed_title, "--text", proposed_body],
             cwd=root, check=True,
-        )
+         stdin=subprocess.DEVNULL)
     current = _validate_feature_branch(root, remote, main_branch)
     env = require_gh_environment(root)
     expected_head = run_git(["rev-parse", current], cwd=root).stdout.strip()
@@ -556,7 +591,8 @@ def publish_pr(
     # (open with an older head) already proves first publication, so no fresh-base rule applies.
     grows_existing = shared_manifest is not None and lookup.stale_open is not None
     if lookup.exact_merged is None:
-        push_feature_branch(root, remote, main_branch, require_fresh_base=lookup.exact_open is None and not grows_existing)
+        push_feature_branch(root, remote, main_branch, require_fresh_base=lookup.exact_open is None and not grows_existing
+                            and not (developer_handoff and handoff_identity.get("kind") == "contribution"))
         if grows_existing:
             lookup = find_exact_head_pr(root, env, current, main_branch, expected_head)
             if not lookup.available or lookup.exact_open is None:
@@ -591,6 +627,14 @@ def publish_pr(
             f"Managed Project status {'updated' if project.changed else 'already current'}: "
             f"{project.source_issue} -> In review"
         )
+    if developer_handoff:
+        from publication_queue import admit
+
+        if pr.number is None:
+            raise SystemExit("Developer handoff requires a numbered exact-head PR")
+        admit(root, pr.number, expected_head, handoff={"task_identity": handoff_identity, "gates": gates})
+        print(f"Developer handoff complete: PR #{pr.number}; coordinator owns review and repair.")
+        return 0
     if merge_mode == "manual":
         print("PR published for manual review; pr_merge_mode=manual, so no merge was attempted.")
         return 0

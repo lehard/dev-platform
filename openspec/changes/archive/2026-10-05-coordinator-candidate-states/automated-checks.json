@@ -1,0 +1,101 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 4.076,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 1.169,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 502.138,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        ".github/workflows/publication-queue.yml",
+        "dev-platform/checks.toml",
+        "scripts/candidate_lifecycle.py",
+        "template/scripts/candidate_lifecycle.py",
+        "template/scripts/finish_task.py",
+        "template/scripts/publication_queue.py",
+        "tests/test_candidate_lifecycle.py",
+        "tests/test_publication_queue.py",
+        "tests/test_rollout_preflight.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_a634fc03eeee7c253b93312430e289d4",
+    "change": "coordinator-candidate-states",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/coordinator-candidate-states",
+    "branch": "agent/br-353-t2-coordinator-candidate-states",
+    "head": "1d29c8403ae6e830e47b23e3d7c3460450c1edc1",
+    "task_content": {
+      "version": 1,
+      "digest": "b44d21f18df084322086dc97e30980fdcd3dd6cbb6b197903292f930d916fcef",
+      "paths": {
+        ".github/workflows/publication-queue.yml": "85b475a0e417ac8c43a940eafaaee094d57ebf20",
+        "dev-platform/checks.toml": "31b8f08c1febbd7c4297a149afecafc4dd469845",
+        "docs/engineering/agent-workflow.md": "81d4f82142613cfef9edb2c52eb7ac5d2b1d94f0",
+        "openspec/changes/coordinator-candidate-states/.managed-task.json": "bc0c39d3b6cd42acf456a6fc0d726cc7bdf8a3cd",
+        "openspec/changes/coordinator-candidate-states/.openspec.yaml": "e3966d7a159d3f2cfcfef99b6a84e530965c6b0d",
+        "openspec/changes/coordinator-candidate-states/design.md": "bb3a7dd9f90ea3aa7fcfaa34b8638080cf2d19b3",
+        "openspec/changes/coordinator-candidate-states/independent-review-dispositions.json": "0e8a4dd75a6bdbd18372124118be88cad7717136",
+        "openspec/changes/coordinator-candidate-states/independent-review-request.json": "fbdc551c685c0b25148d2f62f5679efc2d1fe849",
+        "openspec/changes/coordinator-candidate-states/independent-reviews/engineering-quality.json": "e83c036a5313da40de287a5ec4a5ea0d6d61fe00",
+        "openspec/changes/coordinator-candidate-states/independent-reviews/spec-fidelity.json": "0532dce61dba87ec49fcf82fbae6f5097b36cb7f",
+        "openspec/changes/coordinator-candidate-states/proposal.md": "6e13a6d390cb43b27345b7f40c6821697a4df091",
+        "openspec/changes/coordinator-candidate-states/specs/publication-queue/spec.md": "18d62ee01525d0048db07547b821f12b2e8a216b",
+        "openspec/changes/coordinator-candidate-states/tasks.md": "c340ed5a7b60d2b4d71f2ec70021488b5178ea0d",
+        "openspec/changes/coordinator-candidate-states/verification.md": "37480162791f728efe4c2f6002911fc304e07b20",
+        "scripts/candidate_lifecycle.py": "f21693177b5f9281be739d3d4f88548982cbe906",
+        "template/scripts/candidate_lifecycle.py": "5ea96cb604d892bd570d81d05cbc908b84523fbc",
+        "template/scripts/finish_task.py": "aa5cb9b60faa0ec5a5d7a02bd88550d936e137d0",
+        "template/scripts/publication_queue.py": "cd0e411d7392ee74ecfb940b313b4ac3f3c19471",
+        "tests/test_candidate_lifecycle.py": "1220d55c36c14e9b1764e78c0eeba7c73dc88f19",
+        "tests/test_publication_queue.py": "fecd2f3c8ab1c6cbdfda9923bf32ebc029ac22d5",
+        "tests/test_rollout_preflight.py": "8a8db20c570361b97859d9e881e6b8d13582d1fe"
+      },
+      "base": "f8b91ae924c28f8bf4529ff1f532d87a81c99218"
+    }
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file scripts/candidate_lifecycle.py --changed-file template/scripts/candidate_lifecycle.py --changed-file template/scripts/finish_task.py --changed-file template/scripts/publication_queue.py --changed-file tests/test_candidate_lifecycle.py --changed-file tests/test_publication_queue.py --changed-file tests/test_rollout_preflight.py",
+    "duration_seconds": 260.69,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}

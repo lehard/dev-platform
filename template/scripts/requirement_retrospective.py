@@ -35,9 +35,10 @@ def _receipt_path(root: Path, number: int) -> Path:
     return root / ".claude" / "requirement-retrospective" / f"requirement-{number}.json"
 
 
-def _check_events(requirement: str, event_ids: list[str]) -> None:
+def _check_events(requirement: str, event_ids: list[str], children: list[str] | tuple[str, ...] = ()) -> None:
+    """Events attributed to the Requirement or to one of its linked children are accepted as recorded."""
     known = {str(event.get("id")) for event in agent_friction.read_events()}
-    attributed = {str(event.get("id")) for event in agent_friction.events_for_task(requirement)}
+    attributed = {str(event.get("id")) for event in agent_friction.events_for_task(requirement, children)}
     for event_id in event_ids:
         if event_id not in known:
             raise RequirementRetrospectiveError(f"unknown friction event {event_id}; record the finding first")
@@ -81,7 +82,7 @@ def checkpoint(
     review_note = agent_friction.normalize_text(review_note, "review note", 500)
     parent = requirement_intake.fetch_issue(root, *requirement_intake.issue_ref(requirement))
     identity = _identity(requirement, parent)
-    _check_events(requirement, event_ids)
+    _check_events(requirement, event_ids, identity["children"])
     parsed = _parse_dispositions(requirement, list(dispositions or []))
     accepted = sorted(set(accepted_gaps or []))
     _explain_signals(requirement, event_ids, parsed, accepted)
@@ -121,7 +122,7 @@ def require_checkpoint(root: Path, *, requirement: str, parent: dict[str, Any] |
         raise RequirementRetrospectiveError(f"Requirement retrospective result is inconsistent; {instruction}")
     if not isinstance(receipt.get("review_note"), str) or not receipt["review_note"].strip():
         raise RequirementRetrospectiveError(f"Requirement retrospective path review is missing; {instruction}")
-    _check_events(requirement, events)
+    _check_events(requirement, events, identity["children"])
     stored = receipt.get("dispositions") or []
     if not isinstance(stored, list) or not all(isinstance(i, dict) for i in stored):
         raise RequirementRetrospectiveError(f"Requirement retrospective receipt is malformed; {instruction}")

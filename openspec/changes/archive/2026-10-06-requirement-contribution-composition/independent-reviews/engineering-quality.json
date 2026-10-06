@@ -1,0 +1,94 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "98db9ed844c92cf916b34b62d2545d622d576619",
+    "base_ref": "origin/main",
+    "candidate_head": "569069053d9de3e0f9939d4cdd6e3c3633c865e7",
+    "diff_sha256": "c2127d0265a935deed75c276426b6eb0a688dd601eee5e329ae235ea8259c424"
+  },
+  "completed_at": "2026-10-06T12:36:02+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/requirement_composition.py:9663-9668. advance_final_publication calls integration._run_full_checks (9544), which raises the base RequirementIntegrationError (requirement_integration.py, 'full candidate validation failed'). That is not in the except tuple. By then the PR has already been transitioned to 'blocked-retryable' with the retrospective gate recorded (9660), and no blocked result comment is posted. The claim stays active until it expires, and the failure is not reported through the job result channel.",
+      "id": "retrospective-job-uncaught-full-check-failure",
+      "severity": "advisory",
+      "summary": "run_claimed_retrospective catches only JobBlocked, WorkerError, ContributionError and RequirementRetrospectiveError. A full-check failure from advance_final_publication escapes the handler, so the job is left without a result."
+    },
+    {
+      "evidence": "template/scripts/requirement_composition.py:9660-9669. adapter._transition(..., 'blocked-retryable', ...) carries the new gate. outcome may be {'status':'discarded'} or 'await-composition-finalization', but post_result(... 'Requirement retrospective recorded') is posted unconditionally. If the process dies between the transition and advance_final_publication, the PR is visibly blocked even though nothing failed.",
+      "id": "retrospective-gate-recorded-via-blocked-retryable-state",
+      "severity": "advisory",
+      "summary": "The retrospective gate is persisted by transitioning the PR to the 'blocked-retryable' state, and the success path then posts 'Requirement retrospective recorded' whatever advance_final_publication returned. A successful retrospective is therefore published as a blocked state, and the result text can be wrong."
+    },
+    {
+      "evidence": "template/scripts/requirement_composition.py:9227-9232 (prepare_checkout per child inside validate_children), called from composition_identity (9248) and from 9311, 9426, 9368, 9466, 9504, 9530 and 9648. A composition finalize job calls it at least twice (9478, 9504) plus again through validate_composition_reports callers.",
+      "id": "composition-identity-recomputed-with-per-child-clones",
+      "severity": "advisory",
+      "summary": "validate_children clones and checks out a fresh repository for every child each time composition_identity runs. composition_identity is called many times per job (review, finalize, offer, ready, reconcile, retrospective) and several times in a single flow, so cost grows with children times calls. The review_content_identity import is also placed inside the loop."
+    }
+  ],
+  "launched_at": "2026-10-06T12:35:27+00:00",
+  "output_sha256": "400b1d63f9d0a91cfeddbaf8a7588829afd0522da64ce6adb71652580fe54147",
+  "perspective": "engineering-quality",
+  "request_id": "e03179cb-8dbf-427a-ae48-42e20a1e2fe4",
+  "reviewer": {
+    "context_id": "ee0723d9-3748-482e-96f8-a7596c1363ce",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-07c83c19-59fc-4503-a1e8-26a58c00178c",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 57778
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 143797
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 30508
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 32556
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3071
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "0a7b1e82fab78ed7496037cb9cbe29bd13391528c087eff3b354578f210d61ee"
+}

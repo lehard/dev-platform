@@ -129,8 +129,16 @@ class ProjectEvidenceTests(unittest.TestCase):
         git(self.root, "commit", "--allow-empty", "-q", "-m", "revision only")
         report = project_evidence.validate_snapshot(self.root, first)
         self.assertEqual(report["freshness"], "stale-revision")
+        self.assertEqual(report["changed_sources"], [])
+        self.assertTrue(project_evidence.source_bound_fresh(report["freshness"]))
         _, evidence = project_evidence.build_snapshot(self.root, prior=first, results={})
         self.assertEqual(evidence["hit"], len(project_evidence.CONCERNS))
+
+    def test_source_bound_fresh_only_accepts_proven_unchanged_sources(self) -> None:
+        for freshness in ("fresh", "stale-revision"):
+            self.assertTrue(project_evidence.source_bound_fresh(freshness))
+        for freshness in ("stale-sources", "not-checked", "unknown"):
+            self.assertFalse(project_evidence.source_bound_fresh(freshness))
 
     def test_conflict_or_low_confidence_never_promotes_fresh_projection(self) -> None:
         supplied = results_for(self.root, confidence="low", conflicts=["Accepted spec and context disagree."])

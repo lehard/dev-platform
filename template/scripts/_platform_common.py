@@ -413,14 +413,9 @@ def scm_provider(config: dict[str, Any]) -> str:
 
 
 def _gh_auth_ok(root: Path, env: dict[str, str]) -> bool:
-    auth = subprocess.run(
-        ["gh", "auth", "status", "--hostname", "github.com"],
-        cwd=root,
-        env=env,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+    # A transient network failure must not be mistaken for a stale credential
+    # and exhaust the credential fallbacks below.
+    auth = run_github_with_retry(["gh", "auth", "status", "--hostname", "github.com"], cwd=root, env=env)
     return auth.returncode == 0
 
 
@@ -506,3 +501,109 @@ def locked_json(path: Path) -> Iterator[dict[str, Any]]:
         finally:
             if fcntl is not None:
                 fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+
+
+# --- Transient GitHub retry ---------------------------------------------------
+
+TRANSIENT_GITHUB_FAILURE = re.compile(
+    r"connection reset|connection refused|tls handshake timeout|unexpected eof|\bEOF\b|i/o timeout"
+    r"|timed? ?out|temporary failure in name resolution|no such host|HTTP 5\d\d|"
+    r"secondary rate limit|server error|bad gateway|service unavailable|gateway timeout",
+    re.IGNORECASE,
+)
+GITHUB_RETRY_ATTEMPTS_ENV = "DEV_PLATFORM_GITHUB_RETRY_ATTEMPTS"
+GITHUB_RETRY_ATTEMPTS = 4
+_GH_READ_SUBCOMMANDS = {
+    ("issue", "view"), ("issue", "list"), ("pr", "view"), ("pr", "list"), ("pr", "checks"),
+    ("repo", "view"), ("run", "list"), ("run", "view"), ("auth", "status"), ("label", "list"),
+}
+_GH_API_BODY_FLAGS = {"-f", "-F", "--field", "--raw-field", "--input"}
+
+
+def is_transient_github_failure(detail: str) -> bool:
+    """Classify a failed gh/network diagnostic as transient (worth a bounded retry)."""
+    return bool(TRANSIENT_GITHUB_FAILURE.search(detail or ""))
+
+
+def is_github_read(command: list[str]) -> bool:
+    """True for a gh invocation that only observes state, so repeating it is safe.
+
+    ``gh api`` defaults to POST as soon as a body field is supplied; only an
+    explicit GET method or a field-free call counts as a read.
+    """
+    if len(command) < 2 or Path(command[0]).name != "gh":
+        return False
+    if command[1] == "api":
+        method = None
+        for index, part in enumerate(command):
+            if part in {"-X", "--method"} and index + 1 < len(command):
+                method = command[index + 1].upper()
+            elif part.startswith("-X") and len(part) > 2:
+                method = part[2:].upper()
+            elif part.startswith("--method="):
+                method = part.split("=", 1)[1].upper()
+        if method is not None:
+            return method == "GET"
+        return not any(part in _GH_API_BODY_FLAGS or part.startswith(("-f", "-F", "--field=", "--raw-field=", "--input=")) for part in command)
+    return tuple(command[1:3]) in _GH_READ_SUBCOMMANDS
+
+
+def _github_diagnostic(result: subprocess.CompletedProcess[str]) -> str:
+    """gh's error text: stderr, or stdout only when it is not a structured payload.
+
+    A non-zero ``gh pr checks`` prints failed check names as JSON on stdout;
+    a check named "timeout guard" must not look like a network failure.
+    """
+    if result.stderr.strip():
+        return result.stderr
+    text = result.stdout.strip()
+    try:
+        json.loads(text)
+    except (json.JSONDecodeError, ValueError):
+        return text
+    return ""
+
+
+def github_retry_attempts() -> int:
+    try:
+        return max(1, int(os.environ.get(GITHUB_RETRY_ATTEMPTS_ENV, GITHUB_RETRY_ATTEMPTS)))
+    except ValueError:
+        return GITHUB_RETRY_ATTEMPTS
+
+
+def run_github_with_retry(
+    command: list[str],
+    *,
+    cwd: Path,
+    env: Mapping[str, str] | None = None,
+    input_text: str | None = None,
+    attempts: int | None = None,
+    sleep: Any = None,
+    read: bool | None = None,
+) -> subprocess.CompletedProcess[str]:
+    """Run a gh command, retrying classified transient failures of reads only.
+
+    Mutations run once: repeating one could duplicate its effect, and callers
+    re-observe state before deciding to repeat it. Non-transient failures and
+    failures persisting past the bound are returned to the caller unchanged.
+    """
+    import time
+
+    limit = attempts if attempts is not None else github_retry_attempts()
+    pause = sleep if sleep is not None else time.sleep
+    # ``read`` lets a caller assert a read the argv cannot show (a GraphQL query
+    # is POSTed with body fields, exactly like a mutation).
+    retryable = is_github_read(command) if read is None else read
+    attempt = 0
+    while True:
+        attempt += 1
+        result = subprocess.run(
+            command, cwd=cwd, env=dict(env) if env is not None else None,
+            text=True, capture_output=True, input=input_text,
+        )
+        if (
+            result.returncode == 0 or not retryable or attempt >= limit
+            or not is_transient_github_failure(_github_diagnostic(result))
+        ):
+            return result
+        pause(min(2 ** (attempt - 1), 8))

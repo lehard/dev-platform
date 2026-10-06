@@ -319,6 +319,20 @@ class OrchestratorFlowTests(unittest.TestCase):
         self.assertNotIn("prompt", json.dumps(receipt))
         self.assertNotIn("transcript", json.dumps(receipt))
 
+        # Revision movement alone preserves the complete snapshot -> handoff chain.
+        (self.root / "unrelated.bin").write_text("unbound content\n", encoding="utf-8")
+        git(self.root, "add", "unrelated.bin")
+        git(self.root, "commit", "-q", "-m", "unrelated delivery")
+        self.assertEqual(self._status()["current_stage"], "complete")
+
+        # A committed change to a bound source invalidates the dependent chain.
+        (self.root / "docs/context/domain.md").write_text("changed domain\n", encoding="utf-8")
+        git(self.root, "add", "docs/context/domain.md")
+        git(self.root, "commit", "-q", "-m", "bound source delivery")
+        result = self._status()
+        self.assertEqual(result["current_stage"], "snapshot")
+        self.assertEqual(result["stages"]["snapshot"]["state"], "stale")
+
     def test_handoff_action_includes_requirement_context_when_bound(self) -> None:
         context = self.root / "requirement-context.json"
         context.write_text('{"outcome": "Tiered pricing"}\n', encoding="utf-8")
@@ -406,6 +420,25 @@ class OrchestratorFlowTests(unittest.TestCase):
         # sources.
         second = self._status()
         self.assertEqual(second["stages"]["snapshot"], first["stages"]["snapshot"])
+
+    def test_unrelated_commit_keeps_snapshot_and_approved_add_ready(self) -> None:
+        self._init()
+        directory = orch.requirement_dir(self.base_dir, "add-tiered-pricing")
+        snapshot = build_fresh_snapshot(self.root, orch.snapshot_path(directory))
+        add_file = orch.add_path(directory)
+        document = json.loads(add_file.read_text(encoding="utf-8"))
+        document["evidence"] = [snapshot_evidence_entry(self.root, orch.snapshot_path(directory), snapshot)]
+        document["elements"] = [
+            {"id": "element-tier-boundary", "category": "boundary", "status": "new", "statement": "New boundary."},
+        ]
+        add_file.write_text(json.dumps(document), encoding="utf-8")
+        add_intents.approve_add(self.root, add_file)
+        (self.root / "unrelated.bin").write_text("unbound content\n", encoding="utf-8")
+        git(self.root, "add", "unrelated.bin")
+        git(self.root, "commit", "-q", "-m", "unrelated")
+        result = self._status()
+        self.assertEqual(result["stages"]["snapshot"]["state"], "ready")
+        self.assertEqual(result["stages"]["add"]["state"], "ready")
 
     def test_upstream_mutation_invalidates_only_dependent_downstream_stage(self) -> None:
         self._init()

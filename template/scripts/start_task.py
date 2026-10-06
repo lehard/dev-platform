@@ -87,7 +87,7 @@ def admission_reason(decision: dict[str, object]) -> str:
     )
 
 
-def start_task(root: Path, slug_value: str, task: str, scope: str = "", *, admission: bool = True, branch_name: str | None = None) -> StartedTask:
+def start_task(root: Path, slug_value: str, task: str, scope: str = "", *, admission: bool = True, branch_name: str | None = None, base_ref: str | None = None) -> StartedTask:
     root = root.resolve()
     preflight(root)
     config = read_platform_config(root)
@@ -95,10 +95,10 @@ def start_task(root: Path, slug_value: str, task: str, scope: str = "", *, admis
         raise RuntimeError("harness_mode=project: use the repository-owned task/worktree entrypoint described by its AGENTS.md.")
     prof = profile(config)
     main_branch = str(config.get("main_branch", "main"))
-    doctor = subprocess.run(["python3", str(root / "scripts" / "agent_doctor.py")], cwd=root)
+    doctor = subprocess.run(["python3", str(root / "scripts" / "agent_doctor.py")], cwd=root, stdin=subprocess.DEVNULL)
     if doctor.returncode != 0:
         raise RuntimeError("agent doctor failed; task start was not attempted")
-    subprocess.run(["python3", str(root / "scripts" / "project_sync.py")], cwd=root, check=True)
+    subprocess.run(["python3", str(root / "scripts" / "project_sync.py")], cwd=root, check=True, stdin=subprocess.DEVNULL)
     rollout_outcome = reconcile_pending_rollout(root, config, github_cli_env(root))
     if rollout_outcome.state == RECONCILED:
         print(rollout_outcome.detail)
@@ -109,6 +109,8 @@ def start_task(root: Path, slug_value: str, task: str, scope: str = "", *, admis
         raise RuntimeError(f"Dev Platform rollout reconciliation blocked task start: {rollout_outcome.detail}")
     observed = require_fresh_task_base(root, "origin", main_branch, task_ref=main_branch)
     print(f"Task-start freshness observation: {main_branch} contains freshly observed origin/{main_branch} ({observed}).")
+    if base_ref is not None:
+        run_git(["rev-parse", "--verify", base_ref + "^{commit}"], cwd=root)
     if prof == "light":
         checked_out = run_git(["branch", "--show-current"], cwd=root).stdout.strip()
         if checked_out != main_branch:
@@ -119,10 +121,10 @@ def start_task(root: Path, slug_value: str, task: str, scope: str = "", *, admis
         exists = run_git(["show-ref", "--verify", "--quiet", f"refs/heads/{branch}"], cwd=root, check=False)
         if exists.returncode == 0:
             raise RuntimeError(f"Branch already exists: {branch}")
-        run_git(["switch", "-c", branch, main_branch], cwd=root)
+        run_git(["switch", "-c", branch, base_ref or main_branch], cwd=root)
         return StartedTask(profile=prof, branch=branch, task_root=root)
     if prof == "multi-agent":
-        started: StartedWorktree = create_worktree(root, slug_value, task, scope, sync=False, **({"branch_name": branch_name} if branch_name else {}))
+        started: StartedWorktree = create_worktree(root, slug_value, task, scope, sync=False, **({"base": base_ref} if base_ref else {}), **({"branch_name": branch_name} if branch_name else {}))
         task_started = StartedTask(profile=prof, branch=started.branch, task_root=started.worktree, board_id=started.board_id)
         if admission:
             decision = admit_task(root, task_started, scope)

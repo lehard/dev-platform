@@ -13,7 +13,7 @@ import uuid
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Iterator
+from typing import Iterator, Sequence
 
 try:
     import fcntl
@@ -216,12 +216,27 @@ def task_aliases(task: str) -> set[str]:
     return {str(state["source_issue"])} if state else set()
 
 
-def events_for_task(task: str) -> list[dict]:
-    """Events recorded for the task, plus legacy task-less events it can be inferred from."""
+def events_for_task(task: str, children: Sequence[str] = ()) -> list[dict]:
+    """Events recorded for the task, plus legacy task-less events it can be inferred from.
+
+    An event also belongs to a Requirement ``task`` when it names that Requirement
+    explicitly (coordinator events carry both the candidate task and its Requirement)
+    or, given the Requirement's linked ``children``, when it is attributed to one of them.
+    """
     identities = {task} | task_aliases(task)
+    linked = set(children)
+
+    def attributed(event: dict) -> bool:
+        if event.get("task") == task or event.get("requirement") == task:
+            return True
+        if linked:
+            run = event.get("run") if isinstance(event.get("run"), dict) else {}
+            return event.get("task") in linked or run.get("source_issue") in linked
+        return False
+
     return [
         event for event in read_events(None)
-        if event.get("task") == task or (not event.get("task") and event_identities(event) & identities)
+        if attributed(event) or (not event.get("task") and event_identities(event) & identities)
     ]
 
 
@@ -346,6 +361,46 @@ def cmd_record(args: argparse.Namespace) -> int:
     else:
         print(f"Routed friction candidate {event['id']} to {result['repository']}#{result['issue_number']}")
     return 0
+
+
+def append_coordinator_event(
+    *, task: str, requirement: str | None, category: str, triggers: Sequence[str], severity: str,
+    observation: str, evidence: str, hypothesis: str, proposal: str, dedupe_key: str,
+    scope: str = "platform",
+) -> dict:
+    """Idempotently record one coordinator-observed lifecycle event, local only.
+
+    The event is attributed to the candidate ``task`` and, when known, its parent
+    ``requirement`` so both retrospectives see it. ``dedupe_key`` makes an
+    interrupted or repeated coordinator run record the same observation once.
+    Coordinator events are never routed to GitHub from here; the retrospective
+    job links them and a human-visible finding is promoted through the usual path.
+    """
+    if severity not in SEVERITIES or any(trigger not in TRIGGERS for trigger in triggers):
+        raise SystemExit("coordinator friction event has an unknown severity or trigger")
+    path = log_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with friction_lock():
+        for existing in read_events(None):
+            if existing.get("dedupe_key") == dedupe_key:
+                return existing
+        event = {
+            "id": uuid.uuid4().hex[:12], "at": utc_now(), "branch": task, "task": task,
+            "requirement": requirement, "attribution": "coordinator", "dedupe_key": dedupe_key,
+            "category": normalize_text(category, "category", 100), "triggers": sorted(set(triggers)),
+            "severity": severity, "observation": normalize_text(observation, "observation"),
+            "evidence": normalize_text(evidence, "evidence"), "hypothesis": normalize_text(hypothesis, "hypothesis"),
+            "scope": scope, "proposal": normalize_text(proposal, "proposal"),
+            "run": _unknown_run_provenance("unknown"), "classification": "process-friction", "context": None,
+        }
+        if path.exists():
+            ensure_shared_path(path)
+        with path.open("a", encoding="utf-8") as fh:
+            ensure_shared_path(path)
+            fh.write(json.dumps(event, ensure_ascii=False, sort_keys=True) + "\n")
+            fh.flush()
+            os.fsync(fh.fileno())
+    return event
 
 
 def read_events(days: int | None = None) -> list[dict]:
@@ -1106,7 +1161,6 @@ def cmd_checkpoint(args: argparse.Namespace) -> int:
     """
     branch = current_branch()
     root = current_worktree_root()
-    review_note = normalize_text(getattr(args, "review_note", "") or "", "review note", 500)
     explicit_none = args.result == "none"
     event_ids: list[str] = list(dict.fromkeys([*args.events, *([args.result] if args.result not in (None, "none") else [])]))
     if explicit_none and event_ids:
@@ -1115,44 +1169,10 @@ def cmd_checkpoint(args: argparse.Namespace) -> int:
         raise SystemExit(
             "checkpoint requires --result none for a clean retrospective, or --result/--event with one or more recorded finding ids"
         )
-    known_ids = {str(event.get("id")) for event in read_events(None)}
-    missing = [event_id for event_id in event_ids if event_id not in known_ids]
-    if missing:
-        raise SystemExit(f"Friction event not found: {', '.join(missing)}")
-    lifecycle_failures = current_lifecycle_failures(branch)
-    lifecycle_dispositions = parse_lifecycle_dispositions(
-        list(getattr(args, "lifecycle_dispositions", []) or []), mandatory_signals(branch)
-    )
-    unresolved = unclassified_lifecycle_failures(lifecycle_failures, event_ids, lifecycle_dispositions)
-    if unresolved:
-        raise SystemExit(lifecycle_checkpoint_instruction(unresolved))
-    unlinked = unlinked_retrospective_signals(branch, event_ids, lifecycle_dispositions)
-    if unlinked:
-        raise SystemExit(retrospective_signal_instruction(unlinked))
-    accepted_gaps = sorted(set(getattr(args, "accept_gaps", []) or []))
-    gaps = unaccepted_gaps(evidence_source_status(), accepted_gaps)
-    if gaps:
-        raise SystemExit(gap_instruction(gaps))
-    checkpoint = {
-        "result": "events" if event_ids else "none",
-        "event_ids": event_ids,
-        "lifecycle_dispositions": [
-            {"event_id": event_id, "disposition": disposition}
-            for event_id, disposition in lifecycle_dispositions.items()
-        ],
-        "accepted_gaps": accepted_gaps,
-        "at": utc_now(),
-        "review_note": review_note,
-        "branch": branch,
-        "head": current_head(root),
-    }
-    proof = current_task_content(root)
-    if proof is not None:
-        checkpoint["task_content"] = proof
-    with friction_lock():
-        state = read_state()
-        state["checkpoints"][branch] = checkpoint
-        atomic_write_json(state_path(), state)
+    checkpoint = record_checkpoint(
+        branch, root, event_ids=event_ids, review_note=getattr(args, "review_note", "") or "",
+        lifecycle_dispositions=list(getattr(args, "lifecycle_dispositions", []) or []),
+        accepted_gaps=list(getattr(args, "accept_gaps", []) or []))
     result = {"status": "recorded", "checkpoint": checkpoint}
     ambiguous = [str(event.get("id")) for event in ambiguous_attribution_events()]
     if ambiguous:
@@ -1161,12 +1181,62 @@ def cmd_checkpoint(args: argparse.Namespace) -> int:
     return 0
 
 
+def record_checkpoint(branch: str, root: Path, *, event_ids: list[str], review_note: str,
+                      lifecycle_dispositions: list[str] | None = None, accepted_gaps: list[str] | None = None,
+                      head: str | None = None, task_content: dict | None = None, bind_content: bool = True) -> dict:
+    """Validate and persist one task's retrospective checkpoint (shared by the CLI and the retrospective job).
+
+    Raises ``SystemExit`` with the usual instruction when a mandatory signal is unexplained or an
+    evidence source is unreadable; it never invents a clean result.
+    """
+    review_note = normalize_text(review_note, "review note", 500)
+    known_ids = {str(event.get("id")) for event in read_events(None)}
+    missing = [event_id for event_id in event_ids if event_id not in known_ids]
+    if missing:
+        raise SystemExit(f"Friction event not found: {', '.join(missing)}")
+    lifecycle_failures = current_lifecycle_failures(branch)
+    parsed_dispositions = parse_lifecycle_dispositions(
+        list(lifecycle_dispositions or []), mandatory_signals(branch)
+    )
+    unresolved = unclassified_lifecycle_failures(lifecycle_failures, event_ids, parsed_dispositions)
+    if unresolved:
+        raise SystemExit(lifecycle_checkpoint_instruction(unresolved))
+    unlinked = unlinked_retrospective_signals(branch, event_ids, parsed_dispositions)
+    if unlinked:
+        raise SystemExit(retrospective_signal_instruction(unlinked))
+    accepted = sorted(set(accepted_gaps or []))
+    gaps = unaccepted_gaps(evidence_source_status(), accepted)
+    if gaps:
+        raise SystemExit(gap_instruction(gaps))
+    checkpoint = {
+        "result": "events" if event_ids else "none",
+        "event_ids": event_ids,
+        "lifecycle_dispositions": [
+            {"event_id": event_id, "disposition": disposition}
+            for event_id, disposition in parsed_dispositions.items()
+        ],
+        "accepted_gaps": accepted,
+        "at": utc_now(),
+        "review_note": review_note,
+        "branch": branch,
+        "head": head or current_head(root),
+    }
+    proof = task_content if task_content is not None else (current_task_content(root) if bind_content else None)
+    if proof is not None:
+        checkpoint["task_content"] = proof
+    with friction_lock():
+        state = read_state()
+        state["checkpoints"][branch] = checkpoint
+        atomic_write_json(state_path(), state)
+    return checkpoint
+
+
 def cmd_assert_checkpoint(args: argparse.Namespace) -> int:
-    require_checkpoint(args.branch or current_branch(), current_worktree_root())
+    require_checkpoint(args.branch or current_branch(), current_worktree_root(), exact_head=getattr(args, "exact_head", False))
     return 0
 
 
-def require_checkpoint(branch: str, root: Path | None = None) -> None:
+def require_checkpoint(branch: str, root: Path | None = None, *, exact_head: bool = False) -> None:
     """Reject a missing, malformed or stale post-task retrospective receipt.
 
     Freshness reuses the task's own branch/head instead of a second identity
@@ -1207,6 +1277,8 @@ def require_checkpoint(branch: str, root: Path | None = None) -> None:
     current = current_head(resolved_root)
     if current is None:
         raise SystemExit("Could not determine the current task head to verify retrospective freshness.")
+    if exact_head and checkpoint.get("head") != current:
+        raise SystemExit("Developer friction checkpoint must be recorded at the exact handoff head; rerun checkpoint.")
     recorded_content = checkpoint.get("task_content")
     current_content = current_task_content(resolved_root)
     if isinstance(recorded_content, dict):
@@ -1354,6 +1426,7 @@ def main() -> int:
 
     p = sub.add_parser("assert-checkpoint", help="fail unless the current task checkpoint is resolved")
     p.add_argument("--branch")
+    p.add_argument("--exact-head", action="store_true", help="require the developer handoff head rather than equivalent content")
     p.set_defaults(func=cmd_assert_checkpoint)
 
     p = sub.add_parser("pending")

@@ -10,14 +10,16 @@ from types import SimpleNamespace
 from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "template" / "scripts"))
 sys.path.insert(0, str(ROOT / "tests"))
+sys.path.insert(0, str(ROOT / "template" / "scripts"))
 
 import add_intents
 import execute_requirement as execution
 import orchestrate_pre_authoring as orch
 import project_evidence
 import requirement_terminal
+import requirement_contributions
+import requirement_composition
 from test_orchestrate_pre_authoring import init_repo, worker_results_for, snapshot_evidence_entry
 
 REQ = "acme/backlog#7"
@@ -39,7 +41,8 @@ class RequirementFlowEndToEndTests(unittest.TestCase):
         self.temp.cleanup()
 
     def _run_with_linked(self, linked: dict[str, str], ready: list[tuple[Path, object] | None], *, publish: bool = False):
-        with mock.patch.object(execution, "current_worktree_root", return_value=self.root), \
+        with mock.patch.object(execution, "_contribution_publication_supported", return_value=publish), \
+                mock.patch.object(execution, "current_worktree_root", return_value=self.root), \
                 mock.patch.object(execution.requirement_intake, "fetch_issue", return_value={
                     "labels": [{"name": "type:requirement"}],
                     "body": "## Outcome\n\nChange billing\n\n## Target repository\n\n`acme/billing`\n",
@@ -54,10 +57,19 @@ class RequirementFlowEndToEndTests(unittest.TestCase):
                 mock.patch.object(execution.requirement_integration, "compose_candidate"), \
                 mock.patch.object(execution.requirement_integration, "publish_candidate", return_value={"status": "merged-and-reconciled"}), \
                 mock.patch.object(execution.requirement_retrospective, "require_checkpoint"), \
+                mock.patch.object(execution.managed_task, "origin_repository", return_value="acme/billing"), \
+                mock.patch.object(requirement_contributions, "ensure_integration_branch", return_value={
+                    "branch": "requirement/BR-7", "head": "a" * 40,
+                    "manifest": {"children": []},
+                }), \
+                mock.patch.object(requirement_contributions, "in_flight_children", return_value={}), \
+                mock.patch.object(requirement_composition, "publish_composition", return_value={"status": "draft-published"}), \
                 mock.patch.object(requirement_terminal, "reconcile_parent", return_value={"status": "done"}) as terminal, \
                 mock.patch.object(execution.subprocess, "run") as run:
             def git_only(command, *args, **kwargs):
                 if command[0] == "git":
+                    if "fetch" in command:
+                        return SimpleNamespace(returncode=0, stdout="")
                     return ORIGINAL_RUN(command, *args, **kwargs)
                 return SimpleNamespace(returncode=0)
             run.side_effect = git_only
@@ -90,7 +102,7 @@ class RequirementFlowEndToEndTests(unittest.TestCase):
         self.assertEqual(result["status"], "implement-child")
         self.assertEqual(assembled, 0)
 
-    def test_material_two_child_handoffs_reach_shared_candidate(self) -> None:
+    def test_material_two_child_handoffs_start_parallel_contributions(self) -> None:
         orch.select_depth(self.root, requirement_id="requirement-7", depth=orch.DEPTH_MATERIAL_DESIGN,
                           reason="Two independent billing boundaries", base_dir=self.base)
         directory = orch.requirement_dir(self.base, "requirement-7")
@@ -120,10 +132,13 @@ class RequirementFlowEndToEndTests(unittest.TestCase):
                                         intent_ids=[name], out=orch.handoff_dir(directory) / f"{name}.json")
         result, assembled, terminal = self._run_with_linked(
             {"first": "acme/backlog#8", "second": "acme/backlog#9"},
-            [(self.root / "first.json", object()), (self.root / "second.json", object())],
+            [(self.root / "first.json", object()), (self.root / "second.json", object())], publish=True,
         )
-        self.assertEqual(result["status"], "merged-and-reconciled")
-        self.assertEqual((assembled, terminal), (1, 0))
+        self.assertEqual(result["status"], "implement-children")
+        self.assertEqual([action["change"] for action in result["actions"]], ["first", "second"])
+        self.assertEqual({action["contribution_base"] for action in result["actions"]}, {"a" * 40})
+        self.assertEqual({action["target_branch"] for action in result["actions"]}, {"requirement/BR-7"})
+        self.assertEqual((assembled, terminal), (0, 0))
 
 
 if __name__ == "__main__":

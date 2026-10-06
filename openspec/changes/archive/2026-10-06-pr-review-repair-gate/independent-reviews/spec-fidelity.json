@@ -1,0 +1,88 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "98db9ed844c92cf916b34b62d2545d622d576619",
+    "base_ref": "origin/main",
+    "candidate_head": "f8ea4386caa58b3ff0c23acb70e96df5d4f33d61",
+    "diff_sha256": "f232cd226e8e6d1177bd6e8323fd4e2c1216b06bbf7fe757dde0bea29b88be03"
+  },
+  "completed_at": "2026-10-05T22:49:50+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/publication_queue.py publish_job: `providers = [provider or \"unresolved-originating-task-route\"]`. The same default appears in pr_review_gate.complete_review, run_claimed (review_config[\"providers\"]) and the post-repair offer. independent_review_runner.preflight rejects any provider not in PROVIDERS with \"providers must be a nonempty ordered list of unique codex/claude providers\".",
+      "id": "placeholder-provider-not-resolved-originating-route",
+      "severity": "advisory",
+      "summary": "When no providers are recorded, jobs carry the literal \"unresolved-originating-task-route\" instead of the originating task's resolved reviewer provider. The spec requires jobs to retain that provider and workers not to use a local route. The placeholder is not a valid provider, so the review comes back as an unavailable runtime with a misleading limitation and then spends the automatic retry budget."
+    },
+    {
+      "evidence": "template/scripts/pr_review_gate.py: `rounds = attempts.get(\"repair\", 0) + 1`; `\"blocked-escalation\" if material and rounds >= MAX_ROUNDS`; run_claimed: `running[\"attempts\"].get(\"repair\", 0) > MAX_ROUNDS`.",
+      "id": "repair-round-bound-off-by-one-split",
+      "severity": "advisory",
+      "summary": "The repair-round limit is enforced at two different thresholds. review_outcome escalates when rounds >= 3, where rounds = repair attempts + 1. run_claimed escalates only when the repair attempt count exceeds 3. The spec's \"exhausted repair rounds\" bound and design decision 3 (\"bound of 3 review/repair rounds\") are therefore applied inconsistently, and the second check is effectively unreachable on the normal path."
+    }
+  ],
+  "launched_at": "2026-10-05T22:49:05+00:00",
+  "output_sha256": "06115b007d7463462d59718f23c2b42c61533eb22a4a1f863a994c99d0d8c1af",
+  "perspective": "spec-fidelity",
+  "request_id": "2c3c3476-48d6-4c90-8f06-398ee66d9d35",
+  "reviewer": {
+    "context_id": "dce723fd-33bf-46b9-92b3-3164e17569b0",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-4d347a35-b8c3-407e-a55d-4503546f25cf",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 75626
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 573741
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 42549
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 43151
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 22
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 15
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4136
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "48ce322d9da06d7c4955b429c7e81249253deba53793e86ba238cd249d851c7d"
+}

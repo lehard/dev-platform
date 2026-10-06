@@ -64,11 +64,16 @@ def creation_calls(scripts: Path = SCRIPTS) -> collections.Counter[str]:
 # Existing direct creation sites, reviewed when this guard was introduced.
 # Keep the counts exact: adding a call inside an existing function also fails.
 REVIEWED_BASELINE: dict[str, int] = {
+    # Trusted harness manifests/evidence and private reviewer scratch inputs.
+    'requirement_composition.py:execute_composition_review:write_text': 4,
+    'requirement_composition.py:run_child_review:write_text': 2,
+    'requirement_contributions.py:write_manifest:write_text': 1,
     '_platform_common.py:atomic_write_text:mkstemp': 1,
     '_platform_common.py:atomic_write_text:replace': 1,
     '_platform_common.py:locked_json:open': 1,
     'agent_doctor.py:ensure_git_hooks:write_bytes': 1,
     'agent_friction.py:cmd_promote:NamedTemporaryFile': 1,
+    'agent_friction.py:append_coordinator_event:open': 1,
     'agent_friction.py:cmd_record:open': 1,
     'agent_friction.py:friction_lock:open': 1,
     'browser_verification.py:main:write_text': 1,
@@ -86,6 +91,10 @@ REVIEWED_BASELINE: dict[str, int] = {
     'disposable_repository_sandbox.py:create:write_text': 1,
     'harness_replay.py:isolated_workspace:write_text': 1,
     'harness_replay.py:main:write_text': 1,
+    # Disposable LLM checkout and its scratch HOME live in a private worker temp directory.
+    'lifecycle_workers.py:import_worktree:copyfile': 1,
+    'lifecycle_workers.py:prepare_checkout:open': 1,
+    'lifecycle_workers.py:scratch_home:copy2': 1,
     # Reviewer schema and candidate diff go to a private temporary directory outside the repository.
     'independent_review_runner.py:run_review:write_text': 2,
     'integration_state.py:local_state_matches_remote_target:mkstemp': 1,

@@ -69,6 +69,10 @@ required_evidence_types = ["test"]
 # order, so long groups starting early keep them off the critical path.
 [test_groups.fast-b]
 targets = [
+  "test_candidate_lifecycle",
+  "test_pr_review_gate",
+  "test_post_review_finalization",
+  "test_autonomous_integration_contour",
   "test_independent_review",
   "test_docs_semantic_checks",
   "test_capability_manager",
@@ -92,6 +96,7 @@ targets = [
   "test_platform_doctor",
   "test_managed_project_promotion",
   "test_requirement_execution",
+  "test_requirement_contribution_composition",
   "test_requirement_board",
   "test_private_backlog_guard",
 ]
@@ -103,6 +108,7 @@ targets = [
   "test_managed_execution_intake",
   "test_platform_bootstrap",
   "test_platform_common",
+  "test_github_retry",
   "test_operator_config",
   "test_add_intents",
   "test_orchestrate_pre_authoring",
@@ -136,6 +142,7 @@ targets = [
   "test_run_test_groups",
   "test_root_guidance_contract",
   "test_platform_module_identity",
+  "test_lifecycle_workers",
 ]
 mode = "parallel"
 
@@ -184,7 +191,7 @@ targets = ["test_delegated_write_guard"]
 mode = "parallel"
 
 [test_groups.disposable_repository_sandbox]
-targets = ["test_disposable_repository_sandbox"]
+targets = ["test_disposable_repository_sandbox", "test_parallel_lifecycle_acceptance"]
 mode = "parallel"
 
 [test_groups.protected_main_zero_handoff]

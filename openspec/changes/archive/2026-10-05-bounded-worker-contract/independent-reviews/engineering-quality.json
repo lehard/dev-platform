@@ -1,0 +1,103 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "98db9ed844c92cf916b34b62d2545d622d576619",
+    "base_ref": "origin/main",
+    "candidate_head": "4d064309b4d3d50c8aaf0daed13ec61df83a76a6",
+    "diff_sha256": "62c45c4415efa22c2faed088e4b18f4a8cbc29155479d88cb1109e6bdb195e04"
+  },
+  "completed_at": "2026-10-05T18:35:15+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/lifecycle_workers.py:1181-1200: job_completed returns True for any trusted result whose outcome does not start with 'discarded'. That includes 'failed: llm exited N', 'rejected: ...' and 'no-change', all posted by execute_job (~1420-1451). is_claimable (1203-1205) then never offers the job again. Nothing else in the diff reads RESULT_PREFIX, so no coordinator path advances the attempt.",
+      "id": "failed-result-consumes-job",
+      "severity": "advisory",
+      "summary": "A recorded failed, rejected or no-change result permanently completes the job for that head and attempt. Nothing in this change bumps the attempt, so a transient LLM crash or timeout leaves the job stuck."
+    },
+    {
+      "evidence": "template/scripts/lifecycle_workers.py:1248-1253: run_llm is called from execute_job (1425) with timeout=None. The claim expires after ttl_seconds, and execute_job never re-checks ownership before pushing. --force-with-lease limits the damage to a single winner. The second worker still wastes work, and the first worker's valid result gets rejected when its push loses the lease.",
+      "id": "claim-ttl-not-enforced-on-run",
+      "severity": "advisory",
+      "summary": "The claim TTL (default 1800s) is not tied to how long the LLM runs. A long run outlives its claim, and a second worker can then claim and run the same job."
+    },
+    {
+      "evidence": "main() (~1520-1533) runs work_next, which posts the claim, and only then calls execute_job. execute_job raises WorkerError('no executor for finalize jobs') for any kind outside WRITE_KINDS | {'review'} (1414-1415). main() returns exit code 2 and posts no result, so the claim stays active. The kinds passed with --kinds are not filtered against the executable set when --run is used.",
+      "id": "claim-before-executor-check",
+      "severity": "advisory",
+      "summary": "With --run, a job kind that has no executor is claimed first and rejected afterwards. The claim then blocks the job until the TTL expires."
+    },
+    {
+      "evidence": "template/scripts/lifecycle_workers.py:1285-1293 (_forbidden): .github/actions/**, .github/CODEOWNERS and similar are not rejected. Repository-owned scripts that CI runs are not rejected either. Safety therefore rests entirely on how narrowly the operator sets --allow. The spec statement 'no workflow edits' holds only for .github/workflows.",
+      "id": "forbidden-paths-narrow",
+      "severity": "advisory",
+      "summary": "The write-result guard rejects only .github/workflows/ and lifecycle evidence files. Other CI-executable or trust-bearing files are accepted whenever --allow covers them."
+    },
+    {
+      "evidence": "template/scripts/lifecycle_workers.py:1074-1080 and 1220-1230: credential_free_env drops CREDENTIAL_VARS and the (GH|GITHUB)/*_ASKPASS pattern. Variables such as AWS_*, NPM_TOKEN or GIT_DIR/GIT_WORK_TREE survive. The code comment accepts this for the provider key. The docs describe the process as 'credential-free' in general terms, without saying that only GitHub credentials are removed.",
+      "id": "credential-scrub-github-only",
+      "severity": "advisory",
+      "summary": "The LLM environment scrub removes GitHub-style variables only. Other secrets in the operator environment pass through to the LLM process. GIT_DIR and GIT_WORK_TREE are also inherited."
+    }
+  ],
+  "launched_at": "2026-10-05T18:34:15+00:00",
+  "output_sha256": "5a9b988c941590ab777f3554c42bdcf78d433fc8f59392419229b48c54d464c5",
+  "perspective": "engineering-quality",
+  "request_id": "d5881bde-a4e5-4912-a0cc-d70c5e18283a",
+  "reviewer": {
+    "context_id": "7e654714-e73d-4681-b945-cbd7c0dde749",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-f02fcf4b-c664-4a95-9e44-671238f2b62e",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 52729
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 186139
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 55631
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 57757
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5153
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "ff1ef32378af254e766ed0c6d5db9f035c67dc1b65b06a263debea2242899749"
+}

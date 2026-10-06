@@ -1,0 +1,16 @@
+OpenSpec-Verify: PASS
+Verification-Method: equivalent semantic OpenSpec review of completeness, correctness and coherence against the accepted completion-lifecycle and publication-queue specs plus this active delta
+Automated-Checks-Evidence: automated-checks.json
+Independent-Review-Evidence: independent-review-request.json
+
+Implementation was delegated to a Claude Sonnet subagent (the Codex subscription was exhausted) in this worktree and reviewed by the supervisor.
+
+Finalization. `post_review_finalization.py` runs the finalize job only when review, selected-checks and semantic-verification gates are reusable for the exact task-content identity with matching evidence digests; it archives through `openspec_lifecycle.py archive --finalize` in a disposable checkout, accepts only the change's own archive move and spec materialization, posts a validated-push receipt, pushes with a lease and advances the candidate to `ready`; a changed identity returns it to review. Candidate derivation recovers `ready` after a lost transition. The completed-active rule moves to integration admission and merge (`check --stage integration`, `_require_finalized` before preparation and merge); an unfinalized coordinator candidate is routed back to `finalize-pending`.
+
+Derived spec integration. `_prepare` re-derives only when overlap with main is confined to the candidate's own archived-capability spec paths: it merges main in a disposable clone, replays the archived delta with the OpenSpec CLI, validates strictly, proves identity unchanged and the diff confined to those spec paths, and pushes with a lease; a failed replay becomes `integration-repair-pending`. Re-derivation is idempotent once the head contains main.
+
+Known limitation: `archive --finalize` skips the local routing gate because the disposable finalize checkout has no integration routing record.
+
+Independent review round 1 reported one material finding (re-derivation not idempotent on rerun) and two advisories (unfinalized candidates blocked instead of routed to finalize; checkout preparation outside error handling); all were fixed with regression tests. Round 2: ready (one advisory). Marking the verification tasks changed task content, so the review reran: round 3 found that a content-changing repair dropped the selected-checks gate with no way to re-establish it (material), a non-atomic re-derivation update marker and a whitespace-split diagnostic (advisories); fixed with regression tests (finalize re-establishes stale selected-checks in the disposable checkout and re-binds semantic verification; the retry path writes a missing update marker; `-z` path output). Round 4: ready (one advisory). Limitation: the finalize-time select_checks run is covered by unit tests with an injected runner, not against a real checkout.
+
+Checks: compileall, ruff, `tests/test_post_review_finalization.py` (real OpenSpec CLI replay) with the affected queue, gate, lifecycle and worker tests, the import-isolation, module-identity and shared-writer guards, `openspec_lifecycle.py check`, and the selected full validation (automated-checks.json). Completeness: tasks 1.1-3.2. Correctness and coherence: behavior matches the delta scenarios; docs agree.
