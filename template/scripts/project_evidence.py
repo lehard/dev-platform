@@ -335,6 +335,11 @@ def _validate_projection(projection: dict[str, Any], sources: dict[str, dict[str
         raise ProjectEvidenceError(f"projection {concern} digest is invalid")
 
 
+def source_bound_fresh(freshness: str) -> bool:
+    """Whether validation proves unchanged sources, regardless of revision movement."""
+    return freshness in {"fresh", "stale-revision"}
+
+
 def validate_snapshot(root: Path, snapshot: dict[str, Any], *, check_freshness: bool = True) -> dict[str, Any]:
     if snapshot.get("version") != SNAPSHOT_VERSION:
         raise ProjectEvidenceError(f"unsupported snapshot schema version: {snapshot.get('version')!r}")

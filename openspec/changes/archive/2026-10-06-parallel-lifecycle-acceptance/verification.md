@@ -9,7 +9,7 @@ Offline scenario. `parallel_lifecycle_acceptance.py run --output <dir>` admits t
 
 Platform gap fixed: a finalized candidate returned to review after integration repair is now reviewed against its archived change (`pr_review_gate.execute_review` resolves archived changes), with a regression test.
 
-Contract change approved by the user: the real dogfood run is deferred to lehard/development-backlog#391 after BR-353 merges, because the coordinator only runs once its workflow is on main. This change delivers the offline scenario, portability notes and the dogfood evidence template; no real dogfood run is claimed.
+Contract change approved by the user: the real dogfood run is deferred to BR-391 after BR-353 merges, because the coordinator only runs once its workflow is on main. This change delivers the offline scenario, portability notes and the dogfood evidence template; no real dogfood run is claimed.
 
 Known limitations (advisory): faked components are the gh adapter, reviewer launcher, scripted writers, scripted archiver and post-merge Requirement/Project operator; developer semantic handoffs are scripted; the scenario mutates process globals and is safe as a one-shot process; a partial setup failure can leave sandboxes.
 

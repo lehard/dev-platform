@@ -1,0 +1,123 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 1.192,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 2.401,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 440.903,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "template/scripts/_platform_common.py",
+        "template/scripts/add_intents.py",
+        "template/scripts/execute_requirement.py",
+        "template/scripts/managed_project_status.py",
+        "template/scripts/managed_task.py",
+        "template/scripts/orchestrate_pre_authoring.py",
+        "template/scripts/project_evidence.py",
+        "template/scripts/project_publish.py",
+        "template/scripts/publication_queue.py",
+        "template/scripts/publication_state.py",
+        "tests/test_add_intents.py",
+        "tests/test_br_publication_identity.py",
+        "tests/test_github_retry.py",
+        "tests/test_orchestrate_pre_authoring.py",
+        "tests/test_project_evidence.py",
+        "tests/test_requirement_execution.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_4e612aa5281274527f9f8c2559446f86",
+    "change": "relevant-drift-and-transient-retry",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/relevant-drift-and-transient-retry",
+    "branch": "agent/br-353-t1-relevant-drift-and-transient-retry",
+    "head": "2baade7bc7958f952dd42d1c7db7d654ea3a5af0",
+    "task_content": {
+      "version": 1,
+      "digest": "f5e8914afcda7badb5d2fc4ffdd9cef4c6b46760357aa86bf8799fc710045bc4",
+      "paths": {
+        "dev-platform/capabilities/add-intents.md": "1c780d96888e8fb3d182df89804141af19481188",
+        "dev-platform/capabilities/add-intents.toml": "9f8a21d5c94cc0065024a3578abc965ba81b0b7f",
+        "dev-platform/checks.toml": "947532b2d58226abb4db09db2b6b139a0d23d2a6",
+        "docs/engineering/agent-workflow.md": "49d5303b1740f34c225a7c0793fa6ba613ad7e39",
+        "openspec/changes/relevant-drift-and-transient-retry/.managed-task.json": "55ba160387c38fe76240e6e411d561c388b8440f",
+        "openspec/changes/relevant-drift-and-transient-retry/.openspec.yaml": "e3966d7a159d3f2cfcfef99b6a84e530965c6b0d",
+        "openspec/changes/relevant-drift-and-transient-retry/automated-checks.json": "edcd25115df9dd5972feb758cb9e2600fd77c67e",
+        "openspec/changes/relevant-drift-and-transient-retry/design.md": "da748b71070a92128ee615f9f9d9f9f7ffce7d5c",
+        "openspec/changes/relevant-drift-and-transient-retry/independent-review-dispositions.json": "b1d437be74eeafc861a37c7dfd0d7c9240507e23",
+        "openspec/changes/relevant-drift-and-transient-retry/independent-review-request.json": "597f31d0c55d83ca4b4eaa161687796056334c38",
+        "openspec/changes/relevant-drift-and-transient-retry/independent-reviews/engineering-quality.json": "eba5c05b9ade613dc531fc50dab379904ac0aef0",
+        "openspec/changes/relevant-drift-and-transient-retry/independent-reviews/spec-fidelity.json": "257dbf9db595e21db28bb64f599a6dfdbdcbae91",
+        "openspec/changes/relevant-drift-and-transient-retry/proposal.md": "913e2ded31a825c3d5de10c66897e75a616ec8cf",
+        "openspec/changes/relevant-drift-and-transient-retry/specs/openspec-authoring/spec.md": "f3adff83dbed09af85dace131ca78af66f862323",
+        "openspec/changes/relevant-drift-and-transient-retry/specs/platform-lifecycle/spec.md": "43cb5904bb73efbd2794fe8debf2d991204f63f3",
+        "openspec/changes/relevant-drift-and-transient-retry/tasks.md": "cb6edfac84002862aa43f520603eefd10c4c86f9",
+        "openspec/changes/relevant-drift-and-transient-retry/verification.md": "91ff21f1f566b96c5c639bbabfb8670df60c691b",
+        "template/dev-platform/capabilities/add-intents.md": "1c780d96888e8fb3d182df89804141af19481188",
+        "template/dev-platform/capabilities/add-intents.toml": "9f8a21d5c94cc0065024a3578abc965ba81b0b7f",
+        "template/scripts/_platform_common.py": "6edf2c3ad1eebd1a5ba9275fbbb27ff57b0d58f9",
+        "template/scripts/add_intents.py": "cf05d122124dc336c00f2491a9054cb5c314d243",
+        "template/scripts/execute_requirement.py": "c32d87411f144a699e2efda472ba7404078c8112",
+        "template/scripts/managed_project_status.py": "05bf58e7d12470c9e9c498eb737f3a806ea9cf54",
+        "template/scripts/managed_task.py": "94ab537f5ae8fa5d13cce6516c113766308e9440",
+        "template/scripts/orchestrate_pre_authoring.py": "b23f98b8262ace3295c74f0d079cc28daeb62d11",
+        "template/scripts/project_evidence.py": "a2ad67b92e046df366459ea1d4ec57428d385ee0",
+        "template/scripts/project_publish.py": "e4f3958e451b268a43d1743edd4bab435b4534b9",
+        "template/scripts/publication_queue.py": "641f4f4cd0581cf638013af41ff8ff7f64a9b91a",
+        "template/scripts/publication_state.py": "302a1f0fe40c74fd086169939cea0f5e1c4f274d",
+        "tests/test_add_intents.py": "458a40e2d9374cc45f7663180aee793ddbe9b8a6",
+        "tests/test_br_publication_identity.py": "7e365ece628801a18919646a44bc9fb89096dd04",
+        "tests/test_github_retry.py": "4a9fbd519e10771c60602bd511f8be7931042f5f",
+        "tests/test_orchestrate_pre_authoring.py": "ed5d2fe93eed3d868439e038ae511c3f4ed88b63",
+        "tests/test_project_evidence.py": "aa07fa52c7c1b21b9820746354069512b3cea800",
+        "tests/test_requirement_execution.py": "8b446574db647c34f70d442a3f6ac84631bb9942"
+      },
+      "base": "98db9ed844c92cf916b34b62d2545d622d576619"
+    }
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/_platform_common.py --changed-file template/scripts/add_intents.py --changed-file template/scripts/execute_requirement.py --changed-file template/scripts/managed_project_status.py --changed-file template/scripts/managed_task.py --changed-file template/scripts/orchestrate_pre_authoring.py --changed-file template/scripts/project_evidence.py --changed-file template/scripts/project_publish.py --changed-file template/scripts/publication_queue.py --changed-file template/scripts/publication_state.py --changed-file tests/test_add_intents.py --changed-file tests/test_br_publication_identity.py --changed-file tests/test_github_retry.py --changed-file tests/test_orchestrate_pre_authoring.py --changed-file tests/test_project_evidence.py --changed-file tests/test_requirement_execution.py",
+    "duration_seconds": 262.487,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}

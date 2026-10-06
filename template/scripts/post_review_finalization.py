@@ -362,7 +362,7 @@ def rederive_archived_specs(*, source_repo: str, branch: str, head: str, task_pa
                       capture_output=True, check=False, stdin=subprocess.DEVNULL).returncode == 0:
         return head, main_sha  # idempotent: the head already contains this main
     before = composition_identity(checkout, manifest) if composition else review_gate.task_identity(checkout, change)
-    merge = subprocess.run(["git", *workers.SAFE_GIT, "merge", "--no-commit", "--no-ff", main_sha], cwd=checkout,
+    merge = subprocess.run(["git", *workers.SAFE_GIT, *workers.HARNESS_IDENTITY, "merge", "--no-commit", "--no-ff", main_sha], cwd=checkout,
                            text=True, capture_output=True, check=False, stdin=subprocess.DEVNULL)
     merging = (checkout / ".git" / "MERGE_HEAD").is_file()
     if merge.returncode and not merging:

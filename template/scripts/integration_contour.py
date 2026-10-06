@@ -154,7 +154,7 @@ def execute_integration_repair(job: dict, brief: dict, *, source_repo: str, bran
     main_sha = workers._git(checkout, "rev-parse", "FETCH_HEAD").strip()
     merging = False
     if not _contains(checkout, main_sha, job["head"]):
-        merge = subprocess.run(["git", *workers.SAFE_GIT, "merge", "--no-commit", "--no-ff", main_sha], cwd=checkout,
+        merge = subprocess.run(["git", *workers.SAFE_GIT, *workers.HARNESS_IDENTITY, "merge", "--no-commit", "--no-ff", main_sha], cwd=checkout,
                                text=True, capture_output=True, check=False, stdin=subprocess.DEVNULL)
         merging = (checkout / ".git" / "MERGE_HEAD").is_file()
         if merge.returncode and not merging:
@@ -181,7 +181,7 @@ def execute_integration_repair(job: dict, brief: dict, *, source_repo: str, bran
         return {"status": "discarded"}  # main moved while the writer ran; re-evaluated by the next run
     merging = False
     if not _contains(harness, main_sha, job["head"]):
-        subprocess.run(["git", *workers.SAFE_GIT, "merge", "--no-commit", "--no-ff", main_sha], cwd=harness,
+        subprocess.run(["git", *workers.SAFE_GIT, *workers.HARNESS_IDENTITY, "merge", "--no-commit", "--no-ff", main_sha], cwd=harness,
                        text=True, capture_output=True, check=False, stdin=subprocess.DEVNULL,
                        env=workers.credential_free_env(dict(os.environ), root / "harness-home"))
         merging = (harness / ".git" / "MERGE_HEAD").is_file()

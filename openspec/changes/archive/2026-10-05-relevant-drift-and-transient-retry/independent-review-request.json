@@ -1,0 +1,100 @@
+{
+  "candidate": {
+    "base_head": "98db9ed844c92cf916b34b62d2545d622d576619",
+    "base_ref": "origin/main",
+    "candidate_head": "2baade7bc7958f952dd42d1c7db7d654ea3a5af0",
+    "diff_sha256": "befe9839bd2a82bea6350e6c975d6fc3e8dd327cf78b05a40bfee7c81f732aad"
+  },
+  "change": "openspec/changes/relevant-drift-and-transient-retry",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/relevant-drift-and-transient-retry/automated-checks.json",
+    "openspec/changes/relevant-drift-and-transient-retry/independent-review-dispositions.json",
+    "openspec/changes/relevant-drift-and-transient-retry/independent-review-request.json",
+    "openspec/changes/relevant-drift-and-transient-retry/independent-reviews/engineering-quality.json",
+    "openspec/changes/relevant-drift-and-transient-retry/independent-reviews/spec-fidelity.json",
+    "openspec/changes/relevant-drift-and-transient-retry/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/relevant-drift-and-transient-retry/design.md",
+        "openspec/changes/relevant-drift-and-transient-retry/proposal.md",
+        "openspec/changes/relevant-drift-and-transient-retry/specs/openspec-authoring/spec.md",
+        "openspec/changes/relevant-drift-and-transient-retry/specs/platform-lifecycle/spec.md",
+        "openspec/changes/relevant-drift-and-transient-retry/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/relevant-drift-and-transient-retry/proposal.md",
+        "openspec/changes/relevant-drift-and-transient-retry/design.md",
+        "openspec/changes/relevant-drift-and-transient-retry/tasks.md",
+        "openspec/changes/relevant-drift-and-transient-retry/specs/openspec-authoring/spec.md",
+        "openspec/changes/relevant-drift-and-transient-retry/specs/platform-lifecycle/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-05T17:58:13+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/relevant-drift-and-transient-retry/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "84ff40d6-22bd-41cb-a637-13372ddf8d33",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "98db9ed844c92cf916b34b62d2545d622d576619",
+    "digest": "cfc5b61421ebf0504f072d8e55828e61a8955c32ee8d0bd68bc0ccf980104caf",
+    "paths": {
+      "dev-platform/capabilities/add-intents.md": "1c780d96888e8fb3d182df89804141af19481188",
+      "dev-platform/capabilities/add-intents.toml": "9f8a21d5c94cc0065024a3578abc965ba81b0b7f",
+      "dev-platform/checks.toml": "947532b2d58226abb4db09db2b6b139a0d23d2a6",
+      "docs/engineering/agent-workflow.md": "49d5303b1740f34c225a7c0793fa6ba613ad7e39",
+      "openspec/changes/relevant-drift-and-transient-retry/.managed-task.json": "55ba160387c38fe76240e6e411d561c388b8440f",
+      "openspec/changes/relevant-drift-and-transient-retry/.openspec.yaml": "e3966d7a159d3f2cfcfef99b6a84e530965c6b0d",
+      "openspec/changes/relevant-drift-and-transient-retry/design.md": "da748b71070a92128ee615f9f9d9f9f7ffce7d5c",
+      "openspec/changes/relevant-drift-and-transient-retry/proposal.md": "913e2ded31a825c3d5de10c66897e75a616ec8cf",
+      "openspec/changes/relevant-drift-and-transient-retry/specs/openspec-authoring/spec.md": "f3adff83dbed09af85dace131ca78af66f862323",
+      "openspec/changes/relevant-drift-and-transient-retry/specs/platform-lifecycle/spec.md": "43cb5904bb73efbd2794fe8debf2d991204f63f3",
+      "openspec/changes/relevant-drift-and-transient-retry/tasks.md": "cb6edfac84002862aa43f520603eefd10c4c86f9",
+      "template/dev-platform/capabilities/add-intents.md": "1c780d96888e8fb3d182df89804141af19481188",
+      "template/dev-platform/capabilities/add-intents.toml": "9f8a21d5c94cc0065024a3578abc965ba81b0b7f",
+      "template/scripts/_platform_common.py": "6edf2c3ad1eebd1a5ba9275fbbb27ff57b0d58f9",
+      "template/scripts/add_intents.py": "cf05d122124dc336c00f2491a9054cb5c314d243",
+      "template/scripts/execute_requirement.py": "c32d87411f144a699e2efda472ba7404078c8112",
+      "template/scripts/managed_project_status.py": "05bf58e7d12470c9e9c498eb737f3a806ea9cf54",
+      "template/scripts/managed_task.py": "94ab537f5ae8fa5d13cce6516c113766308e9440",
+      "template/scripts/orchestrate_pre_authoring.py": "b23f98b8262ace3295c74f0d079cc28daeb62d11",
+      "template/scripts/project_evidence.py": "a2ad67b92e046df366459ea1d4ec57428d385ee0",
+      "template/scripts/project_publish.py": "e4f3958e451b268a43d1743edd4bab435b4534b9",
+      "template/scripts/publication_queue.py": "641f4f4cd0581cf638013af41ff8ff7f64a9b91a",
+      "template/scripts/publication_state.py": "302a1f0fe40c74fd086169939cea0f5e1c4f274d",
+      "tests/test_add_intents.py": "458a40e2d9374cc45f7663180aee793ddbe9b8a6",
+      "tests/test_br_publication_identity.py": "7e365ece628801a18919646a44bc9fb89096dd04",
+      "tests/test_github_retry.py": "4a9fbd519e10771c60602bd511f8be7931042f5f",
+      "tests/test_orchestrate_pre_authoring.py": "ed5d2fe93eed3d868439e038ae511c3f4ed88b63",
+      "tests/test_project_evidence.py": "aa07fa52c7c1b21b9820746354069512b3cea800",
+      "tests/test_requirement_execution.py": "8b446574db647c34f70d442a3f6ac84631bb9942"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

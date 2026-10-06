@@ -3,7 +3,7 @@ The disposable repository sandbox provides independent mutable copies with conta
 
 ## Decisions
 1. Scenario uses fake provider commands and a fixture GitHub adapter so it is deterministic and offline; it exercises the real coordinator and worker code.
-2. The real dogfood run is deferred to lehard/development-backlog#391 (after BR-353 merges); this change ships only the evidence template in its evidence directory, and no run is claimed.
+2. The real dogfood run is deferred to BR-391 (after BR-353 merges); this change ships only the evidence template in its evidence directory, and no run is claimed.
 
 ## Risks and Mitigations
 Fixture drift from real GitHub semantics: the deferred dogfood run (#391) is meant to complement the sandbox.
@@ -20,7 +20,7 @@ Repeated scenario runs; the dogfood evidence template review (the real run is ve
 - Runtime is about 30 seconds per run on a laptop, dominated by Git subprocesses; the two runs of the test execute concurrently in separate roots.
 
 ## Portability notes for downstream rollout
-Downstream rollout is a separate Requirement; these are the inputs it must map, not work done here. The real dogfood run is deferred to lehard/development-backlog#391 and has not happened.
+Downstream rollout is a separate Requirement; these are the inputs it must map, not work done here. The real dogfood run is deferred to BR-391 and has not happened.
 - **Provider mapping:** reviewer perspectives need two independent contexts from a configured provider (`[independent_review] provider`/`providers`); the reviewer binary must be resolvable on the worker host. Repair and integration-repair writers are an operator-configured `--llm-command` with bounded `--allow` paths; the sandbox uses scripted commands and never needs a provider.
 - **Check mapping:** protected `main` must register at least one required check, because `not_registered` blocks a candidate; the sandbox adapter's single fixture check stands in for the project's required checks, and finalization re-runs the project's selected-check command in the worker checkout.
 - **Trust configuration:** lifecycle markers, claims and results are trusted only from repository OWNERs, proven writers or the configured coordinator App (`[publication] coordinator_app`); workers need the same trust model as the coordinator, and a worker credential must never reach writer or reviewer processes.

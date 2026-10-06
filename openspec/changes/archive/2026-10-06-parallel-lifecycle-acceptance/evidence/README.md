@@ -1,6 +1,6 @@
 # Dogfood run evidence (template, no run recorded yet)
 
-The real run is deferred to lehard/development-backlog#391 (after BR-353 merges); this change delivers only this template. The run must be one real run on a real repository with several overlapping PRs, main movement, at least one genuine repair and successful merges. Nothing below has been observed yet: replace each placeholder with observed data and leave a missing item as an explicit gap. Never infer, backfill or paraphrase a missing marker; redact secrets without inventing replacement observations.
+The real run is deferred to BR-391 (after BR-353 merges); this change delivers only this template. The run must be one real run on a real repository with several overlapping PRs, main movement, at least one genuine repair and successful merges. Nothing below has been observed yet: replace each placeholder with observed data and leave a missing item as an explicit gap. Never infer, backfill or paraphrase a missing marker; redact secrets without inventing replacement observations.
 
 The sandbox scenario's injected finding does not count as a real finding. If the real run has no genuine repair, record that limitation and leave acceptance pending.
 

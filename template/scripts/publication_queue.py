@@ -58,7 +58,12 @@ def _gh(root: Path, *args: str, data: dict[str, str] | None = None) -> Any:
     if data:
         for key, value in data.items():
             cmd += ["-f", f"{key}={value}"]
-    result = subprocess.run(cmd, cwd=root, text=True, capture_output=True, check=False, stdin=subprocess.DEVNULL)
+    from _platform_common import is_github_read, run_github_with_retry
+
+    if is_github_read(cmd):
+        result = run_github_with_retry(cmd, cwd=root)
+    else:
+        result = subprocess.run(cmd, cwd=root, text=True, capture_output=True, check=False, stdin=subprocess.DEVNULL)
     if result.returncode:
         raise QueueError(result.stderr.strip() or result.stdout.strip() or f"gh exit {result.returncode}")
     if not result.stdout.strip():
@@ -428,7 +433,18 @@ def _pr(root: Path, repo: str, number: int) -> dict[str, Any]:
 
 
 def _main(root: Path) -> str:
-    result = run_git(["ls-remote", "origin", "refs/heads/main"], cwd=root)
+    from _platform_common import GitCommandError, github_retry_attempts, is_transient_github_failure
+
+    attempts = github_retry_attempts()
+    for attempt in range(1, attempts + 1):
+        try:
+            result = run_git(["ls-remote", "origin", "refs/heads/main"], cwd=root)
+            break
+        except GitCommandError as exc:
+            # A transient network failure is retried with bounded backoff; others fail closed.
+            if attempt >= attempts or not is_transient_github_failure(str(exc)):
+                raise QueueError(f"authoritative main SHA is unavailable: {exc}") from exc
+            time.sleep(min(2 ** (attempt - 1), 8))
     sha = result.stdout.split()[0] if result.stdout.split() else ""
     if len(sha) != 40:
         raise QueueError("authoritative main SHA is unavailable")
@@ -701,11 +717,9 @@ def requirement_status(root: Path, requirement: str) -> dict[str, Any]:
 
 def local_status(root: Path, branch: str) -> dict[str, Any] | None:
     """Observe this task's admitted PR even after the coordinator updates its head."""
-    result = subprocess.run(
-        ["gh", "pr", "view", branch, "--json", "number,baseRefName,headRefName"],
-        cwd=root, text=True, capture_output=True, check=False,
-        stdin=subprocess.DEVNULL,
-    )
+    from _platform_common import run_github_with_retry
+
+    result = run_github_with_retry(["gh", "pr", "view", branch, "--json", "number,baseRefName,headRefName"], cwd=root)
     if result.returncode:
         candidates = _gh(root, "pr", "list", "--state", "all", "--head", branch,
                          "--limit", "100", "--json", "number,baseRefName,headRefName")

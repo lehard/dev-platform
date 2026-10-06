@@ -13,7 +13,28 @@ from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "template" / "scripts"))
-import execute_requirement as execution
+from _platform_modules import load_platform_module
+
+execution = load_platform_module("execute_requirement", ROOT / "template/scripts/execute_requirement.py")
+
+
+def _write_handoffs(root: Path, intents: dict[str, list[str]]) -> dict[str, str]:
+    """Recorded handoffs with real content digests plus the approved intent set."""
+    requirement_dir = root / "requirement-7"
+    (requirement_dir / "handoff").mkdir(parents=True, exist_ok=True)
+    intents_document = {"intents": [
+        {"id": change, "ready": True, "dependencies": dependencies} for change, dependencies in intents.items()
+    ]}
+    (requirement_dir / "intents.json").write_text(json.dumps(intents_document), encoding="utf-8")
+    intents_digest = execution.add_intents._content_digest(intents_document)
+    digests = {}
+    for change, dependencies in intents.items():
+        envelope = {"add_id": "requirement-7", "intents": [{"id": change, "dependencies": dependencies}],
+                    "source_bindings": {"intents_digest": intents_digest}}
+        envelope["digest"] = execution.add_intents._content_digest(envelope)
+        (requirement_dir / "handoff" / f"{change}.json").write_text(json.dumps(envelope), encoding="utf-8")
+        digests[change] = envelope["digest"]
+    return digests
 
 
 REQUIREMENT = "acme/backlog#7"
@@ -53,6 +74,247 @@ class RequirementExecutionTests(unittest.TestCase):
                 raw[change] = str(path)
             with self.assertRaisesRegex(execution.RequirementExecutionError, "cyclic"):
                 execution._ordered_handoffs({"current_stage": "complete", "handoffs": raw}, REQUIREMENT)
+
+    def test_stale_pre_authoring_uses_materialized_handoff_for_terminal(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            digest = _write_handoffs(root, {"first": []})["first"]
+            parent = {"body": PARENT_BODY, "labels": [{"name": "type:requirement"}]}
+            child = {"body": f"<!-- requirement-handoff:v1:{REQUIREMENT}:{digest} -->"}
+            terminal = load_platform_module("requirement_terminal", ROOT / "template/scripts/requirement_terminal.py")
+            for materialized in (True, False):
+                with self.subTest(materialized=materialized), mock.patch.object(
+                    execution, "current_worktree_root", return_value=root
+                ), mock.patch.object(execution, "_git", return_value="main"), mock.patch.object(
+                    execution.requirement_target_lifecycle, "require_local_target_support"
+                ), mock.patch.object(
+                    execution.requirement_intake, "fetch_issue", side_effect=[parent, child if materialized else {"body": ""}]
+                ), mock.patch.object(
+                    execution.orchestrate_pre_authoring, "status", return_value={"current_stage": "snapshot", "blocker": "stale sources"}
+                ), mock.patch.object(execution.requirement_board, "claim_started"), mock.patch.object(
+                    execution, "_linked_children_by_change", return_value={"first": "acme/backlog#8"}
+                ), mock.patch.object(
+                    execution.managed_project_status, "observe", return_value=SimpleNamespace(current_status="Done")
+                ), mock.patch.object(execution, "_done_child_is_delivered"), mock.patch.object(
+                    terminal, "reconcile_parent", return_value={"status": "done"}
+                ) as reconcile, mock.patch.object(execution.requirement_intake, "materialize_handoff") as create:
+                    if materialized:
+                        self.assertEqual(execution.advance(root, requirement=REQUIREMENT, base_dir=root), {"status": "done"})
+                        reconcile.assert_called_once_with(root.resolve(), requirement=REQUIREMENT)
+                    else:
+                        with self.assertRaisesRegex(execution.RequirementExecutionError, "not fresh and complete"):
+                            execution.advance(root, requirement=REQUIREMENT, base_dir=root)
+                        reconcile.assert_not_called()
+                    create.assert_not_called()
+
+    def test_materialized_handoffs_preserve_dependency_order_and_require_every_marker(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            children = {"last": "acme/backlog#9", "first": "acme/backlog#8"}
+            digests = _write_handoffs(root, {"last": ["first"], "first": []})
+            bodies = [{"body": f"<!-- requirement-handoff:v1:{REQUIREMENT}:{digests[change]} -->"} for change in ("last", "first")]
+            with mock.patch.object(execution.requirement_intake, "fetch_issue", side_effect=bodies):
+                report = execution._materialized_handoff_report(root, REQUIREMENT, root, children)
+            self.assertEqual([change for change, _ in execution._ordered_handoffs(report, REQUIREMENT)], ["first", "last"])
+            with mock.patch.object(execution.requirement_intake, "fetch_issue", side_effect=[bodies[0], {"body": ""}]):
+                self.assertIsNone(execution._materialized_handoff_report(root, REQUIREMENT, root, children))
+
+    def test_recovered_multi_child_requirement_reconciles_when_all_children_are_done(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            digests = _write_handoffs(root, {"last": ["first"], "first": []})
+            children = {"last": "acme/backlog#9", "first": "acme/backlog#8"}
+            parent = {"body": PARENT_BODY, "labels": [{"name": "type:requirement"}], "state": "OPEN"}
+            bodies = [{"body": f"<!-- requirement-handoff:v1:{REQUIREMENT}:{digests[change]} -->"} for change in ("last", "first")]
+            terminal = load_platform_module("requirement_terminal", ROOT / "template/scripts/requirement_terminal.py")
+            with mock.patch.object(execution, "current_worktree_root", return_value=root), \
+                 mock.patch.object(execution, "_git", return_value="main"), \
+                 mock.patch.object(execution.requirement_target_lifecycle, "require_local_target_support"), \
+                 mock.patch.object(execution.requirement_intake, "fetch_issue", side_effect=[parent, *bodies]), \
+                 mock.patch.object(execution.orchestrate_pre_authoring, "status", return_value={"current_stage": "snapshot", "blocker": "stale"}), \
+                 mock.patch.object(execution.requirement_board, "claim_started"), \
+                 mock.patch.object(execution, "_linked_children_by_change", return_value=children), \
+                 mock.patch.object(execution.managed_project_status, "observe", return_value=SimpleNamespace(current_status="Done")), \
+                 mock.patch.object(execution, "_done_child_is_delivered"), \
+                 mock.patch.object(terminal, "reconcile_parent", return_value={"status": "done"}) as reconcile:
+                self.assertEqual(execution.advance(root, requirement=REQUIREMENT, base_dir=root), {"status": "done"})
+            reconcile.assert_called_once_with(root.resolve(), requirement=REQUIREMENT)
+
+    def test_recovery_maps_intent_named_handoffs_to_differently_named_changes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            digests = _write_handoffs(root, {"intent-retry": []})
+            body = {"body": f"<!-- requirement-handoff:v1:{REQUIREMENT}:{digests['intent-retry']} -->"}
+            with mock.patch.object(execution.requirement_intake, "fetch_issue", side_effect=[body]):
+                report = execution._materialized_handoff_report(
+                    root, REQUIREMENT, root, {"retry-implementation": "acme/backlog#8"})
+            self.assertEqual(list(report["handoffs"]), ["retry-implementation"])
+
+    def test_recovery_accepts_a_cohesive_group_handoff(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            directory = root / "requirement-7"
+            (directory / "handoff").mkdir(parents=True)
+            intents_document = {"intents": [{"id": "part-a", "ready": True, "dependencies": []},
+                                            {"id": "part-b", "ready": True, "dependencies": ["part-a"]}]}
+            (directory / "intents.json").write_text(json.dumps(intents_document), encoding="utf-8")
+            envelope = {"add_id": "requirement-7", "intents": intents_document["intents"],
+                        "source_bindings": {"intents_digest": execution.add_intents._content_digest(intents_document)}}
+            envelope["digest"] = execution.add_intents._content_digest(envelope)
+            for name in ("part-a", "part-b"):  # the grouped envelope recorded under each intent's name
+                (directory / "handoff" / f"{name}.json").write_text(json.dumps(envelope), encoding="utf-8")
+            body = {"body": f"<!-- requirement-handoff:v1:{REQUIREMENT}:{envelope['digest']} -->"}
+            with mock.patch.object(execution.requirement_intake, "fetch_issue", side_effect=[body]):
+                report = execution._materialized_handoff_report(root, REQUIREMENT, root, {"grouped-change": "acme/backlog#8"})
+            self.assertEqual(list(report["handoffs"]), ["grouped-change"])
+            # An internal dependency of the group is not a cycle.
+            self.assertEqual([change for change, _ in execution._ordered_handoffs(report, REQUIREMENT)], ["grouped-change"])
+
+    def test_fresh_report_maps_intent_keys_to_differently_named_active_children(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            digest = _write_handoffs(root, {"intent-retry": []})["intent-retry"]
+            handoff = root / "requirement-7" / "handoff" / "intent-retry.json"
+            parent = {"body": PARENT_BODY, "labels": [{"name": "type:requirement"}]}
+            child = {"body": f"<!-- requirement-handoff:v1:{REQUIREMENT}:{digest} -->"}
+            with mock.patch.object(execution, "current_worktree_root", return_value=root), \
+                 mock.patch.object(execution, "_git", return_value="main"), \
+                 mock.patch.object(execution.requirement_target_lifecycle, "require_local_target_support"), \
+                 mock.patch.object(execution.requirement_intake, "fetch_issue", side_effect=[parent, child]), \
+                 mock.patch.object(execution.orchestrate_pre_authoring, "status",
+                                   return_value={"current_stage": "complete", "handoffs": {"intent-retry": str(handoff)}}), \
+                 mock.patch.object(execution.requirement_board, "claim_started"), \
+                 mock.patch.object(execution, "_linked_children_by_change", return_value={"retry-implementation": "acme/backlog#8"}), \
+                 mock.patch.object(execution.managed_project_status, "observe", return_value=SimpleNamespace(current_status="In progress")), \
+                 mock.patch.object(execution, "_ready_receipt", return_value=None), \
+                 mock.patch.object(execution.start_managed_task, "start_managed_task",
+                                   return_value=(SimpleNamespace(task_root=root / "child"), "head", False)), \
+                 mock.patch.object(execution.requirement_board, "reconcile_nonterminal"):
+                result = execution.advance(root, requirement=REQUIREMENT, base_dir=root)
+            self.assertEqual((result["status"], result["change"]), ("implement-child", "retry-implementation"))
+
+    def test_partially_materialized_fresh_report_rekeys_the_linked_child_only(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            digests = _write_handoffs(root, {"intent-first": [], "intent-second": ["intent-first"]})
+            directory = root / "requirement-7" / "handoff"
+            handoffs = {name: str(directory / f"{name}.json") for name in ("intent-first", "intent-second")}
+            child = {"body": f"<!-- requirement-handoff:v1:{REQUIREMENT}:{digests['intent-first']} -->"}
+            with mock.patch.object(execution.requirement_intake, "fetch_issue", side_effect=[child]):
+                rekeyed = execution._rekey_by_linked_child(root, REQUIREMENT, handoffs, {"change-first": "acme/backlog#8"})
+            self.assertEqual(set(rekeyed), {"change-first", "intent-second"})
+            ordered = execution._ordered_handoffs({"current_stage": "complete", "handoffs": rekeyed}, REQUIREMENT)
+            self.assertEqual([change for change, _ in ordered], ["change-first", "intent-second"])
+
+    def test_rekey_follows_markers_even_when_names_collide_and_dedupes_groups(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            digests = _write_handoffs(root, {"intent-a": [], "intent-b": []})
+            directory = root / "requirement-7" / "handoff"
+            handoffs = {name: str(directory / f"{name}.json") for name in ("intent-a", "intent-b")}
+            # Children deliberately named after the *other* intent.
+            bodies = [{"body": f"<!-- requirement-handoff:v1:{REQUIREMENT}:{digests['intent-a']} -->"},
+                      {"body": f"<!-- requirement-handoff:v1:{REQUIREMENT}:{digests['intent-b']} -->"}]
+            with mock.patch.object(execution.requirement_intake, "fetch_issue", side_effect=bodies):
+                rekeyed = execution._rekey_by_linked_child(
+                    root, REQUIREMENT, handoffs, {"intent-b": "acme/backlog#8", "intent-a": "acme/backlog#9"})
+            self.assertEqual(rekeyed, {"intent-b": handoffs["intent-a"], "intent-a": handoffs["intent-b"]})
+            # The same grouped envelope under two intent names maps once.
+            (directory / "intent-b.json").write_text((directory / "intent-a.json").read_text(encoding="utf-8"), encoding="utf-8")
+            with mock.patch.object(execution.requirement_intake, "fetch_issue", side_effect=[bodies[0]]):
+                grouped = execution._rekey_by_linked_child(root, REQUIREMENT, handoffs, {"grouped": "acme/backlog#8"})
+            self.assertEqual(list(grouped), ["grouped"])
+
+    def test_refreshed_handoff_reuses_its_child_through_the_authored_bundle(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _write_handoffs(root, {"intent-retry": []})
+            handoffs = {"intent-retry": str(root / "requirement-7" / "handoff" / "intent-retry.json")}
+            stale_marker = {"body": f"<!-- requirement-handoff:v1:{REQUIREMENT}:{'0' * 64} -->"}
+            bundle = SimpleNamespace(change="retry-implementation", artifacts=("a",), contents=("c",))
+            with mock.patch.object(execution.requirement_intake, "fetch_issue", side_effect=[stale_marker]), \
+                 mock.patch.object(execution, "_bundle", return_value=root / "bundle"), \
+                 mock.patch.object(execution.managed_task, "load_authoring_bundle", return_value=bundle), \
+                 mock.patch.object(execution.managed_task, "discover_task",
+                                   return_value=SimpleNamespace(artifacts=("a",), contents=("c",))):
+                rekeyed = execution._rekey_by_linked_child(
+                    root, REQUIREMENT, handoffs, {"retry-implementation": "acme/backlog#8"}, root)
+            self.assertEqual(list(rekeyed), ["retry-implementation"])
+            # A refreshed bundle that changes the child's contract stops explicitly.
+            with mock.patch.object(execution.requirement_intake, "fetch_issue", side_effect=[stale_marker]), \
+                 mock.patch.object(execution, "_bundle", return_value=root / "bundle"), \
+                 mock.patch.object(execution.managed_task, "load_authoring_bundle", return_value=bundle), \
+                 mock.patch.object(execution.managed_task, "discover_task",
+                                   return_value=SimpleNamespace(artifacts=("a",), contents=("changed",))):
+                with self.assertRaisesRegex(execution.RequirementExecutionError, "changes the contract"):
+                    execution._rekey_by_linked_child(root, REQUIREMENT, handoffs, {"retry-implementation": "acme/backlog#8"}, root)
+
+    def test_recovery_accepts_a_refreshed_handoff_reused_through_its_bundle(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _write_handoffs(root, {"intent-retry": []})
+            stale_marker = {"body": f"<!-- requirement-handoff:v1:{REQUIREMENT}:{'0' * 64} -->"}
+            bundle = SimpleNamespace(change="retry-implementation", artifacts=("a",), contents=("c",))
+            with mock.patch.object(execution.requirement_intake, "fetch_issue", side_effect=[stale_marker]), \
+                 mock.patch.object(execution, "_bundle", return_value=root / "bundle"), \
+                 mock.patch.object(execution.managed_task, "load_authoring_bundle", return_value=bundle), \
+                 mock.patch.object(execution.managed_task, "discover_task",
+                                   return_value=SimpleNamespace(artifacts=("a",), contents=("c",))):
+                report = execution._materialized_handoff_report(root, REQUIREMENT, root, {"retry-implementation": "acme/backlog#8"})
+            self.assertEqual(list(report["handoffs"]), ["retry-implementation"])
+
+    def test_recovery_rejects_an_intent_set_edited_after_materialization(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            digests = _write_handoffs(root, {"first": [], "second": []})
+            (root / "requirement-7" / "handoff" / "second.json").unlink()
+            intents_path = root / "requirement-7" / "intents.json"
+            document = json.loads(intents_path.read_text(encoding="utf-8"))
+            document["intents"][1]["ready"] = False  # hides the never-materialized second intent
+            intents_path.write_text(json.dumps(document), encoding="utf-8")
+            body = {"body": f"<!-- requirement-handoff:v1:{REQUIREMENT}:{digests['first']} -->"}
+            with mock.patch.object(execution.requirement_intake, "fetch_issue", side_effect=[body]):
+                self.assertIsNone(execution._materialized_handoff_report(root, REQUIREMENT, root, {"first": "acme/backlog#8"}))
+
+    def test_unreadable_pre_authoring_state_still_reaches_recovery(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            digest = _write_handoffs(root, {"first": []})["first"]
+            parent = {"body": PARENT_BODY, "labels": [{"name": "type:requirement"}]}
+            child = {"body": f"<!-- requirement-handoff:v1:{REQUIREMENT}:{digest} -->"}
+            terminal = load_platform_module("requirement_terminal", ROOT / "template/scripts/requirement_terminal.py")
+            with mock.patch.object(execution, "current_worktree_root", return_value=root), \
+                 mock.patch.object(execution, "_git", return_value="main"), \
+                 mock.patch.object(execution.requirement_target_lifecycle, "require_local_target_support"), \
+                 mock.patch.object(execution.requirement_intake, "fetch_issue", side_effect=[parent, child]), \
+                 mock.patch.object(execution.orchestrate_pre_authoring, "status",
+                                   side_effect=execution.orchestrate_pre_authoring.OrchestratorError("state.json is unreadable")), \
+                 mock.patch.object(execution.requirement_board, "claim_started"), \
+                 mock.patch.object(execution, "_linked_children_by_change", return_value={"first": "acme/backlog#8"}), \
+                 mock.patch.object(execution.managed_project_status, "observe", return_value=SimpleNamespace(current_status="Done")), \
+                 mock.patch.object(execution, "_done_child_is_delivered"), \
+                 mock.patch.object(terminal, "reconcile_parent", return_value={"status": "done"}):
+                self.assertEqual(execution.advance(root, requirement=REQUIREMENT, base_dir=root), {"status": "done"})
+
+    def test_materialized_recovery_rejects_edited_or_incomplete_handoffs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            children = {"last": "acme/backlog#9", "first": "acme/backlog#8"}
+            digests = _write_handoffs(root, {"last": ["first"], "first": []})
+            bodies = [{"body": f"<!-- requirement-handoff:v1:{REQUIREMENT}:{digests[change]} -->"} for change in ("last", "first")]
+            path = root / "requirement-7" / "handoff" / "last.json"
+            original = path.read_text(encoding="utf-8")
+            # A dependency removed after materialization keeps the old digest.
+            edited = json.loads(original)
+            edited["intents"][0]["dependencies"] = []
+            path.write_text(json.dumps(edited), encoding="utf-8")
+            with mock.patch.object(execution.requirement_intake, "fetch_issue", side_effect=bodies):
+                self.assertIsNone(execution._materialized_handoff_report(root, REQUIREMENT, root, children))
+            path.write_text(original, encoding="utf-8")
+            # A lost handoff file must not shrink the mandatory set.
+            path.unlink()
+            with mock.patch.object(execution.requirement_intake, "fetch_issue", side_effect=bodies[1:]):
+                self.assertIsNone(execution._materialized_handoff_report(root, REQUIREMENT, root, {"first": "acme/backlog#8"}))
 
     def test_unique_historical_child_is_reused_and_done_link_is_repaired(self) -> None:
         parent = {"body": "<!-- requirement-children:start -->\n- [x] acme/backlog#8\n<!-- requirement-children:end -->"}
@@ -211,6 +473,38 @@ class RequirementExecutionTests(unittest.TestCase):
                         self.assertTrue(execution._publish_active_child(root, "acme/backlog#8", "first"))
                         finish.assert_not_called()
                         provenance.assert_not_called()
+
+    def test_dependent_child_gets_predecessor_receipt_when_change_names_differ_from_intents(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            first, second = root / "intent-first.json", root / "intent-second.json"
+            first.write_text(json.dumps({"intents": [{"id": "intent-first", "dependencies": []}]}), encoding="utf-8")
+            second.write_text(json.dumps({"intents": [{"id": "intent-second", "dependencies": ["intent-first"]}]}), encoding="utf-8")
+            handoffs = [("change-first", first), ("change-second", second)]
+            receipt = root / "first-receipt.json"
+
+            def git_result(_root: Path, *args: str) -> str:
+                return "main" if args[:2] == ("branch", "--show-current") else "a" * 40
+
+            with mock.patch.object(execution, "current_worktree_root", return_value=root), mock.patch.object(
+                execution, "_git", side_effect=git_result
+            ), mock.patch.object(execution.requirement_target_lifecycle, "require_local_target_support"), mock.patch.object(
+                execution.requirement_intake, "fetch_issue", return_value={"body": PARENT_BODY, "labels": [{"name": "type:requirement"}]}
+            ), mock.patch.object(
+                execution.orchestrate_pre_authoring, "status", return_value={"current_stage": "complete"}
+            ), mock.patch.object(execution, "_ordered_handoffs", return_value=handoffs), mock.patch.object(
+                execution, "_linked_children_by_change", return_value={"change-first": "acme/backlog#8", "change-second": "acme/backlog#9"}
+            ), mock.patch.object(
+                execution.managed_project_status, "observe", return_value=SimpleNamespace(current_status="In progress")
+            ), mock.patch.object(
+                execution, "_ready_receipt", side_effect=[(receipt, object()), None]
+            ), mock.patch.object(execution, "_publish_early_draft", return_value=None), mock.patch.object(
+                execution.start_managed_task, "start_managed_task",
+                return_value=(SimpleNamespace(task_root=root / "child"), "head", False),
+            ) as start, mock.patch.object(execution.requirement_board, "reconcile_nonterminal"):
+                result = execution.advance(root, requirement=REQUIREMENT, base_dir=root)
+            self.assertEqual(result["change"], "change-second")
+            self.assertEqual(start.call_args.kwargs["base_child_receipt"], receipt)
 
     def test_single_mandatory_change_never_opens_a_shared_draft(self) -> None:
         self.assertIsNone(execution._publish_early_draft(

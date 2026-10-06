@@ -191,6 +191,20 @@ For a business requirement that implies a genuine system-design delta (new/chang
 
 `scripts/orchestrate_pre_authoring.py` sequences snapshot build/reuse (`scripts/project_evidence.py`), the ADD/Intents stages above, and OpenSpec handoff into one resumable `status`/`record-decision` surface: it re-validates the actual artifact files on every call, so a fresh stage is reused after a restart and an upstream mutation invalidates only its dependent downstream stages, without a second stateful lifecycle. `scripts/requirement_intake.py` binds a human-facing business Requirement Issue (`type:requirement`, business language only, no OpenSpec) to that orchestrator, and later links each resulting internal managed OpenSpec Issue back to it (`type:internal-change`) with read-through status aggregation from the existing Development Backlog Project — the Requirement stays the one thing a human normally manages.
 
+Snapshot-bound ADDs, intents and handoffs remain fresh across unrelated HEAD
+movement when their bound source identities and evidence digests still match;
+`prepared_against` remains provenance. A bound source change requires refresh.
+After every recorded handoff digest is carried by a linked child Issue's exact
+Requirement handoff marker, `execute_requirement.py advance` can use those
+recorded handoffs for child ordering and terminal reconciliation without fresh
+pre-authoring. Missing materialization and child contract conflicts still stop.
+
+Lifecycle GitHub reads retry classified transient transport/server failures
+with at most `DEV_PLATFORM_GITHUB_RETRY_ATTEMPTS` attempts (default 4), waiting
+1, 2, 4 seconds between the default attempts; further delays cap at 8 seconds.
+Non-transient failures return immediately, and mutations are never retried
+automatically.
+
 ## Central source dogfood lifecycle
 
 For ordinary work in this central repository, use the committed source contract in `.dev-platform.toml` and its lifecycle adapter. Do not assemble a manual branch/worktree/PR flow. A managed task is imported first, then its sole untracked package is transferred into the isolated task worktree:

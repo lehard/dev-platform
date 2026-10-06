@@ -102,11 +102,11 @@ class IdentityPublicationTests(unittest.TestCase):
         def run(command, **kwargs):
             commands.append(command)
             if command[2] == 'view':
-                return SimpleNamespace(stdout=json.dumps(current))
+                return SimpleNamespace(returncode=0, stderr='', stdout=json.dumps(current))
             if command[2] == 'edit':
                 current['title'] = command[command.index('--title') + 1]
                 current['body'] = command[command.index('--body') + 1]
-                return SimpleNamespace(stdout='')
+                return SimpleNamespace(returncode=0, stderr='', stdout='')
             self.fail('unexpected creation or mutation')
         with mock.patch.object(publish.subprocess, 'run', side_effect=run):
             for _ in range(2):
@@ -128,8 +128,8 @@ class IdentityPublicationTests(unittest.TestCase):
                 if command[2] == 'create':
                     return SimpleNamespace(returncode=returncode, stdout='https://example.invalid/pr/4', stderr='race')
                 if command[2] == 'view':
-                    return SimpleNamespace(stdout=json.dumps({'headRefOid': head, 'title': 'Race winner title', 'body': 'User race winner description'}))
-                return SimpleNamespace(stdout='')
+                    return SimpleNamespace(returncode=0, stderr='', stdout=json.dumps({'headRefOid': head, 'title': 'Race winner title', 'body': 'User race winner description'}))
+                return SimpleNamespace(returncode=0, stderr='', stdout='')
             with mock.patch.object(publish.subprocess, 'run', side_effect=run), mock.patch.object(publish, 'find_exact_head_pr', return_value=found):
                 result = publish.ensure_pr(self.root, {}, 'agent/br-7-t1-change', 'main', 'New title', 'New body', head,
                                           lookup=empty, identity='BR-7/T1', draft=True)
@@ -149,12 +149,12 @@ class IdentityPublicationTests(unittest.TestCase):
         def run(command, **kwargs):
             commands.append(command)
             if command[2] == 'view':
-                return SimpleNamespace(stdout=json.dumps(current))
+                return SimpleNamespace(returncode=0, stderr='', stdout=json.dumps(current))
             self.assertEqual(command[2], 'edit')
             self.assertEqual(command[3], '4')
             current['title'] = command[command.index('--title') + 1]
             current['body'] = command[command.index('--body') + 1]
-            return SimpleNamespace(stdout='')
+            return SimpleNamespace(returncode=0, stderr='', stdout='')
         with mock.patch.object(publish.subprocess, 'run', side_effect=run):
             for included in (['BR-7/T1'], ['BR-7/T1', 'BR-7/T2'], ['BR-7/T1', 'BR-7/T2']):
                 publish.ensure_pr(self.root, {}, 'agent/shared', 'main', None, None, head, lookup=lookup,
@@ -197,13 +197,13 @@ class IdentityPublicationTests(unittest.TestCase):
 
     def test_head_race_and_privacy_guard_block_edits(self):
         pr = publish.PrRef(4, 'https://example.invalid/pr/4')
-        with mock.patch.object(publish.subprocess, 'run', return_value=SimpleNamespace(stdout=json.dumps({'headRefOid': 'b' * 40}))) as run:
+        with mock.patch.object(publish.subprocess, 'run', return_value=SimpleNamespace(returncode=0, stderr='', stdout=json.dumps({'headRefOid': 'b' * 40}))) as run:
             with self.assertRaisesRegex(SystemExit, 'head changed'):
                 publish._repair_pr_identity(self.root, {}, pr, 'a' * 40, 'BR-7/T1', None)
             self.assertEqual(run.call_count, 1)
         (self.root / 'scripts').mkdir()
         (self.root / 'scripts/check_private_backlog_refs.py').write_text('')
-        observed = SimpleNamespace(stdout=json.dumps({'headRefOid': 'a' * 40, 'title': 'User', 'body': 'acme/backlog#8'}))
+        observed = SimpleNamespace(returncode=0, stderr='', stdout=json.dumps({'headRefOid': 'a' * 40, 'title': 'User', 'body': 'acme/backlog#8'}))
         with mock.patch.object(publish.subprocess, 'run', side_effect=[observed, subprocess.CalledProcessError(1, 'guard')]) as run:
             with self.assertRaises(subprocess.CalledProcessError):
                 publish._repair_pr_identity(self.root, {}, pr, 'a' * 40, 'BR-7/T1', None)

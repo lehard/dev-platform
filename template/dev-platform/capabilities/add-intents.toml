@@ -19,7 +19,7 @@ source = "dev-platform"
 revision = "platform-managed"
 path = "dev-platform/capabilities/add-intents.md"
 license = "Apache-2.0"
-content_sha256 = "6e3c711b851849a08ced17b47339431680393e9005a84fb744a494274ddfade2"
+content_sha256 = "b3889d767a61a2d4045b2f51927de2e5de1e136ae2e62028de24bab9da28ad4c"
 
 [eval]
 evidence = "dev-platform/evals/add-intents-pilot.json"

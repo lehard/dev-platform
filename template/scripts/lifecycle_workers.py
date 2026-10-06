@@ -38,6 +38,8 @@ HEAD = re.compile(r"[0-9a-f]{40}")
 RESULT_PREFIX = "dev-platform-lifecycle-result:v1 "
 # Hardening for every harness git invocation (never trust repo-local hooks or fsmonitor).
 SAFE_GIT = ("-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false")
+# Harness merges and commits never depend on an ambient git identity (CI runners have none).
+HARNESS_IDENTITY = ("-c", "user.name=Lifecycle harness", "-c", "user.email=lifecycle@localhost")
 EVIDENCE_NAMES = ("verification.md", "automated-checks.json")
 CREDENTIAL_VARS = frozenset({
     "GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN",
