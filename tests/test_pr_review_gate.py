@@ -73,6 +73,7 @@ class GateTests(unittest.TestCase):
             with mock.patch.object(queue, "_repo", return_value="o/r"), \
                     mock.patch.object(queue, "_queued", return_value=[(1, 7, {"branch": "agent/example"})]), \
                     mock.patch.object(queue, "_prepare", return_value=(fixture.head, HEAD)), \
+                    mock.patch.object(queue, "_require_finalized"), \
                     mock.patch.object(queue, "_main", return_value=HEAD), \
                     mock.patch.object(queue, "_label"), \
                     mock.patch.object(queue, "required_check_state_for_ref") as check, \

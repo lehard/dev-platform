@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -307,6 +308,10 @@ def require_publication_review_evidence(change: Path, *, root: Path | None = Non
         ) from exc
 
 
+STAGE_CANDIDATE = "candidate"
+STAGE_INTEGRATION = "integration"
+
+
 def completed_active_changes(root: Path) -> list[str]:
     stale: list[str] = []
     for change in active_changes(root):
@@ -316,8 +321,51 @@ def completed_active_changes(root: Path) -> list[str]:
     return stale
 
 
-def check_hygiene(root: Path) -> int:
+def completed_active_changes_at(root: Path, ref: str) -> list[str]:
+    """Completed-but-active changes in the committed tree at ``ref`` (no checkout needed)."""
+    listed = run_git(["ls-tree", "--name-only", ref, "openspec/changes/"], cwd=root, check=False)
+    if listed.returncode:
+        raise SystemExit(f"cannot list OpenSpec changes at {ref}: {listed.stderr.strip()}")
+    stale: list[str] = []
+    for entry in sorted(listed.stdout.splitlines()):
+        name = entry.rsplit("/", 1)[-1]
+        if name == "archive":
+            continue
+        tasks = run_git(["show", f"{ref}:{entry}/tasks.md"], cwd=root, check=False)
+        if tasks.returncode:
+            continue
+        total, incomplete = count_tasks(tasks.stdout)
+        if total > 0 and incomplete == 0:
+            stale.append(name)
+    return stale
+
+
+def _candidate_context(root: Path) -> bool:
+    """Whether this checkout is a source-repository work branch or PR, never main itself."""
+    config = read_platform_config(root)
+    if config.get("platform_version") != "source":
+        return False
+    main = str(config.get("main_branch", "main"))
+    ref = os.environ.get("GITHUB_REF", "")
+    if ref:
+        return ref.startswith("refs/pull/") or (ref.startswith("refs/heads/") and ref != f"refs/heads/{main}")
+    branch = run_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=root, check=False).stdout.strip()
+    return branch not in {"", "HEAD", main}
+
+
+def check_hygiene(root: Path, stage: str | None = None) -> int:
+    """Block completed-but-active changes at the stage where archive is required.
+
+    ``integration`` (publication by a non-coordinator flow, integration admission,
+    merge, main) is strict. ``candidate`` allows a completed managed change that a
+    coordinator-managed PR carries until review and repair finish. With no stage
+    the context decides: only a source-repository work branch or PR is a candidate.
+    """
+    if stage is None:
+        stage = STAGE_CANDIDATE if _candidate_context(root) else STAGE_INTEGRATION
     stale = completed_active_changes(root)
+    if stage == STAGE_CANDIDATE:
+        stale = [name for name in stale if not (root / "openspec" / "changes" / name / ".managed-task.json").is_file()]
     if not stale:
         print("OpenSpec lifecycle hygiene: OK")
         return 0
@@ -382,7 +430,7 @@ def require_managed_routing_evidence(change: Path) -> None:
         ) from exc
 
 
-def require_static_archive_readiness(change: Path, *, platform_owned: bool = False, review: bool = True) -> None:
+def require_static_archive_readiness(change: Path, *, platform_owned: bool = False, review: bool = True, routing: bool = True) -> None:
     """Check deterministic archive prerequisites before checks mutate evidence.
 
     ``review=False`` lets archive defer the (possibly launching) independent
@@ -404,7 +452,7 @@ def require_static_archive_readiness(change: Path, *, platform_owned: bool = Fal
     require_independent_review_receipt(change)
     if review:
         require_review_evidence(change.parents[2], change)
-    if platform_owned:
+    if platform_owned and routing:
         require_managed_routing_evidence(change)
     if platform_owned:
         expected = f"{AUTOMATED_EVIDENCE_PREFIX} {AUTOMATED_EVIDENCE_FILE}"
@@ -435,10 +483,17 @@ def run_checked(command: list[str], root: Path) -> None:
         raise SystemExit(result.returncode)
 
 
-def archive_change(root: Path, name: str) -> int:
+def archive_change(root: Path, name: str, *, finalize: bool = False) -> int:
+    """Archive a verified change.
+
+    ``finalize`` is the coordinator's post-review archive of a disposable candidate
+    checkout: review and selected-check evidence are reused (never launched or rerun),
+    and the local task-checkout identity gates do not apply because the trusted
+    coordinator already proved the content-bound gates before invoking it.
+    """
     change = root / "openspec" / "changes" / name
     platform_owned = harness_mode(read_platform_config(root)) == "platform"
-    if platform_owned and (change / ".managed-task.json").is_file():
+    if platform_owned and not finalize and (change / ".managed-task.json").is_file():
         try:
             source_issue = source_issue_for_provenance(root, change)
             if not isinstance(source_issue, str):
@@ -450,29 +505,32 @@ def archive_change(root: Path, name: str) -> int:
             )
         except ManagedTaskError as exc:
             raise SystemExit(f"{name}: managed checkout identity gate blocked archive before validation: {exc}") from exc
-    require_static_archive_readiness(change, platform_owned=platform_owned, review=False)
-    if platform_owned:
+    require_static_archive_readiness(change, platform_owned=platform_owned, review=False, routing=not finalize)
+    if platform_owned and not finalize:
         require_applicable_committed_diff(root)
-    # Required independent review runs after the cheap deterministic gates and
-    # before expensive validation: a missing or stale review is launched now,
-    # and blocking findings stop archive with exact next commands.
-    from pr_review_gate import managed_candidate
-
-    coordinator_managed = managed_candidate(root)
-    if coordinator_managed:
+    if finalize:
         require_review_evidence(root, change)
     else:
-        ensure_review_evidence(root, change)
-    if platform_owned and coordinator_managed:
-        # Validate content-bound selected checks; never rerun unchanged evidence.
-        require_automated_evidence(change, root=root)
-    elif platform_owned:
-        evidence = change / AUTOMATED_EVIDENCE_FILE
-        run_checked(
-            ["python3", "scripts/select_checks.py", "--base", "origin/main", "--execute", "--evidence", str(evidence)],
-            root,
-        )
-    require_ready(change, platform_owned=platform_owned)
+        # Required independent review runs after the cheap deterministic gates and
+        # before expensive validation: a missing or stale review is launched now,
+        # and blocking findings stop archive with exact next commands.
+        from pr_review_gate import managed_candidate
+
+        coordinator_managed = managed_candidate(root)
+        if coordinator_managed:
+            require_review_evidence(root, change)
+        else:
+            ensure_review_evidence(root, change)
+        if platform_owned and coordinator_managed:
+            # Validate content-bound selected checks; never rerun unchanged evidence.
+            require_automated_evidence(change, root=root)
+        elif platform_owned:
+            evidence = change / AUTOMATED_EVIDENCE_FILE
+            run_checked(
+                ["python3", "scripts/select_checks.py", "--base", "origin/main", "--execute", "--evidence", str(evidence)],
+                root,
+            )
+    require_ready(change, platform_owned=platform_owned and not finalize)
     executable = shutil.which("openspec")
     if not executable:
         raise SystemExit("OpenSpec CLI is required to archive a verified change")
@@ -486,14 +544,18 @@ def archive_change(root: Path, name: str) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Enforce the OpenSpec verify/archive completion contract.")
     sub = parser.add_subparsers(dest="command", required=True)
-    sub.add_parser("check", help="Fail if a completed change is still active.")
+    check = sub.add_parser("check", help="Fail if a completed change is still active where archive is required.")
+    check.add_argument("--stage", choices=(STAGE_CANDIDATE, STAGE_INTEGRATION),
+                       help="integration is strict; candidate allows a completed managed change before finalization")
     archive = sub.add_parser("archive", help="Archive a completed, semantically verified change.")
     archive.add_argument("change")
+    archive.add_argument("--finalize", action="store_true",
+                         help="coordinator finalization of a reviewed candidate: reuse review and check evidence")
     args = parser.parse_args()
     root = current_worktree_root()
     if args.command == "check":
-        return check_hygiene(root)
-    return archive_change(root, args.change)
+        return check_hygiene(root, args.stage)
+    return archive_change(root, args.change, finalize=args.finalize)
 
 
 if __name__ == "__main__":

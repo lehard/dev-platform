@@ -208,7 +208,8 @@ def run_openspec_hygiene(root: Path) -> str | None:
     is preserved so operator review still has the signal.
     """
     script = root / "scripts" / "openspec_lifecycle.py"
-    result = subprocess.run(["python3", str(script), "check"], cwd=root, text=True, capture_output=True, stdin=subprocess.DEVNULL)
+    # A non-coordinator flow publishes the change itself: a completed change must already be archived.
+    result = subprocess.run(["python3", str(script), "check", "--stage", "integration"], cwd=root, text=True, capture_output=True, stdin=subprocess.DEVNULL)
     if result.stdout:
         print(result.stdout, end="")
     if result.stderr:

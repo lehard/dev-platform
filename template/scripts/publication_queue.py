@@ -32,6 +32,14 @@ class QueueError(RuntimeError):
     pass
 
 
+class IntegrationRepairNeeded(QueueError):
+    """Integration preparation failed deterministically and needs integration repair, not a block."""
+
+
+class NotFinalized(QueueError):
+    """A completed OpenSpec change is still active: the candidate must be finalized first."""
+
+
 class LifecycleOwnershipChanged(QueueError):
     """Another lifecycle job took the candidate between observation and transition."""
 
@@ -693,6 +701,22 @@ def _task_paths(root: Path, repo: str, admission: dict[str, Any]) -> set[str]:
     return paths
 
 
+def _require_finalized(root: Path, number: int, head: str) -> None:
+    """Integration admission and merge need every completed OpenSpec change archived at the exact head."""
+    run_git(["fetch", "origin", f"pull/{number}/head"], cwd=root)
+    if run_git(["rev-parse", "FETCH_HEAD"], cwd=root).stdout.strip() != head:
+        raise QueueError("fetched PR head differs from GitHub observation")
+    from openspec_lifecycle import completed_active_changes_at
+
+    try:
+        stale = completed_active_changes_at(root, head)
+    except SystemExit as exc:
+        raise QueueError(str(exc)) from exc
+    if stale:
+        raise NotFinalized("completed OpenSpec change is still active at integration: " + ", ".join(stale)
+                         + "; verify and archive it (finalization) before integration")
+
+
 def _prepare(root: Path, repo: str, number: int, admission: dict[str, Any], pr: dict[str, Any]) -> tuple[str, str]:
     head = pr.get("head", {}).get("sha")
     if not isinstance(head, str) or len(head) != 40:
@@ -714,7 +738,11 @@ def _prepare(root: Path, repo: str, number: int, admission: dict[str, Any], pr: 
         expected_tree = run_git(["merge-tree", "--write-tree", proven, prior_main], cwd=root, check=False)
         actual_tree = run_git(["rev-parse", f"{head}^{{tree}}"], cwd=root).stdout.strip()
         if expected_tree.returncode or expected_tree.stdout.splitlines()[0].strip() != actual_tree:
-            raise QueueError("unrecorded branch update is not a clean main merge")
+            # A re-derivation push whose update marker was lost: accept only that exact shape.
+            from post_review_finalization import derived_merge_only
+
+            if not derived_merge_only(root, head, proven, prior_main, _task_paths(root, repo, admission)):
+                raise QueueError("unrecorded branch update is not a clean main merge")
         _comment(root, repo, number, {"kind": "update", "previous": proven, "head": head, "base": prior_main})
     base = admission.get("base")
     if not isinstance(base, str) or len(base) != 40:
@@ -726,9 +754,26 @@ def _prepare(root: Path, repo: str, number: int, admission: dict[str, Any], pr: 
     if run_git(["merge-base", "--is-ancestor", base, current_main], cwd=root, check=False).returncode:
         raise QueueError("main no longer descends from admitted base")
     changed = set(run_git(["diff", "--name-only", f"{base}..{current_main}"], cwd=root).stdout.splitlines())
-    overlap = changed & _task_paths(root, repo, admission)
-    if overlap:
-        raise QueueError("main changed task paths: " + ", ".join(sorted(overlap)[:8]))
+    task_paths = _task_paths(root, repo, admission)
+    overlap = changed & task_paths
+    from post_review_finalization import derived_spec_paths
+
+    derived = derived_spec_paths(task_paths, overlap)
+    if overlap - derived:
+        raise QueueError("main changed task paths: " + ", ".join(sorted(overlap - derived)[:8]))
+    run_git(["fetch", "origin", pr["head"]["ref"]], cwd=root)
+    if derived and run_git(["merge-base", "--is-ancestor", current_main, head], cwd=root, check=False).returncode == 0:
+        return head, current_main  # already re-derived on this main: nothing to redo
+    if derived:
+        # Only the candidate's own archive-derived spec paths overlap main: re-derive them on the
+        # actual base. A failure is integration repair; checks still run on the result.
+        from post_review_finalization import RederivationFailed, prepare_derived_specs
+
+        _raise_if_owned_elsewhere(root, repo, number, head)
+        try:
+            return prepare_derived_specs(root, repo, number, pr, head, task_paths)
+        except RederivationFailed as exc:
+            raise IntegrationRepairNeeded(f"archive-derived spec re-derivation failed: {exc}") from exc
     # If the previously prepared head already contains current main, do not
     # perform a redundant update or trigger another CI run.
     run_git(["fetch", "origin", pr["head"]["ref"]], cwd=root)
@@ -795,6 +840,7 @@ def worker(root: Path) -> dict[str, Any]:
         return {"state": "waiting", "reason": "no integrable candidate; " + "; ".join(skipped)}
     _label(root, repo, number, ACTIVE, present=True)
     try:
+        _require_finalized(root, number, pr.get("head", {}).get("sha"))
         head, base = _prepare(root, repo, number, admission, pr)
         identity = {"branch": admission.get("branch"), "head": head}
         integrating = _transition(root, repo, number, "integrating", head, task_identity=identity, attempt="integration",
@@ -833,6 +879,7 @@ def worker(root: Path) -> dict[str, Any]:
             return {"state": "waiting", "number": number, "reason": "main or PR head moved; coordinator will re-evaluate"}
         # Review or repair may have claimed this head during the check wait.
         _raise_if_owned_elsewhere(root, repo, number, head)
+        _require_finalized(root, number, head)
         result = subprocess.run(["gh", "pr", "merge", str(number), "--squash", "--match-head-commit", head], cwd=root, text=True, capture_output=True, stdin=subprocess.DEVNULL)
         if _pr(root, repo, number).get("merged"):
             _label(root, repo, number, ACTIVE, present=False)
@@ -848,6 +895,31 @@ def worker(root: Path) -> dict[str, Any]:
             return {"state": "waiting", "number": number, "reason": "protected merge refused; will re-evaluate: " + (result.stderr.strip() or "unknown")[:300]}
         return {"state": "waiting", "number": number, "reason": "merge accepted; awaiting GitHub confirmation"}
     except LifecycleOwnershipChanged as exc:
+        _label(root, repo, number, ACTIVE, present=False)
+        return {"state": "waiting", "number": number, "reason": str(exc)}
+    except NotFinalized as exc:
+        head_now = _pr(root, repo, number).get("head", {}).get("sha")
+        current = _derive(root, _pr(root, repo, number), _comments(root, repo, number))
+        identity_now = current.get("task_identity")
+        if not (isinstance(identity_now, dict) and identity_now.get("change") and current.get("head") == head_now):
+            return _block(root, repo, number, str(exc))  # no coordinator identity to finalize
+        try:
+            _transition(root, repo, number, "finalize-pending", head_now, task_identity=identity_now,
+                        refuse_from=CLAIM_STATES - {"finalize-pending"}, cross_head_claims=True)
+            publish_job(root, repo, number, "finalize", head_now, task_identity=identity_now)
+        except LifecycleOwnershipChanged:
+            pass
+        _label(root, repo, number, ACTIVE, present=False)
+        return {"state": "waiting", "number": number, "reason": str(exc)}
+    except IntegrationRepairNeeded as exc:
+        head_now = _pr(root, repo, number).get("head", {}).get("sha")
+        try:
+            _transition(root, repo, number, "integration-repair-pending", head_now,
+                        task_identity={"branch": admission.get("branch"), "head": head_now},
+                        red_gate={"name": "integration", "identity": head_now, "evidence": str(exc)[:500]},
+                        refuse_from=CLAIM_STATES, cross_head_claims=True)
+        except LifecycleOwnershipChanged:
+            pass
         _label(root, repo, number, ACTIVE, present=False)
         return {"state": "waiting", "number": number, "reason": str(exc)}
     except (QueueError, subprocess.CalledProcessError) as exc:

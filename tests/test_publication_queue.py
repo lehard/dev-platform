@@ -19,6 +19,13 @@ REPO = "owner/repo"
 ROOT_PATH = Path("/unused")
 
 
+def setUpModule() -> None:
+    # Finalization of the exact PR head is covered by test_post_review_finalization.
+    patcher = patch.object(queue, "_require_finalized")
+    patcher.start()
+    unittest.addModuleCleanup(patcher.stop)
+
+
 def admission(number: int, key: int, head: str = HEAD) -> dict:
     return {"version": 1, "number": number, "kind": "admit", "comment_id": key,
             "head": head, "base": BASE, "branch": f"agent/{number}"}
