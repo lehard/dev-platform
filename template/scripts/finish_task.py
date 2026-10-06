@@ -143,10 +143,15 @@ def find_board_id(main: Path, worktree: Path, config: dict) -> str | None:
     return None
 
 
-def finish_board(main: Path, worktree: Path, config: dict) -> None:
+def finish_board(main: Path, worktree: Path, config: dict, *, required: bool = False) -> None:
+    """Release the board claim; best-effort unless the caller requires it."""
     board_id = find_board_id(main, worktree, config)
     if board_id:
-        subprocess.run(["python3", str(main / "scripts" / "agent_board.py"), "finish", "--id", board_id, "--quiet"], cwd=main, check=True, stdin=subprocess.DEVNULL)
+        result = subprocess.run(["python3", str(main / "scripts" / "agent_board.py"), "finish", "--id", board_id, "--quiet"],
+                                cwd=main, check=False, stdin=subprocess.DEVNULL)
+        if required and result.returncode != 0:
+            raise SystemExit(f"PR was published, but releasing board claim {board_id} failed; "
+                             "rerun scripts/agent_board.py finish --id " + board_id)
 
 
 def emit_finish_stage(label: str) -> None:
@@ -836,7 +841,7 @@ def finish_developer_handoff(work: Path, integration: Path, config: dict, branch
     result = publish_pr(work, "origin", str(config.get("main_branch", "main")), title, body,
                         pr_merge_mode(config), config=config, developer_handoff=True)
     if result == 0:
-        finish_board(integration, work, config)
+        finish_board(integration, work, config, required=True)
     return result
 
 

@@ -1,0 +1,94 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "98db9ed844c92cf916b34b62d2545d622d576619",
+    "base_ref": "origin/main",
+    "candidate_head": "50e96b08badf1e3ba6e13e6186d945937989ea81",
+    "diff_sha256": "63928a3ca59a6b720af859ade308cf33fce54dce34be9fda0395206c329fefe3"
+  },
+  "completed_at": "2026-10-06T05:45:50+00:00",
+  "findings": [
+    {
+      "evidence": "docs/engineering/agent-workflow.md (unchanged context at diff line ~62): \"A changed task head, overlapping main path, conflict, or failed check requires agent review and correction ... A stale unchanged head remains blocked.\" The delta's `publication-queue` requirement says \"Path overlap alone SHALL NOT block\", and `_prepare` in template/scripts/publication_queue.py no longer raises \"main changed task paths\". The diff adds nothing to the docs on integration-repair jobs, the repair bound, skipping blocked candidates, or the retrospective, terminal-reconciliation and cleanup jobs.",
+      "id": "docs-still-block-on-overlap",
+      "severity": "advisory",
+      "summary": "The operator docs still describe the old overlap-blocking behavior, which the delta removes. The integration-repair and post-merge job flow is not documented."
+    },
+    {
+      "evidence": "template/scripts/integration_contour.py default_friction_sink: `cache[task] = found[\"requirement\"] if found else None`. `resolve_lineage` returns None on any exception (`except Exception: return None`). `events_for_task(requirement, children)` matches coordinator events only via `event.get(\"requirement\") == task`. Coordinator events have `task=<branch>`, which is not one of the linked child issue refs, so a `requirement=None` event is invisible to `ensure_requirement_checkpoint`. The delta spec says the retrospective job SHALL report ambiguous attribution or an unreadable evidence source and record no clean result.",
+      "id": "friction-requirement-attribution-silently-lost",
+      "severity": "advisory",
+      "summary": "A coordinator friction event is recorded with `requirement=None` when lineage lookup fails, and the failed lookup is cached for the sink's lifetime. Such an event is never attributed to the Requirement. The Requirement retrospective can then record a clean `none` result without seeing it, instead of reporting the gap as the spec requires."
+    },
+    {
+      "evidence": "template/scripts/integration_contour.py local_cleanup: `if not matches: return {\"status\": \"already-clean\", ...}`. run_cleanup then returns \"already-clean\" and `run_claimed_post_merge` posts a non-failed receipt. In `post_merge_job` in candidate_lifecycle.py, any outcome not starting with failed/blocked completes the obligation, and cleanup is never offered again. The spec scenario \"Merge completes\" expects cleanup to run as a job without the developer session.",
+      "id": "cleanup-receipt-completes-obligation-on-wrong-machine",
+      "severity": "advisory",
+      "summary": "The cleanup job counts as complete when the claiming worker has no local worktree for the branch. A hosted or other-machine worker can therefore consume the cleanup obligation, and the developer's real worktree is never cleaned."
+    }
+  ],
+  "launched_at": "2026-10-06T05:44:55+00:00",
+  "output_sha256": "7164dbc67ccfea109f8350f31b6d9ab0e8266e4c95d62d38b2d5e1f7c56e3bf1",
+  "perspective": "spec-fidelity",
+  "request_id": "aab35bd6-4bd5-491e-ae08-a10a55cdb2b1",
+  "reviewer": {
+    "context_id": "e74c563f-090e-4a57-851d-36728e401ea4",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-7e002b4d-c4d1-4998-9d85-ce46aa91bd69",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 96118
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 432056
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 51384
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 52740
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5589
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "6f71c912ca9120c1d52279be4eb20f5fe07f052866b1fb9800117b50127bfdd6"
+}

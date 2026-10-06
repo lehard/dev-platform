@@ -563,9 +563,16 @@ class PreparationTests(unittest.TestCase):
         self.assertEqual(result, (self.HEAD, self.MAIN))
         derived.assert_not_called()
 
-    def test_overlap_with_task_content_is_still_refused(self):
-        with self.assertRaisesRegex(queue.QueueError, "main changed task paths: src.py"):
-            self.prepare(["openspec/specs/cap/spec.md", "src.py"], lambda *a, **k: self.fail("must not re-derive"))
+    def test_overlap_with_task_content_is_judged_by_the_merge_not_refused(self):
+        # Overlap beyond archive-derived specs skips re-derivation; the merge result decides.
+        with mock.patch.object(queue, "merge_conflicts", return_value=[]), \
+                mock.patch.object(queue, "_gh"), mock.patch.object(queue.time, "sleep"), \
+                mock.patch.object(queue, "_comment"), \
+                mock.patch.object(queue, "_pr", return_value={"number": 7, "head": {"sha": "d" * 40}}):
+            result, derived = self.prepare(["openspec/specs/cap/spec.md", "src.py"],
+                                           lambda *a, **k: self.fail("must not re-derive"))
+        self.assertEqual(result, ("d" * 40, self.MAIN))
+        derived.assert_not_called()
 
     def test_failed_re_derivation_becomes_integration_repair(self):
         def failing(*args, **kwargs):

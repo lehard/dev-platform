@@ -69,6 +69,7 @@ REVIEWED_BASELINE: dict[str, int] = {
     '_platform_common.py:locked_json:open': 1,
     'agent_doctor.py:ensure_git_hooks:write_bytes': 1,
     'agent_friction.py:cmd_promote:NamedTemporaryFile': 1,
+    'agent_friction.py:append_coordinator_event:open': 1,
     'agent_friction.py:cmd_record:open': 1,
     'agent_friction.py:friction_lock:open': 1,
     'browser_verification.py:main:write_text': 1,
@@ -87,6 +88,7 @@ REVIEWED_BASELINE: dict[str, int] = {
     'harness_replay.py:isolated_workspace:write_text': 1,
     'harness_replay.py:main:write_text': 1,
     # Disposable LLM checkout and its scratch HOME live in a private worker temp directory.
+    'lifecycle_workers.py:import_worktree:copyfile': 1,
     'lifecycle_workers.py:prepare_checkout:open': 1,
     'lifecycle_workers.py:scratch_home:copy2': 1,
     # Reviewer schema and candidate diff go to a private temporary directory outside the repository.
