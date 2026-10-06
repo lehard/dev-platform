@@ -237,9 +237,21 @@ with managed_task.exact_target_context(Path(sys.argv[2]), sys.argv[3]) as worktr
             with managed_task.exact_target_context(self.root, self.seed_sha):
                 self.fail('body must not execute')
 
+    def test_recovery_cwd_observation_fails_explicitly(self) -> None:
+        with patch.object(managed_task.shutil, 'which', return_value=None):
+            with self.assertRaisesRegex(managed_task.ManagedTaskError, 'requires lsof'):
+                managed_task.validation_active_cwds()
+        with patch.object(managed_task.shutil, 'which', return_value='/usr/sbin/lsof'):
+            with patch.object(managed_task.subprocess, 'run', return_value=subprocess.CompletedProcess([], 2, '', 'inspection denied')):
+                with self.assertRaisesRegex(managed_task.ManagedTaskError, 'inspection denied'):
+                    managed_task.validation_active_cwds()
+            with patch.object(managed_task.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, 'n/observed\n', '')):
+                with patch.object(Path, 'resolve', side_effect=OSError('cwd unreadable')):
+                    with self.assertRaisesRegex(OSError, 'cwd unreadable'):
+                        managed_task.validation_active_cwds()
+
     def test_cleanup_rejects_foreign_contents_and_active_or_unknown_cwds(self) -> None:
         from types import SimpleNamespace
-        import worktree_cleanup
 
         with managed_task.exact_target_context(self.root, self.seed_sha) as worktree:
             foreign = worktree / 'foreign.txt'
@@ -261,10 +273,10 @@ with managed_task.exact_target_context(Path(sys.argv[2]), sys.argv[3]) as worktr
             receipt['pid'] = exited.pid
             receipt_path.write_text(json.dumps(receipt))
             try:
-                with patch.object(worktree_cleanup, '_active_cwds', return_value={worktree.parent}):
+                with patch.object(managed_task, 'validation_active_cwds', return_value={worktree.parent}):
                     with self.assertRaisesRegex(managed_task.ManagedTaskError, 'active worktree'):
                         managed_task.cleanup_validation_context(self.root, worktree.parent)
-                with patch.object(worktree_cleanup, '_active_cwds', return_value=None):
+                with patch.object(managed_task, 'validation_active_cwds', side_effect=managed_task.ManagedTaskError('cannot inspect active working directories')):
                     with self.assertRaisesRegex(managed_task.ManagedTaskError, 'cannot inspect active'):
                         managed_task.cleanup_validation_context(self.root, worktree.parent)
             finally:

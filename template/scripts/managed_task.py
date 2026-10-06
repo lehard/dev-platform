@@ -674,9 +674,19 @@ def validation_storage(root: Path) -> tuple[Path, Path]:
     return integration, current
 
 
+def validation_active_cwds() -> set[Path]:
+    executable = shutil.which("lsof")
+    if executable is None:
+        raise ManagedTaskError("validation cleanup requires lsof to inspect active working directories")
+    result = subprocess.run([executable, "-a", "-d", "cwd", "-Fn"], text=True, capture_output=True, timeout=10)
+    if result.returncode != 0 or result.stderr.strip():
+        raise ManagedTaskError(f"validation cleanup active cwd inspection failed (exit {result.returncode}): {result.stderr.strip()}")
+    return {Path(line[1:]).resolve() for line in result.stdout.splitlines() if line.startswith("n/")}
+
+
 def cleanup_validation_context(root: Path, directory: Path, *, creating_process: bool = False) -> None:
     """Remove only an exact helper-owned detached checkout; recovery is idempotent."""
-    from worktree_cleanup import _active_cwds, _list_worktrees
+    from worktree_cleanup import _list_worktrees
 
     integration, storage = validation_storage(root)
     directory = directory.absolute()
@@ -751,9 +761,7 @@ def cleanup_validation_context(root: Path, directory: Path, *, creating_process:
                     if path.lstat().st_uid != os.geteuid():
                         raise ManagedTaskError(f"validation cleanup refuses foreign contents: {path}")
         if not creating_process:
-            active_cwds = _active_cwds()
-            if active_cwds is None:
-                raise ManagedTaskError("validation cleanup cannot inspect active working directories")
+            active_cwds = validation_active_cwds()
             if any(cwd == directory or directory in cwd.parents for cwd in active_cwds):
                 raise ManagedTaskError(f"validation cleanup refuses active worktree: {worktree}")
         removed = run_git(["worktree", "remove", "--force", str(worktree)], cwd=integration, check=False)
