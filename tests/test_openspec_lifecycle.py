@@ -519,9 +519,29 @@ class OpenSpecLifecycleTests(unittest.TestCase):
             root = Path(tmp)
             self.make_change(root, "done", "- [x] done\n")
             self.make_change(root, "open", "- [ ] todo\n")
-            for target in ("", "missing", "open", "archive", "../done", "done/", "DONE", "a b"):
+            for target in ("missing", "open", "archive", "../done", "done/", "DONE", "a b"):
                 with self.subTest(target=target), mock.patch.dict(os.environ, self.archive_context(root, target)):
                     with self.assertRaisesRegex(SystemExit, "archive target"):
+                        lifecycle.check_hygiene(root)
+
+    def test_empty_or_relative_archive_context_fails_explicitly(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.make_change(root, "done", "- [x] done\n")
+            real = os.path.realpath(root)
+            cases = (
+                ({lifecycle.ARCHIVE_TARGET_ENV: "done", lifecycle.ARCHIVE_ROOT_ENV: ""}, lifecycle.ARCHIVE_ROOT_ENV),
+                ({lifecycle.ARCHIVE_TARGET_ENV: "done", lifecycle.ARCHIVE_ROOT_ENV: "  "}, lifecycle.ARCHIVE_ROOT_ENV),
+                ({lifecycle.ARCHIVE_TARGET_ENV: "", lifecycle.ARCHIVE_ROOT_ENV: real}, lifecycle.ARCHIVE_TARGET_ENV),
+                ({lifecycle.ARCHIVE_TARGET_ENV: "", lifecycle.ARCHIVE_ROOT_ENV: ""}, lifecycle.ARCHIVE_TARGET_ENV),
+                ({lifecycle.ARCHIVE_TARGET_ENV: "done", lifecycle.ARCHIVE_ROOT_ENV: "relative/dir"}, "absolute path"),
+            )
+            cwd = os.getcwd()
+            os.chdir(root)  # an empty root would resolve to cwd and wrongly match
+            self.addCleanup(os.chdir, cwd)
+            for context, expected in cases:
+                with self.subTest(context=context), mock.patch.dict(os.environ, context):
+                    with self.assertRaisesRegex(SystemExit, f"malformed archive context.*{expected}"):
                         lifecycle.check_hygiene(root)
 
     def test_archive_rejects_invalid_target_before_any_state_change(self) -> None:

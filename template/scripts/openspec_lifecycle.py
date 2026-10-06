@@ -396,6 +396,11 @@ def check_hygiene(root: Path, stage: str | None = None) -> int:
         raise SystemExit(
             f"hygiene: malformed archive context: {ARCHIVE_TARGET_ENV} and {ARCHIVE_ROOT_ENV} must be set together"
         )
+    for variable, value in ((ARCHIVE_TARGET_ENV, archive_target), (ARCHIVE_ROOT_ENV, archive_root)):
+        if value is not None and not value.strip():
+            raise SystemExit(f"hygiene: malformed archive context: {variable} is empty")
+    if archive_root is not None and not os.path.isabs(archive_root):
+        raise SystemExit(f"hygiene: malformed archive context: {ARCHIVE_ROOT_ENV} must be an absolute path")
     # A context issued for another checkout (e.g. a test tree run under archive) is not ours:
     # hygiene then runs as the ordinary check, with no exemption and no error.
     if archive_target is not None and os.path.realpath(archive_root) == os.path.realpath(root):

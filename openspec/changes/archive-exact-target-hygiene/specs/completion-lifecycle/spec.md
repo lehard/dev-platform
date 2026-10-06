@@ -24,6 +24,7 @@ While `openspec_lifecycle.py archive <change>` runs the selected or protected va
 - **GIVEN** an archive target that is nonexistent, malformed, ambiguous or not completed
 - **WHEN** hygiene runs in the archive context
 - **THEN** it fails with an explicit error before any canonical state is changed
+- **AND** the archive entry point applies this target validation in every mode, including `--finalize`, before any canonical state changes, while `--finalize` still runs no checks and needs no exemption
 
 #### Scenario: Failed archive leaves no bypass
 - **GIVEN** archive validation fails after the exemption was applied
