@@ -218,6 +218,129 @@ class EnvironmentTests(unittest.TestCase):
         self.assertEqual(json.loads(done.stdout), [])
 
 
+class LoginBindingTests(unittest.TestCase):
+    TOKEN = "tok-secret-value-123"
+
+    def token_file(self, directory, mode=0o600, content=None):
+        path = Path(directory) / "claude-token"
+        path.write_text(self.TOKEN if content is None else content, encoding="utf-8")
+        path.chmod(mode)
+        return path
+
+    def _binary_token(self, directory):
+        path = Path(directory) / "binary-token"
+        path.write_bytes(b"\xff\xfe\x00")
+        path.chmod(0o600)
+        return path
+
+    def test_valid_token_reaches_only_the_declared_provider_llm_env(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config = {"login": {"claude": {"token_file": str(self.token_file(tmp))}}}
+            home = Path(tmp) / "home"
+            claude = workers.llm_env("claude", config, home, env={"PATH": "/bin"})
+            self.assertEqual(claude["CLAUDE_CODE_OAUTH_TOKEN"], self.TOKEN)
+            self.assertEqual(claude["HOME"], str(home))
+            self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN", workers.llm_env("codex", config, home, env={"PATH": "/bin"}))
+            self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN", workers.credential_free_env({"PATH": "/bin"}, home))
+
+    def test_ambient_token_is_not_passed_implicitly(self):
+        ambient = {"PATH": "/bin", "CLAUDE_CODE_OAUTH_TOKEN": "ambient"}
+        self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN", workers.credential_free_env(ambient))
+        self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN", workers.llm_env("claude", {}, Path("/h"), env=ambient))
+
+    def test_invalid_token_files_fail_without_leaking_content(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cases = {
+                "missing": str(Path(tmp) / "absent"),
+                "relative": "relative-token",
+                "directory": tmp,
+                "group-readable": str(self.token_file(tmp, 0o640)),
+                "empty": str(self.token_file(tmp, 0o600, "  \n")),
+                "not-utf8": str(self._binary_token(tmp)),
+            }
+            for name, path in cases.items():
+                with self.subTest(name), self.assertRaises(workers.WorkerError) as caught:
+                    workers.read_login_token(path)
+                self.assertNotIn(self.TOKEN, str(caught.exception))
+        with tempfile.TemporaryDirectory() as tmp:
+            subprocess.run(["git", "init", "-q", tmp], check=True)
+            inside = self.token_file(tmp)
+            with self.assertRaises(workers.WorkerError) as caught:
+                workers.read_login_token(str(inside))
+            self.assertIn("outside any git checkout", str(caught.exception))
+            self.assertNotIn(self.TOKEN, str(caught.exception))
+
+    def test_binding_table_is_validated(self):
+        for bad in ({"login": "x"}, {"login": {"gemini": {"token_file": "/t"}}},
+                    {"login": {"claude": {"token_file": "/t", "extra": 1}}}, {"login": {"claude": {"token_file": " "}}}):
+            with self.subTest(bad), self.assertRaises(workers.WorkerError):
+                workers.login_bindings(bad)
+        self.assertEqual(workers.login_bindings({}), {})
+
+    def probe(self, returncode, seen):
+        def runner(command, **kwargs):
+            seen.update(kwargs, command=command)
+            return subprocess.CompletedProcess(command, returncode, "", "")
+        return runner
+
+    def test_probe_runs_in_the_reviewer_environment_and_passes(self):
+        seen = {}
+        with tempfile.TemporaryDirectory() as tmp:
+            config = {"login": {"claude": {"token_file": str(self.token_file(tmp))}}}
+            workers.check_login("claude", "/bin/claude", config, Path(tmp) / "home", timeout=5,
+                                runner=self.probe(0, seen))
+            self.assertEqual(seen["command"], ["/bin/claude", "auth", "status"])
+            self.assertEqual(seen["env"]["HOME"], str(Path(tmp) / "home"))
+            self.assertEqual(seen["env"]["CLAUDE_CODE_OAUTH_TOKEN"], self.TOKEN)
+            self.assertIs(seen["stdin"], subprocess.DEVNULL)
+
+    def test_failing_probe_names_provider_and_bindings(self):
+        for provider, binding in (("claude", "[independent_review.login.claude]"), ("codex", "--llm-home-file")):
+            with self.subTest(provider), self.assertRaises(workers.WorkerError) as caught:
+                workers.check_login(provider, f"/bin/{provider}", {}, Path("/h"), timeout=5, runner=self.probe(1, {}))
+            message = str(caught.exception)
+            self.assertIn(provider, message)
+            self.assertIn(binding, message)
+            self.assertIn("no review job was claimed", message)
+
+    def test_probe_timeout_and_unstartable_binary_fail(self):
+        def timeout(command, **kwargs):
+            raise subprocess.TimeoutExpired(command, 1)
+        def missing(command, **kwargs):
+            raise FileNotFoundError("no such file")
+        for runner in (timeout, missing):
+            with self.assertRaises(workers.WorkerError):
+                workers.check_login("claude", "/bin/claude", {}, Path("/h"), timeout=1, runner=runner)
+
+    def test_before_claim_failure_posts_nothing_and_success_claims(self):
+        pr = {"number": 7, "head": {"sha": HEAD}, "state": "open"}
+        posted = []
+        def refuse(job):
+            raise workers.WorkerError("claude reviewer cannot log in")
+        with self.assertRaises(workers.WorkerError):
+            workers.work_next(frozenset({"review"}), list_prs=lambda: [pr], comments_for=lambda n: [handoff_comment()],
+                              post_comment=lambda n, body: posted.append(body), worker="w", now=NOW, before_claim=refuse)
+        self.assertEqual(posted, [])
+        seen = []
+        store = [handoff_comment()]
+        def post(number, body):
+            posted.append(body)
+            store.append({"id": 40, "author_association": "OWNER", "body": body})
+        result = workers.work_next(frozenset({"review"}), list_prs=lambda: [pr], comments_for=lambda n: list(store),
+                                   post_comment=post, worker="w", now=NOW, before_claim=seen.append)
+        self.assertEqual(result["status"], "claimed")
+        self.assertEqual(len(seen), 1)
+        self.assertEqual(len(posted), 1)
+
+    def test_dry_run_does_not_probe(self):
+        pr = {"number": 7, "head": {"sha": HEAD}, "state": "open"}
+        def refuse(job):
+            raise AssertionError("dry run must not probe")
+        result = workers.work_next(frozenset({"review"}), list_prs=lambda: [pr], comments_for=lambda n: [handoff_comment()],
+                                   post_comment=lambda *_: None, worker="w", dry_run=True, now=NOW, before_claim=refuse)
+        self.assertEqual(result["status"], "dry-run")
+
+
 def git(repo, *args):
     env = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t",
            "GIT_COMMITTER_EMAIL": "t@t", "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull}

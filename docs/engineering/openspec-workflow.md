@@ -90,6 +90,23 @@ bounded error and the next step: log the CLI in, point
 same preflight first; when it fails, both perspectives are recorded as
 `unavailable` with that limitation and no perspective is launched.
 
+The autonomous review worker runs the reviewer in a scratch HOME that contains only
+files named by `--llm-home-file`. On macOS the Claude CLI keeps its login in the login
+keychain, which a scratch HOME cannot see, so a `claude` reviewer there reports
+"Not logged in". Bind the login explicitly once, in the machine-local operator config
+(never in a checkout): run `claude setup-token` yourself, store the token in a file
+outside any git checkout with mode 600, and declare
+`[independent_review.login.claude] token_file = "/absolute/path"`. The worker reads it
+only for the `claude` reviewer's own environment (as `CLAUDE_CODE_OAUTH_TOKEN`); an
+ambient `CLAUDE_CODE_OAUTH_TOKEN` is never passed on, and the token is never printed or
+recorded. A login that works through a copied file (for example Codex `.codex/auth.json`
+via `--llm-home-file`) needs no declaration. Before claiming a review job under `--run`,
+the worker runs each job provider's offline login probe (`claude auth status`,
+`codex login status`) in that scratch HOME and environment; if one fails it exits
+non-zero naming the provider and these bindings, posts no claim and spends no attempt.
+`independent_review.py preflight` runs the same probe after its readiness check (pass
+the worker's `--llm-home-file` values to match it).
+
 `run` prepares (or reuses a current) provider-neutral review request, builds
 each prompt only from that request plus a precomputed candidate diff in a
 temporary directory outside the repository, and requires structured findings

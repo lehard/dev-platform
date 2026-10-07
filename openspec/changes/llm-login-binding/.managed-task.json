@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/lifecycle-workers/spec.md"
+  ],
+  "change": "llm-login-binding",
+  "imported_at": "2026-10-07T15:59:41+00:00",
+  "package_revision": "e0f0607f4c2de83510af69f7b25484a8837cc340574a9b370b6f3a5768301116",
+  "prepared_against": "a8d83e5cbd97037b242daf30557f4b1e3b03ae7c",
+  "private_lineage_handle": "pln_9ac3cca0c07d219247ade867151b1365",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "5c6460b593aaea5c4b01d84185a543f022d61eb9288be79e0d81e5be709be678",
+    "updated_at": "2026-10-07T15:34:50Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-434/T1"
+}

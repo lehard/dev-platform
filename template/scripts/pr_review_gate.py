@@ -226,11 +226,15 @@ def execute_review(checkout: Path, job: dict, *, source_repo: str, branch: str,
     if actual != identity:
         raise workers.WorkerError("review checkout does not match the published task identity")
     if launcher is None:
-        from independent_review_runner import subprocess_launcher
-        import os
+        from independent_review_runner import resolve_binary, subprocess_launcher
 
-        clean = workers.credential_free_env(dict(os.environ), checkout.parent / "llm-home")
-        launcher = lambda argv, cwd, timeout: subprocess_launcher(argv, cwd, timeout, env=clean)
+        home = checkout.parent / "llm-home"
+        claude_binary, _ = resolve_binary("claude")
+
+        def launcher(argv, cwd, timeout):
+            # A provider's declared login token reaches only that provider's own CLI process.
+            provider = "claude" if claude_binary is not None and argv[0] == claude_binary else "codex"
+            return subprocess_launcher(argv, cwd, timeout, env=workers.llm_env(provider, review_config or {}, home))
     reports = run_child_review(checkout, change, launcher=launcher, config=review_config,
                                base_ref=identity.get("contribution_base", "origin/main"))
     request = json.loads((change / "independent-review-request.json").read_text())

@@ -495,13 +495,29 @@ class IndependentReviewTests(unittest.TestCase):
         self.assertEqual((result["provider"], result["model"], result["binary"]), ("codex", "gpt-6.1-sol", None))
         self.assertIn("model 'gpt-6.1-sol' is not ready", result["limitation"])
 
+    def test_preflight_command_reports_scratch_home_login_failure_like_the_worker(self) -> None:
+        import lifecycle_workers
+
+        with mock.patch.object(review, "current_worktree_root", return_value=self.root), \
+                mock.patch.object(runner, "subprocess_launcher", FakeLauncher()), \
+                mock.patch("lifecycle_workers.check_login",
+                           side_effect=lifecycle_workers.WorkerError("codex reviewer cannot log in inside the scratch HOME")), \
+                mock.patch.object(sys, "argv", ["independent_review.py", "preflight"]), \
+                mock.patch("builtins.print") as printed:
+            self.assertEqual(review.main(), 2)
+        payload = json.loads(printed.call_args.args[0])
+        self.assertFalse(payload["ready"])
+        self.assertIn("cannot log in inside the scratch HOME", payload["limitation"])
+
     def test_preflight_command_prints_readiness_and_exits_nonzero_when_not_ready(self) -> None:
         ready = FakeLauncher()
         with mock.patch.object(review, "current_worktree_root", return_value=self.root), \
                 mock.patch.object(runner, "subprocess_launcher", ready), \
+                mock.patch("lifecycle_workers.check_login") as login, \
                 mock.patch.object(sys, "argv", ["independent_review.py", "preflight", "review-change"]), \
                 mock.patch("builtins.print") as printed:
             self.assertEqual(review.main(), 0)
+        self.assertEqual(login.call_args.args[0], "codex")
         payload = json.loads(printed.call_args.args[0])
         self.assertEqual((payload["ready"], payload["change"], payload["model"]), (True, "review-change", "gpt-6.1-sol"))
         self.assertEqual(len(ready.probes), 1)

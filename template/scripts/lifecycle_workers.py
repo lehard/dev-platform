@@ -16,6 +16,7 @@ import os
 import re
 import shlex
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -44,7 +45,13 @@ EVIDENCE_NAMES = ("verification.md", "automated-checks.json")
 CREDENTIAL_VARS = frozenset({
     "GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN",
     "GIT_ASKPASS", "SSH_ASKPASS", "SSH_AUTH_SOCK", "GH_HOST_TOKEN", "GITHUB_PAT",
-    "DEV_PLATFORM_COORDINATOR_APP_KEY", "GCM_CREDENTIAL_CACHE_OPTIONS"})
+    "DEV_PLATFORM_COORDINATOR_APP_KEY", "GCM_CREDENTIAL_CACHE_OPTIONS",
+    # An LLM CLI's own login token reaches only the provider's LLM environment, via ``llm_env``.
+    "CLAUDE_CODE_OAUTH_TOKEN"})
+# The only environment variable each provider's declared login token file may become, and the
+# offline, model-free command whose exit status proves that provider's login.
+LOGIN_TOKEN_ENV = {"claude": "CLAUDE_CODE_OAUTH_TOKEN"}
+LOGIN_PROBES = {"claude": ("auth", "status"), "codex": ("login", "status")}
 # Any GitHub-scoped variable (GH_*, GITHUB_*, *_GITHUB_TOKEN/API_KEY...) is dropped; the LLM
 # provider's own key (e.g. ANTHROPIC_API_KEY) is not a repository credential and is kept.
 _CREDENTIAL_PATTERN = re.compile(r"^(GH|GITHUB)_|(GH|GITHUB)\w*_(TOKEN|API_KEY)$|^(GIT|SSH)_ASKPASS$")
@@ -210,6 +217,78 @@ def credential_free_env(env: dict[str, str], home: Path | None = None) -> dict[s
     return clean
 
 
+def read_login_token(path_text: str) -> str:
+    """Read a declared LLM login token file; every violation names the path and rule, never the content."""
+    path = Path(path_text).expanduser()
+    if not path.is_absolute():
+        raise WorkerError(f"LLM login token file {path_text!r} must be an absolute path")
+    try:
+        info = path.stat()
+    except OSError as exc:
+        raise WorkerError(f"LLM login token file {path} is not readable: {exc.strerror}") from exc
+    if not stat.S_ISREG(info.st_mode):
+        raise WorkerError(f"LLM login token file {path} must be a regular file")
+    if info.st_mode & 0o077:
+        raise WorkerError(f"LLM login token file {path} must not be accessible by group or others (chmod 600)")
+    for parent in path.resolve().parents:
+        if (parent / ".git").exists():
+            raise WorkerError(f"LLM login token file {path} must be outside any git checkout ({parent})")
+    try:
+        token = path.read_text(encoding="utf-8").strip()
+    except UnicodeDecodeError as exc:
+        raise WorkerError(f"LLM login token file {path} is not UTF-8 text") from exc
+    if not token:
+        raise WorkerError(f"LLM login token file {path} is empty")
+    return token
+
+
+def login_bindings(config: dict[str, Any]) -> dict[str, str]:
+    """Validate ``[independent_review.login.<provider>] token_file`` entries: provider -> token file path."""
+    login = config.get("login", {})
+    if not isinstance(login, dict):
+        raise WorkerError("[independent_review.login] must be a table of providers")
+    bindings: dict[str, str] = {}
+    for provider, entry in login.items():
+        if provider not in LOGIN_TOKEN_ENV:
+            raise WorkerError(f"[independent_review.login.{provider}] is not supported; "
+                              f"use one of {', '.join(sorted(LOGIN_TOKEN_ENV))}")
+        if not isinstance(entry, dict) or set(entry) != {"token_file"} or not isinstance(entry["token_file"], str) \
+                or not entry["token_file"].strip():
+            raise WorkerError(f"[independent_review.login.{provider}] must contain exactly one non-empty token_file")
+        bindings[provider] = entry["token_file"].strip()
+    return bindings
+
+
+def llm_env(provider: str, config: dict[str, Any], home: Path, env: dict[str, str] | None = None) -> dict[str, str]:
+    """The credential-free LLM environment plus ``provider``'s own declared login token, if any."""
+    clean = credential_free_env(dict(os.environ if env is None else env), home)
+    token_file = login_bindings(config).get(provider)
+    if token_file is not None:
+        clean[LOGIN_TOKEN_ENV[provider]] = read_login_token(token_file)
+    return clean
+
+
+def check_login(provider: str, binary: str, config: dict[str, Any], home: Path, *, timeout: float,
+                runner: Callable[..., Any] = subprocess.run) -> None:
+    """Prove ``provider`` can log in inside the scratch HOME and environment the reviewer will use."""
+    probe = LOGIN_PROBES.get(provider)
+    if probe is None:
+        raise WorkerError(f"no login probe exists for provider {provider!r}")
+    hint = (f"bind a login with [independent_review.login.{provider}] token_file in the operator config"
+            if provider in LOGIN_TOKEN_ENV else "bind a login with --llm-home-file")
+    try:
+        done = runner([binary, *probe], cwd=home, env=llm_env(provider, config, home), stdin=subprocess.DEVNULL,
+                      capture_output=True, text=True, check=False, timeout=timeout)
+    except subprocess.TimeoutExpired as exc:
+        raise WorkerError(f"{provider} login probe timed out after {timeout:g}s; no review job was claimed") from exc
+    except OSError as exc:
+        raise WorkerError(f"{provider} login probe could not start ({exc}); no review job was claimed") from exc
+    if done.returncode:
+        raise WorkerError(f"{provider} reviewer cannot log in inside the scratch HOME ({binary} {' '.join(probe)} "
+                          f"exited {done.returncode}); {hint}, or pass --llm-home-file for a login file; "
+                          "no review job was claimed")
+
+
 def scratch_home(root: Path, home_files: list[str] | tuple[str, ...] = (), *, source_home: Path | None = None) -> Path:
     """Create a scratch HOME holding only the LLM CLI's own login files (relative to the real HOME)."""
     source = source_home or Path.home()
@@ -362,8 +441,13 @@ def work_next(kinds: frozenset[str], *, list_prs: Callable[[], list[dict]],
               comments_for: Callable[[int], list[dict]], post_comment: Callable[[int, str], None],
               worker: str, ttl_seconds: int = 1800, dry_run: bool = False, now: datetime | None = None,
               current_head: Callable[[int], str] | None = None,
-              trusted_apps=frozenset(), trusted_writers=frozenset()) -> dict:
-    """Select, claim, re-read and confirm one job; abandon if another worker won."""
+              trusted_apps=frozenset(), trusted_writers=frozenset(),
+              before_claim: Callable[[dict], None] | None = None) -> dict:
+    """Select, claim, re-read and confirm one job; abandon if another worker won.
+
+    ``before_claim`` runs once the job is selected and before anything is posted; an exception it
+    raises propagates and leaves the job unclaimed.
+    """
     unknown = kinds - JOB_KINDS
     if unknown:
         raise WorkerError(f"unknown job kinds: {sorted(unknown)}")
@@ -386,6 +470,8 @@ def work_next(kinds: frozenset[str], *, list_prs: Callable[[], list[dict]],
         return {"status": "idle", "job": None}
     if dry_run:
         return {"status": "dry-run", "job": job}
+    if before_claim is not None:
+        before_claim(job)
     expires = datetime.fromtimestamp(current.timestamp() + ttl_seconds, timezone.utc).isoformat().replace("+00:00", "Z")
     post_comment(job["number"], claim_body(job, worker, expires))
     reread = comments_for(job["number"])
@@ -651,7 +737,26 @@ def main(argv: list[str] | None = None) -> int:
             import publication_queue
 
             publication_queue.use_default_friction_sink(Path.cwd())
+        def login_preflight(job: dict) -> None:
+            """Review jobs only: every provider the job names must log in inside the reviewer's scratch HOME."""
+            if job["kind"] != "review":
+                return
+            from independent_review_runner import preflight_timeout_seconds, resolve_binary, settings
+
+            providers = job.get("providers") or ([job["provider"]] if job.get("provider") else [])
+            if not providers:
+                raise WorkerError(f"review job for PR #{job['number']} names no provider; no review job was claimed")
+            config = settings(Path.cwd())
+            with tempfile.TemporaryDirectory(prefix="lifecycle-login-") as probe_root:
+                home = scratch_home(Path(probe_root), args.llm_home_file)
+                for provider in providers:
+                    binary, limitation = resolve_binary(provider)
+                    if binary is None:
+                        raise WorkerError(f"{provider} reviewer runtime is unavailable: {limitation}; no review job was claimed")
+                    check_login(provider, binary, config, home, timeout=preflight_timeout_seconds(config))
+
         result = work_next(frozenset(k for k in args.kinds.split(",") if k), list_prs=list_prs,
+                           before_claim=login_preflight if args.run else None,
                            comments_for=comments_for, post_comment=post_comment, worker=args.worker,
                            ttl_seconds=args.ttl, dry_run=args.dry_run,
                            current_head=lambda n: pr_info(n)["head"]["sha"],
