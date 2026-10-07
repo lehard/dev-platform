@@ -185,13 +185,14 @@ class LocalGitHubTests(unittest.TestCase):
     def test_failing_checks_block_the_merge_and_checks_never_carry_to_another_head(self):
         bad = self.branch("agent/one", "shared.py", "<" * 7 + " conflict\n")
         code, out, _ = self.call("pr", "checks", "1", "--required", "--json", "name,state")
-        self.assertEqual(code, 1)
+        self.assertEqual(code, 0)  # real gh exits 0 with --json even when a check failed
         self.assertEqual(json.loads(out)[0]["state"], "FAILURE")
         code, _, err = self.merge(bad)
         self.assertEqual(code, 1)
         self.assertIn("checks have not passed", err)
         fixed = self.branch("agent/one", "shared.py", "VALUE = 3\n")
-        self.assertEqual(self.call("pr", "checks", "1", "--required", "--json", "name,state")[0], 0)
+        code, out, _ = self.call("pr", "checks", "1", "--required", "--json", "name,state")
+        self.assertEqual((code, json.loads(out)[0]["state"]), (0, "SUCCESS"))
         self.assertIn(bad, self.github.checks)
         self.assertTrue(self.github.checks[fixed])
 
