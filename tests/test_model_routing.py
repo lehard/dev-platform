@@ -820,6 +820,36 @@ class ModelRoutingTests(unittest.TestCase):
             with self.assertRaisesRegex(routing.RoutingError, "cannot verify"):
                 routing.require_routing_gate(self.task, route.source_issue, route.change)
 
+    def test_legacy_claude_claim_can_be_normalized_without_retrospective_delegation(self) -> None:
+        route = self.prepare(provider="claude", profile="standard")
+        legacy = routing.Route(**{**routing.asdict(route), "execution_plan": None,
+                                "execution": {"launched": True, "agent_id": "legacy-agent"}})
+        routing._write_route(self.record_path(), legacy)
+        (self.task / "implemented.txt").write_text("legacy child work\n", encoding="utf-8")
+        with self.assertRaisesRegex(routing.RoutingError, "re-route"):
+            routing.record_claude_execution(self.task, agent_id="different-agent")
+        with patch.object(routing, "determine_claude_tier", return_value=DETECTION_ONLY):
+            execution = routing.record_claude_execution(self.task, agent_id="legacy-agent")
+        self.assertEqual(execution["outcome"], "claimed")
+        self.assertIsNone(execution["launched"])
+        self.assertNotIn("participant", execution)
+        normalized, _ = routing._read_route(self.task)
+        self.assertIsNone(normalized.execution_plan)
+        routing.require_early_routing_gate(self.task)
+        routing.require_routing_gate(self.task, route.source_issue, route.change)
+
+    def test_legacy_claude_normalization_still_requires_clean_containment(self) -> None:
+        route = self.prepare(provider="claude", profile="standard")
+        legacy = routing.Route(**{**routing.asdict(route), "execution_plan": None,
+                                "execution": {"launched": True, "agent_id": "legacy-agent"}})
+        routing._write_route(self.record_path(), legacy)
+        (self.integration / "README.md").write_text("escaped work\n", encoding="utf-8")
+        with patch.object(routing, "determine_claude_tier", return_value=DETECTION_ONLY):
+            with self.assertRaises(routing.RoutingError):
+                routing.record_claude_execution(self.task, agent_id="legacy-agent")
+        unchanged, _ = routing._read_route(self.task)
+        self.assertEqual(unchanged.execution, legacy.execution)
+
     def test_routing_gate_refuses_claimed_claude_execution_with_dirty_postcheck(self) -> None:
         with patch.object(routing, "main_root", return_value=self.integration):
             route = self.prepare(provider="claude", profile="standard")
@@ -2268,6 +2298,24 @@ class EarlyRoutingGateTests(unittest.TestCase):
             self.prepare(provider="claude")
 
     # --- 4.5 Codex consistency and legacy records
+
+    def test_codex_preflight_failure_cannot_authorize_supervisor_work(self) -> None:
+        with patch.object(routing, "main_root", return_value=self.integration), patch.object(
+            routing, "determine_codex_tier", return_value=DETECTION_ONLY
+        ), patch.object(routing, "run_observed_delegation") as launch:
+            with self.assertRaisesRegex(routing.RoutingError, "containment is not provable"):
+                routing.dispatch_codex(self.task, profile="standard", rationale="bounded preflight", evidence=[], prompt="implement")
+        launch.assert_not_called()
+        self.assertIsNone(self.plan()["delegation"])
+        route, _ = routing._read_route(self.task)
+        self.assertIsNone(route.execution)
+        self.write_content()
+        with self.assertRaisesRegex(routing.RoutingError, "supervisor-written"):
+            self.gate()
+        with self.assertRaisesRegex(routing.RoutingError, "refusing to escalate"):
+            routing.escalate(self.task, "preflight failed")
+        with self.assertRaises(routing.RoutingError):
+            routing.record_retained_execution(self.task, reason="supervisor completed work")
 
     def test_codex_dispatch_records_plan_and_platform_observed_delegation(self) -> None:
         with self.fake_codex("completed", write="codex-work.txt"), patch.object(routing, "main_root", return_value=self.integration):

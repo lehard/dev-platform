@@ -22,6 +22,7 @@ serialize.  Any failing group fails the aggregate result.
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import os
 import subprocess
@@ -223,6 +224,9 @@ def default_jobs() -> int:
 
 def require_early_routing_gate(root: Path) -> None:
     """Refuse to execute any group while task content contradicts the recorded execution plan."""
+    has_managed_task = (root / ".managed-task-state.json").is_file() or any((root / "openspec/changes").glob("*/.managed-task.json"))
+    if not has_managed_task or importlib.util.find_spec("model_routing") is None:
+        return
     import model_routing
 
     try:

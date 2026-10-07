@@ -1240,7 +1240,14 @@ def _run_delegated_codex(root: Path, route: Route, prompt: str, codex_bin: str |
     opened = {"state": "open", "provider": "codex", "launch_evidence": LAUNCH_EVIDENCE_PLATFORM_OBSERVED, "opened_at": utc_now()}
     route = Route(**{**asdict(route), "execution_plan": {**plan, "delegation": opened}})
     _write_route(path, route)
-    execution = run_codex(route, prompt, codex_bin)
+    try:
+        execution = run_codex(route, prompt, codex_bin)
+    except RoutingError:
+        # Preflight refused before the observed launcher ran. Do not leave
+        # evidence of a child attempt that never happened; propagate failure.
+        route = Route(**{**asdict(route), "execution_plan": plan})
+        _write_route(path, route)
+        raise
     closed = {**opened, "state": "closed", "closed_at": utc_now(), "outcome": execution.get("outcome"), "task_content_post": _task_content_state(Path(route.task_worktree), route.change)}
     route = Route(**{**asdict(route), "execution": execution, "execution_plan": {**plan, "delegation": closed}})
     _write_route(path, route)
@@ -1403,16 +1410,29 @@ def record_claude_execution(root: Path, *, agent_id: str, summary: str | None = 
     _refuse_child_writer_on_standalone_clone(route)
     if not agent_id.strip():
         raise RoutingError("recording Claude execution requires a non-empty agent id")
-    plan = _require_plan(route, "recording a Claude execution")
-    delegation = plan.get("delegation")
-    if plan["mode"] != PLAN_DELEGATED or not isinstance(delegation, dict) or delegation.get("state") != "open" or delegation.get("provider") != "claude":
+    legacy_claim = (
+        route.execution_plan is None
+        and isinstance(route.execution, dict)
+        and route.execution.get("launched") is True
+        and "outcome" not in route.execution
+        and route.execution.get("agent_id") == agent_id.strip()
+    )
+    # Normalize an existing legacy claim, without creating a plan, delegation
+    # or a new execution identity after the fact.
+    if legacy_claim:
+        plan = None
+        delegation = None
+    else:
+        plan = _require_plan(route, "recording a Claude execution")
+        delegation = plan.get("delegation")
+    if not legacy_claim and (plan["mode"] != PLAN_DELEGATED or not isinstance(delegation, dict) or delegation.get("state") != "open" or delegation.get("provider") != "claude"):
         raise RoutingError(
             "recording a Claude execution requires an open delegation: run begin-claude-delegation before the Agent call. "
             "Recording after the fact is refused; a supervisor-written diff cannot be legalized by a retrospective claim."
         )
     tier_decision = determine_claude_tier(shell_enabled=True)
     check = postcheck(route)
-    closed = {**delegation, "state": "closed", "closed_at": utc_now(), "task_content_post": _task_content_state(Path(route.task_worktree), route.change)}
+    closed = None if legacy_claim else {**delegation, "state": "closed", "closed_at": utc_now(), "task_content_post": _task_content_state(Path(route.task_worktree), route.change)}
     execution = {
         "outcome": "claimed",
         "launch_evidence": "self-reported",
@@ -1439,7 +1459,7 @@ def record_claude_execution(root: Path, *, agent_id: str, summary: str | None = 
             "execution_id": {"value": agent_id.strip(), "kind": "claude-agent-id"},
         },
     }
-    next_route = Route(**{**asdict(route), "execution": execution, "execution_plan": {**plan, "delegation": closed}})
+    next_route = Route(**{**asdict(route), "execution": execution, "execution_plan": None if legacy_claim else {**plan, "delegation": closed}})
     _write_route(path, next_route)
     _persist_completed_execution(next_route)
     return execution

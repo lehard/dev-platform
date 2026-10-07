@@ -40,7 +40,9 @@ Defect: a required child executor can be silently replaced by supervisor-written
 
 7. **No provider hook.** Enforcement is in repository-owned lifecycle entrypoints; a Claude editor hook cannot be shipped for all downstream runtimes and would be provider-specific.
 
-8. **No fallbacks.** Missing or invalid plan/delegation fields raise `RoutingError` naming the field. No default plan is assumed when absent; no swallowed snapshot error (a failed snapshot is a gate failure, as `ContainmentError` already is).
+8. **Legacy claim normalization.** A plan-less legacy Claude execution with `launched: true`, an existing `agent_id` and no outcome may be re-recorded as a truthful claimed execution only with that same identifier and a fresh clean containment postcheck. This converts existing evidence; it creates no plan, retrospective delegation or launch claim. New planned routes still require an open delegation. Codex preflight refusal removes the unlaunched open delegation and propagates the error, so it cannot authorize later supervisor writes or escalation.
+
+9. **No fallbacks.** Missing or invalid plan/delegation fields raise `RoutingError` naming the field. No default plan is assumed when absent; no swallowed snapshot error (a failed snapshot is a gate failure, as `ContainmentError` already is).
 
 ## Risks
 
