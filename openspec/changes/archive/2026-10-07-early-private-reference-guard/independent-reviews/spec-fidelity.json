@@ -1,0 +1,88 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "4984d565b82e069b0621ee92eb2809f2e6214ded",
+    "base_ref": "origin/main",
+    "candidate_head": "c3065ee252e993a499bf9e34b121503a8fa55d49",
+    "diff_sha256": "4b65d5bf008e73c7f36f5103ee4eeeeae511de34a11756c9713de28ab8a61066"
+  },
+  "completed_at": "2026-10-07T05:25:03+00:00",
+  "findings": [
+    {
+      "evidence": "tests/test_early_private_reference_guard.py:348-355 (test_shared_candidate_blocks_before_full_checks). The ordering itself is correct in template/scripts/requirement_integration.py:828-831, where `_require_early_privacy(root)` precedes `_run_full_checks(root)`.",
+      "id": "shared-publisher-ordering-untested",
+      "severity": "advisory",
+      "summary": "The shared-publisher tests call only the `_require_early_privacy` helper. None runs `publish_candidate`, so nothing proves the guard runs before `_run_full_checks` or public mutation, or that it covers draft candidates. Design.md calls for sentinel-based ordering tests, and the spec scenarios require 'fails before full validation or public mutation' and 'full mandatory checks still run' for a clean complete candidate."
+    },
+    {
+      "evidence": "tests/test_early_private_reference_guard.py:296-302 and 304-324. The code places the gate in `archive_change`, which `finalize` also uses, so the behavior is likely correct but unverified.",
+      "id": "archive-ordering-partially-tested",
+      "severity": "advisory",
+      "summary": "The archive ordering tests only assert that `require_static_archive_readiness` is not called. They do not check that independent review, selected checks, evidence writes and OpenSpec mutation are skipped. They also do not exercise the `finalize=True` (coordinator finalization) path the spec explicitly requires."
+    }
+  ],
+  "launched_at": "2026-10-07T05:24:47+00:00",
+  "output_sha256": "68adf8a930e3cfb7027a52c7183c723e6f0fbc06bac4d9d67bb7eb80ace7b3a6",
+  "perspective": "spec-fidelity",
+  "request_id": "3bd1596d-1bd8-411d-a8e0-47814eca2111",
+  "reviewer": {
+    "context_id": "b2eb47e0-9d27-4b20-af6c-952ae43959f8",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-cf7147fa-c827-4ebb-93cf-12b81eb15896",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 25755
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 35903
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13960
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14192
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 7
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1598
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "f3743d827e5eeff68135b44d24974801b6c55db219d614a8dcfc0d2baeb077f3"
+}

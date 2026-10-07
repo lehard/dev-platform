@@ -99,6 +99,7 @@ targets = [
   "test_requirement_contribution_composition",
   "test_requirement_board",
   "test_private_backlog_guard",
+  "test_early_private_reference_guard",
 ]
 mode = "parallel"
 
