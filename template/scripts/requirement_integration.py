@@ -796,6 +796,14 @@ def _reconcile_exact_merged(root: Path, integration: Path, manifest: dict[str, A
             "children": [child["source_issue"] for child in manifest["children"]]}
 
 
+def _require_early_privacy(root: Path) -> None:
+    import private_lineage
+    try:
+        private_lineage.require_clean_candidate(root)
+    except private_lineage.PrivateLineageError as exc:
+        raise RequirementIntegrationError(f"shared candidate blocked before full validation: {exc}") from exc
+
+
 def publish_candidate(root: Path, *, manifest: dict[str, Any], receipt_paths: list[Path], title: str | None = None) -> dict[str, Any]:
     """Validate and publish one shared candidate through the protected PR primitive."""
     import managed_work_identity
@@ -817,6 +825,7 @@ def publish_candidate(root: Path, *, manifest: dict[str, Any], receipt_paths: li
     _verify_parent_links(integration, manifest)
     readable_parent, readable_children = publication_identities(integration, manifest)
     complete = manifest_complete(manifest)
+    _require_early_privacy(root)
     if complete:
         # An early draft is checked by GitHub's required checks; the full local suite gates readiness.
         _run_full_checks(root)

@@ -536,6 +536,12 @@ def archive_change(root: Path, name: str, *, finalize: bool = False) -> int:
     """
     # Fail closed on a nonexistent, malformed or not-completed target before any state changes.
     require_archive_target(root, name, source="archive")
+    # Cheap privacy gate before review, checks, evidence writes or OpenSpec mutation.
+    import private_lineage
+    try:
+        private_lineage.require_clean_candidate(root)
+    except private_lineage.PrivateLineageError as exc:
+        raise SystemExit(f"{name}: archive blocked before review and validation: {exc}") from exc
     change = root / "openspec" / "changes" / name
     platform_owned = harness_mode(read_platform_config(root)) == "platform"
     if platform_owned and not finalize and (change / ".managed-task.json").is_file():
