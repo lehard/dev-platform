@@ -1,0 +1,32 @@
+{
+  "base": "a8d83e5cbd97037b242daf30557f4b1e3b03ae7c",
+  "children": [],
+  "dependencies": {
+    "capability-metadata": [],
+    "child-project-routing": [],
+    "coordinator-operations": [
+      "publication-observation"
+    ],
+    "downstream-boundary": [],
+    "early-routing-gate": [],
+    "publication-observation": [],
+    "worker-runtime-identity": [
+      "publication-observation"
+    ]
+  },
+  "digest": "219a7df1936d322cf60970d24037a5c2dc935acbf5e73818a7dd0c1af1a4b02f",
+  "expected_changes": [
+    "capability-metadata",
+    "child-project-routing",
+    "downstream-boundary",
+    "early-routing-gate",
+    "publication-observation",
+    "coordinator-operations",
+    "worker-runtime-identity"
+  ],
+  "integration_branch": "requirement/BR-415",
+  "repository": "lehard/dev-platform",
+  "requirement": "pln_d6af8d84cd0d3242b993ec5adfcee1c4",
+  "version": 2,
+  "work_identity": "BR-415"
+}
