@@ -9,24 +9,24 @@ import json
 from pathlib import Path
 
 from task_content_identity import equivalent_proofs, review_content_identity
-import lifecycle_workers as workers
-import publication_queue as queue
 
 MAX_ROUNDS = 3
 
 
 def managed_candidate(root: Path) -> bool:
     from _platform_common import lifecycle_mode, read_platform_config
-    from managed_task import resolve_canonical_provenance
-
     if lifecycle_mode(read_platform_config(root)) != "coordinator":
         return False
+    from managed_task import resolve_canonical_provenance
+    import publication_queue as queue
+
     provenance = resolve_canonical_provenance(root)
     return (queue.enabled(root)
             and provenance is not None and provenance.lifecycle == "active")
 
 
 def task_identity(root: Path, change: str) -> dict:
+    import lifecycle_workers as workers
     from requirement_child_context import context_path
     context = context_path(root, change)
     contribution = json.loads(context.read_text()).get("contribution") if context.is_file() else None
@@ -114,6 +114,7 @@ def repair_brief(running: dict) -> dict:
 
 def handoff_gates(root: Path, change: Path) -> tuple[dict, dict]:
     """Validate developer evidence before publication; never manufacture a receipt."""
+    import lifecycle_workers as workers
     from openspec_lifecycle import require_automated_evidence, verification_passed
 
     if not verification_passed(change):
@@ -146,8 +147,10 @@ def handoff_gates(root: Path, change: Path) -> tuple[dict, dict]:
 
 def offer(root: Path, repo: str, number: int, head: str, identity: dict,
           kind: str, *, gates: dict | None = None, red_gate: dict | None = None,
-          attempt: int | None = None, providers=None, set_attempts=None, adapter=queue) -> dict | None:
+          attempt: int | None = None, providers=None, set_attempts=None, adapter=None) -> dict | None:
     """Publish state first, then the shared head-bound job (both resumable)."""
+    if adapter is None:
+        import publication_queue as adapter
     record = adapter._transition(root, repo, number, kind + "-pending", head,
                                  task_identity=identity, inherit_identity=False,
                                  gates=gates, red_gate=red_gate, attempt=kind, set_attempts=set_attempts)
@@ -169,7 +172,9 @@ def review_outcome(reports: dict, rounds: int, *, rejected: bool = False) -> str
 
 
 def complete_review(root: Path, repo: str, candidate: dict, reports: dict, head: str, *,
-                    rejected: bool = False, adapter=queue) -> dict | None:
+                    rejected: bool = False, adapter=None) -> dict | None:
+    if adapter is None:
+        import publication_queue as adapter
     identity = candidate["task_identity"]
     attempts = candidate.get("attempts", {})
     reports = compact_reports(reports)
@@ -209,6 +214,7 @@ def execute_review(checkout: Path, job: dict, *, source_repo: str, branch: str,
                    current_head, runner, push_env=None, launcher=None, review_config=None, before_push=None,
                    claim_current=lambda: True) -> dict:
     """Run the existing reviewer; only the harness commits and pushes evidence."""
+    import lifecycle_workers as workers
     from requirement_composition import run_child_review
     from independent_review import PERSPECTIVES, _validate_report, read_dispositions, resolve_change
 
@@ -273,9 +279,12 @@ def execute_review(checkout: Path, job: dict, *, source_repo: str, branch: str,
 
 def run_claimed(root: Path, repo: str, candidate: dict, job: dict, *, source_repo: str,
                 branch: str, allowed_paths, llm_command, current_head, post_result,
-                workdir: str, adapter=queue, runner=None, launcher=None, home_files=(), worker="worker",
+                workdir: str, adapter=None, runner=None, launcher=None, home_files=(), worker="worker",
                 claim_current=None) -> dict:
     """Execute and advance one claimed exact-head job, without the developer."""
+    import lifecycle_workers as workers
+    if adapter is None:
+        import publication_queue as adapter
     import subprocess
 
     kind = job["kind"]
@@ -373,6 +382,7 @@ def run_claimed(root: Path, repo: str, candidate: dict, job: dict, *, source_rep
 
 
 def refresh_identity(root: Path, identity: dict) -> dict:
+    import lifecycle_workers as workers
     if identity.get("kind") == "requirement-composition":
         from requirement_composition import composition_identity, candidate_manifest
         return composition_identity(root, candidate_manifest(root, identity["requirement"]))
