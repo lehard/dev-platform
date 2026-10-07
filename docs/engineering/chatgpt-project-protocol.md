@@ -84,7 +84,15 @@ After mutation, read the Issue back and verify the title/body, exact target
 repository, `type:requirement` label, exactly the configured `project:*`
 label, and exactly one `priority:*` label matching the explicit or default
 priority, plus children markers. Fixation succeeds only after this read-back
-verifies every one of those labels. A fixation-only request then **stops**: do
+verifies every one of those labels **and** Development Backlog Project
+membership: exactly one Project item with an initialized Status (initially
+`Backlog`; an existing Status is preserved). Built-in auto-add normally
+supplies it but is not assumed; the connector may lack write access to the
+user-owned Project. If membership is not confirmed, report the Issue as
+durable but fixation **unconfirmed** (never successfully recorded), create no
+second Issue, and leave completion to the operator-side
+`requirement_intake.py reconcile-board`; never ask the user to add the card.
+A fixation-only request then **stops**: do
 not start pre-authoring, create OpenSpec, dispatch an executor, move lifecycle
 status, or implement anything.
 

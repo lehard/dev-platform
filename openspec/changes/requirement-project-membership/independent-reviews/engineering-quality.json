@@ -1,38 +1,25 @@
 {
-  "availability": "available",
+  "availability": "unavailable",
   "candidate": {
     "base_head": "a8d83e5cbd97037b242daf30557f4b1e3b03ae7c",
     "base_ref": "origin/main",
-    "candidate_head": "cd79f2b8aa8093869d4d90dd948984a5fada58ec",
-    "diff_sha256": "b958c034491e68636e57bbcfb0102df8fa8ec2bfe438136c06c25ac63f4b8e1d"
+    "candidate_head": "5fb2079e552af8843f42b2723f70f535f78a4c40",
+    "diff_sha256": "115335c5e9c806c1cacd8fc041af5e306d29ada239e7ab11960d33d274077cfc"
   },
-  "completed_at": "2026-10-07T19:03:46+00:00",
-  "findings": [
-    {
-      "evidence": "template/scripts/requirement_intake.py:342-344 selects every open Requirement in the shared Backlog repository without checking config.project_label or the target repository. template/scripts/managed_project_status.py:204-218 resolves every selected Issue against the current checkout\u2019s project_owner/project_number. When targets share a Backlog repository but configure different Projects, --all creates unwanted memberships. An in-memory replay with project:billing configuration selected a project:crm Requirement for reconciliation.",
-      "id": "reconciliation-crosses-project-boundaries",
-      "severity": "material",
-      "summary": "Bulk reconciliation can add another target\u2019s Requirements to the wrong Project."
-    },
-    {
-      "evidence": "template/scripts/managed_project_status.py:427-435 reads Status and then performs an unconditional update when the observed value is None. A claim occurring between those operations is overwritten; the final read-back accepts the resulting Backlog value. An in-memory replay inserted an In progress claim after the read and confirmed that ensure_item returned a successful Backlog receipt. tests/test_managed_project_status.py:175 tests a claim after the update, which does not cover this ordering.",
-      "id": "status-initialization-overwrites-concurrent-claim",
-      "severity": "advisory",
-      "summary": "Status initialization can silently overwrite a concurrent claim with Backlog."
-    }
-  ],
-  "launched_at": "2026-10-07T18:58:04+00:00",
-  "output_sha256": "7ca9801a51cb5e9ad7f4b265c0800113a4ae932b39399f4ab070411786250989",
+  "completed_at": "2026-10-07T19:14:45+00:00",
+  "findings": [],
+  "launched_at": "2026-10-07T19:10:25+00:00",
+  "limitation": "codex reviewer exited with status 1 (You\u2019ve hit your usage limit. Upgrade to Pro (https://chatgpt.com/explore/pro), visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at Oct 8th, 2026 2:07 AM.); check the CLI login and the [model_routing] model for this account, then rerun",
   "perspective": "engineering-quality",
-  "request_id": "b171374c-e097-46f7-a1ef-f837c3f6f56d",
+  "request_id": "8b7882ca-d253-46ac-8886-efdf6190b12b",
   "reviewer": {
-    "context_id": "01a117ba-df8a-7152-83e0-a17537562edc",
-    "context_id_source": "runtime",
+    "context_id": "platform-launch-f80b4423-3aa4-4923-9dc8-1eb1fc0d6343",
+    "context_id_source": "platform-launch",
     "executed_provider": "codex",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-bcd4ee0a-e8d9-4d28-a985-af513b90b903",
+    "launch_id": "platform-launch-f80b4423-3aa4-4923-9dc8-1eb1fc0d6343",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -43,26 +30,6 @@
     "runtime": "codex-exec",
     "write_access": false
   },
-  "runtime_usage": {
-    "fields": {
-      "cached_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 609536
-      },
-      "input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 692481
-      },
-      "output_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 5197
-      }
-    },
-    "runtime": "codex-exec"
-  },
   "schema_version": 1,
-  "task_content_digest": "441cb4a3d774f04524ff7c77904bcfe2e094b1a7bbcc2a43ab61e697b40bd951"
+  "task_content_digest": "ef4424a27f59d0c8a7c0e62f0f64b976f5a09b9378d0ad194d7bccf9e1cc85f1"
 }

@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "a8d83e5cbd97037b242daf30557f4b1e3b03ae7c",
     "base_ref": "origin/main",
-    "candidate_head": "cd79f2b8aa8093869d4d90dd948984a5fada58ec",
-    "diff_sha256": "b958c034491e68636e57bbcfb0102df8fa8ec2bfe438136c06c25ac63f4b8e1d"
+    "candidate_head": "5fb2079e552af8843f42b2723f70f535f78a4c40",
+    "diff_sha256": "115335c5e9c806c1cacd8fc041af5e306d29ada239e7ab11960d33d274077cfc"
   },
   "change": "openspec/changes/requirement-project-membership",
   "excluded_lifecycle_paths": [
@@ -36,7 +36,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-07T18:52:50+00:00",
+  "prepared_at": "2026-10-07T19:06:31+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/requirement-project-membership/independent-reviews",
     "required_perspectives": [
@@ -45,7 +45,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "b171374c-e097-46f7-a1ef-f837c3f6f56d",
+  "request_id": "8b7882ca-d253-46ac-8886-efdf6190b12b",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -58,9 +58,9 @@
   "schema_version": 1,
   "task_content": {
     "base": "a8d83e5cbd97037b242daf30557f4b1e3b03ae7c",
-    "digest": "441cb4a3d774f04524ff7c77904bcfe2e094b1a7bbcc2a43ab61e697b40bd951",
+    "digest": "ef4424a27f59d0c8a7c0e62f0f64b976f5a09b9378d0ad194d7bccf9e1cc85f1",
     "paths": {
-      "docs/engineering/chatgpt-project-protocol.md": "97a4a2e612d7276df64e4ee912435763c1de3619",
+      "docs/engineering/chatgpt-project-protocol.md": "362c9c031d0c2258aaa3a61f3424a40fae662c60",
       "docs/engineering/task-intake.md": "1e572db56efcdb75cd13c6b9f460507849fc6b88",
       "openspec/changes/requirement-project-membership/.managed-task.json": "3b6780ef9c7d66928b7e69a156e7bb392716d20e",
       "openspec/changes/requirement-project-membership/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
@@ -68,16 +68,16 @@
       "openspec/changes/requirement-project-membership/proposal.md": "81eb369f63da73ca0e4eae3772e41389ede49283",
       "openspec/changes/requirement-project-membership/specs/managed-task-intake/spec.md": "0b5050e128588adf60e08608e62cb2dc02eb649c",
       "openspec/changes/requirement-project-membership/tasks.md": "6a023fa6aafcdba72d69461d39183d8b095dd2a4",
-      "template/docs/engineering/chatgpt-project-protocol.md": "06ff1fc9a0a05ad573aafd87afb550080f824f58",
-      "template/docs/engineering/task-intake.md.jinja": "e6fcefbf76c828ca3bf368ea547e53f9e2f417a3",
+      "template/docs/engineering/chatgpt-project-protocol.md": "19cacbee45abe0122ab035843a8b6a7527aa403e",
+      "template/docs/engineering/task-intake.md.jinja": "f0cff6804bf2f7cbda3827ab29d1853a590fcd84",
       "template/scripts/managed_project_status.py": "d5bba071ad51247b5e5228c36bb69f5c75beb3ae",
       "template/scripts/requirement_board.py": "b41b821d76fea61ad857b39129d0232a25cac077",
-      "template/scripts/requirement_intake.py": "2a06a8889782b6e2e43de26ed452a365d6e1f061",
+      "template/scripts/requirement_intake.py": "0256d63eac28de12843dacfcc027641401fabd47",
       "tests/test_managed_project_status.py": "5b619d9c4ef814bd19552e3a203a05ed3aec6892",
       "tests/test_requirement_card_claim.py": "90bac9c9cd27c18b9e600dcbface5242dd120e6f",
       "tests/test_requirement_execution.py": "f6bdc06d07458f1358e039befbf0b8503bc965dc",
       "tests/test_requirement_flow_e2e.py": "aa50bc7e745209835c4f57c83425bced1de5c81e",
-      "tests/test_requirement_intake.py": "1d8d09c5be0617dcc2e223fe91e1b188e2a5dec6"
+      "tests/test_requirement_intake.py": "8bd59015808ed21ad5ae1d75b65feae528481ce0"
     },
     "scope": "independent-review-v1",
     "version": 1

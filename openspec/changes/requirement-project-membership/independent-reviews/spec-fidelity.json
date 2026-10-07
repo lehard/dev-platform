@@ -3,36 +3,36 @@
   "candidate": {
     "base_head": "a8d83e5cbd97037b242daf30557f4b1e3b03ae7c",
     "base_ref": "origin/main",
-    "candidate_head": "cd79f2b8aa8093869d4d90dd948984a5fada58ec",
-    "diff_sha256": "b958c034491e68636e57bbcfb0102df8fa8ec2bfe438136c06c25ac63f4b8e1d"
+    "candidate_head": "5fb2079e552af8843f42b2723f70f535f78a4c40",
+    "diff_sha256": "115335c5e9c806c1cacd8fc041af5e306d29ada239e7ab11960d33d274077cfc"
   },
-  "completed_at": "2026-10-07T18:58:04+00:00",
+  "completed_at": "2026-10-07T19:10:25+00:00",
   "findings": [
     {
-      "evidence": "The delta spec at openspec/changes/requirement-project-membership/specs/managed-task-intake/spec.md:5 requires that an existing Status SHALL NOT be overwritten. template/scripts/managed_project_status.py:427-435 reads Status and then unconditionally writes Backlog when that earlier read was unset. A concurrent claim between those operations is overwritten; the read-back at lines 437-442 accepts the resulting Backlog. A read-only mocked interleaving reproduced In progress being replaced by Backlog with a successful receipt.",
-      "id": "concurrent-status-overwrite",
+      "evidence": "template/scripts/managed_project_status.py:427 reads Status, then lines 429\u2013435 unconditionally write Backlog if that earlier read was unset. A writer assigning In progress between the read and mutation is overwritten; the final check at lines 437\u2013442 sees Backlog and succeeds. An in-memory execution of the candidate function reproduced this outcome. This violates openspec/changes/requirement-project-membership/specs/managed-task-intake/spec.md:5: 'an existing Status SHALL NOT be overwritten.'",
+      "id": "status-initialization-overwrites-concurrent-claim",
       "severity": "material",
-      "summary": "Status initialization can overwrite a concurrent claim and still report success."
+      "summary": "Membership repair can overwrite a concurrently assigned Status and still report success."
     },
     {
-      "evidence": "template/docs/engineering/chatgpt-project-protocol.md:86-88 makes fixation success conditional on an item with its initial Backlog Status; docs/engineering/chatgpt-project-protocol.md:232-233 and template/docs/engineering/task-intake.md.jinja:31-33 repeat this condition. The delta spec at openspec/changes/requirement-project-membership/specs/managed-task-intake/spec.md:5 and :14-16 instead requires an initialized Status and preservation of an existing one. A reused item already showing In progress satisfies that contract but fails the documented Backlog-only success condition.",
-      "id": "backlog-only-fixation-guidance",
-      "severity": "advisory",
-      "summary": "Connected and template guidance incorrectly requires Backlog when reusing an initialized item."
+      "evidence": "docs/engineering/chatgpt-project-protocol.md:83\u201389 says fixation succeeds after read-back verifies the labels and that a fixation-only request 'then stops', without checking Project membership. The candidate adds the membership gate only in the later sequence at lines 232\u2013238, while template/docs/engineering/chatgpt-project-protocol.md:86\u201394 updates the adapter itself. The central adapter therefore retains the behavior prohibited by openspec/changes/requirement-project-membership/specs/managed-task-intake/spec.md:26, which requires confirmed membership before reporting fixation.",
+      "id": "connected-adapter-retains-label-only-stop",
+      "severity": "material",
+      "summary": "The central connected-authoring adapter still directs fixation to stop after label verification, leaving conflicting completion instructions."
     }
   ],
-  "launched_at": "2026-10-07T18:53:02+00:00",
-  "output_sha256": "8f57affd9b04f0d96e53f6ccea535ad15e887d472fc4ff271ca41b1e527ea69b",
+  "launched_at": "2026-10-07T19:07:20+00:00",
+  "output_sha256": "a288657177e079ef3dcd03c3789a7de12f66cc49ef743cea4441ff1f796c0578",
   "perspective": "spec-fidelity",
-  "request_id": "b171374c-e097-46f7-a1ef-f837c3f6f56d",
+  "request_id": "8b7882ca-d253-46ac-8886-efdf6190b12b",
   "reviewer": {
-    "context_id": "01a117b6-4214-78e2-8aeb-76df2769e797",
+    "context_id": "01a117c3-6542-79b0-9313-7be8fed33ad9",
     "context_id_source": "runtime",
     "executed_provider": "codex",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-00475e66-a705-46ee-9d4d-5c23f95d35d1",
+    "launch_id": "platform-launch-c7a2d3c7-a172-4a44-87db-c87c0f7aeb70",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -48,21 +48,21 @@
       "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 663296
+        "value": 573056
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 749691
+        "value": 659409
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4855
+        "value": 5072
       }
     },
     "runtime": "codex-exec"
   },
   "schema_version": 1,
-  "task_content_digest": "441cb4a3d774f04524ff7c77904bcfe2e094b1a7bbcc2a43ab61e697b40bd951"
+  "task_content_digest": "ef4424a27f59d0c8a7c0e62f0f64b976f5a09b9378d0ad194d7bccf9e1cc85f1"
 }
