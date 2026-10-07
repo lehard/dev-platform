@@ -1,0 +1,81 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.168,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 14.057,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1211.449,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/requirement_intake.py",
+        "tests/test_requirement_intake.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_ada35b41259fef2414aecb885464b575",
+    "change": "child-project-routing",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/child-project-routing",
+    "branch": "agent/br-415-t2-child-project-routing",
+    "head": "d65a678effb9ac7f3903972f3f630b57401ca929",
+    "task_content": {
+      "version": 1,
+      "digest": "3beb532d09d2696484969d5abf5d1c2a960c450ec88a307cb6191fcf776d8c01",
+      "paths": {
+        "dev-platform/requirement-integrations/private-lineage-pln_d6af8d84cd0d3242b993ec5adfcee1c4-integration.json": "3cbbbee855a1648c32af3f34a79bc424abba3bbd"
+      },
+      "base": "a8d83e5cbd97037b242daf30557f4b1e3b03ae7c"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "fafeb0168b574cc3b8baa72434366d423eb6bd0403573668359693694a442884",
+    "paths": {},
+    "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/requirement_intake.py --changed-file tests/test_requirement_intake.py",
+    "duration_seconds": 50.087,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}

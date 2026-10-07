@@ -14,6 +14,7 @@ import sys
 import tempfile
 import threading
 import unittest
+import unittest.mock
 from contextlib import contextmanager, redirect_stdout
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -31,6 +32,7 @@ sys.path.insert(0, str(TEMPLATE_SCRIPTS))
 import managed_project_status  # noqa: E402
 import managed_task  # noqa: E402
 import requirement_intake as ri  # noqa: E402
+from managed_task import ManagedTaskError  # noqa: E402
 
 
 def git(root: Path, *args: str) -> None:
@@ -138,14 +140,17 @@ class MaterializeHandoffTests(unittest.TestCase):
         self.child_body = ""
         self.marker = f"<!-- requirement-handoff:v1:acme/backlog#7:{'a' * 64} -->"
         self.candidates: list[dict] = []
+        self.parent_labels = [ri.REQUIREMENT_LABEL, "project:billing"]
+        self.child_labels = [ri.CHILD_LABEL, "project:billing"]
+        self.config = managed_task.AuthoringConfig("acme/backlog", "project:billing", "P2")
 
     def tearDown(self) -> None:
         self.tmp.cleanup()
 
     def _fetch(self, root, repository, number):
         if number == 7:
-            return {"body": self.parent_body, "labels": [{"name": ri.REQUIREMENT_LABEL}]}
-        return {"body": self.child_body, "labels": [{"name": ri.CHILD_LABEL}]}
+            return {"body": self.parent_body, "labels": [{"name": name} for name in self.parent_labels]}
+        return {"body": self.child_body, "state": "open", "labels": [{"name": name} for name in self.child_labels]}
 
     def _link(self, root, *, requirement, child):
         self.parent_body = self.parent_body.replace(ri.CHILDREN_END, f"- [ ] {child}\n{ri.CHILDREN_END}")
@@ -154,7 +159,7 @@ class MaterializeHandoffTests(unittest.TestCase):
     def _run(self, *, candidates=None, create=None, link=None, status=None):
         report = status or {"current_stage": "complete", "target_repository": "acme/platform",
                             "handoffs": {"intent": str(self.handoff)}}
-        config = managed_task.AuthoringConfig("acme/backlog", "managed", "P2")
+        config = self.config
         with (
             patch.object(ri.orchestrate_pre_authoring, "status", return_value=report),
             patch.object(ri, "fetch_issue", side_effect=self._fetch),
@@ -199,6 +204,95 @@ class MaterializeHandoffTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "transport interruption"):
                 self._run(link=lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("transport interruption")))
             result, create_mock = self._run()
+        self.assertEqual(result["child"], "acme/backlog#8")
+        create_mock.assert_not_called()
+
+    def _published(self):
+        return type("Package", (), {"change": "ship-it", "target_repository": "acme/platform",
+                                    "artifacts": self.bundle_value.artifacts, "contents": self.bundle_value.contents})()
+
+    def _created(self):
+        return lambda *args, **kwargs: (type("Package", (), {"source_issue": "acme/backlog#8"})(), False, False)
+
+    def test_label_contradiction_is_rejected_before_creation(self) -> None:
+        self.config = managed_task.AuthoringConfig("acme/backlog", "project:other", "P2")
+        create = unittest.mock.Mock()
+        with self.assertRaisesRegex(ri.RequirementIntakeError, "project:other.*project:billing"):
+            self._run(create=create)
+        create.assert_not_called()
+
+    def test_backlog_repository_contradiction_is_rejected_before_creation(self) -> None:
+        self.config = managed_task.AuthoringConfig("acme/elsewhere", "project:billing", "P2")
+        create = unittest.mock.Mock()
+        with self.assertRaisesRegex(ri.RequirementIntakeError, "acme/elsewhere.*acme/backlog"):
+            self._run(create=create)
+        create.assert_not_called()
+
+    def test_parent_without_or_with_multiple_project_labels_is_rejected(self) -> None:
+        for labels in ([ri.REQUIREMENT_LABEL], [ri.REQUIREMENT_LABEL, "project:billing", "project:other"]):
+            self.parent_labels = labels
+            create = unittest.mock.Mock()
+            with self.assertRaisesRegex(ri.RequirementIntakeError, "exactly one project:"):
+                self._run(create=create)
+            create.assert_not_called()
+
+    def test_missing_configuration_is_a_named_error(self) -> None:
+        create = unittest.mock.Mock()
+        with (
+            patch.object(ri.managed_task, "authoring_config", side_effect=ManagedTaskError("not configured")),
+            patch.object(ri, "fetch_issue", side_effect=self._fetch),
+        ):
+            with self.assertRaisesRegex(ri.RequirementIntakeError, "child routing input missing: not configured"):
+                ri.materialize_handoff(self.root, requirement="acme/backlog#7",
+                                       handoff_file=self.handoff, bundle_path=self.bundle)
+        create.assert_not_called()
+
+    def test_readback_without_project_label_internal_change_or_back_reference_fails(self) -> None:
+        cases = {
+            "contradictory project routing": ([ri.CHILD_LABEL], True),
+            "missing type:internal-change": (["project:billing"], True),
+            "does not reference": ([ri.CHILD_LABEL, "project:billing"], False),
+        }
+        for message, (labels, back_reference) in cases.items():
+            self.child_labels = labels
+            self.child_body = ""
+            link = self._link if back_reference else (lambda *args, **kwargs: None)
+            self.parent_body = ri.render_requirement_body(outcome="Ship it", target_repository="acme/platform")
+            with self.subTest(message), self.assertRaisesRegex(ri.RequirementIntakeError, message):
+                self._run(create=self._created(), link=link)
+
+    def test_reused_child_with_conflicting_project_label_fails_without_label_mutation(self) -> None:
+        self.candidates = [{"number": 8, "body": self.marker}]
+        self.child_body = self.marker
+        self.child_labels = [ri.CHILD_LABEL, "project:other"]
+        link = unittest.mock.Mock()
+        with (
+            patch.object(ri.managed_task, "issue_bodies", return_value=["package"]),
+            patch.object(ri.managed_task, "parse_package", return_value=self._published()),
+            patch.object(ri, "run") as run_mock,
+        ):
+            with self.assertRaisesRegex(ri.RequirementIntakeError, r"acme/backlog#8.*project:billing.*project:other"):
+                self._run(link=link)
+        link.assert_not_called()
+        run_mock.assert_not_called()
+
+    def test_reused_child_missing_only_internal_change_is_completed_once_and_reverified(self) -> None:
+        self.candidates = [{"number": 8, "body": self.marker}]
+        self.child_body = self.marker
+        self.child_labels = ["project:billing"]
+        calls = []
+
+        def link(root, *, requirement, child):
+            calls.append(child)
+            self.child_labels.append(ri.CHILD_LABEL)
+            self._link(root, requirement=requirement, child=child)
+
+        with (
+            patch.object(ri.managed_task, "issue_bodies", return_value=["package"]),
+            patch.object(ri.managed_task, "parse_package", return_value=self._published()),
+        ):
+            result, create_mock = self._run(link=link)
+        self.assertEqual(calls, ["acme/backlog#8"])
         self.assertEqual(result["child"], "acme/backlog#8")
         create_mock.assert_not_called()
 
@@ -555,13 +649,21 @@ class LinkChildTests(unittest.TestCase):
         fetched = {"acme/development-backlog#7": parent_body, "acme/development-backlog#20": child_body}
         commands: list[list[str]] = []
 
+        labels = {"acme/development-backlog#7": ["type:requirement", "project:billing"],
+                  "acme/development-backlog#20": ["project:billing"]}
+
         def fake_fetch_issue(root, repository, number):
-            return {"body": fetched[f"{repository}#{number}"]}
+            key = f"{repository}#{number}"
+            return {"body": fetched[key], "labels": [{"name": name} for name in labels[key]]}
 
         def fake_run(command, cwd, env=None, input_text=None):
             commands.append(command)
-            if command[:3] == ["gh", "issue", "edit"] and "--body" in command:
-                fetched[f"{command[command.index('--repo') + 1]}#{command[3]}"] = command[command.index("--body") + 1]
+            if command[:3] == ["gh", "issue", "edit"]:
+                key = f"{command[command.index('--repo') + 1]}#{command[3]}"
+                if "--body" in command:
+                    fetched[key] = command[command.index("--body") + 1]
+                if "--add-label" in command:
+                    labels[key].append(command[command.index("--add-label") + 1])
             return type("Result", (), {"stdout": "", "returncode": 0})()
 
         with (
@@ -591,13 +693,21 @@ class LinkChildTests(unittest.TestCase):
         fetched = {"acme/development-backlog#7": parent_body, "acme/development-backlog#20": child_body}
         commands: list[list[str]] = []
 
+        labels = {"acme/development-backlog#7": ["type:requirement", "project:billing"],
+                  "acme/development-backlog#20": ["project:billing"]}
+
         def fake_fetch_issue(root, repository, number):
-            return {"body": fetched[f"{repository}#{number}"]}
+            key = f"{repository}#{number}"
+            return {"body": fetched[key], "labels": [{"name": name} for name in labels[key]]}
 
         def fake_run(command, cwd, env=None, input_text=None):
             commands.append(command)
-            if command[:3] == ["gh", "issue", "edit"] and "--body" in command:
-                fetched[f"{command[command.index('--repo') + 1]}#{command[3]}"] = command[command.index("--body") + 1]
+            if command[:3] == ["gh", "issue", "edit"]:
+                key = f"{command[command.index('--repo') + 1]}#{command[3]}"
+                if "--body" in command:
+                    fetched[key] = command[command.index("--body") + 1]
+                if "--add-label" in command:
+                    labels[key].append(command[command.index("--add-label") + 1])
             return type("Result", (), {"stdout": "", "returncode": 0})()
 
         with (
@@ -630,13 +740,21 @@ class LinkChildTests(unittest.TestCase):
         fetched = {"acme/development-backlog#7": parent_body, "acme/development-backlog#20": child_body}
         commands: list[list[str]] = []
 
+        labels = {"acme/development-backlog#7": ["type:requirement", "project:billing"],
+                  "acme/development-backlog#20": ["project:billing"]}
+
         def fake_fetch_issue(root, repository, number):
-            return {"body": fetched[f"{repository}#{number}"]}
+            key = f"{repository}#{number}"
+            return {"body": fetched[key], "labels": [{"name": name} for name in labels[key]]}
 
         def fake_run(command, cwd, env=None, input_text=None):
             commands.append(command)
-            if command[:3] == ["gh", "issue", "edit"] and "--body" in command:
-                fetched[f"{command[command.index('--repo') + 1]}#{command[3]}"] = command[command.index("--body") + 1]
+            if command[:3] == ["gh", "issue", "edit"]:
+                key = f"{command[command.index('--repo') + 1]}#{command[3]}"
+                if "--body" in command:
+                    fetched[key] = command[command.index("--body") + 1]
+                if "--add-label" in command:
+                    labels[key].append(command[command.index("--add-label") + 1])
             return type("Result", (), {"stdout": "", "returncode": 0})()
 
         with (
@@ -662,13 +780,21 @@ class LinkChildTests(unittest.TestCase):
         fetched = {"acme/development-backlog#7": parent_body, "acme/development-backlog#20": child_body}
         commands: list[list[str]] = []
 
+        labels = {"acme/development-backlog#7": ["type:requirement", "project:billing"],
+                  "acme/development-backlog#20": ["project:billing"]}
+
         def fake_fetch_issue(root, repository, number):
-            return {"body": fetched[f"{repository}#{number}"]}
+            key = f"{repository}#{number}"
+            return {"body": fetched[key], "labels": [{"name": name} for name in labels[key]]}
 
         def fake_run(command, cwd, env=None, input_text=None):
             commands.append(command)
-            if command[:3] == ["gh", "issue", "edit"] and "--body" in command:
-                fetched[f"{command[command.index('--repo') + 1]}#{command[3]}"] = command[command.index("--body") + 1]
+            if command[:3] == ["gh", "issue", "edit"]:
+                key = f"{command[command.index('--repo') + 1]}#{command[3]}"
+                if "--body" in command:
+                    fetched[key] = command[command.index("--body") + 1]
+                if "--add-label" in command:
+                    labels[key].append(command[command.index("--add-label") + 1])
             return type("Result", (), {"stdout": "", "returncode": 0})()
 
         with (
@@ -684,6 +810,49 @@ class LinkChildTests(unittest.TestCase):
             if command[:3] == ["gh", "issue", "edit"] and command[3] == "7" and "--body" in command
         ]
         self.assertEqual(parent_body_edits, [])
+
+    def _link_fixture(self, child_labels, *, persist_label=True):
+        parent_body = f"## Outcome\n\nShip X.\n\n{ri.CHILDREN_START}\n{ri.CHILDREN_END}\n"
+        fetched = {"acme/development-backlog#7": parent_body, "acme/development-backlog#20": "Body.\n"}
+        labels = {"acme/development-backlog#7": ["type:requirement", "project:billing"],
+                  "acme/development-backlog#20": list(child_labels)}
+        commands: list[list[str]] = []
+
+        def fake_fetch_issue(root, repository, number):
+            key = f"{repository}#{number}"
+            return {"body": fetched[key], "labels": [{"name": name} for name in labels[key]]}
+
+        def fake_run(command, cwd, env=None, input_text=None):
+            commands.append(command)
+            if command[:3] == ["gh", "issue", "edit"]:
+                key = f"{command[command.index('--repo') + 1]}#{command[3]}"
+                if "--body" in command:
+                    fetched[key] = command[command.index("--body") + 1]
+                if "--add-label" in command and persist_label:
+                    labels[key].append(command[command.index("--add-label") + 1])
+            return type("Result", (), {"stdout": "", "returncode": 0})()
+
+        return commands, fake_fetch_issue, fake_run
+
+    def _link(self, commands, fake_fetch_issue, fake_run):
+        with (
+            patch.object(ri, "github_cli_env", return_value={}),
+            patch.object(ri, "fetch_issue", side_effect=fake_fetch_issue),
+            patch.object(ri, "run", side_effect=fake_run),
+            patch.object(ri, "_identity_siblings", return_value={}),
+        ):
+            return ri.link_child(self.root, requirement="acme/development-backlog#7", child="acme/development-backlog#20")
+
+    def test_link_child_rejects_contradictory_project_label_before_editing(self) -> None:
+        commands, fetch, run = self._link_fixture(["project:other"])
+        with self.assertRaisesRegex(ri.RequirementIntakeError, "contradictory project routing"):
+            self._link(commands, fetch, run)
+        self.assertEqual([c for c in commands if c[:3] == ["gh", "issue", "edit"]], [])
+
+    def test_link_child_fails_when_label_write_is_not_persisted(self) -> None:
+        commands, fetch, run = self._link_fixture(["project:billing"], persist_label=False)
+        with self.assertRaisesRegex(ri.RequirementIntakeError, "was not persisted"):
+            self._link(commands, fetch, run)
 
 
 class AggregateTests(unittest.TestCase):
@@ -1128,6 +1297,8 @@ class StableIdentityRegressionTests(unittest.TestCase):
         self.parent = "example-org/private-backlog#42"
         self.records = {42: ri.render_requirement_body(outcome="Ship", target_repository="example-org/app"),
                         10: "Technical task\n", 11: "Technical task\n", 12: "Technical task\n"}
+        self.labels = {42: ["type:requirement", "project:backlog"],
+                       **{number: ["project:backlog"] for number in (10, 11, 12)}}
         self.interrupt = False
         self.race = False
         self.patches = [
@@ -1145,7 +1316,8 @@ class StableIdentityRegressionTests(unittest.TestCase):
         self.tmp.cleanup()
 
     def fetch(self, root, repository, number):
-        return {"body": self.records[number], "number": number}
+        return {"body": self.records[number], "number": number,
+                "labels": [{"name": name} for name in self.labels[number]]}
 
     def list_issues(self, command, root, env):
         self.assertIn("state=all", command[-1])
@@ -1153,6 +1325,8 @@ class StableIdentityRegressionTests(unittest.TestCase):
         return [[{"number": number, "body": body} for number, body in self.records.items()]]
 
     def write(self, command, root, env=None):
+        if command[:3] == ["gh", "issue", "edit"] and "--add-label" in command:
+            self.labels[int(command[3])].append(command[command.index("--add-label") + 1])
         if command[:3] == ["gh", "issue", "edit"] and "--body" in command:
             number = int(command[3])
             if number == 42 and self.interrupt:

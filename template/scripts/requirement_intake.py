@@ -545,8 +545,18 @@ def _link_child_identity(root: Path, *, requirement: str, child: str) -> dict[st
     env = github_cli_env(root)
     if env is None:
         raise RequirementIntakeError("GitHub CLI authentication is required")
-    parent_body = str(fetch_issue(root, repository, number).get("body") or "")
-    child_body = str(fetch_issue(root, child_repository, child_number).get("body") or "")
+    parent_issue = fetch_issue(root, repository, number)
+    child_issue = fetch_issue(root, child_repository, child_number)
+    parent_body = str(parent_issue.get("body") or "")
+    child_body = str(child_issue.get("body") or "")
+    parent_projects = _project_labels(managed_task.issue_labels(parent_issue))
+    child_projects = _project_labels(managed_task.issue_labels(child_issue))
+    if child_projects and child_projects != parent_projects:
+        raise RequirementIntakeError(
+            f"child {child} has contradictory project routing for {requirement}: Requirement has "
+            f"{', '.join(sorted(parent_projects)) or 'no project:* label'}, child has {', '.join(sorted(child_projects))}; "
+            f"correct the child's project label manually before linking"
+        )
     parsed = parse_requirement_body(parent_body)
     siblings = _identity_siblings(root, requirement, env)
     # Read legacy links too; deleted checklist entries remain in reservations/claims.
@@ -575,6 +585,8 @@ def _link_child_identity(root: Path, *, requirement: str, child: str) -> dict[st
     if new_child != child_body:
         args += ["--body", new_child]
     run(args, root, env)
+    if CHILD_LABEL not in managed_task.issue_labels(fetch_issue(root, repository, child_number)):
+        raise RequirementIntakeError(f"{CHILD_LABEL} was not persisted on {child} after the label write; inspect the Issue")
     # Claim-first makes interrupted allocations recoverable from the child.
     allocated[child] = ordinal
     new_parent = parent_body
@@ -619,6 +631,71 @@ def _link_child_identity(root: Path, *, requirement: str, child: str) -> dict[st
     return {"requirement": requirement, "child": child, "work_identity": identity}
 
 
+def _project_labels(labels: set[str]) -> set[str]:
+    return {label for label in labels if label.startswith("project:")}
+
+
+def resolve_child_routing(
+    parent_issue: dict[str, Any], requirement_ref: str, config: managed_task.AuthoringConfig,
+) -> dict[str, str]:
+    """Derive child routing from the exact parent and prove the committed config agrees.
+
+    Disagreement, a missing or an ambiguous ``project:*`` label is an error;
+    neither source is ever preferred over the other.
+    """
+    found = sorted(_project_labels(managed_task.issue_labels(parent_issue)))
+    if len(found) != 1:
+        raise RequirementIntakeError(
+            f"{requirement_ref} must carry exactly one project:* label to route technical children; "
+            f"found {', '.join(found) if found else 'none'}"
+        )
+    expected_repository = issue_ref(requirement_ref)[0]
+    if config.repository != expected_repository:
+        raise RequirementIntakeError(
+            f"child routing conflict for {requirement_ref}: committed development_backlog.repository "
+            f"is {config.repository!r} but the Requirement lives in {expected_repository!r}"
+        )
+    if config.project_label.lower() != found[0]:
+        raise RequirementIntakeError(
+            f"child routing conflict for {requirement_ref}: committed development_backlog.project_label "
+            f"is {config.project_label!r} but the Requirement is labeled {found[0]!r}"
+        )
+    return {"project_label": found[0], "repository": expected_repository}
+
+
+def verify_child_routing(
+    root: Path, *, child_ref: str, routing: dict[str, str], requirement_ref: str, linked: bool,
+) -> None:
+    """Read the child back and prove its project routing (and, when linked, its link labels)."""
+    repository, number = issue_ref(child_ref)
+    if repository != routing["repository"]:
+        raise RequirementIntakeError(
+            f"child {child_ref} is not in the Requirement Backlog repository {routing['repository']}"
+        )
+    issue = fetch_issue(root, repository, number)
+    if issue.get("pull_request"):
+        raise RequirementIntakeError(f"child {child_ref} is a pull request, not an Issue")
+    if issue.get("state") != "open":
+        raise RequirementIntakeError(f"child {child_ref} is not open")
+    labels = managed_task.issue_labels(issue)
+    found_projects = sorted(_project_labels(labels))
+    if found_projects != [routing["project_label"]]:
+        raise RequirementIntakeError(
+            f"child {child_ref} has contradictory project routing for {requirement_ref}: expected "
+            f"{routing['project_label']!r}, found {', '.join(found_projects) if found_projects else 'no project:* label'}. "
+            f"Correct the project label on {child_ref} manually (or close it and retry); "
+            f"the platform never removes or replaces project:* labels"
+        )
+    if not linked:
+        return
+    if CHILD_LABEL not in labels:
+        raise RequirementIntakeError(
+            f"child {child_ref} is missing {CHILD_LABEL} on read-back; found {', '.join(sorted(labels)) or 'none'}"
+        )
+    if not re.search(rf"^{re.escape(BACK_REFERENCE_PREFIX + requirement_ref)}\s*$", str(issue.get("body") or ""), re.MULTILINE):
+        raise RequirementIntakeError(f"linkage incomplete: {child_ref} does not reference {requirement_ref}")
+
+
 def materialize_handoff(
     root: Path, *, requirement: str, handoff_file: Path, bundle_path: Path,
     base_dir: Path | None = None, confirm_distinct: bool = False,
@@ -634,6 +711,11 @@ def materialize_handoff(
     parent = fetch_issue(root, repository, number)
     if REQUIREMENT_LABEL not in managed_task.issue_labels(parent):
         raise RequirementIntakeError(f"{requirement_ref} is not labeled {REQUIREMENT_LABEL}")
+    try:
+        config = managed_task.authoring_config(root)
+    except ManagedTaskError as exc:
+        raise RequirementIntakeError(f"child routing input missing: {exc}") from exc
+    routing = resolve_child_routing(parent, requirement_ref, config)
     try:
         context = canonical_requirement_context(parse_requirement_body(str(parent.get("body") or "")))
         requirement_target_lifecycle.require_local_target_support(root, target_repository=context["target_repository"])
@@ -658,7 +740,6 @@ def materialize_handoff(
         raise RequirementIntakeError("ready handoff has no valid digest")
     marker = f"<!-- requirement-handoff:v1:{requirement_ref}:{digest} -->"
     bundle = managed_task.load_authoring_bundle(str(bundle_path))
-    config = managed_task.authoring_config(root)
     if managed_task.origin_repository(root) != report["target_repository"]:
         raise RequirementIntakeError("handoff targets a different repository from this checkout")
     env = github_cli_env(root)
@@ -683,18 +764,17 @@ def materialize_handoff(
         if (package.change != bundle.change or package.target_repository != report["target_repository"]
                 or package.artifacts != bundle.artifacts or package.contents != bundle.contents):
             raise RequirementIntakeError(f"exact child {child_ref} conflicts with the authored bundle")
+        verify_child_routing(root, child_ref=child_ref, routing=routing, requirement_ref=requirement_ref, linked=False)
     else:
         package, _, _ = managed_task.create_task(
             root, str(bundle_path), None, confirm_distinct, handoff_marker=marker,
         )
         child_ref = package.source_issue
     link_child(root, requirement=requirement_ref, child=child_ref)
+    verify_child_routing(root, child_ref=child_ref, routing=routing, requirement_ref=requirement_ref, linked=True)
     refreshed_parent = fetch_issue(root, repository, number)
-    refreshed_child = fetch_issue(root, *issue_ref(child_ref))
     if child_ref not in parse_requirement_body(str(refreshed_parent.get("body") or ""))["children"]:
         raise RequirementIntakeError(f"linkage incomplete: {requirement_ref} does not list {child_ref}")
-    if not re.search(rf"^{re.escape(BACK_REFERENCE_PREFIX + requirement_ref)}\s*$", str(refreshed_child.get("body") or ""), re.MULTILINE):
-        raise RequirementIntakeError(f"linkage incomplete: {child_ref} does not reference {requirement_ref}")
     return {"requirement": requirement_ref, "child": child_ref, "handoff_digest": digest}
 
 
