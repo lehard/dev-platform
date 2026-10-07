@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -15,6 +16,25 @@ SPEC.loader.exec_module(adopt_project)
 
 
 class AdoptProjectTests(unittest.TestCase):
+    def test_empty_remote_gets_only_an_empty_base_commit(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            remote = Path(tmp) / "remote.git"
+            subprocess.run(["git", "init", "--bare", str(remote)], check=True, capture_output=True)
+            self.assertTrue(adopt_project.ensure_base_branch(str(remote), "main", "test[bot]", "test@example.com"))
+            tree = subprocess.run(["git", "--git-dir", str(remote), "ls-tree", "--name-only", "main"], check=True, capture_output=True, text=True)
+            self.assertEqual(tree.stdout, "")
+            head = subprocess.run(["git", "--git-dir", str(remote), "rev-parse", "main"], check=True, capture_output=True, text=True).stdout
+            self.assertFalse(adopt_project.ensure_base_branch(str(remote), "main", "test[bot]", "test@example.com"))
+            self.assertEqual(subprocess.run(["git", "--git-dir", str(remote), "rev-parse", "main"], check=True, capture_output=True, text=True).stdout, head)
+            with self.assertRaisesRegex(ValueError, "missing required base branch"):
+                adopt_project.ensure_base_branch(str(remote), "other", "test[bot]", "test@example.com")
+
+    def test_fresh_copier_parameters_are_coherent(self) -> None:
+        command = adopt_project.copier_command("example-org/new-project", "v1.8.2", adopt_project.adoption_defaults("fresh"))
+        self.assertIn("publish_mode=direct", command)
+        self.assertIn("protected_main=false", command)
+        self.assertNotIn("--conflict", command)
+
     def test_docs_only_repository_is_fresh(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -143,7 +163,7 @@ class AdoptProjectTests(unittest.TestCase):
 
     def test_project_mode_validation_does_not_call_project_selector(self) -> None:
         with tempfile.TemporaryDirectory() as tmp, patch.object(adopt_project, "run") as run_mock, patch.object(
-            adopt_project.shutil, "which", return_value=None
+            adopt_project.shutil, "which", return_value="/test/openspec"
         ):
             adopt_project.validate_project(Path(tmp), "main", "project")
             commands = [call.args[0] for call in run_mock.call_args_list]
@@ -151,7 +171,7 @@ class AdoptProjectTests(unittest.TestCase):
 
     def test_platform_mode_validation_keeps_selector_contract(self) -> None:
         with tempfile.TemporaryDirectory() as tmp, patch.object(adopt_project, "run") as run_mock, patch.object(
-            adopt_project.shutil, "which", return_value=None
+            adopt_project.shutil, "which", return_value="/test/openspec"
         ):
             adopt_project.validate_project(Path(tmp), "main", "platform")
             commands = [call.args[0] for call in run_mock.call_args_list]
@@ -159,6 +179,11 @@ class AdoptProjectTests(unittest.TestCase):
                 ["python3", "scripts/select_checks.py", "--base", "origin/main", "--execute"],
                 commands,
             )
+
+    def test_missing_openspec_blocks_adoption_validation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, patch.object(adopt_project, "run"), patch.object(adopt_project.shutil, "which", return_value=None):
+            with self.assertRaisesRegex(ValueError, "OpenSpec CLI is required"):
+                adopt_project.validate_project(Path(tmp), "main", "platform")
 
     def test_configure_project_required_files_is_deterministic(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

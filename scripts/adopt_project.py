@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import os
 import re
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -90,6 +92,65 @@ def parse_version(tag: str) -> tuple[int, int, int]:
 def adoption_branch(version: str) -> str:
     parse_version(version)
     return f"dev-platform/adopt-{version}"
+
+
+def ensure_base_branch(
+    remote_url: str, base_branch: str, bot_login: str, bot_email: str,
+    *, env: dict[str, str] | None = None,
+) -> bool:
+    """Create the PR base only for a positively observed, completely empty remote."""
+    cwd = Path.cwd()
+    run(["git", "check-ref-format", "--branch", base_branch], cwd, capture=True)
+    refs = run(["git", "ls-remote", remote_url], cwd, capture=True, env=env).stdout.splitlines()
+    base_ref = f"refs/heads/{base_branch}"
+    if refs:
+        if any(line.split("\t", 1)[1] == base_ref for line in refs):
+            return False
+        raise ValueError(f"non-empty repository is missing required base branch: {base_branch}")
+    with tempfile.TemporaryDirectory(prefix="dev-platform-empty-adoption-") as tmp:
+        root = Path(tmp)
+        run(["git", "init", "--initial-branch", base_branch], root, env=env)
+        run(["git", "remote", "add", "origin", remote_url], root, env=env)
+        run(["git", "config", "user.name", bot_login], root, env=env)
+        run(["git", "config", "user.email", bot_email], root, env=env)
+        run(["git", "commit", "--allow-empty", "-m", "chore: initialize empty repository for Dev Platform adoption"], root, env=env)
+        if run(["git", "ls-remote", remote_url], root, capture=True, env=env).stdout.strip():
+            raise ValueError("empty adoption target changed before base initialization; rerun after reviewing its state")
+        run(["git", "push", "origin", f"HEAD:{base_ref}"], root, env=env)
+    return True
+
+
+def initialize_empty_target(repository: str, base_branch: str, bot_login: str) -> None:
+    if not REPOSITORY_RE.fullmatch(repository):
+        raise ValueError("repository must be owner/name")
+    if not re.fullmatch(r"[A-Za-z0-9-]+\[bot\]", bot_login):
+        raise ValueError("empty adoption initialization requires the configured GitHub App bot login")
+    token = os.environ.get("GH_TOKEN")
+    if not token:
+        raise ValueError("GH_TOKEN is required for target repository initialization")
+    bot_id = run(["gh", "api", f"users/{bot_login}", "--jq", ".id"], Path.cwd(), capture=True).stdout.strip()
+    if not bot_id.isdecimal() or int(bot_id) <= 0:
+        raise ValueError("GitHub returned an invalid App bot user id")
+    remote_url = f"https://github.com/{repository}.git"
+    env = os.environ.copy()
+    env["GIT_CONFIG_COUNT"] = "1"
+    env["GIT_CONFIG_KEY_0"] = f"http.{remote_url}.extraheader"
+    authorization = base64.b64encode(f"x-access-token:{token}".encode()).decode()
+    env["GIT_CONFIG_VALUE_0"] = f"AUTHORIZATION: basic {authorization}"
+    created = ensure_base_branch(remote_url, base_branch, bot_login, f"{bot_id}+{bot_login}@users.noreply.github.com", env=env)
+    print(f"Adoption base {base_branch}: {'initialized empty repository' if created else 'already exists'}")
+
+
+def copier_command(repository: str, version: str, plan: dict[str, Any]) -> list[str]:
+    repo_name = repository.split("/", 1)[1]
+    return [
+        "copier", "copy", "--trust", "--defaults", "--vcs-ref", version,
+        "--data", f"project_name={repo_name}", "--data", f"project_slug={repo_name.lower().replace('_', '-')}",
+        "--data", "project_description=", "--data", f"workflow_profile={plan['workflow_profile']}",
+        "--data", f"harness_mode={plan['harness_mode']}", "--data", f"publish_mode={plan['publish_mode']}",
+        "--data", f"protected_main={'false' if plan['publish_mode'] == 'direct' else 'true'}",
+        "--data", f"platform_ci_ref={PLATFORM_CI_REF}", PLATFORM_SOURCE, ".",
+    ]
 
 
 def tracked_files(root: Path) -> list[str]:
@@ -238,8 +299,9 @@ def validate_project(root: Path, base_branch: str, harness_mode: str) -> None:
     run(["python3", "scripts/platform_doctor.py"], root)
     run(["python3", "scripts/openspec_lifecycle.py", "check"], root)
     openspec = shutil.which("openspec")
-    if openspec:
-        run([openspec, "validate", "--all", "--strict", "--no-interactive"], root)
+    if openspec is None:
+        raise ValueError("OpenSpec CLI is required for adoption validation")
+    run([openspec, "validate", "--all", "--strict", "--no-interactive"], root)
     if harness_mode == "platform":
         run(["python3", "scripts/select_checks.py", "--base", f"origin/{base_branch}", "--execute"], root)
     elif harness_mode == "project":
@@ -294,14 +356,7 @@ def adopt(root: Path, repository: str, version: str, base_branch: str, output: P
     env = source_env()
     if kind == "fresh":
         env["DEV_PLATFORM_SAFE_FRESH_ADOPTION"] = "1"
-    repo_name = repository.split("/", 1)[1]
-    command = [
-        "copier", "copy", "--trust", "--defaults", "--vcs-ref", version, "--conflict", "rej",
-        "--data", f"project_name={repo_name}", "--data", f"project_slug={repo_name.lower().replace('_', '-')}",
-        "--data", "project_description=", "--data", f"workflow_profile={plan['workflow_profile']}",
-        "--data", f"harness_mode={plan['harness_mode']}", "--data", f"publish_mode={plan['publish_mode']}",
-        "--data", f"platform_ci_ref={PLATFORM_CI_REF}", PLATFORM_SOURCE, ".",
-    ]
+    command = copier_command(repository, version, plan)
     run(command, root, env=env)
     if plan["harness_mode"] == "project":
         configure_project_required_files(root, list(plan["project_required_files"]))
@@ -329,13 +384,22 @@ def adopt(root: Path, repository: str, version: str, base_branch: str, output: P
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Prepare first-time Dev Platform adoption for one checked-out repository.")
-    parser.add_argument("--project-root", type=Path, required=True)
+    parser.add_argument("--project-root", type=Path)
+    parser.add_argument("--initialize-empty-target", action="store_true")
+    parser.add_argument("--bot-login")
     parser.add_argument("--repository", required=True)
-    parser.add_argument("--version", required=True)
-    parser.add_argument("--base-branch", default="main")
+    parser.add_argument("--version")
+    parser.add_argument("--base-branch", required=True)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     try:
+        if args.initialize_empty_target:
+            if not args.bot_login or args.project_root is not None or args.version is not None or args.output is not None:
+                raise ValueError("--initialize-empty-target requires --bot-login and accepts no render/output arguments")
+            initialize_empty_target(args.repository, args.base_branch, args.bot_login)
+            return 0
+        if args.project_root is None or args.version is None or args.bot_login is not None:
+            raise ValueError("adoption requires --project-root and --version; --bot-login is only for empty-target initialization")
         return adopt(args.project_root, args.repository, args.version, args.base_branch, args.output)
     except ValueError as exc:
         print(f"Adoption: BLOCKED: {exc}")

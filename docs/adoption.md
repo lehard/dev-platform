@@ -43,13 +43,15 @@ The adoption planner derives these automatically; they matter when rendering wit
 
 ### Fresh fast path
 
-A fresh repository receives `standard` workflow, platform-owned harness and `direct` publish mode by default. Onboarding:
+A fresh repository receives `standard` workflow, platform-owned harness and `direct` publish mode with `protected_main=false` by default. Onboarding:
 
 - renders the exact immutable Dev Platform release with Copier;
 - performs safe non-interactive OpenSpec initialization with the expanded workflow set, including verify, without changing the developer's global OpenSpec profile;
 - runs platform doctor, OpenSpec lifecycle hygiene, strict OpenSpec validation and selected project checks;
 - creates an auditable adoption PR and automatically squash-merges it after those checks pass;
 - promotes the repository to `managed` in the central registry.
+
+For a completely empty remote, onboarding first creates an empty initial Git commit on the configured default branch so the adoption has a PR base. It adds no files in that commit. Existing repositories must already have their configured default branch; a missing branch or changed remote state blocks initialization explicitly.
 
 This path is intended for new or nearly empty repositories. The detector is deliberately conservative: existing `AGENTS.md`, `CLAUDE.md`, `openspec/`, `.github/workflows/`, Dev Platform process files, or repository-size thresholds move the target to the cautious path.
 

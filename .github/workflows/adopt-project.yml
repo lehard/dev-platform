@@ -52,7 +52,7 @@ jobs:
             echo "Adoption version must be an exact stable tag vX.Y.Z; got: $version" >&2
             exit 1
           fi
-          immutable="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$version" --jq '.immutable // false' 2>/dev/null || true)"
+          immutable="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$version" --jq '.immutable')"
           if [[ "$immutable" != "true" ]]; then
             echo "Adoption target must be an existing immutable published platform release; got: $version" >&2
             exit 1
@@ -117,6 +117,17 @@ jobs:
           set -euo pipefail
           base_branch="$(gh api "repos/$REPOSITORY" --jq .default_branch)"
           echo "base_branch=$base_branch" >> "$GITHUB_OUTPUT"
+
+      - name: Initialize base only for an empty target
+        env:
+          GH_TOKEN: ${{ steps.target-token.outputs.token }}
+          REPOSITORY: ${{ steps.plan.outputs.repository }}
+          BASE_BRANCH: ${{ steps.target.outputs.base_branch }}
+          APP_SLUG: ${{ steps.target-token.outputs.app-slug }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 platform/scripts/adopt_project.py --initialize-empty-target --repository "$REPOSITORY" --base-branch "$BASE_BRANCH" --bot-login "${APP_SLUG}[bot]"
 
       - name: Checkout target project
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
