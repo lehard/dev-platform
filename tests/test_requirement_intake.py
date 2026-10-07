@@ -336,6 +336,15 @@ class CreateRequirementTests(unittest.TestCase):
         self.assertFalse(any(command[:3] == ["gh", "issue", "create"] for command in commands))
         self.assertEqual(self.ensure_calls, ["acme/development-backlog#42"])
 
+    def test_rerun_with_different_priority_fails_instead_of_relabeling_reused_requirement(self) -> None:
+        body = ri.render_requirement_body(outcome="Make onboarding self-serve.", target_repository="acme/billing")
+        existing = [{"number": 42, "title": "Make onboarding self-serve", "body": body}]
+        self.issue_labels = {ri.REQUIREMENT_LABEL, "project:billing", "priority:P2"}
+        self.issue_body = body
+        with self.assertRaisesRegex(ri.RequirementIntakeError, "conflicting project/priority labels"):
+            self._run_create(existing_issues=existing, priority="P0")
+        self.assertEqual(self.ensure_calls, [])
+
     def test_connected_fixation_outcome_requires_confirmed_membership(self) -> None:
         self.assertEqual(ri.connected_fixation_outcome(issue_created=True, project_membership_confirmed=True), "fixed")
         self.assertEqual(ri.connected_fixation_outcome(issue_created=True, project_membership_confirmed=False), "unconfirmed")
