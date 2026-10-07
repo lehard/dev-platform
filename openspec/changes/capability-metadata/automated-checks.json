@@ -1,0 +1,80 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.192,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 9.315,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1241.228,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "tests/test_capability_manager.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_0930e58ad6bb1dabe0c771d8f1f5bfcf",
+    "change": "capability-metadata",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/capability-metadata",
+    "branch": "agent/br-415-t1-capability-metadata",
+    "head": "d65a678effb9ac7f3903972f3f630b57401ca929",
+    "task_content": {
+      "version": 1,
+      "digest": "a980779a273ed2cdd1bb0985446149d03d431b233f04717c7fd4d72b59d98ec5",
+      "paths": {
+        "dev-platform/requirement-integrations/private-lineage-pln_d6af8d84cd0d3242b993ec5adfcee1c4-integration.json": "3cbbbee855a1648c32af3f34a79bc424abba3bbd"
+      },
+      "base": "a8d83e5cbd97037b242daf30557f4b1e3b03ae7c"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "d47254f5041bbe87f36a0219f64d64fa3afbd173919efe7222906f6905b260a1",
+    "paths": {},
+    "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file tests/test_capability_manager.py",
+    "duration_seconds": 11.219,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
