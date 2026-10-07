@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/model-routing/spec.md"
+  ],
+  "change": "early-routing-gate",
+  "imported_at": "2026-10-07T14:11:10+00:00",
+  "package_revision": "3898d63d039339ca0e61dde638bd5211e18f4082e94c7d5f7e7c14042d03bbea",
+  "prepared_against": "a8d83e5cbd97037b242daf30557f4b1e3b03ae7c",
+  "private_lineage_handle": "pln_2f08ef68e3e8f838ddd204daf30a9f3f",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "c4c13a1b8c588124611a7089c9e283a0b26f998d5272514e907885c150192ef3",
+    "updated_at": "2026-10-07T11:43:32Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-415/T4"
+}

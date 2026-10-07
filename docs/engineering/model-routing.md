@@ -62,11 +62,32 @@ python3 scripts/dogfood_task.py route-claude --profile <routine|standard|complex
 
 `complex` (derived from `R3`, or passed explicitly) records the route and remains on the current strong Claude session (Opus, per the configured `[model_routing.claude]` complex profile) without a mandatory cheap-model attempt.
 
-`routine`/`standard` (derived from `R2`/`R1`, or passed explicitly) record the route, refuse to proceed if the integration checkout is already dirty, and print the exact native Agent-tool call the supervisor must then actually invoke in place (no `isolation`, since the current working directory already is the assigned task worktree) — a Claude subagent can only be launched by the supervisor's own tool call, not spawned as a subprocess the way Codex is. The supervisor reviews the returned diff, then runs `python3 scripts/model_routing.py record-claude-execution --agent-id "<id>"` (or `dogfood_task.py report-claude-execution`), which runs the mandatory containment post-check and records execution evidence. Because the Agent tool exposes no platform-verifiable launch receipt, the supplied id is recorded only as a self-reported claim (`outcome: "claimed"`, `launched` unknown, no executed participant) — `finish` accepts it on the verifiable clean containment postcheck, not as proof a child actually ran, and reports never count it as launched.
+`routine`/`standard` (derived from `R2`/`R1`, or passed explicitly) record the route, refuse to proceed if the integration checkout is already dirty, and print the exact native Agent-tool call the supervisor must then actually invoke in place, after `begin-claude-delegation` opens the delegation (see Execution plan and early routing gate) (no `isolation`, since the current working directory already is the assigned task worktree) — a Claude subagent can only be launched by the supervisor's own tool call, not spawned as a subprocess the way Codex is. The supervisor reviews the returned diff, then runs `python3 scripts/model_routing.py record-claude-execution --agent-id "<id>"` (or `dogfood_task.py report-claude-execution`), which runs the mandatory containment post-check and records execution evidence. Because the Agent tool exposes no platform-verifiable launch receipt, the supplied id is recorded only as a self-reported claim (`outcome: "claimed"`, `launched` unknown, no executed participant) — `finish` accepts it on the verifiable clean containment postcheck, not as proof a child actually ran, and reports never count it as launched.
 
 For a linked Requirement child, `route-claude` also prints the validated bounded child-context path to include in the native executor handoff. A stale context fails routing until the exact managed child is resumed to refresh it.
 
 `finish`'s routing gate rejects a routine/standard Claude route that has no recorded, clean execution evidence — a route cannot be merely recorded without the child actually having run.
+
+## Execution plan and early routing gate
+
+Route preparation (`prepare`, `route-codex`, `route-claude`) also records an `execution_plan`, derived from the retention policy and never chosen by the caller:
+
+- `delegated-child`: policy requires a child executor (routine/standard on a linked worktree).
+- `supervisor-retained` (with a `policy`): policy permits supervisor execution (`complex-parent`, or `parent-only-topology` on a standalone clone).
+
+The plan, the authored recommended tier (`start_tier`) and the later actual outcome (`execution`) are three separate facts. The plan carries a task-content pre-snapshot of the assigned worktree: its uncommitted and committed task content, excluding lifecycle state (the materialized `openspec/changes/<change>/` package, `.managed-task-state.json` and machine-local `.claude/`). Routing must precede task content, so route preparation fails naming the diverged paths and records no route when task content already changed. The one exception is a re-route after a failed or abnormal platform-observed Codex delegation whose recorded post-run content equals the current content; a self-reported Claude delegation, a completed child, a supervisor write or any later change never qualifies.
+
+For a `delegated-child` Claude plan the supervisor must open the delegation before the native Agent call:
+
+```bash
+python3 scripts/dogfood_task.py begin-claude-delegation   # or scripts/model_routing.py begin-claude-delegation
+```
+
+It is refused after task content diverged, for a retained plan, and when a delegation or execution already exists. It stays self-reported and never records a verified launch. `record-claude-execution` requires that open delegation and closes it; recording after the fact is refused. Codex dispatch opens its own delegation with `launch_evidence: "platform-observed"` immediately before launching the subprocess and closes it with the outcome and the post-run content.
+
+A `supervisor-retained` plan is declared at route time; `record-retained-execution` only finalizes it with the containment postcheck and refuses a `delegated-child` plan. There is no plan-switch command. `escalate` switches a delegated plan to `supervisor-retained` (`complex-parent`) only when a real delegation was recorded or task content still equals the pre-snapshot.
+
+The shared read-only early gate (`require_early_routing_gate`) fails closed when a `delegated-child` plan has no delegation and no execution but task content differs from the pre-snapshot, when no route exists but task content already changed, and when an active record has no plan and no final execution (re-route required). It runs in `dogfood_task.py status` and `finish`, in `run_test_groups.py` before any group executes, in `model_routing.py verify-routing` for an active change, and the archive gate remains. When it fails, a supervisor-written diff cannot be legalized: the platform never stashes, resets or cleans task state, offers no override flag and writes no retrospective delegation, launch claim or escalation trigger, so the user decides how to proceed.
 
 ## Archive-stable routing evidence and retained execution
 

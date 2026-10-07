@@ -52,6 +52,7 @@ from delegation_containment import (
     verify_historical_external_advance,
 )
 from start_tier_routing import tier_to_profile
+from task_content_identity import _canonical_path, review_content_identity
 
 
 PROFILES = ("routine", "standard", "complex")
@@ -65,6 +66,20 @@ PROVIDERS = ("codex", "claude")
 # child-writer boundary (see dispatch_codex/prepare_claude_handoff).
 LINKED_WORKTREE = "linked-worktree"
 STANDALONE_CLONE = "standalone-clone"
+# Execution plan (early-routing-gate): who owns task-content mutation. It is
+# derived from `_retention_policy` at route time, never chosen by the caller,
+# and is distinct from the authored start tier and from the actual outcome.
+PLAN_DELEGATED = "delegated-child"
+PLAN_RETAINED = "supervisor-retained"
+PLAN_MODES = (PLAN_DELEGATED, PLAN_RETAINED)
+DELEGATION_STATES = ("open", "closed")
+LAUNCH_EVIDENCE_SELF_REPORTED = "self-reported"
+LAUNCH_EVIDENCE_PLATFORM_OBSERVED = "platform-observed"
+# Single source of truth for task-worktree paths that are lifecycle state, not
+# task content. The materialized managed package (`openspec/changes/<change>/`)
+# is allow-listed separately because it is change-name dependent.
+TASK_CONTENT_LIFECYCLE_FILES = (".managed-task-state.json",)
+TASK_CONTENT_LIFECYCLE_DIRS = (".claude/",)
 DEFAULT_MODELS = {
     "codex": {"routine": "gpt-6-luna", "standard": "gpt-6.1-sol", "complex": "gpt-6.1-sol"},
     "claude": {"routine": "haiku", "standard": "sonnet", "complex": "opus"},
@@ -128,6 +143,11 @@ class Route:
     # handoff or a transcript store.  Entries contain only deterministic
     # measures and the truth-preserving continuation envelope.
     compactions: tuple[dict[str, Any], ...] = ()
+    # Execution plan recorded at route time (see PLAN_MODES): ``mode``,
+    # ``policy`` (retained only), ``declared_at``, ``task_content_pre`` and
+    # ``delegation`` (None until a child delegation is opened). ``None`` only
+    # for a record written before the early routing gate existed.
+    execution_plan: dict[str, Any] | None = None
 
 
 def _snapshot_to_dict(value: GitSnapshot) -> dict[str, Any]:
@@ -267,12 +287,56 @@ def _route_from_payload(payload: dict[str, Any], *, source_issue: str, change: s
         context_observations = payload.get("context_delegations", [])
         large_observations = payload.get("observations", [])
         compactions = payload.get("compactions", [])
-        route = Route(source_issue=payload["source_issue"], change=payload["change"], task_worktree=payload["task_worktree"], integration_root=payload["integration_root"], provider=payload["provider"], profile=payload["profile"], executor_model=payload["executor_model"], rationale=payload["rationale"], evidence=tuple(payload.get("evidence", [])), prepared_at=payload["prepared_at"], pre_snapshot=payload["pre_snapshot"], execution=execution if isinstance(execution, dict) else None, escalations=tuple(payload.get("escalations", [])), start_tier=payload.get("start_tier"), freshness=payload.get("freshness", "confirmed"), topology=payload.get("topology", LINKED_WORKTREE), supervisor=supervisor if isinstance(supervisor, dict) else {}, context_delegations=tuple(item for item in context_observations if isinstance(item, dict)), observations=tuple(item for item in large_observations if isinstance(item, dict)), compactions=tuple(item for item in compactions if isinstance(item, dict)))
+        route = Route(source_issue=payload["source_issue"], change=payload["change"], task_worktree=payload["task_worktree"], integration_root=payload["integration_root"], provider=payload["provider"], profile=payload["profile"], executor_model=payload["executor_model"], rationale=payload["rationale"], evidence=tuple(payload.get("evidence", [])), prepared_at=payload["prepared_at"], pre_snapshot=payload["pre_snapshot"], execution=execution if isinstance(execution, dict) else None, escalations=tuple(payload.get("escalations", [])), start_tier=payload.get("start_tier"), freshness=payload.get("freshness", "confirmed"), topology=payload.get("topology", LINKED_WORKTREE), supervisor=supervisor if isinstance(supervisor, dict) else {}, context_delegations=tuple(item for item in context_observations if isinstance(item, dict)), observations=tuple(item for item in large_observations if isinstance(item, dict)), compactions=tuple(item for item in compactions if isinstance(item, dict)), execution_plan=payload.get("execution_plan"))
     except (KeyError, TypeError) as exc:
         raise RoutingError(missing_detail) from exc
+    _validate_execution_plan(route.execution_plan)
     if route.source_issue.lower() != source_issue.lower() or route.change != change:
         raise RoutingError("routing record provenance does not match the exact managed task identity")
     return route
+
+
+def _validate_execution_plan(plan: Any) -> None:
+    """Fail explicitly, naming the field, on a present-but-invalid plan.
+
+    ``None`` is the only accepted absence (a record predating this gate); the
+    early gate and the plan-requiring operations treat it explicitly.
+    """
+    if plan is None:
+        return
+    if not isinstance(plan, dict):
+        raise RoutingError("routing record execution_plan must be an object")
+    if plan.get("mode") not in PLAN_MODES:
+        raise RoutingError(f"routing record execution_plan.mode must be one of {', '.join(PLAN_MODES)}")
+    if plan["mode"] == PLAN_RETAINED and not (isinstance(plan.get("policy"), str) and plan["policy"]):
+        raise RoutingError("routing record execution_plan.policy is required for a supervisor-retained plan")
+    if not isinstance(plan.get("declared_at"), str) or not plan["declared_at"]:
+        raise RoutingError("routing record execution_plan.declared_at is missing")
+    pre = plan.get("task_content_pre")
+    if not isinstance(pre, dict) or not isinstance(pre.get("committed"), dict) or not isinstance(pre.get("paths"), dict):
+        raise RoutingError("routing record execution_plan.task_content_pre is missing or invalid")
+    delegation = plan.get("delegation")
+    if delegation is None:
+        return
+    if not isinstance(delegation, dict):
+        raise RoutingError("routing record execution_plan.delegation must be an object or null")
+    if delegation.get("state") not in DELEGATION_STATES:
+        raise RoutingError("routing record execution_plan.delegation.state must be open or closed")
+    if delegation.get("provider") not in PROVIDERS:
+        raise RoutingError("routing record execution_plan.delegation.provider is invalid")
+    if delegation.get("launch_evidence") not in (LAUNCH_EVIDENCE_SELF_REPORTED, LAUNCH_EVIDENCE_PLATFORM_OBSERVED):
+        raise RoutingError("routing record execution_plan.delegation.launch_evidence is invalid")
+
+
+def _require_plan(route: Route, action: str) -> dict[str, Any]:
+    plan = route.execution_plan
+    if not isinstance(plan, dict):
+        raise RoutingError(
+            f"routing record for managed change {route.change} has no execution plan (it predates the early routing gate); "
+            f"re-route with prepare/route-codex/route-claude before {action}. Re-routing is refused when task content "
+            "has already diverged from the materialized managed package."
+        )
+    return plan
 
 
 def _persist_completed_execution(route: Route) -> None:
@@ -412,7 +476,10 @@ def _participant(
 
 def _read_route(root: Path) -> tuple[Route, Path]:
     source_issue, change = _managed_identity(root)
-    path = _record_path(root, change)
+    return _read_route_at(_record_path(root, change), source_issue, change)
+
+
+def _read_route_at(path: Path, source_issue: str, change: str) -> tuple[Route, Path]:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
@@ -464,12 +531,72 @@ def read_current_durable_route(root: Path) -> tuple[Route, Path]:
     return read_durable_route(root, source_issue, change)
 
 
-def _retention_policy(route: Route) -> str | None:
-    if route.profile == "complex":
+def _retention_policy_for(profile: str, topology: str) -> str | None:
+    if profile == "complex":
         return "complex-parent"
-    if route.profile in {"routine", "standard"} and route.topology == STANDALONE_CLONE:
+    if profile in {"routine", "standard"} and topology == STANDALONE_CLONE:
         return "parent-only-topology"
     return None
+
+
+def _retention_policy(route: Route) -> str | None:
+    return _retention_policy_for(route.profile, route.topology)
+
+
+def _is_lifecycle_path(path: str, change: str) -> bool:
+    return (
+        path in TASK_CONTENT_LIFECYCLE_FILES
+        or path.startswith(TASK_CONTENT_LIFECYCLE_DIRS)
+        or _canonical_path(path, change).startswith(f"openspec/changes/{change}/")
+    )
+
+
+def _task_content_state(task_root: Path, change: str) -> dict[str, Any]:
+    """Task content of the assigned worktree, minus lifecycle state.
+
+    Combines the content-aware porcelain fingerprints (uncommitted work) with
+    the committed task diff against the review base (commits ahead of the
+    merge base). Any failure to establish either is an explicit error: an
+    unknown task content state is never treated as clean.
+    """
+    try:
+        current = snapshot(task_root)
+    except ContainmentError as exc:
+        raise RoutingError(f"task content snapshot failed for {task_root}: {exc}") from exc
+    identity = review_content_identity(task_root, change)
+    if identity is None or not isinstance(identity.get("paths"), dict):
+        raise RoutingError(
+            f"cannot establish the committed task-content identity of {task_root}: no merge base with the review base "
+            "(origin/main or the Requirement contribution head) could be computed"
+        )
+    return {
+        "head": current.head,
+        "committed": {path: blob for path, blob in identity["paths"].items() if not _is_lifecycle_path(path, change)},
+        "paths": {
+            path: {"status": state.status, "fingerprint": state.fingerprint}
+            for path, state in current.paths.items()
+            if not _is_lifecycle_path(path, change)
+        },
+    }
+
+
+def _content_differences(before: dict[str, Any], after: dict[str, Any]) -> list[str]:
+    changed: set[str] = set()
+    for key in ("committed", "paths"):
+        old, new = before[key], after[key]
+        changed.update(path for path in set(old) | set(new) if old.get(path) != new.get(path))
+    return sorted(changed)
+
+
+def _task_content_diverged(route: Route) -> list[str]:
+    """Task-content paths that differ from the route-time pre-snapshot."""
+    plan = _require_plan(route, "comparing task content")
+    return _content_differences(plan["task_content_pre"], _task_content_state(Path(route.task_worktree), route.change))
+
+
+def _format_paths(paths: list[str], limit: int = 8) -> str:
+    shown = ", ".join(paths[:limit])
+    return shown + (f" (+{len(paths) - limit} more)" if len(paths) > limit else "")
 
 
 def _require_clean_postcheck(execution: dict[str, Any], provider: str) -> None:
@@ -555,6 +682,62 @@ def require_routing_gate(root: Path, source_issue: str, change: str) -> Route:
         "routing evidence claims a Claude launch the platform cannot verify (no self-reported claim outcome recorded); "
         "rerun record-claude-execution before archive"
     )
+
+
+def _has_managed_task(root: Path) -> bool:
+    return (root / ".managed-task-state.json").is_file() or bool(list((root / "openspec" / "changes").glob("*/.managed-task.json")))
+
+
+def require_early_routing_gate(root: Path) -> Route | None:
+    """Read-only early gate for the current active managed task, or None when not applicable."""
+    if not _has_managed_task(root):
+        return None
+    source_issue, change = current_managed_identity(root)
+    return _early_routing_gate(root, source_issue, change)
+
+
+def _early_routing_gate(root: Path, source_issue: str, change: str) -> Route | None:
+    """Fail closed when supervisor-written content contradicts the recorded execution plan.
+
+    Applies to the active change only; once archived, the archive gate
+    (`require_routing_gate`) is the authority. The task-local record is read
+    because the integration mirror exists only for completed executions.
+    """
+    _, _, lineage = resolve_managed_provenance(root, source_issue, change)
+    if lineage != "active":
+        return None
+    path = _record_path(root, change)
+    if not path.is_file():
+        content = _task_content_state(root.resolve(), change)
+        diverged = _content_differences({"committed": {}, "paths": {}}, content)
+        if diverged:
+            raise RoutingError(
+                f"no routing record exists for managed change {change} but task content already changed ({_format_paths(diverged)}); "
+                "route before task content: run route-codex or route-claude before implementation"
+            )
+        return None
+    route, _ = _read_route_at(path, source_issue, change)
+    if route.execution_plan is None:
+        if route.execution is None:
+            raise RoutingError(
+                f"routing record for managed change {change} has no execution plan and no execution outcome; "
+                "re-route required (route-codex or route-claude). Re-routing is refused when task content already diverged."
+            )
+        return route
+    plan = route.execution_plan
+    if plan["mode"] == PLAN_RETAINED:
+        return route
+    if route.execution is not None or plan.get("delegation") is not None:
+        return route
+    diverged = _task_content_diverged(route)
+    if diverged:
+        raise RoutingError(
+            f"the execution plan for managed change {change} is a delegated child, but no delegation is open and task content "
+            f"changed ({_format_paths(diverged)}). Supervisor-written content under a child-executor plan is blocked: "
+            "open the delegation first (begin-claude-delegation or route-codex) before the child writes; a supervisor-written "
+            "diff cannot be legalized afterwards and the user must decide how to proceed."
+        )
+    return route
 
 
 def _write_route(path: Path, route: Route) -> None:
@@ -746,9 +929,63 @@ def prepare(root: Path, *, provider: str, profile: str | None, rationale: str, e
     else:
         assigned = resolve_assigned_worktree(integration, root)
         topology = LINKED_WORKTREE
-    route = Route(source_issue=source_issue, change=change, task_worktree=str(assigned), integration_root=str(integration), provider=provider, profile=profile, executor_model=_model_for(config, provider, profile), rationale=rationale.strip(), evidence=tuple(evidence), prepared_at=utc_now(), pre_snapshot=_snapshot_to_dict(snapshot(integration)), start_tier=start_tier, freshness="confirmed", topology=topology, supervisor=_supervisor_provenance(config, provider))
+    content = _task_content_state(assigned, change)
+    rerouted_from = None
+    diverged = _content_differences({"committed": {}, "paths": {}}, content)
+    if diverged:
+        rerouted_from = _reroute_attribution(root, change, content)
+        if rerouted_from is None:
+            raise RoutingError(
+                "routing must precede task content: task content outside the materialized managed package has already "
+                f"diverged ({_format_paths(diverged)}). A supervisor-written diff cannot be legalized by routing after the "
+                "fact; the user must decide how to proceed (no route was recorded)."
+            )
+    policy = _retention_policy_for(profile, topology)
+    plan: dict[str, Any] = {"mode": PLAN_RETAINED if policy else PLAN_DELEGATED, "declared_at": utc_now(), "task_content_pre": content, "delegation": None}
+    if policy:
+        plan["policy"] = policy
+    if rerouted_from is not None:
+        plan["rerouted_from"] = rerouted_from
+    route = Route(source_issue=source_issue, change=change, task_worktree=str(assigned), integration_root=str(integration), provider=provider, profile=profile, executor_model=_model_for(config, provider, profile), rationale=rationale.strip(), evidence=tuple(evidence), prepared_at=utc_now(), pre_snapshot=_snapshot_to_dict(snapshot(integration)), start_tier=start_tier, freshness="confirmed", topology=topology, supervisor=_supervisor_provenance(config, provider), execution_plan=plan)
     _write_route(_record_path(root, change), route)
     return route
+
+
+def _reroute_attribution(root: Path, change: str, content: dict[str, Any]) -> dict[str, Any] | None:
+    """Allow re-routing over existing content only for a provably attributable failed Codex child.
+
+    Permitted solely when the current route record carries a platform-observed
+    Codex delegation whose recorded outcome is ``failed`` or ``abnormal`` and
+    whose recorded post-content equals the current task content, so the
+    divergence is attributable to that child. A self-reported Claude
+    delegation, a completed child, a supervisor write or any content change
+    after the child ended never qualifies.
+    """
+    path = _record_path(root, change)
+    if not path.is_file():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RoutingError(f"existing routing record {path} is unreadable, so re-routing over diverged content cannot be attributed: {exc}") from exc
+    previous = _route_from_payload(payload, source_issue=payload.get("source_issue", ""), change=change, missing_detail=f"existing routing record {path} is incomplete or invalid")
+    plan = previous.execution_plan
+    execution = previous.execution
+    delegation = plan.get("delegation") if isinstance(plan, dict) else None
+    if (
+        previous.provider != "codex"
+        or not isinstance(execution, dict)
+        or execution.get("outcome") not in {"failed", "abnormal"}
+        or not isinstance(delegation, dict)
+        or delegation.get("state") != "closed"
+        or delegation.get("launch_evidence") != LAUNCH_EVIDENCE_PLATFORM_OBSERVED
+        or delegation.get("outcome") != execution.get("outcome")
+        or not isinstance(delegation.get("task_content_post"), dict)
+    ):
+        return None
+    if _content_differences(delegation["task_content_post"], content):
+        return None
+    return {"provider": previous.provider, "outcome": execution["outcome"], "opened_at": delegation.get("opened_at"), "closed_at": delegation.get("closed_at")}
 
 
 def escalation_context(route: Route) -> dict[str, Any]:
@@ -769,7 +1006,19 @@ def escalate(root: Path, reason: str) -> Route:
         raise RoutingError("the route is already complex; retain the strong parent instead of escalating again")
     if not reason.strip():
         raise RoutingError("escalation requires a concrete reason")
-    next_route = Route(**{**asdict(route), "profile": "complex", "executor_model": _model_for(read_platform_config(root), route.provider, "complex"), "freshness": "escalated", "escalations": route.escalations + ({"at": utc_now(), "from": route.profile, "reason": reason.strip()},)})
+    plan = _require_plan(route, "escalating")
+    if plan["mode"] == PLAN_DELEGATED and plan.get("delegation") is None:
+        diverged = _task_content_diverged(route)
+        if diverged:
+            raise RoutingError(
+                "refusing to escalate to supervisor retention: the plan is a delegated child, no delegation was ever "
+                f"opened, and task content already changed ({_format_paths(diverged)}). An escalation trigger cannot be "
+                "invented after supervisor-written work; the user must decide how to proceed."
+            )
+    next_plan = {**plan, "mode": PLAN_RETAINED, "policy": "complex-parent"}
+    if plan["mode"] == PLAN_DELEGATED:
+        next_plan["switched_from"] = {"mode": PLAN_DELEGATED, "at": utc_now(), "delegation_recorded": plan.get("delegation") is not None}
+    next_route = Route(**{**asdict(route), "profile": "complex", "executor_model": _model_for(read_platform_config(root), route.provider, "complex"), "freshness": "escalated", "escalations": route.escalations + ({"at": utc_now(), "from": route.profile, "reason": reason.strip()},), "execution_plan": next_plan})
     _write_route(path, next_route)
     return next_route
 
@@ -971,6 +1220,34 @@ def run_codex(route: Route, prompt: str, codex_bin: str | None = None) -> dict[s
     return output
 
 
+def _run_delegated_codex(root: Path, route: Route, prompt: str, codex_bin: str | None) -> Route:
+    """Open a platform-observed delegation, launch the child and close the delegation.
+
+    The delegation is durably recorded before the subprocess starts, so the
+    early gate sees a real open delegation for the whole child run, and is
+    closed with the outcome and the post-run task content so an attributable
+    re-route after a failed child can be proven.
+    """
+    plan = _require_plan(route, "launching a Codex child")
+    if plan["mode"] != PLAN_DELEGATED:
+        raise RoutingError(f"the execution plan is {plan['mode']}; a child executor cannot be launched under it")
+    if route.execution is not None or plan.get("delegation") is not None:
+        raise RoutingError("a delegation or execution is already recorded for this route; re-route before launching another child")
+    diverged = _task_content_diverged(route)
+    if diverged:
+        raise RoutingError(f"refusing to open a delegation after task content diverged from the route pre-snapshot ({_format_paths(diverged)})")
+    path = _record_path(root, route.change)
+    opened = {"state": "open", "provider": "codex", "launch_evidence": LAUNCH_EVIDENCE_PLATFORM_OBSERVED, "opened_at": utc_now()}
+    route = Route(**{**asdict(route), "execution_plan": {**plan, "delegation": opened}})
+    _write_route(path, route)
+    execution = run_codex(route, prompt, codex_bin)
+    closed = {**opened, "state": "closed", "closed_at": utc_now(), "outcome": execution.get("outcome"), "task_content_post": _task_content_state(Path(route.task_worktree), route.change)}
+    route = Route(**{**asdict(route), "execution": execution, "execution_plan": {**plan, "delegation": closed}})
+    _write_route(path, route)
+    _persist_completed_execution(route)
+    return route
+
+
 def _failed_codex_execution(execution: dict[str, Any]) -> bool:
     return execution.get("outcome") in {"abnormal", "failed"} or execution.get("writer_state") == "ambiguous"
 
@@ -996,10 +1273,10 @@ def dispatch_codex(
         output["reason"] = "complex profile remains on the strong Codex supervisor"
         return output
     _refuse_child_writer_on_standalone_clone(route)
-    execution = run_codex(route, prompt, codex_bin)
-    route = Route(**{**asdict(route), "execution": execution})
-    _write_route(_record_path(root, route.change), route)
-    _persist_completed_execution(route)
+    route = _run_delegated_codex(root, route, prompt, codex_bin)
+    execution = route.execution
+    if execution is None:
+        raise RoutingError("delegated Codex launch finished without recording an execution outcome")
     output["route"] = asdict(route)
     output["delegated"] = True
     output["execution"] = execution
@@ -1063,8 +1340,43 @@ def prepare_claude_handoff(root: Path, *, profile: str | None, rationale: str, e
     output["handoff"] = claude_agent(route)
     output["tier"] = tier_decision.tier.value
     output["mechanism"] = tier_decision.mechanism
-    output["delegated"] = "pending_supervisor_invocation"
+    output["delegated"] = "pending_begin_delegation"
+    output["next_steps"] = [
+        "python3 scripts/dogfood_task.py begin-claude-delegation (or model_routing.py begin-claude-delegation) BEFORE the Agent call; task content must still equal the route pre-snapshot",
+        "invoke the emitted handoff through the native Agent tool in place",
+        "python3 scripts/model_routing.py record-claude-execution --agent-id <id> after it returns; recording without an open delegation is refused",
+    ]
     return output
+
+
+def begin_claude_delegation(root: Path) -> dict[str, Any]:
+    """Open the delegation that must precede the supervisor's native Agent call.
+
+    Self-reported by construction: nothing here claims the Agent was launched.
+    Refused after task content diverged, for a retained plan, with an
+    existing execution or with an already-open delegation.
+    """
+    route, path = _read_route(root)
+    if route.provider != "claude":
+        raise RoutingError("the prepared route is not a Claude route")
+    _refuse_child_writer_on_standalone_clone(route)
+    plan = _require_plan(route, "opening a delegation")
+    if plan["mode"] != PLAN_DELEGATED:
+        raise RoutingError(f"the execution plan is {plan['mode']}; there is no child delegation to open")
+    if route.execution is not None:
+        raise RoutingError("routing record already has execution evidence; a delegation cannot be opened")
+    if plan.get("delegation") is not None:
+        raise RoutingError("a delegation is already recorded for this route; it cannot be opened again")
+    diverged = _task_content_diverged(route)
+    if diverged:
+        raise RoutingError(
+            f"refusing to open a delegation after task content diverged from the route pre-snapshot ({_format_paths(diverged)}). "
+            "A supervisor-written diff cannot be legalized by a late delegation; the user must decide how to proceed."
+        )
+    delegation = {"state": "open", "provider": "claude", "launch_evidence": LAUNCH_EVIDENCE_SELF_REPORTED, "opened_at": utc_now()}
+    next_route = Route(**{**asdict(route), "execution_plan": {**plan, "delegation": delegation}})
+    _write_route(path, next_route)
+    return delegation
 
 
 def record_claude_execution(root: Path, *, agent_id: str, summary: str | None = None) -> dict[str, Any]:
@@ -1091,8 +1403,16 @@ def record_claude_execution(root: Path, *, agent_id: str, summary: str | None = 
     _refuse_child_writer_on_standalone_clone(route)
     if not agent_id.strip():
         raise RoutingError("recording Claude execution requires a non-empty agent id")
+    plan = _require_plan(route, "recording a Claude execution")
+    delegation = plan.get("delegation")
+    if plan["mode"] != PLAN_DELEGATED or not isinstance(delegation, dict) or delegation.get("state") != "open" or delegation.get("provider") != "claude":
+        raise RoutingError(
+            "recording a Claude execution requires an open delegation: run begin-claude-delegation before the Agent call. "
+            "Recording after the fact is refused; a supervisor-written diff cannot be legalized by a retrospective claim."
+        )
     tier_decision = determine_claude_tier(shell_enabled=True)
     check = postcheck(route)
+    closed = {**delegation, "state": "closed", "closed_at": utc_now(), "task_content_post": _task_content_state(Path(route.task_worktree), route.change)}
     execution = {
         "outcome": "claimed",
         "launch_evidence": "self-reported",
@@ -1119,7 +1439,7 @@ def record_claude_execution(root: Path, *, agent_id: str, summary: str | None = 
             "execution_id": {"value": agent_id.strip(), "kind": "claude-agent-id"},
         },
     }
-    next_route = Route(**{**asdict(route), "execution": execution})
+    next_route = Route(**{**asdict(route), "execution": execution, "execution_plan": {**plan, "delegation": closed}})
     _write_route(path, next_route)
     _persist_completed_execution(next_route)
     return execution
@@ -1133,10 +1453,13 @@ def record_retained_execution(root: Path, *, reason: str) -> dict[str, Any]:
     callers can only verify the durable history, never repair it late.
     """
     route, path = _read_route(root)
+    plan = _require_plan(route, "recording a retained execution")
     policy = _retention_policy(route)
-    if policy is None:
+    if plan["mode"] != PLAN_RETAINED or policy is None or plan.get("policy") != policy:
         raise RoutingError(
-            "this routine/standard route has a proven child-writer path; record its real child execution or escalate before retaining work"
+            "this route's execution plan is not supervisor-retained: retention must be declared up front at route time "
+            "(policy-permitted complex or parent-only-topology) and is never converted from a delegated-child plan after the fact; "
+            "record the real child execution or, with a real recorded delegation or unchanged task content, escalate first"
         )
     if route.execution is not None:
         raise RoutingError("routing record already has execution evidence; do not overwrite a real child outcome with parent retention")
@@ -2887,6 +3210,10 @@ def main() -> int:
     )
     dispatch_claude_parser.add_argument("--rationale", required=True)
     dispatch_claude_parser.add_argument("--evidence", action="append", default=[])
+    subparsers.add_parser(
+        "begin-claude-delegation",
+        help="open the self-reported delegation that must precede the native Agent call",
+    )
     record_claude_parser = subparsers.add_parser(
         "record-claude-execution",
         help="record that the supervisor actually invoked the Claude hand-off, and verify containment",
@@ -2965,11 +3292,8 @@ def main() -> int:
         elif args.command == "codex-argv":
             argv, mechanism = codex_argv(_read_route(root)[0], args.prompt, args.codex_bin); output = {"argv": argv, "mechanism": mechanism}
         elif args.command == "run-codex":
-            route, path = _read_route(root)
-            output = run_codex(route, args.prompt, args.codex_bin)
-            completed_route = Route(**{**asdict(route), "execution": output})
-            _write_route(path, completed_route)
-            _persist_completed_execution(completed_route)
+            route = _read_route(root)[0]
+            output = _run_delegated_codex(root, route, args.prompt, args.codex_bin).execution
         elif args.command == "dispatch-codex":
             output = dispatch_codex(
                 root,
@@ -2982,6 +3306,8 @@ def main() -> int:
         elif args.command == "claude-agent": output = claude_agent(_read_route(root)[0])
         elif args.command == "dispatch-claude":
             output = prepare_claude_handoff(root, profile=args.profile, rationale=args.rationale, evidence=args.evidence)
+        elif args.command == "begin-claude-delegation":
+            output = begin_claude_delegation(root)
         elif args.command == "record-claude-execution":
             output = record_claude_execution(root, agent_id=args.agent_id, summary=args.summary)
         elif args.command == "record-retained-execution":
@@ -2991,6 +3317,7 @@ def main() -> int:
                 root, friction_event=args.friction_event, before_head=args.before_head, after_head=args.after_head
             )
         elif args.command == "verify-routing":
+            _early_routing_gate(root, args.source_issue, args.change)
             output = asdict(require_routing_gate(root, args.source_issue, args.change))
         elif args.command == "context-codex":
             output = delegate_codex_context(root, _context_json_file(args.request, "context request"), codex_bin=args.codex_bin)

@@ -33,6 +33,21 @@ def git(cwd: Path, *args: str) -> None:
     subprocess.run(["git", *args], cwd=cwd, check=True, text=True, capture_output=True)
 
 
+def route_ready(repo: Path) -> None:
+    """Give a temporary repo the origin/main review base and the untracked local config a managed task has.
+
+    A real task has an `origin/main` base and a git-ignored `.dev-platform.toml`;
+    routing refuses to establish task content without the former and would read
+    the latter as diverged task content.
+    """
+    git(repo, "update-ref", "refs/remotes/origin/main", "main")
+    exclude = subprocess.run(
+        ["git", "rev-parse", "--path-format=absolute", "--git-path", "info/exclude"], cwd=repo, check=True, text=True, capture_output=True
+    ).stdout.strip()
+    with open(exclude, "a", encoding="utf-8") as handle:
+        handle.write(".dev-platform.toml\n")
+
+
 class ModelRoutingTests(unittest.TestCase):
     def test_opaque_managed_provenance_uses_verified_private_identity(self) -> None:
         import managed_task
@@ -61,6 +76,7 @@ class ModelRoutingTests(unittest.TestCase):
         (self.integration / "README.md").write_text("base\n", encoding="utf-8")
         git(self.integration, "add", "README.md")
         git(self.integration, "commit", "-qm", "base")
+        route_ready(self.integration)
         self.task = Path(self.tmp.name) / "task"
         git(self.integration, "worktree", "add", "-qb", "agent/routing", str(self.task), "main")
         change = self.task / "openspec" / "changes" / "routing-change"
@@ -221,7 +237,7 @@ class ModelRoutingTests(unittest.TestCase):
     def test_routine_child_writer_cannot_claim_parent_retention(self) -> None:
         self.prepare(profile="standard")
         with patch.object(routing, "main_root", return_value=self.integration):
-            with self.assertRaisesRegex(routing.RoutingError, "proven child-writer path"):
+            with self.assertRaisesRegex(routing.RoutingError, "not supervisor-retained"):
                 routing.record_retained_execution(
                     self.task,
                     reason="the supervisor preferred not to dispatch the available child",
@@ -649,12 +665,13 @@ class ModelRoutingTests(unittest.TestCase):
                 rationale="Sol supervisor completed bounded current-spec preflight",
                 evidence=["openspec/changes/routing-change"],
             )
-        self.assertEqual(result["delegated"], "pending_supervisor_invocation")
+        self.assertEqual(result["delegated"], "pending_begin_delegation")
+        self.assertIn("begin-claude-delegation", result["next_steps"][0])
         self.assertEqual(result["tier"], "detection-only")
         self.assertNotIn("isolation", result["handoff"])
         self.assertEqual(result["handoff"]["model"], "sonnet")
-        # "pending_supervisor_invocation" means exactly that: the hand-off was
-        # emitted but not yet actually invoked, so there is no participant
+        # "pending_begin_delegation" means exactly that: the hand-off was
+        # emitted but no delegation was opened and nothing was invoked, so there is no participant
         # to report until record_claude_execution confirms a real Agent call.
         reread, _ = routing._read_route(self.task)
         self.assertIsNone(reread.execution)
@@ -700,6 +717,7 @@ class ModelRoutingTests(unittest.TestCase):
             )
             # Simulate the supervisor having actually invoked the emitted hand-off
             # and made a real change inside the assigned task worktree (not integration).
+            routing.begin_claude_delegation(self.task)
             (self.task / "implemented.txt").write_text("real subagent work\n", encoding="utf-8")
             execution = routing.record_claude_execution(self.task, agent_id="agent-abc123", summary="added implemented.txt")
         self.assertIsNone(execution["launched"])
@@ -738,6 +756,7 @@ class ModelRoutingTests(unittest.TestCase):
                 rationale="Sol supervisor completed bounded current-spec preflight",
                 evidence=["openspec/changes/routing-change"],
             )
+            routing.begin_claude_delegation(self.task)
             (self.integration / "escape.txt").write_text("unexpected\n", encoding="utf-8")
             with patch.object(routing, "record_containment_friction") as recorded:
                 with self.assertRaisesRegex(routing.RoutingError, "containment violation"):
@@ -769,6 +788,7 @@ class ModelRoutingTests(unittest.TestCase):
                 rationale="Sol supervisor completed bounded current-spec preflight",
                 evidence=["openspec/changes/routing-change"],
             )
+            routing.begin_claude_delegation(self.task)
             execution = routing.record_claude_execution(self.task, agent_id="anything-made-up")
             self.assertIsNone(execution["launched"])
             self.assertEqual(execution["outcome"], "claimed")
@@ -1292,6 +1312,7 @@ class StandaloneStandardCloneRoutingTests(unittest.TestCase):
         (self.clone / "README.md").write_text("base\n", encoding="utf-8")
         git(self.clone, "add", "README.md")
         git(self.clone, "commit", "-qm", "base")
+        route_ready(self.clone)
         git(self.clone, "switch", "-c", "agent/routing")
         change = self.clone / "openspec" / "changes" / "routing-change"
         change.mkdir(parents=True)
@@ -1314,6 +1335,19 @@ class StandaloneStandardCloneRoutingTests(unittest.TestCase):
         self.assertEqual(route.topology, routing.STANDALONE_CLONE)
         self.assertEqual(route.task_worktree, str(self.clone.resolve()))
         self.assertEqual(route.integration_root, str(self.clone.resolve()))
+
+    def test_parent_only_topology_declares_retention_up_front_and_finalizes(self) -> None:
+        # As in a real checkout, machine-local `.claude/` state is git-ignored here.
+        with (self.clone / ".git" / "info" / "exclude").open("a", encoding="utf-8") as exclude:
+            exclude.write(".claude/\n")
+        route = self.prepare()
+        self.assertEqual(route.execution_plan["mode"], routing.PLAN_RETAINED)
+        self.assertEqual(route.execution_plan["policy"], "parent-only-topology")
+        routing.require_early_routing_gate(self.clone)
+        with patch.object(routing, "main_root", return_value=self.clone):
+            execution = routing.record_retained_execution(self.clone, reason="standalone clone has no child-writer boundary")
+        self.assertEqual(execution["retained"]["policy"], "parent-only-topology")
+        routing.require_early_routing_gate(self.clone)
 
     def test_dispatch_codex_refuses_child_writer_from_standalone_clone(self) -> None:
         with patch.object(routing, "main_root", return_value=self.clone):
@@ -1396,6 +1430,7 @@ class ExternalAdvanceRecoveryTests(unittest.TestCase):
         (self.integration / "README.md").write_text("base\n", encoding="utf-8")
         git(self.integration, "add", "README.md")
         git(self.integration, "commit", "-qm", "base")
+        route_ready(self.integration)
         self.task = Path(self.tmp.name) / "task"
         git(self.integration, "worktree", "add", "-qb", "agent/recovery", str(self.task), "main")
         change = self.task / "openspec" / "changes" / "recovery-change"
@@ -1902,6 +1937,433 @@ class RoutingCalibrationTests(unittest.TestCase):
         payload = json.loads(completed.stdout)
         self.assertEqual(payload["schema_version"], 1)
         self.assertIn("advice", payload)
+
+
+run_test_groups = load("run_test_groups", "run_test_groups.py")
+dogfood_task = load("dogfood_task_early_gate", "../../scripts/dogfood_task.py")
+
+DETECTION_ONLY = guard.EnforcementDecision(guard.EnforcementTier.DETECTION_ONLY, "detection-only:claude-shell-capable", "no proven sandbox")
+
+
+class EarlyRoutingGateTests(unittest.TestCase):
+    """Execution plan, delegation lifecycle and the early gate (early-routing-gate)."""
+
+    setUp = ModelRoutingTests.setUp
+    tearDown = ModelRoutingTests.tearDown
+    prepare = ModelRoutingTests.prepare
+    record_path = ModelRoutingTests.record_path
+    durable_record_path = ModelRoutingTests.durable_record_path
+
+    def handoff(self, profile: str = "standard"):
+        with patch.object(routing, "main_root", return_value=self.integration), patch.object(routing, "determine_claude_tier", return_value=DETECTION_ONLY):
+            return routing.prepare_claude_handoff(self.task, profile=profile, rationale="bounded current-spec preflight", evidence=["openspec/changes/routing-change"])
+
+    def gate(self):
+        return routing.require_early_routing_gate(self.task)
+
+    def archive_gate(self):
+        with patch.object(routing, "main_root", return_value=self.integration):
+            return routing.require_routing_gate(self.task, "owner/backlog#7", "routing-change")
+
+    def write_content(self, name: str = "implemented.txt") -> None:
+        (self.task / name).write_text("task content\n", encoding="utf-8")
+
+    def plan(self) -> dict:
+        return json.loads(self.record_path().read_text(encoding="utf-8"))["execution_plan"]
+
+    def fake_codex(self, outcome: str, *, write: str | None = None):
+        def run(route, prompt, codex_bin=None):
+            if write:
+                self.write_content(write)
+            return {"outcome": outcome, "launched": True, "returncode": 0 if outcome == "completed" else 1, "violation": False}
+
+        return patch.object(routing, "run_codex", side_effect=run)
+
+    # --- 1. execution plan and pre-snapshot
+
+    def test_policy_requiring_child_records_delegated_plan_separate_from_tier_and_execution(self) -> None:
+        self.write_routing_receipt("R2")
+        with patch.object(routing, "main_root", return_value=self.integration):
+            route = routing.prepare(self.task, provider="codex", profile=None, rationale="freshness check: no new trigger", evidence=[])
+        self.assertEqual(route.execution_plan["mode"], routing.PLAN_DELEGATED)
+        self.assertNotIn("policy", route.execution_plan)
+        self.assertIsNone(route.execution_plan["delegation"])
+        self.assertEqual(route.execution_plan["task_content_pre"]["paths"], {})
+        self.assertEqual(route.execution_plan["task_content_pre"]["committed"], {})
+        self.assertEqual(route.start_tier, "R2")
+        self.assertIsNone(route.execution)
+        self.assertEqual(self.plan()["mode"], "delegated-child")
+
+    write_routing_receipt = ModelRoutingTests.write_routing_receipt
+
+    def test_complex_route_records_supervisor_retained_plan_with_policy(self) -> None:
+        route = self.prepare(profile="complex")
+        self.assertEqual(route.execution_plan["mode"], routing.PLAN_RETAINED)
+        self.assertEqual(route.execution_plan["policy"], "complex-parent")
+        self.assertIsNone(route.execution_plan["delegation"])
+        self.assertIsNone(route.execution)
+        self.assertEqual(route.escalations, ())
+
+    def test_prepare_refuses_pre_diverged_content_and_records_no_route(self) -> None:
+        self.write_content("early.txt")
+        (self.task / "tracked-later.txt").write_text("x\n", encoding="utf-8")
+        with self.assertRaisesRegex(routing.RoutingError, r"routing must precede task content.*early\.txt"):
+            self.prepare()
+        self.assertFalse(self.record_path().exists())
+
+    def test_prepare_refuses_committed_content_ahead_of_base(self) -> None:
+        self.write_content("committed.txt")
+        git(self.task, "add", "committed.txt")
+        git(self.task, "commit", "-qm", "supervisor wrote first")
+        with self.assertRaisesRegex(routing.RoutingError, r"committed\.txt"):
+            self.prepare()
+        self.assertFalse(self.record_path().exists())
+
+    def test_lifecycle_allow_list_is_not_task_content(self) -> None:
+        (self.task / ".managed-task-state.json").write_text("{}", encoding="utf-8")
+        context = self.task / ".claude" / "requirement-child-context"
+        context.mkdir(parents=True)
+        (context / "routing-change.json").write_text("{}", encoding="utf-8")
+        package = self.task / "openspec" / "changes" / "routing-change"
+        (package / "tasks.md").write_text("- [x] 1\n", encoding="utf-8")
+        (package / "verification.md").write_text("receipt\n", encoding="utf-8")
+        (package / "specs").mkdir()
+        (package / "specs" / "spec.md").write_text("spec\n", encoding="utf-8")
+        route = self.prepare()
+        self.assertEqual(route.execution_plan["task_content_pre"]["paths"], {})
+        self.assertEqual(routing._task_content_diverged(route), [])
+        self.write_content()
+        self.assertEqual(routing._task_content_diverged(route), ["implemented.txt"])
+
+    def test_invalid_plan_fails_naming_the_field(self) -> None:
+        self.prepare()
+        payload = json.loads(self.record_path().read_text(encoding="utf-8"))
+        payload["execution_plan"]["mode"] = "whatever"
+        self.record_path().write_text(json.dumps(payload), encoding="utf-8")
+        with self.assertRaisesRegex(routing.RoutingError, "execution_plan.mode"):
+            routing._read_route(self.task)
+        del payload["execution_plan"]["task_content_pre"]
+        payload["execution_plan"]["mode"] = "delegated-child"
+        self.record_path().write_text(json.dumps(payload), encoding="utf-8")
+        with self.assertRaisesRegex(routing.RoutingError, "task_content_pre"):
+            routing._read_route(self.task)
+
+    # --- 2/4.1 delegated Claude path
+
+    def test_delegated_claude_path_passes_early_and_archive_gates(self) -> None:
+        result = self.handoff()
+        self.assertEqual(result["delegated"], "pending_begin_delegation")
+        self.assertEqual(result["route"]["execution_plan"]["mode"], "delegated-child")
+        self.gate()
+        delegation = routing.begin_claude_delegation(self.task)
+        self.assertEqual(delegation["state"], "open")
+        self.assertEqual(delegation["launch_evidence"], "self-reported")
+        self.write_content()
+        self.gate()  # child content under an open delegation
+        with patch.object(routing, "main_root", return_value=self.integration), patch.object(routing, "determine_claude_tier", return_value=DETECTION_ONLY):
+            execution = routing.record_claude_execution(self.task, agent_id="agent-1", summary="child work")
+        self.assertIsNone(execution["launched"])
+        self.assertEqual(execution["outcome"], "claimed")
+        plan = self.plan()
+        self.assertEqual(plan["delegation"]["state"], "closed")
+        self.assertEqual(plan["delegation"]["launch_evidence"], "self-reported")
+        self.assertIn("implemented.txt", plan["delegation"]["task_content_post"]["paths"])
+        self.gate()
+        self.assertEqual(self.archive_gate().change, "routing-change")
+
+    def test_begin_refused_for_retained_plan_and_for_an_already_recorded_delegation(self) -> None:
+        self.handoff(profile="complex")
+        with self.assertRaisesRegex(routing.RoutingError, "supervisor-retained"):
+            routing.begin_claude_delegation(self.task)
+        self.handoff()
+        routing.begin_claude_delegation(self.task)
+        with self.assertRaisesRegex(routing.RoutingError, "already recorded"):
+            routing.begin_claude_delegation(self.task)
+
+    def test_begin_refuses_non_claude_route(self) -> None:
+        self.prepare(provider="codex")
+        with self.assertRaisesRegex(routing.RoutingError, "not a Claude route"):
+            routing.begin_claude_delegation(self.task)
+
+    # --- 4.3 early block
+
+    def test_supervisor_content_under_delegated_plan_blocks_every_routing_adjacent_command(self) -> None:
+        self.handoff()
+        self.write_content()
+        with self.assertRaisesRegex(routing.RoutingError, r"implemented\.txt.*begin-claude-delegation"):
+            self.gate()
+        # lifecycle status / finish
+        for command in (dogfood_task.status, dogfood_task.finish):
+            with (
+                patch.object(dogfood_task, "current_root", return_value=self.task),
+                patch.object(dogfood_task, "verify_source_contract"),
+                patch.object(dogfood_task, "run") as run,
+            ):
+                with self.assertRaisesRegex(SystemExit, "Early routing gate blocked"):
+                    command(SimpleNamespace(json=False, title=None, body=None))
+            run.assert_not_called()
+        # check/test entrypoint: fails before any group executes
+        groups = {"g": {"targets": ["test_x"], "mode": "serial"}}
+        with (
+            patch.object(run_test_groups, "current_worktree_root", return_value=self.task),
+            patch.object(run_test_groups, "load_check_config", return_value={}),
+            patch.object(run_test_groups, "read_groups", return_value=groups),
+            patch.object(run_test_groups, "execute") as execute,
+            patch.object(sys, "argv", ["run_test_groups.py", "--group", "g"]),
+        ):
+            self.assertEqual(run_test_groups.main(), 2)
+        execute.assert_not_called()
+        # verify-routing for the active change
+        completed = subprocess.run(
+            [sys.executable, str(SCRIPTS / "model_routing.py"), "verify-routing", "--source-issue", "owner/backlog#7", "--change", "routing-change"],
+            cwd=self.task, text=True, capture_output=True,
+        )
+        self.assertEqual(completed.returncode, 2)
+        self.assertIn("no delegation is open", completed.stderr)
+
+    def test_record_after_the_fact_and_late_begin_are_refused(self) -> None:
+        self.handoff()
+        self.write_content()
+        with patch.object(routing, "main_root", return_value=self.integration), patch.object(routing, "determine_claude_tier", return_value=DETECTION_ONLY):
+            with self.assertRaisesRegex(routing.RoutingError, "requires an open delegation.*begin-claude-delegation"):
+                routing.record_claude_execution(self.task, agent_id="agent-late")
+        with self.assertRaisesRegex(routing.RoutingError, "after task content diverged"):
+            routing.begin_claude_delegation(self.task)
+        self.assertIsNone(self.plan()["delegation"])
+        self.assertIsNone(routing._read_route(self.task)[0].execution)
+
+    def test_early_gate_requires_route_before_content_and_is_silent_on_clean_unrouted_task(self) -> None:
+        self.gate()
+        self.write_content()
+        with self.assertRaisesRegex(routing.RoutingError, "route before task content"):
+            self.gate()
+
+    def test_early_gate_is_not_applicable_without_managed_state(self) -> None:
+        shutil.rmtree(self.task / "openspec")
+        self.assertIsNone(routing.require_early_routing_gate(self.task))
+
+    # --- 4.2 retained
+
+    def test_complex_retained_plan_declared_up_front_then_finalized(self) -> None:
+        self.prepare(profile="complex")
+        self.write_content()
+        self.gate()
+        with patch.object(routing, "main_root", return_value=self.integration):
+            execution = routing.record_retained_execution(self.task, reason="R3 work completed by the current supervisor")
+        self.assertEqual(execution["outcome"], "retained")
+        self.assertIs(execution["launched"], False)
+        self.gate()
+        self.assertEqual(self.archive_gate().execution["retained"]["policy"], "complex-parent")
+
+    def test_retained_recording_refused_without_up_front_plan_and_never_converts_plan(self) -> None:
+        self.prepare(profile="standard")
+        self.write_content()
+        with patch.object(routing, "main_root", return_value=self.integration):
+            with self.assertRaisesRegex(routing.RoutingError, "declared up front"):
+                routing.record_retained_execution(self.task, reason="late retention")
+        self.assertEqual(self.plan()["mode"], "delegated-child")
+        self.assertIsNone(routing._read_route(self.task)[0].execution)
+
+    # --- 4.4 recovery
+
+    def test_escalation_without_delegation_on_diverged_content_is_refused(self) -> None:
+        self.prepare()
+        self.write_content()
+        with self.assertRaisesRegex(routing.RoutingError, "no delegation was ever opened.*invented"):
+            routing.escalate(self.task, "invented trigger after supervisor work")
+        self.assertEqual(routing._read_route(self.task)[0].profile, "standard")
+        self.assertEqual(self.plan()["mode"], "delegated-child")
+
+    def test_escalation_with_unchanged_content_switches_plan_to_retention(self) -> None:
+        self.prepare()
+        route = routing.escalate(self.task, "new unresolved architecture trigger found before any write")
+        self.assertEqual(route.execution_plan["mode"], routing.PLAN_RETAINED)
+        self.assertEqual(route.execution_plan["policy"], "complex-parent")
+        self.assertFalse(route.execution_plan["switched_from"]["delegation_recorded"])
+
+    def test_escalation_after_real_delegation_keeps_delegation_and_escalation_distinct(self) -> None:
+        self.handoff()
+        routing.begin_claude_delegation(self.task)
+        self.write_content()
+        route = routing.escalate(self.task, "child hit a material cross-cutting contract conflict; reviewed")
+        plan = route.execution_plan
+        self.assertEqual(plan["mode"], routing.PLAN_RETAINED)
+        self.assertEqual(plan["delegation"]["state"], "open")
+        self.assertEqual(plan["delegation"]["launch_evidence"], "self-reported")
+        self.assertTrue(plan["switched_from"]["delegation_recorded"])
+        self.assertEqual(len(route.escalations), 1)
+        self.assertIsNone(route.execution)
+        self.gate()
+
+    def test_no_path_writes_a_launch_claim_without_a_delegation(self) -> None:
+        self.handoff()
+        self.write_content()
+        with patch.object(routing, "main_root", return_value=self.integration), patch.object(routing, "determine_claude_tier", return_value=DETECTION_ONLY):
+            with self.assertRaises(routing.RoutingError):
+                routing.record_claude_execution(self.task, agent_id="agent-x")
+            with self.assertRaises(routing.RoutingError):
+                routing.record_retained_execution(self.task, reason="late")
+        saved = json.loads(self.record_path().read_text(encoding="utf-8"))
+        self.assertIsNone(saved["execution"])
+        self.assertIsNone(saved["execution_plan"]["delegation"])
+        self.assertEqual(saved["escalations"], [])
+
+    # --- 4.5a re-route after a failed platform-observed Codex delegation
+
+    def test_reroute_permitted_after_failed_platform_observed_codex_with_unchanged_post_content(self) -> None:
+        for outcome in ("failed", "abnormal"):
+            with self.subTest(outcome=outcome):
+                with self.fake_codex(outcome, write=f"partial-{outcome}.txt"), patch.object(routing, "main_root", return_value=self.integration):
+                    with self.assertRaisesRegex(routing.RoutingError, "did not complete cleanly"):
+                        routing.dispatch_codex(self.task, profile="standard", rationale="bounded preflight", evidence=[], prompt="implement")
+                    delegation = self.plan()["delegation"]
+                    self.assertEqual(delegation["launch_evidence"], "platform-observed")
+                    self.assertEqual(delegation["outcome"], outcome)
+                    rerouted = routing.prepare(self.task, provider="codex", profile="standard", rationale="re-route after failed child", evidence=[])
+                self.assertEqual(rerouted.execution_plan["rerouted_from"]["outcome"], outcome)
+                self.assertIsNone(rerouted.execution_plan["delegation"])
+                self.assertIn(f"partial-{outcome}.txt", rerouted.execution_plan["task_content_pre"]["paths"])
+                self.assertEqual(routing._task_content_diverged(rerouted), [])
+                (self.task / f"partial-{outcome}.txt").unlink()
+
+    def test_reroute_refused_when_content_changed_after_the_failed_child(self) -> None:
+        with self.fake_codex("failed", write="partial.txt"), patch.object(routing, "main_root", return_value=self.integration):
+            with self.assertRaises(routing.RoutingError):
+                routing.dispatch_codex(self.task, profile="standard", rationale="bounded preflight", evidence=[], prompt="implement")
+            self.write_content("supervisor-after.txt")
+            with self.assertRaisesRegex(routing.RoutingError, r"routing must precede task content.*supervisor-after\.txt"):
+                routing.prepare(self.task, provider="codex", profile="standard", rationale="re-route", evidence=[])
+
+    def test_reroute_refused_after_completed_codex_or_self_reported_claude_delegation(self) -> None:
+        with self.fake_codex("completed", write="done.txt"), patch.object(routing, "main_root", return_value=self.integration):
+            routing.dispatch_codex(self.task, profile="standard", rationale="bounded preflight", evidence=[], prompt="implement")
+            with self.assertRaisesRegex(routing.RoutingError, "routing must precede task content"):
+                routing.prepare(self.task, provider="codex", profile="standard", rationale="re-route", evidence=[])
+        (self.task / "done.txt").unlink()
+        self.record_path().unlink()
+        self.durable_record_path().unlink()
+        self.handoff()
+        routing.begin_claude_delegation(self.task)
+        self.write_content()
+        with patch.object(routing, "main_root", return_value=self.integration), patch.object(routing, "determine_claude_tier", return_value=DETECTION_ONLY):
+            routing.record_claude_execution(self.task, agent_id="agent-1")
+            with self.assertRaisesRegex(routing.RoutingError, "routing must precede task content"):
+                routing.prepare(self.task, provider="claude", profile="standard", rationale="re-route", evidence=[])
+
+    def test_reroute_refused_after_codex_failure_with_claude_provider_record(self) -> None:
+        # A self-reported Claude delegation never qualifies even if its record later reads as a failure.
+        self.handoff()
+        routing.begin_claude_delegation(self.task)
+        self.write_content()
+        payload = json.loads(self.record_path().read_text(encoding="utf-8"))
+        payload["execution"] = {"outcome": "failed"}
+        payload["execution_plan"]["delegation"].update({"state": "closed", "outcome": "failed", "task_content_post": routing._task_content_state(self.task, "routing-change")})
+        self.record_path().write_text(json.dumps(payload), encoding="utf-8")
+        with self.assertRaisesRegex(routing.RoutingError, "routing must precede task content"):
+            self.prepare(provider="claude")
+
+    # --- 4.5 Codex consistency and legacy records
+
+    def test_codex_dispatch_records_plan_and_platform_observed_delegation(self) -> None:
+        with self.fake_codex("completed", write="codex-work.txt"), patch.object(routing, "main_root", return_value=self.integration):
+            result = routing.dispatch_codex(self.task, profile="standard", rationale="bounded preflight", evidence=[], prompt="implement")
+        plan = result["route"]["execution_plan"]
+        self.assertEqual(plan["mode"], "delegated-child")
+        self.assertEqual(plan["delegation"]["state"], "closed")
+        self.assertEqual(plan["delegation"]["launch_evidence"], "platform-observed")
+        self.assertEqual(plan["delegation"]["provider"], "codex")
+        self.assertEqual(plan["delegation"]["outcome"], "completed")
+        self.assertTrue(result["execution"]["launched"])
+        self.gate()
+        self.archive_gate()
+
+    def test_codex_dispatch_complex_declares_retention_and_launches_nothing(self) -> None:
+        with patch.object(routing, "run_codex") as run, patch.object(routing, "main_root", return_value=self.integration):
+            result = routing.dispatch_codex(self.task, profile="complex", rationale="strong trigger", evidence=[], prompt="unused")
+        run.assert_not_called()
+        self.assertEqual(result["route"]["execution_plan"]["mode"], "supervisor-retained")
+
+    def test_codex_launch_refused_under_retained_plan_or_after_divergence(self) -> None:
+        route = self.prepare(profile="complex")
+        with self.assertRaisesRegex(routing.RoutingError, "cannot be launched under it"):
+            routing._run_delegated_codex(self.task, route, "x", None)
+        self.prepare(profile="standard")
+        self.write_content()
+        route, _ = routing._read_route(self.task)
+        with self.assertRaisesRegex(routing.RoutingError, "after task content diverged"):
+            routing._run_delegated_codex(self.task, route, "x", None)
+
+    def test_legacy_plan_less_record_is_handled_explicitly(self) -> None:
+        self.prepare()
+        payload = json.loads(self.record_path().read_text(encoding="utf-8"))
+        del payload["execution_plan"]
+        self.record_path().write_text(json.dumps(payload), encoding="utf-8")
+        with self.assertRaisesRegex(routing.RoutingError, "re-route required"):
+            self.gate()
+        with self.assertRaisesRegex(routing.RoutingError, "no execution plan"):
+            routing.escalate(self.task, "x reason")
+        # with a final execution outcome the existing archive semantics are kept
+        payload["execution"] = {"outcome": "completed", "launched": True, "returncode": 0, "violation": False}
+        self.record_path().write_text(json.dumps(payload), encoding="utf-8")
+        self.assertEqual(self.gate().change, "routing-change")
+
+    def test_legacy_plan_less_record_cannot_be_rerouted_over_diverged_content(self) -> None:
+        self.prepare()
+        payload = json.loads(self.record_path().read_text(encoding="utf-8"))
+        del payload["execution_plan"]
+        self.record_path().write_text(json.dumps(payload), encoding="utf-8")
+        self.write_content()
+        with self.assertRaisesRegex(routing.RoutingError, "routing must precede task content.*cannot be legalized"):
+            self.prepare()
+
+    def test_cli_begin_claude_delegation_opens_delegation(self) -> None:
+        self.handoff()
+        completed = subprocess.run(
+            [sys.executable, str(SCRIPTS / "model_routing.py"), "begin-claude-delegation"], cwd=self.task, text=True, capture_output=True
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(json.loads(completed.stdout)["launch_evidence"], "self-reported")
+        self.assertEqual(self.plan()["delegation"]["state"], "open")
+
+
+class EarlyRoutingGateTemplateParityTests(unittest.TestCase):
+    """The template scripts alone (as rendered into a downstream project) enforce the early gate."""
+
+    def test_rendered_scripts_directory_enforces_the_early_gate(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp) / "project"
+            project.mkdir()
+            git(project, "init", "-q", "-b", "main")
+            git(project, "config", "user.email", "routing@example.test")
+            git(project, "config", "user.name", "Routing Test")
+            shutil.copytree(SCRIPTS, project / "scripts", ignore=shutil.ignore_patterns("__pycache__", "*.jinja"))
+            (project / ".gitignore").write_text(".claude/\n.managed-task-state.json\n__pycache__/\n", encoding="utf-8")
+            (project / ".dev-platform.toml").write_text('workflow_profile = "multi-agent"\nmain_branch = "main"\n', encoding="utf-8")
+            git(project, "add", "-A")
+            git(project, "commit", "-qm", "rendered project")
+            git(project, "update-ref", "refs/remotes/origin/main", "main")
+            task = Path(tmp) / "task"
+            git(project, "worktree", "add", "-qb", "agent/parity", str(task), "main")
+            change = task / "openspec" / "changes" / "parity-change"
+            change.mkdir(parents=True)
+            (change / ".managed-task.json").write_text(json.dumps({"source_issue": "owner/backlog#9", "change": "parity-change"}), encoding="utf-8")
+
+            def run(*args: str) -> subprocess.CompletedProcess[str]:
+                return subprocess.run([sys.executable, "scripts/model_routing.py", *args], cwd=task, text=True, capture_output=True)
+
+            routed = run("prepare", "--provider", "claude", "--profile", "standard", "--rationale", "parity preflight")
+            self.assertEqual(routed.returncode, 0, routed.stderr)
+            self.assertEqual(json.loads(routed.stdout)["execution_plan"]["mode"], "delegated-child")
+            verify = ("verify-routing", "--source-issue", "owner/backlog#9", "--change", "parity-change")
+            self.assertNotIn("no delegation is open", run(*verify).stderr)
+            (task / "supervisor.txt").write_text("written by the supervisor\n", encoding="utf-8")
+            blocked = run(*verify)
+            self.assertEqual(blocked.returncode, 2)
+            self.assertIn("supervisor.txt", blocked.stderr)
+            self.assertIn("no delegation is open", blocked.stderr)
+            late = run("begin-claude-delegation")
+            self.assertEqual(late.returncode, 2)
+            self.assertIn("after task content diverged", late.stderr)
 
 
 if __name__ == "__main__":
