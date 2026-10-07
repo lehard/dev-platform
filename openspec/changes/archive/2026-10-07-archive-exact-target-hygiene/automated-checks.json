@@ -1,0 +1,102 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 3.062,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.414,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 578.376,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/openspec_lifecycle.py",
+        "tests/test_openspec_lifecycle.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_2704716e38dafb36de1e41dc6b45a43e",
+    "change": "archive-exact-target-hygiene",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/archive-exact-target-hygiene",
+    "branch": "agent/br-386-t1-archive-exact-target-hygiene",
+    "head": "26f36b63a01b3b2dbaaa5f6b05224b8fed173cf6",
+    "task_content": {
+      "version": 1,
+      "digest": "efc05a77fc90c3f3c2fe2b4d26cbda39a292241815fcc420ee7e6dd14a625a79",
+      "paths": {
+        "docs/engineering/openspec-workflow.md": "ee2ae189b98875500efbc356af51b9fc1cddbdd1",
+        "openspec/changes/archive-exact-target-hygiene/.managed-task.json": "0853c351bc098b1714f2335039d3c97e827745ee",
+        "openspec/changes/archive-exact-target-hygiene/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+        "openspec/changes/archive-exact-target-hygiene/design.md": "928be38db27e48379406929dd82e67a29b2e93b5",
+        "openspec/changes/archive-exact-target-hygiene/proposal.md": "988bcbe49aa05b6240115d443157d4756b0e4c98",
+        "openspec/changes/archive-exact-target-hygiene/specs/completion-lifecycle/spec.md": "917badd741cf370df0e82f6592c77978cf7e3b75",
+        "openspec/changes/archive-exact-target-hygiene/tasks.md": "45cd7586b5e095c3f36cf980298af134aa0eba6a",
+        "openspec/changes/archive-exact-target-hygiene/verification.md": "71bfa5979435db866c82377a9520e398057b39d7",
+        "template/docs/engineering/openspec-workflow.md": "7963f1a5ef3201f60c00046cc59c2ec3e41e162f",
+        "template/scripts/openspec_lifecycle.py": "b23fadfc3f4fef4d5f63f0f93dc23c8bbbfad60b",
+        "tests/test_openspec_lifecycle.py": "98e51dbf72bdb1650fbf24cd959d2ee263313fe9"
+      },
+      "base": "8c49616d6b4a3f0a981db53f96dc99025f2f6bb0"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "c6bac44c9ee14852a1cf55d3d2fbdd172b6fc897256fa78285ab43ea83da5758",
+    "paths": {
+      "docs/engineering/openspec-workflow.md": "ee2ae189b98875500efbc356af51b9fc1cddbdd1",
+      "openspec/changes/archive-exact-target-hygiene/.managed-task.json": "0853c351bc098b1714f2335039d3c97e827745ee",
+      "openspec/changes/archive-exact-target-hygiene/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+      "openspec/changes/archive-exact-target-hygiene/design.md": "928be38db27e48379406929dd82e67a29b2e93b5",
+      "openspec/changes/archive-exact-target-hygiene/proposal.md": "988bcbe49aa05b6240115d443157d4756b0e4c98",
+      "openspec/changes/archive-exact-target-hygiene/specs/completion-lifecycle/spec.md": "917badd741cf370df0e82f6592c77978cf7e3b75",
+      "openspec/changes/archive-exact-target-hygiene/tasks.md": "45cd7586b5e095c3f36cf980298af134aa0eba6a",
+      "template/docs/engineering/openspec-workflow.md": "7963f1a5ef3201f60c00046cc59c2ec3e41e162f",
+      "template/scripts/openspec_lifecycle.py": "b23fadfc3f4fef4d5f63f0f93dc23c8bbbfad60b",
+      "tests/test_openspec_lifecycle.py": "98e51dbf72bdb1650fbf24cd959d2ee263313fe9"
+    },
+    "base": "8c49616d6b4a3f0a981db53f96dc99025f2f6bb0",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/openspec_lifecycle.py --changed-file tests/test_openspec_lifecycle.py",
+    "duration_seconds": 284.918,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
