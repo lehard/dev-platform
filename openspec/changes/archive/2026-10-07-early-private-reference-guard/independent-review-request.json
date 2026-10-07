@@ -1,0 +1,76 @@
+{
+  "candidate": {
+    "base_head": "4984d565b82e069b0621ee92eb2809f2e6214ded",
+    "base_ref": "origin/main",
+    "candidate_head": "c3065ee252e993a499bf9e34b121503a8fa55d49",
+    "diff_sha256": "4b65d5bf008e73c7f36f5103ee4eeeeae511de34a11756c9713de28ab8a61066"
+  },
+  "change": "openspec/changes/early-private-reference-guard",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/early-private-reference-guard/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/early-private-reference-guard/design.md",
+        "openspec/changes/early-private-reference-guard/proposal.md",
+        "openspec/changes/early-private-reference-guard/specs/completion-lifecycle/spec.md",
+        "openspec/changes/early-private-reference-guard/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/early-private-reference-guard/proposal.md",
+        "openspec/changes/early-private-reference-guard/design.md",
+        "openspec/changes/early-private-reference-guard/tasks.md",
+        "openspec/changes/early-private-reference-guard/specs/completion-lifecycle/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-07T05:24:30+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/early-private-reference-guard/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "3bd1596d-1bd8-411d-a8e0-47814eca2111",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "4984d565b82e069b0621ee92eb2809f2e6214ded",
+    "digest": "f3743d827e5eeff68135b44d24974801b6c55db219d614a8dcfc0d2baeb077f3",
+    "paths": {
+      "dev-platform/checks.toml": "cd80edc13cbf0ef378140b167e68368622624039",
+      "docs/engineering/openspec-workflow.md": "ef77d6b26b86c9b19d1d06f1fef1b0a9f34b5f39",
+      "openspec/changes/early-private-reference-guard/.managed-task.json": "792b88b5e59caa174c75eed68e9c09161fbb488a",
+      "openspec/changes/early-private-reference-guard/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+      "openspec/changes/early-private-reference-guard/design.md": "c5e8e2e8d72e2c8ccf7575ca8afc5e5fefda5263",
+      "openspec/changes/early-private-reference-guard/proposal.md": "8a6a132025a2600476c3a3180be41335d5018ec6",
+      "openspec/changes/early-private-reference-guard/specs/completion-lifecycle/spec.md": "a3cff8ac211855eec2f826c9a2a109b753fcd7f0",
+      "openspec/changes/early-private-reference-guard/tasks.md": "4a33a4942d73fa3fa919e0146eb328a80e21cbb5",
+      "template/scripts/openspec_lifecycle.py": "f9fec15d86db78c155ec970f689caa6bac4fbac1",
+      "template/scripts/private_lineage.py": "7906a765241083b656eeb2739d1f6e3d61e0a0f7",
+      "template/scripts/requirement_integration.py": "92a90b3496220bf16a677a2fe5cffc92bb9112c2",
+      "tests/test_early_private_reference_guard.py": "c40504b142b8e2bcaeb64d059417d4f1f662e6f3"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

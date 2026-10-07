@@ -28,6 +28,24 @@ def enabled(root: Path) -> bool:
     return isinstance(value, dict) and value.get("enabled") is True
 
 
+def require_clean_candidate(root: Path) -> None:
+    """Run the existing private-reference guard over the current candidate.
+
+    Enforced only where private lineage is enabled; a missing guard or a
+    non-zero result stops explicitly. The guard's own diagnostics are opaque.
+    """
+    if not enabled(root):
+        return
+    guard = root / "scripts" / "check_private_backlog_refs.py"
+    if not guard.is_file():
+        raise PrivateLineageError("private lineage is enabled but scripts/check_private_backlog_refs.py is missing")
+    result = subprocess.run(["python3", str(guard), "--root", str(root)], cwd=root, capture_output=True,
+                            text=True, check=False, stdin=subprocess.DEVNULL)
+    if result.returncode:
+        detail = (result.stderr or result.stdout).strip()[:2000] or "private-reference guard failed without a diagnostic"
+        raise PrivateLineageError("private-reference guard blocked the candidate: " + detail)
+
+
 def _comments(root: Path, repository: str, number: str) -> list[dict]:
     result = subprocess.run(
         ["gh", "api", f"repos/{repository}/issues/{number}/comments?per_page=100", "--paginate", "--slurp"],
