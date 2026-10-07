@@ -3,28 +3,21 @@
   "candidate": {
     "base_head": "4984d565b82e069b0621ee92eb2809f2e6214ded",
     "base_ref": "origin/main",
-    "candidate_head": "946c6404f35e51959b4aa15e21f7b787a240a117",
-    "diff_sha256": "b33dc95598b761a0983918fc8ae41658c8d18f860d0892de3197c8115b772e18"
+    "candidate_head": "91a76f9e16ad2fa6acdedd6e78341de3784f9197",
+    "diff_sha256": "8484c63e62da1df02c2e9e011a9c496c1ece27d707b95615b4d8bbd3e9501d0e"
   },
-  "completed_at": "2026-10-07T05:30:36+00:00",
-  "findings": [
-    {
-      "evidence": "template/scripts/managed_task.py:846\u2013850 records only the owner's PID, without process start time or boot identity. At lines 762\u2013769, any successful os.kill(receipt['pid'], 0) causes recovery to refuse cleanup as a 'live owner process'. After PID reuse or a reboot, an unrelated process with that PID therefore blocks the documented recovery command.",
-      "id": "recovery-owner-pid-reuse",
-      "severity": "advisory",
-      "summary": "Recovery can mistake an unrelated process for the original owner after PID reuse, preventing cleanup of an otherwise valid abandoned helper."
-    }
-  ],
-  "launched_at": "2026-10-07T05:29:26+00:00",
-  "output_sha256": "bd5394cfc68aa2989e1b4fb14bb1528cee5cf481eb4439a24716fa8adbc33a4d",
+  "completed_at": "2026-10-07T06:48:42+00:00",
+  "findings": [],
+  "launched_at": "2026-10-07T06:47:47+00:00",
+  "output_sha256": "6e96a492bc9fa40d22212c5be0396a203f3dbd4916cf97ebe2f66b6d54fa4a9a",
   "perspective": "engineering-quality",
-  "request_id": "692195cc-3ea1-4eeb-8b86-d968945c742e",
+  "request_id": "fc7a57c8-4d85-4a8f-8d81-cd6a5978e779",
   "reviewer": {
-    "context_id": "01a114d6-8cce-78d2-b2f5-5a92565089d9",
+    "context_id": "01a1151e-4503-7502-81f2-e2b5c98498c7",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-06eba1c5-e864-4bcf-8ad3-d12531e440e5",
+    "launch_id": "platform-launch-c4369878-3a24-4bf6-83a2-cb88eb2e9932",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -39,21 +32,21 @@
       "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 210944
+        "value": 215040
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 265473
+        "value": 269127
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1551
+        "value": 1129
       }
     },
     "runtime": "codex-exec"
   },
   "schema_version": 1,
-  "task_content_digest": "88c08ccbd7ee449806d47cb302c2bd3be4dac1a90e360a16ad79f902f45cbca7"
+  "task_content_digest": "28fe18c63664b6030568d424b42ac2bfb6356f81992f61cc56293122c2ef0309"
 }

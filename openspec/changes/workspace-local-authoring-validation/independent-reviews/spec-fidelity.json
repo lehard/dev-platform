@@ -3,28 +3,28 @@
   "candidate": {
     "base_head": "4984d565b82e069b0621ee92eb2809f2e6214ded",
     "base_ref": "origin/main",
-    "candidate_head": "946c6404f35e51959b4aa15e21f7b787a240a117",
-    "diff_sha256": "b33dc95598b761a0983918fc8ae41658c8d18f860d0892de3197c8115b772e18"
+    "candidate_head": "91a76f9e16ad2fa6acdedd6e78341de3784f9197",
+    "diff_sha256": "8484c63e62da1df02c2e9e011a9c496c1ece27d707b95615b4d8bbd3e9501d0e"
   },
-  "completed_at": "2026-10-07T05:29:26+00:00",
+  "completed_at": "2026-10-07T06:47:47+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/managed_task.py:865\u2013869 catches RuntimeError, OSError, ValueError and SystemExit around cleanup_validation_context, but excludes KeyboardInterrupt. An interruption during inner-receipt unlink or directory removal therefore escapes directly, leaving recovery state without the diagnostic containing cleanup-validation. The active delta requires failed cleanup to be reported explicitly, and docs/engineering/local-workspace.md promises that cleanup failures print an exact recovery command. tests/managed_task_exact_state_cases.py:test_final_cleanup_failures_retain_receipt_in_each_transition explicitly permits this bare KeyboardInterrupt.",
-      "id": "cleanup-interrupt-missing-recovery-diagnostic",
+      "evidence": "template/scripts/managed_task.py:661\u2013673 checks each paths.worktrees component for symlinks and directory type, but checks ownership only on the final component. With paths.worktrees='foreign-parent/worktrees', a foreign-owned writable parent and a current-user-owned leaf pass; if the leaf is missing, line 666 creates it before any ownership rejection. This contradicts design.md's requirement to reject unsafe ownership before creation and permits the ancestor owner to rename or replace the validated storage containing helper receipts and worktrees.",
+      "id": "storage-ancestor-ownership-unchecked",
       "severity": "material",
-      "summary": "A catchable interruption during cleanup leaves helper state without the required explicit cleanup error and recovery command."
+      "summary": "Storage validation accepts foreign-owned ancestors and can create helper state beneath them."
     }
   ],
-  "launched_at": "2026-10-07T05:28:21+00:00",
-  "output_sha256": "c528a8aa8a547a840ff91a048993464c8a82fa171479a7ea812e9c77881641ce",
+  "launched_at": "2026-10-07T06:47:02+00:00",
+  "output_sha256": "94c117e1354bf9e6992056a430631916e5922d1b1f14599e57621f33aa32e19a",
   "perspective": "spec-fidelity",
-  "request_id": "692195cc-3ea1-4eeb-8b86-d968945c742e",
+  "request_id": "fc7a57c8-4d85-4a8f-8d81-cd6a5978e779",
   "reviewer": {
-    "context_id": "01a114d5-8ccf-7732-a005-d756ef684b31",
+    "context_id": "01a1151d-96d6-7272-af96-3273ca84cd4b",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-c1b5a046-42d8-4f6f-a105-fd607ac78ee9",
+    "launch_id": "platform-launch-2269de61-7829-4e73-807e-84a049b8f49a",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -39,21 +39,21 @@
       "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 212352
+        "value": 117504
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 262910
+        "value": 160658
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1483
+        "value": 866
       }
     },
     "runtime": "codex-exec"
   },
   "schema_version": 1,
-  "task_content_digest": "88c08ccbd7ee449806d47cb302c2bd3be4dac1a90e360a16ad79f902f45cbca7"
+  "task_content_digest": "28fe18c63664b6030568d424b42ac2bfb6356f81992f61cc56293122c2ef0309"
 }
