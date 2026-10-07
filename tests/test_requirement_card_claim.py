@@ -29,6 +29,9 @@ class FakeBoard:
     def observe(self, root, source_issue):
         return SimpleNamespace(current_status=self.status)
 
+    def ensure_item(self, root, source_issue, initial_status="Backlog"):
+        return SimpleNamespace(status=self.status)
+
     def reconcile(self, root, desired, source_issue):
         changed = self.status != desired
         self.status = desired
@@ -50,6 +53,7 @@ def run_start(board: FakeBoard, *, prepare=None) -> tuple[int, str]:
             patch.object(ri, "current_worktree_root", return_value=Path("/unused")), \
             patch.object(ri, "start_pre_authoring", side_effect=start_pre_authoring), \
             patch.object(ri, "aggregate", return_value={"requirement": REQUIREMENT, "progress": {"stage": "pre-authoring"}}), \
+            patch.object(requirement_board.managed_project_status, "ensure_item", side_effect=board.ensure_item), \
             patch.object(requirement_board.managed_project_status, "observe", side_effect=board.observe), \
             patch.object(requirement_board.managed_project_status, "reconcile", side_effect=board.reconcile), \
             redirect_stdout(out):
@@ -120,6 +124,7 @@ def run_advance(board: FakeBoard, *, progress_stage: str = "pre-authoring", obse
             patch.object(execution.requirement_target_lifecycle, "require_local_target_support"), \
             patch.object(execution.requirement_intake, "fetch_issue", return_value={"body": PARENT_BODY, "labels": [{"name": "type:requirement"}]}), \
             patch.object(execution.requirement_intake, "aggregate", return_value={"requirement": REQUIREMENT, "progress": {"stage": progress_stage}}), \
+            patch.object(execution.managed_project_status, "ensure_item", side_effect=board.ensure_item), \
             patch.object(execution.managed_project_status, "observe", side_effect=board.observe), \
             patch.object(execution.managed_project_status, "reconcile", side_effect=board.reconcile), \
             patch.object(execution.orchestrate_pre_authoring, "status", return_value={"current_stage": "complete"}), \

@@ -95,6 +95,20 @@ mutation($project: ID!, $item: ID!, $field: ID!, $option: String!) {
 """.strip()
 
 
+ADD_ITEM_MUTATION = """
+mutation($project: ID!, $content: ID!) {
+  addProjectV2ItemById(input: { projectId: $project, contentId: $content }) { item { id } }
+}
+""".strip()
+
+
+ISSUE_ID_QUERY = """
+query($owner: String!, $repo: String!, $number: Int!) {
+  repository(owner: $owner, name: $repo) { issue(number: $number) { id } }
+}
+""".strip()
+
+
 ISSUE_ITEMS_QUERY = """
 query($owner: String!, $repo: String!, $number: Int!, $cursor: String) {
   repository(owner: $owner, name: $repo) {
@@ -232,12 +246,13 @@ def _graphql(root: Path, env: dict[str, str], query: str, variables: dict[str, o
     return payload
 
 
-def _project_state(
+def _project_items(
     root: Path,
     env: dict[str, str],
     source: SourceIssue,
     locator: ProjectLocator,
-) -> tuple[str, str, str, dict[str, str], str, str | None]:
+) -> tuple[str, str, str, dict[str, str], list[dict[str, Any]]]:
+    """Return project identity, Status field/options and every item for the source issue."""
     cursor: str | None = None
     matching_items: list[dict[str, Any]] = []
     project_id = project_title = status_field_id = ""
@@ -329,6 +344,16 @@ def _project_state(
             if not isinstance(issue_cursor, str) or not issue_cursor:
                 raise ManagedProjectStatusError("GitHub Issue project item pagination returned no continuation cursor")
 
+    return project_id, project_title, status_field_id, options, matching_items
+
+
+def _project_state(
+    root: Path,
+    env: dict[str, str],
+    source: SourceIssue,
+    locator: ProjectLocator,
+) -> tuple[str, str, str, dict[str, str], str, str | None]:
+    project_id, project_title, status_field_id, options, matching_items = _project_items(root, env, source, locator)
     if len(matching_items) != 1:
         raise ManagedProjectStatusError(
             f"managed issue {source.reference} maps to {len(matching_items)} items in Project {locator.owner}/{locator.number}; expected exactly one"
@@ -337,6 +362,78 @@ def _project_state(
     value = item.get("fieldValueByName")
     current = value.get("name") if isinstance(value, dict) and isinstance(value.get("name"), str) else None
     return project_id, project_title, status_field_id, options, str(item.get("id", "")), current
+
+
+@dataclass(frozen=True)
+class MembershipReceipt:
+    source_issue: str
+    project_owner: str
+    project_number: int
+    item_id: str
+    status: str
+    added: bool
+    status_initialized: bool
+
+
+def _item_status(item: dict[str, Any]) -> str | None:
+    value = item.get("fieldValueByName")
+    return value.get("name") if isinstance(value, dict) and isinstance(value.get("name"), str) else None
+
+
+def ensure_item(root: Path, *, source_issue: str, initial_status: str = "Backlog") -> MembershipReceipt:
+    """Make the configured Project hold exactly one item for the issue, then read it back.
+
+    GitHub's built-in auto-add is only a fast path: a missing item is added here
+    through the same Project authorization (``addProjectV2ItemById`` returns the
+    existing item when one already exists, so repeats and races cannot
+    duplicate). An unset Status is initialized; an existing Status is never
+    overwritten. The result is accepted only after a read-back shows exactly one
+    item with a Status.
+    """
+    if initial_status not in EXPECTED_STATUSES:
+        raise ManagedProjectStatusError(f"unsupported initial Project status: {initial_status!r}")
+    config = read_platform_config(root)
+    source = parse_source_issue(source_issue)
+    locator = project_locator(config, source)
+    env = github_cli_env(root)
+    if env is None:
+        raise ManagedProjectStatusError(
+            "GitHub authentication is unavailable; run `gh auth login` and `gh auth refresh -s project`, or provide a Projects-capable token"
+        )
+    project_id, _, field_id, options, items = _project_items(root, env, source, locator)
+    if len(items) > 1:
+        raise ManagedProjectStatusError(
+            f"managed issue {source.reference} maps to {len(items)} items in Project {locator.owner}/{locator.number}; expected exactly one"
+        )
+    added = False
+    if not items:
+        owner, repo = source.repository.split("/", 1)
+        payload = _graphql(root, env, ISSUE_ID_QUERY, {"owner": owner, "repo": repo, "number": source.number})
+        repository = payload.get("data", {}).get("repository")
+        issue = repository.get("issue") if isinstance(repository, dict) else None
+        content_id = issue.get("id") if isinstance(issue, dict) else None
+        if not isinstance(content_id, str) or not content_id:
+            raise ManagedProjectStatusError(f"issue {source.reference} was not found or is not readable")
+        _graphql(root, env, ADD_ITEM_MUTATION, {"project": project_id, "content": content_id})
+        added = True
+    _, _, _, _, item_id, current = _project_state(root, env, source, locator)
+    initialized = False
+    if current is None:
+        _graphql(
+            root,
+            env,
+            UPDATE_MUTATION,
+            {"project": project_id, "item": item_id, "field": field_id, "option": options[initial_status]},
+        )
+        initialized = True
+    _, _, _, _, final_item, final_status = _project_state(root, env, source, locator)
+    if final_status is None:
+        raise ManagedProjectStatusError(
+            f"read-back of {source.reference} in Project {locator.owner}/{locator.number} shows no Status"
+        )
+    return MembershipReceipt(
+        source.reference, locator.owner, locator.number, final_item, final_status, added, initialized,
+    )
 
 
 def observe(
@@ -466,11 +563,21 @@ def main() -> int:
     block = sub.add_parser("block", help="Record a genuine external/human blocker.")
     block.add_argument("--reason", required=True)
     block.add_argument("--json", action="store_true")
+    ensure = sub.add_parser("ensure", help="Ensure exactly one Project item for a source issue (idempotent).")
+    ensure.add_argument("--issue", required=True)
+    ensure.add_argument("--json", action="store_true")
     resume = sub.add_parser("resume", help="Restore In progress or In review from current PR evidence.")
     resume.add_argument("--json", action="store_true")
     args = parser.parse_args()
     root = Path.cwd().resolve()
     try:
+        if args.command == "ensure":
+            receipt = ensure_item(root, source_issue=args.issue)
+            if args.json:
+                print(json.dumps(asdict(receipt), ensure_ascii=False, sort_keys=True))
+            else:
+                print(f"Project membership confirmed: {receipt.source_issue} -> {receipt.status} (added={receipt.added})")
+            return 0
         if args.command == "status":
             observation = observe(root)
         elif args.command == "block":

@@ -27,7 +27,16 @@ creating a separate task format.
   to the Requirement, fails closed before creating anything when that routing
   cannot be resolved (mismatched Backlog repository, a target repository not
   configured in this checkout, or an unavailable label), and verifies both
-  labels by reading the Issue back before reporting success.
+  labels by reading the Issue back before reporting success. Success also
+  requires **Project membership**: the configured `project_owner/project_number`
+  must hold exactly one item for the Issue with an initialized Status. GitHub's
+  built-in auto-add is only a fast path; `create` adds a missing item through
+  the same Project authorization (idempotent, no duplicate), initializes an
+  unset Status to `Backlog` without overwriting an existing one and confirms
+  by read-back. If the Project cannot be confirmed, the Issue stays durable,
+  `create` fails naming it, and a rerun with the same title and body continues
+  that Issue instead of creating another. `project:*` labels are routing
+  metadata, never proof of membership.
 - **Quick execution**: a small, clear, bounded change may use normal task
   execution without a Requirement, Backlog Issue, or ceremonial OpenSpec
   change. This includes a regression repair that restores behavior
@@ -78,6 +87,13 @@ The semantics are identical across agent surfaces:
   is a transport equivalent of `requirement_intake.py create`; it must not
   substitute a managed OpenSpec package merely because it lacks local shell
   access.
+- Fixation is complete only when Project membership is confirmed. A connected
+  adapter that cannot write the user-owned Project reports the Issue as
+  durable but fixation **unconfirmed**; the operator-side
+  `python3 scripts/requirement_intake.py reconcile-board --all` (or
+  `--requirement owner/repo#N`) adds missing items idempotently and confirms
+  them. This is never a user step. `start` and `advance` also ensure the card
+  before claiming it.
 - A fixation-only request stops as soon as the Requirement is durably created
   or the exact existing Requirement is reused.
 
