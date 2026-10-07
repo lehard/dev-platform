@@ -3,36 +3,36 @@
   "candidate": {
     "base_head": "a8d83e5cbd97037b242daf30557f4b1e3b03ae7c",
     "base_ref": "origin/main",
-    "candidate_head": "7d64649b43adeb4e8bd8561457a317c247ed160e",
-    "diff_sha256": "571acf8b915840e909c5048fe5b08a9daddaffa06af0e1522b3f613ec85b5a05"
+    "candidate_head": "4333cb1f3cd8809ac6e1897581ffd1776d5c31b5",
+    "diff_sha256": "ba20f2d0a6a5d73445abddc13bc658a82ef4b0826e8a21563c4910fddb8b2ca7"
   },
-  "completed_at": "2026-10-07T19:17:47+00:00",
+  "completed_at": "2026-10-07T20:00:23+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/requirement_intake.py: in create_requirement, `existing` sets `number`, then `_reconcile_requirement_labels(root, ..., priority=effective_priority)` runs on both the reuse and the create path. Tests cover only the same-priority rerun.",
-      "id": "reuse-rewrites-labels-of-existing-requirement",
-      "severity": "advisory",
-      "summary": "When `create` reuses an identical open Requirement, it still runs `_reconcile_requirement_labels` with the new call's priority. A rerun with a different `--priority` therefore silently re-labels an existing, possibly already started, Requirement. Title and body are the only identity check."
-    },
-    {
-      "evidence": "template/scripts/requirement_intake.py reconcile_board: `return [ensure_project_membership(root, ref) for ref in sorted(refs)]` raises RequirementIntakeError on the first failure, and main() prints results only after the whole list succeeds.",
+      "evidence": "template/scripts/requirement_intake.py in the candidate diff: `return [ensure_project_membership(root, ref) for ref in sorted(refs)]` raises on the first RequirementIntakeError. The connected-adapter docs make `reconcile-board --all` the primary completion path. A single duplicate-item Requirement therefore blocks all later ones. Failing loudly is correct under the no-fallback rule, but the command could collect every failure and then raise once, naming each Requirement.",
       "id": "reconcile-all-aborts-on-first-failure",
       "severity": "advisory",
-      "summary": "`reconcile_board` with `--all` stops at the first Requirement whose membership cannot be confirmed. The remaining Requirements are not attempted, and the output does not say which were already reconciled. For a bulk operator repair path, a partial failure is hard to diagnose."
+      "summary": "reconcile-board --all stops at the first Requirement whose membership cannot be confirmed, so the remaining Requirements are left unreconciled and the operator gets no per-item report."
+    },
+    {
+      "evidence": "find_identical_open_requirement in requirement_intake.py compares only title and body after stripping the trailing Work identity line. A Requirement that is already in progress is reused silently. The design.md risk section accepts this, and the payload reports `reused`, so it is only a heads-up.",
+      "id": "reuse-matches-by-title-body-only",
+      "severity": "advisory",
+      "summary": "Rerun reuse treats any open Requirement with the same title and body as the same intent, regardless of its lifecycle stage or card status."
     }
   ],
-  "launched_at": "2026-10-07T19:17:29+00:00",
-  "output_sha256": "112fd70394e6eeea3dc5b242fc8a8fdbfa3d92aeaeb486083171ad7fe6179e40",
+  "launched_at": "2026-10-07T19:59:55+00:00",
+  "output_sha256": "1c189d004fa05d27ce1d362c47874797da04c4b2252d0fd40f9b90cd9894e7d2",
   "perspective": "engineering-quality",
-  "request_id": "ae7b6714-2336-47b3-8467-86551a2a020e",
+  "request_id": "8a0010d0-69ca-4f83-8eee-e95e9ed29e08",
   "reviewer": {
-    "context_id": "58c5fa75-9eb5-4997-b23e-f59e9e03b47f",
+    "context_id": "0a41a0c7-00a6-41d1-a57b-d9db24566740",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-fcc6b6a1-bc0d-4950-817e-0e700f0141a1",
+    "launch_id": "platform-launch-f3dc7a10-2710-4bf1-9d86-7af02969b791",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -48,41 +48,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 32304
+        "value": 34263
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 52868
+        "value": 129685
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 14946
+        "value": 22455
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 15457
+        "value": 24226
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 10
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4
+        "value": 7
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1481
+        "value": 2024
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "a9c37c8f33d307eff2810da71e4a3ef460d2767c49686033e4a590db079a7912"
+  "task_content_digest": "5e1152eeb4ca44b3e1d455e1d33ce1f38b0eb942d8b0c4abf1e5e774e30ed3a1"
 }
