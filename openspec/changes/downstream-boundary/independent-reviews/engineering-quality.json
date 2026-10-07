@@ -1,30 +1,23 @@
 {
-  "availability": "available",
+  "availability": "unavailable",
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "0338f502d0f85ab80a86aa23b11c56acf9852e25",
-    "diff_sha256": "1a80f004026dfe8244d95f2dbd07ad2ef90a60889811a1850c470fcaddfaa3c8"
+    "candidate_head": "d69ec786e9e9df0ac0f3fab0a15198009f3f3da9",
+    "diff_sha256": "8576905595782c18a310d127896faf3cab0d142da858e343d674c8d2b032d0df"
   },
-  "completed_at": "2026-10-07T15:56:01+00:00",
-  "findings": [
-    {
-      "evidence": "tests/test_downstream_boundary.py:46\u201351 replaces require_static_archive_readiness, require_applicable_committed_diff, ensure_review_evidence, require_ready, and run_checked with mocks. Consequently, ARCHIVE-OK proves import isolation and branch selection, but cannot detect coordinator dependencies reached inside portable review or selected checks, and no archive occurs. The design's verification plan calls for an archive through a fake OpenSpec binary in a downstream-shaped Git checkout.",
-      "id": "archive-regression-mocks-portable-path",
-      "severity": "advisory",
-      "summary": "The archive regression test does not verify that the portable review, checks, and archive path actually completes."
-    }
-  ],
-  "launched_at": "2026-10-07T15:55:00+00:00",
-  "output_sha256": "b603963a5eff6b30b23376edb3a8df17184270c2b23b4261a364964303b25a6e",
+  "completed_at": "2026-10-07T17:31:44+00:00",
+  "findings": [],
+  "launched_at": "2026-10-07T17:31:44+00:00",
+  "limitation": "codex reviewer runtime with model 'gpt-6.1-sol' is not ready: probe exited with status 1 (You\u2019ve hit your usage limit. Upgrade to Pro (https://chatgpt.com/explore/pro), visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at 9:07 PM.); next: log the codex CLI in on this host, or change the [model_routing] / [independent_review] binding for this account (no other model or provider is tried), then rerun python3 scripts/independent_review.py preflight",
   "perspective": "engineering-quality",
-  "request_id": "e61a450a-9a1b-42de-a021-c48f7467d718",
+  "request_id": "40bd9484-8d72-43d6-aada-0a7b6178aa22",
   "reviewer": {
-    "context_id": "01a11713-4377-7bd0-baaf-d91a57cfdef2",
-    "context_id_source": "runtime",
+    "context_id": "platform-launch-5b725ab5-aaf8-4181-8747-700e8a5bbf30",
+    "context_id_source": "platform-launch",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-3b022513-630b-4a22-94d7-1068125d4a9c",
+    "launch_id": "platform-launch-5b725ab5-aaf8-4181-8747-700e8a5bbf30",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -34,26 +27,6 @@
     "runtime": "codex-exec",
     "write_access": false
   },
-  "runtime_usage": {
-    "fields": {
-      "cached_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 120704
-      },
-      "input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 165589
-      },
-      "output_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 867
-      }
-    },
-    "runtime": "codex-exec"
-  },
   "schema_version": 1,
-  "task_content_digest": "c634ee2fea9314475a5e7c4a085b8e778a45dea2607ddf53aebf0b18e494372d"
+  "task_content_digest": "8d9b172370b51b08815aaf6ffaa75f2bb11aceb022b3f7afd72352aa3511045e"
 }

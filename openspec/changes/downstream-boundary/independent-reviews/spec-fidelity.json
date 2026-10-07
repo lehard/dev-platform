@@ -1,36 +1,23 @@
 {
-  "availability": "available",
+  "availability": "unavailable",
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "0338f502d0f85ab80a86aa23b11c56acf9852e25",
-    "diff_sha256": "1a80f004026dfe8244d95f2dbd07ad2ef90a60889811a1850c470fcaddfaa3c8"
+    "candidate_head": "d69ec786e9e9df0ac0f3fab0a15198009f3f3da9",
+    "diff_sha256": "8576905595782c18a310d127896faf3cab0d142da858e343d674c8d2b032d0df"
   },
-  "completed_at": "2026-10-07T15:55:00+00:00",
-  "findings": [
-    {
-      "evidence": "template/scripts/pr_review_gate.py:12-13 imports lifecycle_workers and publication_queue at module level, before managed_candidate calls lifecycle_mode at line 22. Thus importing managed_candidate with either coordinator dependency unavailable raises before a downstream contract can answer False. This contradicts the lifecycle-workers delta requirement that the coordinator stack SHALL be loaded only after the committed contract selected coordinator mode.",
-      "id": "coordinator-imports-precede-selection",
-      "severity": "material",
-      "summary": "Calling the downstream candidacy API still requires loading coordinator modules before contract selection."
-    },
-    {
-      "evidence": "The completion-lifecycle delta requires archive, publication and Requirement entrypoints to use one selector before source-only logic and reject unsupported source combinations. template/scripts/project_publish.py:648-649 checks only platform_version == 'source' before importing publication_queue, without lifecycle_mode. template/scripts/finish_task.py:904-905 similarly imports pr_review_gate before its selector runs, and lines 915-916 import publication_queue using only source/PR/branch conditions. Neither file calls lifecycle_mode. Consequently the new contract boundary is not enforced across publication entrypoints.",
-      "id": "publication-bypasses-lifecycle-selector",
-      "severity": "material",
-      "summary": "Finish and publication paths still bypass the required shared selector, allowing source-only logic before unsupported source contracts are rejected."
-    }
-  ],
-  "launched_at": "2026-10-07T15:53:45+00:00",
-  "output_sha256": "f926b3c5e372fc960ac4c89cffd2e0333f98f7c8695c90a42cf46381f659140c",
+  "completed_at": "2026-10-07T17:31:44+00:00",
+  "findings": [],
+  "launched_at": "2026-10-07T17:31:44+00:00",
+  "limitation": "codex reviewer runtime with model 'gpt-6.1-sol' is not ready: probe exited with status 1 (You\u2019ve hit your usage limit. Upgrade to Pro (https://chatgpt.com/explore/pro), visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at 9:07 PM.); next: log the codex CLI in on this host, or change the [model_routing] / [independent_review] binding for this account (no other model or provider is tried), then rerun python3 scripts/independent_review.py preflight",
   "perspective": "spec-fidelity",
-  "request_id": "e61a450a-9a1b-42de-a021-c48f7467d718",
+  "request_id": "40bd9484-8d72-43d6-aada-0a7b6178aa22",
   "reviewer": {
-    "context_id": "01a11712-34c8-7a52-923c-3945aa91880c",
-    "context_id_source": "runtime",
+    "context_id": "platform-launch-6366970a-b535-4b14-9494-4fdde9fc9223",
+    "context_id_source": "platform-launch",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-2c0c3fe8-57bd-48e7-9cfc-8e66782723e5",
+    "launch_id": "platform-launch-6366970a-b535-4b14-9494-4fdde9fc9223",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -40,26 +27,6 @@
     "runtime": "codex-exec",
     "write_access": false
   },
-  "runtime_usage": {
-    "fields": {
-      "cached_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 79360
-      },
-      "input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 121116
-      },
-      "output_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 716
-      }
-    },
-    "runtime": "codex-exec"
-  },
   "schema_version": 1,
-  "task_content_digest": "c634ee2fea9314475a5e7c4a085b8e778a45dea2607ddf53aebf0b18e494372d"
+  "task_content_digest": "8d9b172370b51b08815aaf6ffaa75f2bb11aceb022b3f7afd72352aa3511045e"
 }

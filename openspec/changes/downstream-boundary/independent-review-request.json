@@ -2,12 +2,15 @@
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "0338f502d0f85ab80a86aa23b11c56acf9852e25",
-    "diff_sha256": "1a80f004026dfe8244d95f2dbd07ad2ef90a60889811a1850c470fcaddfaa3c8"
+    "candidate_head": "d69ec786e9e9df0ac0f3fab0a15198009f3f3da9",
+    "diff_sha256": "8576905595782c18a310d127896faf3cab0d142da858e343d674c8d2b032d0df"
   },
   "change": "openspec/changes/downstream-boundary",
   "excluded_lifecycle_paths": [
     "openspec/changes/downstream-boundary/automated-checks.json",
+    "openspec/changes/downstream-boundary/independent-review-request.json",
+    "openspec/changes/downstream-boundary/independent-reviews/engineering-quality.json",
+    "openspec/changes/downstream-boundary/independent-reviews/spec-fidelity.json",
     "openspec/changes/downstream-boundary/verification.md"
   ],
   "fresh_context_required": true,
@@ -36,7 +39,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-07T15:52:06+00:00",
+  "prepared_at": "2026-10-07T17:31:34+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/downstream-boundary/independent-reviews",
     "required_perspectives": [
@@ -45,7 +48,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "e61a450a-9a1b-42de-a021-c48f7467d718",
+  "request_id": "40bd9484-8d72-43d6-aada-0a7b6178aa22",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -58,23 +61,27 @@
   "schema_version": 1,
   "task_content": {
     "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "digest": "c634ee2fea9314475a5e7c4a085b8e778a45dea2607ddf53aebf0b18e494372d",
+    "digest": "8d9b172370b51b08815aaf6ffaa75f2bb11aceb022b3f7afd72352aa3511045e",
     "paths": {
       "dev-platform/checks.toml": "68a5f3a958051d355cbc5973e8bb597722562ce7",
       "openspec/changes/downstream-boundary/.managed-task.json": "18dbe3c4ed3b3000675fb994ca64dafc7f7fed75",
       "openspec/changes/downstream-boundary/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
-      "openspec/changes/downstream-boundary/design.md": "e89f586317aaf6a63f8416c32f0884a44d7bedad",
+      "openspec/changes/downstream-boundary/design.md": "b70762de77542c55cf3ba0549104dc6a8084cd8d",
       "openspec/changes/downstream-boundary/proposal.md": "a7e31ddc1d887d11d98625810529c3ddaec57c66",
       "openspec/changes/downstream-boundary/specs/completion-lifecycle/spec.md": "dbd22f1568697ccb81cf012aa34cc326f4e74d5d",
       "openspec/changes/downstream-boundary/specs/lifecycle-workers/spec.md": "819d9d19bfd4571a32ec2c2f184057d3c3703156",
       "openspec/changes/downstream-boundary/tasks.md": "c6588e3a533e1fdb6edcc4cdf62aedac233c2ffd",
       "template/scripts/_platform_common.py": "f47406ec82baea8814f8edb7d9758b3cadac0252",
       "template/scripts/execute_requirement.py": "5e81d0cdadc181ab7b4e2d1e42b9fc036771b2c8",
+      "template/scripts/finish_task.py": "b733d6524ebd768d3e47c81848d80d7a6088175b",
       "template/scripts/openspec_lifecycle.py": "17b3232acae18e74feac07478c85253a332b4ab8",
-      "template/scripts/pr_review_gate.py": "1cc18bb1af6e9e5dd8b36d341c2e0918d0df3bb2",
-      "tests/test_downstream_boundary.py": "cee814e9651bf507c79586ba72caeda9edf84d29",
+      "template/scripts/pr_review_gate.py": "8587729e2fea2a3b414b17b50b262d9e7489f3e4",
+      "template/scripts/project_publish.py": "fdd31d589f8781c2c29b59456110c7488ec6ed52",
+      "tests/test_br_publication_identity.py": "f35d221fba122c0fe234a2edd85061ca086227fd",
+      "tests/test_downstream_boundary.py": "b4aa27d89a6b622c49235e05ce89d8b2b1b32307",
       "tests/test_early_private_reference_guard.py": "99c81ba38aa35b123ff475b4f68e5f038bbe13de",
       "tests/test_independent_review.py": "26e31ee3ac3aa9f6ccaa05ff1a7fe6defa8012a3",
+      "tests/test_managed_status_lifecycle.py": "a45840048086954c7dfee0da50fff4aa5757a39a",
       "tests/test_openspec_lifecycle.py": "ac8565d424fc409c8f6778a656086fd7d37a1545",
       "tests/test_requirement_execution.py": "d3ea7c37fd09f800a79084602c28dc97bac195de"
     },
