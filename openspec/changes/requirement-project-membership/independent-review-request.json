@@ -2,11 +2,14 @@
   "candidate": {
     "base_head": "a8d83e5cbd97037b242daf30557f4b1e3b03ae7c",
     "base_ref": "origin/main",
-    "candidate_head": "5073a7d490de1f305bf4cc3f9acd0e375ed7a9aa",
-    "diff_sha256": "6cf95df857cb44bc4fd452a63906dc3d2c1b1cc1bff7ebb8f87a6995290f2efb"
+    "candidate_head": "111e35e4fe86dd21dcc47438230fe51c7b3e1ed4",
+    "diff_sha256": "7263901327c3581b17a4d47cab85e6a9f58e8e3b2c5bdbcfb384d50201ff3911"
   },
   "change": "openspec/changes/requirement-project-membership",
   "excluded_lifecycle_paths": [
+    "openspec/changes/requirement-project-membership/independent-review-request.json",
+    "openspec/changes/requirement-project-membership/independent-reviews/engineering-quality.json",
+    "openspec/changes/requirement-project-membership/independent-reviews/spec-fidelity.json",
     "openspec/changes/requirement-project-membership/verification.md"
   ],
   "fresh_context_required": true,
@@ -33,7 +36,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-07T18:08:36+00:00",
+  "prepared_at": "2026-10-07T18:28:29+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/requirement-project-membership/independent-reviews",
     "required_perspectives": [
@@ -42,7 +45,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "8be850c6-4c5c-411a-a5fc-7c58b1ba6ba1",
+  "request_id": "1c1d5512-6d11-4d0f-a8bf-1da478b19b62",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -55,7 +58,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "a8d83e5cbd97037b242daf30557f4b1e3b03ae7c",
-    "digest": "9d9a90b9ea789e434d79ba7c60c0140016ae6ecd720a2f86641a3e1d179ac4a0",
+    "digest": "37f39cf9cfe3062930275e25fb790af55cf744a5d1342584cdf17f3b81001751",
     "paths": {
       "docs/engineering/chatgpt-project-protocol.md": "97a4a2e612d7276df64e4ee912435763c1de3619",
       "docs/engineering/task-intake.md": "1e572db56efcdb75cd13c6b9f460507849fc6b88",
@@ -67,12 +70,12 @@
       "openspec/changes/requirement-project-membership/tasks.md": "6a023fa6aafcdba72d69461d39183d8b095dd2a4",
       "template/scripts/managed_project_status.py": "bd43d1eb1cbd0c7f26ddab296f9b2e5db4ec4bf5",
       "template/scripts/requirement_board.py": "b41b821d76fea61ad857b39129d0232a25cac077",
-      "template/scripts/requirement_intake.py": "3fde6f03463988ba23c58efe3d6c378d56063e79",
+      "template/scripts/requirement_intake.py": "c8991dc69d33acc75a29a24cf416eeedf3f90bec",
       "tests/test_managed_project_status.py": "4204d0d057c994152bd10194b803e4476f9c818f",
       "tests/test_requirement_card_claim.py": "90bac9c9cd27c18b9e600dcbface5242dd120e6f",
       "tests/test_requirement_execution.py": "f6bdc06d07458f1358e039befbf0b8503bc965dc",
       "tests/test_requirement_flow_e2e.py": "aa50bc7e745209835c4f57c83425bced1de5c81e",
-      "tests/test_requirement_intake.py": "0d176bc66dbe76f3337f44c30714456222eeb73b"
+      "tests/test_requirement_intake.py": "50a3492c6d386a1b52af4d4e488c397fe3201331"
     },
     "scope": "independent-review-v1",
     "version": 1

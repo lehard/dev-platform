@@ -161,6 +161,26 @@ class EnsureItemTests(unittest.TestCase):
                 with self.assertRaisesRegex(managed_project_status.ManagedProjectStatusError, "unavailable"):
                     self.ensure(FakeProject(items=0, fail_on=stage))
 
+    def test_initialized_card_costs_one_project_scan(self) -> None:
+        fake = FakeProject(items=1, status="Backlog")
+        with (
+            patch.object(managed_project_status, "github_cli_env", return_value={}),
+            patch.object(managed_project_status, "_graphql", side_effect=fake) as graphql,
+        ):
+            managed_project_status.ensure_item(self.root, source_issue=self.ISSUE)
+        self.assertEqual(graphql.call_count, 1)
+
+    def test_readback_status_contradicting_initialization_fails(self) -> None:
+        class Claimed(FakeProject):
+            def __call__(self, root, env, query, variables):
+                result = super().__call__(root, env, query, variables)
+                if "updateProjectV2ItemFieldValue" in query:
+                    self.items[0]["status"] = "In progress"  # another agent claimed it
+                return result
+
+        with self.assertRaisesRegex(managed_project_status.ManagedProjectStatusError, "expected 'Backlog'"):
+            self.ensure(Claimed(items=1, status=None))
+
     def test_missing_authentication_fails_explicitly(self) -> None:
         with patch.object(managed_project_status, "github_cli_env", return_value=None):
             with self.assertRaisesRegex(managed_project_status.ManagedProjectStatusError, "authentication"):

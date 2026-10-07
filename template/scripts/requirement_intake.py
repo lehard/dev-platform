@@ -329,6 +329,11 @@ def reconcile_board(root: Path, *, requirement: str | None = None) -> list[dict[
         repository, number = issue_ref(requirement)
         if repository != config.repository:
             raise RequirementIntakeError(f"{requirement} is not in the configured Backlog repository {config.repository}")
+        issue = fetch_issue(root, repository, number)
+        if REQUIREMENT_LABEL not in managed_task.issue_labels(issue):
+            raise RequirementIntakeError(f"{requirement} is not labeled {REQUIREMENT_LABEL}")
+        if str(issue.get("state") or "").lower() != "open":
+            raise RequirementIntakeError(f"{requirement} is not open; reconciliation covers open Requirements only")
         refs = [f"{repository}#{number}"]
     else:
         env = github_cli_env(root)

@@ -360,6 +360,19 @@ class CreateRequirementTests(unittest.TestCase):
         self.assertEqual(seen[:2], ["acme/development-backlog#3", "acme/development-backlog#5"])
         self.assertEqual(first, second)
 
+    def test_reconcile_requirement_rejects_closed_or_non_requirement_targets(self) -> None:
+        for issue, message in (
+            ({"state": "closed", "labels": [{"name": ri.REQUIREMENT_LABEL}]}, "not open"),
+            ({"state": "open", "labels": [{"name": ri.CHILD_LABEL}]}, "not labeled"),
+        ):
+            with self.subTest(message=message), \
+                    patch.object(ri.managed_task, "authoring_config", return_value=self.config), \
+                    patch.object(ri, "fetch_issue", return_value=issue), \
+                    patch.object(ri.managed_project_status, "ensure_item") as ensure:
+                with self.assertRaisesRegex(ri.RequirementIntakeError, message):
+                    ri.reconcile_board(self.root, requirement="acme/development-backlog#7")
+                ensure.assert_not_called()
+
     def test_create_honors_explicit_priority(self) -> None:
         payload, commands = self._run_create(priority="P0")
         self.assertEqual(payload["priority"], "priority:P0")

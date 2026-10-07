@@ -405,6 +405,12 @@ def ensure_item(root: Path, *, source_issue: str, initial_status: str = "Backlog
         raise ManagedProjectStatusError(
             f"managed issue {source.reference} maps to {len(items)} items in Project {locator.owner}/{locator.number}; expected exactly one"
         )
+    if items and _item_status(items[0]) is not None:
+        # Nothing to add or initialize; the single read above is the confirmation.
+        return MembershipReceipt(
+            source.reference, locator.owner, locator.number, str(items[0].get("id", "")),
+            str(_item_status(items[0])), False, False,
+        )
     added = False
     if not items:
         owner, repo = source.repository.split("/", 1)
@@ -416,6 +422,8 @@ def ensure_item(root: Path, *, source_issue: str, initial_status: str = "Backlog
             raise ManagedProjectStatusError(f"issue {source.reference} was not found or is not readable")
         _graphql(root, env, ADD_ITEM_MUTATION, {"project": project_id, "content": content_id})
         added = True
+    # Re-read immediately before writing so a Status claimed meanwhile is never
+    # overwritten. GitHub offers no compare-and-set; this narrows the window.
     _, _, _, _, item_id, current = _project_state(root, env, source, locator)
     initialized = False
     if current is None:
@@ -427,9 +435,10 @@ def ensure_item(root: Path, *, source_issue: str, initial_status: str = "Backlog
         )
         initialized = True
     _, _, _, _, final_item, final_status = _project_state(root, env, source, locator)
-    if final_status is None:
+    if final_status is None or (initialized and final_status != initial_status):
         raise ManagedProjectStatusError(
-            f"read-back of {source.reference} in Project {locator.owner}/{locator.number} shows no Status"
+            f"read-back of {source.reference} in Project {locator.owner}/{locator.number} shows Status "
+            f"{final_status!r}, expected {initial_status!r}"
         )
     return MembershipReceipt(
         source.reference, locator.owner, locator.number, final_item, final_status, added, initialized,
