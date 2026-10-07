@@ -139,7 +139,7 @@ class ArchiveFinalizeModeTests(unittest.TestCase):
             root = Path(tmp)
             tasks_state(root, "work", "- [x] done\n")
             (root / "openspec/changes/work/.managed-task.json").write_text("{}")
-            with mock.patch.object(lifecycle, "read_platform_config", return_value={"harness_mode": "platform"}), \
+            with mock.patch.object(lifecycle, "read_platform_config", return_value={"platform_version": "source", "harness_mode": "platform"}), \
                     mock.patch.object(lifecycle, "require_static_archive_readiness") as static, \
                     mock.patch.object(lifecycle, "require_managed_checkout_identity") as identity, \
                     mock.patch.object(lifecycle, "require_applicable_committed_diff") as diff, \

@@ -747,7 +747,7 @@ def _full_check_commands(root: Path) -> list[str]:
 
 
 def _run_full_checks(root: Path) -> None:
-    from lifecycle_workers import credential_free_env
+    from _platform_common import credential_free_env
 
     commands = _full_check_commands(root)
     with tempfile.TemporaryDirectory(prefix="composition-check-home-") as temporary:

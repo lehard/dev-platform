@@ -132,6 +132,65 @@ class DownstreamCheckoutTests(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         self.assertIn("ARCHIVE-OK", result.stdout)
 
+    def test_portable_requirement_full_checks_without_coordinator(self) -> None:
+        root = self.make_checkout(contract("1.0.0"))
+        (root / "dev-platform").mkdir()
+        command = ('python3 -c "import os; assert \'GH_TOKEN\' not in os.environ; '
+                   'assert os.environ[\'GIT_TERMINAL_PROMPT\'] == \'0\'"')
+        (root / "dev-platform/checks.toml").write_text(
+            "[settings]\nfull_commands = " + json.dumps([command]) + "\n", encoding="utf-8",
+        )
+        source = BLOCKER + textwrap.dedent(
+            """
+            import os, sys
+            from pathlib import Path
+            sys.path.insert(0, "scripts")
+            from requirement_integration import _run_full_checks
+            os.environ["GH_TOKEN"] = "fixture-secret"
+            _run_full_checks(Path.cwd())
+            assert not any(name in sys.modules for name in BLOCKED)
+            """
+        )
+        result = self.run_driver(root, source)
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+
+    def test_finalize_rejects_invalid_contract_before_review_or_mutation(self) -> None:
+        lifecycle = load_platform_module("openspec_lifecycle", SCRIPTS / "openspec_lifecycle.py")
+        configs = [{}, *({"platform_version": "source", key: value}
+                        for key, value in (("scm_provider", "gitlab"),
+                                           ("publish_mode", "direct"), ("harness_mode", "project")))]
+        for config in configs:
+            for composition in ("", "owner/repo#1"):
+                with self.subTest(config=config, composition=composition), \
+                        mock.patch.object(lifecycle, "read_platform_config", return_value=config), \
+                        mock.patch.dict("os.environ", {"DEV_PLATFORM_COMPOSITION_FINALIZATION": composition}), \
+                        mock.patch.object(lifecycle, "require_archive_target") as target:
+                    with self.assertRaises(common.PlatformConfigError):
+                        lifecycle.archive_change(Path("/unused"), "work", finalize=True)
+                    target.assert_called_once()
+
+    def test_portable_composition_finalize_rejected_before_coordinator_import(self) -> None:
+        root = self.make_checkout(contract("1.0.0"))
+        source = BLOCKER + textwrap.dedent(
+            """
+            import os, sys
+            from pathlib import Path
+            sys.path.insert(0, "scripts")
+            import openspec_lifecycle
+            os.environ["DEV_PLATFORM_COMPOSITION_FINALIZATION"] = "owner/repo#1"
+            try:
+                openspec_lifecycle.archive_change(Path.cwd(), "work", finalize=True)
+            except SystemExit as error:
+                assert "coordinator source contract" in str(error), error
+            else:
+                raise AssertionError("portable composition finalization accepted")
+            assert "requirement_composition" not in sys.modules
+            assert not any(name in sys.modules for name in BLOCKED)
+            """
+        )
+        result = self.run_driver(root, source)
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+
     def test_downstream_archive_ignores_ambiguous_managed_provenance(self) -> None:
         root = self.make_checkout(contract("1.0.0"))
         self.add_managed_packages(root, ("other", "third"))
