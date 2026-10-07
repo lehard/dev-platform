@@ -1,0 +1,68 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "a8d83e5cbd97037b242daf30557f4b1e3b03ae7c",
+    "base_ref": "origin/main",
+    "candidate_head": "5073a7d490de1f305bf4cc3f9acd0e375ed7a9aa",
+    "diff_sha256": "6cf95df857cb44bc4fd452a63906dc3d2c1b1cc1bff7ebb8f87a6995290f2efb"
+  },
+  "completed_at": "2026-10-07T18:17:04+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/requirement_intake.py:267 reconciles work identity before checking Project membership. That reconciliation appends `Work identity: BR-N` to the stored body (managed_work_identity.py:51), while duplicate detection compares it directly against the original rendered body (requirement_intake.py:290). A read-only, in-memory reproduction of two identical create calls with an unavailable Project created Issues #42 and #43. The advertised recovery command therefore duplicates Requirements.",
+      "id": "retry-duplicates-requirement",
+      "severity": "material",
+      "summary": "An identical create retry creates another Issue instead of continuing the durable Requirement."
+    },
+    {
+      "evidence": "template/scripts/requirement_intake.py:281 and :324 pass `gh api --paginate` output to managed_task.run_json without `--slurp`. The [GitHub CLI documentation](https://cli.github.com/manual/gh_api) specifies that each page is a separate JSON value, but managed_task.py:233 parses the entire output with one json.loads call. In-memory reproduction with two page arrays made both duplicate lookup and reconcile-board --all raise `ManagedTaskError: gh api did not return structured JSON`. With more than 100 matching open Issues, create cannot proceed and bulk repair cannot run.",
+      "id": "requirement-pagination-fails",
+      "severity": "material",
+      "summary": "Create and bulk reconciliation fail when open Requirements span multiple API pages."
+    }
+  ],
+  "launched_at": "2026-10-07T18:14:07+00:00",
+  "output_sha256": "32a55a0604852613dadf3f99801d6c7c82e006dcca002696c4d4a5f1473946b1",
+  "perspective": "engineering-quality",
+  "request_id": "8be850c6-4c5c-411a-a5fc-7c58b1ba6ba1",
+  "reviewer": {
+    "context_id": "01a11792-a1d4-7871-be1d-7d94ddb076a8",
+    "context_id_source": "runtime",
+    "executed_provider": "codex",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-9bef3e13-bb97-4187-975a-353141183b96",
+    "model": {
+      "source": "selected",
+      "value": "gpt-6.1-sol"
+    },
+    "provider": "codex",
+    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
+    "requested_provider": "codex",
+    "runtime": "codex-exec",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cached_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 643072
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 741641
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6129
+      }
+    },
+    "runtime": "codex-exec"
+  },
+  "schema_version": 1,
+  "task_content_digest": "9d9a90b9ea789e434d79ba7c60c0140016ae6ecd720a2f86641a3e1d179ac4a0"
+}

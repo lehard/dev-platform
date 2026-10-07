@@ -17,3 +17,7 @@ Coherence: proposal, design, delta, runtime and docs agree. No new service or Pr
 - Live `reconcile-board --all` after the change: all 30 open Requirements, including #416, #433 and #436, have exactly one item; nothing needed adding. #416 shows Status Done while open (a side effect of the earlier close/reopen retrigger); it was not changed because the platform does not rewrite lifecycle statuses.
 - The connected ChatGPT adapter cannot be executed from this repository; its behavior is a documented contract plus a reference-model test, and the unattended completion depends on the operator invoking `reconcile-board`, which is not scheduled by this change.
 - Selected checks: compileall, ruff and the complete canonical suite (17 groups) passed; see automated-checks.json.
+
+## Independent review round 1 (codex, both perspectives)
+
+Both perspectives returned the same two material findings, accepted and repaired: (1) retry lookup compared the stored body, which gains a platform-appended `Work identity` line, with the freshly rendered body, so a rerun after a Project failure created a second Issue; the comparison now ignores that trailing line, and the reuse test uses a body carrying it. (2) `gh api --paginate` output was parsed as one JSON document, which fails beyond one page; reads now use `--slurp` and flatten pages, and the reconcile test supplies two pages. A repeated independent review of the repaired head and fresh selected checks are required.

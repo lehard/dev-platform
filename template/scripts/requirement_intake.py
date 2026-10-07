@@ -275,19 +275,33 @@ def create_requirement(
     }
 
 
-def find_identical_open_requirement(root: Path, repository: str, *, title: str, body: str, env: dict[str, str]) -> int | None:
-    """Return the one open Requirement with this exact title and body, so a rerun continues it."""
-    issues = managed_task.run_json(
-        ["gh", "api", "--paginate", f"repos/{repository}/issues?state=open&labels={REQUIREMENT_LABEL}&per_page=100"],
+def open_requirement_issues(root: Path, repository: str, env: dict[str, str]) -> list[dict[str, Any]]:
+    pages = managed_task.run_json(
+        ["gh", "api", "--paginate", "--slurp", f"repos/{repository}/issues?state=open&labels={REQUIREMENT_LABEL}&per_page=100"],
         root, env,
     )
-    if not isinstance(issues, list):
+    if not isinstance(pages, list) or any(not isinstance(page, list) for page in pages):
         raise RequirementIntakeError("GitHub returned an invalid Requirement list")
+    issues = [issue for page in pages for issue in page]
+    if any(not isinstance(issue, dict) for issue in issues):
+        raise RequirementIntakeError("GitHub returned an invalid Requirement entry")
+    return [issue for issue in issues if "pull_request" not in issue]
+
+
+def _without_work_identity(body: str) -> str:
+    return re.sub(r"\n*Work identity: BR-[1-9][0-9]*(?:/T[1-9][0-9]*)?\s*\Z", "", body.replace("\r\n", "\n")).rstrip()
+
+
+def find_identical_open_requirement(root: Path, repository: str, *, title: str, body: str, env: dict[str, str]) -> int | None:
+    """Return the one open Requirement with this exact title and body, so a rerun continues it.
+
+    The platform-appended trailing ``Work identity`` line is not part of the authored body.
+    """
+    expected = _without_work_identity(body)
     matches = [
-        managed_task.issue_number(issue) for issue in issues
-        if isinstance(issue, dict) and "pull_request" not in issue
-        and str(issue.get("title") or "").strip() == title
-        and str(issue.get("body") or "").rstrip() == body.rstrip()
+        managed_task.issue_number(issue) for issue in open_requirement_issues(root, repository, env)
+        if str(issue.get("title") or "").strip() == title
+        and _without_work_identity(str(issue.get("body") or "")) == expected
     ]
     if len(matches) > 1:
         raise RequirementIntakeError(f"multiple open identical Requirements exist in {repository}: {sorted(matches)}")
@@ -320,14 +334,8 @@ def reconcile_board(root: Path, *, requirement: str | None = None) -> list[dict[
         env = github_cli_env(root)
         if env is None:
             raise RequirementIntakeError("GitHub CLI authentication is required; run gh auth login and retry")
-        issues = managed_task.run_json(
-            ["gh", "api", "--paginate", f"repos/{config.repository}/issues?state=open&labels={REQUIREMENT_LABEL}&per_page=100"],
-            root, env,
-        )
-        if not isinstance(issues, list):
-            raise RequirementIntakeError("GitHub returned an invalid Requirement list")
-        refs = [f"{config.repository}#{managed_task.issue_number(i)}" for i in issues
-                if isinstance(i, dict) and "pull_request" not in i]
+        issues = open_requirement_issues(root, config.repository, env)
+        refs = [f"{config.repository}#{managed_task.issue_number(i)}" for i in issues]
     return [ensure_project_membership(root, ref) for ref in sorted(refs)]
 
 

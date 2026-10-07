@@ -295,7 +295,7 @@ class CreateRequirementTests(unittest.TestCase):
             patch.object(ri.managed_task, "authoring_config", return_value=config or self.config),
             patch.object(ri.managed_task, "origin_repository", return_value=origin),
             patch.object(ri.managed_task, "validate_backlog_labels", side_effect=fake_validate),
-            patch.object(ri.managed_task, "run_json", return_value=existing_issues or []),
+            patch.object(ri.managed_task, "run_json", return_value=[existing_issues or []]),
             patch.object(ri.managed_project_status, "ensure_item", side_effect=fake_ensure),
         ):
             payload = ri.create_requirement(
@@ -326,7 +326,8 @@ class CreateRequirementTests(unittest.TestCase):
 
     def test_rerun_reuses_identical_open_requirement_instead_of_creating_another(self) -> None:
         body = ri.render_requirement_body(outcome="Make onboarding self-serve.", target_repository="acme/billing")
-        existing = [{"number": 42, "title": "Make onboarding self-serve", "body": body}]
+        # The platform appends its Work identity line after creation; it is not authored content.
+        existing = [{"number": 42, "title": "Make onboarding self-serve", "body": body + "\nWork identity: BR-42\n"}]
         self.issue_labels = {ri.REQUIREMENT_LABEL, "project:billing", "priority:P2"}
         self.issue_body = body
         payload, commands = self._run_create(existing_issues=existing)
@@ -351,7 +352,7 @@ class CreateRequirementTests(unittest.TestCase):
         with (
             patch.object(ri, "github_cli_env", return_value={}),
             patch.object(ri.managed_task, "authoring_config", return_value=self.config),
-            patch.object(ri.managed_task, "run_json", return_value=issues),
+            patch.object(ri.managed_task, "run_json", return_value=[issues[:2], issues[2:]]),
             patch.object(ri.managed_project_status, "ensure_item", side_effect=fake_ensure),
         ):
             first = ri.reconcile_board(self.root)
