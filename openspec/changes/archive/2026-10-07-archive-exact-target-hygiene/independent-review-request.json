@@ -1,0 +1,74 @@
+{
+  "candidate": {
+    "base_head": "8c49616d6b4a3f0a981db53f96dc99025f2f6bb0",
+    "base_ref": "origin/main",
+    "candidate_head": "26f36b63a01b3b2dbaaa5f6b05224b8fed173cf6",
+    "diff_sha256": "108e466e1d55043997075c65b5fe20f8ef2b44587e69e40ee759d1470462df5f"
+  },
+  "change": "openspec/changes/archive-exact-target-hygiene",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/archive-exact-target-hygiene/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/archive-exact-target-hygiene/design.md",
+        "openspec/changes/archive-exact-target-hygiene/proposal.md",
+        "openspec/changes/archive-exact-target-hygiene/specs/completion-lifecycle/spec.md",
+        "openspec/changes/archive-exact-target-hygiene/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/archive-exact-target-hygiene/proposal.md",
+        "openspec/changes/archive-exact-target-hygiene/design.md",
+        "openspec/changes/archive-exact-target-hygiene/tasks.md",
+        "openspec/changes/archive-exact-target-hygiene/specs/completion-lifecycle/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-07T00:01:52+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/archive-exact-target-hygiene/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "24fc9b63-8872-438b-bc63-dbfb4bd2c9e2",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "8c49616d6b4a3f0a981db53f96dc99025f2f6bb0",
+    "digest": "c6bac44c9ee14852a1cf55d3d2fbdd172b6fc897256fa78285ab43ea83da5758",
+    "paths": {
+      "docs/engineering/openspec-workflow.md": "ee2ae189b98875500efbc356af51b9fc1cddbdd1",
+      "openspec/changes/archive-exact-target-hygiene/.managed-task.json": "0853c351bc098b1714f2335039d3c97e827745ee",
+      "openspec/changes/archive-exact-target-hygiene/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+      "openspec/changes/archive-exact-target-hygiene/design.md": "928be38db27e48379406929dd82e67a29b2e93b5",
+      "openspec/changes/archive-exact-target-hygiene/proposal.md": "988bcbe49aa05b6240115d443157d4756b0e4c98",
+      "openspec/changes/archive-exact-target-hygiene/specs/completion-lifecycle/spec.md": "917badd741cf370df0e82f6592c77978cf7e3b75",
+      "openspec/changes/archive-exact-target-hygiene/tasks.md": "45cd7586b5e095c3f36cf980298af134aa0eba6a",
+      "template/docs/engineering/openspec-workflow.md": "7963f1a5ef3201f60c00046cc59c2ec3e41e162f",
+      "template/scripts/openspec_lifecycle.py": "b23fadfc3f4fef4d5f63f0f93dc23c8bbbfad60b",
+      "tests/test_openspec_lifecycle.py": "98e51dbf72bdb1650fbf24cd959d2ee263313fe9"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}
