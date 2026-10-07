@@ -1,23 +1,30 @@
 {
-  "availability": "unavailable",
+  "availability": "available",
   "candidate": {
     "base_head": "4984d565b82e069b0621ee92eb2809f2e6214ded",
     "base_ref": "origin/main",
-    "candidate_head": "b31e07a4dee0e382a99401f31e8b6627ec6b56bf",
-    "diff_sha256": "1aefb0aa0aed7fec1021dd7859700a97f7b3f7814a57b5089d08edf0011a5e36"
+    "candidate_head": "946c6404f35e51959b4aa15e21f7b787a240a117",
+    "diff_sha256": "b33dc95598b761a0983918fc8ae41658c8d18f860d0892de3197c8115b772e18"
   },
-  "completed_at": "2026-10-07T05:24:43+00:00",
-  "findings": [],
-  "launched_at": "2026-10-07T05:24:43+00:00",
-  "limitation": "codex reviewer runtime with model 'gpt-6.1-sol' is not ready: probe exited with status 1 (Reconnecting... 2/5 (unexpected status 401 Unauthorized: Missing bearer or basic authentication in header, url: wss://api.openai.com/v1/responses, cf-ray: a46a7a9f3c49ed6d-NQZ)); next: log the codex CLI in on this host, or change the [model_routing] / [independent_review] binding for this account (no other model or provider is tried), then rerun python3 scripts/independent_review.py preflight",
+  "completed_at": "2026-10-07T05:29:26+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/managed_task.py:865\u2013869 catches RuntimeError, OSError, ValueError and SystemExit around cleanup_validation_context, but excludes KeyboardInterrupt. An interruption during inner-receipt unlink or directory removal therefore escapes directly, leaving recovery state without the diagnostic containing cleanup-validation. The active delta requires failed cleanup to be reported explicitly, and docs/engineering/local-workspace.md promises that cleanup failures print an exact recovery command. tests/managed_task_exact_state_cases.py:test_final_cleanup_failures_retain_receipt_in_each_transition explicitly permits this bare KeyboardInterrupt.",
+      "id": "cleanup-interrupt-missing-recovery-diagnostic",
+      "severity": "material",
+      "summary": "A catchable interruption during cleanup leaves helper state without the required explicit cleanup error and recovery command."
+    }
+  ],
+  "launched_at": "2026-10-07T05:28:21+00:00",
+  "output_sha256": "c528a8aa8a547a840ff91a048993464c8a82fa171479a7ea812e9c77881641ce",
   "perspective": "spec-fidelity",
-  "request_id": "602f3296-a588-44f0-aba2-346530d66174",
+  "request_id": "692195cc-3ea1-4eeb-8b86-d968945c742e",
   "reviewer": {
-    "context_id": "platform-launch-65434246-a36b-4270-a7cf-451d23d9594b",
-    "context_id_source": "platform-launch",
+    "context_id": "01a114d5-8ccf-7732-a005-d756ef684b31",
+    "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-65434246-a36b-4270-a7cf-451d23d9594b",
+    "launch_id": "platform-launch-c1b5a046-42d8-4f6f-a105-fd607ac78ee9",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -26,6 +33,26 @@
     "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
     "runtime": "codex-exec",
     "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cached_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 212352
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 262910
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1483
+      }
+    },
+    "runtime": "codex-exec"
   },
   "schema_version": 1,
   "task_content_digest": "88c08ccbd7ee449806d47cb302c2bd3be4dac1a90e360a16ad79f902f45cbca7"
