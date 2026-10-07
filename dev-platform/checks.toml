@@ -100,6 +100,7 @@ targets = [
   "test_requirement_board",
   "test_private_backlog_guard",
   "test_early_private_reference_guard",
+  "test_downstream_boundary",
 ]
 mode = "parallel"
 

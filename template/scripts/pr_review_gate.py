@@ -16,12 +16,13 @@ MAX_ROUNDS = 3
 
 
 def managed_candidate(root: Path) -> bool:
-    from _platform_common import read_platform_config
+    from _platform_common import lifecycle_mode, read_platform_config
     from managed_task import resolve_canonical_provenance
 
-    config = read_platform_config(root)
+    if lifecycle_mode(read_platform_config(root)) != "coordinator":
+        return False
     provenance = resolve_canonical_provenance(root)
-    return (config.get("platform_version") == "source" and queue.enabled(root)
+    return (queue.enabled(root)
             and provenance is not None and provenance.lifecycle == "active")
 
 

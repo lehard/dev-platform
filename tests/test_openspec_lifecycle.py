@@ -42,7 +42,7 @@ class OpenSpecLifecycleTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             self.make_change(root, "work", "- [x] done\n")
-            with mock.patch.object(lifecycle, "read_platform_config", return_value={"harness_mode": "platform"}), \
+            with mock.patch.object(lifecycle, "read_platform_config", return_value={"platform_version": "source", "harness_mode": "platform"}), \
                     mock.patch.object(lifecycle, "require_static_archive_readiness"), \
                     mock.patch.object(lifecycle, "require_applicable_committed_diff"), \
                     mock.patch.object(gate, "managed_candidate", return_value=False), \

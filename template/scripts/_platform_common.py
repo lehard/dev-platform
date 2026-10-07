@@ -392,6 +392,33 @@ def harness_mode(config: dict[str, Any]) -> str:
     return str(config.get("harness_mode", "platform"))
 
 
+class PlatformConfigError(RuntimeError):
+    """The committed platform contract is missing a required key or declares an unsupported combination."""
+
+
+def lifecycle_mode(config: dict[str, Any]) -> str:
+    """Select lifecycle behavior from the committed contract: ``portable`` or ``coordinator``.
+
+    Pure: no git, network or coordinator imports. A downstream contract is portable; the
+    source contract is coordinator only for the supported combination.
+    """
+    version = config.get("platform_version")
+    if not isinstance(version, str) or not version:
+        raise PlatformConfigError("platform_version must be a non-empty string in .dev-platform.toml")
+    if version != "source":
+        return "portable"
+    for key, actual, supported in (
+        ("harness_mode", harness_mode(config), "platform"),
+        ("publish_mode", publish_mode(config), "pr"),
+        ("scm_provider", scm_provider(config), "github"),
+    ):
+        if actual != supported:
+            raise PlatformConfigError(
+                f"source contract supports only {key}={supported!r}; found {key}={actual!r}"
+            )
+    return "coordinator"
+
+
 def protected_main(config: dict[str, Any]) -> bool:
     # Legacy configs predate this key. Keep their old behavior until an explicit
     # reviewed rollout records the repository's protection contract.

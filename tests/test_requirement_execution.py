@@ -49,6 +49,14 @@ def fixture_locked_json(path: Path) -> Iterator[dict]:
 
 
 class RequirementExecutionTests(unittest.TestCase):
+    def setUp(self) -> None:
+        # Temporary roots have no committed contract; these tests exercise the downstream
+        # (portable) path, so declare a downstream contract explicitly.
+        import _platform_common
+        patcher = mock.patch.object(_platform_common, "read_platform_config", return_value={"platform_version": "1.0"})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def test_handoffs_follow_declared_dependencies_not_filename_order(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             base = Path(tmp)
