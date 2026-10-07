@@ -31,4 +31,4 @@ With a valid token file declared in the operator config, a `claude` review job r
 
 ## Non-goals
 
-Creating or rotating tokens, touching the keychain or the operator's machine config (the operator does these), cross-provider fallback, project-check environments, worker identity and repair provider routing (lehard/development-backlog#432), and repair or finalize executors beyond reviewing.
+Creating or rotating tokens, touching the keychain or the operator's machine config (the operator does these), cross-provider fallback, project-check environments, worker identity and repair provider routing (the separate worker-runtime-identity change), and repair or finalize executors beyond reviewing.

@@ -18,6 +18,6 @@ Manual observation on the real host (before the change, to establish the cause):
 
 Limitations: the end-to-end path with a real `claude setup-token` token on the macOS host is operator-performed and was not run (no secret was created, copied or read). The review launcher's per-provider environment in `pr_review_gate.execute_review` is verified through `llm_env` rather than an end-to-end review run, as stated in task 4.2. `run_llm` (repair/write executors) is unchanged and does not receive the token. The `before_claim` hook applies to `review` jobs only.
 
-Coherence: the harness Git, push and finalization environments and `scripts/` project-check environment (lehard/development-backlog#432) are untouched; fallback between providers is not introduced; the only credential-filter change removes an accidental pass-through.
+Coherence: the harness Git, push and finalization environments and `scripts/` project-check environment (the separate worker-runtime-identity change) are untouched; fallback between providers is not introduced; the only credential-filter change removes an accidental pass-through.
 
 Checks run: `python3 -m compileall -q template/scripts scripts`, `python3 scripts/managed_projects.py validate`, `python3 template/scripts/openspec_lifecycle.py check`, `tests/test_lifecycle_workers.py` (45 tests), `tests/test_independent_review.py` (52 tests; one existing test was adjusted for the new probe and one added), and `python3 scripts/run_test_groups.py --all` (all 17 groups passed).
