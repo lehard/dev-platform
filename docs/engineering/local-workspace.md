@@ -114,6 +114,44 @@ central Mac adapter's narrowly scoped workaround remains separate; this runtime
 does not waive setgid or other defects. A filesystem that strips setgid reports
 an unresolved finding even after owner repair.
 
+Managed authoring validates its exact target revision in a helper-owned detached
+checkout below the integration checkout's explicit `paths.worktrees` storage.
+The helper ignores the system temporary-directory choice; users need no TMPDIR
+override. Required configuration, bounded storage, owner identity and shared
+output permissions are checked, while the normal local policy and Git hooks
+remain active. New projects receive this runtime through template rendering;
+existing projects receive it through the normal reviewed Copier update.
+
+Success, validation failures, failed checkout hooks and `KeyboardInterrupt`
+remove the exact temporary Git registration and helper directory. Cleanup
+failures remain errors and print an exact recovery command. After a hard
+interruption, run that command from the surviving integration checkout:
+
+```bash
+python3 scripts/worktree_cleanup.py cleanup-validation --directory <exact-helper-directory>
+```
+
+Recovery requires the helper's owner receipt and unchanged directory inode,
+repository, detached SHA and ownership. It refuses a live creating process,
+an active worktree cwd, locked or changed Git identity, symlinks and unknown
+contents. A repeated recovery after removal succeeds without touching sibling
+worktrees. Do not use global pruning or recursive deletion to recover this
+state. If termination occurred before the ownership receipt was published, or
+the worktree marker is missing or changed, recovery refuses rather than guessing;
+retain the path for explicit owner investigation.
+
+Final cleanup hard-links the ownership receipt to the exact sibling
+`<helper-directory>.cleanup-owner.json` without overwriting any existing path.
+It removes the inner receipt, the empty helper directory, and finally the
+sibling receipt in that order. A failed or interrupted final step therefore
+retains recovery evidence. Recovery accepts two receipts only when they have
+the same inode and Git registration has already been removed; unrelated
+duplicates remain errors. If only the sibling receipt survives after directory
+removal, recovery verifies that receipt before removing it. The same ownership,
+owner-process and active-cwd checks remain required. Unknown, incomplete or
+unreadable lsof cwd observations and unavailable directory paths block recovery
+explicitly; they never disappear from the observation.
+
 Remove each user's automation, then detach each integration checkout explicitly:
 
 ```bash

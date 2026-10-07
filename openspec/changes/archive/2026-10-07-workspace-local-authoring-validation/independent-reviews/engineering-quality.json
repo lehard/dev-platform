@@ -1,0 +1,52 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "d0449e860612e4f3e1ac292ffcdef7a9b69a152d",
+    "base_ref": "origin/main",
+    "candidate_head": "db96479a40ec0a9e46c018f8ca2c9dcf61abcd8f",
+    "diff_sha256": "eac789a6c0501c2faa6399ef42765684ba252d29e4c1b2017561f1c3c9c44ad0"
+  },
+  "completed_at": "2026-10-07T07:33:38+00:00",
+  "findings": [],
+  "launched_at": "2026-10-07T07:32:10+00:00",
+  "output_sha256": "6e96a492bc9fa40d22212c5be0396a203f3dbd4916cf97ebe2f66b6d54fa4a9a",
+  "perspective": "engineering-quality",
+  "request_id": "aba105aa-b32a-4d95-8dcb-9558afa529a7",
+  "reviewer": {
+    "context_id": "01a11546-ebf8-7c52-b4ca-644fdafa769a",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-32b7299b-08b5-402c-a953-127e2549c0f9",
+    "model": {
+      "source": "selected",
+      "value": "gpt-6.1-sol"
+    },
+    "provider": "codex",
+    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
+    "runtime": "codex-exec",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cached_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 327296
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 394485
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1856
+      }
+    },
+    "runtime": "codex-exec"
+  },
+  "schema_version": 1,
+  "task_content_digest": "92fef0be1712f971cffa1f09db42b1bab71caf030f62763949b96446e26868d6"
+}

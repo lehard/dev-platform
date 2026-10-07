@@ -625,6 +625,8 @@ def cleanup(
 def main() -> int:
     parser = argparse.ArgumentParser(description="Safely diagnose and clean platform-managed agent worktrees.")
     sub = parser.add_subparsers(dest="command", required=True)
+    validation_command = sub.add_parser("cleanup-validation", help="Recover one interrupted helper-owned authoring checkout.")
+    validation_command.add_argument("--directory", required=True, type=Path)
     scan_command = sub.add_parser("scan")
     scan_command.add_argument("--older-than-days", type=int, default=DEFAULT_AGE_DAYS)
     cleanup_command = sub.add_parser("cleanup")
@@ -636,7 +638,15 @@ def main() -> int:
     cleanup_command.add_argument("--apply", action="store_true", help="Apply a previously reviewed --all cleanup plan.")
     args = parser.parse_args()
     root = main_root()
-    if args.command == "cleanup":
+    if args.command == "cleanup-validation":
+        from managed_task import ManagedTaskError, cleanup_validation_context
+
+        try:
+            cleanup_validation_context(root, args.directory)
+        except (ManagedTaskError, OSError, ValueError) as exc:
+            raise SystemExit(f"validation cleanup failed: {exc}") from exc
+        payload = {"status": "validation-cleanup", "directory": str(args.directory)}
+    elif args.command == "cleanup":
         target_values = (args.worktree, args.branch, args.head)
         if any(target_values) and not all(target_values):
             parser.error("targeted cleanup requires --worktree, --branch, and --head together")
