@@ -1,0 +1,65 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
+    "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
+    "candidate_head": "061231a2526d583a6437e773a1c7548ee0b6323e",
+    "diff_sha256": "4f08ff7324ddbce5e414fc23374e022e86b8849ae2320b03ddf8dc84be66fe1d"
+  },
+  "completed_at": "2026-10-07T17:09:59+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/publication_state.py:156 discards checks[].app_id, and lines 194\u2013197 select contribution checks solely by name. If main requires validate from App A, a SUCCESS named validate from App B passes even when App A has registered nothing. This can authorize a passed required-checks gate on the unprotected integration branch. GitHub defines app_id as the App that must provide the check: [branch protection API](https://docs.github.com/en/rest/branches/branch-protection#update-branch-protection).",
+      "id": "preserve-required-check-app-binding",
+      "severity": "material",
+      "summary": "Contribution checks can pass without the GitHub App required by main."
+    },
+    {
+      "evidence": "template/scripts/publication_queue.py:538\u2013542 accepts any non-empty digest from content_identity. template/scripts/task_content_identity.py:30\u201379 computes that digest without checking whether the named active or archived change exists. A read-only probe using the actual checkout and a mocked managed state naming nonexistent-review-probe returned task_identity.task_content successfully. Thus a stale or invalid state can admit a managed candidate without its contract, contrary to design D4's explicit requirement to fail when the change is missing.",
+      "id": "reject-missing-managed-contract",
+      "severity": "material",
+      "summary": "Managed admission accepts a digest even when the named OpenSpec change does not exist."
+    }
+  ],
+  "launched_at": "2026-10-07T17:08:50+00:00",
+  "output_sha256": "674d5f16f91a41c6bf76f02d0d87a4958e27eba968b3a90d8c3e033de1d31f34",
+  "perspective": "engineering-quality",
+  "request_id": "cad6a0d4-86ff-493f-b6cf-f0bd7e60bfa7",
+  "reviewer": {
+    "context_id": "01a11756-dcca-77b2-bd8e-713b3d4616c1",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-a874af3f-77d1-4d17-aab0-3c2e5184b502",
+    "model": {
+      "source": "selected",
+      "value": "gpt-6.1-sol"
+    },
+    "provider": "codex",
+    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
+    "runtime": "codex-exec",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cached_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 241408
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 304411
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1673
+      }
+    },
+    "runtime": "codex-exec"
+  },
+  "schema_version": 1,
+  "task_content_digest": "4c83e440453cb97f374b9bd4a4f9985bd8f0f8f1eae09eecd8071a54e71f3e91"
+}

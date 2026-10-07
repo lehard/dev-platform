@@ -1,0 +1,65 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
+    "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
+    "candidate_head": "061231a2526d583a6437e773a1c7548ee0b6323e",
+    "diff_sha256": "4f08ff7324ddbce5e414fc23374e022e86b8849ae2320b03ddf8dc84be66fe1d"
+  },
+  "completed_at": "2026-10-07T17:08:50+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/publication_queue.py:633 writes the 'admit' comment and line 637 clears the blocked label; _admission_handoff is first evaluated at line 644. Missing state, a mismatched checkout, or an unavailable proof therefore raises only after admission has been recorded. This contradicts the delta's 'Managed proof unavailable' scenario, which requires writing no admission record. tests/test_publication_queue.py:1198 supplies an existing admission, so its no-write assertion does not cover fresh admission.",
+      "id": "admission-written-before-provenance",
+      "severity": "material",
+      "summary": "A fresh managed admission writes its durable admission record before validating provenance."
+    },
+    {
+      "evidence": "template/scripts/publication_queue.py:538 calls content_identity with state['change'] and lines 539\u2013542 accept any non-empty digest without checking that the named active or archived package exists. managed_task.read_task_state (template/scripts/managed_task.py:1496) validates the change name but not package existence. task_content_identity.py:49\u201373 hashes the HEAD diff with the supplied change name regardless of whether that change exists. Thus a stale state naming a deleted or nonexistent package still receives managed identity and can proceed to admission, contrary to design D4's explicit requirement that 'change missing' raise a missing-provenance error.",
+      "id": "missing-managed-package-accepted",
+      "severity": "material",
+      "summary": "A managed state naming a missing change can still produce an accepted provenance digest."
+    }
+  ],
+  "launched_at": "2026-10-07T17:07:51+00:00",
+  "output_sha256": "6061b5d3c9ceb8d734b16a10c34d0af515b4e1559c5732307581efcd9eca6f48",
+  "perspective": "spec-fidelity",
+  "request_id": "cad6a0d4-86ff-493f-b6cf-f0bd7e60bfa7",
+  "reviewer": {
+    "context_id": "01a11755-f69d-77a1-9c8e-b8f7bed3b4b0",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-6248b34e-d7d2-4dbd-86ee-af571cd7b3a8",
+    "model": {
+      "source": "selected",
+      "value": "gpt-6.1-sol"
+    },
+    "provider": "codex",
+    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
+    "runtime": "codex-exec",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cached_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 237056
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 301581
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1067
+      }
+    },
+    "runtime": "codex-exec"
+  },
+  "schema_version": 1,
+  "task_content_digest": "4c83e440453cb97f374b9bd4a4f9985bd8f0f8f1eae09eecd8071a54e71f3e91"
+}
