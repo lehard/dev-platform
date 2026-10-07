@@ -865,7 +865,7 @@ def exact_target_context(root: Path, sha: str) -> Iterator[Path]:
     finally:
         try:
             cleanup_validation_context(root, tmp_parent, creating_process=True)
-        except (RuntimeError, OSError, ValueError, SystemExit) as exc:
+        except (RuntimeError, OSError, ValueError, SystemExit, KeyboardInterrupt) as exc:
             raise ManagedTaskError(f"validation cleanup failed: {exc}; retained helper identity at {tmp_parent}; recovery: {recovery}") from exc
 
 

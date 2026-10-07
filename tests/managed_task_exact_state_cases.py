@@ -322,9 +322,10 @@ with managed_task.exact_target_context(Path(sys.argv[2]), sys.argv[3]) as worktr
                         raise failure
                     return real_rmdir(path, *args, **kwargs)
                 with self.subTest(stage=stage, failure=type(failure).__name__), patch.object(Path, 'unlink', unlink), patch.object(Path, 'rmdir', rmdir):
-                    with self.assertRaises((managed_task.ManagedTaskError, KeyboardInterrupt)):
+                    with self.assertRaises(managed_task.ManagedTaskError) as raised:
                         with managed_task.exact_target_context(self.root, self.seed_sha) as worktree:
                             original = (worktree.parent / managed_task.VALIDATION_RECEIPT).read_text()
+                    self.assertIn('cleanup-validation', str(raised.exception))
                 directory = captured[0]
                 pending = directory.with_name(directory.name + '.cleanup-owner.json')
                 self.assertEqual(pending.read_text(), original)
