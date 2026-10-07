@@ -1,0 +1,65 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "a8d83e5cbd97037b242daf30557f4b1e3b03ae7c",
+    "base_ref": "origin/main",
+    "candidate_head": "08fa5a002b3f186f21159a50317419eb042ee5f4",
+    "diff_sha256": "3d11b5e1f238ff3a10d6438bd6612b0c7de367ef493f98bb0afd8fe6de6fbf5c"
+  },
+  "completed_at": "2026-10-07T18:11:45+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/independent_review.py:704 runs independent_review_runner.preflight(root) before constructing the scratch HOME or applying llm_env. The runner's _preflight_one invokes subprocess_launcher without an environment, which inherits the operator's HOME and ambient credentials. Consequently, a valid declared token can still produce an initial authentication failure and skip the bound probe entirely; ambient authentication can also determine readiness independently of the declared binding. This contradicts the delta's 'Preflight command reflects the worker' scenario.",
+      "id": "preflight-uses-ambient-login",
+      "severity": "material",
+      "summary": "The independent-review preflight does not test readiness in the worker's bound environment."
+    },
+    {
+      "evidence": "The active lifecycle-workers delta requires failed, timed-out, or missing-binary probes to exit naming the provider and available bindings. template/scripts/lifecycle_workers.py:283 and :285 report timeout/start failure without either binding; :755 likewise reports an unavailable runtime without binding guidance. Only the non-zero probe-result branch at :287-289 includes the next steps.",
+      "id": "probe-errors-omit-binding-guidance",
+      "severity": "material",
+      "summary": "Timeout and missing-binary failures omit the required login-binding guidance."
+    }
+  ],
+  "launched_at": "2026-10-07T18:11:06+00:00",
+  "output_sha256": "503b99beba0bcd3e1c5b6ef28950ef9cf14a656e19509c0774e66d9e4f393e69",
+  "perspective": "spec-fidelity",
+  "request_id": "74a4077b-7c2f-4f92-a1d1-a4aeb564b38f",
+  "reviewer": {
+    "context_id": "01a1178f-dcf9-7650-bfd8-87640e664fe4",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-59201448-934c-4fa2-b542-0a9be6946d14",
+    "model": {
+      "source": "selected",
+      "value": "gpt-6.1-sol"
+    },
+    "provider": "codex",
+    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
+    "runtime": "codex-exec",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cached_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 116864
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 157435
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 791
+      }
+    },
+    "runtime": "codex-exec"
+  },
+  "schema_version": 1,
+  "task_content_digest": "7558177bb3a4dedadb78c237e0f98c906ba51737bc09b5dede8260d54e45a85a"
+}

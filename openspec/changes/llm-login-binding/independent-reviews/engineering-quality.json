@@ -1,0 +1,59 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "a8d83e5cbd97037b242daf30557f4b1e3b03ae7c",
+    "base_ref": "origin/main",
+    "candidate_head": "08fa5a002b3f186f21159a50317419eb042ee5f4",
+    "diff_sha256": "3d11b5e1f238ff3a10d6438bd6612b0c7de367ef493f98bb0afd8fe6de6fbf5c"
+  },
+  "completed_at": "2026-10-07T18:13:03+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/independent_review.py:704 calls independent_review_runner.preflight(root) without a bound launcher, and lines 705\u2013715 check the scratch-HOME login only if that first probe succeeds. independent_review_runner.py:486 uses the default subprocess_launcher, whose Popen at lines 110\u2013112 receives env=None. Thus an operator with a valid declared token_file but no ambient CLI login gets ready=false before the binding is used, although the worker's review launcher uses llm_env and can authenticate. The readiness probe must use the same scratch HOME and provider-bound environment to reflect worker readiness.",
+      "id": "preflight-ignores-bound-login",
+      "severity": "material",
+      "summary": "Standalone preflight can reject a working token binding because its model readiness probe uses the ambient environment."
+    }
+  ],
+  "launched_at": "2026-10-07T18:11:45+00:00",
+  "output_sha256": "1fdbe7675d77dd27b05e653b28fe940c30f48c54c6c98f3af99db7cd152875ad",
+  "perspective": "engineering-quality",
+  "request_id": "74a4077b-7c2f-4f92-a1d1-a4aeb564b38f",
+  "reviewer": {
+    "context_id": "01a11790-75d6-7460-8767-a214cc210d26",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-e3df4abf-f00f-4185-a05e-d95b060d8ca1",
+    "model": {
+      "source": "selected",
+      "value": "gpt-6.1-sol"
+    },
+    "provider": "codex",
+    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
+    "runtime": "codex-exec",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cached_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 147328
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 217786
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1032
+      }
+    },
+    "runtime": "codex-exec"
+  },
+  "schema_version": 1,
+  "task_content_digest": "7558177bb3a4dedadb78c237e0f98c906ba51737bc09b5dede8260d54e45a85a"
+}
