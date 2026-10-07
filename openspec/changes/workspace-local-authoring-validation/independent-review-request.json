@@ -1,9 +1,9 @@
 {
   "candidate": {
-    "base_head": "8c49616d6b4a3f0a981db53f96dc99025f2f6bb0",
+    "base_head": "4984d565b82e069b0621ee92eb2809f2e6214ded",
     "base_ref": "origin/main",
-    "candidate_head": "51652dc1cd1d1a556eb409aa1d8b877e56d46f38",
-    "diff_sha256": "97dca27c99be209387554011104df21cdc9afa63616611ea9aad7e890bb4f7c0"
+    "candidate_head": "b31e07a4dee0e382a99401f31e8b6627ec6b56bf",
+    "diff_sha256": "1aefb0aa0aed7fec1021dd7859700a97f7b3f7814a57b5089d08edf0011a5e36"
   },
   "change": "openspec/changes/workspace-local-authoring-validation",
   "excluded_lifecycle_paths": [
@@ -37,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-07T00:27:33+00:00",
+  "prepared_at": "2026-10-07T05:24:09+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/workspace-local-authoring-validation/independent-reviews",
     "required_perspectives": [
@@ -46,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "0748cfa1-1aa6-40c2-b253-eb1640e7a777",
+  "request_id": "602f3296-a588-44f0-aba2-346530d66174",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",

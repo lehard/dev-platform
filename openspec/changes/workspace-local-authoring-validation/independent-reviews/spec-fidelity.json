@@ -1,23 +1,23 @@
 {
   "availability": "unavailable",
   "candidate": {
-    "base_head": "8c49616d6b4a3f0a981db53f96dc99025f2f6bb0",
+    "base_head": "4984d565b82e069b0621ee92eb2809f2e6214ded",
     "base_ref": "origin/main",
-    "candidate_head": "51652dc1cd1d1a556eb409aa1d8b877e56d46f38",
-    "diff_sha256": "97dca27c99be209387554011104df21cdc9afa63616611ea9aad7e890bb4f7c0"
+    "candidate_head": "b31e07a4dee0e382a99401f31e8b6627ec6b56bf",
+    "diff_sha256": "1aefb0aa0aed7fec1021dd7859700a97f7b3f7814a57b5089d08edf0011a5e36"
   },
-  "completed_at": "2026-10-07T00:27:58+00:00",
+  "completed_at": "2026-10-07T05:24:43+00:00",
   "findings": [],
-  "launched_at": "2026-10-07T00:27:47+00:00",
-  "limitation": "codex reviewer exited with status 1 (You\u2019ve hit your usage limit. Upgrade to Pro (https://chatgpt.com/explore/pro), visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at 5:22 AM.); check the CLI login and the [model_routing] model for this account, then rerun",
+  "launched_at": "2026-10-07T05:24:43+00:00",
+  "limitation": "codex reviewer runtime with model 'gpt-6.1-sol' is not ready: probe exited with status 1 (Reconnecting... 2/5 (unexpected status 401 Unauthorized: Missing bearer or basic authentication in header, url: wss://api.openai.com/v1/responses, cf-ray: a46a7a9f3c49ed6d-NQZ)); next: log the codex CLI in on this host, or change the [model_routing] / [independent_review] binding for this account (no other model or provider is tried), then rerun python3 scripts/independent_review.py preflight",
   "perspective": "spec-fidelity",
-  "request_id": "0748cfa1-1aa6-40c2-b253-eb1640e7a777",
+  "request_id": "602f3296-a588-44f0-aba2-346530d66174",
   "reviewer": {
-    "context_id": "platform-launch-fa8d0b24-abda-48b3-b001-4319166f9f53",
+    "context_id": "platform-launch-65434246-a36b-4270-a7cf-451d23d9594b",
     "context_id_source": "platform-launch",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-fa8d0b24-abda-48b3-b001-4319166f9f53",
+    "launch_id": "platform-launch-65434246-a36b-4270-a7cf-451d23d9594b",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
