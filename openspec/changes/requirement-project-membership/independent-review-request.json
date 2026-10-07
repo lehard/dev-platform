@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "a8d83e5cbd97037b242daf30557f4b1e3b03ae7c",
     "base_ref": "origin/main",
-    "candidate_head": "5fb2079e552af8843f42b2723f70f535f78a4c40",
-    "diff_sha256": "115335c5e9c806c1cacd8fc041af5e306d29ada239e7ab11960d33d274077cfc"
+    "candidate_head": "7d64649b43adeb4e8bd8561457a317c247ed160e",
+    "diff_sha256": "571acf8b915840e909c5048fe5b08a9daddaffa06af0e1522b3f613ec85b5a05"
   },
   "change": "openspec/changes/requirement-project-membership",
   "excluded_lifecycle_paths": [
@@ -36,7 +36,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-07T19:06:31+00:00",
+  "prepared_at": "2026-10-07T19:17:01+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/requirement-project-membership/independent-reviews",
     "required_perspectives": [
@@ -45,7 +45,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "8b7882ca-d253-46ac-8886-efdf6190b12b",
+  "request_id": "ae7b6714-2336-47b3-8467-86551a2a020e",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -58,9 +58,9 @@
   "schema_version": 1,
   "task_content": {
     "base": "a8d83e5cbd97037b242daf30557f4b1e3b03ae7c",
-    "digest": "ef4424a27f59d0c8a7c0e62f0f64b976f5a09b9378d0ad194d7bccf9e1cc85f1",
+    "digest": "a9c37c8f33d307eff2810da71e4a3ef460d2767c49686033e4a590db079a7912",
     "paths": {
-      "docs/engineering/chatgpt-project-protocol.md": "362c9c031d0c2258aaa3a61f3424a40fae662c60",
+      "docs/engineering/chatgpt-project-protocol.md": "4c314232a6b84a2baab942931203e14b10dcd0da",
       "docs/engineering/task-intake.md": "1e572db56efcdb75cd13c6b9f460507849fc6b88",
       "openspec/changes/requirement-project-membership/.managed-task.json": "3b6780ef9c7d66928b7e69a156e7bb392716d20e",
       "openspec/changes/requirement-project-membership/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",

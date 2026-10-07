@@ -1,35 +1,88 @@
 {
-  "availability": "unavailable",
+  "availability": "available",
   "candidate": {
     "base_head": "a8d83e5cbd97037b242daf30557f4b1e3b03ae7c",
     "base_ref": "origin/main",
-    "candidate_head": "5fb2079e552af8843f42b2723f70f535f78a4c40",
-    "diff_sha256": "115335c5e9c806c1cacd8fc041af5e306d29ada239e7ab11960d33d274077cfc"
+    "candidate_head": "7d64649b43adeb4e8bd8561457a317c247ed160e",
+    "diff_sha256": "571acf8b915840e909c5048fe5b08a9daddaffa06af0e1522b3f613ec85b5a05"
   },
-  "completed_at": "2026-10-07T19:14:45+00:00",
-  "findings": [],
-  "launched_at": "2026-10-07T19:10:25+00:00",
-  "limitation": "codex reviewer exited with status 1 (You\u2019ve hit your usage limit. Upgrade to Pro (https://chatgpt.com/explore/pro), visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at Oct 8th, 2026 2:07 AM.); check the CLI login and the [model_routing] model for this account, then rerun",
+  "completed_at": "2026-10-07T19:17:47+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/requirement_intake.py: in create_requirement, `existing` sets `number`, then `_reconcile_requirement_labels(root, ..., priority=effective_priority)` runs on both the reuse and the create path. Tests cover only the same-priority rerun.",
+      "id": "reuse-rewrites-labels-of-existing-requirement",
+      "severity": "advisory",
+      "summary": "When `create` reuses an identical open Requirement, it still runs `_reconcile_requirement_labels` with the new call's priority. A rerun with a different `--priority` therefore silently re-labels an existing, possibly already started, Requirement. Title and body are the only identity check."
+    },
+    {
+      "evidence": "template/scripts/requirement_intake.py reconcile_board: `return [ensure_project_membership(root, ref) for ref in sorted(refs)]` raises RequirementIntakeError on the first failure, and main() prints results only after the whole list succeeds.",
+      "id": "reconcile-all-aborts-on-first-failure",
+      "severity": "advisory",
+      "summary": "`reconcile_board` with `--all` stops at the first Requirement whose membership cannot be confirmed. The remaining Requirements are not attempted, and the output does not say which were already reconciled. For a bulk operator repair path, a partial failure is hard to diagnose."
+    }
+  ],
+  "launched_at": "2026-10-07T19:17:29+00:00",
+  "output_sha256": "112fd70394e6eeea3dc5b242fc8a8fdbfa3d92aeaeb486083171ad7fe6179e40",
   "perspective": "engineering-quality",
-  "request_id": "8b7882ca-d253-46ac-8886-efdf6190b12b",
+  "request_id": "ae7b6714-2336-47b3-8467-86551a2a020e",
   "reviewer": {
-    "context_id": "platform-launch-f80b4423-3aa4-4923-9dc8-1eb1fc0d6343",
-    "context_id_source": "platform-launch",
-    "executed_provider": "codex",
+    "context_id": "58c5fa75-9eb5-4997-b23e-f59e9e03b47f",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-f80b4423-3aa4-4923-9dc8-1eb1fc0d6343",
+    "launch_id": "platform-launch-fcc6b6a1-bc0d-4950-817e-0e700f0141a1",
     "model": {
       "source": "selected",
-      "value": "gpt-6.1-sol"
+      "value": "sonnet"
     },
-    "provider": "codex",
-    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
-    "requested_provider": "codex",
-    "runtime": "codex-exec",
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
     "write_access": false
   },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 32304
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 52868
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14946
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 15457
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1481
+      }
+    },
+    "runtime": "claude-code-print"
+  },
   "schema_version": 1,
-  "task_content_digest": "ef4424a27f59d0c8a7c0e62f0f64b976f5a09b9378d0ad194d7bccf9e1cc85f1"
+  "task_content_digest": "a9c37c8f33d307eff2810da71e4a3ef460d2767c49686033e4a590db079a7912"
 }

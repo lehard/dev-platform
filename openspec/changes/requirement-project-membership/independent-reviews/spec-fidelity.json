@@ -3,66 +3,73 @@
   "candidate": {
     "base_head": "a8d83e5cbd97037b242daf30557f4b1e3b03ae7c",
     "base_ref": "origin/main",
-    "candidate_head": "5fb2079e552af8843f42b2723f70f535f78a4c40",
-    "diff_sha256": "115335c5e9c806c1cacd8fc041af5e306d29ada239e7ab11960d33d274077cfc"
+    "candidate_head": "7d64649b43adeb4e8bd8561457a317c247ed160e",
+    "diff_sha256": "571acf8b915840e909c5048fe5b08a9daddaffa06af0e1522b3f613ec85b5a05"
   },
-  "completed_at": "2026-10-07T19:10:25+00:00",
-  "findings": [
-    {
-      "evidence": "template/scripts/managed_project_status.py:427 reads Status, then lines 429\u2013435 unconditionally write Backlog if that earlier read was unset. A writer assigning In progress between the read and mutation is overwritten; the final check at lines 437\u2013442 sees Backlog and succeeds. An in-memory execution of the candidate function reproduced this outcome. This violates openspec/changes/requirement-project-membership/specs/managed-task-intake/spec.md:5: 'an existing Status SHALL NOT be overwritten.'",
-      "id": "status-initialization-overwrites-concurrent-claim",
-      "severity": "material",
-      "summary": "Membership repair can overwrite a concurrently assigned Status and still report success."
-    },
-    {
-      "evidence": "docs/engineering/chatgpt-project-protocol.md:83\u201389 says fixation succeeds after read-back verifies the labels and that a fixation-only request 'then stops', without checking Project membership. The candidate adds the membership gate only in the later sequence at lines 232\u2013238, while template/docs/engineering/chatgpt-project-protocol.md:86\u201394 updates the adapter itself. The central adapter therefore retains the behavior prohibited by openspec/changes/requirement-project-membership/specs/managed-task-intake/spec.md:26, which requires confirmed membership before reporting fixation.",
-      "id": "connected-adapter-retains-label-only-stop",
-      "severity": "material",
-      "summary": "The central connected-authoring adapter still directs fixation to stop after label verification, leaving conflicting completion instructions."
-    }
-  ],
-  "launched_at": "2026-10-07T19:07:20+00:00",
-  "output_sha256": "a288657177e079ef3dcd03c3789a7de12f66cc49ef743cea4441ff1f796c0578",
+  "completed_at": "2026-10-07T19:17:29+00:00",
+  "findings": [],
+  "launched_at": "2026-10-07T19:17:09+00:00",
+  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "spec-fidelity",
-  "request_id": "8b7882ca-d253-46ac-8886-efdf6190b12b",
+  "request_id": "ae7b6714-2336-47b3-8467-86551a2a020e",
   "reviewer": {
-    "context_id": "01a117c3-6542-79b0-9313-7be8fed33ad9",
+    "context_id": "0245fd17-446d-42bc-a8e6-3d0ea04b6f2c",
     "context_id_source": "runtime",
-    "executed_provider": "codex",
+    "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-c7a2d3c7-a172-4a44-87db-c87c0f7aeb70",
+    "launch_id": "platform-launch-d1125d4d-aece-4af9-bf8a-8d86faf2dbb3",
     "model": {
       "source": "selected",
-      "value": "gpt-6.1-sol"
+      "value": "sonnet"
     },
-    "provider": "codex",
-    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
-    "requested_provider": "codex",
-    "runtime": "codex-exec",
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
     "write_access": false
   },
   "runtime_usage": {
     "fields": {
-      "cached_input_tokens": {
+      "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 573056
+        "value": 38246
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 49974
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16423
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16642
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 659409
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 5072
+        "value": 1172
       }
     },
-    "runtime": "codex-exec"
+    "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "ef4424a27f59d0c8a7c0e62f0f64b976f5a09b9378d0ad194d7bccf9e1cc85f1"
+  "task_content_digest": "a9c37c8f33d307eff2810da71e4a3ef460d2767c49686033e4a590db079a7912"
 }
