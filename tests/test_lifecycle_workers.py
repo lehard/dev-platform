@@ -308,9 +308,13 @@ class LoginBindingTests(unittest.TestCase):
             raise subprocess.TimeoutExpired(command, 1)
         def missing(command, **kwargs):
             raise FileNotFoundError("no such file")
-        for runner in (timeout, missing):
-            with self.assertRaises(workers.WorkerError):
-                workers.check_login("claude", "/bin/claude", {}, Path("/h"), timeout=1, runner=runner)
+        for provider in ("claude", "codex"):
+            for runner in (timeout, missing):
+                with self.subTest(provider=provider, runner=runner), self.assertRaises(workers.WorkerError) as caught:
+                    workers.check_login(provider, f"/bin/{provider}", {}, Path("/h"), timeout=1, runner=runner)
+                self.assertIn(provider, str(caught.exception))
+                self.assertIn(f"[independent_review.login.{provider}]", str(caught.exception))
+                self.assertIn("--llm-home-file", str(caught.exception))
 
     def test_before_claim_failure_posts_nothing_and_success_claims(self):
         pr = {"number": 7, "head": {"sha": HEAD}, "state": "open"}

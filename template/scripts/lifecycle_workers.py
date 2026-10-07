@@ -268,24 +268,29 @@ def llm_env(provider: str, config: dict[str, Any], home: Path, env: dict[str, st
     return clean
 
 
+def login_binding_hint(provider: str) -> str:
+    """Name the explicit login bindings when a provider cannot authenticate."""
+    return (f"bind a login with [independent_review.login.{provider}] token_file in the operator config, "
+            "or pass --llm-home-file for a login file")
+
+
 def check_login(provider: str, binary: str, config: dict[str, Any], home: Path, *, timeout: float,
                 runner: Callable[..., Any] = subprocess.run) -> None:
     """Prove ``provider`` can log in inside the scratch HOME and environment the reviewer will use."""
     probe = LOGIN_PROBES.get(provider)
     if probe is None:
         raise WorkerError(f"no login probe exists for provider {provider!r}")
-    hint = (f"bind a login with [independent_review.login.{provider}] token_file in the operator config"
-            if provider in LOGIN_TOKEN_ENV else "bind a login with --llm-home-file")
+    hint = login_binding_hint(provider)
     try:
         done = runner([binary, *probe], cwd=home, env=llm_env(provider, config, home), stdin=subprocess.DEVNULL,
                       capture_output=True, text=True, check=False, timeout=timeout)
     except subprocess.TimeoutExpired as exc:
-        raise WorkerError(f"{provider} login probe timed out after {timeout:g}s; no review job was claimed") from exc
+        raise WorkerError(f"{provider} login probe timed out after {timeout:g}s; {hint}; no review job was claimed") from exc
     except OSError as exc:
-        raise WorkerError(f"{provider} login probe could not start ({exc}); no review job was claimed") from exc
+        raise WorkerError(f"{provider} login probe could not start ({exc}); {hint}; no review job was claimed") from exc
     if done.returncode:
         raise WorkerError(f"{provider} reviewer cannot log in inside the scratch HOME ({binary} {' '.join(probe)} "
-                          f"exited {done.returncode}); {hint}, or pass --llm-home-file for a login file; "
+                          f"exited {done.returncode}); {hint}; "
                           "no review job was claimed")
 
 
@@ -752,7 +757,7 @@ def main(argv: list[str] | None = None) -> int:
                 for provider in providers:
                     binary, limitation = resolve_binary(provider)
                     if binary is None:
-                        raise WorkerError(f"{provider} reviewer runtime is unavailable: {limitation}; no review job was claimed")
+                        raise WorkerError(f"{provider} reviewer runtime is unavailable: {limitation}; {login_binding_hint(provider)}; no review job was claimed")
                     check_login(provider, binary, config, home, timeout=preflight_timeout_seconds(config))
 
         result = work_next(frozenset(k for k in args.kinds.split(",") if k), list_prs=list_prs,

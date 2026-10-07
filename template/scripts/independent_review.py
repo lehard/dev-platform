@@ -701,20 +701,7 @@ def main() -> int:
 
             if args.change and not resolve_change(root, args.change).is_dir():
                 raise IndependentReviewError(f"OpenSpec change not found: {args.change}")
-            readiness = independent_review_runner.preflight(root)
-            if readiness["ready"]:
-                # The worker runs the reviewer in a scratch HOME: prove the login there, as the worker does.
-                import tempfile
-                import lifecycle_workers
-
-                with tempfile.TemporaryDirectory(prefix="review-login-") as probe_root:
-                    try:
-                        lifecycle_workers.check_login(
-                            readiness["provider"], readiness["binary"], independent_review_runner.settings(root),
-                            lifecycle_workers.scratch_home(Path(probe_root), args.llm_home_file),
-                            timeout=independent_review_runner.preflight_timeout_seconds(independent_review_runner.settings(root)))
-                    except lifecycle_workers.WorkerError as exc:
-                        readiness = {**readiness, "ready": False, "limitation": str(exc)}
+            readiness = independent_review_runner.bound_preflight(root, home_files=args.llm_home_file)
             if args.change:
                 readiness = {"change": args.change, **readiness}
             print(json.dumps(readiness, indent=2, sort_keys=True))

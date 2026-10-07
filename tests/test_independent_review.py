@@ -494,6 +494,8 @@ class IndependentReviewTests(unittest.TestCase):
         self.assertFalse(result["ready"])
         self.assertEqual((result["provider"], result["model"], result["binary"]), ("codex", "gpt-6.1-sol", None))
         self.assertIn("model 'gpt-6.1-sol' is not ready", result["limitation"])
+        self.assertIn("[independent_review.login.codex]", result["limitation"])
+        self.assertIn("--llm-home-file", result["limitation"])
 
     def test_preflight_command_reports_scratch_home_login_failure_like_the_worker(self) -> None:
         import lifecycle_workers
@@ -509,10 +511,42 @@ class IndependentReviewTests(unittest.TestCase):
         self.assertFalse(payload["ready"])
         self.assertIn("cannot log in inside the scratch HOME", payload["limitation"])
 
+    def test_preflight_model_probe_uses_bound_token_and_same_scratch_home(self) -> None:
+        self.write_config('provider = "claude"\n')
+        with tempfile.TemporaryDirectory() as tmp:
+            token = Path(tmp) / "token"
+            token.write_text("declared-secret")
+            token.chmod(0o600)
+            config = runner.settings(self.root)
+            config["login"] = {"claude": {"token_file": str(token)}}
+            homes = []
+
+            def login(provider, binary, settings, home, **kwargs):
+                self.assertEqual(provider, "claude")
+                homes.append(str(home))
+
+            def launch(argv, cwd, timeout, *, env):
+                self.assertEqual(env["HOME"], homes[0])
+                self.assertNotEqual(env["HOME"], str(Path.home()))
+                self.assertEqual(env["CLAUDE_CODE_OAUTH_TOKEN"], "declared-secret")
+                return probe_ok(argv)
+
+            with mock.patch.object(review, "current_worktree_root", return_value=self.root), \
+                    mock.patch.object(runner, "settings", return_value=config), \
+                    mock.patch.object(runner, "subprocess_launcher", side_effect=launch) as launched, \
+                    mock.patch("lifecycle_workers.check_login", side_effect=login), \
+                    mock.patch.dict(os.environ, {"CLAUDE_CODE_OAUTH_TOKEN": "ambient-secret"}), \
+                    mock.patch.object(sys, "argv", ["independent_review.py", "preflight"]), \
+                    mock.patch("builtins.print") as printed:
+                self.assertEqual(review.main(), 0)
+            launched.assert_called_once()
+            self.assertNotIn("declared-secret", str(printed.call_args))
+            self.assertNotIn("ambient-secret", str(printed.call_args))
+
     def test_preflight_command_prints_readiness_and_exits_nonzero_when_not_ready(self) -> None:
         ready = FakeLauncher()
         with mock.patch.object(review, "current_worktree_root", return_value=self.root), \
-                mock.patch.object(runner, "subprocess_launcher", ready), \
+                mock.patch.object(runner, "subprocess_launcher", side_effect=lambda argv, cwd, timeout, **kwargs: ready(argv, cwd, timeout)), \
                 mock.patch("lifecycle_workers.check_login") as login, \
                 mock.patch.object(sys, "argv", ["independent_review.py", "preflight", "review-change"]), \
                 mock.patch("builtins.print") as printed:
@@ -523,7 +557,8 @@ class IndependentReviewTests(unittest.TestCase):
         self.assertEqual(len(ready.probes), 1)
         failing = FakeLauncher(probe=runner.LaunchResult(1, ""))
         with mock.patch.object(review, "current_worktree_root", return_value=self.root), \
-                mock.patch.object(runner, "subprocess_launcher", failing), \
+                mock.patch.object(runner, "subprocess_launcher", side_effect=lambda argv, cwd, timeout, **kwargs: failing(argv, cwd, timeout)), \
+                mock.patch("lifecycle_workers.check_login"), \
                 mock.patch.object(sys, "argv", ["independent_review.py", "preflight"]), \
                 mock.patch("builtins.print") as printed:
             self.assertEqual(review.main(), 2)

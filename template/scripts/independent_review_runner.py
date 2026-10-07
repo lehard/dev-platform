@@ -475,7 +475,10 @@ def _preflight_one(
     result["model"] = model
     binary, binary_limitation = resolve_binary(provider)
     if binary is None:
-        return not_ready(f"{provider} reviewer runtime for model {model!r} is not ready: {binary_limitation}")
+        from lifecycle_workers import login_binding_hint
+
+        return not_ready(f"{provider} reviewer runtime for model {model!r} is not ready: {binary_limitation}; "
+                         f"{login_binding_hint(provider)}")
     result["binary"] = binary
     label = f"{provider} reviewer runtime with model {model!r}"
     wait = preflight_timeout_seconds(config) if timeout is None else timeout
@@ -535,6 +538,34 @@ def preflight(root: Path, *, config: dict[str, Any] | None = None,
             break
     result.update(limitation="; ".join(failures), fallback_reason="; ".join(failures))
     return result
+
+
+def bound_preflight(root: Path, *, home_files: list[str]) -> dict[str, Any]:
+    """Probe login and model readiness in the worker's explicit login environment."""
+    import tempfile
+    import lifecycle_workers
+
+    config = settings(root)
+    with tempfile.TemporaryDirectory(prefix="review-login-") as probe_root:
+        home = lifecycle_workers.scratch_home(Path(probe_root), home_files)
+        providers_by_binary = {}
+        for provider in PROVIDERS:
+            binary, _ = resolve_binary(provider)
+            if binary is not None:
+                providers_by_binary[binary] = provider
+
+        def bound_launcher(argv, cwd, timeout):
+            provider = providers_by_binary[argv[0]]
+            try:
+                lifecycle_workers.check_login(
+                    provider, argv[0], config, home,
+                    timeout=preflight_timeout_seconds(config))
+                env = lifecycle_workers.llm_env(provider, config, home)
+            except lifecycle_workers.WorkerError as exc:
+                raise LaunchUnavailable(str(exc)) from exc
+            return subprocess_launcher(argv, cwd, timeout, env=env)
+
+        return preflight(root, config=config, launcher=bound_launcher)
 
 
 def integration_root(root: Path) -> Path:
