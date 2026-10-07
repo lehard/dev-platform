@@ -535,7 +535,12 @@ def _admission_handoff(root: Path, branch: str, head: str) -> dict[str, Any]:
         raise QueueError(f"cannot read the checkout HEAD: {local.stderr.strip()}")
     if local.stdout.strip() != head:
         raise lacks(f"the checkout is at {local.stdout.strip()}, not the admitted head {head}")
-    proof = content_identity(root, str(state["change"]))
+    change = state["change"]
+    active = root / "openspec" / "changes" / change
+    archives = [path for path in (root / "openspec" / "changes" / "archive").glob(f"*-{change}") if path.is_dir()]
+    if not active.is_dir() and len(archives) != 1:
+        raise lacks(f"change {change} has no unique active or archived package")
+    proof = content_identity(root, change)
     digest = proof.get("digest") if isinstance(proof, dict) else None
     if not (isinstance(digest, str) and digest):
         raise lacks(f"no task-content proof could be computed for change {state['change']}")
@@ -596,6 +601,7 @@ def admit(root: Path, number: int, expected_head: str, *, handoff: dict | None =
     if target == "main" and branch.startswith("requirement/BR-"):
         require_composition_finalized(root, repo, number, expected_head)
     events = _events(root, repo, number)
+    resolved_handoff = handoff if handoff is not None else _admission_handoff(root, branch, expected_head)
     admitted = _admission(events, number)
     if admitted and handoff:
         prior = _latest(root, number, _comments(root, repo, number))
@@ -641,7 +647,7 @@ def admit(root: Path, number: int, expected_head: str, *, handoff: dict | None =
     if current.get("task_identity") is None or current.get("head") != expected_head:
         try:
             _transition(root, repo, number, "review-pending" if handoff else "ready", expected_head, inherit_identity=False,
-                        refuse_from=STATES, **(handoff or _admission_handoff(root, branch, expected_head)))
+                        refuse_from=STATES, **resolved_handoff)
         except LifecycleOwnershipChanged:
             pass  # lifecycle work recorded this head in the meantime; never rewind it
     if handoff:

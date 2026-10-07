@@ -1137,6 +1137,20 @@ class ManagedProvenanceTests(unittest.TestCase):
         self.assertEqual(handoff["task_identity"], {"task_content": content_identity(self.root, "sample")["digest"]})
         self.assertEqual(handoff["gates"], {})
 
+    def test_missing_managed_package_rejects_even_computable_digest(self) -> None:
+        head = self.commit("feature.txt")
+        self.state()
+        from task_content_identity import content_identity
+
+        self.assertTrue(content_identity(self.root, "sample")["digest"])
+        with self.assertRaisesRegex(queue.QueueError, "change sample has no unique active or archived package"):
+            queue._admission_handoff(self.root, "agent/task", head)
+
+    def test_archived_managed_package_retains_valid_provenance(self) -> None:
+        head = self.commit("openspec/changes/archive/2026-10-05-sample/proposal.md")
+        self.state()
+        self.assertIn("task_content", queue._admission_handoff(self.root, "agent/task", head)["task_identity"])
+
     def test_managed_task_binds_readable_successful_archived_evidence_only(self) -> None:
         import hashlib
 
@@ -1195,14 +1209,16 @@ class ManagedProvenanceTests(unittest.TestCase):
         head = self.managed_head()
         observed = {"number": 1, "state": "open", "base": {"ref": "main"}, "head": {"ref": "agent/task", "sha": head}}
         with patch.object(queue, "_repo", return_value=REPO), patch.object(queue, "_pr", return_value=observed), \
-             patch.object(queue, "_events", return_value=[admission(1, 5, head)]), \
+             patch.object(queue, "_events", return_value=[]), \
+             patch.object(queue, "_main", return_value=BASE), \
              patch.object(queue, "_comments", return_value=[]), patch.object(queue, "trusted_apps", return_value=frozenset()), \
              patch.object(queue, "trusted_writers", return_value=frozenset()), \
              patch.object(queue, "_ensure_labels"), patch.object(queue, "_comment") as comment, \
-             patch.object(queue, "_label"), patch.object(queue, "_transition") as transition:
+             patch.object(queue, "_label") as label, patch.object(queue, "_transition") as transition:
             with self.assertRaisesRegex(queue.QueueError, "lacks valid exact task-content provenance"):
                 queue.admit(self.root, 1, head)
         comment.assert_not_called()
+        label.assert_not_called()
         transition.assert_not_called()
 
     def test_supplied_developer_handoff_is_unchanged(self) -> None:

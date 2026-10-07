@@ -132,7 +132,7 @@ def _require_expected_head(root: Path, env: dict[str, str], ref: str, expected_h
         raise _Unusable("head-mismatch", f"GitHub PR head does not match the expected observed head {when}")
 
 
-def _protected_required_contexts(root: Path, env: dict[str, str], branch: str) -> frozenset[str]:
+def _protected_required_contexts(root: Path, env: dict[str, str], branch: str) -> frozenset[tuple[str, int | None]]:
     """Required status-check contexts of a branch's protection; empty when none are required.
 
     HTTP 404 (branch not protected / required status checks not enabled) means
@@ -148,12 +148,21 @@ def _protected_required_contexts(root: Path, env: dict[str, str], branch: str) -
         payload = json.loads(result.stdout)
     except json.JSONDecodeError:
         raise _Unusable("malformed", f"GitHub protection of {branch} was not structured JSON") from None
-    contexts = payload.get("contexts", []) if isinstance(payload, dict) else None
-    checks = payload.get("checks", []) if isinstance(payload, dict) else None
+    contexts = payload.get("contexts") if isinstance(payload, dict) else None
+    checks = payload.get("checks") if isinstance(payload, dict) else None
     if not isinstance(contexts, list) or not isinstance(checks, list) or not all(isinstance(c, str) for c in contexts) \
             or not all(isinstance(c, dict) and isinstance(c.get("context"), str) for c in checks):
         raise _Unusable("malformed", f"GitHub protection of {branch} had an unexpected shape")
-    return frozenset(contexts) | frozenset(c["context"] for c in checks)
+    bound = set()
+    for check in checks:
+        if "app_id" not in check:
+            raise _Unusable("malformed", f"GitHub protection of {branch} omitted app_id")
+        app = check["app_id"]
+        if app is not None and (type(app) is not int or app < -1):
+            raise _Unusable("malformed", f"GitHub protection of {branch} had an invalid app_id")
+        bound.add((check["context"], None if app == -1 else app))
+    named = {name for name, _ in bound}
+    return frozenset(bound | {(name, None) for name in contexts if name not in named})
 
 
 def _parse_check_rows(result: subprocess.CompletedProcess[str]) -> list[Any]:
@@ -166,7 +175,36 @@ def _parse_check_rows(result: subprocess.CompletedProcess[str]) -> list[Any]:
     return rows
 
 
-def _observe_required_checks(root: Path, env: dict[str, str], ref: str, base: str, main: str) -> RequiredCheckState:
+
+def _bound_check_runs(root: Path, env: dict[str, str], head: str) -> list[dict[str, Any]]:
+    endpoint = f"repos/{{owner}}/{{repo}}/commits/{head}/check-runs?per_page=100&filter=all"
+    result = _gh_read(root, env, ["api", "--paginate", "--slurp", endpoint])
+    if result.returncode != 0:
+        raise _Unusable("transport", "GitHub App-bound check runs are unavailable")
+    try:
+        pages = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        raise _Unusable("malformed", "GitHub App-bound check runs were not structured JSON") from None
+    if not isinstance(pages, list) or not pages:
+        raise _Unusable("malformed", "GitHub App-bound check runs had no pages")
+    runs = []
+    for page in pages:
+        if not isinstance(page, dict) or not isinstance(page.get("check_runs"), list):
+            raise _Unusable("malformed", "GitHub App-bound check runs had an invalid page")
+        for run in page["check_runs"]:
+            if (not isinstance(run, dict) or type(run.get("id")) is not int
+                    or not isinstance(run.get("name"), str)
+                    or not isinstance(run.get("app"), dict) or type(run["app"].get("id")) is not int
+                    or not isinstance(run.get("status"), str)
+                    or (run["status"] == "completed" and not isinstance(run.get("conclusion"), str))):
+                raise _Unusable("malformed", "GitHub App-bound check runs contained an invalid run")
+            if run.get("head_sha") != head:
+                raise _Unusable("head-mismatch", "GitHub App-bound check run differs from the expected head")
+            runs.append(run)
+    return runs
+
+
+def _observe_required_checks(root: Path, env: dict[str, str], ref: str, base: str, main: str, head: str) -> RequiredCheckState:
     fields = "name,state,workflow,link"
     if base == main:
         result = _gh_read(root, env, ["pr", "checks", ref, "--required", "--json", fields])
@@ -191,9 +229,22 @@ def _observe_required_checks(root: Path, env: dict[str, str], ref: str, base: st
         rows = _parse_check_rows(result)
         if any(not isinstance(row, dict) for row in rows):
             raise _Unusable("malformed", "GitHub required-check response contained an invalid check")
-        selected = [row for row in rows if row.get("name") in required]
+        unbound = {name for name, app in required if app is None}
+        selected = [row for row in rows if row.get("name") in unbound]
         present = {row.get("name") for row in selected}
-        selected += [{"name": name, "state": "PENDING", "workflow": "", "link": ""} for name in sorted(required - present)]
+        selected += [{"name": name, "state": "PENDING"} for name in sorted(unbound - present)]
+        if any(app is not None for _, app in required):
+            runs = _bound_check_runs(root, env, head)
+            for name, app in sorted(required, key=lambda item: item[0]):
+                if app is None:
+                    continue
+                matches = [run for run in runs if run["name"] == name and run["app"]["id"] == app]
+                if not matches:
+                    selected.append({"name": name, "state": "PENDING"})
+                    continue
+                run = max(matches, key=lambda run: run["id"])
+                state = run["conclusion"] if run["status"] == "completed" else run["status"]
+                selected.append({"name": name, "state": state})
         return _classify_required_checks(selected)
     raise RequiredCheckBaseError(f"cannot resolve required checks for base branch {base!r}: "
                                  f"only {main!r} and requirement/BR-<n> integration branches are supported")
@@ -220,7 +271,7 @@ def required_check_state_for_ref(root: Path, env: dict[str, str], ref: str, expe
         base_name = base.get("baseRefName")
         if not isinstance(base_name, str) or not base_name:
             raise _Unusable("malformed", "GitHub PR base was not named")
-        observed = _observe_required_checks(root, env, ref, base_name, main)
+        observed = _observe_required_checks(root, env, ref, base_name, main, expected_head)
         _require_expected_head(root, env, ref, expected_head, "after the checks were read")
         return observed
     except _Unusable as exc:

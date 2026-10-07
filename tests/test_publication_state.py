@@ -341,7 +341,7 @@ def _sh(text: str) -> str:
 
 
 SUCCESS_ROW = {"name": "validate", "state": "SUCCESS", "workflow": "Platform CI", "link": "https://example.invalid/run"}
-REQUIRED_VALIDATE = json.dumps({"contexts": ["validate"], "checks": [{"context": "validate", "app_id": 1}]})
+REQUIRED_VALIDATE = json.dumps({"contexts": ["validate"], "checks": [{"context": "validate", "app_id": None}]})
 
 
 class RequiredCheckStateForRefTests(PublicationStateTestCase):
@@ -353,7 +353,7 @@ class RequiredCheckStateForRefTests(PublicationStateTestCase):
     """
 
     def gh(self, *, heads=("abc123",), base="main", base_rc=0, checks=(0, "[]"), all_checks=None,
-           api=(0, "", ""), view_rc=0) -> dict[str, str]:
+           api=(0, "", ""), runs=(0, '[{"check_runs": []}]'), view_rc=0) -> dict[str, str]:
         counter = self.base / "head-count"
         counter.unlink(missing_ok=True)
         head_cases = "".join(f"{i}) printf '{{\"state\":\"OPEN\",\"headRefOid\":\"{h}\"}}';; " for i, h in enumerate(heads[:-1]))
@@ -361,6 +361,7 @@ class RequiredCheckStateForRefTests(PublicationStateTestCase):
         required_rc, required_out = checks
         all_rc, all_out = all_checks if all_checks is not None else (0, "[]")
         api_rc, api_out, api_err = api
+        runs_rc, runs_out = runs
         self.calls = self.base / "calls.log"
         self.calls.unlink(missing_ok=True)
         body = (
@@ -382,6 +383,7 @@ class RequiredCheckStateForRefTests(PublicationStateTestCase):
             '  esac\n'
             'fi\n'
             'if [ "$1" = "api" ]; then\n'
+            f'  case "$*" in *"/check-runs?"*) printf %s {_sh(runs_out)}; exit {runs_rc};; esac\n'
             f'  printf %s {_sh(api_out)}; printf %s {_sh(api_err)} >&2; exit {api_rc}\n'
             'fi\n'
             'exit 1'
@@ -464,6 +466,52 @@ class RequiredCheckStateForRefTests(PublicationStateTestCase):
                 log = self.calls.read_text()
                 self.assertIn("branches/main/protection/required_status_checks", log)
                 self.assertNotIn("--required", log)
+
+    def test_contribution_preserves_required_app_binding(self) -> None:
+        protection = json.dumps({"contexts": ["validate"], "checks": [{"context": "validate", "app_id": 1}]})
+        def run(app, state="success", number=1):
+            return {"id": number, "name": "validate", "app": {"id": app}, "head_sha": "abc123",
+                    "status": "completed", "conclusion": state}
+
+        cases = [
+            ([run(2)], "pending"),
+            ([run(1)], "passed"),
+            ([run(2), run(1, "failure", 2)], "failed"),
+            ([run(1), run(1, "failure", 2)], "failed"),
+            ([{**run(1), "status": "in_progress", "conclusion": None}], "pending"),
+        ]
+        for runs, expected in cases:
+            with self.subTest(runs=runs):
+                env = self.gh(base="requirement/BR-415", all_checks=(0, json.dumps([SUCCESS_ROW])),
+                              api=(0, protection, ""), runs=(0, json.dumps([{"check_runs": []}, {"check_runs": runs}])))
+                self.assertEqual(self.observe(env).kind, expected)
+                self.assertIn("--paginate --slurp", self.calls.read_text())
+                self.assertIn("commits/abc123/check-runs", self.calls.read_text())
+
+    def test_bound_protection_app_id_must_be_explicit_and_valid(self) -> None:
+        for check in ({"context": "validate"}, {"context": "validate", "app_id": True},
+                      {"context": "validate", "app_id": "1"}, {"context": "validate", "app_id": -2}):
+            with self.subTest(check=check):
+                protection = json.dumps({"contexts": ["validate"], "checks": [check]})
+                self.assertEqual(self.observe(self.gh(base="requirement/BR-415",
+                                 api=(0, protection, ""))).cause, "malformed")
+
+    def test_any_app_binding_preserves_name_based_checks(self) -> None:
+        protection = json.dumps({"contexts": ["validate"], "checks": [{"context": "validate", "app_id": -1}]})
+        env = self.gh(base="requirement/BR-415", api=(0, protection, ""),
+                      all_checks=(0, json.dumps([SUCCESS_ROW])))
+        self.assertEqual(self.observe(env).kind, "passed")
+        self.assertNotIn("/check-runs?", self.calls.read_text())
+
+    def test_bound_check_run_observation_fails_closed(self) -> None:
+        protection = json.dumps({"contexts": [], "checks": [{"context": "validate", "app_id": 1}]})
+        for runs, cause in [((1, ""), "transport"), ((0, "{}"), "malformed"),
+                            ((0, '[{"check_runs": [{}]}]'), "malformed"),
+                            ((0, '[{"check_runs": [{"id":1,"name":"validate","app":{"id":1},'
+                                  '"head_sha":"other","status":"completed","conclusion":"success"}]}]'), "head-mismatch")]:
+            with self.subTest(runs=runs):
+                self.assertEqual(self.observe(self.gh(base="requirement/BR-415",
+                                 api=(0, protection, ""), runs=runs)).cause, cause)
 
     def test_contribution_base_failures_are_explicit(self) -> None:
         base = "requirement/BR-415"

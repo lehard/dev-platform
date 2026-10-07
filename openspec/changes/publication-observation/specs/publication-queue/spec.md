@@ -58,6 +58,11 @@ The platform SHALL derive the required-check state of a pull request from valid 
 - **WHEN** a contribution pull request targets an unprotected `requirement/BR-<n>` integration branch and main requires the `validate` check
 - **THEN** the observation is derived from the contribution's `validate` check, a missing `validate` row is pending, and the contribution can record a passed required-checks gate once `validate` succeeds
 
+#### Scenario: Contribution preserves required App binding
+
+- **WHEN** main requires a check from a specific App and a contribution has a successful check of the same name from another App
+- **THEN** that success does not satisfy the requirement; the required App's missing run remains pending, and only its exact-head run determines the bound check state
+
 #### Scenario: Base branch requires no checks
 
 - **WHEN** gh reports no required checks for a main-targeted pull request and the base branch protection requires no status checks
@@ -100,6 +105,11 @@ The platform SHALL require valid exact task-content provenance, bound to the adm
 
 - **WHEN** a managed candidate's task state is unreadable, its checkout is not at the admitted head, or its task-content proof is missing or has no digest
 - **THEN** admission fails with an error naming the missing provenance and writes no admission record or branch/head identity
+
+#### Scenario: Managed package missing
+
+- **WHEN** managed state names a change with no active or archived package
+- **THEN** admission fails before writing any admission record or mutating labels, even if a digest can be computed
 
 #### Scenario: Valid managed proof
 
