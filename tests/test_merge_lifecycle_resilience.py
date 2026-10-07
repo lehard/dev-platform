@@ -54,6 +54,7 @@ if [ "$1" = "pr" ] && [ "$2" = "view" ]; then
     printf '{"state":"%s","headRefOid":"%s"}\n' "$state" "$head_sha"
     exit 0
   fi
+  if [ "$4" = "--json" ] && [ "$5" = "baseRefName" ]; then printf '{"baseRefName":"main"}\n'; exit 0; fi
   if [ "$4" = "--json" ] && [ "$5" = "state,mergedAt" ]; then
     main_sha=$(git --git-dir "$FAKE_REMOTE" rev-parse refs/heads/main 2>/dev/null) || exit 1
     branch_sha=$(git --git-dir "$FAKE_REMOTE" rev-parse "refs/heads/$branch" 2>/dev/null) || exit 1

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 import unittest
 from pathlib import Path
@@ -434,29 +435,13 @@ class TransitionRecordTests(unittest.TestCase):
              patch.object(queue, "_main", return_value=BASE), \
              patch.object(queue, "_ensure_labels"), patch.object(queue, "_comment"), patch.object(queue, "_label"), \
              patch.object(queue, "_comments", return_value=[]), \
+             patch.object(queue, "_admission_handoff", return_value={"task_identity": {"head": NEW_HEAD}, "gates": {}}), \
              patch.object(queue, "_transition") as transition:
             queue.admit(ROOT_PATH, 1, NEW_HEAD)
         transition.assert_called_once()
         args, kwargs = transition.call_args
         self.assertEqual(args, (ROOT_PATH, REPO, 1, "ready", NEW_HEAD))
         self.assertIn("task_identity", kwargs)
-
-    def test_admission_identity_is_the_task_content_digest_when_proven(self) -> None:
-        from subprocess import CompletedProcess
-
-        at_head = CompletedProcess([], 0, HEAD + "\n", "")
-        with patch("agent_friction.current_task_content", return_value={"digest": "d" * 64}), \
-             patch.object(queue, "run_git", return_value=at_head):
-            handoff = queue._admission_handoff(ROOT_PATH, "agent/1", HEAD)
-        self.assertEqual(handoff, {"task_identity": {"task_content": "d" * 64}, "gates": {}})
-        with patch("agent_friction.current_task_content", return_value=None), patch.object(queue, "run_git", return_value=at_head):
-            handoff = queue._admission_handoff(ROOT_PATH, "agent/1", HEAD)
-        self.assertEqual(handoff, {"task_identity": {"branch": "agent/1", "head": HEAD}, "gates": {}})
-        # A checkout at another head cannot vouch for the admitted head's validation.
-        with patch("agent_friction.current_task_content", return_value={"digest": "d" * 64}), \
-             patch.object(queue, "run_git", return_value=CompletedProcess([], 0, NEW_HEAD + "\n", "")):
-            handoff = queue._admission_handoff(ROOT_PATH, "agent/1", HEAD)
-        self.assertEqual(handoff["gates"], {})
 
 
 class WorkerLifecycleTests(unittest.TestCase):
@@ -700,6 +685,7 @@ class LineageAndOwnershipTests(unittest.TestCase):
              patch.object(queue, "_events", return_value=[admission(1, 17)]), \
              patch.object(queue, "_comments", return_value=comments), \
              patch.object(queue, "_label"), patch.object(queue, "_comment"), \
+             patch.object(queue, "_admission_handoff", return_value={"task_identity": {"head": HEAD}, "gates": {}}), \
              patch.object(queue, "_transition") as transition:
             queue.admit(ROOT_PATH, 1, HEAD)
         return transition
@@ -816,7 +802,7 @@ class Round13Tests(unittest.TestCase):
              patch.object(queue, "_comments", side_effect=lambda *a: next(observations, [reviewing])), \
              patch.object(queue, "_label"), patch.object(queue, "_comment"), patch.object(queue, "_transition"), \
              patch.object(queue, "_prepare", return_value=(HEAD, BASE)), \
-             patch.object(queue, "required_check_state_for_ref", return_value=RequiredCheckState("unknown", "api down", ())), \
+             patch.object(queue, "required_check_state_for_ref", return_value=RequiredCheckState("unknown", "api down", (), "malformed")), \
              patch.object(queue, "_block") as block:
             result = queue.worker(ROOT_PATH)
         self.assertEqual(result["state"], "waiting")
@@ -900,6 +886,7 @@ class BlockRobustnessTests(unittest.TestCase):
              patch.object(queue, "_events", return_value=[admission(1, 17)]), \
              patch.object(queue, "_comments", return_value=[]), \
              patch.object(queue, "_label"), patch.object(queue, "_comment"), \
+             patch.object(queue, "_admission_handoff", return_value={"task_identity": {"head": HEAD}, "gates": {}}), \
              patch.object(queue, "_transition", side_effect=queue.LifecycleOwnershipChanged("now reviewing")) as transition:
             result = queue.admit(ROOT_PATH, 1, HEAD)
         self.assertEqual(result["state"], "queued")
@@ -968,6 +955,397 @@ class WorkflowTrustBoundaryTests(unittest.TestCase):
         permissions = {key: value for key, value in options.items() if key.startswith("permission-")}
         self.assertEqual(permissions, {"permission-contents": "write", "permission-pull-requests": "write"})
         self.assertEqual(self.workflow["permissions"], {"contents": "read"})
+
+
+class CommentHistoryTests(unittest.TestCase):
+    @staticmethod
+    def rows(count: int, start: int = 1) -> list[dict]:
+        return [{"id": start + index, "body": f"c{index}"} for index in range(count)]
+
+    @staticmethod
+    def pages(rows: list[dict]) -> list[list[dict]]:
+        return [rows[i:i + 100] for i in range(0, len(rows), 100)] or [[]]
+
+    def read(self, observed):
+        with patch.object(queue, "_gh", return_value=observed) as gh:
+            result = queue._comments(ROOT_PATH, REPO, 7)
+        self.assertEqual(gh.call_args.args[1:4], ("api", "--paginate", "--slurp"))
+        return result
+
+    def test_histories_of_every_boundary_size_are_complete_and_ordered(self) -> None:
+        for count in (0, 99, 100, 101, 200):
+            with self.subTest(count=count):
+                rows = self.rows(count)
+                self.assertEqual(self.read(self.pages(rows)), rows)
+
+    def test_a_later_page_marker_participates_in_replay(self) -> None:
+        marker = {"id": 1000, "author_association": "OWNER", "body": queue.PREFIX + json.dumps(
+            {"version": 1, "number": 7, "kind": "admit", "head": HEAD, "base": BASE, "branch": "agent/7"})}
+        observed = self.pages([*self.rows(100), marker])
+        self.assertEqual(len(observed), 2)
+        with patch.object(queue, "_gh", return_value=observed), \
+             patch.object(queue, "trusted_apps", return_value=frozenset()):
+            events = queue._events(ROOT_PATH, REPO, 7)
+        self.assertEqual([event["kind"] for event in events], ["admit"])
+
+    def test_every_invalid_observation_raises_the_named_error_without_a_prefix(self) -> None:
+        good = self.rows(2)
+        cases = {
+            "empty body": None,
+            "no pages": [],
+            "outer value is not an array": {"id": 1},
+            "page is not an array": [good, {"id": 3}],
+            "non-object row": [[*good, "text"]],
+            "row without an id": [[*good, {"body": "x"}]],
+            "boolean id": [[*good, {"id": True}]],
+            "string id": [[*good, {"id": "9"}]],
+            "duplicate id across pages": [good, [{"id": 2}]],
+            "regressing id across pages": [good, [{"id": 1}]],
+        }
+        for name, observed in cases.items():
+            with self.subTest(name), patch.object(queue, "_gh", return_value=observed):
+                with self.assertRaisesRegex(queue.QueueError, "comment-history acquisition failed for #7"):
+                    queue._comments(ROOT_PATH, REPO, 7)
+
+    def test_transport_failure_and_invalid_json_are_named(self) -> None:
+        with patch.object(queue, "_gh", side_effect=queue.QueueError("page 2 unavailable")):
+            with self.assertRaisesRegex(queue.QueueError, "comment-history acquisition failed for #7: page 2 unavailable"):
+                queue._comments(ROOT_PATH, REPO, 7)
+        from subprocess import CompletedProcess
+        with patch("_platform_common.run_github_with_retry", return_value=CompletedProcess([], 0, "[[{", "")):
+            with self.assertRaisesRegex(queue.QueueError, "comment-history acquisition failed for #7"):
+                queue._comments(ROOT_PATH, REPO, 7)
+
+
+class TrustConfigurationTests(unittest.TestCase):
+    def setUp(self) -> None:
+        import os
+        import tempfile
+
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.root = Path(tmp.name)
+        env = patch.dict(os.environ, {}, clear=False)
+        env.start()
+        self.addCleanup(env.stop)
+        os.environ.pop(queue.COORDINATOR_APP_ENV, None)
+        os.environ.pop("DEV_PLATFORM_OPERATOR_CONFIG", None)
+
+    def config(self, text: str) -> None:
+        (self.root / ".dev-platform.toml").write_text(text, encoding="utf-8")
+
+    def operator(self, text: str, *, write: bool = True) -> None:
+        path = self.root / "operator.toml"
+        if write:
+            path.write_text(text, encoding="utf-8")
+        self.config(f'[operator]\nenabled = true\nconfig_path = "{path}"\n')
+
+    def test_valid_sources_are_unioned_with_the_environment_name(self) -> None:
+        import os
+
+        os.environ[queue.COORDINATOR_APP_ENV] = "env-app"
+        self.operator('[publication]\ncoordinator_app = "operator-app"\n')
+        self.assertEqual(queue.trusted_apps(self.root), {"env-app", "operator-app"})
+        self.config('[publication]\ncoordinator_app = "project-app"\n')
+        self.assertEqual(queue.trusted_apps(self.root), {"env-app", "project-app"})
+
+    def test_documented_absence_contributes_nothing_without_error(self) -> None:
+        self.assertEqual(queue.trusted_apps(self.root), frozenset())  # no project config
+        self.config('[operator]\nenabled = false\n')
+        self.assertEqual(queue.trusted_apps(self.root), frozenset())  # operator disabled, no [publication]
+        self.operator("")  # enabled operator config without a publication table
+        self.assertEqual(queue.trusted_apps(self.root), frozenset())
+
+    def test_invalid_configured_sources_raise_naming_the_source(self) -> None:
+        cases = {
+            "invalid TOML": (lambda: self.config("this is = = not toml"), r"\.dev-platform\.toml is unreadable"),
+            "non-table publication": (lambda: self.config('publication = "x"\n'), r"\.dev-platform\.toml is unreadable"),
+            "non-string app": (lambda: self.config("[publication]\ncoordinator_app = 5\n"), r"\.dev-platform\.toml is unreadable"),
+            "missing operator config": (lambda: self.operator("", write=False), r"\.dev-platform\.toml is unreadable or invalid: operator configuration was requested"),
+            "invalid operator TOML": (lambda: self.operator("= broken"), r"\.dev-platform\.toml is unreadable or invalid: "),
+            "non-string operator app": (lambda: self.operator("[publication]\ncoordinator_app = [1]\n"), r"\.dev-platform\.toml is unreadable or invalid: "),
+        }
+        for name, (setup, source) in cases.items():
+            setup()
+            with self.subTest(name), self.assertRaisesRegex(queue.QueueError, f"trust source {source}"):
+                queue.trusted_apps(self.root)
+            (self.root / "operator.toml").unlink(missing_ok=True)
+
+    def test_admission_and_worker_callers_stop_instead_of_narrowing_trust(self) -> None:
+        import lifecycle_workers
+
+        self.config("this is = = not toml")
+        with self.assertRaisesRegex(queue.QueueError, "trust source .dev-platform.toml"):
+            lifecycle_workers._coordinator_trust(self.root)
+        with patch.object(queue, "_repo", return_value=REPO), patch.object(queue, "_pr", return_value=pr(1)), \
+             patch.object(queue, "_comments", return_value=[]):
+            with self.assertRaisesRegex(queue.QueueError, "trust source .dev-platform.toml"):
+                queue.admit(self.root, 1, HEAD, handoff={"task_identity": {"head": HEAD}, "gates": {}})
+
+
+class ManagedProvenanceTests(unittest.TestCase):
+    """Real git repositories: a managed task, a quick task, and failure modes."""
+
+    def setUp(self) -> None:
+        import subprocess
+        import tempfile
+
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.root = Path(tmp.name)
+        self.git("init", "-b", "main")
+        self.git("config", "user.name", "Test")
+        self.git("config", "user.email", "test@example.invalid")
+        (self.root / "base.txt").write_text("base\n", encoding="utf-8")
+        self.git("add", ".")
+        self.git("commit", "-m", "base")
+        self.git("update-ref", "refs/remotes/origin/main", "HEAD")
+        self.git("switch", "-c", "agent/task")
+        self.subprocess = subprocess
+
+    def git(self, *args: str) -> str:
+        import subprocess
+
+        return subprocess.run(["git", *args], cwd=self.root, text=True, capture_output=True, check=True).stdout.strip()
+
+    def commit(self, relative: str, text: str = "x\n") -> str:
+        path = self.root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+        self.git("add", relative)
+        self.git("commit", "-m", f"edit {relative}")
+        return self.git("rev-parse", "HEAD")
+
+    def state(self, text: str | None = None) -> None:
+        (self.root / ".managed-task-state.json").write_text(
+            text if text is not None else json.dumps({"source_issue": "owner/backlog#1", "change": "sample"}), encoding="utf-8")
+
+    def managed_head(self) -> str:
+        return self.commit("openspec/changes/sample/proposal.md")
+
+    def test_genuine_quick_task_keeps_branch_head_identity(self) -> None:
+        head = self.commit("feature.txt")
+        self.assertEqual(queue._admission_handoff(self.root, "agent/task", head),
+                         {"task_identity": {"branch": "agent/task", "head": head}, "gates": {}})
+
+    def test_managed_task_with_valid_proof_binds_the_task_content_digest(self) -> None:
+        from task_content_identity import content_identity
+
+        head = self.managed_head()
+        self.state()
+        handoff = queue._admission_handoff(self.root, "agent/task", head)
+        self.assertEqual(handoff["task_identity"], {"task_content": content_identity(self.root, "sample")["digest"]})
+        self.assertEqual(handoff["gates"], {})
+
+    def test_managed_task_binds_readable_successful_archived_evidence_only(self) -> None:
+        import hashlib
+
+        head = self.managed_head()
+        self.state()
+        archive = self.root / "openspec/changes/archive/2026-10-05-sample"
+        archive.mkdir(parents=True)
+        evidence = archive / "automated-checks.json"
+        payload = {"outcome": "success", "managed_checkout": {"task_content": {"digest": "a" * 64}, "head": head}}
+        evidence.write_text(json.dumps(payload), encoding="utf-8")
+        gate = queue._archived_verification_gate(self.root)["archived-verification"]
+        self.assertEqual(gate["identity"], {"task_content": "a" * 64, "head": head})
+        self.assertEqual(gate["evidence"]["sha256"], hashlib.sha256(evidence.read_bytes()).hexdigest())
+        evidence.write_text("{not json", encoding="utf-8")
+        with self.assertRaisesRegex(queue.QueueError, "archived verification evidence .* unreadable or malformed"):
+            queue._archived_verification_gate(self.root)
+        evidence.write_text("[]", encoding="utf-8")
+        with self.assertRaisesRegex(queue.QueueError, "not a JSON object"):
+            queue._archived_verification_gate(self.root)
+        evidence.unlink()
+        self.assertEqual(queue._archived_verification_gate(self.root), {})
+
+    def test_managed_failures_raise_and_never_downgrade(self) -> None:
+        from subprocess import CompletedProcess
+
+        head = self.managed_head()
+        message = "managed candidate agent/task lacks valid exact task-content provenance"
+        # Head touches an OpenSpec change but the checkout has no managed state.
+        with self.assertRaisesRegex(queue.QueueError, message):
+            queue._admission_handoff(self.root, "agent/task", head)
+        # Unreadable or invalid managed state.
+        for text in ("{broken", json.dumps({"change": "sample"}), "[]"):
+            self.state(text)
+            with self.subTest(state=text), self.assertRaisesRegex(queue.QueueError, "managed task state is unreadable"):
+                queue._admission_handoff(self.root, "agent/task", head)
+        self.state()
+        # Checkout at another head.
+        self.commit("later.txt")
+        with self.assertRaisesRegex(queue.QueueError, message + ": the checkout is at"):
+            queue._admission_handoff(self.root, "agent/task", head)
+        later = self.git("rev-parse", "HEAD")
+        # Missing proof and empty digest.
+        with patch("task_content_identity.content_identity", return_value=None), \
+             self.assertRaisesRegex(queue.QueueError, message + ": no task-content proof"):
+            queue._admission_handoff(self.root, "agent/task", later)
+        with patch("task_content_identity.content_identity", return_value={"digest": ""}), \
+             self.assertRaisesRegex(queue.QueueError, message):
+            queue._admission_handoff(self.root, "agent/task", later)
+        # A git failure is raised, not turned into a quick-task identity.
+        self.git("update-ref", "-d", "refs/remotes/origin/main")
+        (self.root / ".managed-task-state.json").unlink()
+        with self.assertRaisesRegex(queue.QueueError, "cannot determine the merge base"):
+            queue._admission_handoff(self.root, "agent/task", later)
+
+    def test_admit_writes_nothing_when_managed_provenance_is_missing(self) -> None:
+        head = self.managed_head()
+        observed = {"number": 1, "state": "open", "base": {"ref": "main"}, "head": {"ref": "agent/task", "sha": head}}
+        with patch.object(queue, "_repo", return_value=REPO), patch.object(queue, "_pr", return_value=observed), \
+             patch.object(queue, "_events", return_value=[admission(1, 5, head)]), \
+             patch.object(queue, "_comments", return_value=[]), patch.object(queue, "trusted_apps", return_value=frozenset()), \
+             patch.object(queue, "trusted_writers", return_value=frozenset()), \
+             patch.object(queue, "_ensure_labels"), patch.object(queue, "_comment") as comment, \
+             patch.object(queue, "_label"), patch.object(queue, "_transition") as transition:
+            with self.assertRaisesRegex(queue.QueueError, "lacks valid exact task-content provenance"):
+                queue.admit(self.root, 1, head)
+        comment.assert_not_called()
+        transition.assert_not_called()
+
+    def test_supplied_developer_handoff_is_unchanged(self) -> None:
+        head = self.commit("feature.txt")
+        identity = {"kind": "contribution", "change": "sample", "task_content": {"digest": "d"}}
+        handoff = {"task_identity": identity, "gates": {}}
+        observed = {"number": 1, "state": "open", "base": {"ref": "main"}, "head": {"ref": "agent/task", "sha": head}}
+        with patch.object(queue, "_repo", return_value=REPO), patch.object(queue, "_pr", return_value=observed), \
+             patch.object(queue, "_events", side_effect=[[], [admission(1, 5, head)]]), patch.object(queue, "_main", return_value=BASE), \
+             patch.object(queue, "_comments", return_value=[]), patch.object(queue, "trusted_apps", return_value=frozenset()), \
+             patch.object(queue, "trusted_writers", return_value=frozenset()), patch.object(queue, "_derive", return_value={}), \
+             patch.object(queue, "_latest", return_value={"state": "review-pending"}), \
+             patch.object(queue, "_ensure_labels"), patch.object(queue, "_comment"), patch.object(queue, "_label"), \
+             patch.object(queue, "publish_job"), patch.object(queue, "_transition") as transition, \
+             patch.object(queue, "_admission_handoff") as derived:
+            # contribution identity requires contribution_base; supply it.
+            identity["contribution_base"] = BASE
+            queue.admit(self.root, 1, head, handoff=handoff)
+        derived.assert_not_called()
+        self.assertEqual(transition.call_args.kwargs["task_identity"], identity)
+
+    def test_integration_placeholder_identity_never_replaces_a_recorded_managed_identity(self) -> None:
+        from candidate_lifecycle import build_handoff_record, marker_body
+
+        managed = {"task_content": "m" * 64}
+        prior = build_handoff_record(number=7, state="ready", head=HEAD, task_identity=managed, gates={},
+                                     red_gate=None, not_reverified=[], attempts={}, next_job=None,
+                                     at="2026-10-05T08:00:00Z")
+        posted: list[str] = []
+        observed = {"number": 7, "state": "open", "head": {"sha": HEAD}, "labels": []}
+        with patch.object(queue, "_gh", side_effect=lambda _r, *a, data=None: posted.append(data["body"])), \
+             patch.object(queue, "_label"), patch.object(queue, "_pr", return_value=observed), \
+             patch.object(queue, "_comments", return_value=[{"id": 1, "author_association": "OWNER", "body": marker_body(prior)}]), \
+             patch.object(queue, "trusted_apps", return_value=frozenset()), patch.object(queue, "trusted_writers", return_value=frozenset()), \
+             patch.object(queue.subprocess, "run", return_value=__import__("subprocess").CompletedProcess([], 0, "", "")):
+            record = queue._transition(ROOT_PATH, REPO, 7, "integrating", HEAD,
+                                       task_identity={"branch": "agent/7", "head": HEAD}, attempt="integration")
+        self.assertEqual(record["task_identity"], managed)
+        self.assertEqual(len(posted), 1)
+
+
+class RequiredCheckObservationMappingTests(unittest.TestCase):
+    """How the coordinator reacts to each classified required-check observation."""
+
+    def run_worker(self, state: RequiredCheckState, *, polls: int = 0):
+        with patch.object(queue, "_repo", return_value=REPO), \
+             patch.object(queue, "_queued", return_value=[(20, 1, admission(1, 20))]), \
+             patch.object(queue, "_pr", return_value=pr(1)), \
+             patch.object(queue, "_comments", return_value=[]), \
+             patch.object(queue, "_label") as label, patch.object(queue, "_transition", return_value=None), \
+             patch.object(queue, "_prepare", return_value=(HEAD, BASE)), \
+             patch.object(queue, "_raise_if_owned_elsewhere"), \
+             patch.object(queue, "CHECK_WAIT_SECONDS", 0), \
+             patch.object(queue, "required_check_state_for_ref", return_value=state), \
+             patch.object(queue, "_integration_repair", return_value={"state": "waiting", "number": 1}) as repair, \
+             patch.object(queue, "_block", return_value={"state": "blocked", "number": 1}) as block, \
+             patch.object(queue.subprocess, "run") as process:
+            result = queue.worker(ROOT_PATH)
+        process.assert_not_called()
+        return result, block, repair, label
+
+    def test_pending_waits_without_blocking(self) -> None:
+        result, block, repair, _ = self.run_worker(RequiredCheckState("pending", checks=({"name": "validate"},)))
+        self.assertEqual(result["state"], "waiting")
+        self.assertEqual(result["reason"], "required CI pending")
+        block.assert_not_called()
+        repair.assert_not_called()
+
+    def test_failed_enters_the_bounded_repair_not_a_block(self) -> None:
+        result, block, repair, _ = self.run_worker(RequiredCheckState("failed", "validate"))
+        self.assertEqual(result["state"], "waiting")
+        block.assert_not_called()
+        self.assertEqual(repair.call_args.args[-1].gate, "required-checks")
+
+    def test_transport_and_head_mismatch_wait_naming_the_cause_and_release(self) -> None:
+        for cause in ("transport", "head-mismatch"):
+            with self.subTest(cause=cause):
+                result, block, repair, label = self.run_worker(RequiredCheckState("unknown", "GitHub down", cause=cause))
+                self.assertEqual(result["state"], "waiting")
+                self.assertIn(cause, result["reason"])
+                self.assertIn("GitHub down", result["reason"])
+                block.assert_not_called()
+                repair.assert_not_called()
+                label.assert_any_call(ROOT_PATH, REPO, 1, queue.ACTIVE, present=False)
+
+    def test_malformed_and_unsupported_state_still_block_visibly(self) -> None:
+        for cause in ("malformed", "unsupported-state"):
+            with self.subTest(cause=cause):
+                result, block, _, _ = self.run_worker(RequiredCheckState("unknown", "bad output", cause=cause))
+                self.assertEqual(result["state"], "blocked")
+                self.assertIn(cause, block.call_args.args[3])
+                self.assertIn("bad output", block.call_args.args[3])
+
+    def test_unsupported_base_blocks_with_the_named_error(self) -> None:
+        from publication_state import RequiredCheckBaseError
+
+        with patch.object(queue, "_repo", return_value=REPO), \
+             patch.object(queue, "_queued", return_value=[(20, 1, admission(1, 20))]), \
+             patch.object(queue, "_pr", return_value=pr(1)), patch.object(queue, "_comments", return_value=[]), \
+             patch.object(queue, "_label"), patch.object(queue, "_transition", return_value=None), \
+             patch.object(queue, "_prepare", return_value=(HEAD, BASE)), patch.object(queue, "_raise_if_owned_elsewhere"), \
+             patch.object(queue, "required_check_state_for_ref", side_effect=RequiredCheckBaseError("base release/1.0")), \
+             patch.object(queue, "_block", return_value={"state": "blocked"}) as block:
+            queue.worker(ROOT_PATH)
+        self.assertIn("base release/1.0", block.call_args.args[3])
+
+
+class ContributionRequiredChecksGateTests(unittest.TestCase):
+    def test_contribution_to_requirement_branch_records_passed_gate_from_mains_validate(self) -> None:
+        from subprocess import CompletedProcess
+        from candidate_lifecycle import build_handoff_record, marker_body
+
+        proof = {"version": 1, "digest": "d" * 64, "paths": {"a": "b"}, "base": BASE}
+        identity = {"kind": "contribution", "change": "c", "requirement": "o/b#1", "source_issue": "o/b#2",
+                    "target_branch": "requirement/BR-7", "contribution_base": BASE, "task_content": proof}
+        record = build_handoff_record(number=7, state="ready", head=HEAD, task_identity=identity, gates={},
+                                      red_gate=None, not_reverified=[], attempts={}, next_job=None,
+                                      at="2026-10-05T08:00:00Z")
+        calls: list[list[str]] = []
+
+        def gh(command, **_kwargs):
+            calls.append(command)
+            if command[:3] == ["gh", "pr", "view"]:
+                if "baseRefName" in command:
+                    return CompletedProcess(command, 0, '{"baseRefName":"requirement/BR-7"}', "")
+                return CompletedProcess(command, 0, json.dumps({"state": "OPEN", "headRefOid": HEAD}), "")
+            if command[:2] == ["gh", "api"]:
+                return CompletedProcess(command, 0, json.dumps({"contexts": ["validate"], "checks": []}), "")
+            if command[:3] == ["gh", "pr", "checks"]:
+                assert "--required" not in command
+                return CompletedProcess(command, 0, json.dumps([
+                    {"name": "validate", "state": "SUCCESS", "workflow": "Platform CI", "link": ""},
+                    {"name": "publish-next", "state": "FAILURE", "workflow": "queue", "link": ""}]), "")
+            raise AssertionError(command)
+
+        observed = {**pr(7), "base": {"ref": "requirement/BR-7"}}
+        with patch.object(queue, "_repo", return_value=REPO), patch.object(queue, "_pr", return_value=observed), \
+             patch.object(queue, "_comments", return_value=[{"id": 1, "author_association": "OWNER", "body": marker_body(record)}]), \
+             patch.object(queue, "trusted_apps", return_value=frozenset()), patch.object(queue, "trusted_writers", return_value=frozenset()), \
+             patch("publication_state.run_github_with_retry", side_effect=gh):
+            result = queue.candidate_status(ROOT_PATH, 7)
+        self.assertEqual(result["gates"]["required-checks"]["result"], "passed")
+        self.assertEqual(result["gates"]["required-checks"]["evidence"]["kind"], "passed")
 
 
 if __name__ == "__main__":

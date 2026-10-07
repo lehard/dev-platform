@@ -235,6 +235,7 @@ class ObservePublicationTests(PublicationStateTestCase):
             'if [ "$1" = "pr" ] && [ "$2" = "view" ]; then\n'
             f'  if [ "$5" = "state,headRefOid" ]; then printf \'{{"state":"OPEN","headRefOid":"{self.head}"}}\'; exit 0; fi\n'
             '  if [ "$5" = "url,number,autoMergeRequest,baseRefName" ]; then printf \'{"url":"https://example.invalid/pr/9","number":9,"baseRefName":"main"}\'; exit 0; fi\n'
+            '  if [ "$5" = "baseRefName" ]; then printf \'{"baseRefName":"main"}\'; exit 0; fi\n'
             '  exit 1\n'
             'fi\n'
             'if [ "$1" = "pr" ] && [ "$2" = "checks" ]; then echo \'[{"name":"ci","state":"FAILURE","workflow":"ci","link":""}]\'; exit 0; fi\n'
@@ -335,50 +336,153 @@ class MergeDurabilityCapabilityTests(PublicationStateTestCase):
         self.assertEqual(result, "foreground_fallback")
 
 
+def _sh(text: str) -> str:
+    return "'" + text.replace("'", "'\\''") + "'"
+
+
+SUCCESS_ROW = {"name": "validate", "state": "SUCCESS", "workflow": "Platform CI", "link": "https://example.invalid/run"}
+REQUIRED_VALIDATE = json.dumps({"contexts": ["validate"], "checks": [{"context": "validate", "app_id": 1}]})
+
+
 class RequiredCheckStateForRefTests(PublicationStateTestCase):
-    """`required_check_state_for_ref` backs rollout PR adoption: no local checkout exists for
-    a rollout branch, so it compares against a caller-supplied expected head instead of a
-    local git ref."""
+    """Shared classifier behind rollout adoption, finish, queue integration and status.
 
-    def test_passed_checks_for_matching_head(self) -> None:
-        env = self.fake_gh(
-            'if [ "$1" = "pr" ] && [ "$2" = "view" ]; then printf \'{"state":"OPEN","headRefOid":"abc123"}\'; exit 0; fi\n'
-            'if [ "$1" = "pr" ] && [ "$2" = "checks" ]; then printf \'[{"name":"ci","state":"SUCCESS"}]\'; exit 0; fi\n'
+    Fixtures follow the shapes recorded against gh 2.97: ``pr checks --json`` exits 0 for
+    passed, pending and failed lists, and ``--required`` with no required checks exits 1 with
+    empty stdout.
+    """
+
+    def gh(self, *, heads=("abc123",), base="main", base_rc=0, checks=(0, "[]"), all_checks=None,
+           api=(0, "", ""), view_rc=0) -> dict[str, str]:
+        counter = self.base / "head-count"
+        counter.unlink(missing_ok=True)
+        head_cases = "".join(f"{i}) printf '{{\"state\":\"OPEN\",\"headRefOid\":\"{h}\"}}';; " for i, h in enumerate(heads[:-1]))
+        head_cases += f"*) printf '{{\"state\":\"OPEN\",\"headRefOid\":\"{heads[-1]}\"}}';; "
+        required_rc, required_out = checks
+        all_rc, all_out = all_checks if all_checks is not None else (0, "[]")
+        api_rc, api_out, api_err = api
+        self.calls = self.base / "calls.log"
+        self.calls.unlink(missing_ok=True)
+        body = (
+            f'echo "$*" >> {_sh(str(self.calls))}\n'
+            'if [ "$1" = "pr" ] && [ "$2" = "view" ]; then\n'
+            f'  if [ {view_rc} -ne 0 ]; then exit {view_rc}; fi\n'
+            '  if [ "$5" = "state,headRefOid" ]; then\n'
+            f'    n=$(cat {_sh(str(counter))} 2>/dev/null || echo 0); echo $((n+1)) > {_sh(str(counter))}\n'
+            f'    case $n in {head_cases}esac; exit 0\n'
+            '  fi\n'
+            f'  if [ "$5" = "baseRefName" ]; then if [ {base_rc} -ne 0 ]; then exit {base_rc}; fi; '
+            f'printf \'{{"baseRefName":"{base}"}}\'; exit 0; fi\n'
+            '  exit 1\n'
+            'fi\n'
+            'if [ "$1" = "pr" ] && [ "$2" = "checks" ]; then\n'
+            '  case " $* " in\n'
+            f'    *" --required "*) printf %s {_sh(required_out)}; exit {required_rc};;\n'
+            f'    *) printf %s {_sh(all_out)}; exit {all_rc};;\n'
+            '  esac\n'
+            'fi\n'
+            'if [ "$1" = "api" ]; then\n'
+            f'  printf %s {_sh(api_out)}; printf %s {_sh(api_err)} >&2; exit {api_rc}\n'
+            'fi\n'
             'exit 1'
         )
-        result = publication_state.required_check_state_for_ref(self.root, env, "dev-platform/rollout-v1.0.0", "abc123")
-        self.assertEqual(result.kind, "passed")
+        return self.fake_gh(body)
 
-    def test_failed_checks_for_matching_head(self) -> None:
-        env = self.fake_gh(
-            'if [ "$1" = "pr" ] && [ "$2" = "view" ]; then printf \'{"state":"OPEN","headRefOid":"abc123"}\'; exit 0; fi\n'
-            'if [ "$1" = "pr" ] && [ "$2" = "checks" ]; then printf \'[{"name":"ci","state":"FAILURE"}]\'; exit 0; fi\n'
-            'exit 1'
-        )
-        result = publication_state.required_check_state_for_ref(self.root, env, "dev-platform/rollout-v1.0.0", "abc123")
-        self.assertEqual(result.kind, "failed")
+    def observe(self, env: dict[str, str]) -> publication_state.RequiredCheckState:
+        result = publication_state.required_check_state_for_ref(self.root, env, "9", "abc123")
+        if result.kind == "unknown":
+            self.assertIn(result.cause, publication_state.UNKNOWN_CAUSES)
+        else:
+            self.assertEqual(result.cause, "")
+        return result
 
-    def test_changed_head_is_unknown_not_a_silent_pass(self) -> None:
-        env = self.fake_gh(
-            'if [ "$1" = "pr" ] && [ "$2" = "view" ]; then printf \'{"state":"OPEN","headRefOid":"def456"}\'; exit 0; fi\n'
-            'if [ "$1" = "pr" ] && [ "$2" = "checks" ]; then printf \'[{"name":"ci","state":"SUCCESS"}]\'; exit 0; fi\n'
-            'exit 1'
-        )
-        result = publication_state.required_check_state_for_ref(self.root, env, "dev-platform/rollout-v1.0.0", "abc123")
-        self.assertEqual(result.kind, "unknown")
+    def test_passed_pending_and_failed_lists_exit_zero(self) -> None:
+        for state, kind in (("SUCCESS", "passed"), ("IN_PROGRESS", "pending"), ("FAILURE", "failed")):
+            with self.subTest(state=state):
+                rows = json.dumps([{**SUCCESS_ROW, "state": state}])
+                self.assertEqual(self.observe(self.gh(checks=(0, rows))).kind, kind)
 
-    def test_unreadable_pr_state_is_unknown(self) -> None:
-        result = publication_state.required_check_state_for_ref(self.root, self.no_pr_gh(), "dev-platform/rollout-v1.0.0", "abc123")
-        self.assertEqual(result.kind, "unknown")
+    def test_exit_zero_empty_list_is_not_registered(self) -> None:
+        self.assertEqual(self.observe(self.gh(checks=(0, "[]"))).kind, "not_registered")
 
-    def test_pending_checks_for_matching_head(self) -> None:
-        env = self.fake_gh(
-            'if [ "$1" = "pr" ] && [ "$2" = "view" ]; then printf \'{"state":"OPEN","headRefOid":"abc123"}\'; exit 0; fi\n'
-            'if [ "$1" = "pr" ] && [ "$2" = "checks" ]; then printf \'[{"name":"ci","state":"IN_PROGRESS"}]\'; exit 0; fi\n'
-            'exit 1'
-        )
-        result = publication_state.required_check_state_for_ref(self.root, env, "dev-platform/rollout-v1.0.0", "abc123")
-        self.assertEqual(result.kind, "pending")
+    def test_no_required_checks_with_unprotected_base_is_not_registered_from_protection(self) -> None:
+        env = self.gh(checks=(1, ""), api=(1, '{"message":"Branch not protected"}', "gh: Branch not protected (HTTP 404)"))
+        result = self.observe(env)
+        self.assertEqual(result.kind, "not_registered")
+        self.assertIn("main", result.detail)
+        self.assertIn("branches/main/protection/required_status_checks", self.calls.read_text())
+
+    def test_no_required_checks_while_base_requires_some_is_malformed(self) -> None:
+        result = self.observe(self.gh(checks=(1, ""), api=(0, REQUIRED_VALIDATE, "")))
+        self.assertEqual((result.kind, result.cause), ("unknown", "malformed"))
+
+    def test_protection_api_failure_is_transport(self) -> None:
+        result = self.observe(self.gh(checks=(1, ""), api=(1, "", "gh: Server Error (HTTP 500)")))
+        self.assertEqual((result.kind, result.cause), ("unknown", "transport"))
+
+    def test_other_exit_or_exit_one_with_output_is_transport(self) -> None:
+        for rc, out in ((2, ""), (4, ""), (8, "[]"), (1, "something")):
+            with self.subTest(rc=rc, out=out):
+                result = self.observe(self.gh(checks=(rc, out)))
+                self.assertEqual((result.kind, result.cause), ("unknown", "transport"))
+
+    def test_garbage_or_wrong_shape_stdout_is_malformed(self) -> None:
+        for out in ("not json", '{"name":"x"}', "[1]"):
+            with self.subTest(out=out):
+                result = self.observe(self.gh(checks=(0, out)))
+                self.assertEqual((result.kind, result.cause), ("unknown", "malformed"))
+
+    def test_unsupported_check_state_has_its_own_cause(self) -> None:
+        rows = json.dumps([{**SUCCESS_ROW, "state": "WEIRD"}])
+        self.assertEqual(self.observe(self.gh(checks=(0, rows))).cause, "unsupported-state")
+
+    def test_pr_view_failures_are_transport_or_malformed(self) -> None:
+        self.assertEqual(self.observe(self.gh(view_rc=1)).cause, "transport")
+        self.assertEqual(self.observe(self.gh(base_rc=1)).cause, "transport")
+
+    def test_head_differing_before_or_changing_between_calls_is_head_mismatch(self) -> None:
+        rows = json.dumps([SUCCESS_ROW])
+        for heads in (("def456",), ("abc123", "def456")):
+            with self.subTest(heads=heads):
+                result = self.observe(self.gh(heads=heads, checks=(0, rows)))
+                self.assertEqual((result.kind, result.cause), ("unknown", "head-mismatch"))
+
+    def test_contribution_base_uses_mains_required_checks(self) -> None:
+        base = "requirement/BR-415"
+        cases = {
+            "success": ([SUCCESS_ROW], "passed"),
+            "in progress": ([{**SUCCESS_ROW, "state": "IN_PROGRESS"}], "pending"),
+            "failure": ([{**SUCCESS_ROW, "state": "FAILURE"}], "failed"),
+            "missing required row": ([{**SUCCESS_ROW, "name": "publish-next"}], "pending"),
+            "no rows": ([], "pending"),
+            "unrelated failing row ignored": ([SUCCESS_ROW, {**SUCCESS_ROW, "name": "other", "state": "FAILURE"}], "passed"),
+        }
+        for name, (rows, kind) in cases.items():
+            with self.subTest(name):
+                env = self.gh(base=base, all_checks=(0, json.dumps(rows)), api=(0, REQUIRED_VALIDATE, ""))
+                self.assertEqual(self.observe(env).kind, kind)
+                log = self.calls.read_text()
+                self.assertIn("branches/main/protection/required_status_checks", log)
+                self.assertNotIn("--required", log)
+
+    def test_contribution_base_failures_are_explicit(self) -> None:
+        base = "requirement/BR-415"
+        self.assertEqual(self.observe(self.gh(base=base, api=(1, "", "HTTP 500"))).cause, "transport")
+        self.assertEqual(self.observe(self.gh(base=base, api=(1, "", "gh: Not Found (HTTP 404)"))).kind, "not_registered")
+        self.assertEqual(self.observe(self.gh(base=base, all_checks=(1, "[]"), api=(0, REQUIRED_VALIDATE, ""))).cause, "transport")
+        self.assertEqual(self.observe(self.gh(base=base, all_checks=(0, "junk"), api=(0, REQUIRED_VALIDATE, ""))).cause, "malformed")
+
+    def test_unsupported_base_raises(self) -> None:
+        with self.assertRaisesRegex(publication_state.RequiredCheckBaseError, "release/1.0"):
+            publication_state.required_check_state_for_ref(self.root, self.gh(base="release/1.0"), "9", "abc123")
+
+    def test_unreadable_pr_state_is_unknown_with_cause(self) -> None:
+        result = publication_state.required_check_state_for_ref(self.root, self.no_pr_gh(), "9", "abc123")
+        self.assertEqual((result.kind, result.cause), ("unknown", "transport"))
+
+    def test_unknown_requires_a_cause(self) -> None:
+        with self.assertRaises(ValueError):
+            publication_state.RequiredCheckState("unknown", "no cause")
 
 
 if __name__ == "__main__":

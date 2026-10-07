@@ -110,7 +110,7 @@ class ObservePendingRolloutTests(unittest.TestCase):
         with (
             patch.object(rollout_preflight, "github_repo_name", return_value="example-org/managed-project"),
             patch.object(rollout_preflight, "list_open_prs", return_value=[pr(1, "v1.0.0")]),
-            patch.object(rollout_preflight, "required_check_state_for_ref", return_value=RequiredCheckState("unknown", "changed head")),
+            patch.object(rollout_preflight, "required_check_state_for_ref", return_value=RequiredCheckState("unknown", "changed head", cause="head-mismatch")),
         ):
             result = rollout_preflight.observe_pending_rollout(ROOT_PATH, CONFIG, ENV)
         self.assertEqual(result.state, rollout_preflight.BLOCKED)
