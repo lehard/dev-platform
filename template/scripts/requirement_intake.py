@@ -251,22 +251,117 @@ def create_requirement(
         outcome=outcome, target_repository=target_repository, context=context,
         acceptance_evidence=acceptance_evidence, exclusions=exclusions,
     )
-    result = run(
-        [
-            "gh", "issue", "create", "--repo", repository, "--title", title.strip(), "--body", body,
-            "--label", REQUIREMENT_LABEL, "--label", config.project_label, "--label", priority_label_value,
-        ],
-        root, env,
+    existing = find_identical_open_requirement(
+        root, repository, title=title.strip(), body=body, env=env, project_label=config.project_label,
     )
-    created_repository, number = issue_ref(result.stdout.strip())
+    if existing is not None:
+        created_repository, number = repository, existing
+    else:
+        result = run(
+            [
+                "gh", "issue", "create", "--repo", repository, "--title", title.strip(), "--body", body,
+                "--label", REQUIREMENT_LABEL, "--label", config.project_label, "--label", priority_label_value,
+            ],
+            root, env,
+        )
+        created_repository, number = issue_ref(result.stdout.strip())
     _reconcile_requirement_labels(root, repository=created_repository, number=number, config=config, priority=effective_priority)
     reconcile_requirement_identity(
         root, f"{created_repository}#{number}", fetch_issue(root, created_repository, number),
     )
+    membership = ensure_project_membership(root, f"{created_repository}#{number}")
     return {
         "repository": created_repository, "number": number, "slug": requirement_slug(number),
         "project_label": config.project_label, "priority": priority_label_value,
+        "reused": existing is not None, "project_item": membership["item_id"], "project_status": membership["status"],
     }
+
+
+def open_requirement_issues(
+    root: Path, repository: str, env: dict[str, str], *, project_label: str,
+) -> list[dict[str, Any]]:
+    """Open Requirements of this checkout's project only (comma-separated labels are ANDed)."""
+    pages = managed_task.run_json(
+        ["gh", "api", "--paginate", "--slurp",
+         f"repos/{repository}/issues?state=open&labels={REQUIREMENT_LABEL},{project_label}&per_page=100"],
+        root, env,
+    )
+    if not isinstance(pages, list) or any(not isinstance(page, list) for page in pages):
+        raise RequirementIntakeError("GitHub returned an invalid Requirement list")
+    issues = [issue for page in pages for issue in page]
+    if any(not isinstance(issue, dict) for issue in issues):
+        raise RequirementIntakeError("GitHub returned an invalid Requirement entry")
+    return [issue for issue in issues if "pull_request" not in issue]
+
+
+def _without_work_identity(body: str) -> str:
+    return re.sub(r"\n*Work identity: BR-[1-9][0-9]*(?:/T[1-9][0-9]*)?\s*\Z", "", body.replace("\r\n", "\n")).rstrip()
+
+
+def find_identical_open_requirement(
+    root: Path, repository: str, *, title: str, body: str, env: dict[str, str], project_label: str,
+) -> int | None:
+    """Return the one open Requirement with this exact title and body, so a rerun continues it.
+
+    The platform-appended trailing ``Work identity`` line is not part of the authored body.
+    """
+    expected = _without_work_identity(body)
+    matches = [
+        managed_task.issue_number(issue) for issue in open_requirement_issues(root, repository, env, project_label=project_label)
+        if str(issue.get("title") or "").strip() == title
+        and _without_work_identity(str(issue.get("body") or "")) == expected
+    ]
+    if len(matches) > 1:
+        raise RequirementIntakeError(f"multiple open identical Requirements exist in {repository}: {sorted(matches)}")
+    return matches[0] if matches else None
+
+
+def ensure_project_membership(root: Path, requirement: str) -> dict[str, Any]:
+    """Confirm the Requirement's single Project item or fail closed naming the durable Issue."""
+    try:
+        receipt = managed_project_status.ensure_item(root, source_issue=requirement)
+    except managed_project_status.ManagedProjectStatusError as exc:
+        raise RequirementIntakeError(
+            f"{requirement} exists but its Development Backlog Project projection is unconfirmed ({exc}); "
+            f"fixation is not complete. Rerun the same command (it continues this Issue) or "
+            f"`python3 scripts/requirement_intake.py reconcile-board --requirement {requirement}`"
+        ) from exc
+    return {"requirement": requirement, "item_id": receipt.item_id, "status": receipt.status,
+            "added": receipt.added, "status_initialized": receipt.status_initialized}
+
+
+def reconcile_board(root: Path, *, requirement: str | None = None) -> list[dict[str, Any]]:
+    """Idempotently ensure Project membership for one or every open Requirement."""
+    config = managed_task.authoring_config(root)
+    if requirement is not None:
+        repository, number = issue_ref(requirement)
+        if repository != config.repository:
+            raise RequirementIntakeError(f"{requirement} is not in the configured Backlog repository {config.repository}")
+        issue = fetch_issue(root, repository, number)
+        if REQUIREMENT_LABEL not in managed_task.issue_labels(issue):
+            raise RequirementIntakeError(f"{requirement} is not labeled {REQUIREMENT_LABEL}")
+        if str(issue.get("state") or "").lower() != "open":
+            raise RequirementIntakeError(f"{requirement} is not open; reconciliation covers open Requirements only")
+        refs = [f"{repository}#{number}"]
+    else:
+        env = github_cli_env(root)
+        if env is None:
+            raise RequirementIntakeError("GitHub CLI authentication is required; run gh auth login and retry")
+        issues = open_requirement_issues(root, config.repository, env, project_label=config.project_label)
+        refs = [f"{config.repository}#{managed_task.issue_number(i)}" for i in issues]
+    return [ensure_project_membership(root, ref) for ref in sorted(refs)]
+
+
+def connected_fixation_outcome(*, issue_created: bool, project_membership_confirmed: bool) -> str:
+    """Reference model of the connected adapter's fixation result.
+
+    The connector may be unable to write the user-owned Project, so fixation is
+    ``fixed`` only on confirmed membership; otherwise the Issue is durable but
+    fixation is ``unconfirmed`` and operator ``reconcile-board`` completes it.
+    """
+    if not issue_created:
+        return "not-created"
+    return "fixed" if project_membership_confirmed else "unconfirmed"
 
 
 def ensure_label(root: Path, repository: str, name: str, *, env: dict[str, str], description: str = "") -> None:
@@ -852,6 +947,14 @@ def main() -> int:
     aggregate_parser = sub.add_parser("aggregate", help="report a Requirement's derived progress from pre-authoring and linked children")
     aggregate_parser.add_argument("--requirement", required=True)
 
+    reconcile_parser = sub.add_parser(
+        "reconcile-board",
+        help="idempotently ensure exactly one Project item (initial Backlog) for one or all open Requirements",
+    )
+    reconcile_group = reconcile_parser.add_mutually_exclusive_group(required=True)
+    reconcile_group.add_argument("--requirement")
+    reconcile_group.add_argument("--all", action="store_true")
+
     sub.add_parser(
         "routing-parameters",
         help="render the ChatGPT Project parameters (BACKLOG_REPOSITORY, TARGET_REPOSITORY, "
@@ -871,10 +974,15 @@ def main() -> int:
                 exclusions=args.exclusions_file.read_text(encoding="utf-8") if args.exclusions_file else "",
                 priority=args.priority,
             )
+            verb = "reused" if payload["reused"] else "created"
             print(
-                f"Requirement created: {payload['repository']}#{payload['number']} ({payload['slug']}) "
-                f"[{payload['project_label']}, {payload['priority']}]"
+                f"Requirement {verb}: {payload['repository']}#{payload['number']} ({payload['slug']}) "
+                f"[{payload['project_label']}, {payload['priority']}] on board as {payload['project_status']}"
             )
+            return 0
+        if args.command == "reconcile-board":
+            for item in reconcile_board(root, requirement=args.requirement):
+                print(f"{item['requirement']}: {item['status']} (added={item['added']}, status_initialized={item['status_initialized']})")
             return 0
         if args.command == "start":
             payload = start_pre_authoring(root, requirement=args.requirement, base_dir=args.base_dir)

@@ -1,0 +1,14 @@
+{
+  "dispositions": [
+    {
+      "finding": "status-initialization-overwrites-concurrent-claim",
+      "perspective": "spec-fidelity",
+      "rationale": "GitHub Projects has no compare-and-set on a single-select field. The write only targets an unset Status on a fresh card, Status is re-read immediately before the write, and every claim path runs ensure_item first. Residual millisecond window is accepted and documented in verification.md.",
+      "recorded_at": "2026-10-07T19:15:28+00:00",
+      "report_sha256": "7fd229756c32a5b6df67ba5d2d28ca6eb504cb27a61d349770ee54e13fe5d79a",
+      "request_id": "8b7882ca-d253-46ac-8886-efdf6190b12b",
+      "status": "rejected"
+    }
+  ],
+  "schema_version": 1
+}
