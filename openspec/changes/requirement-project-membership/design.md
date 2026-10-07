@@ -1,6 +1,6 @@
 ## Context
 
-`managed_project_status._project_state` raises when a source issue maps to zero Project items, and `requirement_intake.create_requirement` verifies only Issue labels. Live read-back on 2026-10-07 shows #415, #416, #433 and #436 each have exactly one item created seconds after the Issue, so the reported missing-auto-add could not be reproduced; the defect that remains is that nothing confirms or repairs membership, so correctness depends on an external asynchronous automation.
+`managed_project_status._project_state` raises when a source issue maps to zero Project items, and `requirement_intake.create_requirement` verifies only Issue labels. Live read-back on 2026-10-07 shows the affected Requirements each have exactly one item created seconds after the Issue, so the reported missing-auto-add could not be reproduced; the defect that remains is that nothing confirms or repairs membership, so correctness depends on an external asynchronous automation.
 
 ## Decisions
 

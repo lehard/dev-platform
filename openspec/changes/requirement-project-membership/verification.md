@@ -13,8 +13,8 @@ Coherence: proposal, design, delta, runtime and docs agree. No new service or Pr
 
 ## Evidence and limits
 
-- Live read-back on 2026-10-07 before the change: lehard/development-backlog #415, #416, #433 and #436 each already had exactly one Project item created 2-3 seconds after the Issue. The reported missing auto-add was not reproducible, so the root cause of the original observation is unconfirmed; the delivered defect fix is that membership was never confirmed or repaired by the platform.
-- Live `reconcile-board --all` after the change: all 30 open Requirements, including #416, #433 and #436, have exactly one item; nothing needed adding. #416 shows Status Done while open (a side effect of the earlier close/reopen retrigger); it was not changed because the platform does not rewrite lifecycle statuses.
+- Live read-back on 2026-10-07 before the change: the affected Requirements each already had exactly one Project item created 2-3 seconds after the Issue. The reported missing auto-add was not reproducible, so the root cause of the original observation is unconfirmed; the delivered defect fix is that membership was never confirmed or repaired by the platform.
+- Live `reconcile-board --all` after the change: all 30 open Requirements, including the affected ones, have exactly one item; nothing needed adding. One of them shows Status Done while open (a side effect of the earlier close/reopen retrigger); it was not changed because the platform does not rewrite lifecycle statuses.
 - The connected ChatGPT adapter cannot be executed from this repository; its behavior is a documented contract plus a reference-model test, and the unattended completion depends on the operator invoking `reconcile-board`, which is not scheduled by this change.
 - Selected checks: compileall, ruff and the complete canonical suite (17 groups) passed; see automated-checks.json.
 
