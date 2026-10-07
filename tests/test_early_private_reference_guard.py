@@ -24,7 +24,7 @@ PRIVATE_REF = "https://github.com/example/internal-tasks/issues/" + "216"
 
 def make_candidate(root: Path, *, enabled: bool = True, guard: bool = True) -> None:
     subprocess.run(["git", "init", "-q", str(root)], check=True)
-    config = f'[development_backlog]\nrepository = "{REPOSITORY}"\n'
+    config = f'platform_version = "customer"\n[development_backlog]\nrepository = "{REPOSITORY}"\n'
     if enabled:
         config += "[private_lineage]\nenabled = true\n"
     (root / ".dev-platform.toml").write_text(config, encoding="utf-8")
