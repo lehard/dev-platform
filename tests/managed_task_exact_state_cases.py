@@ -407,6 +407,21 @@ with managed_task.exact_target_context(Path(sys.argv[2]), sys.argv[3]) as worktr
         git('worktree', 'remove', '--force', str(worktree), cwd=self.root)
         managed_task.cleanup_validation_context(self.root, directory, creating_process=True)
 
+    def test_storage_rejects_foreign_ancestor_before_creating_anything(self) -> None:
+        (self.root / '.dev-platform.toml').write_text('[paths]\nworktrees = "foreign-parent/worktrees"\n')
+        parent = self.root / 'foreign-parent'
+        parent.mkdir()
+        for leaf_exists in (False, True):
+            leaf = parent / 'worktrees'
+            if leaf_exists:
+                leaf.mkdir()
+            before = sorted(item.name for item in parent.iterdir())
+            with self.subTest(leaf_exists=leaf_exists), \
+                    patch.object(managed_task, '_storage_component_foreign', side_effect=lambda path: path.resolve() == parent.resolve()):
+                with self.assertRaisesRegex(managed_task.ManagedTaskError, 'foreign ownership'):
+                    managed_task.validation_storage(self.root)
+            self.assertEqual(sorted(item.name for item in parent.iterdir()), before)
+
     def test_cleanup_rejects_foreign_contents_and_active_or_unknown_cwds(self) -> None:
         from types import SimpleNamespace
 

@@ -638,6 +638,11 @@ VALIDATION_RECEIPT = "validation-owner.json"
 VALIDATION_DIRECTORY_RE = re.compile(r"dev-platform-authoring-validate-[a-z0-9_]+")
 
 
+def _storage_component_foreign(path: Path) -> bool:
+    """True when a POSIX storage path component is not owned by the current user."""
+    return shared_workspace.posix_available() and path.stat().st_uid != os.geteuid()
+
+
 def validation_storage(root: Path) -> tuple[Path, Path]:
     """Resolve one explicit platform storage location, retaining source admission."""
     integration = shared_workspace.integration_root(root)
@@ -668,8 +673,8 @@ def validation_storage(root: Path) -> tuple[Path, Path]:
             shared_workspace.verify_shared_output(current, group=group)
         if not current.is_dir():
             raise ManagedTaskError(f"validation storage is not a directory: {current}")
-    if shared_workspace.posix_available() and current.stat().st_uid != os.geteuid():
-        raise ManagedTaskError(f"validation storage has foreign ownership: {current}")
+        if _storage_component_foreign(current):
+            raise ManagedTaskError(f"validation storage has foreign ownership: {current}")
     shared_workspace.verify_shared_output(current, group=group)
     return integration, current
 
