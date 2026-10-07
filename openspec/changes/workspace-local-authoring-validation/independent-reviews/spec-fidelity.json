@@ -1,36 +1,23 @@
 {
-  "availability": "available",
+  "availability": "unavailable",
   "candidate": {
     "base_head": "8c49616d6b4a3f0a981db53f96dc99025f2f6bb0",
     "base_ref": "origin/main",
-    "candidate_head": "ef266868aa129584ec2825f50efd62cb300ff71b",
-    "diff_sha256": "dd1ab866a27907ce355e608007f720938bb5e8668fc4047efc5b1946546568a0"
+    "candidate_head": "51652dc1cd1d1a556eb409aa1d8b877e56d46f38",
+    "diff_sha256": "97dca27c99be209387554011104df21cdc9afa63616611ea9aad7e890bb4f7c0"
   },
-  "completed_at": "2026-10-06T23:44:26+00:00",
-  "findings": [
-    {
-      "evidence": "template/scripts/managed_task.py:684 silently discards every lsof name field not starting with 'n/' and resolves accepted paths with Path.resolve() using strict=False. Unknown cwd records can therefore disappear, and unavailable paths need not raise before cleanup proceeds at lines 763\u2013767. design.md explicitly requires a strict lsof observation where unreadable paths fail, and recovery must reject active worktree cwd state.",
-      "id": "cwd-observation-fails-open",
-      "severity": "material",
-      "summary": "Recovery does not fail explicitly on unreadable or unresolved cwd observations."
-    },
-    {
-      "evidence": "template/scripts/managed_task.py:772\u2013773 unlinks validation-owner.json before calling directory.rmdir(). If rmdir fails, the helper directory survives without its receipt; subsequent cleanup rejects it at lines 702\u2013703. This contradicts the delta requirement that failed cleanup retain identity evidence for safe recovery, and the reported cleanup-validation recovery command cannot recover that state.",
-      "id": "cleanup-discards-recovery-receipt",
-      "severity": "material",
-      "summary": "A final directory-removal failure destroys the identity evidence required for recovery."
-    }
-  ],
-  "launched_at": "2026-10-06T23:43:36+00:00",
-  "output_sha256": "77888f4d9a68beaf90e3c485699c66494cf8855134cb4bc9e0b202f598cfc788",
+  "completed_at": "2026-10-07T00:27:58+00:00",
+  "findings": [],
+  "launched_at": "2026-10-07T00:27:47+00:00",
+  "limitation": "codex reviewer exited with status 1 (You\u2019ve hit your usage limit. Upgrade to Pro (https://chatgpt.com/explore/pro), visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at 5:22 AM.); check the CLI login and the [model_routing] model for this account, then rerun",
   "perspective": "spec-fidelity",
-  "request_id": "a22e2327-1894-4533-90b1-beafa44685e2",
+  "request_id": "0748cfa1-1aa6-40c2-b253-eb1640e7a777",
   "reviewer": {
-    "context_id": "01a11399-eaba-7040-9ea5-7561bbb78957",
-    "context_id_source": "runtime",
+    "context_id": "platform-launch-fa8d0b24-abda-48b3-b001-4319166f9f53",
+    "context_id_source": "platform-launch",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-95b76253-b1a5-47e1-a720-0eb145c816e6",
+    "launch_id": "platform-launch-fa8d0b24-abda-48b3-b001-4319166f9f53",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -40,26 +27,6 @@
     "runtime": "codex-exec",
     "write_access": false
   },
-  "runtime_usage": {
-    "fields": {
-      "cached_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 160128
-      },
-      "input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 206652
-      },
-      "output_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 1353
-      }
-    },
-    "runtime": "codex-exec"
-  },
   "schema_version": 1,
-  "task_content_digest": "a4cd3bed1b342747cadf8f307334db04c7a9151f1de4e1ebdc5f77e76fbf8992"
+  "task_content_digest": "88c08ccbd7ee449806d47cb302c2bd3be4dac1a90e360a16ad79f902f45cbca7"
 }
