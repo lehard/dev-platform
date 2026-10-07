@@ -2,12 +2,15 @@
   "candidate": {
     "base_head": "a8d83e5cbd97037b242daf30557f4b1e3b03ae7c",
     "base_ref": "origin/main",
-    "candidate_head": "08fa5a002b3f186f21159a50317419eb042ee5f4",
-    "diff_sha256": "3d11b5e1f238ff3a10d6438bd6612b0c7de367ef493f98bb0afd8fe6de6fbf5c"
+    "candidate_head": "b8f781c7d08a301c7884fe4b4b67b739334042b4",
+    "diff_sha256": "4732ec87c603f39771440482e1c4d6ad051027a827e1f612fc223887c01ae5b5"
   },
   "change": "openspec/changes/llm-login-binding",
   "excluded_lifecycle_paths": [
     "openspec/changes/llm-login-binding/automated-checks.json",
+    "openspec/changes/llm-login-binding/independent-review-request.json",
+    "openspec/changes/llm-login-binding/independent-reviews/engineering-quality.json",
+    "openspec/changes/llm-login-binding/independent-reviews/spec-fidelity.json",
     "openspec/changes/llm-login-binding/verification.md"
   ],
   "fresh_context_required": true,
@@ -34,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-07T18:10:48+00:00",
+  "prepared_at": "2026-10-07T18:53:16+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/llm-login-binding/independent-reviews",
     "required_perspectives": [
@@ -43,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "74a4077b-7c2f-4f92-a1d1-a4aeb564b38f",
+  "request_id": "51bda6ea-b0bf-43a8-86d8-831599f302b9",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -56,7 +59,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "a8d83e5cbd97037b242daf30557f4b1e3b03ae7c",
-    "digest": "7558177bb3a4dedadb78c237e0f98c906ba51737bc09b5dede8260d54e45a85a",
+    "digest": "3c402864d7b38493d464b48aebc5e0d5ecad10eb6c4c1db4bb8ca2262e182cea",
     "paths": {
       "docs/engineering/openspec-workflow.md": "93c9ed9315e398dd4f82e1b062c3d78663eff720",
       "openspec/changes/llm-login-binding/.managed-task.json": "29db5a2099f65b312a95bdb6674539477f3a7561",
@@ -66,11 +69,12 @@
       "openspec/changes/llm-login-binding/specs/lifecycle-workers/spec.md": "1f752c91d0fb7e54bef60315b362ac8ad1ed150a",
       "openspec/changes/llm-login-binding/tasks.md": "01c0dc874f71a53e589a58b5e91d67b04aa60d40",
       "template/docs/engineering/openspec-workflow.md": "a23bc41bdb1ce01f51121abe0b01e04058e4b538",
-      "template/scripts/independent_review.py": "03ab219846f37c752cecc682a75583eec6d1df14",
-      "template/scripts/lifecycle_workers.py": "4577e0fb84f72105c823b3533ce69ceeb46cf4a9",
+      "template/scripts/independent_review.py": "e4c6a0889b5d8a733200d7175efb03476ab49497",
+      "template/scripts/independent_review_runner.py": "bf1d05f3858a2e3c5ed1dac8ec0a074e34a76037",
+      "template/scripts/lifecycle_workers.py": "3ace4dbf5c02fbc9f15caa289c2cceb4230dd27a",
       "template/scripts/pr_review_gate.py": "57124ddc0b7af5c9060c589d571823702f2ff41e",
-      "tests/test_independent_review.py": "ceaae023193f06e83d38259b93c7ffa71ddbb46b",
-      "tests/test_lifecycle_workers.py": "2420df9e8bf1a99e87d2226c5325434e2f730694"
+      "tests/test_independent_review.py": "7f8425da0ddbfe894fe2145a52cce45c2b8ac776",
+      "tests/test_lifecycle_workers.py": "c471adf4f2217d1d9b193de4346ced03496506c9"
     },
     "scope": "independent-review-v1",
     "version": 1

@@ -3,34 +3,34 @@
   "candidate": {
     "base_head": "a8d83e5cbd97037b242daf30557f4b1e3b03ae7c",
     "base_ref": "origin/main",
-    "candidate_head": "08fa5a002b3f186f21159a50317419eb042ee5f4",
-    "diff_sha256": "3d11b5e1f238ff3a10d6438bd6612b0c7de367ef493f98bb0afd8fe6de6fbf5c"
+    "candidate_head": "b8f781c7d08a301c7884fe4b4b67b739334042b4",
+    "diff_sha256": "4732ec87c603f39771440482e1c4d6ad051027a827e1f612fc223887c01ae5b5"
   },
-  "completed_at": "2026-10-07T18:11:45+00:00",
+  "completed_at": "2026-10-07T18:54:08+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/independent_review.py:704 runs independent_review_runner.preflight(root) before constructing the scratch HOME or applying llm_env. The runner's _preflight_one invokes subprocess_launcher without an environment, which inherits the operator's HOME and ambient credentials. Consequently, a valid declared token can still produce an initial authentication failure and skip the bound probe entirely; ambient authentication can also determine readiness independently of the declared binding. This contradicts the delta's 'Preflight command reflects the worker' scenario.",
-      "id": "preflight-uses-ambient-login",
+      "evidence": "template/scripts/pr_review_gate.py:214-219 delegates requirement-composition jobs before constructing the llm_env launcher at lines 228-237. template/scripts/requirement_composition.py:136-141 instead launches with credential_free_env, which strips CLAUDE_CODE_OAUTH_TOKEN and never reads the declared token_file. This contradicts the delta scenarios requiring the declared token to reach the reviewer and successful login probes to proceed unchanged.",
+      "id": "composition-review-misses-login-binding",
       "severity": "material",
-      "summary": "The independent-review preflight does not test readiness in the worker's bound environment."
+      "summary": "Requirement composition reviews omit the declared login token after passing the pre-claim login probe, so they still fail authentication and consume review attempts."
     },
     {
-      "evidence": "The active lifecycle-workers delta requires failed, timed-out, or missing-binary probes to exit naming the provider and available bindings. template/scripts/lifecycle_workers.py:283 and :285 report timeout/start failure without either binding; :755 likewise reports an unavailable runtime without binding guidance. Only the non-zero probe-result branch at :287-289 includes the next steps.",
-      "id": "probe-errors-omit-binding-guidance",
+      "evidence": "template/scripts/lifecycle_workers.py:399 copies os.environ into harness_push_env. Lines 404-405 return it unchanged for local origins; lines 411-418 filter only GIT_CONFIG_* for GitHub origins. push_validated passes this environment to Git at lines 424-425. Adding the token to CREDENTIAL_VARS does not affect this path. The active delta states that no push environment shall contain the token, and proposal.md requires no token in GitHub-facing environments.",
+      "id": "push-inherits-ambient-login-token",
       "severity": "material",
-      "summary": "Timeout and missing-binary failures omit the required login-binding guidance."
+      "summary": "The harness push environment still contains an ambient CLAUDE_CODE_OAUTH_TOKEN, violating the explicit provider-only credential boundary."
     }
   ],
-  "launched_at": "2026-10-07T18:11:06+00:00",
-  "output_sha256": "503b99beba0bcd3e1c5b6ef28950ef9cf14a656e19509c0774e66d9e4f393e69",
+  "launched_at": "2026-10-07T18:53:29+00:00",
+  "output_sha256": "e400e8ba6ca76f433cb1ff485fbde5da7d070a2ef6661cc9232d41b4bcb35d53",
   "perspective": "spec-fidelity",
-  "request_id": "74a4077b-7c2f-4f92-a1d1-a4aeb564b38f",
+  "request_id": "51bda6ea-b0bf-43a8-86d8-831599f302b9",
   "reviewer": {
-    "context_id": "01a1178f-dcf9-7650-bfd8-87640e664fe4",
+    "context_id": "01a117b6-a916-73a2-af8f-310632fb745b",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-59201448-934c-4fa2-b542-0a9be6946d14",
+    "launch_id": "platform-launch-0915b794-5ccc-4f8a-af87-efc27d9cd8ee",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -45,21 +45,21 @@
       "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 116864
+        "value": 163200
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 157435
+        "value": 210845
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 791
+        "value": 984
       }
     },
     "runtime": "codex-exec"
   },
   "schema_version": 1,
-  "task_content_digest": "7558177bb3a4dedadb78c237e0f98c906ba51737bc09b5dede8260d54e45a85a"
+  "task_content_digest": "3c402864d7b38493d464b48aebc5e0d5ecad10eb6c4c1db4bb8ca2262e182cea"
 }

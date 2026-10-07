@@ -3,28 +3,28 @@
   "candidate": {
     "base_head": "a8d83e5cbd97037b242daf30557f4b1e3b03ae7c",
     "base_ref": "origin/main",
-    "candidate_head": "08fa5a002b3f186f21159a50317419eb042ee5f4",
-    "diff_sha256": "3d11b5e1f238ff3a10d6438bd6612b0c7de367ef493f98bb0afd8fe6de6fbf5c"
+    "candidate_head": "b8f781c7d08a301c7884fe4b4b67b739334042b4",
+    "diff_sha256": "4732ec87c603f39771440482e1c4d6ad051027a827e1f612fc223887c01ae5b5"
   },
-  "completed_at": "2026-10-07T18:13:03+00:00",
+  "completed_at": "2026-10-07T18:54:58+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/independent_review.py:704 calls independent_review_runner.preflight(root) without a bound launcher, and lines 705\u2013715 check the scratch-HOME login only if that first probe succeeds. independent_review_runner.py:486 uses the default subprocess_launcher, whose Popen at lines 110\u2013112 receives env=None. Thus an operator with a valid declared token_file but no ambient CLI login gets ready=false before the binding is used, although the worker's review launcher uses llm_env and can authenticate. The readiness probe must use the same scratch HOME and provider-bound environment to reflect worker readiness.",
-      "id": "preflight-ignores-bound-login",
+      "evidence": "template/scripts/lifecycle_workers.py:399 copies os.environ directly in harness_push_env. The local-origin branch returns that environment unchanged at line 405, and the hosted-origin branch removes only GIT_CONFIG_* variables at line 411. push_validated passes this environment to Git at line 425. Consequently, an ambient CLAUDE_CODE_OAUTH_TOKEN survives both push paths despite its addition to CREDENTIAL_VARS at lines 45\u201350; that denylist is applied only by credential_free_env.",
+      "id": "ambient-token-reaches-push",
       "severity": "material",
-      "summary": "Standalone preflight can reject a working token binding because its model readiness probe uses the ambient environment."
+      "summary": "The ambient Claude OAuth token still reaches Git push processes, leaving the promised credential boundary incomplete."
     }
   ],
-  "launched_at": "2026-10-07T18:11:45+00:00",
-  "output_sha256": "1fdbe7675d77dd27b05e653b28fe940c30f48c54c6c98f3af99db7cd152875ad",
+  "launched_at": "2026-10-07T18:54:08+00:00",
+  "output_sha256": "ece7f1702aa5d1e3dacbfe68e9c39c6e7aef94deea4678b43b3e0f66cd233bf2",
   "perspective": "engineering-quality",
-  "request_id": "74a4077b-7c2f-4f92-a1d1-a4aeb564b38f",
+  "request_id": "51bda6ea-b0bf-43a8-86d8-831599f302b9",
   "reviewer": {
-    "context_id": "01a11790-75d6-7460-8767-a214cc210d26",
+    "context_id": "01a117b7-438e-7161-a62c-42340a1e5455",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-e3df4abf-f00f-4185-a05e-d95b060d8ca1",
+    "launch_id": "platform-launch-a10e364f-2682-4e02-a729-f87bb7c21e3e",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -39,21 +39,21 @@
       "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 147328
+        "value": 169472
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 217786
+        "value": 219117
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1032
+        "value": 1136
       }
     },
     "runtime": "codex-exec"
   },
   "schema_version": 1,
-  "task_content_digest": "7558177bb3a4dedadb78c237e0f98c906ba51737bc09b5dede8260d54e45a85a"
+  "task_content_digest": "3c402864d7b38493d464b48aebc5e0d5ecad10eb6c4c1db4bb8ca2262e182cea"
 }
