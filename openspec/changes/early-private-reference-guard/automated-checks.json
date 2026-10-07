@@ -1,0 +1,112 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 6.528,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 9.473,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 735.977,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "template/scripts/openspec_lifecycle.py",
+        "template/scripts/private_lineage.py",
+        "template/scripts/requirement_integration.py",
+        "tests/test_early_private_reference_guard.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_cfd20caf99fea1d45f6e7ce7f463a780",
+    "change": "early-private-reference-guard",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/early-private-reference-guard",
+    "branch": "agent/br-403-t1-early-private-reference-guard",
+    "head": "c44882379cbc2de8f7a7b7cbb5fd52ec03549bdc",
+    "task_content": {
+      "version": 1,
+      "digest": "79767fe2bdae03d8420e1458ad50f255d8b8a6a45d8b31c73ec45fa166eb1106",
+      "paths": {
+        "dev-platform/checks.toml": "cd80edc13cbf0ef378140b167e68368622624039",
+        "docs/engineering/openspec-workflow.md": "ef77d6b26b86c9b19d1d06f1fef1b0a9f34b5f39",
+        "openspec/changes/early-private-reference-guard/.managed-task.json": "792b88b5e59caa174c75eed68e9c09161fbb488a",
+        "openspec/changes/early-private-reference-guard/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+        "openspec/changes/early-private-reference-guard/design.md": "c5e8e2e8d72e2c8ccf7575ca8afc5e5fefda5263",
+        "openspec/changes/early-private-reference-guard/independent-review-request.json": "0e8b9b84211d1e3fa08cb7b0f8b390fcdac30f7b",
+        "openspec/changes/early-private-reference-guard/independent-reviews/engineering-quality.json": "1cd31b3eaea1341e4a5febf5a205a4089aada627",
+        "openspec/changes/early-private-reference-guard/independent-reviews/spec-fidelity.json": "5b6715b95d4a182ffd1c42292aff9b0c1c592b81",
+        "openspec/changes/early-private-reference-guard/proposal.md": "8a6a132025a2600476c3a3180be41335d5018ec6",
+        "openspec/changes/early-private-reference-guard/specs/completion-lifecycle/spec.md": "a3cff8ac211855eec2f826c9a2a109b753fcd7f0",
+        "openspec/changes/early-private-reference-guard/tasks.md": "4a33a4942d73fa3fa919e0146eb328a80e21cbb5",
+        "openspec/changes/early-private-reference-guard/verification.md": "cd05593259dd7b8539b2fc839cc395e2389e8c73",
+        "template/scripts/openspec_lifecycle.py": "f9fec15d86db78c155ec970f689caa6bac4fbac1",
+        "template/scripts/private_lineage.py": "7906a765241083b656eeb2739d1f6e3d61e0a0f7",
+        "template/scripts/requirement_integration.py": "92a90b3496220bf16a677a2fe5cffc92bb9112c2",
+        "tests/test_early_private_reference_guard.py": "c40504b142b8e2bcaeb64d059417d4f1f662e6f3"
+      },
+      "base": "4984d565b82e069b0621ee92eb2809f2e6214ded"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "f3743d827e5eeff68135b44d24974801b6c55db219d614a8dcfc0d2baeb077f3",
+    "paths": {
+      "dev-platform/checks.toml": "cd80edc13cbf0ef378140b167e68368622624039",
+      "docs/engineering/openspec-workflow.md": "ef77d6b26b86c9b19d1d06f1fef1b0a9f34b5f39",
+      "openspec/changes/early-private-reference-guard/.managed-task.json": "792b88b5e59caa174c75eed68e9c09161fbb488a",
+      "openspec/changes/early-private-reference-guard/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+      "openspec/changes/early-private-reference-guard/design.md": "c5e8e2e8d72e2c8ccf7575ca8afc5e5fefda5263",
+      "openspec/changes/early-private-reference-guard/proposal.md": "8a6a132025a2600476c3a3180be41335d5018ec6",
+      "openspec/changes/early-private-reference-guard/specs/completion-lifecycle/spec.md": "a3cff8ac211855eec2f826c9a2a109b753fcd7f0",
+      "openspec/changes/early-private-reference-guard/tasks.md": "4a33a4942d73fa3fa919e0146eb328a80e21cbb5",
+      "template/scripts/openspec_lifecycle.py": "f9fec15d86db78c155ec970f689caa6bac4fbac1",
+      "template/scripts/private_lineage.py": "7906a765241083b656eeb2739d1f6e3d61e0a0f7",
+      "template/scripts/requirement_integration.py": "92a90b3496220bf16a677a2fe5cffc92bb9112c2",
+      "tests/test_early_private_reference_guard.py": "c40504b142b8e2bcaeb64d059417d4f1f662e6f3"
+    },
+    "base": "4984d565b82e069b0621ee92eb2809f2e6214ded",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/openspec_lifecycle.py --changed-file template/scripts/private_lineage.py --changed-file template/scripts/requirement_integration.py --changed-file tests/test_early_private_reference_guard.py",
+    "duration_seconds": 648.284,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
