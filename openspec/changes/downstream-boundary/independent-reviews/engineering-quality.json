@@ -1,23 +1,23 @@
 {
-  "availability": "unavailable",
+  "availability": "available",
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "d69ec786e9e9df0ac0f3fab0a15198009f3f3da9",
-    "diff_sha256": "8576905595782c18a310d127896faf3cab0d142da858e343d674c8d2b032d0df"
+    "candidate_head": "4fc4b2186596cab5607447e74e83facd62ee110d",
+    "diff_sha256": "51103e6b88a90ba0dedd4d9426d1f373382ff10830e2c9fe760aa9d116757a6c"
   },
-  "completed_at": "2026-10-07T17:31:44+00:00",
+  "completed_at": "2026-10-07T18:12:56+00:00",
   "findings": [],
-  "launched_at": "2026-10-07T17:31:44+00:00",
-  "limitation": "codex reviewer runtime with model 'gpt-6.1-sol' is not ready: probe exited with status 1 (You\u2019ve hit your usage limit. Upgrade to Pro (https://chatgpt.com/explore/pro), visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at 9:07 PM.); next: log the codex CLI in on this host, or change the [model_routing] / [independent_review] binding for this account (no other model or provider is tried), then rerun python3 scripts/independent_review.py preflight",
+  "launched_at": "2026-10-07T18:11:53+00:00",
+  "output_sha256": "6e96a492bc9fa40d22212c5be0396a203f3dbd4916cf97ebe2f66b6d54fa4a9a",
   "perspective": "engineering-quality",
-  "request_id": "40bd9484-8d72-43d6-aada-0a7b6178aa22",
+  "request_id": "08e38f49-e845-453b-81bb-b980cce23627",
   "reviewer": {
-    "context_id": "platform-launch-5b725ab5-aaf8-4181-8747-700e8a5bbf30",
-    "context_id_source": "platform-launch",
+    "context_id": "01a11790-9472-7370-9ce9-69bcd87dcf4a",
+    "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-5b725ab5-aaf8-4181-8747-700e8a5bbf30",
+    "launch_id": "platform-launch-3cf75696-aced-464c-9d6c-84ff0e1aedbe",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -26,6 +26,26 @@
     "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
     "runtime": "codex-exec",
     "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cached_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 171264
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 222267
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 918
+      }
+    },
+    "runtime": "codex-exec"
   },
   "schema_version": 1,
   "task_content_digest": "8d9b172370b51b08815aaf6ffaa75f2bb11aceb022b3f7afd72352aa3511045e"
