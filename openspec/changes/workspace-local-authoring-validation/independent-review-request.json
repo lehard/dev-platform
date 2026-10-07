@@ -1,9 +1,9 @@
 {
   "candidate": {
-    "base_head": "4984d565b82e069b0621ee92eb2809f2e6214ded",
+    "base_head": "d0449e860612e4f3e1ac292ffcdef7a9b69a152d",
     "base_ref": "origin/main",
-    "candidate_head": "91a76f9e16ad2fa6acdedd6e78341de3784f9197",
-    "diff_sha256": "8484c63e62da1df02c2e9e011a9c496c1ece27d707b95615b4d8bbd3e9501d0e"
+    "candidate_head": "db96479a40ec0a9e46c018f8ca2c9dcf61abcd8f",
+    "diff_sha256": "eac789a6c0501c2faa6399ef42765684ba252d29e4c1b2017561f1c3c9c44ad0"
   },
   "change": "openspec/changes/workspace-local-authoring-validation",
   "excluded_lifecycle_paths": [
@@ -37,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-07T06:46:45+00:00",
+  "prepared_at": "2026-10-07T07:30:52+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/workspace-local-authoring-validation/independent-reviews",
     "required_perspectives": [
@@ -46,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "fc7a57c8-4d85-4a8f-8d81-cd6a5978e779",
+  "request_id": "aba105aa-b32a-4d95-8dcb-9558afa529a7",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -58,8 +58,8 @@
   },
   "schema_version": 1,
   "task_content": {
-    "base": "4984d565b82e069b0621ee92eb2809f2e6214ded",
-    "digest": "28fe18c63664b6030568d424b42ac2bfb6356f81992f61cc56293122c2ef0309",
+    "base": "d0449e860612e4f3e1ac292ffcdef7a9b69a152d",
+    "digest": "92fef0be1712f971cffa1f09db42b1bab71caf030f62763949b96446e26868d6",
     "paths": {
       "docs/engineering/local-workspace.md": "d059c36dbaf643f719f962aa801ff9cd2a2bec70",
       "openspec/changes/workspace-local-authoring-validation/.managed-task.json": "59940d8400e23fcf1dabc05984dc6a42c31a66c5",
@@ -68,9 +68,9 @@
       "openspec/changes/workspace-local-authoring-validation/proposal.md": "141a14d71a0e09185f1503386877616f8d78d5b4",
       "openspec/changes/workspace-local-authoring-validation/specs/managed-task-intake/spec.md": "e3a027fab30b556fca540ccd114738d2a6dbbb59",
       "openspec/changes/workspace-local-authoring-validation/tasks.md": "d85045e06bbd460b1fec6e935d789fc3f7a558f7",
-      "template/scripts/managed_task.py": "13769d106c236e6b2fe0870e4b5807607b7d9adb",
+      "template/scripts/managed_task.py": "c5d15d717042ab06a4b28665ad9a69c09e0cdd3b",
       "template/scripts/worktree_cleanup.py": "a8d2419c62a4bfec4bd38fccb4aaecf8cc8b8f5a",
-      "tests/managed_task_exact_state_cases.py": "fb5f31767e81fc53325696b2e0782aa0cb2389de"
+      "tests/managed_task_exact_state_cases.py": "03997cc1c4cab7dcbfcfb9557d1791b28fd6de90"
     },
     "scope": "independent-review-v1",
     "version": 1

@@ -1,23 +1,23 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "4984d565b82e069b0621ee92eb2809f2e6214ded",
+    "base_head": "d0449e860612e4f3e1ac292ffcdef7a9b69a152d",
     "base_ref": "origin/main",
-    "candidate_head": "91a76f9e16ad2fa6acdedd6e78341de3784f9197",
-    "diff_sha256": "8484c63e62da1df02c2e9e011a9c496c1ece27d707b95615b4d8bbd3e9501d0e"
+    "candidate_head": "db96479a40ec0a9e46c018f8ca2c9dcf61abcd8f",
+    "diff_sha256": "eac789a6c0501c2faa6399ef42765684ba252d29e4c1b2017561f1c3c9c44ad0"
   },
-  "completed_at": "2026-10-07T06:48:42+00:00",
+  "completed_at": "2026-10-07T07:33:38+00:00",
   "findings": [],
-  "launched_at": "2026-10-07T06:47:47+00:00",
+  "launched_at": "2026-10-07T07:32:10+00:00",
   "output_sha256": "6e96a492bc9fa40d22212c5be0396a203f3dbd4916cf97ebe2f66b6d54fa4a9a",
   "perspective": "engineering-quality",
-  "request_id": "fc7a57c8-4d85-4a8f-8d81-cd6a5978e779",
+  "request_id": "aba105aa-b32a-4d95-8dcb-9558afa529a7",
   "reviewer": {
-    "context_id": "01a1151e-4503-7502-81f2-e2b5c98498c7",
+    "context_id": "01a11546-ebf8-7c52-b4ca-644fdafa769a",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-c4369878-3a24-4bf6-83a2-cb88eb2e9932",
+    "launch_id": "platform-launch-32b7299b-08b5-402c-a953-127e2549c0f9",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -32,21 +32,21 @@
       "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 215040
+        "value": 327296
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 269127
+        "value": 394485
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1129
+        "value": 1856
       }
     },
     "runtime": "codex-exec"
   },
   "schema_version": 1,
-  "task_content_digest": "28fe18c63664b6030568d424b42ac2bfb6356f81992f61cc56293122c2ef0309"
+  "task_content_digest": "92fef0be1712f971cffa1f09db42b1bab71caf030f62763949b96446e26868d6"
 }
