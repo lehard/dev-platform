@@ -2,7 +2,7 @@
 
 ### Requirement: Archive hygiene exempts only its exact target
 
-While `openspec_lifecycle.py archive <change>` runs the selected or protected validation checks, the OpenSpec lifecycle hygiene check SHALL exempt only that exact completed active archive target. The exemption SHALL exist only for the validation subprocess of that archive invocation, SHALL fail closed when the target is missing, malformed, absent or not a completed active change, and SHALL NOT alter ordinary hygiene outside that context. The hygiene check SHALL remain in the mandatory check groups.
+While `openspec_lifecycle.py archive <change>` runs the selected or protected validation checks, the OpenSpec lifecycle hygiene check SHALL exempt only that exact completed active archive target. The exemption SHALL exist only for the validation subprocess of that archive invocation, SHALL fail closed when the target is missing, malformed, absent or not a completed active change, and SHALL NOT alter ordinary hygiene outside that context. The hygiene check SHALL remain in the mandatory check groups. The exemption SHALL be bound to the checkout that archive issued it for: a context issued for a different checkout SHALL be ignored and hygiene SHALL run as the ordinary check, which is scoping and not a masked failure. A half-set context, an empty value of either context variable, or a non-absolute checkout root SHALL fail explicitly naming the variable.
 
 #### Scenario: Verified change passes its own archive checks
 - **GIVEN** a completed, verified active change and the standard check mapping that includes the hygiene check
@@ -30,3 +30,19 @@ While `openspec_lifecycle.py archive <change>` runs the selected or protected va
 - **GIVEN** archive validation fails after the exemption was applied
 - **WHEN** the ordinary hygiene check runs afterwards
 - **THEN** it blocks the still-active completed change
+
+#### Scenario: Context issued for another checkout is ignored
+- **GIVEN** an archive context naming a different checkout root than the one being checked
+- **WHEN** hygiene runs in the checked checkout
+- **THEN** no exemption applies and no error is raised because of the context
+- **AND** a completed active change in the checked checkout still blocks as in the ordinary check
+
+#### Scenario: Malformed archive context fails explicitly
+- **GIVEN** a context in which only one of the target and root variables is set, or either value is empty or whitespace-only, or the root is not an absolute path
+- **WHEN** hygiene runs
+- **THEN** it fails with an explicit error naming the offending variable and exempts nothing
+
+#### Scenario: Matching context with a non-completed target fails explicitly
+- **GIVEN** a context issued for the checked checkout whose target is not an existing completed active change
+- **WHEN** hygiene runs
+- **THEN** it fails with an explicit error naming the target rather than ignoring the context
