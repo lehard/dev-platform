@@ -3,28 +3,34 @@
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "4301cbd671b624b3a05383c7b9020db2aa138170",
-    "diff_sha256": "4f5976f4b715245912d5db8bcf97a0841642ba0bbdd03f79d1a9560b4fc6d48b"
+    "candidate_head": "81b69b2fa237c76b2a492b6939413793a1a4bf1e",
+    "diff_sha256": "2f463adfad97e59213fe68012393d228036cb3a4e02f8be63e00fe963411382b"
   },
-  "completed_at": "2026-10-07T17:09:21+00:00",
+  "completed_at": "2026-10-07T18:57:13+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/model_routing.py:1240-1243 persists an open, platform-observed delegation before calling run_codex. run_codex calls codex_argv at line 1125, which raises RoutingError when native containment is unavailable (1039-1041), before launching any child. This exception leaves the open delegation persisted with no execution. The early gate accepts any non-null delegation (730-731), and escalate skips the content-divergence check whenever a delegation exists (1009-1017). Consequently, after this failed preflight the supervisor can write content, escalate, and record retained execution despite no child having run.",
-      "id": "codex-preflight-leaves-phantom-delegation",
+      "evidence": "template/scripts/model_routing.py:1240\u20131250 persists the open delegation but removes it only for RoutingError. run_observed_delegation raises ContainmentError before launching, including WriterOwnershipError from _WriterOwnership.acquire (template/scripts/delegated_write_guard.py:643). Those exceptions escape run_codex without clearing the delegation. The early gate then passes because a delegation exists (model_routing.py:730), and escalate permits retention despite subsequent supervisor writes (1009\u20131020). Since no execution was recorded, record_retained_execution can finalize that retention even though no child launched.",
+      "id": "unlaunched-codex-delegation-survives-preflight",
       "severity": "material",
-      "summary": "A Codex preflight failure leaves an open delegation that allows supervisor-written content to bypass the early gate and be finalized as retained execution."
+      "summary": "A containment refusal before Codex launches leaves an open platform-observed delegation that can authorize supervisor execution."
+    },
+    {
+      "evidence": "template/scripts/model_routing.py:575\u2013578 filters snapshot entries solely by destination path and drops PathState.orig_path. Git porcelain represents a staged rename as one destination entry with the original source path; therefore moving scripts/tool.py to openspec/changes/<change>/tool.py hides the deletion of scripts/tool.py. An in-memory check using that rename snapshot returned empty committed and paths maps and no detected changes. Routing, late delegation opening, and escalation can consequently accept implementation changes made before the required delegation.",
+      "id": "lifecycle-renames-hide-source-deletions",
+      "severity": "material",
+      "summary": "Renaming implementation into an excluded lifecycle directory bypasses task-content divergence detection."
     }
   ],
-  "launched_at": "2026-10-07T17:08:16+00:00",
-  "output_sha256": "bc4b2a61b3919637728851e59a6482db7d59938a32c3bfa1bd906929d8f5e6d6",
+  "launched_at": "2026-10-07T18:53:58+00:00",
+  "output_sha256": "4861538cfc7aee069d2745ea28cb9433f6539a32934d386bd51ff28c0ad49e31",
   "perspective": "engineering-quality",
-  "request_id": "e12d3bfb-3e12-42c6-8318-cb789d58efa2",
+  "request_id": "afaa102c-6a76-4ffe-aa90-4e6c85ffd23b",
   "reviewer": {
-    "context_id": "01a11756-5518-7863-87c9-603972ee71fd",
+    "context_id": "01a117b7-1aef-7f12-85c6-2ca2b1b23788",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-8632ab31-e0cc-4693-ae6a-77ccb0aa056b",
+    "launch_id": "platform-launch-1c30d3ba-9d6f-4e51-9903-28c3a81568dc",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -39,21 +45,21 @@
       "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 299648
+        "value": 449152
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 363789
+        "value": 524003
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1247
+        "value": 2646
       }
     },
     "runtime": "codex-exec"
   },
   "schema_version": 1,
-  "task_content_digest": "1b69cd6f00300ae68d8508e64045cd8bb1dbc3a46453a31edd4845a340b00a7f"
+  "task_content_digest": "439201d522c8f1fd9f5bf549e0b92a374a3da88f19e1c399e3f810dca66227f7"
 }
