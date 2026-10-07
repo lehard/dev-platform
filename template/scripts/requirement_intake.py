@@ -251,7 +251,9 @@ def create_requirement(
         outcome=outcome, target_repository=target_repository, context=context,
         acceptance_evidence=acceptance_evidence, exclusions=exclusions,
     )
-    existing = find_identical_open_requirement(root, repository, title=title.strip(), body=body, env=env)
+    existing = find_identical_open_requirement(
+        root, repository, title=title.strip(), body=body, env=env, project_label=config.project_label,
+    )
     if existing is not None:
         created_repository, number = repository, existing
     else:
@@ -275,9 +277,13 @@ def create_requirement(
     }
 
 
-def open_requirement_issues(root: Path, repository: str, env: dict[str, str]) -> list[dict[str, Any]]:
+def open_requirement_issues(
+    root: Path, repository: str, env: dict[str, str], *, project_label: str,
+) -> list[dict[str, Any]]:
+    """Open Requirements of this checkout's project only (comma-separated labels are ANDed)."""
     pages = managed_task.run_json(
-        ["gh", "api", "--paginate", "--slurp", f"repos/{repository}/issues?state=open&labels={REQUIREMENT_LABEL}&per_page=100"],
+        ["gh", "api", "--paginate", "--slurp",
+         f"repos/{repository}/issues?state=open&labels={REQUIREMENT_LABEL},{project_label}&per_page=100"],
         root, env,
     )
     if not isinstance(pages, list) or any(not isinstance(page, list) for page in pages):
@@ -292,14 +298,16 @@ def _without_work_identity(body: str) -> str:
     return re.sub(r"\n*Work identity: BR-[1-9][0-9]*(?:/T[1-9][0-9]*)?\s*\Z", "", body.replace("\r\n", "\n")).rstrip()
 
 
-def find_identical_open_requirement(root: Path, repository: str, *, title: str, body: str, env: dict[str, str]) -> int | None:
+def find_identical_open_requirement(
+    root: Path, repository: str, *, title: str, body: str, env: dict[str, str], project_label: str,
+) -> int | None:
     """Return the one open Requirement with this exact title and body, so a rerun continues it.
 
     The platform-appended trailing ``Work identity`` line is not part of the authored body.
     """
     expected = _without_work_identity(body)
     matches = [
-        managed_task.issue_number(issue) for issue in open_requirement_issues(root, repository, env)
+        managed_task.issue_number(issue) for issue in open_requirement_issues(root, repository, env, project_label=project_label)
         if str(issue.get("title") or "").strip() == title
         and _without_work_identity(str(issue.get("body") or "")) == expected
     ]
@@ -339,7 +347,7 @@ def reconcile_board(root: Path, *, requirement: str | None = None) -> list[dict[
         env = github_cli_env(root)
         if env is None:
             raise RequirementIntakeError("GitHub CLI authentication is required; run gh auth login and retry")
-        issues = open_requirement_issues(root, config.repository, env)
+        issues = open_requirement_issues(root, config.repository, env, project_label=config.project_label)
         refs = [f"{config.repository}#{managed_task.issue_number(i)}" for i in issues]
     return [ensure_project_membership(root, ref) for ref in sorted(refs)]
 

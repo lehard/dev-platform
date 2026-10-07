@@ -229,7 +229,7 @@ OpenSpec task.
 3. Create or reuse one `type:requirement` Issue using the connected-GitHub
    Requirement adapter above.
 4. Verify its business sections and label by read-back.
-5. Confirm Development Backlog Project membership (exactly one item, initial
+5. Confirm Development Backlog Project membership (exactly one item with an initialized Status, initially
    `Backlog`) by read-back. Built-in auto-add normally supplies it, but it is
    not assumed. The connector may lack write access to the user-owned
    Project: if membership is not confirmed, report the Issue as durable but

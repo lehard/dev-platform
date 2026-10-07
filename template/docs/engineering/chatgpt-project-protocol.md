@@ -85,7 +85,8 @@ repository, `type:requirement` label, exactly the configured `project:*`
 label, and exactly one `priority:*` label matching the explicit or default
 priority, plus children markers. Fixation succeeds only after this read-back
 verifies every one of those labels **and** Development Backlog Project
-membership: exactly one Project item with its initial `Backlog` Status.
+membership: exactly one Project item with an initialized Status (initially
+`Backlog`; an existing Status is preserved).
 Built-in auto-add normally supplies it but is not assumed; the connector may
 lack write access to the user-owned Project. If membership is not confirmed,
 report the Issue as durable but fixation **unconfirmed** (never successfully

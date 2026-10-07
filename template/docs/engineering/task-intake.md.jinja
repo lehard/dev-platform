@@ -29,7 +29,7 @@ creating a separate task format.
   cannot be resolved (mismatched Backlog repository, a target repository not
   configured in this checkout, or an unavailable label), and verifies both
   labels by reading the Issue back before reporting success and confirming Development Backlog Project
-  membership (exactly one item, initial `Backlog` Status, added idempotently
+  membership (exactly one item with an initialized Status, initially `Backlog`, added idempotently
   when built-in auto-add did not run). If the Project cannot be confirmed the
   Issue stays durable, `create` fails naming it and a rerun continues it; a
   connected adapter that cannot write the Project reports fixation

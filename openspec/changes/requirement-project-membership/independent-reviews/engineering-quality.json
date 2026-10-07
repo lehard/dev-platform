@@ -3,42 +3,36 @@
   "candidate": {
     "base_head": "a8d83e5cbd97037b242daf30557f4b1e3b03ae7c",
     "base_ref": "origin/main",
-    "candidate_head": "111e35e4fe86dd21dcc47438230fe51c7b3e1ed4",
-    "diff_sha256": "7263901327c3581b17a4d47cab85e6a9f58e8e3b2c5bdbcfb384d50201ff3911"
+    "candidate_head": "cd79f2b8aa8093869d4d90dd948984a5fada58ec",
+    "diff_sha256": "b958c034491e68636e57bbcfb0102df8fa8ec2bfe438136c06c25ac63f4b8e1d"
   },
-  "completed_at": "2026-10-07T18:35:49+00:00",
+  "completed_at": "2026-10-07T19:03:46+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/managed_project_status.py:419\u2013427 reads Status and then performs an unconditional update when the observed value was unset. A concurrent claim between those operations is overwritten. An in-memory probe changed Status to 'In progress' after the read; ensure_item subsequently wrote 'Backlog' and returned success, putting claimed work back into the free queue.",
-      "id": "status-initialization-race",
+      "evidence": "template/scripts/requirement_intake.py:342-344 selects every open Requirement in the shared Backlog repository without checking config.project_label or the target repository. template/scripts/managed_project_status.py:204-218 resolves every selected Issue against the current checkout\u2019s project_owner/project_number. When targets share a Backlog repository but configure different Projects, --all creates unwanted memberships. An in-memory replay with project:billing configuration selected a project:crm Requirement for reconciliation.",
+      "id": "reconciliation-crosses-project-boundaries",
       "severity": "material",
-      "summary": "Membership repair can overwrite a concurrently claimed card with Backlog."
+      "summary": "Bulk reconciliation can add another target\u2019s Requirements to the wrong Project."
     },
     {
-      "evidence": "template/scripts/requirement_intake.py:328\u2013339 checks only the repository before calling ensure_project_membership. It never fetches the Issue to check state or type:requirement. Consequently, a closed Requirement or an internal-change Issue without a card can receive a new Backlog item through --requirement.",
-      "id": "reconciliation-target-validation",
+      "evidence": "template/scripts/managed_project_status.py:427-435 reads Status and then performs an unconditional update when the observed value is None. A claim occurring between those operations is overwritten; the final read-back accepts the resulting Backlog value. An in-memory replay inserted an In progress claim after the read and confirmed that ensure_item returned a successful Backlog receipt. tests/test_managed_project_status.py:175 tests a claim after the update, which does not cover this ordering.",
+      "id": "status-initialization-overwrites-concurrent-claim",
       "severity": "advisory",
-      "summary": "Explicit reconciliation does not validate that its target is an open Requirement."
-    },
-    {
-      "evidence": "template/scripts/managed_project_status.py:403,419,429 performs three complete item-discovery passes per ensure_item call. An in-memory probe confirmed three Project queries for an existing initialized card with no mutations. template/scripts/requirement_intake.py:339 repeats this for every open Requirement, so bulk recovery requires approximately 3 \u00d7 Requirement count \u00d7 Project page count queries.",
-      "id": "repeated-project-scans",
-      "severity": "advisory",
-      "summary": "Bulk reconciliation repeatedly scans the entire Project even when nothing changes."
+      "summary": "Status initialization can silently overwrite a concurrent claim with Backlog."
     }
   ],
-  "launched_at": "2026-10-07T18:32:25+00:00",
-  "output_sha256": "97af0dcf10b4ccf79fe8d9fd751437a1ba932ffea2c97c2a989d452d5fc6a2c5",
+  "launched_at": "2026-10-07T18:58:04+00:00",
+  "output_sha256": "7ca9801a51cb5e9ad7f4b265c0800113a4ae932b39399f4ab070411786250989",
   "perspective": "engineering-quality",
-  "request_id": "1c1d5512-6d11-4d0f-a8bf-1da478b19b62",
+  "request_id": "b171374c-e097-46f7-a1ef-f837c3f6f56d",
   "reviewer": {
-    "context_id": "01a117a3-639e-7aa0-8c69-7f37b30f8538",
+    "context_id": "01a117ba-df8a-7152-83e0-a17537562edc",
     "context_id_source": "runtime",
     "executed_provider": "codex",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-4cd65b01-8a28-4386-a2da-690999d2d5bb",
+    "launch_id": "platform-launch-bcd4ee0a-e8d9-4d28-a985-af513b90b903",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -54,21 +48,21 @@
       "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 668544
+        "value": 609536
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 756258
+        "value": 692481
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6272
+        "value": 5197
       }
     },
     "runtime": "codex-exec"
   },
   "schema_version": 1,
-  "task_content_digest": "37f39cf9cfe3062930275e25fb790af55cf744a5d1342584cdf17f3b81001751"
+  "task_content_digest": "441cb4a3d774f04524ff7c77904bcfe2e094b1a7bbcc2a43ab61e697b40bd951"
 }

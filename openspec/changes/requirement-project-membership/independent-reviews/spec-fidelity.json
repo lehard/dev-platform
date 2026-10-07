@@ -3,36 +3,36 @@
   "candidate": {
     "base_head": "a8d83e5cbd97037b242daf30557f4b1e3b03ae7c",
     "base_ref": "origin/main",
-    "candidate_head": "111e35e4fe86dd21dcc47438230fe51c7b3e1ed4",
-    "diff_sha256": "7263901327c3581b17a4d47cab85e6a9f58e8e3b2c5bdbcfb384d50201ff3911"
+    "candidate_head": "cd79f2b8aa8093869d4d90dd948984a5fada58ec",
+    "diff_sha256": "b958c034491e68636e57bbcfb0102df8fa8ec2bfe438136c06c25ac63f4b8e1d"
   },
-  "completed_at": "2026-10-07T18:32:25+00:00",
+  "completed_at": "2026-10-07T18:58:04+00:00",
   "findings": [
     {
-      "evidence": "template/docs/engineering/chatgpt-project-protocol.md:83\u201389 still defines fixation success through Issue/label read-back, and :229\u2013233 stops immediately afterward. template/docs/engineering/task-intake.md.jinja:26\u201331 likewise omits membership confirmation. These template surfaces receive neither the membership gate nor the unconfirmed outcome added to the central docs. This contradicts the active delta at openspec/changes/requirement-project-membership/specs/managed-task-intake/spec.md:26 and the accepted managed-task-intake requirement that downstream agents share the updateable intake contract.",
-      "id": "downstream-membership-contract-missing",
+      "evidence": "The delta spec at openspec/changes/requirement-project-membership/specs/managed-task-intake/spec.md:5 requires that an existing Status SHALL NOT be overwritten. template/scripts/managed_project_status.py:427-435 reads Status and then unconditionally writes Backlog when that earlier read was unset. A concurrent claim between those operations is overwritten; the read-back at lines 437-442 accepts the resulting Backlog. A read-only mocked interleaving reproduced In progress being replaced by Backlog with a successful receipt.",
+      "id": "concurrent-status-overwrite",
       "severity": "material",
-      "summary": "Downstream connected adapters retain the old fixation contract and can report success without confirmed Project membership."
+      "summary": "Status initialization can overwrite a concurrent claim and still report success."
     },
     {
-      "evidence": "template/scripts/managed_project_status.py:421\u2013435 requests Backlog for an unset Status, but the final read-back rejects only None; it never checks the expected Status required by design.md:7. A read-only in-memory probe of the exact function with current=None and final_status='Ready' returned success with status_initialized=True after requesting Backlog. Consequently, successful fixation can be reported without confirming the initialization required by the active delta at specs/managed-task-intake/spec.md:5.",
-      "id": "status-readback-not-validated",
-      "severity": "material",
-      "summary": "Membership confirmation accepts a Status that contradicts the requested initialization."
+      "evidence": "template/docs/engineering/chatgpt-project-protocol.md:86-88 makes fixation success conditional on an item with its initial Backlog Status; docs/engineering/chatgpt-project-protocol.md:232-233 and template/docs/engineering/task-intake.md.jinja:31-33 repeat this condition. The delta spec at openspec/changes/requirement-project-membership/specs/managed-task-intake/spec.md:5 and :14-16 instead requires an initialized Status and preservation of an existing one. A reused item already showing In progress satisfies that contract but fails the documented Backlog-only success condition.",
+      "id": "backlog-only-fixation-guidance",
+      "severity": "advisory",
+      "summary": "Connected and template guidance incorrectly requires Backlog when reusing an initialized item."
     }
   ],
-  "launched_at": "2026-10-07T18:28:46+00:00",
-  "output_sha256": "deae8b230e42e8997148248bd87567f7ef297b37812d49084f8e97b6a722f9a1",
+  "launched_at": "2026-10-07T18:53:02+00:00",
+  "output_sha256": "8f57affd9b04f0d96e53f6ccea535ad15e887d472fc4ff271ca41b1e527ea69b",
   "perspective": "spec-fidelity",
-  "request_id": "1c1d5512-6d11-4d0f-a8bf-1da478b19b62",
+  "request_id": "b171374c-e097-46f7-a1ef-f837c3f6f56d",
   "reviewer": {
-    "context_id": "01a117a0-095a-7711-b782-881560ad7a19",
+    "context_id": "01a117b6-4214-78e2-8aeb-76df2769e797",
     "context_id_source": "runtime",
     "executed_provider": "codex",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-1911118f-40ea-459e-8151-e1481c9c0cd2",
+    "launch_id": "platform-launch-00475e66-a705-46ee-9d4d-5c23f95d35d1",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -48,21 +48,21 @@
       "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 772352
+        "value": 663296
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 863292
+        "value": 749691
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 5668
+        "value": 4855
       }
     },
     "runtime": "codex-exec"
   },
   "schema_version": 1,
-  "task_content_digest": "37f39cf9cfe3062930275e25fb790af55cf744a5d1342584cdf17f3b81001751"
+  "task_content_digest": "441cb4a3d774f04524ff7c77904bcfe2e094b1a7bbcc2a43ab61e697b40bd951"
 }

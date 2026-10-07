@@ -352,11 +352,12 @@ class CreateRequirementTests(unittest.TestCase):
         with (
             patch.object(ri, "github_cli_env", return_value={}),
             patch.object(ri.managed_task, "authoring_config", return_value=self.config),
-            patch.object(ri.managed_task, "run_json", return_value=[issues[:2], issues[2:]]),
+            patch.object(ri.managed_task, "run_json", return_value=[issues[:2], issues[2:]]) as run_json,
             patch.object(ri.managed_project_status, "ensure_item", side_effect=fake_ensure),
         ):
             first = ri.reconcile_board(self.root)
             second = ri.reconcile_board(self.root)
+        self.assertIn("labels=type:requirement,project:billing", run_json.call_args.args[0][-1])
         self.assertEqual(seen[:2], ["acme/development-backlog#3", "acme/development-backlog#5"])
         self.assertEqual(first, second)
 
