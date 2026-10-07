@@ -3,34 +3,34 @@
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "4fc4b2186596cab5607447e74e83facd62ee110d",
-    "diff_sha256": "51103e6b88a90ba0dedd4d9426d1f373382ff10830e2c9fe760aa9d116757a6c"
+    "candidate_head": "1b24a63bc61a0939f52be084ef6ab99a1d6b4d04",
+    "diff_sha256": "e3e52efa6a45a0837abda855adb5345b7431e1dabef75576a5a0523f3e9bc618"
   },
-  "completed_at": "2026-10-07T18:11:53+00:00",
+  "completed_at": "2026-10-07T23:12:53+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/execute_requirement.py:638\u2013642 routes portable multi-child delivery through requirement_integration.publish_candidate. For a complete candidate, template/scripts/requirement_integration.py:833 calls _run_full_checks, which unconditionally imports lifecycle_workers at line 750. With that module unavailable, downstream delivery fails before checks or publication. This contradicts the active lifecycle-workers requirement that portable Requirement behavior must not require coordinator modules.",
-      "id": "portable-shared-publication-requires-workers",
+      "evidence": "template/scripts/execute_requirement.py:539-540 short-circuits _contribution_publication_supported when legacy_receipts is true. advance has no earlier lifecycle_mode call, and the subsequent loop can consume receipts or start managed children (lines 579-598). This contradicts the active completion-lifecycle requirement that unsupported source combinations fail at selection and never switch to the legacy path.",
+      "id": "legacy-requirement-bypasses-selection",
       "severity": "material",
-      "summary": "Downstream multi-child Requirement publication still requires the coordinator stack."
+      "summary": "Resuming a multi-child Requirement with legacy receipts bypasses contract selection, allowing unsupported source configurations to continue through the legacy path."
     },
     {
-      "evidence": "template/scripts/openspec_lifecycle.py:562\u2013567 handles finalize before the only lifecycle_mode call at line 572. Consequently, --finalize does not reject a missing platform_version or an unsupported source combination. With DEV_PLATFORM_COMPOSITION_FINALIZATION set, line 564 imports requirement_composition, whose module-level import at template/scripts/requirement_composition.py:15 loads lifecycle_workers without selecting coordinator mode. This contradicts both active requirements: archive must select through the shared selector, and coordinator modules may load only after coordinator mode is selected.",
-      "id": "finalize-bypasses-contract-selection",
+      "evidence": "template/scripts/project_publish.py:519 selects portable mode, but validate_shared_manifest at lines 453-455 imports requirement_contributions for a version-two manifest without checking that mode; requirement_contributions.py:15 imports lifecycle_workers at module level. The subsequent publication branch at project_publish.py:550-552 also imports requirement_composition, whose line 15 imports lifecycle_workers. Thus a downstream publication request loads coordinator modules or fails with ImportError instead of rejecting the coordinator-only request before import, contrary to the active lifecycle-workers requirement.",
+      "id": "portable-version-two-loads-coordinator",
       "severity": "material",
-      "summary": "Archive finalization bypasses lifecycle selection, allowing unsupported contracts to enter source-only behavior."
+      "summary": "Portable publication can still load the coordinator stack when given a version-two shared manifest."
     }
   ],
-  "launched_at": "2026-10-07T18:10:07+00:00",
-  "output_sha256": "7f6c0f7963fefdf5c3373d581d83e78ffea83e6bdbc1c05c747be817fe520e44",
+  "launched_at": "2026-10-07T23:11:52+00:00",
+  "output_sha256": "7b01167c442fdc5df323d54188534c0792117b536edfff4534086be38490f59c",
   "perspective": "spec-fidelity",
-  "request_id": "08e38f49-e845-453b-81bb-b980cce23627",
+  "request_id": "e31c0634-140f-4301-abc2-ee39adbdfac1",
   "reviewer": {
-    "context_id": "01a1178e-f827-7f41-ac76-e2b36712ac05",
+    "context_id": "01a118a3-39d0-7c41-8ea8-a743970928bf",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-4ce5cc8e-fd88-4790-9cae-d48f712f06cb",
+    "launch_id": "platform-launch-73413a42-2b96-46ee-8b67-b6fe58da27bf",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -45,21 +45,21 @@
       "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 220800
+        "value": 384512
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 276167
+        "value": 445540
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1579
+        "value": 1748
       }
     },
     "runtime": "codex-exec"
   },
   "schema_version": 1,
-  "task_content_digest": "8d9b172370b51b08815aaf6ffaa75f2bb11aceb022b3f7afd72352aa3511045e"
+  "task_content_digest": "d281e72a7d9736bdcf27193fb661575a89e504358ab3fa7bced2a65b0bbfa4dc"
 }
