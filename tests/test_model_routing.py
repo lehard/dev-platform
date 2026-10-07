@@ -1939,7 +1939,6 @@ class RoutingCalibrationTests(unittest.TestCase):
         self.assertIn("advice", payload)
 
 
-run_test_groups = load("run_test_groups", "run_test_groups.py")
 dogfood_task = load("dogfood_task_early_gate", "../../scripts/dogfood_task.py")
 
 DETECTION_ONLY = guard.EnforcementDecision(guard.EnforcementTier.DETECTION_ONLY, "detection-only:claude-shell-capable", "no proven sandbox")
@@ -2104,6 +2103,12 @@ class EarlyRoutingGateTests(unittest.TestCase):
             run.assert_not_called()
         # check/test entrypoint: fails before any group executes
         groups = {"g": {"targets": ["test_x"], "mode": "serial"}}
+        # A private, unregistered instance: registering "run_test_groups" here would
+        # substitute the instance tests/test_run_test_groups.py holds.
+        spec = importlib.util.spec_from_file_location("_early_gate_run_test_groups", SCRIPTS / "run_test_groups.py")
+        assert spec and spec.loader
+        run_test_groups = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(run_test_groups)
         with (
             patch.object(run_test_groups, "current_worktree_root", return_value=self.task),
             patch.object(run_test_groups, "load_check_config", return_value={}),
