@@ -1,0 +1,65 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
+    "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
+    "candidate_head": "4301cbd671b624b3a05383c7b9020db2aa138170",
+    "diff_sha256": "4f5976f4b715245912d5db8bcf97a0841642ba0bbdd03f79d1a9560b4fc6d48b"
+  },
+  "completed_at": "2026-10-07T17:08:16+00:00",
+  "findings": [
+    {
+      "evidence": "openspec/specs/model-routing/spec.md, scenario 'Legacy self-reported launch record reaches the gate', requires directing the supervisor to re-record a claimed execution. In template/scripts/model_routing.py, record_claude_execution now requires a delegated plan and open delegation; begin_claude_delegation refuses any existing execution, and prepare refuses existing implementation content except attributable failed Codex work. Consequently, a legacy Claude record with launched:true and completed task content cannot be converted to the required truthful claimed outcome.",
+      "id": "legacy-claude-rerecord-blocked",
+      "severity": "material",
+      "summary": "Legacy self-reported Claude launch records can no longer follow the accepted contract\u2019s required re-recording path."
+    },
+    {
+      "evidence": "template/scripts/run_test_groups.py:224\u2013229 imports model_routing unconditionally, and main calls this wrapper at line 310 before executing groups. A project without that module raises ModuleNotFoundError before the managed-state guard can run. This contradicts design.md decision 5: 'Projects without managed state or model_routing are unaffected,' and tasks.md 3.2.",
+      "id": "missing-routing-module-breaks-checks",
+      "severity": "material",
+      "summary": "The test entrypoint now requires model_routing even for projects where routing is absent and no managed task exists."
+    }
+  ],
+  "launched_at": "2026-10-07T17:07:14+00:00",
+  "output_sha256": "b5c806b8fed9227cf2ffd35d54920925a8e70248405f7d4efb5e0aa5deb67a7a",
+  "perspective": "spec-fidelity",
+  "request_id": "e12d3bfb-3e12-42c6-8318-cb789d58efa2",
+  "reviewer": {
+    "context_id": "01a11755-63b4-7472-a08e-3fa13e321aaf",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-e81a5ce5-e173-4056-870b-ccd4068fde68",
+    "model": {
+      "source": "selected",
+      "value": "gpt-6.1-sol"
+    },
+    "provider": "codex",
+    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
+    "runtime": "codex-exec",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cached_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 180096
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 236807
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1295
+      }
+    },
+    "runtime": "codex-exec"
+  },
+  "schema_version": 1,
+  "task_content_digest": "1b69cd6f00300ae68d8508e64045cd8bb1dbc3a46453a31edd4845a340b00a7f"
+}

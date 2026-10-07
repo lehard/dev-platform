@@ -1,0 +1,80 @@
+{
+  "candidate": {
+    "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
+    "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
+    "candidate_head": "4301cbd671b624b3a05383c7b9020db2aa138170",
+    "diff_sha256": "4f5976f4b715245912d5db8bcf97a0841642ba0bbdd03f79d1a9560b4fc6d48b"
+  },
+  "change": "openspec/changes/early-routing-gate",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/early-routing-gate/automated-checks.json",
+    "openspec/changes/early-routing-gate/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/early-routing-gate/design.md",
+        "openspec/changes/early-routing-gate/proposal.md",
+        "openspec/changes/early-routing-gate/specs/model-routing/spec.md",
+        "openspec/changes/early-routing-gate/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/early-routing-gate/proposal.md",
+        "openspec/changes/early-routing-gate/design.md",
+        "openspec/changes/early-routing-gate/tasks.md",
+        "openspec/changes/early-routing-gate/specs/model-routing/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-07T17:06:37+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/early-routing-gate/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "e12d3bfb-3e12-42c6-8318-cb789d58efa2",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+    "digest": "1b69cd6f00300ae68d8508e64045cd8bb1dbc3a46453a31edd4845a340b00a7f",
+    "paths": {
+      "docs/engineering/model-routing.md": "68ab08706a62bee3784da06677efcf42212a8701",
+      "openspec/changes/early-routing-gate/.managed-task.json": "006de5a6569c408e10c30fdb400114f4b7e9dbc4",
+      "openspec/changes/early-routing-gate/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+      "openspec/changes/early-routing-gate/design.md": "ceae5d26a56960278eac2887c0fb89c7844018bf",
+      "openspec/changes/early-routing-gate/proposal.md": "0a0269fb32daa481ec035a6b702c9dd75b436849",
+      "openspec/changes/early-routing-gate/specs/model-routing/spec.md": "b631d77350e08882a09e42d103e1a228f8805860",
+      "openspec/changes/early-routing-gate/tasks.md": "0c1566add6d8a1934d78e741f0dc2845db9531d9",
+      "scripts/dogfood_task.py": "cfaca7ffd6312b5950710e56b0355c2529c47ac0",
+      "template/docs/engineering/model-routing.md": "c4d2fd4b4e79a314102bda6bf1701817051691a3",
+      "template/scripts/model_routing.py": "98d71b4f6bd162cd9e819150124db518a1eea6b6",
+      "template/scripts/run_test_groups.py": "8c8e2b47032aac9c53959742d6d0fa2b4b91b13f",
+      "tests/test_central_dogfood_lifecycle.py": "5c288a1211eed7f122a79ee30bb8fad8aaa522ec",
+      "tests/test_model_routing.py": "ef4db622eb251d0a224e3f9e5dabe9cdc2f9acc2",
+      "tests/test_standard_profile_lifecycle_compatibility.py": "1f5b0d642a0d861ebdf3aeab5c0bd22879069352",
+      "tests/upgrade_smoke.py": "b8de65726bea479bb67bb9c8da5709e1c701a157"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

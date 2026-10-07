@@ -1,0 +1,59 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
+    "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
+    "candidate_head": "4301cbd671b624b3a05383c7b9020db2aa138170",
+    "diff_sha256": "4f5976f4b715245912d5db8bcf97a0841642ba0bbdd03f79d1a9560b4fc6d48b"
+  },
+  "completed_at": "2026-10-07T17:09:21+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/model_routing.py:1240-1243 persists an open, platform-observed delegation before calling run_codex. run_codex calls codex_argv at line 1125, which raises RoutingError when native containment is unavailable (1039-1041), before launching any child. This exception leaves the open delegation persisted with no execution. The early gate accepts any non-null delegation (730-731), and escalate skips the content-divergence check whenever a delegation exists (1009-1017). Consequently, after this failed preflight the supervisor can write content, escalate, and record retained execution despite no child having run.",
+      "id": "codex-preflight-leaves-phantom-delegation",
+      "severity": "material",
+      "summary": "A Codex preflight failure leaves an open delegation that allows supervisor-written content to bypass the early gate and be finalized as retained execution."
+    }
+  ],
+  "launched_at": "2026-10-07T17:08:16+00:00",
+  "output_sha256": "bc4b2a61b3919637728851e59a6482db7d59938a32c3bfa1bd906929d8f5e6d6",
+  "perspective": "engineering-quality",
+  "request_id": "e12d3bfb-3e12-42c6-8318-cb789d58efa2",
+  "reviewer": {
+    "context_id": "01a11756-5518-7863-87c9-603972ee71fd",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-8632ab31-e0cc-4693-ae6a-77ccb0aa056b",
+    "model": {
+      "source": "selected",
+      "value": "gpt-6.1-sol"
+    },
+    "provider": "codex",
+    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
+    "runtime": "codex-exec",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cached_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 299648
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 363789
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1247
+      }
+    },
+    "runtime": "codex-exec"
+  },
+  "schema_version": 1,
+  "task_content_digest": "1b69cd6f00300ae68d8508e64045cd8bb1dbc3a46453a31edd4845a340b00a7f"
+}
