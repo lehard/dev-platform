@@ -3,28 +3,28 @@
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "d38ce6cf9cd7a93afba387c8dd2b8c28e8dfdd96",
-    "diff_sha256": "65e9498e9cc91522ae4486675f3a4834e7cb260152da1aa1f94a75066d392bdf"
+    "candidate_head": "7f37e50d176862e08ba6722c1f99a5ed0fc1dacb",
+    "diff_sha256": "ba13d27b2cd9b7e7a4333f9051e9b9dbcc305250c469115a4300ba226e03f4b3"
   },
-  "completed_at": "2026-10-07T23:14:49+00:00",
+  "completed_at": "2026-10-08T06:56:03+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/publication_queue.py:604 now calls _admission_handoff even when an exact-head requirement-composition identity already exists and require_composition_finalized has succeeded. _admission_handoff rejects compositions without .managed-task-state.json at lines 531\u2013532, or rejects a coordinator checkout at another head at lines 536\u2013537. The existing final-publication path in template/scripts/requirement_composition.py:368 records the validated composition identity, then calls adapter.admit(root, number, head) without a handoff at line 375, after closing its disposable exact-head checkout. A read-only mocked reproduction with a composition identity and no single-task state raises: 'managed candidate requirement/BR-415 lacks valid exact task-content provenance: the head changes an OpenSpec change but the checkout has no managed task state'. This blocks terminal delivery of otherwise validated multi-child Requirements.",
-      "id": "composition-admission-requires-child-state",
+      "evidence": "template/scripts/publication_state.py:223 unconditionally calls _protected_required_contexts for Requirement contributions; line 141 uses the branch-protection required_status_checks endpoint. That endpoint requires Administration read permission ([GitHub documentation](https://docs.github.com/en/rest/branches/branch-protection#get-status-checks-protection)). However, .github/workflows/publication-queue.yml:42-43 explicitly grants the worker token only contents write and pull-requests write. publication_queue.py:1034 invokes this observer from that worker. Consequently, protection acquisition fails and returns unknown/transport rather than a passed required-checks gate, so even green contributions cannot advance to integration under the shipped coordinator credentials.",
+      "id": "contribution-observer-missing-permission",
       "severity": "material",
-      "summary": "Final Requirement compositions can no longer enter the publication queue because admission unconditionally requires single-task checkout provenance."
+      "summary": "Contribution check observation requires a permission absent from the coordinator token, preventing contributions from progressing."
     }
   ],
-  "launched_at": "2026-10-07T23:13:34+00:00",
-  "output_sha256": "f3340a27555f68b6d4fd52616d7c52db73e48835620c03889bb9796642db5e08",
+  "launched_at": "2026-10-08T06:54:28+00:00",
+  "output_sha256": "ede6ec754e2ad570c94cdb9f0d869c9b5afa0f85ebb14cfd1c846e9f2ca0ce63",
   "perspective": "engineering-quality",
-  "request_id": "50455e0c-007c-4047-8b22-33214d23ec00",
+  "request_id": "ba41b9f0-4e04-4b0d-b4aa-3c2571b273ec",
   "reviewer": {
-    "context_id": "01a118a4-c79b-7ee2-84c9-600c9e5cd821",
+    "context_id": "01a11a4a-c0c4-75f0-9899-db1b47389253",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-dfe3115a-19dc-42fd-90c0-88a12a972311",
+    "launch_id": "platform-launch-e6c75827-0c6f-4195-aad4-b2be1a61cf25",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -39,21 +39,21 @@
       "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 473984
+        "value": 464512
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 557404
+        "value": 556003
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2512
+        "value": 1848
       }
     },
     "runtime": "codex-exec"
   },
   "schema_version": 1,
-  "task_content_digest": "ad11bcd4335ca45d29c27edfa8c4da8e4399a1b403443239ecc1dfdbafe3b5c1"
+  "task_content_digest": "1cc384334b268f9a5381d1b9db6a8aea21e792f9848c092f911c9182807402e8"
 }

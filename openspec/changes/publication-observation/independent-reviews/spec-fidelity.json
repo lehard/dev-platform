@@ -3,28 +3,28 @@
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "d38ce6cf9cd7a93afba387c8dd2b8c28e8dfdd96",
-    "diff_sha256": "65e9498e9cc91522ae4486675f3a4834e7cb260152da1aa1f94a75066d392bdf"
+    "candidate_head": "7f37e50d176862e08ba6722c1f99a5ed0fc1dacb",
+    "diff_sha256": "ba13d27b2cd9b7e7a4333f9051e9b9dbcc305250c469115a4300ba226e03f4b3"
   },
-  "completed_at": "2026-10-07T23:13:34+00:00",
+  "completed_at": "2026-10-08T06:54:28+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/publication_state.py:143-145 returns an empty required set for any response containing 'HTTP 404', including 'Not Found'. The callers then return not_registered, which template/scripts/publication_queue.py:1154-1155 terminally blocks. Design D2 permits absence for 'Branch not protected' but requires API failures to produce unknown/transport; the delta's 'Transport or head fault does not terminally block' scenario requires non-terminal waiting. A generic Not Found response does not establish that branch protection requires no checks.",
-      "id": "protection-read-failure-becomes-no-checks",
+      "evidence": "template/scripts/publication_queue.py:577\u2013583 only checks that task_content is a dict and its digest is truthy. An evidence object such as {\"outcome\":\"success\"} returns an empty gate set and allows admission to continue; {\"outcome\":\"success\",\"managed_checkout\":{\"task_content\":{\"digest\":123}}} produces a passed archived-verification gate with a numeric digest and null head. This contradicts the active delta\u2019s \u201cMalformed archived verification evidence\u201d scenario, which requires admission to fail explicitly when archived automated-checks evidence is malformed.",
+      "id": "malformed-archive-evidence-accepted",
       "severity": "material",
-      "summary": "A generic protection API 404 is treated as proof that no checks are required, turning an unusable observation into a terminal block."
+      "summary": "Managed admission still accepts structurally malformed archived verification evidence instead of failing explicitly."
     }
   ],
-  "launched_at": "2026-10-07T23:12:47+00:00",
-  "output_sha256": "67e566c85e32dab13f5bf8e95df053f0fecdf67d171b2af42dbc59d3ee6c4493",
+  "launched_at": "2026-10-08T06:53:34+00:00",
+  "output_sha256": "c7b540ebad2f8a4c2ebef79cad547b4c541c5b9dc776cc0c2c24041a8669ba82",
   "perspective": "spec-fidelity",
-  "request_id": "50455e0c-007c-4047-8b22-33214d23ec00",
+  "request_id": "ba41b9f0-4e04-4b0d-b4aa-3c2571b273ec",
   "reviewer": {
-    "context_id": "01a118a4-0f4a-7970-89c1-bc0cd0150502",
+    "context_id": "01a11a49-ee53-7660-acc8-8eab651bada3",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-af7b0154-dc90-4539-83f6-d5181454f723",
+    "launch_id": "platform-launch-866da0e3-b43f-40f9-bb87-8280a26416dc",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -39,21 +39,21 @@
       "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 249472
+        "value": 181248
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 327006
+        "value": 239143
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1447
+        "value": 1083
       }
     },
     "runtime": "codex-exec"
   },
   "schema_version": 1,
-  "task_content_digest": "ad11bcd4335ca45d29c27edfa8c4da8e4399a1b403443239ecc1dfdbafe3b5c1"
+  "task_content_digest": "1cc384334b268f9a5381d1b9db6a8aea21e792f9848c092f911c9182807402e8"
 }
