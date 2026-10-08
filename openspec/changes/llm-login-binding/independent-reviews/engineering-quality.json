@@ -1,91 +1,32 @@
 {
-  "availability": "available",
+  "availability": "unavailable",
   "candidate": {
     "base_head": "c0b0b01b44ff8808dc02522078fa5d5d20f67f4f",
     "base_ref": "origin/main",
-    "candidate_head": "2aa17e24bf97fe3f41e51e996338f5b622cadb13",
-    "diff_sha256": "b39039b284f76642c790ab95e1494343d21b5400b3a8274a2140ae3a4eec81cf"
+    "candidate_head": "b43ad04e36623ec09078e06865112c08a724fbda",
+    "diff_sha256": "051784d1f49c425441f4c02cf5ca5295ecbfce1783f7e162e9fb590336b9c16c"
   },
-  "completed_at": "2026-10-08T10:06:34+00:00",
-  "findings": [
-    {
-      "evidence": "template/scripts/pr_review_gate.py: `provider = \"claude\" if claude_binary is not None and argv[0] == claude_binary else \"codex\"`; the same line is in template/scripts/requirement_composition.py. bound_preflight in independent_review_runner.py instead builds a providers_by_binary map over PROVIDERS, so the three call sites resolve the provider differently.",
-      "id": "provider-inferred-from-binary-else-codex",
-      "severity": "advisory",
-      "summary": "The default review launchers infer the provider by comparing argv[0] to the claude binary and treat everything else as codex. The logic is duplicated in two places. A new provider in PROVIDERS, or a codex binary that resolves to the same path as claude, would silently get the codex environment and no token."
-    },
-    {
-      "evidence": "template/scripts/lifecycle_workers.py read_login_token: `for parent in path.resolve().parents: if (parent / \".git\").exists(): raise WorkerError(... must be outside any git checkout ...)`. The docs only say \"outside any git checkout\".",
-      "id": "token-file-git-ancestor-check-too-broad",
-      "severity": "advisory",
-      "summary": "read_login_token rejects any token file with a `.git` entry in any ancestor directory. An operator whose HOME is itself a dotfiles git repo cannot keep the token anywhere under ~, and the error text does not say why. The check also tests `.git` existence only, so it does not cover a gitdir-file worktree layout in every case."
-    },
-    {
-      "evidence": "pr_review_gate.py: `return subprocess_launcher(argv, cwd, timeout, env=workers.llm_env(provider, review_config or {}, home))`. By contrast, bound_preflight wraps the same call in `except WorkerError -> LaunchUnavailable`.",
-      "id": "launcher-worker-error-not-launch-unavailable",
-      "severity": "advisory",
-      "summary": "In the default review launcher in pr_review_gate.py and requirement_composition.py, llm_env can raise WorkerError for an invalid token file. This happens at launch time, after the claim, and the exception escapes the runner's LaunchUnavailable handling. A bad token file therefore fails the job with a raw exception instead of recording the reviewer as unavailable. The worker's login preflight catches it before the claim only when it is invoked through `work-next --run`."
-    }
-  ],
-  "launched_at": "2026-10-08T10:02:59+00:00",
-  "output_sha256": "0a04d183b60590366a69dd4856591b8d15cb98b1ba0d5a33ba5bfc800e4b598e",
+  "completed_at": "2026-10-08T11:02:23+00:00",
+  "findings": [],
+  "launched_at": "2026-10-08T11:02:23+00:00",
+  "limitation": "[independent_review] providers must be a nonempty ordered list of unique codex/claude providers",
   "perspective": "engineering-quality",
-  "request_id": "d8a29173-70c1-427c-b310-05ebcca9812b",
+  "request_id": "c4f4b16a-03d7-4100-b3b5-626de7666211",
   "reviewer": {
-    "context_id": "f2ba4647-4db0-41ad-aa30-490fff822e4c",
-    "context_id_source": "runtime",
+    "context_id": "platform-launch-568ae374-5e1d-4b96-8c14-5c92987d35f9",
+    "context_id_source": "platform-launch",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-5a248e6e-9237-4524-9ed3-d1811e4ac7c9",
+    "launch_id": "platform-launch-568ae374-5e1d-4b96-8c14-5c92987d35f9",
     "model": {
-      "source": "selected",
-      "value": "sonnet"
+      "source": "unknown",
+      "value": null
     },
-    "provider": "claude",
-    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "runtime": "claude-code-print",
+    "provider": "unknown",
+    "read_only_mechanism": "none",
+    "runtime": "unresolved",
     "write_access": false
   },
-  "runtime_usage": {
-    "fields": {
-      "cache_creation_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 33098
-      },
-      "cache_read_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 88842
-      },
-      "duration_api_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 20009
-      },
-      "duration_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 21988
-      },
-      "input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 8
-      },
-      "num_turns": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 5
-      },
-      "output_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 1949
-      }
-    },
-    "runtime": "claude-code-print"
-  },
   "schema_version": 1,
-  "task_content_digest": "5754633ad9643373bf555407111d39e69ec6b14ab0e495e2caf350410f1ba097"
+  "task_content_digest": "4ea459860e718538510a9b8561fc92b4f66dcbc6bcc16184ff32dc5281d40569"
 }

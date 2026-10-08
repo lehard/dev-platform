@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "c0b0b01b44ff8808dc02522078fa5d5d20f67f4f",
     "base_ref": "origin/main",
-    "candidate_head": "2aa17e24bf97fe3f41e51e996338f5b622cadb13",
-    "diff_sha256": "b39039b284f76642c790ab95e1494343d21b5400b3a8274a2140ae3a4eec81cf"
+    "candidate_head": "b43ad04e36623ec09078e06865112c08a724fbda",
+    "diff_sha256": "051784d1f49c425441f4c02cf5ca5295ecbfce1783f7e162e9fb590336b9c16c"
   },
   "change": "openspec/changes/llm-login-binding",
   "excluded_lifecycle_paths": [
@@ -37,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-08T10:01:21+00:00",
+  "prepared_at": "2026-10-08T11:02:17+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/llm-login-binding/independent-reviews",
     "required_perspectives": [
@@ -46,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "d8a29173-70c1-427c-b310-05ebcca9812b",
+  "request_id": "c4f4b16a-03d7-4100-b3b5-626de7666211",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -58,8 +58,8 @@
   },
   "schema_version": 1,
   "task_content": {
-    "base": "a8d83e5cbd97037b242daf30557f4b1e3b03ae7c",
-    "digest": "5754633ad9643373bf555407111d39e69ec6b14ab0e495e2caf350410f1ba097",
+    "base": "c0b0b01b44ff8808dc02522078fa5d5d20f67f4f",
+    "digest": "4ea459860e718538510a9b8561fc92b4f66dcbc6bcc16184ff32dc5281d40569",
     "paths": {
       "docs/engineering/openspec-workflow.md": "93c9ed9315e398dd4f82e1b062c3d78663eff720",
       "openspec/changes/llm-login-binding/.managed-task.json": "29db5a2099f65b312a95bdb6674539477f3a7561",
@@ -71,11 +71,11 @@
       "template/docs/engineering/openspec-workflow.md": "a23bc41bdb1ce01f51121abe0b01e04058e4b538",
       "template/scripts/independent_review.py": "e4c6a0889b5d8a733200d7175efb03476ab49497",
       "template/scripts/independent_review_runner.py": "bf1d05f3858a2e3c5ed1dac8ec0a074e34a76037",
-      "template/scripts/lifecycle_workers.py": "702c6f4029b53d5d26c3672a3896bf6038041627",
-      "template/scripts/pr_review_gate.py": "57124ddc0b7af5c9060c589d571823702f2ff41e",
+      "template/scripts/lifecycle_workers.py": "0fbb40af207c8594faf23ace3bd09bb0f711ea2f",
+      "template/scripts/pr_review_gate.py": "dbadab818e26e273feac1678c8b9d02c920d0d53",
       "template/scripts/requirement_composition.py": "da775215f4505442e10f5c21a1d500f5abdb3f12",
       "tests/test_independent_review.py": "7f8425da0ddbfe894fe2145a52cce45c2b8ac776",
-      "tests/test_lifecycle_workers.py": "753dcd510a0e0e3b18ff7388a432e42312cfcb2a",
+      "tests/test_lifecycle_workers.py": "ff7bc617663b7c9f39994f01e10527ab46e93196",
       "tests/test_requirement_contribution_composition.py": "52b35776666836dd5a34dd275984edf6ff158602"
     },
     "scope": "independent-review-v1",

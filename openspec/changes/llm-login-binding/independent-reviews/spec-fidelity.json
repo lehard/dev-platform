@@ -1,79 +1,32 @@
 {
-  "availability": "available",
+  "availability": "unavailable",
   "candidate": {
     "base_head": "c0b0b01b44ff8808dc02522078fa5d5d20f67f4f",
     "base_ref": "origin/main",
-    "candidate_head": "2aa17e24bf97fe3f41e51e996338f5b622cadb13",
-    "diff_sha256": "b39039b284f76642c790ab95e1494343d21b5400b3a8274a2140ae3a4eec81cf"
+    "candidate_head": "b43ad04e36623ec09078e06865112c08a724fbda",
+    "diff_sha256": "051784d1f49c425441f4c02cf5ca5295ecbfce1783f7e162e9fb590336b9c16c"
   },
-  "completed_at": "2026-10-08T10:02:59+00:00",
-  "findings": [
-    {
-      "evidence": "template/scripts/lifecycle_workers.py login_preflight (~line 756) passes each job provider to resolve_binary and check_login. pr_review_gate.py:322 and publication_queue.py:370 show jobs can carry the 'unresolved-originating-task-route' placeholder. The spec requires naming 'the provider and the available bindings' but does not say what happens when the provider is unresolved.",
-      "id": "preflight-unresolved-provider-placeholder",
-      "severity": "advisory",
-      "summary": "The pre-claim login preflight takes providers straight from the job. A job whose providers are the placeholder 'unresolved-originating-task-route' fails before the claim with a login-binding message. Nothing in the spec covers this case."
-    }
-  ],
-  "launched_at": "2026-10-08T10:02:08+00:00",
-  "output_sha256": "36808855648d3462fd45c8d1138137b3b383b0e1c057ea0e500b3a645a50de1e",
+  "completed_at": "2026-10-08T11:02:23+00:00",
+  "findings": [],
+  "launched_at": "2026-10-08T11:02:23+00:00",
+  "limitation": "[independent_review] providers must be a nonempty ordered list of unique codex/claude providers",
   "perspective": "spec-fidelity",
-  "request_id": "d8a29173-70c1-427c-b310-05ebcca9812b",
+  "request_id": "c4f4b16a-03d7-4100-b3b5-626de7666211",
   "reviewer": {
-    "context_id": "df441fe0-cb70-4f83-bdce-cd1356ef6271",
-    "context_id_source": "runtime",
+    "context_id": "platform-launch-5055f699-4736-43a3-a7bf-86844a562cb6",
+    "context_id_source": "platform-launch",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-7e61ee75-a6cb-4784-854c-65e69b0ed2d7",
+    "launch_id": "platform-launch-5055f699-4736-43a3-a7bf-86844a562cb6",
     "model": {
-      "source": "selected",
-      "value": "sonnet"
+      "source": "unknown",
+      "value": null
     },
-    "provider": "claude",
-    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "runtime": "claude-code-print",
+    "provider": "unknown",
+    "read_only_mechanism": "none",
+    "runtime": "unresolved",
     "write_access": false
   },
-  "runtime_usage": {
-    "fields": {
-      "cache_creation_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 43287
-      },
-      "cache_read_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 173233
-      },
-      "duration_api_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 33651
-      },
-      "duration_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 38754
-      },
-      "input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 12
-      },
-      "num_turns": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 10
-      },
-      "output_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 2427
-      }
-    },
-    "runtime": "claude-code-print"
-  },
   "schema_version": 1,
-  "task_content_digest": "5754633ad9643373bf555407111d39e69ec6b14ab0e495e2caf350410f1ba097"
+  "task_content_digest": "4ea459860e718538510a9b8561fc92b4f66dcbc6bcc16184ff32dc5281d40569"
 }
