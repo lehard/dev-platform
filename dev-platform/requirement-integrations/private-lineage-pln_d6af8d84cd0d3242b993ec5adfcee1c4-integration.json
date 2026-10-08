@@ -236,6 +236,262 @@
         "work_identity": "BR-415/T1"
       },
       "work_identity": "BR-415/T1"
+    },
+    {
+      "change": "child-project-routing",
+      "contribution_base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+      "gates": {
+        "developer-friction": {
+          "evidence": {
+            "command": [
+              "python3",
+              "/Users/Shared/Workspace/dev-platform/.claude/worktrees/child-project-routing/scripts/agent_friction.py",
+              "assert-checkpoint",
+              "--exact-head"
+            ],
+            "head": "fc3da5c48380840fc544c831bd141e01d1ae7019"
+          },
+          "identity": {
+            "change": "child-project-routing",
+            "contribution_base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+            "kind": "contribution",
+            "requirement": "pln_d6af8d84cd0d3242b993ec5adfcee1c4",
+            "source_issue": "pln_ada35b41259fef2414aecb885464b575",
+            "target_branch": "requirement/BR-415",
+            "task_content": {
+              "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+              "digest": "8c6cd14a2b65ffcd697d8a4141a9f0d52f8bd2a1dbf04c6105fa37558fe3361f",
+              "paths": {
+                "openspec/changes/child-project-routing/.managed-task.json": "d5c8d0fad3590c0ec26e65fb642dc9b4796819f4",
+                "openspec/changes/child-project-routing/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+                "openspec/changes/child-project-routing/design.md": "484489505efe94f56d6a60dc867d032a466fe243",
+                "openspec/changes/child-project-routing/proposal.md": "ddc36f36b70cdc16badff4e88635c6a0a0a7ecea",
+                "openspec/changes/child-project-routing/specs/agent-workflow/spec.md": "5add05fb37926f0b5677bc2711eee1e64c21222a",
+                "openspec/changes/child-project-routing/tasks.md": "7e59da96501d109ae23825ff7b05bf5b4355c6ba",
+                "template/scripts/requirement_intake.py": "dd34507c47287ecb52a722111577b8a2b36acdf6",
+                "tests/test_requirement_intake.py": "cd1880ce5229d178c043bed56c813731381dfa48"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-415/T2"
+          },
+          "result": "passed"
+        },
+        "required-checks": {
+          "evidence": {
+            "checks": [
+              {
+                "link": "https://github.com/lehard/dev-platform/actions/runs/37747041820/job/113210870402",
+                "name": "validate",
+                "state": "SUCCESS",
+                "workflow": "Platform CI"
+              }
+            ],
+            "detail": "",
+            "head": "6b73b1bc21ff46750a6c2895c1781a5f4ad919cb",
+            "kind": "passed"
+          },
+          "identity": {
+            "change": "child-project-routing",
+            "contribution_base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+            "kind": "contribution",
+            "requirement": "pln_d6af8d84cd0d3242b993ec5adfcee1c4",
+            "source_issue": "pln_ada35b41259fef2414aecb885464b575",
+            "target_branch": "requirement/BR-415",
+            "task_content": {
+              "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+              "digest": "8c6cd14a2b65ffcd697d8a4141a9f0d52f8bd2a1dbf04c6105fa37558fe3361f",
+              "paths": {
+                "openspec/changes/child-project-routing/.managed-task.json": "d5c8d0fad3590c0ec26e65fb642dc9b4796819f4",
+                "openspec/changes/child-project-routing/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+                "openspec/changes/child-project-routing/design.md": "484489505efe94f56d6a60dc867d032a466fe243",
+                "openspec/changes/child-project-routing/proposal.md": "ddc36f36b70cdc16badff4e88635c6a0a0a7ecea",
+                "openspec/changes/child-project-routing/specs/agent-workflow/spec.md": "5add05fb37926f0b5677bc2711eee1e64c21222a",
+                "openspec/changes/child-project-routing/tasks.md": "7e59da96501d109ae23825ff7b05bf5b4355c6ba",
+                "template/scripts/requirement_intake.py": "dd34507c47287ecb52a722111577b8a2b36acdf6",
+                "tests/test_requirement_intake.py": "cd1880ce5229d178c043bed56c813731381dfa48"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-415/T2"
+          },
+          "result": "passed"
+        },
+        "review": {
+          "evidence": {
+            "engineering-quality": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": "tests/test_requirement_intake.py, test_missing_configuration_is_a_named_error: `create = unittest.mock.Mock()` is never patched into `ri.managed_task.create_task`, yet `create.assert_not_called()` is asserted. The spec scenario 'Missing or ambiguous routing input ... creates nothing' is therefore only covered by the raised error. The scenario's 'Backlog label absent' case also has no test.",
+                  "id": "vacuous-missing-config-test",
+                  "severity": "advisory",
+                  "summary": "The missing-configuration test asserts `create.assert_not_called()` on a mock that is never wired into materialize_handoff, so that assertion proves nothing about the 'creates nothing' scenario."
+                },
+                {
+                  "evidence": "template/scripts/requirement_intake.py materialize_handoff: the new `config = managed_task.authoring_config(root)` / `resolve_child_routing(...)` block is placed before `requirement_target_lifecycle.require_local_target_support(...)`. Previously `authoring_config` was called after the target-support check.",
+                  "id": "routing-check-ordering-before-target-support",
+                  "severity": "advisory",
+                  "summary": "`managed_task.authoring_config` and `resolve_child_routing` now run before the target-lifecycle support check, so a project without `[development_backlog]` configuration now fails with 'child routing input missing' instead of the more specific target-support error. This is a minor change in error pr"
+                }
+              ],
+              "perspective": "engineering-quality",
+              "report_sha256": "11ede544a85e2d343bb6df06524270d511df7af2f5065b57967efd6b43367db3"
+            },
+            "spec-fidelity": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": "template/scripts/requirement_intake.py verify_child_routing error text says \"Correct the project label on {child_ref} manually (or close it and retry)\". Candidate search in materialize_handoff (line ~749) queries `issues?state=all` and reuses the matching handoff-marker child. A closed child therefore becomes the reused candidate and verify_child_routing then raises \"child ... is not open\". design.md decision 4 has the same guidance and doesn't account for this.",
+                  "id": "close-and-retry-guidance-dead-end",
+                  "severity": "advisory",
+                  "summary": "The mislabeled-child repair guidance says to \"close it and retry\". The retry would still find the closed child and reject it, so that path can't succeed."
+                },
+                {
+                  "evidence": "verify_child_routing: `if issue.get(\"state\") != \"open\": raise ...`. Spec scenarios for read-back mismatch list only project label, type:internal-change and the back-reference.",
+                  "id": "open-state-check-not-in-spec",
+                  "severity": "advisory",
+                  "summary": "The implementation rejects a reused child that is not open, and rejects a pull request. The agent-workflow delta spec doesn't list either rule, although design.md decision 3 does. Reusing a previously closed exact-handoff child used to be accepted and now fails."
+                },
+                {
+                  "evidence": "_link_child_identity: `if child_projects and child_projects != parent_projects:`. verify_child_routing requires `found_projects == [expected]`, so the two paths disagree on a child with no project label.",
+                  "id": "link-child-absent-project-label-accepted",
+                  "severity": "advisory",
+                  "summary": "The standalone link_child check rejects a child only when it has a `project:*` label that differs from the parent's. A child with no `project:*` label is linked without error. design.md decision 5 describes the check as comparing the child's label to the parent's. It doesn't say an absent label is a"
+                }
+              ],
+              "perspective": "spec-fidelity",
+              "report_sha256": "6931c3bb0b3b41c306bf41e1d9928d304a3a2216f51a7d743730ec10874ba228"
+            }
+          },
+          "identity": {
+            "change": "child-project-routing",
+            "contribution_base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+            "kind": "contribution",
+            "requirement": "pln_d6af8d84cd0d3242b993ec5adfcee1c4",
+            "source_issue": "pln_ada35b41259fef2414aecb885464b575",
+            "target_branch": "requirement/BR-415",
+            "task_content": {
+              "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+              "digest": "8c6cd14a2b65ffcd697d8a4141a9f0d52f8bd2a1dbf04c6105fa37558fe3361f",
+              "paths": {
+                "openspec/changes/child-project-routing/.managed-task.json": "d5c8d0fad3590c0ec26e65fb642dc9b4796819f4",
+                "openspec/changes/child-project-routing/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+                "openspec/changes/child-project-routing/design.md": "484489505efe94f56d6a60dc867d032a466fe243",
+                "openspec/changes/child-project-routing/proposal.md": "ddc36f36b70cdc16badff4e88635c6a0a0a7ecea",
+                "openspec/changes/child-project-routing/specs/agent-workflow/spec.md": "5add05fb37926f0b5677bc2711eee1e64c21222a",
+                "openspec/changes/child-project-routing/tasks.md": "7e59da96501d109ae23825ff7b05bf5b4355c6ba",
+                "template/scripts/requirement_intake.py": "dd34507c47287ecb52a722111577b8a2b36acdf6",
+                "tests/test_requirement_intake.py": "cd1880ce5229d178c043bed56c813731381dfa48"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-415/T2"
+          },
+          "result": "passed"
+        },
+        "selected-checks": {
+          "evidence": {
+            "bytes": 4428,
+            "path": "openspec/changes/child-project-routing/automated-checks.json",
+            "sha256": "f6f6263490ebd913aafaf326e6fb985115509dc76d8aa0f69711b74a2a287984"
+          },
+          "identity": {
+            "change": "child-project-routing",
+            "contribution_base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+            "kind": "contribution",
+            "requirement": "pln_d6af8d84cd0d3242b993ec5adfcee1c4",
+            "source_issue": "pln_ada35b41259fef2414aecb885464b575",
+            "target_branch": "requirement/BR-415",
+            "task_content": {
+              "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+              "digest": "8c6cd14a2b65ffcd697d8a4141a9f0d52f8bd2a1dbf04c6105fa37558fe3361f",
+              "paths": {
+                "openspec/changes/child-project-routing/.managed-task.json": "d5c8d0fad3590c0ec26e65fb642dc9b4796819f4",
+                "openspec/changes/child-project-routing/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+                "openspec/changes/child-project-routing/design.md": "484489505efe94f56d6a60dc867d032a466fe243",
+                "openspec/changes/child-project-routing/proposal.md": "ddc36f36b70cdc16badff4e88635c6a0a0a7ecea",
+                "openspec/changes/child-project-routing/specs/agent-workflow/spec.md": "5add05fb37926f0b5677bc2711eee1e64c21222a",
+                "openspec/changes/child-project-routing/tasks.md": "7e59da96501d109ae23825ff7b05bf5b4355c6ba",
+                "template/scripts/requirement_intake.py": "dd34507c47287ecb52a722111577b8a2b36acdf6",
+                "tests/test_requirement_intake.py": "cd1880ce5229d178c043bed56c813731381dfa48"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-415/T2"
+          },
+          "result": "passed"
+        },
+        "semantic-verification": {
+          "evidence": {
+            "bytes": 2547,
+            "path": "openspec/changes/child-project-routing/verification.md",
+            "sha256": "5ae77cd4ec8e305fdc630bc3d8594fb65ec82c1c48d5259d125266163b0c732d"
+          },
+          "identity": {
+            "change": "child-project-routing",
+            "contribution_base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+            "kind": "contribution",
+            "requirement": "pln_d6af8d84cd0d3242b993ec5adfcee1c4",
+            "source_issue": "pln_ada35b41259fef2414aecb885464b575",
+            "target_branch": "requirement/BR-415",
+            "task_content": {
+              "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+              "digest": "8c6cd14a2b65ffcd697d8a4141a9f0d52f8bd2a1dbf04c6105fa37558fe3361f",
+              "paths": {
+                "openspec/changes/child-project-routing/.managed-task.json": "d5c8d0fad3590c0ec26e65fb642dc9b4796819f4",
+                "openspec/changes/child-project-routing/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+                "openspec/changes/child-project-routing/design.md": "484489505efe94f56d6a60dc867d032a466fe243",
+                "openspec/changes/child-project-routing/proposal.md": "ddc36f36b70cdc16badff4e88635c6a0a0a7ecea",
+                "openspec/changes/child-project-routing/specs/agent-workflow/spec.md": "5add05fb37926f0b5677bc2711eee1e64c21222a",
+                "openspec/changes/child-project-routing/tasks.md": "7e59da96501d109ae23825ff7b05bf5b4355c6ba",
+                "template/scripts/requirement_intake.py": "dd34507c47287ecb52a722111577b8a2b36acdf6",
+                "tests/test_requirement_intake.py": "cd1880ce5229d178c043bed56c813731381dfa48"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-415/T2"
+          },
+          "result": "passed"
+        }
+      },
+      "head": "6b73b1bc21ff46750a6c2895c1781a5f4ad919cb",
+      "integrated_head": "622e50b75479ea3017a464e58c7a56d8b0ad7acc",
+      "pr_number": 352,
+      "reviewed_evidence_digest": "362bff286d6299b7dc6532f4a0c5a9670676dce6f5b531aad4fdb95d52db4521",
+      "source_branch": "agent/br-415-t2-child-project-routing",
+      "source_issue": "pln_ada35b41259fef2414aecb885464b575",
+      "task_identity": {
+        "change": "child-project-routing",
+        "contribution_base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+        "kind": "contribution",
+        "requirement": "pln_d6af8d84cd0d3242b993ec5adfcee1c4",
+        "source_issue": "pln_ada35b41259fef2414aecb885464b575",
+        "target_branch": "requirement/BR-415",
+        "task_content": {
+          "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+          "digest": "8c6cd14a2b65ffcd697d8a4141a9f0d52f8bd2a1dbf04c6105fa37558fe3361f",
+          "paths": {
+            "openspec/changes/child-project-routing/.managed-task.json": "d5c8d0fad3590c0ec26e65fb642dc9b4796819f4",
+            "openspec/changes/child-project-routing/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+            "openspec/changes/child-project-routing/design.md": "484489505efe94f56d6a60dc867d032a466fe243",
+            "openspec/changes/child-project-routing/proposal.md": "ddc36f36b70cdc16badff4e88635c6a0a0a7ecea",
+            "openspec/changes/child-project-routing/specs/agent-workflow/spec.md": "5add05fb37926f0b5677bc2711eee1e64c21222a",
+            "openspec/changes/child-project-routing/tasks.md": "7e59da96501d109ae23825ff7b05bf5b4355c6ba",
+            "template/scripts/requirement_intake.py": "dd34507c47287ecb52a722111577b8a2b36acdf6",
+            "tests/test_requirement_intake.py": "cd1880ce5229d178c043bed56c813731381dfa48"
+          },
+          "scope": "independent-review-v1",
+          "version": 1
+        },
+        "work_identity": "BR-415/T2"
+      },
+      "work_identity": "BR-415/T2"
     }
   ],
   "dependencies": {
@@ -251,7 +507,7 @@
       "publication-observation"
     ]
   },
-  "digest": "40b3fd0c8dac0505f3c2ae356b67a1188ca7501224ac4f09df8aa93841f56c0c",
+  "digest": "941ef5a9e9c0f7e03329a4e0149f765f3a45efcb703a0ea41829f42496251f53",
   "expected_changes": [
     "capability-metadata",
     "child-project-routing",
