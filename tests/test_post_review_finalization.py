@@ -299,7 +299,7 @@ class FinalizeTests(unittest.TestCase):
                 self.repo.root, "o/r", candidate, job, source_repo=self.repo.remote.as_uri(),
                 branch="agent/example", current_head=self.repo.head, workdir=workdir,
                 post_result=post or results.append, archiver=archiver or self.archiver,
-                claim_current=lambda: True, checks_runner=checks_runner)
+                claim_current=lambda: True, checks_runner=checks_runner, worker="w")
         fixture.head = self.repo.head()
         return outcome, results
 

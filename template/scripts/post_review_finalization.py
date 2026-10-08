@@ -225,8 +225,8 @@ def return_to_review(root: Path, repo: str, candidate: dict, head: str, fresh: d
 
 
 def run_claimed_finalize(root: Path, repo: str, candidate: dict, job: dict, *, source_repo: str, branch: str,
-                         current_head, post_result, workdir: str, adapter=queue, runner=None, archiver=None,
-                         worker: str = "worker", claim_current=None, push_env=None, checks_runner=None) -> dict:
+                         current_head, post_result, workdir: str, worker: str, adapter=queue, runner=None, archiver=None,
+                         claim_current=None, push_env=None, checks_runner=None) -> dict:
     """Execute and advance one claimed exact-head finalize job, without the developer."""
     if job["kind"] != "finalize":
         raise workers.WorkerError(f"no finalization executor for {job['kind']}")

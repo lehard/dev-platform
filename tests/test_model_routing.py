@@ -200,6 +200,34 @@ class ModelRoutingTests(unittest.TestCase):
         reread, _ = routing._read_route(self.task)
         self.assertEqual(reread.supervisor, {})
 
+    def test_read_route_for_change_returns_the_recorded_originating_route(self) -> None:
+        self.prepare(provider="claude", profile="standard")
+        with patch.object(routing, "main_root", return_value=self.integration):
+            self.assertEqual(routing.read_route_for_change(self.task, "routing-change"),
+                             {"provider": "claude", "profile": "standard", "change": "routing-change"})
+
+    def test_read_route_for_change_rejects_missing_unreadable_mismatched_and_unsupported_evidence(self) -> None:
+        with patch.object(routing, "main_root", return_value=self.integration):
+            with self.assertRaisesRegex(routing.RoutingError, "missing"):
+                routing.read_route_for_change(self.task, "routing-change")
+            self.prepare()
+            with self.assertRaisesRegex(routing.RoutingError, "not other-change|manages change routing-change"):
+                routing.read_route_for_change(self.task, "other-change")
+            with self.assertRaisesRegex(routing.RoutingError, "non-empty"):
+                routing.read_route_for_change(self.task, "")
+            payload = json.loads(self.record_path().read_text(encoding="utf-8"))
+            self.record_path().write_text("{broken", encoding="utf-8")
+            self.durable_record_path().parent.mkdir(parents=True, exist_ok=True)
+            self.durable_record_path().write_text("{broken", encoding="utf-8")
+            with self.assertRaisesRegex(routing.RoutingError, "unreadable"):
+                routing.read_route_for_change(self.task, "routing-change")
+            self.durable_record_path().write_text(json.dumps({**payload, "provider": "gemini"}), encoding="utf-8")
+            with self.assertRaises(routing.RoutingError):
+                routing.read_route_for_change(self.task, "routing-change")
+            self.durable_record_path().write_text(json.dumps({**payload, "change": "other-change"}), encoding="utf-8")
+            with self.assertRaises(routing.RoutingError):
+                routing.read_route_for_change(self.task, "routing-change")
+
     def test_durable_gate_resolves_only_the_exact_archived_task(self) -> None:
         route = self.prepare()
         completed = routing.Route(

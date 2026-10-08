@@ -26,7 +26,7 @@ contour = load_platform_module("integration_contour", SCRIPTS / "integration_con
 friction = load_platform_module("agent_friction", SCRIPTS / "agent_friction.py")
 retrospective = load_platform_module("requirement_retrospective", SCRIPTS / "requirement_retrospective.py")
 
-from test_pr_review_gate import IDENTITY, QueueFixture, git  # noqa: E402
+from test_pr_review_gate import IDENTITY, PROVIDER, ROUTE, QueueFixture, git  # noqa: E402
 from test_post_review_finalization import Remote, RemoteFixture  # noqa: E402
 
 HEAD, BASE, MAIN = "a" * 40, "b" * 40, "c" * 40
@@ -70,7 +70,7 @@ class Multi:
     def ready(self, number, *, identity=None):
         queue._transition(ROOT, "o/r", number, "ready", self.heads[number],
                           task_identity=identity or {"branch": f"agent/br-7-t{number}-task", "head": self.heads[number]},
-                          inherit_identity=False)
+                          inherit_identity=False, route=ROUTE)
 
     def run_worker(self, *, prepare=None, checks="passed"):
         def merge(command, **kwargs):
@@ -191,6 +191,15 @@ class IntegrationRepairBoundTests(unittest.TestCase):
             prepare.assert_not_called()  # owned by the repair job: skipped, not re-prepared
             self.assertEqual(len(multi.comments[7]), records)
 
+    def test_conflict_without_a_recorded_route_blocks_explicitly_and_publishes_no_job(self):
+        with Multi({7: head_for(7)}) as multi:
+            queue._transition(ROOT, "o/r", 7, "ready", multi.heads[7],
+                              task_identity={"branch": "agent/br-7-t7-task", "head": multi.heads[7]}, inherit_identity=False)
+            result = multi.run_worker(prepare=self.conflict())
+            self.assertEqual(result["state"], "blocked")
+            self.assertIn("no originating task route", result["reason"])
+            self.assertIsNone(workers.build_job(multi.candidate(7)))
+
     def test_interrupted_offer_is_completed_on_the_next_run(self):
         with Multi({7: head_for(7)}) as multi:
             multi.ready(7)
@@ -287,7 +296,7 @@ class RepairFixture(unittest.TestCase):
                 self.repo.root, "o/r", candidate, job, source_repo=self.repo.remote.as_uri(), branch="agent/example",
                 allowed_paths=options.pop("allowed_paths", []), llm_command=["writer"], current_head=self.repo.head,
                 post_result=self.post(fixture), workdir=workdir, runner=self.runner(resolve),
-                claim_current=options.pop("claim_current", lambda: True), worker="w", **options)
+                claim_current=options.pop("claim_current", lambda: True), worker="w", provider=PROVIDER, **options)
 
 
 def resolve_value(checkout: Path) -> None:
@@ -647,7 +656,7 @@ class PostMergeJobTests(FrictionFixture):
         with mock.patch.object(workers, "build_job", return_value=job):
             outcome = contour.run_claimed_post_merge(
                 ROOT, "o/r", merged, job, branch=self.branch, post_result=posted.append, ops=ops,
-                claim_current=lambda: True)
+                claim_current=lambda: True, worker="w")
         return outcome, posted
 
     def test_retrospective_links_recorded_events_instead_of_inventing_none(self):
@@ -721,7 +730,7 @@ class PostMergeJobTests(FrictionFixture):
         job = {**workers.build_job(merged), "attempt": 5}
         outcome = contour.run_claimed_post_merge(ROOT, "o/r", merged, job, branch=self.branch,
                                                  post_result=lambda body: self.fail("no receipt"), ops=FakeOps(),
-                                                 claim_current=lambda: True)
+                                                 claim_current=lambda: True, worker="w")
         self.assertEqual(outcome["status"], "discarded")
 
 

@@ -543,6 +543,28 @@ def read_current_durable_route(root: Path) -> tuple[Route, Path]:
     return read_durable_route(root, source_issue, change)
 
 
+def read_route_for_change(root: Path, change: str) -> dict[str, str]:
+    """The originating task route (provider, profile, change) recorded for one managed change.
+
+    Read-only. The checkout must be the managed task of ``change``; its durable routing evidence is
+    validated exactly as ``read_durable_route`` does and must name a supported provider. Anything
+    missing, unreadable, mismatched or unsupported raises ``RoutingError``.
+    """
+    if not isinstance(change, str) or not change.strip():
+        raise RoutingError("originating task route needs a non-empty change name")
+    source_issue, current = current_managed_identity(root)
+    if current != change:
+        raise RoutingError(f"checkout manages change {current}, not {change}; cannot read its routing evidence")
+    route, _ = read_durable_route(root, source_issue, change)
+    if route.change != change:
+        raise RoutingError(f"routing evidence names change {route.change}, not {change}")
+    if route.provider not in PROVIDERS:
+        raise RoutingError(f"routing evidence for {change} names unsupported provider {route.provider!r}")
+    if not isinstance(route.profile, str) or not route.profile:
+        raise RoutingError(f"routing evidence for {change} has no profile")
+    return {"provider": route.provider, "profile": route.profile, "change": change}
+
+
 def _retention_policy_for(profile: str, topology: str) -> str | None:
     if profile == "complex":
         return "complex-parent"

@@ -178,7 +178,12 @@ def complete_review(root: Path, repo: str, candidate: dict, reports: dict, head:
     identity = candidate["task_identity"]
     attempts = candidate.get("attempts", {})
     reports = compact_reports(reports)
-    providers = (candidate.get("next_job") or {}).get("providers", ["unresolved-originating-task-route"])
+    # A retried review keeps the review job's own provider list; a repair job takes its provider from
+    # the originating task route recorded on the candidate (resolved by the queue, never defaulted here).
+    import lifecycle_workers as workers
+
+    next_job = candidate.get("next_job") or {}
+    providers = workers.job_providers({**next_job, "number": candidate["number"]}) if next_job.get("kind") == "review" else None
     rounds = attempts.get("repair", 0) + 1
     state = review_outcome(reports, rounds, rejected=rejected)
     # Only consecutive unavailable attempts spend the retry budget; an available review resets it.
@@ -194,7 +199,7 @@ def complete_review(root: Path, repo: str, candidate: dict, reports: dict, head:
     if state == "repair-pending":
         return offer(root, repo, candidate["number"], head, identity, "repair",
                      gates={**candidate.get("gates", {}), "review": gate}, red_gate=red,
-                     providers=providers, set_attempts=streak_update, adapter=adapter)
+                     set_attempts=streak_update, adapter=adapter)
     record = adapter._transition(root, repo, candidate["number"], state, head,
                                  task_identity=identity, inherit_identity=False,
                                  gates={**candidate.get("gates", {}), "review": gate}, red_gate=red, set_attempts=streak_update)
@@ -283,8 +288,8 @@ def execute_review(checkout: Path, job: dict, *, source_repo: str, branch: str,
 
 def run_claimed(root: Path, repo: str, candidate: dict, job: dict, *, source_repo: str,
                 branch: str, allowed_paths, llm_command, current_head, post_result,
-                workdir: str, adapter=None, runner=None, launcher=None, home_files=(), worker="worker",
-                claim_current=None, review_ready=None, repair_runtime_check=None) -> dict:
+                workdir: str, worker: str, adapter=None, runner=None, launcher=None, home_files=(),
+                provider: str | None = None, claim_current=None, review_ready=None, repair_runtime_check=None) -> dict:
     """Execute and advance one claimed exact-head job, without the developer."""
     import lifecycle_workers as workers
     if adapter is None:
@@ -295,6 +300,9 @@ def run_claimed(root: Path, repo: str, candidate: dict, job: dict, *, source_rep
     if kind not in {"review", "repair"}:
         raise workers.WorkerError(f"no review-gate executor for {kind}")
     identity = job["task_identity"]
+    job_providers = workers.job_providers(job)
+    if kind == "repair":
+        workers.require_job_provider(job, provider)
     if claim_current is None:
         def claim_current():
             comments = adapter._comments(root, repo, job["number"])
@@ -329,7 +337,7 @@ def run_claimed(root: Path, repo: str, candidate: dict, job: dict, *, source_rep
 
     review_config = settings(root)
     review_config = {k: v for k, v in review_config.items() if k not in {"provider", "providers"}}
-    review_config["providers"] = job.get("providers", [job.get("provider", "unresolved-originating-task-route")])
+    review_config["providers"] = job_providers
     if review_ready is not None:
         # A filtering worker runs only the ready subset, in the job's order.
         review_config["providers"] = [name for name in review_config["providers"] if name in review_ready]
@@ -339,7 +347,8 @@ def run_claimed(root: Path, repo: str, candidate: dict, job: dict, *, source_rep
             return
         workers._git(harness, "checkout", "--detach", head)
         fresh = refresh_identity(harness, identity)
-        post_result(workers.result_body(job, worker, "validated-push", head, task_identity=fresh))
+        post_result(workers.result_body(job, worker, "validated-push", head, task_identity=fresh,
+                                        provider=provider if kind == "repair" else None))
 
     def review_handler(checkout):
         workers.scratch_home(Path(workdir), home_files)
@@ -361,6 +370,7 @@ def run_claimed(root: Path, repo: str, candidate: dict, job: dict, *, source_rep
     outcome = workers.execute_job(job, source_repo=source_repo, branch=branch, allowed_paths=allowed_paths,
                                   llm_command=llm_command or [], current_head=current_head, post_result=post_result,
                                   workdir=workdir, runner=runner, home_files=home_files, worker=worker,
+                                  provider=provider if kind == "repair" else None,
                                   review_handler=review_handler if kind == "review" else None, before_push=before_push,
                                   claim_current=claim_current,
                                   runtime_check=repair_runtime_check if kind == "repair" else None)
@@ -382,7 +392,6 @@ def run_claimed(root: Path, repo: str, candidate: dict, job: dict, *, source_rep
         # Every changed identity must repeat review and checks; retain only proven gates.
         gates = {name: gate for name, gate in running["gates"].items() if reusable(harness, gate, fresh)}
         offer(root, repo, job["number"], head, fresh, "review", gates=gates,
-              providers=job.get("providers", ["unresolved-originating-task-route"]),
               set_attempts={"repair-unavailable": 0} if running["attempts"].get("repair-unavailable") else None,
               adapter=adapter)
     elif kind == "repair" and outcome["status"] == "unavailable":

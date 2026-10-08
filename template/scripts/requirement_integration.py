@@ -746,12 +746,90 @@ def _full_check_commands(root: Path) -> list[str]:
     return list(commands)
 
 
-def _run_full_checks(root: Path) -> None:
-    from _platform_common import credential_free_env
+RUNTIME_KEYS = ("required_tools", "required_env", "home_paths")
+RUNTIME_GRANT_ENV = "DEV_PLATFORM_PROJECT_RUNTIME_FILE"
 
+
+def _project_runtime(root: Path) -> dict[str, list[str]]:
+    """The reviewed ``[runtime]`` declaration of the project checks; absent means no declared needs."""
+    from _platform_common import read_platform_config
+
+    relative = str(read_platform_config(root).get("paths", {}).get("checks", "dev-platform/checks.toml"))
+    path = root / relative
+    if not path.is_file():
+        return {}
+    try:
+        with path.open("rb") as handle:
+            declared = tomllib.load(handle).get("runtime")
+    except tomllib.TOMLDecodeError as exc:
+        raise RequirementIntegrationError(f"project check runtime cannot read {relative}: {exc}") from exc
+    if declared is None:
+        return {}
+    if not isinstance(declared, dict):
+        raise RequirementIntegrationError(f"[runtime] in {relative} must be a table")
+    unknown = sorted(set(declared) - set(RUNTIME_KEYS))
+    if unknown:
+        raise RequirementIntegrationError(f"[runtime] in {relative} has unknown keys {unknown}; allowed: {list(RUNTIME_KEYS)}")
+    for key, value in declared.items():
+        if not isinstance(value, list) or not all(isinstance(item, str) and item.strip() for item in value):
+            raise RequirementIntegrationError(f"[runtime].{key} in {relative} must be a list of non-empty strings")
+    return {key: list(value) for key, value in declared.items()}
+
+
+def _runtime_grant(root: Path, environ: dict[str, str]) -> list[str]:
+    """The operator-granted home paths from the machine-local grant file outside the checked checkout."""
+    from lifecycle_workers import refused_home_path
+
+    name = RUNTIME_GRANT_ENV
+    if name not in environ or not environ[name]:
+        raise RequirementIntegrationError(
+            f"project check runtime declares home paths but {name} is not set to a machine-local grant file")
+    grant = Path(environ[name])
+    if not grant.is_absolute():
+        raise RequirementIntegrationError(f"{name} must be an absolute path, got {environ[name]!r}")
+    resolved = grant.resolve()
+    if resolved == root.resolve() or root.resolve() in resolved.parents:
+        raise RequirementIntegrationError(f"project runtime grant file {grant} is inside the checked checkout {root}")
+    if not resolved.is_file():
+        raise RequirementIntegrationError(f"project runtime grant file {grant} does not exist")
+    try:
+        allowed = tomllib.loads(resolved.read_text(encoding="utf-8")).get("allow_home_paths")
+    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError) as exc:
+        raise RequirementIntegrationError(f"project runtime grant file {grant} cannot be read: {exc}") from exc
+    if not isinstance(allowed, list) or not all(isinstance(item, str) and item for item in allowed):
+        raise RequirementIntegrationError(f"project runtime grant file {grant} needs allow_home_paths as a list of strings")
+    for entry in allowed:
+        reason = refused_home_path(entry)
+        if reason:
+            raise RequirementIntegrationError(f"project runtime grant entry {entry}: {reason}")
+    return list(allowed)
+
+
+def _check_environment(root: Path, scratch: Path) -> dict[str, str]:
+    """Build the ``project-check`` environment once, failing before any command on an unmet requirement."""
+    from _platform_common import credential_free_env
+    from lifecycle_workers import WorkerError, check_runtime_declaration, project_check_env
+
+    runtime = _project_runtime(root)
+    if not runtime:
+        return credential_free_env(dict(os.environ), scratch)
+    try:
+        check_runtime_declaration(runtime)
+        if runtime.get("home_paths"):
+            granted = _runtime_grant(root, dict(os.environ))
+            for relative in runtime["home_paths"]:
+                if relative not in granted:
+                    raise RequirementIntegrationError(
+                        f"project check runtime requires home path {relative}: not granted in {os.environ[RUNTIME_GRANT_ENV]}")
+        return project_check_env(dict(os.environ), scratch, runtime, Path.home())
+    except WorkerError as exc:
+        raise RequirementIntegrationError(str(exc)) from exc
+
+
+def _run_full_checks(root: Path) -> None:
     commands = _full_check_commands(root)
     with tempfile.TemporaryDirectory(prefix="composition-check-home-") as temporary:
-        env = credential_free_env(dict(os.environ), Path(temporary))
+        env = _check_environment(root, Path(temporary))
         for command in commands:
             print("Requirement integration validation:", command, flush=True)
             result = subprocess.run(command, cwd=root, shell=True, stdin=subprocess.DEVNULL, env=env)

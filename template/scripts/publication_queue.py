@@ -442,6 +442,7 @@ def _transition(
     set_attempts: dict[str, int] | None = None,
     refuse_from: set[str] | frozenset[str] = frozenset(), inherit_identity: bool = True,
     cross_head_claims: bool = False, next_job: dict[str, Any] | None = None,
+    route: dict[str, str] | None = None,
 ) -> dict[str, Any] | None:
     """Publish the v2 handoff record for one transition and project its lifecycle label.
 
@@ -482,9 +483,18 @@ def _transition(
     new_gates = any(previous.get("gates", {}).get(name) != gate for name, gate in (gates or {}).items())
     new_job = next_job is not None and next_job != previous.get("next_job")
     identity_changed = not inherit_identity and previous.get("task_identity") != task_identity
+    final_identity = ((previous.get("task_identity") or lineage.get("task_identity") or task_identity)
+                      if inherit_identity else task_identity)
+    # The originating task route travels with the candidate: an explicit handoff route wins,
+    # otherwise the previous exact-head record, then the lineage, keeps it across head changes.
+    recorded_route = route or previous.get("route") or lineage.get("route")
+    if recorded_route is not None and isinstance(final_identity, dict) and final_identity.get("change") not in (None, recorded_route["change"]):
+        raise QueueError(f"PR #{number} task identity change {final_identity['change']} contradicts its recorded "
+                         f"originating route change {recorded_route['change']}; re-run developer handoff")
+    new_route = recorded_route is not None and recorded_route != previous.get("route")
     new_attempts = any(previous.get("attempts", {}).get(k) != v for k, v in (set_attempts or {}).items())
     branch = observed.get("head", {}).get("ref")
-    if not identity_changed and not new_attempts and previous.get("state") == state and red_gate in (None, previous.get("red_gate")) and not new_gates and not new_job:
+    if not identity_changed and not new_attempts and previous.get("state") == state and red_gate in (None, previous.get("red_gate")) and not new_gates and not new_job and not new_route:
         if state in _FRICTION_STATES:
             emit_friction(number, branch, state, head, str((previous.get("red_gate") or {}).get("evidence", ""))[:300],
                           attempts=previous.get("attempts"))
@@ -507,13 +517,13 @@ def _transition(
     attempts.update(set_attempts or {})
     record = build_handoff_record(
         number=number, state=state, head=head,
-        task_identity=(previous.get("task_identity") or lineage.get("task_identity") or task_identity)
-        if inherit_identity else task_identity,
+        task_identity=final_identity,
         gates=merged_gates, red_gate=red_gate,
         not_reverified=list(previous.get("not_reverified") or lineage.get("not_reverified") or []),
         attempts=attempts,
         next_job=next_job if next_job is not None else (previous.get("next_job") if state == previous.get("state") or state in {"reviewing", "repairing"} else None),
         at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        route=recorded_route,
     )
     if state in _FRICTION_STATES:
         emit_friction(number, branch, state, head, str((red_gate or {}).get("evidence", ""))[:300], attempts=attempts)
@@ -522,32 +532,50 @@ def _transition(
     return record
 
 
+def _require_route(candidate: dict[str, Any], number: int, kind: str) -> dict[str, str]:
+    """The originating task route recorded on the candidate, or an explicit failure."""
+    from model_routing import PROVIDERS
+
+    route = candidate.get("route")
+    if not isinstance(route, dict):
+        raise QueueError(f"{kind} job for PR #{number} has no originating task route; re-run developer handoff")
+    if route.get("provider") not in PROVIDERS:
+        raise QueueError(f"{kind} job for PR #{number} has unsupported originating route provider {route.get('provider')!r}")
+    identity = candidate.get("task_identity")
+    if isinstance(identity, dict) and identity.get("change") not in (None, route.get("change")):
+        raise QueueError(f"PR #{number} task identity change {identity['change']} contradicts its recorded "
+                         f"originating route change {route.get('change')}; re-run developer handoff")
+    return route
+
+
 def publish_job(root: Path, repo: str, number: int, kind: str, head: str, *,
                 task_identity: str | dict[str, Any], attempt: int | None = None,
-                providers=None, target_head=None, phase=None) -> dict[str, Any] | None:
+                providers=None, target_head=None, phase=None, reoffer=None) -> dict[str, Any] | None:
     """Publish a head-bound job record for the candidate's current state (no new state)."""
-    from lifecycle_workers import job_record
+    from lifecycle_workers import WorkerError, authorized_repair_providers, job_record
 
     observed = _pr(root, repo, number)
     current = _derive(root, observed, _comments(root, repo, number))
     if attempt is None:
         attempt = current.get("attempts", {}).get(kind, 0)
-    if providers is None and kind in {"review", "repair"}:
-        from independent_review_runner import settings, resolve_provider
+    if kind in {"repair", "integration-repair"}:
+        route = _require_route(current, number, kind)
+        providers = [route["provider"]] if providers is None else list(providers)
+        try:
+            authorized_repair_providers(route, providers, reoffer, f"{kind} job for PR #{number}")
+        except WorkerError as exc:
+            raise QueueError(str(exc)) from exc
+    elif kind == "review" and providers is None:
+        from independent_review_runner import settings
 
-        config = settings(root)
-        providers = config.get("providers")
+        providers = settings(root).get("providers")
         if providers is None:
-            provider, _ = resolve_provider(root, config)
-            providers = [provider or "unresolved-originating-task-route"]
-    if providers and "unresolved-originating-task-route" in providers:
-        emit_friction(number, observed.get("head", {}).get("ref"), "fallback", head,
-                      f"{kind} job could not resolve the originating task route and falls back to the default provider")
+            providers = [_require_route(current, number, kind)["provider"]]
     return _transition(root, repo, number, current["state"], head,
                        task_identity=current.get("task_identity") or task_identity,
                        red_gate=current.get("red_gate") if kind in {"repair", "integration-repair"} else None,
                        next_job=job_record(kind, head, current.get("task_identity") or task_identity, attempt,
-                                           providers=providers, target_head=target_head, phase=phase))
+                                           providers=providers, target_head=target_head, phase=phase, reoffer=reoffer))
 
 
 def _raise_if_owned_elsewhere(root: Path, repo: str, number: int, head: str) -> None:
@@ -738,6 +766,19 @@ def _archived_verification_gate(root: Path) -> dict[str, Any]:
     }}
 
 
+def _handoff_route(root: Path, identity: Any) -> dict[str, str]:
+    """Resolve the originating task route from the developer checkout's durable routing evidence."""
+    import model_routing
+
+    change = identity.get("change") if isinstance(identity, dict) else None
+    if not isinstance(change, str) or not change:
+        raise QueueError("handoff cannot resolve the originating task route: its task identity names no change")
+    try:
+        return model_routing.read_route_for_change(root, change)
+    except model_routing.RoutingError as exc:
+        raise QueueError(f"handoff cannot resolve the originating task route for {change}: {exc}") from exc
+
+
 def admit(root: Path, number: int, expected_head: str, *, handoff: dict | None = None) -> dict[str, Any]:
     repo = _repo(root)
     pr = _pr(root, repo, number)
@@ -755,6 +796,7 @@ def admit(root: Path, number: int, expected_head: str, *, handoff: dict | None =
         resolved_handoff = require_composition_finalized(root, repo, number, expected_head)
     else:
         resolved_handoff = handoff if handoff is not None else _admission_handoff(root, branch, expected_head)
+    route = _handoff_route(root, identity) if handoff else None
     events = _events(root, repo, number)
     admitted = _admission(events, number)
     if admitted and handoff:
@@ -801,7 +843,7 @@ def admit(root: Path, number: int, expected_head: str, *, handoff: dict | None =
     if current.get("task_identity") is None or current.get("head") != expected_head:
         try:
             _transition(root, repo, number, "review-pending" if handoff else "ready", expected_head, inherit_identity=False,
-                        refuse_from=STATES, **resolved_handoff)
+                        refuse_from=STATES, route=route, **resolved_handoff)
         except LifecycleOwnershipChanged:
             pass  # lifecycle work recorded this head in the meantime; never rewind it
     if handoff:
@@ -1392,8 +1434,12 @@ def worker(root: Path) -> dict[str, Any]:
                 _transition(root, repo, number, "repair-pending", current["head"],
                             task_identity=current["task_identity"], inherit_identity=False,
                             gates=current.get("gates", {}), red_gate=red_gate)
-                publish_job(root, repo, number, "repair", current["head"], task_identity=current["task_identity"],
-                            attempt=max(1, current.get("attempts", {}).get("repair", 0) + 1))
+                try:
+                    publish_job(root, repo, number, "repair", current["head"], task_identity=current["task_identity"],
+                                attempt=max(1, current.get("attempts", {}).get("repair", 0) + 1))
+                except QueueError as exc:
+                    skipped.append(f"#{number} contribution repair job not published: {exc}"[:300])
+                    continue
                 return {"state": "repair-pending", "number": number}
             if current["state"] in {"contribution-integration-pending", "contribution-integrated"}:
                 try:
@@ -1442,8 +1488,8 @@ def worker(root: Path) -> dict[str, Any]:
                     publish_job(root, repo, number, "integration-repair", current["head"],
                                 task_identity=current["task_identity"],
                                 attempt=max(1, current.get("attempts", {}).get("integration-repair", 1)))
-                except QueueError:
-                    pass
+                except QueueError as exc:
+                    skipped.append(f"#{number} integration-repair job not published: {exc}"[:300])
             if active(number):
                 _label(root, repo, number, ACTIVE, present=False)
             continue
@@ -1610,6 +1656,9 @@ def _integration_repair(root: Path, repo: str, number: int, admission: dict[str,
                     task_identity=fallback, attempt=spent + 1)
     except LifecycleOwnershipChanged:
         pass
+    except QueueError as failure:
+        # No originating route (or another contradiction): the job cannot be published under a default.
+        return _block(root, repo, number, f"integration repair job cannot be published: {failure}"[:500], head=head_now)
     return {"state": "waiting", "number": number, "reason": str(exc)}
 
 

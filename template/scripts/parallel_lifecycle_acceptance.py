@@ -34,6 +34,7 @@ from _platform_common import atomic_write_text
 
 SCRIPTS = Path(__file__).resolve().parent
 REPO = "acme/sandbox"
+ACCEPTANCE_PROVIDER = "codex"  # every scenario task is routed to, and every worker serves, this provider
 REQUIREMENT = "acme/backlog#353"
 ARCHIVE_DATE = "2026-01-01"
 CLOCK = "2026-01-01T00:00:00+0000"
@@ -547,6 +548,11 @@ class Scenario:
         self.final, self.gate, self.queue, self.reviewer = (post_review_finalization, pr_review_gate,
                                                             publication_queue, independent_review_runner)
         self.reviewer.resolve_binary = lambda *a, **k: ("fake-codex", None)
+        import model_routing
+
+        # The scripted developers have no managed routing evidence: stand in for the durable route read.
+        model_routing.read_route_for_change = lambda root, change: {
+            "provider": ACCEPTANCE_PROVIDER, "profile": "standard", "change": change}
 
     # -- candidate admission by the (scripted) developer --
     def admit_all(self) -> None:
@@ -603,7 +609,7 @@ class Scenario:
             return self.gh_json("api", f"repos/{REPO}/pulls/{number}")["head"]["sha"]
 
         result = w.work_next(kinds, list_prs=list_prs, comments_for=comments_for, post_comment=post_comment,
-                             worker=worker, current_head=pr_head, **self.trust())
+                             worker=worker, provider=ACCEPTANCE_PROVIDER, current_head=pr_head, **self.trust())
         self.tick()
         if result["status"] == "idle":
             return None
@@ -623,7 +629,8 @@ class Scenario:
             outcome = self.gate.run_claimed(
                 self.root, REPO, candidate, job, source_repo=source, branch=branch, allowed_paths=["src_a.py", "src_b.py", "src_c.py"],
                 llm_command=[sys.executable, "-c", REPAIR_WRITER], current_head=current, post_result=post,
-                workdir=workdir, launcher=self.launcher(), worker=worker)
+                workdir=workdir, launcher=self.launcher(), worker=worker,
+                provider=ACCEPTANCE_PROVIDER)
         elif kind == "finalize":
             outcome = self.final.run_claimed_finalize(
                 self.root, REPO, candidate, job, source_repo=source, branch=branch, current_head=current,
@@ -632,7 +639,7 @@ class Scenario:
             outcome = self.contour.run_claimed_integration_repair(
                 self.root, REPO, candidate, job, source_repo=source, branch=branch, allowed_paths=[],
                 llm_command=[sys.executable, "-c", INTEGRATION_WRITER], current_head=current, post_result=post,
-                workdir=workdir, worker=worker)
+                workdir=workdir, worker=worker, provider=ACCEPTANCE_PROVIDER)
         elif kind in w.POST_MERGE_KINDS:
             outcome = self.contour.run_claimed_post_merge(
                 self.root, REPO, candidate, job, branch=branch, post_result=post, ops=self.ops(), worker=worker)

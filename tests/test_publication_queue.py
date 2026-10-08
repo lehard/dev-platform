@@ -51,6 +51,9 @@ class AdmissionTests(unittest.TestCase):
         handoff = patch.object(queue, "_admission_handoff", return_value={"task_identity": {"head": HEAD}, "gates": {}})
         handoff.start()
         self.addCleanup(handoff.stop)
+        route = patch.object(queue, "_handoff_route", return_value={"provider": "codex", "profile": "standard", "change": "c"})
+        route.start()
+        self.addCleanup(route.stop)
 
     def test_refreshed_contribution_handoff_readmits_only_semantic_stop_same_candidate(self):
         old = {"kind": "contribution", "change": "first", "requirement": "owner/backlog#7",
@@ -1154,7 +1157,7 @@ class TrustConfigurationTests(unittest.TestCase):
         with self.assertRaisesRegex(queue.QueueError, "trust source .dev-platform.toml"):
             lifecycle_workers._coordinator_trust(self.root)
         with patch.object(queue, "_repo", return_value=REPO), patch.object(queue, "_pr", return_value=pr(1)), \
-             patch.object(queue, "_comments", return_value=[]):
+             patch.object(queue, "_comments", return_value=[]), patch.object(queue, "_handoff_route", return_value={"provider": "codex", "profile": "standard", "change": "c"}):
             with self.assertRaisesRegex(queue.QueueError, "trust source .dev-platform.toml"):
                 queue.admit(self.root, 1, HEAD, handoff={"task_identity": {"head": HEAD}, "gates": {}})
 
@@ -1360,12 +1363,34 @@ class ManagedProvenanceTests(unittest.TestCase):
              patch.object(queue, "_latest", return_value={"state": "review-pending"}), \
              patch.object(queue, "_ensure_labels"), patch.object(queue, "_comment"), patch.object(queue, "_label"), \
              patch.object(queue, "publish_job"), patch.object(queue, "_transition") as transition, \
+             patch("model_routing.read_route_for_change", return_value={"provider": "codex", "profile": "standard", "change": "c"}) as resolve, \
              patch.object(queue, "_admission_handoff") as derived:
             # contribution identity requires contribution_base; supply it.
             identity["contribution_base"] = BASE
             queue.admit(self.root, 1, head, handoff=handoff)
         derived.assert_not_called()
         self.assertEqual(transition.call_args.kwargs["task_identity"], identity)
+        resolve.assert_called_once_with(self.root, "sample")
+        self.assertEqual(transition.call_args.kwargs["route"], {"provider": "codex", "profile": "standard", "change": "c"})
+
+    def test_handoff_without_resolvable_route_fails_before_any_admission_comment(self) -> None:
+        import model_routing
+
+        head = self.commit("feature.txt")
+        identity = {"kind": "contribution", "change": "sample", "task_content": {"digest": "d"}, "contribution_base": BASE}
+        observed = {"number": 1, "state": "open", "base": {"ref": "main"}, "head": {"ref": "agent/task", "sha": head}}
+        for cause, replacement in (("routing evidence is missing", model_routing.RoutingError("routing evidence is missing")),):
+            with patch.object(queue, "_repo", return_value=REPO), patch.object(queue, "_pr", return_value=observed), \
+                 patch.object(queue, "_events", return_value=[]), patch.object(queue, "_comments", return_value=[]), \
+                 patch.object(queue, "_ensure_labels"), patch.object(queue, "_comment") as comment, \
+                 patch.object(queue, "_label"), patch.object(queue, "_transition") as transition, \
+                 patch("model_routing.read_route_for_change", side_effect=replacement):
+                with self.assertRaisesRegex(queue.QueueError, "originating task route for sample: " + cause):
+                    queue.admit(self.root, 1, head, handoff={"task_identity": identity, "gates": {}})
+                with self.assertRaisesRegex(queue.QueueError, "names no change"):
+                    queue.admit(self.root, 1, head, handoff={"task_identity": {"head": head}, "gates": {}})
+            comment.assert_not_called()
+            transition.assert_not_called()
 
     def test_integration_placeholder_identity_never_replaces_a_recorded_managed_identity(self) -> None:
         from candidate_lifecycle import build_handoff_record, marker_body

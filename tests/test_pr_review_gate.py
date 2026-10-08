@@ -30,6 +30,10 @@ IDENTITY = {"change": "example", "task_content": {"version": 1, "digest": "proof
                                                    "scope": "independent-review-v1"}}
 
 
+ROUTE = {"provider": "codex", "profile": "standard", "change": "example"}
+PROVIDER = "codex"  # the provider every fixture task is routed to and every fixture worker serves
+
+
 def git(root, *args):
     return subprocess.run(["git", *args], cwd=root, stdin=subprocess.DEVNULL, text=True,
                           capture_output=True, check=True).stdout.strip()
@@ -51,6 +55,10 @@ class QueueFixture:
         self.stack.enter_context(mock.patch.object(queue, "trusted_writers", return_value=frozenset()))
         self.stack.enter_context(mock.patch.object(queue, "_project_lifecycle_label"))
         self.stack.enter_context(mock.patch.object(queue, "_gh", side_effect=self.post))
+        # The developer handoff records the originating route; fixtures start from that fact.
+        real_transition = queue._transition
+        self.stack.enter_context(mock.patch.object(
+            queue, "_transition", side_effect=lambda *a, route=None, **k: real_transition(*a, route=route or ROUTE, **k)))
         return self
 
     def post(self, *args, data=None, **kwargs):
@@ -117,7 +125,8 @@ class GateTests(unittest.TestCase):
                     with self.assertRaisesRegex(RuntimeError, "paused"):
                         gate.run_claimed(ROOT, "o/r", fixture.candidate(), job, source_repo="fixture",
                                          branch="agent/example", allowed_paths=["src.py"], llm_command=["writer"],
-                                         current_head=lambda: HEAD, post_result=lambda body: None, workdir="/unused")
+                                         current_head=lambda: HEAD, post_result=lambda body: None, workdir="/unused",
+                                         worker="worker", provider=PROVIDER)
                 self.assertEqual(fixture.candidate()["state"], state)
                 running_job = workers.build_job(fixture.candidate())
                 self.assertEqual(running_job, job)
@@ -170,10 +179,11 @@ class GateTests(unittest.TestCase):
             queue._transition(ROOT, "o/r", 7, "reviewing", HEAD, task_identity=IDENTITY)
             material = {"s": {"availability": "available", "findings": [{"severity": "material"}]}}
             gate.complete_review(ROOT, "o/r", fixture.candidate(), material, HEAD)
-            self.assertEqual(workers.build_job(fixture.candidate())["providers"], ["claude"])
+            # Repair always runs under the originating route's provider, never the review provider list.
+            self.assertEqual(workers.build_job(fixture.candidate())["providers"], [ROUTE["provider"]])
             unavailable = {"s": {"availability": "unavailable"}}
             gate.complete_review(ROOT, "o/r", {**fixture.candidate(), "attempts": {"review": 1}}, unavailable, HEAD)
-            self.assertEqual(workers.build_job(fixture.candidate())["providers"], ["claude"])
+            self.assertEqual(workers.build_job(fixture.candidate())["providers"], [ROUTE["provider"]])
             queue._transition(ROOT, "o/r", 7, "reviewing", HEAD, task_identity=IDENTITY)
             gate.complete_review(ROOT, "o/r", {**fixture.candidate(), "attempts": {"review": 3, "review-unavailable": 2}}, unavailable, HEAD)
             self.assertEqual(fixture.candidate()["state"], "blocked-retryable")
@@ -197,7 +207,7 @@ class GateTests(unittest.TestCase):
 
     def test_recovered_review_keeps_providers_and_repaired_identity(self):
         with QueueFixture(ROOT, HEAD) as fixture:
-            gate.offer(ROOT, "o/r", 7, HEAD, IDENTITY, "repair", providers=["claude"])
+            gate.offer(ROOT, "o/r", 7, HEAD, IDENTITY, "repair", providers=[PROVIDER])
             job = workers.build_job(fixture.candidate())
             queue._transition(ROOT, "o/r", 7, "repairing", HEAD, task_identity=IDENTITY,
                               next_job={k: v for k, v in job.items() if k != "number"})
@@ -206,7 +216,7 @@ class GateTests(unittest.TestCase):
                 job, "worker", "validated-push", "b" * 40, task_identity=fresh)})
             fixture.head = "b" * 40
             recovered = workers.build_job(fixture.candidate())
-            self.assertEqual(recovered["providers"], ["claude"])
+            self.assertEqual(recovered["providers"], [PROVIDER])
             self.assertEqual(recovered["task_identity"], fresh)
             fixture.comments.append({"id": 101, "author_association": "OWNER",
                                      "body": workers.claim_body(recovered, "worker", "2099-01-01T00:00:00Z")})
@@ -215,7 +225,7 @@ class GateTests(unittest.TestCase):
                     gate.run_claimed(ROOT, "o/r", fixture.candidate(), recovered, source_repo="fixture",
                                      branch="agent/example", allowed_paths=[], llm_command=None,
                                      current_head=lambda: fixture.head, post_result=lambda body: None,
-                                     workdir="/unused")
+                                     workdir="/unused", worker="worker", provider=PROVIDER)
             running = fixture.candidate()
             self.assertEqual(running["state"], "reviewing")
             self.assertEqual(running["task_identity"], fresh)
@@ -265,11 +275,11 @@ class GateTests(unittest.TestCase):
             kwargs = dict(source_repo="fixture", branch="agent/example", allowed_paths=["src.py"],
                           llm_command=["writer"], current_head=lambda: HEAD, post_result=lambda body: None,
                           workdir="/unused")
-            outcome = gate.run_claimed(ROOT, "o/r", fixture.candidate(), job, worker="first", **kwargs)
+            outcome = gate.run_claimed(ROOT, "o/r", fixture.candidate(), job, worker="first", provider=PROVIDER, **kwargs)
             self.assertEqual(outcome["status"], "discarded")
             execute.assert_not_called()
             execute.return_value = {"status": "pushed", "pushed_head": HEAD}
-            outcome = gate.run_claimed(ROOT, "o/r", fixture.candidate(), job, worker="first",
+            outcome = gate.run_claimed(ROOT, "o/r", fixture.candidate(), job, worker="first", provider=PROVIDER,
                                        claim_current=lambda: execute.called is False, **kwargs)
             self.assertEqual(outcome["status"], "discarded")
 
@@ -311,7 +321,7 @@ class GateTests(unittest.TestCase):
             outcome = gate.run_claimed(ROOT, "o/r", candidate, workers.build_job(candidate),
                                        source_repo="fixture", branch="agent/example", allowed_paths=[],
                                        llm_command=None, current_head=lambda: HEAD, post_result=lambda body: None,
-                                       workdir="/unused", claim_current=lambda: True)
+                                       workdir="/unused", claim_current=lambda: True, worker="w", provider=PROVIDER)
             self.assertEqual(outcome["status"], "reused")
             execute.assert_not_called()
             self.assertEqual(fixture.candidate()["state"], "finalize-pending")
@@ -329,12 +339,16 @@ class GateTests(unittest.TestCase):
             stack.enter_context(mock.patch.object(queue, "_ensure_labels"))
             stack.enter_context(mock.patch.object(queue, "_label"))
             stack.enter_context(mock.patch.object(queue, "_main", return_value=HEAD))
+            resolve = stack.enter_context(mock.patch("model_routing.read_route_for_change", return_value=ROUTE))
             original_pr = queue._pr.side_effect
             queue._pr.side_effect = lambda *a: {**original_pr(*a), "base": {"ref": "main"}}
             handoff = {"task_identity": IDENTITY, "gates": {}}
             queue.admit(ROOT, 7, HEAD, handoff=handoff)
             self.assertEqual(fixture.candidate()["state"], "review-pending")
             self.assertEqual(workers.build_job(fixture.candidate())["kind"], "review")
+            self.assertEqual(fixture.candidate()["route"], ROUTE)
+            self.assertEqual(workers.build_job(fixture.candidate())["providers"], [ROUTE["provider"]])
+            resolve.assert_called_with(ROOT, "example")
             count = len(fixture.comments)
             queue.admit(ROOT, 7, HEAD, handoff=handoff)
             self.assertEqual(len(fixture.comments), count)
@@ -449,7 +463,7 @@ class ProviderSwitchTests(unittest.TestCase):
                     outcome = gate.run_claimed(ROOT, "o/r", fixture.candidate(), job, source_repo="fixture",
                                                branch="agent/example", allowed_paths=["src.py"], llm_command=["writer"],
                                                current_head=lambda: HEAD, post_result=lambda body: None,
-                                               workdir="/unused", claim_current=lambda: True)
+                                               workdir="/unused", worker="w", provider=PROVIDER, claim_current=lambda: True)
                 self.assertEqual(outcome["status"], "unavailable")
                 candidate = fixture.candidate()
                 self.assertEqual(candidate["state"], "blocked-retryable")
@@ -467,7 +481,7 @@ class ProviderSwitchTests(unittest.TestCase):
                     "status": "unavailable", "outcome": "unavailable: still limited"}):
                 gate.run_claimed(ROOT, "o/r", fixture.candidate(), job, source_repo="fixture", branch="agent/example",
                                  allowed_paths=["src.py"], llm_command=["writer"], current_head=lambda: HEAD,
-                                 post_result=lambda body: None, workdir="/unused", claim_current=lambda: True)
+                                 post_result=lambda body: None, workdir="/unused", worker="w", provider=PROVIDER, claim_current=lambda: True)
             exhausted = fixture.candidate()
             self.assertEqual((exhausted["state"], exhausted["attempts"]["repair"]), ("blocked-retryable", rounds))
             self.assertEqual(exhausted["gates"]["repair"]["evidence"]["providers"], ["codex"])
@@ -497,7 +511,7 @@ class ProviderSwitchTests(unittest.TestCase):
                     mock.patch.object(gate, "refresh_identity", return_value=IDENTITY):
                 gate.run_claimed(ROOT, "o/r", fixture.candidate(), job, source_repo="fixture", branch="agent/example",
                                  allowed_paths=["src.py"], llm_command=["writer"], current_head=lambda: new_head,
-                                 post_result=lambda body: None, workdir="/unused", claim_current=lambda: True)
+                                 post_result=lambda body: None, workdir="/unused", worker="w", provider=PROVIDER, claim_current=lambda: True)
             after = fixture.candidate()
             self.assertEqual((after["state"], after["attempts"]["repair-unavailable"]), ("review-pending", 0))
 
@@ -510,7 +524,7 @@ class ProviderSwitchTests(unittest.TestCase):
             with mock.patch.object(workers, "execute_job", return_value={"status": "failed", "outcome": "failed: llm exited 1"}):
                 gate.run_claimed(ROOT, "o/r", fixture.candidate(), job, source_repo="fixture", branch="agent/example",
                                  allowed_paths=["src.py"], llm_command=["writer"], current_head=lambda: HEAD,
-                                 post_result=lambda body: None, workdir="/unused", claim_current=lambda: True)
+                                 post_result=lambda body: None, workdir="/unused", worker="w", provider=PROVIDER, claim_current=lambda: True)
             escalated = fixture.candidate()
             self.assertEqual(escalated["state"], "blocked-escalation")
             self.assertEqual(escalated["red_gate"]["providers"], ["codex"])
@@ -557,7 +571,7 @@ class ProviderSwitchTests(unittest.TestCase):
                     mock.patch.object(gate, "execute_review", side_effect=lambda *a, **k: seen.append(k["review_config"]) or {"status": "discarded"}):
                 gate.run_claimed(ROOT, "o/r", fixture.candidate(), job, source_repo="fixture", branch="agent/example",
                                  allowed_paths=[], llm_command=None, current_head=lambda: HEAD,
-                                 post_result=lambda body: None, workdir=workdir, claim_current=lambda: True,
+                                 post_result=lambda body: None, workdir=workdir, worker="w", provider=PROVIDER, claim_current=lambda: True,
                                  review_ready=frozenset({"codex"}))
             self.assertEqual(seen[0]["providers"], ["codex"])
 
@@ -695,7 +709,8 @@ class EndToEndTests(unittest.TestCase):
                     gate.run_claimed(self.root, "o/r", fixture.candidate(), job,
                                      source_repo=self.remote.as_uri(), branch="agent/example",
                                      allowed_paths=[], llm_command=None, current_head=self.remote_head,
-                                     post_result=post, workdir=workdir, launcher=launch, claim_current=lambda: True)
+                                     post_result=post, workdir=workdir, launcher=launch, claim_current=lambda: True,
+                                     worker="w", provider=PROVIDER)
             fixture.head = self.remote_head()
             self.assertNotEqual(fixture.head, job["head"])
             recovery = workers.build_job(fixture.candidate())
@@ -744,7 +759,7 @@ class EndToEndTests(unittest.TestCase):
                         self.root, "o/r", candidate, job, source_repo=self.remote.as_uri(), branch="agent/example",
                         allowed_paths=["src.py"], llm_command=command,
                         current_head=self.remote_head, post_result=lambda body: None,
-                        workdir=workdir, launcher=launcher, claim_current=lambda: True)
+                        workdir=workdir, launcher=launcher, claim_current=lambda: True, worker="w", provider=PROVIDER)
                 fixture.head = self.remote_head()
                 return outcome
             # Model commands are fake; Git I/O is local to the fixture.

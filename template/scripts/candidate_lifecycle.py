@@ -71,6 +71,11 @@ def validate_marker(record: dict) -> None:
             not isinstance(key, str) or type(value) is not int or value < 0
             for key, value in record["attempts"].items()):
         raise ValueError("invalid attempt counters")
+    route = record.get("route")
+    if route is not None and (
+            not isinstance(route, dict) or set(route) != {"provider", "profile", "change"}
+            or any(not isinstance(value, str) or not value for value in route.values())):
+        raise ValueError("invalid originating task route")
     if "next_job" not in record or (record["next_job"] is not None and not isinstance(record["next_job"], (str, dict))):
         raise ValueError("invalid next job")
     try:
@@ -83,12 +88,12 @@ def validate_marker(record: dict) -> None:
 def build_handoff_record(*, number: int, state: str, head: str,
                          task_identity: str | dict, gates: dict, red_gate: dict | None,
                          not_reverified: list, attempts: dict, next_job: str | dict | None,
-                         at: str) -> dict:
+                         at: str, route: dict | None = None) -> dict:
     """Build one immutable-by-convention transition record, copying all inputs."""
     record = deepcopy({"version": 2, "number": number, "state": state, "head": head,
                        "task_identity": task_identity, "gates": gates, "red_gate": red_gate,
                        "not_reverified": not_reverified, "attempts": attempts,
-                       "next_job": next_job, "at": at})
+                       "next_job": next_job, "at": at, **({"route": route} if route is not None else {})})
     validate_marker(record)
     return record
 
@@ -201,7 +206,7 @@ def derive_candidate(pr: dict, comments: list[dict], checks: dict | None = None,
     number = pr.get("number")
     result = {"number": number, "head": head, "state": "review-pending",
               "task_identity": None, "gates": {}, "red_gate": None,
-              "not_reverified": [], "attempts": {}, "next_job": None, "reason": ""}
+              "not_reverified": [], "attempts": {}, "next_job": None, "route": None, "reason": ""}
     matching, legacy = [], []
     matched_at = blocked_at = 0
     newest: dict | None = None
@@ -288,7 +293,7 @@ def derive_candidate(pr: dict, comments: list[dict], checks: dict | None = None,
         # A review/repair/finalization claim survives a coordinator branch update:
         # show its job and attempts (its gates were bound to the earlier head).
         result.update(state=newest["state"], next_job=deepcopy(newest.get("next_job")),
-                      attempts=deepcopy(newest.get("attempts", {})),
+                      attempts=deepcopy(newest.get("attempts", {})), route=deepcopy(newest.get("route")),
                       reason=f"claim recorded on earlier head {newest['head'][:12]}")
     # A harness publishes the validated destination and its content proof before
     # pushing. Recover only that exact destination, never an unrelated head move.
@@ -350,6 +355,8 @@ def derive_candidate(pr: dict, comments: list[dict], checks: dict | None = None,
                               attempts=attempts, gates={}, next_job=recovered_job,
                               reason="recover validated worker push; repeat review")
                 break
+    if not matching and newest is not None and result.get("route") is None:
+        result["route"] = deepcopy(newest.get("route"))  # recovery keeps the originating task route
     if not matching and not (newest is not None and newest["state"] in CLAIM_STATES) and legacy:
         latest = legacy[-1]
         labels = {label if isinstance(label, str) else label.get("name") for label in pr.get("labels", [])}

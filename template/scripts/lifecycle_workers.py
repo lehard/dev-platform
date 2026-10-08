@@ -14,15 +14,17 @@ from datetime import datetime, timezone
 import json
 import os
 import re
+import secrets
 import shlex
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
 from typing import Any, Callable
 
-from _platform_common import credential_free_env
+from _platform_common import CREDENTIAL_VARS, _CREDENTIAL_PATTERN, credential_free_env
 from candidate_lifecycle import derive_candidate, trusted_marker_comment
 import disposable_repository_sandbox
 
@@ -46,6 +48,35 @@ EVIDENCE_NAMES = ("verification.md", "automated-checks.json")
 
 class WorkerError(RuntimeError):
     pass
+
+
+# ---- worker identity ------------------------------------------------------
+
+WORKER_IDENTITY = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:@-]{0,63}")
+WORKER_ENV = "DEV_PLATFORM_WORKER"
+
+
+def validate_worker_identity(value: Any) -> str:
+    """The one identity validator; every claim and result record passes through it."""
+    if not isinstance(value, str) or WORKER_IDENTITY.fullmatch(value) is None:
+        raise WorkerError(f"invalid worker identity {value!r}: expected {WORKER_IDENTITY.pattern}")
+    return value
+
+
+def resolve_worker_identity(explicit: str | None, environ: dict[str, str], *, hostname: str, pid: int, nonce: str) -> str:
+    """The single identity of one run: explicit option, then ``DEV_PLATFORM_WORKER``, else generated.
+
+    An invalid explicit value is never replaced by a generated one. The generated form
+    ``worker-<host>-<pid>-<nonce>`` is unique across hosts, reused PIDs and relaunches.
+    """
+    if explicit is not None:
+        return validate_worker_identity(explicit)
+    if WORKER_ENV in environ:
+        return validate_worker_identity(environ[WORKER_ENV])
+    if not isinstance(hostname, str) or not hostname.strip():
+        raise WorkerError("cannot generate a worker identity: the host name is empty; pass --worker")
+    host = re.sub(r"[^a-z0-9.-]", "-", hostname.strip().lower())[:24]
+    return validate_worker_identity(f"worker-{host}-{pid}-{nonce}")
 
 
 def _now(now: datetime | None) -> datetime:
@@ -119,12 +150,68 @@ def build_job(candidate: dict) -> dict | None:
             **{key: explicit[key] for key in ("provider", "providers", "target_head", "phase", "reoffer") if key in explicit}}
 
 
-def claim_body(job: dict, worker: str, expires_at: str) -> str:
+def job_providers(job: dict) -> list[str]:
+    """The validated provider list of a job, or a ``WorkerError`` naming the pull request."""
+    from model_routing import PROVIDERS
+
+    where = f"PR #{job.get('number')} {job.get('kind')} job"
+    providers, single = job.get("providers"), job.get("provider")
+    if providers is None and single is None:
+        raise WorkerError(f"{where} has no provider")
+    if providers is None:
+        providers = [single]
+    if (not isinstance(providers, list) or not providers
+            or any(not isinstance(name, str) or name not in PROVIDERS for name in providers)):
+        raise WorkerError(f"{where} has an empty or unsupported provider list {providers!r}")
+    if single is not None and single not in providers:
+        raise WorkerError(f"{where} provider {single!r} contradicts its provider list {providers!r}")
+    return list(providers)
+
+
+REOFFER_AUTHORIZING_ACTIONS = ("switch-provider", "retry-unavailable")
+
+
+def authorized_repair_providers(route: dict | None, providers: list[str], reoffer: Any, where: str) -> list[str]:
+    """The single provider a repair job may run on.
+
+    The default is the originating route provider recorded on the candidate handoff. An explicit recorded
+    operator re-offer (``switch-provider``; an unavailable-runtime retry only repeats an already authorized
+    list) naming exactly the job's provider authorizes it. Anything else fails.
+    """
+    if not isinstance(route, dict) or not route.get("provider"):
+        raise WorkerError(f"{where} has no originating task route; re-run developer handoff")
+    if len(providers) != 1:
+        raise WorkerError(f"{where} must name exactly one provider, got {providers!r}")
+    if providers == [route["provider"]]:
+        return providers
+    if (isinstance(reoffer, dict) and reoffer.get("action") in REOFFER_AUTHORIZING_ACTIONS
+            and reoffer.get("to") == providers):
+        return providers
+    raise WorkerError(f"{where} provider {providers[0]!r} is neither the originating route provider "
+                      f"{route['provider']!r} nor named by a recorded operator re-offer")
+
+
+def require_job_provider(job: dict, worker_provider: str | None) -> str:
+    """Repair work names exactly one provider and only a worker serving it may run the job."""
+    providers = job_providers(job)
+    if len(providers) != 1:
+        raise WorkerError(f"PR #{job.get('number')} {job.get('kind')} job must name exactly one provider, got {providers!r}")
+    if worker_provider is None:
+        raise WorkerError("--provider is required for repair kinds")
+    if worker_provider != providers[0]:
+        raise WorkerError(f"PR #{job.get('number')} {job.get('kind')} job requires provider {providers[0]}, "
+                          f"this worker serves {worker_provider}")
+    return providers[0]
+
+
+def claim_body(job: dict, worker: str, expires_at: str, provider: str | None = None) -> str:
     if job.get("kind") not in JOB_KINDS or not HEAD.fullmatch(str(job.get("head", ""))):
         raise ValueError("invalid job")
     if _parse_time(expires_at) is None:
         raise ValueError("invalid expiry")
-    record = {"job": job_id(job), "worker": worker, "head": job["head"], "expires_at": expires_at}
+    record = {"job": job_id(job), "worker": validate_worker_identity(worker), "head": job["head"], "expires_at": expires_at}
+    if provider is not None:
+        record["provider"] = provider
     return CLAIM_PREFIX + json.dumps(record, sort_keys=True, separators=(",", ":"))
 
 
@@ -197,6 +284,67 @@ def result_is_current(job: dict, result_head: str, current_head: str) -> bool:
 
 
 # ---- environment ----------------------------------------------------------
+
+# Home-relative locations that hold operator credentials and can never be exposed to project checks.
+REFUSED_HOME_PATHS = (".ssh", ".config/gh", ".gnupg", ".netrc", ".git-credentials", ".git-credential")
+
+
+def refused_home_path(relative: str) -> str | None:
+    """Why a home-relative path may never be exposed, or ``None``."""
+    path = Path(relative)
+    if not relative or path.is_absolute() or ".." in path.parts or not path.parts or path.parts == (".",):
+        return "must be a relative path without parent components"
+    for refused in REFUSED_HOME_PATHS:
+        forbidden = Path(refused).parts
+        shared = min(len(forbidden), len(path.parts))
+        if forbidden[:shared] == path.parts[:shared]:
+            return f"credential location {refused} is never grantable"
+    return None
+
+
+def _unmet(kind: str, name: str, reason: str) -> WorkerError:
+    return WorkerError(f"project check runtime requires {kind} {name}: {reason}")
+
+
+def check_runtime_declaration(runtime: dict[str, list[str]]) -> None:
+    """Refuse credential variables and credential or escaping home paths, whatever was declared or granted."""
+    for name in runtime.get("required_env", []):
+        if name in CREDENTIAL_VARS or _CREDENTIAL_PATTERN.search(name) or name.startswith("GIT_CONFIG_"):
+            raise _unmet("env", name, "GitHub and publication credentials are never provided to project checks")
+    for relative in runtime.get("home_paths", []):
+        reason = refused_home_path(relative)
+        if reason:
+            raise _unmet("home path", relative, reason)
+
+
+def project_check_env(environ: dict[str, str], home: Path, runtime: dict[str, list[str]], source_home: Path) -> dict[str, str]:
+    """Environment of trusted project checks (purpose ``project-check``).
+
+    Built on the credential-free environment (GitHub/publication credentials, Git configuration
+    injection, askpass and the SSH agent stay removed, HOME stays the scratch ``home``). The declared
+    tools must be on PATH, the declared variables present, and each granted home path is linked into
+    the scratch HOME. Anything unmet raises ``WorkerError`` naming it; nothing is substituted.
+    """
+    check_runtime_declaration(runtime)
+    env = credential_free_env(dict(environ), home)
+    for tool in runtime.get("required_tools", []):
+        if shutil.which(tool, path=env.get("PATH")) is None:
+            raise _unmet("tool", tool, "not found on PATH")
+    for name in runtime.get("required_env", []):
+        if not env.get(name):
+            raise _unmet("env", name, "not set in the launching environment")
+    home.mkdir(parents=True, exist_ok=True)
+    for relative in runtime.get("home_paths", []):
+        origin = Path(source_home) / relative
+        if not origin.exists():
+            raise _unmet("home path", relative, f"{origin} does not exist")
+        target = home / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if target.is_symlink() or target.exists():
+            raise _unmet("home path", relative, "already present in the check HOME")
+        os.symlink(origin, target)
+    return env
+
 
 def scratch_home(root: Path, home_files: list[str] | tuple[str, ...] = (), *, source_home: Path | None = None) -> Path:
     """Create a scratch HOME holding only the LLM CLI's own login files (relative to the real HOME)."""
@@ -364,7 +512,13 @@ def push_validated(repo: Path, branch: str, expected_head: str, result_head: str
 
 def select_job(candidates: list[dict], kinds: frozenset[str], claims_by_pr: dict[int, list[dict]], *,
                now: datetime | None = None, trusted_apps=frozenset(), trusted_writers=frozenset(),
-               only_prs: frozenset[int] | None = None, eligible: Callable[[dict], bool] | None = None) -> dict | None:
+               only_prs: frozenset[int] | None = None, eligible: Callable[[dict], bool] | None = None,
+               executor_provider: str | None = None, unauthorized: list[dict] | None = None) -> dict | None:
+    """The first claimable job of the requested kinds.
+
+    A repair job is validated (one supported provider) and offered only to a worker serving that
+    provider; other workers see it listed in ``unauthorized`` and it stays claimable for a match.
+    """
     for candidate in sorted(candidates, key=lambda item: item.get("number", 0)):
         if only_prs is not None and candidate.get("number") not in only_prs:
             continue
@@ -372,6 +526,16 @@ def select_job(candidates: list[dict], kinds: frozenset[str], claims_by_pr: dict
         if job and job["kind"] in kinds and (eligible is None or eligible(job)) and is_claimable(
                 job, claims_by_pr.get(job["number"], []), now=now,
                 trusted_apps=trusted_apps, trusted_writers=trusted_writers):
+            if job["kind"] in WRITE_KINDS:
+                if executor_provider is None:
+                    raise WorkerError("--provider is required for repair kinds")
+                providers = job_providers(job)
+                authorized_repair_providers(candidate.get("route"), providers, job.get("reoffer"),
+                                            f"PR #{job['number']} {job['kind']} job")
+                if providers[0] != executor_provider:
+                    if unauthorized is not None:
+                        unauthorized.append({"number": job["number"], "kind": job["kind"], "required_provider": providers[0]})
+                    continue
             return job
     return None
 
@@ -379,7 +543,7 @@ def select_job(candidates: list[dict], kinds: frozenset[str], claims_by_pr: dict
 def work_next(kinds: frozenset[str], *, list_prs: Callable[[], list[dict]],
               comments_for: Callable[[int], list[dict]], post_comment: Callable[[int, str], None],
               worker: str, ttl_seconds: int = 1800, dry_run: bool = False, now: datetime | None = None,
-              current_head: Callable[[int], str] | None = None,
+              current_head: Callable[[int], str] | None = None, provider: str | None = None,
               trusted_apps=frozenset(), trusted_writers=frozenset(),
               only_prs: frozenset[int] | None = None, eligible: Callable[[dict], bool] | None = None) -> dict:
     """Select, claim, re-read and confirm one job; abandon if another worker won."""
@@ -402,13 +566,15 @@ def work_next(kinds: frozenset[str], *, list_prs: Callable[[], list[dict]],
         all_writers |= proven
         candidates.append(derive_candidate(pr, comments, trusted_apps=trusted_apps, trusted_writers=proven))
     trust = dict(now=current, trusted_apps=trusted_apps, trusted_writers=frozenset(all_writers))
-    job = select_job(candidates, kinds, claims, only_prs=only_prs, eligible=eligible, **trust)
+    unauthorized: list[dict] = []
+    job = select_job(candidates, kinds, claims, only_prs=only_prs, eligible=eligible,
+                     executor_provider=provider, unauthorized=unauthorized, **trust)
     if job is None:
-        return {"status": "idle", "job": None}
+        return {"status": "idle", "job": None, **({"unauthorized": unauthorized} if unauthorized else {})}
     if dry_run:
         return {"status": "dry-run", "job": job}
     expires = datetime.fromtimestamp(current.timestamp() + ttl_seconds, timezone.utc).isoformat().replace("+00:00", "Z")
-    post_comment(job["number"], claim_body(job, worker, expires))
+    post_comment(job["number"], claim_body(job, worker, expires, provider if job["kind"] in WRITE_KINDS else None))
     reread = comments_for(job["number"])
     trust["trusted_writers"] = frozenset(all_writers) | writers(reread)
     if not i_won(job, worker, reread, **trust):
@@ -418,9 +584,12 @@ def work_next(kinds: frozenset[str], *, list_prs: Callable[[], list[dict]],
     return {"status": "claimed", "job": job, "expires_at": expires}
 
 
-def result_body(job: dict, worker: str, outcome: str, pushed_head: str | None = None, *, task_identity=None) -> str:
-    record = {"job": job_id(job), "worker": worker, "head": job["head"], "outcome": outcome,
+def result_body(job: dict, worker: str, outcome: str, pushed_head: str | None = None, *, task_identity=None,
+                provider: str | None = None) -> str:
+    record = {"job": job_id(job), "worker": validate_worker_identity(worker), "head": job["head"], "outcome": outcome,
               "pushed_head": pushed_head}
+    if provider is not None:
+        record["provider"] = provider
     if task_identity is not None:
         record["task_identity"] = task_identity
     return RESULT_PREFIX + json.dumps(record, sort_keys=True, separators=(",", ":"))
@@ -527,7 +696,7 @@ def prepare_harness(source_repo: str, checkout: Path, root: Path, result_head: s
 
 def execute_job(job: dict, *, source_repo: str, branch: str, allowed_paths, llm_command,
                 current_head: Callable[[], str], post_result: Callable[[str], None], workdir: str,
-                kind: str | None = None, worker: str = "worker",
+                worker: str, kind: str | None = None, provider: str | None = None,
                 runner: Callable[..., Any] = subprocess.run, env: dict[str, str] | None = None,
                 push_env: dict[str, str] | None = None, home_files: list[str] | tuple[str, ...] = (),
                 review_handler: Callable[[Path], dict] | None = None,
@@ -543,6 +712,9 @@ def execute_job(job: dict, *, source_repo: str, branch: str, allowed_paths, llm_
     kind = kind or job["kind"]
     if kind != job["kind"] or kind not in WRITE_KINDS | {"review"}:
         raise WorkerError(f"no executor for {kind} jobs")
+    if kind in WRITE_KINDS:
+        require_job_provider(job, provider)
+    result_provider = provider if kind in WRITE_KINDS else None
     command = shlex.split(llm_command) if isinstance(llm_command, str) else list(llm_command)
     root = Path(workdir).resolve()
     checkout = prepare_checkout(source_repo, str(root), "llm-checkout", job["head"])
@@ -550,14 +722,14 @@ def execute_job(job: dict, *, source_repo: str, branch: str, allowed_paths, llm_
     def finish(outcome: str, pushed: str | None = None, status: str | None = None) -> dict:
         if not claim_current():
             return {"status": "discarded"}
-        post_result(result_body(job, worker, outcome, pushed))
+        post_result(result_body(job, worker, outcome, pushed, provider=result_provider))
         return {"status": status or outcome.split(":")[0], "outcome": outcome, "pushed_head": pushed}
 
     if kind == "review" and review_handler is not None:
         outcome = review_handler(checkout)
         if outcome["status"] == "discarded" or not claim_current():
             return {"status": "discarded"}
-        post_result(result_body(job, worker, outcome["status"], outcome.get("pushed_head")))
+        post_result(result_body(job, worker, outcome["status"], outcome.get("pushed_head"), provider=result_provider))
         return outcome
     before = (_git(checkout, "rev-parse", "HEAD").strip(), tree_snapshot(checkout))
     try:
@@ -640,7 +812,9 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     nxt = sub.add_parser("work-next")
     nxt.add_argument("--kinds", required=True)
-    nxt.add_argument("--worker", default=os.environ.get("DEV_PLATFORM_WORKER", f"worker-{os.getpid()}"))
+    nxt.add_argument("--worker", help=f"worker identity (default: ${WORKER_ENV}, else generated host-pid-nonce)")
+    nxt.add_argument("--provider", choices=("codex", "claude"),
+                     help="provider of the executor behind --llm-command; required for repair kinds")
     nxt.add_argument("--repo", required=True, help="owner/repo")
     nxt.add_argument("--ttl", type=int, default=1800)
     nxt.add_argument("--dry-run", action="store_true")
@@ -656,6 +830,14 @@ def main(argv: list[str] | None = None) -> int:
                      help="file under HOME the LLM CLI needs for its own login, e.g. .codex/auth.json (repeatable)")
     args = parser.parse_args(argv)
     repo = args.repo
+    try:
+        args.worker = resolve_worker_identity(args.worker, os.environ, hostname=socket.gethostname(),
+                                              pid=os.getpid(), nonce=secrets.token_hex(6))
+        if set(args.kinds.split(",")) & WRITE_KINDS and args.provider is None:
+            raise WorkerError("--provider is required for repair kinds")
+    except WorkerError as exc:
+        print(f"lifecycle worker: {exc}", file=sys.stderr)
+        return 2
 
     def list_prs() -> list[dict]:
         listed = _gh_json("api", "--paginate", f"repos/{repo}/pulls?state=open&per_page=100")
@@ -682,6 +864,9 @@ def main(argv: list[str] | None = None) -> int:
             raise WorkerError("claiming repair jobs with --run or --providers needs --repair-provider (the provider behind --llm-command)")
         if args.repair_provider and "repair" not in kinds:
             raise WorkerError("--repair-provider applies only when claiming repair jobs")
+        if args.repair_provider and args.provider and args.repair_provider != args.provider:
+            raise WorkerError(f"--repair-provider {args.repair_provider} disagrees with --provider {args.provider}; "
+                              "both name the provider behind --llm-command")
         review_names = [name for name in (args.providers or "").split(",") if name]
         if args.providers is not None and not review_names:
             raise WorkerError("--providers needs at least one provider")
@@ -707,7 +892,7 @@ def main(argv: list[str] | None = None) -> int:
                            only_prs=frozenset(args.pr) if args.pr else None,
                            eligible=lambda job: job_eligible(job, review_ready=review_ready, repair_ready=repair_ready),
                            comments_for=comments_for, post_comment=post_comment, worker=args.worker,
-                           ttl_seconds=args.ttl, dry_run=args.dry_run,
+                           ttl_seconds=args.ttl, dry_run=args.dry_run, provider=args.provider,
                            current_head=lambda n: pr_info(n)["head"]["sha"],
                            **_coordinator_trust(Path.cwd(), repo))
         if args.run and result["status"] == "claimed":
@@ -728,7 +913,7 @@ def main(argv: list[str] | None = None) -> int:
                         allowed_paths=args.allow, llm_command=args.llm_command,
                         current_head=lambda: pr_info(job["number"])["head"]["sha"],
                         post_result=lambda body: post_comment(job["number"], body),
-                        workdir=workdir, home_files=args.llm_home_file, worker=args.worker)
+                        workdir=workdir, home_files=args.llm_home_file, worker=args.worker, provider=args.provider)
                 elif job["kind"] == "finalize" and isinstance(job["task_identity"], dict) and job["task_identity"].get("change"):
                     from post_review_finalization import run_claimed_finalize
                     import publication_queue
@@ -769,7 +954,7 @@ def main(argv: list[str] | None = None) -> int:
                         allowed_paths=args.allow, llm_command=args.llm_command,
                         current_head=lambda: pr_info(job["number"])["head"]["sha"],
                         post_result=lambda body: post_comment(job["number"], body),
-                        workdir=workdir, home_files=args.llm_home_file, worker=args.worker)
+                        workdir=workdir, home_files=args.llm_home_file, worker=args.worker, provider=args.provider)
                 elif (job["kind"] == "retrospective" and isinstance(job["task_identity"], dict) and job["task_identity"].get("kind") == "requirement-composition"
                       and job.get("phase") == "pre-merge" and not pr_info(job["number"]).get("merged")):
                     from requirement_composition import run_claimed_retrospective
@@ -791,13 +976,15 @@ def main(argv: list[str] | None = None) -> int:
                     outcome = execute_job(
                         job, source_repo=args.source or f"https://github.com/{repo}.git",
                         branch=args.branch or pr_info(job["number"])["head"]["ref"], allowed_paths=args.allow,
-                        llm_command=args.llm_command, worker=args.worker, workdir=workdir, home_files=args.llm_home_file,
+                        llm_command=args.llm_command, worker=args.worker, provider=args.provider, workdir=workdir,
+                        home_files=args.llm_home_file,
                         current_head=lambda: pr_info(job["number"])["head"]["sha"],
                         post_result=lambda body: post_comment(job["number"], body))
             result = {**result, "execution": outcome}
         if readiness is not None:
             result = {**result, "providers": {"ready": sorted(name for name, limitation in readiness.items() if limitation is None),
                                               "unavailable": {name: limitation for name, limitation in readiness.items() if limitation}}}
+        result = {**result, "worker": args.worker}
     except (WorkerError, ValueError) as exc:
         print(f"lifecycle worker: {exc}", file=sys.stderr)
         return 2
