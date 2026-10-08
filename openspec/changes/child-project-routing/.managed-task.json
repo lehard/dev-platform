@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/agent-workflow/spec.md"
+  ],
+  "change": "child-project-routing",
+  "imported_at": "2026-10-07T13:08:15+00:00",
+  "package_revision": "67937bf7a151a6ae5b40ab5b9ac71e66fb57799695cbd7adea38bd553a3f1665",
+  "prepared_against": "a8d83e5cbd97037b242daf30557f4b1e3b03ae7c",
+  "private_lineage_handle": "pln_ada35b41259fef2414aecb885464b575",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "0b8b424a26ba04ebdc863e7037493ddffe305462a07d271a6894f7ab7e9f3e42",
+    "updated_at": "2026-10-07T11:09:05Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-415/T2"
+}

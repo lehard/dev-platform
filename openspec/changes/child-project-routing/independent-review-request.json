@@ -1,0 +1,73 @@
+{
+  "candidate": {
+    "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
+    "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
+    "candidate_head": "fc3da5c48380840fc544c831bd141e01d1ae7019",
+    "diff_sha256": "f81fcc375f27d44a047e2ac28ebdf3fb2064d2468dff18927b57db8aa11a4968"
+  },
+  "change": "openspec/changes/child-project-routing",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/child-project-routing/automated-checks.json",
+    "openspec/changes/child-project-routing/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/child-project-routing/design.md",
+        "openspec/changes/child-project-routing/proposal.md",
+        "openspec/changes/child-project-routing/specs/agent-workflow/spec.md",
+        "openspec/changes/child-project-routing/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/child-project-routing/proposal.md",
+        "openspec/changes/child-project-routing/design.md",
+        "openspec/changes/child-project-routing/tasks.md",
+        "openspec/changes/child-project-routing/specs/agent-workflow/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-08T07:56:21+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/child-project-routing/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "3e226dfd-1f39-4b22-842c-1b43f555ed31",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+    "digest": "8c6cd14a2b65ffcd697d8a4141a9f0d52f8bd2a1dbf04c6105fa37558fe3361f",
+    "paths": {
+      "openspec/changes/child-project-routing/.managed-task.json": "d5c8d0fad3590c0ec26e65fb642dc9b4796819f4",
+      "openspec/changes/child-project-routing/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+      "openspec/changes/child-project-routing/design.md": "484489505efe94f56d6a60dc867d032a466fe243",
+      "openspec/changes/child-project-routing/proposal.md": "ddc36f36b70cdc16badff4e88635c6a0a0a7ecea",
+      "openspec/changes/child-project-routing/specs/agent-workflow/spec.md": "5add05fb37926f0b5677bc2711eee1e64c21222a",
+      "openspec/changes/child-project-routing/tasks.md": "7e59da96501d109ae23825ff7b05bf5b4355c6ba",
+      "template/scripts/requirement_intake.py": "dd34507c47287ecb52a722111577b8a2b36acdf6",
+      "tests/test_requirement_intake.py": "cd1880ce5229d178c043bed56c813731381dfa48"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

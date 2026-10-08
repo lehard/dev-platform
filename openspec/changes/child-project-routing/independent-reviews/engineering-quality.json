@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
+    "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
+    "candidate_head": "fc3da5c48380840fc544c831bd141e01d1ae7019",
+    "diff_sha256": "f81fcc375f27d44a047e2ac28ebdf3fb2064d2468dff18927b57db8aa11a4968"
+  },
+  "completed_at": "2026-10-08T07:58:11+00:00",
+  "findings": [
+    {
+      "evidence": "tests/test_requirement_intake.py, test_missing_configuration_is_a_named_error: `create = unittest.mock.Mock()` is never patched into `ri.managed_task.create_task`, yet `create.assert_not_called()` is asserted. The spec scenario 'Missing or ambiguous routing input ... creates nothing' is therefore only covered by the raised error. The scenario's 'Backlog label absent' case also has no test.",
+      "id": "vacuous-missing-config-test",
+      "severity": "advisory",
+      "summary": "The missing-configuration test asserts `create.assert_not_called()` on a mock that is never wired into materialize_handoff, so that assertion proves nothing about the 'creates nothing' scenario."
+    },
+    {
+      "evidence": "template/scripts/requirement_intake.py materialize_handoff: the new `config = managed_task.authoring_config(root)` / `resolve_child_routing(...)` block is placed before `requirement_target_lifecycle.require_local_target_support(...)`. Previously `authoring_config` was called after the target-support check.",
+      "id": "routing-check-ordering-before-target-support",
+      "severity": "advisory",
+      "summary": "`managed_task.authoring_config` and `resolve_child_routing` now run before the target-lifecycle support check, so a project without `[development_backlog]` configuration now fails with 'child routing input missing' instead of the more specific target-support error. This is a minor change in error precedence."
+    }
+  ],
+  "launched_at": "2026-10-08T07:57:52+00:00",
+  "output_sha256": "661e84185874d060bece1acce4a5e6e92b19427bc656d670601d50a13cc7ae17",
+  "perspective": "engineering-quality",
+  "request_id": "3e226dfd-1f39-4b22-842c-1b43f555ed31",
+  "reviewer": {
+    "context_id": "951c4cf1-2cc5-46e6-b532-705f6d45f34e",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-580e91dd-5642-47c8-a225-12b454738591",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 25494
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16832
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12920
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14694
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1357
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "8c6cd14a2b65ffcd697d8a4141a9f0d52f8bd2a1dbf04c6105fa37558fe3361f"
+}
