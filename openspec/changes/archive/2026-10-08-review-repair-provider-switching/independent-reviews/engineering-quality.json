@@ -1,0 +1,88 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "6c96df65b6d7f4f4d4ee0c30e2d81880190b7dd0",
+    "base_ref": "origin/main",
+    "candidate_head": "63e77bf99c1124cef31789f9c6ac808fd5858839",
+    "diff_sha256": "fb3f355ff4e1a2cf27f08d7d3ae5906e2dcce87d8a57df62d159b9b921e1026e"
+  },
+  "completed_at": "2026-10-08T05:43:50+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/pr_review_gate.py: the `adapter._transition(..., kind + \"ing\" ...)` call in `run_claimed` has no red_gate. `retry_unavailable` then calls `adapter._transition(..., red_gate=running.get(\"red_gate\"), ...)`. `reoffer` rebuilds with `origin = next((name for name in (\"review\", \"required-checks\") ...` and `restored = {...gates[origin][\"evidence\"]}`. design.md: \"records ... the original red gate\".",
+      "id": "unavailable-retry-red-gate-not-preserved",
+      "severity": "advisory",
+      "summary": "design.md says an unavailable repair is recorded with \"the original red gate\", but `retry_unavailable` passes `running.get(\"red_gate\")`. `running` is the record from the `repairing` transition, which passes no `red_gate`, so that value is None. The findings are still recoverable only because `reoffer` rebuilds the red gate from `gates[\"review\"|\"required-checks\"]`. The design text and the code disagree, and the retry path relies on the rebuild."
+    },
+    {
+      "evidence": "template/scripts/pr_review_gate.py: `return adapter._transition(root, repo, job[\"number\"], \"blocked-retryable\", ...)` in `retry_unavailable`. `run_claimed` ignores the return value in `elif kind == \"repair\" and outcome[\"status\"] == \"unavailable\": retry_unavailable(...)`. `_transition` begins with `if observed.get(\"head\", {}).get(\"sha\") != head: return None`. The head is re-checked just before in `run_claimed`, so the window is narrow.",
+      "id": "retry-unavailable-ignores-lost-transition",
+      "severity": "advisory",
+      "summary": "`retry_unavailable` returns the result of `_transition` without checking it. `_transition` returns None when the PR head moved. `run_claimed` then reports `status: unavailable` even though no blocked-retryable record was written. `reoffer` does check for None."
+    }
+  ],
+  "launched_at": "2026-10-08T05:42:59+00:00",
+  "output_sha256": "686f8c7ed80edb2ce6745aff405f968ad14bcf93f0d6872475f1093227ad578f",
+  "perspective": "engineering-quality",
+  "request_id": "7650e851-4042-40f0-82a2-51bffdb5b120",
+  "reviewer": {
+    "context_id": "fb7b004e-bb83-497f-ac3b-a54efdd782ff",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-cc10a229-96ce-431a-b897-d7dab1449245",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 56661
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 210827
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 45829
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 46548
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5384
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "7eca53db1ff8a89ef46ab5a7f41bc4d68b09586cf02f7c31913f0e0b8c4a75ac"
+}

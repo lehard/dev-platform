@@ -1,0 +1,120 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.37,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 4.882,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1022.644,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/lifecycle_workers.py",
+        "template/scripts/pr_review_gate.py",
+        "template/scripts/publication_queue.py",
+        "tests/test_lifecycle_workers.py",
+        "tests/test_pr_review_gate.py",
+        "tests/test_publication_queue.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_bc2beff0d83ca433213f15e573b4949a",
+    "change": "review-repair-provider-switching",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/review-repair-provider-switching",
+    "branch": "agent/br-439-t1-review-repair-provider-switching",
+    "head": "63e77bf99c1124cef31789f9c6ac808fd5858839",
+    "task_content": {
+      "version": 1,
+      "digest": "68cbab6ce5b70d762a9271e82a659c3cad2bd9a8133d8c39f4e54e68cba11d08",
+      "paths": {
+        "docs/engineering/agent-workflow.md": "468660d3136683284a0f65ec7a4e30d257c1f483",
+        "openspec/changes/review-repair-provider-switching/.managed-task.json": "cd38b54bc8ac969c8cafbba7b28875f23c4fc73a",
+        "openspec/changes/review-repair-provider-switching/.openspec.yaml": "01660bab056db86b8ce3c840115bb6b57cd15555",
+        "openspec/changes/review-repair-provider-switching/automated-checks.json": "166461883a4544127a7ee6d0a10d685e52706e80",
+        "openspec/changes/review-repair-provider-switching/design.md": "86b874dc8322ffa6e79f374384097c87e6d27c42",
+        "openspec/changes/review-repair-provider-switching/independent-review-request.json": "4d292c15450addac1e7c897a6ac198b62cca9772",
+        "openspec/changes/review-repair-provider-switching/independent-reviews/engineering-quality.json": "dd054b7d0eb081f990f85ac0b93416e002e35133",
+        "openspec/changes/review-repair-provider-switching/independent-reviews/spec-fidelity.json": "ede43fa09a57d8c507e62f13b9f41153e2db1ff0",
+        "openspec/changes/review-repair-provider-switching/proposal.md": "4c1a69405c543dc5282350d2f7739c195d967158",
+        "openspec/changes/review-repair-provider-switching/specs/completion-lifecycle/spec.md": "805cb39473b2ee3c0808ea47bea9e9445f9af9f0",
+        "openspec/changes/review-repair-provider-switching/specs/lifecycle-workers/spec.md": "6e172be7c57074e80d09ebdd841872ffbc10693c",
+        "openspec/changes/review-repair-provider-switching/specs/publication-queue/spec.md": "c455c8bc098a82c2d27eec71291c32ba3f276a8f",
+        "openspec/changes/review-repair-provider-switching/tasks.md": "6315e8d65b84bfb11c6ea9728a433515584c3bf9",
+        "openspec/changes/review-repair-provider-switching/verification.md": "8b6467010a49c1e664fb0082f1ddc8ae8a6713c9",
+        "template/scripts/lifecycle_workers.py": "207136cebe03a752631878f85c4ad15167a8ffd6",
+        "template/scripts/pr_review_gate.py": "6851a80b7ada125fa4b0903326a472d10c310728",
+        "template/scripts/publication_queue.py": "d9f146b7d0e6d9913ef79261491063d48da0bef4",
+        "tests/test_lifecycle_workers.py": "df38b7e70fe7ca77356f7c273a50c57e9b358dfb",
+        "tests/test_pr_review_gate.py": "b91823c2cd58ec572e524c004a1372d1023e84c8",
+        "tests/test_publication_queue.py": "d62a817901a9619e572a41f0121a8a6dc674a85f"
+      },
+      "base": "6c96df65b6d7f4f4d4ee0c30e2d81880190b7dd0"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "7eca53db1ff8a89ef46ab5a7f41bc4d68b09586cf02f7c31913f0e0b8c4a75ac",
+    "paths": {
+      "docs/engineering/agent-workflow.md": "468660d3136683284a0f65ec7a4e30d257c1f483",
+      "openspec/changes/review-repair-provider-switching/.managed-task.json": "cd38b54bc8ac969c8cafbba7b28875f23c4fc73a",
+      "openspec/changes/review-repair-provider-switching/.openspec.yaml": "01660bab056db86b8ce3c840115bb6b57cd15555",
+      "openspec/changes/review-repair-provider-switching/design.md": "86b874dc8322ffa6e79f374384097c87e6d27c42",
+      "openspec/changes/review-repair-provider-switching/proposal.md": "4c1a69405c543dc5282350d2f7739c195d967158",
+      "openspec/changes/review-repair-provider-switching/specs/completion-lifecycle/spec.md": "805cb39473b2ee3c0808ea47bea9e9445f9af9f0",
+      "openspec/changes/review-repair-provider-switching/specs/lifecycle-workers/spec.md": "6e172be7c57074e80d09ebdd841872ffbc10693c",
+      "openspec/changes/review-repair-provider-switching/specs/publication-queue/spec.md": "c455c8bc098a82c2d27eec71291c32ba3f276a8f",
+      "openspec/changes/review-repair-provider-switching/tasks.md": "6315e8d65b84bfb11c6ea9728a433515584c3bf9",
+      "template/scripts/lifecycle_workers.py": "207136cebe03a752631878f85c4ad15167a8ffd6",
+      "template/scripts/pr_review_gate.py": "6851a80b7ada125fa4b0903326a472d10c310728",
+      "template/scripts/publication_queue.py": "d9f146b7d0e6d9913ef79261491063d48da0bef4",
+      "tests/test_lifecycle_workers.py": "df38b7e70fe7ca77356f7c273a50c57e9b358dfb",
+      "tests/test_pr_review_gate.py": "b91823c2cd58ec572e524c004a1372d1023e84c8",
+      "tests/test_publication_queue.py": "d62a817901a9619e572a41f0121a8a6dc674a85f"
+    },
+    "base": "6c96df65b6d7f4f4d4ee0c30e2d81880190b7dd0",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/lifecycle_workers.py --changed-file template/scripts/pr_review_gate.py --changed-file template/scripts/publication_queue.py --changed-file tests/test_lifecycle_workers.py --changed-file tests/test_pr_review_gate.py --changed-file tests/test_publication_queue.py",
+    "duration_seconds": 243.38,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}

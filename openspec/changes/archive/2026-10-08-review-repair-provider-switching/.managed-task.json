@@ -1,0 +1,31 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/completion-lifecycle/spec.md",
+    "specs/lifecycle-workers/spec.md",
+    "specs/publication-queue/spec.md"
+  ],
+  "change": "review-repair-provider-switching",
+  "imported_at": "2026-10-08T04:52:28+00:00",
+  "package_revision": "ec057e865175e39a3da9d3570420bf8185c4cd49a905144f9129145536a70b3d",
+  "prepared_against": "6c96df65b6d7f4f4d4ee0c30e2d81880190b7dd0",
+  "private_lineage_handle": "pln_bc2beff0d83ca433213f15e573b4949a",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "a03cd11141b6072587890590d01ffa45ec4431a81d1ab85773f01e4c42d2b638",
+    "updated_at": "2026-10-08T04:44:15Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-439/T1"
+}
