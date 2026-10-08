@@ -232,7 +232,9 @@ def read_platform_config(root: Path | None = None) -> dict[str, Any]:
     if not isinstance(external, dict):
         raise RuntimeError("operator configuration must contain a TOML object")
     for key, value in external.items():
-        if key == "operator":
+        # Lifecycle identity belongs to the project contract. Operator state
+        # must neither replace these values nor fill absent selector input.
+        if key in {"operator", "platform_version", "harness_mode", "publish_mode", "scm_provider"}:
             continue
         if isinstance(value, dict) and isinstance(config.get(key), dict):
             config[key] = {**config[key], **value}

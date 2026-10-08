@@ -104,6 +104,46 @@ class SelectorTests(unittest.TestCase):
 
 
 class DownstreamCheckoutTests(unittest.TestCase):
+    def add_operator_overlay(self, root: Path, toml: str) -> None:
+        with (root / ".dev-platform.toml").open("a", encoding="utf-8") as handle:
+            handle.write('\n[operator]\nenabled = true\nconfig_path = "operator.toml"\n'
+                         'config_env = "DOWNSTREAM_BOUNDARY_TEST_OPERATOR_CONFIG"\n')
+        (root / "operator.toml").write_text(toml, encoding="utf-8")
+
+    def test_operator_cannot_turn_downstream_archive_into_coordinator(self) -> None:
+        root = self.make_checkout(contract("1.0.0"))
+        self.add_operator_overlay(root, contract("source", publish_mode="pr", scm_provider="github"))
+        result = self.run_driver(root, ARCHIVE_DRIVER)
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+        self.assertFalse(execution._contribution_publication_supported(root))
+
+    def test_operator_cannot_mask_invalid_source_contract(self) -> None:
+        for key, value in (("scm_provider", "gitlab"), ("publish_mode", "direct"), ("harness_mode", "project")):
+            with self.subTest(key=key):
+                project = {"harness_mode": "platform", "publish_mode": "pr", "scm_provider": "github", key: value}
+                root = self.make_checkout('platform_version = "source"\n' + "".join(
+                    f'{name} = "{setting}"\n' for name, setting in project.items()))
+                self.add_operator_overlay(root, contract("1.0.0", publish_mode="pr", scm_provider="github"))
+                with self.assertRaisesRegex(common.PlatformConfigError, f"{key}.*{value}"):
+                    execution._contribution_publication_supported(root)
+
+    def test_operator_cannot_override_supported_source_selector_fields(self) -> None:
+        root = self.make_checkout(contract("source", publish_mode="pr", scm_provider="github"))
+        self.add_operator_overlay(root, 'platform_version = "1.0.0"\nharness_mode = "project"\n'
+                                  'publish_mode = "direct"\nscm_provider = "gitlab"\n'
+                                  '[development_backlog]\nrepository = "example/backlog"\n')
+        config = common.read_platform_config(root)
+        self.assertEqual("coordinator", common.lifecycle_mode(config))
+        self.assertEqual("example/backlog", config["development_backlog"]["repository"])
+
+    def test_operator_cannot_supply_missing_platform_version(self) -> None:
+        root = self.make_checkout('harness_mode = "platform"\n')
+        self.add_operator_overlay(root, contract("source"))
+        config = common.read_platform_config(root)
+        self.assertNotIn("platform_version", config)
+        with self.assertRaisesRegex(common.PlatformConfigError, "platform_version"):
+            common.lifecycle_mode(config)
+
     def make_checkout(self, toml: str) -> Path:
         tmp = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, tmp, True)
