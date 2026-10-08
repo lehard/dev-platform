@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "6c96df65b6d7f4f4d4ee0c30e2d81880190b7dd0",
     "base_ref": "origin/main",
-    "candidate_head": "2b44489b3f55b6421ea7ce3719f90afc86eafec6",
-    "diff_sha256": "7d8e80345763c2488c5ac9576039921c7deddfe81dccba25106b8ae85377925d"
+    "candidate_head": "594b0352ae299395b9852bf9a0d1f7bdc3260660",
+    "diff_sha256": "3d42268c2b2ed74f06138353939f00b1cb3d9d2f472466d3f46c4a8512d1d0b8"
   },
   "change": "openspec/changes/review-repair-provider-switching",
   "excluded_lifecycle_paths": [
@@ -41,7 +41,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-08T05:21:05+00:00",
+  "prepared_at": "2026-10-08T05:23:41+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/review-repair-provider-switching/independent-reviews",
     "required_perspectives": [
@@ -50,7 +50,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "39600bb7-4f19-47b6-be3d-62d0c571f5d9",
+  "request_id": "02267d1f-7444-4755-b931-f0c74146c6a0",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -63,7 +63,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "6c96df65b6d7f4f4d4ee0c30e2d81880190b7dd0",
-    "digest": "f425708945b9fba07a89c296d3abee4dd959f7d070120aea5b8fa321e047788e",
+    "digest": "93cb59efc2228489cb5f2c648d171705260b480793e527db561b74ea031e5140",
     "paths": {
       "docs/engineering/agent-workflow.md": "468660d3136683284a0f65ec7a4e30d257c1f483",
       "openspec/changes/review-repair-provider-switching/.managed-task.json": "cd38b54bc8ac969c8cafbba7b28875f23c4fc73a",
@@ -74,8 +74,8 @@
       "openspec/changes/review-repair-provider-switching/specs/lifecycle-workers/spec.md": "6e172be7c57074e80d09ebdd841872ffbc10693c",
       "openspec/changes/review-repair-provider-switching/specs/publication-queue/spec.md": "c455c8bc098a82c2d27eec71291c32ba3f276a8f",
       "openspec/changes/review-repair-provider-switching/tasks.md": "6315e8d65b84bfb11c6ea9728a433515584c3bf9",
-      "template/scripts/lifecycle_workers.py": "93e1e320dd838d2cfabe4109ae1d9667d586ad9b",
-      "template/scripts/pr_review_gate.py": "37a6bd426bbe1f942c042c1ee7b35350b56dd98a",
+      "template/scripts/lifecycle_workers.py": "207136cebe03a752631878f85c4ad15167a8ffd6",
+      "template/scripts/pr_review_gate.py": "e7763319ff5aba4bfcebc7d7d8ac08c86acd8107",
       "template/scripts/publication_queue.py": "d9f146b7d0e6d9913ef79261491063d48da0bef4",
       "tests/test_lifecycle_workers.py": "df38b7e70fe7ca77356f7c273a50c57e9b358dfb",
       "tests/test_pr_review_gate.py": "b91823c2cd58ec572e524c004a1372d1023e84c8",
