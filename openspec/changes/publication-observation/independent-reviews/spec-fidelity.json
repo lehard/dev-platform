@@ -3,57 +3,77 @@
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "6d42325d00b42be069aadd96d7239b45fdfe604a",
-    "diff_sha256": "68aaefce0bea1c0960ad1086a31aeb0b22ea8b218868895b5aff9bec66ae6f41"
+    "candidate_head": "add9f5fa88b3627d9317949313743d975f01ed89",
+    "diff_sha256": "956975275266b6f03d5245ab63fa33dc3c8e129081d9e83d30e86947e4b2ea1f"
   },
-  "completed_at": "2026-10-08T07:14:41+00:00",
+  "completed_at": "2026-10-08T10:03:00+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/publication_queue.py:94-107 validates read_platform_config(root), which already merges operator values over project values at template/scripts/_platform_common.py:210-216. With project coordinator_app=123 and an enabled operator config containing coordinator_app=\"valid-app\", trusted_apps returns {'valid-app'} without error (reproduced using in-memory file mocks). A non-table project publication value is likewise replaceable before validation. The active delta requires every configured trust source to be validated and invalid platform values to fail explicitly; design D3 also requires sources to be read under their own contracts.",
-      "id": "merged-config-masks-invalid-trust-source",
-      "severity": "material",
-      "summary": "An operator override can hide invalid project trust configuration, violating the fail-closed contract."
+      "evidence": "template/scripts/publication_queue.py:608-611 computes `resolved_handoff = ... _admission_handoff(root, branch, expected_head)` before `_events`/`_admission`. Previously `_admission_handoff` ran only inside the `if current.get(\"task_identity\") is None or current.get(\"head\") != expected_head` branch (diff lines 712-713 versus 657-658). A retry or re-admission for an already-recorded managed head from a checkout that is not at that head, or without managed state, now raises `managed candidate ... lacks valid exact task-content provenance` or a merge-base error, even though no new record would be written. The same applies to a quick task whose head or origin/main is not present locally, because `_touches_openspec_change` raises on merge-base or diff failure. The spec scenarios only cover the first admission, so this is either an unspecified behavior change or a missing scenario.",
+      "id": "admit-eager-provenance-on-readmission",
+      "severity": "advisory",
+      "summary": "admit() now resolves the managed-provenance handoff on every call, before it checks whether the candidate is already admitted or already recorded at the head. The delta contract and design D4 say nothing about this change in idempotent re-admission behavior."
     }
   ],
-  "launched_at": "2026-10-08T07:12:41+00:00",
-  "output_sha256": "12cc14cc3b998b47231150341d920582abd0f87efb0bae5dd33f72fabd11784c",
+  "launched_at": "2026-10-08T10:02:08+00:00",
+  "output_sha256": "e29d628fa267169a63b652d39ce21b15c6d56d92053c6aa59cabee446ef13f1e",
   "perspective": "spec-fidelity",
-  "request_id": "234cfbdb-b65a-4be0-9000-f6f45daa7c44",
+  "request_id": "cc12bbe6-74d4-42b2-b365-91cb55f21b91",
   "reviewer": {
-    "context_id": "01a11a5b-6d3c-7673-94c4-4681224a6948",
+    "context_id": "ae16689c-9550-4eb7-bca5-faebd5680d4b",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-86e83f3d-98e3-4fb4-8fcc-62d55666b89a",
+    "launch_id": "platform-launch-0d9e979a-dcda-4c18-a8c9-791ec76d0b07",
     "model": {
       "source": "selected",
-      "value": "gpt-6.1-sol"
+      "value": "sonnet"
     },
-    "provider": "codex",
-    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
-    "runtime": "codex-exec",
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
     "write_access": false
   },
   "runtime_usage": {
     "fields": {
-      "cached_input_tokens": {
+      "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 458624
+        "value": 64200
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 175563
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 40757
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 44389
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 539364
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2182
+        "value": 2578
       }
     },
-    "runtime": "codex-exec"
+    "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "c6e0e5dcf08ba256b09a6fb5bc000811b13eccb90ed2894b3699f27a4fe6c99b"
+  "task_content_digest": "6577a543fb24722a5ca152835c4882905a289d9c47659b013bdbd418a524b796"
 }

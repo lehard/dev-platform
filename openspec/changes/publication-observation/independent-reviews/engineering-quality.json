@@ -3,63 +3,89 @@
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "6d42325d00b42be069aadd96d7239b45fdfe604a",
-    "diff_sha256": "68aaefce0bea1c0960ad1086a31aeb0b22ea8b218868895b5aff9bec66ae6f41"
+    "candidate_head": "add9f5fa88b3627d9317949313743d975f01ed89",
+    "diff_sha256": "956975275266b6f03d5245ab63fa33dc3c8e129081d9e83d30e86947e4b2ea1f"
   },
-  "completed_at": "2026-10-08T07:16:35+00:00",
+  "completed_at": "2026-10-08T10:07:35+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/publication_state.py:183\u2013187 adds GET commits/{head}/check-runs, called for App-bound requirements at lines 241\u2013242. This endpoint requires Checks read permission ([GitHub documentation](https://docs.github.com/en/rest/checks/runs#list-check-runs-for-a-git-reference)). .github/workflows/publication-queue.yml:35\u201343 requests only Contents write and Pull requests write. Consequently, the coordinator receives a transport failure instead of a passed required-checks gate, preventing affected contributions from progressing.",
-      "id": "bound-check-reader-missing-permission",
+      "evidence": "publication_state.py ~L254 and ~L272 raise RequiredCheckBaseError. Grep of template/scripts shows catches only at publication_queue.py:726 and :1150. Unprotected callers: finish_task.py:347, rollout_preflight.py:151, project_publish.py:261, publication_state.py:588. Previously every unusable case was a returned `unknown`. Now a rollout PR to a downstream default branch that differs from the platform root's main_branch, or a PR with a stacked base, crashes with a traceback. The caller mapping in design D2 says these callers have 'no behavior change'.",
+      "id": "check-base-error-unhandled-by-callers",
       "severity": "material",
-      "summary": "App-bound contribution checks cannot be observed with the publication worker\u2019s token on private repositories."
+      "summary": "required_check_state_for_ref now raises RequiredCheckBaseError for any base other than main_branch or requirement/BR-<n>, and also when the config has no main_branch. Only publication_queue catches it. finish_task, project_publish.wait_for_pr_checks, rollout_preflight and publication_state (~line 588) do not."
     },
     {
-      "evidence": "template/scripts/publication_queue.py:94\u2013108 validates read_platform_config\u2019s merged result. template/scripts/_platform_common.py:211\u2013216 merges operator values over project values before returning it. A read-only, in-memory reproduction with project `publication = \"invalid\"`, an enabled operator config, and operator `[publication] coordinator_app = \"operator-app\"` returned `['operator-app']` without error. The invalid configured project source is therefore silently accepted; similarly, an invalid project coordinator_app can be overwritten before validation.",
-      "id": "merged-config-masks-invalid-trust-source",
-      "severity": "material",
-      "summary": "Operator overrides can hide invalid project trust configuration, bypassing the new fail-closed validation."
+      "evidence": "publication_queue.py `_touches_openspec_change`: `run_git([\"merge-base\", head, \"origin/main\"])` raises QueueError on non-zero. It ignores the configured main_branch. The legacy admit path (no handoff, coordinator or other checkout) previously always succeeded with branch/head identity.",
+      "id": "admission-quick-detection-hardcoded-origin-main",
+      "severity": "advisory",
+      "summary": "_touches_openspec_change hardcodes `origin/main` and requires the admitted head to exist locally. Admission of a genuine quick task from a checkout without that ref or object now raises QueueError instead of falling back to quick identity."
+    },
+    {
+      "evidence": "In the admit diff, `resolved_handoff = handoff if handoff is not None else _admission_handoff(...)` runs before `events = _events(...)` and `admitted = _admission(events, number)`. The result is only used later, and only when `current.get('task_identity') is None or current.get('head') != expected_head`.",
+      "id": "admit-resolves-handoff-before-idempotency-check",
+      "severity": "advisory",
+      "summary": "admit now calls _admission_handoff eagerly, before the existing already-admitted or idempotency checks. A re-admit of an already admitted PR from a checkout lacking managed state can now fail where it previously returned early."
     }
   ],
-  "launched_at": "2026-10-08T07:14:41+00:00",
-  "output_sha256": "54343e3c36035393cc474b58aeb8cf9ee671d1cbc154d288d953c57e0a5f5663",
+  "launched_at": "2026-10-08T10:03:00+00:00",
+  "output_sha256": "4eb0fde18027d9a5bd358979b82ef48030f61e29e8fc2dab160ebf81ca72f079",
   "perspective": "engineering-quality",
-  "request_id": "234cfbdb-b65a-4be0-9000-f6f45daa7c44",
+  "request_id": "cc12bbe6-74d4-42b2-b365-91cb55f21b91",
   "reviewer": {
-    "context_id": "01a11a5d-476f-7741-8fcf-7f1114272acb",
+    "context_id": "e873a3f2-02b2-48c3-8d1f-44c8dae5f17f",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-aba9cce7-3b64-4ffa-8144-e8d84ab3191e",
+    "launch_id": "platform-launch-60b219c9-4f62-4329-b957-894566b21e82",
     "model": {
       "source": "selected",
-      "value": "gpt-6.1-sol"
+      "value": "sonnet"
     },
-    "provider": "codex",
-    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
-    "runtime": "codex-exec",
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
     "write_access": false
   },
   "runtime_usage": {
     "fields": {
-      "cached_input_tokens": {
+      "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 524416
+        "value": 50083
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 206446
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 51926
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 80576
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 608590
+        "value": 12
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2540
+        "value": 3457
       }
     },
-    "runtime": "codex-exec"
+    "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "c6e0e5dcf08ba256b09a6fb5bc000811b13eccb90ed2894b3699f27a4fe6c99b"
+  "task_content_digest": "6577a543fb24722a5ca152835c4882905a289d9c47659b013bdbd418a524b796"
 }
