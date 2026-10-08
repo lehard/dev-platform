@@ -3,28 +3,28 @@
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "81b69b2fa237c76b2a492b6939413793a1a4bf1e",
-    "diff_sha256": "2f463adfad97e59213fe68012393d228036cb3a4e02f8be63e00fe963411382b"
+    "candidate_head": "c9b0881a4d72c69211bb1a1b6abf110aab5e05d9",
+    "diff_sha256": "ac3f8bb663660ef98c6d54753863881f153b372ecf235cca8b7f5e4cf0fc58cb"
   },
-  "completed_at": "2026-10-07T18:53:58+00:00",
+  "completed_at": "2026-10-08T05:27:52+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/model_routing.py:1167\u20131177 handles launcher OSError as an abnormal execution with launched=False. Lines 1251\u20131254 nevertheless persist a closed platform-observed delegation. The early gate accepts any recorded execution or delegation without checking launch status, and escalate at lines 1010\u20131020 skips the divergence check whenever a delegation exists. Thus, after an unsuccessful launch, supervisor edits pass routing-adjacent checks and can switch the plan to retention despite no child having run. This contradicts the active delta's requirement for a real recorded delegation or unchanged task content, and design decision 8's requirement that unlaunched preflight failures cannot authorize later supervisor writes or escalation.",
-      "id": "unlaunched-codex-attempt-bypasses-early-gate",
+      "evidence": "template/scripts/model_routing.py:1036 preserves route.execution when switching the plan to supervisor-retained, but record_retained_execution at lines 1499\u20131500 rejects every route with existing execution evidence. Thus a failed Codex child can be reviewed and escalated, yet the supervisor cannot record completion: require_routing_gate at lines 672\u2013676 continues rejecting the preserved failed outcome. This contradicts the active delta's accepted escalation-after-real-delegation scenario and retained-finalization requirement. Re-routing instead discards the delegation/escalation provenance that the scenario requires to remain distinct.",
+      "id": "escalated-child-cannot-finalize-retention",
       "severity": "material",
-      "summary": "An unlaunched Codex failure leaves delegation evidence that permits later supervisor-written content to pass the early gate and authorize escalation."
+      "summary": "Escalation after a recorded child outcome cannot finalize the supervisor-retained execution."
     }
   ],
-  "launched_at": "2026-10-07T18:52:43+00:00",
-  "output_sha256": "7ecb76d5b49977b0bae05bd4f0a069c76e433c6235c6de890c0210d5e67a7b4d",
+  "launched_at": "2026-10-08T05:27:08+00:00",
+  "output_sha256": "376ce3ad2766dd85a3fda9d403f487a1d4cbdc3932a3ecc9a001b54896046534",
   "perspective": "spec-fidelity",
-  "request_id": "afaa102c-6a76-4ffe-aa90-4e6c85ffd23b",
+  "request_id": "c1f18c13-1bdf-417e-9f4a-85ded9f68182",
   "reviewer": {
-    "context_id": "01a117b5-f893-7001-af55-f0f51c38e497",
+    "context_id": "01a119fa-c90f-7a72-ab3a-128c044fb26f",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-b41c3b31-853c-40f8-9849-20d1c1579c09",
+    "launch_id": "platform-launch-4356e109-ebda-4407-9414-9ad537be1594",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -39,21 +39,21 @@
       "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 175744
+        "value": 195712
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 230669
+        "value": 283407
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 993
+        "value": 979
       }
     },
     "runtime": "codex-exec"
   },
   "schema_version": 1,
-  "task_content_digest": "439201d522c8f1fd9f5bf549e0b92a374a3da88f19e1c399e3f810dca66227f7"
+  "task_content_digest": "58fb072e847686a8929d1ad111a311e5f5303d31a75bcc2c695a1a38107e84cd"
 }

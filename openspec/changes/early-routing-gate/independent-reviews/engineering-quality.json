@@ -3,34 +3,34 @@
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "81b69b2fa237c76b2a492b6939413793a1a4bf1e",
-    "diff_sha256": "2f463adfad97e59213fe68012393d228036cb3a4e02f8be63e00fe963411382b"
+    "candidate_head": "c9b0881a4d72c69211bb1a1b6abf110aab5e05d9",
+    "diff_sha256": "ac3f8bb663660ef98c6d54753863881f153b372ecf235cca8b7f5e4cf0fc58cb"
   },
-  "completed_at": "2026-10-07T18:57:13+00:00",
+  "completed_at": "2026-10-08T05:28:40+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/model_routing.py:1240\u20131250 persists the open delegation but removes it only for RoutingError. run_observed_delegation raises ContainmentError before launching, including WriterOwnershipError from _WriterOwnership.acquire (template/scripts/delegated_write_guard.py:643). Those exceptions escape run_codex without clearing the delegation. The early gate then passes because a delegation exists (model_routing.py:730), and escalate permits retention despite subsequent supervisor writes (1009\u20131020). Since no execution was recorded, record_retained_execution can finalize that retention even though no child launched.",
-      "id": "unlaunched-codex-delegation-survives-preflight",
+      "evidence": "template/scripts/model_routing.py:990\u20131003 accepts failed/abnormal execution based only on matching task content, without checking execution.violation or verified recovery. prepare then replaces the route and takes a fresh integration snapshot (line 964). Consequently, a child that modified integration state can be re-routed as complex; record_retained_execution (1503\u20131508) checks against that new snapshot, treating the escaped writes as pre-existing, and require_routing_gate accepts the retained outcome. This bypasses the existing evidence-bound containment recovery.",
+      "id": "reroute-erases-containment-failure",
       "severity": "material",
-      "summary": "A containment refusal before Codex launches leaves an open platform-observed delegation that can authorize supervisor execution."
+      "summary": "Re-routing a failed Codex child can erase an unresolved containment violation and allow terminal completion."
     },
     {
-      "evidence": "template/scripts/model_routing.py:575\u2013578 filters snapshot entries solely by destination path and drops PathState.orig_path. Git porcelain represents a staged rename as one destination entry with the original source path; therefore moving scripts/tool.py to openspec/changes/<change>/tool.py hides the deletion of scripts/tool.py. An in-memory check using that rename snapshot returned empty committed and paths maps and no detected changes. Routing, late delegation opening, and escalation can consequently accept implementation changes made before the required delegation.",
-      "id": "lifecycle-renames-hide-source-deletions",
+      "evidence": "template/scripts/model_routing.py:990\u20131003 does not reject execution.writer_state == 'ambiguous'. delegated_write_guard.py:690\u2013705 records that state when the child's process group survives cleanup. If task content momentarily matches the recorded post-snapshot, prepare permits a complex retained route, which launches no child and therefore bypasses _WriterOwnership.acquire. record_retained_execution's postcheck (model_routing.py:1516\u20131522) checks integration content only, allowing completion without proving the old task-worktree writer has stopped.",
+      "id": "reroute-with-unresolved-writer",
       "severity": "material",
-      "summary": "Renaming implementation into an excluded lifecycle directory bypasses task-content divergence detection."
+      "summary": "The new re-route exception permits supervisor retention while a failed child may still own the worktree."
     }
   ],
-  "launched_at": "2026-10-07T18:53:58+00:00",
-  "output_sha256": "4861538cfc7aee069d2745ea28cb9433f6539a32934d386bd51ff28c0ad49e31",
+  "launched_at": "2026-10-08T05:27:52+00:00",
+  "output_sha256": "57d539df83a771e42dd307073dbfe8badc2e8e075665afe4a7919b9907a21f8f",
   "perspective": "engineering-quality",
-  "request_id": "afaa102c-6a76-4ffe-aa90-4e6c85ffd23b",
+  "request_id": "c1f18c13-1bdf-417e-9f4a-85ded9f68182",
   "reviewer": {
-    "context_id": "01a117b7-1aef-7f12-85c6-2ca2b1b23788",
+    "context_id": "01a119fb-7610-79c0-b5db-d496b8c63a49",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-1c30d3ba-9d6f-4e51-9903-28c3a81568dc",
+    "launch_id": "platform-launch-cdd9d664-bac5-4c9c-8827-19a57fd0f951",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -45,21 +45,21 @@
       "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 449152
+        "value": 239232
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 524003
+        "value": 302269
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2646
+        "value": 1185
       }
     },
     "runtime": "codex-exec"
   },
   "schema_version": 1,
-  "task_content_digest": "439201d522c8f1fd9f5bf549e0b92a374a3da88f19e1c399e3f810dca66227f7"
+  "task_content_digest": "58fb072e847686a8929d1ad111a311e5f5303d31a75bcc2c695a1a38107e84cd"
 }
