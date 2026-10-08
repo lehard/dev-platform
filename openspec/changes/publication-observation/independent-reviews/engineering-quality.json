@@ -3,28 +3,34 @@
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "7f37e50d176862e08ba6722c1f99a5ed0fc1dacb",
-    "diff_sha256": "ba13d27b2cd9b7e7a4333f9051e9b9dbcc305250c469115a4300ba226e03f4b3"
+    "candidate_head": "6d42325d00b42be069aadd96d7239b45fdfe604a",
+    "diff_sha256": "68aaefce0bea1c0960ad1086a31aeb0b22ea8b218868895b5aff9bec66ae6f41"
   },
-  "completed_at": "2026-10-08T06:56:03+00:00",
+  "completed_at": "2026-10-08T07:16:35+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/publication_state.py:223 unconditionally calls _protected_required_contexts for Requirement contributions; line 141 uses the branch-protection required_status_checks endpoint. That endpoint requires Administration read permission ([GitHub documentation](https://docs.github.com/en/rest/branches/branch-protection#get-status-checks-protection)). However, .github/workflows/publication-queue.yml:42-43 explicitly grants the worker token only contents write and pull-requests write. publication_queue.py:1034 invokes this observer from that worker. Consequently, protection acquisition fails and returns unknown/transport rather than a passed required-checks gate, so even green contributions cannot advance to integration under the shipped coordinator credentials.",
-      "id": "contribution-observer-missing-permission",
+      "evidence": "template/scripts/publication_state.py:183\u2013187 adds GET commits/{head}/check-runs, called for App-bound requirements at lines 241\u2013242. This endpoint requires Checks read permission ([GitHub documentation](https://docs.github.com/en/rest/checks/runs#list-check-runs-for-a-git-reference)). .github/workflows/publication-queue.yml:35\u201343 requests only Contents write and Pull requests write. Consequently, the coordinator receives a transport failure instead of a passed required-checks gate, preventing affected contributions from progressing.",
+      "id": "bound-check-reader-missing-permission",
       "severity": "material",
-      "summary": "Contribution check observation requires a permission absent from the coordinator token, preventing contributions from progressing."
+      "summary": "App-bound contribution checks cannot be observed with the publication worker\u2019s token on private repositories."
+    },
+    {
+      "evidence": "template/scripts/publication_queue.py:94\u2013108 validates read_platform_config\u2019s merged result. template/scripts/_platform_common.py:211\u2013216 merges operator values over project values before returning it. A read-only, in-memory reproduction with project `publication = \"invalid\"`, an enabled operator config, and operator `[publication] coordinator_app = \"operator-app\"` returned `['operator-app']` without error. The invalid configured project source is therefore silently accepted; similarly, an invalid project coordinator_app can be overwritten before validation.",
+      "id": "merged-config-masks-invalid-trust-source",
+      "severity": "material",
+      "summary": "Operator overrides can hide invalid project trust configuration, bypassing the new fail-closed validation."
     }
   ],
-  "launched_at": "2026-10-08T06:54:28+00:00",
-  "output_sha256": "ede6ec754e2ad570c94cdb9f0d869c9b5afa0f85ebb14cfd1c846e9f2ca0ce63",
+  "launched_at": "2026-10-08T07:14:41+00:00",
+  "output_sha256": "54343e3c36035393cc474b58aeb8cf9ee671d1cbc154d288d953c57e0a5f5663",
   "perspective": "engineering-quality",
-  "request_id": "ba41b9f0-4e04-4b0d-b4aa-3c2571b273ec",
+  "request_id": "234cfbdb-b65a-4be0-9000-f6f45daa7c44",
   "reviewer": {
-    "context_id": "01a11a4a-c0c4-75f0-9899-db1b47389253",
+    "context_id": "01a11a5d-476f-7741-8fcf-7f1114272acb",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-e6c75827-0c6f-4195-aad4-b2be1a61cf25",
+    "launch_id": "platform-launch-aba9cce7-3b64-4ffa-8144-e8d84ab3191e",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -39,21 +45,21 @@
       "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 464512
+        "value": 524416
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 556003
+        "value": 608590
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1848
+        "value": 2540
       }
     },
     "runtime": "codex-exec"
   },
   "schema_version": 1,
-  "task_content_digest": "1cc384334b268f9a5381d1b9db6a8aea21e792f9848c092f911c9182807402e8"
+  "task_content_digest": "c6e0e5dcf08ba256b09a6fb5bc000811b13eccb90ed2894b3699f27a4fe6c99b"
 }

@@ -3,28 +3,28 @@
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "7f37e50d176862e08ba6722c1f99a5ed0fc1dacb",
-    "diff_sha256": "ba13d27b2cd9b7e7a4333f9051e9b9dbcc305250c469115a4300ba226e03f4b3"
+    "candidate_head": "6d42325d00b42be069aadd96d7239b45fdfe604a",
+    "diff_sha256": "68aaefce0bea1c0960ad1086a31aeb0b22ea8b218868895b5aff9bec66ae6f41"
   },
-  "completed_at": "2026-10-08T06:54:28+00:00",
+  "completed_at": "2026-10-08T07:14:41+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/publication_queue.py:577\u2013583 only checks that task_content is a dict and its digest is truthy. An evidence object such as {\"outcome\":\"success\"} returns an empty gate set and allows admission to continue; {\"outcome\":\"success\",\"managed_checkout\":{\"task_content\":{\"digest\":123}}} produces a passed archived-verification gate with a numeric digest and null head. This contradicts the active delta\u2019s \u201cMalformed archived verification evidence\u201d scenario, which requires admission to fail explicitly when archived automated-checks evidence is malformed.",
-      "id": "malformed-archive-evidence-accepted",
+      "evidence": "template/scripts/publication_queue.py:94-107 validates read_platform_config(root), which already merges operator values over project values at template/scripts/_platform_common.py:210-216. With project coordinator_app=123 and an enabled operator config containing coordinator_app=\"valid-app\", trusted_apps returns {'valid-app'} without error (reproduced using in-memory file mocks). A non-table project publication value is likewise replaceable before validation. The active delta requires every configured trust source to be validated and invalid platform values to fail explicitly; design D3 also requires sources to be read under their own contracts.",
+      "id": "merged-config-masks-invalid-trust-source",
       "severity": "material",
-      "summary": "Managed admission still accepts structurally malformed archived verification evidence instead of failing explicitly."
+      "summary": "An operator override can hide invalid project trust configuration, violating the fail-closed contract."
     }
   ],
-  "launched_at": "2026-10-08T06:53:34+00:00",
-  "output_sha256": "c7b540ebad2f8a4c2ebef79cad547b4c541c5b9dc776cc0c2c24041a8669ba82",
+  "launched_at": "2026-10-08T07:12:41+00:00",
+  "output_sha256": "12cc14cc3b998b47231150341d920582abd0f87efb0bae5dd33f72fabd11784c",
   "perspective": "spec-fidelity",
-  "request_id": "ba41b9f0-4e04-4b0d-b4aa-3c2571b273ec",
+  "request_id": "234cfbdb-b65a-4be0-9000-f6f45daa7c44",
   "reviewer": {
-    "context_id": "01a11a49-ee53-7660-acc8-8eab651bada3",
+    "context_id": "01a11a5b-6d3c-7673-94c4-4681224a6948",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-866da0e3-b43f-40f9-bb87-8280a26416dc",
+    "launch_id": "platform-launch-86e83f3d-98e3-4fb4-8fcc-62d55666b89a",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -39,21 +39,21 @@
       "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 181248
+        "value": 458624
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 239143
+        "value": 539364
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1083
+        "value": 2182
       }
     },
     "runtime": "codex-exec"
   },
   "schema_version": 1,
-  "task_content_digest": "1cc384334b268f9a5381d1b9db6a8aea21e792f9848c092f911c9182807402e8"
+  "task_content_digest": "c6e0e5dcf08ba256b09a6fb5bc000811b13eccb90ed2894b3699f27a4fe6c99b"
 }
