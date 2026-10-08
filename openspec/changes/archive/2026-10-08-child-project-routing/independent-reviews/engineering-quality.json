@@ -1,0 +1,82 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "c0b0b01b44ff8808dc02522078fa5d5d20f67f4f",
+    "base_ref": "origin/main",
+    "candidate_head": "b25aff1a6834d263f1a7c1a0bb22711f55eba5e5",
+    "diff_sha256": "166825f56d5a6b9799331de0ef01ddf28482f7b756dcfbef77d7cbce5062e199"
+  },
+  "completed_at": "2026-10-08T18:51:00+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/publication_queue.py:1392-1396 `run_worker` calls `preflight(root, mode, \"all\", env)`. Lines 1259-1263 raise `PreflightFailure` unless `env.get(flag) == \"true\"` for both flags. .github/workflows/publication-queue.yml:55-59, step 'Process next admitted PR', has only GH_TOKEN and DEV_PLATFORM_COORDINATOR_APP in `env`. The flags are set only at lines 37-39, on the 'Preflight inputs' step, and step-level env does not carry over. tests/test_coordinator_preflight.py `WorkflowStructureTests` checks step order and the inputs step's env, but nothing checks that the worker step supplies these flags. `WorkerPreflightGateTests` passes CI_ENV, which includes the flags, directly to `run_worker`.",
+      "id": "ci-worker-step-missing-preflight-flags",
+      "severity": "material",
+      "summary": "The `worker --mode ci` step re-runs the full preflight, including the inputs phase. That phase requires PREFLIGHT_APP_CLIENT_ID_SET and PREFLIGHT_APP_PRIVATE_KEY_SET to equal 'true', but the workflow sets those flags only on the separate 'Preflight inputs' step. The worker step therefore fails its own preflight on every CI run, and the publication queue never processes a PR."
+    }
+  ],
+  "launched_at": "2026-10-08T18:50:20+00:00",
+  "output_sha256": "ef22e620188d23869c6acad25a04f26d798033101367cf8ddb45d9f14eaeeb0b",
+  "perspective": "engineering-quality",
+  "request_id": "d5e8b05a-1eb0-4f8d-ad65-c9ce3be5af5a",
+  "reviewer": {
+    "context_id": "890bda75-80c9-49ad-89fe-925559fef3bf",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-5104e28c-3b5d-4323-9633-5b263ae21ecc",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 53506
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 464955
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 35227
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 38135
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 24
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3294
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "82468398c5d6f7cea67e5c0aff90946fe376b182fde989d7cc833b888158ce77"
+}

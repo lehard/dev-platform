@@ -14,6 +14,7 @@ from _platform_common import (
     github_cli_env,
     harness_mode,
     main_root,
+    lifecycle_mode,
     pr_merge_mode,
     profile,
     protected_main,
@@ -870,6 +871,7 @@ def main() -> int:
     work = current_worktree_root()
     integration = main_root()
     config = read_platform_config(work)
+    selected_mode = lifecycle_mode(config)
     provider = scm_provider(config)
     if args.status:
         if provider == "gitlab":
@@ -901,7 +903,7 @@ def main() -> int:
     # Only Dev Platform source checkouts can be coordinator-managed candidates;
     # check that first so downstream finish never loads the coordinator stack.
     if (mode == "pr" and provider == "github" and branch != main_branch
-            and config.get("platform_version") == "source"):
+            and selected_mode == "coordinator"):
         from pr_review_gate import managed_candidate
 
         if managed_candidate(work):
@@ -912,7 +914,7 @@ def main() -> int:
     except (ManagedTaskError, RequirementIntegrationError) as exc:
         raise SystemExit("Managed task publication blocked: " + str(exc)) from exc
 
-    if config.get("platform_version") == "source" and mode == "pr" and branch != main_branch:
+    if selected_mode == "coordinator" and mode == "pr" and branch != main_branch:
         from publication_queue import enabled as queue_enabled, local_status as queue_local_status, sync_merged_task
 
         if queue_enabled(work):

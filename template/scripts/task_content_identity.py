@@ -50,13 +50,15 @@ def content_identity(
     if base.returncode != 0 or not base.stdout.strip():
         return None
     merge_base = base.stdout.strip()
-    changed = run_git(["diff", "--name-only", f"{merge_base}...HEAD"], cwd=root, check=False)
+    # ``-z`` yields unquoted names: Git's default quoting of non-ASCII or
+    # special names would make the blob lookup fail and hide later edits.
+    changed = run_git(["diff", "--name-only", "--no-renames", "-z", f"{merge_base}...HEAD"], cwd=root, check=False)
     if changed.returncode != 0:
         return None
     records: dict[str, str | None] = {}
     # Read the final tree, collapsing active/archive aliases to one stable
     # logical path. Archive wins if both appear during the move.
-    for raw in sorted(line for line in changed.stdout.splitlines() if line):
+    for raw in sorted(item for item in changed.stdout.split("\0") if item):
         canonical = raw
         for name in ([change] if isinstance(change, str) else change):
             canonical = _canonical_path(canonical, name)

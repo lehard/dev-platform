@@ -40,6 +40,8 @@ class CentralDogfoodLifecycleTests(unittest.TestCase):
         (self.root / "README.md").write_text("base\n", encoding="utf-8")
         git(self.root, "add", ".")
         git(self.root, "commit", "-m", "base")
+        # Routing establishes task content against the review base a real task always has.
+        git(self.root, "update-ref", "refs/remotes/origin/main", "main")
 
     def tearDown(self) -> None:
         self.temp.cleanup()
@@ -280,6 +282,27 @@ class CentralDogfoodLifecycleTests(unittest.TestCase):
                 "added implemented.txt",
             ],
         )
+
+    def test_begin_claude_delegation_dispatches_to_the_routing_command(self) -> None:
+        with mock.patch.object(dogfood_task, "current_root", return_value=self.root), mock.patch.object(
+            dogfood_task, "run"
+        ) as run:
+            self.assertEqual(dogfood_task.begin_claude_delegation(dogfood_task.argparse.Namespace()), 0)
+        self.assertEqual(run.call_args.args[0], ["python3", "scripts/model_routing.py", "begin-claude-delegation"])
+
+    def test_status_and_finish_run_the_early_gate_before_delegating(self) -> None:
+        self.add_managed_change()
+        (self.root / "supervisor-written.txt").write_text("content\n", encoding="utf-8")
+        for command, args in (
+            (dogfood_task.status, dogfood_task.argparse.Namespace(json=False)),
+            (dogfood_task.finish, dogfood_task.argparse.Namespace(title=None, body=None)),
+        ):
+            with mock.patch.object(dogfood_task, "current_root", return_value=self.root), mock.patch.object(
+                dogfood_task, "run"
+            ) as run:
+                with self.assertRaisesRegex(SystemExit, "Early routing gate blocked.*route before task content"):
+                    command(args)
+            run.assert_not_called()
 
     def test_finish_blocks_managed_delivery_without_routing_gate(self) -> None:
         self.add_managed_change()

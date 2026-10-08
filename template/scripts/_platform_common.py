@@ -12,6 +12,95 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator, Mapping
 
+
+CREDENTIAL_VARS = frozenset({
+    "GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN",
+    "GIT_ASKPASS", "SSH_ASKPASS", "SSH_AUTH_SOCK", "GH_HOST_TOKEN", "GITHUB_PAT",
+    "DEV_PLATFORM_COORDINATOR_APP_KEY", "GCM_CREDENTIAL_CACHE_OPTIONS"})
+# Any GitHub-scoped variable (GH_*, GITHUB_*, *_GITHUB_TOKEN/API_KEY...) is dropped; the LLM
+# provider's own key (e.g. ANTHROPIC_API_KEY) is not a repository credential and is kept.
+_CREDENTIAL_PATTERN = re.compile(r"^(GH|GITHUB)_|(GH|GITHUB)\w*_(TOKEN|API_KEY)$|^(GIT|SSH)_ASKPASS$")
+
+
+
+def credential_free_env(env: dict[str, str], home: Path | None = None) -> dict[str, str]:
+    clean = {key: value for key, value in env.items()
+             if key not in CREDENTIAL_VARS and not _CREDENTIAL_PATTERN.search(key)
+             and not key.startswith("GIT_CONFIG_")}
+    clean.update(GIT_TERMINAL_PROMPT="0", GIT_CONFIG_GLOBAL=os.devnull,
+                 GIT_CONFIG_SYSTEM=os.devnull, GIT_CONFIG_NOSYSTEM="1")
+    if home is not None:
+        # A scratch home: the operator's ~/.config/gh, ~/.ssh and git config are absent.
+        clean.update(HOME=str(home), XDG_CONFIG_HOME=str(home / ".config"), XDG_DATA_HOME=str(home / ".local/share"),
+                     XDG_CACHE_HOME=str(home / ".cache"), GH_CONFIG_DIR=str(home / ".config" / "gh-disabled"))
+    return clean
+
+
+# Home-relative locations that hold operator credentials and can never be exposed to project checks.
+REFUSED_HOME_PATHS = (".ssh", ".config/gh", ".gnupg", ".netrc", ".git-credentials", ".git-credential")
+
+
+def refused_home_path(relative: str) -> str | None:
+    """Why a home-relative path may never be exposed, or ``None``."""
+    path = Path(relative)
+    if not relative or path.is_absolute() or ".." in path.parts or not path.parts or path.parts == (".",):
+        return "must be a relative path without parent components"
+    for refused in REFUSED_HOME_PATHS:
+        forbidden = Path(refused).parts
+        shared = min(len(forbidden), len(path.parts))
+        if forbidden[:shared] == path.parts[:shared]:
+            return f"credential location {refused} is never grantable"
+    return None
+
+
+class ProjectCheckRuntimeError(RuntimeError):
+    """A declared project check runtime requirement is unmet or refused."""
+
+
+def _unmet(kind: str, name: str, reason: str) -> ProjectCheckRuntimeError:
+    return ProjectCheckRuntimeError(f"project check runtime requires {kind} {name}: {reason}")
+
+
+def check_runtime_declaration(runtime: dict[str, list[str]]) -> None:
+    """Refuse credential variables and credential or escaping home paths, whatever was declared or granted."""
+    for name in runtime.get("required_env", []):
+        if name in CREDENTIAL_VARS or _CREDENTIAL_PATTERN.search(name) or name.startswith("GIT_CONFIG_"):
+            raise _unmet("env", name, "GitHub and publication credentials are never provided to project checks")
+    for relative in runtime.get("home_paths", []):
+        reason = refused_home_path(relative)
+        if reason:
+            raise _unmet("home path", relative, reason)
+
+
+def project_check_env(environ: dict[str, str], home: Path, runtime: dict[str, list[str]], source_home: Path) -> dict[str, str]:
+    """Environment of trusted project checks (purpose ``project-check``).
+
+    Built on the credential-free environment (GitHub/publication credentials, Git configuration
+    injection, askpass and the SSH agent stay removed, HOME stays the scratch ``home``). The declared
+    tools must be on PATH, the declared variables present, and each granted home path is linked into
+    the scratch HOME. Anything unmet raises ``ProjectCheckRuntimeError`` naming it; nothing is substituted.
+    """
+    check_runtime_declaration(runtime)
+    env = credential_free_env(dict(environ), home)
+    for tool in runtime.get("required_tools", []):
+        if shutil.which(tool, path=env.get("PATH")) is None:
+            raise _unmet("tool", tool, "not found on PATH")
+    for name in runtime.get("required_env", []):
+        if not env.get(name):
+            raise _unmet("env", name, "not set in the launching environment")
+    home.mkdir(parents=True, exist_ok=True)
+    for relative in runtime.get("home_paths", []):
+        origin = Path(source_home) / relative
+        if not origin.exists():
+            raise _unmet("home path", relative, f"{origin} does not exist")
+        target = home / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if target.is_symlink() or target.exists():
+            raise _unmet("home path", relative, "already present in the check HOME")
+        os.symlink(origin, target)
+    return env
+
+
 try:
     from shared_workspace import (
         SharedWorkspaceError,
@@ -208,13 +297,26 @@ def read_platform_config(root: Path | None = None) -> dict[str, Any]:
     if not isinstance(external, dict):
         raise RuntimeError("operator configuration must contain a TOML object")
     for key, value in external.items():
-        if key == "operator":
+        # Lifecycle identity belongs to the project contract. Operator state
+        # must neither replace these values nor fill absent selector input.
+        if key in {"operator", "platform_version", "harness_mode", "publish_mode", "scm_provider"}:
             continue
         if isinstance(value, dict) and isinstance(config.get(key), dict):
             config[key] = {**config[key], **value}
         else:
             config[key] = value
     return config
+
+
+def read_project_config(root: Path | None = None) -> dict[str, Any]:
+    """Read only the committed project config, without operator overrides; {} when absent."""
+    import tomllib
+    root = root or current_worktree_root()
+    path = root / ".dev-platform.toml"
+    if not path.exists():
+        return {}
+    with path.open("rb") as fh:
+        return tomllib.load(fh)
 
 
 def read_operator_config(root: Path | None = None, *, required: bool = False) -> dict[str, Any]:
@@ -390,6 +492,33 @@ def profile(config: dict[str, Any]) -> str:
 
 def harness_mode(config: dict[str, Any]) -> str:
     return str(config.get("harness_mode", "platform"))
+
+
+class PlatformConfigError(RuntimeError):
+    """The committed platform contract is missing a required key or declares an unsupported combination."""
+
+
+def lifecycle_mode(config: dict[str, Any]) -> str:
+    """Select lifecycle behavior from the committed contract: ``portable`` or ``coordinator``.
+
+    Pure: no git, network or coordinator imports. A downstream contract is portable; the
+    source contract is coordinator only for the supported combination.
+    """
+    version = config.get("platform_version")
+    if not isinstance(version, str) or not version:
+        raise PlatformConfigError("platform_version must be a non-empty string in .dev-platform.toml")
+    if version != "source":
+        return "portable"
+    for key, actual, supported in (
+        ("harness_mode", harness_mode(config), "platform"),
+        ("publish_mode", publish_mode(config), "pr"),
+        ("scm_provider", scm_provider(config), "github"),
+    ):
+        if actual != supported:
+            raise PlatformConfigError(
+                f"source contract supports only {key}={supported!r}; found {key}={actual!r}"
+            )
+    return "coordinator"
 
 
 def protected_main(config: dict[str, Any]) -> bool:

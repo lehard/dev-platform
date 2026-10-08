@@ -1,0 +1,82 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "c0b0b01b44ff8808dc02522078fa5d5d20f67f4f",
+    "base_ref": "origin/main",
+    "candidate_head": "b25aff1a6834d263f1a7c1a0bb22711f55eba5e5",
+    "diff_sha256": "166825f56d5a6b9799331de0ef01ddf28482f7b756dcfbef77d7cbce5062e199"
+  },
+  "completed_at": "2026-10-08T18:52:07+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/lifecycle_workers.py:795-796 is unchanged. `comments_for` calls `_gh_json('api','--paginate', .../comments?per_page=100)`, which uses `_decode_all` (lines ~727-741). An empty body is decoded as 'null' and returns None instead of failing with a comment-history acquisition error. Non-object rows, rows without an integer id and non-increasing ids are not checked. The result is passed straight into `derive_candidate`/`i_won` claim replay in `work_next` (lines 507 and 522). Neither design.md nor tasks.md scopes this reader out.",
+      "id": "worker-comments-for-unvalidated-history",
+      "severity": "advisory",
+      "summary": "The lifecycle worker CLI still reads PR comment history through its own unvalidated reader, so it gets none of the 'Complete validated lifecycle comment history' behavior. The new requirement says the platform SHALL validate the complete observation before returning comments to lifecycle consumers. Only `publication_queue._comments` was changed."
+    }
+  ],
+  "launched_at": "2026-10-08T18:51:13+00:00",
+  "output_sha256": "e0d01bfaca5e638e0cca425520889b9fa586671d8b78f346632245934dadb20f",
+  "perspective": "spec-fidelity",
+  "request_id": "de735aaa-3252-4cdc-a4c7-759457345ea1",
+  "reviewer": {
+    "context_id": "0a31e0f3-a112-4f1a-8d27-17fa1a93b27f",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-032a0a2b-f52b-4af2-84b7-48f0c43f0a91",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 66890
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 533489
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 48651
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 52343
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 24
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 17
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4996
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "ecef3fd97266e81dec7243371d2f5d5179af09e8b8e51ffecdb4ef7912cb5519"
+}

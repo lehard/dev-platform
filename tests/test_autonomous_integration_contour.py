@@ -26,7 +26,7 @@ contour = load_platform_module("integration_contour", SCRIPTS / "integration_con
 friction = load_platform_module("agent_friction", SCRIPTS / "agent_friction.py")
 retrospective = load_platform_module("requirement_retrospective", SCRIPTS / "requirement_retrospective.py")
 
-from test_pr_review_gate import IDENTITY, QueueFixture, git  # noqa: E402
+from test_pr_review_gate import IDENTITY, PROVIDER, ROUTE, QueueFixture, git  # noqa: E402
 from test_post_review_finalization import Remote, RemoteFixture  # noqa: E402
 
 HEAD, BASE, MAIN = "a" * 40, "b" * 40, "c" * 40
@@ -70,7 +70,7 @@ class Multi:
     def ready(self, number, *, identity=None):
         queue._transition(ROOT, "o/r", number, "ready", self.heads[number],
                           task_identity=identity or {"branch": f"agent/br-7-t{number}-task", "head": self.heads[number]},
-                          inherit_identity=False)
+                          inherit_identity=False, route=ROUTE)
 
     def run_worker(self, *, prepare=None, checks="passed"):
         def merge(command, **kwargs):
@@ -87,6 +87,15 @@ class Multi:
                                   return_value=SimpleNamespace(kind=checks, detail="validate")), \
                 mock.patch.object(queue.subprocess, "run", side_effect=merge):
             return queue.worker(ROOT)
+
+
+def setUpModule() -> None:
+    # Local-log scenarios: durable coordinator evidence (GitHub) is covered by the
+    # coordinator-operations tests, so these scenarios never reach GitHub.
+    for module in {friction, sys.modules["agent_friction"]}:
+        patcher = mock.patch.object(module, "read_durable_events", return_value=[])
+        patcher.start()
+        unittest.addModuleCleanup(patcher.stop)
 
 
 def head_for(number: int) -> str:
@@ -181,6 +190,15 @@ class IntegrationRepairBoundTests(unittest.TestCase):
             multi.run_worker(prepare=prepare)
             prepare.assert_not_called()  # owned by the repair job: skipped, not re-prepared
             self.assertEqual(len(multi.comments[7]), records)
+
+    def test_conflict_without_a_recorded_route_blocks_explicitly_and_publishes_no_job(self):
+        with Multi({7: head_for(7)}) as multi:
+            queue._transition(ROOT, "o/r", 7, "ready", multi.heads[7],
+                              task_identity={"branch": "agent/br-7-t7-task", "head": multi.heads[7]}, inherit_identity=False)
+            result = multi.run_worker(prepare=self.conflict())
+            self.assertEqual(result["state"], "blocked")
+            self.assertIn("no originating task route", result["reason"])
+            self.assertIsNone(workers.build_job(multi.candidate(7)))
 
     def test_interrupted_offer_is_completed_on_the_next_run(self):
         with Multi({7: head_for(7)}) as multi:
@@ -278,7 +296,7 @@ class RepairFixture(unittest.TestCase):
                 self.repo.root, "o/r", candidate, job, source_repo=self.repo.remote.as_uri(), branch="agent/example",
                 allowed_paths=options.pop("allowed_paths", []), llm_command=["writer"], current_head=self.repo.head,
                 post_result=self.post(fixture), workdir=workdir, runner=self.runner(resolve),
-                claim_current=options.pop("claim_current", lambda: True), worker="w", **options)
+                claim_current=options.pop("claim_current", lambda: True), worker="w", provider=PROVIDER, **options)
 
 
 def resolve_value(checkout: Path) -> None:
@@ -558,7 +576,7 @@ class FrictionAttributionTests(FrictionFixture):
     def test_lifecycle_transitions_record_friction_through_the_registered_sink(self):
         with Multi({7: HEAD}) as multi:
             queue.set_friction_sink(contour.default_friction_sink(
-                ROOT, lineage=lambda root, branch: {"requirement": REQUIREMENT, "child": CHILDREN[0]}))
+                ROOT, lineage=lambda root, branch: {"requirement": REQUIREMENT, "child": CHILDREN[0]}), worker="test-worker")
             self.addCleanup(queue.set_friction_sink, None)
             multi.ready(7)
             queue._transition(ROOT, "o/r", 7, "blocked-escalation", HEAD, task_identity={"head": "x"},
@@ -576,9 +594,10 @@ class FrictionAttributionTests(FrictionFixture):
             self.assertEqual(contour.resolve_lineage(self.root, "requirement/BR-7"),
                              {"requirement": REQUIREMENT, "child": None})
             sink = contour.default_friction_sink(self.root)
-            sink({"task": "requirement/BR-7", "category": "coordinator-retry", "severity": "medium",
-                  "triggers": ["excessive-retry"], "observation": "retry", "evidence": "repair",
-                  "hypothesis": "h", "proposal": "p", "dedupe_key": "composition-retry"})
+            with mock.patch.object(queue, "post_evidence", return_value={"event_id": "coordinator-0123456789abcdef"}):
+                sink({"task": "requirement/BR-7", "category": "coordinator-retry", "severity": "medium",
+                      "triggers": ["excessive-retry"], "observation": "retry", "evidence": "repair",
+                      "hypothesis": "h", "proposal": "p", "dedupe_key": "composition-retry"})
         event = self.events()[0]
         self.assertEqual(event["requirement"], REQUIREMENT)
         ops = FakeOps()
@@ -590,7 +609,7 @@ class FrictionAttributionTests(FrictionFixture):
             multi.ready(7)
             before = list(multi.comments[7])
             sink = mock.Mock(side_effect=OSError("friction storage denied"))
-            queue.set_friction_sink(sink)
+            queue.set_friction_sink(sink, worker="test-worker")
             self.addCleanup(queue.set_friction_sink, None)
             for failure in (OSError("friction storage denied"), SystemExit("invalid lineage")):
                 sink.side_effect = failure
@@ -637,7 +656,7 @@ class PostMergeJobTests(FrictionFixture):
         with mock.patch.object(workers, "build_job", return_value=job):
             outcome = contour.run_claimed_post_merge(
                 ROOT, "o/r", merged, job, branch=self.branch, post_result=posted.append, ops=ops,
-                claim_current=lambda: True)
+                claim_current=lambda: True, worker="w")
         return outcome, posted
 
     def test_retrospective_links_recorded_events_instead_of_inventing_none(self):
@@ -711,7 +730,7 @@ class PostMergeJobTests(FrictionFixture):
         job = {**workers.build_job(merged), "attempt": 5}
         outcome = contour.run_claimed_post_merge(ROOT, "o/r", merged, job, branch=self.branch,
                                                  post_result=lambda body: self.fail("no receipt"), ops=FakeOps(),
-                                                 claim_current=lambda: True)
+                                                 claim_current=lambda: True, worker="w")
         self.assertEqual(outcome["status"], "discarded")
 
 

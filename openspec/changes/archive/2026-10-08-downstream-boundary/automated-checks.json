@@ -1,0 +1,180 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.54,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.237,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 815.057,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "template/scripts/_platform_common.py",
+        "template/scripts/execute_requirement.py",
+        "template/scripts/finish_task.py",
+        "template/scripts/lifecycle_workers.py",
+        "template/scripts/openspec_lifecycle.py",
+        "template/scripts/pr_review_gate.py",
+        "template/scripts/project_publish.py",
+        "template/scripts/requirement_integration.py",
+        "template/scripts/requirement_terminal.py",
+        "tests/test_br_publication_identity.py",
+        "tests/test_downstream_boundary.py",
+        "tests/test_early_private_reference_guard.py",
+        "tests/test_git_lifecycle.py",
+        "tests/test_independent_review.py",
+        "tests/test_local_workspace.py",
+        "tests/test_managed_status_lifecycle.py",
+        "tests/test_merge_lifecycle_resilience.py",
+        "tests/test_openspec_lifecycle.py",
+        "tests/test_post_review_finalization.py",
+        "tests/test_protected_main_zero_handoff.py",
+        "tests/test_publication_recovery_cli.py",
+        "tests/test_requirement_card_claim.py",
+        "tests/test_requirement_execution.py",
+        "tests/test_requirement_flow_e2e.py",
+        "tests/test_requirement_integration.py",
+        "tests/test_requirement_retrospective.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_30cff784172aa197f4a4137a3fafc432",
+    "change": "downstream-boundary",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/downstream-boundary",
+    "branch": "agent/br-415-t3-downstream-boundary",
+    "head": "2851b9b0e65646dbbdb49c0da309ed567a6ee65d",
+    "task_content": {
+      "version": 1,
+      "digest": "0edc69a360fb10a33a378e37ad277898593992ac2c2fb5fda68393a20421dba5",
+      "paths": {
+        "dev-platform/checks.toml": "68a5f3a958051d355cbc5973e8bb597722562ce7",
+        "dev-platform/requirement-integrations/private-lineage-pln_d6af8d84cd0d3242b993ec5adfcee1c4-integration.json": "3cbbbee855a1648c32af3f34a79bc424abba3bbd",
+        "openspec/changes/downstream-boundary/.managed-task.json": "18dbe3c4ed3b3000675fb994ca64dafc7f7fed75",
+        "openspec/changes/downstream-boundary/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+        "openspec/changes/downstream-boundary/automated-checks.json": "ef74b0d0b766bca39b7ab7195776bec5f17bc821",
+        "openspec/changes/downstream-boundary/design.md": "e48a9cffe0d6f1a769a10d558574cc3d33059353",
+        "openspec/changes/downstream-boundary/independent-review-request.json": "a12da56bdec8ac8cb55ed17544870bcd66f341ba",
+        "openspec/changes/downstream-boundary/independent-reviews/engineering-quality.json": "d956671b18acf699671c3d6c511a918a2e5ad4cb",
+        "openspec/changes/downstream-boundary/independent-reviews/spec-fidelity.json": "c45f3698f4a47cc6cde65b50918780cac647c2ca",
+        "openspec/changes/downstream-boundary/proposal.md": "a7e31ddc1d887d11d98625810529c3ddaec57c66",
+        "openspec/changes/downstream-boundary/specs/completion-lifecycle/spec.md": "dbd22f1568697ccb81cf012aa34cc326f4e74d5d",
+        "openspec/changes/downstream-boundary/specs/lifecycle-workers/spec.md": "819d9d19bfd4571a32ec2c2f184057d3c3703156",
+        "openspec/changes/downstream-boundary/tasks.md": "c6588e3a533e1fdb6edcc4cdf62aedac233c2ffd",
+        "openspec/changes/downstream-boundary/verification.md": "494fe807fe00c5e8372be9843a6217eae9c8b297",
+        "template/scripts/_platform_common.py": "32e3c870246de3a5b4c30074bbc8b4af7d01d486",
+        "template/scripts/execute_requirement.py": "1dcb227dd0ab59bd4b803d6e64689df877f44823",
+        "template/scripts/finish_task.py": "b733d6524ebd768d3e47c81848d80d7a6088175b",
+        "template/scripts/lifecycle_workers.py": "7291609c78064edef07f176693479d6171183f96",
+        "template/scripts/openspec_lifecycle.py": "3f1de23e9d039a06911d50b9e52758331a76e797",
+        "template/scripts/pr_review_gate.py": "8587729e2fea2a3b414b17b50b262d9e7489f3e4",
+        "template/scripts/project_publish.py": "19887428f675fa8ed993a1092447037849e307f4",
+        "template/scripts/requirement_integration.py": "87f147f99cd3b76f2ba6464e148ccb873e6d9e37",
+        "template/scripts/requirement_terminal.py": "492ee54788bd2d7f68548fc74264c36895560290",
+        "tests/test_br_publication_identity.py": "a17f8af281647e552d764089b80cbc3e5e4fe813",
+        "tests/test_downstream_boundary.py": "5def3e3666dbdf2aa2063d61a8f159920bc2b60a",
+        "tests/test_early_private_reference_guard.py": "99c81ba38aa35b123ff475b4f68e5f038bbe13de",
+        "tests/test_git_lifecycle.py": "bb526d38c5e1e1ce12dd425e0b59a1f2f67e52d4",
+        "tests/test_independent_review.py": "26e31ee3ac3aa9f6ccaa05ff1a7fe6defa8012a3",
+        "tests/test_local_workspace.py": "e097fdcf0cc03bf97ffb545c83ff5c610861ca59",
+        "tests/test_managed_status_lifecycle.py": "a45840048086954c7dfee0da50fff4aa5757a39a",
+        "tests/test_merge_lifecycle_resilience.py": "4bb743d81ef22f1445c0864822f155b317e309b1",
+        "tests/test_openspec_lifecycle.py": "3ea16d65c99508dcaaa05ebb8969b7cffa34e26f",
+        "tests/test_post_review_finalization.py": "b7443120684a9fbe8fcdffaf442ccaecaff47286",
+        "tests/test_protected_main_zero_handoff.py": "a9876a1c9667563aa1b72cdf8349e083f67ff609",
+        "tests/test_publication_recovery_cli.py": "cd8a319374a9657cb15ce0ca2519a4ec5296c3ed",
+        "tests/test_requirement_card_claim.py": "3afcd99261226833ef11f48eb09da019ca88ad61",
+        "tests/test_requirement_execution.py": "d3ea7c37fd09f800a79084602c28dc97bac195de",
+        "tests/test_requirement_flow_e2e.py": "b72dc2a08fe7e5346d0cb475f2738b132f43c1f1",
+        "tests/test_requirement_integration.py": "68b2565d1ce51e49163914197ff4064611bce112",
+        "tests/test_requirement_retrospective.py": "54ea301aab817a1089f8cad775978a8e7dc8a78e"
+      },
+      "base": "a8d83e5cbd97037b242daf30557f4b1e3b03ae7c"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "b381d81be9c9e34333ff4a87544fd19e26156016553d94d3c4b229062c62f64a",
+    "paths": {
+      "dev-platform/checks.toml": "68a5f3a958051d355cbc5973e8bb597722562ce7",
+      "openspec/changes/downstream-boundary/.managed-task.json": "18dbe3c4ed3b3000675fb994ca64dafc7f7fed75",
+      "openspec/changes/downstream-boundary/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+      "openspec/changes/downstream-boundary/design.md": "e48a9cffe0d6f1a769a10d558574cc3d33059353",
+      "openspec/changes/downstream-boundary/proposal.md": "a7e31ddc1d887d11d98625810529c3ddaec57c66",
+      "openspec/changes/downstream-boundary/specs/completion-lifecycle/spec.md": "dbd22f1568697ccb81cf012aa34cc326f4e74d5d",
+      "openspec/changes/downstream-boundary/specs/lifecycle-workers/spec.md": "819d9d19bfd4571a32ec2c2f184057d3c3703156",
+      "openspec/changes/downstream-boundary/tasks.md": "c6588e3a533e1fdb6edcc4cdf62aedac233c2ffd",
+      "template/scripts/_platform_common.py": "32e3c870246de3a5b4c30074bbc8b4af7d01d486",
+      "template/scripts/execute_requirement.py": "1dcb227dd0ab59bd4b803d6e64689df877f44823",
+      "template/scripts/finish_task.py": "b733d6524ebd768d3e47c81848d80d7a6088175b",
+      "template/scripts/lifecycle_workers.py": "7291609c78064edef07f176693479d6171183f96",
+      "template/scripts/openspec_lifecycle.py": "3f1de23e9d039a06911d50b9e52758331a76e797",
+      "template/scripts/pr_review_gate.py": "8587729e2fea2a3b414b17b50b262d9e7489f3e4",
+      "template/scripts/project_publish.py": "19887428f675fa8ed993a1092447037849e307f4",
+      "template/scripts/requirement_integration.py": "87f147f99cd3b76f2ba6464e148ccb873e6d9e37",
+      "template/scripts/requirement_terminal.py": "492ee54788bd2d7f68548fc74264c36895560290",
+      "tests/test_br_publication_identity.py": "a17f8af281647e552d764089b80cbc3e5e4fe813",
+      "tests/test_downstream_boundary.py": "5def3e3666dbdf2aa2063d61a8f159920bc2b60a",
+      "tests/test_early_private_reference_guard.py": "99c81ba38aa35b123ff475b4f68e5f038bbe13de",
+      "tests/test_git_lifecycle.py": "bb526d38c5e1e1ce12dd425e0b59a1f2f67e52d4",
+      "tests/test_independent_review.py": "26e31ee3ac3aa9f6ccaa05ff1a7fe6defa8012a3",
+      "tests/test_local_workspace.py": "e097fdcf0cc03bf97ffb545c83ff5c610861ca59",
+      "tests/test_managed_status_lifecycle.py": "a45840048086954c7dfee0da50fff4aa5757a39a",
+      "tests/test_merge_lifecycle_resilience.py": "4bb743d81ef22f1445c0864822f155b317e309b1",
+      "tests/test_openspec_lifecycle.py": "3ea16d65c99508dcaaa05ebb8969b7cffa34e26f",
+      "tests/test_post_review_finalization.py": "b7443120684a9fbe8fcdffaf442ccaecaff47286",
+      "tests/test_protected_main_zero_handoff.py": "a9876a1c9667563aa1b72cdf8349e083f67ff609",
+      "tests/test_publication_recovery_cli.py": "cd8a319374a9657cb15ce0ca2519a4ec5296c3ed",
+      "tests/test_requirement_card_claim.py": "3afcd99261226833ef11f48eb09da019ca88ad61",
+      "tests/test_requirement_execution.py": "d3ea7c37fd09f800a79084602c28dc97bac195de",
+      "tests/test_requirement_flow_e2e.py": "b72dc2a08fe7e5346d0cb475f2738b132f43c1f1",
+      "tests/test_requirement_integration.py": "68b2565d1ce51e49163914197ff4064611bce112",
+      "tests/test_requirement_retrospective.py": "54ea301aab817a1089f8cad775978a8e7dc8a78e"
+    },
+    "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/_platform_common.py --changed-file template/scripts/execute_requirement.py --changed-file template/scripts/finish_task.py --changed-file template/scripts/lifecycle_workers.py --changed-file template/scripts/openspec_lifecycle.py --changed-file template/scripts/pr_review_gate.py --changed-file template/scripts/project_publish.py --changed-file template/scripts/requirement_integration.py --changed-file template/scripts/requirement_terminal.py --changed-file tests/test_br_publication_identity.py --changed-file tests/test_downstream_boundary.py --changed-file tests/test_early_private_reference_guard.py --changed-file tests/test_git_lifecycle.py --changed-file tests/test_independent_review.py --changed-file tests/test_local_workspace.py --changed-file tests/test_managed_status_lifecycle.py --changed-file tests/test_merge_lifecycle_resilience.py --changed-file tests/test_openspec_lifecycle.py --changed-file tests/test_post_review_finalization.py --changed-file tests/test_protected_main_zero_handoff.py --changed-file tests/test_publication_recovery_cli.py --changed-file tests/test_requirement_card_claim.py --changed-file tests/test_requirement_execution.py --changed-file tests/test_requirement_flow_e2e.py --changed-file tests/test_requirement_integration.py --changed-file tests/test_requirement_retrospective.py",
+    "duration_seconds": 783.886,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}

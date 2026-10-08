@@ -51,9 +51,10 @@ class GithubRetryTests(unittest.TestCase):
         head = "a" * 40
         reset = self.failure("read tcp: connection reset by peer")
         view = subprocess.CompletedProcess([], 0, '{"state": "OPEN", "headRefOid": "%s"}' % head, "")
-        checks = subprocess.CompletedProcess([], 1, '[{"name": "timeout guard", "state": "FAILURE", "workflow": "ci", "link": ""}]', "")
+        base = subprocess.CompletedProcess([], 0, '{"baseRefName": "main"}', "")
+        checks = subprocess.CompletedProcess([], 0, '[{"name": "timeout guard", "state": "FAILURE", "workflow": "ci", "link": ""}]', "")
         calls: list[list[str]] = []
-        responses = {"view": [reset, view], "checks": [checks]}
+        responses = {"view": [reset, view, base, view], "checks": [checks]}
 
         def fake(command, **_kwargs):
             calls.append(command)
@@ -62,9 +63,10 @@ class GithubRetryTests(unittest.TestCase):
         with mock.patch.object(common.subprocess, "run", side_effect=fake), mock.patch("time.sleep"):
             state = publication_state.required_check_state_for_ref(Path("/tmp"), {}, "7", head)
         # The reset view is retried once; the failed checks payload (whose check name
-        # contains "timeout") is classified from stderr only and not retried.
-        self.assertEqual([command[2] for command in calls], ["view", "view", "checks"])
-        self.assertIsNotNone(state)
+        # contains "timeout") is classified from stderr only and not retried. The head is
+        # re-read after the checks.
+        self.assertEqual([command[2] for command in calls], ["view", "view", "view", "checks", "view"])
+        self.assertEqual(state.kind, "failed")
 
     def test_queue_main_read_retries_transient_git_failure(self):
         ok = subprocess.CompletedProcess([], 0, "%s\trefs/heads/main\n" % ("c" * 40), "")

@@ -34,6 +34,24 @@ full_trigger_patterns = [
   "**/alembic/**",
 ]
 
+# Optional runtime the trusted full_commands need beyond the isolated scratch HOME they run in
+# (Requirement integration validation). Nothing here is granted by this file alone:
+#   required_tools: executables that must resolve on PATH (e.g. "docker", "uv").
+#   required_env:   variable names that must be set and non-empty in the launching environment;
+#                   GitHub/publication credential names are always refused.
+#   home_paths:     paths relative to the operator's real HOME (e.g. ".docker", ".cache/uv") that
+#                   are linked into the check HOME. Each must also be listed in the operator's
+#                   machine-local grant file named by DEV_PLATFORM_PROJECT_RUNTIME_FILE
+#                   (absolute path outside the checkout, TOML: allow_home_paths = [...]).
+#                   Credential locations (.ssh, .config/gh, .gnupg, .netrc, .git-credentials),
+#                   absolute paths and ".." are never grantable.
+# Any unmet entry fails the run before the first command. Without a [runtime] table the checks run
+# in the empty scratch HOME as before.
+# [runtime]
+# required_tools = ["docker", "uv"]
+# required_env = ["APP_DATABASE_URL"]
+# home_paths = [".docker", ".cache/uv"]
+
 [checks.docs]
 patterns = ["*.md", "docs/**", "openspec/**", "AGENTS.md", "CLAUDE.md"]
 commands = ["git diff --check", "python3 scripts/openspec_lifecycle.py check"]

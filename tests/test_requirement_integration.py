@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -461,7 +462,8 @@ class RequirementIntegrationTests(unittest.TestCase):
         integration.compose_candidate(self.root, manifest=manifest, receipt_paths=[one_receipt, two_receipt],
                                       worktree=candidate, branch="agent/" + slug)
         merged = {"status": "merged-and-reconciled", "pr": "https://example.invalid/pr/1"}
-        with mock.patch.object(integration, "_reconcile_exact_merged", return_value=merged) as reconcile, \
+        with mock.patch("_platform_common.read_platform_config", return_value={"platform_version": "1.0.0"}), \
+                mock.patch.object(integration, "_reconcile_exact_merged", return_value=merged) as reconcile, \
                 mock.patch.object(integration, "_run_full_checks") as checks, \
                 mock.patch.object(integration, "compose_candidate") as compose:
             self.assertEqual(integration.publish_candidate(candidate, manifest=manifest, receipt_paths=[]), merged)
@@ -677,7 +679,7 @@ class RequirementIntegrationTests(unittest.TestCase):
         composed = integration.compose_candidate(self.root, manifest=manifest, receipt_paths=[one_receipt],
                                                  worktree=candidate, branch="agent/" + slug)
         with mock.patch.object(_platform_common, "main_root", return_value=self.root), \
-                mock.patch.object(_platform_common, "read_platform_config", return_value={"publish_mode": "pr", "pr_merge_mode": "auto"}), \
+                mock.patch.object(_platform_common, "read_platform_config", return_value={"platform_version": "1.0.0", "publish_mode": "pr", "pr_merge_mode": "auto"}), \
                 mock.patch.object(integration, "_validate_candidate_checkout", return_value=("agent/" + slug, composed["head"])), \
                 mock.patch.object(integration, "_reconcile_exact_merged", return_value=None), \
                 mock.patch.object(integration, "compose_candidate", return_value={**composed, "resumed": True}), \
@@ -728,7 +730,7 @@ class RequirementIntegrationTests(unittest.TestCase):
             return SimpleNamespace(returncode=0)
 
         with mock.patch.object(_platform_common, "main_root", return_value=self.root), \
-                mock.patch.object(_platform_common, "read_platform_config", return_value={"publish_mode": "pr", "pr_merge_mode": "manual"}), \
+                mock.patch.object(_platform_common, "read_platform_config", return_value={"platform_version": "1.0.0", "publish_mode": "pr", "pr_merge_mode": "manual"}), \
                 mock.patch.object(integration, "_validate_candidate_checkout", return_value=("agent/" + slug, composed["head"])), \
                 mock.patch.object(integration, "_reconcile_exact_merged", side_effect=[None, None]), \
                 mock.patch.object(integration, "compose_candidate", return_value={**composed, "resumed": True}), \
@@ -762,3 +764,150 @@ class RequirementIntegrationTests(unittest.TestCase):
         with mock.patch.object(managed_task, "fetch_issue", side_effect=[child_issue, parent_issue]):
             reason = integration.require_independent_publication_exception(self.root, delivery)
         self.assertIn("Bootstrap", reason)
+
+
+class ProjectCheckRuntimeTests(unittest.TestCase):
+    """The `project-check` environment purpose: declared runtime, operator grant, refusals, isolation."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        base = Path(self._tmp.name)
+        self.root, self.operator = base / "checkout", base / "operator"
+        (self.root / "dev-platform").mkdir(parents=True)
+        (self.operator / "home" / ".docker").mkdir(parents=True)
+        (self.operator / "home" / ".cache" / "uv").mkdir(parents=True)
+        (self.operator / "bin").mkdir()
+        for name in ("docker", "uv"):
+            (self.operator / "bin" / name).write_text("#!/bin/sh\n")
+            (self.operator / "bin" / name).chmod(0o755)
+        self.grant = self.operator / "grant.toml"
+        self.grant.write_text('allow_home_paths = [".docker", ".cache/uv"]\n')
+        self.environ = {"HOME": str(self.operator / "home"), "PATH": f"{self.operator / 'bin'}:/usr/bin",
+                        "APP_DB": "x", "DEV_PLATFORM_PROJECT_RUNTIME_FILE": str(self.grant)}
+        self.ran: list[str] = []
+
+    def declare(self, body: str) -> None:
+        (self.root / "dev-platform" / "checks.toml").write_text(body)
+
+    def run_checks(self, **env_changes):
+        environ = {**self.environ, **env_changes}
+        environ = {key: value for key, value in environ.items() if value is not None}
+        def command(cmd, **kwargs):
+            self.ran.append(cmd)
+            return SimpleNamespace(returncode=0)
+        with mock.patch.dict("os.environ", environ, clear=True), \
+             mock.patch.object(integration, "_full_check_commands", return_value=["check"]), \
+             mock.patch.object(integration.subprocess, "run", side_effect=command):
+            integration._run_full_checks(self.root)
+
+    def assertFailsBeforeCommands(self, pattern: str, **env_changes) -> None:
+        with self.assertRaisesRegex(integration.RequirementIntegrationError, pattern):
+            self.run_checks(**env_changes)
+        self.assertEqual(self.ran, [])
+
+    def test_declared_runtime_is_present_and_granted_paths_are_linked(self) -> None:
+        self.declare('[runtime]\nrequired_tools = ["docker", "uv"]\nrequired_env = ["APP_DB"]\nhome_paths = [".docker"]\n')
+        self.run_checks(GH_TOKEN="t", GITHUB_TOKEN="t", SSH_AUTH_SOCK="/agent")
+        self.assertEqual(self.ran, ["check"])
+
+    def test_no_declaration_keeps_the_isolated_home(self) -> None:
+        self.declare('[settings]\nfull_commands = ["x"]\n')
+        self.run_checks(DEV_PLATFORM_PROJECT_RUNTIME_FILE=None)
+        self.assertEqual(self.ran, ["check"])
+
+    def test_unmet_requirements_fail_naming_the_input_before_any_command(self) -> None:
+        self.declare('[runtime]\nrequired_tools = ["missing-tool"]\n')
+        self.assertFailsBeforeCommands("tool missing-tool")
+        self.declare('[runtime]\nrequired_env = ["NOT_SET_VAR"]\n')
+        self.assertFailsBeforeCommands("env NOT_SET_VAR")
+        self.declare('[runtime]\nhome_paths = [".config/other"]\n')
+        (self.operator / "home" / ".config" / "other").mkdir(parents=True)
+        self.assertFailsBeforeCommands("home path .config/other: not granted")
+        self.declare('[runtime]\nhome_paths = [".docker"]\n')
+        (self.operator / "home" / ".docker").rmdir()
+        self.assertFailsBeforeCommands("home path .docker")
+
+    def test_grant_file_must_be_set_absolute_outside_the_checkout_and_valid(self) -> None:
+        self.declare('[runtime]\nhome_paths = [".docker"]\n')
+        self.assertFailsBeforeCommands("DEV_PLATFORM_PROJECT_RUNTIME_FILE is not set", DEV_PLATFORM_PROJECT_RUNTIME_FILE=None)
+        self.assertFailsBeforeCommands("absolute", DEV_PLATFORM_PROJECT_RUNTIME_FILE="grant.toml")
+        inside = self.root / "grant.toml"
+        inside.write_text('allow_home_paths = [".docker"]\n')
+        self.assertFailsBeforeCommands("inside the checked checkout", DEV_PLATFORM_PROJECT_RUNTIME_FILE=str(inside))
+        self.assertFailsBeforeCommands("does not exist", DEV_PLATFORM_PROJECT_RUNTIME_FILE=str(self.operator / "none.toml"))
+        self.grant.write_text("= broken")
+        self.assertFailsBeforeCommands("cannot be read")
+
+    def test_credential_exposure_is_refused_in_declaration_and_grant(self) -> None:
+        for declaration, pattern in (
+            ('required_env = ["GH_TOKEN"]', "env GH_TOKEN"),
+            ('required_env = ["MY_GITHUB_TOKEN"]', "env MY_GITHUB_TOKEN"),
+            ('home_paths = [".ssh"]', "home path .ssh"),
+            ('home_paths = [".config/gh/hosts.yml"]', r"home path .config/gh/hosts.yml"),
+            ('home_paths = [".config"]', "home path .config"),
+            ('home_paths = ["../x"]', r"home path \.\./x"),
+            ('home_paths = ["/etc"]', "home path /etc"),
+        ):
+            with self.subTest(declaration):
+                self.declare("[runtime]\n" + declaration + "\n")
+                self.grant.write_text('allow_home_paths = [".docker"]\n')
+                self.assertFailsBeforeCommands(pattern, GH_TOKEN="t", MY_GITHUB_TOKEN="t")
+        self.declare('[runtime]\nhome_paths = [".docker"]\n')
+        self.grant.write_text('allow_home_paths = [".docker", ".ssh"]\n')
+        self.assertFailsBeforeCommands("grant entry .ssh")
+
+    def test_malformed_declaration_is_rejected(self) -> None:
+        for body in ('[runtime]\nunknown = []\n', '[runtime]\nrequired_tools = "docker"\n', '[runtime]\nhome_paths = [1]\n',
+                     'runtime = "x"\n'):
+            with self.subTest(body):
+                self.declare(body)
+                self.assertFailsBeforeCommands("runtime")
+
+    def test_llm_and_harness_git_environments_never_gain_project_runtime(self) -> None:
+        workers = load_platform_module("lifecycle_workers", HELPER.parent / "lifecycle_workers.py")
+        environ = {**self.environ, "GH_TOKEN": "t"}
+        with tempfile.TemporaryDirectory() as scratch:
+            home = Path(scratch)
+            llm = workers.credential_free_env(environ, home)
+            self.assertEqual(llm["HOME"], str(home))
+            self.assertNotIn("GH_TOKEN", llm)
+            self.assertEqual(list(home.iterdir()), [])
+            runtime = {"required_tools": ["docker"], "home_paths": [".docker"]}
+            project = workers.project_check_env(environ, home, runtime, self.operator / "home")
+            self.assertTrue((home / ".docker").is_symlink())
+            self.assertEqual(project["HOME"], str(home))
+            self.assertNotIn("GH_TOKEN", project)
+            with mock.patch.object(workers.subprocess, "run", return_value=SimpleNamespace(returncode=0, stdout="", stderr="")) as run, \
+                 mock.patch.dict("os.environ", environ, clear=True):
+                workers.harness_git(self.root, "status")
+            harness_env = run.call_args.kwargs["env"]
+            self.assertNotIn("GH_TOKEN", harness_env)
+            self.assertNotEqual(harness_env["HOME"], str(self.operator / "home"))
+            self.assertFalse(Path(harness_env["HOME"], ".docker").exists())
+
+    @unittest.skipUnless(shutil.which("copier"), "Copier unavailable")
+    def test_rendered_downstream_project_parses_its_runtime_declaration(self) -> None:
+        snapshot, target = Path(self._tmp.name) / "template-snapshot", Path(self._tmp.name) / "rendered"
+        snapshot.mkdir()
+        shutil.copy2(ROOT / "copier.yml", snapshot / "copier.yml")
+        shutil.copytree(ROOT / "template", snapshot / "template", ignore=shutil.ignore_patterns("__pycache__"))
+        done = subprocess.run(["copier", "copy", "--trust", "--defaults", "--skip-tasks", "--overwrite", "--quiet",
+                               "--data", "project_name=Runtime Probe", "--data", "project_slug=runtime-probe",
+                               "--data", "workflow_profile=multi-agent", str(snapshot), str(target)],
+                              capture_output=True, text=True)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        checks = target / "dev-platform" / "checks.toml"
+        shipped = checks.read_text()
+        self.assertIn("DEV_PLATFORM_PROJECT_RUNTIME_FILE", shipped)
+        checks.write_text(shipped.replace("# [runtime]\n# required_tools = [\"docker\", \"uv\"]\n",
+                                          "[runtime]\nrequired_tools = [\"docker\", \"uv\"]\n"))
+        probe = ("import sys; from pathlib import Path; sys.path.insert(0, 'scripts'); "
+                 "import requirement_integration as r; print(r._project_runtime(Path('.')))")
+        done = subprocess.run([sys.executable, "-c", probe], cwd=target, capture_output=True, text=True)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(done.stdout.strip(), "{'required_tools': ['docker', 'uv']}")
+
+
+if __name__ == "__main__":
+    unittest.main()

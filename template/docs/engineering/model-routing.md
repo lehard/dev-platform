@@ -60,6 +60,14 @@ python3 scripts/model_routing.py record-retained-execution --reason "complex R3 
 
 This writes an explicit retained outcome, policy reason, exact identity and clean containment postcheck to the existing durable record. A merely prepared complex route or an unrecorded missing child launch is not terminal evidence. Friction uses the same exact durable resolver after archive, preserving recorded provider/model/participant fields and leaving unavailable fields unknown.
 
+## Execution plan and early routing gate
+
+Route preparation records an `execution_plan` derived from policy: `delegated-child` when a child executor is required, or `supervisor-retained` (with a policy) when supervisor execution is permitted. The plan is separate from the authored start tier and from the actual execution outcome, and carries a task-content pre-snapshot of the assigned worktree (excluding the materialized managed package, `.managed-task-state.json` and machine-local `.claude/`). Routing must precede task content: preparation fails naming diverged paths and records no route when content already changed, except for a re-route after a failed or abnormal platform-observed Codex delegation whose post-run content equals the current content.
+
+For a delegated Claude plan, run `python3 scripts/model_routing.py begin-claude-delegation` before the native Agent call; it is self-reported, never a verified launch, and is refused after content diverged. `record-claude-execution` requires that open delegation and refuses after-the-fact recording. Codex dispatch opens a platform-observed delegation itself. A retained plan is declared at route time and `record-retained-execution` only finalizes it; a delegated plan is never converted afterwards, and `escalate` switches it to retention only with a real recorded delegation or unchanged content.
+
+The read-only early gate (`require_early_routing_gate`) fails closed when a delegated plan has no delegation or execution but task content changed, when content changed before any route, or when an active record lacks a plan and an outcome (re-route required). It runs before expensive checks in the lifecycle status/finish entrypoints, the test-group runner and `verify-routing` for an active change, in addition to the archive gate. A supervisor-written diff cannot be legalized afterwards; the user decides how to proceed.
+
 ## Execution provenance
 
 The routing record is also the bounded execution-provenance record; there is no separate tracing/observability system. `prepare` records a `supervisor` field for the strong parent; once a Codex child actually launches (never merely prepared), the execution record gains a `participant` object with role, provider, profile, model, reasoning effort and a bounded execution identifier.

@@ -139,7 +139,7 @@ class ArchiveFinalizeModeTests(unittest.TestCase):
             root = Path(tmp)
             tasks_state(root, "work", "- [x] done\n")
             (root / "openspec/changes/work/.managed-task.json").write_text("{}")
-            with mock.patch.object(lifecycle, "read_platform_config", return_value={"harness_mode": "platform"}), \
+            with mock.patch.object(lifecycle, "read_platform_config", return_value={"platform_version": "source", "harness_mode": "platform"}), \
                     mock.patch.object(lifecycle, "require_static_archive_readiness") as static, \
                     mock.patch.object(lifecycle, "require_managed_checkout_identity") as identity, \
                     mock.patch.object(lifecycle, "require_applicable_committed_diff") as diff, \
@@ -299,7 +299,7 @@ class FinalizeTests(unittest.TestCase):
                 self.repo.root, "o/r", candidate, job, source_repo=self.repo.remote.as_uri(),
                 branch="agent/example", current_head=self.repo.head, workdir=workdir,
                 post_result=post or results.append, archiver=archiver or self.archiver,
-                claim_current=lambda: True, checks_runner=checks_runner)
+                claim_current=lambda: True, checks_runner=checks_runner, worker="w")
         fixture.head = self.repo.head()
         return outcome, results
 

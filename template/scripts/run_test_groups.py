@@ -22,6 +22,7 @@ serialize.  Any failing group fails the aggregate result.
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import os
 import subprocess
@@ -221,6 +222,19 @@ def default_jobs() -> int:
     return resolve_jobs()[0]
 
 
+def require_early_routing_gate(root: Path) -> None:
+    """Refuse to execute any group while task content contradicts the recorded execution plan."""
+    has_managed_task = (root / ".managed-task-state.json").is_file()
+    if not has_managed_task or importlib.util.find_spec("model_routing") is None:
+        return
+    import model_routing
+
+    try:
+        model_routing.require_early_routing_gate(root)
+    except model_routing.RoutingError as exc:
+        raise TestGroupError(str(exc)) from exc
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run canonical unit-test groups with proven mandatory coverage.")
     parser.add_argument("--all", action="store_true", help="Run every declared group as the mandatory suite.")
@@ -295,6 +309,12 @@ def main() -> int:
         return 2
     else:
         jobs, jobs_source = resolve_jobs()
+
+    try:
+        require_early_routing_gate(root)
+    except TestGroupError as exc:
+        print(f"Early routing gate blocked execution: {exc}", file=sys.stderr)
+        return 2
 
     records = execute(root, start_dir, selected, jobs, not args.quiet)
     failed = [record["group"] for record in records if record["outcome"] == "failure"]
