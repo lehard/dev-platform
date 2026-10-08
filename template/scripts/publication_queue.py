@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from _platform_common import current_worktree_root, read_platform_config, run_git
-from publication_state import _classify_required_checks, required_check_state_for_ref
+from publication_state import required_check_state_for_ref
 from candidate_lifecycle import CLAIM_STATES, POST_MERGE_FLAG, PREFIX as V2_PREFIX, STATES, latest_record, build_handoff_record, derive_candidate, label_projection, marker_body, render_status
 
 PREFIX = "dev-platform-publication-queue:v1 "
@@ -85,16 +85,28 @@ def trusted_apps(root: Path) -> frozenset[str]:
     config (operator identity stays out of committed project config) or the
     project config. No other App is trusted.
     """
-    from _platform_common import read_operator_config
+    from _platform_common import read_operator_config, read_project_config
+
+    def source_error(name: str, cause: object) -> QueueError:
+        return QueueError(f"trust source {name} is unreadable or invalid: {cause}")
 
     names = {os.environ.get(COORDINATOR_APP_ENV, "").strip()}
-    for reader in (read_platform_config, read_operator_config):
+    for name, reader in ((".dev-platform.toml", read_project_config), ("operator config", read_operator_config)):
         try:
-            configured = reader(root).get("publication", {})
-        except Exception:
+            config = reader(root)
+        except Exception as exc:
+            raise source_error(name, exc) from exc
+        configured = config.get("publication")
+        if configured is None:
             continue
-        if isinstance(configured, dict):
-            names.add(str(configured.get("coordinator_app", "")).strip())
+        if not isinstance(configured, dict):
+            raise source_error(name, "[publication] must be a table")
+        app = configured.get("coordinator_app")
+        if app is None:
+            continue
+        if not isinstance(app, str):
+            raise source_error(name, "[publication] coordinator_app must be a string")
+        names.add(app.strip())
     return frozenset(name for name in names if name)
 
 
@@ -154,10 +166,38 @@ def enabled(root: Path) -> bool:
 
 
 def _comments(root: Path, repo: str, number: int) -> list[dict[str, Any]]:
-    rows = _gh(root, "api", f"repos/{repo}/issues/{number}/comments?per_page=100")
-    if not isinstance(rows, list) or len(rows) >= 100:
-        raise QueueError("PR queue comments are unavailable or exceed the bounded page")
-    return [row for row in rows if isinstance(row, dict)]
+    """The complete, validated, ordered PR comment history, or a named error.
+
+    The whole observation is validated before anything is returned, so a failed
+    or malformed later page never yields a prefix or a filtered history.
+    """
+    def fail(cause: str) -> QueueError:
+        return QueueError(f"PR comment-history acquisition failed for #{number}: {cause}")
+
+    try:
+        pages = _gh(root, "api", "--paginate", "--slurp", f"repos/{repo}/issues/{number}/comments?per_page=100")
+    except QueueError as exc:
+        raise fail(str(exc)) from exc
+    if pages is None:
+        raise fail("empty response")
+    if not isinstance(pages, list) or not pages:
+        raise fail("response is not a non-empty array of pages")
+    history: list[dict[str, Any]] = []
+    previous: int | None = None
+    for index, page in enumerate(pages, start=1):
+        if not isinstance(page, list):
+            raise fail(f"page {index} is not an array")
+        for row in page:
+            if not isinstance(row, dict):
+                raise fail(f"page {index} contains a non-object comment")
+            comment_id = row.get("id")
+            if not isinstance(comment_id, int) or isinstance(comment_id, bool):
+                raise fail(f"page {index} contains a comment without an integer id")
+            if previous is not None and comment_id <= previous:
+                raise fail(f"comment id {comment_id} does not follow {previous} in API order")
+            previous = comment_id
+            history.append(row)
+    return history
 
 
 def _events(root: Path, repo: str, number: int) -> list[dict[str, Any]]:
@@ -278,8 +318,8 @@ def _transition(
     head and latest record are re-observed first: a moved head publishes
     nothing; a current-head record in ``refuse_from`` (another job's ownership)
     raises ``LifecycleOwnershipChanged``; a transition carrying nothing new is
-    not re-published (scheduled retries must not grow the bounded comment
-    page) but still repairs the label projection. Gates, items not re-verified
+    not re-published (scheduled retries must not grow the comment
+    history) but still repairs the label projection. Gates, items not re-verified
     and the next job carry forward from the latest exact-head record; task
     identity and attempt counters carry forward across coordinator head updates
     unless the caller proves a fresh identity (``inherit_identity=False``).
@@ -451,28 +491,59 @@ def _main(root: Path) -> str:
     return sha
 
 
+def _managed_state(root: Path) -> dict[str, Any] | None:
+    from managed_task import ManagedTaskError, read_task_state
+
+    try:
+        return read_task_state(root)
+    except (ManagedTaskError, OSError) as exc:
+        raise QueueError(f"managed task state is unreadable: {exc}") from exc
+
+
+def _touches_openspec_change(root: Path, head: str) -> bool:
+    """Whether the admitted head, read from git, changes any OpenSpec change directory."""
+    base = run_git(["merge-base", head, "origin/main"], cwd=root, check=False)
+    if base.returncode != 0 or not base.stdout.strip():
+        raise QueueError(f"cannot determine the merge base of {head} with origin/main: {base.stderr.strip()}")
+    changed = run_git(["diff", "--name-only", f"{base.stdout.strip()}...{head}"], cwd=root, check=False)
+    if changed.returncode != 0:
+        raise QueueError(f"cannot list the files changed by {head}: {changed.stderr.strip()}")
+    return any(line.startswith("openspec/changes/") for line in changed.stdout.splitlines())
+
+
 def _admission_handoff(root: Path, branch: str, head: str) -> dict[str, Any]:
     """Task-content identity for the admitted head.
 
-    A managed task checked out at the admitted head binds its task-content
-    digest; otherwise (quick task, or a checkout elsewhere) exact-head identity.
+    A managed candidate (managed task state present, or a head that touches an
+    OpenSpec change) must carry exact task-content provenance from a checkout at
+    the admitted head, or admission fails; it never degrades to quick-task
+    branch/head identity. Only a candidate with neither marker is a quick task.
     """
-    proof = None
-    # Only a checkout at the admitted head can vouch for its validation.
-    try:
-        local_head = run_git(["rev-parse", "HEAD"], cwd=root, check=False).stdout.strip()
-    except OSError:
-        local_head = ""
-    if local_head == head:
-        try:
-            from agent_friction import current_task_content
+    from task_content_identity import content_identity
 
-            proof = current_task_content(root)
-        except Exception:
-            proof = None
+    state = _managed_state(root)
+    if state is None and not _touches_openspec_change(root, head):
+        return {"task_identity": {"branch": branch, "head": head}, "gates": {}}
+
+    def lacks(cause: str) -> QueueError:
+        return QueueError(f"managed candidate {branch} lacks valid exact task-content provenance: {cause}")
+
+    if state is None:
+        raise lacks("the head changes an OpenSpec change but the checkout has no managed task state")
+    local = run_git(["rev-parse", "HEAD"], cwd=root, check=False)
+    if local.returncode != 0 or not local.stdout.strip():
+        raise QueueError(f"cannot read the checkout HEAD: {local.stderr.strip()}")
+    if local.stdout.strip() != head:
+        raise lacks(f"the checkout is at {local.stdout.strip()}, not the admitted head {head}")
+    change = state["change"]
+    active = root / "openspec" / "changes" / change
+    archives = [path for path in (root / "openspec" / "changes" / "archive").glob(f"*-{change}") if path.is_dir()]
+    if not active.is_dir() and len(archives) != 1:
+        raise lacks(f"change {change} has no unique active or archived package")
+    proof = content_identity(root, change)
     digest = proof.get("digest") if isinstance(proof, dict) else None
     if not (isinstance(digest, str) and digest):
-        return {"task_identity": {"branch": branch, "head": head}, "gates": {}}
+        raise lacks(f"no task-content proof could be computed for change {state['change']}")
     return {"task_identity": {"task_content": digest}, "gates": _archived_verification_gate(root)}
 
 
@@ -481,35 +552,43 @@ def _archived_verification_gate(root: Path) -> dict[str, Any]:
 
     Admission itself proves no validation; it binds the gate the archive helper
     already recorded (successful outcome, the task content and head it ran on,
-    and the evidence file digest). Without that evidence no gate is claimed.
+    and the evidence file digest). Absent or unsuccessful evidence claims no
+    gate; unreadable or malformed evidence is an error.
     """
     import hashlib
 
-    try:
-        from managed_task import read_task_state
-
-        state = read_task_state(root) or {}
-    except Exception:
+    state = _managed_state(root)
+    if state is None:
         return {}
-    change = state.get("change")
-    if not isinstance(change, str) or not change:
-        return {}
+    change = state["change"]
     matches = sorted((root / "openspec" / "changes" / "archive").glob(f"*-{change}/automated-checks.json"))
+    if not matches:
+        return {}
     if len(matches) != 1:
-        return {}
-    raw = matches[0].read_bytes()
+        raise QueueError(f"archived verification evidence for {change} is ambiguous: {len(matches)} files")
+    path = matches[0].relative_to(root).as_posix()
     try:
+        raw = matches[0].read_bytes()
         evidence = json.loads(raw)
-    except json.JSONDecodeError:
-        return {}
-    checkout = evidence.get("managed_checkout") if isinstance(evidence, dict) else None
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise QueueError(f"archived verification evidence {path} is unreadable or malformed: {exc}") from exc
+    if not isinstance(evidence, dict):
+        raise QueueError(f"archived verification evidence {path} is not a JSON object")
+    checkout = evidence.get("managed_checkout")
     content = checkout.get("task_content") if isinstance(checkout, dict) else None
-    if evidence.get("outcome") != "success" or not isinstance(content, dict) or not content.get("digest"):
+    outcome = evidence.get("outcome")
+    digest = content.get("digest") if isinstance(content, dict) else None
+    head = checkout.get("head") if isinstance(checkout, dict) else None
+    if (outcome not in ("success", "failure")
+            or not isinstance(digest, str) or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+            or not isinstance(head, str) or re.fullmatch(r"[0-9a-f]{40}", head) is None):
+        raise QueueError(f"archived verification evidence {path} has malformed outcome or managed-checkout identity")
+    if outcome != "success":
         return {}
     return {"archived-verification": {
         "result": "passed",
-        "identity": {"task_content": content["digest"], "head": checkout.get("head")},
-        "evidence": {"path": matches[0].relative_to(root).as_posix(), "sha256": hashlib.sha256(raw).hexdigest()},
+        "identity": {"task_content": content["digest"], "head": head},
+        "evidence": {"path": path, "sha256": hashlib.sha256(raw).hexdigest()},
     }}
 
 
@@ -527,7 +606,9 @@ def admit(root: Path, number: int, expected_head: str, *, handoff: dict | None =
         or (identity.get("kind") == "requirement-composition" and branch.startswith("requirement/BR-"))):
         raise QueueError("queue admission requires an owned task branch")
     if target == "main" and branch.startswith("requirement/BR-"):
-        require_composition_finalized(root, repo, number, expected_head)
+        resolved_handoff = require_composition_finalized(root, repo, number, expected_head)
+    else:
+        resolved_handoff = handoff if handoff is not None else _admission_handoff(root, branch, expected_head)
     events = _events(root, repo, number)
     admitted = _admission(events, number)
     if admitted and handoff:
@@ -574,7 +655,7 @@ def admit(root: Path, number: int, expected_head: str, *, handoff: dict | None =
     if current.get("task_identity") is None or current.get("head") != expected_head:
         try:
             _transition(root, repo, number, "review-pending" if handoff else "ready", expected_head, inherit_identity=False,
-                        refuse_from=STATES, **(handoff or _admission_handoff(root, branch, expected_head)))
+                        refuse_from=STATES, **resolved_handoff)
         except LifecycleOwnershipChanged:
             pass  # lifecycle work recorded this head in the meantime; never rewind it
     if handoff:
@@ -638,25 +719,13 @@ def candidate_status(root: Path, number: int, *, repo: str | None = None) -> dic
     pr = _pr(root, repo, number)
     comments = _comments(root, repo, number)
     head = pr.get("head", {}).get("sha", "")
-    # gh uses 1 for failed checks and 8 for pending checks. Those are readable
-    # snapshots, not transport failures. Leave the legacy worker observer alone.
-    response = subprocess.run(
-        ["gh", "pr", "checks", str(number), "--required", "--json", "name,state,workflow,link"],
-        cwd=root, text=True, capture_output=True, check=False,
-        stdin=subprocess.DEVNULL,
-    )
-    checks = {"head": head, "kind": "unknown", "detail": "required checks unavailable"}
-    if response.returncode in {0, 1, 8}:
-        try:
-            rows = json.loads(response.stdout)
-        except json.JSONDecodeError:
-            rows = None
-        if isinstance(rows, list):
-            observed = _classify_required_checks(rows)
-            checks.update(kind=observed.kind, detail=observed.detail, checks=list(observed.checks))
-    # A concurrent push invalidates this observation, including every gate.
-    if _pr(root, repo, number).get("head", {}).get("sha") != head:
-        checks["head"] = None
+    # The shared classifier resolves the required set from the final protected
+    # target and binds the snapshot to this head before and after reading.
+    observed = required_check_state_for_ref(root, os.environ.copy(), str(number), head)
+    checks = {"head": None if observed.cause == "head-mismatch" else head, "kind": observed.kind,
+              "detail": observed.detail, "checks": list(observed.checks)}
+    if observed.cause:
+        checks["cause"] = observed.cause
     return _derive(root, pr, comments, checks)
 
 
@@ -1087,7 +1156,12 @@ def _integrate(root: Path, repo: str, number: int, admission: dict[str, Any], pr
             if state.kind == "not_registered":
                 return _released(_block(root, repo, number, "required check is not registered for the PR head", head=head))
             if state.kind == "unknown":
-                raise QueueError("required check state is unknown: " + state.detail)
+                if state.cause in {"transport", "head-mismatch"}:
+                    # Non-terminal and visible: the next coordinator run re-observes.
+                    _label(root, repo, number, ACTIVE, present=False)
+                    return _released({"state": "waiting", "number": number,
+                                      "reason": f"required check observation unusable ({state.cause}): {state.detail}"})
+                raise QueueError(f"required check state is unknown ({state.cause}): {state.detail}")
             if time.monotonic() >= deadline:
                 return {"state": "waiting", "number": number, "reason": "required CI pending"}
             time.sleep(10)
@@ -1250,7 +1324,7 @@ def branch_head(root: Path, branch: str) -> str:
     return result[0]
 
 
-def require_composition_finalized(root: Path, repo: str, number: int, head: str) -> None:
+def require_composition_finalized(root: Path, repo: str, number: int, head: str) -> dict[str, Any]:
     import tempfile
     from lifecycle_workers import prepare_checkout
     from requirement_composition import candidate_manifest, require_final_gates
@@ -1265,6 +1339,7 @@ def require_composition_finalized(root: Path, repo: str, number: int, head: str)
             checkout = prepare_checkout(f"https://github.com/{repo}.git", temporary, "harness", head)
             manifest = candidate_manifest(checkout, identity["requirement"])
             require_final_gates(checkout, manifest, current, head)
+            return {"task_identity": identity, "gates": current["gates"]}
     except ContributionError as exc:
         raise QueueError(str(exc)) from exc
 

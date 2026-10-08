@@ -372,6 +372,7 @@ class GitLifecycleTests(unittest.TestCase):
             "if [ \"$1\" = \"pr\" ] && [ \"$2\" = \"view\" ]; then\n"
             "  case \" $* \" in\n"
             "    *\" state,headRefOid \"*) head_sha=$(git rev-parse \"$(git branch --show-current)\") || exit 1; printf '{\"state\":\"OPEN\",\"headRefOid\":\"%s\"}\\n' \"$head_sha\"; exit 0;;\n"
+            "    *\" baseRefName \"*) printf '{\\\"baseRefName\\\":\\\"main\\\"}\\n'; exit 0;;\n"
             "    *\" state,mergedAt \"*) echo OPEN; exit 0;;\n"
             "    *) exit 1;;\n"
             "  esac\n"

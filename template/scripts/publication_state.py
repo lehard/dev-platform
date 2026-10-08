@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
+import urllib.parse
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from _platform_common import pr_merge_mode, run_git, run_github_with_retry
+from _platform_common import pr_merge_mode, read_platform_config, run_git, run_github_with_retry
 
 
 PR_VIEW_FIELDS = "number,url,state,headRefOid,baseRefName,headRefName,headRepositoryOwner,autoMergeRequest,mergeStateStatus,isDraft"
@@ -14,6 +16,8 @@ PR_VIEW_FIELDS = "number,url,state,headRefOid,baseRefName,headRefName,headReposi
 PASSED_CHECK_STATES = {"SUCCESS", "NEUTRAL", "SKIPPING", "SKIPPED"}
 FAILED_CHECK_STATES = {"FAILURE", "CANCELLED", "TIMED_OUT", "ACTION_REQUIRED", "STALE", "ERROR"}
 PENDING_CHECK_STATES = {"EXPECTED", "PENDING", "QUEUED", "IN_PROGRESS", "WAITING", "REQUESTED"}
+UNKNOWN_CAUSES = frozenset({"transport", "malformed", "head-mismatch", "unsupported-state"})
+REQUIREMENT_INTEGRATION_BASE = re.compile(r"requirement/BR-[1-9][0-9]*")
 
 
 @dataclass(frozen=True)
@@ -23,6 +27,11 @@ class RequiredCheckState:
     kind: str
     detail: str = ""
     checks: tuple[dict[str, object], ...] = ()
+    cause: str = ""
+
+    def __post_init__(self) -> None:
+        if self.kind == "unknown" and self.cause not in UNKNOWN_CAUSES:
+            raise ValueError(f"an unknown required-check state must carry a cause in {sorted(UNKNOWN_CAUSES)}")
 
 
 @dataclass(frozen=True)
@@ -59,21 +68,21 @@ def required_check_state(root: Path, env: dict[str, str], current: str) -> Requi
     """
     local_head = run_git(["rev-parse", current], cwd=root, check=False)
     if local_head.returncode != 0:
-        return RequiredCheckState("unknown", f"local task branch {current!r} is unavailable")
+        return RequiredCheckState("unknown", f"local task branch {current!r} is unavailable", cause="transport")
     lookup = find_exact_head_pr(root, env, current, "main", local_head.stdout.strip())
     # This compatibility helper has no base parameter. Publication paths use
     # required_check_state_for_ref directly; callers that need another base
     # must do the same rather than letting a branch name become proof.
     pr = lookup.exact_open
     if not lookup.available or pr is None:
-        return RequiredCheckState("unknown", "GitHub exact PR state is unavailable")
+        return RequiredCheckState("unknown", "GitHub exact PR state is unavailable", cause="transport")
     return required_check_state_for_ref(root, env, stable_pr_ref(pr), local_head.stdout.strip())
 
 
 def _classify_required_checks(payload: list[Any]) -> RequiredCheckState:
     normalized = tuple(item for item in payload if isinstance(item, dict))
     if len(normalized) != len(payload):
-        return RequiredCheckState("unknown", "GitHub required-check response contained an invalid check")
+        return RequiredCheckState("unknown", "GitHub required-check response contained an invalid check", cause="malformed")
     if not normalized:
         return RequiredCheckState("not_registered")
 
@@ -85,7 +94,161 @@ def _classify_required_checks(payload: list[Any]) -> RequiredCheckState:
         return RequiredCheckState("passed", checks=normalized)
     if all(state in PASSED_CHECK_STATES | PENDING_CHECK_STATES for state in states):
         return RequiredCheckState("pending", checks=normalized)
-    return RequiredCheckState("unknown", "GitHub returned an unsupported required-check state", normalized)
+    return RequiredCheckState("unknown", "GitHub returned an unsupported required-check state", normalized, cause="unsupported-state")
+
+
+class _Unusable(Exception):
+    """Internal: carries an unusable observation out of the shared classifier."""
+
+    def __init__(self, cause: str, detail: str):
+        super().__init__(detail)
+        self.state = RequiredCheckState("unknown", detail, cause=cause)
+
+
+def _gh_read(root: Path, env: dict[str, str], args: list[str]) -> subprocess.CompletedProcess[str]:
+    return run_github_with_retry(["gh", *args], cwd=root, env=env)
+
+
+def _pr_view(root: Path, env: dict[str, str], ref: str, fields: str, what: str) -> dict[str, Any]:
+    result = _gh_read(root, env, ["pr", "view", ref, "--json", fields])
+    if result.returncode != 0:
+        raise _Unusable("transport", f"GitHub PR {what} is unavailable")
+    try:
+        payload = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        raise _Unusable("malformed", f"GitHub PR {what} was not structured JSON") from None
+    if not isinstance(payload, dict):
+        raise _Unusable("malformed", f"GitHub PR {what} was not a JSON object")
+    return payload
+
+
+def _require_expected_head(root: Path, env: dict[str, str], ref: str, expected_head: str, when: str) -> None:
+    payload = _pr_view(root, env, ref, "state,headRefOid", "state")
+    if str(payload.get("headRefOid", "")).strip() != expected_head:
+        raise _Unusable("head-mismatch", f"GitHub PR head does not match the expected observed head {when}")
+
+
+def _protected_required_contexts(root: Path, env: dict[str, str], branch: str) -> frozenset[tuple[str, int | None]]:
+    """Required status-check contexts of a branch's protection; empty when none are required.
+
+    The Contents-readable branch endpoint includes protection and App bindings.
+    Only a validated unprotected branch means no requirement; API failures
+    remain unusable observations.
+    """
+    endpoint = f"repos/{{owner}}/{{repo}}/branches/{urllib.parse.quote(branch, safe='')}"
+    result = _gh_read(root, env, ["api", endpoint])
+    if result.returncode != 0:
+        raise _Unusable("transport", f"GitHub protection of {branch} is unavailable")
+    try:
+        payload = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        raise _Unusable("malformed", f"GitHub protection of {branch} was not structured JSON") from None
+    if not isinstance(payload, dict) or payload.get("name") != branch or type(payload.get("protected")) is not bool:
+        raise _Unusable("malformed", f"GitHub branch {branch} had an unexpected shape")
+    if not payload["protected"]:
+        return frozenset()
+    protection = payload.get("protection")
+    required = protection.get("required_status_checks") if isinstance(protection, dict) else None
+    contexts = required.get("contexts") if isinstance(required, dict) else None
+    checks = required.get("checks") if isinstance(required, dict) else None
+    if not isinstance(contexts, list) or not isinstance(checks, list) or not all(isinstance(c, str) for c in contexts) \
+            or not all(isinstance(c, dict) and isinstance(c.get("context"), str) for c in checks):
+        raise _Unusable("malformed", f"GitHub protection of {branch} had an unexpected shape")
+    bound = set()
+    for check in checks:
+        if "app_id" not in check:
+            raise _Unusable("malformed", f"GitHub protection of {branch} omitted app_id")
+        app = check["app_id"]
+        if app is not None and (type(app) is not int or app < -1):
+            raise _Unusable("malformed", f"GitHub protection of {branch} had an invalid app_id")
+        bound.add((check["context"], None if app == -1 else app))
+    named = {name for name, _ in bound}
+    return frozenset(bound | {(name, None) for name in contexts if name not in named})
+
+
+def _parse_check_rows(result: subprocess.CompletedProcess[str]) -> list[Any]:
+    try:
+        rows = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        raise _Unusable("malformed", "GitHub required-check state was not structured JSON") from None
+    if not isinstance(rows, list):
+        raise _Unusable("malformed", "GitHub required-check response was not a list")
+    return rows
+
+
+
+def _bound_check_runs(root: Path, env: dict[str, str], head: str) -> list[dict[str, Any]]:
+    endpoint = f"repos/{{owner}}/{{repo}}/commits/{head}/check-runs?per_page=100&filter=all"
+    result = _gh_read(root, env, ["api", "--paginate", "--slurp", endpoint])
+    if result.returncode != 0:
+        raise _Unusable("transport", "GitHub App-bound check runs are unavailable")
+    try:
+        pages = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        raise _Unusable("malformed", "GitHub App-bound check runs were not structured JSON") from None
+    if not isinstance(pages, list) or not pages:
+        raise _Unusable("malformed", "GitHub App-bound check runs had no pages")
+    runs = []
+    for page in pages:
+        if not isinstance(page, dict) or not isinstance(page.get("check_runs"), list):
+            raise _Unusable("malformed", "GitHub App-bound check runs had an invalid page")
+        for run in page["check_runs"]:
+            if (not isinstance(run, dict) or type(run.get("id")) is not int
+                    or not isinstance(run.get("name"), str)
+                    or not isinstance(run.get("app"), dict) or type(run["app"].get("id")) is not int
+                    or not isinstance(run.get("status"), str)
+                    or (run["status"] == "completed" and not isinstance(run.get("conclusion"), str))):
+                raise _Unusable("malformed", "GitHub App-bound check runs contained an invalid run")
+            if run.get("head_sha") != head:
+                raise _Unusable("head-mismatch", "GitHub App-bound check run differs from the expected head")
+            runs.append(run)
+    return runs
+
+
+def _observe_required_checks(root: Path, env: dict[str, str], ref: str, base: str, main: str, head: str) -> RequiredCheckState:
+    fields = "name,state,workflow,link"
+    if base == main:
+        result = _gh_read(root, env, ["pr", "checks", ref, "--required", "--json", fields])
+        if result.returncode == 0:
+            return _classify_required_checks(_parse_check_rows(result))
+        if result.returncode == 1 and not result.stdout.strip():
+            # gh reports "no required checks" this way; decide it from the base's protection, not its wording.
+            if not _protected_required_contexts(root, env, base):
+                return RequiredCheckState("not_registered", f"base branch {base} requires no status checks")
+            raise _Unusable("malformed", f"gh reported no required checks while base {base} requires status checks")
+        raise _Unusable("transport", f"GitHub required-check state is unavailable (gh exit {result.returncode}): "
+                                     f"{(result.stderr or result.stdout).strip()[:200]}")
+    if REQUIREMENT_INTEGRATION_BASE.fullmatch(base):
+        # Unprotected integration branch: its final protected target (main) defines the required set.
+        required = _protected_required_contexts(root, env, main)
+        if not required:
+            return RequiredCheckState("not_registered", f"main branch {main} requires no status checks")
+        result = _gh_read(root, env, ["pr", "checks", ref, "--json", fields])
+        if result.returncode != 0:
+            raise _Unusable("transport", f"GitHub check state is unavailable (gh exit {result.returncode}): "
+                                         f"{(result.stderr or result.stdout).strip()[:200]}")
+        rows = _parse_check_rows(result)
+        if any(not isinstance(row, dict) for row in rows):
+            raise _Unusable("malformed", "GitHub required-check response contained an invalid check")
+        unbound = {name for name, app in required if app is None}
+        selected = [row for row in rows if row.get("name") in unbound]
+        present = {row.get("name") for row in selected}
+        selected += [{"name": name, "state": "PENDING"} for name in sorted(unbound - present)]
+        if any(app is not None for _, app in required):
+            runs = _bound_check_runs(root, env, head)
+            for name, app in sorted(required, key=lambda item: item[0]):
+                if app is None:
+                    continue
+                matches = [run for run in runs if run["name"] == name and run["app"]["id"] == app]
+                if not matches:
+                    selected.append({"name": name, "state": "PENDING"})
+                    continue
+                run = max(matches, key=lambda run: run["id"])
+                state = run["conclusion"] if run["status"] == "completed" else run["status"]
+                selected.append({"name": name, "state": state})
+        return _classify_required_checks(selected)
+    raise _Unusable("unsupported-state", f"cannot resolve required checks for base branch {base!r}: "
+                                         f"only {main!r} and requirement/BR-<n> integration branches are supported")
 
 
 def required_check_state_for_ref(root: Path, env: dict[str, str], ref: str, expected_head: str) -> RequiredCheckState:
@@ -93,31 +256,27 @@ def required_check_state_for_ref(root: Path, env: dict[str, str], ref: str, expe
 
     `ref` may be a PR number, URL, or branch name that `gh pr view` accepts
     directly. The caller supplies `expected_head` (read fresh from GitHub, not
-    from a local branch) to guard against the PR head changing between
-    observation and this check -- used for rollout PR reconciliation, where
-    the platform never checks out the PR's branch locally.
+    from a local branch). The head is verified before and again after the
+    checks are read; the required set comes from the PR's final protected
+    target (see ``_observe_required_checks``). Every unusable observation,
+    including an unsupported base or a config without ``main_branch``, is
+    `unknown` with an explicit cause.
     """
-    pr = run_github_with_retry(["gh", "pr", "view", ref, "--json", "state,headRefOid"], cwd=root, env=env)
-    if pr.returncode != 0:
-        return RequiredCheckState("unknown", "GitHub PR state is unavailable")
+    config = read_platform_config(root)
+    main = config.get("main_branch")
+    if not isinstance(main, str) or not main:
+        return RequiredCheckState("unknown", "platform config does not name main_branch", cause="unsupported-state")
     try:
-        pr_payload = json.loads(pr.stdout)
-    except json.JSONDecodeError:
-        return RequiredCheckState("unknown", "GitHub PR state was not structured JSON")
-    remote_head = str(pr_payload.get("headRefOid", "")).strip()
-    if remote_head != expected_head:
-        return RequiredCheckState("unknown", "GitHub PR head does not match the expected observed head")
-
-    checks = run_github_with_retry(["gh", "pr", "checks", ref, "--required", "--json", "name,state,workflow,link"], cwd=root, env=env)
-    if checks.returncode != 0:
-        return RequiredCheckState("unknown", "GitHub required-check state is unavailable")
-    try:
-        payload = json.loads(checks.stdout)
-    except json.JSONDecodeError:
-        return RequiredCheckState("unknown", "GitHub required-check state was not structured JSON")
-    if not isinstance(payload, list):
-        return RequiredCheckState("unknown", "GitHub required-check response was not a list")
-    return _classify_required_checks(payload)
+        _require_expected_head(root, env, ref, expected_head, "before the checks were read")
+        base = _pr_view(root, env, ref, "baseRefName", "base")
+        base_name = base.get("baseRefName")
+        if not isinstance(base_name, str) or not base_name:
+            raise _Unusable("malformed", "GitHub PR base was not named")
+        observed = _observe_required_checks(root, env, ref, base_name, main, expected_head)
+        _require_expected_head(root, env, ref, expected_head, "after the checks were read")
+        return observed
+    except _Unusable as exc:
+        return exc.state
 
 
 @dataclass(frozen=True)

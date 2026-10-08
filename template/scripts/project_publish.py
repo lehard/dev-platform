@@ -288,7 +288,7 @@ def wait_for_pr_checks(root: Path, env: dict[str, str], pr: PrRef, expected_head
                 + state.detail
             )
         raise SystemExit(
-            "GitHub required-check state is unknown; failing closed with a resumable remote-pending result. "
+            f"GitHub required-check state is unknown ({state.cause}); failing closed with a resumable remote-pending result. "
             "The PR and feature branch remain intact; local main was not changed. "
             + state.detail
         )

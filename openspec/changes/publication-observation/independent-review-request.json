@@ -1,0 +1,90 @@
+{
+  "candidate": {
+    "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
+    "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
+    "candidate_head": "2de3b29e7e9b3edd3ec00d777162f9ff0416501f",
+    "diff_sha256": "df2000c57a3563b03472bdcf6dc9280d9d6f46fa7dc84f1110869bc4ea86eb86"
+  },
+  "change": "openspec/changes/publication-observation",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/publication-observation/automated-checks.json",
+    "openspec/changes/publication-observation/independent-review-request.json",
+    "openspec/changes/publication-observation/independent-reviews/engineering-quality.json",
+    "openspec/changes/publication-observation/independent-reviews/spec-fidelity.json",
+    "openspec/changes/publication-observation/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/publication-observation/design.md",
+        "openspec/changes/publication-observation/proposal.md",
+        "openspec/changes/publication-observation/specs/publication-queue/spec.md",
+        "openspec/changes/publication-observation/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/publication-observation/proposal.md",
+        "openspec/changes/publication-observation/design.md",
+        "openspec/changes/publication-observation/tasks.md",
+        "openspec/changes/publication-observation/specs/publication-queue/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-08T14:56:17+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/publication-observation/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "789129df-3096-464e-be6f-a7c7e62f837f",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+    "digest": "033be321cbf04f13d697fc16ddb0d4c4eec47355a14ee32727c62b215e438878",
+    "paths": {
+      "openspec/changes/publication-observation/.managed-task.json": "3ccf2710de6137598f1e4de322c097db35a445e9",
+      "openspec/changes/publication-observation/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+      "openspec/changes/publication-observation/design.md": "33bc040970fa2f33287b6fc8aebd98e0324df605",
+      "openspec/changes/publication-observation/proposal.md": "672fdeb31d641a3c356c28e6c10f793cc051066a",
+      "openspec/changes/publication-observation/specs/publication-queue/spec.md": "67f153fabfef66f21437def1f50486cda78dfa7e",
+      "openspec/changes/publication-observation/tasks.md": "2bba083bdacc8ad7fdbc23612597e9fd6dadba5c",
+      "template/scripts/_platform_common.py": "9bde0dc51eadc9804d01342a4f9b0e697bfbccef",
+      "template/scripts/parallel_lifecycle_acceptance.py": "f62f5e574c7141005bf0a96e9773d744009d53d9",
+      "template/scripts/project_publish.py": "97fae14a13013f302646258179dc125bade6032e",
+      "template/scripts/publication_queue.py": "f609a1640bdb0ea7efa64ee9782302d627fda6c4",
+      "template/scripts/publication_state.py": "380865be3949c52a4c24575b3068b4ec2d12546f",
+      "template/scripts/rollout_preflight.py": "cb94d769642542f36a867cd652daa02b036954ff",
+      "tests/test_candidate_lifecycle.py": "bfb2cfdfdfeed479f9b784f5db2454c43b022ada",
+      "tests/test_git_lifecycle.py": "e406fa15346ad2baa244ca1b65e3b96bf16b6323",
+      "tests/test_github_retry.py": "e83f685dd03a66a92e87bf4a3682bb82220e0b32",
+      "tests/test_local_workspace.py": "e097fdcf0cc03bf97ffb545c83ff5c610861ca59",
+      "tests/test_merge_lifecycle_resilience.py": "d8e1de8c04d05f6563734d8a71c75e6af0d67463",
+      "tests/test_parallel_lifecycle_acceptance.py": "f0700b65a1c8a9a181995ad53d059d5d43a6d5fb",
+      "tests/test_pr_reconciliation_concurrency.py": "c8dbf1d59f94aba3d7d525d200663119c083f249",
+      "tests/test_publication_queue.py": "77fc336c4a79f347b6a74c82c38db5f4d06b8883",
+      "tests/test_publication_state.py": "56cd07b526f8e857557d861cc4e4e8c671c51309",
+      "tests/test_rollout_preflight.py": "b3d1703f17697781cf4434c245776f6f4d03111a"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

@@ -109,7 +109,7 @@ def build_seed(seed: Path) -> None:
     git(seed, "init", "-q", "-b", "main")
     git(seed, "config", "user.name", "Fixture")
     git(seed, "config", "user.email", "fixture@localhost")
-    put(seed / ".dev-platform.toml", '[independent_review]\nenabled = true\nprovider = "codex"\n')
+    put(seed / ".dev-platform.toml", 'main_branch = "main"\n[independent_review]\nenabled = true\nprovider = "codex"\n')
     put(seed / "check.py", CHECK)
     put(seed / "shared.py", SHARED)
     put(seed / "openspec/config.yaml", "schema: spec-driven\n")
@@ -257,12 +257,15 @@ class LocalGitHub:
             return 0, json.dumps(rows), ""
         if argv[:2] == ["pr", "view"]:
             data = self.pr_json(argv[2])
+            if argv[3:] == ["--json", "baseRefName"]:
+                return 0, json.dumps({"baseRefName": data["base"]["ref"]}), ""
             return 0, json.dumps({"state": data["state"].upper(), "headRefOid": data["head"]["sha"]}), ""
         if argv[:2] == ["pr", "checks"]:
             ok = self.checks_pass(self.head(argv[2]))
             rows = [{"name": "fixture-check", "state": "SUCCESS" if ok else "FAILURE", "workflow": "ci",
                      "link": "local://fixture-check"}]
-            return (0 if ok else 1), json.dumps(rows), ""
+            # Real ``gh pr checks --json`` exits 0 for passed, pending and failed lists.
+            return 0, json.dumps(rows), ""
         if argv[:2] == ["pr", "merge"]:
             return self.merge(argv, entry)
         if argv[:1] == ["api"]:
@@ -290,7 +293,7 @@ class LocalGitHub:
         return 0, "", ""
 
     def api(self, argv: list[str], entry: dict) -> tuple[int, str, str]:
-        method, fields, endpoint, items = "GET", {}, None, argv[1:]
+        method, fields, endpoint, items, slurp = "GET", {}, None, argv[1:], False
         while items:
             item = items.pop(0)
             if item == "-X":
@@ -300,6 +303,8 @@ class LocalGitHub:
                 fields[key] = value
             elif item == "--paginate":
                 continue
+            elif item == "--slurp":
+                slurp = True
             elif endpoint is None:
                 endpoint = item
             else:
@@ -322,7 +327,9 @@ class LocalGitHub:
         if match and match.group(1) in self.prs:
             number = match.group(1)
             if method == "GET":
-                return 0, json.dumps(self.comments[number]), ""
+                # Real ``gh api --paginate --slurp`` returns one array per page.
+                rows = [self.comments[number]] if slurp else self.comments[number]
+                return 0, json.dumps(rows), ""
             if method == "POST":
                 self.next_id += 1
                 self.comments[number].append({

@@ -1,0 +1,145 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.294,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.411,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 832.532,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/_platform_common.py",
+        "template/scripts/parallel_lifecycle_acceptance.py",
+        "template/scripts/project_publish.py",
+        "template/scripts/publication_queue.py",
+        "template/scripts/publication_state.py",
+        "template/scripts/rollout_preflight.py",
+        "tests/test_candidate_lifecycle.py",
+        "tests/test_git_lifecycle.py",
+        "tests/test_github_retry.py",
+        "tests/test_local_workspace.py",
+        "tests/test_merge_lifecycle_resilience.py",
+        "tests/test_parallel_lifecycle_acceptance.py",
+        "tests/test_pr_reconciliation_concurrency.py",
+        "tests/test_publication_queue.py",
+        "tests/test_publication_state.py",
+        "tests/test_rollout_preflight.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_ffae3331a2577c02c6018784c7568737",
+    "change": "publication-observation",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/publication-observation",
+    "branch": "agent/br-415-t5-publication-observation",
+    "head": "0593e2052c848a8885146897ec08a27b5ee7e66b",
+    "task_content": {
+      "version": 1,
+      "digest": "f77f1ba6c273fd3b328f619c632716a953c4f02fab49c5dcec71bad9fe851b7f",
+      "paths": {
+        "dev-platform/requirement-integrations/private-lineage-pln_d6af8d84cd0d3242b993ec5adfcee1c4-integration.json": "3cbbbee855a1648c32af3f34a79bc424abba3bbd",
+        "openspec/changes/publication-observation/.managed-task.json": "3ccf2710de6137598f1e4de322c097db35a445e9",
+        "openspec/changes/publication-observation/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+        "openspec/changes/publication-observation/automated-checks.json": "0af841876076d2638a133f6c4f08454179c7cd0d",
+        "openspec/changes/publication-observation/design.md": "33bc040970fa2f33287b6fc8aebd98e0324df605",
+        "openspec/changes/publication-observation/independent-review-request.json": "583d23c489e3f38928942c8341fb13790ee49a53",
+        "openspec/changes/publication-observation/independent-reviews/engineering-quality.json": "9b66f74c1b299b90520b6f57630f2bcdce832b97",
+        "openspec/changes/publication-observation/independent-reviews/spec-fidelity.json": "30dd93f8fa7e6d7313d3815b81ff1ead849fb51c",
+        "openspec/changes/publication-observation/proposal.md": "672fdeb31d641a3c356c28e6c10f793cc051066a",
+        "openspec/changes/publication-observation/specs/publication-queue/spec.md": "67f153fabfef66f21437def1f50486cda78dfa7e",
+        "openspec/changes/publication-observation/tasks.md": "2bba083bdacc8ad7fdbc23612597e9fd6dadba5c",
+        "openspec/changes/publication-observation/verification.md": "ae5216ff3917664fd68eb7f793e4bfd2f1bfa372",
+        "template/scripts/_platform_common.py": "9bde0dc51eadc9804d01342a4f9b0e697bfbccef",
+        "template/scripts/parallel_lifecycle_acceptance.py": "f62f5e574c7141005bf0a96e9773d744009d53d9",
+        "template/scripts/project_publish.py": "97fae14a13013f302646258179dc125bade6032e",
+        "template/scripts/publication_queue.py": "f609a1640bdb0ea7efa64ee9782302d627fda6c4",
+        "template/scripts/publication_state.py": "380865be3949c52a4c24575b3068b4ec2d12546f",
+        "template/scripts/rollout_preflight.py": "cb94d769642542f36a867cd652daa02b036954ff",
+        "tests/test_candidate_lifecycle.py": "bfb2cfdfdfeed479f9b784f5db2454c43b022ada",
+        "tests/test_git_lifecycle.py": "e406fa15346ad2baa244ca1b65e3b96bf16b6323",
+        "tests/test_github_retry.py": "e83f685dd03a66a92e87bf4a3682bb82220e0b32",
+        "tests/test_local_workspace.py": "e097fdcf0cc03bf97ffb545c83ff5c610861ca59",
+        "tests/test_merge_lifecycle_resilience.py": "d8e1de8c04d05f6563734d8a71c75e6af0d67463",
+        "tests/test_parallel_lifecycle_acceptance.py": "f0700b65a1c8a9a181995ad53d059d5d43a6d5fb",
+        "tests/test_pr_reconciliation_concurrency.py": "c8dbf1d59f94aba3d7d525d200663119c083f249",
+        "tests/test_publication_queue.py": "77fc336c4a79f347b6a74c82c38db5f4d06b8883",
+        "tests/test_publication_state.py": "56cd07b526f8e857557d861cc4e4e8c671c51309",
+        "tests/test_rollout_preflight.py": "b3d1703f17697781cf4434c245776f6f4d03111a"
+      },
+      "base": "a8d83e5cbd97037b242daf30557f4b1e3b03ae7c"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "033be321cbf04f13d697fc16ddb0d4c4eec47355a14ee32727c62b215e438878",
+    "paths": {
+      "openspec/changes/publication-observation/.managed-task.json": "3ccf2710de6137598f1e4de322c097db35a445e9",
+      "openspec/changes/publication-observation/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+      "openspec/changes/publication-observation/design.md": "33bc040970fa2f33287b6fc8aebd98e0324df605",
+      "openspec/changes/publication-observation/proposal.md": "672fdeb31d641a3c356c28e6c10f793cc051066a",
+      "openspec/changes/publication-observation/specs/publication-queue/spec.md": "67f153fabfef66f21437def1f50486cda78dfa7e",
+      "openspec/changes/publication-observation/tasks.md": "2bba083bdacc8ad7fdbc23612597e9fd6dadba5c",
+      "template/scripts/_platform_common.py": "9bde0dc51eadc9804d01342a4f9b0e697bfbccef",
+      "template/scripts/parallel_lifecycle_acceptance.py": "f62f5e574c7141005bf0a96e9773d744009d53d9",
+      "template/scripts/project_publish.py": "97fae14a13013f302646258179dc125bade6032e",
+      "template/scripts/publication_queue.py": "f609a1640bdb0ea7efa64ee9782302d627fda6c4",
+      "template/scripts/publication_state.py": "380865be3949c52a4c24575b3068b4ec2d12546f",
+      "template/scripts/rollout_preflight.py": "cb94d769642542f36a867cd652daa02b036954ff",
+      "tests/test_candidate_lifecycle.py": "bfb2cfdfdfeed479f9b784f5db2454c43b022ada",
+      "tests/test_git_lifecycle.py": "e406fa15346ad2baa244ca1b65e3b96bf16b6323",
+      "tests/test_github_retry.py": "e83f685dd03a66a92e87bf4a3682bb82220e0b32",
+      "tests/test_local_workspace.py": "e097fdcf0cc03bf97ffb545c83ff5c610861ca59",
+      "tests/test_merge_lifecycle_resilience.py": "d8e1de8c04d05f6563734d8a71c75e6af0d67463",
+      "tests/test_parallel_lifecycle_acceptance.py": "f0700b65a1c8a9a181995ad53d059d5d43a6d5fb",
+      "tests/test_pr_reconciliation_concurrency.py": "c8dbf1d59f94aba3d7d525d200663119c083f249",
+      "tests/test_publication_queue.py": "77fc336c4a79f347b6a74c82c38db5f4d06b8883",
+      "tests/test_publication_state.py": "56cd07b526f8e857557d861cc4e4e8c671c51309",
+      "tests/test_rollout_preflight.py": "b3d1703f17697781cf4434c245776f6f4d03111a"
+    },
+    "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/_platform_common.py --changed-file template/scripts/parallel_lifecycle_acceptance.py --changed-file template/scripts/project_publish.py --changed-file template/scripts/publication_queue.py --changed-file template/scripts/publication_state.py --changed-file template/scripts/rollout_preflight.py --changed-file tests/test_candidate_lifecycle.py --changed-file tests/test_git_lifecycle.py --changed-file tests/test_github_retry.py --changed-file tests/test_local_workspace.py --changed-file tests/test_merge_lifecycle_resilience.py --changed-file tests/test_parallel_lifecycle_acceptance.py --changed-file tests/test_pr_reconciliation_concurrency.py --changed-file tests/test_publication_queue.py --changed-file tests/test_publication_state.py --changed-file tests/test_rollout_preflight.py",
+    "duration_seconds": 728.957,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}

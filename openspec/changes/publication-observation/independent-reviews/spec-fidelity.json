@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
+    "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
+    "candidate_head": "2de3b29e7e9b3edd3ec00d777162f9ff0416501f",
+    "diff_sha256": "df2000c57a3563b03472bdcf6dc9280d9d6f46fa7dc84f1110869bc4ea86eb86"
+  },
+  "completed_at": "2026-10-08T14:57:09+00:00",
+  "findings": [
+    {
+      "evidence": "publication_queue.py:608-611 computes `resolved_handoff = ... _admission_handoff(root, branch, expected_head)` unconditionally, ahead of `_events`/`_admission` at 612-613. It is consumed only at line 658, and only when `current.get('task_identity') is None or current.get('head') != expected_head`. D4 and the \"Managed proof unavailable\" scenario require failure before mutations, so this ordering is defensible. It does mean a no-op re-admission can now raise where it previously succeeded. The delta spec and design do not say whether that is intended.",
+      "id": "admit-eager-handoff-on-readmission",
+      "severity": "advisory",
+      "summary": "`admit` now resolves the managed handoff before it checks whether the PR is already admitted. A retry or idempotent re-admission of a managed candidate can therefore fail provenance, for example when the coordinator checkout is not at the admitted head. Before this change the handoff was computed lazily and only when a transition was actually needed."
+    }
+  ],
+  "launched_at": "2026-10-08T14:56:28+00:00",
+  "output_sha256": "a7abce7a0cfbca5200dd0ab6af6801d69317b0b258afb4f8b7e41068f849fad2",
+  "perspective": "spec-fidelity",
+  "request_id": "789129df-3096-464e-be6f-a7c7e62f837f",
+  "reviewer": {
+    "context_id": "d917be45-f4ba-4812-8dcc-d4a42e53cc6a",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-c958bb92-f702-4f35-add2-9e244bc8b84b",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 62638
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 243436
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 36516
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 39955
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3303
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "033be321cbf04f13d697fc16ddb0d4c4eec47355a14ee32727c62b215e438878"
+}
