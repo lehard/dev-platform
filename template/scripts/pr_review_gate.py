@@ -183,7 +183,7 @@ def complete_review(root: Path, repo: str, candidate: dict, reports: dict, head:
     red = None if state == "finalize-pending" else {"name": "review", "identity": identity, "evidence": reports}
     if state == "blocked-retryable":
         limitation = next((str(report.get("limitation")) for report in reports.values()
-                           if isinstance(report, dict) and report.get("limitation")), "no reviewer report was produced")
+                           if isinstance(report, dict) and report.get("limitation")), "the unavailable review report states no limitation")
         red = {**red, "cause": "provider-unavailable", "providers": providers, "limitation": limitation[:500]}
     if state == "repair-pending":
         return offer(root, repo, candidate["number"], head, identity, "repair",

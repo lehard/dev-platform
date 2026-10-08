@@ -254,7 +254,7 @@ def provider_readiness(root: Path, providers, *, workdir, home_files=(), probe=N
     readiness = {}
     for provider in dict.fromkeys(providers):
         result = probe(root, config={**base, "provider": provider}, launcher=launcher)
-        readiness[provider] = None if result.get("ready") else str(result.get("limitation") or f"{provider} runtime is not ready")
+        readiness[provider] = None if result.get("ready") else str(result.get("limitation") or f"the {provider} readiness probe reported not ready without stating a limitation")
     return readiness
 
 

@@ -3,36 +3,30 @@
   "candidate": {
     "base_head": "6c96df65b6d7f4f4d4ee0c30e2d81880190b7dd0",
     "base_ref": "origin/main",
-    "candidate_head": "c161b2131a74dc2640bfb50a7cefe67b66e178e2",
-    "diff_sha256": "be16c62eadc098ee3881beef3f809777369f68991f8156351fd86e5afefefbea"
+    "candidate_head": "2b44489b3f55b6421ea7ce3719f90afc86eafec6",
+    "diff_sha256": "7d8e80345763c2488c5ac9576039921c7deddfe81dccba25106b8ae85377925d"
   },
-  "completed_at": "2026-10-08T05:18:10+00:00",
+  "completed_at": "2026-10-08T05:21:49+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/pr_review_gate.py reoffer(): the no-op early return is guarded by `action == \"switch-provider\" and state in pending and providers == previous`. A switch-provider on a blocked-retryable candidate with the same providers appends a new re-offer record and resets the unavailable streak. design.md says re-running with the providers already offered is a no-op without that restriction.",
-      "id": "noop-same-providers-not-universal",
-      "severity": "advisory",
-      "summary": "The spec says offering the providers already offered SHALL change nothing. The code applies that only to switch-provider on pending/reviewing/repairing states."
-    },
-    {
-      "evidence": "template/scripts/pr_review_gate.py reoffer(): the blocked-retryable branch only requires adapter.retry_job_kind(candidate). It never checks that next_job is absent. Resuming a blocked-retryable candidate with a streak below 3 (which still has a retry-unavailable job) is accepted and replaces that job. The claim check still guards against a live claim, so the effect is benign, but it goes beyond the stated contract.",
+      "evidence": "In the `reoffer` function in `template/scripts/pr_review_gate.py`, `elif state == \"blocked-retryable\" and adapter.retry_job_kind(candidate)` has no `action`-specific check and no check that `next_job` is absent. `design.md` says resume applies to 'a `blocked-retryable` review or repair candidate without an automatic job'. The spec text only says 'typically', so this is a small divergence that the spec arguably permits. A resume during the streak also re-offers a job that is already offered, replacing it with a distinct `:r<seq>` id.",
       "id": "resume-allowed-with-automatic-job",
       "severity": "advisory",
-      "summary": "The spec scopes resume to blocked-retryable candidates without an automatic job. reoffer() does not check for one."
+      "summary": "`resume` also accepts a blocked-retryable candidate that still has an automatic retry job. The design and publication-queue spec describe resume for candidates whose automatic retries are exhausted ('typically', 'without an automatic job')."
     }
   ],
-  "launched_at": "2026-10-08T05:17:27+00:00",
-  "output_sha256": "8a06fd45f7bf74f15924a80dee7fcf8705b2f624385417736a16d0fef97b6977",
+  "launched_at": "2026-10-08T05:21:15+00:00",
+  "output_sha256": "035123686d5fb5c16ce9ab0f6cf2725f902b1240de74426aa1fd14cc55256953",
   "perspective": "spec-fidelity",
-  "request_id": "9261ab74-8cdd-4a87-b543-c78b8b6080c4",
+  "request_id": "39600bb7-4f19-47b6-be3d-62d0c571f5d9",
   "reviewer": {
-    "context_id": "13a3aa71-52f2-4bf8-ad41-2681692c0c2c",
+    "context_id": "7e52fd94-a822-4e3e-9d80-3fb45bf1f827",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-128f55ba-9d37-44d4-ba6e-99a2444d17a4",
+    "launch_id": "platform-launch-67da66bb-c54f-49e8-bf49-50a4ff41c099",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -48,41 +42,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 56989
+        "value": 48420
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 221023
+        "value": 159964
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 40666
+        "value": 30500
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 41038
+        "value": 31059
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 12
+        "value": 10
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 13
+        "value": 10
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4774
+        "value": 3414
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "600881d598b8a84a333fb70f98986018cedcd6f710a42f95509d76f3a1f61f19"
+  "task_content_digest": "f425708945b9fba07a89c296d3abee4dd959f7d070120aea5b8fa321e047788e"
 }
