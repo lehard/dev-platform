@@ -131,10 +131,10 @@ class DownstreamCheckoutTests(unittest.TestCase):
         root = self.make_checkout(contract("source", publish_mode="pr", scm_provider="github"))
         self.add_operator_overlay(root, 'platform_version = "1.0.0"\nharness_mode = "project"\n'
                                   'publish_mode = "direct"\nscm_provider = "gitlab"\n'
-                                  '[development_backlog]\nrepository = "example/backlog"\n')
+                                  '[promotion]\nrepo = "example/dev-platform"\n')
         config = common.read_platform_config(root)
         self.assertEqual("coordinator", common.lifecycle_mode(config))
-        self.assertEqual("example/backlog", config["development_backlog"]["repository"])
+        self.assertEqual("example/dev-platform", config["promotion"]["repo"])
 
     def test_operator_cannot_supply_missing_platform_version(self) -> None:
         root = self.make_checkout('harness_mode = "platform"\n')
