@@ -603,6 +603,43 @@ class CompositionTests(unittest.TestCase):
                 self.assertEqual(push.call_count, 1)
                 self.assertEqual(archived, ["first", "second"])
 
+    def test_composition_default_launcher_uses_provider_login_binding(self):
+        import independent_review_runner as reviewer
+        import managed_task
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            checkout = root / "checkout"
+            checkout.mkdir()
+            fixture = self.fixture(checkout)
+            head = git(checkout, "rev-parse", "HEAD")
+            identity = composition.composition_identity(checkout, fixture.manifest)
+            token = root / "claude-token"
+            token.write_text("declared-secret")
+            token.chmod(0o600)
+
+            def preflight(path, *, config, launcher):
+                launcher([config["provider"], "probe"], path, 10)
+                raise RuntimeError("stop after launcher")
+
+            for provider in ("claude", "codex"):
+                config = {"provider": provider, "login": {"claude": {"token_file": str(token)}}}
+                with self.subTest(provider=provider), mock.patch.object(
+                    managed_task, "fetch_issue", return_value={"body": "Deliver both children"}
+                ), mock.patch.object(reviewer, "preflight", side_effect=preflight), mock.patch.object(
+                    reviewer, "subprocess_launcher"
+                ) as launch:
+                    with self.assertRaisesRegex(RuntimeError, "stop after launcher"):
+                        review_gate.execute_review(checkout, {"head": head, "task_identity": identity},
+                            source_repo="unused", branch="requirement/BR-7", current_head=lambda: head,
+                            runner=subprocess.run, review_config=config)
+                    env = launch.call_args.kwargs["env"]
+                    self.assertEqual(env["HOME"], str(root / "llm-home"))
+                    if provider == "claude":
+                        self.assertEqual(env["CLAUDE_CODE_OAUTH_TOKEN"], "declared-secret")
+                    else:
+                        self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN", env)
+
     def test_reviewer_git_config_is_never_used_after_llm_step(self):
         import independent_review as review
         import independent_review_runner as reviewer

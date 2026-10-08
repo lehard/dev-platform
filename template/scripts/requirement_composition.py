@@ -133,8 +133,14 @@ def execute_composition_review(checkout: Path, job: dict, *, source_repo: str, b
     request = prepare_request(checkout, manifest, str(issue.get("body") or ""))
     validate_request(request, identity)
     config = reviewer.settings(checkout) if review_config is None else review_config
-    clean = workers.credential_free_env(dict(os.environ), checkout.parent / "llm-home")
-    launcher = launcher or (lambda argv, cwd, timeout: reviewer.subprocess_launcher(argv, cwd, timeout, env=clean))
+    if launcher is None:
+        provider, limitation = reviewer.resolve_provider(checkout, config)
+        if provider is None:
+            raise workers.WorkerError(limitation)
+        home = checkout.parent / "llm-home"
+
+        def launcher(argv, cwd, timeout):
+            return reviewer.subprocess_launcher(argv, cwd, timeout, env=workers.llm_env(provider, config, home))
     diff, error = reviewer.candidate_diff(checkout, manifest["base"], review_diff_paths(checkout, manifest, identity))
     reports = {}
     snapshot = workers.tree_snapshot(checkout)

@@ -248,6 +248,20 @@ class LoginBindingTests(unittest.TestCase):
         self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN", workers.credential_free_env(ambient))
         self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN", workers.llm_env("claude", {}, Path("/h"), env=ambient))
 
+    def test_push_environments_strip_ambient_llm_token(self):
+        ambient = {"GH_TOKEN": "github-token", "CLAUDE_CODE_OAUTH_TOKEN": self.TOKEN}
+        for origin in ("file:///tmp/local-repo", "https://github.com/acme/project.git"):
+            with self.subTest(origin=origin), mock.patch.object(workers, "harness_git", return_value=origin):
+                clean = workers.harness_push_env(Path("/checkout"), ambient)
+                self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN", clean)
+                self.assertEqual(clean["GH_TOKEN"], "github-token")
+                with mock.patch.dict(os.environ, ambient, clear=True):
+                    self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN", workers.harness_push_env(Path("/checkout")))
+        runner = mock.Mock(return_value=subprocess.CompletedProcess([], 0, "", ""))
+        workers.push_validated(Path("/checkout"), "branch", HEAD, NEW, runner=runner, env=ambient)
+        self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN", runner.call_args.kwargs["env"])
+        self.assertEqual(ambient["CLAUDE_CODE_OAUTH_TOKEN"], self.TOKEN)
+
     def test_invalid_token_files_fail_without_leaking_content(self):
         with tempfile.TemporaryDirectory() as tmp:
             cases = {

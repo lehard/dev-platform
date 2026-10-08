@@ -397,6 +397,8 @@ def harness_push_env(checkout: Path, env: dict[str, str] | None = None) -> dict[
     from urllib.parse import urlsplit
 
     result = dict(os.environ if env is None else env)
+    for token_variable in LOGIN_TOKEN_ENV.values():
+        result.pop(token_variable, None)
     origin = harness_git(checkout, "remote", "get-url", "--push", "origin").strip()
     parsed = urlsplit(origin)
     if not origin:
@@ -421,8 +423,11 @@ def harness_push_env(checkout: Path, env: dict[str, str] | None = None) -> dict[
 def push_validated(repo: Path, branch: str, expected_head: str, result_head: str, *,
                    runner: Callable[..., Any] = subprocess.run, env: dict[str, str] | None = None) -> Any:
     """The only push to a candidate branch. Callers must validate first."""
+    push_env = harness_push_env(repo) if env is None else env
+    if any(variable in push_env for variable in LOGIN_TOKEN_ENV.values()):
+        push_env = {key: value for key, value in push_env.items() if key not in LOGIN_TOKEN_ENV.values()}
     done = runner(push_command(branch, expected_head, result_head), cwd=repo,
-                  env=harness_push_env(repo) if env is None else env,
+                  env=push_env,
                   stdin=subprocess.DEVNULL, capture_output=True, text=True, check=False)
     if done.returncode:
         raise WorkerError(f"push rejected (git push exited {done.returncode})")
