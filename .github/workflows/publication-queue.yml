@@ -53,7 +53,10 @@ jobs:
           DEV_PLATFORM_COORDINATOR_APP: ${{ steps.app-token.outputs.app-slug }}
         run: python3 scripts/publication_queue.py preflight --mode ci --phase runtime
       - name: Process next admitted PR
+        # The worker repeats the full preflight (inputs and runtime) before observing any candidate.
         env:
+          PREFLIGHT_APP_CLIENT_ID_SET: ${{ vars.DEV_PLATFORM_APP_CLIENT_ID != '' }}
+          PREFLIGHT_APP_PRIVATE_KEY_SET: ${{ secrets.DEV_PLATFORM_APP_PRIVATE_KEY != '' }}
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           DEV_PLATFORM_COORDINATOR_APP: ${{ steps.app-token.outputs.app-slug }}
         run: python3 scripts/publication_queue.py worker --mode ci

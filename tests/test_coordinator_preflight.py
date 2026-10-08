@@ -257,6 +257,14 @@ class WorkflowStructureTests(unittest.TestCase):
         for value in env.values():
             self.assertRegex(value, r"^\$\{\{ (vars|secrets)\.[A-Z_]+ != '' \}\}$")
 
+    def test_worker_step_carries_every_input_its_full_preflight_reads(self):
+        # ``worker --mode ci`` repeats the full (inputs + runtime) preflight in its own step.
+        worker = self.steps[self.index("publication_queue.py worker --mode ci")]["env"]
+        inputs = self.steps[self.index("preflight --mode ci --phase inputs")]["env"]
+        runtime = self.steps[self.index("preflight --mode ci --phase runtime")]["env"]
+        self.assertEqual({name: worker.get(name) for name in inputs}, inputs)
+        self.assertEqual({name: worker.get(name) for name in runtime}, runtime)
+
     def test_token_permissions_stay_least_privilege(self):
         options = self.steps[self.index("actions/create-github-app-token")]["with"]
         self.assertEqual({k for k in options if k.startswith("permission-")},
