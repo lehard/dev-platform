@@ -627,8 +627,8 @@ class CompositionTests(unittest.TestCase):
                 with self.subTest(provider=provider), mock.patch.object(
                     managed_task, "fetch_issue", return_value={"body": "Deliver both children"}
                 ), mock.patch.object(reviewer, "preflight", side_effect=preflight), mock.patch.object(
-                    reviewer, "subprocess_launcher"
-                ) as launch:
+                    reviewer, "resolve_binary", return_value=("claude", None)
+                ), mock.patch.object(reviewer, "subprocess_launcher") as launch:
                     with self.assertRaisesRegex(RuntimeError, "stop after launcher"):
                         review_gate.execute_review(checkout, {"head": head, "task_identity": identity},
                             source_repo="unused", branch="requirement/BR-7", current_head=lambda: head,
@@ -639,6 +639,42 @@ class CompositionTests(unittest.TestCase):
                         self.assertEqual(env["CLAUDE_CODE_OAUTH_TOKEN"], "declared-secret")
                     else:
                         self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN", env)
+
+    def test_composition_launcher_binds_login_to_launched_provider_not_task_route(self):
+        import independent_review_runner as reviewer
+        import managed_task
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            checkout = root / "checkout"
+            checkout.mkdir()
+            fixture = self.fixture(checkout)
+            head = git(checkout, "rev-parse", "HEAD")
+            identity = composition.composition_identity(checkout, fixture.manifest)
+            token = root / "claude-token"
+            token.write_text("declared-secret")
+            token.chmod(0o600)
+            launched = []
+
+            def preflight(path, *, config, launcher):
+                for binary in ("/bin/codex", "/bin/claude"):
+                    launcher([binary, "probe"], path, 10)
+                raise RuntimeError("stop after launcher")
+
+            config = {"providers": ["codex", "claude"], "login": {"claude": {"token_file": str(token)}}}
+            with mock.patch.object(managed_task, "fetch_issue", return_value={"body": "Deliver both children"}), \
+                    mock.patch.object(reviewer, "preflight", side_effect=preflight), \
+                    mock.patch.object(reviewer, "resolve_binary", return_value=("/bin/claude", None)), \
+                    mock.patch.object(reviewer, "resolve_provider", side_effect=AssertionError("task route consulted")), \
+                    mock.patch.object(reviewer, "subprocess_launcher",
+                                      side_effect=lambda argv, cwd, timeout, env: launched.append((argv[0], env))):
+                with self.assertRaisesRegex(RuntimeError, "stop after launcher"):
+                    composition.execute_composition_review(
+                        checkout, {"head": head, "task_identity": identity}, source_repo="unused",
+                        branch="requirement/BR-7", current_head=lambda: head, review_config=config)
+            by_binary = dict(launched)
+            self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN", by_binary["/bin/codex"])
+            self.assertEqual(by_binary["/bin/claude"]["CLAUDE_CODE_OAUTH_TOKEN"], "declared-secret")
 
     def test_reviewer_git_config_is_never_used_after_llm_step(self):
         import independent_review as review

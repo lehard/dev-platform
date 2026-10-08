@@ -134,12 +134,12 @@ def execute_composition_review(checkout: Path, job: dict, *, source_repo: str, b
     validate_request(request, identity)
     config = reviewer.settings(checkout) if review_config is None else review_config
     if launcher is None:
-        provider, limitation = reviewer.resolve_provider(checkout, config)
-        if provider is None:
-            raise workers.WorkerError(limitation)
         home = checkout.parent / "llm-home"
+        claude_binary, _ = reviewer.resolve_binary("claude")
 
         def launcher(argv, cwd, timeout):
+            # A provider's declared login token reaches only that provider's own CLI process.
+            provider = "claude" if claude_binary is not None and argv[0] == claude_binary else "codex"
             return reviewer.subprocess_launcher(argv, cwd, timeout, env=workers.llm_env(provider, config, home))
     diff, error = reviewer.candidate_diff(checkout, manifest["base"], review_diff_paths(checkout, manifest, identity))
     reports = {}
