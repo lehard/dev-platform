@@ -42,7 +42,7 @@ class OpenSpecLifecycleTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             self.make_change(root, "work", "- [x] done\n")
-            with mock.patch.object(lifecycle, "read_platform_config", return_value={"harness_mode": "platform"}), \
+            with mock.patch.object(lifecycle, "read_platform_config", return_value={"platform_version": "source", "harness_mode": "platform"}), \
                     mock.patch.object(lifecycle, "require_static_archive_readiness"), \
                     mock.patch.object(lifecycle, "require_applicable_committed_diff"), \
                     mock.patch.object(gate, "managed_candidate", return_value=False), \
@@ -66,6 +66,18 @@ class OpenSpecLifecycleTests(unittest.TestCase):
             self.make_change(root, "done", "- [x] one\n- [x] two\n")
             self.assertEqual(["done"], lifecycle.completed_active_changes(root))
             self.assertEqual(1, lifecycle.check_hygiene(root))
+
+    def test_explicit_candidate_stage_needs_no_checkout_config(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            managed = self.make_change(root, "managed", "- [x] one\n")
+            (managed / ".managed-task.json").write_text("{}\n", encoding="utf-8")
+            self.make_change(root, "unmanaged", "- [x] one\n")
+            self.assertFalse((root / ".dev-platform.toml").exists())
+            self.assertEqual(1, lifecycle.check_hygiene(root, lifecycle.STAGE_CANDIDATE))
+            shutil.rmtree(root / "openspec" / "changes" / "unmanaged")
+            self.assertEqual(0, lifecycle.check_hygiene(root, lifecycle.STAGE_CANDIDATE))
+            self.assertEqual(1, lifecycle.check_hygiene(root, lifecycle.STAGE_INTEGRATION))
 
     def test_alternative_markers_and_unknown_content_keep_change_incomplete(self) -> None:
         for open_task in ("+ [ ] task", "* [ ] task", "1. [ ] task", "1) [ ] task", "- [~] partial", "- [-] skipped", "-[ ] tight"):
@@ -459,7 +471,7 @@ class OpenSpecLifecycleTests(unittest.TestCase):
             stale = change / "automated-checks.json"
             stale.write_text('{"outcome":"stale"}\n', encoding="utf-8")
             with (
-                mock.patch.object(lifecycle, "read_platform_config", return_value={}),
+                mock.patch.object(lifecycle, "read_platform_config", return_value={"platform_version": "customer"}),
                 mock.patch.object(lifecycle, "harness_mode", return_value="platform"),
                 mock.patch.object(lifecycle, "run_checked") as run_checked,
             ):
@@ -481,7 +493,7 @@ class OpenSpecLifecycleTests(unittest.TestCase):
                 "OpenSpec-Verify: PASS\nVerification-Method: equivalent-review\nAutomated-Checks-Evidence: automated-checks.json\n",
             )
             with (
-                mock.patch.object(lifecycle, "read_platform_config", return_value={}),
+                mock.patch.object(lifecycle, "read_platform_config", return_value={"platform_version": "customer"}),
                 mock.patch.object(lifecycle, "harness_mode", return_value="platform"),
                 mock.patch.object(lifecycle, "run_git", return_value=mock.Mock(returncode=0)),
                 mock.patch.object(lifecycle, "run_checked") as run_checked,

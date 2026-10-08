@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/engineering-capabilities/spec.md"
+  ],
+  "change": "capability-metadata",
+  "imported_at": "2026-10-07T13:01:38+00:00",
+  "package_revision": "c493e6b26f63d06552715a830bd3a435ff1f072397408f24eb94394adebdc438",
+  "prepared_against": "a8d83e5cbd97037b242daf30557f4b1e3b03ae7c",
+  "private_lineage_handle": "pln_0930e58ad6bb1dabe0c771d8f1f5bfcf",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "79dc23f98f9e6c2c5215ee44642b386cafe9fdaf76bda99fc97700f26cf10f99",
+    "updated_at": "2026-10-07T10:55:12Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-415/T1"
+}

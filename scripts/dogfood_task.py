@@ -184,6 +184,7 @@ def current_root() -> Path:
 def status(args: argparse.Namespace) -> int:
     root = current_root()
     verify_source_contract(root)
+    require_early_routing_gate(root)
     command = ["python3", "scripts/finish_task.py", "--status"]
     if getattr(args, "json", False):
         command.append("--json")
@@ -194,6 +195,7 @@ def status(args: argparse.Namespace) -> int:
 def finish(args: argparse.Namespace) -> int:
     root = current_root()
     verify_source_contract(root)
+    require_early_routing_gate(root)
     require_routing_gate(root)
     command = ["python3", "scripts/finish_task.py", "--cleanup"]
     if args.title:
@@ -211,12 +213,13 @@ def reconcile(_: argparse.Namespace) -> int:
     return 0
 
 
-def require_routing_gate(root: Path) -> None:
-    """Verify exact durable route evidence before central terminal delivery."""
+def _managed_task_present(root: Path) -> bool:
     has_state = (root / ".managed-task-state.json").is_file()
     has_active = bool(list((root / "openspec" / "changes").glob("*/.managed-task.json")))
-    if not has_state and not has_active:
-        return
+    return has_state or has_active
+
+
+def _load_routing(root: Path):
     module_path = root / "template" / "scripts" / "model_routing.py"
     if not module_path.is_file():
         # Unit/integration harnesses create a temporary managed checkout but
@@ -234,6 +237,25 @@ def require_routing_gate(root: Path) -> None:
     routing = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = routing
     spec.loader.exec_module(routing)
+    return routing
+
+
+def require_early_routing_gate(root: Path) -> None:
+    """Fail before expensive lifecycle work when content contradicts the recorded execution plan."""
+    if not _managed_task_present(root):
+        return
+    routing = _load_routing(root)
+    try:
+        routing.require_early_routing_gate(root)
+    except routing.RoutingError as exc:
+        raise SystemExit(f"Early routing gate blocked: {exc}") from exc
+
+
+def require_routing_gate(root: Path) -> None:
+    """Verify exact durable route evidence before central terminal delivery."""
+    if not _managed_task_present(root):
+        return
+    routing = _load_routing(root)
     try:
         source_issue, change = routing.current_managed_identity(root)
     except routing.RoutingError as exc:
@@ -292,6 +314,14 @@ def route_claude(args: argparse.Namespace) -> int:
     run(command, root)
     if handoff != "Read the canonical managed OpenSpec before implementation.":
         print(f"Bounded child handoff for the native Claude executor: {handoff}")
+    return 0
+
+
+def begin_claude_delegation(_: argparse.Namespace) -> int:
+    """Open the self-reported delegation that must precede the native Agent call."""
+    root = current_root()
+    verify_source_contract(root)
+    run(["python3", "scripts/model_routing.py", "begin-claude-delegation"], root)
     return 0
 
 
@@ -357,6 +387,11 @@ def main() -> int:
     route_claude_parser.add_argument("--rationale", required=True)
     route_claude_parser.add_argument("--evidence", action="append", default=[])
     route_claude_parser.set_defaults(func=route_claude)
+    begin_claude_parser = sub.add_parser(
+        "begin-claude-delegation",
+        help="Open the delegation that must precede the supervisor's native Agent call (required before report-claude-execution).",
+    )
+    begin_claude_parser.set_defaults(func=begin_claude_delegation)
     report_claude_parser = sub.add_parser(
         "report-claude-execution",
         help="Record that the supervisor actually invoked the Claude hand-off, and verify containment.",

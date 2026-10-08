@@ -1,0 +1,112 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "82b289df5e24c3ef3198f0a6be7ea6742b9b6201",
+    "base_ref": "82b289df5e24c3ef3198f0a6be7ea6742b9b6201",
+    "candidate_head": "d259296df8111521ceaac2635a05346223275628",
+    "diff_sha256": "2a44dbdbdcaf73d1b2d1bc4701092d544693175fe057b488b95513022860572f"
+  },
+  "completed_at": "2026-10-08T18:36:14+00:00",
+  "findings": [
+    {
+      "evidence": "candidate.diff select_job (~L1169-1179): job_providers() and authorized_repair_providers() raise inside the loop over all candidates. A repair job published before this change, with providers=['unresolved-originating-task-route'], or a candidate with no route, makes work_next fail with exit 2 for all other PRs. The only way out is --pr filtering or a re-offer. Consider skipping the bad job and listing it in the result, as is already done for `unauthorized`.",
+      "id": "select-job-poison-pill-stalls-all-repair-claims",
+      "severity": "advisory",
+      "summary": "select_job raises WorkerError for any claimable repair job whose provider list is invalid or not authorized. One malformed or pre-change PR therefore aborts work_next for every candidate, and for every worker running without --pr."
+    },
+    {
+      "evidence": "candidate.diff ~L2209-2219: _transition(... 'repair-pending' ...) runs first, then publish_job is wrapped in `except QueueError` that appends a skipped note and `continue`s. The integration-repair path blocks the PR in this case (~L2238), so the two paths are inconsistent.",
+      "id": "contribution-repair-pending-without-job",
+      "severity": "advisory",
+      "summary": "When the repair job cannot be published (for example, no originating route), the coordinator has already moved the candidate to repair-pending. It then only appends to `skipped` and continues, leaving a repair-pending candidate with no job. Candidates admitted before this change have no route, so they hit this path."
+    },
+    {
+      "evidence": "candidate.diff L1035-1036 imports REFUSED_HOME_PATHS, ProjectCheckRuntimeError, check_runtime_declaration, project_check_env and refused_home_path. A grep of lifecycle_workers.py finds them only on the import line (lines 27-28). The real consumer is requirement_integration.py.",
+      "id": "unused-imports-lifecycle-workers",
+      "severity": "advisory",
+      "summary": "lifecycle_workers.py imports project-check runtime helpers it does not use."
+    },
+    {
+      "evidence": "_platform_common.py refused_home_path compares path parts only. project_check_env then runs os.symlink(origin, target) without resolving `origin`. With grants '.cache' and '.cache/x', the second target resolves through the first symlink, so target.parent.mkdir and os.symlink write into the real HOME.",
+      "id": "home-path-grant-symlink-escape",
+      "severity": "advisory",
+      "summary": "project_check_env checks home_paths only lexically. A granted path that is a symlink to a credential directory, or overlapping grants such as '.cache' and '.cache/x', can expose or write outside the intended scratch HOME."
+    },
+    {
+      "evidence": "candidate.diff ~L1743-1747: loop over _evidence_records, then _gh POST. events_for_task (~L797-800) builds `durable` from every record and only de-duplicates local events against durable ids, so duplicate durable entries stay in the list.",
+      "id": "evidence-post-race-duplicates",
+      "severity": "advisory",
+      "summary": "post_evidence checks for an existing dedupe_key and then POSTs, with no atomicity. Concurrent coordinator or worker runs can write duplicate durable records. events_for_task does not de-duplicate durable events by id."
+    },
+    {
+      "evidence": "lifecycle_workers.py main (~L1268, ~L1289-1294): --provider is required for repair kinds. --repair-provider is still required for --run or --providers, and an error is raised if they disagree. Operators must pass both.",
+      "id": "duplicate-provider-flags",
+      "severity": "advisory",
+      "summary": "The worker CLI now has two flags for the same fact, --provider and --repair-provider. Each is required in different situations and they must agree. Readiness gating still depends on --repair-provider, while claiming and result records use --provider."
+    }
+  ],
+  "launched_at": "2026-10-08T18:35:21+00:00",
+  "output_sha256": "fb5ffd3731f5c3ac74ef7fc1823300ff331f8574111308e7465184c2fd35ce82",
+  "perspective": "engineering-quality",
+  "request_id": "057b5526-a68c-49e7-aa46-f6019a1aed97",
+  "reviewer": {
+    "context_id": "fa599440-997e-48ac-beb5-86a979ed709c",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-13644cd0-aa9c-4f68-a1c6-fda8703072f6",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 56317
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 143915
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 48729
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 50616
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5460
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "69f2e5a48de1db36999467319d87308e8fb0416fd6a24989eb1f45643cbfb392"
+}

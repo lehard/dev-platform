@@ -1,0 +1,94 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "82b289df5e24c3ef3198f0a6be7ea6742b9b6201",
+    "base_ref": "82b289df5e24c3ef3198f0a6be7ea6742b9b6201",
+    "candidate_head": "d259296df8111521ceaac2635a05346223275628",
+    "diff_sha256": "2a44dbdbdcaf73d1b2d1bc4701092d544693175fe057b488b95513022860572f"
+  },
+  "completed_at": "2026-10-08T18:35:23+00:00",
+  "findings": [
+    {
+      "evidence": "lifecycle_workers.py select_job (diff ~L1169-1179) calls `job_providers(job)` and `authorized_repair_providers(...)` inline in the candidate loop, and both raise WorkerError. `main()` catches WorkerError and returns 2. A claimable repair job that predates this change (for example one carrying the old `unresolved-originating-task-route` provider, which is not in PROVIDERS) or one with no route would stall all workers that claim repair kinds. `publication_queue.worker` explicitly avoids this behaviour: a candidate that cannot proceed is recorded in `skipped` and the loop continues.",
+      "id": "select-job-bad-repair-stalls-all",
+      "severity": "advisory",
+      "summary": "A single repair job that fails provider/route validation makes `select_job` raise, which aborts `work-next` for every candidate, including unrelated review jobs and healthy repair jobs."
+    },
+    {
+      "evidence": "publication_queue.py post_evidence (diff ~L1738-1748) lists comments, looks for a matching `dedupe_key`, then POSTs. Nothing serializes this between concurrent runs. `requirement_evidence` (~L1751-1772) does not de-duplicate records by `event_id`, so duplicates would be counted as separate friction events in the retrospective.",
+      "id": "evidence-post-dedupe-not-atomic",
+      "severity": "advisory",
+      "summary": "`post_evidence` checks for an existing record and then posts a comment, so two concurrent coordinator runs can both post the same dedupe key. `requirement_evidence` then returns duplicate events with the same id."
+    },
+    {
+      "evidence": "publication_queue.py admit (diff ~L1964): `route = _handoff_route(root, identity) if handoff else None` runs before `admitted = _admission(events, number)` and the idempotent early path. `_handoff_route` raises QueueError when `read_route_for_change` fails.",
+      "id": "admit-route-resolved-before-idempotency",
+      "severity": "advisory",
+      "summary": "`admit` now resolves the originating route from local durable routing evidence before it checks whether the handoff is already admitted. A repeated, otherwise idempotent admission can fail if that local routing evidence is no longer present."
+    }
+  ],
+  "launched_at": "2026-10-08T18:34:39+00:00",
+  "output_sha256": "f2b03dd181b7bd16ed63020607462ad7cd330d3061799528fd837d24b04e8803",
+  "perspective": "engineering-quality",
+  "request_id": "7166fd0d-16af-43f5-a0c9-e35c55beada7",
+  "reviewer": {
+    "context_id": "f41f899a-9839-45f3-86a6-86568e38c10a",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-10aa7a33-474d-42d3-a285-79deeaa77a5d",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 38556
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 90768
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 39094
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 42161
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2869
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "98b4c9725b2fe44876c3e8e5d0ca372aa188338ab4e05cecda4d6eb60402f80a"
+}

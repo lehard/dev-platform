@@ -26,12 +26,25 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 0
+      - name: Install the source contract
+        # The installed .dev-platform.toml is untracked (it carries operator-only
+        # sections), so a clean checkout has none and the coordinator-enabled
+        # preflight cannot see the source contract. Install its tracked public part.
+        run: |
+          test ! -e .dev-platform.toml
+          cp dev-platform/source-contract.toml .dev-platform.toml
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.11'
       - name: Resolve current repository name
         id: repo
         run: echo "name=${GITHUB_REPOSITORY#*/}" >> "$GITHUB_OUTPUT"
+      - name: Preflight inputs
+        # Presence flags only: the private key never enters this process.
+        env:
+          PREFLIGHT_APP_CLIENT_ID_SET: ${{ vars.DEV_PLATFORM_APP_CLIENT_ID != '' }}
+          PREFLIGHT_APP_PRIVATE_KEY_SET: ${{ secrets.DEV_PLATFORM_APP_PRIVATE_KEY != '' }}
+        run: python3 scripts/publication_queue.py preflight --mode ci --phase inputs
       - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         id: app-token
         with:
@@ -41,8 +54,16 @@ jobs:
           repositories: ${{ steps.repo.outputs.name }}
           permission-contents: write
           permission-pull-requests: write
-      - name: Process next admitted PR
+      - name: Preflight runtime
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           DEV_PLATFORM_COORDINATOR_APP: ${{ steps.app-token.outputs.app-slug }}
-        run: python3 scripts/publication_queue.py worker
+        run: python3 scripts/publication_queue.py preflight --mode ci --phase runtime
+      - name: Process next admitted PR
+        # The worker repeats the full preflight (inputs and runtime) before observing any candidate.
+        env:
+          PREFLIGHT_APP_CLIENT_ID_SET: ${{ vars.DEV_PLATFORM_APP_CLIENT_ID != '' }}
+          PREFLIGHT_APP_PRIVATE_KEY_SET: ${{ secrets.DEV_PLATFORM_APP_PRIVATE_KEY != '' }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          DEV_PLATFORM_COORDINATOR_APP: ${{ steps.app-token.outputs.app-slug }}
+        run: python3 scripts/publication_queue.py worker --mode ci

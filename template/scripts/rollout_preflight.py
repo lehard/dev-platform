@@ -164,7 +164,7 @@ def observe_pending_rollout(root: Path, config: dict[str, Any], env: dict[str, s
             pr=authoritative,
         )
     return RolloutPreflightResult(
-        BLOCKED, detail=f"rollout PR #{authoritative.number} required-check state is unknown: {check_state.detail}", pr=authoritative,
+        BLOCKED, detail=f"rollout PR #{authoritative.number} required-check state is unknown ({check_state.cause}): {check_state.detail}", pr=authoritative,
     )
 
 

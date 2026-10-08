@@ -54,6 +54,7 @@ if [ "$1" = "pr" ] && [ "$2" = "view" ]; then
     printf '{"state":"%s","headRefOid":"%s"}\n' "$state" "$head_sha"
     exit 0
   fi
+  if [ "$4" = "--json" ] && [ "$5" = "baseRefName" ]; then printf '{"baseRefName":"main"}\n'; exit 0; fi
   if [ "$4" = "--json" ] && [ "$5" = "state,mergedAt" ]; then
     main_sha=$(git --git-dir "$FAKE_REMOTE" rev-parse refs/heads/main 2>/dev/null) || exit 1
     branch_sha=$(git --git-dir "$FAKE_REMOTE" rev-parse "refs/heads/$branch" 2>/dev/null) || exit 1
@@ -79,7 +80,7 @@ class MergeLifecycleResilienceTests(unittest.TestCase):
         (seed / "README.md").write_text("seed\n", encoding="utf-8")
         (seed / ".gitignore").write_text("__pycache__/\n*.py[cod]\n", encoding="utf-8")
         (seed / ".dev-platform.toml").write_text(
-            'main_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\nprotected_main = true\npublish_mode = "pr"\npr_merge_mode = "auto"\n',
+            'platform_version = "1.0.0"\nmain_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\nprotected_main = true\npublish_mode = "pr"\npr_merge_mode = "auto"\n',
             encoding="utf-8",
         )
         git("add", ".", cwd=seed)

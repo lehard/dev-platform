@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import contextvars
 import hashlib
 import json
 import os
@@ -216,12 +217,46 @@ def task_aliases(task: str) -> set[str]:
     return {str(state["source_issue"])} if state else set()
 
 
+REQUIREMENT_REF = re.compile(r"[^/\s#]+/[^/\s#]+#[0-9]+")
+_tolerate_durable_gap: contextvars.ContextVar[bool] = contextvars.ContextVar("tolerate_durable_gap", default=False)
+
+
+class DurableEvidenceError(RuntimeError):
+    """The durable coordinator evidence of a Requirement cannot be read in full."""
+
+
+@contextlib.contextmanager
+def tolerate_durable_gap() -> Iterator[None]:
+    """Explicitly continue with local events only when durable evidence is unreadable.
+
+    Used only where the gap is reported (review-path) or was explicitly accepted
+    (``--accept-gap coordinator-evidence``); everywhere else an unreadable source raises.
+    """
+    token = _tolerate_durable_gap.set(True)
+    try:
+        yield
+    finally:
+        _tolerate_durable_gap.reset(token)
+
+
+def read_durable_events(requirement: str, children: Sequence[str] = ()) -> list[dict]:
+    """Durable coordinator events of a Requirement from its candidate PRs, or a named error."""
+    import publication_queue
+
+    try:
+        return publication_queue.requirement_evidence(current_worktree_root(), requirement, children)
+    except (publication_queue.QueueError, OSError) as exc:
+        raise DurableEvidenceError(f"coordinator-evidence is unreadable for {requirement}: {exc}") from exc
+
+
 def events_for_task(task: str, children: Sequence[str] = ()) -> list[dict]:
     """Events recorded for the task, plus legacy task-less events it can be inferred from.
 
     An event also belongs to a Requirement ``task`` when it names that Requirement
     explicitly (coordinator events carry both the candidate task and its Requirement)
     or, given the Requirement's linked ``children``, when it is attributed to one of them.
+    For a Requirement reference the durable coordinator evidence recorded on its
+    candidate PRs is merged in by event id; developer task lookups never call GitHub.
     """
     identities = {task} | task_aliases(task)
     linked = set(children)
@@ -234,10 +269,22 @@ def events_for_task(task: str, children: Sequence[str] = ()) -> list[dict]:
             return event.get("task") in linked or run.get("source_issue") in linked
         return False
 
-    return [
+    local = [
         event for event in read_events(None)
         if attributed(event) or (not event.get("task") and event_identities(event) & identities)
     ]
+    if not REQUIREMENT_REF.fullmatch(task):
+        return local
+    try:
+        durable = read_durable_events(task, children)
+    except DurableEvidenceError:
+        if _tolerate_durable_gap.get():
+            return local
+        raise
+    for event in durable:
+        event["run"] = _unknown_run_provenance("unknown")
+    durable_ids = {event["id"] for event in durable}
+    return [event for event in local if event.get("id") not in durable_ids] + durable
 
 
 def inferred_event_ids(task: str) -> list[str]:
@@ -249,7 +296,19 @@ def ambiguous_attribution_events() -> list[dict]:
     return [event for event in read_events(AMBIGUOUS_WINDOW_DAYS) if not event.get("task") and not event_identities(event)]
 
 
-def evidence_source_status() -> dict[str, str]:
+def evidence_source_status(requirement: str | None = None) -> dict[str, str]:
+    """Readability of each evidence source; a Requirement adds its durable coordinator evidence."""
+    sources = _local_source_status()
+    if requirement is not None:
+        try:
+            read_durable_events(requirement)
+            sources["coordinator-evidence"] = "available"
+        except DurableEvidenceError:
+            sources["coordinator-evidence"] = "unreadable"
+    return sources
+
+
+def _local_source_status() -> dict[str, str]:
     path = log_path()
     if not path.exists():
         return {"friction-log": "available"}
@@ -366,9 +425,12 @@ def cmd_record(args: argparse.Namespace) -> int:
 def append_coordinator_event(
     *, task: str, requirement: str | None, category: str, triggers: Sequence[str], severity: str,
     observation: str, evidence: str, hypothesis: str, proposal: str, dedupe_key: str,
-    scope: str = "platform",
+    scope: str = "platform", event_id: str | None = None,
 ) -> dict:
-    """Idempotently record one coordinator-observed lifecycle event, local only.
+    """Idempotently record one coordinator-observed lifecycle event in the local log.
+
+    The durable record lives on the candidate PR (``publication_queue.post_evidence``);
+    ``event_id`` lets this mirror share that record's deterministic id.
 
     The event is attributed to the candidate ``task`` and, when known, its parent
     ``requirement`` so both retrospectives see it. ``dedupe_key`` makes an
@@ -385,7 +447,7 @@ def append_coordinator_event(
             if existing.get("dedupe_key") == dedupe_key:
                 return existing
         event = {
-            "id": uuid.uuid4().hex[:12], "at": utc_now(), "branch": task, "task": task,
+            "id": event_id or uuid.uuid4().hex[:12], "at": utc_now(), "branch": task, "task": task,
             "requirement": requirement, "attribution": "coordinator", "dedupe_key": dedupe_key,
             "category": normalize_text(category, "category", 100), "triggers": sorted(set(triggers)),
             "severity": severity, "observation": normalize_text(observation, "observation"),

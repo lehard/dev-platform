@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 import agent_friction
 import requirement_intake
@@ -37,8 +38,8 @@ def _receipt_path(root: Path, number: int) -> Path:
 
 def _check_events(requirement: str, event_ids: list[str], children: list[str] | tuple[str, ...] = ()) -> None:
     """Events attributed to the Requirement or to one of its linked children are accepted as recorded."""
-    known = {str(event.get("id")) for event in agent_friction.read_events()}
     attributed = {str(event.get("id")) for event in agent_friction.events_for_task(requirement, children)}
+    known = {str(event.get("id")) for event in agent_friction.read_events()} | attributed
     for event_id in event_ids:
         if event_id not in known:
             raise RequirementRetrospectiveError(f"unknown friction event {event_id}; record the finding first")
@@ -46,6 +47,20 @@ def _check_events(requirement: str, event_ids: list[str], children: list[str] | 
             raise RequirementRetrospectiveError(
                 f"friction event {event_id} is not attributed to {requirement}; record it with --task {requirement}"
             )
+
+
+@contextlib.contextmanager
+def _durable_scope(requirement: str, accepted_gaps: list[str]) -> Iterator[None]:
+    """Durable coordinator evidence is required unless its gap was explicitly accepted."""
+    try:
+        if "coordinator-evidence" in accepted_gaps:
+            with agent_friction.tolerate_durable_gap():
+                yield
+        else:
+            yield
+    except agent_friction.DurableEvidenceError as exc:
+        raise RequirementRetrospectiveError(
+            agent_friction.gap_instruction(["coordinator-evidence (unreadable)"]) + f" {exc}") from exc
 
 
 def _explain_signals(requirement: str, event_ids: list[str], dispositions: dict[str, str], accepted_gaps: list[str]) -> None:
@@ -57,7 +72,7 @@ def _explain_signals(requirement: str, event_ids: list[str], dispositions: dict[
     unlinked = agent_friction.unlinked_retrospective_signals(requirement, event_ids, dispositions)
     if unlinked:
         raise RequirementRetrospectiveError(agent_friction.retrospective_signal_instruction(unlinked))
-    gaps = agent_friction.unaccepted_gaps(agent_friction.evidence_source_status(), accepted_gaps)
+    gaps = agent_friction.unaccepted_gaps(agent_friction.evidence_source_status(requirement), accepted_gaps)
     if gaps:
         raise RequirementRetrospectiveError(agent_friction.gap_instruction(gaps))
 
@@ -82,10 +97,11 @@ def checkpoint(
     review_note = agent_friction.normalize_text(review_note, "review note", 500)
     parent = requirement_intake.fetch_issue(root, *requirement_intake.issue_ref(requirement))
     identity = _identity(requirement, parent)
-    _check_events(requirement, event_ids, identity["children"])
-    parsed = _parse_dispositions(requirement, list(dispositions or []))
     accepted = sorted(set(accepted_gaps or []))
-    _explain_signals(requirement, event_ids, parsed, accepted)
+    with _durable_scope(requirement, accepted):
+        _check_events(requirement, event_ids, identity["children"])
+        parsed = _parse_dispositions(requirement, list(dispositions or []))
+        _explain_signals(requirement, event_ids, parsed, accepted)
     receipt = {
         "version": 1, **identity, "result": result, "event_ids": event_ids,
         "dispositions": [{"event_id": key, "disposition": value} for key, value in parsed.items()],
@@ -122,13 +138,14 @@ def require_checkpoint(root: Path, *, requirement: str, parent: dict[str, Any] |
         raise RequirementRetrospectiveError(f"Requirement retrospective result is inconsistent; {instruction}")
     if not isinstance(receipt.get("review_note"), str) or not receipt["review_note"].strip():
         raise RequirementRetrospectiveError(f"Requirement retrospective path review is missing; {instruction}")
-    _check_events(requirement, events, identity["children"])
     stored = receipt.get("dispositions") or []
     if not isinstance(stored, list) or not all(isinstance(i, dict) for i in stored):
         raise RequirementRetrospectiveError(f"Requirement retrospective receipt is malformed; {instruction}")
-    parsed = _parse_dispositions(requirement, [f"{i.get('event_id')}={i.get('disposition')}" for i in stored])
-    gaps = receipt.get("accepted_gaps") or []
-    _explain_signals(requirement, events, parsed, [g for g in gaps if isinstance(g, str)])
+    gaps = [g for g in (receipt.get("accepted_gaps") or []) if isinstance(g, str)]
+    with _durable_scope(requirement, gaps):
+        _check_events(requirement, events, identity["children"])
+        parsed = _parse_dispositions(requirement, [f"{i.get('event_id')}={i.get('disposition')}" for i in stored])
+        _explain_signals(requirement, events, parsed, gaps)
     return receipt
 
 
@@ -156,21 +173,31 @@ def main() -> int:
         elif args.command == "review-path":
             parent = requirement_intake.fetch_issue(root, *requirement_intake.issue_ref(args.requirement))
             identity = _identity(args.requirement, parent)
-            result = {
-                "requirement": args.requirement,
-                "review": ["accepted intent and intake", "pre-authoring and handoff", "mandatory children",
-                           "delivery actions, overrides, workarounds, recurrences and observed drift"],
-                "children": identity["children"],
-                "recorded_signals": [
-                    {"id": str(event.get("id")), "triggers": sorted(agent_friction.RETROSPECTIVE_SIGNALS.intersection(event.get("triggers") or []))}
-                    for event in agent_friction.current_retrospective_signals(args.requirement)
-                ],
-                "lifecycle_failures": [str(event.get("id")) for event in agent_friction.current_lifecycle_failures(args.requirement)],
-                "inferred_attribution": agent_friction.inferred_event_ids(args.requirement),
-                "ambiguous_attribution": [str(event.get("id")) for event in agent_friction.ambiguous_attribution_events()][:10],
-                "evidence_sources": agent_friction.evidence_source_status(),
-                **agent_friction.review_guidance(root, None),
-            }
+            # The review-path reports an unreadable durable source as a gap instead of failing.
+            with agent_friction.tolerate_durable_gap():
+                signals = agent_friction.current_retrospective_signals(args.requirement)
+                coordinator = [event for event in agent_friction.events_for_task(args.requirement, identity["children"])
+                               if event.get("durable")]
+                result = {
+                    "requirement": args.requirement,
+                    "review": ["accepted intent and intake", "pre-authoring and handoff", "mandatory children",
+                               "delivery actions, overrides, workarounds, recurrences and observed drift"],
+                    "children": identity["children"],
+                    "recorded_signals": [
+                        {"id": str(event.get("id")),
+                         "triggers": sorted(agent_friction.RETROSPECTIVE_SIGNALS.intersection(event.get("triggers") or [])),
+                         **({"durable": event["durable"]} if event.get("durable") else {})}
+                        for event in signals
+                    ],
+                    "coordinator_events": [
+                        {"id": str(event.get("id")), "category": event.get("category"), "severity": event.get("severity"),
+                         "durable": event["durable"]} for event in coordinator],
+                    "lifecycle_failures": [str(event.get("id")) for event in agent_friction.current_lifecycle_failures(args.requirement)],
+                    "inferred_attribution": agent_friction.inferred_event_ids(args.requirement),
+                    "ambiguous_attribution": [str(event.get("id")) for event in agent_friction.ambiguous_attribution_events()][:10],
+                    "evidence_sources": agent_friction.evidence_source_status(args.requirement),
+                    **agent_friction.review_guidance(root, None),
+                }
         else:
             receipt = require_checkpoint(root, requirement=args.requirement)
             result = {"status": "ready", "requirement": args.requirement, "result": receipt["result"], "event_ids": receipt["event_ids"]}

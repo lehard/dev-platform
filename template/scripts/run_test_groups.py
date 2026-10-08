@@ -22,10 +22,12 @@ serialize.  Any failing group fails the aggregate result.
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import os
 import subprocess
 import sys
+import tempfile
 import time
 import unittest
 from concurrent.futures import ThreadPoolExecutor
@@ -142,21 +144,45 @@ def require_total_coverage(report: dict[str, Any]) -> None:
         )
 
 
-def group_env(root: Path, start_dir: str) -> dict[str, str]:
+# Git runs `git maintenance run --auto` after commit, fetch, merge and inside
+# receive-pack, detached by default; the detached child keeps writing
+# (objects/maintenance.lock, pack-refs, repack) after the command returns and
+# races a test's removal of the repository (ENOTEMPTY). Environment config
+# cannot reach it: harness environments drop GIT_CONFIG_* and the local
+# transport drops it for receive-pack. A template config is copied into every
+# repository `git init`/`git clone` creates, so maintenance stays in the
+# foreground of the command that triggered it. gc.autoDetach covers Git
+# before 2.47, where the gc task daemonized itself.
+GIT_TEMPLATE_CONFIG = "[maintenance]\n\tautoDetach = false\n[gc]\n\tautoDetach = false\n"
+
+
+def write_git_template(directory: Path) -> Path:
+    """Repository template for group processes; keeps the hooks/ and info/ paths the default template provides."""
+    (directory / "hooks").mkdir()
+    (directory / "info").mkdir()
+    (directory / "info" / "exclude").write_text("", encoding="utf-8")
+    (directory / "config").write_text(GIT_TEMPLATE_CONFIG, encoding="utf-8")
+    return directory
+
+
+def group_env(root: Path, start_dir: str, git_template: Path) -> dict[str, str]:
     env = validation_subprocess_env()
     start = str((root / start_dir).resolve())
     existing = env.get("PYTHONPATH", "")
     env["PYTHONPATH"] = start + (os.pathsep + existing if existing else "")
+    env["GIT_TEMPLATE_DIR"] = str(git_template)
     return env
 
 
-def run_group(root: Path, start_dir: str, group_id: str, rule: dict[str, Any], verbose: bool) -> dict[str, Any]:
+def run_group(root: Path, start_dir: str, group_id: str, rule: dict[str, Any], verbose: bool,
+              git_template: Path) -> dict[str, Any]:
     command = [sys.executable, "-m", "unittest"]
     if verbose:
         command.append("-v")
     command.extend(rule["targets"])
     started = time.monotonic()
-    result = subprocess.run(command, cwd=root, capture_output=True, text=True, env=group_env(root, start_dir))
+    result = subprocess.run(command, cwd=root, capture_output=True, text=True,
+                            env=group_env(root, start_dir, git_template))
     duration = time.monotonic() - started
     return {
         "group": group_id,
@@ -181,22 +207,25 @@ def execute(root: Path, start_dir: str, groups: dict[str, dict[str, Any]], jobs:
     serial = {gid: rule for gid, rule in groups.items() if rule["mode"] == SERIAL}
     records: list[dict[str, Any]] = []
 
-    if parallel:
-        workers = max(1, min(jobs, len(parallel)))
-        for group_id in sorted(parallel):
-            print(f"DEV_PLATFORM_TEST_GROUP_START: {group_id} (parallel)", flush=True)
-        with ThreadPoolExecutor(max_workers=workers) as pool:
-            futures = {gid: pool.submit(run_group, root, start_dir, gid, rule, verbose) for gid, rule in parallel.items()}
-            for group_id in sorted(futures):
-                record = futures[group_id].result()
-                report_group(record)
-                records.append(record)
+    with tempfile.TemporaryDirectory(prefix="dev-platform-git-template-") as scratch:
+        git_template = write_git_template(Path(scratch))
+        if parallel:
+            workers = max(1, min(jobs, len(parallel)))
+            for group_id in sorted(parallel):
+                print(f"DEV_PLATFORM_TEST_GROUP_START: {group_id} (parallel)", flush=True)
+            with ThreadPoolExecutor(max_workers=workers) as pool:
+                futures = {gid: pool.submit(run_group, root, start_dir, gid, rule, verbose, git_template)
+                           for gid, rule in parallel.items()}
+                for group_id in sorted(futures):
+                    record = futures[group_id].result()
+                    report_group(record)
+                    records.append(record)
 
-    for group_id in sorted(serial):
-        print(f"DEV_PLATFORM_TEST_GROUP_START: {group_id} (serial)", flush=True)
-        record = run_group(root, start_dir, group_id, serial[group_id], verbose)
-        report_group(record)
-        records.append(record)
+        for group_id in sorted(serial):
+            print(f"DEV_PLATFORM_TEST_GROUP_START: {group_id} (serial)", flush=True)
+            record = run_group(root, start_dir, group_id, serial[group_id], verbose, git_template)
+            report_group(record)
+            records.append(record)
 
     return records
 
@@ -219,6 +248,19 @@ def resolve_jobs() -> tuple[int, str]:
 
 def default_jobs() -> int:
     return resolve_jobs()[0]
+
+
+def require_early_routing_gate(root: Path) -> None:
+    """Refuse to execute any group while task content contradicts the recorded execution plan."""
+    has_managed_task = (root / ".managed-task-state.json").is_file()
+    if not has_managed_task or importlib.util.find_spec("model_routing") is None:
+        return
+    import model_routing
+
+    try:
+        model_routing.require_early_routing_gate(root)
+    except model_routing.RoutingError as exc:
+        raise TestGroupError(str(exc)) from exc
 
 
 def main() -> int:
@@ -295,6 +337,12 @@ def main() -> int:
         return 2
     else:
         jobs, jobs_source = resolve_jobs()
+
+    try:
+        require_early_routing_gate(root)
+    except TestGroupError as exc:
+        print(f"Early routing gate blocked execution: {exc}", file=sys.stderr)
+        return 2
 
     records = execute(root, start_dir, selected, jobs, not args.quiet)
     failed = [record["group"] for record in records if record["outcome"] == "failure"]

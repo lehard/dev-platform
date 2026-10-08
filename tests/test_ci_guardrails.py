@@ -36,6 +36,16 @@ class CiGuardrailTests(unittest.TestCase):
         self.assertIn('python3 -m pip install "ruff==0.11.13"', ci)
         self.assertIn(RUFF_COMMAND, ci)
 
+    def test_lifecycle_hygiene_stage_is_explicit_per_event(self) -> None:
+        workflow = yaml.safe_load((ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))
+        steps = [step for step in workflow["jobs"]["validate"]["steps"] if step.get("name") == "Enforce OpenSpec lifecycle hygiene"]
+        self.assertEqual(1, len(steps))
+        self.assertEqual(
+            "python3 template/scripts/openspec_lifecycle.py check --stage "
+            "\"${{ github.event_name == 'pull_request' && 'candidate' || 'integration' }}\"",
+            steps[0]["run"].strip(),
+        )
+
     def test_ruff_reports_undefined_name_with_location(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / "broken.py"

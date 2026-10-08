@@ -207,6 +207,14 @@ def main() -> int:
             # checkout has no linked worktree, so routing preflight must
             # still be able to record a parent-only route against a real
             # rendered project (not only the central template module).
+            #
+            # Routing refuses task content that already diverged and needs the
+            # review base a real managed task always has, so the updated
+            # project state is committed (and origin/main recorded) for the
+            # probe, then restored to the uncommitted post-update state.
+            run(["git", "add", "-A"], target)
+            run(["git", "commit", "-qm", "Pre-routing project state"], target)
+            run(["git", "update-ref", "refs/remotes/origin/main", "HEAD"], target)
             change = target / "openspec" / "changes" / "upgrade-smoke-routing-canary"
             change.mkdir(parents=True)
             (change / ".managed-task.json").write_text(
@@ -229,7 +237,11 @@ def main() -> int:
                     "standard-profile routing preflight did not record a standalone-clone parent-only route: "
                     f"{recorded.get('topology')!r}"
                 )
+            if recorded.get("execution_plan", {}).get("mode") != "supervisor-retained":
+                raise SystemExit("standard-profile routing preflight did not declare a supervisor-retained plan")
             print("Standard-profile routing preflight canary passed: parent-only standalone-clone route recorded.")
+            run(["git", "reset", "-q", "--mixed", "HEAD~1"], target)
+            run(["git", "update-ref", "-d", "refs/remotes/origin/main"], target)
 
         status = run(["git", "status", "--porcelain"], target, capture=True).stdout
         visible_artifacts = [relative for relative in legacy_like_artifacts if relative in status]

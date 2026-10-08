@@ -86,7 +86,10 @@ jobs:
       # contract this depends on: any failed group -> non-zero exit.
 
       - name: Enforce OpenSpec lifecycle hygiene
-        run: python3 template/scripts/openspec_lifecycle.py check
+        # The central checkout's .dev-platform.toml is untracked, so CI cannot infer
+        # the candidate context: a pull request is a coordinator-managed candidate,
+        # any other event is checked at the strict integration stage.
+        run: python3 template/scripts/openspec_lifecycle.py check --stage "${{ github.event_name == 'pull_request' && 'candidate' || 'integration' }}"
 
       - name: Strict-validate OpenSpec
         run: npx --yes @fission-ai/openspec@1.13.2 validate --all --strict --no-interactive

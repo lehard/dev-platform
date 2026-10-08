@@ -1,0 +1,88 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "c0b0b01b44ff8808dc02522078fa5d5d20f67f4f",
+    "base_ref": "origin/main",
+    "candidate_head": "b25aff1a6834d263f1a7c1a0bb22711f55eba5e5",
+    "diff_sha256": "166825f56d5a6b9799331de0ef01ddf28482f7b756dcfbef77d7cbce5062e199"
+  },
+  "completed_at": "2026-10-08T18:52:41+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/publication_queue.py post_evidence: it loops over _evidence_records(...) looking for the dedupe_key, then calls _gh(... POST comments) unconditionally. Readers (requirement_evidence) do not collapse duplicates by dedupe_key or event_id, so duplicate durable events could be counted twice in a Requirement retrospective.",
+      "id": "evidence-post-dedupe-race",
+      "severity": "advisory",
+      "summary": "post_evidence dedupes by reading existing records and then posting, with no atomicity, so concurrent coordinator runs can write duplicate evidence comments for one dedupe key."
+    },
+    {
+      "evidence": "template/scripts/publication_queue.py _touches_openspec_change: run_git(['merge-base', head, 'origin/main']) followed by git diff --name-only base...head. The function does not fetch, and it does not compare against the PR's actual base. Design D4 accepts the safe-direction failure, but a stale local ref still makes admission outcomes depend on local fetch freshness.",
+      "id": "openspec-touch-predicate-stale-origin-main",
+      "severity": "advisory",
+      "summary": "The managed-candidate predicate in _touches_openspec_change diffs against the local origin/main ref, which may be stale. A stale ref can misclassify a quick task as managed (a safe failure) or produce a spurious merge-base error."
+    }
+  ],
+  "launched_at": "2026-10-08T18:52:07+00:00",
+  "output_sha256": "8ab6d3fdcb514401b0c0a6f97878bb1d73c2ac1b9151f26d8455e4d68507dc1a",
+  "perspective": "engineering-quality",
+  "request_id": "de735aaa-3252-4cdc-a4c7-759457345ea1",
+  "reviewer": {
+    "context_id": "5adcb937-da92-4114-abfc-c6cef9a0246e",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-ddb4e3bb-8d08-4ab5-be55-b3db193dcb86",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 63790
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 178836
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 31067
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 32349
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3168
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "ecef3fd97266e81dec7243371d2f5d5179af09e8b8e51ffecdb4ef7912cb5519"
+}
