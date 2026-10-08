@@ -1,6 +1,7 @@
 OpenSpec-Verify: PASS
 Verification-Method: supervisor semantic OpenSpec review (completeness, correctness, coherence) of the delegated R2 implementation diff against the engineering-capabilities delta and design, plus repository-owned selected checks and direct fixture evaluation
 Automated-Checks-Evidence: automated-checks.json
+Independent-Review-Evidence: independent-review-request.json
 
 The add-intents eval fixture in `dev-platform/evals/` and `template/dev-platform/evals/` now pins `content_sha256` b3889d76…28de24bab9da28ad4c, equal to the descriptor provenance and the sha256 of `add-intents.md`; the stale value came from BR-353 (e3484b2), whose `add-intents.md` edits only reword ADD freshness and do not touch the trigger/not-trigger boundary exercised by the 20 cases, so this is a hash-only re-baseline. The source `interoperable-agent-handoff` fixture prompt now matches the template copy, and both eval trees are byte-identical. `tests/test_capability_manager.py::ShippedEvalFixtureTests` evaluates every shipped fixture in both trees against its descriptor (no skips), asserts tree parity, and proves the stale-hash and wrong-capability errors.
 

@@ -1,6 +1,7 @@
 OpenSpec-Verify: PASS
 Verification-Method: supervisor semantic OpenSpec review (completeness, correctness, coherence) of the full implementation diff, including the independent-review repair rounds 0338f50..2851b9b, against the completion-lifecycle and lifecycle-workers deltas, proposal, design and tasks, plus repository-owned selected checks on the committed head
 Automated-Checks-Evidence: automated-checks.json
+Independent-Review-Evidence: independent-review-request.json
 
 `_platform_common.lifecycle_mode` remains a pure selector over the committed contract: a non-source `platform_version` selects `portable`; `source` selects `coordinator` only for harness_mode=platform, publish_mode=pr, scm_provider=github and otherwise raises `PlatformConfigError` naming key and value; a missing, empty or non-string `platform_version` raises. It adds no defaults of its own (it reuses the existing `harness_mode`/`publish_mode`/`scm_provider` readers, as design decision 1 states).
 

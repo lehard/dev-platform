@@ -1,6 +1,7 @@
 OpenSpec-Verify: PASS
 Verification-Method: supervisor semantic OpenSpec review (completeness, correctness, coherence) of the current head 4e1202f against proposal, design, tasks and the model-routing delta, focused on the diff since the previous receipt commit 4301cbd (review/repair rounds), plus repository-owned selected checks on the committed head
 Automated-Checks-Evidence: automated-checks.json
+Independent-Review-Evidence: independent-review-request.json
 
 Checks actually run: supervisor ran the trusted main select_checks.py --base origin/main --contribution-base d65a678 --execute on head 4e1202f (freshness gate passed against the exact contribution base; compileall, ruff check, run_test_groups.py --all: all success, see automated-checks.json).
 

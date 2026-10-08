@@ -1,6 +1,7 @@
 OpenSpec-Verify: PASS
 Verification-Method: supervisor semantic OpenSpec review (completeness, correctness, coherence) of the delegated R2 implementation diff against the agent-workflow delta and design, plus repository-owned selected checks
 Automated-Checks-Evidence: automated-checks.json
+Independent-Review-Evidence: independent-review-request.json
 
 `requirement_intake.resolve_child_routing` derives child routing from the exact parent Requirement: exactly one `project:*` label, committed `development_backlog.repository` equal to the Requirement repository, and committed `project_label` equal to the parent label; any violation raises `RequirementIntakeError` before candidate search or `managed_task.create_task`. Missing authoring configuration is a named "child routing input missing" error. `verify_child_routing` reads the child back (open Issue, not a PR, in the Backlog repository, exact `project:*` set, and after linkage `type:internal-change` plus the canonical `Requirement:` back-reference); it runs for a reused child before `link_child` (project label only, zero mutation on conflict or absence) and for both paths after linkage, replacing the previous back-reference-only read-back. `link_child` rejects a contradictory child `project:*` label before any edit and reads back `type:internal-change` after the label write.
 
