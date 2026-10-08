@@ -1003,5 +1003,26 @@ class WorkflowTrustBoundaryTests(unittest.TestCase):
         self.assertEqual(self.workflow["permissions"], {"contents": "read"})
 
 
+class CommentHistoryTests(unittest.TestCase):
+    def test_history_beyond_one_page_is_read_in_full_and_in_order(self):
+        pages = [[{"id": i, "body": "x"} for i in range(1, 101)], [{"id": 101, "body": "y"}]]
+        with patch.object(queue, "_gh", return_value=pages) as gh:
+            rows = queue._comments(Path("."), "o/r", 7)
+        self.assertEqual([row["id"] for row in rows], list(range(1, 102)))
+        self.assertIn("--paginate", gh.call_args.args)
+        self.assertIn("--slurp", gh.call_args.args)
+
+    def test_malformed_or_unordered_history_fails_with_a_named_cause(self):
+        for pages, cause in (
+            (None, "empty response"),
+            ([[{"id": 2}], [{"id": 1}]], "does not follow"),
+            ([[{"id": "1"}]], "integer id"),
+            ([["row"]], "non-object comment"),
+        ):
+            with self.subTest(cause=cause), patch.object(queue, "_gh", return_value=pages):
+                with self.assertRaisesRegex(queue.QueueError, cause):
+                    queue._comments(Path("."), "o/r", 7)
+
+
 if __name__ == "__main__":
     unittest.main()

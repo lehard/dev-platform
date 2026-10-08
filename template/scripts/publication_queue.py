@@ -154,10 +154,38 @@ def enabled(root: Path) -> bool:
 
 
 def _comments(root: Path, repo: str, number: int) -> list[dict[str, Any]]:
-    rows = _gh(root, "api", f"repos/{repo}/issues/{number}/comments?per_page=100")
-    if not isinstance(rows, list) or len(rows) >= 100:
-        raise QueueError("PR queue comments are unavailable or exceed the bounded page")
-    return [row for row in rows if isinstance(row, dict)]
+    """The complete, validated, ordered PR comment history, or a named error.
+
+    The whole observation is validated before anything is returned, so a failed
+    or malformed later page never yields a prefix or a filtered history.
+    """
+    def fail(cause: str) -> QueueError:
+        return QueueError(f"PR comment-history acquisition failed for #{number}: {cause}")
+
+    try:
+        pages = _gh(root, "api", "--paginate", "--slurp", f"repos/{repo}/issues/{number}/comments?per_page=100")
+    except QueueError as exc:
+        raise fail(str(exc)) from exc
+    if pages is None:
+        raise fail("empty response")
+    if not isinstance(pages, list) or not pages:
+        raise fail("response is not a non-empty array of pages")
+    history: list[dict[str, Any]] = []
+    previous: int | None = None
+    for index, page in enumerate(pages, start=1):
+        if not isinstance(page, list):
+            raise fail(f"page {index} is not an array")
+        for row in page:
+            if not isinstance(row, dict):
+                raise fail(f"page {index} contains a non-object comment")
+            comment_id = row.get("id")
+            if not isinstance(comment_id, int) or isinstance(comment_id, bool):
+                raise fail(f"page {index} contains a comment without an integer id")
+            if previous is not None and comment_id <= previous:
+                raise fail(f"comment id {comment_id} does not follow {previous} in API order")
+            previous = comment_id
+            history.append(row)
+    return history
 
 
 def _events(root: Path, repo: str, number: int) -> list[dict[str, Any]]:
