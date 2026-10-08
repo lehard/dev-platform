@@ -341,7 +341,11 @@ def _sh(text: str) -> str:
 
 
 SUCCESS_ROW = {"name": "validate", "state": "SUCCESS", "workflow": "Platform CI", "link": "https://example.invalid/run"}
-REQUIRED_VALIDATE = json.dumps({"contexts": ["validate"], "checks": [{"context": "validate", "app_id": None}]})
+def branch_protection(required):
+    return json.dumps({"name": "main", "protected": True, "protection": {"required_status_checks": required}})
+
+
+REQUIRED_VALIDATE = branch_protection({"contexts": ["validate"], "checks": [{"context": "validate", "app_id": None}]})
 
 
 class RequiredCheckStateForRefTests(PublicationStateTestCase):
@@ -383,6 +387,7 @@ class RequiredCheckStateForRefTests(PublicationStateTestCase):
             '  esac\n'
             'fi\n'
             'if [ "$1" = "api" ]; then\n'
+            '  case "$*" in *"/protection"*) echo "Administration permission denied" >&2; exit 1;; esac\n'
             f'  case "$*" in *"/check-runs?"*) printf %s {_sh(runs_out)}; exit {runs_rc};; esac\n'
             f'  printf %s {_sh(api_out)}; printf %s {_sh(api_err)} >&2; exit {api_rc}\n'
             'fi\n'
@@ -408,11 +413,22 @@ class RequiredCheckStateForRefTests(PublicationStateTestCase):
         self.assertEqual(self.observe(self.gh(checks=(0, "[]"))).kind, "not_registered")
 
     def test_no_required_checks_with_unprotected_base_is_not_registered_from_protection(self) -> None:
-        env = self.gh(checks=(1, ""), api=(1, '{"message":"Branch not protected"}', "gh: Branch not protected (HTTP 404)"))
+        env = self.gh(checks=(1, ""), api=(0, '{"name":"main","protected":false}', ""))
         result = self.observe(env)
         self.assertEqual(result.kind, "not_registered")
         self.assertIn("main", result.detail)
-        self.assertIn("branches/main/protection/required_status_checks", self.calls.read_text())
+        self.assertIn("api repos/{owner}/{repo}/branches/main\n", self.calls.read_text())
+
+    def test_branch_protection_shape_is_required_for_protected_branch(self) -> None:
+        for payload in ({}, {"name": "other", "protected": False},
+                        {"name": "main", "protected": "false"},
+                        {"name": "main", "protected": True},
+                        {"name": "main", "protected": True, "protection": {}},
+                        {"name": "main", "protected": True, "protection": {
+                            "required_status_checks": {"contexts": [], "checks": None}}}):
+            with self.subTest(payload=payload):
+                result = self.observe(self.gh(base="requirement/BR-415", api=(0, json.dumps(payload), "")))
+                self.assertEqual((result.kind, result.cause), ("unknown", "malformed"))
 
     def test_no_required_checks_while_base_requires_some_is_malformed(self) -> None:
         result = self.observe(self.gh(checks=(1, ""), api=(0, REQUIRED_VALIDATE, "")))
@@ -424,7 +440,8 @@ class RequiredCheckStateForRefTests(PublicationStateTestCase):
 
     def test_generic_protection_404_is_transport_not_absence(self) -> None:
         for stdout, stderr in (("", "gh: Not Found (HTTP 404)"),
-                               ('{"message":"Not Found"}', "gh: Not Found (HTTP 404)")):
+                               ('{"message":"Not Found"}', "gh: Not Found (HTTP 404)"),
+                               ('{"message":"Branch not protected"}', "gh: Branch not protected (HTTP 404)")):
             with self.subTest(stdout=stdout):
                 result = self.observe(self.gh(checks=(1, ""), api=(1, stdout, stderr)))
                 self.assertEqual((result.kind, result.cause), ("unknown", "transport"))
@@ -471,11 +488,12 @@ class RequiredCheckStateForRefTests(PublicationStateTestCase):
                 env = self.gh(base=base, all_checks=(0, json.dumps(rows)), api=(0, REQUIRED_VALIDATE, ""))
                 self.assertEqual(self.observe(env).kind, kind)
                 log = self.calls.read_text()
-                self.assertIn("branches/main/protection/required_status_checks", log)
+                self.assertIn("api repos/{owner}/{repo}/branches/main\n", log)
+                self.assertNotIn("/protection", log)
                 self.assertNotIn("--required", log)
 
     def test_contribution_preserves_required_app_binding(self) -> None:
-        protection = json.dumps({"contexts": ["validate"], "checks": [{"context": "validate", "app_id": 1}]})
+        protection = branch_protection({"contexts": ["validate"], "checks": [{"context": "validate", "app_id": 1}]})
         def run(app, state="success", number=1):
             return {"id": number, "name": "validate", "app": {"id": app}, "head_sha": "abc123",
                     "status": "completed", "conclusion": state}
@@ -499,19 +517,19 @@ class RequiredCheckStateForRefTests(PublicationStateTestCase):
         for check in ({"context": "validate"}, {"context": "validate", "app_id": True},
                       {"context": "validate", "app_id": "1"}, {"context": "validate", "app_id": -2}):
             with self.subTest(check=check):
-                protection = json.dumps({"contexts": ["validate"], "checks": [check]})
+                protection = branch_protection({"contexts": ["validate"], "checks": [check]})
                 self.assertEqual(self.observe(self.gh(base="requirement/BR-415",
                                  api=(0, protection, ""))).cause, "malformed")
 
     def test_any_app_binding_preserves_name_based_checks(self) -> None:
-        protection = json.dumps({"contexts": ["validate"], "checks": [{"context": "validate", "app_id": -1}]})
+        protection = branch_protection({"contexts": ["validate"], "checks": [{"context": "validate", "app_id": -1}]})
         env = self.gh(base="requirement/BR-415", api=(0, protection, ""),
                       all_checks=(0, json.dumps([SUCCESS_ROW])))
         self.assertEqual(self.observe(env).kind, "passed")
         self.assertNotIn("/check-runs?", self.calls.read_text())
 
     def test_bound_check_run_observation_fails_closed(self) -> None:
-        protection = json.dumps({"contexts": [], "checks": [{"context": "validate", "app_id": 1}]})
+        protection = branch_protection({"contexts": [], "checks": [{"context": "validate", "app_id": 1}]})
         for runs, cause in [((1, ""), "transport"), ((0, "{}"), "malformed"),
                             ((0, '[{"check_runs": [{}]}]'), "malformed"),
                             ((0, '[{"check_runs": [{"id":1,"name":"validate","app":{"id":1},'

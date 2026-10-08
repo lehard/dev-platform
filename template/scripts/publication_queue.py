@@ -570,17 +570,24 @@ def _archived_verification_gate(root: Path) -> dict[str, Any]:
     try:
         raw = matches[0].read_bytes()
         evidence = json.loads(raw)
-    except (OSError, json.JSONDecodeError) as exc:
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise QueueError(f"archived verification evidence {path} is unreadable or malformed: {exc}") from exc
     if not isinstance(evidence, dict):
         raise QueueError(f"archived verification evidence {path} is not a JSON object")
     checkout = evidence.get("managed_checkout")
     content = checkout.get("task_content") if isinstance(checkout, dict) else None
-    if evidence.get("outcome") != "success" or not isinstance(content, dict) or not content.get("digest"):
+    outcome = evidence.get("outcome")
+    digest = content.get("digest") if isinstance(content, dict) else None
+    head = checkout.get("head") if isinstance(checkout, dict) else None
+    if (outcome not in ("success", "failure")
+            or not isinstance(digest, str) or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+            or not isinstance(head, str) or re.fullmatch(r"[0-9a-f]{40}", head) is None):
+        raise QueueError(f"archived verification evidence {path} has malformed outcome or managed-checkout identity")
+    if outcome != "success":
         return {}
     return {"archived-verification": {
         "result": "passed",
-        "identity": {"task_content": content["digest"], "head": checkout.get("head")},
+        "identity": {"task_content": content["digest"], "head": head},
         "evidence": {"path": path, "sha256": hashlib.sha256(raw).hexdigest()},
     }}
 

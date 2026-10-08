@@ -1203,10 +1203,40 @@ class ManagedProvenanceTests(unittest.TestCase):
         evidence.write_text("{not json", encoding="utf-8")
         with self.assertRaisesRegex(queue.QueueError, "archived verification evidence .* unreadable or malformed"):
             queue._archived_verification_gate(self.root)
+        evidence.write_bytes(b"\xff")
+        with self.assertRaisesRegex(queue.QueueError, "archived verification evidence .* unreadable or malformed"):
+            queue._archived_verification_gate(self.root)
         evidence.write_text("[]", encoding="utf-8")
         with self.assertRaisesRegex(queue.QueueError, "not a JSON object"):
             queue._archived_verification_gate(self.root)
         evidence.unlink()
+        self.assertEqual(queue._archived_verification_gate(self.root), {})
+
+    def test_structurally_malformed_archived_evidence_stops_admission(self) -> None:
+        head = self.managed_head()
+        self.state()
+        archive = self.root / "openspec/changes/archive/2026-10-05-sample"
+        archive.mkdir(parents=True)
+        evidence = archive / "automated-checks.json"
+        valid_checkout = {"task_content": {"digest": "a" * 64}, "head": head}
+        cases = [
+            {"outcome": "success"},
+            {"outcome": "success", "managed_checkout": []},
+            {"outcome": "success", "managed_checkout": {"head": head}},
+            {"outcome": "success", "managed_checkout": {"task_content": {"digest": 123}}},
+            {"outcome": "success", "managed_checkout": {**valid_checkout, "head": None}},
+            {"outcome": "success", "managed_checkout": {**valid_checkout, "head": "invalid"}},
+            {"outcome": "success", "managed_checkout": {**valid_checkout, "task_content": {"digest": "invalid"}}},
+            {"outcome": "unknown", "managed_checkout": valid_checkout},
+            {"managed_checkout": valid_checkout},
+            {"outcome": "failure"},
+        ]
+        for payload in cases:
+            with self.subTest(payload=payload):
+                evidence.write_text(json.dumps(payload), encoding="utf-8")
+                with self.assertRaisesRegex(queue.QueueError, "archived verification evidence .* malformed"):
+                    queue._admission_handoff(self.root, "agent/task", head)
+        evidence.write_text(json.dumps({"outcome": "failure", "managed_checkout": valid_checkout}), encoding="utf-8")
         self.assertEqual(queue._archived_verification_gate(self.root), {})
 
     def test_managed_failures_raise_and_never_downgrade(self) -> None:
@@ -1253,6 +1283,27 @@ class ManagedProvenanceTests(unittest.TestCase):
              patch.object(queue, "_label") as label, patch.object(queue, "_transition") as transition:
             with self.assertRaisesRegex(queue.QueueError, "lacks valid exact task-content provenance"):
                 queue.admit(self.root, 1, head)
+        comment.assert_not_called()
+        label.assert_not_called()
+        transition.assert_not_called()
+
+    def test_admit_writes_nothing_when_archived_evidence_is_malformed(self) -> None:
+        head = self.managed_head()
+        self.state()
+        archive = self.root / "openspec/changes/archive/2026-10-05-sample"
+        archive.mkdir(parents=True)
+        (archive / "automated-checks.json").write_text('{"outcome":"success"}', encoding="utf-8")
+        observed = {"number": 1, "state": "open", "base": {"ref": "main"}, "head": {"ref": "agent/task", "sha": head}}
+        with patch.object(queue, "_repo", return_value=REPO), patch.object(queue, "_pr", return_value=observed), \
+             patch.object(queue, "_events", return_value=[]), \
+             patch.object(queue, "_main", return_value=BASE), \
+             patch.object(queue, "_comments", return_value=[]), patch.object(queue, "trusted_apps", return_value=frozenset()), \
+             patch.object(queue, "trusted_writers", return_value=frozenset()), \
+             patch.object(queue, "_ensure_labels") as ensure_labels, patch.object(queue, "_comment") as comment, \
+             patch.object(queue, "_label") as label, patch.object(queue, "_transition") as transition:
+            with self.assertRaisesRegex(queue.QueueError, "archived verification evidence .* malformed"):
+                queue.admit(self.root, 1, head)
+        ensure_labels.assert_not_called()
         comment.assert_not_called()
         label.assert_not_called()
         transition.assert_not_called()
@@ -1382,7 +1433,7 @@ class ContributionRequiredChecksGateTests(unittest.TestCase):
                     return CompletedProcess(command, 0, '{"baseRefName":"requirement/BR-7"}', "")
                 return CompletedProcess(command, 0, json.dumps({"state": "OPEN", "headRefOid": HEAD}), "")
             if command[:2] == ["gh", "api"]:
-                return CompletedProcess(command, 0, json.dumps({"contexts": ["validate"], "checks": []}), "")
+                return CompletedProcess(command, 0, json.dumps({"name": "main", "protected": True, "protection": {"required_status_checks": {"contexts": ["validate"], "checks": []}}}), "")
             if command[:3] == ["gh", "pr", "checks"]:
                 assert "--required" not in command
                 return CompletedProcess(command, 0, json.dumps([

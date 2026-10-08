@@ -135,22 +135,26 @@ def _require_expected_head(root: Path, env: dict[str, str], ref: str, expected_h
 def _protected_required_contexts(root: Path, env: dict[str, str], branch: str) -> frozenset[tuple[str, int | None]]:
     """Required status-check contexts of a branch's protection; empty when none are required.
 
-    An explicit HTTP 404 "Branch not protected" response means no requirement.
-    A generic 404 or any other failure is an unusable observation.
+    The Contents-readable branch endpoint includes protection and App bindings.
+    Only a validated unprotected branch means no requirement; API failures
+    remain unusable observations.
     """
-    endpoint = f"repos/{{owner}}/{{repo}}/branches/{urllib.parse.quote(branch, safe='')}/protection/required_status_checks"
+    endpoint = f"repos/{{owner}}/{{repo}}/branches/{urllib.parse.quote(branch, safe='')}"
     result = _gh_read(root, env, ["api", endpoint])
     if result.returncode != 0:
-        if any("HTTP 404" in output and "Branch not protected" in output
-               for output in (result.stderr, result.stdout)):
-            return frozenset()
         raise _Unusable("transport", f"GitHub protection of {branch} is unavailable")
     try:
         payload = json.loads(result.stdout)
     except json.JSONDecodeError:
         raise _Unusable("malformed", f"GitHub protection of {branch} was not structured JSON") from None
-    contexts = payload.get("contexts") if isinstance(payload, dict) else None
-    checks = payload.get("checks") if isinstance(payload, dict) else None
+    if not isinstance(payload, dict) or payload.get("name") != branch or type(payload.get("protected")) is not bool:
+        raise _Unusable("malformed", f"GitHub branch {branch} had an unexpected shape")
+    if not payload["protected"]:
+        return frozenset()
+    protection = payload.get("protection")
+    required = protection.get("required_status_checks") if isinstance(protection, dict) else None
+    contexts = required.get("contexts") if isinstance(required, dict) else None
+    checks = required.get("checks") if isinstance(required, dict) else None
     if not isinstance(contexts, list) or not isinstance(checks, list) or not all(isinstance(c, str) for c in contexts) \
             or not all(isinstance(c, dict) and isinstance(c.get("context"), str) for c in checks):
         raise _Unusable("malformed", f"GitHub protection of {branch} had an unexpected shape")
