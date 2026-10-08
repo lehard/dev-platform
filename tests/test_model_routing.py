@@ -2337,6 +2337,57 @@ class EarlyRoutingGateTests(unittest.TestCase):
             with self.assertRaisesRegex(routing.RoutingError, r"routing must precede task content.*supervisor-after\.txt"):
                 routing.prepare(self.task, provider="codex", profile="standard", rationale="re-route", evidence=[])
 
+    def test_clean_failed_child_retry_keeps_complete_prior_route(self) -> None:
+        with self.fake_codex("failed"), patch.object(routing, "main_root", return_value=self.integration):
+            with self.assertRaises(routing.RoutingError):
+                routing.dispatch_codex(self.task, profile="standard", rationale="bounded preflight", evidence=[], prompt="implement")
+            prior_route = json.loads(self.record_path().read_text(encoding="utf-8"))
+            rerouted = routing.prepare(self.task, provider="codex", profile="standard", rationale="retry clean failure", evidence=[])
+        self.assertEqual(rerouted.execution_plan["task_content_pre"]["paths"], {})
+        self.assertEqual(rerouted.execution_plan["rerouted_from"]["outcome"], "failed")
+        self.assertEqual(json.loads(json.dumps(rerouted.execution_plan["rerouted_from"]["prior_route"])), prior_route)
+
+    def test_committed_quoted_path_edits_after_failed_child_invalidate_attribution(self) -> None:
+        name = "файл.txt"
+
+        def commit(text: str) -> None:
+            (self.task / name).write_text(text, encoding="utf-8")
+            git(self.task, "add", "-A")
+            git(self.task, "commit", "-m", text)
+
+        def child(route, prompt, codex_bin=None, *, launch_hook):
+            launch_hook()
+            commit("child\n")
+            return {"outcome": "failed", "launched": True, "returncode": 1, "violation": False, "writer_state": "released"}
+
+        with patch.object(routing, "run_codex", side_effect=child), patch.object(routing, "main_root", return_value=self.integration):
+            with self.assertRaises(routing.RoutingError):
+                routing.dispatch_codex(self.task, profile="standard", rationale="bounded preflight", evidence=[], prompt="implement")
+            committed = routing._task_content_state(self.task, "routing-change")["committed"]
+            self.assertTrue(committed[name])
+            commit("supervisor edit\n")
+            self.assertEqual(routing._content_differences({"committed": committed, "paths": {}}, routing._task_content_state(self.task, "routing-change")), [name])
+            with self.assertRaisesRegex(routing.RoutingError, "routing must precede task content"):
+                routing.prepare(self.task, provider="codex", profile="standard", rationale="re-route", evidence=[])
+
+    def test_incomplete_closed_claude_delegation_is_not_real_evidence(self) -> None:
+        self.handoff()
+        self.write_content()
+        payload = json.loads(self.record_path().read_text(encoding="utf-8"))
+        payload["execution_plan"]["delegation"] = {"state": "closed", "provider": "claude", "launch_evidence": "self-reported"}
+        self.record_path().write_text(json.dumps(payload), encoding="utf-8")
+        with self.assertRaisesRegex(routing.RoutingError, "opened_at"):
+            self.gate()
+        # A well-formed closed delegation without a recorded claimed execution still cannot authorize diverged content.
+        payload["execution_plan"]["delegation"].update(
+            {"opened_at": "2026-01-01T00:00:00+00:00", "closed_at": "2026-01-01T00:01:00+00:00", "task_content_post": routing._task_content_state(self.task, "routing-change")}
+        )
+        self.record_path().write_text(json.dumps(payload), encoding="utf-8")
+        with self.assertRaisesRegex(routing.RoutingError, "supervisor-written"):
+            self.gate()
+        with self.assertRaisesRegex(routing.RoutingError, "refusing to escalate"):
+            routing.escalate(self.task, "no child ever ran")
+
     def test_reroute_refused_after_completed_codex_or_self_reported_claude_delegation(self) -> None:
         with self.fake_codex("completed", write="done.txt"), patch.object(routing, "main_root", return_value=self.integration):
             routing.dispatch_codex(self.task, profile="standard", rationale="bounded preflight", evidence=[], prompt="implement")
@@ -2360,7 +2411,7 @@ class EarlyRoutingGateTests(unittest.TestCase):
         self.write_content()
         payload = json.loads(self.record_path().read_text(encoding="utf-8"))
         payload["execution"] = {"outcome": "failed"}
-        payload["execution_plan"]["delegation"].update({"state": "closed", "outcome": "failed", "task_content_post": routing._task_content_state(self.task, "routing-change")})
+        payload["execution_plan"]["delegation"].update({"state": "closed", "outcome": "failed", "closed_at": "2026-01-01T00:01:00+00:00", "task_content_post": routing._task_content_state(self.task, "routing-change")})
         self.record_path().write_text(json.dumps(payload), encoding="utf-8")
         with self.assertRaisesRegex(routing.RoutingError, "routing must precede task content"):
             self.prepare(provider="claude")

@@ -326,6 +326,18 @@ def _validate_execution_plan(plan: Any) -> None:
         raise RoutingError("routing record execution_plan.delegation.provider is invalid")
     if delegation.get("launch_evidence") not in (LAUNCH_EVIDENCE_SELF_REPORTED, LAUNCH_EVIDENCE_PLATFORM_OBSERVED):
         raise RoutingError("routing record execution_plan.delegation.launch_evidence is invalid")
+    not_launched = delegation.get("outcome") == "not-launched"
+    if delegation["state"] == "open" and not_launched:
+        raise RoutingError("routing record execution_plan.delegation cannot be open with outcome not-launched")
+    if not not_launched and not (isinstance(delegation.get("opened_at"), str) and delegation["opened_at"]):
+        raise RoutingError("routing record execution_plan.delegation.opened_at is missing")
+    if delegation["state"] == "closed":
+        if not (isinstance(delegation.get("closed_at"), str) and delegation["closed_at"]):
+            raise RoutingError("routing record execution_plan.delegation.closed_at is missing")
+        if not isinstance(delegation.get("task_content_post"), dict):
+            raise RoutingError("routing record execution_plan.delegation.task_content_post is missing")
+        if delegation["provider"] == "codex" and not (isinstance(delegation.get("outcome"), str) and delegation["outcome"]):
+            raise RoutingError("routing record execution_plan.delegation.outcome is missing")
 
 
 def _require_plan(route: Route, action: str) -> dict[str, Any]:
@@ -705,7 +717,10 @@ def _has_real_delegation(route: Route) -> bool:
     if delegation is None or delegation.get("outcome") == "not-launched":
         return False
     if delegation["provider"] == "claude":
-        return True
+        if delegation["state"] == "open":
+            return True
+        execution = route.execution
+        return isinstance(execution, dict) and execution.get("outcome") == "claimed" and execution.get("launch_evidence") == "self-reported"
     return delegation.get("opened_at") is not None and (
         delegation["state"] == "open" or _launch_confirmed(route.execution)
     )
@@ -945,10 +960,11 @@ def prepare(root: Path, *, provider: str, profile: str | None, rationale: str, e
         assigned = resolve_assigned_worktree(integration, root)
         topology = LINKED_WORKTREE
     content = _task_content_state(assigned, change)
-    rerouted_from = None
     diverged = _content_differences({"committed": {}, "paths": {}}, content)
+    # A failed platform-observed child keeps its complete prior route in retry
+    # provenance even when it left no task content behind.
+    rerouted_from = _reroute_attribution(root, change, content)
     if diverged:
-        rerouted_from = _reroute_attribution(root, change, content)
         if rerouted_from is None:
             raise RoutingError(
                 "routing must precede task content: task content outside the materialized managed package has already "
