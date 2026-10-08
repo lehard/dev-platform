@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/platform-explorer/spec.md",
+    "tasks.md"
+  ],
+  "change": "add-platform-explorer-foundation",
+  "imported_at": "2026-10-08T04:53:26+00:00",
+  "package_revision": "441c0c7fd4c8ed4210ecef7695e396e4e4b484fa90ebb13b3f0207ec490d7969",
+  "prepared_against": "6c96df65b6d7f4f4d4ee0c30e2d81880190b7dd0",
+  "private_lineage_handle": "pln_168f9f35e5d4cb043d4cc7d42a012d9f",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "65b98e92b5085dc2f964f102f185b847a715b6b6aff38030693341c8d0268d68",
+    "updated_at": "2026-10-07T21:24:24Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-441/T1"
+}
