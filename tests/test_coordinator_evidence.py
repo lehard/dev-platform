@@ -116,9 +116,11 @@ class SinkTests(EvidenceFixture):
         super().setUp()
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        self.log = Path(self.tmp.name) / "log.jsonl"
+        # A dedicated subdirectory: the shared-workspace guard repairs it, never the private temp root.
+        self.log = Path(self.tmp.name) / ".claude" / "log.jsonl"
+        self.log.parent.mkdir()
         for patcher in (mock.patch.object(friction, "log_path", lambda: self.log),
-                        mock.patch.object(friction, "state_path", lambda: Path(self.tmp.name) / "state.json")):
+                        mock.patch.object(friction, "state_path", lambda: self.log.parent / "state.json")):
             patcher.start()
             self.addCleanup(patcher.stop)
         self.sink = contour.default_friction_sink(
@@ -191,7 +193,8 @@ class RetrospectiveDurableTests(EvidenceFixture):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
-        self.log = self.root / "empty-log.jsonl"  # clean checkout: no local coordinator events
+        self.log = self.root / ".claude" / "empty-log.jsonl"  # clean checkout: no local coordinator events
+        self.log.parent.mkdir()
         for patcher in (mock.patch.object(friction, "log_path", lambda: self.log),
                         mock.patch.object(friction, "current_worktree_root", lambda: ROOT),
                         mock.patch.object(friction, "current_branch", lambda: "main"),
