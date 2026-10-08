@@ -50,7 +50,7 @@ def content_identity(
     if base.returncode != 0 or not base.stdout.strip():
         return None
     merge_base = base.stdout.strip()
-    changed = run_git(["diff", "--name-only", f"{merge_base}...HEAD"], cwd=root, check=False)
+    changed = run_git(["diff", "--name-only", "--no-renames", f"{merge_base}...HEAD"], cwd=root, check=False)
     if changed.returncode != 0:
         return None
     records: dict[str, str | None] = {}

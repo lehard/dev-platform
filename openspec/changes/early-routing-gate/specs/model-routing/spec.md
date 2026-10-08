@@ -2,7 +2,7 @@
 
 ### Requirement: Execution path is fixed before task-content mutation
 
-For a managed R2/R3 task, route preparation SHALL record an explicit execution plan before the first task-content change: either a delegated child executor, or supervisor-retained execution with its policy reason. The plan SHALL be derived from routing policy, not selected by the caller, and SHALL be recorded separately from the authored recommended tier and from the actual execution outcome. Route preparation SHALL fail explicitly when task content has already diverged from the materialized managed package.
+For a managed R2/R3 task, route preparation SHALL record an explicit execution plan before the first task-content change: either a delegated child executor, or supervisor-retained execution with its policy reason. The plan SHALL be derived from routing policy, not selected by the caller, and SHALL be recorded separately from the authored recommended tier and from the actual execution outcome. Route preparation SHALL fail explicitly when task content has already diverged from the materialized managed package. Divergence SHALL cover the full task tree: deleting, moving or renaming a tracked implementation path into an excluded lifecycle location (.claude/ or openspec/changes/) SHALL count as a change of the source path.
 
 #### Scenario: Policy requires a child executor
 
@@ -24,7 +24,7 @@ For a managed R2/R3 task, route preparation SHALL record an explicit execution p
 
 ### Requirement: A required child executor needs an open delegation before content changes
 
-When the plan is a delegated child, the platform SHALL require an open delegation record before task content changes. For Claude, an explicit pre-launch step SHALL open the delegation, remain self-reported and SHALL NOT record a verified launch. Recording a Claude execution SHALL require that open delegation and SHALL be refused when no delegation was opened. Codex dispatch SHALL open a platform-observed delegation immediately before launching.
+When the plan is a delegated child, the platform SHALL require an open delegation record before task content changes. For Claude, an explicit pre-launch step SHALL open the delegation, remain self-reported and SHALL NOT record a verified launch. Recording a Claude execution SHALL require that open delegation and SHALL be refused when no delegation was opened. Codex dispatch SHALL open a platform-observed delegation only once the child process has actually started. Any refusal or failure before launch, including containment preflight, runtime/login preflight and spawn errors, SHALL immediately record a closed attempt with outcome not-launched. Such attempts SHALL never authorize supervisor-written content, retained finalization or escalation.
 
 #### Scenario: Correct delegated path
 
@@ -87,3 +87,15 @@ Recording a retained outcome SHALL require a supervisor-retained plan declared a
 - **GIVEN** a recorded real delegation whose result was reviewed
 - **WHEN** a recorded escalation with a concrete reason switches the plan to retention
 - **THEN** the escalation is accepted and provenance keeps the delegation and the escalation distinct
+
+#### Scenario: Unlaunched Codex attempt
+
+- **WHEN** Codex is refused or fails before its child process starts
+- **THEN** the attempt is closed with outcome not-launched and no open delegation remains
+- **AND** subsequent supervisor writes fail the early gate and cannot authorize retention or escalation
+
+#### Scenario: Lifecycle rename hides a source deletion
+
+- **WHEN** a tracked implementation path is moved into an excluded lifecycle directory
+- **THEN** divergence includes the source path for both staged and committed changes
+- **AND** routing, late delegation and escalation cannot bypass the unchanged-content requirement

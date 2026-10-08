@@ -2001,7 +2001,8 @@ class EarlyRoutingGateTests(unittest.TestCase):
         return json.loads(self.record_path().read_text(encoding="utf-8"))["execution_plan"]
 
     def fake_codex(self, outcome: str, *, write: str | None = None):
-        def run(route, prompt, codex_bin=None):
+        def run(route, prompt, codex_bin=None, *, launch_hook):
+            launch_hook()
             if write:
                 self.write_content(write)
             return {"outcome": outcome, "launched": True, "returncode": 0 if outcome == "completed" else 1, "violation": False}
@@ -2306,7 +2307,7 @@ class EarlyRoutingGateTests(unittest.TestCase):
             with self.assertRaisesRegex(routing.RoutingError, "containment is not provable"):
                 routing.dispatch_codex(self.task, profile="standard", rationale="bounded preflight", evidence=[], prompt="implement")
         launch.assert_not_called()
-        self.assertIsNone(self.plan()["delegation"])
+        self.assertEqual(self.plan()["delegation"]["outcome"], "not-launched")
         route, _ = routing._read_route(self.task)
         self.assertIsNone(route.execution)
         self.write_content()
@@ -2316,6 +2317,63 @@ class EarlyRoutingGateTests(unittest.TestCase):
             routing.escalate(self.task, "preflight failed")
         with self.assertRaises(routing.RoutingError):
             routing.record_retained_execution(self.task, reason="supervisor completed work")
+
+    def test_unlaunched_codex_delegation_survives_preflight(self) -> None:
+        for error in (routing.ContainmentError("ownership refused"), routing.RoutingError("login refused"), OSError("spawn failed")):
+            with self.subTest(error=error):
+                route = self.prepare()
+                with patch.object(routing, "run_codex", side_effect=error):
+                    with self.assertRaises(type(error)):
+                        routing._run_delegated_codex(self.task, route, "implement", None)
+                self.assertEqual(self.plan()["delegation"]["outcome"], "not-launched")
+                self.assertNotIn("opened_at", self.plan()["delegation"])
+        self.write_content()
+        with self.assertRaises(routing.RoutingError):
+            self.gate()
+        with self.assertRaises(routing.RoutingError):
+            routing.escalate(self.task, "failed preflight")
+        with self.assertRaises(routing.RoutingError):
+            routing.record_retained_execution(self.task, reason="finished")
+
+    def test_unlaunched_codex_attempt_bypasses_early_gate(self) -> None:
+        route = self.prepare()
+        with patch.object(routing, "run_codex", return_value={"launched": False, "outcome": "abnormal"}):
+            routing._run_delegated_codex(self.task, route, "implement", None)
+        self.assertEqual(self.plan()["delegation"]["outcome"], "not-launched")
+        self.write_content()
+        with self.assertRaises(routing.RoutingError):
+            self.gate()
+        with self.assertRaises(routing.RoutingError):
+            routing.escalate(self.task, "spawn failed")
+        with self.assertRaises(routing.RoutingError):
+            routing.record_retained_execution(self.task, reason="finished")
+
+    def test_lifecycle_renames_hide_source_deletions(self) -> None:
+        source = self.task / "tool.py"
+        source.write_text("implementation\n", encoding="utf-8")
+        git(self.task, "add", "tool.py")
+        git(self.task, "commit", "-m", "baseline source")
+        git(self.task, "update-ref", "refs/remotes/origin/main", "HEAD")
+        for destination in (".claude/tool.py", "openspec/changes/routing-change/tool.py"):
+            with self.subTest(destination=destination):
+                self.handoff()
+                target = self.task / destination
+                target.parent.mkdir(parents=True, exist_ok=True)
+                git(self.task, "mv", "tool.py", destination)
+                route, _ = routing._read_route(self.task)
+                self.assertIn("tool.py", routing._task_content_diverged(route))
+                with self.assertRaises(routing.RoutingError):
+                    self.gate()
+                with self.assertRaises(routing.RoutingError):
+                    routing.begin_claude_delegation(self.task)
+                with self.assertRaises(routing.RoutingError):
+                    routing.escalate(self.task, "late")
+                with self.assertRaises(routing.RoutingError):
+                    self.prepare()
+                git(self.task, "commit", "-m", "move into lifecycle")
+                self.assertIn("tool.py", routing._task_content_diverged(route))
+                git(self.task, "mv", destination, "tool.py")
+                git(self.task, "commit", "-m", "restore source")
 
     def test_codex_dispatch_records_plan_and_platform_observed_delegation(self) -> None:
         with self.fake_codex("completed", write="codex-work.txt"), patch.object(routing, "main_root", return_value=self.integration):

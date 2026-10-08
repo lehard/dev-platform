@@ -25,7 +25,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, Callable
 
 from _platform_common import atomic_write_text, current_worktree_root, main_root, read_platform_config, utc_now
 from _platform_common import profile as workflow_profile_of
@@ -569,14 +569,17 @@ def _task_content_state(task_root: Path, change: str) -> dict[str, Any]:
             f"cannot establish the committed task-content identity of {task_root}: no merge base with the review base "
             "(origin/main or the Requirement contribution head) could be computed"
         )
+    paths = {
+        path: {"status": state.status, "fingerprint": state.fingerprint, "orig_path": state.orig_path}
+        for path, state in current.paths.items() if not _is_lifecycle_path(path, change)
+    }
+    for destination, state in current.paths.items():
+        if state.orig_path is not None and not _is_lifecycle_path(state.orig_path, change):
+            paths[state.orig_path] = {"status": state.status, "destination": destination, "fingerprint": state.fingerprint}
     return {
         "head": current.head,
         "committed": {path: blob for path, blob in identity["paths"].items() if not _is_lifecycle_path(path, change)},
-        "paths": {
-            path: {"status": state.status, "fingerprint": state.fingerprint}
-            for path, state in current.paths.items()
-            if not _is_lifecycle_path(path, change)
-        },
+        "paths": paths,
     }
 
 
@@ -584,7 +587,7 @@ def _content_differences(before: dict[str, Any], after: dict[str, Any]) -> list[
     changed: set[str] = set()
     for key in ("committed", "paths"):
         old, new = before[key], after[key]
-        changed.update(path for path in set(old) | set(new) if old.get(path) != new.get(path))
+        changed.update(path for path in set(old) | set(new) if path not in old or path not in new or old[path] != new[path])
     return sorted(changed)
 
 
@@ -696,6 +699,18 @@ def require_early_routing_gate(root: Path) -> Route | None:
     return _early_routing_gate(root, source_issue, change)
 
 
+def _has_real_delegation(route: Route) -> bool:
+    plan = _require_plan(route, "checking delegation evidence")
+    delegation = plan.get("delegation")
+    if delegation is None or delegation.get("outcome") == "not-launched":
+        return False
+    if delegation["provider"] == "claude":
+        return True
+    return delegation.get("opened_at") is not None and (
+        delegation["state"] == "open" or _launch_confirmed(route.execution)
+    )
+
+
 def _early_routing_gate(root: Path, source_issue: str, change: str) -> Route | None:
     """Fail closed when supervisor-written content contradicts the recorded execution plan.
 
@@ -727,7 +742,7 @@ def _early_routing_gate(root: Path, source_issue: str, change: str) -> Route | N
     plan = route.execution_plan
     if plan["mode"] == PLAN_RETAINED:
         return route
-    if route.execution is not None or plan.get("delegation") is not None:
+    if _has_real_delegation(route):
         return route
     diverged = _task_content_diverged(route)
     if diverged:
@@ -1007,7 +1022,7 @@ def escalate(root: Path, reason: str) -> Route:
     if not reason.strip():
         raise RoutingError("escalation requires a concrete reason")
     plan = _require_plan(route, "escalating")
-    if plan["mode"] == PLAN_DELEGATED and plan.get("delegation") is None:
+    if plan["mode"] == PLAN_DELEGATED and not _has_real_delegation(route):
         diverged = _task_content_diverged(route)
         if diverged:
             raise RoutingError(
@@ -1017,7 +1032,7 @@ def escalate(root: Path, reason: str) -> Route:
             )
     next_plan = {**plan, "mode": PLAN_RETAINED, "policy": "complex-parent"}
     if plan["mode"] == PLAN_DELEGATED:
-        next_plan["switched_from"] = {"mode": PLAN_DELEGATED, "at": utc_now(), "delegation_recorded": plan.get("delegation") is not None}
+        next_plan["switched_from"] = {"mode": PLAN_DELEGATED, "at": utc_now(), "delegation_recorded": _has_real_delegation(route)}
     next_route = Route(**{**asdict(route), "profile": "complex", "executor_model": _model_for(read_platform_config(root), route.provider, "complex"), "freshness": "escalated", "escalations": route.escalations + ({"at": utc_now(), "from": route.profile, "reason": reason.strip()},), "execution_plan": next_plan})
     _write_route(path, next_route)
     return next_route
@@ -1121,7 +1136,7 @@ def _codex_runtime_counters(turn_count: int) -> dict[str, dict[str, Any]]:
     return {"codex_turn_started": efficiency_runtime_measurement(turn_count)}
 
 
-def run_codex(route: Route, prompt: str, codex_bin: str | None = None) -> dict[str, Any]:
+def run_codex(route: Route, prompt: str, codex_bin: str | None = None, *, launch_hook: Callable[[], None] | None = None) -> dict[str, Any]:
     argv, mechanism = codex_argv(route, prompt, codex_bin)
     # Codex workspace-write is the prevention layer. The legacy helper only
     # validates the assignment and observes/records the required post-check.
@@ -1156,7 +1171,7 @@ def run_codex(route: Route, prompt: str, codex_bin: str | None = None) -> dict[s
     try:
         result = run_observed_delegation(
             integration_root=Path(route.integration_root), assigned_worktree=Path(route.task_worktree),
-            argv=argv, tier_decision=decision, task=route.source_issue, stdout_line_hook=_on_line,
+            argv=argv, tier_decision=decision, task=route.source_issue, stdout_line_hook=_on_line, launch_hook=launch_hook,
         )
     except GuardedChildError as exc:
         # The guard has already attempted process-tree cleanup and always ran
@@ -1221,13 +1236,7 @@ def run_codex(route: Route, prompt: str, codex_bin: str | None = None) -> dict[s
 
 
 def _run_delegated_codex(root: Path, route: Route, prompt: str, codex_bin: str | None) -> Route:
-    """Open a platform-observed delegation, launch the child and close the delegation.
-
-    The delegation is durably recorded before the subprocess starts, so the
-    early gate sees a real open delegation for the whole child run, and is
-    closed with the outcome and the post-run task content so an attributable
-    re-route after a failed child can be proven.
-    """
+    """Record an open delegation only after confirmed child process launch."""
     plan = _require_plan(route, "launching a Codex child")
     if plan["mode"] != PLAN_DELEGATED:
         raise RoutingError(f"the execution plan is {plan['mode']}; a child executor cannot be launched under it")
@@ -1237,18 +1246,24 @@ def _run_delegated_codex(root: Path, route: Route, prompt: str, codex_bin: str |
     if diverged:
         raise RoutingError(f"refusing to open a delegation after task content diverged from the route pre-snapshot ({_format_paths(diverged)})")
     path = _record_path(root, route.change)
-    opened = {"state": "open", "provider": "codex", "launch_evidence": LAUNCH_EVIDENCE_PLATFORM_OBSERVED, "opened_at": utc_now()}
-    route = Route(**{**asdict(route), "execution_plan": {**plan, "delegation": opened}})
-    _write_route(path, route)
+    opened = None
+
+    def confirmed_launch() -> None:
+        nonlocal opened
+        opened = {"state": "open", "provider": "codex", "launch_evidence": LAUNCH_EVIDENCE_PLATFORM_OBSERVED, "opened_at": utc_now()}
+        _write_route(path, Route(**{**asdict(route), "execution_plan": {**plan, "delegation": opened}}))
+
+    def close_attempt(outcome: str) -> dict[str, Any]:
+        attempt = {"provider": "codex", "launch_evidence": LAUNCH_EVIDENCE_PLATFORM_OBSERVED} if opened is None else opened
+        return {**attempt, "state": "closed", "closed_at": utc_now(), "outcome": outcome, "task_content_post": _task_content_state(Path(route.task_worktree), route.change)}
+
     try:
-        execution = run_codex(route, prompt, codex_bin)
-    except RoutingError:
-        # Preflight refused before the observed launcher ran. Do not leave
-        # evidence of a child attempt that never happened; propagate failure.
-        route = Route(**{**asdict(route), "execution_plan": plan})
-        _write_route(path, route)
+        execution = run_codex(route, prompt, codex_bin, launch_hook=confirmed_launch)
+    except BaseException:
+        closed = close_attempt("not-launched" if opened is None else "abnormal")
+        _write_route(path, Route(**{**asdict(route), "execution_plan": {**plan, "delegation": closed}}))
         raise
-    closed = {**opened, "state": "closed", "closed_at": utc_now(), "outcome": execution.get("outcome"), "task_content_post": _task_content_state(Path(route.task_worktree), route.change)}
+    closed = close_attempt(execution["outcome"] if execution["launched"] else "not-launched")
     route = Route(**{**asdict(route), "execution": execution, "execution_plan": {**plan, "delegation": closed}})
     _write_route(path, route)
     _persist_completed_execution(route)

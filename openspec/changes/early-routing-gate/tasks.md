@@ -1,14 +1,14 @@
 ## 1. Execution plan and pre-snapshot
 
 - [x] 1.1 Add `execution_plan` to `Route` and `_route_from_payload` in `template/scripts/model_routing.py`; derive `delegated-child` vs `supervisor-retained` (with policy) from `_retention_policy` in `prepare`, keeping `start_tier` and actual `execution` as separate fields.
-- [x] 1.2 Add the task-content pre-snapshot (`snapshot(task_root)` minus the lifecycle allow-list constant) and `_task_content_diverged(route)`; make `prepare` refuse when task content or non-package commits already diverged, naming the paths.
+- [x] 1.2 Add the task-content pre-snapshot (`snapshot(task_root)` minus the lifecycle allow-list constant) and `_task_content_diverged(route)`; make `prepare` refuse when task content or non-package commits already diverged, naming the paths, including source deletions from staged or committed moves into excluded lifecycle locations.
 - [x] 1.3 Make a missing/invalid plan or snapshot a named `RoutingError`; no default plan.
 
 ## 2. Delegation lifecycle
 
 - [x] 2.1 Add `begin_claude_delegation` plus `begin-claude-delegation` CLI in `model_routing.py` and `dogfood_task.py`; refuse after divergence, for retained plans, with an existing execution or an already-open delegation.
 - [x] 2.2 Require an open delegation in `record_claude_execution`; close it; keep `launched: None`, `outcome: "claimed"`, self-reported evidence; update `prepare_claude_handoff` output to name the mandatory begin step.
-- [x] 2.3 Open a platform-observed delegation in `dispatch_codex` before launch; keep Codex execution semantics unchanged.
+- [x] 2.3 Open a platform-observed delegation in `dispatch_codex` only after confirmed child process launch; close pre-launch refusals/failures with outcome `not-launched` and prevent them authorizing supervisor writes, retention or escalation.
 - [x] 2.4 Require a matching `supervisor-retained` plan in `record_retained_execution`; refuse for a delegated plan; restrict `escalate` plan switch to real-delegation or unchanged-content cases.
 
 ## 3. Early gate wiring

@@ -358,6 +358,29 @@ class GuardedDelegationTests(unittest.TestCase):
         self.assertTrue(result.launched)
         self.assertEqual(git("status", "--porcelain", cwd=self.worktree).stdout, "")
 
+    def test_launch_hook_runs_only_after_confirmed_process_start(self) -> None:
+        for streamed in (False, True):
+            launches = []
+            captured = []
+            with self.subTest(streamed=streamed):
+                result = guard.run_observed_delegation(
+                    integration_root=self.integration, assigned_worktree=self.worktree,
+                    argv=[sys.executable, "-c", "print('child')"], tier_decision=self.hard_tier,
+                    launch_hook=lambda: launches.append("started"),
+                    stdout_line_hook=captured.append if streamed else None,
+                )
+                self.assertTrue(result.launched)
+                self.assertEqual(launches, ["started"])
+                launches.clear()
+                with self.assertRaises(guard.GuardedChildError):
+                    guard.run_observed_delegation(
+                        integration_root=self.integration, assigned_worktree=self.worktree,
+                        argv=[str(self.worktree / "missing-binary")], tier_decision=self.hard_tier,
+                        launch_hook=lambda: launches.append("started"),
+                        stdout_line_hook=captured.append if streamed else None,
+                    )
+                self.assertEqual(launches, [])
+
     def test_stdout_line_hook_receives_child_output_and_launch_still_succeeds(self) -> None:
         captured: list[str] = []
         result = guard.run_observed_delegation(
