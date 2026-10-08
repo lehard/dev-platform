@@ -14,5 +14,5 @@
 
 ## 3. Deliver through managed lifecycle
 
-- [ ] 3.1 Resolve the developer friction checkpoint (`python3 scripts/agent_friction.py checkpoint --result none --review-note "Reviewed actual task path"` or the recorded event id).
-- [ ] 3.2 Publish through the authoritative managed lifecycle (`python3 scripts/dogfood_task.py finish`); complete the coordinator handoff or terminal archive/publication according to the authoritative lifecycle state, reporting any blocker instead of completion.
+- [x] 3.1 Resolve the developer friction checkpoint (`python3 scripts/agent_friction.py checkpoint --result none --review-note "Reviewed actual task path"` or the recorded event id).
+- [x] 3.2 Publish through the authoritative managed lifecycle (`python3 scripts/dogfood_task.py finish`); complete the coordinator handoff or terminal archive/publication according to the authoritative lifecycle state, reporting any blocker instead of completion.

@@ -13,5 +13,5 @@
 
 ## 3. Complete delivery
 
-- [ ] 3.1 Resolve the developer friction checkpoint and publish through the managed lifecycle.
-- [ ] 3.2 Complete coordinator handoff or terminal archive/publication according to the authoritative lifecycle state.
+- [x] 3.1 Resolve the developer friction checkpoint and publish through the managed lifecycle.
+- [x] 3.2 Complete coordinator handoff or terminal archive/publication according to the authoritative lifecycle state.

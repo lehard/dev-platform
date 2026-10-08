@@ -28,10 +28,10 @@
 
 ## 5. Verify and record
 
-- [ ] 5.1 Run `python3 -m compileall -q template/scripts scripts`, the targeted routing tests, `python3 scripts/run_test_groups.py --all` and `python3 template/scripts/openspec_lifecycle.py check`.
-- [ ] 5.2 Run semantic OpenSpec verification and record the actual commands/results in verification.md.
+- [x] 5.1 Run `python3 -m compileall -q template/scripts scripts`, the targeted routing tests, `python3 scripts/run_test_groups.py --all` and `python3 template/scripts/openspec_lifecycle.py check`.
+- [x] 5.2 Run semantic OpenSpec verification and record the actual commands/results in verification.md.
 
 ## 6. Complete delivery
 
-- [ ] 6.1 Resolve the developer friction checkpoint and publish through the managed lifecycle.
-- [ ] 6.2 Complete coordinator handoff or terminal archive/publication according to the authoritative lifecycle state.
+- [x] 6.1 Resolve the developer friction checkpoint and publish through the managed lifecycle.
+- [x] 6.2 Complete coordinator handoff or terminal archive/publication according to the authoritative lifecycle state.

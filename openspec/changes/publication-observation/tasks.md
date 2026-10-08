@@ -26,13 +26,13 @@
 ## 5. Parity and verification
 
 - [x] 5.1 Confirm `scripts/` shims and the rendered template use the changed `template/scripts` implementation; add or extend the template contract/render test only if a shipped file list or hash changes.
-- [ ] 5.2 Run `python3 -m compileall -q template/scripts scripts`, `python3 scripts/managed_projects.py validate`, `python3 scripts/run_test_groups.py --all` and `python3 template/scripts/openspec_lifecycle.py check`.
-- [ ] 5.3 Run semantic OpenSpec verification of every delta scenario; record actual commands, results and limitations (reported-not-changed items from design.md) truthfully in verification.md.
+- [x] 5.2 Run `python3 -m compileall -q template/scripts scripts`, `python3 scripts/managed_projects.py validate`, `python3 scripts/run_test_groups.py --all` and `python3 template/scripts/openspec_lifecycle.py check`.
+- [x] 5.3 Run semantic OpenSpec verification of every delta scenario; record actual commands, results and limitations (reported-not-changed items from design.md) truthfully in verification.md.
 
 ## 6. Complete delivery
 
-- [ ] 6.1 Resolve the developer friction checkpoint and publish through the managed lifecycle.
-- [ ] 6.2 Complete coordinator handoff or terminal archive/publication according to the authoritative lifecycle state.
+- [x] 6.1 Resolve the developer friction checkpoint and publish through the managed lifecycle.
+- [x] 6.2 Complete coordinator handoff or terminal archive/publication according to the authoritative lifecycle state.
 
 ## Review repairs
 

@@ -14,7 +14,7 @@
 
 ## 3. Project check runtime
 
-- [x] 3.1 Add `project_check_env` (purpose `project-check`) to `lifecycle_workers.py`, built on `credential_free_env`, with granted home-path symlinks and the always-refused credential rules.
+- [x] 3.1 Add `project_check_env` (purpose `project-check`) to `_platform_common.py` (imported by `lifecycle_workers.py`; kept outside the coordinator stack so portable Requirement full checks never import it), built on `credential_free_env`, with granted home-path symlinks and the always-refused credential rules.
 - [x] 3.2 Add runtime declaration parsing and grant-file validation to `template/scripts/requirement_integration.py`; make `_run_full_checks` build the environment once and fail before the first command on any unmet requirement.
 - [x] 3.3 Document the `[runtime]` table and `DEV_PLATFORM_PROJECT_RUNTIME_FILE` in the shipped `template/dev-platform/checks.toml` comments and the relevant docs/engineering page; keep `scripts/` shims and template render in parity.
 - [x] 3.4 Confirm `run_llm`, `harness_git`, `harness_push_env` and finalization environments are untouched.
@@ -29,10 +29,10 @@
 
 ## 5. Verify
 
-- [ ] 5.1 Run `python3 -m compileall -q template/scripts scripts`, `python3 scripts/managed_projects.py validate`, `python3 scripts/run_test_groups.py --all` and `python3 template/scripts/openspec_lifecycle.py check`.
-- [ ] 5.2 Run semantic OpenSpec verification for every delta scenario and write a truthful `verification.md` naming the commands and methods actually used and any limitation (no real multi-host dogfood).
+- [x] 5.1 Run `python3 -m compileall -q template/scripts scripts`, `python3 scripts/managed_projects.py validate`, `python3 scripts/run_test_groups.py --all` and `python3 template/scripts/openspec_lifecycle.py check`.
+- [x] 5.2 Run semantic OpenSpec verification for every delta scenario and write a truthful `verification.md` naming the commands and methods actually used and any limitation (no real multi-host dogfood).
 
 ## 6. Complete delivery
 
-- [ ] 6.1 Resolve the developer friction checkpoint and publish through the managed lifecycle.
-- [ ] 6.2 Complete coordinator handoff or terminal archive/publication according to the authoritative lifecycle state.
+- [x] 6.1 Resolve the developer friction checkpoint and publish through the managed lifecycle.
+- [x] 6.2 Complete coordinator handoff or terminal archive/publication according to the authoritative lifecycle state.

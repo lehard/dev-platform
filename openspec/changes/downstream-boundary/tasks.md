@@ -13,9 +13,9 @@
 - [x] 2.2 Add cases: two active managed packages under a downstream contract (`managed_candidate` is `False`, no exception); same checkout under the supported source contract still raises the ambiguity error.
 - [x] 2.3 Add selector cases: downstream; supported source; source+gitlab, source+direct, source+project harness each raise a named error; missing `platform_version` raises.
 - [x] 2.4 Add Requirement lifecycle cases: portable `_contribution_publication_supported` is `False`; unsupported source raises; `execute_requirement`, `requirement_terminal` import with the coordinator modules blocked.
-- [ ] 2.5 Run existing source suites (`test_pr_review_gate`, `test_openspec_lifecycle`, `test_requirement_execution`, `test_publication_queue`) and `python3 scripts/run_test_groups.py --all`; run semantic OpenSpec verification and write a truthful verification.md.
+- [x] 2.5 Run existing source suites (`test_pr_review_gate`, `test_openspec_lifecycle`, `test_requirement_execution`, `test_publication_queue`) and `python3 scripts/run_test_groups.py --all`; run semantic OpenSpec verification and write a truthful verification.md.
 
 ## 3. Deliver through managed lifecycle
 
-- [ ] 3.1 Resolve the developer friction checkpoint and publish through the managed lifecycle.
-- [ ] 3.2 Complete coordinator handoff or terminal archive/publication according to the authoritative lifecycle state.
+- [x] 3.1 Resolve the developer friction checkpoint and publish through the managed lifecycle.
+- [x] 3.2 Complete coordinator handoff or terminal archive/publication according to the authoritative lifecycle state.
