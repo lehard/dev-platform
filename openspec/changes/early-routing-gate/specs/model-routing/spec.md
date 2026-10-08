@@ -99,3 +99,10 @@ Recording a retained outcome SHALL require a supervisor-retained plan declared a
 - **WHEN** a tracked implementation path is moved into an excluded lifecycle directory
 - **THEN** divergence includes the source path for both staged and committed changes
 - **AND** routing, late delegation and escalation cannot bypass the unchanged-content requirement
+
+#### Scenario: Recovery preserves child safety and outcome
+
+- **GIVEN** a failed child execution
+- **WHEN** re-routing, escalation or retained finalization is requested
+- **THEN** unresolved containment violations and unreleased or ambiguous Codex writers block the request
+- **AND** retained finalization after an accepted escalation preserves the prior child execution, delegation and escalation as distinct provenance

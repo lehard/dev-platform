@@ -40,9 +40,11 @@ Defect: a required child executor can be silently replaced by supervisor-written
 
 7. **No provider hook.** Enforcement is in repository-owned lifecycle entrypoints; a Claude editor hook cannot be shipped for all downstream runtimes and would be provider-specific.
 
-8. **Legacy claim normalization.** A plan-less legacy Claude execution with `launched: true`, an existing `agent_id` and no outcome may be re-recorded as a truthful claimed execution only with that same identifier and a fresh clean containment postcheck. This converts existing evidence; it creates no plan, retrospective delegation or launch claim. New planned routes still require an open delegation. Codex preflight refusal records a closed not-launched attempt and propagates the error, so it cannot authorize later supervisor writes or escalation.
+8. **Recovery safety and retained finalization.** Re-routing and escalation must refuse unresolved containment violations and any Codex writer state other than released. A failed child may not become a new containment baseline until its original containment boundary passes (or an evidence-bound verified external-advance recovery exists). Retained finalization after escalation preserves the original child execution nested as `prior_execution`, together with the unchanged delegation and escalation provenance; it does not erase that outcome. These safety checks run again at finalization.
 
-9. **No fallbacks.** Missing or invalid plan/delegation fields raise `RoutingError` naming the field. No default plan is assumed when absent; no swallowed snapshot error (a failed snapshot is a gate failure, as `ContainmentError` already is).
+9. **Legacy claim normalization.** A plan-less legacy Claude execution with `launched: true`, an existing `agent_id` and no outcome may be re-recorded as a truthful claimed execution only with that same identifier and a fresh clean containment postcheck. This converts existing evidence; it creates no plan, retrospective delegation or launch claim. New planned routes still require an open delegation. Codex preflight refusal records a closed not-launched attempt and propagates the error, so it cannot authorize later supervisor writes or escalation.
+
+10. **No fallbacks.** Missing or invalid plan/delegation fields raise `RoutingError` naming the field. No default plan is assumed when absent; no swallowed snapshot error (a failed snapshot is a gate failure, as `ContainmentError` already is).
 
 ## Risks
 

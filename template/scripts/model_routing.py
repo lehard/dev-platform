@@ -955,6 +955,10 @@ def prepare(root: Path, *, provider: str, profile: str | None, rationale: str, e
                 f"diverged ({_format_paths(diverged)}). A supervisor-written diff cannot be legalized by routing after the "
                 "fact; the user must decide how to proceed (no route was recorded)."
             )
+    existing_path = _record_path(root, change)
+    if existing_path.is_file():
+        previous, _ = _read_route(root)
+        _require_recovery_safety(previous)
     policy = _retention_policy_for(profile, topology)
     plan: dict[str, Any] = {"mode": PLAN_RETAINED if policy else PLAN_DELEGATED, "declared_at": utc_now(), "task_content_pre": content, "delegation": None}
     if policy:
@@ -964,6 +968,26 @@ def prepare(root: Path, *, provider: str, profile: str | None, rationale: str, e
     route = Route(source_issue=source_issue, change=change, task_worktree=str(assigned), integration_root=str(integration), provider=provider, profile=profile, executor_model=_model_for(config, provider, profile), rationale=rationale.strip(), evidence=tuple(evidence), prepared_at=utc_now(), pre_snapshot=_snapshot_to_dict(snapshot(integration)), start_tier=start_tier, freshness="confirmed", topology=topology, supervisor=_supervisor_provenance(config, provider), execution_plan=plan)
     _write_route(_record_path(root, change), route)
     return route
+
+
+def _require_recovery_safety(route: Route) -> None:
+    """Keep the original child safety boundary through recovery transitions."""
+    execution = route.execution
+    if execution is None:
+        plan = route.execution_plan
+        if isinstance(plan, dict):
+            delegation = plan.get("delegation")
+            if isinstance(delegation, dict) and delegation.get("provider") == "codex" and delegation.get("state") == "open":
+                raise RoutingError("recovery requires a released Codex writer; the child delegation is still open")
+        return
+    if route.provider == "codex":
+        if execution.get("writer_state") != "released":
+            raise RoutingError("recovery requires a released Codex writer; unresolved writer ownership cannot authorize retention or re-routing")
+        recovery = execution.get("recovery")
+        recovered = isinstance(recovery, dict) and recovery.get("classification") == CLASSIFICATION_VERIFIED_EXTERNAL_ADVANCE
+        if execution.get("violation") is not False and not recovered:
+            raise RoutingError("recovery refuses an unresolved containment violation; preserve the original child boundary")
+    postcheck(route)
 
 
 def _reroute_attribution(root: Path, change: str, content: dict[str, Any]) -> dict[str, Any] | None:
@@ -991,6 +1015,7 @@ def _reroute_attribution(root: Path, change: str, content: dict[str, Any]) -> di
         previous.provider != "codex"
         or not isinstance(execution, dict)
         or execution.get("outcome") not in {"failed", "abnormal"}
+        or not _launch_confirmed(execution)
         or not isinstance(delegation, dict)
         or delegation.get("state") != "closed"
         or delegation.get("launch_evidence") != LAUNCH_EVIDENCE_PLATFORM_OBSERVED
@@ -1000,6 +1025,7 @@ def _reroute_attribution(root: Path, change: str, content: dict[str, Any]) -> di
         return None
     if _content_differences(delegation["task_content_post"], content):
         return None
+    _require_recovery_safety(previous)
     return {"provider": previous.provider, "outcome": execution["outcome"], "opened_at": delegation.get("opened_at"), "closed_at": delegation.get("closed_at")}
 
 
@@ -1022,6 +1048,7 @@ def escalate(root: Path, reason: str) -> Route:
     if not reason.strip():
         raise RoutingError("escalation requires a concrete reason")
     plan = _require_plan(route, "escalating")
+    _require_recovery_safety(route)
     if plan["mode"] == PLAN_DELEGATED and not _has_real_delegation(route):
         diverged = _task_content_diverged(route)
         if diverged:
@@ -1497,7 +1524,10 @@ def record_retained_execution(root: Path, *, reason: str) -> dict[str, Any]:
             "record the real child execution or, with a real recorded delegation or unchanged task content, escalate first"
         )
     if route.execution is not None:
-        raise RoutingError("routing record already has execution evidence; do not overwrite a real child outcome with parent retention")
+        switched_from = plan.get("switched_from")
+        if not route.escalations or not isinstance(switched_from, dict) or switched_from.get("mode") != PLAN_DELEGATED or route.execution.get("outcome") == "retained":
+            raise RoutingError("routing record already has execution evidence; do not overwrite a real child outcome with parent retention")
+        _require_recovery_safety(route)
     if not reason.strip():
         raise RoutingError("recording retained execution requires a concrete non-empty reason")
     execution = {
@@ -1507,6 +1537,8 @@ def record_retained_execution(root: Path, *, reason: str) -> dict[str, Any]:
         "postcheck": postcheck(route),
         "recorded_at": utc_now(),
     }
+    if route.execution is not None:
+        execution["prior_execution"] = route.execution
     next_route = Route(**{**asdict(route), "execution": execution})
     _write_route(path, next_route)
     _persist_completed_execution(next_route)
@@ -1514,7 +1546,14 @@ def record_retained_execution(root: Path, *, reason: str) -> dict[str, Any]:
 
 
 def postcheck(route: Route) -> dict[str, Any]:
-    result = check_containment(_snapshot_from_dict(route.pre_snapshot), snapshot(Path(route.integration_root)))
+    pre_snapshot = route.pre_snapshot
+    recovery = route.execution.get("recovery") if route.execution is not None else None
+    if isinstance(recovery, dict) and recovery.get("classification") == CLASSIFICATION_VERIFIED_EXTERNAL_ADVANCE:
+        after_head = recovery.get("after_head")
+        if not isinstance(after_head, str) or not after_head:
+            raise RoutingError("verified containment recovery is missing after_head")
+        pre_snapshot = {**pre_snapshot, "head": after_head}
+    result = check_containment(_snapshot_from_dict(pre_snapshot), snapshot(Path(route.integration_root)))
     if result.violated:
         assigned = Path(route.task_worktree)
         record_containment_friction(Path(route.integration_root), assigned, result, task=route.source_issue, enforcement_tier="native-worktree")

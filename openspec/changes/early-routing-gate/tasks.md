@@ -9,7 +9,7 @@
 - [x] 2.1 Add `begin_claude_delegation` plus `begin-claude-delegation` CLI in `model_routing.py` and `dogfood_task.py`; refuse after divergence, for retained plans, with an existing execution or an already-open delegation.
 - [x] 2.2 Require an open delegation in `record_claude_execution`; close it; keep `launched: None`, `outcome: "claimed"`, self-reported evidence; update `prepare_claude_handoff` output to name the mandatory begin step.
 - [x] 2.3 Open a platform-observed delegation in `dispatch_codex` only after confirmed child process launch; close pre-launch refusals/failures with outcome `not-launched` and prevent them authorizing supervisor writes, retention or escalation.
-- [x] 2.4 Require a matching `supervisor-retained` plan in `record_retained_execution`; refuse for a delegated plan; restrict `escalate` plan switch to real-delegation or unchanged-content cases.
+- [x] 2.4 Require a matching `supervisor-retained` plan in `record_retained_execution`; refuse for a delegated plan; restrict `escalate` plan switch to real-delegation or unchanged-content cases; preserve child outcomes during retained finalization after escalation and refuse unresolved containment or writer safety in recovery.
 
 ## 3. Early gate wiring
 
@@ -22,7 +22,7 @@
 - [x] 4.2 Retained: `complex` and `parent-only-topology` plans declared at route, supervisor content change, `record_retained_execution`, gates pass; retained recording on a delegated plan refused.
 - [x] 4.3 Early block: supervisor writes under a delegated plan without begin; `status`, check entrypoint and `verify-routing` fail before archive; record-after-the-fact and late begin refused; route refused on pre-diverged content.
 - [x] 4.4 Recovery: escalation without real delegation on diverged content refused; escalation with a real delegation allowed; no path writes `launched: true` or a fake retrospective delegation.
-- [x] 4.5a Re-route after a failed/abnormal platform-observed Codex delegation whose post-snapshot equals current content is permitted; re-route after any other divergence (including self-reported Claude delegation) is refused.
+- [x] 4.5a Re-route after a failed/abnormal platform-observed Codex delegation whose post-snapshot equals current content is permitted; re-route after any other divergence (including self-reported Claude delegation) is refused; unresolved containment violations, ambiguous writers and escaped integration writes cannot become a fresh baseline.
 - [x] 4.5 Codex plan/delegation consistency and legacy plan-less record behavior; update existing `record_claude_execution` tests to begin a delegation first.
 - [x] 4.6 Source/template parity: render a downstream fixture and run the early gate there; update `docs/engineering/model-routing.md` (plan, pre-launch step, early gate, refused recovery).
 

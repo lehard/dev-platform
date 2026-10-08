@@ -45,7 +45,7 @@ def route_ready(repo: Path) -> None:
         ["git", "rev-parse", "--path-format=absolute", "--git-path", "info/exclude"], cwd=repo, check=True, text=True, capture_output=True
     ).stdout.strip()
     with open(exclude, "a", encoding="utf-8") as handle:
-        handle.write(".dev-platform.toml\n")
+        handle.write(".dev-platform.toml\n.claude/\n")
 
 
 class ModelRoutingTests(unittest.TestCase):
@@ -2005,7 +2005,7 @@ class EarlyRoutingGateTests(unittest.TestCase):
             launch_hook()
             if write:
                 self.write_content(write)
-            return {"outcome": outcome, "launched": True, "returncode": 0 if outcome == "completed" else 1, "violation": False}
+            return {"outcome": outcome, "launched": True, "returncode": 0 if outcome == "completed" else 1, "violation": False, "writer_state": "released"}
 
         return patch.object(routing, "run_codex", side_effect=run)
 
@@ -2262,6 +2262,60 @@ class EarlyRoutingGateTests(unittest.TestCase):
                 self.assertEqual(routing._task_content_diverged(rerouted), [])
                 (self.task / f"partial-{outcome}.txt").unlink()
 
+    def test_recovery_refuses_unresolved_containment_and_writer(self) -> None:
+        with self.fake_codex("failed", write="partial.txt"), patch.object(routing, "main_root", return_value=self.integration):
+            with self.assertRaises(routing.RoutingError):
+                routing.dispatch_codex(self.task, profile="standard", rationale="preflight", evidence=[], prompt="implement")
+            original = self.record_path().read_text()
+            for field, value, diagnostic in (("violation", True, "containment violation"), ("writer_state", "ambiguous", "released Codex writer")):
+                with self.subTest(field=field):
+                    payload = json.loads(original)
+                    payload["execution"][field] = value
+                    self.record_path().write_text(json.dumps(payload))
+                    before = self.record_path().read_text()
+                    with self.assertRaisesRegex(routing.RoutingError, diagnostic):
+                        routing.prepare(self.task, provider="codex", profile="complex", rationale="reviewed failure", evidence=[])
+                    with self.assertRaisesRegex(routing.RoutingError, diagnostic):
+                        routing.escalate(self.task, "reviewed child failure")
+                    self.assertEqual(self.record_path().read_text(), before)
+            self.record_path().write_text(original)
+            escaped = self.integration / "escaped.txt"
+            escaped.write_text("escaped child writes")
+            with self.assertRaises(routing.RoutingError):
+                routing.prepare(self.task, provider="codex", profile="complex", rationale="reviewed failure", evidence=[])
+
+    def test_escalated_failed_child_finalizes_retention_preserving_provenance(self) -> None:
+        with self.fake_codex("failed", write="partial.txt"), patch.object(routing, "main_root", return_value=self.integration):
+            with self.assertRaises(routing.RoutingError):
+                routing.dispatch_codex(self.task, profile="standard", rationale="preflight", evidence=[], prompt="implement")
+            prior, _ = routing._read_route(self.task)
+            escalated = routing.escalate(self.task, "reviewed child failure needs architecture decision")
+            self.write_content("supervisor-completion.txt")
+            execution = routing.record_retained_execution(self.task, reason="completed after reviewed escalation")
+            self.assertEqual(execution["prior_execution"], prior.execution)
+            final = self.archive_gate()
+            self.assertEqual(final.execution_plan["delegation"], prior.execution_plan["delegation"])
+            self.assertEqual(final.escalations, escalated.escalations)
+            with self.assertRaises(routing.RoutingError):
+                routing.record_retained_execution(self.task, reason="duplicate")
+
+    def test_retained_finalization_rechecks_original_child_safety(self) -> None:
+        with self.fake_codex("failed", write="partial.txt"), patch.object(routing, "main_root", return_value=self.integration):
+            with self.assertRaises(routing.RoutingError):
+                routing.dispatch_codex(self.task, profile="standard", rationale="preflight", evidence=[], prompt="implement")
+            routing.escalate(self.task, "reviewed child failure")
+            original = self.record_path().read_text()
+            for field, value in (("violation", True), ("writer_state", "ambiguous")):
+                payload = json.loads(original)
+                payload["execution"][field] = value
+                self.record_path().write_text(json.dumps(payload))
+                with self.assertRaises(routing.RoutingError):
+                    routing.record_retained_execution(self.task, reason="supervisor completion")
+            self.record_path().write_text(original)
+            (self.integration / "escaped.txt").write_text("escaped writes")
+            with self.assertRaises(routing.RoutingError):
+                routing.record_retained_execution(self.task, reason="supervisor completion")
+
     def test_reroute_refused_when_content_changed_after_the_failed_child(self) -> None:
         with self.fake_codex("failed", write="partial.txt"), patch.object(routing, "main_root", return_value=self.integration):
             with self.assertRaises(routing.RoutingError):
@@ -2372,6 +2426,9 @@ class EarlyRoutingGateTests(unittest.TestCase):
                     self.prepare()
                 git(self.task, "commit", "-m", "move into lifecycle")
                 self.assertIn("tool.py", routing._task_content_diverged(route))
+                for operation in (self.gate, lambda: routing.begin_claude_delegation(self.task), lambda: routing.escalate(self.task, "committed late move"), self.prepare):
+                    with self.assertRaises(routing.RoutingError):
+                        operation()
                 git(self.task, "mv", destination, "tool.py")
                 git(self.task, "commit", "-m", "restore source")
 
