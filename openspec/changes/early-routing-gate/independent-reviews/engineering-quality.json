@@ -3,28 +3,28 @@
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "8d985c1bbec6225f5ae71c7bf4c08b8b8036ce8f",
-    "diff_sha256": "fa29ddeda38b4400c6cac30c535147df862331ccd8bf573e26cded749d6308c1"
+    "candidate_head": "215ba7eb86c29bed24ae5c76f6d0599798a7e6cf",
+    "diff_sha256": "c388e29970dfb9b3630d12f300513bdb91c2e2185ea3f22bf1b4b3026d2bc055"
   },
-  "completed_at": "2026-10-08T12:06:39+00:00",
+  "completed_at": "2026-10-08T15:43:51+00:00",
   "findings": [
     {
-      "evidence": "The candidate diff, docs/engineering/model-routing.md around line 10, reads: \"print the exact native Agent-tool call the supervisor must then actually invoke in place, after `begin-claude-delegation` opens the delegation (see Execution plan and early routing gate) (no `isolation`, since ...)\". Two adjacent parentheticals now break the original sentence. The same ordering requirement is already stated clearly in the new \"Execution plan and early routing gate\" section.",
-      "id": "model-routing-doc-garbled-sentence",
+      "evidence": "template/scripts/model_routing.py, `_run_delegated_codex`: `except BaseException: closed = close_attempt(...); _write_route(...); raise`. `close_attempt` computes `task_content_post` via `_task_content_state`, which raises `RoutingError` when the snapshot or identity cannot be established. The same call also precedes `_write_route` on the success path. Capturing the post-state defensively, or writing a closed attempt without it, would keep the original error visible and the delegation state consistent.",
+      "id": "codex-close-attempt-masks-failure",
       "severity": "advisory",
-      "summary": "The edited routine/standard paragraph in docs/engineering/model-routing.md is hard to read. The new clause is spliced into the middle of an existing parenthetical."
+      "summary": "In `_run_delegated_codex`, the failure handler calls `close_attempt(...)`, which calls `_task_content_state(...)`. That call can raise `RoutingError`. If it does, the original launch error is lost and the route is not rewritten, so the Codex delegation stays `open`."
     }
   ],
-  "launched_at": "2026-10-08T12:06:06+00:00",
-  "output_sha256": "14f5828c0e2565873d2bd049469c0ebb8a2ba33c2e07f894e9c1de82753f51f8",
+  "launched_at": "2026-10-08T15:43:19+00:00",
+  "output_sha256": "5362ba5116bfe20f03b38ca495c906a573906f663199481d480c23bad7f926e4",
   "perspective": "engineering-quality",
-  "request_id": "98d00432-eb7e-4f63-8e04-d64cfcb6383d",
+  "request_id": "9f42cb94-af91-4c12-80af-207e85e24c17",
   "reviewer": {
-    "context_id": "cb353841-2a74-437f-9895-5ad45b9f18ca",
+    "context_id": "4c78a848-85eb-43eb-9ef7-bf2277155b54",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-421a9b09-0d85-4470-a2a8-506a3f5f89a5",
+    "launch_id": "platform-launch-99fdc53e-3dca-4d36-8827-460c5d657f4b",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,41 +39,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 53257
+        "value": 49951
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 110881
+        "value": 162505
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 25600
+        "value": 27819
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 28718
+        "value": 30282
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 10
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 5
+        "value": 6
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2352
+        "value": 2374
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "8e3c52238ef08cb802573d80a785fafad3270d661d77e458196d3d6a197a5013"
+  "task_content_digest": "646d8edafc62d2d3d9cc6afcdae87410233335c650781c76cbc377b351073231"
 }

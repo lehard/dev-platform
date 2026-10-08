@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "8d985c1bbec6225f5ae71c7bf4c08b8b8036ce8f",
-    "diff_sha256": "fa29ddeda38b4400c6cac30c535147df862331ccd8bf573e26cded749d6308c1"
+    "candidate_head": "215ba7eb86c29bed24ae5c76f6d0599798a7e6cf",
+    "diff_sha256": "c388e29970dfb9b3630d12f300513bdb91c2e2185ea3f22bf1b4b3026d2bc055"
   },
   "change": "openspec/changes/early-routing-gate",
   "excluded_lifecycle_paths": [
@@ -37,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-08T12:04:58+00:00",
+  "prepared_at": "2026-10-08T15:42:34+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/early-routing-gate/independent-reviews",
     "required_perspectives": [
@@ -46,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "98d00432-eb7e-4f63-8e04-d64cfcb6383d",
+  "request_id": "9f42cb94-af91-4c12-80af-207e85e24c17",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -59,7 +59,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "digest": "8e3c52238ef08cb802573d80a785fafad3270d661d77e458196d3d6a197a5013",
+    "digest": "646d8edafc62d2d3d9cc6afcdae87410233335c650781c76cbc377b351073231",
     "paths": {
       "docs/engineering/model-routing.md": "bad632ae9f8071227655e27e79a4f138fe6b9ee1",
       "openspec/changes/early-routing-gate/.managed-task.json": "006de5a6569c408e10c30fdb400114f4b7e9dbc4",
@@ -71,7 +71,7 @@
       "scripts/dogfood_task.py": "cfaca7ffd6312b5950710e56b0355c2529c47ac0",
       "template/docs/engineering/model-routing.md": "c4d2fd4b4e79a314102bda6bf1701817051691a3",
       "template/scripts/delegated_write_guard.py": "a6906d1c79e7281bf14694ce897b00e31034513b",
-      "template/scripts/model_routing.py": "18c031eb23688d6414646f0258b011202d7664ca",
+      "template/scripts/model_routing.py": "273e73c6ac451dec217f48025c7f9f751b99b46a",
       "template/scripts/run_test_groups.py": "7dc363b4d898cdb0a73c01ec6cb521b77235dfd7",
       "template/scripts/task_content_identity.py": "ab49fff339aad0c38145aef762a795eb985bf0b1",
       "tests/test_central_dogfood_lifecycle.py": "5c288a1211eed7f122a79ee30bb8fad8aaa522ec",

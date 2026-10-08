@@ -3,28 +3,21 @@
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "8d985c1bbec6225f5ae71c7bf4c08b8b8036ce8f",
-    "diff_sha256": "fa29ddeda38b4400c6cac30c535147df862331ccd8bf573e26cded749d6308c1"
+    "candidate_head": "215ba7eb86c29bed24ae5c76f6d0599798a7e6cf",
+    "diff_sha256": "c388e29970dfb9b3630d12f300513bdb91c2e2185ea3f22bf1b4b3026d2bc055"
   },
-  "completed_at": "2026-10-08T12:06:06+00:00",
-  "findings": [
-    {
-      "evidence": "candidate.diff, docs/engineering/model-routing.md line ~65: 'print the exact native Agent-tool call the supervisor must then actually invoke in place, after `begin-claude-delegation` opens the delegation (see Execution plan and early routing gate) (no `isolation`, ...)'. This is wording only. The spec and design behavior is otherwise matched by the implementation I reviewed.",
-      "id": "routing-doc-misplaced-parenthetical",
-      "severity": "advisory",
-      "summary": "The edited routine/standard paragraph in docs/engineering/model-routing.md puts the new 'after begin-claude-delegation opens the delegation (see ...)' clause in front of '(no isolation, ...)'. The second parenthetical now reads as a modifier of the new clause, not of the Agent-tool call."
-    }
-  ],
-  "launched_at": "2026-10-08T12:05:26+00:00",
-  "output_sha256": "57728c41647a8fe552806116c88f0226954616c14d7e0e6f3b473fb14621e21b",
+  "completed_at": "2026-10-08T15:43:19+00:00",
+  "findings": [],
+  "launched_at": "2026-10-08T15:42:49+00:00",
+  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "spec-fidelity",
-  "request_id": "98d00432-eb7e-4f63-8e04-d64cfcb6383d",
+  "request_id": "9f42cb94-af91-4c12-80af-207e85e24c17",
   "reviewer": {
-    "context_id": "9af4a7fc-78f4-4659-87e1-64b1e85e7dbe",
+    "context_id": "eb77cd2b-db31-4b1f-a309-0432ff6e7481",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-5fbb371e-32a5-42cc-943a-8b34bb24d91c",
+    "launch_id": "platform-launch-472519d1-bb8e-415c-b38a-1336b77f1487",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,22 +32,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 62666
+        "value": 58574
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 123917
+        "value": 115178
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 35235
+        "value": 25960
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 37427
+        "value": 27855
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -69,11 +62,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 3234
+        "value": 1961
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "8e3c52238ef08cb802573d80a785fafad3270d661d77e458196d3d6a197a5013"
+  "task_content_digest": "646d8edafc62d2d3d9cc6afcdae87410233335c650781c76cbc377b351073231"
 }
