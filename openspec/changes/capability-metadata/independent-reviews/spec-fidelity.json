@@ -1,23 +1,23 @@
 {
-  "availability": "unavailable",
+  "availability": "available",
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "1cb0dca23cdaaf233ce54adf282e9ba7c3a6b6a0",
-    "diff_sha256": "6395ec8b66111710f70de32e031b4a76fdbd75a3af410325be379cf7e336b01b"
+    "candidate_head": "19909e7d3a04e2d6f220cbc620d1228d59c96cdf",
+    "diff_sha256": "8398f082fbfc4a4e8e76746811ba06c20ec71e70ffc4c208c7c8e8a7e7c7014a"
   },
-  "completed_at": "2026-10-07T14:25:43+00:00",
+  "completed_at": "2026-10-08T07:53:25+00:00",
   "findings": [],
-  "launched_at": "2026-10-07T14:25:43+00:00",
-  "limitation": "claude reviewer runtime with model 'sonnet' is not ready: probe exited with status 1 (Not logged in \u00b7 Please run /login); next: log the claude CLI in on this host, point DEV_PLATFORM_CLAUDE_BIN at the Claude Code CLI, or change the [model_routing] / [independent_review] binding for this account (no other model or provider is tried), then rerun python3 scripts/independent_review.py preflight",
+  "launched_at": "2026-10-08T07:52:51+00:00",
+  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "spec-fidelity",
-  "request_id": "cf0f3ebf-eccc-4567-b8a7-53b09acd7c45",
+  "request_id": "191e7dde-a951-42e8-960d-f222adafd733",
   "reviewer": {
-    "context_id": "platform-launch-fa7400de-f029-4f63-8a10-434d85c8cd8d",
-    "context_id_source": "platform-launch",
+    "context_id": "4647492a-4969-4f99-a39f-9f9ebcf4c679",
+    "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-fa7400de-f029-4f63-8a10-434d85c8cd8d",
+    "launch_id": "platform-launch-27ab7a5f-307f-4b01-865e-e44f2da374da",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -26,6 +26,46 @@
     "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
     "runtime": "claude-code-print",
     "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 20576
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 37385
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13297
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 30643
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 879
+      }
+    },
+    "runtime": "claude-code-print"
   },
   "schema_version": 1,
   "task_content_digest": "81d5b046be48fc830e268710e1c08abaed6aaa7068a9f974f3b9f3605a44c458"
