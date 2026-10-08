@@ -1,0 +1,24 @@
+{
+  "base": "6c96df65b6d7f4f4d4ee0c30e2d81880190b7dd0",
+  "children": [],
+  "dependencies": {
+    "add-explorer-lifecycle-journey": [
+      "add-platform-explorer-foundation"
+    ],
+    "add-platform-explorer-foundation": [],
+    "publish-platform-explorer": [
+      "add-platform-explorer-foundation"
+    ]
+  },
+  "digest": "bb3dc8b0165065ce66c0a9e2201ab0bc7b330d4d21eead13f031d0e2e348828b",
+  "expected_changes": [
+    "add-platform-explorer-foundation",
+    "add-explorer-lifecycle-journey",
+    "publish-platform-explorer"
+  ],
+  "integration_branch": "requirement/BR-441",
+  "repository": "lehard/dev-platform",
+  "requirement": "pln_a6e994680e3fd75bbc3c91e4cbbddc95",
+  "version": 2,
+  "work_identity": "BR-441"
+}
