@@ -57,6 +57,11 @@ class StandardProfileManagedStartCompositionTests(unittest.TestCase):
         scripts.mkdir()
         for name in ("agent_doctor.py", "project_sync.py"):
             (scripts / name).write_text("#!/usr/bin/env python3\n", encoding="utf-8")
+        # Routing refuses diverged task content and needs the review base a real
+        # managed task always has, so commit the project files and record origin/main.
+        git(root, "add", ".dev-platform.toml", "scripts")
+        git(root, "commit", "-qm", "project files")
+        git(root, "update-ref", "refs/remotes/origin/main", "main")
         return root
 
     def _package(self) -> managed_task.Package:

@@ -1,0 +1,87 @@
+{
+  "candidate": {
+    "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
+    "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
+    "candidate_head": "215ba7eb86c29bed24ae5c76f6d0599798a7e6cf",
+    "diff_sha256": "c388e29970dfb9b3630d12f300513bdb91c2e2185ea3f22bf1b4b3026d2bc055"
+  },
+  "change": "openspec/changes/early-routing-gate",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/early-routing-gate/automated-checks.json",
+    "openspec/changes/early-routing-gate/independent-review-request.json",
+    "openspec/changes/early-routing-gate/independent-reviews/engineering-quality.json",
+    "openspec/changes/early-routing-gate/independent-reviews/spec-fidelity.json",
+    "openspec/changes/early-routing-gate/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/early-routing-gate/design.md",
+        "openspec/changes/early-routing-gate/proposal.md",
+        "openspec/changes/early-routing-gate/specs/model-routing/spec.md",
+        "openspec/changes/early-routing-gate/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/early-routing-gate/proposal.md",
+        "openspec/changes/early-routing-gate/design.md",
+        "openspec/changes/early-routing-gate/tasks.md",
+        "openspec/changes/early-routing-gate/specs/model-routing/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-08T15:42:34+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/early-routing-gate/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "9f42cb94-af91-4c12-80af-207e85e24c17",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+    "digest": "646d8edafc62d2d3d9cc6afcdae87410233335c650781c76cbc377b351073231",
+    "paths": {
+      "docs/engineering/model-routing.md": "bad632ae9f8071227655e27e79a4f138fe6b9ee1",
+      "openspec/changes/early-routing-gate/.managed-task.json": "006de5a6569c408e10c30fdb400114f4b7e9dbc4",
+      "openspec/changes/early-routing-gate/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+      "openspec/changes/early-routing-gate/design.md": "ba545f83ecdc95f91de9582071a435e5e9d63f21",
+      "openspec/changes/early-routing-gate/proposal.md": "0a0269fb32daa481ec035a6b702c9dd75b436849",
+      "openspec/changes/early-routing-gate/specs/model-routing/spec.md": "96640160ef22e34c2d3ed907f7ab5d3135114696",
+      "openspec/changes/early-routing-gate/tasks.md": "57504f963dc109b9f2e96cd91c9a17b5a86a5ee5",
+      "scripts/dogfood_task.py": "cfaca7ffd6312b5950710e56b0355c2529c47ac0",
+      "template/docs/engineering/model-routing.md": "c4d2fd4b4e79a314102bda6bf1701817051691a3",
+      "template/scripts/delegated_write_guard.py": "a6906d1c79e7281bf14694ce897b00e31034513b",
+      "template/scripts/model_routing.py": "273e73c6ac451dec217f48025c7f9f751b99b46a",
+      "template/scripts/run_test_groups.py": "7dc363b4d898cdb0a73c01ec6cb521b77235dfd7",
+      "template/scripts/task_content_identity.py": "ab49fff339aad0c38145aef762a795eb985bf0b1",
+      "tests/test_central_dogfood_lifecycle.py": "5c288a1211eed7f122a79ee30bb8fad8aaa522ec",
+      "tests/test_delegated_write_guard.py": "71ed22de46ab1a1533f923552bff41defbd69159",
+      "tests/test_model_routing.py": "32e7c3edc3db5f831e7ce6f007e871e22aa6eb17",
+      "tests/test_run_test_groups.py": "ffbcbbb50e0707156e75a8051827486dbec27d3c",
+      "tests/test_standard_profile_lifecycle_compatibility.py": "1f5b0d642a0d861ebdf3aeab5c0bd22879069352",
+      "tests/upgrade_smoke.py": "b8de65726bea479bb67bb9c8da5709e1c701a157"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

@@ -594,6 +594,7 @@ def run_observed_delegation(
     timeout: float | None = None,
     stdout_line_hook: Callable[[str], None] | None = None,
     ready_probe: Callable[[], bool] | None = None,
+    launch_hook: Callable[[], None] | None = None,
     ready_deadline: float | None = None,
     route_containment_friction: bool = True,
 ) -> GuardedRunResult:
@@ -660,6 +661,8 @@ def run_observed_delegation(
             child_launched = True
             process_group = ownership.mark_running(process)
             interrupt_handlers.arm()
+            if launch_hook is not None:
+                launch_hook()
             _await_readiness(process, ready_probe, ready_deadline)
             returncode = _stream_output(process, stdout_line_hook, timeout)
             process.stdout.close()
@@ -669,6 +672,8 @@ def run_observed_delegation(
             child_launched = True
             process_group = ownership.mark_running(process)
             interrupt_handlers.arm()
+            if launch_hook is not None:
+                launch_hook()
             _await_readiness(process, ready_probe, ready_deadline)
             returncode = process.wait(timeout=timeout)
             completed = subprocess.CompletedProcess(argv, returncode)

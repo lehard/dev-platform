@@ -1,0 +1,134 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.398,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.264,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 618.009,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "scripts/dogfood_task.py",
+        "template/scripts/delegated_write_guard.py",
+        "template/scripts/model_routing.py",
+        "template/scripts/run_test_groups.py",
+        "template/scripts/task_content_identity.py",
+        "tests/test_central_dogfood_lifecycle.py",
+        "tests/test_delegated_write_guard.py",
+        "tests/test_model_routing.py",
+        "tests/test_run_test_groups.py",
+        "tests/test_standard_profile_lifecycle_compatibility.py",
+        "tests/upgrade_smoke.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_2f08ef68e3e8f838ddd204daf30a9f3f",
+    "change": "early-routing-gate",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/early-routing-gate",
+    "branch": "agent/br-415-t4-early-routing-gate",
+    "head": "4e1202fe4700e5d4e8cd7fbf3d6733030dd7cf6c",
+    "task_content": {
+      "version": 1,
+      "digest": "73077d061af29c2516a8d95ac92cc69cc796d67cca820da617206b78cb7a0998",
+      "paths": {
+        "dev-platform/requirement-integrations/private-lineage-pln_d6af8d84cd0d3242b993ec5adfcee1c4-integration.json": "3cbbbee855a1648c32af3f34a79bc424abba3bbd",
+        "docs/engineering/model-routing.md": "bad632ae9f8071227655e27e79a4f138fe6b9ee1",
+        "openspec/changes/early-routing-gate/.managed-task.json": "006de5a6569c408e10c30fdb400114f4b7e9dbc4",
+        "openspec/changes/early-routing-gate/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+        "openspec/changes/early-routing-gate/automated-checks.json": "b1560a26a48c63aeaffd371b244c68f1e8aeb42d",
+        "openspec/changes/early-routing-gate/design.md": "ba545f83ecdc95f91de9582071a435e5e9d63f21",
+        "openspec/changes/early-routing-gate/independent-review-request.json": "cfde93a52d8b629992e0a4bd4420339293d58b23",
+        "openspec/changes/early-routing-gate/independent-reviews/engineering-quality.json": "13929a3a61f6b11def40fc3e29377b60c683373c",
+        "openspec/changes/early-routing-gate/independent-reviews/spec-fidelity.json": "9dacc3ddd2c09c484bb1a3d0cfa97395e2f8b5fe",
+        "openspec/changes/early-routing-gate/proposal.md": "0a0269fb32daa481ec035a6b702c9dd75b436849",
+        "openspec/changes/early-routing-gate/specs/model-routing/spec.md": "96640160ef22e34c2d3ed907f7ab5d3135114696",
+        "openspec/changes/early-routing-gate/tasks.md": "57504f963dc109b9f2e96cd91c9a17b5a86a5ee5",
+        "openspec/changes/early-routing-gate/verification.md": "8f3e1da544273ddf2f1fc45441c439b779eeeda7",
+        "scripts/dogfood_task.py": "cfaca7ffd6312b5950710e56b0355c2529c47ac0",
+        "template/docs/engineering/model-routing.md": "c4d2fd4b4e79a314102bda6bf1701817051691a3",
+        "template/scripts/delegated_write_guard.py": "a6906d1c79e7281bf14694ce897b00e31034513b",
+        "template/scripts/model_routing.py": "273e73c6ac451dec217f48025c7f9f751b99b46a",
+        "template/scripts/run_test_groups.py": "7dc363b4d898cdb0a73c01ec6cb521b77235dfd7",
+        "template/scripts/task_content_identity.py": "ab49fff339aad0c38145aef762a795eb985bf0b1",
+        "tests/test_central_dogfood_lifecycle.py": "5c288a1211eed7f122a79ee30bb8fad8aaa522ec",
+        "tests/test_delegated_write_guard.py": "71ed22de46ab1a1533f923552bff41defbd69159",
+        "tests/test_model_routing.py": "32e7c3edc3db5f831e7ce6f007e871e22aa6eb17",
+        "tests/test_run_test_groups.py": "ffbcbbb50e0707156e75a8051827486dbec27d3c",
+        "tests/test_standard_profile_lifecycle_compatibility.py": "1f5b0d642a0d861ebdf3aeab5c0bd22879069352",
+        "tests/upgrade_smoke.py": "b8de65726bea479bb67bb9c8da5709e1c701a157"
+      },
+      "base": "a8d83e5cbd97037b242daf30557f4b1e3b03ae7c"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "646d8edafc62d2d3d9cc6afcdae87410233335c650781c76cbc377b351073231",
+    "paths": {
+      "docs/engineering/model-routing.md": "bad632ae9f8071227655e27e79a4f138fe6b9ee1",
+      "openspec/changes/early-routing-gate/.managed-task.json": "006de5a6569c408e10c30fdb400114f4b7e9dbc4",
+      "openspec/changes/early-routing-gate/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+      "openspec/changes/early-routing-gate/design.md": "ba545f83ecdc95f91de9582071a435e5e9d63f21",
+      "openspec/changes/early-routing-gate/proposal.md": "0a0269fb32daa481ec035a6b702c9dd75b436849",
+      "openspec/changes/early-routing-gate/specs/model-routing/spec.md": "96640160ef22e34c2d3ed907f7ab5d3135114696",
+      "openspec/changes/early-routing-gate/tasks.md": "57504f963dc109b9f2e96cd91c9a17b5a86a5ee5",
+      "scripts/dogfood_task.py": "cfaca7ffd6312b5950710e56b0355c2529c47ac0",
+      "template/docs/engineering/model-routing.md": "c4d2fd4b4e79a314102bda6bf1701817051691a3",
+      "template/scripts/delegated_write_guard.py": "a6906d1c79e7281bf14694ce897b00e31034513b",
+      "template/scripts/model_routing.py": "273e73c6ac451dec217f48025c7f9f751b99b46a",
+      "template/scripts/run_test_groups.py": "7dc363b4d898cdb0a73c01ec6cb521b77235dfd7",
+      "template/scripts/task_content_identity.py": "ab49fff339aad0c38145aef762a795eb985bf0b1",
+      "tests/test_central_dogfood_lifecycle.py": "5c288a1211eed7f122a79ee30bb8fad8aaa522ec",
+      "tests/test_delegated_write_guard.py": "71ed22de46ab1a1533f923552bff41defbd69159",
+      "tests/test_model_routing.py": "32e7c3edc3db5f831e7ce6f007e871e22aa6eb17",
+      "tests/test_run_test_groups.py": "ffbcbbb50e0707156e75a8051827486dbec27d3c",
+      "tests/test_standard_profile_lifecycle_compatibility.py": "1f5b0d642a0d861ebdf3aeab5c0bd22879069352",
+      "tests/upgrade_smoke.py": "b8de65726bea479bb67bb9c8da5709e1c701a157"
+    },
+    "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file scripts/dogfood_task.py --changed-file template/scripts/delegated_write_guard.py --changed-file template/scripts/model_routing.py --changed-file template/scripts/run_test_groups.py --changed-file template/scripts/task_content_identity.py --changed-file tests/test_central_dogfood_lifecycle.py --changed-file tests/test_delegated_write_guard.py --changed-file tests/test_model_routing.py --changed-file tests/test_run_test_groups.py --changed-file tests/test_standard_profile_lifecycle_compatibility.py --changed-file tests/upgrade_smoke.py",
+    "duration_seconds": 310.711,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
