@@ -3,28 +3,28 @@
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "93cbb17d6625144fa134cea0de0300ec6f50a734",
-    "diff_sha256": "304bf7364feb7fc66069bc18d938e13490a541bab8c1269b05e0b82278f46e3f"
+    "candidate_head": "6cf47867abd38f817a663491747372437175729b",
+    "diff_sha256": "38de2770e75d0770b6e9ea22488e07c6684ce615d99d10d240315b3ba637b3ec"
   },
-  "completed_at": "2026-10-08T05:55:35+00:00",
+  "completed_at": "2026-10-08T06:50:52+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/run_test_groups.py:227\u2013235 enables the gate solely because a committed .managed-task.json exists; line 314 invokes it before any group executes. This candidate uses private_lineage_handle, whose resolver in template/scripts/managed_task.py:1746\u20131749 requires exact local task state. Both .managed-task-state.json and .claude/ are git-ignored, and .github/workflows/ci.yml:19\u201365 performs a fresh checkout and invokes run_test_groups.py without provisioning them. A read-only invocation of require_early_routing_gate(Path.cwd()) in this candidate checkout reproduced TestGroupError: private managed-task lineage could not be verified. Consequently the required validate job cannot run its unit tests for this active candidate.",
-      "id": "test-gate-blocks-fresh-ci-checkouts",
+      "evidence": "template/scripts/model_routing.py:566\u2013581 now uses review_content_identity for committed routing snapshots. template/scripts/task_content_identity.py:53\u201366 lists paths without -z, splits lines, and passes Git's quoted output directly to rev-parse. With default core.quotePath, non-ASCII filenames are quoted; their blob lookup fails and records null regardless of content. If a failed child commits such a file, subsequent supervisor edits committed to the same file leave both the committed map and clean-worktree path map unchanged. _content_differences ignores HEAD (model_routing.py:586\u2013590), so _reroute_attribution at lines 1027\u20131029 accepts that changed content as attributable to the child. Use NUL-delimited, unquoted paths for the committed identity.",
+      "id": "quoted-paths-break-content-attribution",
       "severity": "material",
-      "summary": "The new test gate blocks CI for active managed candidates because fresh checkouts lack machine-local routing and task state."
+      "summary": "Committed files with Git-quoted names can change after a failed child without invalidating retry attribution."
     }
   ],
-  "launched_at": "2026-10-08T05:53:03+00:00",
-  "output_sha256": "19accd6fa6cfcde3157d0d1ec2429200093e3432ad5756fa1db3e0bc759609d8",
+  "launched_at": "2026-10-08T06:49:44+00:00",
+  "output_sha256": "87726c4ab2a239a20f3a317e5b3c39acdd920ac4783320125ddb908204299b48",
   "perspective": "engineering-quality",
-  "request_id": "027efb05-da2f-40ea-b59e-99c89c08f497",
+  "request_id": "c913ff51-6644-4d8a-a513-15e2d51d7535",
   "reviewer": {
-    "context_id": "01a11a13-0753-7601-bb25-9413375edad3",
+    "context_id": "01a11a46-6a9c-70e2-92e0-adaf4fde9301",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-cb7fee6d-bc7b-41bc-8fb0-396b732d0f8e",
+    "launch_id": "platform-launch-c797ccea-362c-4b5f-a9c0-1407518eaa77",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -39,21 +39,21 @@
       "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 636672
+        "value": 234240
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 720816
+        "value": 295103
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2635
+        "value": 1330
       }
     },
     "runtime": "codex-exec"
   },
   "schema_version": 1,
-  "task_content_digest": "98e4392782f300d0867c60f1e722d74b055948aa78ef4cb7ab8963883589fd60"
+  "task_content_digest": "1384f6088b587ad5301103cc0087cc08c285cef4164d2e9137de028c4ab02a0f"
 }

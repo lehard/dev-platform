@@ -3,34 +3,34 @@
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "93cbb17d6625144fa134cea0de0300ec6f50a734",
-    "diff_sha256": "304bf7364feb7fc66069bc18d938e13490a541bab8c1269b05e0b82278f46e3f"
+    "candidate_head": "6cf47867abd38f817a663491747372437175729b",
+    "diff_sha256": "38de2770e75d0770b6e9ea22488e07c6684ce615d99d10d240315b3ba637b3ec"
   },
-  "completed_at": "2026-10-08T05:53:03+00:00",
+  "completed_at": "2026-10-08T06:49:44+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/model_routing.py:976\u2013982 returns from _require_recovery_safety without postcheck whenever execution is None, except for an open Codex delegation. A Claude delegation that writes only into integration/main leaves task content unchanged; record_claude_execution then fails its postcheck without saving execution. prepare accepts this route at lines 958\u2013961 and captures the already-mutated integration snapshot at line 968. Subsequent containment checks therefore accept the escaped writes as baseline. This contradicts design decision 8 and the delta scenario 'Recovery preserves child safety and outcome', which require unresolved containment violations to block re-routing.",
-      "id": "reroute-resets-unchecked-containment-boundary",
+      "evidence": "template/scripts/model_routing.py:947\u2013967 calls _reroute_attribution only when content differs from an empty baseline. If a launched, safely released failed child changed no task content, prepare checks recovery safety but overwrites the route without rerouted_from or prior_route (lines 968\u2013969). Subsequent execution also overwrites the durable record. This contradicts specs/model-routing/spec.md:122\u2013125, which requires an attributable failed child's complete prior route to remain in retry provenance and subsequent durable records.",
+      "id": "clean-failed-retry-loses-provenance",
       "severity": "material",
-      "summary": "Re-routing can absorb escaped Claude writes into a new containment baseline when no execution receipt exists."
+      "summary": "Re-routing a failed Codex child that left no content changes discards its retry provenance."
     },
     {
-      "evidence": "template/scripts/model_routing.py:1029 preserves only provider, outcome and delegation timestamps in rerouted_from. prepare constructs a fresh Route at line 968 without the previous execution, participant, model, execution identifier or escalation evidence. Once the retry or retained execution completes, _persist_completed_execution overwrites the durable record with this reduced history. The accepted openspec/specs/model-routing/spec.md requirement 'Model routing preserves truthful bounded execution provenance' requires preserving provenance sufficient to distinguish any delegated executor that actually ran; the permitted failed-child re-route loses that information.",
-      "id": "reroute-discards-child-provenance",
+      "evidence": "template/scripts/model_routing.py:318\u2013328 accepts a delegation containing only state='closed', provider='claude', and launch_evidence='self-reported', without opened_at, closed_at, or execution evidence. _has_real_delegation returns true for that object at lines 702\u2013708. Consequently, the early gate accepts diverged content and escalate permits retention despite neither an open delegation nor a completed execution. This contradicts the delta's requirement that the gate fail closed without an open or completed delegation, and design.md decision 10 requiring missing or invalid delegation fields to raise RoutingError.",
+      "id": "incomplete-closed-delegation-bypasses-gate",
       "severity": "material",
-      "summary": "An allowed retry after failed Codex execution discards the actual child\u2019s execution provenance."
+      "summary": "An incomplete closed Claude delegation is accepted as real delegation evidence, bypassing the early gate and escalation restriction."
     }
   ],
-  "launched_at": "2026-10-08T05:51:26+00:00",
-  "output_sha256": "4db6c6d6571cce5e2b5b1baf2de23c380c175d005c05efb673d79b8151582f33",
+  "launched_at": "2026-10-08T06:48:22+00:00",
+  "output_sha256": "4a7ad7d9f90f159e75c9997f9164b5398f52404220dce8cd8ac6f4cfe909d6e8",
   "perspective": "spec-fidelity",
-  "request_id": "027efb05-da2f-40ea-b59e-99c89c08f497",
+  "request_id": "c913ff51-6644-4d8a-a513-15e2d51d7535",
   "reviewer": {
-    "context_id": "01a11a11-0bb1-7772-90fb-ad5f12bac1a1",
+    "context_id": "01a11a45-28a3-74d2-8937-04507b1cb534",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-bb9ad701-20ee-4d55-a569-d4c08d0066ff",
+    "launch_id": "platform-launch-a3d5b7c8-a7f5-4eb2-9722-c3e45dbc258f",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -45,21 +45,21 @@
       "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 292864
+        "value": 296448
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 366147
+        "value": 362121
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1346
+        "value": 1640
       }
     },
     "runtime": "codex-exec"
   },
   "schema_version": 1,
-  "task_content_digest": "98e4392782f300d0867c60f1e722d74b055948aa78ef4cb7ab8963883589fd60"
+  "task_content_digest": "1384f6088b587ad5301103cc0087cc08c285cef4164d2e9137de028c4ab02a0f"
 }
