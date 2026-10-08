@@ -1,30 +1,30 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "a8d83e5cbd97037b242daf30557f4b1e3b03ae7c",
+    "base_head": "6c96df65b6d7f4f4d4ee0c30e2d81880190b7dd0",
     "base_ref": "origin/main",
-    "candidate_head": "b8f781c7d08a301c7884fe4b4b67b739334042b4",
-    "diff_sha256": "4732ec87c603f39771440482e1c4d6ad051027a827e1f612fc223887c01ae5b5"
+    "candidate_head": "57540e7f453ecf982903f0689cb5e08c741e69ee",
+    "diff_sha256": "eca7845d8f3d4db40cdb02c676c26ce3981288419a604c57dbc61529ce8a326f"
   },
-  "completed_at": "2026-10-07T18:54:58+00:00",
+  "completed_at": "2026-10-08T04:44:57+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/lifecycle_workers.py:399 copies os.environ directly in harness_push_env. The local-origin branch returns that environment unchanged at line 405, and the hosted-origin branch removes only GIT_CONFIG_* variables at line 411. push_validated passes this environment to Git at line 425. Consequently, an ambient CLAUDE_CODE_OAUTH_TOKEN survives both push paths despite its addition to CREDENTIAL_VARS at lines 45\u201350; that denylist is applied only by credential_free_env.",
-      "id": "ambient-token-reaches-push",
+      "evidence": "template/scripts/requirement_composition.py:137 resolves one provider with resolve_provider(), then line 143 uses that provider's llm_env for every CLI launch. However, pr_review_gate.py:320-322 removes the singular provider and supplies the job's providers list; independent_review_runner.py:162-186 ignores that list when resolving a provider, while preflight():529-531 launches providers from the list. Thus a Claude review job with a Codex task route receives no declared Claude token despite passing the pre-claim login probe. Conversely, a Claude task route injects its token into a Codex composition reviewer. If the composition checkout has no durable task route, line 139 aborts an otherwise explicitly configured review after claiming it.",
+      "id": "composition-login-provider-mismatch",
       "severity": "material",
-      "summary": "The ambient Claude OAuth token still reaches Git push processes, leaving the promised credential boundary incomplete."
+      "summary": "Composition reviews resolve login credentials from the task route instead of the provider actually launched, causing authentication failures or cross-provider token exposure."
     }
   ],
-  "launched_at": "2026-10-07T18:54:08+00:00",
-  "output_sha256": "ece7f1702aa5d1e3dacbfe68e9c39c6e7aef94deea4678b43b3e0f66cd233bf2",
+  "launched_at": "2026-10-08T04:44:06+00:00",
+  "output_sha256": "598399cc9b838c88c5c9ac4befca94c27a4437f7bc94fd962ad47ae3c0edab32",
   "perspective": "engineering-quality",
-  "request_id": "51bda6ea-b0bf-43a8-86d8-831599f302b9",
+  "request_id": "08374099-61bc-42a5-8a51-dbdfe9d841fb",
   "reviewer": {
-    "context_id": "01a117b7-438e-7161-a62c-42340a1e5455",
+    "context_id": "01a119d3-6c33-79e1-b396-e75df4f34bf9",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-a10e364f-2682-4e02-a729-f87bb7c21e3e",
+    "launch_id": "platform-launch-a4a99325-f3c3-4793-8226-924133651668",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -39,21 +39,21 @@
       "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 169472
+        "value": 177152
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 219117
+        "value": 232302
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1136
+        "value": 1042
       }
     },
     "runtime": "codex-exec"
   },
   "schema_version": 1,
-  "task_content_digest": "3c402864d7b38493d464b48aebc5e0d5ecad10eb6c4c1db4bb8ca2262e182cea"
+  "task_content_digest": "80cefa5a539ec08d3f2d0833251f65f9df46ba855b8fea545702966cdc6a97ad"
 }

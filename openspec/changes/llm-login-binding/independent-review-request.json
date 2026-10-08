@@ -1,9 +1,9 @@
 {
   "candidate": {
-    "base_head": "a8d83e5cbd97037b242daf30557f4b1e3b03ae7c",
+    "base_head": "6c96df65b6d7f4f4d4ee0c30e2d81880190b7dd0",
     "base_ref": "origin/main",
-    "candidate_head": "b8f781c7d08a301c7884fe4b4b67b739334042b4",
-    "diff_sha256": "4732ec87c603f39771440482e1c4d6ad051027a827e1f612fc223887c01ae5b5"
+    "candidate_head": "57540e7f453ecf982903f0689cb5e08c741e69ee",
+    "diff_sha256": "eca7845d8f3d4db40cdb02c676c26ce3981288419a604c57dbc61529ce8a326f"
   },
   "change": "openspec/changes/llm-login-binding",
   "excluded_lifecycle_paths": [
@@ -37,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-07T18:53:16+00:00",
+  "prepared_at": "2026-10-08T04:42:55+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/llm-login-binding/independent-reviews",
     "required_perspectives": [
@@ -46,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "51bda6ea-b0bf-43a8-86d8-831599f302b9",
+  "request_id": "08374099-61bc-42a5-8a51-dbdfe9d841fb",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -59,7 +59,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "a8d83e5cbd97037b242daf30557f4b1e3b03ae7c",
-    "digest": "3c402864d7b38493d464b48aebc5e0d5ecad10eb6c4c1db4bb8ca2262e182cea",
+    "digest": "80cefa5a539ec08d3f2d0833251f65f9df46ba855b8fea545702966cdc6a97ad",
     "paths": {
       "docs/engineering/openspec-workflow.md": "93c9ed9315e398dd4f82e1b062c3d78663eff720",
       "openspec/changes/llm-login-binding/.managed-task.json": "29db5a2099f65b312a95bdb6674539477f3a7561",
@@ -71,10 +71,12 @@
       "template/docs/engineering/openspec-workflow.md": "a23bc41bdb1ce01f51121abe0b01e04058e4b538",
       "template/scripts/independent_review.py": "e4c6a0889b5d8a733200d7175efb03476ab49497",
       "template/scripts/independent_review_runner.py": "bf1d05f3858a2e3c5ed1dac8ec0a074e34a76037",
-      "template/scripts/lifecycle_workers.py": "3ace4dbf5c02fbc9f15caa289c2cceb4230dd27a",
+      "template/scripts/lifecycle_workers.py": "702c6f4029b53d5d26c3672a3896bf6038041627",
       "template/scripts/pr_review_gate.py": "57124ddc0b7af5c9060c589d571823702f2ff41e",
+      "template/scripts/requirement_composition.py": "a34786fa772c6243710930ab47b1ed884f7bd07b",
       "tests/test_independent_review.py": "7f8425da0ddbfe894fe2145a52cce45c2b8ac776",
-      "tests/test_lifecycle_workers.py": "c471adf4f2217d1d9b193de4346ced03496506c9"
+      "tests/test_lifecycle_workers.py": "753dcd510a0e0e3b18ff7388a432e42312cfcb2a",
+      "tests/test_requirement_contribution_composition.py": "a612150791557953f979051de87bace06254507e"
     },
     "scope": "independent-review-v1",
     "version": 1
