@@ -2,11 +2,14 @@
   "candidate": {
     "base_head": "6c96df65b6d7f4f4d4ee0c30e2d81880190b7dd0",
     "base_ref": "origin/main",
-    "candidate_head": "b77deaae446aee4477d7025fc4c00e791e6fa2e3",
-    "diff_sha256": "38ba52f812a2789ef80325aae4ebcb350c48e1b295cbff0a4bafcd0519e6b500"
+    "candidate_head": "a7ca3b8e4135ca3f37e81995e9b69871e4afc3cf",
+    "diff_sha256": "d6be424eb687be6a7bafc497f1687d540a3bd21746bc5d63b5c91ce17c0da084"
   },
   "change": "openspec/changes/add-platform-explorer-foundation",
   "excluded_lifecycle_paths": [
+    "openspec/changes/add-platform-explorer-foundation/independent-review-request.json",
+    "openspec/changes/add-platform-explorer-foundation/independent-reviews/engineering-quality.json",
+    "openspec/changes/add-platform-explorer-foundation/independent-reviews/spec-fidelity.json",
     "openspec/changes/add-platform-explorer-foundation/verification.md"
   ],
   "fresh_context_required": true,
@@ -33,7 +36,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-08T06:27:11+00:00",
+  "prepared_at": "2026-10-08T06:48:44+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/add-platform-explorer-foundation/independent-reviews",
     "required_perspectives": [
@@ -42,7 +45,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "b4800737-786f-44c9-b52f-80908e448ba1",
+  "request_id": "815e8483-4ec2-4bc0-b313-3fafcbec14f3",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -55,7 +58,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "3df526d8aa798ad591f02c59d2e55448ce40ff32",
-    "digest": "adb3b4f035efb6716435734e0f782b8f94eed76a373c6f83b37aca2b8dd14d6f",
+    "digest": "f66e662b1d82e988a61adb9bb86bdb8c783be56c0154861ff543f8dc3d6cce27",
     "paths": {
       ".gitignore": "5dd410f152bbf7a0491796d19e663852f2eeff6e",
       "dev-platform/checks.toml": "57455afb0206e393f3e6721dcfa110438ffa0284",
@@ -70,8 +73,8 @@
       "openspec/changes/add-platform-explorer-foundation/proposal.md": "382efdd4d4e4a42932521c7f7bace8ccc0293ddf",
       "openspec/changes/add-platform-explorer-foundation/specs/platform-explorer/spec.md": "70760ca633c455b221b410ff8766051aea5e4fba",
       "openspec/changes/add-platform-explorer-foundation/tasks.md": "ad757f2553aa9b572eca199ddeaf41074e32aabc",
-      "scripts/build_explorer.py": "1aa7ee75d316951c35dd3d8496d10760d89ed292",
-      "tests/test_build_explorer.py": "9d3fb50c3d44548a201a49393b38bc544a4b8767"
+      "scripts/build_explorer.py": "9d345daae415b4dca9f7fabe92c03954fd535086",
+      "tests/test_build_explorer.py": "a3abd2d0ada92a6b64295e1353f5379b55240497"
     },
     "scope": "independent-review-v1",
     "version": 1

@@ -21,8 +21,10 @@ import dataclasses
 import html
 import posixpath
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 import tomllib
 from pathlib import Path
 
@@ -56,6 +58,7 @@ class Repo:
     directories: frozenset[str]
     commit: str
     version: str
+    dirty: bool
 
 
 def open_repo(root: Path) -> Repo:
@@ -72,6 +75,12 @@ def open_repo(root: Path) -> Repo:
     commit = result.stdout.strip()
     if result.returncode != 0 or not re.fullmatch(r"[0-9a-f]{40}", commit):
         raise ExplorerError(f"cannot determine the source commit at {root}: {result.stderr.strip() or 'git rev-parse HEAD failed'}")
+    try:
+        status = subprocess.run(["git", "status", "--porcelain", "--untracked-files=no"], cwd=root, capture_output=True, text=True, check=False)
+    except OSError as exc:
+        raise ExplorerError(f"git is required to determine the working tree state: {exc}") from exc
+    if status.returncode != 0:
+        raise ExplorerError(f"cannot determine the working tree state at {root}: {status.stderr.strip() or 'git status failed'}")
     version_file = root / "VERSION"
     if not version_file.is_file():
         raise ExplorerError(f"VERSION file is missing at {root}")
@@ -84,7 +93,7 @@ def open_repo(root: Path) -> Repo:
         while parent:
             directories.add(parent)
             parent = posixpath.dirname(parent)
-    return Repo(root, tracked, allowed, frozenset(directories), commit, version)
+    return Repo(root, tracked, allowed, frozenset(directories), commit, version, bool(status.stdout.strip()))
 
 
 def require_source(repo: Repo, path: str, context: str) -> None:
@@ -1331,6 +1340,7 @@ class Site:
             '<footer class="site-footer">'
             f"Dev Platform {html.escape(self.repo.version)} &middot; built from commit "
             f'<a href="{REPOSITORY_URL}/commit/{self.repo.commit}">{short}</a>'
+            f"{' with uncommitted changes' if self.repo.dirty else ''}"
             "</footer>\n</body>\n</html>\n"
         )
 
@@ -1575,11 +1585,19 @@ def write_outputs(out: Path, outputs: dict[str, bytes]) -> None:
             raise ExplorerError(f"output path '{out}' exists and is not a directory")
         if any(out.iterdir()):
             raise ExplorerError(f"output directory '{out}' is not empty; remove it or choose a new directory")
-    out.mkdir(parents=True, exist_ok=True)
-    for path in sorted(outputs):
-        destination = out / path
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_bytes(outputs[path])
+    out.parent.mkdir(parents=True, exist_ok=True)
+    staging = Path(tempfile.mkdtemp(prefix=f".{out.name}-staging-", dir=out.parent))
+    try:
+        for path in sorted(outputs):
+            destination = staging / path
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(outputs[path])
+        if out.exists():
+            out.rmdir()
+        staging.rename(out)
+    except BaseException:
+        shutil.rmtree(staging, ignore_errors=True)
+        raise
 
 
 def main(argv: list[str] | None = None) -> int:

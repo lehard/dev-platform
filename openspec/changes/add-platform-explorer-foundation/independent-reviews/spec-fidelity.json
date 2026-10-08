@@ -3,30 +3,30 @@
   "candidate": {
     "base_head": "6c96df65b6d7f4f4d4ee0c30e2d81880190b7dd0",
     "base_ref": "origin/main",
-    "candidate_head": "b77deaae446aee4477d7025fc4c00e791e6fa2e3",
-    "diff_sha256": "38ba52f812a2789ef80325aae4ebcb350c48e1b295cbff0a4bafcd0519e6b500"
+    "candidate_head": "a7ca3b8e4135ca3f37e81995e9b69871e4afc3cf",
+    "diff_sha256": "d6be424eb687be6a7bafc497f1687d540a3bd21746bc5d63b5c91ce17c0da084"
   },
-  "completed_at": "2026-10-08T06:29:28+00:00",
+  "completed_at": "2026-10-08T06:49:31+00:00",
   "findings": [
     {
-      "evidence": "tests/test_build_explorer.py:3042 `@unittest.skipIf(shutil.which(\"copier\") is None, \"copier is not installed\")` on `test_rendered_new_project_contains_no_explorer_artifact`. docs/engineering/explorer.md, section \"Ownership and downstream boundary\": \"`tests/test_build_explorer.py` renders a project and fails if any Explorer artifact appears\".",
-      "id": "boundary-render-test-skippable",
+      "evidence": "scripts/build_explorer.py `open_repo` takes the commit from `git rev-parse HEAD`, while `read_text` reads `(repo.root / path).read_text()` from disk. docs/engineering/explorer.md says: \"Sources are read from the working tree, so build from a clean checkout when the stamped commit must describe the content exactly.\" The design and spec say nothing about this.",
+      "id": "commit-stamp-vs-working-tree",
       "severity": "advisory",
-      "summary": "The spec scenario \"New project is rendered\" says a rendered project contains no Explorer artifact. The test that actually renders a project is skipped when `copier` is not installed. In that case only the filesystem-location tests run. docs/engineering/explorer.md says the test \"renders a project and fails if any Explorer artifact appears\" without mentioning the skip. This is a silent skip, not an explicit failure."
+      "summary": "Sources are read from the working tree, but every page is stamped with `git rev-parse HEAD` and its source links point at that commit. A dirty or modified checkout produces pages whose content does not match the stamped commit, and the build does not detect or report this. The spec requires pages to be stamped with the source commit and to link to \"the exact file at the built commit\". The docs disclose the limitation, but the contract does not."
     }
   ],
-  "launched_at": "2026-10-08T06:29:03+00:00",
-  "output_sha256": "b630109ec863633335de2f76f8e90610c993378b3720765093663b812dd16044",
+  "launched_at": "2026-10-08T06:48:59+00:00",
+  "output_sha256": "fae9bbe2beb0aa5f6f6d08522b81c825f144547c27f3e2ab6492246fcb813251",
   "perspective": "spec-fidelity",
-  "request_id": "b4800737-786f-44c9-b52f-80908e448ba1",
+  "request_id": "815e8483-4ec2-4bc0-b313-3fafcbec14f3",
   "reviewer": {
-    "context_id": "ccfbbcae-9b91-40b2-a5fa-bc76ad28b20d",
+    "context_id": "94fc0cba-11e8-47a1-b905-ef41407018d8",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-0293b994-7118-412a-b06d-03e8bf47aea0",
+    "launch_id": "platform-launch-0824eb54-6f1a-4044-8e2b-fc1c0abfae89",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -42,41 +42,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 64032
+        "value": 79706
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 121398
+        "value": 275033
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 16078
+        "value": 26447
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 16706
+        "value": 27103
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 12
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 10
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1639
+        "value": 2596
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "adb3b4f035efb6716435734e0f782b8f94eed76a373c6f83b37aca2b8dd14d6f"
+  "task_content_digest": "f66e662b1d82e988a61adb9bb86bdb8c783be56c0154861ff543f8dc3d6cce27"
 }

@@ -3,36 +3,36 @@
   "candidate": {
     "base_head": "6c96df65b6d7f4f4d4ee0c30e2d81880190b7dd0",
     "base_ref": "origin/main",
-    "candidate_head": "b77deaae446aee4477d7025fc4c00e791e6fa2e3",
-    "diff_sha256": "38ba52f812a2789ef80325aae4ebcb350c48e1b295cbff0a4bafcd0519e6b500"
+    "candidate_head": "a7ca3b8e4135ca3f37e81995e9b69871e4afc3cf",
+    "diff_sha256": "d6be424eb687be6a7bafc497f1687d540a3bd21746bc5d63b5c91ce17c0da084"
   },
-  "completed_at": "2026-10-08T06:31:01+00:00",
+  "completed_at": "2026-10-08T06:50:18+00:00",
   "findings": [
     {
-      "evidence": "scripts/build_explorer.py: LINK_DESTINATION_RE accepts an optional `\"title\"` or `'title'` after the destination. parse_inline only reads `parsed.group(1)` for the destination, so the title never reaches the output. docs/engineering/explorer.md says an unsupported construct inside an included excerpt fails the build and is never dropped. A source link like `[x](a.md \"Title\")` therefore renders without its title, and no test covers this.",
-      "id": "link-title-silently-dropped",
+      "evidence": "scripts/build_explorer.py `read_text` uses `(repo.root / path).read_text(...)` and `open_repo` takes `commit` from `git rev-parse HEAD`. Nothing compares the two. docs/engineering/explorer.md admits this: 'build from a clean checkout when the stamped commit must describe the content exactly.' The check is advisory in docs only. A cheap `git status --porcelain` guard on tracked files, or an explicit flag, would remove the risk before the sibling publication change deploys this output.",
+      "id": "dirty-tree-commit-stamp-mismatch",
       "severity": "advisory",
-      "summary": "The renderer's fail-closed contract says unsupported constructs are never dropped, but an inline link title is accepted and discarded without an error."
+      "summary": "The build reads source content from the working tree but stamps pages with `git rev-parse HEAD` and links to sources at that commit. It does not check that tracked sources are unmodified, so a build from a dirty checkout publishes content that differs from the linked commit."
     },
     {
-      "evidence": "tests/test_build_explorer.py: `@unittest.skipIf(shutil.which(\"copier\") is None, \"copier is not installed\")` on test_rendered_new_project_contains_no_explorer_artifact. docs/engineering/explorer.md says the test \"renders a project and fails if any Explorer artifact appears\". In an environment without copier, this check is skipped rather than failed. That is a degraded path, and the repo's no-fallback rule favours failing explicitly.",
-      "id": "copier-boundary-test-skips-silently",
+      "evidence": "scripts/build_explorer.py `write_outputs`: `out.mkdir(parents=True, exist_ok=True)` followed by a per-file `destination.write_bytes(...)` loop. There is no temp directory plus rename, and no cleanup on failure. `OSError` is not caught, so the traceback is loud, but the partial output remains.",
+      "id": "write-outputs-not-atomic",
       "severity": "advisory",
-      "summary": "The only test that renders a project and checks that no Explorer artifact appears is skipped when `copier` is missing. The skip is silent, and the downstream-boundary requirement is then covered only by static path checks."
+      "summary": "`write_outputs` writes files one by one into the target directory. An I/O error part-way (disk full, permissions) leaves a partial site in the output directory. The next run then fails with 'not empty', and the partial site could be mistaken for a complete build."
     }
   ],
-  "launched_at": "2026-10-08T06:29:28+00:00",
-  "output_sha256": "44f596772a530a6fc1173a657a6bc0da49e648b6faf5f31b40329b9775187d73",
+  "launched_at": "2026-10-08T06:49:31+00:00",
+  "output_sha256": "f3b799b89e78814ea099b4de0b24b4f37244da0a14f61b60bd62a6e450b156d4",
   "perspective": "engineering-quality",
-  "request_id": "b4800737-786f-44c9-b52f-80908e448ba1",
+  "request_id": "815e8483-4ec2-4bc0-b313-3fafcbec14f3",
   "reviewer": {
-    "context_id": "d24967d6-1098-4825-bf25-7e6a2a13eff9",
+    "context_id": "ccd62ef3-ad69-49ea-a8ad-d6b26560b917",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-07191971-f91f-4ab7-b6a9-72978d5fd2ed",
+    "launch_id": "platform-launch-a974ab17-adc6-4c10-8316-796be6f22968",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -48,41 +48,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 74913
+        "value": 63620
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 174291
+        "value": 303655
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 83955
+        "value": 41431
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 86418
+        "value": 44075
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10
+        "value": 14
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 10
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4167
+        "value": 3719
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "adb3b4f035efb6716435734e0f782b8f94eed76a373c6f83b37aca2b8dd14d6f"
+  "task_content_digest": "f66e662b1d82e988a61adb9bb86bdb8c783be56c0154861ff543f8dc3d6cce27"
 }

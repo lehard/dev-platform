@@ -35,7 +35,7 @@ Relative links to repository files become links to the matching Explorer element
 
 ## Determinism and public safety
 
-Output has no timestamps or absolute paths and uses declared order, then id, so identical inputs produce byte-identical output. The commit comes from `git rev-parse HEAD` and sources come from `git ls-files` minus the public-distribution exclusions; running outside a git checkout is an explicit error rather than a filesystem walk. Sources are read from the working tree, so build from a clean checkout when the stamped commit must describe the content exactly.
+Output has no timestamps or absolute paths and uses declared order, then id, so identical inputs produce byte-identical output. The commit comes from `git rev-parse HEAD` and sources come from `git ls-files` minus the public-distribution exclusions; running outside a git checkout is an explicit error rather than a filesystem walk. Sources are read from the working tree, so when tracked files differ from `HEAD` every page footer says the commit is shown "with uncommitted changes"; build from a clean checkout when the stamped commit must describe the content exactly. `build --out` writes into a sibling staging directory and renames it into place, so a failed write leaves no partial site.
 
 Before anything is written, every generated file is scanned with the owner-reference and secret rules of `scripts/public_distribution.py`. A finding aborts the build with the generated path and the reason, without echoing the matched value, and writes nothing.
 

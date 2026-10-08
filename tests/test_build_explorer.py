@@ -206,6 +206,24 @@ class CleanBuildTests(FixtureTestCase):
         self.assertEqual(code, 2)
         self.assertIn("not empty", stderr)
 
+    def test_clean_tree_footer_has_no_uncommitted_marker_and_dirty_tree_is_labelled(self) -> None:
+        root = self.make_repo()
+        self.assertNotIn("uncommitted", self.page(self.build(root), "guide"))
+        guide = root / "docs" / "guide.md"
+        guide.write_text(guide.read_text(encoding="utf-8") + "\nchanged but not committed\n", encoding="utf-8")
+        self.assertIn("with uncommitted changes", self.page(self.build(root), "guide"))
+
+    def test_failed_write_leaves_no_partial_output(self) -> None:
+        root = self.make_repo()
+        outputs = self.build(root)
+        out = root.parent / "partial"
+        outputs = dict(outputs)
+        outputs["e/blocked/index.html"] = "not bytes"  # type: ignore[assignment]
+        with self.assertRaises(Exception):
+            explorer.write_outputs(out, outputs)
+        self.assertFalse(out.exists())
+        self.assertEqual([p.name for p in root.parent.iterdir() if "staging" in p.name], [])
+
     def test_script_runs_as_a_command_from_another_directory(self) -> None:
         root = self.make_repo()
         result = subprocess.run(
