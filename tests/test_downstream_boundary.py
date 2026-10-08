@@ -300,6 +300,38 @@ class DownstreamCheckoutTests(unittest.TestCase):
 
 
 class RequirementLifecycleSelectionTests(unittest.TestCase):
+    def test_publication_rejects_invalid_contract_before_merged_reconciliation(self) -> None:
+        integration = load_platform_module("requirement_integration", SCRIPTS / "requirement_integration.py")
+        for config in ({}, *({"platform_version": "source", key: value} for key, value in (
+                ("scm_provider", "gitlab"), ("publish_mode", "direct"), ("harness_mode", "project")))):
+            with self.subTest(config=config), \
+                    mock.patch.object(common, "read_platform_config", return_value=config), \
+                    mock.patch.object(common, "main_root") as main, \
+                    mock.patch.object(integration, "_validate_candidate_checkout") as validate, \
+                    mock.patch.object(integration, "_reconcile_exact_merged", return_value={"status": "merged-and-reconciled"}) as reconcile:
+                with self.assertRaises(common.PlatformConfigError):
+                    integration.publish_candidate(Path("/unused"), manifest={}, receipt_paths=[])
+                main.assert_not_called()
+                validate.assert_not_called()
+                reconcile.assert_not_called()
+
+    def test_terminal_rejects_invalid_contract_before_delivery_work(self) -> None:
+        terminal = load_platform_module("requirement_terminal", SCRIPTS / "requirement_terminal.py")
+        for config in ({}, *({"platform_version": "source", key: value} for key, value in (
+                ("scm_provider", "gitlab"), ("publish_mode", "direct"), ("harness_mode", "project")))):
+            with self.subTest(config=config), \
+                    mock.patch.object(terminal, "read_platform_config", return_value=config), \
+                    mock.patch.object(terminal.subprocess, "run") as run, \
+                    mock.patch.object(terminal.requirement_intake, "fetch_issue") as fetch, \
+                    mock.patch.object(terminal.managed_project_status, "reconcile") as reconcile, \
+                    mock.patch.object(terminal, "_close_issue") as close:
+                with self.assertRaises(common.PlatformConfigError):
+                    terminal.reconcile_parent(Path("/unused"), requirement="owner/repo#7")
+                run.assert_not_called()
+                fetch.assert_not_called()
+                reconcile.assert_not_called()
+                close.assert_not_called()
+
     def test_legacy_receipts_cannot_bypass_invalid_source_selection(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

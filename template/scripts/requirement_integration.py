@@ -807,11 +807,12 @@ def _require_early_privacy(root: Path) -> None:
 def publish_candidate(root: Path, *, manifest: dict[str, Any], receipt_paths: list[Path], title: str | None = None) -> dict[str, Any]:
     """Validate and publish one shared candidate through the protected PR primitive."""
     import managed_work_identity
-    from _platform_common import main_root, pr_merge_mode, publish_mode, read_platform_config
+    from _platform_common import lifecycle_mode, main_root, pr_merge_mode, publish_mode, read_platform_config
 
     root = root.resolve()
-    integration = main_root().resolve()
     config = read_platform_config(root)
+    lifecycle_mode(config)
+    integration = main_root().resolve()
     if publish_mode(config) != "pr":
         raise RequirementIntegrationError("shared Requirement integration requires protected PR publication")
     branch, head = _validate_candidate_checkout(root, manifest)
