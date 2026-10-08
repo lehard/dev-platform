@@ -1562,6 +1562,15 @@ def record_retained_execution(root: Path, *, reason: str) -> dict[str, Any]:
     return execution
 
 
+def _without_platform_lifecycle_entries(state: GitSnapshot, change: str) -> GitSnapshot:
+    kept = {
+        path: entry
+        for path, entry in state.paths.items()
+        if not (_is_lifecycle_path(path, change) and (entry.orig_path is None or _is_lifecycle_path(entry.orig_path, change)))
+    }
+    return GitSnapshot(head=state.head, paths=kept)
+
+
 def postcheck(route: Route) -> dict[str, Any]:
     pre_snapshot = route.pre_snapshot
     recovery = route.execution.get("recovery") if route.execution is not None else None
@@ -1570,7 +1579,17 @@ def postcheck(route: Route) -> dict[str, Any]:
         if not isinstance(after_head, str) or not after_head:
             raise RoutingError("verified containment recovery is missing after_head")
         pre_snapshot = {**pre_snapshot, "head": after_head}
-    result = check_containment(_snapshot_from_dict(pre_snapshot), snapshot(Path(route.integration_root)))
+    before = _snapshot_from_dict(pre_snapshot)
+    after = snapshot(Path(route.integration_root))
+    if route.topology == STANDALONE_CLONE:
+        # The integration copy is the task root itself, so the platform's own
+        # lifecycle records (routing record, managed task state) live inside
+        # the compared tree. Only entries that originate from a lifecycle path
+        # are exempt; a lifecycle destination renamed from a tracked
+        # implementation path stays visible as a source change.
+        before = _without_platform_lifecycle_entries(before, route.change)
+        after = _without_platform_lifecycle_entries(after, route.change)
+    result = check_containment(before, after)
     if result.violated:
         assigned = Path(route.task_worktree)
         record_containment_friction(Path(route.integration_root), assigned, result, task=route.source_issue, enforcement_tier="native-worktree")
