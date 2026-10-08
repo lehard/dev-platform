@@ -84,6 +84,7 @@ class RequirementRetrospectiveTests(unittest.TestCase):
     def test_terminal_reconciliation_checks_parent_before_mutation(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
+            (root / ".dev-platform.toml").write_text('platform_version = "1.0.0"\n', encoding="utf-8")
             with mock.patch.object(requirement_terminal.subprocess, "run", return_value=mock.Mock(stdout="main", returncode=0)), mock.patch.object(
                 requirement_terminal.requirement_target_lifecycle, "require_local_target_support"
             ), mock.patch.object(
@@ -98,6 +99,7 @@ class RequirementRetrospectiveTests(unittest.TestCase):
     def test_terminal_reconciliation_refuses_unsupported_target_before_parent_mutation(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
+            (root / ".dev-platform.toml").write_text('platform_version = "1.0.0"\n', encoding="utf-8")
             unsupported = requirement_terminal.requirement_target_lifecycle.RequirementTargetLifecycleError("missing terminal path")
             with mock.patch.object(requirement_terminal.subprocess, "run", return_value=mock.Mock(stdout="main", returncode=0)), mock.patch.object(
                 requirement_terminal.requirement_intake, "fetch_issue", return_value={**parent(), "labels": [{"name": "type:requirement"}]}

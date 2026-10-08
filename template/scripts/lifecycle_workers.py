@@ -22,6 +22,7 @@ import tempfile
 from pathlib import Path
 from typing import Any, Callable
 
+from _platform_common import credential_free_env
 from candidate_lifecycle import derive_candidate, trusted_marker_comment
 import disposable_repository_sandbox
 
@@ -41,13 +42,6 @@ SAFE_GIT = ("-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false")
 # Harness merges and commits never depend on an ambient git identity (CI runners have none).
 HARNESS_IDENTITY = ("-c", "user.name=Lifecycle harness", "-c", "user.email=lifecycle@localhost")
 EVIDENCE_NAMES = ("verification.md", "automated-checks.json")
-CREDENTIAL_VARS = frozenset({
-    "GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN",
-    "GIT_ASKPASS", "SSH_ASKPASS", "SSH_AUTH_SOCK", "GH_HOST_TOKEN", "GITHUB_PAT",
-    "DEV_PLATFORM_COORDINATOR_APP_KEY", "GCM_CREDENTIAL_CACHE_OPTIONS"})
-# Any GitHub-scoped variable (GH_*, GITHUB_*, *_GITHUB_TOKEN/API_KEY...) is dropped; the LLM
-# provider's own key (e.g. ANTHROPIC_API_KEY) is not a repository credential and is kept.
-_CREDENTIAL_PATTERN = re.compile(r"^(GH|GITHUB)_|(GH|GITHUB)\w*_(TOKEN|API_KEY)$|^(GIT|SSH)_ASKPASS$")
 
 
 class WorkerError(RuntimeError):
@@ -196,19 +190,6 @@ def result_is_current(job: dict, result_head: str, current_head: str) -> bool:
 
 
 # ---- environment ----------------------------------------------------------
-
-def credential_free_env(env: dict[str, str], home: Path | None = None) -> dict[str, str]:
-    clean = {key: value for key, value in env.items()
-             if key not in CREDENTIAL_VARS and not _CREDENTIAL_PATTERN.search(key)
-             and not key.startswith("GIT_CONFIG_")}
-    clean.update(GIT_TERMINAL_PROMPT="0", GIT_CONFIG_GLOBAL=os.devnull,
-                 GIT_CONFIG_SYSTEM=os.devnull, GIT_CONFIG_NOSYSTEM="1")
-    if home is not None:
-        # A scratch home: the operator's ~/.config/gh, ~/.ssh and git config are absent.
-        clean.update(HOME=str(home), XDG_CONFIG_HOME=str(home / ".config"), XDG_DATA_HOME=str(home / ".local/share"),
-                     XDG_CACHE_HOME=str(home / ".cache"), GH_CONFIG_DIR=str(home / ".config" / "gh-disabled"))
-    return clean
-
 
 def scratch_home(root: Path, home_files: list[str] | tuple[str, ...] = (), *, source_home: Path | None = None) -> Path:
     """Create a scratch HOME holding only the LLM CLI's own login files (relative to the real HOME)."""

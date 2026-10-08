@@ -461,7 +461,8 @@ class RequirementIntegrationTests(unittest.TestCase):
         integration.compose_candidate(self.root, manifest=manifest, receipt_paths=[one_receipt, two_receipt],
                                       worktree=candidate, branch="agent/" + slug)
         merged = {"status": "merged-and-reconciled", "pr": "https://example.invalid/pr/1"}
-        with mock.patch.object(integration, "_reconcile_exact_merged", return_value=merged) as reconcile, \
+        with mock.patch("_platform_common.read_platform_config", return_value={"platform_version": "1.0.0"}), \
+                mock.patch.object(integration, "_reconcile_exact_merged", return_value=merged) as reconcile, \
                 mock.patch.object(integration, "_run_full_checks") as checks, \
                 mock.patch.object(integration, "compose_candidate") as compose:
             self.assertEqual(integration.publish_candidate(candidate, manifest=manifest, receipt_paths=[]), merged)
@@ -677,7 +678,7 @@ class RequirementIntegrationTests(unittest.TestCase):
         composed = integration.compose_candidate(self.root, manifest=manifest, receipt_paths=[one_receipt],
                                                  worktree=candidate, branch="agent/" + slug)
         with mock.patch.object(_platform_common, "main_root", return_value=self.root), \
-                mock.patch.object(_platform_common, "read_platform_config", return_value={"publish_mode": "pr", "pr_merge_mode": "auto"}), \
+                mock.patch.object(_platform_common, "read_platform_config", return_value={"platform_version": "1.0.0", "publish_mode": "pr", "pr_merge_mode": "auto"}), \
                 mock.patch.object(integration, "_validate_candidate_checkout", return_value=("agent/" + slug, composed["head"])), \
                 mock.patch.object(integration, "_reconcile_exact_merged", return_value=None), \
                 mock.patch.object(integration, "compose_candidate", return_value={**composed, "resumed": True}), \
@@ -728,7 +729,7 @@ class RequirementIntegrationTests(unittest.TestCase):
             return SimpleNamespace(returncode=0)
 
         with mock.patch.object(_platform_common, "main_root", return_value=self.root), \
-                mock.patch.object(_platform_common, "read_platform_config", return_value={"publish_mode": "pr", "pr_merge_mode": "manual"}), \
+                mock.patch.object(_platform_common, "read_platform_config", return_value={"platform_version": "1.0.0", "publish_mode": "pr", "pr_merge_mode": "manual"}), \
                 mock.patch.object(integration, "_validate_candidate_checkout", return_value=("agent/" + slug, composed["head"])), \
                 mock.patch.object(integration, "_reconcile_exact_merged", side_effect=[None, None]), \
                 mock.patch.object(integration, "compose_candidate", return_value={**composed, "resumed": True}), \

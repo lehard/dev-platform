@@ -12,6 +12,30 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator, Mapping
 
+
+CREDENTIAL_VARS = frozenset({
+    "GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN",
+    "GIT_ASKPASS", "SSH_ASKPASS", "SSH_AUTH_SOCK", "GH_HOST_TOKEN", "GITHUB_PAT",
+    "DEV_PLATFORM_COORDINATOR_APP_KEY", "GCM_CREDENTIAL_CACHE_OPTIONS"})
+# Any GitHub-scoped variable (GH_*, GITHUB_*, *_GITHUB_TOKEN/API_KEY...) is dropped; the LLM
+# provider's own key (e.g. ANTHROPIC_API_KEY) is not a repository credential and is kept.
+_CREDENTIAL_PATTERN = re.compile(r"^(GH|GITHUB)_|(GH|GITHUB)\w*_(TOKEN|API_KEY)$|^(GIT|SSH)_ASKPASS$")
+
+
+
+def credential_free_env(env: dict[str, str], home: Path | None = None) -> dict[str, str]:
+    clean = {key: value for key, value in env.items()
+             if key not in CREDENTIAL_VARS and not _CREDENTIAL_PATTERN.search(key)
+             and not key.startswith("GIT_CONFIG_")}
+    clean.update(GIT_TERMINAL_PROMPT="0", GIT_CONFIG_GLOBAL=os.devnull,
+                 GIT_CONFIG_SYSTEM=os.devnull, GIT_CONFIG_NOSYSTEM="1")
+    if home is not None:
+        # A scratch home: the operator's ~/.config/gh, ~/.ssh and git config are absent.
+        clean.update(HOME=str(home), XDG_CONFIG_HOME=str(home / ".config"), XDG_DATA_HOME=str(home / ".local/share"),
+                     XDG_CACHE_HOME=str(home / ".cache"), GH_CONFIG_DIR=str(home / ".config" / "gh-disabled"))
+    return clean
+
+
 try:
     from shared_workspace import (
         SharedWorkspaceError,
@@ -208,7 +232,9 @@ def read_platform_config(root: Path | None = None) -> dict[str, Any]:
     if not isinstance(external, dict):
         raise RuntimeError("operator configuration must contain a TOML object")
     for key, value in external.items():
-        if key == "operator":
+        # Lifecycle identity belongs to the project contract. Operator state
+        # must neither replace these values nor fill absent selector input.
+        if key in {"operator", "platform_version", "harness_mode", "publish_mode", "scm_provider"}:
             continue
         if isinstance(value, dict) and isinstance(config.get(key), dict):
             config[key] = {**config[key], **value}
@@ -390,6 +416,33 @@ def profile(config: dict[str, Any]) -> str:
 
 def harness_mode(config: dict[str, Any]) -> str:
     return str(config.get("harness_mode", "platform"))
+
+
+class PlatformConfigError(RuntimeError):
+    """The committed platform contract is missing a required key or declares an unsupported combination."""
+
+
+def lifecycle_mode(config: dict[str, Any]) -> str:
+    """Select lifecycle behavior from the committed contract: ``portable`` or ``coordinator``.
+
+    Pure: no git, network or coordinator imports. A downstream contract is portable; the
+    source contract is coordinator only for the supported combination.
+    """
+    version = config.get("platform_version")
+    if not isinstance(version, str) or not version:
+        raise PlatformConfigError("platform_version must be a non-empty string in .dev-platform.toml")
+    if version != "source":
+        return "portable"
+    for key, actual, supported in (
+        ("harness_mode", harness_mode(config), "platform"),
+        ("publish_mode", publish_mode(config), "pr"),
+        ("scm_provider", scm_provider(config), "github"),
+    ):
+        if actual != supported:
+            raise PlatformConfigError(
+                f"source contract supports only {key}={supported!r}; found {key}={actual!r}"
+            )
+    return "coordinator"
 
 
 def protected_main(config: dict[str, Any]) -> bool:

@@ -50,7 +50,7 @@ class ProtectedMainZeroHandoffTests(unittest.TestCase):
         (seed / "README.md").write_text("seed\n", encoding="utf-8")
         (seed / ".gitignore").write_text("__pycache__/\n*.py[cod]\n", encoding="utf-8")
         (seed / ".dev-platform.toml").write_text(
-            'main_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\nprotected_main = true\npublish_mode = "pr"\npr_merge_mode = "auto"\n',
+            'platform_version = "1.0.0"\nmain_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\nprotected_main = true\npublish_mode = "pr"\npr_merge_mode = "auto"\n',
             encoding="utf-8",
         )
         git("add", ".", cwd=seed)
@@ -94,7 +94,7 @@ class ProtectedMainZeroHandoffTests(unittest.TestCase):
 
     def test_protected_direct_is_rejected_before_local_main_mutation(self) -> None:
         (self.repo / ".dev-platform.toml").write_text(
-            'main_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\nprotected_main = true\npublish_mode = "direct"\npr_merge_mode = "auto"\n',
+            'platform_version = "1.0.0"\nmain_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\nprotected_main = true\npublish_mode = "direct"\npr_merge_mode = "auto"\n',
             encoding="utf-8",
         )
         git("add", ".dev-platform.toml", cwd=self.repo)

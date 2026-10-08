@@ -15,6 +15,7 @@ from _platform_common import (
     fetch_main,
     github_cli_env,
     main_root,
+    lifecycle_mode,
     pr_merge_mode,
     protected_main,
     publish_mode,
@@ -449,6 +450,8 @@ def validate_shared_manifest(root: Path, path: Path) -> dict:
     if not isinstance(payload, dict) or payload != committed:
         raise RequirementIntegrationError("shared manifest differs from exact committed HEAD")
     if payload.get("version") == 2:
+        if lifecycle_mode(read_platform_config(root)) != "coordinator":
+            raise RequirementIntegrationError("reviewed contribution publication requires a coordinator source contract")
         from requirement_contributions import validate
         validate(payload)
         if path != requirement_integration._candidate_manifest_path(payload["requirement"], root) or branch(root) != payload["integration_branch"]:
@@ -513,6 +516,11 @@ def publish_pr(
     shared_manifest: Path | None = None,
     developer_handoff: bool = False,
 ) -> int:
+    if config is None:
+        config = read_platform_config(root)
+    selected_mode = lifecycle_mode(config)
+    if developer_handoff and selected_mode != "coordinator":
+        raise ManagedTaskError("developer handoff requires a coordinator source contract")
     # The coordinator stack loads only for a developer handoff; ordinary
     # downstream publication never depends on it.
     WorkerError: type[Exception] = ManagedTaskError
@@ -641,11 +649,10 @@ def publish_pr(
     if merge_mode != "auto":
         raise SystemExit(f"Unknown pr_merge_mode: {merge_mode!r}; expected 'auto' or 'manual'.")
 
-    config = config or read_platform_config(root)
     # The central source repository has a durable coordinator once its workflow
     # is present on authoritative main. The feature introducing that workflow
     # still publishes through the existing protected path during bootstrap.
-    if config.get("platform_version") == "source":
+    if selected_mode == "coordinator":
         from publication_queue import admit, enabled
 
         if enabled(root):
@@ -692,6 +699,7 @@ def main() -> int:
     args = parser.parse_args()
     root = current_worktree_root()
     config = read_platform_config(root)
+    lifecycle_mode(config)
     mode = args.mode or publish_mode(config)
     main_branch = str(config.get("main_branch", "main"))
     if mode == "direct":

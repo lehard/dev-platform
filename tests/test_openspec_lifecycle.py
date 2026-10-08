@@ -42,7 +42,7 @@ class OpenSpecLifecycleTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             self.make_change(root, "work", "- [x] done\n")
-            with mock.patch.object(lifecycle, "read_platform_config", return_value={"harness_mode": "platform"}), \
+            with mock.patch.object(lifecycle, "read_platform_config", return_value={"platform_version": "source", "harness_mode": "platform"}), \
                     mock.patch.object(lifecycle, "require_static_archive_readiness"), \
                     mock.patch.object(lifecycle, "require_applicable_committed_diff"), \
                     mock.patch.object(gate, "managed_candidate", return_value=False), \
@@ -459,7 +459,7 @@ class OpenSpecLifecycleTests(unittest.TestCase):
             stale = change / "automated-checks.json"
             stale.write_text('{"outcome":"stale"}\n', encoding="utf-8")
             with (
-                mock.patch.object(lifecycle, "read_platform_config", return_value={}),
+                mock.patch.object(lifecycle, "read_platform_config", return_value={"platform_version": "customer"}),
                 mock.patch.object(lifecycle, "harness_mode", return_value="platform"),
                 mock.patch.object(lifecycle, "run_checked") as run_checked,
             ):
@@ -481,7 +481,7 @@ class OpenSpecLifecycleTests(unittest.TestCase):
                 "OpenSpec-Verify: PASS\nVerification-Method: equivalent-review\nAutomated-Checks-Evidence: automated-checks.json\n",
             )
             with (
-                mock.patch.object(lifecycle, "read_platform_config", return_value={}),
+                mock.patch.object(lifecycle, "read_platform_config", return_value={"platform_version": "customer"}),
                 mock.patch.object(lifecycle, "harness_mode", return_value="platform"),
                 mock.patch.object(lifecycle, "run_git", return_value=mock.Mock(returncode=0)),
                 mock.patch.object(lifecycle, "run_checked") as run_checked,

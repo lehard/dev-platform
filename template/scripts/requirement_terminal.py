@@ -14,7 +14,7 @@ import managed_task
 import requirement_intake
 import requirement_retrospective
 import requirement_target_lifecycle
-from _platform_common import current_worktree_root, github_cli_env
+from _platform_common import current_worktree_root, github_cli_env, lifecycle_mode, read_platform_config
 
 
 class RequirementTerminalError(RuntimeError):
@@ -47,6 +47,7 @@ def _close_issue(root: Path, reference: str) -> None:
 def reconcile_parent(root: Path, *, requirement: str, merged_children: set[str] | None = None) -> dict[str, Any]:
     """Use main's archived lineage plus terminal child/Project state as delivery proof."""
     root = root.resolve()
+    lifecycle_mode(read_platform_config(root))
     if subprocess.run(["git", "branch", "--show-current"], cwd=root, text=True, capture_output=True).stdout.strip() != "main":
         raise RequirementTerminalError("Requirement terminal reconciliation requires integration main")
     parent = requirement_intake.fetch_issue(root, *requirement_intake.issue_ref(requirement))
