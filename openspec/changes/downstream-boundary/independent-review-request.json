@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "c071fa4ce771042c7674a10a968170ebe573b9c5",
-    "diff_sha256": "8ca7510d7bd79275a0c8f6844c77bd94c7ed9ca9463b631f2544a1572a9b02a3"
+    "candidate_head": "f7f85a0e51fb70c55dd511372980546efceb8112",
+    "diff_sha256": "1da3b446fc01bac9c731736327dd274381310556db6e47214da6f8f4ac35d300"
   },
   "change": "openspec/changes/downstream-boundary",
   "excluded_lifecycle_paths": [
@@ -39,7 +39,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-08T14:01:21+00:00",
+  "prepared_at": "2026-10-08T14:56:07+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/downstream-boundary/independent-reviews",
     "required_perspectives": [
@@ -48,7 +48,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "9c727743-2dc9-4fb1-a80e-6a87af0cb1e5",
+  "request_id": "501b1c62-7a88-4d51-b16e-7854f3562eb4",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -61,7 +61,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "digest": "30a72e63973274ae26e2e4818d7957d696841520a9e88fd0f4321377553a324f",
+    "digest": "b381d81be9c9e34333ff4a87544fd19e26156016553d94d3c4b229062c62f64a",
     "paths": {
       "dev-platform/checks.toml": "68a5f3a958051d355cbc5973e8bb597722562ce7",
       "openspec/changes/downstream-boundary/.managed-task.json": "18dbe3c4ed3b3000675fb994ca64dafc7f7fed75",
@@ -85,6 +85,7 @@
       "tests/test_early_private_reference_guard.py": "99c81ba38aa35b123ff475b4f68e5f038bbe13de",
       "tests/test_git_lifecycle.py": "bb526d38c5e1e1ce12dd425e0b59a1f2f67e52d4",
       "tests/test_independent_review.py": "26e31ee3ac3aa9f6ccaa05ff1a7fe6defa8012a3",
+      "tests/test_local_workspace.py": "e097fdcf0cc03bf97ffb545c83ff5c610861ca59",
       "tests/test_managed_status_lifecycle.py": "a45840048086954c7dfee0da50fff4aa5757a39a",
       "tests/test_merge_lifecycle_resilience.py": "4bb743d81ef22f1445c0864822f155b317e309b1",
       "tests/test_openspec_lifecycle.py": "3ea16d65c99508dcaaa05ebb8969b7cffa34e26f",

@@ -3,28 +3,40 @@
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "c071fa4ce771042c7674a10a968170ebe573b9c5",
-    "diff_sha256": "8ca7510d7bd79275a0c8f6844c77bd94c7ed9ca9463b631f2544a1572a9b02a3"
+    "candidate_head": "f7f85a0e51fb70c55dd511372980546efceb8112",
+    "diff_sha256": "1da3b446fc01bac9c731736327dd274381310556db6e47214da6f8f4ac35d300"
   },
-  "completed_at": "2026-10-08T14:02:36+00:00",
+  "completed_at": "2026-10-08T14:57:46+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/_platform_common.py:187-205: when .dev-platform.toml is missing, read_platform_config returns a default dict with no platform_version, so lifecycle_mode (lines ~431-433) raises 'platform_version must be a non-empty string'. Before this change, archive and finish only compared platform_version == 'source' and treated a missing key as downstream. The diff edits tests/test_br_publication_identity.py to add config={'platform_version': 'test'} to keep an existing test passing. That shows the new strictness breaks existing callers. The design deliberately makes a missing key raise, but it does not discuss legacy or no-config checkouts or the upgrade path for them.",
-      "id": "lifecycle-mode-raises-without-platform-version",
+      "evidence": "template/scripts/finish_task.py:405 and :1067 use config.get(\"platform_version\") == \"source\". The same pattern appears in capability_manager.py:374, publication_queue.py:151 and openspec_lifecycle.py:372. Under a source contract with an unsupported combination, such as scm_provider=gitlab, these paths behave differently from the entrypoints that now raise. finish_task.main raises early, but other callers of these helpers do not.",
+      "id": "residual-raw-source-checks",
       "severity": "advisory",
-      "summary": "lifecycle_mode now raises PlatformConfigError whenever platform_version is absent. The selector is called unconditionally in archive_change, finish_task.main, project_publish.main/publish_pr, execute_requirement.advance, requirement_terminal.reconcile_parent and publish_candidate. Checkouts that previously worked without that key now hard-fail at these entrypoints."
+      "summary": "Some downstream-reachable code still tests platform_version == \"source\" directly instead of going through lifecycle_mode. The new selector is therefore not the single point of truth."
+    },
+    {
+      "evidence": "template/scripts/_platform_common.py:235-238 skips these keys with a bare `continue`. The change is covered by tests, but no documentation or diagnostic tells operators their overlay values are discarded.",
+      "id": "operator-overlay-selector-keys-silently-ignored",
+      "severity": "advisory",
+      "summary": "read_platform_config now drops platform_version, harness_mode, publish_mode and scm_provider from the operator overlay without a warning. An operator who relied on overriding publish_mode or scm_provider will see the setting have no effect."
+    },
+    {
+      "evidence": "template/scripts/openspec_lifecycle.py, in the archive_change hunk: `coordinator_managed = False` whenever mode != \"coordinator\". Provenance is never examined in portable mode, so a malformed or ambiguous .managed-task.json goes unreported.",
+      "id": "portable-archive-skips-managed-candidate-for-coordinator-provenance",
+      "severity": "advisory",
+      "summary": "A downstream contract now always takes the portable review path in archive_change, even if the checkout holds active managed-task provenance. The behavior change is intended, but nothing warns about the case."
     }
   ],
-  "launched_at": "2026-10-08T14:02:08+00:00",
-  "output_sha256": "970e7860467c110d78669700f051ffb5aa6fff7a87570bc52dc706c318ecf490",
+  "launched_at": "2026-10-08T14:56:43+00:00",
+  "output_sha256": "3d3602b081cec12d49398df88210c077ab3308d9088f0de1d201fa06d5da800b",
   "perspective": "engineering-quality",
-  "request_id": "9c727743-2dc9-4fb1-a80e-6a87af0cb1e5",
+  "request_id": "501b1c62-7a88-4d51-b16e-7854f3562eb4",
   "reviewer": {
-    "context_id": "0e4298db-3e22-4b82-96af-a95f2d12ff63",
+    "context_id": "2d55ba85-842e-4158-8a7b-028e150a460e",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-8bf59d54-8113-41f7-ad85-41090babf2bf",
+    "launch_id": "platform-launch-d5bfbc87-2f5f-4a1f-8703-02468b91fbc0",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,41 +51,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 33013
+        "value": 56130
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 124212
+        "value": 228479
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 23445
+        "value": 58437
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 25142
+        "value": 61971
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10
+        "value": 12
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 9
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2126
+        "value": 2229
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "30a72e63973274ae26e2e4818d7957d696841520a9e88fd0f4321377553a324f"
+  "task_content_digest": "b381d81be9c9e34333ff4a87544fd19e26156016553d94d3c4b229062c62f64a"
 }
