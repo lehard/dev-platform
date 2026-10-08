@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "c9b0881a4d72c69211bb1a1b6abf110aab5e05d9",
-    "diff_sha256": "ac3f8bb663660ef98c6d54753863881f153b372ecf235cca8b7f5e4cf0fc58cb"
+    "candidate_head": "21fd4494a81c524d0d37924a8730d1d5d4e92889",
+    "diff_sha256": "9aa33183711b0a47d372a5199094ec24f7dcac1346cf1c12f6b95dce83b11db1"
   },
   "change": "openspec/changes/early-routing-gate",
   "excluded_lifecycle_paths": [
@@ -37,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-08T05:26:55+00:00",
+  "prepared_at": "2026-10-08T05:43:56+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/early-routing-gate/independent-reviews",
     "required_perspectives": [
@@ -46,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "c1f18c13-1bdf-417e-9f4a-85ded9f68182",
+  "request_id": "0652e9d2-3cbd-4b10-8039-148746013841",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -59,24 +59,24 @@
   "schema_version": 1,
   "task_content": {
     "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "digest": "58fb072e847686a8929d1ad111a311e5f5303d31a75bcc2c695a1a38107e84cd",
+    "digest": "98e4392782f300d0867c60f1e722d74b055948aa78ef4cb7ab8963883589fd60",
     "paths": {
       "docs/engineering/model-routing.md": "bad632ae9f8071227655e27e79a4f138fe6b9ee1",
       "openspec/changes/early-routing-gate/.managed-task.json": "006de5a6569c408e10c30fdb400114f4b7e9dbc4",
       "openspec/changes/early-routing-gate/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
-      "openspec/changes/early-routing-gate/design.md": "3c189d025880c16fba981d8cf3d6fc43645fc0ee",
+      "openspec/changes/early-routing-gate/design.md": "5dd57906f2c48d228c8b14894329e2a56f3e2f56",
       "openspec/changes/early-routing-gate/proposal.md": "0a0269fb32daa481ec035a6b702c9dd75b436849",
-      "openspec/changes/early-routing-gate/specs/model-routing/spec.md": "64d7767714151cb2e54b494b9fe3c039dd04842a",
-      "openspec/changes/early-routing-gate/tasks.md": "56db5e546c819066ddd19c9e82dac204799e7446",
+      "openspec/changes/early-routing-gate/specs/model-routing/spec.md": "563e1f1636a7746f6e8f6dac5ea6b67893bcb197",
+      "openspec/changes/early-routing-gate/tasks.md": "57504f963dc109b9f2e96cd91c9a17b5a86a5ee5",
       "scripts/dogfood_task.py": "cfaca7ffd6312b5950710e56b0355c2529c47ac0",
       "template/docs/engineering/model-routing.md": "c4d2fd4b4e79a314102bda6bf1701817051691a3",
       "template/scripts/delegated_write_guard.py": "a6906d1c79e7281bf14694ce897b00e31034513b",
-      "template/scripts/model_routing.py": "1ced6b9db774d882425c3b3d2ca8c2ab5e74c317",
+      "template/scripts/model_routing.py": "8393f60575cf2f814a3af1770d4682285ade5eaf",
       "template/scripts/run_test_groups.py": "e92df3a472e088e90cffa033b2b47423588902b1",
       "template/scripts/task_content_identity.py": "4afebee13abdc518b0c76f6bf41086da3a8f1a88",
       "tests/test_central_dogfood_lifecycle.py": "5c288a1211eed7f122a79ee30bb8fad8aaa522ec",
       "tests/test_delegated_write_guard.py": "71ed22de46ab1a1533f923552bff41defbd69159",
-      "tests/test_model_routing.py": "a6437639a39042fcfe8e7376b98b6b5c7dec293b",
+      "tests/test_model_routing.py": "f172dcb1d4d1c63387fbd54f2849ab2261e85ef6",
       "tests/test_run_test_groups.py": "c020a3f310037f9843761fbe04dcde66f407e334",
       "tests/test_standard_profile_lifecycle_compatibility.py": "1f5b0d642a0d861ebdf3aeab5c0bd22879069352",
       "tests/upgrade_smoke.py": "b8de65726bea479bb67bb9c8da5709e1c701a157"

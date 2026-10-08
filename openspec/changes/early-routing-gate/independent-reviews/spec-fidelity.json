@@ -1,30 +1,23 @@
 {
-  "availability": "available",
+  "availability": "unavailable",
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "c9b0881a4d72c69211bb1a1b6abf110aab5e05d9",
-    "diff_sha256": "ac3f8bb663660ef98c6d54753863881f153b372ecf235cca8b7f5e4cf0fc58cb"
+    "candidate_head": "21fd4494a81c524d0d37924a8730d1d5d4e92889",
+    "diff_sha256": "9aa33183711b0a47d372a5199094ec24f7dcac1346cf1c12f6b95dce83b11db1"
   },
-  "completed_at": "2026-10-08T05:27:52+00:00",
-  "findings": [
-    {
-      "evidence": "template/scripts/model_routing.py:1036 preserves route.execution when switching the plan to supervisor-retained, but record_retained_execution at lines 1499\u20131500 rejects every route with existing execution evidence. Thus a failed Codex child can be reviewed and escalated, yet the supervisor cannot record completion: require_routing_gate at lines 672\u2013676 continues rejecting the preserved failed outcome. This contradicts the active delta's accepted escalation-after-real-delegation scenario and retained-finalization requirement. Re-routing instead discards the delegation/escalation provenance that the scenario requires to remain distinct.",
-      "id": "escalated-child-cannot-finalize-retention",
-      "severity": "material",
-      "summary": "Escalation after a recorded child outcome cannot finalize the supervisor-retained execution."
-    }
-  ],
-  "launched_at": "2026-10-08T05:27:08+00:00",
-  "output_sha256": "376ce3ad2766dd85a3fda9d403f487a1d4cbdc3932a3ecc9a001b54896046534",
+  "completed_at": "2026-10-08T05:46:08+00:00",
+  "findings": [],
+  "launched_at": "2026-10-08T05:46:08+00:00",
+  "limitation": "codex reviewer runtime with model 'gpt-6.1-sol' is not ready: readiness probe timed out (reviewer exceeded 120s); rerun, or raise [independent_review] preflight_timeout_seconds; next: log the codex CLI in on this host, or change the [model_routing] / [independent_review] binding for this account (no other model or provider is tried), then rerun python3 scripts/independent_review.py preflight",
   "perspective": "spec-fidelity",
-  "request_id": "c1f18c13-1bdf-417e-9f4a-85ded9f68182",
+  "request_id": "0652e9d2-3cbd-4b10-8039-148746013841",
   "reviewer": {
-    "context_id": "01a119fa-c90f-7a72-ab3a-128c044fb26f",
-    "context_id_source": "runtime",
+    "context_id": "platform-launch-42842a1b-230c-4ec3-b795-0e1b709cd3e1",
+    "context_id_source": "platform-launch",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-4356e109-ebda-4407-9414-9ad537be1594",
+    "launch_id": "platform-launch-42842a1b-230c-4ec3-b795-0e1b709cd3e1",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -34,26 +27,6 @@
     "runtime": "codex-exec",
     "write_access": false
   },
-  "runtime_usage": {
-    "fields": {
-      "cached_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 195712
-      },
-      "input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 283407
-      },
-      "output_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 979
-      }
-    },
-    "runtime": "codex-exec"
-  },
   "schema_version": 1,
-  "task_content_digest": "58fb072e847686a8929d1ad111a311e5f5303d31a75bcc2c695a1a38107e84cd"
+  "task_content_digest": "98e4392782f300d0867c60f1e722d74b055948aa78ef4cb7ab8963883589fd60"
 }
