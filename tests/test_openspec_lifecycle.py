@@ -67,6 +67,18 @@ class OpenSpecLifecycleTests(unittest.TestCase):
             self.assertEqual(["done"], lifecycle.completed_active_changes(root))
             self.assertEqual(1, lifecycle.check_hygiene(root))
 
+    def test_explicit_candidate_stage_needs_no_checkout_config(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            managed = self.make_change(root, "managed", "- [x] one\n")
+            (managed / ".managed-task.json").write_text("{}\n", encoding="utf-8")
+            self.make_change(root, "unmanaged", "- [x] one\n")
+            self.assertFalse((root / ".dev-platform.toml").exists())
+            self.assertEqual(1, lifecycle.check_hygiene(root, lifecycle.STAGE_CANDIDATE))
+            shutil.rmtree(root / "openspec" / "changes" / "unmanaged")
+            self.assertEqual(0, lifecycle.check_hygiene(root, lifecycle.STAGE_CANDIDATE))
+            self.assertEqual(1, lifecycle.check_hygiene(root, lifecycle.STAGE_INTEGRATION))
+
     def test_alternative_markers_and_unknown_content_keep_change_incomplete(self) -> None:
         for open_task in ("+ [ ] task", "* [ ] task", "1. [ ] task", "1) [ ] task", "- [~] partial", "- [-] skipped", "-[ ] tight"):
             with self.subTest(open_task=open_task), tempfile.TemporaryDirectory() as tmp:

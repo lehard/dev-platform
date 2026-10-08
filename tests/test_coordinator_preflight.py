@@ -265,6 +265,22 @@ class WorkflowStructureTests(unittest.TestCase):
         self.assertEqual({name: worker.get(name) for name in inputs}, inputs)
         self.assertEqual({name: worker.get(name) for name in runtime}, runtime)
 
+    def test_source_contract_is_installed_before_any_preflight(self):
+        install = self.index("cp dev-platform/source-contract.toml .dev-platform.toml")
+        self.assertIn("test ! -e .dev-platform.toml", self.steps[install]["run"])
+        self.assertLess(install, self.index("preflight --mode ci --phase inputs"))
+
+    def test_tracked_source_contract_selects_the_coordinator_without_operator_state(self):
+        import tomllib
+
+        from _platform_common import lifecycle_mode
+
+        with (ROOT / "dev-platform" / "source-contract.toml").open("rb") as fh:
+            contract = tomllib.load(fh)
+        self.assertEqual("source", contract["platform_version"])
+        self.assertEqual("coordinator", lifecycle_mode(contract))
+        self.assertFalse({"operator", "development_backlog", "private_lineage"} & set(contract))
+
     def test_token_permissions_stay_least_privilege(self):
         options = self.steps[self.index("actions/create-github-app-token")]["with"]
         self.assertEqual({k for k in options if k.startswith("permission-")},
