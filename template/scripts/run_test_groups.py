@@ -224,7 +224,7 @@ def default_jobs() -> int:
 
 def require_early_routing_gate(root: Path) -> None:
     """Refuse to execute any group while task content contradicts the recorded execution plan."""
-    has_managed_task = (root / ".managed-task-state.json").is_file() or any((root / "openspec/changes").glob("*/.managed-task.json"))
+    has_managed_task = (root / ".managed-task-state.json").is_file()
     if not has_managed_task or importlib.util.find_spec("model_routing") is None:
         return
     import model_routing

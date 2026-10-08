@@ -196,15 +196,25 @@ class OptionalRoutingGateTests(unittest.TestCase):
             with mock.patch.object(run_test_groups.importlib.util, "find_spec", return_value=None):
                 run_test_groups.require_early_routing_gate(root)
 
-    def test_materialized_managed_package_runs_routing_gate(self) -> None:
+    def test_local_managed_state_runs_routing_gate(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             change = root / "openspec/changes/task"
             change.mkdir(parents=True)
             (change / ".managed-task.json").write_text("{}", encoding="utf-8")
+            (root / ".managed-task-state.json").write_text("{}", encoding="utf-8")
             routing_module = mock.Mock()
             with mock.patch.dict(sys.modules, {"model_routing": routing_module}), mock.patch.object(
                 run_test_groups.importlib.util, "find_spec", return_value=mock.Mock()
             ):
                 run_test_groups.require_early_routing_gate(root)
             routing_module.require_early_routing_gate.assert_called_once_with(root)
+
+    def test_fresh_checkout_with_private_package_does_not_resolve_local_lineage(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            change = root / "openspec/changes/task"
+            change.mkdir(parents=True)
+            (change / ".managed-task.json").write_text('{"private_lineage_handle": "private"}', encoding="utf-8")
+            with mock.patch.object(run_test_groups.importlib.util, "find_spec", side_effect=AssertionError("local routing lookup")):
+                run_test_groups.require_early_routing_gate(root)

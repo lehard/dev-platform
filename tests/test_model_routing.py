@@ -2132,6 +2132,11 @@ class EarlyRoutingGateTests(unittest.TestCase):
                 with self.assertRaisesRegex(SystemExit, "Early routing gate blocked"):
                     command(SimpleNamespace(json=False, title=None, body=None))
             run.assert_not_called()
+        # Interactive executor state distinguishes this worktree from a fresh CI checkout.
+        (self.task / ".managed-task-state.json").write_text(
+            (self.task / "openspec/changes/routing-change/.managed-task.json").read_text(encoding="utf-8"),
+            encoding="utf-8",
+        )
         # check/test entrypoint: fails before any group executes
         groups = {"g": {"targets": ["test_x"], "mode": "serial"}}
         # A private, unregistered instance: registering "run_test_groups" here would
@@ -2252,14 +2257,22 @@ class EarlyRoutingGateTests(unittest.TestCase):
                 with self.fake_codex(outcome, write=f"partial-{outcome}.txt"), patch.object(routing, "main_root", return_value=self.integration):
                     with self.assertRaisesRegex(routing.RoutingError, "did not complete cleanly"):
                         routing.dispatch_codex(self.task, profile="standard", rationale="bounded preflight", evidence=[], prompt="implement")
+                    prior_route = json.loads(self.record_path().read_text(encoding="utf-8"))
                     delegation = self.plan()["delegation"]
                     self.assertEqual(delegation["launch_evidence"], "platform-observed")
                     self.assertEqual(delegation["outcome"], outcome)
                     rerouted = routing.prepare(self.task, provider="codex", profile="standard", rationale="re-route after failed child", evidence=[])
                 self.assertEqual(rerouted.execution_plan["rerouted_from"]["outcome"], outcome)
+                self.assertEqual(json.loads(json.dumps(rerouted.execution_plan["rerouted_from"]["prior_route"])), prior_route)
                 self.assertIsNone(rerouted.execution_plan["delegation"])
                 self.assertIn(f"partial-{outcome}.txt", rerouted.execution_plan["task_content_pre"]["paths"])
                 self.assertEqual(routing._task_content_diverged(rerouted), [])
+                if outcome == "abnormal":
+                    with patch.object(routing, "main_root", return_value=self.integration):
+                        routing.escalate(self.task, "reviewed failed child requires supervisor repair")
+                        routing.record_retained_execution(self.task, reason="completed reviewed repair")
+                    durable = json.loads(self.durable_record_path().read_text(encoding="utf-8"))
+                    self.assertEqual(durable["execution_plan"]["rerouted_from"]["prior_route"], prior_route)
                 (self.task / f"partial-{outcome}.txt").unlink()
 
     def test_recovery_refuses_unresolved_containment_and_writer(self) -> None:
@@ -2353,6 +2366,18 @@ class EarlyRoutingGateTests(unittest.TestCase):
             self.prepare(provider="claude")
 
     # --- 4.5 Codex consistency and legacy records
+
+    def test_reroute_checks_claude_boundary_without_execution_receipt(self) -> None:
+        self.handoff()
+        routing.begin_claude_delegation(self.task)
+        (self.integration / "escaped.txt").write_text("escaped write", encoding="utf-8")
+        with patch.object(routing, "record_containment_friction"):
+            with self.assertRaises(routing.RoutingError):
+                routing.record_claude_execution(self.task, agent_id="escaped-child")
+            before = self.record_path().read_text(encoding="utf-8")
+            with self.assertRaises(routing.RoutingError):
+                self.prepare(provider="claude")
+        self.assertEqual(self.record_path().read_text(encoding="utf-8"), before)
 
     def test_codex_preflight_failure_cannot_authorize_supervisor_work(self) -> None:
         with patch.object(routing, "main_root", return_value=self.integration), patch.object(

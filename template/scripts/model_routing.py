@@ -979,6 +979,7 @@ def _require_recovery_safety(route: Route) -> None:
             delegation = plan.get("delegation")
             if isinstance(delegation, dict) and delegation.get("provider") == "codex" and delegation.get("state") == "open":
                 raise RoutingError("recovery requires a released Codex writer; the child delegation is still open")
+        postcheck(route)
         return
     if route.provider == "codex":
         if execution.get("writer_state") != "released":
@@ -1026,7 +1027,7 @@ def _reroute_attribution(root: Path, change: str, content: dict[str, Any]) -> di
     if _content_differences(delegation["task_content_post"], content):
         return None
     _require_recovery_safety(previous)
-    return {"provider": previous.provider, "outcome": execution["outcome"], "opened_at": delegation.get("opened_at"), "closed_at": delegation.get("closed_at")}
+    return {"provider": previous.provider, "outcome": execution["outcome"], "opened_at": delegation.get("opened_at"), "closed_at": delegation.get("closed_at"), "prior_route": asdict(previous)}
 
 
 def escalation_context(route: Route) -> dict[str, Any]:

@@ -106,3 +106,20 @@ Recording a retained outcome SHALL require a supervisor-retained plan declared a
 - **WHEN** re-routing, escalation or retained finalization is requested
 - **THEN** unresolved containment violations and unreleased or ambiguous Codex writers block the request
 - **AND** retained finalization after an accepted escalation preserves the prior child execution, delegation and escalation as distinct provenance
+
+#### Scenario: Fresh source checkout runs checks
+
+- **GIVEN** committed managed package metadata without local managed task state
+- **WHEN** the check/test entrypoint runs in a fresh source checkout
+- **THEN** checks remain available without resolving private executor lineage
+
+#### Scenario: Recovery without a saved execution receipt
+
+- **GIVEN** an existing route whose child escaped its containment boundary before an execution receipt was saved
+- **WHEN** re-routing is requested
+- **THEN** the original containment boundary is checked and the violation blocks recovery
+
+#### Scenario: Failed child retry retains provenance
+
+- **WHEN** an attributable failed Codex child is re-routed
+- **THEN** the complete prior route including executor identity, execution and escalation history remains in retry provenance and subsequent durable records
