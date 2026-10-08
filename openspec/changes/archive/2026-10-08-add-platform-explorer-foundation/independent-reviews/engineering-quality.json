@@ -1,0 +1,82 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "6c96df65b6d7f4f4d4ee0c30e2d81880190b7dd0",
+    "base_ref": "origin/main",
+    "candidate_head": "cf6bfbd34e4d72f5af814ea8bf4c17df46a51b26",
+    "diff_sha256": "4313c900a66909fcdc064027d0f7df5b1c5d45eb69ce85cde724279c64e2cd47"
+  },
+  "completed_at": "2026-10-08T07:12:07+00:00",
+  "findings": [
+    {
+      "evidence": "scripts/build_explorer.py write_outputs: `staging = Path(tempfile.mkdtemp(prefix=..., dir=out.parent))` then `staging.rename(out)`. mkdtemp always creates mode 0700, and nothing re-applies a normal mode before the rename. Files and subdirectories made with write_bytes/mkdir use the umask, so the output root is stricter than its contents.",
+      "id": "output-dir-mode-0700",
+      "severity": "advisory",
+      "summary": "The published site directory inherits owner-only permissions (0700) from the temporary staging directory. A web server or rsync/Pages step running as a different user may not be able to read it, and the mode differs from the files inside."
+    }
+  ],
+  "launched_at": "2026-10-08T07:11:32+00:00",
+  "output_sha256": "859370f2032fba65f3f5308f4eae1bf9e8622e4a352d968a36f200c02fdc81d2",
+  "perspective": "engineering-quality",
+  "request_id": "9bc69482-a69c-4f9d-94a4-3c0292923636",
+  "reviewer": {
+    "context_id": "252a63cf-fbc5-47a4-9fd3-3998d9c8925b",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-499299e2-d8e1-48f3-b3cc-2789719be0a3",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 76338
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 183334
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 29030
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 31015
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2563
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "711db211f8d017c9fb0853eb299c2b067817aed28a584f6cca467a238fda5730"
+}

@@ -2,11 +2,12 @@
   "candidate": {
     "base_head": "6c96df65b6d7f4f4d4ee0c30e2d81880190b7dd0",
     "base_ref": "origin/main",
-    "candidate_head": "a7ca3b8e4135ca3f37e81995e9b69871e4afc3cf",
-    "diff_sha256": "d6be424eb687be6a7bafc497f1687d540a3bd21746bc5d63b5c91ce17c0da084"
+    "candidate_head": "cf6bfbd34e4d72f5af814ea8bf4c17df46a51b26",
+    "diff_sha256": "4313c900a66909fcdc064027d0f7df5b1c5d45eb69ce85cde724279c64e2cd47"
   },
   "change": "openspec/changes/add-platform-explorer-foundation",
   "excluded_lifecycle_paths": [
+    "openspec/changes/add-platform-explorer-foundation/automated-checks.json",
     "openspec/changes/add-platform-explorer-foundation/independent-review-request.json",
     "openspec/changes/add-platform-explorer-foundation/independent-reviews/engineering-quality.json",
     "openspec/changes/add-platform-explorer-foundation/independent-reviews/spec-fidelity.json",
@@ -36,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-08T06:48:44+00:00",
+  "prepared_at": "2026-10-08T07:10:39+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/add-platform-explorer-foundation/independent-reviews",
     "required_perspectives": [
@@ -45,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "815e8483-4ec2-4bc0-b313-3fafcbec14f3",
+  "request_id": "9bc69482-a69c-4f9d-94a4-3c0292923636",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -58,11 +59,11 @@
   "schema_version": 1,
   "task_content": {
     "base": "3df526d8aa798ad591f02c59d2e55448ce40ff32",
-    "digest": "f66e662b1d82e988a61adb9bb86bdb8c783be56c0154861ff543f8dc3d6cce27",
+    "digest": "711db211f8d017c9fb0853eb299c2b067817aed28a584f6cca467a238fda5730",
     "paths": {
       ".gitignore": "5dd410f152bbf7a0491796d19e663852f2eeff6e",
       "dev-platform/checks.toml": "57455afb0206e393f3e6721dcfa110438ffa0284",
-      "docs/engineering/explorer.md": "2211d1bec8e1d722e9dec6da2daa91713c590aaf",
+      "docs/engineering/explorer.md": "f334d3b3d1d220339f84439dfdea66d48aa7d1ca",
       "docs/ownership.md": "e7234bc48957e3960ce43cf6796d9740fdfbd9b5",
       "explorer/assets/explorer.css": "8a1ac05f65f805adcf4d3515c3cf230ff8f016fe",
       "explorer/assets/explorer.js": "f421972e06be222ad3d65f8aaa7917c7640f4207",
@@ -73,8 +74,8 @@
       "openspec/changes/add-platform-explorer-foundation/proposal.md": "382efdd4d4e4a42932521c7f7bace8ccc0293ddf",
       "openspec/changes/add-platform-explorer-foundation/specs/platform-explorer/spec.md": "70760ca633c455b221b410ff8766051aea5e4fba",
       "openspec/changes/add-platform-explorer-foundation/tasks.md": "ad757f2553aa9b572eca199ddeaf41074e32aabc",
-      "scripts/build_explorer.py": "9d345daae415b4dca9f7fabe92c03954fd535086",
-      "tests/test_build_explorer.py": "a3abd2d0ada92a6b64295e1353f5379b55240497"
+      "scripts/build_explorer.py": "8e12115cd651cd218284f21af99102c80b5fdc09",
+      "tests/test_build_explorer.py": "a59abe9a4a5b7f28abb16f1154db3a9ea362ba42"
     },
     "scope": "independent-review-v1",
     "version": 1
