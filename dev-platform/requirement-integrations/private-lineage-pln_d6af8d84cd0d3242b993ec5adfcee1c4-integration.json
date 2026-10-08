@@ -1077,6 +1077,289 @@
         "work_identity": "BR-415/T3"
       },
       "work_identity": "BR-415/T3"
+    },
+    {
+      "change": "publication-observation",
+      "contribution_base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+      "gates": {
+        "required-checks": {
+          "evidence": {
+            "checks": [
+              {
+                "link": "https://github.com/lehard/dev-platform/actions/runs/37811677401",
+                "name": "validate",
+                "state": "SUCCESS",
+                "workflow": "Platform CI"
+              }
+            ],
+            "detail": "SUBSTITUTE EVIDENCE (user-authorized 2026-10-08): exact-head validate on 8e68f03335e8da22e2481a779d264e0f0c928bf7 failed only in test_git_lifecycle fake-gh printf under dash; validate passed on integration d0a897902cc8d1ef5ef8648e0f8a463cac268647, which contains 8e68f03335e8da22e2481a779d264e0f0c928bf7 plus that one-line fixture fix",
+            "head": "8e68f03335e8da22e2481a779d264e0f0c928bf7",
+            "kind": "passed"
+          },
+          "identity": {
+            "change": "publication-observation",
+            "contribution_base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+            "kind": "contribution",
+            "requirement": "pln_d6af8d84cd0d3242b993ec5adfcee1c4",
+            "source_issue": "pln_ffae3331a2577c02c6018784c7568737",
+            "target_branch": "requirement/BR-415",
+            "task_content": {
+              "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+              "digest": "033be321cbf04f13d697fc16ddb0d4c4eec47355a14ee32727c62b215e438878",
+              "paths": {
+                "openspec/changes/publication-observation/.managed-task.json": "3ccf2710de6137598f1e4de322c097db35a445e9",
+                "openspec/changes/publication-observation/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+                "openspec/changes/publication-observation/design.md": "33bc040970fa2f33287b6fc8aebd98e0324df605",
+                "openspec/changes/publication-observation/proposal.md": "672fdeb31d641a3c356c28e6c10f793cc051066a",
+                "openspec/changes/publication-observation/specs/publication-queue/spec.md": "67f153fabfef66f21437def1f50486cda78dfa7e",
+                "openspec/changes/publication-observation/tasks.md": "2bba083bdacc8ad7fdbc23612597e9fd6dadba5c",
+                "template/scripts/_platform_common.py": "9bde0dc51eadc9804d01342a4f9b0e697bfbccef",
+                "template/scripts/parallel_lifecycle_acceptance.py": "f62f5e574c7141005bf0a96e9773d744009d53d9",
+                "template/scripts/project_publish.py": "97fae14a13013f302646258179dc125bade6032e",
+                "template/scripts/publication_queue.py": "f609a1640bdb0ea7efa64ee9782302d627fda6c4",
+                "template/scripts/publication_state.py": "380865be3949c52a4c24575b3068b4ec2d12546f",
+                "template/scripts/rollout_preflight.py": "cb94d769642542f36a867cd652daa02b036954ff",
+                "tests/test_candidate_lifecycle.py": "bfb2cfdfdfeed479f9b784f5db2454c43b022ada",
+                "tests/test_git_lifecycle.py": "e406fa15346ad2baa244ca1b65e3b96bf16b6323",
+                "tests/test_github_retry.py": "e83f685dd03a66a92e87bf4a3682bb82220e0b32",
+                "tests/test_local_workspace.py": "e097fdcf0cc03bf97ffb545c83ff5c610861ca59",
+                "tests/test_merge_lifecycle_resilience.py": "d8e1de8c04d05f6563734d8a71c75e6af0d67463",
+                "tests/test_parallel_lifecycle_acceptance.py": "f0700b65a1c8a9a181995ad53d059d5d43a6d5fb",
+                "tests/test_pr_reconciliation_concurrency.py": "c8dbf1d59f94aba3d7d525d200663119c083f249",
+                "tests/test_publication_queue.py": "77fc336c4a79f347b6a74c82c38db5f4d06b8883",
+                "tests/test_publication_state.py": "56cd07b526f8e857557d861cc4e4e8c671c51309",
+                "tests/test_rollout_preflight.py": "b3d1703f17697781cf4434c245776f6f4d03111a"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-415/T5"
+          },
+          "result": "passed"
+        },
+        "review": {
+          "evidence": {
+            "engineering-quality": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": "publication_queue.py (diff ~L575-583): `run_git([\"merge-base\", head, \"origin/main\"], ...)` raises QueueError on non-zero. Before this change a quick task admitted from any checkout got branch/head identity without touching git. The configured `main_branch` is not consulted, although `publication_state` now requires it.",
+                  "id": "admission-quick-predicate-hardcodes-origin-main",
+                  "severity": "advisory",
+                  "summary": "The managed predicate in `_touches_openspec_change` hardcodes `origin/main` and needs the admitted head in the local object store. Admitting a genuine quick task can therefore raise a QueueError when the coordinator checkout lacks the head or `origin/main`, or when the project's main branch has anot"
+                },
+                {
+                  "evidence": "diff ~L698-705: `resolved_handoff = handoff if handoff is not None else _admission_handoff(...)` runs before `_events`/`_admission`. The old code evaluated `_admission_handoff` lazily, only inside the `_transition(...)` call guarded by `current.get(\"task_identity\") is None or head != expected_head`.",
+                  "id": "admit-handoff-resolved-eagerly-on-readmission",
+                  "severity": "advisory",
+                  "summary": "`admit` now resolves `_admission_handoff` (git calls, managed-state read, content_identity, evidence validation) on every call, including idempotent re-admission where the admission record already exists and no transition is needed. A stale or malformed archived-evidence file, or a missing head, can"
+                },
+                {
+                  "evidence": "publication_state.py (diff ~L1038-1041): `config = read_platform_config(root)` sits before the `try:`. The docstring says every unusable observation, including a config without `main_branch`, is `unknown` with an explicit cause.",
+                  "id": "check-state-config-read-uncaught",
+                  "severity": "advisory",
+                  "summary": "`required_check_state_for_ref` calls `read_platform_config(root)` outside its `_Unusable` handler. A malformed or unreadable config raises a raw exception from a function whose contract is that every unusable observation returns `unknown` with a cause. A missing `main_branch` is reported only as `un"
+                }
+              ],
+              "perspective": "engineering-quality",
+              "report_sha256": "1958791d3271b5d765fcc256c12d9b8f4aab03725831e3231fe05ae52e2c2c70"
+            },
+            "spec-fidelity": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": "publication_queue.py:608-611 computes `resolved_handoff = ... _admission_handoff(root, branch, expected_head)` unconditionally, ahead of `_events`/`_admission` at 612-613. It is consumed only at line 658, and only when `current.get('task_identity') is None or current.get('head') != expected_head`. D4 and the \"Managed proof unavailable\" scenario require failure before mutations, so this ordering is defensible. It does mean a no-op re-admission can now raise where it previously succeeded. The delt",
+                  "id": "admit-eager-handoff-on-readmission",
+                  "severity": "advisory",
+                  "summary": "`admit` now resolves the managed handoff before it checks whether the PR is already admitted. A retry or idempotent re-admission of a managed candidate can therefore fail provenance, for example when the coordinator checkout is not at the admitted head. Before this change the handoff was computed la"
+                }
+              ],
+              "perspective": "spec-fidelity",
+              "report_sha256": "395c5bcd6bd3b89832f983e5711b9b41d37b57e6874166525bacd5beb8e7f9ba"
+            }
+          },
+          "identity": {
+            "change": "publication-observation",
+            "contribution_base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+            "kind": "contribution",
+            "requirement": "pln_d6af8d84cd0d3242b993ec5adfcee1c4",
+            "source_issue": "pln_ffae3331a2577c02c6018784c7568737",
+            "target_branch": "requirement/BR-415",
+            "task_content": {
+              "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+              "digest": "033be321cbf04f13d697fc16ddb0d4c4eec47355a14ee32727c62b215e438878",
+              "paths": {
+                "openspec/changes/publication-observation/.managed-task.json": "3ccf2710de6137598f1e4de322c097db35a445e9",
+                "openspec/changes/publication-observation/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+                "openspec/changes/publication-observation/design.md": "33bc040970fa2f33287b6fc8aebd98e0324df605",
+                "openspec/changes/publication-observation/proposal.md": "672fdeb31d641a3c356c28e6c10f793cc051066a",
+                "openspec/changes/publication-observation/specs/publication-queue/spec.md": "67f153fabfef66f21437def1f50486cda78dfa7e",
+                "openspec/changes/publication-observation/tasks.md": "2bba083bdacc8ad7fdbc23612597e9fd6dadba5c",
+                "template/scripts/_platform_common.py": "9bde0dc51eadc9804d01342a4f9b0e697bfbccef",
+                "template/scripts/parallel_lifecycle_acceptance.py": "f62f5e574c7141005bf0a96e9773d744009d53d9",
+                "template/scripts/project_publish.py": "97fae14a13013f302646258179dc125bade6032e",
+                "template/scripts/publication_queue.py": "f609a1640bdb0ea7efa64ee9782302d627fda6c4",
+                "template/scripts/publication_state.py": "380865be3949c52a4c24575b3068b4ec2d12546f",
+                "template/scripts/rollout_preflight.py": "cb94d769642542f36a867cd652daa02b036954ff",
+                "tests/test_candidate_lifecycle.py": "bfb2cfdfdfeed479f9b784f5db2454c43b022ada",
+                "tests/test_git_lifecycle.py": "e406fa15346ad2baa244ca1b65e3b96bf16b6323",
+                "tests/test_github_retry.py": "e83f685dd03a66a92e87bf4a3682bb82220e0b32",
+                "tests/test_local_workspace.py": "e097fdcf0cc03bf97ffb545c83ff5c610861ca59",
+                "tests/test_merge_lifecycle_resilience.py": "d8e1de8c04d05f6563734d8a71c75e6af0d67463",
+                "tests/test_parallel_lifecycle_acceptance.py": "f0700b65a1c8a9a181995ad53d059d5d43a6d5fb",
+                "tests/test_pr_reconciliation_concurrency.py": "c8dbf1d59f94aba3d7d525d200663119c083f249",
+                "tests/test_publication_queue.py": "77fc336c4a79f347b6a74c82c38db5f4d06b8883",
+                "tests/test_publication_state.py": "56cd07b526f8e857557d861cc4e4e8c671c51309",
+                "tests/test_rollout_preflight.py": "b3d1703f17697781cf4434c245776f6f4d03111a"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-415/T5"
+          },
+          "result": "passed"
+        },
+        "selected-checks": {
+          "evidence": {
+            "bytes": 8784,
+            "path": "openspec/changes/publication-observation/automated-checks.json",
+            "sha256": "2d57a39baf17a43d524f60befcf6a582f56f373465e76b26d006fc1b746fe2f9"
+          },
+          "identity": {
+            "change": "publication-observation",
+            "contribution_base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+            "kind": "contribution",
+            "requirement": "pln_d6af8d84cd0d3242b993ec5adfcee1c4",
+            "source_issue": "pln_ffae3331a2577c02c6018784c7568737",
+            "target_branch": "requirement/BR-415",
+            "task_content": {
+              "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+              "digest": "033be321cbf04f13d697fc16ddb0d4c4eec47355a14ee32727c62b215e438878",
+              "paths": {
+                "openspec/changes/publication-observation/.managed-task.json": "3ccf2710de6137598f1e4de322c097db35a445e9",
+                "openspec/changes/publication-observation/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+                "openspec/changes/publication-observation/design.md": "33bc040970fa2f33287b6fc8aebd98e0324df605",
+                "openspec/changes/publication-observation/proposal.md": "672fdeb31d641a3c356c28e6c10f793cc051066a",
+                "openspec/changes/publication-observation/specs/publication-queue/spec.md": "67f153fabfef66f21437def1f50486cda78dfa7e",
+                "openspec/changes/publication-observation/tasks.md": "2bba083bdacc8ad7fdbc23612597e9fd6dadba5c",
+                "template/scripts/_platform_common.py": "9bde0dc51eadc9804d01342a4f9b0e697bfbccef",
+                "template/scripts/parallel_lifecycle_acceptance.py": "f62f5e574c7141005bf0a96e9773d744009d53d9",
+                "template/scripts/project_publish.py": "97fae14a13013f302646258179dc125bade6032e",
+                "template/scripts/publication_queue.py": "f609a1640bdb0ea7efa64ee9782302d627fda6c4",
+                "template/scripts/publication_state.py": "380865be3949c52a4c24575b3068b4ec2d12546f",
+                "template/scripts/rollout_preflight.py": "cb94d769642542f36a867cd652daa02b036954ff",
+                "tests/test_candidate_lifecycle.py": "bfb2cfdfdfeed479f9b784f5db2454c43b022ada",
+                "tests/test_git_lifecycle.py": "e406fa15346ad2baa244ca1b65e3b96bf16b6323",
+                "tests/test_github_retry.py": "e83f685dd03a66a92e87bf4a3682bb82220e0b32",
+                "tests/test_local_workspace.py": "e097fdcf0cc03bf97ffb545c83ff5c610861ca59",
+                "tests/test_merge_lifecycle_resilience.py": "d8e1de8c04d05f6563734d8a71c75e6af0d67463",
+                "tests/test_parallel_lifecycle_acceptance.py": "f0700b65a1c8a9a181995ad53d059d5d43a6d5fb",
+                "tests/test_pr_reconciliation_concurrency.py": "c8dbf1d59f94aba3d7d525d200663119c083f249",
+                "tests/test_publication_queue.py": "77fc336c4a79f347b6a74c82c38db5f4d06b8883",
+                "tests/test_publication_state.py": "56cd07b526f8e857557d861cc4e4e8c671c51309",
+                "tests/test_rollout_preflight.py": "b3d1703f17697781cf4434c245776f6f4d03111a"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-415/T5"
+          },
+          "result": "passed"
+        },
+        "semantic-verification": {
+          "evidence": {
+            "bytes": 5770,
+            "path": "openspec/changes/publication-observation/verification.md",
+            "sha256": "c24bc8dc28740a0b8d43759a7e97ec37aa5ed589f460b30c7d625bccf5aebd8f"
+          },
+          "identity": {
+            "change": "publication-observation",
+            "contribution_base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+            "kind": "contribution",
+            "requirement": "pln_d6af8d84cd0d3242b993ec5adfcee1c4",
+            "source_issue": "pln_ffae3331a2577c02c6018784c7568737",
+            "target_branch": "requirement/BR-415",
+            "task_content": {
+              "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+              "digest": "033be321cbf04f13d697fc16ddb0d4c4eec47355a14ee32727c62b215e438878",
+              "paths": {
+                "openspec/changes/publication-observation/.managed-task.json": "3ccf2710de6137598f1e4de322c097db35a445e9",
+                "openspec/changes/publication-observation/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+                "openspec/changes/publication-observation/design.md": "33bc040970fa2f33287b6fc8aebd98e0324df605",
+                "openspec/changes/publication-observation/proposal.md": "672fdeb31d641a3c356c28e6c10f793cc051066a",
+                "openspec/changes/publication-observation/specs/publication-queue/spec.md": "67f153fabfef66f21437def1f50486cda78dfa7e",
+                "openspec/changes/publication-observation/tasks.md": "2bba083bdacc8ad7fdbc23612597e9fd6dadba5c",
+                "template/scripts/_platform_common.py": "9bde0dc51eadc9804d01342a4f9b0e697bfbccef",
+                "template/scripts/parallel_lifecycle_acceptance.py": "f62f5e574c7141005bf0a96e9773d744009d53d9",
+                "template/scripts/project_publish.py": "97fae14a13013f302646258179dc125bade6032e",
+                "template/scripts/publication_queue.py": "f609a1640bdb0ea7efa64ee9782302d627fda6c4",
+                "template/scripts/publication_state.py": "380865be3949c52a4c24575b3068b4ec2d12546f",
+                "template/scripts/rollout_preflight.py": "cb94d769642542f36a867cd652daa02b036954ff",
+                "tests/test_candidate_lifecycle.py": "bfb2cfdfdfeed479f9b784f5db2454c43b022ada",
+                "tests/test_git_lifecycle.py": "e406fa15346ad2baa244ca1b65e3b96bf16b6323",
+                "tests/test_github_retry.py": "e83f685dd03a66a92e87bf4a3682bb82220e0b32",
+                "tests/test_local_workspace.py": "e097fdcf0cc03bf97ffb545c83ff5c610861ca59",
+                "tests/test_merge_lifecycle_resilience.py": "d8e1de8c04d05f6563734d8a71c75e6af0d67463",
+                "tests/test_parallel_lifecycle_acceptance.py": "f0700b65a1c8a9a181995ad53d059d5d43a6d5fb",
+                "tests/test_pr_reconciliation_concurrency.py": "c8dbf1d59f94aba3d7d525d200663119c083f249",
+                "tests/test_publication_queue.py": "77fc336c4a79f347b6a74c82c38db5f4d06b8883",
+                "tests/test_publication_state.py": "56cd07b526f8e857557d861cc4e4e8c671c51309",
+                "tests/test_rollout_preflight.py": "b3d1703f17697781cf4434c245776f6f4d03111a"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-415/T5"
+          },
+          "result": "passed"
+        }
+      },
+      "head": "8e68f03335e8da22e2481a779d264e0f0c928bf7",
+      "integrated_head": "461075d496ab9f67735c0352961b96a3b734192b",
+      "pr_number": 358,
+      "reviewed_evidence_digest": "47b432c0c0027c1c9e1afdd8a79865fb82a5853ab891c67788977ade89997b2c",
+      "source_branch": "agent/br-415-t5-publication-observation",
+      "source_issue": "pln_ffae3331a2577c02c6018784c7568737",
+      "task_identity": {
+        "change": "publication-observation",
+        "contribution_base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+        "kind": "contribution",
+        "requirement": "pln_d6af8d84cd0d3242b993ec5adfcee1c4",
+        "source_issue": "pln_ffae3331a2577c02c6018784c7568737",
+        "target_branch": "requirement/BR-415",
+        "task_content": {
+          "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+          "digest": "033be321cbf04f13d697fc16ddb0d4c4eec47355a14ee32727c62b215e438878",
+          "paths": {
+            "openspec/changes/publication-observation/.managed-task.json": "3ccf2710de6137598f1e4de322c097db35a445e9",
+            "openspec/changes/publication-observation/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+            "openspec/changes/publication-observation/design.md": "33bc040970fa2f33287b6fc8aebd98e0324df605",
+            "openspec/changes/publication-observation/proposal.md": "672fdeb31d641a3c356c28e6c10f793cc051066a",
+            "openspec/changes/publication-observation/specs/publication-queue/spec.md": "67f153fabfef66f21437def1f50486cda78dfa7e",
+            "openspec/changes/publication-observation/tasks.md": "2bba083bdacc8ad7fdbc23612597e9fd6dadba5c",
+            "template/scripts/_platform_common.py": "9bde0dc51eadc9804d01342a4f9b0e697bfbccef",
+            "template/scripts/parallel_lifecycle_acceptance.py": "f62f5e574c7141005bf0a96e9773d744009d53d9",
+            "template/scripts/project_publish.py": "97fae14a13013f302646258179dc125bade6032e",
+            "template/scripts/publication_queue.py": "f609a1640bdb0ea7efa64ee9782302d627fda6c4",
+            "template/scripts/publication_state.py": "380865be3949c52a4c24575b3068b4ec2d12546f",
+            "template/scripts/rollout_preflight.py": "cb94d769642542f36a867cd652daa02b036954ff",
+            "tests/test_candidate_lifecycle.py": "bfb2cfdfdfeed479f9b784f5db2454c43b022ada",
+            "tests/test_git_lifecycle.py": "e406fa15346ad2baa244ca1b65e3b96bf16b6323",
+            "tests/test_github_retry.py": "e83f685dd03a66a92e87bf4a3682bb82220e0b32",
+            "tests/test_local_workspace.py": "e097fdcf0cc03bf97ffb545c83ff5c610861ca59",
+            "tests/test_merge_lifecycle_resilience.py": "d8e1de8c04d05f6563734d8a71c75e6af0d67463",
+            "tests/test_parallel_lifecycle_acceptance.py": "f0700b65a1c8a9a181995ad53d059d5d43a6d5fb",
+            "tests/test_pr_reconciliation_concurrency.py": "c8dbf1d59f94aba3d7d525d200663119c083f249",
+            "tests/test_publication_queue.py": "77fc336c4a79f347b6a74c82c38db5f4d06b8883",
+            "tests/test_publication_state.py": "56cd07b526f8e857557d861cc4e4e8c671c51309",
+            "tests/test_rollout_preflight.py": "b3d1703f17697781cf4434c245776f6f4d03111a"
+          },
+          "scope": "independent-review-v1",
+          "version": 1
+        },
+        "work_identity": "BR-415/T5"
+      },
+      "work_identity": "BR-415/T5"
     }
   ],
   "dependencies": {
@@ -1092,7 +1375,7 @@
       "publication-observation"
     ]
   },
-  "digest": "c5ef7d3ea8b0629ab011f7d0d61f45facaefdcfef4163e02a6c4e145c1168a76",
+  "digest": "79bffd5f56698b95fec5139c206e14520c00a8768ee06ae94b7ca26451442bf7",
   "expected_changes": [
     "capability-metadata",
     "child-project-routing",
