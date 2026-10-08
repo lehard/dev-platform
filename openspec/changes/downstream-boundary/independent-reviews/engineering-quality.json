@@ -3,28 +3,28 @@
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "048775ad42cfacd12341a2c802ebb941ce8d972e",
-    "diff_sha256": "2c2ee3e733885253bb0fabbc9cb57bd3c6e8e22f7f6a31ecdc1e5c7c6b131f53"
+    "candidate_head": "c071fa4ce771042c7674a10a968170ebe573b9c5",
+    "diff_sha256": "8ca7510d7bd79275a0c8f6844c77bd94c7ed9ca9463b631f2544a1572a9b02a3"
   },
-  "completed_at": "2026-10-08T12:35:09+00:00",
+  "completed_at": "2026-10-08T14:02:36+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/_platform_common.py lifecycle_mode: `if not isinstance(version, str) or not version: raise PlatformConfigError(...)`. The template .dev-platform.toml.jinja:2 writes platform_version, so new renders are fine. The diff has no upgrade or migration path or test for legacy configs, and design.md does not discuss it.",
-      "id": "missing-platform-version-hard-fails-legacy-contracts",
+      "evidence": "template/scripts/_platform_common.py:187-205: when .dev-platform.toml is missing, read_platform_config returns a default dict with no platform_version, so lifecycle_mode (lines ~431-433) raises 'platform_version must be a non-empty string'. Before this change, archive and finish only compared platform_version == 'source' and treated a missing key as downstream. The diff edits tests/test_br_publication_identity.py to add config={'platform_version': 'test'} to keep an existing test passing. That shows the new strictness breaks existing callers. The design deliberately makes a missing key raise, but it does not discuss legacy or no-config checkouts or the upgrade path for them.",
+      "id": "lifecycle-mode-raises-without-platform-version",
       "severity": "advisory",
-      "summary": "lifecycle_mode raises PlatformConfigError when platform_version is absent. It is now called unconditionally at the start of finish_task.main, project_publish.main, requirement_terminal.reconcile_parent, execute_requirement.advance and requirement_integration.publish_candidate. Older downstream renders or hand-edited contracts without that key would fail every one of these entrypoints. Previously they ran with config.get('platform_version') != 'source'."
+      "summary": "lifecycle_mode now raises PlatformConfigError whenever platform_version is absent. The selector is called unconditionally in archive_change, finish_task.main, project_publish.main/publish_pr, execute_requirement.advance, requirement_terminal.reconcile_parent and publish_candidate. Checkouts that previously worked without that key now hard-fail at these entrypoints."
     }
   ],
-  "launched_at": "2026-10-08T12:34:45+00:00",
-  "output_sha256": "476cf5532beced0f831fdd3bad0256d57cc71a0ee19a45b69e3fcc5851b5d827",
+  "launched_at": "2026-10-08T14:02:08+00:00",
+  "output_sha256": "970e7860467c110d78669700f051ffb5aa6fff7a87570bc52dc706c318ecf490",
   "perspective": "engineering-quality",
-  "request_id": "daa0c371-cd7b-4a86-a6e8-022998895592",
+  "request_id": "9c727743-2dc9-4fb1-a80e-6a87af0cb1e5",
   "reviewer": {
-    "context_id": "7169c591-e5b7-421a-9355-965b33eace84",
+    "context_id": "0e4298db-3e22-4b82-96af-a95f2d12ff63",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-5badaab8-f63e-4457-b4b9-436e4146972e",
+    "launch_id": "platform-launch-8bf59d54-8113-41f7-ad85-41090babf2bf",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,41 +39,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 31155
+        "value": 33013
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 86579
+        "value": 124212
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 20623
+        "value": 23445
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 22768
+        "value": 25142
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 10
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 8
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1450
+        "value": 2126
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "6e2c4f4e3c836e77bfa52b825f813c821a7672d5b139339f4add51a69a347bb2"
+  "task_content_digest": "30a72e63973274ae26e2e4818d7957d696841520a9e88fd0f4321377553a324f"
 }
