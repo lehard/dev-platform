@@ -3,57 +3,83 @@
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "6cf47867abd38f817a663491747372437175729b",
-    "diff_sha256": "38de2770e75d0770b6e9ea22488e07c6684ce615d99d10d240315b3ba637b3ec"
+    "candidate_head": "ecba7cfe64d33b6192a6bd52cc7b36608fda8b54",
+    "diff_sha256": "167c8f15d6c419475358425e070c3bdcdfea7633062bb5cc3b365b43bd9db0df"
   },
-  "completed_at": "2026-10-08T06:50:52+00:00",
+  "completed_at": "2026-10-08T08:21:51+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/model_routing.py:566\u2013581 now uses review_content_identity for committed routing snapshots. template/scripts/task_content_identity.py:53\u201366 lists paths without -z, splits lines, and passes Git's quoted output directly to rev-parse. With default core.quotePath, non-ASCII filenames are quoted; their blob lookup fails and records null regardless of content. If a failed child commits such a file, subsequent supervisor edits committed to the same file leave both the committed map and clean-worktree path map unchanged. _content_differences ignores HEAD (model_routing.py:586\u2013590), so _reroute_attribution at lines 1027\u20131029 accepts that changed content as attributable to the child. Use NUL-delimited, unquoted paths for the committed identity.",
-      "id": "quoted-paths-break-content-attribution",
-      "severity": "material",
-      "summary": "Committed files with Git-quoted names can change after a failed child without invalidating retry attribution."
+      "evidence": "template/scripts/model_routing.py, _run_delegated_codex: `except BaseException: closed = close_attempt(...)` calls `_task_content_state(...)`, which can raise RoutingError (snapshot failure or no merge base). That exception replaces the original error, including KeyboardInterrupt and GuardedChildError. The closing `_write_route` is then skipped, so an `open` platform-observed delegation stays on disk. A later `_require_recovery_safety` then reports only 'child delegation is still open'. A try/finally or a guarded snapshot would keep the original error and close the record.",
+      "id": "codex-close-attempt-masks-original-error",
+      "severity": "advisory",
+      "summary": "The cleanup path in _run_delegated_codex can replace the real launch error with a snapshot error, and can leave a stale open delegation."
+    },
+    {
+      "evidence": "template/scripts/task_content_identity.py: the command changed from `diff --name-only` to `diff --name-only --no-renames -z`, with NUL splitting. The function is shared with review and receipt identity. Renamed files now appear as a delete plus an add, and quoted non-ASCII names now resolve. Digests for tasks that contain renames or non-ASCII paths can therefore differ from previously recorded ones. The candidate diff does not show a regression test for those callers.",
+      "id": "shared-content-identity-semantics-change",
+      "severity": "advisory",
+      "summary": "The change to the shared `content_identity` function alters `git diff` parsing for every caller, not just the routing gate."
     }
   ],
-  "launched_at": "2026-10-08T06:49:44+00:00",
-  "output_sha256": "87726c4ab2a239a20f3a317e5b3c39acdd920ac4783320125ddb908204299b48",
+  "launched_at": "2026-10-08T08:21:19+00:00",
+  "output_sha256": "b64a5259fda2aa913ee1fcef077bcf912c9c2ccac94fef53425f7ac53b5cc427",
   "perspective": "engineering-quality",
-  "request_id": "c913ff51-6644-4d8a-a513-15e2d51d7535",
+  "request_id": "251e79d7-0783-4e88-90c1-85a4b82579d5",
   "reviewer": {
-    "context_id": "01a11a46-6a9c-70e2-92e0-adaf4fde9301",
+    "context_id": "10817e50-0fd3-4708-994c-5c3fb83e455f",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-c797ccea-362c-4b5f-a9c0-1407518eaa77",
+    "launch_id": "platform-launch-8d886315-fb75-4627-be18-ebc69c6fe516",
     "model": {
       "source": "selected",
-      "value": "gpt-6.1-sol"
+      "value": "sonnet"
     },
-    "provider": "codex",
-    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
-    "runtime": "codex-exec",
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
     "write_access": false
   },
   "runtime_usage": {
     "fields": {
-      "cached_input_tokens": {
+      "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 234240
+        "value": 52986
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 110839
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 28435
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 29941
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 295103
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1330
+        "value": 2330
       }
     },
-    "runtime": "codex-exec"
+    "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "1384f6088b587ad5301103cc0087cc08c285cef4164d2e9137de028c4ab02a0f"
+  "task_content_digest": "8e3c52238ef08cb802573d80a785fafad3270d661d77e458196d3d6a197a5013"
 }

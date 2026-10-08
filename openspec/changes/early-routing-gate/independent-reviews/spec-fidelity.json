@@ -3,63 +3,70 @@
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "6cf47867abd38f817a663491747372437175729b",
-    "diff_sha256": "38de2770e75d0770b6e9ea22488e07c6684ce615d99d10d240315b3ba637b3ec"
+    "candidate_head": "ecba7cfe64d33b6192a6bd52cc7b36608fda8b54",
+    "diff_sha256": "167c8f15d6c419475358425e070c3bdcdfea7633062bb5cc3b365b43bd9db0df"
   },
-  "completed_at": "2026-10-08T06:49:44+00:00",
-  "findings": [
-    {
-      "evidence": "template/scripts/model_routing.py:947\u2013967 calls _reroute_attribution only when content differs from an empty baseline. If a launched, safely released failed child changed no task content, prepare checks recovery safety but overwrites the route without rerouted_from or prior_route (lines 968\u2013969). Subsequent execution also overwrites the durable record. This contradicts specs/model-routing/spec.md:122\u2013125, which requires an attributable failed child's complete prior route to remain in retry provenance and subsequent durable records.",
-      "id": "clean-failed-retry-loses-provenance",
-      "severity": "material",
-      "summary": "Re-routing a failed Codex child that left no content changes discards its retry provenance."
-    },
-    {
-      "evidence": "template/scripts/model_routing.py:318\u2013328 accepts a delegation containing only state='closed', provider='claude', and launch_evidence='self-reported', without opened_at, closed_at, or execution evidence. _has_real_delegation returns true for that object at lines 702\u2013708. Consequently, the early gate accepts diverged content and escalate permits retention despite neither an open delegation nor a completed execution. This contradicts the delta's requirement that the gate fail closed without an open or completed delegation, and design.md decision 10 requiring missing or invalid delegation fields to raise RoutingError.",
-      "id": "incomplete-closed-delegation-bypasses-gate",
-      "severity": "material",
-      "summary": "An incomplete closed Claude delegation is accepted as real delegation evidence, bypassing the early gate and escalation restriction."
-    }
-  ],
-  "launched_at": "2026-10-08T06:48:22+00:00",
-  "output_sha256": "4a7ad7d9f90f159e75c9997f9164b5398f52404220dce8cd8ac6f4cfe909d6e8",
+  "completed_at": "2026-10-08T08:21:19+00:00",
+  "findings": [],
+  "launched_at": "2026-10-08T08:20:55+00:00",
+  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "spec-fidelity",
-  "request_id": "c913ff51-6644-4d8a-a513-15e2d51d7535",
+  "request_id": "251e79d7-0783-4e88-90c1-85a4b82579d5",
   "reviewer": {
-    "context_id": "01a11a45-28a3-74d2-8937-04507b1cb534",
+    "context_id": "fa472755-8451-4fa8-bfd2-f734129a5bab",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-a3d5b7c8-a7f5-4eb2-9722-c3e45dbc258f",
+    "launch_id": "platform-launch-07f5d4aa-08ad-4000-84ec-5fd0ae4ea5e7",
     "model": {
       "source": "selected",
-      "value": "gpt-6.1-sol"
+      "value": "sonnet"
     },
-    "provider": "codex",
-    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
-    "runtime": "codex-exec",
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
     "write_access": false
   },
   "runtime_usage": {
     "fields": {
-      "cached_input_tokens": {
+      "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 296448
+        "value": 58007
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 115251
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 22256
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 23515
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 362121
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1640
+        "value": 2109
       }
     },
-    "runtime": "codex-exec"
+    "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "1384f6088b587ad5301103cc0087cc08c285cef4164d2e9137de028c4ab02a0f"
+  "task_content_digest": "8e3c52238ef08cb802573d80a785fafad3270d661d77e458196d3d6a197a5013"
 }
