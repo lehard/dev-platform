@@ -12,11 +12,13 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "template" / "scripts"))
 
+import _platform_common  # noqa: E402
 import execute_requirement as execution  # noqa: E402
 import requirement_board  # noqa: E402
 import requirement_intake as ri  # noqa: E402
 
 REQUIREMENT = "acme/backlog#7"
+SOURCE_CONFIG = {"platform_version": "source", "harness_mode": "platform", "publish_mode": "pr", "scm_provider": "github"}
 
 
 class FakeBoard:
@@ -115,7 +117,8 @@ def run_advance(board: FakeBoard, *, progress_stage: str = "pre-authoring", obse
         raise Stop()
 
     root = Path("/unused")
-    with patch.object(execution, "current_worktree_root", return_value=root.resolve()), \
+    with patch.object(_platform_common, "read_platform_config", return_value=SOURCE_CONFIG), \
+            patch.object(execution, "current_worktree_root", return_value=root.resolve()), \
             patch.object(execution, "_git", return_value="main"), \
             patch.object(execution.requirement_target_lifecycle, "require_local_target_support"), \
             patch.object(execution.requirement_intake, "fetch_issue", return_value={"body": PARENT_BODY, "labels": [{"name": "type:requirement"}]}), \

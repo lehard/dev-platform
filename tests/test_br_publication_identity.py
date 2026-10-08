@@ -181,7 +181,7 @@ class IdentityPublicationTests(unittest.TestCase):
         manifest = {'requirement': 'acme/backlog#7', 'children': [{}, {}]}
         head = 'a' * 40
         with mock.patch.object(_platform_common, 'main_root', return_value=self.root), \
-             mock.patch.object(_platform_common, 'read_platform_config', return_value={'publish_mode': 'pr'}), \
+             mock.patch.object(_platform_common, 'read_platform_config', return_value={'platform_version': 'source', 'harness_mode': 'platform', 'publish_mode': 'pr', 'scm_provider': 'github'}), \
              mock.patch.object(ri, '_validate_candidate_checkout', return_value=('agent/shared', head)), \
              mock.patch.object(ri, '_reconcile_exact_merged', return_value=None), \
              mock.patch.object(ri, 'compose_candidate', return_value={'head': head, 'resumed': True}), \

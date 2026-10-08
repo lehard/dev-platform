@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tests"))
 sys.path.insert(0, str(ROOT / "template" / "scripts"))
 
+import _platform_common
 import add_intents
 import execute_requirement as execution
 import orchestrate_pre_authoring as orch
@@ -41,7 +42,10 @@ class RequirementFlowEndToEndTests(unittest.TestCase):
         self.temp.cleanup()
 
     def _run_with_linked(self, linked: dict[str, str], ready: list[tuple[Path, object] | None], *, publish: bool = False):
-        with mock.patch.object(execution, "_contribution_publication_supported", return_value=publish), \
+        source_config = {"platform_version": "source", "harness_mode": "platform", "publish_mode": "pr", "scm_provider": "github",
+                         "paths": {"worktrees": ".claude/worktrees"}}
+        with mock.patch.object(_platform_common, "read_platform_config", return_value=source_config), \
+                mock.patch.object(execution, "_contribution_publication_supported", return_value=publish), \
                 mock.patch.object(execution, "current_worktree_root", return_value=self.root), \
                 mock.patch.object(execution.requirement_intake, "fetch_issue", return_value={
                     "labels": [{"name": "type:requirement"}],
