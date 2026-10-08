@@ -54,6 +54,139 @@ def project_payload(*, current: str = "Ready", duplicate: bool = False) -> dict:
     }
 
 
+class FakeProject:
+    """Stateful fake of the Project GraphQL surface used by ensure_item."""
+
+    def __init__(self, *, items=0, status: str | None = "Ready", fail_on: str | None = None, lag: bool = False) -> None:
+        self.items = [{"id": f"item-{n}", "status": status} for n in range(items)]
+        self.fail_on = fail_on
+        self.lag = lag
+        self.adds = 0
+        self.updates: list[str] = []
+
+    def __call__(self, root, env, query, variables):
+        if self.fail_on and self.fail_on in query:
+            raise managed_project_status.ManagedProjectStatusError("GitHub Project API request failed: unavailable")
+        if "addProjectV2ItemById" in query:
+            self.adds += 1
+            if not self.items:  # GitHub returns the existing item on repeat adds
+                self.items.append({"id": "item-new", "status": None})
+            return {"data": {"addProjectV2ItemById": {"item": {"id": self.items[0]["id"]}}}}
+        if "updateProjectV2ItemFieldValue" in query:
+            self.updates.append(variables["option"])
+            names = {f"option-{i}": n for i, n in enumerate(managed_project_status.EXPECTED_STATUSES)}
+            self.items[0]["status"] = names[variables["option"]]
+            return {"data": {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": "x"}}}}
+        if "issue(number" in query and "id }" in query and "projectItems" not in query:
+            return {"data": {"repository": {"issue": {"id": "issue-node"}}}}
+        payload = project_payload()
+        nodes = []
+        for item in self.items:
+            node = {"id": item["id"], "content": {"__typename": "Issue", "number": 8,
+                    "repository": {"nameWithOwner": "example-org/development-backlog"}},
+                    "fieldValueByName": {"name": item["status"], "optionId": "o"} if item["status"] else None}
+            nodes.append(node)
+        payload["data"]["user"]["projectV2"]["items"]["nodes"] = [] if self.lag else nodes
+        if "projectItems" in query:
+            issue_nodes = [{**n, "isArchived": False, "project": {"id": "project-id"}} for n in nodes]
+            return {"data": {"repository": {"issue": {"projectItems": {
+                "nodes": issue_nodes, "pageInfo": {"hasNextPage": False, "endCursor": None}}}}}}
+        return payload
+
+
+class EnsureItemTests(unittest.TestCase):
+    ISSUE = "example-org/development-backlog#8"
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        (self.root / ".dev-platform.toml").write_text(
+            'main_branch = "main"\n[development_backlog]\n'
+            'repository = "example-org/development-backlog"\nproject_label = "project:dev-platform"\n'
+            'default_priority = "P2"\nproject_owner = "lehard"\nproject_number = 1\n', encoding="utf-8")
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def ensure(self, fake: FakeProject):
+        with (
+            patch.object(managed_project_status, "github_cli_env", return_value={}),
+            patch.object(managed_project_status, "_graphql", side_effect=fake),
+        ):
+            return managed_project_status.ensure_item(self.root, source_issue=self.ISSUE)
+
+    def test_auto_add_already_happened_unset_status_gets_backlog(self) -> None:
+        fake = FakeProject(items=1, status=None)
+        receipt = self.ensure(fake)
+        self.assertFalse(receipt.added)
+        self.assertTrue(receipt.status_initialized)
+        self.assertEqual(receipt.status, "Backlog")
+        self.assertEqual(fake.adds, 0)
+
+    def test_auto_add_absent_adds_one_item_with_backlog_and_reads_back(self) -> None:
+        fake = FakeProject(items=0)
+        receipt = self.ensure(fake)
+        self.assertTrue(receipt.added)
+        self.assertEqual((receipt.status, len(fake.items), fake.adds), ("Backlog", 1, 1))
+        self.assertEqual(fake.updates, ["option-0"])
+
+    def test_added_item_missing_from_project_list_is_found_through_issue(self) -> None:
+        fake = FakeProject(items=0, lag=True)
+        self.assertEqual(self.ensure(fake).status, "Backlog")
+
+    def test_existing_item_and_status_are_never_changed(self) -> None:
+        fake = FakeProject(items=1, status="In progress")
+        receipt = self.ensure(fake)
+        self.assertEqual((receipt.added, receipt.status_initialized, receipt.status), (False, False, "In progress"))
+        self.assertEqual((fake.adds, fake.updates), (0, []))
+
+    def test_repeated_reconciliation_is_idempotent_with_no_duplicate(self) -> None:
+        fake = FakeProject(items=0)
+        first = self.ensure(fake)
+        second = self.ensure(fake)
+        self.assertEqual(len(fake.items), 1)
+        self.assertEqual(first.item_id, second.item_id)
+        self.assertEqual((fake.adds, len(fake.updates)), (1, 1))
+        self.assertFalse(second.added)
+
+    def test_duplicate_items_fail_without_mutation(self) -> None:
+        fake = FakeProject(items=2)
+        with self.assertRaisesRegex(managed_project_status.ManagedProjectStatusError, "maps to 2 items"):
+            self.ensure(fake)
+        self.assertEqual((fake.adds, fake.updates), (0, []))
+
+    def test_unavailable_project_api_fails_explicitly(self) -> None:
+        for stage in ("addProjectV2ItemById", "user(login"):
+            with self.subTest(stage=stage):
+                with self.assertRaisesRegex(managed_project_status.ManagedProjectStatusError, "unavailable"):
+                    self.ensure(FakeProject(items=0, fail_on=stage))
+
+    def test_initialized_card_costs_one_project_scan(self) -> None:
+        fake = FakeProject(items=1, status="Backlog")
+        with (
+            patch.object(managed_project_status, "github_cli_env", return_value={}),
+            patch.object(managed_project_status, "_graphql", side_effect=fake) as graphql,
+        ):
+            managed_project_status.ensure_item(self.root, source_issue=self.ISSUE)
+        self.assertEqual(graphql.call_count, 1)
+
+    def test_readback_status_contradicting_initialization_fails(self) -> None:
+        class Claimed(FakeProject):
+            def __call__(self, root, env, query, variables):
+                result = super().__call__(root, env, query, variables)
+                if "updateProjectV2ItemFieldValue" in query:
+                    self.items[0]["status"] = "In progress"  # another agent claimed it
+                return result
+
+        with self.assertRaisesRegex(managed_project_status.ManagedProjectStatusError, "expected 'Backlog'"):
+            self.ensure(Claimed(items=1, status=None))
+
+    def test_missing_authentication_fails_explicitly(self) -> None:
+        with patch.object(managed_project_status, "github_cli_env", return_value=None):
+            with self.assertRaisesRegex(managed_project_status.ManagedProjectStatusError, "authentication"):
+                managed_project_status.ensure_item(self.root, source_issue=self.ISSUE)
+
+
 class ManagedProjectStatusTests(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()

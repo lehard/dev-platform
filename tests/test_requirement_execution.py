@@ -49,6 +49,13 @@ def fixture_locked_json(path: Path) -> Iterator[dict]:
 
 
 class RequirementExecutionTests(unittest.TestCase):
+    def setUp(self) -> None:
+        # Card claiming first ensures Project membership; these tests fake only the card status.
+        patcher = mock.patch.object(
+            execution.managed_project_status, "ensure_item", return_value=SimpleNamespace(status="Backlog"))
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def test_handoffs_follow_declared_dependencies_not_filename_order(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             base = Path(tmp)

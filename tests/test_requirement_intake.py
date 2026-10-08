@@ -256,8 +256,17 @@ class CreateRequirementTests(unittest.TestCase):
     def _fetch_issue(self, root, repository, number):
         return {"body": self.issue_body, "labels": [{"name": name} for name in self.issue_labels]}
 
-    def _run_create(self, *, run_side_effect=None, priority=None, config=None, origin="acme/billing", validate_error=None):
+    def _run_create(self, *, run_side_effect=None, priority=None, config=None, origin="acme/billing", validate_error=None,
+                    existing_issues=None, ensure_side_effect=None):
         commands: list[list[str]] = []
+        self.ensure_calls: list[str] = []
+
+        def fake_ensure(root, *, source_issue, initial_status="Backlog"):
+            self.ensure_calls.append(source_issue)
+            if ensure_side_effect is not None:
+                raise ensure_side_effect
+            return managed_project_status.MembershipReceipt(
+                source_issue, "lehard", 1, "item-1", "Backlog", True, True)
 
         def fake_run(command, cwd, env=None, input_text=None):
             commands.append(command)
@@ -286,6 +295,8 @@ class CreateRequirementTests(unittest.TestCase):
             patch.object(ri.managed_task, "authoring_config", return_value=config or self.config),
             patch.object(ri.managed_task, "origin_repository", return_value=origin),
             patch.object(ri.managed_task, "validate_backlog_labels", side_effect=fake_validate),
+            patch.object(ri.managed_task, "run_json", return_value=[existing_issues or []]),
+            patch.object(ri.managed_project_status, "ensure_item", side_effect=fake_ensure),
         ):
             payload = ri.create_requirement(
                 self.root, repository="acme/development-backlog", title="Make onboarding self-serve",
@@ -298,13 +309,79 @@ class CreateRequirementTests(unittest.TestCase):
         self.assertEqual(payload, {
             "repository": "acme/development-backlog", "number": 42, "slug": "requirement-42",
             "project_label": "project:billing", "priority": "priority:P2",
+            "reused": False, "project_item": "item-1", "project_status": "Backlog",
         })
+        self.assertEqual(self.ensure_calls, ["acme/development-backlog#42"])
         create_command = next(command for command in commands if command[:3] == ["gh", "issue", "create"])
         self.assertIn(ri.REQUIREMENT_LABEL, create_command)
         self.assertIn("project:billing", create_command)
         self.assertIn("priority:P2", create_command)
         label_command = next(command for command in commands if command[:3] == ["gh", "label", "create"])
         self.assertIn(ri.REQUIREMENT_LABEL, label_command)
+
+    def test_create_fails_closed_naming_the_durable_issue_when_project_unavailable(self) -> None:
+        error = managed_project_status.ManagedProjectStatusError("GitHub Project API request failed: down")
+        with self.assertRaisesRegex(ri.RequirementIntakeError, r"acme/development-backlog#42 exists.*unconfirmed.*reconcile-board"):
+            self._run_create(ensure_side_effect=error)
+
+    def test_rerun_reuses_identical_open_requirement_instead_of_creating_another(self) -> None:
+        body = ri.render_requirement_body(outcome="Make onboarding self-serve.", target_repository="acme/billing")
+        # The platform appends its Work identity line after creation; it is not authored content.
+        existing = [{"number": 42, "title": "Make onboarding self-serve", "body": body + "\nWork identity: BR-42\n"}]
+        self.issue_labels = {ri.REQUIREMENT_LABEL, "project:billing", "priority:P2"}
+        self.issue_body = body
+        payload, commands = self._run_create(existing_issues=existing)
+        self.assertTrue(payload["reused"])
+        self.assertEqual(payload["number"], 42)
+        self.assertFalse(any(command[:3] == ["gh", "issue", "create"] for command in commands))
+        self.assertEqual(self.ensure_calls, ["acme/development-backlog#42"])
+
+    def test_rerun_with_different_priority_fails_instead_of_relabeling_reused_requirement(self) -> None:
+        body = ri.render_requirement_body(outcome="Make onboarding self-serve.", target_repository="acme/billing")
+        existing = [{"number": 42, "title": "Make onboarding self-serve", "body": body}]
+        self.issue_labels = {ri.REQUIREMENT_LABEL, "project:billing", "priority:P2"}
+        self.issue_body = body
+        with self.assertRaisesRegex(ri.RequirementIntakeError, "conflicting project/priority labels"):
+            self._run_create(existing_issues=existing, priority="P0")
+        self.assertEqual(self.ensure_calls, [])
+
+    def test_connected_fixation_outcome_requires_confirmed_membership(self) -> None:
+        self.assertEqual(ri.connected_fixation_outcome(issue_created=True, project_membership_confirmed=True), "fixed")
+        self.assertEqual(ri.connected_fixation_outcome(issue_created=True, project_membership_confirmed=False), "unconfirmed")
+        self.assertEqual(ri.connected_fixation_outcome(issue_created=False, project_membership_confirmed=False), "not-created")
+
+    def test_reconcile_board_ensures_each_open_requirement_idempotently(self) -> None:
+        issues = [{"number": 5}, {"number": 3}, {"number": 9, "pull_request": {}}]
+        seen: list[str] = []
+
+        def fake_ensure(root, *, source_issue, initial_status="Backlog"):
+            seen.append(source_issue)
+            return managed_project_status.MembershipReceipt(source_issue, "lehard", 1, "i", "Backlog", False, False)
+
+        with (
+            patch.object(ri, "github_cli_env", return_value={}),
+            patch.object(ri.managed_task, "authoring_config", return_value=self.config),
+            patch.object(ri.managed_task, "run_json", return_value=[issues[:2], issues[2:]]) as run_json,
+            patch.object(ri.managed_project_status, "ensure_item", side_effect=fake_ensure),
+        ):
+            first = ri.reconcile_board(self.root)
+            second = ri.reconcile_board(self.root)
+        self.assertIn("labels=type:requirement,project:billing", run_json.call_args.args[0][-1])
+        self.assertEqual(seen[:2], ["acme/development-backlog#3", "acme/development-backlog#5"])
+        self.assertEqual(first, second)
+
+    def test_reconcile_requirement_rejects_closed_or_non_requirement_targets(self) -> None:
+        for issue, message in (
+            ({"state": "closed", "labels": [{"name": ri.REQUIREMENT_LABEL}]}, "not open"),
+            ({"state": "open", "labels": [{"name": ri.CHILD_LABEL}]}, "not labeled"),
+        ):
+            with self.subTest(message=message), \
+                    patch.object(ri.managed_task, "authoring_config", return_value=self.config), \
+                    patch.object(ri, "fetch_issue", return_value=issue), \
+                    patch.object(ri.managed_project_status, "ensure_item") as ensure:
+                with self.assertRaisesRegex(ri.RequirementIntakeError, message):
+                    ri.reconcile_board(self.root, requirement="acme/development-backlog#7")
+                ensure.assert_not_called()
 
     def test_create_honors_explicit_priority(self) -> None:
         payload, commands = self._run_create(priority="P0")

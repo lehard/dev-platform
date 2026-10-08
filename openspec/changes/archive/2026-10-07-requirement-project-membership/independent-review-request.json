@@ -1,0 +1,86 @@
+{
+  "candidate": {
+    "base_head": "a8d83e5cbd97037b242daf30557f4b1e3b03ae7c",
+    "base_ref": "origin/main",
+    "candidate_head": "4333cb1f3cd8809ac6e1897581ffd1776d5c31b5",
+    "diff_sha256": "ba20f2d0a6a5d73445abddc13bc658a82ef4b0826e8a21563c4910fddb8b2ca7"
+  },
+  "change": "openspec/changes/requirement-project-membership",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/requirement-project-membership/independent-review-dispositions.json",
+    "openspec/changes/requirement-project-membership/independent-review-request.json",
+    "openspec/changes/requirement-project-membership/independent-reviews/engineering-quality.json",
+    "openspec/changes/requirement-project-membership/independent-reviews/spec-fidelity.json",
+    "openspec/changes/requirement-project-membership/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/requirement-project-membership/design.md",
+        "openspec/changes/requirement-project-membership/proposal.md",
+        "openspec/changes/requirement-project-membership/specs/managed-task-intake/spec.md",
+        "openspec/changes/requirement-project-membership/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/requirement-project-membership/proposal.md",
+        "openspec/changes/requirement-project-membership/design.md",
+        "openspec/changes/requirement-project-membership/tasks.md",
+        "openspec/changes/requirement-project-membership/specs/managed-task-intake/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-07T19:59:33+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/requirement-project-membership/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "8a0010d0-69ca-4f83-8eee-e95e9ed29e08",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "a8d83e5cbd97037b242daf30557f4b1e3b03ae7c",
+    "digest": "5e1152eeb4ca44b3e1d455e1d33ce1f38b0eb942d8b0c4abf1e5e774e30ed3a1",
+    "paths": {
+      "docs/engineering/chatgpt-project-protocol.md": "4c314232a6b84a2baab942931203e14b10dcd0da",
+      "docs/engineering/task-intake.md": "1e572db56efcdb75cd13c6b9f460507849fc6b88",
+      "openspec/changes/requirement-project-membership/.managed-task.json": "3b6780ef9c7d66928b7e69a156e7bb392716d20e",
+      "openspec/changes/requirement-project-membership/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+      "openspec/changes/requirement-project-membership/design.md": "c53cc50c767efc4647b0d6b9b627f8cb5107fe0e",
+      "openspec/changes/requirement-project-membership/proposal.md": "81eb369f63da73ca0e4eae3772e41389ede49283",
+      "openspec/changes/requirement-project-membership/specs/managed-task-intake/spec.md": "0b5050e128588adf60e08608e62cb2dc02eb649c",
+      "openspec/changes/requirement-project-membership/tasks.md": "6a023fa6aafcdba72d69461d39183d8b095dd2a4",
+      "template/docs/engineering/chatgpt-project-protocol.md": "6f1601cf941c92302e670d8020d7abd6e1b4a3e4",
+      "template/docs/engineering/task-intake.md.jinja": "f0cff6804bf2f7cbda3827ab29d1853a590fcd84",
+      "template/scripts/managed_project_status.py": "d5bba071ad51247b5e5228c36bb69f5c75beb3ae",
+      "template/scripts/requirement_board.py": "b41b821d76fea61ad857b39129d0232a25cac077",
+      "template/scripts/requirement_intake.py": "0256d63eac28de12843dacfcc027641401fabd47",
+      "tests/test_managed_project_status.py": "5b619d9c4ef814bd19552e3a203a05ed3aec6892",
+      "tests/test_requirement_card_claim.py": "90bac9c9cd27c18b9e600dcbface5242dd120e6f",
+      "tests/test_requirement_execution.py": "f6bdc06d07458f1358e039befbf0b8503bc965dc",
+      "tests/test_requirement_flow_e2e.py": "aa50bc7e745209835c4f57c83425bced1de5c81e",
+      "tests/test_requirement_intake.py": "e7f06c2faf1be9e1d5304ad396e36c61fa565751"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}
