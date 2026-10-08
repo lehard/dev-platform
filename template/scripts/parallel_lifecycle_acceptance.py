@@ -290,7 +290,7 @@ class LocalGitHub:
         return 0, "", ""
 
     def api(self, argv: list[str], entry: dict) -> tuple[int, str, str]:
-        method, fields, endpoint, items = "GET", {}, None, argv[1:]
+        method, fields, endpoint, items, slurp = "GET", {}, None, argv[1:], False
         while items:
             item = items.pop(0)
             if item == "-X":
@@ -300,6 +300,8 @@ class LocalGitHub:
                 fields[key] = value
             elif item == "--paginate":
                 continue
+            elif item == "--slurp":
+                slurp = True
             elif endpoint is None:
                 endpoint = item
             else:
@@ -322,7 +324,9 @@ class LocalGitHub:
         if match and match.group(1) in self.prs:
             number = match.group(1)
             if method == "GET":
-                return 0, json.dumps(self.comments[number]), ""
+                # Real ``gh api --paginate --slurp`` returns one array per page.
+                rows = [self.comments[number]] if slurp else self.comments[number]
+                return 0, json.dumps(rows), ""
             if method == "POST":
                 self.next_id += 1
                 self.comments[number].append({
