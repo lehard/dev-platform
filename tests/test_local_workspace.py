@@ -189,6 +189,8 @@ class LocalWorkspaceTests(unittest.TestCase):
             state = {'original_directory': '/users/a/hooks', 'original_config': None, 'effective_config': '/users/a/hooks'}
             env = {'HOME': home, 'XDG_CONFIG_HOME': str(Path(home) / 'xdg'), 'GIT_CONFIG_NOSYSTEM': '1'}
             with mock.patch.dict(os.environ, env):
+                os.environ.pop('GIT_CONFIG_GLOBAL', None)
+                os.environ.pop('GIT_CONFIG_SYSTEM', None)
                 self.assertEqual(local.delegate_hooks(self.root, state, 'pre-push', []), 9)
 
     def test_invalid_inherited_git_dir_does_not_opt_out(self):
