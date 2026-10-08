@@ -227,6 +227,16 @@ class WorkerPreflightGateTests(PreflightFixture):
         run.assert_called_once()
         self.assertEqual(sink.call_args.kwargs["worker"], f"github-actions:{REPO}:123:2")
 
+    def test_worker_exit_code_follows_the_outcome(self):
+        for state, code in (("contribution-integrated", 0), ("discarded", 0), ("repair-pending", 0),
+                            ("integration-repair-pending", 0), ("merged", 0), ("blocked", 2), ("error", 2)):
+            with self.subTest(state=state), \
+                    patch.object(queue, "run_worker", return_value={"state": state}), \
+                    patch.object(queue, "current_worktree_root", return_value=Path("/unused")), \
+                    patch.object(sys, "argv", ["publication_queue.py", "worker", "--mode", "ci"]), \
+                    redirect_stdout(io.StringIO()):
+                self.assertEqual(queue.main(), code)
+
     def test_local_identity_is_unique_per_run(self):
         first, second = (queue.run_identity("local", {}) for _ in range(2))
         self.assertTrue(first.startswith("local:"))

@@ -1391,6 +1391,13 @@ def run_identity(mode: str, env: Mapping[str, str]) -> str:
     raise QueueError("worker mode must be ci or local")
 
 
+# Worker outcomes that are a completed step. ``blocked`` and ``error`` exit non-zero.
+WORKER_PROGRESS_STATES = frozenset({
+    "merged", "empty", "queued", "active", "waiting", "not-admitted",
+    "contribution-integrated", "discarded", "repair-pending", "integration-repair-pending",
+})
+
+
 def run_worker(root: Path, mode: str, env: Mapping[str, str], *, install_sink: bool) -> dict[str, Any]:
     """The coordinator command: full preflight, then one run identity, then candidate work."""
     result = preflight(root, mode, "all", env)
@@ -1733,7 +1740,7 @@ def main() -> int:
             print(render_status(result))
         return 0
     print(json.dumps(result, sort_keys=True))
-    return 0 if result.get("state") in {"merged", "empty", "queued", "active", "waiting", "not-admitted"} else 2
+    return 0 if result.get("state") in WORKER_PROGRESS_STATES else 2
 
 
 
