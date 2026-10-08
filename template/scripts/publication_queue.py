@@ -452,10 +452,24 @@ NOT_INTEGRABLE = {
 }
 
 
+def retry_job_kind(candidate: dict) -> str | None:
+    """The review or repair job a blocked-retryable candidate waits on (provider unavailable), if any."""
+    if candidate.get("state") != "blocked-retryable":
+        return None
+    kind = (candidate.get("next_job") or {}).get("kind")
+    if kind in {"review", "repair"}:
+        return kind
+    if (candidate.get("red_gate") or {}).get("name") == "review":
+        return "review"
+    repair = (candidate.get("gates") or {}).get("repair")
+    if isinstance(repair, dict) and (repair.get("evidence") or {}).get("cause") == "provider-unavailable":
+        return "repair"
+    return None
+
+
 def review_owned(candidate: dict) -> bool:
-    return (candidate.get("state") == "blocked-retryable"
-            and ((candidate.get("next_job") or {}).get("kind") == "review"
-                 or (candidate.get("red_gate") or {}).get("name") == "review"))
+    """Review- and repair-owned retry states belong to their jobs; publication leaves them alone."""
+    return retry_job_kind(candidate) is not None
 
 
 def _ensure_labels(root: Path) -> None:
@@ -1282,6 +1296,13 @@ def main() -> int:
     target.add_argument("--requirement")
     show.add_argument("--json", action="store_true")
     sub.add_parser("worker")
+    for name, summary in (("switch-provider", "re-offer an unfinished review or repair job on other providers"),
+                          ("resume", "re-offer a retryable or operationally escalated review/repair job after a human decision")):
+        operator = sub.add_parser(name, help=summary)
+        operator.add_argument("--pr", type=int, required=True)
+        operator.add_argument("--provider", action="append", required=name == "switch-provider",
+                              help="supported provider, repeat for an ordered list")
+        operator.add_argument("--reason", required=True, help="the operator's reason, recorded in the candidate record")
     args = parser.parse_args()
     root = current_worktree_root()
     if args.command == "worker":
@@ -1291,6 +1312,12 @@ def main() -> int:
             result = admit(root, args.pr, args.head)
         elif args.command == "status":
             result = requirement_status(root, args.requirement) if args.requirement else candidate_status(root, args.pr)
+        elif args.command in {"switch-provider", "resume"}:
+            from pr_review_gate import reoffer
+
+            print(json.dumps(reoffer(root, _repo(root), args.pr, action=args.command, providers=args.provider,
+                                     reason=args.reason), sort_keys=True))
+            return 0
         else:
             result = worker(root)
     except QueueError as exc:
