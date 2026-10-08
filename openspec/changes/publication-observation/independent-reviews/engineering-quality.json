@@ -3,34 +3,40 @@
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "a886e23499c299a92f0aa1346b21ec8444cba394",
-    "diff_sha256": "8b2c417b72aba775779bd86d504a4e9c6d4bc8967a2fa45d038d6e454dd36359"
+    "candidate_head": "2de3b29e7e9b3edd3ec00d777162f9ff0416501f",
+    "diff_sha256": "df2000c57a3563b03472bdcf6dc9280d9d6f46fa7dc84f1110869bc4ea86eb86"
   },
-  "completed_at": "2026-10-08T12:50:46+00:00",
+  "completed_at": "2026-10-08T14:57:54+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/publication_queue.py `_touches_openspec_change` (diff lines 575-583) hardcodes `origin/main`. It ignores the configured `main_branch`, which `required_check_state_for_ref` does read. It also assumes the admitted head object exists in the admitting checkout. A coordinator or legacy `admit` run without the fetched head, or in a project whose main is not `main`, raises instead of returning the quick-task identity. That contradicts the spec scenario 'Genuine quick task'. Design D4 says the head is 'listed from git at the admitted head', but does not mention this prerequisite. Tests that mock `_admission_handoff` would not catch it.",
-      "id": "quick-admission-hardcoded-origin-main-merge-base",
+      "evidence": "publication_queue.py (diff ~L575-583): `run_git([\"merge-base\", head, \"origin/main\"], ...)` raises QueueError on non-zero. Before this change a quick task admitted from any checkout got branch/head identity without touching git. The configured `main_branch` is not consulted, although `publication_state` now requires it.",
+      "id": "admission-quick-predicate-hardcodes-origin-main",
       "severity": "advisory",
-      "summary": "The managed predicate can make genuine quick-task admission fail. `_touches_openspec_change` runs `git merge-base <head> origin/main` and raises QueueError if that fails. It is the only evidence for classifying a candidate as quick when there is no managed state file."
+      "summary": "The managed predicate in `_touches_openspec_change` hardcodes `origin/main` and needs the admitted head in the local object store. Admitting a genuine quick task can therefore raise a QueueError when the coordinator checkout lacks the head or `origin/main`, or when the project's main branch has another name."
     },
     {
-      "evidence": "template/scripts/publication_state.py `required_check_state_for_ref` (diff lines 1038-1041). The docstring says 'Every unusable observation ... is `unknown` with an explicit cause'. `project_publish.wait_for_pr_checks`, `finish_task` and `rollout_preflight` call this function and expect a RequiredCheckState back, so a TOML or OS error would bypass their handling.",
-      "id": "platform-config-read-uncaught-in-check-observation",
+      "evidence": "diff ~L698-705: `resolved_handoff = handoff if handoff is not None else _admission_handoff(...)` runs before `_events`/`_admission`. The old code evaluated `_admission_handoff` lazily, only inside the `_transition(...)` call guarded by `current.get(\"task_identity\") is None or head != expected_head`.",
+      "id": "admit-handoff-resolved-eagerly-on-readmission",
       "severity": "advisory",
-      "summary": "`required_check_state_for_ref` calls `read_platform_config(root)` outside the `_Unusable` handler. A malformed config therefore raises an arbitrary exception from a function whose contract is that every unusable observation returns `unknown` with a cause."
+      "summary": "`admit` now resolves `_admission_handoff` (git calls, managed-state read, content_identity, evidence validation) on every call, including idempotent re-admission where the admission record already exists and no transition is needed. A stale or malformed archived-evidence file, or a missing head, can now make a harmless re-admit fail where it previously succeeded."
+    },
+    {
+      "evidence": "publication_state.py (diff ~L1038-1041): `config = read_platform_config(root)` sits before the `try:`. The docstring says every unusable observation, including a config without `main_branch`, is `unknown` with an explicit cause.",
+      "id": "check-state-config-read-uncaught",
+      "severity": "advisory",
+      "summary": "`required_check_state_for_ref` calls `read_platform_config(root)` outside its `_Unusable` handler. A malformed or unreadable config raises a raw exception from a function whose contract is that every unusable observation returns `unknown` with a cause. A missing `main_branch` is reported only as `unsupported-state`, which `_integrate` turns into a visible block rather than a wait."
     }
   ],
-  "launched_at": "2026-10-08T12:50:17+00:00",
-  "output_sha256": "cdb7fe71800ffaf920d8573333912e1b88cc6713d78b12cdf9b60301cbfedf3e",
+  "launched_at": "2026-10-08T14:57:09+00:00",
+  "output_sha256": "2c9674ae80ce89cc6f309c4107bd8b5038561a902178c2f7fc9cbd74b902bd78",
   "perspective": "engineering-quality",
-  "request_id": "cd12e242-8477-445a-8fa7-efbab8cbf235",
+  "request_id": "789129df-3096-464e-be6f-a7c7e62f837f",
   "reviewer": {
-    "context_id": "be872aea-dcd4-4623-8c98-62a26a29dfb0",
+    "context_id": "aaac336a-c55d-4614-8bdf-b62bd98ae3a9",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-c836239b-3836-4fe9-901e-cef88fd668c1",
+    "launch_id": "platform-launch-fe013bdf-c238-4d5e-a48e-58291aa59dde",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -45,27 +51,27 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 46635
+        "value": 49633
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 98726
+        "value": 151736
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 24247
+        "value": 41637
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 27477
+        "value": 43867
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 10
       },
       "num_turns": {
         "source": "runtime-confirmed",
@@ -75,11 +81,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2218
+        "value": 2961
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "2c3f95f475d41c6dc79e97cee9cefc86877803e1e3f17652186c43d03ee95b5b"
+  "task_content_digest": "033be321cbf04f13d697fc16ddb0d4c4eec47355a14ee32727c62b215e438878"
 }

@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "a886e23499c299a92f0aa1346b21ec8444cba394",
-    "diff_sha256": "8b2c417b72aba775779bd86d504a4e9c6d4bc8967a2fa45d038d6e454dd36359"
+    "candidate_head": "2de3b29e7e9b3edd3ec00d777162f9ff0416501f",
+    "diff_sha256": "df2000c57a3563b03472bdcf6dc9280d9d6f46fa7dc84f1110869bc4ea86eb86"
   },
   "change": "openspec/changes/publication-observation",
   "excluded_lifecycle_paths": [
@@ -37,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-08T12:49:25+00:00",
+  "prepared_at": "2026-10-08T14:56:17+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/publication-observation/independent-reviews",
     "required_perspectives": [
@@ -46,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "cd12e242-8477-445a-8fa7-efbab8cbf235",
+  "request_id": "789129df-3096-464e-be6f-a7c7e62f837f",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -59,7 +59,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "digest": "2c3f95f475d41c6dc79e97cee9cefc86877803e1e3f17652186c43d03ee95b5b",
+    "digest": "033be321cbf04f13d697fc16ddb0d4c4eec47355a14ee32727c62b215e438878",
     "paths": {
       "openspec/changes/publication-observation/.managed-task.json": "3ccf2710de6137598f1e4de322c097db35a445e9",
       "openspec/changes/publication-observation/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
@@ -76,6 +76,7 @@
       "tests/test_candidate_lifecycle.py": "bfb2cfdfdfeed479f9b784f5db2454c43b022ada",
       "tests/test_git_lifecycle.py": "e406fa15346ad2baa244ca1b65e3b96bf16b6323",
       "tests/test_github_retry.py": "e83f685dd03a66a92e87bf4a3682bb82220e0b32",
+      "tests/test_local_workspace.py": "e097fdcf0cc03bf97ffb545c83ff5c610861ca59",
       "tests/test_merge_lifecycle_resilience.py": "d8e1de8c04d05f6563734d8a71c75e6af0d67463",
       "tests/test_parallel_lifecycle_acceptance.py": "f0700b65a1c8a9a181995ad53d059d5d43a6d5fb",
       "tests/test_pr_reconciliation_concurrency.py": "c8dbf1d59f94aba3d7d525d200663119c083f249",

@@ -3,21 +3,28 @@
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "a886e23499c299a92f0aa1346b21ec8444cba394",
-    "diff_sha256": "8b2c417b72aba775779bd86d504a4e9c6d4bc8967a2fa45d038d6e454dd36359"
+    "candidate_head": "2de3b29e7e9b3edd3ec00d777162f9ff0416501f",
+    "diff_sha256": "df2000c57a3563b03472bdcf6dc9280d9d6f46fa7dc84f1110869bc4ea86eb86"
   },
-  "completed_at": "2026-10-08T12:50:17+00:00",
-  "findings": [],
-  "launched_at": "2026-10-08T12:49:36+00:00",
-  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
+  "completed_at": "2026-10-08T14:57:09+00:00",
+  "findings": [
+    {
+      "evidence": "publication_queue.py:608-611 computes `resolved_handoff = ... _admission_handoff(root, branch, expected_head)` unconditionally, ahead of `_events`/`_admission` at 612-613. It is consumed only at line 658, and only when `current.get('task_identity') is None or current.get('head') != expected_head`. D4 and the \"Managed proof unavailable\" scenario require failure before mutations, so this ordering is defensible. It does mean a no-op re-admission can now raise where it previously succeeded. The delta spec and design do not say whether that is intended.",
+      "id": "admit-eager-handoff-on-readmission",
+      "severity": "advisory",
+      "summary": "`admit` now resolves the managed handoff before it checks whether the PR is already admitted. A retry or idempotent re-admission of a managed candidate can therefore fail provenance, for example when the coordinator checkout is not at the admitted head. Before this change the handoff was computed lazily and only when a transition was actually needed."
+    }
+  ],
+  "launched_at": "2026-10-08T14:56:28+00:00",
+  "output_sha256": "a7abce7a0cfbca5200dd0ab6af6801d69317b0b258afb4f8b7e41068f849fad2",
   "perspective": "spec-fidelity",
-  "request_id": "cd12e242-8477-445a-8fa7-efbab8cbf235",
+  "request_id": "789129df-3096-464e-be6f-a7c7e62f837f",
   "reviewer": {
-    "context_id": "ff94bfe1-ee80-49b0-96d0-6f285baed64d",
+    "context_id": "d917be45-f4ba-4812-8dcc-d4a42e53cc6a",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-16893fe3-bae0-4a23-867c-dde1a1066a5e",
+    "launch_id": "platform-launch-c958bb92-f702-4f35-add2-9e244bc8b84b",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -32,41 +39,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 63102
+        "value": 62638
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 117215
+        "value": 243436
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 37303
+        "value": 36516
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 39885
+        "value": 39955
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 12
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 9
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2237
+        "value": 3303
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "2c3f95f475d41c6dc79e97cee9cefc86877803e1e3f17652186c43d03ee95b5b"
+  "task_content_digest": "033be321cbf04f13d697fc16ddb0d4c4eec47355a14ee32727c62b215e438878"
 }
