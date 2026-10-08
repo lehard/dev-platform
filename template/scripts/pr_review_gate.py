@@ -498,6 +498,8 @@ def reoffer(root: Path, repo: str, number: int, *, action: str, providers, reaso
     providers = list(providers)
     if not providers or len(set(providers)) != len(providers) or any(name not in PROVIDERS for name in providers):
         raise adapter.QueueError(f"providers must be a nonempty list of distinct values from {', '.join(PROVIDERS)}")
+    if kind == "repair" and len(providers) != 1:
+        raise adapter.QueueError(f"PR #{number} repair job runs on exactly one provider; pass a single --provider")
     if action == "switch-provider" and state in pending and providers == previous:
         return {"state": state, "number": number, "changed": False, "providers": providers}
     attempts = candidate.get("attempts", {})
@@ -517,7 +519,7 @@ def reoffer(root: Path, repo: str, number: int, *, action: str, providers, reaso
              "at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
     record = adapter._transition(
         root, repo, number, f"{kind}-pending", head, task_identity=identity, inherit_identity=False, red_gate=restored,
-        set_attempts={"reoffers": seq, f"{kind}-unavailable": 0},
+        set_attempts={"reoffers": seq, f"{kind}-unavailable": 0}, provider_switch={kind: providers},
         next_job=job_record(kind, head, identity, attempts.get(kind, 0), providers=providers, reoffer=event))
     if record is None:
         raise adapter.QueueError(f"PR #{number} head moved; rerun")

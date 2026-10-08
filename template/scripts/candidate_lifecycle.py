@@ -76,6 +76,13 @@ def validate_marker(record: dict) -> None:
             not isinstance(route, dict) or set(route) != {"provider", "profile", "change"}
             or any(not isinstance(value, str) or not value for value in route.values())):
         raise ValueError("invalid originating task route")
+    switch = record.get("provider_switch")
+    if switch is not None and (
+            not isinstance(switch, dict) or not switch or not set(switch) <= {"review", "repair"}
+            or any(not isinstance(value, list) or not value or len(set(value)) != len(value)
+                   or not all(isinstance(name, str) and name for name in value) for value in switch.values())
+            or len(switch.get("repair", [None])) != 1):
+        raise ValueError("invalid operator provider switch")
     if "next_job" not in record or (record["next_job"] is not None and not isinstance(record["next_job"], (str, dict))):
         raise ValueError("invalid next job")
     try:
@@ -88,12 +95,13 @@ def validate_marker(record: dict) -> None:
 def build_handoff_record(*, number: int, state: str, head: str,
                          task_identity: str | dict, gates: dict, red_gate: dict | None,
                          not_reverified: list, attempts: dict, next_job: str | dict | None,
-                         at: str, route: dict | None = None) -> dict:
+                         at: str, route: dict | None = None, provider_switch: dict | None = None) -> dict:
     """Build one immutable-by-convention transition record, copying all inputs."""
     record = deepcopy({"version": 2, "number": number, "state": state, "head": head,
                        "task_identity": task_identity, "gates": gates, "red_gate": red_gate,
                        "not_reverified": not_reverified, "attempts": attempts,
-                       "next_job": next_job, "at": at, **({"route": route} if route is not None else {})})
+                       "next_job": next_job, "at": at, **({"route": route} if route is not None else {}),
+                       **({"provider_switch": provider_switch} if provider_switch is not None else {})})
     validate_marker(record)
     return record
 
@@ -206,7 +214,7 @@ def derive_candidate(pr: dict, comments: list[dict], checks: dict | None = None,
     number = pr.get("number")
     result = {"number": number, "head": head, "state": "review-pending",
               "task_identity": None, "gates": {}, "red_gate": None,
-              "not_reverified": [], "attempts": {}, "next_job": None, "route": None, "reason": ""}
+              "not_reverified": [], "attempts": {}, "next_job": None, "route": None, "provider_switch": None, "reason": ""}
     matching, legacy = [], []
     matched_at = blocked_at = 0
     newest: dict | None = None
@@ -294,6 +302,7 @@ def derive_candidate(pr: dict, comments: list[dict], checks: dict | None = None,
         # show its job and attempts (its gates were bound to the earlier head).
         result.update(state=newest["state"], next_job=deepcopy(newest.get("next_job")),
                       attempts=deepcopy(newest.get("attempts", {})), route=deepcopy(newest.get("route")),
+                      provider_switch=deepcopy(newest.get("provider_switch")),
                       reason=f"claim recorded on earlier head {newest['head'][:12]}")
     # A harness publishes the validated destination and its content proof before
     # pushing. Recover only that exact destination, never an unrelated head move.
@@ -357,6 +366,8 @@ def derive_candidate(pr: dict, comments: list[dict], checks: dict | None = None,
                 break
     if not matching and newest is not None and result.get("route") is None:
         result["route"] = deepcopy(newest.get("route"))  # recovery keeps the originating task route
+    if not matching and newest is not None and result.get("provider_switch") is None:
+        result["provider_switch"] = deepcopy(newest.get("provider_switch"))  # and the operator's provider switch
     if not matching and not (newest is not None and newest["state"] in CLAIM_STATES) and legacy:
         latest = legacy[-1]
         labels = {label if isinstance(label, str) else label.get("name") for label in pr.get("labels", [])}

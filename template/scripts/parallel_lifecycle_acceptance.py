@@ -60,6 +60,8 @@ CHECK = (
 )
 
 
+PR_INVENTORY_JQ = ".[] | [.number, .head.ref] | @tsv"
+
 class ScenarioError(RuntimeError):
     """The scenario did not deliver what the lifecycle promises."""
 
@@ -294,7 +296,7 @@ class LocalGitHub:
         return 0, "", ""
 
     def api(self, argv: list[str], entry: dict) -> tuple[int, str, str]:
-        method, fields, endpoint, items, slurp = "GET", {}, None, argv[1:], False
+        method, fields, endpoint, items, slurp, jq = "GET", {}, None, argv[1:], False, None
         while items:
             item = items.pop(0)
             if item == "-X":
@@ -306,6 +308,8 @@ class LocalGitHub:
                 continue
             elif item == "--slurp":
                 slurp = True
+            elif item == "--jq":
+                jq = items.pop(0)
             elif endpoint is None:
                 endpoint = item
             else:
@@ -322,8 +326,15 @@ class LocalGitHub:
             return 0, json.dumps(self.pr_json(match.group(1))), ""
         if path == "pulls" and method == "GET":
             wanted = urllib.parse.parse_qs(query).get("state", ["open"])[0]
-            rows = [self.pr_json(n) for n, pr in self.prs.items() if pr["merged"] == (wanted == "closed")]
-            return 0, json.dumps(rows), ""
+            rows = [self.pr_json(n) for n, pr in self.prs.items() if wanted == "all" or pr["merged"] == (wanted == "closed")]
+            if jq is None:
+                return 0, json.dumps(rows), ""
+            # Only the candidate inventory projection used by the publication queue is modelled.
+            if jq != PR_INVENTORY_JQ:
+                return self.unsupported(argv, entry)
+            return 0, "".join(f"{row['number']}\t{row['head']['ref']}\n" for row in rows), ""
+        if jq is not None:
+            return self.unsupported(argv, entry)
         match = re.fullmatch(r"issues/(\d+)/comments", path)
         if match and match.group(1) in self.prs:
             number = match.group(1)

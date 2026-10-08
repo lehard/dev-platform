@@ -24,7 +24,8 @@ import tempfile
 from pathlib import Path
 from typing import Any, Callable
 
-from _platform_common import CREDENTIAL_VARS, _CREDENTIAL_PATTERN, credential_free_env
+from _platform_common import (REFUSED_HOME_PATHS, ProjectCheckRuntimeError, check_runtime_declaration,
+                              credential_free_env, project_check_env, refused_home_path)
 from candidate_lifecycle import derive_candidate, trusted_marker_comment
 import disposable_repository_sandbox
 
@@ -171,7 +172,8 @@ def job_providers(job: dict) -> list[str]:
 REOFFER_AUTHORIZING_ACTIONS = ("switch-provider", "retry-unavailable")
 
 
-def authorized_repair_providers(route: dict | None, providers: list[str], reoffer: Any, where: str) -> list[str]:
+def authorized_repair_providers(route: dict | None, providers: list[str], reoffer: Any, where: str, *,
+                                switched: list[str] | None = None) -> list[str]:
     """The single provider a repair job may run on.
 
     The default is the originating route provider recorded on the candidate handoff. An explicit recorded
@@ -187,6 +189,8 @@ def authorized_repair_providers(route: dict | None, providers: list[str], reoffe
     if (isinstance(reoffer, dict) and reoffer.get("action") in REOFFER_AUTHORIZING_ACTIONS
             and reoffer.get("to") == providers):
         return providers
+    if switched is not None and list(switched) == providers:
+        return providers  # the operator's recorded switch persists for later repair rounds of the candidate
     raise WorkerError(f"{where} provider {providers[0]!r} is neither the originating route provider "
                       f"{route['provider']!r} nor named by a recorded operator re-offer")
 
@@ -284,67 +288,6 @@ def result_is_current(job: dict, result_head: str, current_head: str) -> bool:
 
 
 # ---- environment ----------------------------------------------------------
-
-# Home-relative locations that hold operator credentials and can never be exposed to project checks.
-REFUSED_HOME_PATHS = (".ssh", ".config/gh", ".gnupg", ".netrc", ".git-credentials", ".git-credential")
-
-
-def refused_home_path(relative: str) -> str | None:
-    """Why a home-relative path may never be exposed, or ``None``."""
-    path = Path(relative)
-    if not relative or path.is_absolute() or ".." in path.parts or not path.parts or path.parts == (".",):
-        return "must be a relative path without parent components"
-    for refused in REFUSED_HOME_PATHS:
-        forbidden = Path(refused).parts
-        shared = min(len(forbidden), len(path.parts))
-        if forbidden[:shared] == path.parts[:shared]:
-            return f"credential location {refused} is never grantable"
-    return None
-
-
-def _unmet(kind: str, name: str, reason: str) -> WorkerError:
-    return WorkerError(f"project check runtime requires {kind} {name}: {reason}")
-
-
-def check_runtime_declaration(runtime: dict[str, list[str]]) -> None:
-    """Refuse credential variables and credential or escaping home paths, whatever was declared or granted."""
-    for name in runtime.get("required_env", []):
-        if name in CREDENTIAL_VARS or _CREDENTIAL_PATTERN.search(name) or name.startswith("GIT_CONFIG_"):
-            raise _unmet("env", name, "GitHub and publication credentials are never provided to project checks")
-    for relative in runtime.get("home_paths", []):
-        reason = refused_home_path(relative)
-        if reason:
-            raise _unmet("home path", relative, reason)
-
-
-def project_check_env(environ: dict[str, str], home: Path, runtime: dict[str, list[str]], source_home: Path) -> dict[str, str]:
-    """Environment of trusted project checks (purpose ``project-check``).
-
-    Built on the credential-free environment (GitHub/publication credentials, Git configuration
-    injection, askpass and the SSH agent stay removed, HOME stays the scratch ``home``). The declared
-    tools must be on PATH, the declared variables present, and each granted home path is linked into
-    the scratch HOME. Anything unmet raises ``WorkerError`` naming it; nothing is substituted.
-    """
-    check_runtime_declaration(runtime)
-    env = credential_free_env(dict(environ), home)
-    for tool in runtime.get("required_tools", []):
-        if shutil.which(tool, path=env.get("PATH")) is None:
-            raise _unmet("tool", tool, "not found on PATH")
-    for name in runtime.get("required_env", []):
-        if not env.get(name):
-            raise _unmet("env", name, "not set in the launching environment")
-    home.mkdir(parents=True, exist_ok=True)
-    for relative in runtime.get("home_paths", []):
-        origin = Path(source_home) / relative
-        if not origin.exists():
-            raise _unmet("home path", relative, f"{origin} does not exist")
-        target = home / relative
-        target.parent.mkdir(parents=True, exist_ok=True)
-        if target.is_symlink() or target.exists():
-            raise _unmet("home path", relative, "already present in the check HOME")
-        os.symlink(origin, target)
-    return env
-
 
 def scratch_home(root: Path, home_files: list[str] | tuple[str, ...] = (), *, source_home: Path | None = None) -> Path:
     """Create a scratch HOME holding only the LLM CLI's own login files (relative to the real HOME)."""
@@ -531,7 +474,8 @@ def select_job(candidates: list[dict], kinds: frozenset[str], claims_by_pr: dict
                     raise WorkerError("--provider is required for repair kinds")
                 providers = job_providers(job)
                 authorized_repair_providers(candidate.get("route"), providers, job.get("reoffer"),
-                                            f"PR #{job['number']} {job['kind']} job")
+                                            f"PR #{job['number']} {job['kind']} job",
+                                            switched=(candidate.get("provider_switch") or {}).get("repair"))
                 if providers[0] != executor_provider:
                     if unauthorized is not None:
                         unauthorized.append({"number": job["number"], "kind": job["kind"], "required_provider": providers[0]})

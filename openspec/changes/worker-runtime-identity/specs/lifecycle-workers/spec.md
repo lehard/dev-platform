@@ -26,7 +26,7 @@ A lifecycle worker SHALL use exactly one worker identity for a run, and that ide
 
 ### Requirement: Repair work runs only under the originating authorized provider
 
-A repair or integration-repair job SHALL name exactly one provider. That provider SHALL be the provider of the originating task route recorded on the candidate handoff, unless an explicit recorded operator re-offer (a switch-provider event in the job record) names the job's provider, which then authorizes it; any other provider SHALL fail explicitly. A worker SHALL declare the provider of its executor, SHALL be offered and SHALL claim such a job only when the declared provider equals the recorded one, and SHALL record that provider in its claim and result. A job with a missing, empty, unknown or self-contradictory provider SHALL fail explicitly naming the pull request. An unauthorized worker SHALL leave the job claimable by a matching worker and report why it claimed nothing.
+A repair or integration-repair job SHALL name exactly one provider. That provider SHALL be the provider of the originating task route recorded on the candidate handoff, unless an explicit recorded operator re-offer (a switch-provider event in the job record) or the operator provider switch recorded on the candidate names the job's provider, which then authorizes it; any other provider SHALL fail explicitly. An operator re-offer of a repair job SHALL name exactly one provider and SHALL be refused at command time otherwise, publishing nothing. The operator's switch (switch-provider, or resume with an explicit provider) SHALL be recorded on the candidate per job kind and SHALL persist, so later repair rounds and re-reviews of the candidate published without explicit providers run on the switched providers. When a worker passes both the executor provider and the BR-439 repair-provider readiness option they SHALL name the same provider, otherwise the worker SHALL exit non-zero before any GitHub call. A worker SHALL declare the provider of its executor, SHALL be offered and SHALL claim such a job only when the declared provider equals the recorded one, and SHALL record that provider in its claim and result. A job with a missing, empty, unknown or self-contradictory provider SHALL fail explicitly naming the pull request. An unauthorized worker SHALL leave the job claimable by a matching worker and report why it claimed nothing.
 
 #### Scenario: Matching worker claims repair
 
@@ -52,6 +52,10 @@ A repair or integration-repair job SHALL name exactly one provider. That provide
 
 - **WHEN** a repair job has no provider, an unsupported provider, or a provider that differs from its provider list
 - **THEN** the operation fails explicitly and no job is claimed or executed under a default provider
+
+#### Scenario: Operator switch persists into later rounds
+- **WHEN** an operator switches a repair-pending candidate from `codex` to `claude`, and a later review finds material findings again
+- **THEN** the next repair job names `claude` without a new re-offer, a re-review published without explicit providers follows the recorded review switch, and a switch naming two providers for a repair is refused publishing nothing
 
 ### Requirement: Trusted project checks run with an explicit project runtime
 

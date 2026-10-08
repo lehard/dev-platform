@@ -415,11 +415,13 @@ class ProviderSwitchTests(unittest.TestCase):
         with QueueFixture(ROOT, HEAD) as fixture:
             self.repair_pending(fixture)
             before = fixture.candidate()
-            self.switch(providers=["claude", "codex"])
+            with self.assertRaisesRegex(queue.QueueError, "exactly one provider"):
+                self.switch(providers=["claude", "codex"])  # refused at command time, nothing published
+            self.switch(providers=["claude"])
             after = fixture.candidate()
             self.assertEqual((after["state"], after["attempts"]["repair"]), ("repair-pending", before["attempts"]["repair"]))
             self.assertEqual(after["gates"], before["gates"])
-            self.assertEqual(workers.build_job(after)["providers"], ["claude", "codex"])
+            self.assertEqual(workers.build_job(after)["providers"], ["claude"])
             self.assertEqual(gate.repair_brief(after)["findings"][0]["id"], "f1")
             # Later review of the repaired content follows the new providers.
             self.assertEqual(workers.build_job(after)["kind"], "repair")
@@ -430,6 +432,21 @@ class ProviderSwitchTests(unittest.TestCase):
             self.switch()
             queue._transition(ROOT, "o/r", 7, "reviewing", HEAD, task_identity=IDENTITY)
             gate.complete_review(ROOT, "o/r", fixture.candidate(), {"s": {"availability": "unavailable"}}, HEAD)
+            self.assertEqual(workers.build_job(fixture.candidate())["providers"], ["claude"])
+
+    def test_switched_providers_persist_into_later_repair_and_review_rounds(self):
+        with QueueFixture(ROOT, HEAD) as fixture:
+            self.repair_pending(fixture)
+            self.switch(providers=["claude"])
+            gate.offer(ROOT, "o/r", 7, HEAD, IDENTITY, "review", providers=["codex"])
+            self.switch(providers=["claude"])
+            # A later round publishes without explicit providers: the recorded switches decide.
+            queue._transition(ROOT, "o/r", 7, "reviewing", HEAD, task_identity=IDENTITY)
+            gate.complete_review(ROOT, "o/r", fixture.candidate(), self.MATERIAL, HEAD)
+            repair = fixture.candidate()
+            self.assertEqual((repair["state"], workers.build_job(repair)["providers"]), ("repair-pending", ["claude"]))
+            self.assertEqual(repair["provider_switch"], {"repair": ["claude"], "review": ["claude"]})
+            queue.publish_job(ROOT, "o/r", 7, "review", HEAD, task_identity=IDENTITY)
             self.assertEqual(workers.build_job(fixture.candidate())["providers"], ["claude"])
 
     def test_switch_refuses_live_claim_wrong_state_and_bad_providers(self):

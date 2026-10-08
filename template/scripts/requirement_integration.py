@@ -778,7 +778,7 @@ def _project_runtime(root: Path) -> dict[str, list[str]]:
 
 def _runtime_grant(root: Path, environ: dict[str, str]) -> list[str]:
     """The operator-granted home paths from the machine-local grant file outside the checked checkout."""
-    from lifecycle_workers import refused_home_path
+    from _platform_common import refused_home_path
 
     name = RUNTIME_GRANT_ENV
     if name not in environ or not environ[name]:
@@ -807,8 +807,8 @@ def _runtime_grant(root: Path, environ: dict[str, str]) -> list[str]:
 
 def _check_environment(root: Path, scratch: Path) -> dict[str, str]:
     """Build the ``project-check`` environment once, failing before any command on an unmet requirement."""
-    from _platform_common import credential_free_env
-    from lifecycle_workers import WorkerError, check_runtime_declaration, project_check_env
+    from _platform_common import (ProjectCheckRuntimeError, check_runtime_declaration, credential_free_env,
+                                  project_check_env)
 
     runtime = _project_runtime(root)
     if not runtime:
@@ -822,7 +822,7 @@ def _check_environment(root: Path, scratch: Path) -> dict[str, str]:
                     raise RequirementIntegrationError(
                         f"project check runtime requires home path {relative}: not granted in {os.environ[RUNTIME_GRANT_ENV]}")
         return project_check_env(dict(os.environ), scratch, runtime, Path.home())
-    except WorkerError as exc:
+    except ProjectCheckRuntimeError as exc:
         raise RequirementIntegrationError(str(exc)) from exc
 
 

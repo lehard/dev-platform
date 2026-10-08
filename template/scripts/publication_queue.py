@@ -442,7 +442,7 @@ def _transition(
     set_attempts: dict[str, int] | None = None,
     refuse_from: set[str] | frozenset[str] = frozenset(), inherit_identity: bool = True,
     cross_head_claims: bool = False, next_job: dict[str, Any] | None = None,
-    route: dict[str, str] | None = None,
+    route: dict[str, str] | None = None, provider_switch: dict[str, list[str]] | None = None,
 ) -> dict[str, Any] | None:
     """Publish the v2 handoff record for one transition and project its lifecycle label.
 
@@ -492,6 +492,10 @@ def _transition(
         raise QueueError(f"PR #{number} task identity change {final_identity['change']} contradicts its recorded "
                          f"originating route change {recorded_route['change']}; re-run developer handoff")
     new_route = recorded_route is not None and recorded_route != previous.get("route")
+    # An operator provider switch travels with the candidate like the route; a new switch replaces that kind only.
+    carried_switch = previous.get("provider_switch") or lineage.get("provider_switch") or {}
+    recorded_switch = {**carried_switch, **(provider_switch or {})} or None
+    new_route = new_route or recorded_switch != previous.get("provider_switch")
     new_attempts = any(previous.get("attempts", {}).get(k) != v for k, v in (set_attempts or {}).items())
     branch = observed.get("head", {}).get("ref")
     if not identity_changed and not new_attempts and previous.get("state") == state and red_gate in (None, previous.get("red_gate")) and not new_gates and not new_job and not new_route:
@@ -524,6 +528,7 @@ def _transition(
         next_job=next_job if next_job is not None else (previous.get("next_job") if state == previous.get("state") or state in {"reviewing", "repairing"} else None),
         at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
         route=recorded_route,
+        provider_switch=recorded_switch,
     )
     if state in _FRICTION_STATES:
         emit_friction(number, branch, state, head, str((red_gate or {}).get("evidence", ""))[:300], attempts=attempts)
@@ -560,11 +565,14 @@ def publish_job(root: Path, repo: str, number: int, kind: str, head: str, *,
         attempt = current.get("attempts", {}).get(kind, 0)
     if kind in {"repair", "integration-repair"}:
         route = _require_route(current, number, kind)
-        providers = [route["provider"]] if providers is None else list(providers)
+        switched = (current.get("provider_switch") or {}).get("repair")
+        providers = (list(switched) if switched else [route["provider"]]) if providers is None else list(providers)
         try:
-            authorized_repair_providers(route, providers, reoffer, f"{kind} job for PR #{number}")
+            authorized_repair_providers(route, providers, reoffer, f"{kind} job for PR #{number}", switched=switched)
         except WorkerError as exc:
             raise QueueError(str(exc)) from exc
+    elif kind == "review" and providers is None and (current.get("provider_switch") or {}).get("review"):
+        providers = list(current["provider_switch"]["review"])
     elif kind == "review" and providers is None:
         from independent_review_runner import settings
 
