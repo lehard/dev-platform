@@ -3,40 +3,34 @@
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "1159b9f4522ca9bad415fb3c8a16052c18a594c9",
-    "diff_sha256": "fe0219acb4f61d506425b68df89a24dcfd6cd2b3088415cb0f0426aac047b6fd"
+    "candidate_head": "a886e23499c299a92f0aa1346b21ec8444cba394",
+    "diff_sha256": "8b2c417b72aba775779bd86d504a4e9c6d4bc8967a2fa45d038d6e454dd36359"
   },
-  "completed_at": "2026-10-08T10:36:30+00:00",
+  "completed_at": "2026-10-08T12:50:46+00:00",
   "findings": [
     {
-      "evidence": "publication_queue.py admit(): `resolved_handoff = handoff if handoff is not None else _admission_handoff(...)` runs before `_events`/`_admission`. The old code called `_admission_handoff` only when `current.get(\"task_identity\") is None or current.get(\"head\") != expected_head`. `_touches_openspec_change` also hard-codes `origin/main` and raises on merge-base failure, even for genuine quick tasks and even when main_branch is configured differently.",
-      "id": "admit-eager-handoff-resolution",
+      "evidence": "template/scripts/publication_queue.py `_touches_openspec_change` (diff lines 575-583) hardcodes `origin/main`. It ignores the configured `main_branch`, which `required_check_state_for_ref` does read. It also assumes the admitted head object exists in the admitting checkout. A coordinator or legacy `admit` run without the fetched head, or in a project whose main is not `main`, raises instead of returning the quick-task identity. That contradicts the spec scenario 'Genuine quick task'. Design D4 says the head is 'listed from git at the admitted head', but does not mention this prerequisite. Tests that mock `_admission_handoff` would not catch it.",
+      "id": "quick-admission-hardcoded-origin-main-merge-base",
       "severity": "advisory",
-      "summary": "admit() now resolves the managed/quick handoff before reading existing admission events. An idempotent re-admit, or a quick-task PR whose head or origin/main is not available locally, can now fail where it previously did nothing or degraded."
+      "summary": "The managed predicate can make genuine quick-task admission fail. `_touches_openspec_change` runs `git merge-base <head> origin/main` and raises QueueError if that fails. It is the only evidence for classifying a candidate as quick when there is no managed state file."
     },
     {
-      "evidence": "publication_state.py required_check_state_for_ref: `config = read_platform_config(root)` precedes the `try:`. Callers such as finish_task, rollout_preflight and wait_for_pr_checks expect a RequiredCheckState and would crash instead of failing closed and resumable.",
-      "id": "required-checks-config-read-uncaught",
+      "evidence": "template/scripts/publication_state.py `required_check_state_for_ref` (diff lines 1038-1041). The docstring says 'Every unusable observation ... is `unknown` with an explicit cause'. `project_publish.wait_for_pr_checks`, `finish_task` and `rollout_preflight` call this function and expect a RequiredCheckState back, so a TOML or OS error would bypass their handling.",
+      "id": "platform-config-read-uncaught-in-check-observation",
       "severity": "advisory",
-      "summary": "required_check_state_for_ref promises that every unusable observation is `unknown` with a cause. However, read_platform_config(root) runs outside the _Unusable try block, so an unreadable or invalid config raises instead."
-    },
-    {
-      "evidence": "publication_state.py: `required = protection.get(\"required_status_checks\") if isinstance(protection, dict) else None` is followed by the `contexts`/`checks` list checks, which raise _Unusable(\"malformed\") when `required` is None.",
-      "id": "ruleset-protection-classified-malformed",
-      "severity": "advisory",
-      "summary": "_protected_required_contexts treats a protected branch whose response lacks `protection.required_status_checks` as malformed. A branch protected only through rulesets, or one with no status-check rule, would be reported as unknown/malformed. On the main-targeted path this becomes a visible QueueError block. On the contribution path it means a permanent unusable observation."
+      "summary": "`required_check_state_for_ref` calls `read_platform_config(root)` outside the `_Unusable` handler. A malformed config therefore raises an arbitrary exception from a function whose contract is that every unusable observation returns `unknown` with a cause."
     }
   ],
-  "launched_at": "2026-10-08T10:35:47+00:00",
-  "output_sha256": "9bc006d2063977b3f6a5e552bbcb6ac44aaf1a2cae5c9a5baceb62eb2e02a424",
+  "launched_at": "2026-10-08T12:50:17+00:00",
+  "output_sha256": "cdb7fe71800ffaf920d8573333912e1b88cc6713d78b12cdf9b60301cbfedf3e",
   "perspective": "engineering-quality",
-  "request_id": "154ee6f6-fbec-455c-a7ae-38db38b8312e",
+  "request_id": "cd12e242-8477-445a-8fa7-efbab8cbf235",
   "reviewer": {
-    "context_id": "bead373c-8577-447d-ac53-dc57823df62e",
+    "context_id": "be872aea-dcd4-4623-8c98-62a26a29dfb0",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-2e1724a4-30b1-4aa5-be43-a8a250e3faa4",
+    "launch_id": "platform-launch-c836239b-3836-4fe9-901e-cef88fd668c1",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -51,27 +45,27 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 44590
+        "value": 46635
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 144602
+        "value": 98726
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 31118
+        "value": 24247
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 35273
+        "value": 27477
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10
+        "value": 8
       },
       "num_turns": {
         "source": "runtime-confirmed",
@@ -81,7 +75,7 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 3150
+        "value": 2218
       }
     },
     "runtime": "claude-code-print"

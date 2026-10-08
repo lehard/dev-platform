@@ -3,28 +3,21 @@
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "1159b9f4522ca9bad415fb3c8a16052c18a594c9",
-    "diff_sha256": "fe0219acb4f61d506425b68df89a24dcfd6cd2b3088415cb0f0426aac047b6fd"
+    "candidate_head": "a886e23499c299a92f0aa1346b21ec8444cba394",
+    "diff_sha256": "8b2c417b72aba775779bd86d504a4e9c6d4bc8967a2fa45d038d6e454dd36359"
   },
-  "completed_at": "2026-10-08T10:35:47+00:00",
-  "findings": [
-    {
-      "evidence": "template/scripts/publication_queue.py `_touches_openspec_change` runs `git merge-base <head> origin/main` and raises QueueError if it fails. The `_admission_handoff` quick-task path always calls it when no managed state exists. The spec scenario 'Genuine quick task' and design D4 only say the head is 'listed from git at the admitted head'. They do not mention origin/main, the configured main_branch, or the local object availability. The tests only cover this by creating `refs/remotes/origin/main`.",
-      "id": "quick-task-admission-depends-on-local-origin-main",
-      "severity": "advisory",
-      "summary": "The managed predicate hard-codes `origin/main` and requires the admitted head to exist locally. A genuine quick task admitted from a checkout without that ref or object now fails with a QueueError instead of receiving the quick-task identity."
-    }
-  ],
-  "launched_at": "2026-10-08T10:35:13+00:00",
-  "output_sha256": "59e2787909f81533d946ba4854144866bf639c968ce15378c71c292b87badb70",
+  "completed_at": "2026-10-08T12:50:17+00:00",
+  "findings": [],
+  "launched_at": "2026-10-08T12:49:36+00:00",
+  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "spec-fidelity",
-  "request_id": "154ee6f6-fbec-455c-a7ae-38db38b8312e",
+  "request_id": "cd12e242-8477-445a-8fa7-efbab8cbf235",
   "reviewer": {
-    "context_id": "3afab23d-4c35-4f05-a77f-0e25e251a85b",
+    "context_id": "ff94bfe1-ee80-49b0-96d0-6f285baed64d",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-bdd350f7-95bc-470a-b2b8-e9405f9b1543",
+    "launch_id": "platform-launch-16893fe3-bae0-4a23-867c-dde1a1066a5e",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,22 +32,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 58750
+        "value": 63102
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 117288
+        "value": 117215
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 24569
+        "value": 37303
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 27655
+        "value": 39885
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -64,12 +57,12 @@
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 7
+        "value": 8
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2282
+        "value": 2237
       }
     },
     "runtime": "claude-code-print"
