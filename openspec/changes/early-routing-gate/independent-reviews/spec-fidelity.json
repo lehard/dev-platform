@@ -3,21 +3,28 @@
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "ecba7cfe64d33b6192a6bd52cc7b36608fda8b54",
-    "diff_sha256": "167c8f15d6c419475358425e070c3bdcdfea7633062bb5cc3b365b43bd9db0df"
+    "candidate_head": "8d985c1bbec6225f5ae71c7bf4c08b8b8036ce8f",
+    "diff_sha256": "fa29ddeda38b4400c6cac30c535147df862331ccd8bf573e26cded749d6308c1"
   },
-  "completed_at": "2026-10-08T08:21:19+00:00",
-  "findings": [],
-  "launched_at": "2026-10-08T08:20:55+00:00",
-  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
+  "completed_at": "2026-10-08T12:06:06+00:00",
+  "findings": [
+    {
+      "evidence": "candidate.diff, docs/engineering/model-routing.md line ~65: 'print the exact native Agent-tool call the supervisor must then actually invoke in place, after `begin-claude-delegation` opens the delegation (see Execution plan and early routing gate) (no `isolation`, ...)'. This is wording only. The spec and design behavior is otherwise matched by the implementation I reviewed.",
+      "id": "routing-doc-misplaced-parenthetical",
+      "severity": "advisory",
+      "summary": "The edited routine/standard paragraph in docs/engineering/model-routing.md puts the new 'after begin-claude-delegation opens the delegation (see ...)' clause in front of '(no isolation, ...)'. The second parenthetical now reads as a modifier of the new clause, not of the Agent-tool call."
+    }
+  ],
+  "launched_at": "2026-10-08T12:05:26+00:00",
+  "output_sha256": "57728c41647a8fe552806116c88f0226954616c14d7e0e6f3b473fb14621e21b",
   "perspective": "spec-fidelity",
-  "request_id": "251e79d7-0783-4e88-90c1-85a4b82579d5",
+  "request_id": "98d00432-eb7e-4f63-8e04-d64cfcb6383d",
   "reviewer": {
-    "context_id": "fa472755-8451-4fa8-bfd2-f734129a5bab",
+    "context_id": "9af4a7fc-78f4-4659-87e1-64b1e85e7dbe",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-07f5d4aa-08ad-4000-84ec-5fd0ae4ea5e7",
+    "launch_id": "platform-launch-5fbb371e-32a5-42cc-943a-8b34bb24d91c",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -32,22 +39,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 58007
+        "value": 62666
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 115251
+        "value": 123917
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 22256
+        "value": 35235
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 23515
+        "value": 37427
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -57,12 +64,12 @@
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 7
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2109
+        "value": 3234
       }
     },
     "runtime": "claude-code-print"

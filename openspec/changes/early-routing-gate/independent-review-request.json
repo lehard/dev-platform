@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "ecba7cfe64d33b6192a6bd52cc7b36608fda8b54",
-    "diff_sha256": "167c8f15d6c419475358425e070c3bdcdfea7633062bb5cc3b365b43bd9db0df"
+    "candidate_head": "8d985c1bbec6225f5ae71c7bf4c08b8b8036ce8f",
+    "diff_sha256": "fa29ddeda38b4400c6cac30c535147df862331ccd8bf573e26cded749d6308c1"
   },
   "change": "openspec/changes/early-routing-gate",
   "excluded_lifecycle_paths": [
@@ -37,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-08T08:20:38+00:00",
+  "prepared_at": "2026-10-08T12:04:58+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/early-routing-gate/independent-reviews",
     "required_perspectives": [
@@ -46,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "251e79d7-0783-4e88-90c1-85a4b82579d5",
+  "request_id": "98d00432-eb7e-4f63-8e04-d64cfcb6383d",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",

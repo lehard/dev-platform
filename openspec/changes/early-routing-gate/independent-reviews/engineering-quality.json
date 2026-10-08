@@ -3,34 +3,28 @@
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "ecba7cfe64d33b6192a6bd52cc7b36608fda8b54",
-    "diff_sha256": "167c8f15d6c419475358425e070c3bdcdfea7633062bb5cc3b365b43bd9db0df"
+    "candidate_head": "8d985c1bbec6225f5ae71c7bf4c08b8b8036ce8f",
+    "diff_sha256": "fa29ddeda38b4400c6cac30c535147df862331ccd8bf573e26cded749d6308c1"
   },
-  "completed_at": "2026-10-08T08:21:51+00:00",
+  "completed_at": "2026-10-08T12:06:39+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/model_routing.py, _run_delegated_codex: `except BaseException: closed = close_attempt(...)` calls `_task_content_state(...)`, which can raise RoutingError (snapshot failure or no merge base). That exception replaces the original error, including KeyboardInterrupt and GuardedChildError. The closing `_write_route` is then skipped, so an `open` platform-observed delegation stays on disk. A later `_require_recovery_safety` then reports only 'child delegation is still open'. A try/finally or a guarded snapshot would keep the original error and close the record.",
-      "id": "codex-close-attempt-masks-original-error",
+      "evidence": "The candidate diff, docs/engineering/model-routing.md around line 10, reads: \"print the exact native Agent-tool call the supervisor must then actually invoke in place, after `begin-claude-delegation` opens the delegation (see Execution plan and early routing gate) (no `isolation`, since ...)\". Two adjacent parentheticals now break the original sentence. The same ordering requirement is already stated clearly in the new \"Execution plan and early routing gate\" section.",
+      "id": "model-routing-doc-garbled-sentence",
       "severity": "advisory",
-      "summary": "The cleanup path in _run_delegated_codex can replace the real launch error with a snapshot error, and can leave a stale open delegation."
-    },
-    {
-      "evidence": "template/scripts/task_content_identity.py: the command changed from `diff --name-only` to `diff --name-only --no-renames -z`, with NUL splitting. The function is shared with review and receipt identity. Renamed files now appear as a delete plus an add, and quoted non-ASCII names now resolve. Digests for tasks that contain renames or non-ASCII paths can therefore differ from previously recorded ones. The candidate diff does not show a regression test for those callers.",
-      "id": "shared-content-identity-semantics-change",
-      "severity": "advisory",
-      "summary": "The change to the shared `content_identity` function alters `git diff` parsing for every caller, not just the routing gate."
+      "summary": "The edited routine/standard paragraph in docs/engineering/model-routing.md is hard to read. The new clause is spliced into the middle of an existing parenthetical."
     }
   ],
-  "launched_at": "2026-10-08T08:21:19+00:00",
-  "output_sha256": "b64a5259fda2aa913ee1fcef077bcf912c9c2ccac94fef53425f7ac53b5cc427",
+  "launched_at": "2026-10-08T12:06:06+00:00",
+  "output_sha256": "14f5828c0e2565873d2bd049469c0ebb8a2ba33c2e07f894e9c1de82753f51f8",
   "perspective": "engineering-quality",
-  "request_id": "251e79d7-0783-4e88-90c1-85a4b82579d5",
+  "request_id": "98d00432-eb7e-4f63-8e04-d64cfcb6383d",
   "reviewer": {
-    "context_id": "10817e50-0fd3-4708-994c-5c3fb83e455f",
+    "context_id": "cb353841-2a74-437f-9895-5ad45b9f18ca",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-8d886315-fb75-4627-be18-ebc69c6fe516",
+    "launch_id": "platform-launch-421a9b09-0d85-4470-a2a8-506a3f5f89a5",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -45,22 +39,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 52986
+        "value": 53257
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 110839
+        "value": 110881
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 28435
+        "value": 25600
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 29941
+        "value": 28718
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -75,7 +69,7 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2330
+        "value": 2352
       }
     },
     "runtime": "claude-code-print"
