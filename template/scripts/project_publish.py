@@ -450,6 +450,8 @@ def validate_shared_manifest(root: Path, path: Path) -> dict:
     if not isinstance(payload, dict) or payload != committed:
         raise RequirementIntegrationError("shared manifest differs from exact committed HEAD")
     if payload.get("version") == 2:
+        if lifecycle_mode(read_platform_config(root)) != "coordinator":
+            raise RequirementIntegrationError("reviewed contribution publication requires a coordinator source contract")
         from requirement_contributions import validate
         validate(payload)
         if path != requirement_integration._candidate_manifest_path(payload["requirement"], root) or branch(root) != payload["integration_branch"]:

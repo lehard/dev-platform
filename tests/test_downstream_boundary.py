@@ -300,6 +300,22 @@ class DownstreamCheckoutTests(unittest.TestCase):
 
 
 class RequirementLifecycleSelectionTests(unittest.TestCase):
+    def test_legacy_receipts_cannot_bypass_invalid_source_selection(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            receipts = root / ".claude/requirement-integration/requirement-7"
+            receipts.mkdir(parents=True)
+            (receipts / "first.json").write_text("{}", encoding="utf-8")
+            for key, value in (("scm_provider", "gitlab"), ("publish_mode", "direct"), ("harness_mode", "project")):
+                with self.subTest(key=key), \
+                        mock.patch.object(common, "read_platform_config", return_value={"platform_version": "source", key: value}), \
+                        mock.patch.object(execution.requirement_intake, "fetch_issue") as fetch, \
+                        mock.patch.object(execution, "current_worktree_root", return_value=root), \
+                        mock.patch.object(execution, "_git", return_value="main"):
+                    with self.assertRaisesRegex(common.PlatformConfigError, key):
+                        execution.advance(root, requirement="owner/repo#7", base_dir=root)
+                    fetch.assert_not_called()
+
     def test_portable_contribution_publication_is_unsupported(self) -> None:
         with mock.patch.object(common, "read_platform_config", return_value={"platform_version": "1.0.0"}):
             self.assertFalse(execution._contribution_publication_supported(Path("/unused")))
@@ -321,6 +337,43 @@ class RequirementLifecycleSelectionTests(unittest.TestCase):
 
 
 class PublicationSelectionTests(unittest.TestCase):
+    def test_portable_version_two_manifest_rejected_before_coordinator_import(self) -> None:
+        fixture = DownstreamCheckoutTests()
+        root = fixture.make_checkout(contract("1.0.0"))
+        self.addCleanup(fixture.doCleanups)
+        path = root / "dev-platform/requirement-integrations/requirement-7.json"
+        path.parent.mkdir(parents=True)
+        path.write_text(json.dumps({"version": 2}), encoding="utf-8")
+        source = BLOCKER + textwrap.dedent(
+            """
+            import sys
+            from pathlib import Path
+            from types import SimpleNamespace
+            from unittest import mock
+            sys.path.insert(0, "scripts")
+            import project_publish as publication
+            root = Path.cwd()
+            path = Path("dev-platform/requirement-integrations/requirement-7.json")
+            with mock.patch.object(publication, "run_git", return_value=SimpleNamespace(returncode=0, stdout=(root / path).read_text())), \\
+                    mock.patch.object(publication, "require_delivery_provenance", return_value=None):
+                for operation in (
+                    lambda: publication.validate_shared_manifest(root, path),
+                    lambda: publication.publish_pr(root, "origin", "main", None, None, "manual", shared_manifest=path),
+                ):
+                    try:
+                        operation()
+                    except (publication.RequirementIntegrationError, SystemExit) as error:
+                        assert "coordinator source contract" in str(error), error
+                    else:
+                        raise AssertionError("portable composition publication accepted")
+            assert "requirement_contributions" not in sys.modules
+            assert "requirement_composition" not in sys.modules
+            assert not any(name in sys.modules for name in BLOCKED)
+            """
+        )
+        result = fixture.run_driver(root, source)
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+
     def test_publication_entrypoints_reject_unsupported_source_before_work(self) -> None:
         publication = load_platform_module("project_publish", SCRIPTS / "project_publish.py")
         finish = load_platform_module("finish_task", SCRIPTS / "finish_task.py")

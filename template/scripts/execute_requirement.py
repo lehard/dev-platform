@@ -478,7 +478,10 @@ def _publish_early_draft(
 
 def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_distinct: bool = False) -> dict[str, Any]:
     """Run deterministic transitions; return one bounded agent action or delivery result."""
+    from _platform_common import lifecycle_mode, read_platform_config
+
     integration = integration.resolve()
+    lifecycle_mode(read_platform_config(integration))
     if current_worktree_root().resolve() != integration or _git(integration, "branch", "--show-current") != "main":
         raise RequirementExecutionError("Execute Requirement must run from the integration main checkout")
     parent = requirement_intake.fetch_issue(integration, *requirement_intake.issue_ref(requirement))
