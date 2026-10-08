@@ -1,36 +1,39 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "2de3b29e7e9b3edd3ec00d777162f9ff0416501f",
-    "diff_sha256": "df2000c57a3563b03472bdcf6dc9280d9d6f46fa7dc84f1110869bc4ea86eb86"
+    "base_head": "c0b0b01b44ff8808dc02522078fa5d5d20f67f4f",
+    "base_ref": "origin/main",
+    "candidate_head": "b25aff1a6834d263f1a7c1a0bb22711f55eba5e5",
+    "diff_sha256": "166825f56d5a6b9799331de0ef01ddf28482f7b756dcfbef77d7cbce5062e199"
   },
-  "completed_at": "2026-10-08T14:57:09+00:00",
+  "completed_at": "2026-10-08T18:52:07+00:00",
   "findings": [
     {
-      "evidence": "publication_queue.py:608-611 computes `resolved_handoff = ... _admission_handoff(root, branch, expected_head)` unconditionally, ahead of `_events`/`_admission` at 612-613. It is consumed only at line 658, and only when `current.get('task_identity') is None or current.get('head') != expected_head`. D4 and the \"Managed proof unavailable\" scenario require failure before mutations, so this ordering is defensible. It does mean a no-op re-admission can now raise where it previously succeeded. The delta spec and design do not say whether that is intended.",
-      "id": "admit-eager-handoff-on-readmission",
+      "evidence": "template/scripts/lifecycle_workers.py:795-796 is unchanged. `comments_for` calls `_gh_json('api','--paginate', .../comments?per_page=100)`, which uses `_decode_all` (lines ~727-741). An empty body is decoded as 'null' and returns None instead of failing with a comment-history acquisition error. Non-object rows, rows without an integer id and non-increasing ids are not checked. The result is passed straight into `derive_candidate`/`i_won` claim replay in `work_next` (lines 507 and 522). Neither design.md nor tasks.md scopes this reader out.",
+      "id": "worker-comments-for-unvalidated-history",
       "severity": "advisory",
-      "summary": "`admit` now resolves the managed handoff before it checks whether the PR is already admitted. A retry or idempotent re-admission of a managed candidate can therefore fail provenance, for example when the coordinator checkout is not at the admitted head. Before this change the handoff was computed lazily and only when a transition was actually needed."
+      "summary": "The lifecycle worker CLI still reads PR comment history through its own unvalidated reader, so it gets none of the 'Complete validated lifecycle comment history' behavior. The new requirement says the platform SHALL validate the complete observation before returning comments to lifecycle consumers. Only `publication_queue._comments` was changed."
     }
   ],
-  "launched_at": "2026-10-08T14:56:28+00:00",
-  "output_sha256": "a7abce7a0cfbca5200dd0ab6af6801d69317b0b258afb4f8b7e41068f849fad2",
+  "launched_at": "2026-10-08T18:51:13+00:00",
+  "output_sha256": "e0d01bfaca5e638e0cca425520889b9fa586671d8b78f346632245934dadb20f",
   "perspective": "spec-fidelity",
-  "request_id": "789129df-3096-464e-be6f-a7c7e62f837f",
+  "request_id": "de735aaa-3252-4cdc-a4c7-759457345ea1",
   "reviewer": {
-    "context_id": "d917be45-f4ba-4812-8dcc-d4a42e53cc6a",
+    "context_id": "0a31e0f3-a112-4f1a-8d27-17fa1a93b27f",
     "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-c958bb92-f702-4f35-add2-9e244bc8b84b",
+    "launch_id": "platform-launch-032a0a2b-f52b-4af2-84b7-48f0c43f0a91",
     "model": {
       "source": "selected",
       "value": "sonnet"
     },
     "provider": "claude",
     "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
     "runtime": "claude-code-print",
     "write_access": false
   },
@@ -39,41 +42,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 62638
+        "value": 66890
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 243436
+        "value": 533489
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 36516
+        "value": 48651
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 39955
+        "value": 52343
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 12
+        "value": 24
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 9
+        "value": 17
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 3303
+        "value": 4996
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "033be321cbf04f13d697fc16ddb0d4c4eec47355a14ee32727c62b215e438878"
+  "task_content_digest": "ecef3fd97266e81dec7243371d2f5d5179af09e8b8e51ffecdb4ef7912cb5519"
 }

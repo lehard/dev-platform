@@ -1,48 +1,32 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "fc3da5c48380840fc544c831bd141e01d1ae7019",
-    "diff_sha256": "f81fcc375f27d44a047e2ac28ebdf3fb2064d2468dff18927b57db8aa11a4968"
+    "base_head": "c0b0b01b44ff8808dc02522078fa5d5d20f67f4f",
+    "base_ref": "origin/main",
+    "candidate_head": "b25aff1a6834d263f1a7c1a0bb22711f55eba5e5",
+    "diff_sha256": "166825f56d5a6b9799331de0ef01ddf28482f7b756dcfbef77d7cbce5062e199"
   },
-  "completed_at": "2026-10-08T07:57:52+00:00",
-  "findings": [
-    {
-      "evidence": "template/scripts/requirement_intake.py verify_child_routing error text says \"Correct the project label on {child_ref} manually (or close it and retry)\". Candidate search in materialize_handoff (line ~749) queries `issues?state=all` and reuses the matching handoff-marker child. A closed child therefore becomes the reused candidate and verify_child_routing then raises \"child ... is not open\". design.md decision 4 has the same guidance and doesn't account for this.",
-      "id": "close-and-retry-guidance-dead-end",
-      "severity": "advisory",
-      "summary": "The mislabeled-child repair guidance says to \"close it and retry\". The retry would still find the closed child and reject it, so that path can't succeed."
-    },
-    {
-      "evidence": "verify_child_routing: `if issue.get(\"state\") != \"open\": raise ...`. Spec scenarios for read-back mismatch list only project label, type:internal-change and the back-reference.",
-      "id": "open-state-check-not-in-spec",
-      "severity": "advisory",
-      "summary": "The implementation rejects a reused child that is not open, and rejects a pull request. The agent-workflow delta spec doesn't list either rule, although design.md decision 3 does. Reusing a previously closed exact-handoff child used to be accepted and now fails."
-    },
-    {
-      "evidence": "_link_child_identity: `if child_projects and child_projects != parent_projects:`. verify_child_routing requires `found_projects == [expected]`, so the two paths disagree on a child with no project label.",
-      "id": "link-child-absent-project-label-accepted",
-      "severity": "advisory",
-      "summary": "The standalone link_child check rejects a child only when it has a `project:*` label that differs from the parent's. A child with no `project:*` label is linked without error. design.md decision 5 describes the check as comparing the child's label to the parent's. It doesn't say an absent label is allowed, and materialization treats an absent label as an error."
-    }
-  ],
-  "launched_at": "2026-10-08T07:57:26+00:00",
-  "output_sha256": "f331b3d34d024f4bfaa51dc88f85c63db134a5f4fba1c6a2d32e96f5b822652e",
+  "completed_at": "2026-10-08T18:50:20+00:00",
+  "findings": [],
+  "launched_at": "2026-10-08T18:49:53+00:00",
+  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "spec-fidelity",
-  "request_id": "3e226dfd-1f39-4b22-842c-1b43f555ed31",
+  "request_id": "d5e8b05a-1eb0-4f8d-ad65-c9ce3be5af5a",
   "reviewer": {
-    "context_id": "55a34b6b-4219-46bc-8e02-25b365f0a0ed",
+    "context_id": "31740380-6049-443d-83e8-efae431e5ebd",
     "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-9fe39875-331e-4f88-b008-423e3789703c",
+    "launch_id": "platform-launch-7a6a465f-8c4b-4ac0-99f7-2d3f87ebd3e6",
     "model": {
       "source": "selected",
       "value": "sonnet"
     },
     "provider": "claude",
     "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
     "runtime": "claude-code-print",
     "write_access": false
   },
@@ -51,41 +35,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 32367
+        "value": 29409
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 49377
+        "value": 53451
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 20366
+        "value": 23565
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 22141
+        "value": 25416
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 8
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 7
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2235
+        "value": 1181
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "8c6cd14a2b65ffcd697d8a4141a9f0d52f8bd2a1dbf04c6105fa37558fe3361f"
+  "task_content_digest": "82468398c5d6f7cea67e5c0aff90946fe376b182fde989d7cc833b888158ce77"
 }

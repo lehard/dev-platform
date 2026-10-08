@@ -1,48 +1,45 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "f7f85a0e51fb70c55dd511372980546efceb8112",
-    "diff_sha256": "1da3b446fc01bac9c731736327dd274381310556db6e47214da6f8f4ac35d300"
+    "base_head": "c0b0b01b44ff8808dc02522078fa5d5d20f67f4f",
+    "base_ref": "origin/main",
+    "candidate_head": "b25aff1a6834d263f1a7c1a0bb22711f55eba5e5",
+    "diff_sha256": "166825f56d5a6b9799331de0ef01ddf28482f7b756dcfbef77d7cbce5062e199"
   },
-  "completed_at": "2026-10-08T14:57:46+00:00",
+  "completed_at": "2026-10-08T18:51:59+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/finish_task.py:405 and :1067 use config.get(\"platform_version\") == \"source\". The same pattern appears in capability_manager.py:374, publication_queue.py:151 and openspec_lifecycle.py:372. Under a source contract with an unsupported combination, such as scm_provider=gitlab, these paths behave differently from the entrypoints that now raise. finish_task.main raises early, but other callers of these helpers do not.",
-      "id": "residual-raw-source-checks",
+      "evidence": "template/scripts/_platform_common.py read_project_config: `if not path.exists(): return {}`. The docstring says '{} when absent'. publication_queue's new coordinator-app resolution and preflight call it. A missing committed contract then looks like an empty config instead of failing with a named error, which is exactly the case `lifecycle_mode` is meant to reject. The user's no-fallbacks rule applies.",
+      "id": "read-project-config-absent-returns-empty",
       "severity": "advisory",
-      "summary": "Some downstream-reachable code still tests platform_version == \"source\" directly instead of going through lifecycle_mode. The new selector is therefore not the single point of truth."
+      "summary": "The new `read_project_config` returns `{}` when `.dev-platform.toml` is missing. That is a default that hides a missing required contract file."
     },
     {
-      "evidence": "template/scripts/_platform_common.py:235-238 skips these keys with a bare `continue`. The change is covered by tests, but no documentation or diagnostic tells operators their overlay values are discarded.",
-      "id": "operator-overlay-selector-keys-silently-ignored",
+      "evidence": "template/scripts/finish_task.py main: `selected_mode = lifecycle_mode(config)` is placed right after `read_platform_config(work)`, before `if args.status:`. `platform_bootstrap.sync_platform_version` already treats a missing top-level `platform_version` as an error, so this is probably acceptable. However, `protected_main` in _platform_common.py (comment: 'Legacy configs predate this key') shows older configs exist. The spec and tasks do not mention the effect on status or on legacy renders, and no test covers a downstream render lacking the key.",
+      "id": "lifecycle-mode-called-unconditionally-in-finish-main",
       "severity": "advisory",
-      "summary": "read_platform_config now drops platform_version, harness_mode, publish_mode and scm_provider from the operator overlay without a warning. An operator who relied on overriding publish_mode or scm_provider will see the setting have no effect."
-    },
-    {
-      "evidence": "template/scripts/openspec_lifecycle.py, in the archive_change hunk: `coordinator_managed = False` whenever mode != \"coordinator\". Provenance is never examined in portable mode, so a malformed or ambiguous .managed-task.json goes unreported.",
-      "id": "portable-archive-skips-managed-candidate-for-coordinator-provenance",
-      "severity": "advisory",
-      "summary": "A downstream contract now always takes the portable review path in archive_change, even if the checkout holds active managed-task provenance. The behavior change is intended, but nothing warns about the case."
+      "summary": "`finish_task.main` now calls `lifecycle_mode(config)` before the `--status` and gitlab branches, so it applies to every invocation. A config with no `platform_version` now fails there with a PlatformConfigError, including on read-only status."
     }
   ],
-  "launched_at": "2026-10-08T14:56:43+00:00",
-  "output_sha256": "3d3602b081cec12d49398df88210c077ab3308d9088f0de1d201fa06d5da800b",
+  "launched_at": "2026-10-08T18:51:25+00:00",
+  "output_sha256": "08ad51d1a0fe3d285578875b3bb6cbea8efd11e077a4cfaf2b7e61845de1d517",
   "perspective": "engineering-quality",
-  "request_id": "501b1c62-7a88-4d51-b16e-7854f3562eb4",
+  "request_id": "aa9cd267-4c01-44ee-a8fa-cf5cd255ac10",
   "reviewer": {
-    "context_id": "2d55ba85-842e-4158-8a7b-028e150a460e",
+    "context_id": "f959db6d-d225-4c76-a477-7a2d67235577",
     "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-d5bfbc87-2f5f-4a1f-8703-02468b91fbc0",
+    "launch_id": "platform-launch-a650b1a0-f151-4abe-99ef-726a110abecf",
     "model": {
       "source": "selected",
       "value": "sonnet"
     },
     "provider": "claude",
     "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
     "runtime": "claude-code-print",
     "write_access": false
   },
@@ -51,41 +48,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 56130
+        "value": 69798
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 228479
+        "value": 281657
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 58437
+        "value": 30240
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 61971
+        "value": 32059
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 12
+        "value": 14
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 9
+        "value": 11
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2229
+        "value": 3016
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "b381d81be9c9e34333ff4a87544fd19e26156016553d94d3c4b229062c62f64a"
+  "task_content_digest": "980f062d26ef277f98393c87d63410288cf1456e8fef935ace65ac262e652d71"
 }

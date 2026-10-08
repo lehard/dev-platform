@@ -1,48 +1,45 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "2de3b29e7e9b3edd3ec00d777162f9ff0416501f",
-    "diff_sha256": "df2000c57a3563b03472bdcf6dc9280d9d6f46fa7dc84f1110869bc4ea86eb86"
+    "base_head": "c0b0b01b44ff8808dc02522078fa5d5d20f67f4f",
+    "base_ref": "origin/main",
+    "candidate_head": "b25aff1a6834d263f1a7c1a0bb22711f55eba5e5",
+    "diff_sha256": "166825f56d5a6b9799331de0ef01ddf28482f7b756dcfbef77d7cbce5062e199"
   },
-  "completed_at": "2026-10-08T14:57:54+00:00",
+  "completed_at": "2026-10-08T18:52:41+00:00",
   "findings": [
     {
-      "evidence": "publication_queue.py (diff ~L575-583): `run_git([\"merge-base\", head, \"origin/main\"], ...)` raises QueueError on non-zero. Before this change a quick task admitted from any checkout got branch/head identity without touching git. The configured `main_branch` is not consulted, although `publication_state` now requires it.",
-      "id": "admission-quick-predicate-hardcodes-origin-main",
+      "evidence": "template/scripts/publication_queue.py post_evidence: it loops over _evidence_records(...) looking for the dedupe_key, then calls _gh(... POST comments) unconditionally. Readers (requirement_evidence) do not collapse duplicates by dedupe_key or event_id, so duplicate durable events could be counted twice in a Requirement retrospective.",
+      "id": "evidence-post-dedupe-race",
       "severity": "advisory",
-      "summary": "The managed predicate in `_touches_openspec_change` hardcodes `origin/main` and needs the admitted head in the local object store. Admitting a genuine quick task can therefore raise a QueueError when the coordinator checkout lacks the head or `origin/main`, or when the project's main branch has another name."
+      "summary": "post_evidence dedupes by reading existing records and then posting, with no atomicity, so concurrent coordinator runs can write duplicate evidence comments for one dedupe key."
     },
     {
-      "evidence": "diff ~L698-705: `resolved_handoff = handoff if handoff is not None else _admission_handoff(...)` runs before `_events`/`_admission`. The old code evaluated `_admission_handoff` lazily, only inside the `_transition(...)` call guarded by `current.get(\"task_identity\") is None or head != expected_head`.",
-      "id": "admit-handoff-resolved-eagerly-on-readmission",
+      "evidence": "template/scripts/publication_queue.py _touches_openspec_change: run_git(['merge-base', head, 'origin/main']) followed by git diff --name-only base...head. The function does not fetch, and it does not compare against the PR's actual base. Design D4 accepts the safe-direction failure, but a stale local ref still makes admission outcomes depend on local fetch freshness.",
+      "id": "openspec-touch-predicate-stale-origin-main",
       "severity": "advisory",
-      "summary": "`admit` now resolves `_admission_handoff` (git calls, managed-state read, content_identity, evidence validation) on every call, including idempotent re-admission where the admission record already exists and no transition is needed. A stale or malformed archived-evidence file, or a missing head, can now make a harmless re-admit fail where it previously succeeded."
-    },
-    {
-      "evidence": "publication_state.py (diff ~L1038-1041): `config = read_platform_config(root)` sits before the `try:`. The docstring says every unusable observation, including a config without `main_branch`, is `unknown` with an explicit cause.",
-      "id": "check-state-config-read-uncaught",
-      "severity": "advisory",
-      "summary": "`required_check_state_for_ref` calls `read_platform_config(root)` outside its `_Unusable` handler. A malformed or unreadable config raises a raw exception from a function whose contract is that every unusable observation returns `unknown` with a cause. A missing `main_branch` is reported only as `unsupported-state`, which `_integrate` turns into a visible block rather than a wait."
+      "summary": "The managed-candidate predicate in _touches_openspec_change diffs against the local origin/main ref, which may be stale. A stale ref can misclassify a quick task as managed (a safe failure) or produce a spurious merge-base error."
     }
   ],
-  "launched_at": "2026-10-08T14:57:09+00:00",
-  "output_sha256": "2c9674ae80ce89cc6f309c4107bd8b5038561a902178c2f7fc9cbd74b902bd78",
+  "launched_at": "2026-10-08T18:52:07+00:00",
+  "output_sha256": "8ab6d3fdcb514401b0c0a6f97878bb1d73c2ac1b9151f26d8455e4d68507dc1a",
   "perspective": "engineering-quality",
-  "request_id": "789129df-3096-464e-be6f-a7c7e62f837f",
+  "request_id": "de735aaa-3252-4cdc-a4c7-759457345ea1",
   "reviewer": {
-    "context_id": "aaac336a-c55d-4614-8bdf-b62bd98ae3a9",
+    "context_id": "5adcb937-da92-4114-abfc-c6cef9a0246e",
     "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-fe013bdf-c238-4d5e-a48e-58291aa59dde",
+    "launch_id": "platform-launch-ddb4e3bb-8d08-4ab5-be55-b3db193dcb86",
     "model": {
       "source": "selected",
       "value": "sonnet"
     },
     "provider": "claude",
     "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
     "runtime": "claude-code-print",
     "write_access": false
   },
@@ -51,41 +48,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 49633
+        "value": 63790
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 151736
+        "value": 178836
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 41637
+        "value": 31067
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 43867
+        "value": 32349
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10
+        "value": 12
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 8
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2961
+        "value": 3168
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "033be321cbf04f13d697fc16ddb0d4c4eec47355a14ee32727c62b215e438878"
+  "task_content_digest": "ecef3fd97266e81dec7243371d2f5d5179af09e8b8e51ffecdb4ef7912cb5519"
 }

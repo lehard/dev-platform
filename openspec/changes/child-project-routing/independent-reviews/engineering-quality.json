@@ -1,42 +1,39 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "fc3da5c48380840fc544c831bd141e01d1ae7019",
-    "diff_sha256": "f81fcc375f27d44a047e2ac28ebdf3fb2064d2468dff18927b57db8aa11a4968"
+    "base_head": "c0b0b01b44ff8808dc02522078fa5d5d20f67f4f",
+    "base_ref": "origin/main",
+    "candidate_head": "b25aff1a6834d263f1a7c1a0bb22711f55eba5e5",
+    "diff_sha256": "166825f56d5a6b9799331de0ef01ddf28482f7b756dcfbef77d7cbce5062e199"
   },
-  "completed_at": "2026-10-08T07:58:11+00:00",
+  "completed_at": "2026-10-08T18:51:00+00:00",
   "findings": [
     {
-      "evidence": "tests/test_requirement_intake.py, test_missing_configuration_is_a_named_error: `create = unittest.mock.Mock()` is never patched into `ri.managed_task.create_task`, yet `create.assert_not_called()` is asserted. The spec scenario 'Missing or ambiguous routing input ... creates nothing' is therefore only covered by the raised error. The scenario's 'Backlog label absent' case also has no test.",
-      "id": "vacuous-missing-config-test",
-      "severity": "advisory",
-      "summary": "The missing-configuration test asserts `create.assert_not_called()` on a mock that is never wired into materialize_handoff, so that assertion proves nothing about the 'creates nothing' scenario."
-    },
-    {
-      "evidence": "template/scripts/requirement_intake.py materialize_handoff: the new `config = managed_task.authoring_config(root)` / `resolve_child_routing(...)` block is placed before `requirement_target_lifecycle.require_local_target_support(...)`. Previously `authoring_config` was called after the target-support check.",
-      "id": "routing-check-ordering-before-target-support",
-      "severity": "advisory",
-      "summary": "`managed_task.authoring_config` and `resolve_child_routing` now run before the target-lifecycle support check, so a project without `[development_backlog]` configuration now fails with 'child routing input missing' instead of the more specific target-support error. This is a minor change in error precedence."
+      "evidence": "template/scripts/publication_queue.py:1392-1396 `run_worker` calls `preflight(root, mode, \"all\", env)`. Lines 1259-1263 raise `PreflightFailure` unless `env.get(flag) == \"true\"` for both flags. .github/workflows/publication-queue.yml:55-59, step 'Process next admitted PR', has only GH_TOKEN and DEV_PLATFORM_COORDINATOR_APP in `env`. The flags are set only at lines 37-39, on the 'Preflight inputs' step, and step-level env does not carry over. tests/test_coordinator_preflight.py `WorkflowStructureTests` checks step order and the inputs step's env, but nothing checks that the worker step supplies these flags. `WorkerPreflightGateTests` passes CI_ENV, which includes the flags, directly to `run_worker`.",
+      "id": "ci-worker-step-missing-preflight-flags",
+      "severity": "material",
+      "summary": "The `worker --mode ci` step re-runs the full preflight, including the inputs phase. That phase requires PREFLIGHT_APP_CLIENT_ID_SET and PREFLIGHT_APP_PRIVATE_KEY_SET to equal 'true', but the workflow sets those flags only on the separate 'Preflight inputs' step. The worker step therefore fails its own preflight on every CI run, and the publication queue never processes a PR."
     }
   ],
-  "launched_at": "2026-10-08T07:57:52+00:00",
-  "output_sha256": "661e84185874d060bece1acce4a5e6e92b19427bc656d670601d50a13cc7ae17",
+  "launched_at": "2026-10-08T18:50:20+00:00",
+  "output_sha256": "ef22e620188d23869c6acad25a04f26d798033101367cf8ddb45d9f14eaeeb0b",
   "perspective": "engineering-quality",
-  "request_id": "3e226dfd-1f39-4b22-842c-1b43f555ed31",
+  "request_id": "d5e8b05a-1eb0-4f8d-ad65-c9ce3be5af5a",
   "reviewer": {
-    "context_id": "951c4cf1-2cc5-46e6-b532-705f6d45f34e",
+    "context_id": "890bda75-80c9-49ad-89fe-925559fef3bf",
     "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-580e91dd-5642-47c8-a225-12b454738591",
+    "launch_id": "platform-launch-5104e28c-3b5d-4323-9633-5b263ae21ecc",
     "model": {
       "source": "selected",
       "value": "sonnet"
     },
     "provider": "claude",
     "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
     "runtime": "claude-code-print",
     "write_access": false
   },
@@ -45,41 +42,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 25494
+        "value": 53506
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 16832
+        "value": 464955
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 12920
+        "value": 35227
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 14694
+        "value": 38135
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4
+        "value": 24
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 3
+        "value": 14
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1357
+        "value": 3294
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "8c6cd14a2b65ffcd697d8a4141a9f0d52f8bd2a1dbf04c6105fa37558fe3361f"
+  "task_content_digest": "82468398c5d6f7cea67e5c0aff90946fe376b182fde989d7cc833b888158ce77"
 }
