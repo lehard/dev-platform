@@ -478,6 +478,25 @@ class ProviderSwitchTests(unittest.TestCase):
             self.assertEqual((resumed["state"], resumed["attempts"]["repair"], resumed["attempts"]["repair-unavailable"]),
                              ("repair-pending", rounds, 0))
 
+    def test_successful_repair_resets_the_unavailable_streak(self):
+        new_head = "c" * 40
+        with QueueFixture(ROOT, HEAD) as fixture:
+            self.repair_pending(fixture)
+            queue._transition(ROOT, "o/r", 7, "repair-pending", HEAD, task_identity=IDENTITY, set_attempts={"repair-unavailable": 2})
+            job = workers.build_job(fixture.candidate())
+            fixture.comments.append({"id": 100, "author_association": "OWNER",
+                                     "body": workers.claim_body(job, "w", "2099-01-01T00:00:00Z")})
+            def push(*args, **kwargs):
+                fixture.head = new_head
+                return {"status": "pushed", "pushed_head": new_head}
+            with mock.patch.object(workers, "execute_job", side_effect=push), mock.patch.object(workers, "_git"), \
+                    mock.patch.object(gate, "refresh_identity", return_value=IDENTITY):
+                gate.run_claimed(ROOT, "o/r", fixture.candidate(), job, source_repo="fixture", branch="agent/example",
+                                 allowed_paths=["src.py"], llm_command=["writer"], current_head=lambda: new_head,
+                                 post_result=lambda body: None, workdir="/unused", claim_current=lambda: True)
+            after = fixture.candidate()
+            self.assertEqual((after["state"], after["attempts"]["repair-unavailable"]), ("review-pending", 0))
+
     def test_failed_writer_with_usable_runtime_still_escalates_and_records_providers(self):
         with QueueFixture(ROOT, HEAD) as fixture:
             self.repair_pending(fixture, providers=("codex",))
@@ -510,6 +529,10 @@ class ProviderSwitchTests(unittest.TestCase):
                 gate.reoffer(ROOT, "o/r", 7, action="resume", providers=None, reason="retry")
             with self.assertRaisesRegex(queue.QueueError, "use switch-provider|applies only"):
                 self.switch()  # switch-provider does not decide an escalation
+            queue._transition(ROOT, "o/r", 7, "blocked-escalation", HEAD, task_identity=IDENTITY,
+                              red_gate={"name": "review", "evidence": self.MATERIAL})
+            with self.assertRaisesRegex(queue.QueueError, "finding-level reason \\(review\\).*push a fix"):
+                self.switch(action="resume")
             for evidence in ("rounds exhausted", {"status": "proposed-rejection"}):
                 queue._transition(ROOT, "o/r", 7, "blocked-escalation", HEAD, task_identity=IDENTITY,
                                   red_gate={"name": "repair", "evidence": evidence})

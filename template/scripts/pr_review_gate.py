@@ -372,7 +372,8 @@ def run_claimed(root: Path, repo: str, candidate: dict, job: dict, *, source_rep
         # Every changed identity must repeat review and checks; retain only proven gates.
         gates = {name: gate for name, gate in running["gates"].items() if reusable(harness, gate, fresh)}
         offer(root, repo, job["number"], head, fresh, "review", gates=gates,
-              providers=job.get("providers", ["unresolved-originating-task-route"]), adapter=adapter)
+              providers=job.get("providers", ["unresolved-originating-task-route"]),
+              set_attempts={"repair-unavailable": 0}, adapter=adapter)
     elif kind == "repair" and outcome["status"] == "unavailable":
         retry_unavailable(root, repo, running, job, outcome["outcome"], adapter=adapter)
     else:
@@ -445,10 +446,11 @@ def reoffer(root: Path, repo: str, number: int, *, action: str, providers, reaso
         kind = pending[state]
     elif state == "blocked-retryable" and adapter.retry_job_kind(candidate):
         kind = adapter.retry_job_kind(candidate)
-    elif state == "blocked-escalation" and red.get("name") == "repair" and action == "resume":
-        if _repair_status(red) not in OPERATIONAL_REPAIR_OUTCOMES:
+    elif state == "blocked-escalation" and red.get("name") in {"repair", "review"} and action == "resume":
+        if red["name"] == "review" or _repair_status(red) not in OPERATIONAL_REPAIR_OUTCOMES:
+            reason_ = "review" if red["name"] == "review" else _repair_status(red)
             raise adapter.QueueError(
-                f"PR #{number} is escalated for a finding-level reason ({_repair_status(red)}); resume does not decide it: "
+                f"PR #{number} is escalated for a finding-level reason ({reason_}); resume does not decide it: "
                 "push a fix, record a disposition for the finding, or close the PR")
         kind = "repair"
     else:

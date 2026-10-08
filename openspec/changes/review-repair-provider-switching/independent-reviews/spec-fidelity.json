@@ -1,0 +1,82 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "6c96df65b6d7f4f4d4ee0c30e2d81880190b7dd0",
+    "base_ref": "origin/main",
+    "candidate_head": "4dbb1d624e21d1d233a8d4820aaaf8db8f9590ce",
+    "diff_sha256": "1b9c5b73c294d7bc66cc03e02dbca2fc62d004815014601269dd235503fb1c75"
+  },
+  "completed_at": "2026-10-08T05:15:24+00:00",
+  "findings": [
+    {
+      "evidence": "The publication-queue spec requires resume to refuse finding-level escalation (proposed rejection, exhausted rounds, rejected review) with a message naming the human actions, and the 'Exhausted rounds' scenario requires the refusal to name pushing a fix, recording a disposition or closing the PR. In pr_review_gate.reoffer, the 'push a fix, record a disposition for the finding, or close the PR' text is raised only on the branch `state == \"blocked-escalation\" and red.get(\"name\") == \"repair\" and action == \"resume\"`. Via complete_review/review_outcome, a material finding at `rounds >= MAX_ROUNDS` or a `rejected` review moves the candidate to blocked-escalation with `red = {\"name\": \"review\", ...}` (pr_review_gate.py:161-167, 181-190). Those candidates fall to the final else branch, which raises only: `PR #N is blocked-escalation; resume applies only to an unfinished review or repair job (resume covers operational repair escalations)`. That message names no human action. The tests cover only red_gate name \"repair\" with evidence \"rounds exhausted\" or status \"proposed-rejection\", not review-originated escalations.",
+      "id": "resume-finding-level-escalation-message-incomplete",
+      "severity": "material",
+      "summary": "The resume refusal for finding-level escalations only names the human actions when a repair-gate red_gate has a non-operational status. Escalations produced by the review path (exhausted rounds, rejected review) are refused with a generic message that does not name them."
+    }
+  ],
+  "launched_at": "2026-10-08T05:14:44+00:00",
+  "output_sha256": "e8f88ea965e8ca273908dbe54d5d3ac2b51d67e79aed7e00907427136b05e4f6",
+  "perspective": "spec-fidelity",
+  "request_id": "9d2fe645-a681-4e5a-9ab3-2fe38a603543",
+  "reviewer": {
+    "context_id": "ff0c4c7b-2ac3-48f6-961e-e4ef7ebf9067",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-6d49e48a-4ed4-4211-9b22-87d18630c6ca",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 60113
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 161879
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 37251
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 37499
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4640
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "b5a91e07bd11c70fcb77bf576ade21a79c07c95dcb029a90b342d747690f251d"
+}

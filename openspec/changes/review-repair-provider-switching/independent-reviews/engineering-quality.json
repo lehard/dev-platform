@@ -1,0 +1,82 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "6c96df65b6d7f4f4d4ee0c30e2d81880190b7dd0",
+    "base_ref": "origin/main",
+    "candidate_head": "4dbb1d624e21d1d233a8d4820aaaf8db8f9590ce",
+    "diff_sha256": "1b9c5b73c294d7bc66cc03e02dbca2fc62d004815014601269dd235503fb1c75"
+  },
+  "completed_at": "2026-10-08T05:16:05+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/pr_review_gate.py retry_unavailable increments attempts[f\"{kind}-unavailable\"] and sets next_job=None once streak >= MAX_ROUNDS. The only reset in the diff is in reoffer(), which sets set_attempts {f\"{kind}-unavailable\": 0}. A candidate with two unavailable attempts in round 1, a successful repair, then one unavailable attempt in round 2 would reach 3 and lose its automatic retry. The completion-lifecycle spec says 'three consecutive attempts'. I did not see the review-side reset path, so this is unconfirmed.",
+      "id": "unavailable-streak-not-reset-on-success",
+      "severity": "advisory",
+      "summary": "The repair-unavailable streak counter is reset only by switch-provider or resume. Nothing in the diff resets it when a later repair round succeeds, so the bound on consecutive unavailable attempts may carry across rounds."
+    }
+  ],
+  "launched_at": "2026-10-08T05:15:24+00:00",
+  "output_sha256": "983fb31ecbf9587c506316f770fd92d197702e3c73e526b86c83ee4fec233144",
+  "perspective": "engineering-quality",
+  "request_id": "9d2fe645-a681-4e5a-9ab3-2fe38a603543",
+  "reviewer": {
+    "context_id": "8fd01d73-3abb-4377-bfb6-1ffad1d7ad64",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-b78d102a-3ec0-423b-a659-3f96f81e1ddf",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 41705
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 184714
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 36639
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 38256
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 7
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3601
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "b5a91e07bd11c70fcb77bf576ade21a79c07c95dcb029a90b342d747690f251d"
+}
