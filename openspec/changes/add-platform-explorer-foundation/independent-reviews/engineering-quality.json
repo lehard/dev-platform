@@ -1,88 +1,32 @@
 {
-  "availability": "available",
+  "availability": "unavailable",
   "candidate": {
-    "base_head": "6c96df65b6d7f4f4d4ee0c30e2d81880190b7dd0",
-    "base_ref": "origin/main",
-    "candidate_head": "a7ca3b8e4135ca3f37e81995e9b69871e4afc3cf",
-    "diff_sha256": "d6be424eb687be6a7bafc497f1687d540a3bd21746bc5d63b5c91ce17c0da084"
+    "base_head": "3df526d8aa798ad591f02c59d2e55448ce40ff32",
+    "base_ref": "3df526d8aa798ad591f02c59d2e55448ce40ff32",
+    "candidate_head": "da278b0a25c14bfbfdacc5c3970bc8f8cd72f35e",
+    "diff_sha256": "a5f8a492cd86775233e38d0ce418ffdfbc8e50c3c249a4b2f582fc60110c8628"
   },
-  "completed_at": "2026-10-08T06:50:18+00:00",
-  "findings": [
-    {
-      "evidence": "scripts/build_explorer.py `read_text` uses `(repo.root / path).read_text(...)` and `open_repo` takes `commit` from `git rev-parse HEAD`. Nothing compares the two. docs/engineering/explorer.md admits this: 'build from a clean checkout when the stamped commit must describe the content exactly.' The check is advisory in docs only. A cheap `git status --porcelain` guard on tracked files, or an explicit flag, would remove the risk before the sibling publication change deploys this output.",
-      "id": "dirty-tree-commit-stamp-mismatch",
-      "severity": "advisory",
-      "summary": "The build reads source content from the working tree but stamps pages with `git rev-parse HEAD` and links to sources at that commit. It does not check that tracked sources are unmodified, so a build from a dirty checkout publishes content that differs from the linked commit."
-    },
-    {
-      "evidence": "scripts/build_explorer.py `write_outputs`: `out.mkdir(parents=True, exist_ok=True)` followed by a per-file `destination.write_bytes(...)` loop. There is no temp directory plus rename, and no cleanup on failure. `OSError` is not caught, so the traceback is loud, but the partial output remains.",
-      "id": "write-outputs-not-atomic",
-      "severity": "advisory",
-      "summary": "`write_outputs` writes files one by one into the target directory. An I/O error part-way (disk full, permissions) leaves a partial site in the output directory. The next run then fails with 'not empty', and the partial site could be mistaken for a complete build."
-    }
-  ],
-  "launched_at": "2026-10-08T06:49:31+00:00",
-  "output_sha256": "f3b799b89e78814ea099b4de0b24b4f37244da0a14f61b60bd62a6e450b156d4",
+  "completed_at": "2026-10-08T08:04:48+00:00",
+  "findings": [],
+  "launched_at": "2026-10-08T08:04:48+00:00",
+  "limitation": "claude reviewer runtime with model 'sonnet' is not ready: probe exited with status 1 (Not logged in \u00b7 Please run /login); next: log the claude CLI in on this host, point DEV_PLATFORM_CLAUDE_BIN at the Claude Code CLI, or change the [model_routing] / [independent_review] binding for this account (no other model or provider is tried), then rerun python3 scripts/independent_review.py preflight",
   "perspective": "engineering-quality",
-  "request_id": "815e8483-4ec2-4bc0-b313-3fafcbec14f3",
+  "request_id": "8545e740-2ab0-4966-bdec-c7db4d496bbb",
   "reviewer": {
-    "context_id": "ccd62ef3-ad69-49ea-a8ad-d6b26560b917",
-    "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
+    "context_id": "platform-launch-3027fb49-83f7-4379-bb10-36dd203e0dbb",
+    "context_id_source": "platform-launch",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-a974ab17-adc6-4c10-8316-796be6f22968",
+    "launch_id": "platform-launch-3027fb49-83f7-4379-bb10-36dd203e0dbb",
     "model": {
       "source": "selected",
       "value": "sonnet"
     },
     "provider": "claude",
     "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
     "runtime": "claude-code-print",
     "write_access": false
   },
-  "runtime_usage": {
-    "fields": {
-      "cache_creation_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 63620
-      },
-      "cache_read_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 303655
-      },
-      "duration_api_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 41431
-      },
-      "duration_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 44075
-      },
-      "input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 14
-      },
-      "num_turns": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 10
-      },
-      "output_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 3719
-      }
-    },
-    "runtime": "claude-code-print"
-  },
   "schema_version": 1,
-  "task_content_digest": "f66e662b1d82e988a61adb9bb86bdb8c783be56c0154861ff543f8dc3d6cce27"
+  "task_content_digest": "e0d6fc16d814e46197569f3ead11649b94461a50ac887934c037e4587fe88962"
 }
