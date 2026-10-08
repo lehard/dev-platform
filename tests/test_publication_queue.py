@@ -1097,15 +1097,22 @@ class TrustConfigurationTests(unittest.TestCase):
             "invalid TOML": (lambda: self.config("this is = = not toml"), r"\.dev-platform\.toml is unreadable"),
             "non-table publication": (lambda: self.config('publication = "x"\n'), r"\.dev-platform\.toml is unreadable"),
             "non-string app": (lambda: self.config("[publication]\ncoordinator_app = 5\n"), r"\.dev-platform\.toml is unreadable"),
-            "missing operator config": (lambda: self.operator("", write=False), r"\.dev-platform\.toml is unreadable or invalid: operator configuration was requested"),
-            "invalid operator TOML": (lambda: self.operator("= broken"), r"\.dev-platform\.toml is unreadable or invalid: "),
-            "non-string operator app": (lambda: self.operator("[publication]\ncoordinator_app = [1]\n"), r"\.dev-platform\.toml is unreadable or invalid: "),
+            "missing operator config": (lambda: self.operator("", write=False), r"operator config is unreadable or invalid: operator configuration was requested"),
+            "invalid operator TOML": (lambda: self.operator("= broken"), r"operator config is unreadable or invalid: "),
+            "non-string operator app": (lambda: self.operator("[publication]\ncoordinator_app = [1]\n"), r"operator config is unreadable or invalid: "),
         }
         for name, (setup, source) in cases.items():
             setup()
             with self.subTest(name), self.assertRaisesRegex(queue.QueueError, f"trust source {source}"):
                 queue.trusted_apps(self.root)
             (self.root / "operator.toml").unlink(missing_ok=True)
+
+    def test_operator_override_cannot_mask_invalid_project_trust_source(self) -> None:
+        for text in ('publication = "invalid"\n', "[publication]\ncoordinator_app = 123\n"):
+            self.config(text + '[operator]\nenabled = true\nconfig_path = "operator.toml"\n')
+            (self.root / "operator.toml").write_text('[publication]\ncoordinator_app = "operator-app"\n', encoding="utf-8")
+            with self.subTest(text), self.assertRaisesRegex(queue.QueueError, r"trust source \.dev-platform\.toml"):
+                queue.trusted_apps(self.root)
 
     def test_admission_and_worker_callers_stop_instead_of_narrowing_trust(self) -> None:
         import lifecycle_workers

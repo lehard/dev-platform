@@ -339,15 +339,15 @@ class MarkerSizeTests(unittest.TestCase):
 class CoordinatorAppTrustTests(unittest.TestCase):
     def test_trusted_apps_come_from_workflow_env_or_config_only(self):
         with patch.dict("os.environ", {"DEV_PLATFORM_COORDINATOR_APP": "coordinator-app"}), \
-             patch.object(queue, "read_platform_config", return_value={}), \
+             patch("_platform_common.read_project_config", return_value={}), \
              patch("_platform_common.read_operator_config", return_value={}):
             self.assertEqual(queue.trusted_apps(ROOT), frozenset({"coordinator-app"}))
         with patch.dict("os.environ", {"DEV_PLATFORM_COORDINATOR_APP": ""}), \
-             patch.object(queue, "read_platform_config", return_value={"publication": {"coordinator_app": "local-app"}}), \
+             patch("_platform_common.read_project_config", return_value={"publication": {"coordinator_app": "local-app"}}), \
              patch("_platform_common.read_operator_config", return_value={}):
             self.assertEqual(queue.trusted_apps(ROOT), frozenset({"local-app"}))
         with patch.dict("os.environ", {"DEV_PLATFORM_COORDINATOR_APP": ""}), \
-             patch.object(queue, "read_platform_config", return_value={}), \
+             patch("_platform_common.read_project_config", return_value={}), \
              patch("_platform_common.read_operator_config", return_value={}):
             self.assertEqual(queue.trusted_apps(ROOT), frozenset())
         with patch.dict("os.environ", {"DEV_PLATFORM_COORDINATOR_APP": ""}), \

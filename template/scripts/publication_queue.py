@@ -85,13 +85,13 @@ def trusted_apps(root: Path) -> frozenset[str]:
     config (operator identity stays out of committed project config) or the
     project config. No other App is trusted.
     """
-    from _platform_common import read_operator_config
+    from _platform_common import read_operator_config, read_project_config
 
     def source_error(name: str, cause: object) -> QueueError:
         return QueueError(f"trust source {name} is unreadable or invalid: {cause}")
 
     names = {os.environ.get(COORDINATOR_APP_ENV, "").strip()}
-    for name, reader in ((".dev-platform.toml", read_platform_config), ("operator config", read_operator_config)):
+    for name, reader in ((".dev-platform.toml", read_project_config), ("operator config", read_operator_config)):
         try:
             config = reader(root)
         except Exception as exc:

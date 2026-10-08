@@ -217,6 +217,17 @@ def read_platform_config(root: Path | None = None) -> dict[str, Any]:
     return config
 
 
+def read_project_config(root: Path | None = None) -> dict[str, Any]:
+    """Read only the committed project config, without operator overrides; {} when absent."""
+    import tomllib
+    root = root or current_worktree_root()
+    path = root / ".dev-platform.toml"
+    if not path.exists():
+        return {}
+    with path.open("rb") as fh:
+        return tomllib.load(fh)
+
+
 def read_operator_config(root: Path | None = None, *, required: bool = False) -> dict[str, Any]:
     """Read explicit external operator state without merging it into project config."""
     root = root or current_worktree_root()
