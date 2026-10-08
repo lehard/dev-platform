@@ -2,7 +2,9 @@
 
 ## Purpose
 Define the lifecycle and ownership boundaries for optional engineering capabilities supplied by the platform.
+
 ## Requirements
+
 ### Requirement: Optional engineering capabilities use one provider-neutral lifecycle
 
 Dev Platform SHALL support reusable optional engineering capabilities through a canonical provider-neutral contract that is separate from core workflow-profile composition. A capability SHALL declare its identity, owner, applicability/trigger, invocation intent, visibility intent, kind, provenance, safety boundary, dependencies, materialization policy, and update/removal policy without embedding provider-local implementation details into the canonical identity.
@@ -324,3 +326,22 @@ Repository goal scans SHALL produce evidence-backed findings and a reduced prior
 - **WHEN** a human explicitly chooses one or more scan findings for implementation
 - **THEN** that accepted work enters the ordinary quick-task or managed-task/OpenSpec lifecycle according to its scope
 - **AND** the scan remains evidence/provenance rather than a competing implementation task list.
+
+### Requirement: Shipped capability eval fixtures are consistent and continuously evaluated
+
+Every eval fixture shipped in `dev-platform/evals/` and `template/dev-platform/evals/` SHALL bind by `content_sha256` to the current canonical descriptor of its capability and SHALL evaluate successfully against it. The source and template fixture sets SHALL be identical. A repository-owned regression check SHALL evaluate every shipped fixture against its descriptor so that a stale binding or a source/template divergence fails platform validation with an explicit error naming the fixture.
+
+#### Scenario: Fixture binds to a changed descriptor
+- **WHEN** a capability's instructions or descriptor hash changes and its shipped fixture still carries the previous `content_sha256`
+- **THEN** the regression check fails and names the fixture and the hash mismatch
+- **AND** the direct `capability_manager.py evaluate` path reports the same mismatch instead of running the fixture
+
+#### Scenario: Shipped fixtures are current
+- **WHEN** the regression check runs on a consistent source tree
+- **THEN** every fixture in both `dev-platform/evals/` and `template/dev-platform/evals/` evaluates against its descriptor with the fixture runtime
+- **AND** the add-intents fixture evaluates successfully
+
+#### Scenario: Source and template fixtures diverge
+- **WHEN** a fixture file differs in content, or exists in only one of the two trees
+- **THEN** the regression check fails naming the fixture
+- **AND** no fixture is skipped or silently repaired
