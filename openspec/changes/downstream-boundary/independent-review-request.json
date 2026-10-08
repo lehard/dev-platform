@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "1b24a63bc61a0939f52be084ef6ab99a1d6b4d04",
-    "diff_sha256": "e3e52efa6a45a0837abda855adb5345b7431e1dabef75576a5a0523f3e9bc618"
+    "candidate_head": "a529cbff7a8c1631c59f85b0f5408a0482c71118",
+    "diff_sha256": "103b023cfa2a73518b7446744f279bbdf8dd3fd91f22982dd78c9e1a7815c942"
   },
   "change": "openspec/changes/downstream-boundary",
   "excluded_lifecycle_paths": [
@@ -39,7 +39,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-07T23:11:42+00:00",
+  "prepared_at": "2026-10-08T05:03:08+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/downstream-boundary/independent-reviews",
     "required_perspectives": [
@@ -48,7 +48,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "e31c0634-140f-4301-abc2-ee39adbdfac1",
+  "request_id": "b4e095f5-1dd2-4bda-9325-b1909cdf3851",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -61,7 +61,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "digest": "d281e72a7d9736bdcf27193fb661575a89e504358ab3fa7bced2a65b0bbfa4dc",
+    "digest": "81f7fb8be659a90791994b1bc664a6e91d3541c418004d291f2efbfe88a0fd63",
     "paths": {
       "dev-platform/checks.toml": "68a5f3a958051d355cbc5973e8bb597722562ce7",
       "openspec/changes/downstream-boundary/.managed-task.json": "18dbe3c4ed3b3000675fb994ca64dafc7f7fed75",
@@ -72,15 +72,15 @@
       "openspec/changes/downstream-boundary/specs/lifecycle-workers/spec.md": "819d9d19bfd4571a32ec2c2f184057d3c3703156",
       "openspec/changes/downstream-boundary/tasks.md": "c6588e3a533e1fdb6edcc4cdf62aedac233c2ffd",
       "template/scripts/_platform_common.py": "3e8e9d265f881d4b36ba39f59f4b0203b6bb9468",
-      "template/scripts/execute_requirement.py": "5e81d0cdadc181ab7b4e2d1e42b9fc036771b2c8",
+      "template/scripts/execute_requirement.py": "1dcb227dd0ab59bd4b803d6e64689df877f44823",
       "template/scripts/finish_task.py": "b733d6524ebd768d3e47c81848d80d7a6088175b",
       "template/scripts/lifecycle_workers.py": "7291609c78064edef07f176693479d6171183f96",
       "template/scripts/openspec_lifecycle.py": "3f1de23e9d039a06911d50b9e52758331a76e797",
       "template/scripts/pr_review_gate.py": "8587729e2fea2a3b414b17b50b262d9e7489f3e4",
-      "template/scripts/project_publish.py": "fdd31d589f8781c2c29b59456110c7488ec6ed52",
+      "template/scripts/project_publish.py": "19887428f675fa8ed993a1092447037849e307f4",
       "template/scripts/requirement_integration.py": "c4e4a0d2af18b71ea5921f5acbb107fa02c2678b",
       "tests/test_br_publication_identity.py": "f35d221fba122c0fe234a2edd85061ca086227fd",
-      "tests/test_downstream_boundary.py": "3d733a30a46b57221a91730242721af35037ac0f",
+      "tests/test_downstream_boundary.py": "d3ca1c0d5713f8ff66dadedca35aaf376c3bd002",
       "tests/test_early_private_reference_guard.py": "99c81ba38aa35b123ff475b4f68e5f038bbe13de",
       "tests/test_independent_review.py": "26e31ee3ac3aa9f6ccaa05ff1a7fe6defa8012a3",
       "tests/test_managed_status_lifecycle.py": "a45840048086954c7dfee0da50fff4aa5757a39a",

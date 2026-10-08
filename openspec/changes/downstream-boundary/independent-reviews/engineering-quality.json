@@ -3,28 +3,21 @@
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "1b24a63bc61a0939f52be084ef6ab99a1d6b4d04",
-    "diff_sha256": "e3e52efa6a45a0837abda855adb5345b7431e1dabef75576a5a0523f3e9bc618"
+    "candidate_head": "a529cbff7a8c1631c59f85b0f5408a0482c71118",
+    "diff_sha256": "103b023cfa2a73518b7446744f279bbdf8dd3fd91f22982dd78c9e1a7815c942"
   },
-  "completed_at": "2026-10-07T23:13:45+00:00",
-  "findings": [
-    {
-      "evidence": "template/scripts/project_publish.py:519 selects lifecycle mode, but the version-2 shared-manifest branch at lines 550\u2013555 unconditionally imports requirement_composition and calls publish_composition without checking selected_mode. validate_shared_manifest (lines 452\u2013457) accepts version-2 manifests without a source-contract check. requirement_composition.py:15 imports lifecycle_workers at module level, and publish_composition imports publication_queue at lines 219\u2013220. Thus a downstream checkout publishing a valid committed version-2 manifest reaches coordinator logic despite selecting portable mode; with those modules absent, publication fails with an import error instead of explicitly rejecting the unsupported request.",
-      "id": "portable-composition-publication-bypass",
-      "severity": "advisory",
-      "summary": "Shared Requirement publication can still load and invoke the coordinator after selecting portable mode."
-    }
-  ],
-  "launched_at": "2026-10-07T23:12:53+00:00",
-  "output_sha256": "6d321b1d83bcbcdb38dfc0ba840aadd8314dfd8942175b17afc0b868ad40b5b6",
+  "completed_at": "2026-10-08T05:05:39+00:00",
+  "findings": [],
+  "launched_at": "2026-10-08T05:04:48+00:00",
+  "output_sha256": "6e96a492bc9fa40d22212c5be0396a203f3dbd4916cf97ebe2f66b6d54fa4a9a",
   "perspective": "engineering-quality",
-  "request_id": "e31c0634-140f-4301-abc2-ee39adbdfac1",
+  "request_id": "b4e095f5-1dd2-4bda-9325-b1909cdf3851",
   "reviewer": {
-    "context_id": "01a118a4-2a1e-7c62-9425-56f26a4651a4",
+    "context_id": "01a119e6-58f8-77b3-bef7-ab2f9ff7e8dc",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-5cfbf3d7-b843-4dc2-bd24-94a5900eb97c",
+    "launch_id": "platform-launch-bea85272-b9f0-43c2-9d7a-424b879540be",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -39,21 +32,21 @@
       "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 220288
+        "value": 230656
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 274676
+        "value": 290585
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1391
+        "value": 966
       }
     },
     "runtime": "codex-exec"
   },
   "schema_version": 1,
-  "task_content_digest": "d281e72a7d9736bdcf27193fb661575a89e504358ab3fa7bced2a65b0bbfa4dc"
+  "task_content_digest": "81f7fb8be659a90791994b1bc664a6e91d3541c418004d291f2efbfe88a0fd63"
 }

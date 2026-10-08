@@ -3,34 +3,28 @@
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "1b24a63bc61a0939f52be084ef6ab99a1d6b4d04",
-    "diff_sha256": "e3e52efa6a45a0837abda855adb5345b7431e1dabef75576a5a0523f3e9bc618"
+    "candidate_head": "a529cbff7a8c1631c59f85b0f5408a0482c71118",
+    "diff_sha256": "103b023cfa2a73518b7446744f279bbdf8dd3fd91f22982dd78c9e1a7815c942"
   },
-  "completed_at": "2026-10-07T23:12:53+00:00",
+  "completed_at": "2026-10-08T05:04:48+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/execute_requirement.py:539-540 short-circuits _contribution_publication_supported when legacy_receipts is true. advance has no earlier lifecycle_mode call, and the subsequent loop can consume receipts or start managed children (lines 579-598). This contradicts the active completion-lifecycle requirement that unsupported source combinations fail at selection and never switch to the legacy path.",
-      "id": "legacy-requirement-bypasses-selection",
+      "evidence": "The active completion-lifecycle delta requires publication and Requirement lifecycle entrypoints to use the shared selector and fail explicitly for unsupported source combinations. In template/scripts/requirement_integration.py:814\u2013820, publish_candidate checks only publish_mode and can return through _reconcile_exact_merged before reaching project_publish's selector. With platform_version=source and scm_provider=gitlab or harness_mode=project, _reconcile_exact_merged proceeds to sync main, reconcile child Project states, and reconcile the parent (lines 784\u2013790). The directly callable template/scripts/requirement_terminal.py:47 reconcile_parent also never selects lifecycle mode before terminal Project reconciliation and Issue closure. Consequently these paths can report terminal delivery instead of rejecting the unsupported contract.",
+      "id": "requirement-reconciliation-bypasses-selection",
       "severity": "material",
-      "summary": "Resuming a multi-child Requirement with legacy receipts bypasses contract selection, allowing unsupported source configurations to continue through the legacy path."
-    },
-    {
-      "evidence": "template/scripts/project_publish.py:519 selects portable mode, but validate_shared_manifest at lines 453-455 imports requirement_contributions for a version-two manifest without checking that mode; requirement_contributions.py:15 imports lifecycle_workers at module level. The subsequent publication branch at project_publish.py:550-552 also imports requirement_composition, whose line 15 imports lifecycle_workers. Thus a downstream publication request loads coordinator modules or fails with ImportError instead of rejecting the coordinator-only request before import, contrary to the active lifecycle-workers requirement.",
-      "id": "portable-version-two-loads-coordinator",
-      "severity": "material",
-      "summary": "Portable publication can still load the coordinator stack when given a version-two shared manifest."
+      "summary": "Shared Requirement publication and terminal reconciliation can complete under an unsupported source contract without invoking the lifecycle selector."
     }
   ],
-  "launched_at": "2026-10-07T23:11:52+00:00",
-  "output_sha256": "7b01167c442fdc5df323d54188534c0792117b536edfff4534086be38490f59c",
+  "launched_at": "2026-10-08T05:03:43+00:00",
+  "output_sha256": "965f6c1e7fa2996a7a26fc8940a0c347a443898a46040c21cbba6e855a9b4996",
   "perspective": "spec-fidelity",
-  "request_id": "e31c0634-140f-4301-abc2-ee39adbdfac1",
+  "request_id": "b4e095f5-1dd2-4bda-9325-b1909cdf3851",
   "reviewer": {
-    "context_id": "01a118a3-39d0-7c41-8ea8-a743970928bf",
+    "context_id": "01a119e5-5a81-71b2-a254-002d558a8eb2",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-73413a42-2b96-46ee-8b67-b6fe58da27bf",
+    "launch_id": "platform-launch-f423c489-aeb9-42b2-a68c-e8cf0133f2cd",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -45,21 +39,21 @@
       "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 384512
+        "value": 226688
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 445540
+        "value": 283300
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1748
+        "value": 1488
       }
     },
     "runtime": "codex-exec"
   },
   "schema_version": 1,
-  "task_content_digest": "d281e72a7d9736bdcf27193fb661575a89e504358ab3fa7bced2a65b0bbfa4dc"
+  "task_content_digest": "81f7fb8be659a90791994b1bc664a6e91d3541c418004d291f2efbfe88a0fd63"
 }
