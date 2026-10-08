@@ -35,7 +35,7 @@ class FakeGitHub:
         self.responses = {
             "repo": {"nameWithOwner": REPO},
             "pulls": [],
-            "installation": {"repositories": [{"full_name": REPO, "permissions": {"push": True}}]},
+            "installation": {"repositories": [{"full_name": REPO}]},
             "repository": {"permissions": {"push": True}},
         }
         self.responses.update(overrides)
@@ -135,14 +135,11 @@ class CiPreflightTests(PreflightFixture):
                 self.gh.responses["installation"] = {"repositories": repositories}
                 self.assertEqual(self.failed(self.run_preflight("ci", "runtime"))["name"], "installation-token")
 
-    def test_insufficient_bot_permission(self):
-        for permissions in ({"push": False, "pull": True}, {}, None):
-            with self.subTest(permissions=permissions):
-                self.gh.responses["installation"] = {"repositories": [{"full_name": REPO, "permissions": permissions}]}
-                self.assertEqual(self.failed(self.run_preflight("ci", "runtime"))["name"], "bot-permission")
-
     def test_bot_permission_never_asks_the_collaborator_api(self):
-        self.assertEqual(self.run_preflight("ci", "runtime")["state"], "ok")
+        result = self.run_preflight("ci", "runtime")
+        self.assertEqual(result["state"], "ok")
+        self.assertIn({"name": "bot-permission", "status": "ok",
+                       "detail": "contents and pull-requests write granted at token mint"}, result["checks"])
         self.assertFalse(any("/collaborators/" in " ".join(call) for call in self.gh.calls))
 
     def test_probe_failures_use_fixed_categories_without_response_text(self):

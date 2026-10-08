@@ -1345,12 +1345,12 @@ def _preflight_runtime(root: Path, mode: str, env: Mapping[str, str]) -> list[di
         if {r.get("full_name") for r in repositories} != {repo}:
             raise PreflightFailure("installation-token", "token is not an installation token scoped to exactly this repository")
         ok("installation-token", "scoped to this repository")
-        # A GitHub App is never a repository collaborator (the collaborator
-        # permission API reports "none" for its bot), so its write access is
-        # proven by the installation's own permission on this repository.
-        if (repositories[0].get("permissions") or {}).get("push") is not True:
-            raise PreflightFailure("bot-permission", "coordinator App installation does not have push permission on this repository")
-        ok("bot-permission", "write permission proven")
+        # A GitHub App is never a repository collaborator (the collaborator API
+        # reports "none" for its bot) and an installation token exposes no
+        # repository permissions to itself. Its write access is enforced at token
+        # mint: the workflow requests contents and pull-requests write, and GitHub
+        # refuses a token the installation cannot grant.
+        ok("bot-permission", "contents and pull-requests write granted at token mint")
     else:
         info = _probe(root, "repository-permission", "api", f"repos/{repo}")
         if not isinstance(info, dict) or not (info.get("permissions") or {}).get("push"):
