@@ -741,6 +741,342 @@
         "work_identity": "BR-415/T4"
       },
       "work_identity": "BR-415/T4"
+    },
+    {
+      "change": "downstream-boundary",
+      "contribution_base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+      "gates": {
+        "required-checks": {
+          "evidence": {
+            "checks": [
+              {
+                "link": "https://github.com/lehard/dev-platform/actions/runs/37808807424/job/113420038741",
+                "name": "validate",
+                "state": "SUCCESS",
+                "workflow": "Platform CI"
+              }
+            ],
+            "detail": "",
+            "head": "b2fca9c31623b045a0c35fa531cdc652074f443d",
+            "kind": "passed"
+          },
+          "identity": {
+            "change": "downstream-boundary",
+            "contribution_base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+            "kind": "contribution",
+            "requirement": "pln_d6af8d84cd0d3242b993ec5adfcee1c4",
+            "source_issue": "pln_30cff784172aa197f4a4137a3fafc432",
+            "target_branch": "requirement/BR-415",
+            "task_content": {
+              "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+              "digest": "b381d81be9c9e34333ff4a87544fd19e26156016553d94d3c4b229062c62f64a",
+              "paths": {
+                "dev-platform/checks.toml": "68a5f3a958051d355cbc5973e8bb597722562ce7",
+                "openspec/changes/downstream-boundary/.managed-task.json": "18dbe3c4ed3b3000675fb994ca64dafc7f7fed75",
+                "openspec/changes/downstream-boundary/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+                "openspec/changes/downstream-boundary/design.md": "e48a9cffe0d6f1a769a10d558574cc3d33059353",
+                "openspec/changes/downstream-boundary/proposal.md": "a7e31ddc1d887d11d98625810529c3ddaec57c66",
+                "openspec/changes/downstream-boundary/specs/completion-lifecycle/spec.md": "dbd22f1568697ccb81cf012aa34cc326f4e74d5d",
+                "openspec/changes/downstream-boundary/specs/lifecycle-workers/spec.md": "819d9d19bfd4571a32ec2c2f184057d3c3703156",
+                "openspec/changes/downstream-boundary/tasks.md": "c6588e3a533e1fdb6edcc4cdf62aedac233c2ffd",
+                "template/scripts/_platform_common.py": "32e3c870246de3a5b4c30074bbc8b4af7d01d486",
+                "template/scripts/execute_requirement.py": "1dcb227dd0ab59bd4b803d6e64689df877f44823",
+                "template/scripts/finish_task.py": "b733d6524ebd768d3e47c81848d80d7a6088175b",
+                "template/scripts/lifecycle_workers.py": "7291609c78064edef07f176693479d6171183f96",
+                "template/scripts/openspec_lifecycle.py": "3f1de23e9d039a06911d50b9e52758331a76e797",
+                "template/scripts/pr_review_gate.py": "8587729e2fea2a3b414b17b50b262d9e7489f3e4",
+                "template/scripts/project_publish.py": "19887428f675fa8ed993a1092447037849e307f4",
+                "template/scripts/requirement_integration.py": "87f147f99cd3b76f2ba6464e148ccb873e6d9e37",
+                "template/scripts/requirement_terminal.py": "492ee54788bd2d7f68548fc74264c36895560290",
+                "tests/test_br_publication_identity.py": "a17f8af281647e552d764089b80cbc3e5e4fe813",
+                "tests/test_downstream_boundary.py": "5def3e3666dbdf2aa2063d61a8f159920bc2b60a",
+                "tests/test_early_private_reference_guard.py": "99c81ba38aa35b123ff475b4f68e5f038bbe13de",
+                "tests/test_git_lifecycle.py": "bb526d38c5e1e1ce12dd425e0b59a1f2f67e52d4",
+                "tests/test_independent_review.py": "26e31ee3ac3aa9f6ccaa05ff1a7fe6defa8012a3",
+                "tests/test_local_workspace.py": "e097fdcf0cc03bf97ffb545c83ff5c610861ca59",
+                "tests/test_managed_status_lifecycle.py": "a45840048086954c7dfee0da50fff4aa5757a39a",
+                "tests/test_merge_lifecycle_resilience.py": "4bb743d81ef22f1445c0864822f155b317e309b1",
+                "tests/test_openspec_lifecycle.py": "3ea16d65c99508dcaaa05ebb8969b7cffa34e26f",
+                "tests/test_post_review_finalization.py": "b7443120684a9fbe8fcdffaf442ccaecaff47286",
+                "tests/test_protected_main_zero_handoff.py": "a9876a1c9667563aa1b72cdf8349e083f67ff609",
+                "tests/test_publication_recovery_cli.py": "cd8a319374a9657cb15ce0ca2519a4ec5296c3ed",
+                "tests/test_requirement_card_claim.py": "3afcd99261226833ef11f48eb09da019ca88ad61",
+                "tests/test_requirement_execution.py": "d3ea7c37fd09f800a79084602c28dc97bac195de",
+                "tests/test_requirement_flow_e2e.py": "b72dc2a08fe7e5346d0cb475f2738b132f43c1f1",
+                "tests/test_requirement_integration.py": "68b2565d1ce51e49163914197ff4064611bce112",
+                "tests/test_requirement_retrospective.py": "54ea301aab817a1089f8cad775978a8e7dc8a78e"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-415/T3"
+          },
+          "result": "passed"
+        },
+        "review": {
+          "evidence": {
+            "engineering-quality": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": "template/scripts/finish_task.py:405 and :1067 use config.get(\"platform_version\") == \"source\". The same pattern appears in capability_manager.py:374, publication_queue.py:151 and openspec_lifecycle.py:372. Under a source contract with an unsupported combination, such as scm_provider=gitlab, these paths behave differently from the entrypoints that now raise. finish_task.main raises early, but other callers of these helpers do not.",
+                  "id": "residual-raw-source-checks",
+                  "severity": "advisory",
+                  "summary": "Some downstream-reachable code still tests platform_version == \"source\" directly instead of going through lifecycle_mode. The new selector is therefore not the single point of truth."
+                },
+                {
+                  "evidence": "template/scripts/_platform_common.py:235-238 skips these keys with a bare `continue`. The change is covered by tests, but no documentation or diagnostic tells operators their overlay values are discarded.",
+                  "id": "operator-overlay-selector-keys-silently-ignored",
+                  "severity": "advisory",
+                  "summary": "read_platform_config now drops platform_version, harness_mode, publish_mode and scm_provider from the operator overlay without a warning. An operator who relied on overriding publish_mode or scm_provider will see the setting have no effect."
+                },
+                {
+                  "evidence": "template/scripts/openspec_lifecycle.py, in the archive_change hunk: `coordinator_managed = False` whenever mode != \"coordinator\". Provenance is never examined in portable mode, so a malformed or ambiguous .managed-task.json goes unreported.",
+                  "id": "portable-archive-skips-managed-candidate-for-coordinator-provenance",
+                  "severity": "advisory",
+                  "summary": "A downstream contract now always takes the portable review path in archive_change, even if the checkout holds active managed-task provenance. The behavior change is intended, but nothing warns about the case."
+                }
+              ],
+              "perspective": "engineering-quality",
+              "report_sha256": "73f590a81f522a33f5fb72ae20636f00fa5e2c003a2b857e4dae7a441ffdf8f1"
+            },
+            "spec-fidelity": {
+              "availability": "available",
+              "findings": [],
+              "perspective": "spec-fidelity",
+              "report_sha256": "b96852940ce4ca3da49967172c090f8cf6e2febad12375f976bc41c1d3e1105c"
+            }
+          },
+          "identity": {
+            "change": "downstream-boundary",
+            "contribution_base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+            "kind": "contribution",
+            "requirement": "pln_d6af8d84cd0d3242b993ec5adfcee1c4",
+            "source_issue": "pln_30cff784172aa197f4a4137a3fafc432",
+            "target_branch": "requirement/BR-415",
+            "task_content": {
+              "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+              "digest": "b381d81be9c9e34333ff4a87544fd19e26156016553d94d3c4b229062c62f64a",
+              "paths": {
+                "dev-platform/checks.toml": "68a5f3a958051d355cbc5973e8bb597722562ce7",
+                "openspec/changes/downstream-boundary/.managed-task.json": "18dbe3c4ed3b3000675fb994ca64dafc7f7fed75",
+                "openspec/changes/downstream-boundary/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+                "openspec/changes/downstream-boundary/design.md": "e48a9cffe0d6f1a769a10d558574cc3d33059353",
+                "openspec/changes/downstream-boundary/proposal.md": "a7e31ddc1d887d11d98625810529c3ddaec57c66",
+                "openspec/changes/downstream-boundary/specs/completion-lifecycle/spec.md": "dbd22f1568697ccb81cf012aa34cc326f4e74d5d",
+                "openspec/changes/downstream-boundary/specs/lifecycle-workers/spec.md": "819d9d19bfd4571a32ec2c2f184057d3c3703156",
+                "openspec/changes/downstream-boundary/tasks.md": "c6588e3a533e1fdb6edcc4cdf62aedac233c2ffd",
+                "template/scripts/_platform_common.py": "32e3c870246de3a5b4c30074bbc8b4af7d01d486",
+                "template/scripts/execute_requirement.py": "1dcb227dd0ab59bd4b803d6e64689df877f44823",
+                "template/scripts/finish_task.py": "b733d6524ebd768d3e47c81848d80d7a6088175b",
+                "template/scripts/lifecycle_workers.py": "7291609c78064edef07f176693479d6171183f96",
+                "template/scripts/openspec_lifecycle.py": "3f1de23e9d039a06911d50b9e52758331a76e797",
+                "template/scripts/pr_review_gate.py": "8587729e2fea2a3b414b17b50b262d9e7489f3e4",
+                "template/scripts/project_publish.py": "19887428f675fa8ed993a1092447037849e307f4",
+                "template/scripts/requirement_integration.py": "87f147f99cd3b76f2ba6464e148ccb873e6d9e37",
+                "template/scripts/requirement_terminal.py": "492ee54788bd2d7f68548fc74264c36895560290",
+                "tests/test_br_publication_identity.py": "a17f8af281647e552d764089b80cbc3e5e4fe813",
+                "tests/test_downstream_boundary.py": "5def3e3666dbdf2aa2063d61a8f159920bc2b60a",
+                "tests/test_early_private_reference_guard.py": "99c81ba38aa35b123ff475b4f68e5f038bbe13de",
+                "tests/test_git_lifecycle.py": "bb526d38c5e1e1ce12dd425e0b59a1f2f67e52d4",
+                "tests/test_independent_review.py": "26e31ee3ac3aa9f6ccaa05ff1a7fe6defa8012a3",
+                "tests/test_local_workspace.py": "e097fdcf0cc03bf97ffb545c83ff5c610861ca59",
+                "tests/test_managed_status_lifecycle.py": "a45840048086954c7dfee0da50fff4aa5757a39a",
+                "tests/test_merge_lifecycle_resilience.py": "4bb743d81ef22f1445c0864822f155b317e309b1",
+                "tests/test_openspec_lifecycle.py": "3ea16d65c99508dcaaa05ebb8969b7cffa34e26f",
+                "tests/test_post_review_finalization.py": "b7443120684a9fbe8fcdffaf442ccaecaff47286",
+                "tests/test_protected_main_zero_handoff.py": "a9876a1c9667563aa1b72cdf8349e083f67ff609",
+                "tests/test_publication_recovery_cli.py": "cd8a319374a9657cb15ce0ca2519a4ec5296c3ed",
+                "tests/test_requirement_card_claim.py": "3afcd99261226833ef11f48eb09da019ca88ad61",
+                "tests/test_requirement_execution.py": "d3ea7c37fd09f800a79084602c28dc97bac195de",
+                "tests/test_requirement_flow_e2e.py": "b72dc2a08fe7e5346d0cb475f2738b132f43c1f1",
+                "tests/test_requirement_integration.py": "68b2565d1ce51e49163914197ff4064611bce112",
+                "tests/test_requirement_retrospective.py": "54ea301aab817a1089f8cad775978a8e7dc8a78e"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-415/T3"
+          },
+          "result": "passed"
+        },
+        "selected-checks": {
+          "evidence": {
+            "bytes": 12037,
+            "path": "openspec/changes/downstream-boundary/automated-checks.json",
+            "sha256": "cc9921075428572fa48f2dd7f7d5672d5da284e9af0d99b11563aeab6b3a42fb"
+          },
+          "identity": {
+            "change": "downstream-boundary",
+            "contribution_base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+            "kind": "contribution",
+            "requirement": "pln_d6af8d84cd0d3242b993ec5adfcee1c4",
+            "source_issue": "pln_30cff784172aa197f4a4137a3fafc432",
+            "target_branch": "requirement/BR-415",
+            "task_content": {
+              "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+              "digest": "b381d81be9c9e34333ff4a87544fd19e26156016553d94d3c4b229062c62f64a",
+              "paths": {
+                "dev-platform/checks.toml": "68a5f3a958051d355cbc5973e8bb597722562ce7",
+                "openspec/changes/downstream-boundary/.managed-task.json": "18dbe3c4ed3b3000675fb994ca64dafc7f7fed75",
+                "openspec/changes/downstream-boundary/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+                "openspec/changes/downstream-boundary/design.md": "e48a9cffe0d6f1a769a10d558574cc3d33059353",
+                "openspec/changes/downstream-boundary/proposal.md": "a7e31ddc1d887d11d98625810529c3ddaec57c66",
+                "openspec/changes/downstream-boundary/specs/completion-lifecycle/spec.md": "dbd22f1568697ccb81cf012aa34cc326f4e74d5d",
+                "openspec/changes/downstream-boundary/specs/lifecycle-workers/spec.md": "819d9d19bfd4571a32ec2c2f184057d3c3703156",
+                "openspec/changes/downstream-boundary/tasks.md": "c6588e3a533e1fdb6edcc4cdf62aedac233c2ffd",
+                "template/scripts/_platform_common.py": "32e3c870246de3a5b4c30074bbc8b4af7d01d486",
+                "template/scripts/execute_requirement.py": "1dcb227dd0ab59bd4b803d6e64689df877f44823",
+                "template/scripts/finish_task.py": "b733d6524ebd768d3e47c81848d80d7a6088175b",
+                "template/scripts/lifecycle_workers.py": "7291609c78064edef07f176693479d6171183f96",
+                "template/scripts/openspec_lifecycle.py": "3f1de23e9d039a06911d50b9e52758331a76e797",
+                "template/scripts/pr_review_gate.py": "8587729e2fea2a3b414b17b50b262d9e7489f3e4",
+                "template/scripts/project_publish.py": "19887428f675fa8ed993a1092447037849e307f4",
+                "template/scripts/requirement_integration.py": "87f147f99cd3b76f2ba6464e148ccb873e6d9e37",
+                "template/scripts/requirement_terminal.py": "492ee54788bd2d7f68548fc74264c36895560290",
+                "tests/test_br_publication_identity.py": "a17f8af281647e552d764089b80cbc3e5e4fe813",
+                "tests/test_downstream_boundary.py": "5def3e3666dbdf2aa2063d61a8f159920bc2b60a",
+                "tests/test_early_private_reference_guard.py": "99c81ba38aa35b123ff475b4f68e5f038bbe13de",
+                "tests/test_git_lifecycle.py": "bb526d38c5e1e1ce12dd425e0b59a1f2f67e52d4",
+                "tests/test_independent_review.py": "26e31ee3ac3aa9f6ccaa05ff1a7fe6defa8012a3",
+                "tests/test_local_workspace.py": "e097fdcf0cc03bf97ffb545c83ff5c610861ca59",
+                "tests/test_managed_status_lifecycle.py": "a45840048086954c7dfee0da50fff4aa5757a39a",
+                "tests/test_merge_lifecycle_resilience.py": "4bb743d81ef22f1445c0864822f155b317e309b1",
+                "tests/test_openspec_lifecycle.py": "3ea16d65c99508dcaaa05ebb8969b7cffa34e26f",
+                "tests/test_post_review_finalization.py": "b7443120684a9fbe8fcdffaf442ccaecaff47286",
+                "tests/test_protected_main_zero_handoff.py": "a9876a1c9667563aa1b72cdf8349e083f67ff609",
+                "tests/test_publication_recovery_cli.py": "cd8a319374a9657cb15ce0ca2519a4ec5296c3ed",
+                "tests/test_requirement_card_claim.py": "3afcd99261226833ef11f48eb09da019ca88ad61",
+                "tests/test_requirement_execution.py": "d3ea7c37fd09f800a79084602c28dc97bac195de",
+                "tests/test_requirement_flow_e2e.py": "b72dc2a08fe7e5346d0cb475f2738b132f43c1f1",
+                "tests/test_requirement_integration.py": "68b2565d1ce51e49163914197ff4064611bce112",
+                "tests/test_requirement_retrospective.py": "54ea301aab817a1089f8cad775978a8e7dc8a78e"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-415/T3"
+          },
+          "result": "passed"
+        },
+        "semantic-verification": {
+          "evidence": {
+            "bytes": 6162,
+            "path": "openspec/changes/downstream-boundary/verification.md",
+            "sha256": "8b4328ea9e3d5268e16decdda43320cf0e686e25ea85a308dd3b7e8819a65783"
+          },
+          "identity": {
+            "change": "downstream-boundary",
+            "contribution_base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+            "kind": "contribution",
+            "requirement": "pln_d6af8d84cd0d3242b993ec5adfcee1c4",
+            "source_issue": "pln_30cff784172aa197f4a4137a3fafc432",
+            "target_branch": "requirement/BR-415",
+            "task_content": {
+              "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+              "digest": "b381d81be9c9e34333ff4a87544fd19e26156016553d94d3c4b229062c62f64a",
+              "paths": {
+                "dev-platform/checks.toml": "68a5f3a958051d355cbc5973e8bb597722562ce7",
+                "openspec/changes/downstream-boundary/.managed-task.json": "18dbe3c4ed3b3000675fb994ca64dafc7f7fed75",
+                "openspec/changes/downstream-boundary/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+                "openspec/changes/downstream-boundary/design.md": "e48a9cffe0d6f1a769a10d558574cc3d33059353",
+                "openspec/changes/downstream-boundary/proposal.md": "a7e31ddc1d887d11d98625810529c3ddaec57c66",
+                "openspec/changes/downstream-boundary/specs/completion-lifecycle/spec.md": "dbd22f1568697ccb81cf012aa34cc326f4e74d5d",
+                "openspec/changes/downstream-boundary/specs/lifecycle-workers/spec.md": "819d9d19bfd4571a32ec2c2f184057d3c3703156",
+                "openspec/changes/downstream-boundary/tasks.md": "c6588e3a533e1fdb6edcc4cdf62aedac233c2ffd",
+                "template/scripts/_platform_common.py": "32e3c870246de3a5b4c30074bbc8b4af7d01d486",
+                "template/scripts/execute_requirement.py": "1dcb227dd0ab59bd4b803d6e64689df877f44823",
+                "template/scripts/finish_task.py": "b733d6524ebd768d3e47c81848d80d7a6088175b",
+                "template/scripts/lifecycle_workers.py": "7291609c78064edef07f176693479d6171183f96",
+                "template/scripts/openspec_lifecycle.py": "3f1de23e9d039a06911d50b9e52758331a76e797",
+                "template/scripts/pr_review_gate.py": "8587729e2fea2a3b414b17b50b262d9e7489f3e4",
+                "template/scripts/project_publish.py": "19887428f675fa8ed993a1092447037849e307f4",
+                "template/scripts/requirement_integration.py": "87f147f99cd3b76f2ba6464e148ccb873e6d9e37",
+                "template/scripts/requirement_terminal.py": "492ee54788bd2d7f68548fc74264c36895560290",
+                "tests/test_br_publication_identity.py": "a17f8af281647e552d764089b80cbc3e5e4fe813",
+                "tests/test_downstream_boundary.py": "5def3e3666dbdf2aa2063d61a8f159920bc2b60a",
+                "tests/test_early_private_reference_guard.py": "99c81ba38aa35b123ff475b4f68e5f038bbe13de",
+                "tests/test_git_lifecycle.py": "bb526d38c5e1e1ce12dd425e0b59a1f2f67e52d4",
+                "tests/test_independent_review.py": "26e31ee3ac3aa9f6ccaa05ff1a7fe6defa8012a3",
+                "tests/test_local_workspace.py": "e097fdcf0cc03bf97ffb545c83ff5c610861ca59",
+                "tests/test_managed_status_lifecycle.py": "a45840048086954c7dfee0da50fff4aa5757a39a",
+                "tests/test_merge_lifecycle_resilience.py": "4bb743d81ef22f1445c0864822f155b317e309b1",
+                "tests/test_openspec_lifecycle.py": "3ea16d65c99508dcaaa05ebb8969b7cffa34e26f",
+                "tests/test_post_review_finalization.py": "b7443120684a9fbe8fcdffaf442ccaecaff47286",
+                "tests/test_protected_main_zero_handoff.py": "a9876a1c9667563aa1b72cdf8349e083f67ff609",
+                "tests/test_publication_recovery_cli.py": "cd8a319374a9657cb15ce0ca2519a4ec5296c3ed",
+                "tests/test_requirement_card_claim.py": "3afcd99261226833ef11f48eb09da019ca88ad61",
+                "tests/test_requirement_execution.py": "d3ea7c37fd09f800a79084602c28dc97bac195de",
+                "tests/test_requirement_flow_e2e.py": "b72dc2a08fe7e5346d0cb475f2738b132f43c1f1",
+                "tests/test_requirement_integration.py": "68b2565d1ce51e49163914197ff4064611bce112",
+                "tests/test_requirement_retrospective.py": "54ea301aab817a1089f8cad775978a8e7dc8a78e"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-415/T3"
+          },
+          "result": "passed"
+        }
+      },
+      "head": "b2fca9c31623b045a0c35fa531cdc652074f443d",
+      "integrated_head": "3cc70fdaeb91fefa854e87d96b9cc97fd9defb7e",
+      "pr_number": 353,
+      "reviewed_evidence_digest": "01621edd69cc1fd80b5f852daebdc2440bf248816698bd0df75b1b2117063e1b",
+      "source_branch": "agent/br-415-t3-downstream-boundary",
+      "source_issue": "pln_30cff784172aa197f4a4137a3fafc432",
+      "task_identity": {
+        "change": "downstream-boundary",
+        "contribution_base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+        "kind": "contribution",
+        "requirement": "pln_d6af8d84cd0d3242b993ec5adfcee1c4",
+        "source_issue": "pln_30cff784172aa197f4a4137a3fafc432",
+        "target_branch": "requirement/BR-415",
+        "task_content": {
+          "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+          "digest": "b381d81be9c9e34333ff4a87544fd19e26156016553d94d3c4b229062c62f64a",
+          "paths": {
+            "dev-platform/checks.toml": "68a5f3a958051d355cbc5973e8bb597722562ce7",
+            "openspec/changes/downstream-boundary/.managed-task.json": "18dbe3c4ed3b3000675fb994ca64dafc7f7fed75",
+            "openspec/changes/downstream-boundary/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+            "openspec/changes/downstream-boundary/design.md": "e48a9cffe0d6f1a769a10d558574cc3d33059353",
+            "openspec/changes/downstream-boundary/proposal.md": "a7e31ddc1d887d11d98625810529c3ddaec57c66",
+            "openspec/changes/downstream-boundary/specs/completion-lifecycle/spec.md": "dbd22f1568697ccb81cf012aa34cc326f4e74d5d",
+            "openspec/changes/downstream-boundary/specs/lifecycle-workers/spec.md": "819d9d19bfd4571a32ec2c2f184057d3c3703156",
+            "openspec/changes/downstream-boundary/tasks.md": "c6588e3a533e1fdb6edcc4cdf62aedac233c2ffd",
+            "template/scripts/_platform_common.py": "32e3c870246de3a5b4c30074bbc8b4af7d01d486",
+            "template/scripts/execute_requirement.py": "1dcb227dd0ab59bd4b803d6e64689df877f44823",
+            "template/scripts/finish_task.py": "b733d6524ebd768d3e47c81848d80d7a6088175b",
+            "template/scripts/lifecycle_workers.py": "7291609c78064edef07f176693479d6171183f96",
+            "template/scripts/openspec_lifecycle.py": "3f1de23e9d039a06911d50b9e52758331a76e797",
+            "template/scripts/pr_review_gate.py": "8587729e2fea2a3b414b17b50b262d9e7489f3e4",
+            "template/scripts/project_publish.py": "19887428f675fa8ed993a1092447037849e307f4",
+            "template/scripts/requirement_integration.py": "87f147f99cd3b76f2ba6464e148ccb873e6d9e37",
+            "template/scripts/requirement_terminal.py": "492ee54788bd2d7f68548fc74264c36895560290",
+            "tests/test_br_publication_identity.py": "a17f8af281647e552d764089b80cbc3e5e4fe813",
+            "tests/test_downstream_boundary.py": "5def3e3666dbdf2aa2063d61a8f159920bc2b60a",
+            "tests/test_early_private_reference_guard.py": "99c81ba38aa35b123ff475b4f68e5f038bbe13de",
+            "tests/test_git_lifecycle.py": "bb526d38c5e1e1ce12dd425e0b59a1f2f67e52d4",
+            "tests/test_independent_review.py": "26e31ee3ac3aa9f6ccaa05ff1a7fe6defa8012a3",
+            "tests/test_local_workspace.py": "e097fdcf0cc03bf97ffb545c83ff5c610861ca59",
+            "tests/test_managed_status_lifecycle.py": "a45840048086954c7dfee0da50fff4aa5757a39a",
+            "tests/test_merge_lifecycle_resilience.py": "4bb743d81ef22f1445c0864822f155b317e309b1",
+            "tests/test_openspec_lifecycle.py": "3ea16d65c99508dcaaa05ebb8969b7cffa34e26f",
+            "tests/test_post_review_finalization.py": "b7443120684a9fbe8fcdffaf442ccaecaff47286",
+            "tests/test_protected_main_zero_handoff.py": "a9876a1c9667563aa1b72cdf8349e083f67ff609",
+            "tests/test_publication_recovery_cli.py": "cd8a319374a9657cb15ce0ca2519a4ec5296c3ed",
+            "tests/test_requirement_card_claim.py": "3afcd99261226833ef11f48eb09da019ca88ad61",
+            "tests/test_requirement_execution.py": "d3ea7c37fd09f800a79084602c28dc97bac195de",
+            "tests/test_requirement_flow_e2e.py": "b72dc2a08fe7e5346d0cb475f2738b132f43c1f1",
+            "tests/test_requirement_integration.py": "68b2565d1ce51e49163914197ff4064611bce112",
+            "tests/test_requirement_retrospective.py": "54ea301aab817a1089f8cad775978a8e7dc8a78e"
+          },
+          "scope": "independent-review-v1",
+          "version": 1
+        },
+        "work_identity": "BR-415/T3"
+      },
+      "work_identity": "BR-415/T3"
     }
   ],
   "dependencies": {
@@ -756,7 +1092,7 @@
       "publication-observation"
     ]
   },
-  "digest": "dab356aee3d0eaa716bea9fd2168176eca9faf868eba944a854e7719d8f0b2aa",
+  "digest": "c5ef7d3ea8b0629ab011f7d0d61f45facaefdcfef4163e02a6c4e145c1168a76",
   "expected_changes": [
     "capability-metadata",
     "child-project-routing",
