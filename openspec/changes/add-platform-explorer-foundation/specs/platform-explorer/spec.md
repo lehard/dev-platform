@@ -1,3 +1,9 @@
+# platform-explorer Specification
+
+## Purpose
+
+Define the platform-owned Dev Platform Explorer: a static, source-derived, publicly safe and deterministic browsable view of the platform's architecture and process, with navigation beside content, stable direct links and a boundary that keeps it out of downstream projects.
+
 ## ADDED Requirements
 
 ### Requirement: Explorer is a build-time view of canonical repository sources
