@@ -1,0 +1,82 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "6c96df65b6d7f4f4d4ee0c30e2d81880190b7dd0",
+    "base_ref": "origin/main",
+    "candidate_head": "a7ca3b8e4135ca3f37e81995e9b69871e4afc3cf",
+    "diff_sha256": "d6be424eb687be6a7bafc497f1687d540a3bd21746bc5d63b5c91ce17c0da084"
+  },
+  "completed_at": "2026-10-08T06:49:31+00:00",
+  "findings": [
+    {
+      "evidence": "scripts/build_explorer.py `open_repo` takes the commit from `git rev-parse HEAD`, while `read_text` reads `(repo.root / path).read_text()` from disk. docs/engineering/explorer.md says: \"Sources are read from the working tree, so build from a clean checkout when the stamped commit must describe the content exactly.\" The design and spec say nothing about this.",
+      "id": "commit-stamp-vs-working-tree",
+      "severity": "advisory",
+      "summary": "Sources are read from the working tree, but every page is stamped with `git rev-parse HEAD` and its source links point at that commit. A dirty or modified checkout produces pages whose content does not match the stamped commit, and the build does not detect or report this. The spec requires pages to be stamped with the source commit and to link to \"the exact file at the built commit\". The docs disclose the limitation, but the contract does not."
+    }
+  ],
+  "launched_at": "2026-10-08T06:48:59+00:00",
+  "output_sha256": "fae9bbe2beb0aa5f6f6d08522b81c825f144547c27f3e2ab6492246fcb813251",
+  "perspective": "spec-fidelity",
+  "request_id": "815e8483-4ec2-4bc0-b313-3fafcbec14f3",
+  "reviewer": {
+    "context_id": "94fc0cba-11e8-47a1-b905-ef41407018d8",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-0824eb54-6f1a-4044-8e2b-fc1c0abfae89",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 79706
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 275033
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 26447
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 27103
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2596
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "f66e662b1d82e988a61adb9bb86bdb8c783be56c0154861ff543f8dc3d6cce27"
+}
