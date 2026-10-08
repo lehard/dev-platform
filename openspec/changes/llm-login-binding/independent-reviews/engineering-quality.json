@@ -3,21 +3,21 @@
   "candidate": {
     "base_head": "c0b0b01b44ff8808dc02522078fa5d5d20f67f4f",
     "base_ref": "origin/main",
-    "candidate_head": "b43ad04e36623ec09078e06865112c08a724fbda",
-    "diff_sha256": "051784d1f49c425441f4c02cf5ca5295ecbfce1783f7e162e9fb590336b9c16c"
+    "candidate_head": "bd7a67d32d1e5d8cfacba95d7ca1497bf1a386a2",
+    "diff_sha256": "477bff9f0e0d598b778388c265fee9cbae4909e051c212f1788b3517673dd9ad"
   },
-  "completed_at": "2026-10-08T11:02:23+00:00",
+  "completed_at": "2026-10-08T11:05:30+00:00",
   "findings": [],
-  "launched_at": "2026-10-08T11:02:23+00:00",
+  "launched_at": "2026-10-08T11:05:30+00:00",
   "limitation": "[independent_review] providers must be a nonempty ordered list of unique codex/claude providers",
   "perspective": "engineering-quality",
-  "request_id": "c4f4b16a-03d7-4100-b3b5-626de7666211",
+  "request_id": "e3d25f79-7e53-4370-87a7-d7f4d3543aa4",
   "reviewer": {
-    "context_id": "platform-launch-568ae374-5e1d-4b96-8c14-5c92987d35f9",
+    "context_id": "platform-launch-78aba7bf-ff95-485b-93ac-4f1edcfa3d4f",
     "context_id_source": "platform-launch",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-568ae374-5e1d-4b96-8c14-5c92987d35f9",
+    "launch_id": "platform-launch-78aba7bf-ff95-485b-93ac-4f1edcfa3d4f",
     "model": {
       "source": "unknown",
       "value": null
