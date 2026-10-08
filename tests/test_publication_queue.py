@@ -1407,14 +1407,12 @@ class RequiredCheckObservationMappingTests(unittest.TestCase):
                 self.assertIn("bad output", block.call_args.args[3])
 
     def test_unsupported_base_blocks_with_the_named_error(self) -> None:
-        from publication_state import RequiredCheckBaseError
-
         with patch.object(queue, "_repo", return_value=REPO), \
              patch.object(queue, "_queued", return_value=[(20, 1, admission(1, 20))]), \
              patch.object(queue, "_pr", return_value=pr(1)), patch.object(queue, "_comments", return_value=[]), \
              patch.object(queue, "_label"), patch.object(queue, "_transition", return_value=None), \
              patch.object(queue, "_prepare", return_value=(HEAD, BASE)), patch.object(queue, "_raise_if_owned_elsewhere"), \
-             patch.object(queue, "required_check_state_for_ref", side_effect=RequiredCheckBaseError("base release/1.0")), \
+             patch.object(queue, "required_check_state_for_ref", return_value=RequiredCheckState("unknown", "base release/1.0", cause="unsupported-state")), \
              patch.object(queue, "_block", return_value={"state": "blocked"}) as block:
             queue.worker(ROOT_PATH)
         self.assertIn("base release/1.0", block.call_args.args[3])

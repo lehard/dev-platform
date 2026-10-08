@@ -15,7 +15,7 @@ from _platform_modules import load_platform_module  # noqa: E402
 
 lifecycle = load_platform_module("candidate_lifecycle", ROOT / "template/scripts/candidate_lifecycle.py")
 queue = load_platform_module("publication_queue", ROOT / "template/scripts/publication_queue.py")
-from publication_state import RequiredCheckBaseError, RequiredCheckState  # noqa: E402
+from publication_state import RequiredCheckState  # noqa: E402
 
 HEAD = "a" * 40
 NEW_HEAD = "b" * 40
@@ -201,13 +201,13 @@ class CandidateLifecycleTests(unittest.TestCase):
             self.assertEqual(result["state"], "blocked-retryable")
             self.assertEqual(classify.call_args.args[2:], ("7", HEAD))
 
-    def test_status_raises_for_a_base_whose_required_checks_cannot_be_resolved(self):
+    def test_status_carries_cause_for_a_base_whose_required_checks_cannot_be_resolved(self):
         with patch.object(queue, "_repo", return_value="owner/repo"), \
              patch.object(queue, "_pr", return_value=pr()), \
              patch.object(queue, "_comments", return_value=[comment(handoff("ready"))]), \
-             patch.object(queue, "required_check_state_for_ref", side_effect=RequiredCheckBaseError("unsupported base")):
-            with self.assertRaisesRegex(queue.QueueError, "unsupported base"):
-                queue.candidate_status(ROOT, 7)
+             patch.object(queue, "required_check_state_for_ref", return_value=RequiredCheckState("unknown", "unsupported base", cause="unsupported-state")):
+            result = queue.candidate_status(ROOT, 7)
+        self.assertEqual(result["state"], "blocked-retryable")
 
     def test_requirement_inventory_includes_generations_with_deleted_branches(self):
         from requirement_integration import _candidate_slug

@@ -34,10 +34,6 @@ class RequiredCheckState:
             raise ValueError(f"an unknown required-check state must carry a cause in {sorted(UNKNOWN_CAUSES)}")
 
 
-class RequiredCheckBaseError(RuntimeError):
-    """The PR targets a base whose required checks cannot be resolved; never guessed."""
-
-
 @dataclass(frozen=True)
 class PrRef:
     """Stable pull-request cursor shared by platform publication and rollout code.
@@ -251,8 +247,8 @@ def _observe_required_checks(root: Path, env: dict[str, str], ref: str, base: st
                 state = run["conclusion"] if run["status"] == "completed" else run["status"]
                 selected.append({"name": name, "state": state})
         return _classify_required_checks(selected)
-    raise RequiredCheckBaseError(f"cannot resolve required checks for base branch {base!r}: "
-                                 f"only {main!r} and requirement/BR-<n> integration branches are supported")
+    raise _Unusable("unsupported-state", f"cannot resolve required checks for base branch {base!r}: "
+                                         f"only {main!r} and requirement/BR-<n> integration branches are supported")
 
 
 def required_check_state_for_ref(root: Path, env: dict[str, str], ref: str, expected_head: str) -> RequiredCheckState:
@@ -262,14 +258,14 @@ def required_check_state_for_ref(root: Path, env: dict[str, str], ref: str, expe
     directly. The caller supplies `expected_head` (read fresh from GitHub, not
     from a local branch). The head is verified before and again after the
     checks are read; the required set comes from the PR's final protected
-    target (see ``_observe_required_checks``). Every unusable observation is
-    `unknown` with an explicit cause. An unsupported base raises
-    ``RequiredCheckBaseError``.
+    target (see ``_observe_required_checks``). Every unusable observation,
+    including an unsupported base or a config without ``main_branch``, is
+    `unknown` with an explicit cause.
     """
     config = read_platform_config(root)
     main = config.get("main_branch")
     if not isinstance(main, str) or not main:
-        raise RequiredCheckBaseError("platform config does not name main_branch")
+        return RequiredCheckState("unknown", "platform config does not name main_branch", cause="unsupported-state")
     try:
         _require_expected_head(root, env, ref, expected_head, "before the checks were read")
         base = _pr_view(root, env, ref, "baseRefName", "base")

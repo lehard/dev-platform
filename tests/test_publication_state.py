@@ -545,9 +545,10 @@ class RequiredCheckStateForRefTests(PublicationStateTestCase):
         self.assertEqual(self.observe(self.gh(base=base, all_checks=(1, "[]"), api=(0, REQUIRED_VALIDATE, ""))).cause, "transport")
         self.assertEqual(self.observe(self.gh(base=base, all_checks=(0, "junk"), api=(0, REQUIRED_VALIDATE, ""))).cause, "malformed")
 
-    def test_unsupported_base_raises(self) -> None:
-        with self.assertRaisesRegex(publication_state.RequiredCheckBaseError, "release/1.0"):
-            publication_state.required_check_state_for_ref(self.root, self.gh(base="release/1.0"), "9", "abc123")
+    def test_unsupported_base_is_unknown_with_cause(self) -> None:
+        result = publication_state.required_check_state_for_ref(self.root, self.gh(base="release/1.0"), "9", "abc123")
+        self.assertEqual((result.kind, result.cause), ("unknown", "unsupported-state"))
+        self.assertIn("release/1.0", result.detail)
 
     def test_unreadable_pr_state_is_unknown_with_cause(self) -> None:
         result = publication_state.required_check_state_for_ref(self.root, self.no_pr_gh(), "9", "abc123")

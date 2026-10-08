@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from _platform_common import current_worktree_root, read_platform_config, run_git
-from publication_state import RequiredCheckBaseError, required_check_state_for_ref
+from publication_state import required_check_state_for_ref
 from candidate_lifecycle import CLAIM_STATES, POST_MERGE_FLAG, PREFIX as V2_PREFIX, STATES, latest_record, build_handoff_record, derive_candidate, label_projection, marker_body, render_status
 
 PREFIX = "dev-platform-publication-queue:v1 "
@@ -721,10 +721,7 @@ def candidate_status(root: Path, number: int, *, repo: str | None = None) -> dic
     head = pr.get("head", {}).get("sha", "")
     # The shared classifier resolves the required set from the final protected
     # target and binds the snapshot to this head before and after reading.
-    try:
-        observed = required_check_state_for_ref(root, os.environ.copy(), str(number), head)
-    except RequiredCheckBaseError as exc:
-        raise QueueError(str(exc)) from exc
+    observed = required_check_state_for_ref(root, os.environ.copy(), str(number), head)
     checks = {"head": None if observed.cause == "head-mismatch" else head, "kind": observed.kind,
               "detail": observed.detail, "checks": list(observed.checks)}
     if observed.cause:
@@ -1145,10 +1142,7 @@ def _integrate(root: Path, repo: str, number: int, admission: dict[str, Any], pr
             if integrating is not None and _checks_proven_on(integrating, base):
                 checks_evidence = integrating["gates"]["required-checks"]["evidence"]
                 break
-            try:
-                state = required_check_state_for_ref(root, os.environ.copy(), str(number), head)
-            except RequiredCheckBaseError as exc:
-                raise QueueError(str(exc)) from exc
+            state = required_check_state_for_ref(root, os.environ.copy(), str(number), head)
             if state.kind == "passed":
                 checks_evidence = {"detail": state.detail or "required checks passed", "main": base, "head": head}
                 break
