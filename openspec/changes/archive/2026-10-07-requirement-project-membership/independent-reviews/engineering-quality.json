@@ -1,0 +1,88 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "a8d83e5cbd97037b242daf30557f4b1e3b03ae7c",
+    "base_ref": "origin/main",
+    "candidate_head": "4333cb1f3cd8809ac6e1897581ffd1776d5c31b5",
+    "diff_sha256": "ba20f2d0a6a5d73445abddc13bc658a82ef4b0826e8a21563c4910fddb8b2ca7"
+  },
+  "completed_at": "2026-10-07T20:00:23+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/requirement_intake.py in the candidate diff: `return [ensure_project_membership(root, ref) for ref in sorted(refs)]` raises on the first RequirementIntakeError. The connected-adapter docs make `reconcile-board --all` the primary completion path. A single duplicate-item Requirement therefore blocks all later ones. Failing loudly is correct under the no-fallback rule, but the command could collect every failure and then raise once, naming each Requirement.",
+      "id": "reconcile-all-aborts-on-first-failure",
+      "severity": "advisory",
+      "summary": "reconcile-board --all stops at the first Requirement whose membership cannot be confirmed, so the remaining Requirements are left unreconciled and the operator gets no per-item report."
+    },
+    {
+      "evidence": "find_identical_open_requirement in requirement_intake.py compares only title and body after stripping the trailing Work identity line. A Requirement that is already in progress is reused silently. The design.md risk section accepts this, and the payload reports `reused`, so it is only a heads-up.",
+      "id": "reuse-matches-by-title-body-only",
+      "severity": "advisory",
+      "summary": "Rerun reuse treats any open Requirement with the same title and body as the same intent, regardless of its lifecycle stage or card status."
+    }
+  ],
+  "launched_at": "2026-10-07T19:59:55+00:00",
+  "output_sha256": "1c189d004fa05d27ce1d362c47874797da04c4b2252d0fd40f9b90cd9894e7d2",
+  "perspective": "engineering-quality",
+  "request_id": "8a0010d0-69ca-4f83-8eee-e95e9ed29e08",
+  "reviewer": {
+    "context_id": "0a41a0c7-00a6-41d1-a57b-d9db24566740",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-f3dc7a10-2710-4bf1-9d86-7af02969b791",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 34263
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 129685
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 22455
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 24226
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 7
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2024
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "5e1152eeb4ca44b3e1d455e1d33ce1f38b0eb942d8b0c4abf1e5e774e30ed3a1"
+}

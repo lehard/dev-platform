@@ -51,6 +51,7 @@ def reconcile_nonterminal(root: Path, *, requirement: str) -> dict[str, Any]:
 def claim_started(root: Path, *, requirement: str) -> None:
     """Move a started Requirement's card out of the free queue; never writes Ready."""
     try:
+        managed_project_status.ensure_item(root, source_issue=requirement)
         observation = managed_project_status.observe(root, source_issue=requirement)
         if observation is not None and observation.current_status == "Done":
             return

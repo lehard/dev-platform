@@ -28,6 +28,10 @@ ORIGINAL_RUN = subprocess.run
 
 class RequirementFlowEndToEndTests(unittest.TestCase):
     def setUp(self) -> None:
+        patcher = mock.patch.object(
+            execution.managed_project_status, "ensure_item", return_value=SimpleNamespace(status="Backlog"))
+        patcher.start()
+        self.addCleanup(patcher.stop)
         self.temp = init_repo()
         self.root = Path(self.temp.name)
         subprocess.run(["git", "branch", "-M", "main"], cwd=self.root, check=True, capture_output=True)
