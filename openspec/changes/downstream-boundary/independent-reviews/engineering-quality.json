@@ -3,21 +3,21 @@
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "a529cbff7a8c1631c59f85b0f5408a0482c71118",
-    "diff_sha256": "103b023cfa2a73518b7446744f279bbdf8dd3fd91f22982dd78c9e1a7815c942"
+    "candidate_head": "48a2749c06b6c5eb3bbdfe9b6e502951ec3fbc36",
+    "diff_sha256": "f0bda90458afacaf4ce3142f242da0de52c7dfb740c301e7066de37dc0111edf"
   },
-  "completed_at": "2026-10-08T05:05:39+00:00",
+  "completed_at": "2026-10-08T05:18:18+00:00",
   "findings": [],
-  "launched_at": "2026-10-08T05:04:48+00:00",
+  "launched_at": "2026-10-08T05:17:40+00:00",
   "output_sha256": "6e96a492bc9fa40d22212c5be0396a203f3dbd4916cf97ebe2f66b6d54fa4a9a",
   "perspective": "engineering-quality",
-  "request_id": "b4e095f5-1dd2-4bda-9325-b1909cdf3851",
+  "request_id": "c209a1f0-6ff6-4fbe-a7b4-64d1632d927f",
   "reviewer": {
-    "context_id": "01a119e6-58f8-77b3-bef7-ab2f9ff7e8dc",
+    "context_id": "01a119f2-21b3-7fe3-ba0e-b3f9b609db70",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-bea85272-b9f0-43c2-9d7a-424b879540be",
+    "launch_id": "platform-launch-06084e36-def3-475c-b6b0-cc1e42e4ad56",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -32,21 +32,21 @@
       "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 230656
+        "value": 151936
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 290585
+        "value": 224458
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 966
+        "value": 918
       }
     },
     "runtime": "codex-exec"
   },
   "schema_version": 1,
-  "task_content_digest": "81f7fb8be659a90791994b1bc664a6e91d3541c418004d291f2efbfe88a0fd63"
+  "task_content_digest": "86e5422e0cf3bec7798b6340fba59a63de5ef914d50ee38dbc10ba144eb272f9"
 }
