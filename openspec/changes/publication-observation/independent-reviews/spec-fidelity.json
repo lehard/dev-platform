@@ -3,28 +3,28 @@
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "add9f5fa88b3627d9317949313743d975f01ed89",
-    "diff_sha256": "956975275266b6f03d5245ab63fa33dc3c8e129081d9e83d30e86947e4b2ea1f"
+    "candidate_head": "1159b9f4522ca9bad415fb3c8a16052c18a594c9",
+    "diff_sha256": "fe0219acb4f61d506425b68df89a24dcfd6cd2b3088415cb0f0426aac047b6fd"
   },
-  "completed_at": "2026-10-08T10:03:00+00:00",
+  "completed_at": "2026-10-08T10:35:47+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/publication_queue.py:608-611 computes `resolved_handoff = ... _admission_handoff(root, branch, expected_head)` before `_events`/`_admission`. Previously `_admission_handoff` ran only inside the `if current.get(\"task_identity\") is None or current.get(\"head\") != expected_head` branch (diff lines 712-713 versus 657-658). A retry or re-admission for an already-recorded managed head from a checkout that is not at that head, or without managed state, now raises `managed candidate ... lacks valid exact task-content provenance` or a merge-base error, even though no new record would be written. The same applies to a quick task whose head or origin/main is not present locally, because `_touches_openspec_change` raises on merge-base or diff failure. The spec scenarios only cover the first admission, so this is either an unspecified behavior change or a missing scenario.",
-      "id": "admit-eager-provenance-on-readmission",
+      "evidence": "template/scripts/publication_queue.py `_touches_openspec_change` runs `git merge-base <head> origin/main` and raises QueueError if it fails. The `_admission_handoff` quick-task path always calls it when no managed state exists. The spec scenario 'Genuine quick task' and design D4 only say the head is 'listed from git at the admitted head'. They do not mention origin/main, the configured main_branch, or the local object availability. The tests only cover this by creating `refs/remotes/origin/main`.",
+      "id": "quick-task-admission-depends-on-local-origin-main",
       "severity": "advisory",
-      "summary": "admit() now resolves the managed-provenance handoff on every call, before it checks whether the candidate is already admitted or already recorded at the head. The delta contract and design D4 say nothing about this change in idempotent re-admission behavior."
+      "summary": "The managed predicate hard-codes `origin/main` and requires the admitted head to exist locally. A genuine quick task admitted from a checkout without that ref or object now fails with a QueueError instead of receiving the quick-task identity."
     }
   ],
-  "launched_at": "2026-10-08T10:02:08+00:00",
-  "output_sha256": "e29d628fa267169a63b652d39ce21b15c6d56d92053c6aa59cabee446ef13f1e",
+  "launched_at": "2026-10-08T10:35:13+00:00",
+  "output_sha256": "59e2787909f81533d946ba4854144866bf639c968ce15378c71c292b87badb70",
   "perspective": "spec-fidelity",
-  "request_id": "cc12bbe6-74d4-42b2-b365-91cb55f21b91",
+  "request_id": "154ee6f6-fbec-455c-a7ae-38db38b8312e",
   "reviewer": {
-    "context_id": "ae16689c-9550-4eb7-bca5-faebd5680d4b",
+    "context_id": "3afab23d-4c35-4f05-a77f-0e25e251a85b",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-0d9e979a-dcda-4c18-a8c9-791ec76d0b07",
+    "launch_id": "platform-launch-bdd350f7-95bc-470a-b2b8-e9405f9b1543",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,41 +39,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 64200
+        "value": 58750
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 175563
+        "value": 117288
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 40757
+        "value": 24569
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 44389
+        "value": 27655
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10
+        "value": 8
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 7
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2578
+        "value": 2282
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "6577a543fb24722a5ca152835c4882905a289d9c47659b013bdbd418a524b796"
+  "task_content_digest": "2c3f95f475d41c6dc79e97cee9cefc86877803e1e3f17652186c43d03ee95b5b"
 }
