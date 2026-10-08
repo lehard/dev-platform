@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "42967c723cd904290937a066c19ceef460e7caf4",
-    "diff_sha256": "d49cfe5ed5ad134f1753ea52fca527bc2c9a98d6def3513d50d737b38b5a07fc"
+    "candidate_head": "048775ad42cfacd12341a2c802ebb941ce8d972e",
+    "diff_sha256": "2c2ee3e733885253bb0fabbc9cb57bd3c6e8e22f7f6a31ecdc1e5c7c6b131f53"
   },
   "change": "openspec/changes/downstream-boundary",
   "excluded_lifecycle_paths": [
@@ -39,7 +39,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-08T05:22:59+00:00",
+  "prepared_at": "2026-10-08T12:34:06+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/downstream-boundary/independent-reviews",
     "required_perspectives": [
@@ -48,7 +48,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "3a2c14fa-b904-40c4-9fdf-babade3f413f",
+  "request_id": "daa0c371-cd7b-4a86-a6e8-022998895592",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -61,7 +61,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "digest": "966d2609c88bf1fd2ed5dd33088c85f2b3608ef5c982cedd9742613f770fb1d7",
+    "digest": "6e2c4f4e3c836e77bfa52b825f813c821a7672d5b139339f4add51a69a347bb2",
     "paths": {
       "dev-platform/checks.toml": "68a5f3a958051d355cbc5973e8bb597722562ce7",
       "openspec/changes/downstream-boundary/.managed-task.json": "18dbe3c4ed3b3000675fb994ca64dafc7f7fed75",
@@ -83,10 +83,14 @@
       "tests/test_br_publication_identity.py": "f35d221fba122c0fe234a2edd85061ca086227fd",
       "tests/test_downstream_boundary.py": "5def3e3666dbdf2aa2063d61a8f159920bc2b60a",
       "tests/test_early_private_reference_guard.py": "99c81ba38aa35b123ff475b4f68e5f038bbe13de",
+      "tests/test_git_lifecycle.py": "bb526d38c5e1e1ce12dd425e0b59a1f2f67e52d4",
       "tests/test_independent_review.py": "26e31ee3ac3aa9f6ccaa05ff1a7fe6defa8012a3",
       "tests/test_managed_status_lifecycle.py": "a45840048086954c7dfee0da50fff4aa5757a39a",
+      "tests/test_merge_lifecycle_resilience.py": "4bb743d81ef22f1445c0864822f155b317e309b1",
       "tests/test_openspec_lifecycle.py": "3ea16d65c99508dcaaa05ebb8969b7cffa34e26f",
       "tests/test_post_review_finalization.py": "b7443120684a9fbe8fcdffaf442ccaecaff47286",
+      "tests/test_protected_main_zero_handoff.py": "a9876a1c9667563aa1b72cdf8349e083f67ff609",
+      "tests/test_publication_recovery_cli.py": "cd8a319374a9657cb15ce0ca2519a4ec5296c3ed",
       "tests/test_requirement_execution.py": "d3ea7c37fd09f800a79084602c28dc97bac195de",
       "tests/test_requirement_integration.py": "68b2565d1ce51e49163914197ff4064611bce112",
       "tests/test_requirement_retrospective.py": "54ea301aab817a1089f8cad775978a8e7dc8a78e"

@@ -3,50 +3,77 @@
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "42967c723cd904290937a066c19ceef460e7caf4",
-    "diff_sha256": "d49cfe5ed5ad134f1753ea52fca527bc2c9a98d6def3513d50d737b38b5a07fc"
+    "candidate_head": "048775ad42cfacd12341a2c802ebb941ce8d972e",
+    "diff_sha256": "2c2ee3e733885253bb0fabbc9cb57bd3c6e8e22f7f6a31ecdc1e5c7c6b131f53"
   },
-  "completed_at": "2026-10-08T05:24:50+00:00",
-  "findings": [],
-  "launched_at": "2026-10-08T05:24:18+00:00",
-  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
+  "completed_at": "2026-10-08T12:35:09+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/_platform_common.py lifecycle_mode: `if not isinstance(version, str) or not version: raise PlatformConfigError(...)`. The template .dev-platform.toml.jinja:2 writes platform_version, so new renders are fine. The diff has no upgrade or migration path or test for legacy configs, and design.md does not discuss it.",
+      "id": "missing-platform-version-hard-fails-legacy-contracts",
+      "severity": "advisory",
+      "summary": "lifecycle_mode raises PlatformConfigError when platform_version is absent. It is now called unconditionally at the start of finish_task.main, project_publish.main, requirement_terminal.reconcile_parent, execute_requirement.advance and requirement_integration.publish_candidate. Older downstream renders or hand-edited contracts without that key would fail every one of these entrypoints. Previously they ran with config.get('platform_version') != 'source'."
+    }
+  ],
+  "launched_at": "2026-10-08T12:34:45+00:00",
+  "output_sha256": "476cf5532beced0f831fdd3bad0256d57cc71a0ee19a45b69e3fcc5851b5d827",
   "perspective": "engineering-quality",
-  "request_id": "3a2c14fa-b904-40c4-9fdf-babade3f413f",
+  "request_id": "daa0c371-cd7b-4a86-a6e8-022998895592",
   "reviewer": {
-    "context_id": "01a119f8-3418-74a0-b1ba-fa3b58e628de",
+    "context_id": "7169c591-e5b7-421a-9355-965b33eace84",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-a25647c5-34dd-4fae-aa09-c6211c5a127e",
+    "launch_id": "platform-launch-5badaab8-f63e-4457-b4b9-436e4146972e",
     "model": {
       "source": "selected",
-      "value": "gpt-6.1-sol"
+      "value": "sonnet"
     },
-    "provider": "codex",
-    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
-    "runtime": "codex-exec",
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
     "write_access": false
   },
   "runtime_usage": {
     "fields": {
-      "cached_input_tokens": {
+      "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 123904
+        "value": 31155
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 86579
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 20623
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 22768
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 177109
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 729
+        "value": 1450
       }
     },
-    "runtime": "codex-exec"
+    "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "966d2609c88bf1fd2ed5dd33088c85f2b3608ef5c982cedd9742613f770fb1d7"
+  "task_content_digest": "6e2c4f4e3c836e77bfa52b825f813c821a7672d5b139339f4add51a69a347bb2"
 }
