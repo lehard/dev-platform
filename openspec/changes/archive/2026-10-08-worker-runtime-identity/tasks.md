@@ -8,7 +8,7 @@
 
 - [x] 2.1 Add `model_routing.read_route_for_change` (change-keyed durable record, provenance validation, supported provider, explicit `RoutingError`).
 - [x] 2.2 Persist `route` on the developer handoff in `publication_queue.admit`/`_transition` and surface it from `candidate_lifecycle.derive_candidate` as an additive field; inherit it across head changes and reject a change switch without a handoff route. Rebase on the publication-observation child before editing shared parse code.
-- [x] 2.4 Amend provider authorization for recorded operator re-offers (`authorized_repair_providers`, `publish_job(reoffer=)`, `select_job` per-candidate check) with tests; keep exactly one provider per repair job.
+- [x] 2.5 Amend provider authorization for recorded operator re-offers (`authorized_repair_providers`, `publish_job(reoffer=)`, `select_job` per-candidate check) with tests; keep exactly one provider per repair job.
 - [x] 2.3 Resolve repair, integration-repair and default review providers from the candidate record in `publish_job`; delete the `unresolved-originating-task-route` sentinel, its friction emission and the sentinel defaults in `pr_review_gate.offer`, `complete_review` and `run_claimed`; reject contradictory or unsupported provider data with a named error; confirm each coordinator-side call site propagates the error.
 - [x] 2.4 Add `work-next --provider`, make it required for repair kinds, filter by provider in `select_job` with the `unauthorized` report, carry `provider` in claim and result bodies and re-verify it in the repair executors before running.
 
