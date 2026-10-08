@@ -752,5 +752,68 @@ class CapabilityManagerTests(unittest.TestCase):
             self.assertTrue(all(item["improved"] for item in report["quality_comparisons"]))
 
 
+class ShippedEvalFixtureTests(unittest.TestCase):
+    TREES = (ROOT / "dev-platform" / "evals", ROOT / "template" / "dev-platform" / "evals")
+
+    @staticmethod
+    def _tree_root(evals_dir: Path) -> Path:
+        # <root>/dev-platform/evals -> <root>
+        return evals_dir.parent.parent
+
+    def test_every_shipped_fixture_evaluates_against_its_descriptor(self) -> None:
+        for evals_dir in self.TREES:
+            tree = self._tree_root(evals_dir)
+            registry = manager.load_registry(tree)
+            fixtures = sorted(evals_dir.glob("*.json"))
+            self.assertTrue(fixtures, f"no eval fixtures shipped in {evals_dir.relative_to(ROOT)}")
+            for fixture in fixtures:
+                with self.subTest(root=str(evals_dir.relative_to(ROOT)), fixture=fixture.name):
+                    loaded = json.loads(fixture.read_text(encoding="utf-8"))
+                    capability_id = loaded["capability"]
+                    if capability_id not in registry:
+                        self.fail(f"{fixture.name}: no descriptor for capability {capability_id!r} in {evals_dir.relative_to(ROOT)}")
+                    try:
+                        report = manager.evaluate_existing(registry[capability_id], fixture, runtime="fixture", runs=3)
+                    except manager.CapabilityError as exc:
+                        self.fail(f"{evals_dir.relative_to(ROOT)}/{fixture.name}: {exc}")
+                    self.assertEqual(report["summary"]["failed"], 0, fixture.name)
+                    self.assertEqual(report["summary"]["incomplete"], 0, fixture.name)
+
+    def test_source_and_template_fixture_sets_are_identical(self) -> None:
+        source, template = self.TREES
+        source_names = sorted(path.name for path in source.glob("*.json"))
+        template_names = sorted(path.name for path in template.glob("*.json"))
+        self.assertEqual(source_names, template_names, "source and template ship different eval fixture names")
+        for name in source_names:
+            with self.subTest(fixture=name):
+                self.assertEqual(
+                    (source / name).read_bytes(),
+                    (template / name).read_bytes(),
+                    f"{name} differs between dev-platform/evals and template/dev-platform/evals",
+                )
+
+    def test_stale_hash_fixture_fails_with_explicit_mismatch(self) -> None:
+        registry = manager.load_registry(ROOT)
+        capability = registry["add-intents"]
+        fixture = json.loads((ROOT / "dev-platform" / "evals" / "add-intents-pilot.json").read_text(encoding="utf-8"))
+        fixture["content_sha256"] = "0" * 64
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "stale.json"
+            path.write_text(json.dumps(fixture), encoding="utf-8")
+            with self.assertRaisesRegex(manager.CapabilityError, "content hash does not match"):
+                manager.evaluate_existing(capability, path, runtime="fixture", runs=3)
+
+    def test_fixture_without_descriptor_fails_explicitly(self) -> None:
+        registry = manager.load_registry(ROOT)
+        fixture = json.loads((ROOT / "dev-platform" / "evals" / "add-intents-pilot.json").read_text(encoding="utf-8"))
+        self.assertNotIn("no-such-capability", registry)
+        fixture["capability"] = "no-such-capability"
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "orphan.json"
+            path.write_text(json.dumps(fixture), encoding="utf-8")
+            with self.assertRaisesRegex(manager.CapabilityError, "targets 'no-such-capability'"):
+                manager.evaluate_existing(registry["add-intents"], path, runtime="fixture", runs=3)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,78 @@
+{
+  "candidate": {
+    "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
+    "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
+    "candidate_head": "19909e7d3a04e2d6f220cbc620d1228d59c96cdf",
+    "diff_sha256": "8398f082fbfc4a4e8e76746811ba06c20ec71e70ffc4c208c7c8e8a7e7c7014a"
+  },
+  "change": "openspec/changes/capability-metadata",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/capability-metadata/automated-checks.json",
+    "openspec/changes/capability-metadata/independent-review-request.json",
+    "openspec/changes/capability-metadata/independent-reviews/engineering-quality.json",
+    "openspec/changes/capability-metadata/independent-reviews/spec-fidelity.json",
+    "openspec/changes/capability-metadata/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/capability-metadata/design.md",
+        "openspec/changes/capability-metadata/proposal.md",
+        "openspec/changes/capability-metadata/specs/engineering-capabilities/spec.md",
+        "openspec/changes/capability-metadata/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/capability-metadata/proposal.md",
+        "openspec/changes/capability-metadata/design.md",
+        "openspec/changes/capability-metadata/tasks.md",
+        "openspec/changes/capability-metadata/specs/engineering-capabilities/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-08T07:51:06+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/capability-metadata/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "191e7dde-a951-42e8-960d-f222adafd733",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+    "digest": "81d5b046be48fc830e268710e1c08abaed6aaa7068a9f974f3b9f3605a44c458",
+    "paths": {
+      "dev-platform/evals/add-intents-pilot.json": "5256c47f2aa02da3c12aa39657650c4faf94a766",
+      "dev-platform/evals/interoperable-agent-handoff-pilot.json": "09d732cff9bfdedbc0885bde0adb51a249158de5",
+      "openspec/changes/capability-metadata/.managed-task.json": "04a655e0c4c4ca4d63393d5012a3a7ea13a105f5",
+      "openspec/changes/capability-metadata/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+      "openspec/changes/capability-metadata/design.md": "11a43397e0ebd79615c9fb06d4a4865ad0192e7a",
+      "openspec/changes/capability-metadata/proposal.md": "a9253ae02c1b348326cbce2b2d1da587a1040d6a",
+      "openspec/changes/capability-metadata/specs/engineering-capabilities/spec.md": "c7663d75a0dcafc34cfa9f72c3dfdb0ed56509e7",
+      "openspec/changes/capability-metadata/tasks.md": "8a4a7c377a62c385e3846b6c31c808cf2c62a831",
+      "template/dev-platform/evals/add-intents-pilot.json": "5256c47f2aa02da3c12aa39657650c4faf94a766",
+      "tests/test_capability_manager.py": "a00664671a8694afa94eb71a48a6f36e0d97536f"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}
