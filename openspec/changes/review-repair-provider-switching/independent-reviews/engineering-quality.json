@@ -3,30 +3,42 @@
   "candidate": {
     "base_head": "6c96df65b6d7f4f4d4ee0c30e2d81880190b7dd0",
     "base_ref": "origin/main",
-    "candidate_head": "4dbb1d624e21d1d233a8d4820aaaf8db8f9590ce",
-    "diff_sha256": "1b9c5b73c294d7bc66cc03e02dbca2fc62d004815014601269dd235503fb1c75"
+    "candidate_head": "c161b2131a74dc2640bfb50a7cefe67b66e178e2",
+    "diff_sha256": "be16c62eadc098ee3881beef3f809777369f68991f8156351fd86e5afefefbea"
   },
-  "completed_at": "2026-10-08T05:16:05+00:00",
+  "completed_at": "2026-10-08T05:19:23+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/pr_review_gate.py retry_unavailable increments attempts[f\"{kind}-unavailable\"] and sets next_job=None once streak >= MAX_ROUNDS. The only reset in the diff is in reoffer(), which sets set_attempts {f\"{kind}-unavailable\": 0}. A candidate with two unavailable attempts in round 1, a successful repair, then one unavailable attempt in round 2 would reach 3 and lose its automatic retry. The completion-lifecycle spec says 'three consecutive attempts'. I did not see the review-side reset path, so this is unconfirmed.",
-      "id": "unavailable-streak-not-reset-on-success",
+      "evidence": "pr_review_gate.py retry_unavailable stores the providers only in `gates['repair'].evidence.providers` and passes `red_gate=running.get('red_gate')`. That value is None, because the transition to `repairing` sets no red gate. In `reoffer`, `previous = current_job.get('providers') or red.get('providers') or []` reads neither source. The result is the error 'records no provider for this job; pass --provider'. The docs say that explicit `--provider` is needed only for candidates escalated before providers were recorded.",
+      "id": "resume-exhausted-repair-streak-loses-providers",
       "severity": "advisory",
-      "summary": "The repair-unavailable streak counter is reset only by switch-provider or resume. Nothing in the diff resets it when a later repair round succeeds, so the bound on consecutive unavailable attempts may carry across rounds."
+      "summary": "After three consecutive repair-unavailable attempts the candidate is blocked-retryable with no job. `resume` without `--provider` then refuses and demands `--provider`, even though the providers are recorded in the repair gate evidence."
+    },
+    {
+      "evidence": "publication_queue.py retry_job_kind: `repair = candidate['gates'].get('repair'); if ... evidence.get('cause') == 'provider-unavailable': return 'repair'`. `reoffer` and `resume` keep the failed `repair` gate when they move the candidate to repair-pending, and nothing clears it. If the same head later goes blocked-retryable for another reason, such as checks, with no next_job and a red gate that is not named review, it is treated as repair-owned. The gate is dropped only when a pushed repair changes the identity.",
+      "id": "stale-repair-gate-claims-retry-ownership",
+      "severity": "advisory",
+      "summary": "`retry_job_kind` classifies any blocked-retryable candidate as repair-owned if `gates['repair']` still holds a provider-unavailable cause. This can happen even when no repair job is pending. `review_owned` is now true for such a candidate, so publication leaves it untouched."
+    },
+    {
+      "evidence": "lifecycle_workers.py execute_job: `except OSError as exc: return finish(f\"unavailable: cannot start the llm command: {exc}\", status=\"unavailable\")` runs for all kinds in `WRITE_KINDS | {'review'}`. `runtime_check` is wired only for repair. Other callers in `main` therefore see an unhandled status, and the job stays claimable with no retry bound or escalation. A misspelled `--llm-command` can loop silently for those kinds.",
+      "id": "oserror-unavailable-applies-to-all-write-kinds",
+      "severity": "advisory",
+      "summary": "The new OSError-to-`unavailable` mapping in `execute_job` applies to every executor kind, including integration-repair and contribution-integration. Only repair, via `run_claimed`, has handling for the `unavailable` status. For other kinds, an unlaunchable writer command now posts a non-completing `unavailable:` result instead of raising."
     }
   ],
-  "launched_at": "2026-10-08T05:15:24+00:00",
-  "output_sha256": "983fb31ecbf9587c506316f770fd92d197702e3c73e526b86c83ee4fec233144",
+  "launched_at": "2026-10-08T05:18:10+00:00",
+  "output_sha256": "017e0b2a524249383b9c3634e9dae8192b64d6dccad55ae8abdad22e2286cc33",
   "perspective": "engineering-quality",
-  "request_id": "9d2fe645-a681-4e5a-9ab3-2fe38a603543",
+  "request_id": "9261ab74-8cdd-4a87-b543-c78b8b6080c4",
   "reviewer": {
-    "context_id": "8fd01d73-3abb-4377-bfb6-1ffad1d7ad64",
+    "context_id": "2cb41a81-2051-4a32-88e8-020f49af2762",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-b78d102a-3ec0-423b-a659-3f96f81e1ddf",
+    "launch_id": "platform-launch-dc0cb237-12df-48eb-a969-11288dab23d2",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -42,41 +54,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 41705
+        "value": 54445
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 184714
+        "value": 407700
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 36639
+        "value": 68995
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 38256
+        "value": 69736
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 12
+        "value": 20
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 7
+        "value": 11
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 3601
+        "value": 6231
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "b5a91e07bd11c70fcb77bf576ade21a79c07c95dcb029a90b342d747690f251d"
+  "task_content_digest": "600881d598b8a84a333fb70f98986018cedcd6f710a42f95509d76f3a1f61f19"
 }

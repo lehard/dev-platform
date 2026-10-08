@@ -582,6 +582,8 @@ def execute_job(job: dict, *, source_repo: str, branch: str, allowed_paths, llm_
     try:
         done = run_llm(command, checkout, env=env, runner=runner, home=scratch_home(root, home_files))
     except OSError as exc:
+        if kind != "repair" or runtime_check is None:
+            raise  # only the repair gate handles an unavailable runtime
         return finish(f"unavailable: cannot start the llm command: {exc}"[:300], status="unavailable")
     if done.returncode:
         # A runtime that no longer passes its readiness probe (login, usage limit) is unavailable, not a failed result.

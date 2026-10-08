@@ -536,9 +536,16 @@ class ExecuteJobTests(unittest.TestCase):
         result = workers.execute_job(
             self.job, source_repo=str(self.src), branch="task", allowed_paths=["src/"],
             llm_command=["/nonexistent/writer"], current_head=lambda: self.head, post_result=self.posted.append,
-            workdir=str(self.work), worker="w1", env={**os.environ})
+            workdir=str(self.work), worker="w1", env={**os.environ}, runtime_check=lambda: None)
         self.assertEqual(result["status"], "unavailable")
         self.assertIn("cannot start", self.posted[-1])
+
+    def test_unstartable_command_outside_the_repair_gate_still_raises(self):
+        with self.assertRaises(OSError):
+            workers.execute_job(
+                dict(self.job, kind="integration-repair"), source_repo=str(self.src), branch="task",
+                allowed_paths=["src/"], llm_command=["/nonexistent/writer"], current_head=lambda: self.head,
+                post_result=self.posted.append, workdir=str(self.work), worker="w1", env={**os.environ})
 
     def test_head_moved_discards_result(self):
         result = self.run_job("commit", head=NEW)

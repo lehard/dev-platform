@@ -464,7 +464,9 @@ def reoffer(root: Path, repo: str, number: int, *, action: str, providers, reaso
         if claim is not None:
             raise adapter.QueueError(f"PR #{number} job is claimed by {claim['worker']} until {claim['expires_at']}; "
                                      "wait for the claim to expire or finish")
-    previous = current_job.get("providers") or red.get("providers") or []
+    unavailable = (candidate.get("gates", {}).get("repair") or {}).get("evidence")
+    previous = (current_job.get("providers") or red.get("providers")
+                or (unavailable.get("providers") if isinstance(unavailable, dict) else None) or [])
     if providers is None:
         if not previous:
             raise adapter.QueueError(f"PR #{number} records no provider for this job; pass --provider")

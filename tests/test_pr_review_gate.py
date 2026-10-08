@@ -470,10 +470,14 @@ class ProviderSwitchTests(unittest.TestCase):
                                  post_result=lambda body: None, workdir="/unused", claim_current=lambda: True)
             exhausted = fixture.candidate()
             self.assertEqual((exhausted["state"], exhausted["attempts"]["repair"]), ("blocked-retryable", rounds))
+            self.assertEqual(exhausted["gates"]["repair"]["evidence"]["providers"], ["codex"])
             self.assertIsNone(workers.build_job(exhausted))  # bounded: no automatic job, never escalated
             self.assertEqual(queue.retry_job_kind(exhausted), "repair")
             # The operator resumes the same round, restoring the automatic retry budget.
-            self.switch(action="resume", providers=["claude"])
+            self.switch(action="resume", providers=None)  # the recorded providers are kept
+            kept = fixture.candidate()
+            self.assertEqual(workers.build_job(kept)["providers"], ["codex"])
+            self.switch(providers=["claude"])
             resumed = fixture.candidate()
             self.assertEqual((resumed["state"], resumed["attempts"]["repair"], resumed["attempts"]["repair-unavailable"]),
                              ("repair-pending", rounds, 0))

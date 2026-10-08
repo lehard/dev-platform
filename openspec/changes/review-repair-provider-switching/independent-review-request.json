@@ -2,12 +2,15 @@
   "candidate": {
     "base_head": "6c96df65b6d7f4f4d4ee0c30e2d81880190b7dd0",
     "base_ref": "origin/main",
-    "candidate_head": "4dbb1d624e21d1d233a8d4820aaaf8db8f9590ce",
-    "diff_sha256": "1b9c5b73c294d7bc66cc03e02dbca2fc62d004815014601269dd235503fb1c75"
+    "candidate_head": "c161b2131a74dc2640bfb50a7cefe67b66e178e2",
+    "diff_sha256": "be16c62eadc098ee3881beef3f809777369f68991f8156351fd86e5afefefbea"
   },
   "change": "openspec/changes/review-repair-provider-switching",
   "excluded_lifecycle_paths": [
     "openspec/changes/review-repair-provider-switching/automated-checks.json",
+    "openspec/changes/review-repair-provider-switching/independent-review-request.json",
+    "openspec/changes/review-repair-provider-switching/independent-reviews/engineering-quality.json",
+    "openspec/changes/review-repair-provider-switching/independent-reviews/spec-fidelity.json",
     "openspec/changes/review-repair-provider-switching/verification.md"
   ],
   "fresh_context_required": true,
@@ -38,7 +41,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-08T05:14:31+00:00",
+  "prepared_at": "2026-10-08T05:17:21+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/review-repair-provider-switching/independent-reviews",
     "required_perspectives": [
@@ -47,7 +50,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "9d2fe645-a681-4e5a-9ab3-2fe38a603543",
+  "request_id": "9261ab74-8cdd-4a87-b543-c78b8b6080c4",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -60,7 +63,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "6c96df65b6d7f4f4d4ee0c30e2d81880190b7dd0",
-    "digest": "b5a91e07bd11c70fcb77bf576ade21a79c07c95dcb029a90b342d747690f251d",
+    "digest": "600881d598b8a84a333fb70f98986018cedcd6f710a42f95509d76f3a1f61f19",
     "paths": {
       "docs/engineering/agent-workflow.md": "468660d3136683284a0f65ec7a4e30d257c1f483",
       "openspec/changes/review-repair-provider-switching/.managed-task.json": "cd38b54bc8ac969c8cafbba7b28875f23c4fc73a",
@@ -72,10 +75,10 @@
       "openspec/changes/review-repair-provider-switching/specs/publication-queue/spec.md": "fcf3ea96df145d6c4b9ffea0728681cf34d03d51",
       "openspec/changes/review-repair-provider-switching/tasks.md": "6315e8d65b84bfb11c6ea9728a433515584c3bf9",
       "template/scripts/lifecycle_workers.py": "2f045ac75d41c8848cf00ca0368d2035b7979aa1",
-      "template/scripts/pr_review_gate.py": "11615892c95aa51907a422511508977c2d8037ca",
+      "template/scripts/pr_review_gate.py": "908fd80a4a2440cceaa2a56eaef5421445a1c566",
       "template/scripts/publication_queue.py": "d9f146b7d0e6d9913ef79261491063d48da0bef4",
       "tests/test_lifecycle_workers.py": "6a795f6f02d7fd6f6c25ce2fb2c7f2bafd6405ff",
-      "tests/test_pr_review_gate.py": "8f99136c99b5a4401f997cbc295264eb1e6fc713",
+      "tests/test_pr_review_gate.py": "334a98fe12869acf49c972d8bb6053922f935ddf",
       "tests/test_publication_queue.py": "d62a817901a9619e572a41f0121a8a6dc674a85f"
     },
     "scope": "independent-review-v1",
