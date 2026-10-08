@@ -3,28 +3,21 @@
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "48a2749c06b6c5eb3bbdfe9b6e502951ec3fbc36",
-    "diff_sha256": "f0bda90458afacaf4ce3142f242da0de52c7dfb740c301e7066de37dc0111edf"
+    "candidate_head": "42967c723cd904290937a066c19ceef460e7caf4",
+    "diff_sha256": "d49cfe5ed5ad134f1753ea52fca527bc2c9a98d6def3513d50d737b38b5a07fc"
   },
-  "completed_at": "2026-10-08T05:17:40+00:00",
-  "findings": [
-    {
-      "evidence": "template/scripts/openspec_lifecycle.py:539\u2013540 and template/scripts/execute_requirement.py:283\u2013286 pass read_platform_config output to lifecycle_mode. That reader merges arbitrary external operator keys over project keys at template/scripts/_platform_common.py:234\u2013240, including platform_version and the supported-combination fields. A read-only reproduction with committed platform_version=\"1.0.0\", operator.enabled=true, and external platform_version=\"source\" selected \"coordinator\". Conversely, an external downstream version can mask an unsupported source combination. This contradicts the active completion-lifecycle requirement that the committed .dev-platform.toml determines the mode and unsupported source combinations never switch paths.",
-      "id": "operator-overlay-controls-lifecycle-selection",
-      "severity": "material",
-      "summary": "Lifecycle selection uses operator-overlaid configuration rather than the committed project contract, allowing a downstream checkout to select coordinator behavior."
-    }
-  ],
-  "launched_at": "2026-10-08T05:16:45+00:00",
-  "output_sha256": "ab70d734c3b784e948bbce059f13781b7b0a6d8a19c2fcd047a3b48b1448b12f",
+  "completed_at": "2026-10-08T05:24:18+00:00",
+  "findings": [],
+  "launched_at": "2026-10-08T05:23:10+00:00",
+  "output_sha256": "6e96a492bc9fa40d22212c5be0396a203f3dbd4916cf97ebe2f66b6d54fa4a9a",
   "perspective": "spec-fidelity",
-  "request_id": "c209a1f0-6ff6-4fbe-a7b4-64d1632d927f",
+  "request_id": "3a2c14fa-b904-40c4-9fdf-babade3f413f",
   "reviewer": {
-    "context_id": "01a119f1-4858-7e50-be4b-e04d66591dba",
+    "context_id": "01a119f7-28b3-7030-8ddb-6bfca114f7d2",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-1dbd48c5-06b3-45ac-b78c-d072bead18f5",
+    "launch_id": "platform-launch-f77f1fbd-5758-4909-83d8-ebbe80f43e83",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -39,21 +32,21 @@
       "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 272128
+        "value": 317056
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 325992
+        "value": 407218
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1632
+        "value": 1814
       }
     },
     "runtime": "codex-exec"
   },
   "schema_version": 1,
-  "task_content_digest": "86e5422e0cf3bec7798b6340fba59a63de5ef914d50ee38dbc10ba144eb272f9"
+  "task_content_digest": "966d2609c88bf1fd2ed5dd33088c85f2b3608ef5c982cedd9742613f770fb1d7"
 }

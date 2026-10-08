@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "d65a678effb9ac7f3903972f3f630b57401ca929",
     "base_ref": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "candidate_head": "48a2749c06b6c5eb3bbdfe9b6e502951ec3fbc36",
-    "diff_sha256": "f0bda90458afacaf4ce3142f242da0de52c7dfb740c301e7066de37dc0111edf"
+    "candidate_head": "42967c723cd904290937a066c19ceef460e7caf4",
+    "diff_sha256": "d49cfe5ed5ad134f1753ea52fca527bc2c9a98d6def3513d50d737b38b5a07fc"
   },
   "change": "openspec/changes/downstream-boundary",
   "excluded_lifecycle_paths": [
@@ -39,7 +39,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-08T05:16:28+00:00",
+  "prepared_at": "2026-10-08T05:22:59+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/downstream-boundary/independent-reviews",
     "required_perspectives": [
@@ -48,7 +48,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "c209a1f0-6ff6-4fbe-a7b4-64d1632d927f",
+  "request_id": "3a2c14fa-b904-40c4-9fdf-babade3f413f",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -61,17 +61,17 @@
   "schema_version": 1,
   "task_content": {
     "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
-    "digest": "86e5422e0cf3bec7798b6340fba59a63de5ef914d50ee38dbc10ba144eb272f9",
+    "digest": "966d2609c88bf1fd2ed5dd33088c85f2b3608ef5c982cedd9742613f770fb1d7",
     "paths": {
       "dev-platform/checks.toml": "68a5f3a958051d355cbc5973e8bb597722562ce7",
       "openspec/changes/downstream-boundary/.managed-task.json": "18dbe3c4ed3b3000675fb994ca64dafc7f7fed75",
       "openspec/changes/downstream-boundary/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
-      "openspec/changes/downstream-boundary/design.md": "79c63a28b2fab92d9596cd2562dd8dc62dfce21a",
+      "openspec/changes/downstream-boundary/design.md": "e48a9cffe0d6f1a769a10d558574cc3d33059353",
       "openspec/changes/downstream-boundary/proposal.md": "a7e31ddc1d887d11d98625810529c3ddaec57c66",
       "openspec/changes/downstream-boundary/specs/completion-lifecycle/spec.md": "dbd22f1568697ccb81cf012aa34cc326f4e74d5d",
       "openspec/changes/downstream-boundary/specs/lifecycle-workers/spec.md": "819d9d19bfd4571a32ec2c2f184057d3c3703156",
       "openspec/changes/downstream-boundary/tasks.md": "c6588e3a533e1fdb6edcc4cdf62aedac233c2ffd",
-      "template/scripts/_platform_common.py": "3e8e9d265f881d4b36ba39f59f4b0203b6bb9468",
+      "template/scripts/_platform_common.py": "32e3c870246de3a5b4c30074bbc8b4af7d01d486",
       "template/scripts/execute_requirement.py": "1dcb227dd0ab59bd4b803d6e64689df877f44823",
       "template/scripts/finish_task.py": "b733d6524ebd768d3e47c81848d80d7a6088175b",
       "template/scripts/lifecycle_workers.py": "7291609c78064edef07f176693479d6171183f96",
@@ -81,7 +81,7 @@
       "template/scripts/requirement_integration.py": "87f147f99cd3b76f2ba6464e148ccb873e6d9e37",
       "template/scripts/requirement_terminal.py": "492ee54788bd2d7f68548fc74264c36895560290",
       "tests/test_br_publication_identity.py": "f35d221fba122c0fe234a2edd85061ca086227fd",
-      "tests/test_downstream_boundary.py": "76f2d551dd1b7ec8a4ff763118c3be19254bb5fd",
+      "tests/test_downstream_boundary.py": "5def3e3666dbdf2aa2063d61a8f159920bc2b60a",
       "tests/test_early_private_reference_guard.py": "99c81ba38aa35b123ff475b4f68e5f038bbe13de",
       "tests/test_independent_review.py": "26e31ee3ac3aa9f6ccaa05ff1a7fe6defa8012a3",
       "tests/test_managed_status_lifecycle.py": "a45840048086954c7dfee0da50fff4aa5757a39a",
