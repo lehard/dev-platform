@@ -492,6 +492,255 @@
         "work_identity": "BR-415/T2"
       },
       "work_identity": "BR-415/T2"
+    },
+    {
+      "change": "early-routing-gate",
+      "contribution_base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+      "gates": {
+        "required-checks": {
+          "evidence": {
+            "checks": [
+              {
+                "link": "https://github.com/lehard/dev-platform/actions/runs/37806498763/job/113412046331",
+                "name": "validate",
+                "state": "SUCCESS",
+                "workflow": "Platform CI"
+              }
+            ],
+            "detail": "",
+            "head": "813bfe4ff20303123918ded9fe4a084dae149dae",
+            "kind": "passed"
+          },
+          "identity": {
+            "change": "early-routing-gate",
+            "contribution_base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+            "kind": "contribution",
+            "requirement": "pln_d6af8d84cd0d3242b993ec5adfcee1c4",
+            "source_issue": "pln_2f08ef68e3e8f838ddd204daf30a9f3f",
+            "target_branch": "requirement/BR-415",
+            "task_content": {
+              "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+              "digest": "646d8edafc62d2d3d9cc6afcdae87410233335c650781c76cbc377b351073231",
+              "paths": {
+                "docs/engineering/model-routing.md": "bad632ae9f8071227655e27e79a4f138fe6b9ee1",
+                "openspec/changes/early-routing-gate/.managed-task.json": "006de5a6569c408e10c30fdb400114f4b7e9dbc4",
+                "openspec/changes/early-routing-gate/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+                "openspec/changes/early-routing-gate/design.md": "ba545f83ecdc95f91de9582071a435e5e9d63f21",
+                "openspec/changes/early-routing-gate/proposal.md": "0a0269fb32daa481ec035a6b702c9dd75b436849",
+                "openspec/changes/early-routing-gate/specs/model-routing/spec.md": "96640160ef22e34c2d3ed907f7ab5d3135114696",
+                "openspec/changes/early-routing-gate/tasks.md": "57504f963dc109b9f2e96cd91c9a17b5a86a5ee5",
+                "scripts/dogfood_task.py": "cfaca7ffd6312b5950710e56b0355c2529c47ac0",
+                "template/docs/engineering/model-routing.md": "c4d2fd4b4e79a314102bda6bf1701817051691a3",
+                "template/scripts/delegated_write_guard.py": "a6906d1c79e7281bf14694ce897b00e31034513b",
+                "template/scripts/model_routing.py": "273e73c6ac451dec217f48025c7f9f751b99b46a",
+                "template/scripts/run_test_groups.py": "7dc363b4d898cdb0a73c01ec6cb521b77235dfd7",
+                "template/scripts/task_content_identity.py": "ab49fff339aad0c38145aef762a795eb985bf0b1",
+                "tests/test_central_dogfood_lifecycle.py": "5c288a1211eed7f122a79ee30bb8fad8aaa522ec",
+                "tests/test_delegated_write_guard.py": "71ed22de46ab1a1533f923552bff41defbd69159",
+                "tests/test_model_routing.py": "32e7c3edc3db5f831e7ce6f007e871e22aa6eb17",
+                "tests/test_run_test_groups.py": "ffbcbbb50e0707156e75a8051827486dbec27d3c",
+                "tests/test_standard_profile_lifecycle_compatibility.py": "1f5b0d642a0d861ebdf3aeab5c0bd22879069352",
+                "tests/upgrade_smoke.py": "b8de65726bea479bb67bb9c8da5709e1c701a157"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-415/T4"
+          },
+          "result": "passed"
+        },
+        "review": {
+          "evidence": {
+            "engineering-quality": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": "template/scripts/model_routing.py, `_run_delegated_codex`: `except BaseException: closed = close_attempt(...); _write_route(...); raise`. `close_attempt` computes `task_content_post` via `_task_content_state`, which raises `RoutingError` when the snapshot or identity cannot be established. The same call also precedes `_write_route` on the success path. Capturing the post-state defensively, or writing a closed attempt without it, would keep the original error visible and the delegation state cons",
+                  "id": "codex-close-attempt-masks-failure",
+                  "severity": "advisory",
+                  "summary": "In `_run_delegated_codex`, the failure handler calls `close_attempt(...)`, which calls `_task_content_state(...)`. That call can raise `RoutingError`. If it does, the original launch error is lost and the route is not rewritten, so the Codex delegation stays `open`."
+                }
+              ],
+              "perspective": "engineering-quality",
+              "report_sha256": "2fe36a96beaf021915c6fbca9a5d446392750c01771a559e731cb5ed7617779f"
+            },
+            "spec-fidelity": {
+              "availability": "available",
+              "findings": [],
+              "perspective": "spec-fidelity",
+              "report_sha256": "37770484883fb62469d6d818c8d634144cf4625959030cae9eaff6b688b8bae7"
+            }
+          },
+          "identity": {
+            "change": "early-routing-gate",
+            "contribution_base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+            "kind": "contribution",
+            "requirement": "pln_d6af8d84cd0d3242b993ec5adfcee1c4",
+            "source_issue": "pln_2f08ef68e3e8f838ddd204daf30a9f3f",
+            "target_branch": "requirement/BR-415",
+            "task_content": {
+              "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+              "digest": "646d8edafc62d2d3d9cc6afcdae87410233335c650781c76cbc377b351073231",
+              "paths": {
+                "docs/engineering/model-routing.md": "bad632ae9f8071227655e27e79a4f138fe6b9ee1",
+                "openspec/changes/early-routing-gate/.managed-task.json": "006de5a6569c408e10c30fdb400114f4b7e9dbc4",
+                "openspec/changes/early-routing-gate/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+                "openspec/changes/early-routing-gate/design.md": "ba545f83ecdc95f91de9582071a435e5e9d63f21",
+                "openspec/changes/early-routing-gate/proposal.md": "0a0269fb32daa481ec035a6b702c9dd75b436849",
+                "openspec/changes/early-routing-gate/specs/model-routing/spec.md": "96640160ef22e34c2d3ed907f7ab5d3135114696",
+                "openspec/changes/early-routing-gate/tasks.md": "57504f963dc109b9f2e96cd91c9a17b5a86a5ee5",
+                "scripts/dogfood_task.py": "cfaca7ffd6312b5950710e56b0355c2529c47ac0",
+                "template/docs/engineering/model-routing.md": "c4d2fd4b4e79a314102bda6bf1701817051691a3",
+                "template/scripts/delegated_write_guard.py": "a6906d1c79e7281bf14694ce897b00e31034513b",
+                "template/scripts/model_routing.py": "273e73c6ac451dec217f48025c7f9f751b99b46a",
+                "template/scripts/run_test_groups.py": "7dc363b4d898cdb0a73c01ec6cb521b77235dfd7",
+                "template/scripts/task_content_identity.py": "ab49fff339aad0c38145aef762a795eb985bf0b1",
+                "tests/test_central_dogfood_lifecycle.py": "5c288a1211eed7f122a79ee30bb8fad8aaa522ec",
+                "tests/test_delegated_write_guard.py": "71ed22de46ab1a1533f923552bff41defbd69159",
+                "tests/test_model_routing.py": "32e7c3edc3db5f831e7ce6f007e871e22aa6eb17",
+                "tests/test_run_test_groups.py": "ffbcbbb50e0707156e75a8051827486dbec27d3c",
+                "tests/test_standard_profile_lifecycle_compatibility.py": "1f5b0d642a0d861ebdf3aeab5c0bd22879069352",
+                "tests/upgrade_smoke.py": "b8de65726bea479bb67bb9c8da5709e1c701a157"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-415/T4"
+          },
+          "result": "passed"
+        },
+        "selected-checks": {
+          "evidence": {
+            "bytes": 7612,
+            "path": "openspec/changes/early-routing-gate/automated-checks.json",
+            "sha256": "98d49704af62e8af9efcc0a3b316982f4391fa9e391dc11807bc8c1c30f9c9c3"
+          },
+          "identity": {
+            "change": "early-routing-gate",
+            "contribution_base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+            "kind": "contribution",
+            "requirement": "pln_d6af8d84cd0d3242b993ec5adfcee1c4",
+            "source_issue": "pln_2f08ef68e3e8f838ddd204daf30a9f3f",
+            "target_branch": "requirement/BR-415",
+            "task_content": {
+              "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+              "digest": "646d8edafc62d2d3d9cc6afcdae87410233335c650781c76cbc377b351073231",
+              "paths": {
+                "docs/engineering/model-routing.md": "bad632ae9f8071227655e27e79a4f138fe6b9ee1",
+                "openspec/changes/early-routing-gate/.managed-task.json": "006de5a6569c408e10c30fdb400114f4b7e9dbc4",
+                "openspec/changes/early-routing-gate/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+                "openspec/changes/early-routing-gate/design.md": "ba545f83ecdc95f91de9582071a435e5e9d63f21",
+                "openspec/changes/early-routing-gate/proposal.md": "0a0269fb32daa481ec035a6b702c9dd75b436849",
+                "openspec/changes/early-routing-gate/specs/model-routing/spec.md": "96640160ef22e34c2d3ed907f7ab5d3135114696",
+                "openspec/changes/early-routing-gate/tasks.md": "57504f963dc109b9f2e96cd91c9a17b5a86a5ee5",
+                "scripts/dogfood_task.py": "cfaca7ffd6312b5950710e56b0355c2529c47ac0",
+                "template/docs/engineering/model-routing.md": "c4d2fd4b4e79a314102bda6bf1701817051691a3",
+                "template/scripts/delegated_write_guard.py": "a6906d1c79e7281bf14694ce897b00e31034513b",
+                "template/scripts/model_routing.py": "273e73c6ac451dec217f48025c7f9f751b99b46a",
+                "template/scripts/run_test_groups.py": "7dc363b4d898cdb0a73c01ec6cb521b77235dfd7",
+                "template/scripts/task_content_identity.py": "ab49fff339aad0c38145aef762a795eb985bf0b1",
+                "tests/test_central_dogfood_lifecycle.py": "5c288a1211eed7f122a79ee30bb8fad8aaa522ec",
+                "tests/test_delegated_write_guard.py": "71ed22de46ab1a1533f923552bff41defbd69159",
+                "tests/test_model_routing.py": "32e7c3edc3db5f831e7ce6f007e871e22aa6eb17",
+                "tests/test_run_test_groups.py": "ffbcbbb50e0707156e75a8051827486dbec27d3c",
+                "tests/test_standard_profile_lifecycle_compatibility.py": "1f5b0d642a0d861ebdf3aeab5c0bd22879069352",
+                "tests/upgrade_smoke.py": "b8de65726bea479bb67bb9c8da5709e1c701a157"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-415/T4"
+          },
+          "result": "passed"
+        },
+        "semantic-verification": {
+          "evidence": {
+            "bytes": 4863,
+            "path": "openspec/changes/early-routing-gate/verification.md",
+            "sha256": "632e202e8edee9e6b6735f5c2c32d7f4499f89d274745b6a80277258d7537df9"
+          },
+          "identity": {
+            "change": "early-routing-gate",
+            "contribution_base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+            "kind": "contribution",
+            "requirement": "pln_d6af8d84cd0d3242b993ec5adfcee1c4",
+            "source_issue": "pln_2f08ef68e3e8f838ddd204daf30a9f3f",
+            "target_branch": "requirement/BR-415",
+            "task_content": {
+              "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+              "digest": "646d8edafc62d2d3d9cc6afcdae87410233335c650781c76cbc377b351073231",
+              "paths": {
+                "docs/engineering/model-routing.md": "bad632ae9f8071227655e27e79a4f138fe6b9ee1",
+                "openspec/changes/early-routing-gate/.managed-task.json": "006de5a6569c408e10c30fdb400114f4b7e9dbc4",
+                "openspec/changes/early-routing-gate/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+                "openspec/changes/early-routing-gate/design.md": "ba545f83ecdc95f91de9582071a435e5e9d63f21",
+                "openspec/changes/early-routing-gate/proposal.md": "0a0269fb32daa481ec035a6b702c9dd75b436849",
+                "openspec/changes/early-routing-gate/specs/model-routing/spec.md": "96640160ef22e34c2d3ed907f7ab5d3135114696",
+                "openspec/changes/early-routing-gate/tasks.md": "57504f963dc109b9f2e96cd91c9a17b5a86a5ee5",
+                "scripts/dogfood_task.py": "cfaca7ffd6312b5950710e56b0355c2529c47ac0",
+                "template/docs/engineering/model-routing.md": "c4d2fd4b4e79a314102bda6bf1701817051691a3",
+                "template/scripts/delegated_write_guard.py": "a6906d1c79e7281bf14694ce897b00e31034513b",
+                "template/scripts/model_routing.py": "273e73c6ac451dec217f48025c7f9f751b99b46a",
+                "template/scripts/run_test_groups.py": "7dc363b4d898cdb0a73c01ec6cb521b77235dfd7",
+                "template/scripts/task_content_identity.py": "ab49fff339aad0c38145aef762a795eb985bf0b1",
+                "tests/test_central_dogfood_lifecycle.py": "5c288a1211eed7f122a79ee30bb8fad8aaa522ec",
+                "tests/test_delegated_write_guard.py": "71ed22de46ab1a1533f923552bff41defbd69159",
+                "tests/test_model_routing.py": "32e7c3edc3db5f831e7ce6f007e871e22aa6eb17",
+                "tests/test_run_test_groups.py": "ffbcbbb50e0707156e75a8051827486dbec27d3c",
+                "tests/test_standard_profile_lifecycle_compatibility.py": "1f5b0d642a0d861ebdf3aeab5c0bd22879069352",
+                "tests/upgrade_smoke.py": "b8de65726bea479bb67bb9c8da5709e1c701a157"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-415/T4"
+          },
+          "result": "passed"
+        }
+      },
+      "head": "813bfe4ff20303123918ded9fe4a084dae149dae",
+      "integrated_head": "e23f73976bb9925b37e112e2106426de1b661ff6",
+      "pr_number": 355,
+      "reviewed_evidence_digest": "31495a5064ae21fc81ba3bb39b48ae5a335b6d8590b8882f7110f41b48700aca",
+      "source_branch": "agent/br-415-t4-early-routing-gate",
+      "source_issue": "pln_2f08ef68e3e8f838ddd204daf30a9f3f",
+      "task_identity": {
+        "change": "early-routing-gate",
+        "contribution_base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+        "kind": "contribution",
+        "requirement": "pln_d6af8d84cd0d3242b993ec5adfcee1c4",
+        "source_issue": "pln_2f08ef68e3e8f838ddd204daf30a9f3f",
+        "target_branch": "requirement/BR-415",
+        "task_content": {
+          "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+          "digest": "646d8edafc62d2d3d9cc6afcdae87410233335c650781c76cbc377b351073231",
+          "paths": {
+            "docs/engineering/model-routing.md": "bad632ae9f8071227655e27e79a4f138fe6b9ee1",
+            "openspec/changes/early-routing-gate/.managed-task.json": "006de5a6569c408e10c30fdb400114f4b7e9dbc4",
+            "openspec/changes/early-routing-gate/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+            "openspec/changes/early-routing-gate/design.md": "ba545f83ecdc95f91de9582071a435e5e9d63f21",
+            "openspec/changes/early-routing-gate/proposal.md": "0a0269fb32daa481ec035a6b702c9dd75b436849",
+            "openspec/changes/early-routing-gate/specs/model-routing/spec.md": "96640160ef22e34c2d3ed907f7ab5d3135114696",
+            "openspec/changes/early-routing-gate/tasks.md": "57504f963dc109b9f2e96cd91c9a17b5a86a5ee5",
+            "scripts/dogfood_task.py": "cfaca7ffd6312b5950710e56b0355c2529c47ac0",
+            "template/docs/engineering/model-routing.md": "c4d2fd4b4e79a314102bda6bf1701817051691a3",
+            "template/scripts/delegated_write_guard.py": "a6906d1c79e7281bf14694ce897b00e31034513b",
+            "template/scripts/model_routing.py": "273e73c6ac451dec217f48025c7f9f751b99b46a",
+            "template/scripts/run_test_groups.py": "7dc363b4d898cdb0a73c01ec6cb521b77235dfd7",
+            "template/scripts/task_content_identity.py": "ab49fff339aad0c38145aef762a795eb985bf0b1",
+            "tests/test_central_dogfood_lifecycle.py": "5c288a1211eed7f122a79ee30bb8fad8aaa522ec",
+            "tests/test_delegated_write_guard.py": "71ed22de46ab1a1533f923552bff41defbd69159",
+            "tests/test_model_routing.py": "32e7c3edc3db5f831e7ce6f007e871e22aa6eb17",
+            "tests/test_run_test_groups.py": "ffbcbbb50e0707156e75a8051827486dbec27d3c",
+            "tests/test_standard_profile_lifecycle_compatibility.py": "1f5b0d642a0d861ebdf3aeab5c0bd22879069352",
+            "tests/upgrade_smoke.py": "b8de65726bea479bb67bb9c8da5709e1c701a157"
+          },
+          "scope": "independent-review-v1",
+          "version": 1
+        },
+        "work_identity": "BR-415/T4"
+      },
+      "work_identity": "BR-415/T4"
     }
   ],
   "dependencies": {
@@ -507,7 +756,7 @@
       "publication-observation"
     ]
   },
-  "digest": "941ef5a9e9c0f7e03329a4e0149f765f3a45efcb703a0ea41829f42496251f53",
+  "digest": "dab356aee3d0eaa716bea9fd2168176eca9faf868eba944a854e7719d8f0b2aa",
   "expected_changes": [
     "capability-metadata",
     "child-project-routing",
