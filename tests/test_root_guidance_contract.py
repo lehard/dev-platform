@@ -171,7 +171,9 @@ class RenderedRootGuidanceTests(unittest.TestCase):
             shutil.copytree(
                 ROOT,
                 source,
-                ignore=shutil.ignore_patterns(".git", ".claude", "__pycache__", ".venv", "node_modules"),
+                ignore=shutil.ignore_patterns(
+                    ".git", ".claude", "__pycache__", ".venv", "node_modules", ".ruff_cache", ".pytest_cache"
+                ),
             )
             for profile, publish_mode in (("light", "direct"), ("standard", "pr"), ("multi-agent", "pr")):
                 with self.subTest(profile=profile), tempfile.TemporaryDirectory() as tmp:
