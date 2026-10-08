@@ -1,23 +1,42 @@
 {
-  "availability": "unavailable",
+  "availability": "available",
   "candidate": {
     "base_head": "c0b0b01b44ff8808dc02522078fa5d5d20f67f4f",
     "base_ref": "origin/main",
-    "candidate_head": "55f6c9875d9750298af3d8648a9dbc06a7dc6fdb",
-    "diff_sha256": "52b0d5dd9e7d6e90ba4fc55def7dbd9d62ae50d90172283f3d86f513eaf833f6"
+    "candidate_head": "f86dde96227c25999bbbbb222b75a0f2613d97c1",
+    "diff_sha256": "00047f2a90cf68b599731d9979f656a25eaaf7e723ff7989e0371ec9ad0591cf"
   },
-  "completed_at": "2026-10-08T11:17:49+00:00",
-  "findings": [],
-  "launched_at": "2026-10-08T11:17:49+00:00",
-  "limitation": "claude reviewer runtime with model 'sonnet' is not ready: readiness probe timed out (reviewer exceeded 120s); rerun, or raise [independent_review] preflight_timeout_seconds; next: log the claude CLI in on this host, point DEV_PLATFORM_CLAUDE_BIN at the Claude Code CLI, or change the [model_routing] / [independent_review] binding for this account (no other model or provider is tried), then rerun python3 scripts/independent_review.py preflight",
+  "completed_at": "2026-10-08T11:23:21+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/lifecycle_workers.py `login_preflight` loops over all `job[\"providers\"]` and raises on the first failure. `job_eligible` (line 345-351) accepts a job when `set(named) & set(ready)` is non-empty. pr_review_gate.py:327-329 then filters `review_config[\"providers\"]` to `review_ready`. For a job naming [claude, codex] where only codex has a login, the worker exits non-zero before claiming. The same job is re-selected on each run, so it keeps failing.",
+      "id": "login-preflight-ignores-ready-subset",
+      "severity": "advisory",
+      "summary": "The pre-claim login preflight requires every provider named by the job to log in. Eligibility and execution only need the ready subset, so one unbound provider can block a job that could have run."
+    },
+    {
+      "evidence": "template/scripts/pr_review_gate.py:534-537 and template/scripts/requirement_composition.py:555-558 both use `provider = \"claude\" if claude_binary is not None and argv[0] == claude_binary else \"codex\"`. `bound_preflight` in independent_review_runner.py builds a separate `providers_by_binary` map. If binary resolution differs between calls, or a symlinked or relative argv[0] is used, the claude token is silently dropped. A KeyError is also possible in `bound_launcher`.",
+      "id": "provider-inferred-from-binary-path",
+      "severity": "advisory",
+      "summary": "The default launchers infer the provider by comparing argv[0] to the resolved claude binary, and treat everything else as codex. This is fragile and duplicated in two places."
+    },
+    {
+      "evidence": "template/scripts/lifecycle_workers.py `read_login_token`: `for parent in path.resolve().parents: if (parent / \".git\").exists(): raise`. The error names the parent directory but gives no way to override.",
+      "id": "token-git-check-rejects-dotfile-home",
+      "severity": "advisory",
+      "summary": "The 'outside any git checkout' rule walks all parents for a `.git` entry. A token file anywhere under a home directory that is itself a git repo (a dotfiles repo in `~`) is rejected."
+    }
+  ],
+  "launched_at": "2026-10-08T11:22:41+00:00",
+  "output_sha256": "bcb57510addcdaf0d33b65beb0312d28adf7f614db28f8a753a36b8f03f6151a",
   "perspective": "engineering-quality",
-  "request_id": "907388e5-2cca-4cdb-a059-3a7828edd06d",
+  "request_id": "fc620903-6359-4365-8f05-b2a6eb0f10db",
   "reviewer": {
-    "context_id": "platform-launch-209386cd-2b6c-4ed5-9da0-ed51dd4d6d8e",
-    "context_id_source": "platform-launch",
+    "context_id": "dffb6099-c299-4d88-a646-f8530cfdad76",
+    "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-209386cd-2b6c-4ed5-9da0-ed51dd4d6d8e",
+    "launch_id": "platform-launch-e6372d23-7262-4af1-bda9-4ff0e7d9c758",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -26,6 +45,46 @@
     "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
     "runtime": "claude-code-print",
     "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 35743
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 128916
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 31140
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 33630
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 7
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2711
+      }
+    },
+    "runtime": "claude-code-print"
   },
   "schema_version": 1,
   "task_content_digest": "4ea459860e718538510a9b8561fc92b4f66dcbc6bcc16184ff32dc5281d40569"

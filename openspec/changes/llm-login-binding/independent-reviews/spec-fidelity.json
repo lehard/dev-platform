@@ -1,23 +1,30 @@
 {
-  "availability": "unavailable",
+  "availability": "available",
   "candidate": {
     "base_head": "c0b0b01b44ff8808dc02522078fa5d5d20f67f4f",
     "base_ref": "origin/main",
-    "candidate_head": "55f6c9875d9750298af3d8648a9dbc06a7dc6fdb",
-    "diff_sha256": "52b0d5dd9e7d6e90ba4fc55def7dbd9d62ae50d90172283f3d86f513eaf833f6"
+    "candidate_head": "f86dde96227c25999bbbbb222b75a0f2613d97c1",
+    "diff_sha256": "00047f2a90cf68b599731d9979f656a25eaaf7e723ff7989e0371ec9ad0591cf"
   },
-  "completed_at": "2026-10-08T11:17:49+00:00",
-  "findings": [],
-  "launched_at": "2026-10-08T11:17:49+00:00",
-  "limitation": "claude reviewer runtime with model 'sonnet' is not ready: readiness probe timed out (reviewer exceeded 120s); rerun, or raise [independent_review] preflight_timeout_seconds; next: log the claude CLI in on this host, point DEV_PLATFORM_CLAUDE_BIN at the Claude Code CLI, or change the [model_routing] / [independent_review] binding for this account (no other model or provider is tried), then rerun python3 scripts/independent_review.py preflight",
+  "completed_at": "2026-10-08T11:22:41+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/lifecycle_workers.py:335-336 (provider_readiness) builds `clean = credential_free_env(dict(os.environ), scratch_home(...))` and uses it for every provider's `runner.preflight`; it never calls `llm_env`. main() (lines ~829-838) uses this readiness to compute `review_ready`, and `job_eligible` filters jobs on it. With CLAUDE_CODE_OAUTH_TOKEN now stripped from credential_free_env and no token injected here, the claude model probe on macOS cannot authenticate even when `[independent_review.login.claude] token_file` is valid. This contradicts the proposal's success criterion (a claude review job runs with a valid token_file) and the 'declared token reaches the provider's LLM environment' requirement. Only independent_review.py preflight (`bound_preflight`) was changed to use the bound env.",
+      "id": "worker-readiness-probe-ignores-login-binding",
+      "severity": "material",
+      "summary": "The worker's startup provider readiness probe still runs the claude model probe in a credential-free env without the declared token, so a bound claude login can still be reported not ready and its review jobs filtered out before the new login preflight runs."
+    }
+  ],
+  "launched_at": "2026-10-08T11:21:56+00:00",
+  "output_sha256": "fccb41a6bbb12bc8fb59f20aefa396c95a658812317b28f82e57fcfa755e56c2",
   "perspective": "spec-fidelity",
-  "request_id": "907388e5-2cca-4cdb-a059-3a7828edd06d",
+  "request_id": "fc620903-6359-4365-8f05-b2a6eb0f10db",
   "reviewer": {
-    "context_id": "platform-launch-d110c38f-20c8-468d-94a5-65ec4e5323a0",
-    "context_id_source": "platform-launch",
+    "context_id": "9ff6a30d-6c72-4815-9ad7-8e817b28212b",
+    "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-d110c38f-20c8-468d-94a5-65ec4e5323a0",
+    "launch_id": "platform-launch-db1bdd81-493a-441a-8010-7e4d10fdfb7e",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -26,6 +33,46 @@
     "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
     "runtime": "claude-code-print",
     "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 41445
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 136450
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 36720
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 39812
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2561
+      }
+    },
+    "runtime": "claude-code-print"
   },
   "schema_version": 1,
   "task_content_digest": "4ea459860e718538510a9b8561fc92b4f66dcbc6bcc16184ff32dc5281d40569"
