@@ -26,6 +26,13 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 0
+      - name: Install the source contract
+        # The installed .dev-platform.toml is untracked (it carries operator-only
+        # sections), so a clean checkout has none and the coordinator-enabled
+        # preflight cannot see the source contract. Install its tracked public part.
+        run: |
+          test ! -e .dev-platform.toml
+          cp dev-platform/source-contract.toml .dev-platform.toml
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.11'
