@@ -20,6 +20,15 @@ def parent(children: tuple[int, ...] = (8, 9), *, outcome: str = "Improve proces
     return {"body": f"## Outcome\n\n{outcome}\n\n## Target repository\n\n`acme/project`\n\n<!-- requirement-children:start -->\n{lines}\n<!-- requirement-children:end -->"}
 
 
+def setUpModule() -> None:
+    # Local-log scenarios: durable coordinator evidence (GitHub) is covered by the
+    # coordinator-operations tests, so these scenarios never reach GitHub.
+    for module in {retrospective.agent_friction}:
+        patcher = mock.patch.object(module, "read_durable_events", return_value=[])
+        patcher.start()
+        unittest.addModuleCleanup(patcher.stop)
+
+
 class RequirementRetrospectiveTests(unittest.TestCase):
     def test_early_and_cross_child_findings_survive_clean_child_outcomes(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

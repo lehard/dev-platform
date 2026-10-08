@@ -70,6 +70,8 @@ required_evidence_types = ["test"]
 [test_groups.fast-b]
 targets = [
   "test_candidate_lifecycle",
+  "test_coordinator_preflight",
+  "test_coordinator_evidence",
   "test_pr_review_gate",
   "test_post_review_finalization",
   "test_autonomous_integration_contour",

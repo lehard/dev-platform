@@ -89,6 +89,15 @@ class Multi:
             return queue.worker(ROOT)
 
 
+def setUpModule() -> None:
+    # Local-log scenarios: durable coordinator evidence (GitHub) is covered by the
+    # coordinator-operations tests, so these scenarios never reach GitHub.
+    for module in {friction, sys.modules["agent_friction"]}:
+        patcher = mock.patch.object(module, "read_durable_events", return_value=[])
+        patcher.start()
+        unittest.addModuleCleanup(patcher.stop)
+
+
 def head_for(number: int) -> str:
     return f"{number:x}" * 40
 
@@ -558,7 +567,7 @@ class FrictionAttributionTests(FrictionFixture):
     def test_lifecycle_transitions_record_friction_through_the_registered_sink(self):
         with Multi({7: HEAD}) as multi:
             queue.set_friction_sink(contour.default_friction_sink(
-                ROOT, lineage=lambda root, branch: {"requirement": REQUIREMENT, "child": CHILDREN[0]}))
+                ROOT, lineage=lambda root, branch: {"requirement": REQUIREMENT, "child": CHILDREN[0]}), worker="test-worker")
             self.addCleanup(queue.set_friction_sink, None)
             multi.ready(7)
             queue._transition(ROOT, "o/r", 7, "blocked-escalation", HEAD, task_identity={"head": "x"},
@@ -576,9 +585,10 @@ class FrictionAttributionTests(FrictionFixture):
             self.assertEqual(contour.resolve_lineage(self.root, "requirement/BR-7"),
                              {"requirement": REQUIREMENT, "child": None})
             sink = contour.default_friction_sink(self.root)
-            sink({"task": "requirement/BR-7", "category": "coordinator-retry", "severity": "medium",
-                  "triggers": ["excessive-retry"], "observation": "retry", "evidence": "repair",
-                  "hypothesis": "h", "proposal": "p", "dedupe_key": "composition-retry"})
+            with mock.patch.object(queue, "post_evidence", return_value={"event_id": "coordinator-0123456789abcdef"}):
+                sink({"task": "requirement/BR-7", "category": "coordinator-retry", "severity": "medium",
+                      "triggers": ["excessive-retry"], "observation": "retry", "evidence": "repair",
+                      "hypothesis": "h", "proposal": "p", "dedupe_key": "composition-retry"})
         event = self.events()[0]
         self.assertEqual(event["requirement"], REQUIREMENT)
         ops = FakeOps()
@@ -590,7 +600,7 @@ class FrictionAttributionTests(FrictionFixture):
             multi.ready(7)
             before = list(multi.comments[7])
             sink = mock.Mock(side_effect=OSError("friction storage denied"))
-            queue.set_friction_sink(sink)
+            queue.set_friction_sink(sink, worker="test-worker")
             self.addCleanup(queue.set_friction_sink, None)
             for failure in (OSError("friction storage denied"), SystemExit("invalid lineage")):
                 sink.side_effect = failure

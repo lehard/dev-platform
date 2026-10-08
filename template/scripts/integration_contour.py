@@ -70,20 +70,27 @@ def resolve_lineage(root: Path, branch: str) -> dict[str, str | None] | None:
 
 
 def default_friction_sink(root: Path, *, lineage: Callable[[Path, str], dict | None] = resolve_lineage):
-    """A sink that records coordinator events through ``agent_friction`` with both attributions."""
+    """A sink that persists coordinator events on the candidate PR, then mirrors them locally.
+
+    Durable first: a failed lineage lookup or evidence write raises before anything is
+    recorded locally, so a transition is never published with machine-local-only evidence.
+    """
     cache: dict[str, str | None] = {}
 
     def sink(event: dict[str, Any]) -> None:
         import agent_friction
+        import publication_queue
 
         task = event["task"]
         if task not in cache:
             found = lineage(root, task)
             cache[task] = found["requirement"] if found else None
+        record = publication_queue.post_evidence(root, event, requirement=cache[task])
         agent_friction.append_coordinator_event(
             task=task, requirement=cache[task], category=event["category"], triggers=event["triggers"],
             severity=event["severity"], observation=event["observation"], evidence=event["evidence"],
-            hypothesis=event["hypothesis"], proposal=event["proposal"], dedupe_key=event["dedupe_key"])
+            hypothesis=event["hypothesis"], proposal=event["proposal"], dedupe_key=event["dedupe_key"],
+            event_id=record["event_id"])
 
     return sink
 
@@ -434,7 +441,10 @@ def ensure_requirement_checkpoint(ops: LifecycleOps, root: Path, requirement: st
     ambiguous = [str(e.get("id")) for e in agent_friction.ambiguous_attribution_events()]
     if ambiguous:
         raise JobBlocked("ambiguous friction attribution needs a human decision: " + ", ".join(ambiguous[:5]))
-    ids = list(dict.fromkeys(str(e.get("id")) for e in _events_for(requirement, children)))
+    try:
+        ids = list(dict.fromkeys(str(e.get("id")) for e in _events_for(requirement, children)))
+    except agent_friction.DurableEvidenceError as exc:
+        raise JobBlocked(str(exc)) from exc
     try:
         ops.requirement_checkpoint(root, requirement, ids)
     except requirement_retrospective.RequirementRetrospectiveError as exc:

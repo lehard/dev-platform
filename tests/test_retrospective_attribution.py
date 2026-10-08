@@ -21,6 +21,15 @@ BRANCH = "task-branch"
 REQUIREMENT = "acme/backlog#7"
 
 
+def setUpModule() -> None:
+    # Local-log scenarios: durable coordinator evidence (GitHub) is covered by the
+    # coordinator-operations tests, so these scenarios never reach GitHub.
+    for module in {friction}:
+        patcher = mock.patch.object(module, "read_durable_events", return_value=[])
+        patcher.start()
+        unittest.addModuleCleanup(patcher.stop)
+
+
 class Fixture(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()

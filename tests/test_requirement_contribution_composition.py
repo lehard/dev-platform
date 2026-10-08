@@ -31,6 +31,15 @@ def git(root, *args):
                           text=True, capture_output=True, check=True).stdout.strip()
 
 
+def setUpModule() -> None:
+    # Local-log scenarios: durable coordinator evidence (GitHub) is covered by the
+    # coordinator-operations tests, so these scenarios never reach GitHub.
+    for module in {sys.modules["agent_friction"]}:
+        patcher = mock.patch.object(module, "read_durable_events", return_value=[])
+        patcher.start()
+        unittest.addModuleCleanup(patcher.stop)
+
+
 class Repository:
     def __init__(self, root):
         self.root = root

@@ -14,7 +14,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping, Sequence
 
 from _platform_common import current_worktree_root, read_platform_config, run_git
 from publication_state import required_check_state_for_ref
@@ -77,20 +77,14 @@ def _gh(root: Path, *args: str, data: dict[str, str] | None = None) -> Any:
 COORDINATOR_APP_ENV = "DEV_PLATFORM_COORDINATOR_APP"
 
 
-def trusted_apps(root: Path) -> frozenset[str]:
-    """The coordinator App whose comments count as lifecycle records.
-
-    The workflow exports the slug of the App token it minted. A local reader
-    takes it from ``[publication] coordinator_app`` in the external operator
-    config (operator identity stays out of committed project config) or the
-    project config. No other App is trusted.
-    """
+def configured_coordinator_apps(root: Path) -> list[tuple[str, str]]:
+    """``(source, App slug)`` pairs from project and operator config; unreadable sources raise."""
     from _platform_common import read_operator_config, read_project_config
 
     def source_error(name: str, cause: object) -> QueueError:
         return QueueError(f"trust source {name} is unreadable or invalid: {cause}")
 
-    names = {os.environ.get(COORDINATOR_APP_ENV, "").strip()}
+    configured_apps: list[tuple[str, str]] = []
     for name, reader in ((".dev-platform.toml", read_project_config), ("operator config", read_operator_config)):
         try:
             config = reader(root)
@@ -106,7 +100,21 @@ def trusted_apps(root: Path) -> frozenset[str]:
             continue
         if not isinstance(app, str):
             raise source_error(name, "[publication] coordinator_app must be a string")
-        names.add(app.strip())
+        if app.strip():
+            configured_apps.append((name, app.strip()))
+    return configured_apps
+
+
+def trusted_apps(root: Path) -> frozenset[str]:
+    """The coordinator App whose comments count as lifecycle records.
+
+    The workflow exports the slug of the App token it minted. A local reader
+    takes it from ``[publication] coordinator_app`` in the external operator
+    config (operator identity stays out of committed project config) or the
+    project config. No other App is trusted.
+    """
+    names = {os.environ.get(COORDINATOR_APP_ENV, "").strip()}
+    names.update(app for _, app in configured_coordinator_apps(root))
     return frozenset(name for name in names if name)
 
 
@@ -252,6 +260,120 @@ def _label(root: Path, repo: str, number: int, label: str, *, present: bool) -> 
             raise QueueError(result.stderr.strip() or "cannot remove publication label")
 
 
+EVIDENCE_PREFIX = "dev-platform-publication-queue:evidence:v1 "
+_EVIDENCE_TEXT = ("category", "severity", "observation", "evidence", "hypothesis", "proposal")
+_SHA = re.compile(r"[0-9a-f]{40}")
+_DEDUPE = re.compile(r"coordinator:([0-9a-f]{24})")
+
+
+def evidence_event_id(dedupe_key: str) -> str:
+    """The deterministic event id shared by the durable record and its local mirror."""
+    match = _DEDUPE.fullmatch(dedupe_key) if isinstance(dedupe_key, str) else None
+    if match is None:
+        raise QueueError("coordinator evidence dedupe key is malformed")
+    return "coordinator-" + match.group(1)[:16]
+
+
+def build_evidence_record(event: dict[str, Any], *, requirement: str | None) -> dict[str, Any]:
+    """The bounded, sanitized durable record for one coordinator friction event."""
+    from datetime import datetime, timezone
+
+    import agent_friction
+
+    missing = [key for key in ("task", "number", "head", "stage", "worker", "dedupe_key", "triggers", *_EVIDENCE_TEXT)
+               if event.get(key) in (None, "", [])]
+    if missing:
+        raise QueueError("coordinator evidence event lacks " + ", ".join(missing))
+    if not _SHA.fullmatch(str(event["head"])):
+        raise QueueError("coordinator evidence head must be a full commit SHA")
+    record: dict[str, Any] = {
+        "version": 1, "kind": "coordinator-friction", "requirement": requirement,
+        "number": event["number"], "head": event["head"], "stage": event["stage"],
+        "worker": event["worker"], "task": event["task"], "dedupe_key": event["dedupe_key"],
+        "event_id": evidence_event_id(event["dedupe_key"]),
+        "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "triggers": sorted(set(event["triggers"])),
+    }
+    for key in _EVIDENCE_TEXT:
+        record[key] = agent_friction.normalize_text(event[key], key, 100 if key == "category" else 1000)
+    return record
+
+
+def _evidence_records(root: Path, number: int, comments: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Trusted evidence records of one PR; a malformed trusted record raises."""
+    from candidate_lifecycle import trusted_marker_comment
+
+    apps = trusted_apps(root)
+    writers = trusted_writers(root, comments, (EVIDENCE_PREFIX,))
+    records = []
+    for row in comments:
+        body = row.get("body")
+        if not isinstance(body, str) or not body.startswith(EVIDENCE_PREFIX) or not trusted_marker_comment(row, apps, writers):
+            continue
+        def invalid(cause: str) -> QueueError:
+            return QueueError(f"invalid coordinator evidence record on PR #{number}: {cause}")
+        try:
+            payload = json.loads(body[len(EVIDENCE_PREFIX):])
+        except json.JSONDecodeError as exc:
+            raise invalid("not JSON") from exc
+        if not isinstance(payload, dict) or payload.get("version") != 1 or payload.get("kind") != "coordinator-friction":
+            raise invalid("unsupported version or kind")
+        if payload.get("number") != number:
+            raise invalid("PR number contradicts its comment")
+        if not isinstance(payload.get("head"), str) or not _SHA.fullmatch(payload["head"]):
+            raise invalid("head is not a full commit SHA")
+        for key in ("stage", "worker", "task", "dedupe_key", "event_id", "at", *_EVIDENCE_TEXT):
+            if not isinstance(payload.get(key), str) or not payload[key]:
+                raise invalid(f"{key} is missing")
+        if payload.get("requirement") is not None and not isinstance(payload["requirement"], str):
+            raise invalid("requirement is malformed")
+        triggers = payload.get("triggers")
+        if not isinstance(triggers, list) or not triggers or not all(isinstance(t, str) for t in triggers):
+            raise invalid("triggers are missing")
+        if payload["event_id"] != evidence_event_id(payload["dedupe_key"]):
+            raise invalid("event id does not match its dedupe key")
+        payload["comment_id"] = row.get("id")
+        records.append(payload)
+    return records
+
+
+def post_evidence(root: Path, event: dict[str, Any], *, requirement: str | None) -> dict[str, Any]:
+    """Persist one coordinator friction event on its candidate PR, once per dedupe key."""
+    record = build_evidence_record(event, requirement=requirement)
+    repo = _repo(root)
+    number = record["number"]
+    for existing in _evidence_records(root, number, _comments(root, repo, number)):
+        if existing["dedupe_key"] == record["dedupe_key"]:
+            return existing
+    _gh(root, "api", "-X", "POST", f"repos/{repo}/issues/{number}/comments",
+        data={"body": EVIDENCE_PREFIX + json.dumps(record, sort_keys=True, separators=(",", ":"))})
+    return record
+
+
+def requirement_evidence(root: Path, requirement: str, children: Sequence[str] = ()) -> list[dict[str, Any]]:
+    """Trusted durable coordinator events of a Requirement's candidate PRs, as friction events."""
+    repo = _repo(root)
+    numbers, _ = _requirement_candidate_numbers(root, requirement, repo)
+    owners = {requirement, *children}
+    events = []
+    for number in numbers:
+        for record in _evidence_records(root, number, _comments(root, repo, number)):
+            if record["requirement"] not in owners:
+                continue
+            events.append({
+                "id": record["event_id"], "at": record["at"], "task": record["task"], "branch": record["task"],
+                "requirement": record["requirement"], "attribution": "coordinator",
+                "dedupe_key": record["dedupe_key"], "category": record["category"],
+                "triggers": record["triggers"], "severity": record["severity"],
+                "observation": record["observation"], "evidence": record["evidence"],
+                "hypothesis": record["hypothesis"], "proposal": record["proposal"],
+                "scope": "platform", "classification": "process-friction", "context": None,
+                "durable": {"number": number, "head": record["head"], "stage": record["stage"],
+                            "worker": record["worker"]},
+            })
+    return events
+
+
 # Coordinator friction: recorded automatically, attributed to the candidate task and its
 # Requirement. The sink is registered explicitly by real coordinator/worker entrypoints
 # (``use_default_friction_sink``) so library use and tests never write a friction log.
@@ -268,15 +390,22 @@ _FRICTION_STATES = {
 }
 
 
-def set_friction_sink(sink) -> None:
-    global _friction_sink
+_friction_worker: str | None = None
+
+
+def set_friction_sink(sink, *, worker: str | None = None) -> None:
+    """Register the coordinator friction sink with the run identity it records."""
+    global _friction_sink, _friction_worker
     _friction_sink = sink
+    _friction_worker = worker
 
 
-def use_default_friction_sink(root: Path) -> None:
+def use_default_friction_sink(root: Path, *, worker: str) -> None:
     from integration_contour import default_friction_sink
 
-    set_friction_sink(default_friction_sink(root))
+    if not isinstance(worker, str) or not worker.strip():
+        raise QueueError("the coordinator friction sink requires a worker run identity")
+    set_friction_sink(default_friction_sink(root), worker=worker)
 
 
 def emit_friction(number: int, branch: str | None, kind: str, head: str, detail: str, *,
@@ -286,6 +415,8 @@ def emit_friction(number: int, branch: str | None, kind: str, head: str, detail:
         return
     if not isinstance(branch, str) or not branch:
         raise QueueError("friction recording requires a candidate branch; retry transition")
+    if not isinstance(_friction_worker, str) or not _friction_worker:
+        raise QueueError("friction sink is installed without a worker run identity")
     import hashlib
 
     spec = _FRICTION_STATES.get(kind)
@@ -298,7 +429,8 @@ def emit_friction(number: int, branch: str | None, kind: str, head: str, detail:
                         "evidence": f"PR #{number} {kind} at head {head[:12]}: {detail}"[:1000],
                         "hypothesis": "Recorded automatically by the publication coordinator; see the PR lifecycle records.",
                         "proposal": "Review whether the gate, the evidence or the repair path should change.",
-                        "dedupe_key": f"coordinator:{key}"})
+                        "dedupe_key": f"coordinator:{key}", "head": head, "stage": kind,
+                        "worker": _friction_worker})
     except (Exception, SystemExit) as exc:
         raise QueueError(f"friction recording failed for PR #{number} ({kind}); retry transition: {exc}") from exc
 
@@ -749,8 +881,8 @@ def lifecycle_summary(root: Path, number: int) -> dict[str, Any]:
     return {key: candidate.get(key) for key in ("state", "head", "red_gate", "attempts", "next_action", "reason")}
 
 
-def requirement_status(root: Path, requirement: str) -> dict[str, Any]:
-    """List shared candidate generations by canonical branch identity, read-only."""
+def _requirement_candidate_numbers(root: Path, requirement: str, repo: str) -> tuple[list[int], str | None]:
+    """Candidate PR numbers of a Requirement (shared candidates plus child branches) and a lineage note."""
     from requirement_integration import ISSUE_RE, _candidate_slug
 
     if not ISSUE_RE.fullmatch(requirement):
@@ -770,7 +902,6 @@ def requirement_status(root: Path, requirement: str) -> dict[str, Any]:
             public_requirement = None
             lineage_note = f"shared candidate lineage unavailable: {exc}"
     branch = "agent/" + _candidate_slug(public_requirement) if public_requirement else None
-    repo = _repo(root)
     # Candidate generations keep their PRs after their branches are deleted, so
     # the repository's PR list is read in full (paginated, filtered server-side
     # output) rather than inferred from live branches or one bounded page.
@@ -792,6 +923,13 @@ def requirement_status(root: Path, requirement: str) -> dict[str, Any]:
     pattern = re.compile(legacy + shared + "|" + children)
     numbers = sorted({int(number) for number, _, ref in (line.partition("\t") for line in listed.stdout.splitlines())
                       if number.isdigit() and pattern.fullmatch(ref)})
+    return numbers, lineage_note
+
+
+def requirement_status(root: Path, requirement: str) -> dict[str, Any]:
+    """List shared candidate generations by canonical branch identity, read-only."""
+    repo = _repo(root)
+    numbers, lineage_note = _requirement_candidate_numbers(root, requirement, repo)
     result: dict[str, Any] = {"requirement": requirement, "candidates": [candidate_status(root, number, repo=repo) for number in numbers]}
     if lineage_note:
         result["shared_lineage"] = lineage_note
@@ -1019,6 +1157,197 @@ def merge_conflicts(root: Path, head: str, main: str) -> list[str]:
         names = [line.strip() for line in done.stdout.splitlines()[1:] if line.strip()]
         return names or ["(conflict paths unavailable)"]
     raise QueueError("cannot evaluate the merge of main: " + (done.stderr or done.stdout).strip()[:200])
+
+
+# ---- coordinator configuration preflight ------------------------------------
+
+PREFLIGHT_MODES = ("ci", "local")
+PREFLIGHT_PHASES = ("inputs", "runtime", "all")
+_SLUG = re.compile(r"[A-Za-z0-9][A-Za-z0-9-]*")
+_REPOSITORY = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
+
+
+class PreflightFailure(Exception):
+    """A required coordinator input is missing or contradictory; carries only names and categories."""
+
+    def __init__(self, name: str, detail: str):
+        super().__init__(f"{name}: {detail}")
+        self.name, self.detail = name, detail
+
+
+def _probe(root: Path, name: str, *args: str) -> Any:
+    """A read-only GitHub probe; failures are classified without echoing any response."""
+    try:
+        return _gh(root, *args)
+    except QueueError as exc:
+        text = str(exc)
+        if re.search(r"\b(401|403)\b|Bad credentials|Resource not accessible", text):
+            category = "unauthorized"
+        elif re.search(r"\b404\b|Not Found", text):
+            category = "not-found"
+        else:
+            category = "unreachable"
+        raise PreflightFailure(name, f"GitHub probe failed: {category}") from None
+
+
+def _require_tools(env: Mapping[str, str]) -> None:
+    import shutil
+
+    for tool in ("gh", "git"):
+        if shutil.which(tool, path=env.get("PATH")) is None:
+            raise PreflightFailure(f"tool:{tool}", "required executable is not available")
+    if sys.version_info < (3, 11):
+        raise PreflightFailure("tool:python", "Python 3.11 or newer (tomllib) is required")
+
+
+def _preflight_inputs(root: Path, mode: str, env: Mapping[str, str]) -> list[dict[str, str]]:
+    checks: list[dict[str, str]] = []
+
+    def ok(name: str, detail: str) -> None:
+        checks.append({"name": name, "status": "ok", "detail": detail})
+
+    if mode == "ci":
+        for flag in ("PREFLIGHT_APP_CLIENT_ID_SET", "PREFLIGHT_APP_PRIVATE_KEY_SET"):
+            if env.get(flag) != "true":
+                raise PreflightFailure(flag, "must be exactly 'true'; the variable or secret behind it is not configured")
+            ok(flag, "set")
+        if not _REPOSITORY.fullmatch(env.get("GITHUB_REPOSITORY", "")):
+            raise PreflightFailure("GITHUB_REPOSITORY", "missing or not owner/name")
+        ok("GITHUB_REPOSITORY", "well formed")
+        for name in ("GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT"):
+            if not re.fullmatch(r"[1-9][0-9]*", env.get(name, "")):
+                raise PreflightFailure(name, "missing or not a positive integer")
+            ok(name, "well formed")
+    _require_tools(env)
+    ok("tools", "gh, git and Python 3.11 are available")
+    if mode == "local":
+        result = subprocess.run(["gh", "auth", "status"], cwd=root, capture_output=True, check=False, stdin=subprocess.DEVNULL)
+        if result.returncode:
+            raise PreflightFailure("gh-auth", "gh is not authenticated (run gh auth login)")
+        ok("gh-auth", "authenticated")
+    return checks
+
+
+def _resolve_app_identity(root: Path, mode: str, env: Mapping[str, str]) -> tuple[str, list[dict[str, str]]]:
+    checks: list[dict[str, str]] = []
+    from_env = env.get(COORDINATOR_APP_ENV, "").strip()
+    try:
+        configured = configured_coordinator_apps(root)
+    except QueueError as exc:
+        raise PreflightFailure("trust-configuration", str(exc)) from exc
+    if mode == "ci":
+        if not from_env:
+            raise PreflightFailure(COORDINATOR_APP_ENV, "empty; the App token step did not export an App slug")
+        if not _SLUG.fullmatch(from_env):
+            raise PreflightFailure(COORDINATOR_APP_ENV, "is not a valid GitHub App slug")
+    elif not configured:
+        raise PreflightFailure("[publication] coordinator_app", "must be configured in operator or project config for a local run")
+    identities = {from_env, *(app for _, app in configured)} - {""}
+    if len(identities) != 1:
+        sources = ", ".join(f"{source} names {app}" for source, app in configured) or "no configuration names one"
+        raise PreflightFailure("coordinator App identity", f"contradiction: environment names {from_env or 'none'}, {sources}")
+    identity = next(iter(identities))
+    if not _SLUG.fullmatch(identity):
+        raise PreflightFailure("[publication] coordinator_app", "is not a valid GitHub App slug")
+    checks.append({"name": "coordinator-app", "status": "ok", "detail": f"identity {identity}"})
+    return identity, checks
+
+
+def _preflight_runtime(root: Path, mode: str, env: Mapping[str, str]) -> list[dict[str, str]]:
+    checks: list[dict[str, str]] = []
+
+    def ok(name: str, detail: str) -> None:
+        checks.append({"name": name, "status": "ok", "detail": detail})
+
+    if mode == "ci":
+        if not env.get("GH_TOKEN"):
+            raise PreflightFailure("GH_TOKEN", "empty; the App token step did not produce a token")
+        ok("GH_TOKEN", "present")
+    identity, found = _resolve_app_identity(root, mode, env)
+    checks.extend(found)
+    try:
+        trusted = trusted_apps(root)
+    except QueueError as exc:
+        raise PreflightFailure("trust-configuration", str(exc)) from exc
+    if identity not in trusted:
+        raise PreflightFailure("trust-configuration", "trusted App set does not contain the coordinator App identity")
+    ok("trust-configuration", "readable and contains the coordinator App")
+    try:
+        is_enabled = enabled(root)
+    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+        raise PreflightFailure("platform-config", f"cannot determine whether the coordinator is enabled ({type(exc).__name__})") from None
+    if not is_enabled:
+        raise PreflightFailure("coordinator-enabled", "this repository is not a source repository with the publication workflow on origin/main")
+    ok("coordinator-enabled", "enabled")
+    try:
+        repo = _repo(root)
+    except QueueError:
+        raise PreflightFailure("repository", "GitHub repository identity is unavailable") from None
+    if mode == "ci" and repo != env.get("GITHUB_REPOSITORY"):
+        raise PreflightFailure("GITHUB_REPOSITORY", f"checkout repository {repo} differs from the workflow repository")
+    ok("repository", "resolved")
+    _probe(root, "pulls-read", "api", f"repos/{repo}/pulls?per_page=1")
+    ok("pulls-read", "pull requests are readable")
+    if mode == "ci":
+        installation = _probe(root, "installation-token", "api", "installation/repositories")
+        names = {r.get("full_name") for r in installation.get("repositories", []) if isinstance(r, dict)} \
+            if isinstance(installation, dict) else set()
+        if names != {repo}:
+            raise PreflightFailure("installation-token", "token is not an installation token scoped to exactly this repository")
+        ok("installation-token", "scoped to this repository")
+        permission = _probe(root, "bot-permission", "api", f"repos/{repo}/collaborators/{identity}%5Bbot%5D/permission")
+        if not isinstance(permission, dict) or permission.get("permission") not in _WRITER_PERMISSIONS:
+            raise PreflightFailure("bot-permission", "coordinator App does not have write permission on this repository")
+        ok("bot-permission", "write permission proven")
+    else:
+        info = _probe(root, "repository-permission", "api", f"repos/{repo}")
+        if not isinstance(info, dict) or not (info.get("permissions") or {}).get("push"):
+            raise PreflightFailure("repository-permission", "the authenticated user lacks push permission")
+        ok("repository-permission", "push permission proven")
+    return checks
+
+
+def preflight(root: Path, mode: str, phase: str, env: Mapping[str, str]) -> dict[str, Any]:
+    """Prove coordinator configuration; stop at the first failed check and name it."""
+    if mode not in PREFLIGHT_MODES or phase not in PREFLIGHT_PHASES:
+        raise QueueError("preflight needs --mode ci|local and --phase inputs|runtime|all")
+    checks: list[dict[str, str]] = []
+    try:
+        if phase in ("inputs", "all"):
+            checks.extend(_preflight_inputs(root, mode, env))
+        if phase in ("runtime", "all"):
+            checks.extend(_preflight_runtime(root, mode, env))
+    except PreflightFailure as failure:
+        checks.append({"name": failure.name, "status": "failed", "detail": failure.detail})
+        return {"state": "error", "mode": mode, "phase": phase, "checks": checks,
+                "reason": f"preflight failed: {failure.name}: {failure.detail}"}
+    return {"state": "ok", "mode": mode, "phase": phase, "checks": checks}
+
+
+def run_identity(mode: str, env: Mapping[str, str]) -> str:
+    """One worker run identity, constructed per run from validated inputs."""
+    if mode == "ci":
+        parts = [env.get(name, "") for name in ("GITHUB_REPOSITORY", "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT")]
+        if not all(parts):
+            raise QueueError("CI worker identity needs GITHUB_REPOSITORY, GITHUB_RUN_ID and GITHUB_RUN_ATTEMPT")
+        return "github-actions:" + ":".join(parts)
+    if mode == "local":
+        import socket
+        import uuid
+
+        return f"local:{socket.gethostname()}:{os.getpid()}:{uuid.uuid4().hex}"
+    raise QueueError("worker mode must be ci or local")
+
+
+def run_worker(root: Path, mode: str, env: Mapping[str, str], *, install_sink: bool) -> dict[str, Any]:
+    """The coordinator command: full preflight, then one run identity, then candidate work."""
+    result = preflight(root, mode, "all", env)
+    if result["state"] != "ok":
+        return result
+    identity = run_identity(mode, env)
+    if install_sink:
+        use_default_friction_sink(root, worker=identity)
+    return worker(root)
 
 
 def worker(root: Path) -> dict[str, Any]:
@@ -1295,7 +1624,11 @@ def main() -> int:
     target.add_argument("--pr", type=int)
     target.add_argument("--requirement")
     show.add_argument("--json", action="store_true")
-    sub.add_parser("worker")
+    run = sub.add_parser("worker")
+    run.add_argument("--mode", choices=PREFLIGHT_MODES, required=True)
+    check = sub.add_parser("preflight")
+    check.add_argument("--mode", choices=PREFLIGHT_MODES, required=True)
+    check.add_argument("--phase", choices=PREFLIGHT_PHASES, required=True)
     for name, summary in (("switch-provider", "re-offer an unfinished review or repair job on other providers"),
                           ("resume", "re-offer a retryable or operationally escalated review/repair job after a human decision")):
         operator = sub.add_parser(name, help=summary)
@@ -1305,8 +1638,6 @@ def main() -> int:
         operator.add_argument("--reason", required=True, help="the operator's reason, recorded in the candidate record")
     args = parser.parse_args()
     root = current_worktree_root()
-    if args.command == "worker":
-        use_default_friction_sink(root)  # real coordinator runs record friction automatically
     try:
         if args.command == "admit":
             result = admit(root, args.pr, args.head)
@@ -1318,8 +1649,13 @@ def main() -> int:
             print(json.dumps(reoffer(root, _repo(root), args.pr, action=args.command, providers=args.provider,
                                      reason=args.reason), sort_keys=True))
             return 0
+        elif args.command == "preflight":
+            result = preflight(root, args.mode, args.phase, os.environ)
+            print(json.dumps(result, sort_keys=True))
+            return 0 if result["state"] == "ok" else 2
         else:
-            result = worker(root)
+            # Real coordinator runs record friction automatically (install_sink).
+            result = run_worker(root, args.mode, os.environ, install_sink=True)
     except QueueError as exc:
         print(json.dumps({"state": "error", "reason": str(exc)}))
         return 2

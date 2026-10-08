@@ -692,7 +692,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.run:
             import publication_queue
 
-            publication_queue.use_default_friction_sink(Path.cwd())
+            publication_queue.use_default_friction_sink(Path.cwd(), worker=args.worker)
         readiness: dict[str, str | None] | None = None
         review_ready = repair_ready = None
         if review_names or args.repair_provider:
