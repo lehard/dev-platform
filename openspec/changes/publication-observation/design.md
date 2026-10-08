@@ -65,6 +65,8 @@ Callers that already run inside `QueueError` boundaries (`admit`, worker, `candi
 - `rev-parse HEAD` failure raises instead of becoming an empty head.
 - `_integrate` keeps the carry-forward semantics; the implementer audits that the `{"branch","head"}` placeholder identity passed to the `integrating` transition cannot replace a recorded managed identity (it inherits unless the caller proves a fresh identity). If the audit finds a reachable downgrade, design and tests are updated first.
 
+Requirement composition admission retains its separate exact-head provenance contract: `require_composition_finalized` validates the recorded composition identity and final gates in a disposable checkout at the admitted head and returns that identity and gates for admission. It does not require single-child managed task state in the coordinator checkout. Failure of composition validation stops admission before mutations.
+
 Supplied developer handoffs (`handoff=` with `task_identity`/`gates`) already carry validated managed identity and are unchanged.
 
 ## Risks

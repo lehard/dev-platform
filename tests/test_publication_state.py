@@ -422,6 +422,13 @@ class RequiredCheckStateForRefTests(PublicationStateTestCase):
         result = self.observe(self.gh(checks=(1, ""), api=(1, "", "gh: Server Error (HTTP 500)")))
         self.assertEqual((result.kind, result.cause), ("unknown", "transport"))
 
+    def test_generic_protection_404_is_transport_not_absence(self) -> None:
+        for stdout, stderr in (("", "gh: Not Found (HTTP 404)"),
+                               ('{"message":"Not Found"}', "gh: Not Found (HTTP 404)")):
+            with self.subTest(stdout=stdout):
+                result = self.observe(self.gh(checks=(1, ""), api=(1, stdout, stderr)))
+                self.assertEqual((result.kind, result.cause), ("unknown", "transport"))
+
     def test_other_exit_or_exit_one_with_output_is_transport(self) -> None:
         for rc, out in ((2, ""), (4, ""), (8, "[]"), (1, "something")):
             with self.subTest(rc=rc, out=out):
@@ -516,7 +523,7 @@ class RequiredCheckStateForRefTests(PublicationStateTestCase):
     def test_contribution_base_failures_are_explicit(self) -> None:
         base = "requirement/BR-415"
         self.assertEqual(self.observe(self.gh(base=base, api=(1, "", "HTTP 500"))).cause, "transport")
-        self.assertEqual(self.observe(self.gh(base=base, api=(1, "", "gh: Not Found (HTTP 404)"))).kind, "not_registered")
+        self.assertEqual(self.observe(self.gh(base=base, api=(1, "", "gh: Not Found (HTTP 404)"))).cause, "transport")
         self.assertEqual(self.observe(self.gh(base=base, all_checks=(1, "[]"), api=(0, REQUIRED_VALIDATE, ""))).cause, "transport")
         self.assertEqual(self.observe(self.gh(base=base, all_checks=(0, "junk"), api=(0, REQUIRED_VALIDATE, ""))).cause, "malformed")
 

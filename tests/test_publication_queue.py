@@ -108,6 +108,42 @@ class AdmissionTests(unittest.TestCase):
         comment.assert_not_called()
         label.assert_called_once_with(ROOT_PATH, REPO, 1, queue.QUEUE, present=True)
 
+    def test_composition_admission_uses_validated_composition_provenance(self) -> None:
+        observed = pr(1)
+        observed["head"]["ref"] = "requirement/BR-415"
+        identity = {"kind": "requirement-composition", "requirement": "owner/repo#415",
+                    "task_content": {"digest": "composition-proof"}}
+        gates = {"finalization": {"result": "passed", "identity": identity}}
+        with patch.object(queue, "_repo", return_value=REPO), \
+             patch.object(queue, "_pr", return_value=observed), \
+             patch.object(queue, "_latest", return_value={"task_identity": identity}), \
+             patch.object(queue, "_derive", return_value={"head": HEAD, "task_identity": None}), \
+             patch.object(queue, "_events", return_value=[admission(1, 17)]), \
+             patch.object(queue, "_label"), \
+             patch.object(queue, "require_composition_finalized",
+                          return_value={"task_identity": identity, "gates": gates}) as validate, \
+             patch.object(queue, "_admission_handoff", side_effect=AssertionError("single-task proof requested")):
+            result = queue.admit(ROOT_PATH, 1, HEAD)
+        self.assertEqual(result["position_key"], 17)
+        validate.assert_called_once_with(ROOT_PATH, REPO, 1, HEAD)
+        self.assertEqual(self.transition.call_args.kwargs["task_identity"], identity)
+        self.assertEqual(self.transition.call_args.kwargs["gates"], gates)
+
+    def test_invalid_composition_provenance_stops_admission_before_mutation(self) -> None:
+        observed = pr(1)
+        observed["head"]["ref"] = "requirement/BR-415"
+        identity = {"kind": "requirement-composition"}
+        with patch.object(queue, "_repo", return_value=REPO), \
+             patch.object(queue, "_pr", return_value=observed), \
+             patch.object(queue, "_latest", return_value={"task_identity": identity}), \
+             patch.object(queue, "require_composition_finalized", side_effect=queue.QueueError("invalid final gates")), \
+             patch.object(queue, "_comment") as comment, patch.object(queue, "_label") as label:
+            with self.assertRaisesRegex(queue.QueueError, "invalid final gates"):
+                queue.admit(ROOT_PATH, 1, HEAD)
+        comment.assert_not_called()
+        label.assert_not_called()
+        self.transition.assert_not_called()
+
     def test_changed_head_cannot_reuse_prior_admission(self) -> None:
         with patch.object(queue, "_repo", return_value=REPO), \
              patch.object(queue, "_pr", return_value=pr(1, NEW_HEAD)), \

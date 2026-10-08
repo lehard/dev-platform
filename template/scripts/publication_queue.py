@@ -599,9 +599,10 @@ def admit(root: Path, number: int, expected_head: str, *, handoff: dict | None =
         or (identity.get("kind") == "requirement-composition" and branch.startswith("requirement/BR-"))):
         raise QueueError("queue admission requires an owned task branch")
     if target == "main" and branch.startswith("requirement/BR-"):
-        require_composition_finalized(root, repo, number, expected_head)
+        resolved_handoff = require_composition_finalized(root, repo, number, expected_head)
+    else:
+        resolved_handoff = handoff if handoff is not None else _admission_handoff(root, branch, expected_head)
     events = _events(root, repo, number)
-    resolved_handoff = handoff if handoff is not None else _admission_handoff(root, branch, expected_head)
     admitted = _admission(events, number)
     if admitted and handoff:
         prior = _latest(root, number, _comments(root, repo, number))
@@ -1322,7 +1323,7 @@ def branch_head(root: Path, branch: str) -> str:
     return result[0]
 
 
-def require_composition_finalized(root: Path, repo: str, number: int, head: str) -> None:
+def require_composition_finalized(root: Path, repo: str, number: int, head: str) -> dict[str, Any]:
     import tempfile
     from lifecycle_workers import prepare_checkout
     from requirement_composition import candidate_manifest, require_final_gates
@@ -1337,6 +1338,7 @@ def require_composition_finalized(root: Path, repo: str, number: int, head: str)
             checkout = prepare_checkout(f"https://github.com/{repo}.git", temporary, "harness", head)
             manifest = candidate_manifest(checkout, identity["requirement"])
             require_final_gates(checkout, manifest, current, head)
+            return {"task_identity": identity, "gates": current["gates"]}
     except ContributionError as exc:
         raise QueueError(str(exc)) from exc
 

@@ -135,13 +135,14 @@ def _require_expected_head(root: Path, env: dict[str, str], ref: str, expected_h
 def _protected_required_contexts(root: Path, env: dict[str, str], branch: str) -> frozenset[tuple[str, int | None]]:
     """Required status-check contexts of a branch's protection; empty when none are required.
 
-    HTTP 404 (branch not protected / required status checks not enabled) means
-    no requirement. Any other failure is an unusable observation.
+    An explicit HTTP 404 "Branch not protected" response means no requirement.
+    A generic 404 or any other failure is an unusable observation.
     """
     endpoint = f"repos/{{owner}}/{{repo}}/branches/{urllib.parse.quote(branch, safe='')}/protection/required_status_checks"
     result = _gh_read(root, env, ["api", endpoint])
     if result.returncode != 0:
-        if "HTTP 404" in result.stderr or "HTTP 404" in result.stdout:
+        if any("HTTP 404" in output and "Branch not protected" in output
+               for output in (result.stderr, result.stdout)):
             return frozenset()
         raise _Unusable("transport", f"GitHub protection of {branch} is unavailable")
     try:
