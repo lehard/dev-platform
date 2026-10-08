@@ -35,8 +35,7 @@ class FakeGitHub:
         self.responses = {
             "repo": {"nameWithOwner": REPO},
             "pulls": [],
-            "installation": {"repositories": [{"full_name": REPO}]},
-            "permission": {"permission": "write"},
+            "installation": {"repositories": [{"full_name": REPO, "permissions": {"push": True}}]},
             "repository": {"permissions": {"push": True}},
         }
         self.responses.update(overrides)
@@ -48,8 +47,6 @@ class FakeGitHub:
             key = "repo"
         elif "installation/repositories" in joined:
             key = "installation"
-        elif "/collaborators/" in joined:
-            key = "permission"
         elif "/pulls" in joined:
             key = "pulls"
         else:
@@ -139,8 +136,14 @@ class CiPreflightTests(PreflightFixture):
                 self.assertEqual(self.failed(self.run_preflight("ci", "runtime"))["name"], "installation-token")
 
     def test_insufficient_bot_permission(self):
-        self.gh.responses["permission"] = {"permission": "read"}
-        self.assertEqual(self.failed(self.run_preflight("ci", "runtime"))["name"], "bot-permission")
+        for permissions in ({"push": False, "pull": True}, {}, None):
+            with self.subTest(permissions=permissions):
+                self.gh.responses["installation"] = {"repositories": [{"full_name": REPO, "permissions": permissions}]}
+                self.assertEqual(self.failed(self.run_preflight("ci", "runtime"))["name"], "bot-permission")
+
+    def test_bot_permission_never_asks_the_collaborator_api(self):
+        self.assertEqual(self.run_preflight("ci", "runtime")["state"], "ok")
+        self.assertFalse(any("/collaborators/" in " ".join(call) for call in self.gh.calls))
 
     def test_probe_failures_use_fixed_categories_without_response_text(self):
         for message, category in (("HTTP 401: Bad credentials", "unauthorized"), ("HTTP 404: Not Found", "not-found"),
@@ -160,7 +163,7 @@ class CiPreflightTests(PreflightFixture):
                 patch.dict(os.environ, CI_ENV), redirect_stdout(out), redirect_stderr(err):
             self.assertEqual(queue.main(), 0)
         self.assertNotIn(CANARY, out.getvalue() + err.getvalue())
-        self.gh.responses["permission"] = queue.QueueError(f"boom {CANARY}")
+        self.gh.responses["installation"] = queue.QueueError(f"boom {CANARY}")
         out = io.StringIO()
         with patch.object(queue, "current_worktree_root", return_value=Path("/unused")), \
                 patch.object(sys, "argv", ["publication_queue.py", "preflight", "--mode", "ci", "--phase", "all"]), \

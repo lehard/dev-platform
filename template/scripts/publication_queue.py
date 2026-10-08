@@ -1340,14 +1340,16 @@ def _preflight_runtime(root: Path, mode: str, env: Mapping[str, str]) -> list[di
     ok("pulls-read", "pull requests are readable")
     if mode == "ci":
         installation = _probe(root, "installation-token", "api", "installation/repositories")
-        names = {r.get("full_name") for r in installation.get("repositories", []) if isinstance(r, dict)} \
-            if isinstance(installation, dict) else set()
-        if names != {repo}:
+        repositories = [r for r in installation.get("repositories", []) if isinstance(r, dict)] \
+            if isinstance(installation, dict) else []
+        if {r.get("full_name") for r in repositories} != {repo}:
             raise PreflightFailure("installation-token", "token is not an installation token scoped to exactly this repository")
         ok("installation-token", "scoped to this repository")
-        permission = _probe(root, "bot-permission", "api", f"repos/{repo}/collaborators/{identity}%5Bbot%5D/permission")
-        if not isinstance(permission, dict) or permission.get("permission") not in _WRITER_PERMISSIONS:
-            raise PreflightFailure("bot-permission", "coordinator App does not have write permission on this repository")
+        # A GitHub App is never a repository collaborator (the collaborator
+        # permission API reports "none" for its bot), so its write access is
+        # proven by the installation's own permission on this repository.
+        if (repositories[0].get("permissions") or {}).get("push") is not True:
+            raise PreflightFailure("bot-permission", "coordinator App installation does not have push permission on this repository")
         ok("bot-permission", "write permission proven")
     else:
         info = _probe(root, "repository-permission", "api", f"repos/{repo}")
