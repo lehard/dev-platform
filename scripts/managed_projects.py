@@ -11,7 +11,6 @@ ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 BRANCH_RE = re.compile(r"^[A-Za-z0-9._/-]+$")
 ALLOWED_STATES = {"managed", "candidate", "excluded"}
-OPERATOR_BACKLOG_FIELDS = ("repository", "project_label", "default_priority", "project_owner", "project_number")
 
 
 def configured_operator_toml(*, root: Path = ROOT) -> tuple[Path, dict[str, Any]]:
@@ -42,12 +41,10 @@ def configured_operator_toml(*, root: Path = ROOT) -> tuple[Path, dict[str, Any]
         raise ValueError(f"operator configuration not found: {external_path}") from exc
     if not isinstance(external, dict):
         raise ValueError(f"operator configuration must be a TOML object: {external_path}")
-    backlog = external.get("development_backlog")
-    missing = [field for field in OPERATOR_BACKLOG_FIELDS if not isinstance(backlog, dict) or not backlog.get(field)]
-    if missing:
-        raise ValueError(f"operator configuration is missing development_backlog fields ({', '.join(missing)}): {external_path}")
-    if not isinstance(backlog["project_number"], int) or backlog["project_number"] <= 0:
-        raise ValueError(f"operator configuration development_backlog.project_number must be a positive integer: {external_path}")
+    if "development_backlog" in external:
+        # Development Backlog identity is project-owned (each project's committed
+        # .dev-platform.toml); a shared operator config must not carry it.
+        raise ValueError(f"operator configuration must not contain [development_backlog]; it is project-owned: {external_path}")
     return external_path, external
 
 

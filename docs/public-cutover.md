@@ -63,19 +63,23 @@ following external, non-shipped configuration is in place (see
 `docs/operator-config.example.toml` for the full shape and
 `python3 scripts/operator_doctor.py` for validation):
 
-1. `[development_backlog]` -- the real `repository`, `project_label`,
-   `default_priority`, `project_owner`, and `project_number` for this
-   operator's Development Backlog installation.
-2. `[rollout] registry_path` -- the real managed-projects registry path, and
+1. `[rollout] registry_path` -- the real managed-projects registry path, and
    `bot_login` if fleet rollout mutates repositories under a bot identity.
-3. `[rollout.legacy_harness_migrations]` -- only if a live downstream
+2. `[rollout.legacy_harness_migrations]` -- only if a live downstream
    repository is still mid-migration off a legacy pre-platform publication
    harness; omit entirely otherwise.
 
+The operator configuration never carries `[development_backlog]`: the
+Development Backlog `repository`, `project_label`, `default_priority`,
+`project_owner` and `project_number` belong to each project's own
+`.dev-platform.toml`, because one operator file serves several projects.
+`scripts/operator_doctor.py` rejects the section, and reading a project whose
+operator file sets a differing value fails with both values named.
+
 Run `python3 scripts/operator_doctor.py` to validate the configured
-`[rollout] registry_path` before any real fleet mutation. `[development_backlog]`
-is validated at managed-authoring time (`scripts/managed_task.py`) and
-`[rollout.legacy_harness_migrations]` at rollout time (`scripts/rollout_project.py`);
+`[rollout] registry_path` before any real fleet mutation. A project's
+`[development_backlog]` is validated at managed-authoring time
+(`scripts/managed_task.py`) and `[rollout.legacy_harness_migrations]` at rollout time (`scripts/rollout_project.py`);
 each fails closed -- rollout applies nothing to a downstream repository it
 cannot match to configured continuity data rather than falling back to a
 hidden public default. None of these real values are committed to public

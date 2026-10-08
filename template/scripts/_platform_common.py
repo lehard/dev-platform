@@ -301,11 +301,34 @@ def read_platform_config(root: Path | None = None) -> dict[str, Any]:
         # must neither replace these values nor fill absent selector input.
         if key in {"operator", "platform_version", "harness_mode", "publish_mode", "scm_provider"}:
             continue
+        if key == "development_backlog":
+            _reject_operator_backlog_identity(config.get(key), value, external_path)
+            continue
         if isinstance(value, dict) and isinstance(config.get(key), dict):
             config[key] = {**config[key], **value}
         else:
             config[key] = value
     return config
+
+
+def _reject_operator_backlog_identity(project: Any, operator: Any, operator_path: Path) -> None:
+    """Development Backlog identity belongs to the project: operator config may only repeat it.
+
+    A shared operator config used by several projects must never relabel or reroute
+    one project's Requirements, so any operator value that differs from, or is absent
+    in, the project's own ``[development_backlog]`` is an explicit error.
+    """
+    if not isinstance(operator, dict):
+        raise RuntimeError(f"operator configuration [development_backlog] must be a TOML table: {operator_path}")
+    project = project if isinstance(project, dict) else {}
+    for field, value in operator.items():
+        if project.get(field) != value:
+            current = repr(project[field]) if field in project else "absent"
+            raise RuntimeError(
+                f"operator configuration {operator_path} sets development_backlog.{field} = {value!r}, "
+                f"but the project's .dev-platform.toml has {current}; Development Backlog identity "
+                "comes only from the project config, so remove [development_backlog] from the operator configuration"
+            )
 
 
 def read_project_config(root: Path | None = None) -> dict[str, Any]:
