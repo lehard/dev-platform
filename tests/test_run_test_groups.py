@@ -35,6 +35,31 @@ class FailingTests(unittest.TestCase):
 """
 
 
+GIT_REPOSITORY_MODULE = """
+import os
+import subprocess
+import tempfile
+import unittest
+from pathlib import Path
+
+class GitRepositoryTests(unittest.TestCase):
+    def test_created_repositories_keep_auto_maintenance_in_the_foreground(self):
+        # Harness subprocesses ignore global/system config, so only repository config counts.
+        env = dict(os.environ, GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_SYSTEM=os.devnull, GIT_CONFIG_NOSYSTEM="1")
+        def git(*args):
+            return subprocess.run(["git", *args], env=env, capture_output=True, text=True, check=True).stdout.strip()
+        with tempfile.TemporaryDirectory() as tmp:
+            work, bare = Path(tmp) / "work", Path(tmp) / "remote.git"
+            git("init", "-q", str(work))
+            git("clone", "-q", "--bare", str(work), str(bare))
+            for git_dir in (work / ".git", bare):
+                for key in ("maintenance.autoDetach", "gc.autoDetach"):
+                    self.assertEqual(git("--git-dir", str(git_dir), "config", "--get", key), "false")
+                self.assertTrue((git_dir / "hooks").is_dir())
+                self.assertTrue((git_dir / "info" / "exclude").is_file())
+"""
+
+
 def _write_fixture(root: Path, modules: dict[str, str]) -> None:
     tests_dir = root / "tests"
     tests_dir.mkdir(parents=True, exist_ok=True)
@@ -145,6 +170,20 @@ class AggregateExecutionTests(_IsolatedModuleNameTestCase):
             records = run_test_groups.execute(root, "tests", groups, jobs=4, verbose=False)
             self.assertEqual(sorted(record["group"] for record in records), ["par", "ser"])
             self.assertEqual({record["outcome"] for record in records}, {"success"})
+
+    def test_repositories_created_by_groups_never_detach_auto_maintenance(self) -> None:
+        # A detached maintenance child outlives the Git command and races repository cleanup.
+        a, b = self.unique("test_git_a"), self.unique("test_git_b")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _write_fixture(root, {a: GIT_REPOSITORY_MODULE, b: GIT_REPOSITORY_MODULE})
+            groups = {
+                "par": {"targets": [a], "mode": "parallel"},
+                "ser": {"targets": [b], "mode": "serial"},
+            }
+            records = run_test_groups.execute(root, "tests", groups, jobs=2, verbose=False)
+            self.assertEqual({record["outcome"] for record in records}, {"success"},
+                             "\n".join(record["output"] for record in records))
 
 
 class GroupConfigValidationTests(unittest.TestCase):
