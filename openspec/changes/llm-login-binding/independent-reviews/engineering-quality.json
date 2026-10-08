@@ -3,28 +3,28 @@
   "candidate": {
     "base_head": "c0b0b01b44ff8808dc02522078fa5d5d20f67f4f",
     "base_ref": "origin/main",
-    "candidate_head": "95c5a098688a38acabbc14a90129d0713f200f9a",
-    "diff_sha256": "b4756ba32599b9096a58bc6b6e70b4ca7895b8db12014a9bdd498f62a6836171"
+    "candidate_head": "55f6c9875d9750298af3d8648a9dbc06a7dc6fdb",
+    "diff_sha256": "52b0d5dd9e7d6e90ba4fc55def7dbd9d62ae50d90172283f3d86f513eaf833f6"
   },
-  "completed_at": "2026-10-08T11:09:19+00:00",
+  "completed_at": "2026-10-08T11:17:49+00:00",
   "findings": [],
-  "launched_at": "2026-10-08T11:09:19+00:00",
-  "limitation": "[independent_review] providers must be a nonempty ordered list of unique codex/claude providers",
+  "launched_at": "2026-10-08T11:17:49+00:00",
+  "limitation": "claude reviewer runtime with model 'sonnet' is not ready: readiness probe timed out (reviewer exceeded 120s); rerun, or raise [independent_review] preflight_timeout_seconds; next: log the claude CLI in on this host, point DEV_PLATFORM_CLAUDE_BIN at the Claude Code CLI, or change the [model_routing] / [independent_review] binding for this account (no other model or provider is tried), then rerun python3 scripts/independent_review.py preflight",
   "perspective": "engineering-quality",
-  "request_id": "65cc0b60-1b68-403d-99a7-1b53aa3a5d44",
+  "request_id": "907388e5-2cca-4cdb-a059-3a7828edd06d",
   "reviewer": {
-    "context_id": "platform-launch-b4847e27-3f2f-4f0a-b0a5-e92668137ac9",
+    "context_id": "platform-launch-209386cd-2b6c-4ed5-9da0-ed51dd4d6d8e",
     "context_id_source": "platform-launch",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-b4847e27-3f2f-4f0a-b0a5-e92668137ac9",
+    "launch_id": "platform-launch-209386cd-2b6c-4ed5-9da0-ed51dd4d6d8e",
     "model": {
-      "source": "unknown",
-      "value": null
+      "source": "selected",
+      "value": "sonnet"
     },
-    "provider": "unknown",
-    "read_only_mechanism": "none",
-    "runtime": "unresolved",
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
     "write_access": false
   },
   "schema_version": 1,
