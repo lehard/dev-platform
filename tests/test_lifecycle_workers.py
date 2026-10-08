@@ -116,6 +116,91 @@ class ClaimTests(unittest.TestCase):
         self.assertEqual(result["job"]["head"], HEAD)
 
 
+def provider_comment(number, providers, head=HEAD):
+    record = lifecycle.build_handoff_record(
+        number=number, state="review-pending", head=head, task_identity="t", gates={}, red_gate=None,
+        not_reverified=[], attempts={"review": 1},
+        next_job={"kind": "review", "attempt": 1, "providers": providers}, at="2026-10-05T08:00:00Z")
+    return {"id": 1, "author_association": "OWNER", "body": lifecycle.marker_body(record)}
+
+
+class ProviderSelectionTests(unittest.TestCase):
+    def work(self, providers_by_pr, **options):
+        prs = [{"number": n, "head": {"sha": HEAD}, "state": "open"} for n in providers_by_pr]
+        store = {n: [provider_comment(n, p)] for n, p in providers_by_pr.items()}
+        posted = []
+        def post(number, body):
+            posted.append(number)
+            store[number].append({"id": 50 + len(posted), "author_association": "OWNER", "body": body})
+        result = workers.work_next(frozenset({"review"}), list_prs=lambda: prs, comments_for=lambda n: list(store[n]),
+                                   post_comment=post, worker="w", now=NOW, **options)
+        return result, posted
+
+    def test_reoffer_changes_job_identity_only_when_present(self):
+        job = {"kind": "repair", "number": 7, "head": HEAD, "attempt": 2}
+        reoffer = {"seq": 1, "action": "switch-provider", "from": ["codex"], "to": ["claude"], "reason": "r", "at": "x"}
+        self.assertEqual(workers.job_id(job), f"pr7:repair:{HEAD}:a2")
+        self.assertEqual(workers.job_id({**job, "reoffer": reoffer}), f"pr7:repair:{HEAD}:a2:r1")
+        with self.assertRaises(ValueError):
+            workers.job_record("finalize", HEAD, "t", 0, reoffer=reoffer)
+        with self.assertRaises(ValueError):
+            workers.job_record("review", HEAD, "t", 0, reoffer={"seq": 0})
+
+    def test_unavailable_result_does_not_complete_the_job(self):
+        row = {"id": 9, "author_association": "OWNER", "body": workers.result_body(JOB, "w", "unavailable: login")}
+        self.assertFalse(workers.job_completed(JOB, [row], trusted_apps=frozenset(), trusted_writers=frozenset()))
+        done = {**row, "body": workers.result_body(JOB, "w", "reviewed")}
+        self.assertTrue(workers.job_completed(JOB, [done], trusted_apps=frozenset(), trusted_writers=frozenset()))
+
+    def test_unrunnable_lowest_job_does_not_block_a_runnable_one(self):
+        eligible = lambda job: workers.job_eligible(job, review_ready=frozenset({"claude"}))
+        result, posted = self.work({5: ["codex"], 9: ["claude", "codex"]}, eligible=eligible)
+        self.assertEqual((result["status"], result["job"]["number"]), ("claimed", 9))
+        self.assertEqual(posted, [9])  # no claim, hold or comment on the unrunnable job
+
+    def test_unresolved_provider_is_not_eligible_for_a_filtering_worker(self):
+        eligible = lambda job: workers.job_eligible(job, review_ready=frozenset({"claude"}))
+        result, posted = self.work({5: ["unresolved-originating-task-route"]}, eligible=eligible)
+        self.assertEqual((result["status"], posted), ("idle", []))
+
+    def test_selection_by_pr_and_unfiltered_default(self):
+        self.assertEqual(self.work({5: ["codex"], 9: ["claude"]}, only_prs=frozenset({9}))[0]["job"]["number"], 9)
+        self.assertEqual(self.work({5: ["codex"], 9: ["claude"]})[0]["job"]["number"], 5)
+        self.assertEqual(self.work({5: ["codex"]}, only_prs=frozenset({9}))[0]["status"], "idle")
+
+    def test_repair_eligibility_uses_the_declared_writer_provider(self):
+        job = {"kind": "repair", "providers": ["codex"]}
+        self.assertTrue(workers.job_eligible(job, repair_ready=frozenset({"codex"})))
+        self.assertFalse(workers.job_eligible(job, repair_ready=frozenset()))
+        self.assertTrue(workers.job_eligible(job))
+
+    def test_readiness_reports_each_provider_from_the_probe(self):
+        calls = []
+        def probe(root, config, launcher):
+            calls.append(config["provider"])
+            return {"ready": config["provider"] == "claude", "limitation": "codex usage limit"}
+        with tempfile.TemporaryDirectory() as scratch:
+            readiness = workers.provider_readiness(ROOT, ["codex", "claude", "codex"], workdir=scratch, probe=probe)
+            self.assertEqual(readiness, {"codex": "codex usage limit", "claude": None})
+            self.assertEqual(calls, ["codex", "claude"])
+            with self.assertRaisesRegex(workers.WorkerError, "unsupported provider"):
+                workers.provider_readiness(ROOT, ["gemini"], workdir=scratch, probe=probe)
+
+    def test_cli_requires_repair_provider_and_reports_unready_providers(self):
+        with mock.patch.object(workers, "_gh_json", return_value=[]):
+            self.assertEqual(workers.main(["work-next", "--kinds", "repair", "--repo", "o/r", "--run",
+                                           "--llm-command", "x", "--allow", "src/"]), 2)
+            with mock.patch.object(workers, "_coordinator_trust", return_value={"trusted_apps": frozenset(),
+                                                                                  "trusted_writers": frozenset()}), \
+                 mock.patch.object(workers, "provider_readiness", return_value={"codex": "logged out", "claude": None}), \
+                 mock.patch("sys.stdout") as out:
+                self.assertEqual(workers.main(["work-next", "--kinds", "review", "--repo", "o/r", "--dry-run",
+                                               "--providers", "codex,claude", "--pr", "7"]), 0)
+            printed = "".join(call.args[0] for call in out.write.call_args_list)
+            self.assertIn('"unavailable": {"codex": "logged out"}', printed)
+            self.assertIn('"ready": ["claude"]', printed)
+
+
 class TrustResolutionTests(unittest.TestCase):
     def test_app_records_and_member_claims_count_with_coordinator_trust(self):
         app_record = {**handoff_comment(), "author_association": "NONE",
@@ -361,6 +446,8 @@ class JobRecordTests(unittest.TestCase):
 FAKE_LLM = r"""
 import os, subprocess, sys
 mode = os.environ.get("FAKE_MODE", "commit")
+if mode == "fail":
+    sys.exit(1)
 def g(*a): subprocess.run(["git", *a], check=True, env={**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"})
 if mode == "review-write":
     open("src/a.py", "w").write("dirty")
@@ -425,6 +512,33 @@ class ExecuteJobTests(unittest.TestCase):
         self.assertNotEqual(remote, self.head)
         self.assertTrue(self.posted[-1].startswith(workers.RESULT_PREFIX))
         self.assertEqual(json.loads(self.posted[-1][len(workers.RESULT_PREFIX):])["pushed_head"], remote)
+
+    def test_unusable_runtime_after_failure_is_unavailable_and_claimable_again(self):
+        os.environ["FAKE_MODE"] = "fail"
+        self.addCleanup(lambda: os.environ.pop("FAKE_MODE", None))
+        def run(check):
+            workdir = Path(tempfile.mkdtemp(dir=self.tmp.name))
+            return workers.execute_job(
+                self.job, source_repo=str(self.src), branch="task", allowed_paths=["src/"],
+                llm_command=[sys.executable, str(self.script)], current_head=lambda: self.head,
+                post_result=self.posted.append, workdir=str(workdir), worker="w1", env={**os.environ},
+                runtime_check=check)
+        usable = run(lambda: None)
+        self.assertEqual(usable["status"], "failed")  # a usable runtime keeps the failure real
+        limited = run(lambda: "codex usage limit reached")
+        self.assertEqual(limited["status"], "unavailable")
+        row = {"id": 1, "author_association": "OWNER", "body": self.posted[-1]}
+        self.assertIn("usage limit", self.posted[-1])
+        self.assertTrue(workers.is_claimable(self.job, [], trusted_apps=frozenset(), trusted_writers=frozenset()))
+        self.assertFalse(workers.job_completed(self.job, [row], trusted_apps=frozenset(), trusted_writers=frozenset()))
+
+    def test_command_that_cannot_start_is_unavailable(self):
+        result = workers.execute_job(
+            self.job, source_repo=str(self.src), branch="task", allowed_paths=["src/"],
+            llm_command=["/nonexistent/writer"], current_head=lambda: self.head, post_result=self.posted.append,
+            workdir=str(self.work), worker="w1", env={**os.environ})
+        self.assertEqual(result["status"], "unavailable")
+        self.assertIn("cannot start", self.posted[-1])
 
     def test_head_moved_discards_result(self):
         result = self.run_job("commit", head=NEW)

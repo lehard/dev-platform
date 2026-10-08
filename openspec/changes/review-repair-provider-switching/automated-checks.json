@@ -1,0 +1,82 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.138,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.397,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 548.893,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/lifecycle_workers.py",
+        "template/scripts/pr_review_gate.py",
+        "template/scripts/publication_queue.py",
+        "tests/test_lifecycle_workers.py",
+        "tests/test_pr_review_gate.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_bc2beff0d83ca433213f15e573b4949a",
+    "change": "review-repair-provider-switching",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/review-repair-provider-switching",
+    "branch": "agent/br-439-t1-review-repair-provider-switching",
+    "head": "6c96df65b6d7f4f4d4ee0c30e2d81880190b7dd0",
+    "task_content": {
+      "version": 1,
+      "digest": "62964ad5e04359a41100662d45ea65a114a40e79c18a918a99c8e5863c7447c5",
+      "paths": {},
+      "base": "6c96df65b6d7f4f4d4ee0c30e2d81880190b7dd0"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "1ea4e500e4ce87c9b40ce5ecbf882a06f5b82946198d0cde8a94d518ccd0faac",
+    "paths": {},
+    "base": "6c96df65b6d7f4f4d4ee0c30e2d81880190b7dd0",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/lifecycle_workers.py --changed-file template/scripts/pr_review_gate.py --changed-file template/scripts/publication_queue.py --changed-file tests/test_lifecycle_workers.py --changed-file tests/test_pr_review_gate.py",
+    "duration_seconds": 170.25,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}

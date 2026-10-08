@@ -171,7 +171,7 @@ Each coordinator transition also publishes a `dev-platform-publication-queue:v2`
 
 ### Lifecycle workers
 
-`python3 scripts/lifecycle_workers.py work-next --repo owner/repo --kinds review,repair [--dry-run]` lets any worker (local, server or agent session) claim one job the coordinator published for a PR: review, repair, integration-repair, finalize, retrospective, terminal-reconciliation or cleanup, each bound to the exact head, task identity and attempt. A claim is a trusted `dev-platform-lifecycle-claim:v1` PR comment with a time limit; the earliest valid unexpired claim for that job and head wins by comment order, a worker re-reads after posting and abandons if it lost, expired or head-stale claims are reclaimable, and a result for a different head is discarded. LLM processes run in a disposable checkout with `stdin` closed and with GitHub tokens, credential helpers and SSH agents removed from the environment. A write result (repair and integration-repair only; review has no write path) is accepted only as a fast-forward from the expected head within candidate paths with no workflow or lifecycle-evidence edits, and the harness alone pushes it with `--force-with-lease` bound to the expected head. `work-next --run --llm-command "<cmd>" --source <repo> --branch <branch> --allow <path>` executes the claimed job: the LLM works in its own disposable checkout; the harness re-reads the PR head (a moved head discards the result), then validates in a separate fresh harness clone that fetches only the result commit and performs the only push from there, so hooks, remotes or credential settings planted in the LLM checkout are never used. A compact `dev-platform-lifecycle-result:v1` comment records the outcome. LLM processes run with a scratch `HOME`/`XDG_*` and an empty `GH_CONFIG_DIR`; only files named with `--llm-home-file` (the LLM CLI's own login, e.g. `.codex/auth.json`; never `.config/gh` or `.ssh`) are copied in. An OS credential store such as the macOS Keychain cannot be hidden without an OS sandbox: on an operator workstation that remains a residual risk, so prefer hosted workers without operator credentials for untrusted content. Merge authority stays with the coordinator.
+`python3 scripts/lifecycle_workers.py work-next --repo owner/repo --kinds review,repair [--dry-run]` lets any worker (local, server or agent session) claim one job the coordinator published for a PR: review, repair, integration-repair, finalize, retrospective, terminal-reconciliation or cleanup, each bound to the exact head, task identity and attempt. A claim is a trusted `dev-platform-lifecycle-claim:v1` PR comment with a time limit; the earliest valid unexpired claim for that job and head wins by comment order, a worker re-reads after posting and abandons if it lost, expired or head-stale claims are reclaimable, and a result for a different head is discarded. LLM processes run in a disposable checkout with `stdin` closed and with GitHub tokens, credential helpers and SSH agents removed from the environment. A write result (repair and integration-repair only; review has no write path) is accepted only as a fast-forward from the expected head within candidate paths with no workflow or lifecycle-evidence edits, and the harness alone pushes it with `--force-with-lease` bound to the expected head. `work-next --run --llm-command "<cmd>" --repair-provider <codex|claude> --source <repo> --branch <branch> --allow <path>` (`--repair-provider` applies to repair) executes the claimed job: the LLM works in its own disposable checkout; the harness re-reads the PR head (a moved head discards the result), then validates in a separate fresh harness clone that fetches only the result commit and performs the only push from there, so hooks, remotes or credential settings planted in the LLM checkout are never used. A compact `dev-platform-lifecycle-result:v1` comment records the outcome. LLM processes run with a scratch `HOME`/`XDG_*` and an empty `GH_CONFIG_DIR`; only files named with `--llm-home-file` (the LLM CLI's own login, e.g. `.codex/auth.json`; never `.config/gh` or `.ssh`) are copied in. An OS credential store such as the macOS Keychain cannot be hidden without an OS sandbox: on an operator workstation that remains a residual risk, so prefer hosted workers without operator credentials for untrusted content. Merge authority stays with the coordinator.
 
 Use `python3 scripts/managed_project_status.py block --reason "..."` only for a genuine external/human stop, `resume` after it clears, and `status --json` for read-only recovery evidence. These commands require GitHub Projects read/write authorization (`gh auth refresh -s project`). Quick tasks without managed provenance do not mutate the Development Backlog Project.
 
@@ -349,8 +349,27 @@ review or merge. This is developer completion; terminal delivery still requires
 archive and confirmed merge. The worker entrypoint
 `python3 scripts/lifecycle_workers.py work-next --repo owner/repo --kinds review --run`
 launches the existing independent reviewer in an exact-head disposable checkout.
-Repair workers use `--kinds repair --run --llm-command <writer> --allow <path>`
-(repeat `--allow` for the bounded candidate scope). The harness supplies findings,
+Repair workers use `--kinds repair --run --llm-command <writer> --repair-provider <codex|claude> --allow <path>`
+(repeat `--allow` for the bounded candidate scope; `--repair-provider` names the provider behind the writer command and is required). The harness supplies findings,
 validates the commits and pushes them; changed content repeats review. Material
 rejection proposals or three unsuccessful review rounds require human escalation.
 Unavailable reviewer runtimes publish a new retryable review attempt automatically.
+
+Review and repair provider operations. A candidate's review/repair job keeps the provider it
+was first published with. A worker selects only what it can run:
+`work-next --pr <N> --providers claude,codex [--repair-provider <p>] [--llm-home-file <f>]` probes each named
+provider once in the same scratch `HOME` the job would use, claims only jobs naming a ready provider, skips the rest
+without a claim or hold, and prints the ready and unavailable providers with their limitations. Without these options
+selection is unchanged. To move an unfinished job to another provider, run on the coordinator checkout
+`python3 scripts/publication_queue.py switch-provider --pr <N> --provider <p> [--provider <q>] --reason "<why>"`
+(an ordered list is allowed). It works for `review-pending`, `repair-pending`, `reviewing`/`repairing` whose claim has
+expired and `blocked-retryable` candidates, refuses while a worker holds an unexpired claim, and appends one record that
+keeps gates, findings and attempts, so no retry or repair round is spent and the PR stays open; the previous and new
+providers and the reason are recorded on the re-offered job. An unavailable provider runtime (login, usage limit, failure
+to start) during review or repair leaves the candidate `blocked-retryable` with a `provider-unavailable` cause naming the
+limitation, retries the same round up to three consecutive times, and then waits without an automatic job. Resume it,
+or an operational `blocked-escalation` of a repair (writer failure, harness rejection, no change), after your decision with
+`python3 scripts/publication_queue.py resume --pr <N> --reason "<why>" [--provider <p>]`; it re-offers the same round with
+the findings. Finding-level escalations (a proposed rejection, exhausted repair rounds, a rejected review) are not
+resumed: push a fix, record a disposition for the finding, or close the PR. A candidate escalated before providers were
+recorded needs an explicit `--provider`.

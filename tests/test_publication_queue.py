@@ -866,6 +866,39 @@ class UnobservableOwnershipTests(unittest.TestCase):
         block.assert_not_called()
 
 
+class RetryJobOwnershipTests(unittest.TestCase):
+    def test_blocked_retryable_review_and_repair_states_are_job_owned(self) -> None:
+        unavailable = {"cause": "provider-unavailable"}
+        owned = {
+            "review next_job": ({"state": "blocked-retryable", "next_job": {"kind": "review"}}, "review"),
+            "review red gate": ({"state": "blocked-retryable", "red_gate": {"name": "review"}}, "review"),
+            "repair next_job": ({"state": "blocked-retryable", "next_job": {"kind": "repair"}}, "repair"),
+            "repair streak exhausted": (
+                {"state": "blocked-retryable", "next_job": None,
+                 "gates": {"repair": {"status": "failed", "evidence": unavailable}}},
+                "repair",
+            ),
+        }
+        for label, (candidate, kind) in owned.items():
+            with self.subTest(label):
+                self.assertEqual(queue.retry_job_kind(candidate), kind)
+                self.assertTrue(queue.review_owned(candidate))
+        not_owned = {
+            "required-checks red gate": {"state": "blocked-retryable", "next_job": None,
+                                         "red_gate": {"name": "required-checks"}, "gates": {}},
+            "repair failed without provider cause": {"state": "blocked-retryable",
+                                                     "gates": {"repair": {"status": "failed", "evidence": {}}}},
+            "review next_job but other state": {"state": "blocked-escalation", "next_job": {"kind": "review"}},
+            "review red gate but other state": {"state": "queued", "red_gate": {"name": "review"}},
+            "repair unavailable but other state": {"state": "blocked-escalation",
+                                                   "gates": {"repair": {"status": "failed", "evidence": unavailable}}},
+        }
+        for label, candidate in not_owned.items():
+            with self.subTest(label):
+                self.assertIsNone(queue.retry_job_kind(candidate))
+                self.assertFalse(queue.review_owned(candidate))
+
+
 class MalformedDuringIntegrationTests(unittest.TestCase):
     def test_malformed_record_arriving_during_check_wait_stops_the_merge(self) -> None:
         broken = {"id": 60, "author_association": "OWNER", "body": "dev-platform-publication-queue:v2 {broken"}

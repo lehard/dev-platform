@@ -362,6 +362,216 @@ class GateTests(unittest.TestCase):
             release.assert_not_called()
 
 
+class ProviderSwitchTests(unittest.TestCase):
+    MATERIAL = {"s": {"availability": "available", "findings": [{"id": "f1", "severity": "material", "summary": "bug"}]}}
+
+    def repair_pending(self, fixture, providers=("codex",)):
+        gate.offer(ROOT, "o/r", 7, HEAD, IDENTITY, "review", providers=list(providers))
+        queue._transition(ROOT, "o/r", 7, "reviewing", HEAD, task_identity=IDENTITY)
+        gate.complete_review(ROOT, "o/r", fixture.candidate(), self.MATERIAL, HEAD)
+        self.assertEqual(fixture.candidate()["state"], "repair-pending")
+
+    def switch(self, **kwargs):
+        return gate.reoffer(ROOT, "o/r", 7, action=kwargs.pop("action", "switch-provider"),
+                            providers=kwargs.pop("providers", ["claude"]), reason=kwargs.pop("reason", "codex limit"))
+
+    def test_switching_an_open_review_keeps_state_attempts_and_records_provenance(self):
+        with QueueFixture(ROOT, HEAD) as fixture:
+            gate.offer(ROOT, "o/r", 7, HEAD, IDENTITY, "review", providers=["codex"])
+            before = fixture.candidate()
+            old_job = workers.build_job(before)
+            published = len(fixture.comments)
+            result = self.switch()
+            after = fixture.candidate()
+            job = workers.build_job(after)
+            self.assertTrue(result["changed"])
+            self.assertEqual((after["state"], job["providers"], job["attempt"]), ("review-pending", ["claude"], old_job["attempt"]))
+            spent = lambda attempts: {k: v for k, v in attempts.items() if k != "reoffers" and not k.endswith("-unavailable")}
+            self.assertEqual(spent(after["attempts"]), spent(before["attempts"]))
+            self.assertEqual(job["reoffer"]["from"], ["codex"])
+            self.assertEqual((job["reoffer"]["to"], job["reoffer"]["reason"]), (["claude"], "codex limit"))
+            self.assertNotEqual(workers.job_id(job), workers.job_id(old_job))
+            self.assertEqual(after["task_identity"], before["task_identity"])
+            # The earlier record stays in the append-only history and a repeat changes nothing.
+            self.assertEqual(len(fixture.comments), published + 1)
+            self.assertFalse(self.switch()["changed"])
+            self.assertEqual(len(fixture.comments), published + 1)
+
+    def test_switching_a_repair_keeps_findings_gates_and_the_repair_round(self):
+        with QueueFixture(ROOT, HEAD) as fixture:
+            self.repair_pending(fixture)
+            before = fixture.candidate()
+            self.switch(providers=["claude", "codex"])
+            after = fixture.candidate()
+            self.assertEqual((after["state"], after["attempts"]["repair"]), ("repair-pending", before["attempts"]["repair"]))
+            self.assertEqual(after["gates"], before["gates"])
+            self.assertEqual(workers.build_job(after)["providers"], ["claude", "codex"])
+            self.assertEqual(gate.repair_brief(after)["findings"][0]["id"], "f1")
+            # Later review of the repaired content follows the new providers.
+            self.assertEqual(workers.build_job(after)["kind"], "repair")
+
+    def test_new_providers_follow_the_candidate_into_later_retries(self):
+        with QueueFixture(ROOT, HEAD) as fixture:
+            gate.offer(ROOT, "o/r", 7, HEAD, IDENTITY, "review", providers=["codex"])
+            self.switch()
+            queue._transition(ROOT, "o/r", 7, "reviewing", HEAD, task_identity=IDENTITY)
+            gate.complete_review(ROOT, "o/r", fixture.candidate(), {"s": {"availability": "unavailable"}}, HEAD)
+            self.assertEqual(workers.build_job(fixture.candidate())["providers"], ["claude"])
+
+    def test_switch_refuses_live_claim_wrong_state_and_bad_providers(self):
+        with QueueFixture(ROOT, HEAD) as fixture:
+            gate.offer(ROOT, "o/r", 7, HEAD, IDENTITY, "review", providers=["codex"])
+            job = workers.build_job(fixture.candidate())
+            fixture.comments.append({"id": 90, "author_association": "OWNER",
+                                     "body": workers.claim_body(job, "busy", "2099-01-01T00:00:00Z")})
+            with self.assertRaisesRegex(queue.QueueError, "claimed by busy"):
+                self.switch()
+            fixture.comments[-1]["body"] = workers.claim_body(job, "busy", "2000-01-01T00:00:00Z")
+            for providers in ([], ["gemini"], ["claude", "claude"]):
+                with self.assertRaisesRegex(queue.QueueError, "providers must be"):
+                    self.switch(providers=providers)
+            with self.assertRaisesRegex(queue.QueueError, "reason"):
+                self.switch(reason=" ")
+            queue._transition(ROOT, "o/r", 7, "ready", HEAD, task_identity=IDENTITY)
+            with self.assertRaisesRegex(queue.QueueError, "unfinished review or repair"):
+                self.switch()
+
+    def test_unavailable_repair_runtime_is_retryable_names_the_cause_and_spends_no_round(self):
+        with QueueFixture(ROOT, HEAD) as fixture:
+            self.repair_pending(fixture)
+            rounds = fixture.candidate()["attempts"]["repair"]
+            for expected_streak in (1, 2):
+                job = workers.build_job(fixture.candidate())
+                fixture.comments.append({"id": 100 + expected_streak, "author_association": "OWNER",
+                                         "body": workers.claim_body(job, "w", "2099-01-01T00:00:00Z")})
+                with mock.patch.object(workers, "execute_job", return_value={
+                        "status": "unavailable", "outcome": "unavailable: codex usage limit reached"}):
+                    outcome = gate.run_claimed(ROOT, "o/r", fixture.candidate(), job, source_repo="fixture",
+                                               branch="agent/example", allowed_paths=["src.py"], llm_command=["writer"],
+                                               current_head=lambda: HEAD, post_result=lambda body: None,
+                                               workdir="/unused", claim_current=lambda: True)
+                self.assertEqual(outcome["status"], "unavailable")
+                candidate = fixture.candidate()
+                self.assertEqual(candidate["state"], "blocked-retryable")
+                self.assertEqual(candidate["attempts"]["repair"], rounds)
+                self.assertEqual(candidate["attempts"]["repair-unavailable"], expected_streak)
+                self.assertEqual(candidate["gates"]["repair"]["evidence"]["cause"], "provider-unavailable")
+                self.assertIn("usage limit", candidate["gates"]["repair"]["evidence"]["limitation"])
+                self.assertEqual(queue.retry_job_kind(candidate), "repair")
+                retry = workers.build_job(candidate)
+                self.assertEqual((retry["kind"], retry["attempt"]), ("repair", rounds))
+                self.assertNotEqual(workers.job_id(retry), workers.job_id(job))
+                self.assertEqual(gate.repair_brief(candidate)["findings"][0]["id"], "f1")
+            job = workers.build_job(fixture.candidate())
+            with mock.patch.object(workers, "execute_job", return_value={
+                    "status": "unavailable", "outcome": "unavailable: still limited"}):
+                gate.run_claimed(ROOT, "o/r", fixture.candidate(), job, source_repo="fixture", branch="agent/example",
+                                 allowed_paths=["src.py"], llm_command=["writer"], current_head=lambda: HEAD,
+                                 post_result=lambda body: None, workdir="/unused", claim_current=lambda: True)
+            exhausted = fixture.candidate()
+            self.assertEqual((exhausted["state"], exhausted["attempts"]["repair"]), ("blocked-retryable", rounds))
+            self.assertIsNone(workers.build_job(exhausted))  # bounded: no automatic job, never escalated
+            self.assertEqual(queue.retry_job_kind(exhausted), "repair")
+            # The operator resumes the same round, restoring the automatic retry budget.
+            self.switch(action="resume", providers=["claude"])
+            resumed = fixture.candidate()
+            self.assertEqual((resumed["state"], resumed["attempts"]["repair"], resumed["attempts"]["repair-unavailable"]),
+                             ("repair-pending", rounds, 0))
+
+    def test_failed_writer_with_usable_runtime_still_escalates_and_records_providers(self):
+        with QueueFixture(ROOT, HEAD) as fixture:
+            self.repair_pending(fixture, providers=("codex",))
+            job = workers.build_job(fixture.candidate())
+            fixture.comments.append({"id": 100, "author_association": "OWNER",
+                                     "body": workers.claim_body(job, "w", "2099-01-01T00:00:00Z")})
+            with mock.patch.object(workers, "execute_job", return_value={"status": "failed", "outcome": "failed: llm exited 1"}):
+                gate.run_claimed(ROOT, "o/r", fixture.candidate(), job, source_repo="fixture", branch="agent/example",
+                                 allowed_paths=["src.py"], llm_command=["writer"], current_head=lambda: HEAD,
+                                 post_result=lambda body: None, workdir="/unused", claim_current=lambda: True)
+            escalated = fixture.candidate()
+            self.assertEqual(escalated["state"], "blocked-escalation")
+            self.assertEqual(escalated["red_gate"]["providers"], ["codex"])
+            # Documented exit after a human decision: same round, new provider, findings restored.
+            rounds = escalated["attempts"]["repair"]
+            self.switch(action="resume", providers=["claude"], reason="codex limit reset not before tomorrow")
+            resumed = fixture.candidate()
+            self.assertEqual((resumed["state"], resumed["attempts"]["repair"]), ("repair-pending", rounds))
+            self.assertEqual(gate.repair_brief(resumed)["findings"][0]["id"], "f1")
+            self.assertEqual(workers.build_job(resumed)["reoffer"]["action"], "resume")
+            # Resume keeps the recorded providers when none is given.
+            self.assertEqual(workers.build_job(resumed)["providers"], ["claude"])
+
+    def test_resume_without_recorded_providers_needs_an_explicit_one_and_refuses_finding_level_escalation(self):
+        with QueueFixture(ROOT, HEAD) as fixture:
+            self.repair_pending(fixture)
+            queue._transition(ROOT, "o/r", 7, "blocked-escalation", HEAD, task_identity=IDENTITY,
+                              red_gate={"name": "repair", "evidence": {"status": "failed", "outcome": "failed: llm exited 1"}})
+            with self.assertRaisesRegex(queue.QueueError, "pass --provider"):
+                gate.reoffer(ROOT, "o/r", 7, action="resume", providers=None, reason="retry")
+            with self.assertRaisesRegex(queue.QueueError, "use switch-provider|applies only"):
+                self.switch()  # switch-provider does not decide an escalation
+            for evidence in ("rounds exhausted", {"status": "proposed-rejection"}):
+                queue._transition(ROOT, "o/r", 7, "blocked-escalation", HEAD, task_identity=IDENTITY,
+                                  red_gate={"name": "repair", "evidence": evidence})
+                with self.assertRaisesRegex(queue.QueueError, "push a fix, record a disposition"):
+                    self.switch(action="resume")
+
+    def test_filtering_worker_reviews_on_the_ready_subset_in_job_order(self):
+        with QueueFixture(ROOT, HEAD) as fixture, tempfile.TemporaryDirectory() as workdir:
+            gate.offer(ROOT, "o/r", 7, HEAD, IDENTITY, "review", providers=["claude", "codex"])
+            job = workers.build_job(fixture.candidate())
+            fixture.comments.append({"id": 100, "author_association": "OWNER",
+                                     "body": workers.claim_body(job, "w", "2099-01-01T00:00:00Z")})
+            seen = []
+            def execute(job_, **kwargs):
+                kwargs["review_handler"](Path(workdir))
+                return {"status": "discarded"}
+            with mock.patch.object(workers, "execute_job", side_effect=execute), \
+                    mock.patch.object(gate, "execute_review", side_effect=lambda *a, **k: seen.append(k["review_config"]) or {"status": "discarded"}):
+                gate.run_claimed(ROOT, "o/r", fixture.candidate(), job, source_repo="fixture", branch="agent/example",
+                                 allowed_paths=[], llm_command=None, current_head=lambda: HEAD,
+                                 post_result=lambda body: None, workdir=workdir, claim_current=lambda: True,
+                                 review_ready=frozenset({"codex"}))
+            self.assertEqual(seen[0]["providers"], ["codex"])
+
+    def test_resume_review_streak_exhaustion_and_pending_state_rules(self):
+        with QueueFixture(ROOT, HEAD) as fixture:
+            gate.offer(ROOT, "o/r", 7, HEAD, IDENTITY, "review", providers=["codex"])
+            with self.assertRaisesRegex(queue.QueueError, "use switch-provider"):
+                self.switch(action="resume")
+            unavailable = {"s": {"availability": "unavailable", "limitation": "codex login expired"}}
+            for _ in range(3):
+                queue._transition(ROOT, "o/r", 7, "reviewing", HEAD, task_identity=IDENTITY)
+                gate.complete_review(ROOT, "o/r", fixture.candidate(), unavailable, HEAD)
+            exhausted = fixture.candidate()
+            self.assertEqual(exhausted["state"], "blocked-retryable")
+            self.assertEqual(exhausted["red_gate"]["cause"], "provider-unavailable")
+            self.assertIn("login expired", exhausted["red_gate"]["limitation"])
+            self.assertIsNone(workers.build_job(exhausted))
+            self.switch(action="resume", providers=["claude"])
+            resumed = fixture.candidate()
+            self.assertEqual((resumed["state"], resumed["attempts"]["review-unavailable"]), ("review-pending", 0))
+            self.assertEqual(workers.build_job(resumed)["providers"], ["claude"])
+
+
+class ProviderSwitchCommandTests(unittest.TestCase):
+    def test_cli_switch_and_resume_call_the_gate_with_the_operator_reason(self):
+        for command, extra, provider_required in (("switch-provider", ["--provider", "claude", "--provider", "codex"], True),
+                                                  ("resume", [], False)):
+            with self.subTest(command=command), mock.patch.object(queue, "current_worktree_root", return_value=ROOT), \
+                    mock.patch.object(queue, "_repo", return_value="o/r"), \
+                    mock.patch.object(gate, "reoffer", return_value={"state": "repair-pending", "changed": True}) as reoffer, \
+                    mock.patch.object(sys, "argv", ["publication_queue", command, "--pr", "7", "--reason", "why", *extra]):
+                self.assertEqual(queue.main(), 0)
+                reoffer.assert_called_once()
+                self.assertEqual(reoffer.call_args.kwargs["reason"], "why")
+                self.assertEqual(reoffer.call_args.kwargs["providers"], ["claude", "codex"] if provider_required else None)
+        with mock.patch.object(queue, "current_worktree_root", return_value=ROOT), \
+                mock.patch.object(sys, "argv", ["publication_queue", "switch-provider", "--pr", "7", "--reason", "why"]), \
+                self.assertRaises(SystemExit):
+            queue.main()  # a provider is required to switch
+
+
 class ProviderTests(unittest.TestCase):
     def test_ordered_fallback_and_single_provider_never_substituted(self):
         def probe(root, *, config, **kwargs):
