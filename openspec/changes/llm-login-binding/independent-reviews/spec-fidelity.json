@@ -3,34 +3,28 @@
   "candidate": {
     "base_head": "c0b0b01b44ff8808dc02522078fa5d5d20f67f4f",
     "base_ref": "origin/main",
-    "candidate_head": "50d29f155284df9b6c71739f5f270b06da160925",
-    "diff_sha256": "91187d54e38d3335314724d4fefe0ee2424976e0acfdaffc69d0ebdb7e0cb088"
+    "candidate_head": "b42141b1b7f8ecb5ac0eadfec039289953869e7f",
+    "diff_sha256": "9d3fe928d19dad53af5c083d1e7b63da695de531f32f90f1a99e32c92081ae28"
   },
-  "completed_at": "2026-10-08T13:10:40+00:00",
+  "completed_at": "2026-10-08T14:57:07+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/lifecycle_workers.py adds `login_preflight` inside `main` (the `before_claim=login_preflight if args.run else None` wiring). The new tests only call `workers.check_login` and `workers.work_next(before_claim=...)` directly. Nothing runs `main --run` and asserts it exits non-zero with no comment posted. Scenarios \"Missing login fails before claim\" and \"Codex login is checked the same way\" require exactly that. Task 4.2 lists tests/test_pr_review_gate.py, but the diff adds none there (the launcher tests are in test_requirement_contribution_composition.py).",
-      "id": "login-preflight-main-untested",
-      "severity": "advisory",
-      "summary": "The `main` `login_preflight` hook is not exercised by any test, so the spec scenarios for exit status and the Codex check are only covered at the `check_login` and `work_next` levels. Task 4.2 also names tests/test_pr_review_gate.py, which the diff does not touch."
-    },
-    {
-      "evidence": "design.md decision 3 says \"Probe command and timeout come from `independent_review_runner`\". The diff defines `LOGIN_PROBES` and `check_login` in lifecycle_workers.py. Only the timeout comes from the runner's `preflight_timeout_seconds`. tasks.md 1.1 matches the code, so design.md and tasks.md disagree.",
+      "evidence": "design.md decision 3: \"Probe command and timeout come from `independent_review_runner`\". The diff adds `LOGIN_PROBES = {\"claude\": (\"auth\", \"status\"), \"codex\": (\"login\", \"status\")}` and `check_login` in template/scripts/lifecycle_workers.py. tasks.md 1.1 already records this placement, so design.md is stale. This is artifact drift, and behavior matches the spec.",
       "id": "design-probe-location-drift",
       "severity": "advisory",
-      "summary": "The code diverges from design decision 3, which says probe command and timeout come from `independent_review_runner`."
+      "summary": "design.md says the login probe command comes from `independent_review_runner`, but the candidate defines it in `lifecycle_workers`. Only the timeout comes from the runner."
     }
   ],
-  "launched_at": "2026-10-08T13:09:48+00:00",
-  "output_sha256": "0716b7265afaa685756703d03354efb9783db9d60fe1977d1b0491a81bbac9e0",
+  "launched_at": "2026-10-08T14:56:34+00:00",
+  "output_sha256": "3af0eac9b81bc7cd98b12af6de7af77aadf52af682a894b897e3dec97cf5ae38",
   "perspective": "spec-fidelity",
-  "request_id": "f9ae9785-482b-4e79-b71a-9c922945f68e",
+  "request_id": "fdb2c25b-48b0-4c24-a230-18104b8b3bc9",
   "reviewer": {
-    "context_id": "2677a2b9-6d14-47d3-8ce1-199d59bf1c6e",
+    "context_id": "ddecc62b-b149-4b68-b626-6623d9e707ed",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-c71a90cf-b751-4514-a95d-18a35a94f254",
+    "launch_id": "platform-launch-f1d26ea5-6ba6-4c8d-8b5e-cadd0982699c",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -45,27 +39,27 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 38194
+        "value": 38604
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 133284
+        "value": 94080
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 48735
+        "value": 29722
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 51160
+        "value": 30871
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10
+        "value": 8
       },
       "num_turns": {
         "source": "runtime-confirmed",
@@ -75,11 +69,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2499
+        "value": 2292
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "4ea459860e718538510a9b8561fc92b4f66dcbc6bcc16184ff32dc5281d40569"
+  "task_content_digest": "efa452245d517c4525c3af164316f9ed2db1e3769c9f886335f3a1b8377f237f"
 }

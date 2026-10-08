@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "c0b0b01b44ff8808dc02522078fa5d5d20f67f4f",
     "base_ref": "origin/main",
-    "candidate_head": "50d29f155284df9b6c71739f5f270b06da160925",
-    "diff_sha256": "91187d54e38d3335314724d4fefe0ee2424976e0acfdaffc69d0ebdb7e0cb088"
+    "candidate_head": "b42141b1b7f8ecb5ac0eadfec039289953869e7f",
+    "diff_sha256": "9d3fe928d19dad53af5c083d1e7b63da695de531f32f90f1a99e32c92081ae28"
   },
   "change": "openspec/changes/llm-login-binding",
   "excluded_lifecycle_paths": [
@@ -37,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-08T13:09:34+00:00",
+  "prepared_at": "2026-10-08T14:56:24+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/llm-login-binding/independent-reviews",
     "required_perspectives": [
@@ -46,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "f9ae9785-482b-4e79-b71a-9c922945f68e",
+  "request_id": "fdb2c25b-48b0-4c24-a230-18104b8b3bc9",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -59,7 +59,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "c0b0b01b44ff8808dc02522078fa5d5d20f67f4f",
-    "digest": "4ea459860e718538510a9b8561fc92b4f66dcbc6bcc16184ff32dc5281d40569",
+    "digest": "efa452245d517c4525c3af164316f9ed2db1e3769c9f886335f3a1b8377f237f",
     "paths": {
       "docs/engineering/openspec-workflow.md": "93c9ed9315e398dd4f82e1b062c3d78663eff720",
       "openspec/changes/llm-login-binding/.managed-task.json": "29db5a2099f65b312a95bdb6674539477f3a7561",
@@ -76,6 +76,7 @@
       "template/scripts/requirement_composition.py": "da775215f4505442e10f5c21a1d500f5abdb3f12",
       "tests/test_independent_review.py": "7f8425da0ddbfe894fe2145a52cce45c2b8ac776",
       "tests/test_lifecycle_workers.py": "ff7bc617663b7c9f39994f01e10527ab46e93196",
+      "tests/test_local_workspace.py": "e097fdcf0cc03bf97ffb545c83ff5c610861ca59",
       "tests/test_requirement_contribution_composition.py": "52b35776666836dd5a34dd275984edf6ff158602"
     },
     "scope": "independent-review-v1",
