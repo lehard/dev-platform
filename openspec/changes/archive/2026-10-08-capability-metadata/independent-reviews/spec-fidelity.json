@@ -1,0 +1,82 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "c0b0b01b44ff8808dc02522078fa5d5d20f67f4f",
+    "base_ref": "origin/main",
+    "candidate_head": "b25aff1a6834d263f1a7c1a0bb22711f55eba5e5",
+    "diff_sha256": "166825f56d5a6b9799331de0ef01ddf28482f7b756dcfbef77d7cbce5062e199"
+  },
+  "completed_at": "2026-10-08T18:49:52+00:00",
+  "findings": [
+    {
+      "evidence": "tests/test_capability_manager.py, test_source_and_template_fixture_sets_are_identical: `self.assertEqual(source_names, template_names, \"source and template ship different eval fixture names\")`. The custom message is static. Only unittest's list diff identifies the fixture. The byte-difference case does name the fixture in its message. The spec scenario says \"WHEN a fixture file differs in content, or exists in only one of the two trees THEN the regression check fails naming the fixture\".",
+      "id": "one-sided-fixture-error-names-no-fixture",
+      "severity": "advisory",
+      "summary": "When a fixture exists in only one tree, the divergence check fails with a message that doesn't name the fixture. The spec scenario \"Source and template fixtures diverge\" requires the failure to name it."
+    }
+  ],
+  "launched_at": "2026-10-08T18:49:34+00:00",
+  "output_sha256": "23591926f58c3f9598943d4843ba5f5c7ed5bdd6446d73c9119966159f35f02b",
+  "perspective": "spec-fidelity",
+  "request_id": "3bf67a70-d4c7-422f-b324-e95a33c78f96",
+  "reviewer": {
+    "context_id": "420c3591-46a3-443d-bd4e-a4c769359d6e",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-b01063cf-1ec8-46da-bfe1-a1371f5c1728",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 44025
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 87179
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16094
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16744
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1619
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "c90f2dd15e332bf334b487ef8a868b1ff5a8acc209dd30de9ebe116f17e313e6"
+}

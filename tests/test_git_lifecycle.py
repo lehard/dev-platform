@@ -32,7 +32,7 @@ def configure(repo: Path) -> None:
 def install_scripts(repo: Path, profile: str = "light", publish: str = "direct") -> None:
     target = repo / "scripts"; target.mkdir(exist_ok=True)
     for name in ("_platform_common.py", "integration_state.py", "project_sync.py", "project_publish.py", "publication_state.py", "task_reconciliation.py", "managed_project_status.py", "finish_task.py", "openspec_lifecycle.py", "requirement_integration.py"): shutil.copy2(SCRIPT_SOURCE / name, target / name)
-    (repo / ".dev-platform.toml").write_text(f'main_branch = "main"\nworkflow_profile = "{profile}"\nharness_mode = "platform"\npublish_mode = "{publish}"\n', encoding="utf-8")
+    (repo / ".dev-platform.toml").write_text(f'platform_version = "1.0.0"\nmain_branch = "main"\nworkflow_profile = "{profile}"\nharness_mode = "platform"\npublish_mode = "{publish}"\n', encoding="utf-8")
 
 
 def explicit_bypass_env() -> dict[str, str]:
@@ -106,7 +106,7 @@ class GitLifecycleTests(unittest.TestCase):
         """
         shutil.copy2(SCRIPT_SOURCE / "agent_board.py", self.repo / "scripts" / "agent_board.py")
         config = (
-            'main_branch = "main"\n'
+            'platform_version = "1.0.0"\nmain_branch = "main"\n'
             'workflow_profile = "multi-agent"\n'
             'harness_mode = "platform"\n'
             'protected_main = false\n'
@@ -184,7 +184,7 @@ class GitLifecycleTests(unittest.TestCase):
         for name in ("agent_board.py", "select_checks.py"):
             shutil.copy2(SCRIPT_SOURCE / name, self.repo / "scripts" / name)
         config = (
-            'main_branch = "main"\n'
+            'platform_version = "1.0.0"\nmain_branch = "main"\n'
             'workflow_profile = "multi-agent"\n'
             'harness_mode = "platform"\n'
             '[paths]\n'
@@ -247,13 +247,13 @@ class GitLifecycleTests(unittest.TestCase):
         self.assertNotIn("DEV_PLATFORM_CHECK_COMMAND", output)
 
     def test_standard_direct_finish_integrates_and_pushes(self) -> None:
-        (self.repo / ".dev-platform.toml").write_text('main_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\npublish_mode = "direct"\n', encoding="utf-8"); git("add", ".dev-platform.toml", cwd=self.repo); git("commit", "-m", "standard profile", cwd=self.repo); git("push", cwd=self.repo)
+        (self.repo / ".dev-platform.toml").write_text('platform_version = "1.0.0"\nmain_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\npublish_mode = "direct"\n', encoding="utf-8"); git("add", ".dev-platform.toml", cwd=self.repo); git("commit", "-m", "standard profile", cwd=self.repo); git("push", cwd=self.repo)
         git("switch", "-c", "agent/test", cwd=self.repo); (self.repo / "feature.txt").write_text("feature\n", encoding="utf-8"); git("add", "feature.txt", cwd=self.repo); git("commit", "-m", "feature", cwd=self.repo)
         result = run("python3", "scripts/finish_task.py", "--no-checks", cwd=self.repo, env=explicit_bypass_env()); self.assertIn("Integrated agent/test -> main", result.stdout); self.assertEqual(git("branch", "--show-current", cwd=self.repo).stdout.strip(), "main")
         remote_sha = run("git", "--git-dir", str(self.remote), "rev-parse", "main", cwd=self.base).stdout.strip(); local_sha = git("rev-parse", "main", cwd=self.repo).stdout.strip(); self.assertEqual(remote_sha, local_sha)
 
     def test_standard_pr_finish_returns_to_main(self) -> None:
-        (self.repo / ".dev-platform.toml").write_text('main_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\npublish_mode = "pr"\n', encoding="utf-8"); git("add", ".dev-platform.toml", cwd=self.repo); git("commit", "-m", "pr profile", cwd=self.repo); git("push", cwd=self.repo)
+        (self.repo / ".dev-platform.toml").write_text('platform_version = "1.0.0"\nmain_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\npublish_mode = "pr"\n', encoding="utf-8"); git("add", ".dev-platform.toml", cwd=self.repo); git("commit", "-m", "pr profile", cwd=self.repo); git("push", cwd=self.repo)
         git("switch", "-c", "agent/pr-test", cwd=self.repo); (self.repo / "feature.txt").write_text("feature\n", encoding="utf-8"); git("add", "feature.txt", cwd=self.repo); git("commit", "-m", "feature pr", cwd=self.repo)
         fake_bin = self.base / "fake-bin"; fake_bin.mkdir(); fake_gh = fake_bin / "gh"
         fake_gh.write_text('#!/bin/sh\n' + EXACT_OPEN_PR_LIST_SHIM + 'if [ "$1" = "auth" ] && [ "$2" = "status" ]; then exit 0; fi\nif [ "$1" = "pr" ] && [ "$2" = "view" ]; then exit 1; fi\nif [ "$1" = "pr" ] && [ "$2" = "create" ]; then echo "https://example.invalid/pr/1"; exit 0; fi\nexit 1\n', encoding="utf-8"); fake_gh.chmod(0o755)
@@ -264,7 +264,7 @@ class GitLifecycleTests(unittest.TestCase):
 
     def test_multi_agent_pr_finish_reconciles_remote_merge_after_nonzero_gh_exit(self) -> None:
         config = (
-            'main_branch = "main"\n'
+            'platform_version = "1.0.0"\nmain_branch = "main"\n'
             'workflow_profile = "multi-agent"\n'
             'harness_mode = "platform"\n'
             'protected_main = true\n'
@@ -336,7 +336,7 @@ class GitLifecycleTests(unittest.TestCase):
 
     def _protected_pr_worktree(self, name: str) -> Path:
         config = (
-            'main_branch = "main"\n'
+            'platform_version = "1.0.0"\nmain_branch = "main"\n'
             'workflow_profile = "multi-agent"\n'
             'harness_mode = "platform"\n'
             'protected_main = true\n'
@@ -372,6 +372,7 @@ class GitLifecycleTests(unittest.TestCase):
             "if [ \"$1\" = \"pr\" ] && [ \"$2\" = \"view\" ]; then\n"
             "  case \" $* \" in\n"
             "    *\" state,headRefOid \"*) head_sha=$(git rev-parse \"$(git branch --show-current)\") || exit 1; printf '{\"state\":\"OPEN\",\"headRefOid\":\"%s\"}\\n' \"$head_sha\"; exit 0;;\n"
+            "    *\" baseRefName \"*) printf '{\"baseRefName\":\"main\"}\\n'; exit 0;;\n"
             "    *\" state,mergedAt \"*) echo OPEN; exit 0;;\n"
             "    *) exit 1;;\n"
             "  esac\n"
@@ -465,7 +466,7 @@ class GitLifecycleTests(unittest.TestCase):
         for name in ("agent_board.py", "select_checks.py"):
             shutil.copy2(SCRIPT_SOURCE / name, self.repo / "scripts" / name)
         (self.repo / ".dev-platform.toml").write_text(
-            'main_branch = "main"\n'
+            'platform_version = "1.0.0"\nmain_branch = "main"\n'
             'workflow_profile = "multi-agent"\n'
             'harness_mode = "platform"\n'
             'protected_main = false\n'
@@ -557,7 +558,7 @@ class GitLifecycleTests(unittest.TestCase):
             shutil.copy2(SCRIPT_SOURCE / name, self.repo / "scripts" / name)
         shutil.copy2(ROOT / "scripts" / "check_private_backlog_refs.py", self.repo / "scripts" / "check_private_backlog_refs.py")
         (self.repo / ".dev-platform.toml").write_text(
-            'main_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\n'
+            'platform_version = "1.0.0"\nmain_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\n'
             'publish_mode = "direct"\n[development_backlog]\nrepository = "example/internal-tasks"\n'
             '[paths]\nchecks = "dev-platform/checks.toml"\n',
             encoding="utf-8",
@@ -595,7 +596,7 @@ class GitLifecycleTests(unittest.TestCase):
             shutil.copy2(SCRIPT_SOURCE / name, self.repo / "scripts" / name)
         shutil.copy2(ROOT / "scripts" / "check_private_backlog_refs.py", self.repo / "scripts" / "check_private_backlog_refs.py")
         (self.repo / ".dev-platform.toml").write_text(
-            'main_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\n'
+            'platform_version = "1.0.0"\nmain_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\n'
             'publish_mode = "direct"\n[development_backlog]\nrepository = "example/internal-tasks"\n'
             '[paths]\nchecks = "dev-platform/checks.toml"\n',
             encoding="utf-8",

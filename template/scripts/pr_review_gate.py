@@ -9,23 +9,24 @@ import json
 from pathlib import Path
 
 from task_content_identity import equivalent_proofs, review_content_identity
-import lifecycle_workers as workers
-import publication_queue as queue
 
 MAX_ROUNDS = 3
 
 
 def managed_candidate(root: Path) -> bool:
-    from _platform_common import read_platform_config
+    from _platform_common import lifecycle_mode, read_platform_config
+    if lifecycle_mode(read_platform_config(root)) != "coordinator":
+        return False
     from managed_task import resolve_canonical_provenance
+    import publication_queue as queue
 
-    config = read_platform_config(root)
     provenance = resolve_canonical_provenance(root)
-    return (config.get("platform_version") == "source" and queue.enabled(root)
+    return (queue.enabled(root)
             and provenance is not None and provenance.lifecycle == "active")
 
 
 def task_identity(root: Path, change: str) -> dict:
+    import lifecycle_workers as workers
     from requirement_child_context import context_path
     context = context_path(root, change)
     contribution = json.loads(context.read_text()).get("contribution") if context.is_file() else None
@@ -113,6 +114,7 @@ def repair_brief(running: dict) -> dict:
 
 def handoff_gates(root: Path, change: Path) -> tuple[dict, dict]:
     """Validate developer evidence before publication; never manufacture a receipt."""
+    import lifecycle_workers as workers
     from openspec_lifecycle import require_automated_evidence, verification_passed
 
     if not verification_passed(change):
@@ -145,8 +147,10 @@ def handoff_gates(root: Path, change: Path) -> tuple[dict, dict]:
 
 def offer(root: Path, repo: str, number: int, head: str, identity: dict,
           kind: str, *, gates: dict | None = None, red_gate: dict | None = None,
-          attempt: int | None = None, providers=None, set_attempts=None, adapter=queue) -> dict | None:
+          attempt: int | None = None, providers=None, set_attempts=None, adapter=None) -> dict | None:
     """Publish state first, then the shared head-bound job (both resumable)."""
+    if adapter is None:
+        import publication_queue as adapter
     record = adapter._transition(root, repo, number, kind + "-pending", head,
                                  task_identity=identity, inherit_identity=False,
                                  gates=gates, red_gate=red_gate, attempt=kind, set_attempts=set_attempts)
@@ -168,11 +172,18 @@ def review_outcome(reports: dict, rounds: int, *, rejected: bool = False) -> str
 
 
 def complete_review(root: Path, repo: str, candidate: dict, reports: dict, head: str, *,
-                    rejected: bool = False, adapter=queue) -> dict | None:
+                    rejected: bool = False, adapter=None) -> dict | None:
+    if adapter is None:
+        import publication_queue as adapter
     identity = candidate["task_identity"]
     attempts = candidate.get("attempts", {})
     reports = compact_reports(reports)
-    providers = (candidate.get("next_job") or {}).get("providers", ["unresolved-originating-task-route"])
+    # A retried review keeps the review job's own provider list; a repair job takes its provider from
+    # the originating task route recorded on the candidate (resolved by the queue, never defaulted here).
+    import lifecycle_workers as workers
+
+    next_job = candidate.get("next_job") or {}
+    providers = workers.job_providers({**next_job, "number": candidate["number"]}) if next_job.get("kind") == "review" else None
     rounds = attempts.get("repair", 0) + 1
     state = review_outcome(reports, rounds, rejected=rejected)
     # Only consecutive unavailable attempts spend the retry budget; an available review resets it.
@@ -188,7 +199,7 @@ def complete_review(root: Path, repo: str, candidate: dict, reports: dict, head:
     if state == "repair-pending":
         return offer(root, repo, candidate["number"], head, identity, "repair",
                      gates={**candidate.get("gates", {}), "review": gate}, red_gate=red,
-                     providers=providers, set_attempts=streak_update, adapter=adapter)
+                     set_attempts=streak_update, adapter=adapter)
     record = adapter._transition(root, repo, candidate["number"], state, head,
                                  task_identity=identity, inherit_identity=False,
                                  gates={**candidate.get("gates", {}), "review": gate}, red_gate=red, set_attempts=streak_update)
@@ -212,6 +223,7 @@ def execute_review(checkout: Path, job: dict, *, source_repo: str, branch: str,
                    current_head, runner, push_env=None, launcher=None, review_config=None, before_push=None,
                    claim_current=lambda: True) -> dict:
     """Run the existing reviewer; only the harness commits and pushes evidence."""
+    import lifecycle_workers as workers
     from requirement_composition import run_child_review
     from independent_review import PERSPECTIVES, _validate_report, read_dispositions, resolve_change
 
@@ -276,15 +288,21 @@ def execute_review(checkout: Path, job: dict, *, source_repo: str, branch: str,
 
 def run_claimed(root: Path, repo: str, candidate: dict, job: dict, *, source_repo: str,
                 branch: str, allowed_paths, llm_command, current_head, post_result,
-                workdir: str, adapter=queue, runner=None, launcher=None, home_files=(), worker="worker",
-                claim_current=None, review_ready=None, repair_runtime_check=None) -> dict:
+                workdir: str, worker: str, adapter=None, runner=None, launcher=None, home_files=(),
+                provider: str | None = None, claim_current=None, review_ready=None, repair_runtime_check=None) -> dict:
     """Execute and advance one claimed exact-head job, without the developer."""
+    import lifecycle_workers as workers
+    if adapter is None:
+        import publication_queue as adapter
     import subprocess
 
     kind = job["kind"]
     if kind not in {"review", "repair"}:
         raise workers.WorkerError(f"no review-gate executor for {kind}")
     identity = job["task_identity"]
+    job_providers = workers.job_providers(job)
+    if kind == "repair":
+        workers.require_job_provider(job, provider)
     if claim_current is None:
         def claim_current():
             comments = adapter._comments(root, repo, job["number"])
@@ -319,7 +337,7 @@ def run_claimed(root: Path, repo: str, candidate: dict, job: dict, *, source_rep
 
     review_config = settings(root)
     review_config = {k: v for k, v in review_config.items() if k not in {"provider", "providers"}}
-    review_config["providers"] = job.get("providers", [job.get("provider", "unresolved-originating-task-route")])
+    review_config["providers"] = job_providers
     if review_ready is not None:
         # A filtering worker runs only the ready subset, in the job's order.
         review_config["providers"] = [name for name in review_config["providers"] if name in review_ready]
@@ -329,7 +347,8 @@ def run_claimed(root: Path, repo: str, candidate: dict, job: dict, *, source_rep
             return
         workers._git(harness, "checkout", "--detach", head)
         fresh = refresh_identity(harness, identity)
-        post_result(workers.result_body(job, worker, "validated-push", head, task_identity=fresh))
+        post_result(workers.result_body(job, worker, "validated-push", head, task_identity=fresh,
+                                        provider=provider if kind == "repair" else None))
 
     def review_handler(checkout):
         workers.scratch_home(Path(workdir), home_files)
@@ -351,6 +370,7 @@ def run_claimed(root: Path, repo: str, candidate: dict, job: dict, *, source_rep
     outcome = workers.execute_job(job, source_repo=source_repo, branch=branch, allowed_paths=allowed_paths,
                                   llm_command=llm_command or [], current_head=current_head, post_result=post_result,
                                   workdir=workdir, runner=runner, home_files=home_files, worker=worker,
+                                  provider=provider if kind == "repair" else None,
                                   review_handler=review_handler if kind == "review" else None, before_push=before_push,
                                   claim_current=claim_current,
                                   runtime_check=repair_runtime_check if kind == "repair" else None)
@@ -372,7 +392,6 @@ def run_claimed(root: Path, repo: str, candidate: dict, job: dict, *, source_rep
         # Every changed identity must repeat review and checks; retain only proven gates.
         gates = {name: gate for name, gate in running["gates"].items() if reusable(harness, gate, fresh)}
         offer(root, repo, job["number"], head, fresh, "review", gates=gates,
-              providers=job.get("providers", ["unresolved-originating-task-route"]),
               set_attempts={"repair-unavailable": 0} if running["attempts"].get("repair-unavailable") else None,
               adapter=adapter)
     elif kind == "repair" and outcome["status"] == "unavailable":
@@ -384,8 +403,10 @@ def run_claimed(root: Path, repo: str, candidate: dict, job: dict, *, source_rep
     return outcome
 
 
-def retry_unavailable(root: Path, repo: str, running: dict, job: dict, limitation: str, *, adapter=queue) -> dict | None:
+def retry_unavailable(root: Path, repo: str, running: dict, job: dict, limitation: str, *, adapter=None) -> dict | None:
     """An unavailable repair runtime is retryable on the same round; only the unavailable streak is bounded."""
+    if adapter is None:
+        import publication_queue as adapter
     from datetime import datetime, timezone
     from lifecycle_workers import job_record
 
@@ -415,12 +436,14 @@ def _repair_status(red_gate: dict) -> str:
     return str(evidence.get("status") if isinstance(evidence, dict) else evidence).split(":")[0]
 
 
-def reoffer(root: Path, repo: str, number: int, *, action: str, providers, reason: str, adapter=queue) -> dict:
+def reoffer(root: Path, repo: str, number: int, *, action: str, providers, reason: str, adapter=None) -> dict:
     """Re-offer the open review or repair job of a candidate, optionally on other providers.
 
     One appended record keeps identity, gates, findings and every attempt counter, so the same round is
     offered again and no budget is spent; the distinct job id comes from the ``reoffers`` sequence.
     """
+    if adapter is None:
+        import publication_queue as adapter
     from datetime import datetime, timezone
     from independent_review_runner import PROVIDERS
     from lifecycle_workers import job_record
@@ -475,6 +498,8 @@ def reoffer(root: Path, repo: str, number: int, *, action: str, providers, reaso
     providers = list(providers)
     if not providers or len(set(providers)) != len(providers) or any(name not in PROVIDERS for name in providers):
         raise adapter.QueueError(f"providers must be a nonempty list of distinct values from {', '.join(PROVIDERS)}")
+    if kind == "repair" and len(providers) != 1:
+        raise adapter.QueueError(f"PR #{number} repair job runs on exactly one provider; pass a single --provider")
     if action == "switch-provider" and state in pending and providers == previous:
         return {"state": state, "number": number, "changed": False, "providers": providers}
     attempts = candidate.get("attempts", {})
@@ -494,7 +519,7 @@ def reoffer(root: Path, repo: str, number: int, *, action: str, providers, reaso
              "at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
     record = adapter._transition(
         root, repo, number, f"{kind}-pending", head, task_identity=identity, inherit_identity=False, red_gate=restored,
-        set_attempts={"reoffers": seq, f"{kind}-unavailable": 0},
+        set_attempts={"reoffers": seq, f"{kind}-unavailable": 0}, provider_switch={kind: providers},
         next_job=job_record(kind, head, identity, attempts.get(kind, 0), providers=providers, reoffer=event))
     if record is None:
         raise adapter.QueueError(f"PR #{number} head moved; rerun")
@@ -502,6 +527,7 @@ def reoffer(root: Path, repo: str, number: int, *, action: str, providers, reaso
 
 
 def refresh_identity(root: Path, identity: dict) -> dict:
+    import lifecycle_workers as workers
     if identity.get("kind") == "requirement-composition":
         from requirement_composition import composition_identity, candidate_manifest
         return composition_identity(root, candidate_manifest(root, identity["requirement"]))

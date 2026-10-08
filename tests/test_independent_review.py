@@ -120,7 +120,7 @@ class IndependentReviewTests(unittest.TestCase):
         self.temp.cleanup()
 
     def write_config(self, extra: str = 'provider = "codex"\n', enabled: str = "true") -> None:
-        (self.root / ".dev-platform.toml").write_text(f"[independent_review]\nenabled = {enabled}\n{extra}", encoding="utf-8")
+        (self.root / ".dev-platform.toml").write_text(f'platform_version = "customer"\n[independent_review]\nenabled = {enabled}\n{extra}', encoding="utf-8")
 
     def commit(self, message: str) -> None:
         git(self.root, "add", "-A")

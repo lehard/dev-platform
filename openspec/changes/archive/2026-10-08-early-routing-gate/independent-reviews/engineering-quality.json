@@ -1,0 +1,94 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "c0b0b01b44ff8808dc02522078fa5d5d20f67f4f",
+    "base_ref": "origin/main",
+    "candidate_head": "b25aff1a6834d263f1a7c1a0bb22711f55eba5e5",
+    "diff_sha256": "166825f56d5a6b9799331de0ef01ddf28482f7b756dcfbef77d7cbce5062e199"
+  },
+  "completed_at": "2026-10-08T18:51:52+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/run_test_groups.py `require_early_routing_gate`: `if not has_managed_task or importlib.util.find_spec(\"model_routing\") is None: return`. On a managed task, a missing module is treated as 'gate not applicable' and every test group runs with no enforcement and no message. That is a silent degraded path, which the global no-fallbacks rule prohibits. It should raise when the checkout is managed and the module is unavailable. `_has_managed_task` in model_routing.py also accepts an active `openspec/changes/*/.managed-task.json`, so the two entry points use different applicability tests.",
+      "id": "run-test-groups-gate-silent-skip",
+      "severity": "advisory",
+      "summary": "The early routing gate in run_test_groups.py silently turns itself off when the `model_routing` module cannot be found, and checks only `.managed-task-state.json`."
+    },
+    {
+      "evidence": "template/scripts/model_routing.py `_run_delegated_codex`: `except BaseException: closed = close_attempt(...); _write_route(...); raise`. `close_attempt` calls `_task_content_state`, which raises RoutingError when the snapshot or merge-base identity cannot be established. When that happens, the original exception is replaced. The `_write_route` call that would close the delegation is also skipped, so a delegation opened by `confirmed_launch` stays `state: open`. An open delegation counts as a 'real delegation' in `_has_real_delegation`, so the stale record keeps satisfying the early gate.",
+      "id": "codex-close-attempt-masks-launch-failure",
+      "severity": "advisory",
+      "summary": "In `_run_delegated_codex`, the failure path calls `close_attempt`, which can itself raise and hide the original launch error. The open delegation is then left unclosed in the route record."
+    },
+    {
+      "evidence": "template/scripts/model_routing.py `_reroute_attribution`: `_route_from_payload(payload, source_issue=payload.get(\"source_issue\", \"\"), change=change, ...)`. The comparison `route.source_issue.lower() != source_issue.lower()` in `_route_from_payload` therefore always passes. The record that decides whether re-routing over diverged content is allowed is not checked against the managed task's actual `source_issue`. `prepare` already has that identity and could pass it in.",
+      "id": "reroute-attribution-vacuous-provenance-check",
+      "severity": "advisory",
+      "summary": "`_reroute_attribution` validates the previous route against its own `source_issue`, so the provenance check does nothing there."
+    }
+  ],
+  "launched_at": "2026-10-08T18:51:20+00:00",
+  "output_sha256": "5bbd1f0202a407038d60e7da235df74de4b74911eeefda135df20ac124c8c3bb",
+  "perspective": "engineering-quality",
+  "request_id": "4c7af409-fced-4a3c-98bd-517284626ced",
+  "reviewer": {
+    "context_id": "59a10309-e3a5-4e9f-bd7b-da534868e2e6",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-42170bbb-534c-4081-b9b7-0aaa67f4a621",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 60142
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 105918
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 29268
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 30598
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2988
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "27255f432e123a65d43e4ae9b548421afc68f1b1e63b82181cf68e6443958f80"
+}

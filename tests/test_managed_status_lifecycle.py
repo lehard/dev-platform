@@ -70,7 +70,7 @@ class ManagedStatusLifecycleTests(unittest.TestCase):
             mock.patch.object(project_publish, "ensure_pr", return_value=project_publish.PrRef(12, "https://example/pr/12")),
             mock.patch.object(project_publish, "reconcile_managed_project") as reconcile,
         ):
-            self.assertEqual(project_publish.publish_pr(root, "origin", "main", None, None, "manual", shared_manifest=manifest), 0)
+            self.assertEqual(project_publish.publish_pr(root, "origin", "main", None, None, "manual", shared_manifest=manifest, config={"platform_version": "test"}), 0)
         validate.assert_called_once_with(root, manifest)
         reconcile.assert_not_called()
 
@@ -139,7 +139,7 @@ class ManagedStatusLifecycleTests(unittest.TestCase):
             stack.enter_context(mock.patch.object(project_publish, "require_gh_environment", return_value={}))
             stack.enter_context(mock.patch.object(project_publish, "run_git", return_value=SimpleNamespace(stdout="a" * 40)))
             stack.enter_context(mock.patch.object(project_publish, "find_exact_head_pr", side_effect=[first, second]))
-            result = project_publish.publish_pr(root, "origin", "main", None, None, "auto", shared_manifest=manifest)
+            result = project_publish.publish_pr(root, "origin", "main", None, None, "auto", shared_manifest=manifest, config={"platform_version": "test"})
         return result, {"push": push}
 
     def test_invalid_shared_manifest_blocks_before_pr_mutation(self) -> None:
@@ -150,7 +150,7 @@ class ManagedStatusLifecycleTests(unittest.TestCase):
                 mock.patch.object(project_publish, "_validate_feature_branch") as feature, \
                 mock.patch.object(project_publish, "push_feature_branch") as push:
             with self.assertRaisesRegex(SystemExit, "Shared Requirement publication blocked"):
-                project_publish.publish_pr(root, "origin", "main", None, None, "manual", shared_manifest=manifest)
+                project_publish.publish_pr(root, "origin", "main", None, None, "manual", shared_manifest=manifest, config={"platform_version": "test"})
         feature.assert_not_called()
         push.assert_not_called()
 
@@ -183,7 +183,7 @@ class ManagedStatusLifecycleTests(unittest.TestCase):
             mock.patch.object(project_publish, "ensure_pr", return_value=project_publish.PrRef(12, "https://example/pr/12")),
             mock.patch.object(project_publish, "reconcile_managed_project", return_value=project) as reconcile,
         ):
-            self.assertEqual(project_publish.publish_pr(root, "origin", "main", None, None, "manual"), 0)
+            self.assertEqual(project_publish.publish_pr(root, "origin", "main", None, None, "manual", config={"platform_version": "test"}), 0)
         reconcile.assert_called_once_with(root, "In review")
 
     def test_project_failure_after_pr_creation_is_explicit_and_resumable(self) -> None:
@@ -203,7 +203,7 @@ class ManagedStatusLifecycleTests(unittest.TestCase):
             ),
         ):
             with self.assertRaisesRegex(SystemExit, "PR exists.*reconciliation is pending"):
-                project_publish.publish_pr(root, "origin", "main", None, None, "manual")
+                project_publish.publish_pr(root, "origin", "main", None, None, "manual", config={"platform_version": "test"})
 
     def test_done_follows_remote_merge_and_local_sync_before_cleanup(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

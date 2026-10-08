@@ -14,10 +14,10 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping, Sequence
 
 from _platform_common import current_worktree_root, read_platform_config, run_git
-from publication_state import _classify_required_checks, required_check_state_for_ref
+from publication_state import required_check_state_for_ref
 from candidate_lifecycle import CLAIM_STATES, POST_MERGE_FLAG, PREFIX as V2_PREFIX, STATES, latest_record, build_handoff_record, derive_candidate, label_projection, marker_body, render_status
 
 PREFIX = "dev-platform-publication-queue:v1 "
@@ -77,6 +77,34 @@ def _gh(root: Path, *args: str, data: dict[str, str] | None = None) -> Any:
 COORDINATOR_APP_ENV = "DEV_PLATFORM_COORDINATOR_APP"
 
 
+def configured_coordinator_apps(root: Path) -> list[tuple[str, str]]:
+    """``(source, App slug)`` pairs from project and operator config; unreadable sources raise."""
+    from _platform_common import read_operator_config, read_project_config
+
+    def source_error(name: str, cause: object) -> QueueError:
+        return QueueError(f"trust source {name} is unreadable or invalid: {cause}")
+
+    configured_apps: list[tuple[str, str]] = []
+    for name, reader in ((".dev-platform.toml", read_project_config), ("operator config", read_operator_config)):
+        try:
+            config = reader(root)
+        except Exception as exc:
+            raise source_error(name, exc) from exc
+        configured = config.get("publication")
+        if configured is None:
+            continue
+        if not isinstance(configured, dict):
+            raise source_error(name, "[publication] must be a table")
+        app = configured.get("coordinator_app")
+        if app is None:
+            continue
+        if not isinstance(app, str):
+            raise source_error(name, "[publication] coordinator_app must be a string")
+        if app.strip():
+            configured_apps.append((name, app.strip()))
+    return configured_apps
+
+
 def trusted_apps(root: Path) -> frozenset[str]:
     """The coordinator App whose comments count as lifecycle records.
 
@@ -85,16 +113,8 @@ def trusted_apps(root: Path) -> frozenset[str]:
     config (operator identity stays out of committed project config) or the
     project config. No other App is trusted.
     """
-    from _platform_common import read_operator_config
-
     names = {os.environ.get(COORDINATOR_APP_ENV, "").strip()}
-    for reader in (read_platform_config, read_operator_config):
-        try:
-            configured = reader(root).get("publication", {})
-        except Exception:
-            continue
-        if isinstance(configured, dict):
-            names.add(str(configured.get("coordinator_app", "")).strip())
+    names.update(app for _, app in configured_coordinator_apps(root))
     return frozenset(name for name in names if name)
 
 
@@ -154,10 +174,38 @@ def enabled(root: Path) -> bool:
 
 
 def _comments(root: Path, repo: str, number: int) -> list[dict[str, Any]]:
-    rows = _gh(root, "api", f"repos/{repo}/issues/{number}/comments?per_page=100")
-    if not isinstance(rows, list) or len(rows) >= 100:
-        raise QueueError("PR queue comments are unavailable or exceed the bounded page")
-    return [row for row in rows if isinstance(row, dict)]
+    """The complete, validated, ordered PR comment history, or a named error.
+
+    The whole observation is validated before anything is returned, so a failed
+    or malformed later page never yields a prefix or a filtered history.
+    """
+    def fail(cause: str) -> QueueError:
+        return QueueError(f"PR comment-history acquisition failed for #{number}: {cause}")
+
+    try:
+        pages = _gh(root, "api", "--paginate", "--slurp", f"repos/{repo}/issues/{number}/comments?per_page=100")
+    except QueueError as exc:
+        raise fail(str(exc)) from exc
+    if pages is None:
+        raise fail("empty response")
+    if not isinstance(pages, list) or not pages:
+        raise fail("response is not a non-empty array of pages")
+    history: list[dict[str, Any]] = []
+    previous: int | None = None
+    for index, page in enumerate(pages, start=1):
+        if not isinstance(page, list):
+            raise fail(f"page {index} is not an array")
+        for row in page:
+            if not isinstance(row, dict):
+                raise fail(f"page {index} contains a non-object comment")
+            comment_id = row.get("id")
+            if not isinstance(comment_id, int) or isinstance(comment_id, bool):
+                raise fail(f"page {index} contains a comment without an integer id")
+            if previous is not None and comment_id <= previous:
+                raise fail(f"comment id {comment_id} does not follow {previous} in API order")
+            previous = comment_id
+            history.append(row)
+    return history
 
 
 def _events(root: Path, repo: str, number: int) -> list[dict[str, Any]]:
@@ -212,6 +260,120 @@ def _label(root: Path, repo: str, number: int, label: str, *, present: bool) -> 
             raise QueueError(result.stderr.strip() or "cannot remove publication label")
 
 
+EVIDENCE_PREFIX = "dev-platform-publication-queue:evidence:v1 "
+_EVIDENCE_TEXT = ("category", "severity", "observation", "evidence", "hypothesis", "proposal")
+_SHA = re.compile(r"[0-9a-f]{40}")
+_DEDUPE = re.compile(r"coordinator:([0-9a-f]{24})")
+
+
+def evidence_event_id(dedupe_key: str) -> str:
+    """The deterministic event id shared by the durable record and its local mirror."""
+    match = _DEDUPE.fullmatch(dedupe_key) if isinstance(dedupe_key, str) else None
+    if match is None:
+        raise QueueError("coordinator evidence dedupe key is malformed")
+    return "coordinator-" + match.group(1)[:16]
+
+
+def build_evidence_record(event: dict[str, Any], *, requirement: str | None) -> dict[str, Any]:
+    """The bounded, sanitized durable record for one coordinator friction event."""
+    from datetime import datetime, timezone
+
+    import agent_friction
+
+    missing = [key for key in ("task", "number", "head", "stage", "worker", "dedupe_key", "triggers", *_EVIDENCE_TEXT)
+               if event.get(key) in (None, "", [])]
+    if missing:
+        raise QueueError("coordinator evidence event lacks " + ", ".join(missing))
+    if not _SHA.fullmatch(str(event["head"])):
+        raise QueueError("coordinator evidence head must be a full commit SHA")
+    record: dict[str, Any] = {
+        "version": 1, "kind": "coordinator-friction", "requirement": requirement,
+        "number": event["number"], "head": event["head"], "stage": event["stage"],
+        "worker": event["worker"], "task": event["task"], "dedupe_key": event["dedupe_key"],
+        "event_id": evidence_event_id(event["dedupe_key"]),
+        "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "triggers": sorted(set(event["triggers"])),
+    }
+    for key in _EVIDENCE_TEXT:
+        record[key] = agent_friction.normalize_text(event[key], key, 100 if key == "category" else 1000)
+    return record
+
+
+def _evidence_records(root: Path, number: int, comments: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Trusted evidence records of one PR; a malformed trusted record raises."""
+    from candidate_lifecycle import trusted_marker_comment
+
+    apps = trusted_apps(root)
+    writers = trusted_writers(root, comments, (EVIDENCE_PREFIX,))
+    records = []
+    for row in comments:
+        body = row.get("body")
+        if not isinstance(body, str) or not body.startswith(EVIDENCE_PREFIX) or not trusted_marker_comment(row, apps, writers):
+            continue
+        def invalid(cause: str) -> QueueError:
+            return QueueError(f"invalid coordinator evidence record on PR #{number}: {cause}")
+        try:
+            payload = json.loads(body[len(EVIDENCE_PREFIX):])
+        except json.JSONDecodeError as exc:
+            raise invalid("not JSON") from exc
+        if not isinstance(payload, dict) or payload.get("version") != 1 or payload.get("kind") != "coordinator-friction":
+            raise invalid("unsupported version or kind")
+        if payload.get("number") != number:
+            raise invalid("PR number contradicts its comment")
+        if not isinstance(payload.get("head"), str) or not _SHA.fullmatch(payload["head"]):
+            raise invalid("head is not a full commit SHA")
+        for key in ("stage", "worker", "task", "dedupe_key", "event_id", "at", *_EVIDENCE_TEXT):
+            if not isinstance(payload.get(key), str) or not payload[key]:
+                raise invalid(f"{key} is missing")
+        if payload.get("requirement") is not None and not isinstance(payload["requirement"], str):
+            raise invalid("requirement is malformed")
+        triggers = payload.get("triggers")
+        if not isinstance(triggers, list) or not triggers or not all(isinstance(t, str) for t in triggers):
+            raise invalid("triggers are missing")
+        if payload["event_id"] != evidence_event_id(payload["dedupe_key"]):
+            raise invalid("event id does not match its dedupe key")
+        payload["comment_id"] = row.get("id")
+        records.append(payload)
+    return records
+
+
+def post_evidence(root: Path, event: dict[str, Any], *, requirement: str | None) -> dict[str, Any]:
+    """Persist one coordinator friction event on its candidate PR, once per dedupe key."""
+    record = build_evidence_record(event, requirement=requirement)
+    repo = _repo(root)
+    number = record["number"]
+    for existing in _evidence_records(root, number, _comments(root, repo, number)):
+        if existing["dedupe_key"] == record["dedupe_key"]:
+            return existing
+    _gh(root, "api", "-X", "POST", f"repos/{repo}/issues/{number}/comments",
+        data={"body": EVIDENCE_PREFIX + json.dumps(record, sort_keys=True, separators=(",", ":"))})
+    return record
+
+
+def requirement_evidence(root: Path, requirement: str, children: Sequence[str] = ()) -> list[dict[str, Any]]:
+    """Trusted durable coordinator events of a Requirement's candidate PRs, as friction events."""
+    repo = _repo(root)
+    numbers, _ = _requirement_candidate_numbers(root, requirement, repo)
+    owners = {requirement, *children}
+    events = []
+    for number in numbers:
+        for record in _evidence_records(root, number, _comments(root, repo, number)):
+            if record["requirement"] not in owners:
+                continue
+            events.append({
+                "id": record["event_id"], "at": record["at"], "task": record["task"], "branch": record["task"],
+                "requirement": record["requirement"], "attribution": "coordinator",
+                "dedupe_key": record["dedupe_key"], "category": record["category"],
+                "triggers": record["triggers"], "severity": record["severity"],
+                "observation": record["observation"], "evidence": record["evidence"],
+                "hypothesis": record["hypothesis"], "proposal": record["proposal"],
+                "scope": "platform", "classification": "process-friction", "context": None,
+                "durable": {"number": number, "head": record["head"], "stage": record["stage"],
+                            "worker": record["worker"]},
+            })
+    return events
+
+
 # Coordinator friction: recorded automatically, attributed to the candidate task and its
 # Requirement. The sink is registered explicitly by real coordinator/worker entrypoints
 # (``use_default_friction_sink``) so library use and tests never write a friction log.
@@ -228,15 +390,22 @@ _FRICTION_STATES = {
 }
 
 
-def set_friction_sink(sink) -> None:
-    global _friction_sink
+_friction_worker: str | None = None
+
+
+def set_friction_sink(sink, *, worker: str | None = None) -> None:
+    """Register the coordinator friction sink with the run identity it records."""
+    global _friction_sink, _friction_worker
     _friction_sink = sink
+    _friction_worker = worker
 
 
-def use_default_friction_sink(root: Path) -> None:
+def use_default_friction_sink(root: Path, *, worker: str) -> None:
     from integration_contour import default_friction_sink
 
-    set_friction_sink(default_friction_sink(root))
+    if not isinstance(worker, str) or not worker.strip():
+        raise QueueError("the coordinator friction sink requires a worker run identity")
+    set_friction_sink(default_friction_sink(root), worker=worker)
 
 
 def emit_friction(number: int, branch: str | None, kind: str, head: str, detail: str, *,
@@ -246,6 +415,8 @@ def emit_friction(number: int, branch: str | None, kind: str, head: str, detail:
         return
     if not isinstance(branch, str) or not branch:
         raise QueueError("friction recording requires a candidate branch; retry transition")
+    if not isinstance(_friction_worker, str) or not _friction_worker:
+        raise QueueError("friction sink is installed without a worker run identity")
     import hashlib
 
     spec = _FRICTION_STATES.get(kind)
@@ -258,7 +429,8 @@ def emit_friction(number: int, branch: str | None, kind: str, head: str, detail:
                         "evidence": f"PR #{number} {kind} at head {head[:12]}: {detail}"[:1000],
                         "hypothesis": "Recorded automatically by the publication coordinator; see the PR lifecycle records.",
                         "proposal": "Review whether the gate, the evidence or the repair path should change.",
-                        "dedupe_key": f"coordinator:{key}"})
+                        "dedupe_key": f"coordinator:{key}", "head": head, "stage": kind,
+                        "worker": _friction_worker})
     except (Exception, SystemExit) as exc:
         raise QueueError(f"friction recording failed for PR #{number} ({kind}); retry transition: {exc}") from exc
 
@@ -270,6 +442,7 @@ def _transition(
     set_attempts: dict[str, int] | None = None,
     refuse_from: set[str] | frozenset[str] = frozenset(), inherit_identity: bool = True,
     cross_head_claims: bool = False, next_job: dict[str, Any] | None = None,
+    route: dict[str, str] | None = None, provider_switch: dict[str, list[str]] | None = None,
 ) -> dict[str, Any] | None:
     """Publish the v2 handoff record for one transition and project its lifecycle label.
 
@@ -278,8 +451,8 @@ def _transition(
     head and latest record are re-observed first: a moved head publishes
     nothing; a current-head record in ``refuse_from`` (another job's ownership)
     raises ``LifecycleOwnershipChanged``; a transition carrying nothing new is
-    not re-published (scheduled retries must not grow the bounded comment
-    page) but still repairs the label projection. Gates, items not re-verified
+    not re-published (scheduled retries must not grow the comment
+    history) but still repairs the label projection. Gates, items not re-verified
     and the next job carry forward from the latest exact-head record; task
     identity and attempt counters carry forward across coordinator head updates
     unless the caller proves a fresh identity (``inherit_identity=False``).
@@ -310,9 +483,22 @@ def _transition(
     new_gates = any(previous.get("gates", {}).get(name) != gate for name, gate in (gates or {}).items())
     new_job = next_job is not None and next_job != previous.get("next_job")
     identity_changed = not inherit_identity and previous.get("task_identity") != task_identity
+    final_identity = ((previous.get("task_identity") or lineage.get("task_identity") or task_identity)
+                      if inherit_identity else task_identity)
+    # The originating task route travels with the candidate: an explicit handoff route wins,
+    # otherwise the previous exact-head record, then the lineage, keeps it across head changes.
+    recorded_route = route or previous.get("route") or lineage.get("route")
+    if recorded_route is not None and isinstance(final_identity, dict) and final_identity.get("change") not in (None, recorded_route["change"]):
+        raise QueueError(f"PR #{number} task identity change {final_identity['change']} contradicts its recorded "
+                         f"originating route change {recorded_route['change']}; re-run developer handoff")
+    new_route = recorded_route is not None and recorded_route != previous.get("route")
+    # An operator provider switch travels with the candidate like the route; a new switch replaces that kind only.
+    carried_switch = previous.get("provider_switch") or lineage.get("provider_switch") or {}
+    recorded_switch = {**carried_switch, **(provider_switch or {})} or None
+    new_route = new_route or recorded_switch != previous.get("provider_switch")
     new_attempts = any(previous.get("attempts", {}).get(k) != v for k, v in (set_attempts or {}).items())
     branch = observed.get("head", {}).get("ref")
-    if not identity_changed and not new_attempts and previous.get("state") == state and red_gate in (None, previous.get("red_gate")) and not new_gates and not new_job:
+    if not identity_changed and not new_attempts and previous.get("state") == state and red_gate in (None, previous.get("red_gate")) and not new_gates and not new_job and not new_route:
         if state in _FRICTION_STATES:
             emit_friction(number, branch, state, head, str((previous.get("red_gate") or {}).get("evidence", ""))[:300],
                           attempts=previous.get("attempts"))
@@ -335,13 +521,14 @@ def _transition(
     attempts.update(set_attempts or {})
     record = build_handoff_record(
         number=number, state=state, head=head,
-        task_identity=(previous.get("task_identity") or lineage.get("task_identity") or task_identity)
-        if inherit_identity else task_identity,
+        task_identity=final_identity,
         gates=merged_gates, red_gate=red_gate,
         not_reverified=list(previous.get("not_reverified") or lineage.get("not_reverified") or []),
         attempts=attempts,
         next_job=next_job if next_job is not None else (previous.get("next_job") if state == previous.get("state") or state in {"reviewing", "repairing"} else None),
         at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        route=recorded_route,
+        provider_switch=recorded_switch,
     )
     if state in _FRICTION_STATES:
         emit_friction(number, branch, state, head, str((red_gate or {}).get("evidence", ""))[:300], attempts=attempts)
@@ -350,32 +537,53 @@ def _transition(
     return record
 
 
+def _require_route(candidate: dict[str, Any], number: int, kind: str) -> dict[str, str]:
+    """The originating task route recorded on the candidate, or an explicit failure."""
+    from model_routing import PROVIDERS
+
+    route = candidate.get("route")
+    if not isinstance(route, dict):
+        raise QueueError(f"{kind} job for PR #{number} has no originating task route; re-run developer handoff")
+    if route.get("provider") not in PROVIDERS:
+        raise QueueError(f"{kind} job for PR #{number} has unsupported originating route provider {route.get('provider')!r}")
+    identity = candidate.get("task_identity")
+    if isinstance(identity, dict) and identity.get("change") not in (None, route.get("change")):
+        raise QueueError(f"PR #{number} task identity change {identity['change']} contradicts its recorded "
+                         f"originating route change {route.get('change')}; re-run developer handoff")
+    return route
+
+
 def publish_job(root: Path, repo: str, number: int, kind: str, head: str, *,
                 task_identity: str | dict[str, Any], attempt: int | None = None,
-                providers=None, target_head=None, phase=None) -> dict[str, Any] | None:
+                providers=None, target_head=None, phase=None, reoffer=None) -> dict[str, Any] | None:
     """Publish a head-bound job record for the candidate's current state (no new state)."""
-    from lifecycle_workers import job_record
+    from lifecycle_workers import WorkerError, authorized_repair_providers, job_record
 
     observed = _pr(root, repo, number)
     current = _derive(root, observed, _comments(root, repo, number))
     if attempt is None:
         attempt = current.get("attempts", {}).get(kind, 0)
-    if providers is None and kind in {"review", "repair"}:
-        from independent_review_runner import settings, resolve_provider
+    if kind in {"repair", "integration-repair"}:
+        route = _require_route(current, number, kind)
+        switched = (current.get("provider_switch") or {}).get("repair")
+        providers = (list(switched) if switched else [route["provider"]]) if providers is None else list(providers)
+        try:
+            authorized_repair_providers(route, providers, reoffer, f"{kind} job for PR #{number}", switched=switched)
+        except WorkerError as exc:
+            raise QueueError(str(exc)) from exc
+    elif kind == "review" and providers is None and (current.get("provider_switch") or {}).get("review"):
+        providers = list(current["provider_switch"]["review"])
+    elif kind == "review" and providers is None:
+        from independent_review_runner import settings
 
-        config = settings(root)
-        providers = config.get("providers")
+        providers = settings(root).get("providers")
         if providers is None:
-            provider, _ = resolve_provider(root, config)
-            providers = [provider or "unresolved-originating-task-route"]
-    if providers and "unresolved-originating-task-route" in providers:
-        emit_friction(number, observed.get("head", {}).get("ref"), "fallback", head,
-                      f"{kind} job could not resolve the originating task route and falls back to the default provider")
+            providers = [_require_route(current, number, kind)["provider"]]
     return _transition(root, repo, number, current["state"], head,
                        task_identity=current.get("task_identity") or task_identity,
                        red_gate=current.get("red_gate") if kind in {"repair", "integration-repair"} else None,
                        next_job=job_record(kind, head, current.get("task_identity") or task_identity, attempt,
-                                           providers=providers, target_head=target_head, phase=phase))
+                                           providers=providers, target_head=target_head, phase=phase, reoffer=reoffer))
 
 
 def _raise_if_owned_elsewhere(root: Path, repo: str, number: int, head: str) -> None:
@@ -465,28 +673,59 @@ def _main(root: Path) -> str:
     return sha
 
 
+def _managed_state(root: Path) -> dict[str, Any] | None:
+    from managed_task import ManagedTaskError, read_task_state
+
+    try:
+        return read_task_state(root)
+    except (ManagedTaskError, OSError) as exc:
+        raise QueueError(f"managed task state is unreadable: {exc}") from exc
+
+
+def _touches_openspec_change(root: Path, head: str) -> bool:
+    """Whether the admitted head, read from git, changes any OpenSpec change directory."""
+    base = run_git(["merge-base", head, "origin/main"], cwd=root, check=False)
+    if base.returncode != 0 or not base.stdout.strip():
+        raise QueueError(f"cannot determine the merge base of {head} with origin/main: {base.stderr.strip()}")
+    changed = run_git(["diff", "--name-only", f"{base.stdout.strip()}...{head}"], cwd=root, check=False)
+    if changed.returncode != 0:
+        raise QueueError(f"cannot list the files changed by {head}: {changed.stderr.strip()}")
+    return any(line.startswith("openspec/changes/") for line in changed.stdout.splitlines())
+
+
 def _admission_handoff(root: Path, branch: str, head: str) -> dict[str, Any]:
     """Task-content identity for the admitted head.
 
-    A managed task checked out at the admitted head binds its task-content
-    digest; otherwise (quick task, or a checkout elsewhere) exact-head identity.
+    A managed candidate (managed task state present, or a head that touches an
+    OpenSpec change) must carry exact task-content provenance from a checkout at
+    the admitted head, or admission fails; it never degrades to quick-task
+    branch/head identity. Only a candidate with neither marker is a quick task.
     """
-    proof = None
-    # Only a checkout at the admitted head can vouch for its validation.
-    try:
-        local_head = run_git(["rev-parse", "HEAD"], cwd=root, check=False).stdout.strip()
-    except OSError:
-        local_head = ""
-    if local_head == head:
-        try:
-            from agent_friction import current_task_content
+    from task_content_identity import content_identity
 
-            proof = current_task_content(root)
-        except Exception:
-            proof = None
+    state = _managed_state(root)
+    if state is None and not _touches_openspec_change(root, head):
+        return {"task_identity": {"branch": branch, "head": head}, "gates": {}}
+
+    def lacks(cause: str) -> QueueError:
+        return QueueError(f"managed candidate {branch} lacks valid exact task-content provenance: {cause}")
+
+    if state is None:
+        raise lacks("the head changes an OpenSpec change but the checkout has no managed task state")
+    local = run_git(["rev-parse", "HEAD"], cwd=root, check=False)
+    if local.returncode != 0 or not local.stdout.strip():
+        raise QueueError(f"cannot read the checkout HEAD: {local.stderr.strip()}")
+    if local.stdout.strip() != head:
+        raise lacks(f"the checkout is at {local.stdout.strip()}, not the admitted head {head}")
+    change = state["change"]
+    active = root / "openspec" / "changes" / change
+    archives = [path for path in (root / "openspec" / "changes" / "archive").glob(f"*-{change}") if path.is_dir()]
+    if not active.is_dir() and len(archives) != 1:
+        raise lacks(f"change {change} has no unique active or archived package")
+    proof = content_identity(root, change)
     digest = proof.get("digest") if isinstance(proof, dict) else None
     if not (isinstance(digest, str) and digest):
-        return {"task_identity": {"branch": branch, "head": head}, "gates": {}}
+        raise lacks(f"no task-content proof could be computed for change {state['change']}")
     return {"task_identity": {"task_content": digest}, "gates": _archived_verification_gate(root)}
 
 
@@ -495,36 +734,57 @@ def _archived_verification_gate(root: Path) -> dict[str, Any]:
 
     Admission itself proves no validation; it binds the gate the archive helper
     already recorded (successful outcome, the task content and head it ran on,
-    and the evidence file digest). Without that evidence no gate is claimed.
+    and the evidence file digest). Absent or unsuccessful evidence claims no
+    gate; unreadable or malformed evidence is an error.
     """
     import hashlib
 
-    try:
-        from managed_task import read_task_state
-
-        state = read_task_state(root) or {}
-    except Exception:
+    state = _managed_state(root)
+    if state is None:
         return {}
-    change = state.get("change")
-    if not isinstance(change, str) or not change:
-        return {}
+    change = state["change"]
     matches = sorted((root / "openspec" / "changes" / "archive").glob(f"*-{change}/automated-checks.json"))
+    if not matches:
+        return {}
     if len(matches) != 1:
-        return {}
-    raw = matches[0].read_bytes()
+        raise QueueError(f"archived verification evidence for {change} is ambiguous: {len(matches)} files")
+    path = matches[0].relative_to(root).as_posix()
     try:
+        raw = matches[0].read_bytes()
         evidence = json.loads(raw)
-    except json.JSONDecodeError:
-        return {}
-    checkout = evidence.get("managed_checkout") if isinstance(evidence, dict) else None
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise QueueError(f"archived verification evidence {path} is unreadable or malformed: {exc}") from exc
+    if not isinstance(evidence, dict):
+        raise QueueError(f"archived verification evidence {path} is not a JSON object")
+    checkout = evidence.get("managed_checkout")
     content = checkout.get("task_content") if isinstance(checkout, dict) else None
-    if evidence.get("outcome") != "success" or not isinstance(content, dict) or not content.get("digest"):
+    outcome = evidence.get("outcome")
+    digest = content.get("digest") if isinstance(content, dict) else None
+    head = checkout.get("head") if isinstance(checkout, dict) else None
+    if (outcome not in ("success", "failure")
+            or not isinstance(digest, str) or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+            or not isinstance(head, str) or re.fullmatch(r"[0-9a-f]{40}", head) is None):
+        raise QueueError(f"archived verification evidence {path} has malformed outcome or managed-checkout identity")
+    if outcome != "success":
         return {}
     return {"archived-verification": {
         "result": "passed",
-        "identity": {"task_content": content["digest"], "head": checkout.get("head")},
-        "evidence": {"path": matches[0].relative_to(root).as_posix(), "sha256": hashlib.sha256(raw).hexdigest()},
+        "identity": {"task_content": content["digest"], "head": head},
+        "evidence": {"path": path, "sha256": hashlib.sha256(raw).hexdigest()},
     }}
+
+
+def _handoff_route(root: Path, identity: Any) -> dict[str, str]:
+    """Resolve the originating task route from the developer checkout's durable routing evidence."""
+    import model_routing
+
+    change = identity.get("change") if isinstance(identity, dict) else None
+    if not isinstance(change, str) or not change:
+        raise QueueError("handoff cannot resolve the originating task route: its task identity names no change")
+    try:
+        return model_routing.read_route_for_change(root, change)
+    except model_routing.RoutingError as exc:
+        raise QueueError(f"handoff cannot resolve the originating task route for {change}: {exc}") from exc
 
 
 def admit(root: Path, number: int, expected_head: str, *, handoff: dict | None = None) -> dict[str, Any]:
@@ -541,7 +801,10 @@ def admit(root: Path, number: int, expected_head: str, *, handoff: dict | None =
         or (identity.get("kind") == "requirement-composition" and branch.startswith("requirement/BR-"))):
         raise QueueError("queue admission requires an owned task branch")
     if target == "main" and branch.startswith("requirement/BR-"):
-        require_composition_finalized(root, repo, number, expected_head)
+        resolved_handoff = require_composition_finalized(root, repo, number, expected_head)
+    else:
+        resolved_handoff = handoff if handoff is not None else _admission_handoff(root, branch, expected_head)
+    route = _handoff_route(root, identity) if handoff else None
     events = _events(root, repo, number)
     admitted = _admission(events, number)
     if admitted and handoff:
@@ -588,7 +851,7 @@ def admit(root: Path, number: int, expected_head: str, *, handoff: dict | None =
     if current.get("task_identity") is None or current.get("head") != expected_head:
         try:
             _transition(root, repo, number, "review-pending" if handoff else "ready", expected_head, inherit_identity=False,
-                        refuse_from=STATES, **(handoff or _admission_handoff(root, branch, expected_head)))
+                        refuse_from=STATES, route=route, **resolved_handoff)
         except LifecycleOwnershipChanged:
             pass  # lifecycle work recorded this head in the meantime; never rewind it
     if handoff:
@@ -652,25 +915,13 @@ def candidate_status(root: Path, number: int, *, repo: str | None = None) -> dic
     pr = _pr(root, repo, number)
     comments = _comments(root, repo, number)
     head = pr.get("head", {}).get("sha", "")
-    # gh uses 1 for failed checks and 8 for pending checks. Those are readable
-    # snapshots, not transport failures. Leave the legacy worker observer alone.
-    response = subprocess.run(
-        ["gh", "pr", "checks", str(number), "--required", "--json", "name,state,workflow,link"],
-        cwd=root, text=True, capture_output=True, check=False,
-        stdin=subprocess.DEVNULL,
-    )
-    checks = {"head": head, "kind": "unknown", "detail": "required checks unavailable"}
-    if response.returncode in {0, 1, 8}:
-        try:
-            rows = json.loads(response.stdout)
-        except json.JSONDecodeError:
-            rows = None
-        if isinstance(rows, list):
-            observed = _classify_required_checks(rows)
-            checks.update(kind=observed.kind, detail=observed.detail, checks=list(observed.checks))
-    # A concurrent push invalidates this observation, including every gate.
-    if _pr(root, repo, number).get("head", {}).get("sha") != head:
-        checks["head"] = None
+    # The shared classifier resolves the required set from the final protected
+    # target and binds the snapshot to this head before and after reading.
+    observed = required_check_state_for_ref(root, os.environ.copy(), str(number), head)
+    checks = {"head": None if observed.cause == "head-mismatch" else head, "kind": observed.kind,
+              "detail": observed.detail, "checks": list(observed.checks)}
+    if observed.cause:
+        checks["cause"] = observed.cause
     return _derive(root, pr, comments, checks)
 
 
@@ -680,8 +931,8 @@ def lifecycle_summary(root: Path, number: int) -> dict[str, Any]:
     return {key: candidate.get(key) for key in ("state", "head", "red_gate", "attempts", "next_action", "reason")}
 
 
-def requirement_status(root: Path, requirement: str) -> dict[str, Any]:
-    """List shared candidate generations by canonical branch identity, read-only."""
+def _requirement_candidate_numbers(root: Path, requirement: str, repo: str) -> tuple[list[int], str | None]:
+    """Candidate PR numbers of a Requirement (shared candidates plus child branches) and a lineage note."""
     from requirement_integration import ISSUE_RE, _candidate_slug
 
     if not ISSUE_RE.fullmatch(requirement):
@@ -701,7 +952,6 @@ def requirement_status(root: Path, requirement: str) -> dict[str, Any]:
             public_requirement = None
             lineage_note = f"shared candidate lineage unavailable: {exc}"
     branch = "agent/" + _candidate_slug(public_requirement) if public_requirement else None
-    repo = _repo(root)
     # Candidate generations keep their PRs after their branches are deleted, so
     # the repository's PR list is read in full (paginated, filtered server-side
     # output) rather than inferred from live branches or one bounded page.
@@ -723,6 +973,13 @@ def requirement_status(root: Path, requirement: str) -> dict[str, Any]:
     pattern = re.compile(legacy + shared + "|" + children)
     numbers = sorted({int(number) for number, _, ref in (line.partition("\t") for line in listed.stdout.splitlines())
                       if number.isdigit() and pattern.fullmatch(ref)})
+    return numbers, lineage_note
+
+
+def requirement_status(root: Path, requirement: str) -> dict[str, Any]:
+    """List shared candidate generations by canonical branch identity, read-only."""
+    repo = _repo(root)
+    numbers, lineage_note = _requirement_candidate_numbers(root, requirement, repo)
     result: dict[str, Any] = {"requirement": requirement, "candidates": [candidate_status(root, number, repo=repo) for number in numbers]}
     if lineage_note:
         result["shared_lineage"] = lineage_note
@@ -952,6 +1209,197 @@ def merge_conflicts(root: Path, head: str, main: str) -> list[str]:
     raise QueueError("cannot evaluate the merge of main: " + (done.stderr or done.stdout).strip()[:200])
 
 
+# ---- coordinator configuration preflight ------------------------------------
+
+PREFLIGHT_MODES = ("ci", "local")
+PREFLIGHT_PHASES = ("inputs", "runtime", "all")
+_SLUG = re.compile(r"[A-Za-z0-9][A-Za-z0-9-]*")
+_REPOSITORY = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
+
+
+class PreflightFailure(Exception):
+    """A required coordinator input is missing or contradictory; carries only names and categories."""
+
+    def __init__(self, name: str, detail: str):
+        super().__init__(f"{name}: {detail}")
+        self.name, self.detail = name, detail
+
+
+def _probe(root: Path, name: str, *args: str) -> Any:
+    """A read-only GitHub probe; failures are classified without echoing any response."""
+    try:
+        return _gh(root, *args)
+    except QueueError as exc:
+        text = str(exc)
+        if re.search(r"\b(401|403)\b|Bad credentials|Resource not accessible", text):
+            category = "unauthorized"
+        elif re.search(r"\b404\b|Not Found", text):
+            category = "not-found"
+        else:
+            category = "unreachable"
+        raise PreflightFailure(name, f"GitHub probe failed: {category}") from None
+
+
+def _require_tools(env: Mapping[str, str]) -> None:
+    import shutil
+
+    for tool in ("gh", "git"):
+        if shutil.which(tool, path=env.get("PATH")) is None:
+            raise PreflightFailure(f"tool:{tool}", "required executable is not available")
+    if sys.version_info < (3, 11):
+        raise PreflightFailure("tool:python", "Python 3.11 or newer (tomllib) is required")
+
+
+def _preflight_inputs(root: Path, mode: str, env: Mapping[str, str]) -> list[dict[str, str]]:
+    checks: list[dict[str, str]] = []
+
+    def ok(name: str, detail: str) -> None:
+        checks.append({"name": name, "status": "ok", "detail": detail})
+
+    if mode == "ci":
+        for flag in ("PREFLIGHT_APP_CLIENT_ID_SET", "PREFLIGHT_APP_PRIVATE_KEY_SET"):
+            if env.get(flag) != "true":
+                raise PreflightFailure(flag, "must be exactly 'true'; the variable or secret behind it is not configured")
+            ok(flag, "set")
+        if not _REPOSITORY.fullmatch(env.get("GITHUB_REPOSITORY", "")):
+            raise PreflightFailure("GITHUB_REPOSITORY", "missing or not owner/name")
+        ok("GITHUB_REPOSITORY", "well formed")
+        for name in ("GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT"):
+            if not re.fullmatch(r"[1-9][0-9]*", env.get(name, "")):
+                raise PreflightFailure(name, "missing or not a positive integer")
+            ok(name, "well formed")
+    _require_tools(env)
+    ok("tools", "gh, git and Python 3.11 are available")
+    if mode == "local":
+        result = subprocess.run(["gh", "auth", "status"], cwd=root, capture_output=True, check=False, stdin=subprocess.DEVNULL)
+        if result.returncode:
+            raise PreflightFailure("gh-auth", "gh is not authenticated (run gh auth login)")
+        ok("gh-auth", "authenticated")
+    return checks
+
+
+def _resolve_app_identity(root: Path, mode: str, env: Mapping[str, str]) -> tuple[str, list[dict[str, str]]]:
+    checks: list[dict[str, str]] = []
+    from_env = env.get(COORDINATOR_APP_ENV, "").strip()
+    try:
+        configured = configured_coordinator_apps(root)
+    except QueueError as exc:
+        raise PreflightFailure("trust-configuration", str(exc)) from exc
+    if mode == "ci":
+        if not from_env:
+            raise PreflightFailure(COORDINATOR_APP_ENV, "empty; the App token step did not export an App slug")
+        if not _SLUG.fullmatch(from_env):
+            raise PreflightFailure(COORDINATOR_APP_ENV, "is not a valid GitHub App slug")
+    elif not configured:
+        raise PreflightFailure("[publication] coordinator_app", "must be configured in operator or project config for a local run")
+    identities = {from_env, *(app for _, app in configured)} - {""}
+    if len(identities) != 1:
+        sources = ", ".join(f"{source} names {app}" for source, app in configured) or "no configuration names one"
+        raise PreflightFailure("coordinator App identity", f"contradiction: environment names {from_env or 'none'}, {sources}")
+    identity = next(iter(identities))
+    if not _SLUG.fullmatch(identity):
+        raise PreflightFailure("[publication] coordinator_app", "is not a valid GitHub App slug")
+    checks.append({"name": "coordinator-app", "status": "ok", "detail": f"identity {identity}"})
+    return identity, checks
+
+
+def _preflight_runtime(root: Path, mode: str, env: Mapping[str, str]) -> list[dict[str, str]]:
+    checks: list[dict[str, str]] = []
+
+    def ok(name: str, detail: str) -> None:
+        checks.append({"name": name, "status": "ok", "detail": detail})
+
+    if mode == "ci":
+        if not env.get("GH_TOKEN"):
+            raise PreflightFailure("GH_TOKEN", "empty; the App token step did not produce a token")
+        ok("GH_TOKEN", "present")
+    identity, found = _resolve_app_identity(root, mode, env)
+    checks.extend(found)
+    try:
+        trusted = trusted_apps(root)
+    except QueueError as exc:
+        raise PreflightFailure("trust-configuration", str(exc)) from exc
+    if identity not in trusted:
+        raise PreflightFailure("trust-configuration", "trusted App set does not contain the coordinator App identity")
+    ok("trust-configuration", "readable and contains the coordinator App")
+    try:
+        is_enabled = enabled(root)
+    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+        raise PreflightFailure("platform-config", f"cannot determine whether the coordinator is enabled ({type(exc).__name__})") from None
+    if not is_enabled:
+        raise PreflightFailure("coordinator-enabled", "this repository is not a source repository with the publication workflow on origin/main")
+    ok("coordinator-enabled", "enabled")
+    try:
+        repo = _repo(root)
+    except QueueError:
+        raise PreflightFailure("repository", "GitHub repository identity is unavailable") from None
+    if mode == "ci" and repo != env.get("GITHUB_REPOSITORY"):
+        raise PreflightFailure("GITHUB_REPOSITORY", f"checkout repository {repo} differs from the workflow repository")
+    ok("repository", "resolved")
+    _probe(root, "pulls-read", "api", f"repos/{repo}/pulls?per_page=1")
+    ok("pulls-read", "pull requests are readable")
+    if mode == "ci":
+        installation = _probe(root, "installation-token", "api", "installation/repositories")
+        names = {r.get("full_name") for r in installation.get("repositories", []) if isinstance(r, dict)} \
+            if isinstance(installation, dict) else set()
+        if names != {repo}:
+            raise PreflightFailure("installation-token", "token is not an installation token scoped to exactly this repository")
+        ok("installation-token", "scoped to this repository")
+        permission = _probe(root, "bot-permission", "api", f"repos/{repo}/collaborators/{identity}%5Bbot%5D/permission")
+        if not isinstance(permission, dict) or permission.get("permission") not in _WRITER_PERMISSIONS:
+            raise PreflightFailure("bot-permission", "coordinator App does not have write permission on this repository")
+        ok("bot-permission", "write permission proven")
+    else:
+        info = _probe(root, "repository-permission", "api", f"repos/{repo}")
+        if not isinstance(info, dict) or not (info.get("permissions") or {}).get("push"):
+            raise PreflightFailure("repository-permission", "the authenticated user lacks push permission")
+        ok("repository-permission", "push permission proven")
+    return checks
+
+
+def preflight(root: Path, mode: str, phase: str, env: Mapping[str, str]) -> dict[str, Any]:
+    """Prove coordinator configuration; stop at the first failed check and name it."""
+    if mode not in PREFLIGHT_MODES or phase not in PREFLIGHT_PHASES:
+        raise QueueError("preflight needs --mode ci|local and --phase inputs|runtime|all")
+    checks: list[dict[str, str]] = []
+    try:
+        if phase in ("inputs", "all"):
+            checks.extend(_preflight_inputs(root, mode, env))
+        if phase in ("runtime", "all"):
+            checks.extend(_preflight_runtime(root, mode, env))
+    except PreflightFailure as failure:
+        checks.append({"name": failure.name, "status": "failed", "detail": failure.detail})
+        return {"state": "error", "mode": mode, "phase": phase, "checks": checks,
+                "reason": f"preflight failed: {failure.name}: {failure.detail}"}
+    return {"state": "ok", "mode": mode, "phase": phase, "checks": checks}
+
+
+def run_identity(mode: str, env: Mapping[str, str]) -> str:
+    """One worker run identity, constructed per run from validated inputs."""
+    if mode == "ci":
+        parts = [env.get(name, "") for name in ("GITHUB_REPOSITORY", "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT")]
+        if not all(parts):
+            raise QueueError("CI worker identity needs GITHUB_REPOSITORY, GITHUB_RUN_ID and GITHUB_RUN_ATTEMPT")
+        return "github-actions:" + ":".join(parts)
+    if mode == "local":
+        import socket
+        import uuid
+
+        return f"local:{socket.gethostname()}:{os.getpid()}:{uuid.uuid4().hex}"
+    raise QueueError("worker mode must be ci or local")
+
+
+def run_worker(root: Path, mode: str, env: Mapping[str, str], *, install_sink: bool) -> dict[str, Any]:
+    """The coordinator command: full preflight, then one run identity, then candidate work."""
+    result = preflight(root, mode, "all", env)
+    if result["state"] != "ok":
+        return result
+    identity = run_identity(mode, env)
+    if install_sink:
+        use_default_friction_sink(root, worker=identity)
+    return worker(root)
+
+
 def worker(root: Path) -> dict[str, Any]:
     """Integrate ready candidates one at a time; a candidate that cannot proceed never stalls the rest.
 
@@ -994,8 +1442,12 @@ def worker(root: Path) -> dict[str, Any]:
                 _transition(root, repo, number, "repair-pending", current["head"],
                             task_identity=current["task_identity"], inherit_identity=False,
                             gates=current.get("gates", {}), red_gate=red_gate)
-                publish_job(root, repo, number, "repair", current["head"], task_identity=current["task_identity"],
-                            attempt=max(1, current.get("attempts", {}).get("repair", 0) + 1))
+                try:
+                    publish_job(root, repo, number, "repair", current["head"], task_identity=current["task_identity"],
+                                attempt=max(1, current.get("attempts", {}).get("repair", 0) + 1))
+                except QueueError as exc:
+                    skipped.append(f"#{number} contribution repair job not published: {exc}"[:300])
+                    continue
                 return {"state": "repair-pending", "number": number}
             if current["state"] in {"contribution-integration-pending", "contribution-integrated"}:
                 try:
@@ -1044,8 +1496,8 @@ def worker(root: Path) -> dict[str, Any]:
                     publish_job(root, repo, number, "integration-repair", current["head"],
                                 task_identity=current["task_identity"],
                                 attempt=max(1, current.get("attempts", {}).get("integration-repair", 1)))
-                except QueueError:
-                    pass
+                except QueueError as exc:
+                    skipped.append(f"#{number} integration-repair job not published: {exc}"[:300])
             if active(number):
                 _label(root, repo, number, ACTIVE, present=False)
             continue
@@ -1101,7 +1553,12 @@ def _integrate(root: Path, repo: str, number: int, admission: dict[str, Any], pr
             if state.kind == "not_registered":
                 return _released(_block(root, repo, number, "required check is not registered for the PR head", head=head))
             if state.kind == "unknown":
-                raise QueueError("required check state is unknown: " + state.detail)
+                if state.cause in {"transport", "head-mismatch"}:
+                    # Non-terminal and visible: the next coordinator run re-observes.
+                    _label(root, repo, number, ACTIVE, present=False)
+                    return _released({"state": "waiting", "number": number,
+                                      "reason": f"required check observation unusable ({state.cause}): {state.detail}"})
+                raise QueueError(f"required check state is unknown ({state.cause}): {state.detail}")
             if time.monotonic() >= deadline:
                 return {"state": "waiting", "number": number, "reason": "required CI pending"}
             time.sleep(10)
@@ -1207,6 +1664,9 @@ def _integration_repair(root: Path, repo: str, number: int, admission: dict[str,
                     task_identity=fallback, attempt=spent + 1)
     except LifecycleOwnershipChanged:
         pass
+    except QueueError as failure:
+        # No originating route (or another contradiction): the job cannot be published under a default.
+        return _block(root, repo, number, f"integration repair job cannot be published: {failure}"[:500], head=head_now)
     return {"state": "waiting", "number": number, "reason": str(exc)}
 
 
@@ -1221,7 +1681,11 @@ def main() -> int:
     target.add_argument("--pr", type=int)
     target.add_argument("--requirement")
     show.add_argument("--json", action="store_true")
-    sub.add_parser("worker")
+    run = sub.add_parser("worker")
+    run.add_argument("--mode", choices=PREFLIGHT_MODES, required=True)
+    check = sub.add_parser("preflight")
+    check.add_argument("--mode", choices=PREFLIGHT_MODES, required=True)
+    check.add_argument("--phase", choices=PREFLIGHT_PHASES, required=True)
     for name, summary in (("switch-provider", "re-offer an unfinished review or repair job on other providers"),
                           ("resume", "re-offer a retryable or operationally escalated review/repair job after a human decision")):
         operator = sub.add_parser(name, help=summary)
@@ -1231,8 +1695,6 @@ def main() -> int:
         operator.add_argument("--reason", required=True, help="the operator's reason, recorded in the candidate record")
     args = parser.parse_args()
     root = current_worktree_root()
-    if args.command == "worker":
-        use_default_friction_sink(root)  # real coordinator runs record friction automatically
     try:
         if args.command == "admit":
             result = admit(root, args.pr, args.head)
@@ -1244,8 +1706,13 @@ def main() -> int:
             print(json.dumps(reoffer(root, _repo(root), args.pr, action=args.command, providers=args.provider,
                                      reason=args.reason), sort_keys=True))
             return 0
+        elif args.command == "preflight":
+            result = preflight(root, args.mode, args.phase, os.environ)
+            print(json.dumps(result, sort_keys=True))
+            return 0 if result["state"] == "ok" else 2
         else:
-            result = worker(root)
+            # Real coordinator runs record friction automatically (install_sink).
+            result = run_worker(root, args.mode, os.environ, install_sink=True)
     except QueueError as exc:
         print(json.dumps({"state": "error", "reason": str(exc)}))
         return 2
@@ -1277,7 +1744,7 @@ def branch_head(root: Path, branch: str) -> str:
     return result[0]
 
 
-def require_composition_finalized(root: Path, repo: str, number: int, head: str) -> None:
+def require_composition_finalized(root: Path, repo: str, number: int, head: str) -> dict[str, Any]:
     import tempfile
     from lifecycle_workers import prepare_checkout
     from requirement_composition import candidate_manifest, require_final_gates
@@ -1292,6 +1759,7 @@ def require_composition_finalized(root: Path, repo: str, number: int, head: str)
             checkout = prepare_checkout(f"https://github.com/{repo}.git", temporary, "harness", head)
             manifest = candidate_manifest(checkout, identity["requirement"])
             require_final_gates(checkout, manifest, current, head)
+            return {"task_identity": identity, "gates": current["gates"]}
     except ContributionError as exc:
         raise QueueError(str(exc)) from exc
 

@@ -8,7 +8,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from _platform_common import current_worktree_root, harness_mode, read_platform_config, run_git
+from _platform_common import current_worktree_root, harness_mode, lifecycle_mode, read_platform_config, run_git
 try:
     from managed_task import ManagedTaskError, read_provenance, require_managed_checkout_identity, source_issue_for_provenance
 except (ImportError, ModuleNotFoundError):  # Compatibility while old renders are upgraded.
@@ -536,6 +536,11 @@ def archive_change(root: Path, name: str, *, finalize: bool = False) -> int:
     """
     # Fail closed on a nonexistent, malformed or not-completed target before any state changes.
     require_archive_target(root, name, source="archive")
+    config = read_platform_config(root)
+    mode = lifecycle_mode(config)
+    composition = os.environ.get("DEV_PLATFORM_COMPOSITION_FINALIZATION") if finalize else None
+    if composition and mode != "coordinator":
+        raise SystemExit("composition finalization requires a coordinator source contract")
     # Cheap privacy gate before review, checks, evidence writes or OpenSpec mutation.
     import private_lineage
     try:
@@ -543,7 +548,7 @@ def archive_change(root: Path, name: str, *, finalize: bool = False) -> int:
     except private_lineage.PrivateLineageError as exc:
         raise SystemExit(f"{name}: archive blocked before review and validation: {exc}") from exc
     change = root / "openspec" / "changes" / name
-    platform_owned = harness_mode(read_platform_config(root)) == "platform"
+    platform_owned = harness_mode(config) == "platform"
     if platform_owned and not finalize and (change / ".managed-task.json").is_file():
         try:
             source_issue = source_issue_for_provenance(root, change)
@@ -559,7 +564,6 @@ def archive_change(root: Path, name: str, *, finalize: bool = False) -> int:
     require_static_archive_readiness(change, platform_owned=platform_owned, review=False, routing=not finalize)
     if platform_owned and not finalize:
         require_applicable_committed_diff(root)
-    composition = os.environ.get("DEV_PLATFORM_COMPOSITION_FINALIZATION") if finalize else None
     if composition:
         from requirement_composition import require_archive_evidence
         require_archive_evidence(root, name, composition)
@@ -569,9 +573,12 @@ def archive_change(root: Path, name: str, *, finalize: bool = False) -> int:
         # Required independent review runs after the cheap deterministic gates and
         # before expensive validation: a missing or stale review is launched now,
         # and blocking findings stop archive with exact next commands.
-        from pr_review_gate import managed_candidate
+        if mode == "coordinator":
+            from pr_review_gate import managed_candidate
 
-        coordinator_managed = managed_candidate(root)
+            coordinator_managed = managed_candidate(root)
+        else:
+            coordinator_managed = False
         if coordinator_managed:
             require_review_evidence(root, change)
         else:

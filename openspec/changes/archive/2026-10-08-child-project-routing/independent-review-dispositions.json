@@ -1,0 +1,14 @@
+{
+  "dispositions": [
+    {
+      "finding": "ci-worker-step-missing-preflight-flags",
+      "perspective": "engineering-quality",
+      "rationale": "Not a defect of child-project-routing: the finding concerns the coordinator-operations publication-queue workflow seen in the integrated candidate. It is real and was fixed in d3da7d0 (worker step now carries the boolean presence flags; test_worker_step_carries_every_input_its_full_preflight_reads).",
+      "recorded_at": "2026-10-08T18:54:00+00:00",
+      "report_sha256": "6f3cd77944100ea7a831ecf0d8e4dce791f82b53844fc43b06b92f103d1ce594",
+      "request_id": "d5e8b05a-1eb0-4f8d-ad65-c9ce3be5af5a",
+      "status": "rejected"
+    }
+  ],
+  "schema_version": 1
+}

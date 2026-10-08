@@ -280,11 +280,8 @@ def _linked_children_by_change(integration: Path, requirement: str, parent: dict
 
 
 def _contribution_publication_supported(root: Path) -> bool:
-    from _platform_common import read_platform_config
-    config = read_platform_config(root)
-    if (config.get("platform_version") != "source" or config.get("publish_mode", "pr") != "pr"
-            or config.get("scm_provider", "github").lower() != "github"
-            or config.get("harness_mode", "platform") != "platform"):
+    from _platform_common import lifecycle_mode, read_platform_config
+    if lifecycle_mode(read_platform_config(root)) != "coordinator":
         return False
     import publication_queue
     return publication_queue.enabled(root)
@@ -481,7 +478,10 @@ def _publish_early_draft(
 
 def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_distinct: bool = False) -> dict[str, Any]:
     """Run deterministic transitions; return one bounded agent action or delivery result."""
+    from _platform_common import lifecycle_mode, read_platform_config
+
     integration = integration.resolve()
+    lifecycle_mode(read_platform_config(integration))
     if current_worktree_root().resolve() != integration or _git(integration, "branch", "--show-current") != "main":
         raise RequirementExecutionError("Execute Requirement must run from the integration main checkout")
     parent = requirement_intake.fetch_issue(integration, *requirement_intake.issue_ref(requirement))

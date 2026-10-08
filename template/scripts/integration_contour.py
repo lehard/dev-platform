@@ -70,20 +70,27 @@ def resolve_lineage(root: Path, branch: str) -> dict[str, str | None] | None:
 
 
 def default_friction_sink(root: Path, *, lineage: Callable[[Path, str], dict | None] = resolve_lineage):
-    """A sink that records coordinator events through ``agent_friction`` with both attributions."""
+    """A sink that persists coordinator events on the candidate PR, then mirrors them locally.
+
+    Durable first: a failed lineage lookup or evidence write raises before anything is
+    recorded locally, so a transition is never published with machine-local-only evidence.
+    """
     cache: dict[str, str | None] = {}
 
     def sink(event: dict[str, Any]) -> None:
         import agent_friction
+        import publication_queue
 
         task = event["task"]
         if task not in cache:
             found = lineage(root, task)
             cache[task] = found["requirement"] if found else None
+        record = publication_queue.post_evidence(root, event, requirement=cache[task])
         agent_friction.append_coordinator_event(
             task=task, requirement=cache[task], category=event["category"], triggers=event["triggers"],
             severity=event["severity"], observation=event["observation"], evidence=event["evidence"],
-            hypothesis=event["hypothesis"], proposal=event["proposal"], dedupe_key=event["dedupe_key"])
+            hypothesis=event["hypothesis"], proposal=event["proposal"], dedupe_key=event["dedupe_key"],
+            event_id=record["event_id"])
 
     return sink
 
@@ -240,8 +247,8 @@ def advance_after_repair(root: Path, repo: str, candidate: dict, head: str, fres
 
 def run_claimed_integration_repair(root: Path, repo: str, candidate: dict, job: dict, *, source_repo: str,
                                    branch: str, allowed_paths, llm_command, current_head, post_result,
-                                   workdir: str, adapter=queue, runner=None, worker: str = "worker",
-                                   claim_current=None, push_env=None, home_files=(), env=None,
+                                   workdir: str, worker: str, adapter=queue, runner=None,
+                                   provider: str | None = None, claim_current=None, push_env=None, home_files=(), env=None,
                                    conflicts: list[str] | None = None) -> dict:
     """Execute and advance one claimed integration-repair job, without the developer."""
     import subprocess as sp
@@ -249,6 +256,7 @@ def run_claimed_integration_repair(root: Path, repo: str, candidate: dict, job: 
     if job["kind"] != "integration-repair":
         raise workers.WorkerError(f"no integration-repair executor for {job['kind']}")
     number, identity = job["number"], job["task_identity"]
+    workers.require_job_provider(job, provider)
     if claim_current is None:
         def claim_current():
             comments = adapter._comments(root, repo, number)
@@ -269,12 +277,12 @@ def run_claimed_integration_repair(root: Path, repo: str, candidate: dict, job: 
         workers._git(harness, "checkout", "--detach", head)
         fresh = (review_gate.refresh_identity(harness, identity)
                  if isinstance(identity, dict) and identity.get("change") else {"branch": branch, "head": head})
-        post_result(workers.result_body(job, worker, "validated-push", head, task_identity=fresh))
+        post_result(workers.result_body(job, worker, "validated-push", head, task_identity=fresh, provider=provider))
 
     def fail(reason: str) -> dict:
         if not claim_current():
             return {"status": "discarded"}
-        post_result(workers.result_body(job, worker, "failed: " + reason[:200]))
+        post_result(workers.result_body(job, worker, "failed: " + reason[:200], provider=provider))
         if spent >= MAX_INTEGRATION_REPAIRS:
             adapter._block(root, repo, number, f"integration repair exhausted after {spent} attempts: {reason}"[:500],
                            head=job["head"])
@@ -307,7 +315,7 @@ def run_claimed_integration_repair(root: Path, repo: str, candidate: dict, job: 
     fresh = (review_gate.refresh_identity(harness, identity)
              if isinstance(identity, dict) and identity.get("change") else {"branch": branch, "head": head})
     state = advance_after_repair(root, repo, observed, head, fresh, harness, adapter=adapter)
-    post_result(workers.result_body(job, worker, "integrated", head))
+    post_result(workers.result_body(job, worker, "integrated", head, provider=provider))
     return {"status": "integrated", "pushed_head": head, "state": state}
 
 
@@ -434,7 +442,10 @@ def ensure_requirement_checkpoint(ops: LifecycleOps, root: Path, requirement: st
     ambiguous = [str(e.get("id")) for e in agent_friction.ambiguous_attribution_events()]
     if ambiguous:
         raise JobBlocked("ambiguous friction attribution needs a human decision: " + ", ".join(ambiguous[:5]))
-    ids = list(dict.fromkeys(str(e.get("id")) for e in _events_for(requirement, children)))
+    try:
+        ids = list(dict.fromkeys(str(e.get("id")) for e in _events_for(requirement, children)))
+    except agent_friction.DurableEvidenceError as exc:
+        raise JobBlocked(str(exc)) from exc
     try:
         ops.requirement_checkpoint(root, requirement, ids)
     except requirement_retrospective.RequirementRetrospectiveError as exc:
@@ -496,7 +507,7 @@ def run_cleanup(ops: LifecycleOps, root: Path, number: int, branch: str, head: s
 
 
 def run_claimed_post_merge(root: Path, repo: str, candidate: dict, job: dict, *, branch: str, post_result,
-                           ops: LifecycleOps | None = None, adapter=queue, worker: str = "worker",
+                           ops: LifecycleOps | None = None, adapter=queue, worker: str,
                            claim_current=None) -> dict:
     """Execute one claimed post-merge job. A refusal is a blocked receipt, an error a failed one; both are retried within a bound."""
     kind = job["kind"]

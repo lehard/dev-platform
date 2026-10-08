@@ -437,7 +437,7 @@ def reconcile_composition(root: Path, repo: str, manifest: dict, head: str, numb
 
 
 def run_claimed_retrospective(root: Path, repo: str, candidate: dict, job: dict, *, source_repo: str,
-                             post_result, adapter=None, ops=None, worker="worker", claim_current=None,
+                             post_result, worker: str, adapter=None, ops=None, claim_current=None,
                              checkpoint=None, resolve_manifest=None) -> dict:
     """Complete the parent retrospective before readiness, under an exact-head claim."""
     if adapter is None:
