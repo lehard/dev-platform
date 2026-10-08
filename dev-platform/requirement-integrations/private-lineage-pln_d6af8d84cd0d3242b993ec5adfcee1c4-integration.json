@@ -1,6 +1,243 @@
 {
   "base": "a8d83e5cbd97037b242daf30557f4b1e3b03ae7c",
-  "children": [],
+  "children": [
+    {
+      "change": "capability-metadata",
+      "contribution_base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+      "gates": {
+        "developer-friction": {
+          "evidence": {
+            "command": [
+              "python3",
+              "/Users/Shared/Workspace/dev-platform/.claude/worktrees/capability-metadata/scripts/agent_friction.py",
+              "assert-checkpoint",
+              "--exact-head"
+            ],
+            "head": "1cb0dca23cdaaf233ce54adf282e9ba7c3a6b6a0"
+          },
+          "identity": {
+            "change": "capability-metadata",
+            "contribution_base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+            "kind": "contribution",
+            "requirement": "pln_d6af8d84cd0d3242b993ec5adfcee1c4",
+            "source_issue": "pln_0930e58ad6bb1dabe0c771d8f1f5bfcf",
+            "target_branch": "requirement/BR-415",
+            "task_content": {
+              "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+              "digest": "81d5b046be48fc830e268710e1c08abaed6aaa7068a9f974f3b9f3605a44c458",
+              "paths": {
+                "dev-platform/evals/add-intents-pilot.json": "5256c47f2aa02da3c12aa39657650c4faf94a766",
+                "dev-platform/evals/interoperable-agent-handoff-pilot.json": "09d732cff9bfdedbc0885bde0adb51a249158de5",
+                "openspec/changes/capability-metadata/.managed-task.json": "04a655e0c4c4ca4d63393d5012a3a7ea13a105f5",
+                "openspec/changes/capability-metadata/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+                "openspec/changes/capability-metadata/design.md": "11a43397e0ebd79615c9fb06d4a4865ad0192e7a",
+                "openspec/changes/capability-metadata/proposal.md": "a9253ae02c1b348326cbce2b2d1da587a1040d6a",
+                "openspec/changes/capability-metadata/specs/engineering-capabilities/spec.md": "c7663d75a0dcafc34cfa9f72c3dfdb0ed56509e7",
+                "openspec/changes/capability-metadata/tasks.md": "8a4a7c377a62c385e3846b6c31c808cf2c62a831",
+                "template/dev-platform/evals/add-intents-pilot.json": "5256c47f2aa02da3c12aa39657650c4faf94a766",
+                "tests/test_capability_manager.py": "a00664671a8694afa94eb71a48a6f36e0d97536f"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-415/T1"
+          },
+          "result": "passed"
+        },
+        "required-checks": {
+          "evidence": {
+            "checks": [
+              {
+                "link": "https://github.com/lehard/dev-platform/actions/runs/37746355824/job/113208658742",
+                "name": "validate",
+                "state": "SUCCESS",
+                "workflow": "Platform CI"
+              }
+            ],
+            "detail": "",
+            "head": "62a46cdeeac5cff6de252ab90acab7d7266662ac",
+            "kind": "passed"
+          },
+          "identity": {
+            "change": "capability-metadata",
+            "contribution_base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+            "kind": "contribution",
+            "requirement": "pln_d6af8d84cd0d3242b993ec5adfcee1c4",
+            "source_issue": "pln_0930e58ad6bb1dabe0c771d8f1f5bfcf",
+            "target_branch": "requirement/BR-415",
+            "task_content": {
+              "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+              "digest": "81d5b046be48fc830e268710e1c08abaed6aaa7068a9f974f3b9f3605a44c458",
+              "paths": {
+                "dev-platform/evals/add-intents-pilot.json": "5256c47f2aa02da3c12aa39657650c4faf94a766",
+                "dev-platform/evals/interoperable-agent-handoff-pilot.json": "09d732cff9bfdedbc0885bde0adb51a249158de5",
+                "openspec/changes/capability-metadata/.managed-task.json": "04a655e0c4c4ca4d63393d5012a3a7ea13a105f5",
+                "openspec/changes/capability-metadata/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+                "openspec/changes/capability-metadata/design.md": "11a43397e0ebd79615c9fb06d4a4865ad0192e7a",
+                "openspec/changes/capability-metadata/proposal.md": "a9253ae02c1b348326cbce2b2d1da587a1040d6a",
+                "openspec/changes/capability-metadata/specs/engineering-capabilities/spec.md": "c7663d75a0dcafc34cfa9f72c3dfdb0ed56509e7",
+                "openspec/changes/capability-metadata/tasks.md": "8a4a7c377a62c385e3846b6c31c808cf2c62a831",
+                "template/dev-platform/evals/add-intents-pilot.json": "5256c47f2aa02da3c12aa39657650c4faf94a766",
+                "tests/test_capability_manager.py": "a00664671a8694afa94eb71a48a6f36e0d97536f"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-415/T1"
+          },
+          "result": "passed"
+        },
+        "review": {
+          "evidence": {
+            "engineering-quality": {
+              "availability": "available",
+              "findings": [],
+              "perspective": "engineering-quality",
+              "report_sha256": "ecd7c7cabfe552d9046ff7883da9fb9fcea1852b1aa36927a5315a371bcb6bcb"
+            },
+            "spec-fidelity": {
+              "availability": "available",
+              "findings": [],
+              "perspective": "spec-fidelity",
+              "report_sha256": "cec9087f162c7766f569bcfd970099f321ade12abb32cee2c3f1bd149b9a3585"
+            }
+          },
+          "identity": {
+            "change": "capability-metadata",
+            "contribution_base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+            "kind": "contribution",
+            "requirement": "pln_d6af8d84cd0d3242b993ec5adfcee1c4",
+            "source_issue": "pln_0930e58ad6bb1dabe0c771d8f1f5bfcf",
+            "target_branch": "requirement/BR-415",
+            "task_content": {
+              "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+              "digest": "81d5b046be48fc830e268710e1c08abaed6aaa7068a9f974f3b9f3605a44c458",
+              "paths": {
+                "dev-platform/evals/add-intents-pilot.json": "5256c47f2aa02da3c12aa39657650c4faf94a766",
+                "dev-platform/evals/interoperable-agent-handoff-pilot.json": "09d732cff9bfdedbc0885bde0adb51a249158de5",
+                "openspec/changes/capability-metadata/.managed-task.json": "04a655e0c4c4ca4d63393d5012a3a7ea13a105f5",
+                "openspec/changes/capability-metadata/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+                "openspec/changes/capability-metadata/design.md": "11a43397e0ebd79615c9fb06d4a4865ad0192e7a",
+                "openspec/changes/capability-metadata/proposal.md": "a9253ae02c1b348326cbce2b2d1da587a1040d6a",
+                "openspec/changes/capability-metadata/specs/engineering-capabilities/spec.md": "c7663d75a0dcafc34cfa9f72c3dfdb0ed56509e7",
+                "openspec/changes/capability-metadata/tasks.md": "8a4a7c377a62c385e3846b6c31c808cf2c62a831",
+                "template/dev-platform/evals/add-intents-pilot.json": "5256c47f2aa02da3c12aa39657650c4faf94a766",
+                "tests/test_capability_manager.py": "a00664671a8694afa94eb71a48a6f36e0d97536f"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-415/T1"
+          },
+          "result": "passed"
+        },
+        "selected-checks": {
+          "evidence": {
+            "bytes": 4750,
+            "path": "openspec/changes/capability-metadata/automated-checks.json",
+            "sha256": "42fde7f4b902cae0674d60e01354039782c8f070afc8c000f271d3652375d1d3"
+          },
+          "identity": {
+            "change": "capability-metadata",
+            "contribution_base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+            "kind": "contribution",
+            "requirement": "pln_d6af8d84cd0d3242b993ec5adfcee1c4",
+            "source_issue": "pln_0930e58ad6bb1dabe0c771d8f1f5bfcf",
+            "target_branch": "requirement/BR-415",
+            "task_content": {
+              "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+              "digest": "81d5b046be48fc830e268710e1c08abaed6aaa7068a9f974f3b9f3605a44c458",
+              "paths": {
+                "dev-platform/evals/add-intents-pilot.json": "5256c47f2aa02da3c12aa39657650c4faf94a766",
+                "dev-platform/evals/interoperable-agent-handoff-pilot.json": "09d732cff9bfdedbc0885bde0adb51a249158de5",
+                "openspec/changes/capability-metadata/.managed-task.json": "04a655e0c4c4ca4d63393d5012a3a7ea13a105f5",
+                "openspec/changes/capability-metadata/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+                "openspec/changes/capability-metadata/design.md": "11a43397e0ebd79615c9fb06d4a4865ad0192e7a",
+                "openspec/changes/capability-metadata/proposal.md": "a9253ae02c1b348326cbce2b2d1da587a1040d6a",
+                "openspec/changes/capability-metadata/specs/engineering-capabilities/spec.md": "c7663d75a0dcafc34cfa9f72c3dfdb0ed56509e7",
+                "openspec/changes/capability-metadata/tasks.md": "8a4a7c377a62c385e3846b6c31c808cf2c62a831",
+                "template/dev-platform/evals/add-intents-pilot.json": "5256c47f2aa02da3c12aa39657650c4faf94a766",
+                "tests/test_capability_manager.py": "a00664671a8694afa94eb71a48a6f36e0d97536f"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-415/T1"
+          },
+          "result": "passed"
+        },
+        "semantic-verification": {
+          "evidence": {
+            "bytes": 2455,
+            "path": "openspec/changes/capability-metadata/verification.md",
+            "sha256": "61b5ae9f1fc55a1702b6481be2f9b626916f9760ccad4af0c715e41693f3f235"
+          },
+          "identity": {
+            "change": "capability-metadata",
+            "contribution_base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+            "kind": "contribution",
+            "requirement": "pln_d6af8d84cd0d3242b993ec5adfcee1c4",
+            "source_issue": "pln_0930e58ad6bb1dabe0c771d8f1f5bfcf",
+            "target_branch": "requirement/BR-415",
+            "task_content": {
+              "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+              "digest": "81d5b046be48fc830e268710e1c08abaed6aaa7068a9f974f3b9f3605a44c458",
+              "paths": {
+                "dev-platform/evals/add-intents-pilot.json": "5256c47f2aa02da3c12aa39657650c4faf94a766",
+                "dev-platform/evals/interoperable-agent-handoff-pilot.json": "09d732cff9bfdedbc0885bde0adb51a249158de5",
+                "openspec/changes/capability-metadata/.managed-task.json": "04a655e0c4c4ca4d63393d5012a3a7ea13a105f5",
+                "openspec/changes/capability-metadata/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+                "openspec/changes/capability-metadata/design.md": "11a43397e0ebd79615c9fb06d4a4865ad0192e7a",
+                "openspec/changes/capability-metadata/proposal.md": "a9253ae02c1b348326cbce2b2d1da587a1040d6a",
+                "openspec/changes/capability-metadata/specs/engineering-capabilities/spec.md": "c7663d75a0dcafc34cfa9f72c3dfdb0ed56509e7",
+                "openspec/changes/capability-metadata/tasks.md": "8a4a7c377a62c385e3846b6c31c808cf2c62a831",
+                "template/dev-platform/evals/add-intents-pilot.json": "5256c47f2aa02da3c12aa39657650c4faf94a766",
+                "tests/test_capability_manager.py": "a00664671a8694afa94eb71a48a6f36e0d97536f"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-415/T1"
+          },
+          "result": "passed"
+        }
+      },
+      "head": "62a46cdeeac5cff6de252ab90acab7d7266662ac",
+      "integrated_head": "a0a012ff95acf0edb6c91279fe4f7417d84f6936",
+      "pr_number": 351,
+      "reviewed_evidence_digest": "b6a8cbc074e773eca6c455fcd4f9ae7f6878230b89c44d38f3b13212b36e9a39",
+      "source_branch": "agent/br-415-t1-capability-metadata",
+      "source_issue": "pln_0930e58ad6bb1dabe0c771d8f1f5bfcf",
+      "task_identity": {
+        "change": "capability-metadata",
+        "contribution_base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+        "kind": "contribution",
+        "requirement": "pln_d6af8d84cd0d3242b993ec5adfcee1c4",
+        "source_issue": "pln_0930e58ad6bb1dabe0c771d8f1f5bfcf",
+        "target_branch": "requirement/BR-415",
+        "task_content": {
+          "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+          "digest": "81d5b046be48fc830e268710e1c08abaed6aaa7068a9f974f3b9f3605a44c458",
+          "paths": {
+            "dev-platform/evals/add-intents-pilot.json": "5256c47f2aa02da3c12aa39657650c4faf94a766",
+            "dev-platform/evals/interoperable-agent-handoff-pilot.json": "09d732cff9bfdedbc0885bde0adb51a249158de5",
+            "openspec/changes/capability-metadata/.managed-task.json": "04a655e0c4c4ca4d63393d5012a3a7ea13a105f5",
+            "openspec/changes/capability-metadata/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+            "openspec/changes/capability-metadata/design.md": "11a43397e0ebd79615c9fb06d4a4865ad0192e7a",
+            "openspec/changes/capability-metadata/proposal.md": "a9253ae02c1b348326cbce2b2d1da587a1040d6a",
+            "openspec/changes/capability-metadata/specs/engineering-capabilities/spec.md": "c7663d75a0dcafc34cfa9f72c3dfdb0ed56509e7",
+            "openspec/changes/capability-metadata/tasks.md": "8a4a7c377a62c385e3846b6c31c808cf2c62a831",
+            "template/dev-platform/evals/add-intents-pilot.json": "5256c47f2aa02da3c12aa39657650c4faf94a766",
+            "tests/test_capability_manager.py": "a00664671a8694afa94eb71a48a6f36e0d97536f"
+          },
+          "scope": "independent-review-v1",
+          "version": 1
+        },
+        "work_identity": "BR-415/T1"
+      },
+      "work_identity": "BR-415/T1"
+    }
+  ],
   "dependencies": {
     "capability-metadata": [],
     "child-project-routing": [],
@@ -14,7 +251,7 @@
       "publication-observation"
     ]
   },
-  "digest": "219a7df1936d322cf60970d24037a5c2dc935acbf5e73818a7dd0c1af1a4b02f",
+  "digest": "40b3fd0c8dac0505f3c2ae356b67a1188ca7501224ac4f09df8aa93841f56c0c",
   "expected_changes": [
     "capability-metadata",
     "child-project-routing",
