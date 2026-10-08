@@ -507,7 +507,7 @@ AUTOLINK_RE = re.compile(r"<([A-Za-z][A-Za-z0-9+.-]{1,31}:[^\s<>]*)>")
 INLINE_HTML_RE = re.compile(r"</?[A-Za-z][A-Za-z0-9-]*(?:\s[^<>]*)?/?>|<!--.*?-->|<\?.*?\?>", re.DOTALL)
 CHARACTER_REFERENCE_RE = re.compile(r"&(?:#[0-9]+|#[xX][0-9a-fA-F]+|[A-Za-z][A-Za-z0-9]*);")
 BARE_URL_RE = re.compile(r"https?://[^\s<>]+")
-LINK_DESTINATION_RE = re.compile(r"""^\s*(<[^<>\s]*>|[^\s<>]*)(?:\s+(?:"[^"]*"|'[^']*'))?\s*$""")
+LINK_DESTINATION_RE = re.compile(r"""^\s*(<[^<>\s]*>|[^\s<>]*)\s*$""")
 ESCAPABLE = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
 EXTERNAL_RE = re.compile(r"^(?:https?://|mailto:)", re.IGNORECASE)
 SCHEME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*:")

@@ -1,0 +1,79 @@
+{
+  "candidate": {
+    "base_head": "6c96df65b6d7f4f4d4ee0c30e2d81880190b7dd0",
+    "base_ref": "origin/main",
+    "candidate_head": "b77deaae446aee4477d7025fc4c00e791e6fa2e3",
+    "diff_sha256": "38ba52f812a2789ef80325aae4ebcb350c48e1b295cbff0a4bafcd0519e6b500"
+  },
+  "change": "openspec/changes/add-platform-explorer-foundation",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/add-platform-explorer-foundation/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/add-platform-explorer-foundation/design.md",
+        "openspec/changes/add-platform-explorer-foundation/proposal.md",
+        "openspec/changes/add-platform-explorer-foundation/specs/platform-explorer/spec.md",
+        "openspec/changes/add-platform-explorer-foundation/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/add-platform-explorer-foundation/proposal.md",
+        "openspec/changes/add-platform-explorer-foundation/design.md",
+        "openspec/changes/add-platform-explorer-foundation/tasks.md",
+        "openspec/changes/add-platform-explorer-foundation/specs/platform-explorer/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-08T06:27:11+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/add-platform-explorer-foundation/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "b4800737-786f-44c9-b52f-80908e448ba1",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "3df526d8aa798ad591f02c59d2e55448ce40ff32",
+    "digest": "adb3b4f035efb6716435734e0f782b8f94eed76a373c6f83b37aca2b8dd14d6f",
+    "paths": {
+      ".gitignore": "5dd410f152bbf7a0491796d19e663852f2eeff6e",
+      "dev-platform/checks.toml": "57455afb0206e393f3e6721dcfa110438ffa0284",
+      "docs/engineering/explorer.md": "2211d1bec8e1d722e9dec6da2daa91713c590aaf",
+      "docs/ownership.md": "e7234bc48957e3960ce43cf6796d9740fdfbd9b5",
+      "explorer/assets/explorer.css": "8a1ac05f65f805adcf4d3515c3cf230ff8f016fe",
+      "explorer/assets/explorer.js": "f421972e06be222ad3d65f8aaa7917c7640f4207",
+      "explorer/map.toml": "a661e4e12a81f150c61974dc6ff351cfe1902d5e",
+      "openspec/changes/add-platform-explorer-foundation/.managed-task.json": "fd37e2e9a16205aadd09239c18aba137ec940bfb",
+      "openspec/changes/add-platform-explorer-foundation/.openspec.yaml": "01660bab056db86b8ce3c840115bb6b57cd15555",
+      "openspec/changes/add-platform-explorer-foundation/design.md": "5d46a4b0a1f2542735948b97f795113b9edaf7a8",
+      "openspec/changes/add-platform-explorer-foundation/proposal.md": "382efdd4d4e4a42932521c7f7bace8ccc0293ddf",
+      "openspec/changes/add-platform-explorer-foundation/specs/platform-explorer/spec.md": "70760ca633c455b221b410ff8766051aea5e4fba",
+      "openspec/changes/add-platform-explorer-foundation/tasks.md": "ad757f2553aa9b572eca199ddeaf41074e32aabc",
+      "scripts/build_explorer.py": "1aa7ee75d316951c35dd3d8496d10760d89ed292",
+      "tests/test_build_explorer.py": "9d3fb50c3d44548a201a49393b38bc544a4b8767"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

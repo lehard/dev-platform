@@ -416,6 +416,7 @@ class UnsupportedConstructTests(FixtureTestCase):
         "reference link": ("# Bad\n\nok\n\nsee [a][b]\n", 5, "reference-style link"),
         "link definition": ("# Bad\n\nok\n\n[b]: https://example.test\n", 5, "link reference definition"),
         "strikethrough": ("# Bad\n\nok\n\n~~gone~~\n", 5, "strikethrough"),
+        "link title": ('# Bad\n\nok\n\nsee [a](b.md "Title")\n', 5, "unsupported link destination"),
         "character reference": ("# Bad\n\nok\n\nfish &amp; chips\n", 5, "character reference"),
         "lazy blockquote": ("# Bad\n\nok\n\n> quote\nlazy\n", 6, "lazy blockquote"),
         "unterminated fence": ("# Bad\n\nok\n\n```\ncode\n", 5, "unterminated fenced code block"),
@@ -653,8 +654,8 @@ class DownstreamBoundaryTests(unittest.TestCase):
         patterns = (ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()
         self.assertIn("/build/", patterns)
 
-    @unittest.skipIf(shutil.which("copier") is None, "copier is not installed")
     def test_rendered_new_project_contains_no_explorer_artifact(self) -> None:
+        self.assertIsNotNone(shutil.which("copier"), "copier is required to prove the downstream boundary")
         with tempfile.TemporaryDirectory() as shared:
             # Render from a VCS-free copy so the working tree (not HEAD) is covered.
             source = Path(shared) / "template-source"

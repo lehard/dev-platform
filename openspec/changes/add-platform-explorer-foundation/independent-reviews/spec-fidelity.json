@@ -1,0 +1,82 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "6c96df65b6d7f4f4d4ee0c30e2d81880190b7dd0",
+    "base_ref": "origin/main",
+    "candidate_head": "b77deaae446aee4477d7025fc4c00e791e6fa2e3",
+    "diff_sha256": "38ba52f812a2789ef80325aae4ebcb350c48e1b295cbff0a4bafcd0519e6b500"
+  },
+  "completed_at": "2026-10-08T06:29:28+00:00",
+  "findings": [
+    {
+      "evidence": "tests/test_build_explorer.py:3042 `@unittest.skipIf(shutil.which(\"copier\") is None, \"copier is not installed\")` on `test_rendered_new_project_contains_no_explorer_artifact`. docs/engineering/explorer.md, section \"Ownership and downstream boundary\": \"`tests/test_build_explorer.py` renders a project and fails if any Explorer artifact appears\".",
+      "id": "boundary-render-test-skippable",
+      "severity": "advisory",
+      "summary": "The spec scenario \"New project is rendered\" says a rendered project contains no Explorer artifact. The test that actually renders a project is skipped when `copier` is not installed. In that case only the filesystem-location tests run. docs/engineering/explorer.md says the test \"renders a project and fails if any Explorer artifact appears\" without mentioning the skip. This is a silent skip, not an explicit failure."
+    }
+  ],
+  "launched_at": "2026-10-08T06:29:03+00:00",
+  "output_sha256": "b630109ec863633335de2f76f8e90610c993378b3720765093663b812dd16044",
+  "perspective": "spec-fidelity",
+  "request_id": "b4800737-786f-44c9-b52f-80908e448ba1",
+  "reviewer": {
+    "context_id": "ccfbbcae-9b91-40b2-a5fa-bc76ad28b20d",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-0293b994-7118-412a-b06d-03e8bf47aea0",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 64032
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 121398
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16078
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16706
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1639
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "adb3b4f035efb6716435734e0f782b8f94eed76a373c6f83b37aca2b8dd14d6f"
+}
