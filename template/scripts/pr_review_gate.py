@@ -373,7 +373,8 @@ def run_claimed(root: Path, repo: str, candidate: dict, job: dict, *, source_rep
         gates = {name: gate for name, gate in running["gates"].items() if reusable(harness, gate, fresh)}
         offer(root, repo, job["number"], head, fresh, "review", gates=gates,
               providers=job.get("providers", ["unresolved-originating-task-route"]),
-              set_attempts={"repair-unavailable": 0}, adapter=adapter)
+              set_attempts={"repair-unavailable": 0} if running["attempts"].get("repair-unavailable") else None,
+              adapter=adapter)
     elif kind == "repair" and outcome["status"] == "unavailable":
         retry_unavailable(root, repo, running, job, outcome["outcome"], adapter=adapter)
     else:
