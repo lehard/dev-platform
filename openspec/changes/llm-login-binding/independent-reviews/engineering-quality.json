@@ -3,40 +3,46 @@
   "candidate": {
     "base_head": "c0b0b01b44ff8808dc02522078fa5d5d20f67f4f",
     "base_ref": "origin/main",
-    "candidate_head": "f86dde96227c25999bbbbb222b75a0f2613d97c1",
-    "diff_sha256": "00047f2a90cf68b599731d9979f656a25eaaf7e723ff7989e0371ec9ad0591cf"
+    "candidate_head": "50d29f155284df9b6c71739f5f270b06da160925",
+    "diff_sha256": "91187d54e38d3335314724d4fefe0ee2424976e0acfdaffc69d0ebdb7e0cb088"
   },
-  "completed_at": "2026-10-08T11:23:21+00:00",
+  "completed_at": "2026-10-08T13:11:34+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/lifecycle_workers.py `login_preflight` loops over all `job[\"providers\"]` and raises on the first failure. `job_eligible` (line 345-351) accepts a job when `set(named) & set(ready)` is non-empty. pr_review_gate.py:327-329 then filters `review_config[\"providers\"]` to `review_ready`. For a job naming [claude, codex] where only codex has a login, the worker exits non-zero before claiming. The same job is re-selected on each run, so it keeps failing.",
-      "id": "login-preflight-ignores-ready-subset",
+      "evidence": "template/scripts/pr_review_gate.py:534-537 and template/scripts/requirement_composition.py:555-558: `provider = \"claude\" if claude_binary is not None and argv[0] == claude_binary else \"codex\"`. template/scripts/independent_review_runner.py:309-310 uses `providers_by_binary[argv[0]]`, which raises KeyError for an unknown binary.",
+      "id": "llm-env-launcher-provider-guess",
       "severity": "advisory",
-      "summary": "The pre-claim login preflight requires every provider named by the job to log in. Eligibility and execution only need the ready subset, so one unbound provider can block a job that could have run."
+      "summary": "The default launchers decide which provider's token to inject by comparing argv[0] to the resolved claude binary, and treat everything else as codex. This is brittle: a different binary path or a wrapper would silently skip the token."
     },
     {
-      "evidence": "template/scripts/pr_review_gate.py:534-537 and template/scripts/requirement_composition.py:555-558 both use `provider = \"claude\" if claude_binary is not None and argv[0] == claude_binary else \"codex\"`. `bound_preflight` in independent_review_runner.py builds a separate `providers_by_binary` map. If binary resolution differs between calls, or a symlinked or relative argv[0] is used, the claude token is silently dropped. A KeyError is also possible in `bound_launcher`.",
-      "id": "provider-inferred-from-binary-path",
+      "evidence": "template/scripts/pr_review_gate.py:241 `workers.llm_env(provider, review_config or {}, home)` with `review_config=None` as the default parameter at line 212. requirement_composition.py:135 falls back to `reviewer.settings(checkout)` instead, so the two call sites are inconsistent.",
+      "id": "llm-env-none-config-drops-token",
       "severity": "advisory",
-      "summary": "The default launchers infer the provider by comparing argv[0] to the resolved claude binary, and treat everything else as codex. This is fragile and duplicated in two places."
+      "summary": "execute_review builds the default launcher with `review_config or {}`. When review_config is None (the function default), login bindings are ignored and no token is injected. The worker's login preflight validated the login using settings(Path.cwd()). The review would then run without the token the preflight accepted."
     },
     {
-      "evidence": "template/scripts/lifecycle_workers.py `read_login_token`: `for parent in path.resolve().parents: if (parent / \".git\").exists(): raise`. The error names the parent directory but gives no way to override.",
-      "id": "token-git-check-rejects-dotfile-home",
+      "evidence": "template/scripts/lifecycle_workers.py:370-372: `for parent in path.resolve().parents: if (parent / \".git\").exists(): raise WorkerError(...)`.",
+      "id": "token-file-git-parent-check-too-broad",
       "severity": "advisory",
-      "summary": "The 'outside any git checkout' rule walks all parents for a `.git` entry. A token file anywhere under a home directory that is itself a git repo (a dotfiles repo in `~`) is rejected."
+      "summary": "The 'outside any git checkout' rule rejects a token file anywhere under a directory containing `.git`. A common setup, a dotfiles repo at $HOME with the token under ~/.config, is refused. The error names the parent, so the operator can diagnose it, but the rule is stricter than the intent of 'not inside the project checkout'."
+    },
+    {
+      "evidence": "template/scripts/lifecycle_workers.py:45-50 adds the variable to CREDENTIAL_VARS. Unchanged callers: post_review_finalization.py:144,190,314; requirement_composition.py:306,395; requirement_integration.py:754.",
+      "id": "other-llm-env-sites-lose-ambient-token",
+      "severity": "advisory",
+      "summary": "CLAUDE_CODE_OAUTH_TOKEN now joins the stripped credential variables. Other call sites that build environments with credential_free_env, such as the archiver in post_review_finalization.py:190, no longer receive the token. If any of them launch a claude reviewer, for example via archive-time `independent_review run`, that review loses the login it previously got by accident. The diff neither covers nor tests these paths."
     }
   ],
-  "launched_at": "2026-10-08T11:22:41+00:00",
-  "output_sha256": "bcb57510addcdaf0d33b65beb0312d28adf7f614db28f8a753a36b8f03f6151a",
+  "launched_at": "2026-10-08T13:10:40+00:00",
+  "output_sha256": "6af9f11df78c1fe385f7ee6b80db74a9e20f88519f08b0b23baf3adab0f4da6e",
   "perspective": "engineering-quality",
-  "request_id": "fc620903-6359-4365-8f05-b2a6eb0f10db",
+  "request_id": "f9ae9785-482b-4e79-b71a-9c922945f68e",
   "reviewer": {
-    "context_id": "dffb6099-c299-4d88-a646-f8530cfdad76",
+    "context_id": "e3744fdb-6820-4f68-8703-671652248c14",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-e6372d23-7262-4af1-bda9-4ff0e7d9c758",
+    "launch_id": "platform-launch-7e539ac9-a846-42cd-9861-1e76517a289c",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -51,37 +57,37 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 35743
+        "value": 36071
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 128916
+        "value": 245372
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 31140
+        "value": 48422
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 33630
+        "value": 52121
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10
+        "value": 16
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 7
+        "value": 10
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2711
+        "value": 2931
       }
     },
     "runtime": "claude-code-print"

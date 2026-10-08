@@ -3,28 +3,34 @@
   "candidate": {
     "base_head": "c0b0b01b44ff8808dc02522078fa5d5d20f67f4f",
     "base_ref": "origin/main",
-    "candidate_head": "f86dde96227c25999bbbbb222b75a0f2613d97c1",
-    "diff_sha256": "00047f2a90cf68b599731d9979f656a25eaaf7e723ff7989e0371ec9ad0591cf"
+    "candidate_head": "50d29f155284df9b6c71739f5f270b06da160925",
+    "diff_sha256": "91187d54e38d3335314724d4fefe0ee2424976e0acfdaffc69d0ebdb7e0cb088"
   },
-  "completed_at": "2026-10-08T11:22:41+00:00",
+  "completed_at": "2026-10-08T13:10:40+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/lifecycle_workers.py:335-336 (provider_readiness) builds `clean = credential_free_env(dict(os.environ), scratch_home(...))` and uses it for every provider's `runner.preflight`; it never calls `llm_env`. main() (lines ~829-838) uses this readiness to compute `review_ready`, and `job_eligible` filters jobs on it. With CLAUDE_CODE_OAUTH_TOKEN now stripped from credential_free_env and no token injected here, the claude model probe on macOS cannot authenticate even when `[independent_review.login.claude] token_file` is valid. This contradicts the proposal's success criterion (a claude review job runs with a valid token_file) and the 'declared token reaches the provider's LLM environment' requirement. Only independent_review.py preflight (`bound_preflight`) was changed to use the bound env.",
-      "id": "worker-readiness-probe-ignores-login-binding",
-      "severity": "material",
-      "summary": "The worker's startup provider readiness probe still runs the claude model probe in a credential-free env without the declared token, so a bound claude login can still be reported not ready and its review jobs filtered out before the new login preflight runs."
+      "evidence": "template/scripts/lifecycle_workers.py adds `login_preflight` inside `main` (the `before_claim=login_preflight if args.run else None` wiring). The new tests only call `workers.check_login` and `workers.work_next(before_claim=...)` directly. Nothing runs `main --run` and asserts it exits non-zero with no comment posted. Scenarios \"Missing login fails before claim\" and \"Codex login is checked the same way\" require exactly that. Task 4.2 lists tests/test_pr_review_gate.py, but the diff adds none there (the launcher tests are in test_requirement_contribution_composition.py).",
+      "id": "login-preflight-main-untested",
+      "severity": "advisory",
+      "summary": "The `main` `login_preflight` hook is not exercised by any test, so the spec scenarios for exit status and the Codex check are only covered at the `check_login` and `work_next` levels. Task 4.2 also names tests/test_pr_review_gate.py, which the diff does not touch."
+    },
+    {
+      "evidence": "design.md decision 3 says \"Probe command and timeout come from `independent_review_runner`\". The diff defines `LOGIN_PROBES` and `check_login` in lifecycle_workers.py. Only the timeout comes from the runner's `preflight_timeout_seconds`. tasks.md 1.1 matches the code, so design.md and tasks.md disagree.",
+      "id": "design-probe-location-drift",
+      "severity": "advisory",
+      "summary": "The code diverges from design decision 3, which says probe command and timeout come from `independent_review_runner`."
     }
   ],
-  "launched_at": "2026-10-08T11:21:56+00:00",
-  "output_sha256": "fccb41a6bbb12bc8fb59f20aefa396c95a658812317b28f82e57fcfa755e56c2",
+  "launched_at": "2026-10-08T13:09:48+00:00",
+  "output_sha256": "0716b7265afaa685756703d03354efb9783db9d60fe1977d1b0491a81bbac9e0",
   "perspective": "spec-fidelity",
-  "request_id": "fc620903-6359-4365-8f05-b2a6eb0f10db",
+  "request_id": "f9ae9785-482b-4e79-b71a-9c922945f68e",
   "reviewer": {
-    "context_id": "9ff6a30d-6c72-4815-9ad7-8e817b28212b",
+    "context_id": "2677a2b9-6d14-47d3-8ce1-199d59bf1c6e",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-db1bdd81-493a-441a-8010-7e4d10fdfb7e",
+    "launch_id": "platform-launch-c71a90cf-b751-4514-a95d-18a35a94f254",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,22 +45,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 41445
+        "value": 38194
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 136450
+        "value": 133284
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 36720
+        "value": 48735
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 39812
+        "value": 51160
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -64,12 +70,12 @@
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10
+        "value": 8
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2561
+        "value": 2499
       }
     },
     "runtime": "claude-code-print"
