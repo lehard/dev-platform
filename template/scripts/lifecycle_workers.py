@@ -18,6 +18,7 @@ import secrets
 import shlex
 import shutil
 import socket
+import stat
 import subprocess
 import sys
 import tempfile
@@ -40,8 +41,9 @@ STATE_KIND = {"review-pending": "review", "reviewing": "review", "repair-pending
               "contribution-integration-pending": "contribution-integration"}
 HEAD = re.compile(r"[0-9a-f]{40}")
 RESULT_PREFIX = "dev-platform-lifecycle-result:v1 "
-# Hardening for every harness git invocation (never trust repo-local hooks or fsmonitor).
-SAFE_GIT = ("-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false")
+# Hardening for every harness git invocation (never trust repo-local hooks or fsmonitor, never recurse into
+# submodules). ``diff.ignoreSubmodules`` is deliberately not set here: it would hide gitlinks from result validation.
+SAFE_GIT = ("-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false", "-c", "submodule.recurse=false")
 # Harness merges and commits never depend on an ambient git identity (CI runners have none).
 HARNESS_IDENTITY = ("-c", "user.name=Lifecycle harness", "-c", "user.email=lifecycle@localhost")
 EVIDENCE_NAMES = ("verification.md", "automated-checks.json")
@@ -582,20 +584,34 @@ def harness_git(repo: Path, *args: str) -> str:
     return done.stdout
 
 
+def _walk_error(error: OSError) -> None:
+    raise WorkerError(f"cannot read the working tree: {error}")
+
+
 def tree_snapshot(path: Path) -> str:
-    """A content digest of a working tree read from the filesystem only (no git, no filters), excluding ``.git``."""
+    """A content digest of a working tree read from the filesystem only (no git, no filters), excluding the root ``.git``.
+
+    Symlinks are hashed by their target text whatever they point to (never followed); a FIFO, socket or
+    device is refused without being opened, so writer content can neither block nor hide from the digest.
+    """
     import hashlib
 
     digest = hashlib.sha256()
-    for directory, names, files in os.walk(path):
-        names[:] = sorted(name for name in names if name != ".git")
-        for name in sorted(files):
-            target = Path(directory) / name
-            digest.update(str(target.relative_to(path)).encode() + b"\0")
-            if target.is_symlink():
+    for directory, names, files in os.walk(path, onerror=_walk_error):
+        here = Path(directory)
+        links = [name for name in names if (here / name).is_symlink()]
+        names[:] = sorted(name for name in names if name not in links and not (here == path and name == ".git"))
+        for name in sorted(files + links):
+            target = here / name
+            relative = str(target.relative_to(path))
+            mode = target.lstat().st_mode
+            digest.update(relative.encode() + b"\0")
+            if stat.S_ISLNK(mode):
                 digest.update(b"L" + os.readlink(target).encode())
+            elif stat.S_ISREG(mode):
+                digest.update(b"F" + str(mode & 0o111).encode() + target.read_bytes())
             else:
-                digest.update(b"F" + str(target.stat().st_mode & 0o111).encode() + target.read_bytes())
+                raise WorkerError(f"unsupported file type: {relative}")
     return digest.hexdigest()
 
 
@@ -618,14 +634,46 @@ def _clear(path: Path) -> None:
         shutil.rmtree(path)
 
 
+def check_import_source(source: Path, target: Path) -> None:
+    """Refuse a writer tree the harness cannot import faithfully and safely, before anything is copied.
+
+    Only the root ``.git`` directory may exist: a ``.git`` entry of any type anywhere else (gitfile, nested
+    repository, symlink) would make harness git recurse into writer-controlled metadata and run its filters.
+    Only regular files, directories and symlinks are importable. A name differing only in case from an
+    existing harness entry that the writer tree no longer has (``src`` -> ``SRC``) would, on a case-insensitive
+    filesystem, delete the existing entry, so it is refused too.
+    """
+    for directory, names, files in os.walk(source, onerror=_walk_error):
+        here = Path(directory)
+        base = here.relative_to(source)
+        entries = names + files
+        if not base.parts and ".git" in entries and (".git" not in names or (here / ".git").is_symlink()):
+            raise WorkerError("git metadata replaced: .git")
+        names[:] = sorted(name for name in names if base.parts or name != ".git")
+        entries = [name for name in entries if base.parts or name != ".git"]
+        existing_dir = target / base
+        existing = (os.listdir(existing_dir) if existing_dir.is_dir() and not existing_dir.is_symlink() else [])
+        for name in sorted(entries):
+            relative = (base / name).as_posix()
+            if name.lower() == ".git":
+                raise WorkerError(f"nested git metadata: {relative}")
+            mode = (here / name).lstat().st_mode
+            if not (stat.S_ISREG(mode) or stat.S_ISDIR(mode) or stat.S_ISLNK(mode)):
+                raise WorkerError(f"unsupported file type: {relative}")
+            if any(other != name and other.lower() == name.lower() and other not in entries for other in existing):
+                raise WorkerError(f"case-only path collision: {relative}")
+
+
 def import_worktree(source: Path, target: Path) -> None:
     """Make ``target``'s working tree match ``source``'s files without running git in ``source``.
 
     Only file content, executable bits and symlinks are copied; ``.git`` of either side is never read
     or written, so a writer's repository configuration, attributes drivers or hooks cannot execute.
     Symlinks (to files or directories) are recreated as links and never followed on either side, so
-    writer content cannot be redirected outside the harness clone.
+    writer content cannot be redirected outside the harness clone. ``check_import_source`` refuses
+    nested git metadata, special files and case-only collisions first (``WorkerError``).
     """
+    check_import_source(source, target)
     wanted: set[Path] = set()
     for directory, names, files in os.walk(source):
         base = Path(directory).relative_to(source)
@@ -670,7 +718,8 @@ def prepare_harness(source_repo: str, checkout: Path, root: Path, result_head: s
 
 def worktree_changes(repo: Path) -> list[str]:
     """Every tracked modification, deletion and untracked (not ignored) path of a harness-owned clone."""
-    out = harness_git(repo, "status", "--porcelain=v1", "-z", "--untracked-files=all", "--no-renames")
+    out = harness_git(repo, "-c", "diff.ignoreSubmodules=all", "status", "--porcelain=v1", "-z",
+                      "--untracked-files=all", "--no-renames", "--ignore-submodules=all")
     return sorted(entry[3:] for entry in out.split("\0") if entry)
 
 
@@ -765,8 +814,13 @@ def execute_job(job: dict, *, source_repo: str, branch: str, allowed_paths, llm_
         if limitation:
             return finish(f"unavailable: {limitation}"[:300], status="unavailable")
         return finish("failed: llm exited %s" % done.returncode, status="failed")
+    try:
+        after = tree_snapshot(checkout)
+    except WorkerError as exc:
+        verdict = "failed" if kind == "review" else "rejected"
+        return finish(f"{verdict}: {exc}", status=verdict)
     if kind == "review":
-        if (harness_git(checkout, "rev-parse", "HEAD").strip(), tree_snapshot(checkout)) != before:
+        if (harness_git(checkout, "rev-parse", "HEAD").strip(), after) != before:
             return finish("failed: review modified the checkout", status="failed")
         return finish("reviewed", status="reviewed")
     try:
@@ -776,7 +830,7 @@ def execute_job(job: dict, *, source_repo: str, branch: str, allowed_paths, llm_
     if isinstance(proposal, dict) and proposal.get("reject_material") is True:
         return finish("proposed-rejection", status="proposed-rejection")
     result_head = harness_git(checkout, "rev-parse", "HEAD").strip()
-    if result_head == job["head"] and tree_snapshot(checkout) == before[1]:
+    if result_head == job["head"] and after == before[1]:
         return finish("no-change", status="no-change")
     if current_head() != job["head"]:
         return finish("discarded: head moved", status="discarded")

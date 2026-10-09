@@ -707,6 +707,23 @@ if mode == "ignored-only":
     open("src/a.pyc", "w").write("ignored")
     sys.exit(0)
 def g(*a): subprocess.run(["git", *a], check=True, env={**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"})
+if mode == "nested-gitfile":  # a gitfile into writer-made metadata whose filter would run on harness git status
+    g("init", "-q", "--bare", "src/evilgit")
+    g("--git-dir=src/evilgit", "config", "core.bare", "false")
+    g("--git-dir=src/evilgit", "config", "filter.pwn.clean", "touch " + os.environ["HOOK_MARK"] + " #")
+    os.makedirs("src/sub")
+    open("src/sub/.git", "w").write("gitdir: ../evilgit\n")
+    open("src/sub/.gitattributes", "w").write("* filter=pwn\n")
+    open("src/sub/x", "w").write("x")
+elif mode == "nested-repo":
+    g("init", "-q", "src/vendor")
+    open("src/vendor/lib.py", "w").write("vendored")
+elif mode == "case-rename":
+    os.rename("src", "SRC")
+elif mode == "fifo":
+    os.mkfifo("src/pipe")
+elif mode == "dir-symlink":
+    os.symlink("..", "src/link")
 if mode == "review-write":
     open("src/a.py", "w").write("dirty")
 elif mode == "review-filter":
@@ -859,6 +876,67 @@ class ExecuteJobTests(unittest.TestCase):
         self.assertNotIn("SECRET", self.posted[-1])
         self.assertNotIn("ooo", self.posted[-1])
         self.assertEqual(json.loads(self.posted[-1][len(workers.RESULT_PREFIX):])["outcome"], "failed: llm exited 1")
+
+    def assert_rejected_untouched(self, result, outcome):
+        self.assertEqual((result["status"], result["outcome"]), ("rejected", outcome))
+        self.assertEqual(self.remote_head(), self.head)
+        stage = self.work / "writer-stage"
+        if stage.exists():
+            self.assertEqual(git(stage, "rev-parse", "HEAD"), self.head)  # nothing was committed
+
+    def test_nested_gitfile_is_rejected_and_its_filter_never_runs(self):
+        result = self.run_job("nested-gitfile", prompt="task")
+        self.assert_rejected_untouched(result, "rejected: nested git metadata: src/sub/.git")
+        self.assertFalse(self.mark.exists())
+
+    def test_untracked_nested_repository_under_an_allowed_path_is_rejected(self):
+        result = self.run_job("nested-repo", prompt="task")
+        self.assert_rejected_untouched(result, "rejected: nested git metadata: src/vendor/.git")
+
+    def test_case_only_rename_is_rejected_on_any_filesystem(self):
+        # On a case-insensitive filesystem the import would otherwise delete src/; the rule is filesystem-independent.
+        result = self.run_job("case-rename", prompt="task")
+        self.assert_rejected_untouched(result, "rejected: case-only path collision: SRC")
+
+    def test_special_files_are_refused_without_being_read(self):
+        result = self.run_job("fifo", prompt="task")
+        self.assert_rejected_untouched(result, "rejected: unsupported file type: src/pipe")
+        self.work = Path(tempfile.mkdtemp(dir=self.tmp.name))
+        review = self.run_job("fifo", kind="review")
+        self.assertEqual((review["status"], review["outcome"]), ("failed", "failed: unsupported file type: src/pipe"))
+
+    def test_symlink_to_directory_alone_is_a_change(self):
+        result = self.run_job("dir-symlink", prompt="task")
+        self.assertEqual(result["status"], "pushed")
+        self.assertTrue(git(self.src, "ls-tree", "refs/heads/task", "src/link").startswith("120000 "))
+
+    def test_tree_snapshot_hashes_directory_symlinks_and_refuses_special_files(self):
+        root = Path(self.tmp.name) / "snap"
+        (root / "d").mkdir(parents=True)
+        first = workers.tree_snapshot(root)
+        (root / "link").symlink_to(root / "d")
+        self.assertNotEqual(workers.tree_snapshot(root), first)
+        os.mkfifo(root / "d/pipe")
+        with self.assertRaisesRegex(workers.WorkerError, "unsupported file type: d/pipe"):
+            workers.tree_snapshot(root)
+
+    def test_import_worktree_refuses_nested_git_metadata_before_copying(self):
+        root = Path(self.tmp.name)
+        src, dst = root / "ns", root / "nd"
+        (src / ".git").mkdir(parents=True), (dst / ".git").mkdir(parents=True)
+        (src / "a.txt").write_text("a")
+        for nested in ("sub/.git", "sub/.GIT"):
+            with self.subTest(nested=nested):
+                (src / "sub").mkdir(exist_ok=True)
+                (src / nested).write_text("gitdir: ../elsewhere\n")
+                with self.assertRaisesRegex(workers.WorkerError, "nested git metadata: " + nested.replace(".", "\\.")):
+                    workers.import_worktree(src, dst)
+                (src / nested).unlink()
+                self.assertFalse((dst / "a.txt").exists())
+        (src / ".git").rmdir()
+        (src / ".git").write_text("gitdir: /elsewhere\n")
+        with self.assertRaisesRegex(workers.WorkerError, "git metadata replaced: .git"):
+            workers.import_worktree(src, dst)
 
     def test_unusable_runtime_after_failure_is_unavailable_and_claimable_again(self):
         os.environ["FAKE_MODE"] = "fail"
