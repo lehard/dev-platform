@@ -1,87 +1,31 @@
 {
-  "availability": "available",
+  "availability": "unavailable",
   "candidate": {
-    "base_head": "fe3333ad33149dce98c5ece65805f6a0661ece4d",
+    "base_head": "ea4da7e3b67067896161daf40fc8aaab5276bd75",
     "base_ref": "origin/main",
-    "candidate_head": "5588fc6e8724d39cbb93503b6f20bf9621cdc7e8",
-    "diff_sha256": "ca8c6c864788db4d0f8a95a811899d8db6369b3de5467d6305ce7ae0f7319e3c"
+    "candidate_head": "51479d115437a9b38669502ca8396b4322aadde4",
+    "diff_sha256": "090a105042704b06939181328bed3249a9e318ce47f69d28812eecc103ce5ae4"
   },
-  "completed_at": "2026-10-09T20:47:59+00:00",
-  "findings": [
-    {
-      "evidence": "design.md Decision 2: \"returns `verified-external-advance` with evidence or `None`\" and `classify_head_move(integration_root, before, after, *, containment, delegated_worktree, window_start)`. delegation_containment.py defines CLASSIFICATION_VERIFIED_EXTERNAL_ADVANCE = \"verified_external_advance\", and `classify_head_move` takes a required `tier` keyword argument.",
-      "id": "design-classification-name-drift",
-      "severity": "advisory",
-      "summary": "design.md names the classification `verified-external-advance`, but the code and docs use `verified_external_advance`. design.md also gives the `classify_head_move` signature without the `tier` parameter that the code requires."
-    },
-    {
-      "evidence": "delegation_containment.py `_receipt_chain`: \"first = next((i for i, r in enumerate(ordered_receipts) if r['before'] == start_head), None)\" then \"chain = ordered_receipts[first:]\". design.md Decision 2 says only \"the first `before` equals the pre-run head\".",
-      "id": "chain-skips-pre-start-receipts",
-      "severity": "advisory",
-      "summary": "`_receipt_chain` silently drops windowed receipts that come before the first receipt whose `before` equals the pre-run head. design.md and the spec describe the chain as starting at the pre-run head but do not mention skipping earlier receipts. This is only a looseness in the contract wording, because the chain from the start head onward is still strictly checked."
-    }
-  ],
-  "launched_at": "2026-10-09T20:47:24+00:00",
-  "output_sha256": "07a7347d693905dbfd203aecf742d86a1e0f12dfac05acdaac4ba9db231193d1",
+  "completed_at": "2026-10-09T21:36:23+00:00",
+  "findings": [],
+  "launched_at": "2026-10-09T21:36:23+00:00",
+  "limitation": "codex reviewer runtime with model 'gpt-6.1-sol' is not ready: probe exited with status 1 (You\u2019ve hit your usage limit. Upgrade to Pro (https://chatgpt.com/explore/pro), visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at 1:02 AM.); next: log the codex CLI in on this host, or change the [model_routing] / [independent_review] binding for this account (no other model or provider is tried), then rerun python3 scripts/independent_review.py preflight",
   "perspective": "spec-fidelity",
-  "request_id": "d21fc643-c548-49ea-8313-3bdcf16229e9",
+  "request_id": "fcc42e88-3a1b-4b45-861b-c49a49f14429",
   "reviewer": {
-    "context_id": "d13b6f1c-d462-4ef2-aca4-93f448cbc759",
-    "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
+    "context_id": "platform-launch-3ccb99b0-2df8-4ef8-b09a-9042d0fabc82",
+    "context_id_source": "platform-launch",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-818d0dc9-07f6-451c-9629-8aff8f16f9cf",
+    "launch_id": "platform-launch-3ccb99b0-2df8-4ef8-b09a-9042d0fabc82",
     "model": {
       "source": "selected",
-      "value": "sonnet"
+      "value": "gpt-6.1-sol"
     },
-    "provider": "claude",
-    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
-    "runtime": "claude-code-print",
+    "provider": "codex",
+    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
+    "runtime": "codex-exec",
     "write_access": false
-  },
-  "runtime_usage": {
-    "fields": {
-      "cache_creation_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 55916
-      },
-      "cache_read_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 178618
-      },
-      "duration_api_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 30177
-      },
-      "duration_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 31340
-      },
-      "input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 10
-      },
-      "num_turns": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 9
-      },
-      "output_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 3040
-      }
-    },
-    "runtime": "claude-code-print"
   },
   "schema_version": 1,
   "task_content_digest": "3bfc782409d0f6f3707511956aee918478b4d921abf262eb29d9eb64cea751a7"

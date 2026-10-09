@@ -1,87 +1,31 @@
 {
-  "availability": "available",
+  "availability": "unavailable",
   "candidate": {
-    "base_head": "fe3333ad33149dce98c5ece65805f6a0661ece4d",
+    "base_head": "ea4da7e3b67067896161daf40fc8aaab5276bd75",
     "base_ref": "origin/main",
-    "candidate_head": "5588fc6e8724d39cbb93503b6f20bf9621cdc7e8",
-    "diff_sha256": "ca8c6c864788db4d0f8a95a811899d8db6369b3de5467d6305ce7ae0f7319e3c"
+    "candidate_head": "51479d115437a9b38669502ca8396b4322aadde4",
+    "diff_sha256": "090a105042704b06939181328bed3249a9e318ce47f69d28812eecc103ce5ae4"
   },
-  "completed_at": "2026-10-09T20:48:39+00:00",
-  "findings": [
-    {
-      "evidence": "template/scripts/finish_task.py:657-676. The `advanced_to` read, `_unrecorded_direct_advance` and `require_own_fast_forward` all run after `project_publish.py` returns. `_unrecorded_direct_advance` finds the old `merge <branch>: Fast-forward` entry deeper in the reflog. `require_own_fast_forward` (delegation_containment.py, `entries[0] != [after, ...]`) then requires that entry to be the newest, so it fails again. The failure is loud and fail-closed, but the finish is stuck on bookkeeping for an advance that is already published.",
-      "id": "direct-finish-receipt-fails-after-publish",
-      "severity": "advisory",
-      "summary": "Direct finish checks `require_own_fast_forward` only after the push. If a sibling advances main between the merge and that check, the command exits non-zero after publication succeeded. A retry hits the same check, because the newest reflog entry is still not this task's merge, so it can never write the receipt."
-    },
-    {
-      "evidence": "template/scripts/project_sync.py: `parser.add_argument(\"--lock-timeout\", type=float, default=60.0, ...)`, and `branch = str(config.get(\"main_branch\", \"main\"))` on a touched line. By contrast, `delegation_containment._configured_main_branch` fails explicitly when `main_branch` is missing, so the two code paths disagree on whether a missing `main_branch` is an error.",
-      "id": "project-sync-lock-timeout-default-literal",
-      "severity": "advisory",
-      "summary": "`project_sync.py` adds a `--lock-timeout` flag with a hard-coded default of 60.0. It sits next to the pre-existing `config.get(\"main_branch\", \"main\")` default, which the change leaves in place and does not report. A newly added default is a candidate for review under the no-silent-defaults rule."
-    }
-  ],
-  "launched_at": "2026-10-09T20:47:59+00:00",
-  "output_sha256": "e2ca5c451f3e88e8f253b9a35e316dafca742d5cd6743f2e072a9c1524ec39f0",
+  "completed_at": "2026-10-09T21:36:23+00:00",
+  "findings": [],
+  "launched_at": "2026-10-09T21:36:23+00:00",
+  "limitation": "codex reviewer runtime with model 'gpt-6.1-sol' is not ready: probe exited with status 1 (You\u2019ve hit your usage limit. Upgrade to Pro (https://chatgpt.com/explore/pro), visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at 1:02 AM.); next: log the codex CLI in on this host, or change the [model_routing] / [independent_review] binding for this account (no other model or provider is tried), then rerun python3 scripts/independent_review.py preflight",
   "perspective": "engineering-quality",
-  "request_id": "d21fc643-c548-49ea-8313-3bdcf16229e9",
+  "request_id": "fcc42e88-3a1b-4b45-861b-c49a49f14429",
   "reviewer": {
-    "context_id": "8cbcbe31-78cd-4da4-8cde-7c88e583de5b",
-    "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
+    "context_id": "platform-launch-a406f2b3-cbcb-4376-955f-521ad4a8aaa1",
+    "context_id_source": "platform-launch",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-020cd802-c062-45d9-8e8b-016193abd569",
+    "launch_id": "platform-launch-a406f2b3-cbcb-4376-955f-521ad4a8aaa1",
     "model": {
       "source": "selected",
-      "value": "sonnet"
+      "value": "gpt-6.1-sol"
     },
-    "provider": "claude",
-    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
-    "runtime": "claude-code-print",
+    "provider": "codex",
+    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
+    "runtime": "codex-exec",
     "write_access": false
-  },
-  "runtime_usage": {
-    "fields": {
-      "cache_creation_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 52382
-      },
-      "cache_read_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 270643
-      },
-      "duration_api_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 34385
-      },
-      "duration_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 35787
-      },
-      "input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 14
-      },
-      "num_turns": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 10
-      },
-      "output_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 3804
-      }
-    },
-    "runtime": "claude-code-print"
   },
   "schema_version": 1,
   "task_content_digest": "3bfc782409d0f6f3707511956aee918478b4d921abf262eb29d9eb64cea751a7"
