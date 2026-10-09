@@ -1,30 +1,36 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "b93ffc444164bbf1a006d60f117e8378131a2924",
+    "base_head": "37363a11c3aac90c4232dd1cbd140df274f28f80",
     "base_ref": "origin/main",
-    "candidate_head": "06cd97a0a01485134aeed7b5d7fbb8b0495231e5",
-    "diff_sha256": "5a3a6a83fb1af1f5771f165a5aba94a698a338cc0a06fd18f6a064f15e831974"
+    "candidate_head": "2df1aa19dff7a31455913a851ff4ae227771e3f8",
+    "diff_sha256": "c395423650602eff4781c6ed5e05847dca64ed07a7efe790c74172b33d598185"
   },
-  "completed_at": "2026-10-09T12:55:36+00:00",
+  "completed_at": "2026-10-09T13:37:32+00:00",
   "findings": [
     {
-      "evidence": "The active delta in openspec/changes/claude-external-advance/specs/model-routing/spec.md permits recovery only for a historical false violation recorded before receipts existed and requires self-attributed evidence to remain a violation. template/scripts/model_routing.py:889\u2013949 checks the friction event, clean paths, ancestry, current origin/main and reflog timing, but never checks whether the incident predates receipts or whether existing receipts identify the delegated worktree. Consequently, a current self-attributed advance can fail record-claude-execution, produce the required friction event, and then pass recover-external-advance. Recovery replaces the postcheck baseline with that head (postcheck at lines 1728\u20131738), allowing subsequent recording to succeed without validating the rejected receipt chain.",
-      "id": "claude-recovery-bypasses-receipt-violations",
+      "evidence": "openspec/changes/claude-external-advance/specs/model-routing/spec.md:1 declares only ADDED Requirements, and line 5 requires receipt-backed detection-only advances to be classified as verified. openspec/specs/model-routing/spec.md:639\u2013650 still permits verified advances only with native hard containment and mandates that all detection-only movement remain a violation. The delta does not modify or remove that existing requirement, leaving contradictory mandatory behavior.",
+      "id": "contradictory-detection-only-contract",
       "severity": "material",
-      "summary": "Claude recovery is not restricted to historical violations from before receipts existed, so it can override current missing, broken or self-attributed receipt evidence."
+      "summary": "The added requirement contradicts an existing requirement that explicitly forbids accepting detection-only head movement."
+    },
+    {
+      "evidence": "template/scripts/finish_task.py:522 records advanced_from whenever branch differs from main_branch, even when both branches already point to the same commit. After the no-op merge and successful publication, lines 528\u2013537 unconditionally call record_integration_advance. template/scripts/delegation_containment.py:373\u2013374 rejects identical before/after heads. Thus retrying after a pending Project reconciliation (finish_task.py:1147\u20131156), or finishing a branch with no new commits, raises before completion reconciliation can proceed despite no integration advance occurring.",
+      "id": "direct-finish-retry-rejects-unchanged-head",
+      "severity": "material",
+      "summary": "Direct finish fails after successful publication when retrying an already-integrated task branch."
     }
   ],
-  "launched_at": "2026-10-09T12:54:35+00:00",
-  "output_sha256": "60e4f6881d9c32f67ec096935ec029b0e79652af4105bcb7a6c540450acb1bed",
+  "launched_at": "2026-10-09T13:36:07+00:00",
+  "output_sha256": "9be61f4915af550b982ebd9670ab3d78a19f5446085069b307d9eee85920f5e1",
   "perspective": "spec-fidelity",
-  "request_id": "373b9925-7c35-41cf-becc-b9af4b1b075d",
+  "request_id": "aa5f3196-41c9-4176-84e1-911a9e5c0e9d",
   "reviewer": {
-    "context_id": "01a120ba-cc4b-7bc2-a9b6-469c27592a27",
+    "context_id": "01a120e0-d413-7242-a9d1-9fc92d547071",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-cc36c2e9-5122-4bf6-ab6f-d6de6a4dac7e",
+    "launch_id": "platform-launch-e872b468-6e61-4c5a-a261-1ab616421ded",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -39,21 +45,21 @@
       "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 219520
+        "value": 289152
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 275344
+        "value": 353470
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1251
+        "value": 1693
       }
     },
     "runtime": "codex-exec"
   },
   "schema_version": 1,
-  "task_content_digest": "a0547e34e4296792ec3d2a39bd2b1aab553ee36919dd2cebbf16a20866dda095"
+  "task_content_digest": "bf8ca3c43b346e68241ec891fec87d6045a0166c2a7cb0ecd04afd855b73cf4a"
 }
