@@ -231,19 +231,57 @@ def _events(root: Path, repo: str, number: int) -> list[dict[str, Any]]:
 
 
 def _admission(events: list[dict[str, Any]], number: int) -> dict[str, Any] | None:
-    """Concurrent retries share a slot; a blocked candidate may start a new one."""
+    """Concurrent retries share a slot; a blocked candidate may start a new one.
+
+    An admission carrying ``supersedes`` opens the next slot only when it names the
+    head the current slot proves (its admission or latest coordinator update) and a
+    reason, on the same branch; any other differing admission is conflicting evidence.
+    A block that lands between the developer's observation and its superseding
+    admission already closed the superseded slot: that admission then opens a fresh
+    slot like any admission after a block, keeping its supersession as provenance.
+    """
     blocks = [event["comment_id"] for event in events if event.get("kind") == "block" and isinstance(event.get("comment_id"), int)]
     cutoff = max(blocks, default=0)
-    admissions = [event for event in events if event.get("kind") == "admit" and isinstance(event.get("comment_id"), int) and event["comment_id"] > cutoff]
-    if not admissions:
-        return None
-    first = min(admissions, key=lambda event: event["comment_id"])
-    if not all(
-        all(event.get(key) == first.get(key) for key in ("head", "branch"))
-        for event in admissions
-    ):
-        raise QueueError(f"PR #{number} has conflicting admission evidence")
-    return first
+    slot: dict[str, Any] | None = None
+    proven: Any = None
+    for event in sorted((event for event in events if isinstance(event.get("comment_id"), int) and event["comment_id"] > cutoff),
+                        key=lambda event: event["comment_id"]):
+        if event.get("kind") == "update" and slot is not None:
+            proven = event.get("head")
+        if event.get("kind") != "admit":
+            continue
+        supersedes = event.get("supersedes")
+        if slot is None and (supersedes is None or (
+                cutoff and isinstance(supersedes, dict) and isinstance(supersedes.get("head"), str)
+                and supersedes["head"] != event.get("head")
+                and isinstance(supersedes.get("reason"), str) and supersedes["reason"].strip())):
+            slot, proven = event, event.get("head")
+        elif slot is not None and all(event.get(key) == slot.get(key) for key in ("head", "branch")):
+            continue  # a concurrent retry of the same admission shares its slot
+        elif (slot is not None and isinstance(supersedes, dict) and supersedes.get("head") == proven
+              and event.get("head") != proven and event.get("branch") == slot.get("branch")
+              and isinstance(supersedes.get("reason"), str) and supersedes["reason"].strip()):
+            slot, proven = event, event.get("head")
+        else:
+            raise QueueError(f"PR #{number} has conflicting admission evidence")
+    return slot
+
+
+def _proven_head(events: list[dict[str, Any]], admission: dict[str, Any]) -> Any:
+    """The head the admission slot proves: its admission head or its latest coordinator update."""
+    updates = [event for event in events if event.get("kind") == "update"
+               and event.get("comment_id", 0) > admission.get("comment_id", 0)]
+    return updates[-1].get("head") if updates else admission.get("head")
+
+
+def _record_comment_id(root: Path, number: int, comments: list[dict[str, Any]], head: str) -> int | None:
+    """Comment id of the latest trusted, valid v2 record for ``head``, if any."""
+    apps, writers = trusted_apps(root), trusted_writers(root, comments)
+    found = None
+    for row in sorted(comments, key=lambda item: item.get("id", 0)):
+        if latest_record(number, [row], trusted_apps=apps, head=head, trusted_writers=writers) is not None:
+            found = row.get("id")
+    return found
 
 
 def _comment(root: Path, repo: str, number: int, payload: dict[str, Any]) -> None:
@@ -787,6 +825,151 @@ def _handoff_route(root: Path, identity: Any) -> dict[str, str]:
         raise QueueError(f"handoff cannot resolve the originating task route for {change}: {exc}") from exc
 
 
+# Candidate states a fresh developer handoff for a new head may supersede: they wait on a human,
+# a retry or an unclaimed head-bound job (which can never run once the head moved), not on an
+# in-flight job. Every other state keeps the admitted head.
+READMISSION_STATES = frozenset({"review-pending", "repair-pending", "blocked-retryable", "blocked-escalation"})
+_SAME_TASK_KEYS = ("kind", "change", "requirement", "source_issue", "work_identity", "target_branch", "contribution_base")
+
+
+def _material_findings(evidence: Any) -> bool:
+    """Whether review-shaped evidence (``{perspective: {"findings": [...]}}``) holds a material finding."""
+    return isinstance(evidence, dict) and any(
+        isinstance(report, dict) and isinstance(report.get("findings"), list)
+        and any(isinstance(finding, dict) and finding.get("severity") == "material" for finding in report["findings"])
+        for report in evidence.values())
+
+
+def _descends(root: Path, ancestor: str, head: str) -> bool:
+    """Whether ``head`` contains ``ancestor`` (a fast-forward or a merge); unreadable history raises."""
+    done = run_git(["merge-base", "--is-ancestor", ancestor, head], cwd=root, check=False)
+    if done.returncode not in (0, 1):
+        raise QueueError(f"cannot prove that {head} descends from {ancestor}: "
+                         + (done.stderr or done.stdout).strip()[:200])
+    return done.returncode == 0
+
+
+def _supersession(root: Path, repo: str, number: int, pr: dict[str, Any], proven: str, head: str,
+                  identity: Any) -> dict[str, Any]:
+    """The explicit supersession of the admitted ``proven`` head by a developer handoff at ``head``.
+
+    Allowed only when the latest trusted record is bound to the proven head in a state of
+    ``READMISSION_STATES``, names the same task, and its offered job holds no live claim, and
+    when ``head`` descends from ``proven``: coordinator updates and harness pushes on the
+    admitted head are never discarded by a history rewrite. A finding-level escalation (a
+    rejected review, a proposed rejection, exhausted repair rounds) or a record carrying
+    material review findings is superseded only by changed task content, so an
+    unchanged-content commit cannot re-roll the review; operational states need no change.
+    Anything else is a named refusal.
+    """
+    from lifecycle_workers import CLAIM_PREFIX, build_job, winning_claim
+    from pr_review_gate import OPERATIONAL_REPAIR_OUTCOMES, _repair_status
+
+    def refuse(cause: str) -> QueueError:
+        return QueueError(f"PR has an earlier or ambiguous admission at {proven[:12]}; "
+                          f"re-admission of {head[:12]} refused: {cause}")
+
+    comments = _comments(root, repo, number)
+    if _malformed(_derive(root, pr, comments)):
+        raise refuse("a coordinator record is malformed")
+    lineage = _latest(root, number, comments)
+    if lineage is None or lineage.get("head") != proven:
+        raise refuse("the latest coordinator record is not bound to the admitted head")
+    if lineage.get("state") not in READMISSION_STATES:
+        raise refuse(f"the candidate is {lineage.get('state')}; only "
+                     f"{', '.join(sorted(READMISSION_STATES))} accept a new developer head")
+    old = lineage.get("task_identity")
+    if (not isinstance(old, dict) or not old.get("change") or not isinstance(identity, dict)
+            or any(old.get(key) != identity.get(key) for key in _SAME_TASK_KEYS)):
+        raise refuse("the handoff does not name the same task as the admitted candidate")
+    red = lineage.get("red_gate") or {}
+    review = (lineage.get("gates") or {}).get("review") or {}
+    finding_level = lineage["state"] == "blocked-escalation" and (
+        red.get("name") == "review"
+        or (red.get("name") == "repair" and _repair_status(red) not in OPERATIONAL_REPAIR_OUTCOMES))
+    if finding_level or _material_findings(red.get("evidence")) or (
+            review.get("result") == "failed" and _material_findings(review.get("evidence"))):
+        # Findings are answered by changed content; an unchanged-content head would re-roll the review.
+        what = (f"finding-level escalation ({'review' if red.get('name') == 'review' else _repair_status(red)})"
+                if finding_level else "material review findings of the admitted head")
+        def digest(value: Any) -> Any:
+            content = value.get("task_content") if isinstance(value, dict) else None
+            return content.get("digest") if isinstance(content, dict) else content
+        if not digest(old) or not digest(identity):
+            raise refuse(f"re-admitting over the {what} needs task-content digests to prove changed task content")
+        if digest(old) == digest(identity):
+            raise refuse(f"re-admitting over the {what} needs changed task content; the handoff carries the same content")
+    job = build_job({**lineage, "number": number})
+    if job is not None:
+        claim = winning_claim(job, comments, trusted_apps=trusted_apps(root),
+                              trusted_writers=trusted_writers(root, comments, (CLAIM_PREFIX,), repo=repo))
+        if claim is not None:
+            raise refuse(f"its {job['kind']} job is claimed by {claim['worker']} until {claim['expires_at']}")
+    if not _descends(root, proven, head):
+        raise refuse("the new head does not descend from the admitted head; push a fast-forward or merge, not a rewrite")
+    return {"head": proven, "state": lineage["state"], "reason": "fresh developer handoff for a descendant head"}
+
+
+def _awaiting_readmission(root: Path, repo: str, number: int, pr: dict[str, Any], comments: list[dict[str, Any]],
+                          admission: dict[str, Any] | None = None) -> dict[str, Any] | None:
+    """The pushed head that awaits developer re-admission, or ``None``.
+
+    That is a PR head moved away from the admitted (proven) head while the newest trusted
+    record there is in ``READMISSION_STATES``; the coordinator neither integrates nor blocks it.
+    """
+    newest = _latest(root, number, comments) or {}
+    head = pr.get("head", {}).get("sha")
+    if newest.get("state") not in READMISSION_STATES or newest.get("head") == head:
+        return None
+    if admission is None:
+        admission = _admission(_events(root, repo, number), number)
+    if admission is None or newest.get("head") != _proven_head(_events(root, repo, number), admission):
+        return None
+    return {"reason": f"new head awaits developer re-admission (proven head {newest['head']}, PR head {head})",
+            "state": newest["state"], "proven_head": newest["head"], "head": head}
+
+
+def _earlier_slot_record(root: Path, repo: str, number: int, comments: list[dict[str, Any]], head: str,
+                         admission: dict[str, Any]) -> bool:
+    """Whether the exact-head record belongs to an earlier admission slot than ``admission``.
+
+    It does when it was written before the admission comment, or when it is the
+    ``blocked-escalation`` projection of a v1 block that the admission follows (``_block``
+    writes the v1 block first, so its projection may land after the admission).
+    """
+    record_id = _record_comment_id(root, number, comments, head)
+    if record_id is None:
+        return False
+    if record_id < admission["comment_id"]:
+        return True
+    record = _latest(root, number, comments, head) or {}
+    blocks = [event["comment_id"] for event in _events(root, repo, number)
+              if event.get("kind") == "block" and isinstance(event.get("comment_id"), int)]
+    return (record.get("state") == "blocked-escalation" and (record.get("red_gate") or {}).get("name") == "publication"
+            and bool(blocks) and max(blocks) < admission["comment_id"])
+
+
+def _require_handoff_progress(root: Path, repo: str, number: int, head: str, admission: dict[str, Any]) -> None:
+    """A developer handoff reports success only once this admission reached review at the exact head.
+
+    The exact-head record must belong to this admission slot and be ``review-pending`` with its
+    published review job, or later lifecycle progress; a blocked candidate or a missing job raises.
+    """
+    from lifecycle_workers import build_job
+
+    comments = _comments(root, repo, number)
+    candidate = _derive(root, _pr(root, repo, number), comments)
+    state = candidate.get("state")
+    if candidate.get("head") != head or _earlier_slot_record(root, repo, number, comments, head, admission):
+        raise QueueError(f"developer handoff for PR #{number} is not recorded at {head[:12]} for this admission")
+    published = candidate.get("next_job") if isinstance(candidate.get("next_job"), dict) else {}
+    if state == "review-pending" and (published.get("kind") != "review" or build_job(candidate) is None):
+        raise QueueError(f"developer handoff for PR #{number} is review-pending without a published review job; rerun finish")
+    if state == "blocked-escalation" or (state == "blocked-retryable" and not review_owned(candidate)):
+        raise QueueError(f"developer handoff for PR #{number} did not reach review: candidate is {state}: "
+                         f"{candidate.get('reason') or (candidate.get('red_gate') or {}).get('evidence')}")
+
+
 def admit(root: Path, number: int, expected_head: str, *, handoff: dict | None = None) -> dict[str, Any]:
     repo = _repo(root)
     pr = _pr(root, repo, number)
@@ -811,12 +994,10 @@ def admit(root: Path, number: int, expected_head: str, *, handoff: dict | None =
         prior = _latest(root, number, _comments(root, repo, number))
         old_identity = prior.get("task_identity") if prior else None
         keys = ("kind", "change", "requirement", "source_issue", "work_identity", "target_branch", "contribution_base")
-        updates = [event for event in events if event.get("kind") == "update"
-                   and event.get("comment_id", 0) > admitted.get("comment_id", 0)]
-        proven = updates[-1].get("head") if updates else admitted.get("head")
+        proven = _proven_head(events, admitted)
         if (prior and prior.get("head") == proven and prior.get("head") != expected_head
                 and prior.get("state") == "blocked-retryable"
-                and prior.get("red_gate", {}).get("name") == "semantic-verification"
+                and (prior.get("red_gate") or {}).get("name") == "semantic-verification"
                 and isinstance(old_identity, dict) and old_identity.get("kind") == "contribution"
                 and all(old_identity.get(k) == identity.get(k) for k in keys)
                 and prior["red_gate"].get("identity") == old_identity
@@ -832,11 +1013,20 @@ def admit(root: Path, number: int, expected_head: str, *, handoff: dict | None =
             if admitted is not None:
                 raise QueueError("semantic-verification admission reset was not confirmed")
     if admitted:
-        updates = [event for event in events if event.get("kind") == "update"
-                   and event.get("comment_id", 0) > admitted.get("comment_id", 0)]
-        proven = updates[-1].get("head") if updates else admitted.get("head")
-        if proven != expected_head:
+        proven = _proven_head(events, admitted)
+        if proven != expected_head and not handoff:
             raise QueueError("PR has an earlier or ambiguous admission; resolve it before re-admission")
+        if proven != expected_head:
+            supersedes = _supersession(root, repo, number, pr, str(proven), expected_head, identity)
+            base = identity["contribution_base"] if identity.get("kind") == "contribution" else _main(root)
+            # Off the queue until the fresh review record exists: no worker integrates the unreviewed head.
+            _label(root, repo, number, QUEUE, present=False)
+            _comment(root, repo, number, {"kind": "admit", "head": expected_head, "base": base, "branch": branch,
+                                          "supersedes": supersedes})
+            admitted = _admission(_events(root, repo, number), number)
+            if admitted is None or admitted.get("head") != expected_head:
+                raise QueueError("superseding admission comment was not confirmed")
+            _label(root, repo, number, BLOCKED, present=False)
     else:
         base = identity["contribution_base"] if identity.get("kind") == "contribution" else _main(root)
         _ensure_labels(root)
@@ -847,19 +1037,25 @@ def admit(root: Path, number: int, expected_head: str, *, handoff: dict | None =
         _label(root, repo, number, BLOCKED, present=False)
     # A retry after an interrupted admission recovers the missing record, but never
     # rewinds a candidate that later lifecycle work already advanced on this head.
-    current = _derive(root, _pr(root, repo, number), _comments(root, repo, number))
-    if current.get("task_identity") is None or current.get("head") != expected_head:
+    comments = _comments(root, repo, number)
+    current = _derive(root, _pr(root, repo, number), comments)
+    stale = _earlier_slot_record(root, repo, number, comments, expected_head, admitted)
+    if current.get("task_identity") is None or current.get("head") != expected_head or stale:
         try:
+            # A record of an earlier slot (written before this admission, or the projection of a
+            # block this admission follows) is never later lifecycle work: only claims refuse.
             _transition(root, repo, number, "review-pending" if handoff else "ready", expected_head, inherit_identity=False,
-                        refuse_from=STATES, route=route, **resolved_handoff)
+                        refuse_from=CLAIM_STATES if stale else STATES, route=route, **resolved_handoff)
         except LifecycleOwnershipChanged:
             pass  # lifecycle work recorded this head in the meantime; never rewind it
     if handoff:
-        confirmed = _latest(root, number, _comments(root, repo, number), expected_head)
+        comments = _comments(root, repo, number)
+        confirmed = _latest(root, number, comments, expected_head)
         if confirmed is None or _pr(root, repo, number).get("head", {}).get("sha") != expected_head:
             raise QueueError("developer handoff admission is not confirmed at the exact PR head")
         if confirmed["state"] == "review-pending":
             publish_job(root, repo, number, "review", expected_head, task_identity=handoff["task_identity"])
+        _require_handoff_progress(root, repo, number, expected_head, admitted)
     _label(root, repo, number, QUEUE, present=True)
     return {"number": number, "position_key": admitted["comment_id"], "head": expected_head, "state": "queued"}
 
@@ -909,10 +1105,14 @@ def status(root: Path, number: int) -> dict[str, Any]:
         queue = sorted([*queue, (admission["comment_id"], number, admission)])
     for index, (_, candidate, _) in enumerate(queue, 1):
         if candidate == number:
+            awaiting = _awaiting_readmission(root, repo, number, pr, _comments(root, repo, number), admission)
+            if awaiting is not None:
+                # Kept "waiting" for existing consumers; the reason names the developer action it waits on.
+                return {"state": "waiting", "number": number, "position": index, "owner": "developer re-admission",
+                        "reason": awaiting["reason"], "proven_head": awaiting["proven_head"], "head": awaiting["head"]}
             active = index == 1 and ACTIVE in labels
             return {"state": "active" if active else "waiting", "number": number, "position": index, "owner": "publication-queue workflow" if active else None}
     return {"state": "blocked", "number": number, "reason": "admitted PR lacks queue label"}
-
 
 
 def candidate_status(root: Path, number: int, *, repo: str | None = None) -> dict[str, Any]:
@@ -928,7 +1128,12 @@ def candidate_status(root: Path, number: int, *, repo: str | None = None) -> dic
               "detail": observed.detail, "checks": list(observed.checks)}
     if observed.cause:
         checks["cause"] = observed.cause
-    return _derive(root, pr, comments, checks)
+    candidate = _derive(root, pr, comments, checks)
+    awaiting = _awaiting_readmission(root, repo, number, pr, comments)
+    if awaiting is not None:
+        candidate.update(reason=awaiting["reason"], awaiting_readmission=awaiting,
+                         next_action="developer re-admission: rerun finish for the pushed head")
+    return candidate
 
 
 def lifecycle_summary(root: Path, number: int) -> dict[str, Any]:
@@ -1495,6 +1700,14 @@ def worker(root: Path) -> dict[str, Any]:
         # work; otherwise _prepare must still recover an interrupted branch update.
         exact_head_record = current.get("task_identity") is not None and current.get("head") == pr.get("head", {}).get("sha")
         newest = (_latest(root, number, comments) or {}) if has_v2 else {}
+        awaiting = _awaiting_readmission(root, repo, number, pr, comments, admission) if has_v2 else None
+        if awaiting is not None:
+            # The developer pushed a new head onto a candidate waiting for a human, a retry or an unclaimed
+            # job: it awaits developer re-admission, never integration or a block of the unrecorded head.
+            skipped.append(f"#{number} {awaiting['reason']}")
+            if active(number):
+                _label(root, repo, number, ACTIVE, present=False)
+            continue
         if newest.get("state") in CLAIM_STATES:
             # A review/repair claim on an earlier head still owns the candidate:
             # never prepare (update or block) it under that work.
@@ -1702,7 +1915,7 @@ def main() -> int:
     check.add_argument("--mode", choices=PREFLIGHT_MODES, required=True)
     check.add_argument("--phase", choices=PREFLIGHT_PHASES, required=True)
     for name, summary in (("switch-provider", "re-offer an unfinished review or repair job on other providers"),
-                          ("resume", "re-offer a retryable or operationally escalated review/repair job after a human decision")):
+                          ("resume", "re-offer a retryable or operationally escalated review/repair/finalize job after a human decision")):
         operator = sub.add_parser(name, help=summary)
         operator.add_argument("--pr", type=int, required=True)
         operator.add_argument("--provider", action="append", required=name == "switch-provider",

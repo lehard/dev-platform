@@ -351,7 +351,19 @@ with the change still active. Before finish, run selected checks with
 record semantic verification, commit the candidate and evidence, then record
 the developer friction checkpoint at that exact head. Finish publishes an exact-head PR, admits it as
 `review-pending`, and releases the developer board claim without waiting for CI,
-review or merge. This is developer completion; terminal delivery still requires
+review or merge; finish fails unless the exact head reached `review-pending` with its published review job (or later
+lifecycle progress). A new developer head pushed to the same PR while it is `review-pending` (unclaimed),
+`repair-pending`, `blocked-retryable` or `blocked-escalation` is re-admitted by the next finish on that PR: the v1
+admission comment records `supersedes` (the previously admitted head, its state and the reason) and a fresh review job
+is published for the new head; until then the coordinator skips the pushed head instead of integrating or blocking it,
+and `status` reports "new head awaits developer re-admission" with the proven and the pushed head.
+Re-admission is refused while a job holds a live claim or the candidate is in any other state, for another task, when
+a finding-level escalation (rejected review, proposed rejection, exhausted repair rounds) or a candidate carrying
+material review findings (for example `repair-pending`) would be superseded by unchanged task content (operational
+states such as an unavailable reviewer need no content change), or when the new head does not descend from the admitted head (a fast-forward or a merge of
+main keeps coordinator updates and harness pushes; a rewrite would silently drop them), so never close and republish
+the branch as a new PR. Attempt counters (review and repair rounds, `review-unavailable`/`repair-unavailable` streaks)
+carry over to the new head; re-admission spends or resets no budget. This is developer completion; terminal delivery still requires
 archive and confirmed merge. The worker entrypoint
 `python3 scripts/lifecycle_workers.py work-next --repo owner/repo --kinds review --run`
 launches the existing independent reviewer in an exact-head disposable checkout.
@@ -377,6 +389,10 @@ to start) during review or repair leaves the candidate `blocked-retryable` with 
 limitation, retries the same round up to three consecutive times, and then waits without an automatic job. Resume it,
 or an operational `blocked-escalation` of a repair (writer failure, harness rejection, no change), after your decision with
 `python3 scripts/publication_queue.py resume --pr <N> --reason "<why>" [--provider <p>]`; it re-offers the same round with
-the findings. Finding-level escalations (a proposed rejection, exhausted repair rounds, a rejected review) are not
-resumed: push a fix, record a disposition for the finding, or close the PR. A candidate escalated before providers were
+the findings. A `blocked-escalation` from a failed finalize job is resumed the same way without `--provider`: it
+re-offers the finalize job at the same head with the reason recorded on the job. Not every finalize failure is
+operational (failed selected checks, missing or unbound evidence, changed task identity and archive leftovers escalate
+too), but resume is safe because the re-offered finalize re-verifies every gate from scratch and escalates again if one
+still fails; resume it after fixing the cause, such as a missing source contract in the disposable checkout. Finding-level escalations (a proposed rejection, exhausted repair rounds, a rejected review) are not
+resumed: push a fix that changes the task content (re-admission refuses an unchanged digest over material findings), or close the PR. A candidate escalated before providers were
 recorded needs an explicit `--provider`.

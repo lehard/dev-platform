@@ -618,6 +618,297 @@ class ProviderSwitchTests(unittest.TestCase):
             self.assertEqual(workers.build_job(resumed)["providers"], ["claude"])
 
 
+class ReadmissionAndFinalizeResumeTests(unittest.TestCase):
+    NEW_HEAD = "c" * 40
+    NEW_IDENTITY = {**IDENTITY, "task_content": {**IDENTITY["task_content"], "digest": "proof-2"}}
+
+    def admitted_repair_pending(self, fixture, stack):
+        stack.enter_context(mock.patch.object(queue, "_repo", return_value="o/r"))
+        stack.enter_context(mock.patch.object(queue, "_ensure_labels"))
+        self.labels = stack.enter_context(mock.patch.object(queue, "_label"))
+        stack.enter_context(mock.patch.object(queue, "_main", return_value=HEAD))
+        stack.enter_context(mock.patch("model_routing.read_route_for_change", return_value=ROUTE))
+        self.descends = stack.enter_context(mock.patch.object(queue, "_descends", return_value=True))
+        original_pr = queue._pr.side_effect
+        queue._pr.side_effect = lambda *a: {**original_pr(*a), "base": {"ref": "main"}}
+        queue.admit(ROOT, 7, HEAD, handoff={"task_identity": IDENTITY, "gates": {}})
+        queue._transition(ROOT, "o/r", 7, "reviewing", HEAD, task_identity=IDENTITY)
+        gate.complete_review(ROOT, "o/r", fixture.candidate(), ProviderSwitchTests.MATERIAL, HEAD)
+        self.assertEqual(fixture.candidate()["state"], "repair-pending")
+
+    def readmit(self, fixture):
+        fixture.head = self.NEW_HEAD
+        return queue.admit(ROOT, 7, self.NEW_HEAD, handoff={"task_identity": self.NEW_IDENTITY, "gates": {}})
+
+    def assert_superseded(self, fixture, state):
+        candidate = fixture.candidate()
+        self.assertEqual((candidate["state"], candidate["head"], candidate["task_identity"]),
+                         ("review-pending", self.NEW_HEAD, self.NEW_IDENTITY))
+        job = workers.build_job(candidate)
+        self.assertEqual((job["kind"], job["head"]), ("review", self.NEW_HEAD))
+        events = queue._events(ROOT, "o/r", 7)
+        admission = queue._admission(events, 7)
+        self.assertEqual(admission["head"], self.NEW_HEAD)
+        self.assertEqual((admission["supersedes"]["head"], admission["supersedes"]["state"]), (HEAD, state))
+        self.assertTrue(admission["supersedes"]["reason"])
+        self.descends.assert_called_with(ROOT, HEAD, self.NEW_HEAD)
+        # The candidate leaves the queue before the superseding admission and rejoins after its review record.
+        queued = [call.kwargs["present"] for call in self.labels.call_args_list if call.args[3] == queue.QUEUE]
+        self.assertEqual(queued[-2:], [False, True])
+
+    def test_new_developer_head_supersedes_a_repair_pending_admission(self):
+        with QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
+            self.admitted_repair_pending(fixture, stack)
+            self.readmit(fixture)
+            self.assert_superseded(fixture, "repair-pending")
+            count = len(fixture.comments)
+            self.readmit(fixture)  # a repeat of the same handoff is idempotent
+            self.assertEqual(len(fixture.comments), count)
+
+    def test_new_developer_head_supersedes_a_proposed_rejection_escalation(self):
+        with QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
+            self.admitted_repair_pending(fixture, stack)
+            queue._transition(ROOT, "o/r", 7, "blocked-escalation", HEAD, task_identity=IDENTITY,
+                              red_gate={"name": "repair", "identity": IDENTITY,
+                                        "evidence": {"status": "proposed-rejection"}})
+            self.readmit(fixture)
+            self.assert_superseded(fixture, "blocked-escalation")
+
+    def test_readmission_refuses_in_flight_work_rewrites_and_another_task(self):
+        with QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
+            self.admitted_repair_pending(fixture, stack)
+            job = workers.build_job(fixture.candidate())
+            fixture.comments.append({"id": len(fixture.comments) + 1, "author_association": "OWNER",
+                                     "body": workers.claim_body(job, "busy", "2099-01-01T00:00:00Z", provider=PROVIDER)})
+            count = len(fixture.comments)
+            with self.assertRaisesRegex(queue.QueueError, "earlier or ambiguous.*repair job is claimed by busy"):
+                self.readmit(fixture)
+            self.assertEqual(len(fixture.comments), count)
+            fixture.head = HEAD
+            queue._transition(ROOT, "o/r", 7, "repairing", HEAD, task_identity=IDENTITY)
+            with self.assertRaisesRegex(queue.QueueError, "candidate is repairing; only blocked-escalation"):
+                self.readmit(fixture)
+            fixture.head = HEAD
+            queue._transition(ROOT, "o/r", 7, "blocked-escalation", HEAD, task_identity=IDENTITY,
+                              red_gate={"name": "repair", "identity": IDENTITY, "evidence": "failed: llm exited 1"})
+            count = len(fixture.comments)
+            self.descends.return_value = False
+            with self.assertRaisesRegex(queue.QueueError, "does not descend from the admitted head"):
+                self.readmit(fixture)
+            self.descends.return_value = True
+            with self.assertRaisesRegex(queue.QueueError, "does not name the same task"):
+                queue.admit(ROOT, 7, self.NEW_HEAD, handoff={"task_identity": {**self.NEW_IDENTITY, "change": "other"},
+                                                            "gates": {}})
+            self.assertEqual(len(fixture.comments), count)
+            # Without a developer handoff a changed head never supersedes an admission.
+            with mock.patch.object(queue, "_admission_handoff", return_value={"task_identity": self.NEW_IDENTITY, "gates": {}}), \
+                    self.assertRaisesRegex(queue.QueueError, "earlier or ambiguous admission; resolve"):
+                queue.admit(ROOT, 7, self.NEW_HEAD)
+
+    def test_worker_block_between_push_and_admit_never_strands_the_handoff(self):
+        # Reviewer's sequence: a worker blocked the pushed head before the developer's finish admitted it.
+        with QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
+            self.admitted_repair_pending(fixture, stack)
+            queue._transition(ROOT, "o/r", 7, "blocked-escalation", HEAD, task_identity=IDENTITY,
+                              red_gate={"name": "repair", "identity": IDENTITY, "evidence": "failed: llm exited 1"})
+            fixture.head = self.NEW_HEAD
+            queue._block(ROOT, "o/r", 7, "PR head changed outside coordinator control")
+            self.readmit(fixture)
+            candidate = fixture.candidate()
+            self.assertEqual((candidate["state"], candidate["task_identity"]), ("review-pending", self.NEW_IDENTITY))
+            self.assertEqual(workers.build_job(candidate)["head"], self.NEW_HEAD)
+            # A still newer head supersedes the unclaimed review job, which could never run once the head moved.
+            newer = {**self.NEW_IDENTITY, "task_content": {**IDENTITY["task_content"], "digest": "proof-3"}}
+            fixture.head = "d" * 40
+            queue.admit(ROOT, 7, "d" * 40, handoff={"task_identity": newer, "gates": {}})
+            self.assertEqual((fixture.candidate()["state"], fixture.candidate()["head"]), ("review-pending", "d" * 40))
+            self.assertEqual(queue._admission(queue._events(ROOT, "o/r", 7), 7)["supersedes"]["state"], "review-pending")
+
+    def test_worker_skips_a_pushed_head_awaiting_developer_readmission(self):
+        with QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
+            self.admitted_repair_pending(fixture, stack)
+            queue._transition(ROOT, "o/r", 7, "blocked-escalation", HEAD, task_identity=IDENTITY,
+                              red_gate={"name": "repair", "identity": IDENTITY, "evidence": "failed: llm exited 1"})
+            fixture.head = self.NEW_HEAD
+            slot = queue._admission(queue._events(ROOT, "o/r", 7), 7)
+            count = len(fixture.comments)
+            with mock.patch.object(queue, "_queued", return_value=[(slot["comment_id"], 7, slot)]), \
+                    mock.patch.object(queue, "_integrate", side_effect=AssertionError("integrated an unrecorded head")):
+                result = queue.worker(ROOT)
+            self.assertEqual(result["state"], "waiting")
+            self.assertIn("new head awaits developer re-admission", result["reason"])
+            self.assertEqual(len(fixture.comments), count)  # no block, no record
+            self.readmit(fixture)
+            self.assert_superseded(fixture, "blocked-escalation")
+
+    def test_block_landing_before_the_superseding_admission_opens_a_fresh_slot(self):
+        with QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
+            self.admitted_repair_pending(fixture, stack)
+            real = queue._supersession
+
+            def raced(*args, **kwargs):
+                result = real(*args, **kwargs)
+                queue._block(ROOT, "o/r", 7, "concurrent block")  # lands between observation and the post
+                return result
+            with mock.patch.object(queue, "_supersession", side_effect=raced):
+                self.readmit(fixture)
+            candidate = fixture.candidate()
+            self.assertEqual((candidate["state"], workers.build_job(candidate)["head"]), ("review-pending", self.NEW_HEAD))
+            slot = queue._admission(queue._events(ROOT, "o/r", 7), 7)
+            self.assertEqual((slot["head"], slot["supersedes"]["head"]), (self.NEW_HEAD, HEAD))
+
+    def test_handoff_admission_raises_unless_review_was_reached(self):
+        with QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
+            self.admitted_repair_pending(fixture, stack)
+            with mock.patch.object(queue, "publish_job"), \
+                    self.assertRaisesRegex(queue.QueueError, "review-pending without a published review job"):
+                self.readmit(fixture)
+        with QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
+            self.admitted_repair_pending(fixture, stack)
+            block = lambda *a, **k: queue._block(ROOT, "o/r", 7, "required check is not registered")
+            with mock.patch.object(queue, "publish_job", side_effect=block), \
+                    self.assertRaisesRegex(queue.QueueError, "did not reach review: candidate is blocked-escalation"):
+                self.readmit(fixture)
+
+    def test_finding_level_escalation_needs_changed_task_content(self):
+        for red in ({"name": "repair", "identity": IDENTITY, "evidence": {"status": "proposed-rejection"}},
+                    {"name": "repair", "identity": IDENTITY, "evidence": "rounds exhausted"},
+                    {"name": "review", "identity": IDENTITY, "evidence": ProviderSwitchTests.MATERIAL}):
+            with self.subTest(red=red["name"]), QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
+                self.admitted_repair_pending(fixture, stack)
+                queue._transition(ROOT, "o/r", 7, "blocked-escalation", HEAD, task_identity=IDENTITY, red_gate=red)
+                fixture.head = self.NEW_HEAD
+                count = len(fixture.comments)
+                with self.assertRaisesRegex(queue.QueueError, "finding-level escalation .* needs changed task content"):
+                    queue.admit(ROOT, 7, self.NEW_HEAD, handoff={"task_identity": IDENTITY, "gates": {}})
+                self.assertEqual(len(fixture.comments), count)
+                self.readmit(fixture)  # changed content supersedes it
+                self.assert_superseded(fixture, "blocked-escalation")
+
+    def test_material_findings_need_changed_content_but_operational_states_do_not(self):
+        for escalate in (False, True):  # repair-pending, then an operational repair escalation keeping the failed review
+            with self.subTest(escalate=escalate), QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
+                self.admitted_repair_pending(fixture, stack)
+                if escalate:
+                    queue._transition(ROOT, "o/r", 7, "blocked-escalation", HEAD, task_identity=IDENTITY,
+                                      red_gate={"name": "repair", "identity": IDENTITY, "evidence": "failed: llm exited 1"})
+                fixture.head = self.NEW_HEAD
+                count = len(fixture.comments)
+                with self.assertRaisesRegex(queue.QueueError, "material review findings of the admitted head needs changed task content"):
+                    queue.admit(ROOT, 7, self.NEW_HEAD, handoff={"task_identity": IDENTITY, "gates": {}})
+                self.assertEqual(len(fixture.comments), count)
+                self.readmit(fixture)
+                self.assert_superseded(fixture, "blocked-escalation" if escalate else "repair-pending")
+        with QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
+            self.admitted_repair_pending(fixture, stack)  # sets up admission; replace the review outcome
+            queue._transition(ROOT, "o/r", 7, "reviewing", HEAD, task_identity=IDENTITY, inherit_identity=False)
+            gate.complete_review(ROOT, "o/r", {**fixture.candidate(), "gates": {}},
+                                 {"s": {"availability": "unavailable", "limitation": "login expired"}}, HEAD)
+            self.assertEqual(fixture.candidate()["state"], "blocked-retryable")
+            fixture.head = self.NEW_HEAD
+            queue.admit(ROOT, 7, self.NEW_HEAD, handoff={"task_identity": IDENTITY, "gates": {}})  # same content
+            self.assertEqual((fixture.candidate()["state"], fixture.candidate()["head"]), ("review-pending", self.NEW_HEAD))
+
+    def test_status_names_a_pushed_head_awaiting_readmission(self):
+        from types import SimpleNamespace
+
+        with QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
+            self.admitted_repair_pending(fixture, stack)
+            fixture.head = self.NEW_HEAD
+            slot = queue._admission(queue._events(ROOT, "o/r", 7), 7)
+            with mock.patch.object(queue, "_queued", return_value=[(slot["comment_id"], 7, slot)]):
+                observed = queue.status(ROOT, 7)
+            self.assertEqual((observed["state"], observed["owner"], observed["proven_head"], observed["head"]),
+                             ("waiting", "developer re-admission", HEAD, self.NEW_HEAD))
+            self.assertIn("new head awaits developer re-admission", observed["reason"])
+            checks = SimpleNamespace(cause=None, kind="pending", detail="", checks=())
+            with mock.patch.object(queue, "required_check_state_for_ref", return_value=checks):
+                candidate = queue.candidate_status(ROOT, 7, repo="o/r")
+            self.assertIn(f"proven head {HEAD}, PR head {self.NEW_HEAD}", candidate["reason"])
+            self.assertEqual(candidate["awaiting_readmission"]["state"], "repair-pending")
+            self.assertIn("developer re-admission", candidate["next_action"])
+            self.readmit(fixture)
+            with mock.patch.object(queue, "required_check_state_for_ref", return_value=checks):
+                self.assertNotIn("awaiting_readmission", queue.candidate_status(ROOT, 7, repo="o/r"))
+
+    def test_admission_slot_accepts_only_a_supersession_of_the_proven_head(self):
+        new = "c" * 40
+        admit = {"kind": "admit", "comment_id": 1, "head": HEAD, "branch": "agent/x", "base": HEAD}
+        update = {"kind": "update", "comment_id": 2, "previous": HEAD, "head": "b" * 40}
+        supersede = {**admit, "comment_id": 3, "head": new, "supersedes": {"head": "b" * 40, "reason": "fresh"}}
+        self.assertEqual(queue._admission([admit, update, supersede, {**supersede, "comment_id": 4}], 7)["comment_id"], 3)
+        for bad in ({**supersede, "supersedes": {"head": HEAD, "reason": "stale head"}},
+                    {**supersede, "supersedes": {"head": "b" * 40, "reason": " "}},
+                    {**supersede, "branch": "agent/y"}, {**admit, "comment_id": 3, "head": new}):
+            with self.assertRaisesRegex(queue.QueueError, "conflicting admission evidence"):
+                queue._admission([admit, update, bad], 7)
+        with self.assertRaisesRegex(queue.QueueError, "conflicting admission evidence"):
+            queue._admission([{**supersede, "comment_id": 1}], 7)
+        # A block closed the superseded slot first: the supersession opens a fresh slot, provenance kept.
+        block = {"kind": "block", "comment_id": 3, "reason": "concurrent"}
+        self.assertEqual(queue._admission([admit, update, block, {**supersede, "comment_id": 4}], 7)["head"], new)
+        with self.assertRaisesRegex(queue.QueueError, "conflicting admission evidence"):
+            queue._admission([admit, block, {**supersede, "comment_id": 4, "supersedes": {"head": HEAD, "reason": ""}}], 7)
+
+    def test_descends_accepts_fast_forward_and_merge_and_refuses_a_rewrite(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            git(repo, "init", "-q", "-b", "main")
+            commit = lambda message: (git(repo, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q",
+                                          "--allow-empty", "-m", message), git(repo, "rev-parse", "HEAD"))[1]
+            base = commit("base")
+            admitted = commit("admitted")
+            forward = commit("developer fix")
+            git(repo, "checkout", "-q", "-b", "side", base)
+            rewrite = commit("rewritten")
+            git(repo, "checkout", "-q", "main")
+            git(repo, "-c", "user.name=t", "-c", "user.email=t@t", "merge", "-q", "--no-edit", "side")
+            merged = git(repo, "rev-parse", "HEAD")
+            self.assertTrue(queue._descends(repo, admitted, forward))
+            self.assertTrue(queue._descends(repo, admitted, merged))
+            self.assertFalse(queue._descends(repo, admitted, rewrite))
+            with self.assertRaisesRegex(queue.QueueError, "cannot prove"):
+                queue._descends(repo, "d" * 40, merged)
+
+    def escalated_finalize(self, fixture):
+        passed = {"result": "passed", "identity": IDENTITY, "evidence": "review ok"}
+        queue._transition(ROOT, "o/r", 7, "finalize-pending", HEAD, task_identity=IDENTITY, inherit_identity=False,
+                          gates={"review": passed}, next_job=workers.job_record("finalize", HEAD, IDENTITY, 0))
+        job = workers.build_job(fixture.candidate())
+        fixture.comments.append({"id": len(fixture.comments) + 1, "author_association": "OWNER",
+                                 "body": workers.result_body(job, "w", "failed: missing source contract")})
+        queue._transition(ROOT, "o/r", 7, "blocked-escalation", HEAD, task_identity=IDENTITY, inherit_identity=False,
+                          red_gate={"name": "finalize", "identity": IDENTITY, "evidence": "missing source contract"})
+        return job
+
+    def test_resume_reoffers_an_operational_finalize_escalation_at_the_same_head(self):
+        with QueueFixture(ROOT, HEAD) as fixture:
+            failed = self.escalated_finalize(fixture)
+            self.assertTrue(workers.job_completed(failed, fixture.comments))
+            with self.assertRaisesRegex(queue.QueueError, "omit --provider"):
+                gate.reoffer(ROOT, "o/r", 7, action="resume", providers=["codex"], reason="contract restored")
+            with self.assertRaisesRegex(queue.QueueError, "operational repair and finalize escalations"):
+                gate.reoffer(ROOT, "o/r", 7, action="switch-provider", providers=["codex"], reason="x")
+            result = gate.reoffer(ROOT, "o/r", 7, action="resume", providers=None, reason="contract restored")
+            resumed = fixture.candidate()
+            job = workers.build_job(resumed)
+            self.assertEqual((result["state"], resumed["state"], resumed["red_gate"]), ("finalize-pending", "finalize-pending", None))
+            self.assertEqual((job["kind"], job["head"], job["attempt"]), ("finalize", HEAD, failed["attempt"]))
+            self.assertEqual((job["reoffer"]["action"], job["reoffer"]["reason"]), ("resume", "contract restored"))
+            self.assertNotEqual(workers.job_id(job), workers.job_id(failed))
+            self.assertFalse(workers.job_completed(job, fixture.comments))
+            self.assertEqual(resumed["gates"]["review"]["result"], "passed")
+
+    def test_finding_level_escalation_is_still_not_resumed(self):
+        with QueueFixture(ROOT, HEAD) as fixture:
+            self.escalated_finalize(fixture)
+            queue._transition(ROOT, "o/r", 7, "blocked-escalation", HEAD, task_identity=IDENTITY,
+                              red_gate={"name": "repair", "identity": IDENTITY, "evidence": {"status": "proposed-rejection"}})
+            with self.assertRaisesRegex(queue.QueueError, "finding-level reason \\(proposed-rejection\\)"):
+                gate.reoffer(ROOT, "o/r", 7, action="resume", providers=["codex"], reason="retry")
+            self.assertEqual(fixture.candidate()["state"], "blocked-escalation")
+
+
 class ProviderSwitchCommandTests(unittest.TestCase):
     def test_cli_switch_and_resume_call_the_gate_with_the_operator_reason(self):
         for command, extra, provider_required in (("switch-provider", ["--provider", "claude", "--provider", "codex"], True),
