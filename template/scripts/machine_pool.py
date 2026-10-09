@@ -536,11 +536,15 @@ def _acquire(config: PoolConfig, weight: int, check_class: str, purpose: str, ro
         started = hooks.monotonic()
         next_progress = started
         first = True
+        # (queue position, wait reason) of the previous poll; None until the first poll waited.
+        last_wait: tuple[int, str] | None = None
         while True:
-            if not first and hooks.monotonic() - started >= config.wait_timeout_seconds:
+            # A deadline that passed while sleeping fails before any admission attempt.
+            if last_wait is not None and hooks.monotonic() - started >= config.wait_timeout_seconds:
                 raise PoolTimeout(
                     f"machine pool wait timed out after {config.wait_timeout_seconds}s for {weight} token(s) as class "
-                    f"{check_class} (queue position {position}; {reason}); holders: {describe_holders(read_holders(config))}")
+                    f"{check_class} (queue position {last_wait[0]}; {last_wait[1]}); "
+                    f"holders: {describe_holders(read_holders(config))}")
             live = [name for name, _ in _scan_queue(config, remove_dead=True, own=ticket.name)]
             if ticket.name not in live:
                 raise PoolError(f"queue ticket {ticket.path} disappeared while waiting")
@@ -578,6 +582,7 @@ def _acquire(config: PoolConfig, weight: int, check_class: str, purpose: str, ro
             if now >= next_progress:
                 hooks.out(_blocked_report(config, weight, check_class, position, len(live), reason))
                 next_progress = now + hooks.progress_interval
+            last_wait = (position, reason)
             hooks.sleep(hooks.poll_interval)
     finally:
         ticket.release()
