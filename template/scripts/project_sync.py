@@ -45,6 +45,7 @@ def main() -> int:
             run_git(["rev-parse", "HEAD"], cwd=integration).stdout.strip(),
             tool="project_sync",
             actor_worktree=caller,
+            remote=args.remote,
         )
         print(f"Fast-forwarded {branch} to {remote_branch}.")
         return 0

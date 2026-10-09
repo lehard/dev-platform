@@ -121,6 +121,16 @@ class ReceiptAndClassifierTests(IntegrationRepoMixin, unittest.TestCase):
         self.assertIsInstance(stored["pid"], int)
         self.assertIsNotNone(datetime.fromisoformat(stored["at"]).tzinfo)
 
+    def test_non_origin_receipt_is_unverified_even_when_origin_matches(self) -> None:
+        before, after = self.advance()
+        git(self.integration, "update-ref", "refs/remotes/upstream/main", after)
+        receipt = containment.record_integration_advance(
+            self.integration, before, after, tool="test", actor_worktree=self.sibling, remote="upstream"
+        )
+        self.assertEqual((receipt["remote"], receipt["remote_main"]), ("upstream", after))
+        self.assertNotIn("origin_main", receipt)
+        self.assertFalse(self.classify().verified)
+
     def test_record_records_the_origin_main_as_read_at_that_moment(self) -> None:
         before, after = self.advance(remote=False)
         git(self.integration, "update-ref", "refs/remotes/origin/main", before)
@@ -476,6 +486,43 @@ class ClaudeRecoveryTests(ClaudeRoutingFixture, unittest.TestCase):
         self.receipt(*later)
         advance = self.record()["postcheck"]["integration_advance"]
         self.assertEqual((advance["before"], advance["after"]), later)
+
+    def test_receipts_at_or_before_friction_refuse_without_writing(self) -> None:
+        event_time = datetime.fromisoformat(utc())
+        self.friction(at=event_time.isoformat())
+        receipt = self.receipt(*self.first)
+        log = containment.integration_advance_log(self.integration)
+        for at in ((event_time - timedelta(hours=1)).isoformat(), event_time.isoformat()):
+            with self.subTest(at=at):
+                log.write_text(json.dumps({**receipt, "at": at}) + "\n", encoding="utf-8")
+                self.assert_refused("does not predate integration advance receipts")
+
+    def test_self_attributed_receipts_after_friction_refuse_without_writing(self) -> None:
+        event_time = datetime.fromisoformat(utc())
+        self.friction(at=event_time.isoformat())
+        recovery_time = (event_time + timedelta(seconds=10)).isoformat()
+        log = containment.integration_advance_log(self.integration)
+        for actor in (self.task, self.task / "nested"):
+            for seconds in (1, 10):
+                with self.subTest(actor=actor, seconds=seconds):
+                    receipt = self.receipt(*self.first, actor=actor)
+                    log.write_text(json.dumps({**receipt, "at": (event_time + timedelta(seconds=seconds)).isoformat()}) + "\n", encoding="utf-8")
+                    with patch.object(routing, "utc_now", return_value=recovery_time):
+                        self.assert_refused("names the delegated worktree")
+
+    def test_later_sibling_receipt_allows_historical_recovery(self) -> None:
+        event_time = datetime.fromisoformat(utc())
+        self.friction(at=event_time.isoformat())
+        receipt = self.receipt(*self.first)
+        log = containment.integration_advance_log(self.integration)
+        log.write_text(json.dumps({**receipt, "at": (event_time + timedelta(seconds=1)).isoformat()}) + "\n", encoding="utf-8")
+        with patch.object(routing, "utc_now", return_value=(event_time + timedelta(seconds=10)).isoformat()):
+            self.recover()
+
+    def test_malformed_receipts_refuse_recovery_without_writing(self) -> None:
+        self.friction()
+        self.write_raw_receipts("{broken")
+        self.assert_refused("invalid integration advance receipts")
 
     def test_recovery_is_not_repeatable(self) -> None:
         self.friction()

@@ -50,6 +50,7 @@ from delegation_containment import (
     check_containment,
     format_violation_message,
     record_containment_friction,
+    read_integration_advances,
     resolve_assigned_worktree,
     snapshot,
     verify_historical_external_advance,
@@ -932,6 +933,19 @@ def _recover_claude_external_advance(
     if not verify_remote_fast_forward(integration_root, before_head, after_head):
         raise RoutingError("supplied --after-head is not a fast-forward of --before-head equal to the local remote-tracking main")
     recovered_at = utc_now()
+    recovery_time = datetime.fromisoformat(recovered_at)
+    try:
+        receipts = read_integration_advances(integration_root)
+    except ContainmentError as exc:
+        raise RoutingError(f"cannot recover with invalid integration advance receipts: {exc}") from exc
+    delegated = Path(route.task_worktree).resolve()
+    for receipt in receipts:
+        receipt_time = datetime.fromisoformat(receipt["at"])
+        if receipt_time <= friction_time:
+            raise RoutingError("the friction event does not predate integration advance receipts; historical recovery is forbidden")
+        actor = Path(receipt["actor_worktree"]).resolve()
+        if opened_time <= receipt_time <= recovery_time and (actor == delegated or delegated in actor.parents):
+            raise RoutingError("an integration advance receipt names the delegated worktree as its actor; recovery is forbidden")
     if not verify_historical_external_advance(
         integration_root, before_head, after_head, not_before=opened_at, not_after=recovered_at
     ):

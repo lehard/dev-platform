@@ -82,6 +82,24 @@ class GitLifecycleTests(unittest.TestCase):
         self.assertEqual((receipt["before"], receipt["after"], receipt["origin_main"], receipt["tool"]), (before, after, after, "project_sync"))
         self.assertEqual(receipt["actor_worktree"], str(self.repo.resolve()))
 
+    def test_sync_fast_forwards_with_upstream_only_remote(self) -> None:
+        git("remote", "rename", "origin", "upstream", cwd=self.repo)
+        before = git("rev-parse", "HEAD", cwd=self.repo).stdout.strip()
+        (self.seed / "remote.txt").write_text("upstream advance\n", encoding="utf-8")
+        git("add", "remote.txt", cwd=self.seed)
+        git("commit", "-m", "upstream advance", cwd=self.seed)
+        git("push", cwd=self.seed)
+        result = run("python3", "scripts/project_sync.py", "--remote", "upstream", cwd=self.repo)
+        self.assertIn("Fast-forwarded", result.stdout)
+        after = git("rev-parse", "HEAD", cwd=self.repo).stdout.strip()
+        (receipt,) = self._receipts()
+        self.assertEqual((receipt["before"], receipt["after"], receipt["remote"], receipt["remote_main"]),
+                         (before, after, "upstream", after))
+        self.assertNotIn("origin_main", receipt)
+        retry = run("python3", "scripts/project_sync.py", "--remote", "upstream", cwd=self.repo)
+        self.assertIn("already synchronized", retry.stdout)
+        self.assertEqual(len(self._receipts()), 1)
+
     def test_sync_refuses_local_ahead(self) -> None:
         (self.repo / "local.txt").write_text("local\n", encoding="utf-8"); git("add", "local.txt", cwd=self.repo); git("commit", "-m", "local", cwd=self.repo)
         result = run("python3", "scripts/project_sync.py", cwd=self.repo, check=False); self.assertNotEqual(result.returncode, 0); self.assertIn("ahead", result.stderr + result.stdout)
