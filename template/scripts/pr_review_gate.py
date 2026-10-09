@@ -331,7 +331,7 @@ def run_claimed(root: Path, repo: str, candidate: dict, job: dict, *, source_rep
         complete_review(root, repo, running, reports, job["head"], adapter=adapter)
         post_result(workers.result_body(job, worker, "reused-review"))
         return {"status": "reused", "pushed_head": job["head"]}
-    runner = runner or subprocess.run
+    runner = runner or workers.run_in_session  # the writer's process group never outlives it
 
     from independent_review_runner import settings
 
@@ -362,7 +362,8 @@ def run_claimed(root: Path, repo: str, candidate: dict, job: dict, *, source_rep
         command = shlex.split(llm_command) if isinstance(llm_command, str) else list(llm_command or [])
         if not command or not allowed_paths:
             raise workers.WorkerError("repair needs a configured writer command and bounded allowed paths")
-        prompt = ("Repair the material findings in this exact candidate handoff. Commit the bounded fixes. "
+        prompt = ("Repair the material findings in this exact candidate handoff. Either commit the bounded fixes or "
+                  "leave them uncommitted in the working tree for the harness to commit, not both; change only allowed paths. "
                   "Do not edit workflow or lifecycle evidence files. If rejecting a material finding is necessary, "
                   "make no changes and return JSON {\"reject_material\": true}; a human must decide. "
                   "Handoff and findings: " + json.dumps(repair_brief(running), sort_keys=True))
@@ -399,7 +400,9 @@ def run_claimed(root: Path, repo: str, candidate: dict, job: dict, *, source_rep
     else:
         adapter._transition(root, repo, job["number"], "blocked-escalation", head,
                             task_identity=identity,
-                            red_gate={"name": kind, "evidence": outcome, "providers": job.get("providers")})
+                            red_gate={"name": kind, "providers": job.get("providers"),
+                                      # writer output is local diagnostics only, never part of a posted record
+                                      "evidence": {k: v for k, v in outcome.items() if k != "writer_output"}})
     return outcome
 
 

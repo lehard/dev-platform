@@ -538,13 +538,19 @@ class ProviderSwitchTests(unittest.TestCase):
             job = workers.build_job(fixture.candidate())
             fixture.comments.append({"id": 100, "author_association": "OWNER",
                                      "body": workers.claim_body(job, "w", "2099-01-01T00:00:00Z")})
-            with mock.patch.object(workers, "execute_job", return_value={"status": "failed", "outcome": "failed: llm exited 1"}):
-                gate.run_claimed(ROOT, "o/r", fixture.candidate(), job, source_repo="fixture", branch="agent/example",
-                                 allowed_paths=["src.py"], llm_command=["writer"], current_head=lambda: HEAD,
-                                 post_result=lambda body: None, workdir="/unused", worker="w", provider=PROVIDER, claim_current=lambda: True)
+            local = {"status": "failed", "outcome": "failed: llm exited 1",
+                     "writer_output": {"stdout": "", "stderr": "SECRET-WRITER-OUTPUT"}}
+            with mock.patch.object(workers, "execute_job", return_value=local):
+                returned = gate.run_claimed(ROOT, "o/r", fixture.candidate(), job, source_repo="fixture", branch="agent/example",
+                                            allowed_paths=["src.py"], llm_command=["writer"], current_head=lambda: HEAD,
+                                            post_result=lambda body: None, workdir="/unused", worker="w", provider=PROVIDER, claim_current=lambda: True)
             escalated = fixture.candidate()
             self.assertEqual(escalated["state"], "blocked-escalation")
             self.assertEqual(escalated["red_gate"]["providers"], ["codex"])
+            # Writer output stays in the local result and never reaches a posted record.
+            self.assertEqual(returned["writer_output"]["stderr"], "SECRET-WRITER-OUTPUT")
+            self.assertEqual(escalated["red_gate"]["evidence"], {"status": "failed", "outcome": "failed: llm exited 1"})
+            self.assertFalse(any("SECRET-WRITER-OUTPUT" in str(row.get("body")) for row in fixture.comments))
             # Documented exit after a human decision: same round, new provider, findings restored.
             rounds = escalated["attempts"]["repair"]
             self.switch(action="resume", providers=["claude"], reason="codex limit reset not before tomorrow")
