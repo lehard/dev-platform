@@ -422,67 +422,6 @@ class ProvenBaseContractTests(unittest.TestCase):
         self.assert_refused_before_commands(self.select("--execute", "--proven-base", self.proven),
                                             "accepted only in coordinator lifecycle mode (found portable)")
 
-    def legacy_dependent(self) -> str:
-        """Re-fork the task from a predecessor head and record a legacy dependent child context."""
-        self.git(self.task, "checkout", "-q", "-b", "agent/predecessor", self.proven)
-        (self.task / "predecessor.txt").write_text("predecessor\n", encoding="utf-8")
-        self.git(self.task, "add", "predecessor.txt")
-        self.git(self.task, "commit", "-qm", "predecessor")
-        predecessor = self.git(self.task, "rev-parse", "HEAD")
-        self.git(self.task, "checkout", "-q", "-b", "agent/child")
-        (self.task / "child.txt").write_text("child\n", encoding="utf-8")
-        self.git(self.task, "add", "child.txt")
-        self.git(self.task, "commit", "-qm", "child")
-        self.write_context("child", {"change": "child", "dependencies": [{"head": predecessor}]})
-        return predecessor
-
-    def write_context(self, name: str, payload: object) -> None:
-        directory = self.task / ".claude/requirement-child-context"
-        directory.mkdir(parents=True, exist_ok=True)
-        (directory / f"{name}.json").write_text(payload if isinstance(payload, str) else json.dumps(payload), encoding="utf-8")
-
-    def test_legacy_dependent_proven_base_is_its_review_identity_base(self) -> None:
-        predecessor = self.legacy_dependent()
-        from task_content_identity import review_content_identity
-
-        self.assertNotEqual(predecessor, self.proven)
-        self.assertEqual(review_content_identity(self.task, "child")["base"], predecessor)
-        result = self.select("--execute", "--proven-base", predecessor)
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn(f"proven base {predecessor} is the review base of legacy dependent change child", result.stdout)
-        self.assertEqual((self.task / "validation-ran.txt").read_text(), "ran")
-
-    def test_legacy_dependent_refuses_the_main_merge_base(self) -> None:
-        predecessor = self.legacy_dependent()
-        self.assert_refused_before_commands(
-            self.select("--execute", "--proven-base", self.proven),
-            f"legacy dependent change child has review base {predecessor}, not its proven base {self.proven}")
-
-    def test_malformed_or_ambiguous_child_context_is_refused(self) -> None:
-        predecessor = self.legacy_dependent()
-        cases = (
-            ("child", "{not json", "is unreadable"),
-            ("child", {"change": "other", "dependencies": [{"head": predecessor}]}, "does not name its change 'child'"),
-            ("child", {"change": "child", "contribution": {"head": predecessor}}, "is a contribution"),
-            ("child", {"change": "child", "dependencies": [{"head": predecessor}, {"head": self.proven}]},
-             "lists 2 dependencies without a contribution"),
-            ("child", {"change": "child", "dependencies": [{}]}, "has no non-empty string 'head'"),
-        )
-        for name, payload, reason in cases:
-            with self.subTest(reason=reason):
-                self.write_context(name, payload)
-                self.assert_refused_before_commands(self.select("--execute", "--proven-base", predecessor), reason)
-        self.write_context("child", {"change": "child", "dependencies": [{"head": predecessor}]})
-        self.write_context("second", {"change": "second"})
-        self.assert_refused_before_commands(self.select("--execute", "--proven-base", predecessor),
-                                            "2 requirement child contexts")
-
-    def test_child_context_without_dependencies_keeps_the_main_merge_base(self) -> None:
-        self.write_context("task", {"change": "task", "dependencies": []})
-        result = self.select("--execute", "--proven-base", self.proven)
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn("is the merge base of HEAD and origin/main", result.stdout)
-
     def test_missing_remote_main_cannot_prove_the_base(self) -> None:
         self.git(self.task, "update-ref", "-d", "refs/remotes/origin/main")
         self.assert_refused_before_commands(self.select("--execute", "--proven-base", self.proven),

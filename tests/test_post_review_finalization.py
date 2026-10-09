@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from contextlib import ExitStack
 import json
-import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -779,8 +778,8 @@ class ReadmissionAfterMainMovedTests(MainMovesCase):
                 self.review(fixture, [])
 
 
-class LegacyDependentFinalizeTests(CandidateCase):
-    """A legacy dependent child's proven base is its predecessor-based review identity base."""
+class PlantedLegacyContextTests(CandidateCase):
+    """Checkout-local context that moves the review identity base off the main merge base is refused."""
 
     def prepare_main(self, root: Path) -> None:
         self.ran = commit_source_contract(root, Path(self.tmp.name))
@@ -792,41 +791,27 @@ class LegacyDependentFinalizeTests(CandidateCase):
         self.predecessor = git(root, "rev-parse", "HEAD")
         self.repo.push("agent/predecessor")
 
-    def checkout(self) -> Path:
-        """A finalize checkout at the candidate head carrying the child's legacy dependent context."""
-        checkout = Path(self.tmp.name) / "finalize-checkout"
+    def test_planted_legacy_dependent_context_makes_proven_base_refuse_and_finalize_escalate(self):
+        checkout = Path(self.tmp.name) / "planted-checkout"
         git(Path(self.tmp.name), "clone", "-q", str(self.repo.remote), str(checkout))
         git(checkout, "checkout", "-q", "--detach", self.repo.head())
         context = checkout / ".claude/requirement-child-context/example.json"
         context.parent.mkdir(parents=True)
         context.write_text(json.dumps({"change": "example", "dependencies": [{"head": self.predecessor}]}))
-        return checkout
-
-    def test_finalize_runs_real_checks_on_the_predecessor_review_base(self):
-        checkout = self.checkout()
         identity = gate.task_identity(checkout, "example")
-        self.assertEqual(identity["task_content"]["base"], self.predecessor)
-        self.assertNotEqual(self.predecessor, self.main_base)
-        seen = []
-
-        def runner(checkout, env, **freshness):
-            seen.append(freshness)
-            return final.trusted_checks_runner(checkout, env, **freshness)
-
-        gates = {"review": {"result": "passed", "identity": identity, "evidence": {}}}
-        with self.assertRaises(final.SemanticVerificationRequired):
-            final.execute_finalize(checkout, {"head": self.repo.head(), "task_identity": identity}, gates,
-                                   source_repo=self.repo.remote.as_uri(), branch="agent/example",
-                                   current_head=self.repo.head, checks_runner=runner)
-        self.assertEqual(seen, [{"proven_base": self.predecessor}])
-        self.assertEqual(self.ran.read_text(), "ran")  # select_checks accepted the legacy review base
-
-    def test_main_merge_base_is_refused_for_a_legacy_dependent(self):
-        checkout = self.checkout()
-        with self.assertRaisesRegex(workers.WorkerError, "legacy dependent change example has review base"):
-            final.trusted_checks_runner(checkout, workers.credential_free_env(dict(os.environ), Path(self.tmp.name) / "home"),
-                                        proven_base=self.main_base)
-        self.assertFalse(self.ran.exists())
+        self.assertEqual(identity["task_content"]["base"], self.predecessor)  # steered off the main merge base
+        self.identity = identity
+        with RemoteFixture(self.repo) as fixture:
+            self.offer(fixture, gates={"review": self.gates(identity)["review"]})
+            before = self.repo.head()
+            with mock.patch.object(workers, "prepare_checkout", return_value=checkout):
+                outcome, _ = self.finalize(fixture, archiver=lambda *a: self.fail("must not archive"))
+            self.assertEqual(outcome["status"], "blocked-escalation")
+            self.assertIn("Proven-base freshness contract refused", outcome["reason"])
+            self.assertIn(f"not from its proven base {self.predecessor}", outcome["reason"])
+            self.assertEqual(fixture.candidate()["red_gate"]["name"], "finalize")
+            self.assertEqual(self.repo.head(), before)
+        self.assertFalse(self.ran.exists())  # refused before any selected command started
 
 
 class RederivationTests(unittest.TestCase):
