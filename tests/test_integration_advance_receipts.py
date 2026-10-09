@@ -6,6 +6,7 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest import mock
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
@@ -65,6 +66,12 @@ class ReceiptSchemaTests(unittest.TestCase):
         with self.assertRaisesRegex(containment.ContainmentError, "actually moved"):
             containment.record_integration_advance(Path("/integration"), "a", "a",
                 tool="test", actor_worktree=Path("/actor"), remote="origin")
+
+    def test_receipt_without_posix_locking_fails_explicitly(self) -> None:
+        with mock.patch.object(containment, "fcntl", None):
+            with self.assertRaisesRegex(containment.ContainmentError, "POSIX fcntl locking"):
+                containment.record_integration_advance(Path("/integration"), "a", "b",
+                    tool="test", actor_worktree=Path("/actor"), remote="origin")
 
     def test_remote_argument_is_required(self) -> None:
         with self.assertRaises(TypeError):

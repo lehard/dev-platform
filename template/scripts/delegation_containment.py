@@ -32,7 +32,7 @@ from typing import Any
 
 try:
     import fcntl
-except ImportError:  # pragma: no cover - POSIX-only locking, same posture as the other platform logs.
+except ImportError:  # pragma: no cover - receipts require POSIX locking; writing one fails explicitly without it.
     fcntl = None  # type: ignore[assignment]
 
 
@@ -374,6 +374,11 @@ def record_integration_advance(
         raise ContainmentError("integration advance receipt requires a head that actually moved")
     from _platform_common import cooperative_umask, ensure_shared_path  # local import, see above.
 
+    if fcntl is None:
+        raise ContainmentError(
+            f"integration advance {before[:12]}..{after[:12]} happened but its receipt cannot be written: "
+            "receipts require POSIX fcntl locking, which this platform lacks"
+        )
     branch = _configured_main_branch(integration_root)
     remote_main = run_git(integration_root, "rev-parse", f"refs/remotes/{remote}/{branch}").stdout.strip()
     receipt = {
@@ -395,8 +400,7 @@ def record_integration_advance(
         ensure_shared_path(log.parent)
         with lock.open("a+", encoding="utf-8") as lock_file:
             ensure_shared_path(lock)
-            if fcntl is not None:
-                fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
             try:
                 with log.open("a", encoding="utf-8") as handle:
                     handle.write(json.dumps(receipt, sort_keys=True) + "\n")
@@ -404,8 +408,7 @@ def record_integration_advance(
                     os.fsync(handle.fileno())
                 ensure_shared_path(log)
             finally:
-                if fcntl is not None:
-                    fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
     except OSError as exc:
         raise ContainmentError(
             f"integration advance {before[:12]}..{after[:12]} happened but its receipt could not be written to {log}: {exc}"
