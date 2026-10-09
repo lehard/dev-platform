@@ -2439,6 +2439,132 @@ class EarlyRoutingGateTests(unittest.TestCase):
         self.assertIs(routing._actual_route_of(routing.asdict(approved))["owner_approved"], True)
         self.assertIs(routing._actual_route_of({"profile": "standard"})["owner_approved"], False)
 
+    def advance_integration_main(self, *, publish: bool = True) -> str:
+        """Fast-forward integration main as an unrelated merge would; ``publish`` mirrors it to local origin/main."""
+        (self.integration / "concurrent.txt").write_text("unrelated merge\n", encoding="utf-8")
+        git(self.integration, "add", "concurrent.txt")
+        git(self.integration, "commit", "-qm", "unrelated merge")
+        head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=self.integration, text=True, capture_output=True, check=True).stdout.strip()
+        if publish:
+            git(self.integration, "update-ref", "refs/remotes/origin/main", head)
+        return head
+
+    def test_owner_approval_accepts_a_verified_integration_fast_forward(self) -> None:
+        route = self.prepare()
+        self.write_content()
+        before_head = route.pre_snapshot["head"]
+        after_head = self.advance_integration_main()
+        advance = {"classification": routing.CLASSIFICATION_VERIFIED_EXTERNAL_ADVANCE, "before_head": before_head, "after_head": after_head}
+        with patch.object(routing, "record_containment_friction") as recorded:
+            with self.assertRaisesRegex(routing.RoutingError, "containment violation"):
+                routing.postcheck(route)
+            recorded.assert_called_once()
+            recorded.reset_mock()
+            approved = self.approve()
+            self.assertEqual(approved.execution_plan["owner_approval"]["integration_advance"], advance)
+            with patch.object(routing, "main_root", return_value=self.integration):
+                execution = routing.record_retained_execution(self.task, reason="owner approved the supervisor-written diff")
+            recorded.assert_not_called()
+        self.assertEqual(execution["postcheck"]["integration_advance"], advance)
+        self.assertEqual(execution["retained"]["owner_approval"], approved.execution_plan["owner_approval"])
+        final = self.archive_gate()
+        self.assertEqual(final.execution["retained"]["owner_approval"]["integration_advance"], advance)
+
+    def test_owner_approval_without_integration_advance_keeps_the_record_shape(self) -> None:
+        self.prepare()
+        self.write_content()
+        approved = self.approve()
+        self.assertNotIn("integration_advance", approved.execution_plan["owner_approval"])
+        with patch.object(routing, "main_root", return_value=self.integration):
+            execution = routing.record_retained_execution(self.task, reason="owner approved the supervisor-written diff")
+        self.assertEqual(execution["postcheck"], {"containment": "clean", "pre_existing_changes": []})
+
+    def test_owner_approval_refuses_an_unverified_integration_move(self) -> None:
+        def unpublished_advance() -> None:
+            self.advance_integration_main(publish=False)
+
+        def advance_with_path_change() -> None:
+            self.advance_integration_main()
+            (self.integration / "README.md").write_text("written into integration\n", encoding="utf-8")
+
+        def non_fast_forward() -> None:
+            orphan = subprocess.run(["git", "commit-tree", "HEAD^{tree}", "-m", "rewritten"], cwd=self.integration, text=True, capture_output=True, check=True).stdout.strip()
+            git(self.integration, "update-ref", "refs/heads/main", orphan)
+            git(self.integration, "update-ref", "refs/remotes/origin/main", orphan)
+
+        for name, move in {"head not local origin/main": unpublished_advance, "tracked path changed": advance_with_path_change, "non-fast-forward": non_fast_forward}.items():
+            with self.subTest(name):
+                self.tearDown()
+                self.setUp()
+                self.prepare()
+                self.write_content()
+                move()
+                before = self.record_path().read_text(encoding="utf-8")
+                with patch.object(routing, "record_containment_friction") as recorded:
+                    with self.assertRaisesRegex(routing.RoutingError, "containment violation"):
+                        self.approve()
+                recorded.assert_called_once()
+                self.assertEqual(self.record_path().read_text(encoding="utf-8"), before)
+
+    def test_retained_execution_accepts_a_verified_integration_fast_forward(self) -> None:
+        route = self.prepare(profile="complex")
+        self.write_content()
+        after_head = self.advance_integration_main()
+        with patch.object(routing, "main_root", return_value=self.integration), patch.object(routing, "record_containment_friction") as recorded:
+            execution = routing.record_retained_execution(self.task, reason="R3 work completed by the current supervisor")
+        recorded.assert_not_called()
+        self.assertEqual(
+            execution["postcheck"]["integration_advance"],
+            {"classification": routing.CLASSIFICATION_VERIFIED_EXTERNAL_ADVANCE, "before_head": route.pre_snapshot["head"], "after_head": after_head},
+        )
+        self.assertEqual(self.archive_gate().execution["retained"]["policy"], "complex-parent")
+
+    def test_retained_execution_after_a_real_delegation_refuses_an_integration_fast_forward(self) -> None:
+        self.handoff()
+        routing.begin_claude_delegation(self.task)
+        routing.escalate(self.task, "child hit a material cross-cutting contract conflict; reviewed")
+        self.write_content()
+        self.advance_integration_main()
+        self.assertEqual(self.plan()["delegation"]["state"], "open")
+        with patch.object(routing, "main_root", return_value=self.integration), patch.object(routing, "record_containment_friction") as recorded:
+            with self.assertRaisesRegex(routing.RoutingError, "containment violation"):
+                routing.record_retained_execution(self.task, reason="retained after a real delegation")
+        recorded.assert_called_once()
+        self.assertIsNone(routing._read_route(self.task)[0].execution)
+
+    def test_owner_approval_integration_advance_must_be_exact(self) -> None:
+        self.prepare()
+        self.write_content()
+        self.advance_integration_main()
+        self.approve()
+        original = self.record_path().read_text(encoding="utf-8")
+        routing._read_route(self.task)
+        cases = {
+            "not an object": lambda advance: "verified",
+            "wrong classification": lambda advance: {**advance, "classification": routing.CLASSIFICATION_VIOLATION},
+            "empty before_head": lambda advance: {**advance, "before_head": ""},
+            "missing after_head": lambda advance: {key: value for key, value in advance.items() if key != "after_head"},
+            "extra key": lambda advance: {**advance, "note": "x"},
+        }
+        for name, change in cases.items():
+            with self.subTest(name):
+                payload = json.loads(original)
+                approval = payload["execution_plan"]["owner_approval"]
+                approval["integration_advance"] = change(approval["integration_advance"])
+                self.record_path().write_text(json.dumps(payload), encoding="utf-8")
+                with self.assertRaisesRegex(routing.RoutingError, "owner_approval.integration_advance"):
+                    routing._read_route(self.task)
+
+    def test_retained_execution_refuses_an_unpublished_integration_move(self) -> None:
+        self.prepare(profile="complex")
+        self.write_content()
+        self.advance_integration_main(publish=False)
+        with patch.object(routing, "main_root", return_value=self.integration), patch.object(routing, "record_containment_friction") as recorded:
+            with self.assertRaisesRegex(routing.RoutingError, "containment violation"):
+                routing.record_retained_execution(self.task, reason="R3 work completed by the current supervisor")
+        recorded.assert_called_once()
+        self.assertIsNone(routing._read_route(self.task)[0].execution)
+
     def test_cli_approve_supervisor_diff_prints_the_approved_route(self) -> None:
         self.prepare()
         self.write_content()
