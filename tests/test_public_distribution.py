@@ -432,11 +432,25 @@ class SnapshotSmokeStageTests(unittest.TestCase):
         SMOKE_SPEC.loader.exec_module(module)
         return module
 
-    def test_hygiene_runs_at_the_requested_stage(self) -> None:
+    def hygiene_commands(self, stage: str) -> list[tuple[str, ...]]:
         smoke = self.load_smoke()
-        for stage in ("candidate", "integration"):
-            hygiene = [c for c in smoke.extracted_check_commands(stage) if "template/scripts/openspec_lifecycle.py" in c]
-            self.assertEqual([("python3", "template/scripts/openspec_lifecycle.py", "check", "--stage", stage)], hygiene)
+        return [c for c in smoke.extracted_check_commands(stage) if "template/scripts/openspec_lifecycle.py" in c]
+
+    def test_integration_runs_strict_hygiene_in_the_snapshot(self) -> None:
+        self.assertEqual(
+            [("python3", "template/scripts/openspec_lifecycle.py", "check", "--stage", "integration")],
+            self.hygiene_commands("integration"),
+        )
+
+    def test_candidate_leaves_hygiene_to_the_real_checkout(self) -> None:
+        # The snapshot strips `.managed-task.json`, so the candidate exemption is unknowable there.
+        self.assertEqual([], self.hygiene_commands("candidate"))
+        ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        self.assertIn(
+            "python3 template/scripts/openspec_lifecycle.py check --stage "
+            "\"${{ github.event_name == 'pull_request' && 'candidate' || 'integration' }}\"",
+            ci,
+        )
 
     def test_stage_is_required_and_bounded(self) -> None:
         smoke = self.load_smoke()
