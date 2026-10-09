@@ -1,36 +1,23 @@
 {
-  "availability": "available",
+  "availability": "unavailable",
   "candidate": {
-    "base_head": "b93ffc444164bbf1a006d60f117e8378131a2924",
+    "base_head": "37363a11c3aac90c4232dd1cbd140df274f28f80",
     "base_ref": "origin/main",
-    "candidate_head": "ea32bf4aef72aefff05acaa1aa11e0b16d6d086f",
-    "diff_sha256": "b05e9de820de63c523472e47a6b8f4dd7928d10072ba71f3d33f6401028c8f2c"
+    "candidate_head": "4ea24c159169d5405d89a08eab7da251fe18cf87",
+    "diff_sha256": "dc556bbb718427c16ca804c2357eaeef3a076692a9ee965719152e9206434c45"
   },
-  "completed_at": "2026-10-09T13:08:04+00:00",
-  "findings": [
-    {
-      "evidence": "template/scripts/requirement_integration.py:843-844 passes lease descriptors only to the configured command. A Python command that subsequently uses ordinary subprocess.run closes those descriptors while retaining DEV_PLATFORM_MACHINE_POOL_LEASE. Existing wrappers such as template/scripts/openspec_lifecycle.py:524 do exactly this. A nested pooled runner then fails at machine_pool.py:623-624; a child that does not inspect the lease can continue without holding tokens after its ancestors die. The orphan regression test covers only a child explicitly launched with pass_fds (tests/test_machine_pool.py:55).",
-      "id": "lease-propagation-stops-at-wrappers",
-      "severity": "advisory",
-      "summary": "Descriptor inheritance requires cooperation from every subprocess wrapper, so the documented protection does not cover arbitrary validation descendants."
-    },
-    {
-      "evidence": "template/scripts/machine_pool.py:606-610 checks that fds is a list of nonnegative integers but does not require its length to match weight or require distinct descriptors. Lines 614-625 check only os.fstat, and lines 640-645 then bypass acquisition. Consequently, a lease payload with pooled=true, weight=4 and fds=[] runs without holding any tokens even when a pool is configured.",
-      "id": "nested-lease-descriptors-unverified",
-      "severity": "advisory",
-      "summary": "Nested lease validation accepts an empty descriptor list or unrelated open descriptors as proof of a pooled lease."
-    }
-  ],
-  "launched_at": "2026-10-09T13:06:22+00:00",
-  "output_sha256": "027d1d44f9bf23113c887b5b5e33009bb78053d9b3992168e643eae276622fbe",
+  "completed_at": "2026-10-09T13:39:21+00:00",
+  "findings": [],
+  "launched_at": "2026-10-09T13:37:55+00:00",
+  "limitation": "codex reviewer exited with status 1 (You\u2019ve hit your usage limit. Upgrade to Pro (https://chatgpt.com/explore/pro), visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at 7:59 PM.); check the CLI login and the [model_routing] model for this account, then rerun",
   "perspective": "engineering-quality",
-  "request_id": "8e977d08-d8e0-4795-a2c7-59706d64c7f3",
+  "request_id": "906438da-568f-4eff-a151-7abc85221d3f",
   "reviewer": {
-    "context_id": "01a120c5-9668-7e61-ac42-3f0884808dd4",
-    "context_id_source": "runtime",
+    "context_id": "platform-launch-08e0548b-bb00-4967-aa10-a00e93718d19",
+    "context_id_source": "platform-launch",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-df736a96-4405-4a7b-8410-5841d08efa3e",
+    "launch_id": "platform-launch-08e0548b-bb00-4967-aa10-a00e93718d19",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -40,26 +27,6 @@
     "runtime": "codex-exec",
     "write_access": false
   },
-  "runtime_usage": {
-    "fields": {
-      "cached_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 233600
-      },
-      "input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 292663
-      },
-      "output_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 1999
-      }
-    },
-    "runtime": "codex-exec"
-  },
   "schema_version": 1,
-  "task_content_digest": "4032ee42aacff3cd0c2a5b57f1e1d6ce3256f098a2bca4c1cff21ccad030a3e2"
+  "task_content_digest": "416264028c511c4506dad2f2358250099394a35b3045650a96bfe94a698a5216"
 }

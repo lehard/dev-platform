@@ -1,30 +1,30 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "b93ffc444164bbf1a006d60f117e8378131a2924",
+    "base_head": "37363a11c3aac90c4232dd1cbd140df274f28f80",
     "base_ref": "origin/main",
-    "candidate_head": "ea32bf4aef72aefff05acaa1aa11e0b16d6d086f",
-    "diff_sha256": "b05e9de820de63c523472e47a6b8f4dd7928d10072ba71f3d33f6401028c8f2c"
+    "candidate_head": "4ea24c159169d5405d89a08eab7da251fe18cf87",
+    "diff_sha256": "dc556bbb718427c16ca804c2357eaeef3a076692a9ee965719152e9206434c45"
   },
-  "completed_at": "2026-10-09T13:06:22+00:00",
+  "completed_at": "2026-10-09T13:37:55+00:00",
   "findings": [
     {
-      "evidence": "The active design.md decision 4 explicitly requires nesting across finish \u2192 select_checks \u2192 run_test_groups. However, template/scripts/post_review_finalization.py:133-134 starts selected checks without pass_fds; template/scripts/openspec_lifecycle.py:524 likewise omits pass_fds when invoking selected checks for archive. When invoked inside a pooled run, these subprocesses inherit DEV_PLATFORM_MACHINE_POOL_LEASE but subprocess.run closes the referenced descriptors. template/scripts/machine_pool.py:614-625 and 640-644 then reject the nested acquisition with 'pooled lease is missing inherited descriptor(s)'. This contradicts the active spec requirement that nested runs reuse the parent lease.",
-      "id": "nested-lifecycle-drops-lease-descriptors",
+      "evidence": "design.md decision 4 explicitly requires finish \u2192 select_checks \u2192 run_test_groups to reuse the parent lease. However, template/scripts/finish_task.py:176\u2013180 starts select_checks.py with subprocess.Popen without pass_fds, while inheriting DEV_PLATFORM_MACHINE_POOL_LEASE through the environment. Python closes the lease descriptors in that child. The new template/scripts/machine_pool.py:649\u2013654 then attempts nested reuse, and _open_descriptors at lines 614\u2013624 raises 'missing inherited descriptor(s)'. Thus invoking finish inside a pooled run blocks validation instead of satisfying the nested-invocation contract.",
+      "id": "finish-drops-inherited-lease",
       "severity": "material",
-      "summary": "Nested lifecycle execution propagates the lease environment but drops its descriptors, causing selected checks to fail instead of reusing the parent lease."
+      "summary": "Nested finish validation drops the parent lease descriptors instead of reusing the lease, causing selected checks to fail."
     }
   ],
-  "launched_at": "2026-10-09T13:05:03+00:00",
-  "output_sha256": "2df8fad9eaaa667218035bf49fb6f35afab2856bacc129ca774a2c52bf65fbf8",
+  "launched_at": "2026-10-09T13:36:13+00:00",
+  "output_sha256": "ff20856b86ea1662ab2aa000aac48f2a9d752fb7dd0e9d47f78d6923a1534cbe",
   "perspective": "spec-fidelity",
-  "request_id": "8e977d08-d8e0-4795-a2c7-59706d64c7f3",
+  "request_id": "906438da-568f-4eff-a151-7abc85221d3f",
   "reviewer": {
-    "context_id": "01a120c4-641a-7023-bf58-250bacbda6b0",
+    "context_id": "01a120e0-ed5d-7712-86b9-8cc974903cb1",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-4650987b-a330-4ad1-91ed-18a60adb441d",
+    "launch_id": "platform-launch-fd470911-4bed-467c-b542-882da449a3aa",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -39,21 +39,21 @@
       "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 243712
+        "value": 341632
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 307400
+        "value": 386235
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1624
+        "value": 1573
       }
     },
     "runtime": "codex-exec"
   },
   "schema_version": 1,
-  "task_content_digest": "4032ee42aacff3cd0c2a5b57f1e1d6ce3256f098a2bca4c1cff21ccad030a3e2"
+  "task_content_digest": "416264028c511c4506dad2f2358250099394a35b3045650a96bfe94a698a5216"
 }
