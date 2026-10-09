@@ -1,65 +1,88 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "7c83a854522a5defca480e5a86bae580de0a43c1",
+    "base_head": "f18050510249ffd58b05af3ed9e7f0bfe548f2cc",
     "base_ref": "origin/main",
-    "candidate_head": "73e1ae792bd3b5ced90b4bb7e24e5bf395c8402d",
-    "diff_sha256": "416dac5df1a6bfa9ea44650c2a6c3d352b6739cba44e065939b9ef49516ac77b"
+    "candidate_head": "3a5590bfcaf1c53d9fda98c31d94c9f158240171",
+    "diff_sha256": "87075422b22800ced2d94f520b99b1c6a29047106785fd3d08552cc84bc1361e"
   },
-  "completed_at": "2026-10-09T17:06:11+00:00",
+  "completed_at": "2026-10-09T18:46:00+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/select_checks.py:370 now requires inherited lease descriptors through machine_pool.lease(), but template/scripts/finish_task.py:176-181 launches select_checks with subprocess.Popen without pass_fds. When finish runs inside a pooled lease, the child inherits DEV_PLATFORM_MACHINE_POOL_LEASE while Popen closes its descriptors; machine_pool.py:614-624 then raises PoolError. The documented nested finish \u2192 selected-check path therefore cannot reuse its lease.",
-      "id": "finish-drops-inherited-lease",
-      "severity": "material",
-      "summary": "Nested finish validation loses the parent's lease descriptors and fails before checks run."
+      "evidence": "template/scripts/machine_pool.py `_git_branch`/`_metadata`: `if done.returncode: raise PoolError(f\"cannot determine the task branch in {root}...\")`. `_metadata` runs at the start of `_acquire`, before the ticket is created. Callers such as `requirement_integration._run_full_checks` and `run_test_groups` pass arbitrary roots.",
+      "id": "pool-metadata-git-failure-blocks-validation",
+      "severity": "advisory",
+      "summary": "Display-only holder metadata calls `git branch --show-current` and raises PoolError if it fails. In a pooled configuration this blocks a validation run whose root is not a usable git checkout, even though the branch is only used for the holders report."
     },
     {
-      "evidence": "template/scripts/machine_pool.py:606-610 accepts an empty or duplicate descriptor list regardless of weight, and lines 614-625 only call os.fstat. For example, a pooled payload with positive weight and fds=[] passes validation and lines 649-654 skip acquisition entirely. Reused descriptor numbers pointing to unrelated files also pass, so malformed or stale inherited state can silently run without holding the claimed tokens.",
-      "id": "lease-descriptors-not-validated",
+      "evidence": "template/scripts/machine_pool.py `_open_descriptors` only calls `os.fstat(fd)`. `lease()` returns `nested=True` and acquires nothing based on that check alone.",
+      "id": "pool-lease-fd-validation-shallow",
       "severity": "advisory",
-      "summary": "Inherited lease validation accepts descriptors that do not represent the claimed token lease."
+      "summary": "A nested run accepts an inherited `DEV_PLATFORM_MACHINE_POOL_LEASE` as proof of held tokens if the listed descriptors are merely open. It does not check that they are the locked slot files. A stray exported lease variable whose fd numbers happen to be open (stdio-adjacent fds, for example) would make a run skip the pool silently."
     }
   ],
-  "launched_at": "2026-10-09T17:04:38+00:00",
-  "output_sha256": "ee94818504f61920e4ea6856e39b7f22d9a6321b1b9f27ec8feea5fab65bad08",
+  "launched_at": "2026-10-09T18:45:02+00:00",
+  "output_sha256": "ab5497091040741a0725090d14fcb85d3d65e96f6876637c6c5c09f4ed9b4a8d",
   "perspective": "engineering-quality",
-  "request_id": "3af8c9ee-de01-4314-a7a3-12fa886f61ad",
+  "request_id": "42f1baa9-f057-4c0c-927f-8e997fcc5b47",
   "reviewer": {
-    "context_id": "01a1219f-bb10-7750-9936-a4c08336aa80",
+    "context_id": "12b73306-d1ec-45d9-9b06-0556a569ed6a",
     "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-9aa94d47-4e6e-43df-b433-5a0ec3643fea",
+    "launch_id": "platform-launch-d9c55892-43c0-4944-b8a1-ae6072302ec1",
     "model": {
       "source": "selected",
-      "value": "gpt-6.1-sol"
+      "value": "sonnet"
     },
-    "provider": "codex",
-    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
-    "runtime": "codex-exec",
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
     "write_access": false
   },
   "runtime_usage": {
     "fields": {
-      "cached_input_tokens": {
+      "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 283008
+        "value": 45321
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 104862
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 42993
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 46081
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 351762
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1861
+        "value": 3332
       }
     },
-    "runtime": "codex-exec"
+    "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "416264028c511c4506dad2f2358250099394a35b3045650a96bfe94a698a5216"
+  "task_content_digest": "e86be9d17c4dd371a4e7a02b3a59902b89065b84bbf73e3f3ed3aa4d714915c5"
 }
