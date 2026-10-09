@@ -11,4 +11,4 @@
 
 - [x] 3.1 Document the answers and the migration for projects that hand-edited their runner.
 - [x] 3.2 Add render, Copier update and doctor regression tests; update CI guardrail tests.
-- [ ] 3.3 Run required platform checks, record truthful verification, archive, retrospectives and publication.
+- [x] 3.3 Run required platform checks, record truthful verification, archive, retrospectives and publication.
