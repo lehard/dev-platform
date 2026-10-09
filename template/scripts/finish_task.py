@@ -1075,7 +1075,7 @@ def main() -> int:
                         print(f"Publication queued at position {queued.get('position')}; rerun finish after remote merge.")
                         return 2
                     if queued is not None and queued["state"] == "blocked":
-                        raise SystemExit("Publication queue blocked after admission: " + str(queued.get("reason")))
+                        raise SystemExit("Publication queue reports blocked: " + str(queued.get("reason")))
             if task_pr_is_already_merged(work, branch, main_branch):
                 reconcile_confirmed_remote_pr_merge(
                     work, integration, config, branch, main_branch, prof,

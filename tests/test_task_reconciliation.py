@@ -306,6 +306,22 @@ class TaskReconciliationTests(unittest.TestCase):
         with self.assertRaisesRegex(SystemExit, "adds managed OpenSpec provenance without a managed task state record"):
             task_reconciliation.task_kind(self.task, "main")
 
+    def test_branch_archiving_managed_change_without_state_is_not_classified_quick(self) -> None:
+        # The active managed package already exists on main; the branch only
+        # archives it (a rename), which must still count as added provenance.
+        git("switch", "main", cwd=self.task)
+        active = self.task / "openspec" / "changes" / "managed-change"
+        active.mkdir(parents=True)
+        (active / ".managed-task.json").write_text("{}\n", encoding="utf-8")
+        git("add", ".", cwd=self.task); git("commit", "-m", "managed change", cwd=self.task); git("push", cwd=self.task)
+        git("switch", "agent/task", cwd=self.task); git("merge", "--ff-only", "main", cwd=self.task)
+        (self.task / "openspec" / "changes" / "archive").mkdir()
+        git("mv", "openspec/changes/managed-change", "openspec/changes/archive/2026-01-01-managed-change", cwd=self.task)
+        git("commit", "-m", "archive managed change", cwd=self.task)
+
+        with self.assertRaisesRegex(SystemExit, "adds managed OpenSpec provenance without a managed task state record"):
+            task_reconciliation.task_kind(self.task, "main")
+
     def test_freshness_blockers_name_the_working_reconcile_command(self) -> None:
         self.commit_task_work()
         self.advance_main()

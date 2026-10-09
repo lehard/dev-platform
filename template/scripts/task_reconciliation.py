@@ -119,7 +119,7 @@ def task_kind(root: Path, main_branch: str) -> str:
         detail = base.stderr.strip() or f"exit {base.returncode}"
         raise SystemExit(f"Task reconciliation cannot determine the task kind: no merge base with origin/{main_branch}: {detail}")
     added = run_git(
-        ["diff", "--name-only", "--diff-filter=A", base.stdout.strip(), "HEAD", "--", "openspec/changes"], cwd=root
+        ["diff", "--no-renames", "--name-only", "--diff-filter=A", base.stdout.strip(), "HEAD", "--", "openspec/changes"], cwd=root
     ).stdout.splitlines()
     branch_provenance = sorted(path for path in added if Path(path).name == MANAGED_PROVENANCE_FILE)
     if branch_provenance:
