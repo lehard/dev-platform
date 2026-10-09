@@ -525,15 +525,17 @@ def integrate_and_publish_direct(work: Path, integration: Path, config: dict, br
     env = os.environ.copy()
     env[DIRECT_PUBLISH_GUARD] = "1"
     subprocess.run(["python3", str(integration / "scripts" / "project_publish.py"), "--mode", "direct"], cwd=integration, check=True, env=env, stdin=subprocess.DEVNULL)
-    if advanced_from is not None:
+    advanced_to = run_git(["rev-parse", "HEAD"], cwd=integration).stdout.strip()
+    if advanced_from is not None and advanced_from != advanced_to:
         # Direct publication fast-forwards the local main before the push, so the
         # receipt is written once the push made `origin/<main>` equal the new head.
         record_integration_advance(
             integration,
             advanced_from,
-            run_git(["rev-parse", "HEAD"], cwd=integration).stdout.strip(),
+            advanced_to,
             tool="finish_task.integrate_and_publish_direct",
             actor_worktree=work,
+            remote="origin",
         )
 
 
@@ -562,6 +564,7 @@ def sync_after_remote_pr_merge(work: Path, integration: Path, config: dict, main
                 normalized_head,
                 tool="finish_task.sync_after_remote_pr_merge.normalize",
                 actor_worktree=work,
+                remote="origin",
             )
         print(f"Normalized integration index to the already-merged {remote_main}; local content was proven equivalent.")
     remote_main = f"origin/{main_branch}"
@@ -579,6 +582,7 @@ def sync_after_remote_pr_merge(work: Path, integration: Path, config: dict, main
             run_git(["rev-parse", "HEAD"], cwd=integration).stdout.strip(),
             tool="finish_task.sync_after_remote_pr_merge",
             actor_worktree=work,
+            remote="origin",
         )
         print(f"Fast-forwarded local {main_branch} to merged {remote_main}.")
     elif state == "equal":

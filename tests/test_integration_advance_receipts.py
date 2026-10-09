@@ -38,6 +38,40 @@ def utc(delta_seconds: int = 0) -> str:
     return (datetime.now(timezone.utc).replace(microsecond=0) + timedelta(seconds=delta_seconds)).isoformat()
 
 
+class ReceiptSchemaTests(unittest.TestCase):
+    def test_single_remote_schema_is_required(self) -> None:
+        good = {"before": "a", "after": "b", "remote": "origin", "remote_main": "b",
+                "origin_main": "b", "actor_worktree": "/actor", "tool": "test", "pid": 1, "at": utc()}
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            log = containment.integration_advance_log(root)
+            log.parent.mkdir()
+            for key in good:
+                with self.subTest(missing=key):
+                    log.write_text(json.dumps({k: v for k, v in good.items() if k != key}) + "\n")
+                    with self.assertRaises(containment.ContainmentError):
+                        containment.read_integration_advances(root)
+            log.write_text(json.dumps(good) + "\n")
+            self.assertEqual(containment.read_integration_advances(root), [good])
+            upstream = {k: v for k, v in good.items() if k != "origin_main"}
+            upstream["remote"] = "upstream"
+            log.write_text(json.dumps(upstream) + "\n")
+            self.assertEqual(containment.read_integration_advances(root), [upstream])
+            log.write_text(json.dumps({**upstream, "origin_main": "b"}) + "\n")
+            with self.assertRaisesRegex(containment.ContainmentError, "only valid"):
+                containment.read_integration_advances(root)
+
+    def test_noop_receipt_is_rejected(self) -> None:
+        with self.assertRaisesRegex(containment.ContainmentError, "actually moved"):
+            containment.record_integration_advance(Path("/integration"), "a", "a",
+                tool="test", actor_worktree=Path("/actor"), remote="origin")
+
+    def test_remote_argument_is_required(self) -> None:
+        with self.assertRaises(TypeError):
+            containment.record_integration_advance(Path("/integration"), "a", "b",
+                tool="test", actor_worktree=Path("/actor"))
+
+
 class IntegrationRepoMixin:
     """A temporary integration repo with a registered sibling worktree and helpers to advance main."""
 
@@ -72,7 +106,7 @@ class IntegrationRepoMixin:
 
     def receipt(self, before: str, after: str, *, actor: Path | None = None) -> dict:
         return containment.record_integration_advance(
-            self.integration, before, after, tool="test", actor_worktree=actor or self.sibling
+            self.integration, before, after, tool="test", actor_worktree=actor or self.sibling, remote="origin"
         )
 
     def write_raw_receipts(self, *receipts: dict | str) -> None:
@@ -217,7 +251,7 @@ class ReceiptAndClassifierTests(IntegrationRepoMixin, unittest.TestCase):
     def test_receipt_that_did_not_land_on_its_recorded_origin_main_is_a_violation(self) -> None:
         before, after = self.advance()
         self.write_raw_receipts(
-            {"before": before, "after": after, "origin_main": before, "actor_worktree": str(self.sibling), "tool": "t", "pid": 1, "at": utc()}
+            {"before": before, "after": after, "origin_main": before, "remote": "origin", "remote_main": before, "actor_worktree": str(self.sibling), "tool": "t", "pid": 1, "at": utc()}
         )
         self.assertFalse(self.classify().verified)
 
@@ -408,7 +442,7 @@ class ClaudeRecordingTests(ClaudeRoutingFixture, unittest.TestCase):
     def test_receipt_older_than_the_delegation_is_a_violation(self) -> None:
         before, after = self.advance()
         self.write_raw_receipts(
-            {"before": before, "after": after, "origin_main": after, "actor_worktree": str(self.sibling), "tool": "t", "pid": 1,
+            {"before": before, "after": after, "origin_main": after, "remote": "origin", "remote_main": after, "actor_worktree": str(self.sibling), "tool": "t", "pid": 1,
              "at": utc(-3600)}
         )
         self.record_expecting_violation()

@@ -20,6 +20,67 @@ sys.path.insert(0, str(SCRIPT_SOURCE))
 import finish_task  # noqa: E402
 
 
+class DirectFinishRetryTests(unittest.TestCase):
+    def test_already_integrated_branch_retries_without_a_receipt(self) -> None:
+        work = Path("/task")
+        integration = Path("/integration")
+        head = "a" * 40
+        with (
+            mock.patch.object(finish_task, "fetch_main"),
+            mock.patch.object(finish_task, "clean", return_value=True),
+            mock.patch.object(finish_task, "current_branch", return_value="main"),
+            mock.patch.object(finish_task, "run_git", return_value=subprocess.CompletedProcess([], 0, head)) as git_call,
+            mock.patch.object(finish_task.subprocess, "run") as publish,
+            mock.patch.object(finish_task, "record_integration_advance") as receipt,
+        ):
+            # Both a publication retry and a later bookkeeping retry see the
+            # task branch already integrated into main.
+            for _ in range(2):
+                finish_task.integrate_and_publish_direct(work, integration, {}, "agent/task", "main")
+            self.assertEqual(publish.call_count, 2)
+            self.assertEqual(sum(call.args[0] == ["merge", "--ff-only", "agent/task"] for call in git_call.call_args_list), 2)
+            receipt.assert_not_called()
+
+    def test_publication_failure_then_unchanged_head_retry_succeeds(self) -> None:
+        before, after = "a" * 40, "b" * 40
+        heads = iter((before, after, after))
+
+        def git_result(args, **kwargs):
+            return subprocess.CompletedProcess(args, 0, next(heads) if args == ["rev-parse", "HEAD"] else "")
+
+        with (
+            mock.patch.object(finish_task, "fetch_main"),
+            mock.patch.object(finish_task, "clean", return_value=True),
+            mock.patch.object(finish_task, "current_branch", return_value="main"),
+            mock.patch.object(finish_task, "run_git", side_effect=git_result),
+            mock.patch.object(finish_task.subprocess, "run", side_effect=[subprocess.CalledProcessError(1, "publish"), None]),
+            mock.patch.object(finish_task, "record_integration_advance") as receipt,
+        ):
+            with self.assertRaises(subprocess.CalledProcessError):
+                finish_task.integrate_and_publish_direct(Path("/task"), Path("/integration"), {}, "agent/task", "main")
+            finish_task.integrate_and_publish_direct(Path("/task"), Path("/integration"), {}, "agent/task", "main")
+            receipt.assert_not_called()
+
+    def test_actual_advance_records_explicit_origin(self) -> None:
+        before, after = "a" * 40, "b" * 40
+        heads = iter((before, after))
+
+        def git_result(args, **kwargs):
+            return subprocess.CompletedProcess(args, 0, next(heads) if args == ["rev-parse", "HEAD"] else "")
+
+        with (
+            mock.patch.object(finish_task, "fetch_main"),
+            mock.patch.object(finish_task, "clean", return_value=True),
+            mock.patch.object(finish_task, "current_branch", return_value="main"),
+            mock.patch.object(finish_task, "run_git", side_effect=git_result),
+            mock.patch.object(finish_task.subprocess, "run"),
+            mock.patch.object(finish_task, "record_integration_advance") as receipt,
+        ):
+            finish_task.integrate_and_publish_direct(Path("/task"), Path("/integration"), {}, "agent/task", "main")
+            receipt.assert_called_once_with(Path("/integration"), before, after,
+                tool="finish_task.integrate_and_publish_direct", actor_worktree=Path("/task"), remote="origin")
+
+
 def run(*args: str, cwd: Path, check: bool = True, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(list(args), cwd=cwd, text=True, capture_output=True, check=check, env=env)
 

@@ -339,7 +339,7 @@ INTEGRATION_ADVANCE_LOG = Path(".claude") / "integration-advances.jsonl"
 CLASSIFICATION_VERIFIED_EXTERNAL_ADVANCE = "verified_external_advance"
 TIER_HARD = "hard"
 TIER_DETECTION_ONLY = "detection-only"
-_RECEIPT_FIELDS = ("before", "after", "origin_main", "actor_worktree", "tool", "pid", "at")
+_RECEIPT_FIELDS = ("before", "after", "remote", "remote_main", "actor_worktree", "tool", "pid", "at")
 
 
 def integration_advance_log(integration_root: Path) -> Path:
@@ -356,7 +356,7 @@ def _configured_main_branch(integration_root: Path) -> str:
 
 
 def record_integration_advance(
-    integration_root: Path, before: str, after: str, *, tool: str, actor_worktree: Path, remote: str = "origin"
+    integration_root: Path, before: str, after: str, *, tool: str, actor_worktree: Path, remote: str
 ) -> dict[str, Any]:
     """Append a receipt for a fast-forward of the integration checkout's main branch.
 
@@ -445,11 +445,11 @@ def read_integration_advances(integration_root: Path) -> list[dict[str, Any]]:
             raise ContainmentError(f"{where}: malformed integration advance receipt: {exc}") from exc
         if not isinstance(receipt, dict):
             raise ContainmentError(f"{where}: integration advance receipt is not an object")
-        fields = _RECEIPT_FIELDS if "remote" not in receipt else (
-            "before", "after", "remote", "remote_main", "actor_worktree", "tool", "pid", "at"
-        )
-        if "remote" in receipt and receipt["remote"] == "origin":
+        fields = _RECEIPT_FIELDS
+        if receipt.get("remote") == "origin":
             fields = (*fields, "origin_main")
+        elif "origin_main" in receipt:
+            raise ContainmentError(f"{where}: origin_main is only valid for remote 'origin'")
         for key in fields:
             if key not in receipt:
                 raise ContainmentError(f"{where}: integration advance receipt lacks {key!r}")
@@ -499,10 +499,10 @@ def _receipt_chain(
             raise ContainmentError(
                 f"receipt chain is broken: expected a receipt starting at {expected[:12]}, found {receipt['before'][:12]}"
             )
-        if receipt.get("remote", "origin") != "origin":
+        if receipt["remote"] != "origin":
             raise ContainmentError("receipt records a non-origin remote; detection-only verification requires origin main")
         if receipt["after"] != receipt["origin_main"] or (
-            "remote_main" in receipt and receipt["after"] != receipt["remote_main"]
+            receipt["after"] != receipt["remote_main"]
         ):
             raise ContainmentError(
                 f"receipt {receipt['before'][:12]}..{receipt['after'][:12]} did not land on the origin main it recorded"
