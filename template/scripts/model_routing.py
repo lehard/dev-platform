@@ -191,9 +191,27 @@ def _managed_provenance(root: Path) -> dict[str, Any]:
     is read/enforcement-only and must not legalize a retrospective route.
     """
     candidates = list((root / "openspec" / "changes").glob("*/.managed-task.json"))
+    if len(candidates) > 1:
+        # A later Requirement child's checkout also carries integrated sibling
+        # contributions, which stay active until composition: the task state
+        # names which one is this task. Nothing else may disambiguate.
+        candidates = [path for path in candidates if path.parent.name == _task_state_change(root)]
     if len(candidates) != 1:
         raise RoutingError(f"model routing requires exactly one materialized managed OpenSpec change in this task checkout; found {len(candidates)}")
     return _read_managed_provenance(candidates[0], root)
+
+
+def _task_state_change(root: Path) -> str:
+    state = root / ".managed-task-state.json"
+    if not state.is_file():
+        raise RoutingError("several managed OpenSpec changes are active and no managed task state names this task's change")
+    try:
+        change = json.loads(state.read_text(encoding="utf-8"))["change"]
+    except (OSError, KeyError, TypeError, json.JSONDecodeError) as exc:
+        raise RoutingError(f"cannot read the managed task state at {state}") from exc
+    if not isinstance(change, str):
+        raise RoutingError("managed task state has an invalid change value")
+    return change
 
 
 def resolve_managed_provenance(root: Path, source_issue: str, change: str) -> tuple[dict[str, Any], Path, str]:

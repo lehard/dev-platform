@@ -271,6 +271,39 @@ class ModelRoutingTests(unittest.TestCase):
                     reason="the supervisor preferred not to dispatch the available child",
                 )
 
+    def add_integrated_sibling(self) -> None:
+        # An integrated sibling contribution stays active in the review base until composition.
+        sibling = self.integration / "openspec" / "changes" / "sibling-change"
+        sibling.mkdir(parents=True)
+        (sibling / ".managed-task.json").write_text(json.dumps({"source_issue": "owner/backlog#6", "change": "sibling-change"}), encoding="utf-8")
+        git(self.integration, "add", "openspec")
+        git(self.integration, "commit", "-qm", "integrated sibling contribution")
+        git(self.integration, "update-ref", "refs/remotes/origin/main", "main")
+        git(self.task, "merge", "-q", "--ff-only", "main")
+
+    def test_task_state_selects_this_child_beside_an_integrated_sibling(self) -> None:
+        self.add_integrated_sibling()
+        (self.task / ".managed-task-state.json").write_text(
+            json.dumps({"source_issue": "owner/backlog#7", "change": "routing-change"}), encoding="utf-8"
+        )
+        route = self.prepare()
+        self.assertEqual((route.source_issue, route.change), ("owner/backlog#7", "routing-change"))
+
+    def test_several_active_changes_without_task_state_are_rejected(self) -> None:
+        self.add_integrated_sibling()
+        with patch.object(routing, "main_root", return_value=self.integration):
+            with self.assertRaisesRegex(routing.RoutingError, "no managed task state names"):
+                routing.prepare(self.task, provider="codex", profile="standard", rationale="ambiguous", evidence=[])
+
+    def test_task_state_naming_no_active_change_is_rejected(self) -> None:
+        self.add_integrated_sibling()
+        (self.task / ".managed-task-state.json").write_text(
+            json.dumps({"source_issue": "owner/backlog#8", "change": "other-change"}), encoding="utf-8"
+        )
+        with patch.object(routing, "main_root", return_value=self.integration):
+            with self.assertRaisesRegex(routing.RoutingError, "exactly one materialized managed OpenSpec change"):
+                routing.prepare(self.task, provider="codex", profile="standard", rationale="ambiguous", evidence=[])
+
     def test_route_preparation_remains_rejected_after_archive(self) -> None:
         archived = self.task / "openspec" / "changes" / "archive" / "2026-09-19-routing-change"
         archived.parent.mkdir(parents=True)
