@@ -1,32 +1,32 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "c4c25e08d961a12383be245c3a2dd91f0897a3fb",
+    "base_head": "86dffdbf85b553774c4247b6c9f8e2c356dce760",
     "base_ref": "origin/main",
-    "candidate_head": "c7da00e502242da8ddce6538e45eef257ebd1675",
-    "diff_sha256": "0beea9fcd918281e39ad83ed8e83e5160f9cf9bead7d5d847c0c06bb0ee846e2"
+    "candidate_head": "87c2243b01c0105691fa2b876d037896c63fe766",
+    "diff_sha256": "4afba9f6c566cacf28cc0217d4fef092b02b68c16fc2b2e8d29c448eed7aed66"
   },
-  "completed_at": "2026-10-09T07:53:10+00:00",
+  "completed_at": "2026-10-09T09:02:44+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/delegation_containment.py `_receipt_chain` (candidate.diff ~L418-425): `first = next((i for i, r in enumerate(ordered_receipts) if r['before'] == start_head), None)`; `chain = ordered_receipts[first:]`. The code comment justifies it as 'moves that a recovery already accounted for'. Design.md Decision 2 and docs/engineering/model-routing.md say the first receipt's `before` equals the pre-run head and describe an 'unbroken receipt chain from the pre-run head'. Skipped earlier receipts are neither checked for self-attribution nor reported in the evidence. The movement they cover is still bounded, because `start_head` must be matched and the chain must end at the current head. The artifacts should state the skipping rule, or the code should match them.",
-      "id": "receipt-chain-skips-leading-receipts",
+      "evidence": "template/scripts/publication_queue.py:1056 (sync_merged_task) runs `git merge --ff-only remote_head` on a clean task branch worktree, not on the integration main. The candidate's receipt sites are finish_task.py (direct, remote-merge ff, normalize) and project_sync.py. The spec's \"every platform fast-forward of the integration checkout's main branch\" is met by those sites. The proposal and design wording about publication_queue.py is stale or ambiguous.",
+      "id": "design-names-publication-queue-site-without-receipt",
       "severity": "advisory",
-      "summary": "The implemented chain rule is looser than the contract wording. The contract says the chain runs from the pre-run head, and design Decision 2 says the first windowed receipt's `before` equals the pre-run head. The implementation instead skips any windowed receipts that come before the first one whose `before` equals the pre-run head. The docs and spec don't mention this leniency."
+      "summary": "proposal.md (Impact) and design.md (Context) list publication_queue.py as an integration main fast-forward site that records a receipt \"when it advances the integration checkout\". The candidate does not touch it, and the docs don't say why not."
     }
   ],
-  "launched_at": "2026-10-09T07:52:39+00:00",
-  "output_sha256": "1dca33a539d133be4530ffd5794a61188039b05304d44a9ac9b81457fba0365e",
+  "launched_at": "2026-10-09T09:02:11+00:00",
+  "output_sha256": "58566c6ef844bc5e631a22db886a3cc875fb0976b72b8539f6384bc2429c9e3c",
   "perspective": "spec-fidelity",
-  "request_id": "11d351ea-0a0b-4213-a811-dcb2d14e4077",
+  "request_id": "ee04c1de-40ca-401c-b645-fe5172cc616d",
   "reviewer": {
-    "context_id": "dbeb96fc-7ae0-4b56-a86b-44bd2c66f01a",
+    "context_id": "229cc85a-87c1-4fd6-ab18-e017c2c4e220",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-5b23d171-714a-4cb5-997a-acf7b94931af",
+    "launch_id": "platform-launch-6ebb643f-3866-4470-a806-ccbc74167fcb",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -42,22 +42,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 55416
+        "value": 52895
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 229418
+        "value": 223633
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 26911
+        "value": 27983
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 28498
+        "value": 29966
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -72,11 +72,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2728
+        "value": 2951
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "09fe39eccec1d7377abca4caa92c3c555770fbaaf7f39c6feaad6c38da2f6dd2"
+  "task_content_digest": "a5ccafa5a2a8f0befb7207e8cda0ab2dd226bd04689228575eb5f39cc9120f61"
 }

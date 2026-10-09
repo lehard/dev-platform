@@ -1,12 +1,18 @@
 {
   "candidate": {
-    "base_head": "c4c25e08d961a12383be245c3a2dd91f0897a3fb",
+    "base_head": "86dffdbf85b553774c4247b6c9f8e2c356dce760",
     "base_ref": "origin/main",
-    "candidate_head": "c7da00e502242da8ddce6538e45eef257ebd1675",
-    "diff_sha256": "0beea9fcd918281e39ad83ed8e83e5160f9cf9bead7d5d847c0c06bb0ee846e2"
+    "candidate_head": "87c2243b01c0105691fa2b876d037896c63fe766",
+    "diff_sha256": "4afba9f6c566cacf28cc0217d4fef092b02b68c16fc2b2e8d29c448eed7aed66"
   },
   "change": "openspec/changes/claude-external-advance",
-  "excluded_lifecycle_paths": [],
+  "excluded_lifecycle_paths": [
+    "openspec/changes/claude-external-advance/automated-checks.json",
+    "openspec/changes/claude-external-advance/independent-review-request.json",
+    "openspec/changes/claude-external-advance/independent-reviews/engineering-quality.json",
+    "openspec/changes/claude-external-advance/independent-reviews/spec-fidelity.json",
+    "openspec/changes/claude-external-advance/verification.md"
+  ],
   "fresh_context_required": true,
   "perspectives": {
     "engineering-quality": {
@@ -31,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-09T07:52:29+00:00",
+  "prepared_at": "2026-10-09T09:01:53+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/claude-external-advance/independent-reviews",
     "required_perspectives": [
@@ -40,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "11d351ea-0a0b-4213-a811-dcb2d14e4077",
+  "request_id": "ee04c1de-40ca-401c-b645-fe5172cc616d",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -52,17 +58,17 @@
   },
   "schema_version": 1,
   "task_content": {
-    "base": "c4c25e08d961a12383be245c3a2dd91f0897a3fb",
-    "digest": "09fe39eccec1d7377abca4caa92c3c555770fbaaf7f39c6feaad6c38da2f6dd2",
+    "base": "86dffdbf85b553774c4247b6c9f8e2c356dce760",
+    "digest": "a5ccafa5a2a8f0befb7207e8cda0ab2dd226bd04689228575eb5f39cc9120f61",
     "paths": {
       "dev-platform/checks.toml": "71c320d5f1d68680005499d9990950ab60e56458",
       "docs/engineering/model-routing.md": "2cd5a5c85ebd231182f59c14ec38fd225aa54dc5",
       "openspec/changes/claude-external-advance/.managed-task.json": "2ef9d1a8bb57c1fdebafba508fa5898a82f1d3c6",
       "openspec/changes/claude-external-advance/.openspec.yaml": "81264324b0500978f52f70d701b236a09cb1d808",
       "openspec/changes/claude-external-advance/design.md": "5d7b6e64536d43597fbd54e67d034b881d18807f",
-      "openspec/changes/claude-external-advance/proposal.md": "c6c41e9901bb30f08a796d8855e8343d124ed7eb",
+      "openspec/changes/claude-external-advance/proposal.md": "da10716dd8b5cce17ce2b8fb98c31f1b87595966",
       "openspec/changes/claude-external-advance/specs/model-routing/spec.md": "c5c487eba0d17a6898c1fd4d8470133bc4286e54",
-      "openspec/changes/claude-external-advance/tasks.md": "572a324a40f3886ff9bf906e9fe2140eef4b2537",
+      "openspec/changes/claude-external-advance/tasks.md": "c442ce20be2a8c870f79865a3ea49ae9d980ae93",
       "template/docs/engineering/model-routing.md": "86210f344a8fba3806632b594d08f68611787c49",
       "template/scripts/delegated_write_guard.py": "b18fa8b42f714731bf53a0872741160039acd8f6",
       "template/scripts/delegation_containment.py": "c711eb606ffa624022269702bb286073572b5926",
