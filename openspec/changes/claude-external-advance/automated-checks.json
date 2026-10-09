@@ -9,19 +9,19 @@
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
-      "duration_seconds": 0.221,
+      "duration_seconds": 0.219,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 -m ruff check scripts template/scripts tests",
-      "duration_seconds": 0.179,
+      "duration_seconds": 0.199,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
-      "duration_seconds": 555.175,
+      "duration_seconds": 696.866,
       "outcome": "success",
       "exit_code": 0
     }
@@ -64,24 +64,24 @@
     "change": "claude-external-advance",
     "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/claude-external-advance",
     "branch": "agent/br-514-t1-claude-external-advance",
-    "head": "d27205787ed5cdc7d897fb4730f28234be09d4d9",
+    "head": "4ed538372b96f69069e4960dc85c5022b43f5d4b",
     "task_content": {
       "version": 1,
-      "digest": "3c32d16e40dde0ba6e36063b6323ba9692bc2a8e17fcb7bca079616d61e32e6d",
+      "digest": "ec6e69b3a870201708ea4d7f9dc6b7d385b59aa67e9522bd2f62f68b099f7587",
       "paths": {
         "dev-platform/checks.toml": "7185f0257fd5966c96b7bee6ac99f7fc19775826",
         "docs/engineering/model-routing.md": "eca2302b8c0780b5fc6db5c2e509fa0ac8f232b9",
         "openspec/changes/claude-external-advance/.managed-task.json": "2ef9d1a8bb57c1fdebafba508fa5898a82f1d3c6",
         "openspec/changes/claude-external-advance/.openspec.yaml": "81264324b0500978f52f70d701b236a09cb1d808",
-        "openspec/changes/claude-external-advance/automated-checks.json": "a40bc47ad38699e101a9f54a2456a172eb7f3094",
+        "openspec/changes/claude-external-advance/automated-checks.json": "ad3cc42a31d84cdad5c65374185267db76322e55",
         "openspec/changes/claude-external-advance/design.md": "b2798f655a6a29c3c985844ff612d8eedd06ee98",
-        "openspec/changes/claude-external-advance/independent-review-request.json": "b4c826810d069379bb1c54cd61f4dc30d1ac7fdc",
-        "openspec/changes/claude-external-advance/independent-reviews/engineering-quality.json": "75741e76f18ffbe14196d9cb5ae223adac7c9d26",
-        "openspec/changes/claude-external-advance/independent-reviews/spec-fidelity.json": "e76074fb7a6cff5bb696c85fe8ba7e94a9c092bb",
+        "openspec/changes/claude-external-advance/independent-review-request.json": "4490d682f14b7d5912ead2406449fa31796c8280",
+        "openspec/changes/claude-external-advance/independent-reviews/engineering-quality.json": "7dc398def83c45cb2a21679ab5a777d4d7cd9abf",
+        "openspec/changes/claude-external-advance/independent-reviews/spec-fidelity.json": "f833d9161be48b5067fcad4f31ae01c7fba0e773",
         "openspec/changes/claude-external-advance/proposal.md": "9c693bd81cba47641b811471442743b1d72ba5a9",
         "openspec/changes/claude-external-advance/specs/model-routing/spec.md": "545d393768a66e14725cbc9422341a7af704159e",
         "openspec/changes/claude-external-advance/tasks.md": "c442ce20be2a8c870f79865a3ea49ae9d980ae93",
-        "openspec/changes/claude-external-advance/verification.md": "ab887d8f3aa9d292d4c572df313d04ecd3c28291",
+        "openspec/changes/claude-external-advance/verification.md": "1aeeb68de55ac1d28fb8ec7e002f1148383a836c",
         "template/docs/engineering/model-routing.md": "855fba127dc3210c737f6f7abf3f113d28070bd1",
         "template/scripts/delegated_write_guard.py": "b18fa8b42f714731bf53a0872741160039acd8f6",
         "template/scripts/delegation_containment.py": "e984df4cbc470549928574c9987fd6230ec8f010",
@@ -93,14 +93,14 @@
         "tests/test_merge_lifecycle_resilience.py": "cfb63fcd670f9929bd61221efad0afa847c45d41",
         "tests/test_protected_main_zero_handoff.py": "69537933132d1c3f40a5f6e5f1f247b98d16a9bd",
         "tests/test_publication_recovery_cli.py": "5664fc351a57b5f620753da7d7dfb24cb7cb10e0",
-        "tests/test_shared_writer_guard.py": "25a29859faa27d03f375fdf98d2c7b8fe3f8ea6e"
+        "tests/test_shared_writer_guard.py": "e7db13cf037bf2eb6ac8110b60a259a7968fcc2b"
       },
-      "base": "f18050510249ffd58b05af3ed9e7f0bfe548f2cc"
+      "base": "5f621c9e91c4a2862d66c7581b22146d61faf5b4"
     }
   },
   "gate_task_content": {
     "version": 1,
-    "digest": "447c497767b7174d854a45d5892ffaf2a6f66b57f4cab208b466dfdf8c340fbf",
+    "digest": "b8bf124a45f6ff925003d077fffee364c49e89f002397151bbaeabd208283852",
     "paths": {
       "dev-platform/checks.toml": "7185f0257fd5966c96b7bee6ac99f7fc19775826",
       "docs/engineering/model-routing.md": "eca2302b8c0780b5fc6db5c2e509fa0ac8f232b9",
@@ -121,14 +121,14 @@
       "tests/test_merge_lifecycle_resilience.py": "cfb63fcd670f9929bd61221efad0afa847c45d41",
       "tests/test_protected_main_zero_handoff.py": "69537933132d1c3f40a5f6e5f1f247b98d16a9bd",
       "tests/test_publication_recovery_cli.py": "5664fc351a57b5f620753da7d7dfb24cb7cb10e0",
-      "tests/test_shared_writer_guard.py": "25a29859faa27d03f375fdf98d2c7b8fe3f8ea6e"
+      "tests/test_shared_writer_guard.py": "e7db13cf037bf2eb6ac8110b60a259a7968fcc2b"
     },
-    "base": "f18050510249ffd58b05af3ed9e7f0bfe548f2cc",
+    "base": "5f621c9e91c4a2862d66c7581b22146d61faf5b4",
     "scope": "independent-review-v1"
   },
   "affected_precheck": {
     "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/delegated_write_guard.py --changed-file template/scripts/delegation_containment.py --changed-file template/scripts/finish_task.py --changed-file template/scripts/model_routing.py --changed-file template/scripts/project_sync.py --changed-file tests/test_git_lifecycle.py --changed-file tests/test_integration_advance_receipts.py --changed-file tests/test_merge_lifecycle_resilience.py --changed-file tests/test_protected_main_zero_handoff.py --changed-file tests/test_publication_recovery_cli.py --changed-file tests/test_shared_writer_guard.py",
-    "duration_seconds": 417.378,
+    "duration_seconds": 390.567,
     "outcome": "success",
     "exit_code": 0,
     "role": "affected-precheck feedback; not validation coverage"

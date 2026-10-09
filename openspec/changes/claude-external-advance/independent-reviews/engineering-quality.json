@@ -1,44 +1,38 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "f18050510249ffd58b05af3ed9e7f0bfe548f2cc",
+    "base_head": "5f621c9e91c4a2862d66c7581b22146d61faf5b4",
     "base_ref": "origin/main",
-    "candidate_head": "d27205787ed5cdc7d897fb4730f28234be09d4d9",
-    "diff_sha256": "71d6cdb7b4da8f42aa9dbe6f034d4181b649e559fc8139fb83b6af03c57cbbc4"
+    "candidate_head": "4ed538372b96f69069e4960dc85c5022b43f5d4b",
+    "diff_sha256": "3e05b9a6eff09c8e336ef07683b77e9158aa1e5ae145f30f1eb9aaaa85f28f36"
   },
-  "completed_at": "2026-10-09T19:25:55+00:00",
+  "completed_at": "2026-10-09T20:05:53+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/delegation_containment.py: `record_integration_advance` uses `datetime.now(timezone.utc).replace(microsecond=0)`. `_receipt_chain` filters with `_parse_receipt_time(r[\"at\"], ...) >= window_start`, where `window_start` is `delegation[\"opened_at\"]`. If `opened_at` carries sub-second precision, this comparison is unsafe.",
-      "id": "receipt-second-truncation-vs-window-start",
+      "evidence": "template/scripts/delegation_containment.py: `record_integration_advance` uses `.replace(microsecond=0)`. `_receipt_chain` filters with `_parse_receipt_time(r['at']) >= window_start`. This fails closed, so it is a false negative, not a safety hole.",
+      "id": "receipt-second-truncation-window",
       "severity": "advisory",
-      "summary": "Receipt timestamps are truncated to whole seconds but are compared with `>= window_start` against the delegation's `opened_at`. A receipt written in the same second as the delegation opening can compare as earlier than `opened_at`, so a legitimate advance is dropped. The result is a false containment violation, not an unsafe acceptance."
+      "summary": "Receipt timestamps are truncated to whole seconds but are compared against the delegation's `opened_at`, which can carry microseconds. A legitimate sibling advance in the same second as the opening can be dated before the window start. It is then dropped from the chain, and the move is refused as a violation."
     },
     {
-      "evidence": "template/scripts/model_routing.py `_recover_claude_external_advance`: `for receipt in receipts: ... if receipt_time <= friction_time: raise RoutingError(\"the friction event does not predate integration advance receipts; historical recovery is forbidden\")`. The check is not limited to the opened_at..recovery window.",
-      "id": "recovery-refuses-on-any-older-receipt",
+      "evidence": "template/scripts/project_sync.py: `branch = str(config.get(\"main_branch\", \"main\"))`. template/scripts/delegation_containment.py `_configured_main_branch` raises ContainmentError when `main_branch` is missing, and `record_integration_advance` calls it after the merge.",
+      "id": "main-branch-default-inconsistency",
       "severity": "advisory",
-      "summary": "Claude historical recovery scans the whole receipt log and refuses on any receipt dated at or before the friction event, even one unrelated to this delegation window. Once the log has older entries, recovery for a pre-receipt false violation is blocked more broadly than the stated purpose requires."
-    },
-    {
-      "evidence": "template/scripts/finish_task.py `integrate_and_publish_direct`: `require_own_fast_forward(...)` is called after `project_publish.py` ran. `_unrecorded_direct_advance` only matches a reflog entry whose new head equals the *current* head, so once main has moved on it returns None.",
-      "id": "direct-finish-receipt-after-failed-own-ff-check",
-      "severity": "advisory",
-      "summary": "In direct finish, the own-fast-forward proof and the receipt write both run after the push. If the proof fails (for example, a sibling advanced main right after the push), the command exits with SystemExit after publication has already happened, and a retry cannot re-derive the advance. The chain stays permanently unreceipted, which is fail-closed but not recoverable by retry."
+      "summary": "`project_sync` defaults a missing `main_branch` to \"main\". The new receipt path (`_configured_main_branch`) raises when it is absent. The sync's fast-forward would then succeed and the command would fail afterwards, with no receipt written."
     }
   ],
-  "launched_at": "2026-10-09T19:25:26+00:00",
-  "output_sha256": "65bb46815e6f9b921a39daca0ec08d010a28f7a8b8bbf3056beffe048a79d910",
+  "launched_at": "2026-10-09T20:05:28+00:00",
+  "output_sha256": "acb1461eeff7b2347c43fff65dc21dc67c82f99090e641726f59f1908aee57af",
   "perspective": "engineering-quality",
-  "request_id": "71b4a737-d834-478c-ab75-f7fef6df1336",
+  "request_id": "5ee6833e-f93f-4e3a-922c-8f7f52f9168a",
   "reviewer": {
-    "context_id": "b1458764-98e0-4f88-b9cb-2c7c1cac0e72",
+    "context_id": "e4c4dc9d-9c57-4c38-8d75-716eb51de96b",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-2618e6b7-234b-48cf-8ed7-3b30f3762470",
+    "launch_id": "platform-launch-2f0f72ce-3d62-485c-83b3-156587e5c5c2",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -54,41 +48,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 44032
+        "value": 45469
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 55268
+        "value": 104014
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 22741
+        "value": 20764
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 23879
+        "value": 21514
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 8
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4
+        "value": 5
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2521
+        "value": 2120
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "447c497767b7174d854a45d5892ffaf2a6f66b57f4cab208b466dfdf8c340fbf"
+  "task_content_digest": "b8bf124a45f6ff925003d077fffee364c49e89f002397151bbaeabd208283852"
 }

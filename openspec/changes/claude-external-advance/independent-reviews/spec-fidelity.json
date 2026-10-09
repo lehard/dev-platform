@@ -1,38 +1,38 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "f18050510249ffd58b05af3ed9e7f0bfe548f2cc",
+    "base_head": "5f621c9e91c4a2862d66c7581b22146d61faf5b4",
     "base_ref": "origin/main",
-    "candidate_head": "d27205787ed5cdc7d897fb4730f28234be09d4d9",
-    "diff_sha256": "71d6cdb7b4da8f42aa9dbe6f034d4181b649e559fc8139fb83b6af03c57cbbc4"
+    "candidate_head": "4ed538372b96f69069e4960dc85c5022b43f5d4b",
+    "diff_sha256": "3e05b9a6eff09c8e336ef07683b77e9158aa1e5ae145f30f1eb9aaaa85f28f36"
   },
-  "completed_at": "2026-10-09T19:25:26+00:00",
+  "completed_at": "2026-10-09T20:05:28+00:00",
   "findings": [
     {
-      "evidence": "delegation_containment.py `_receipt_chain` picks `first = next(i for i,r in enumerate(ordered_receipts) if r['before'] == start_head)` and drops everything before it. design.md Decision 2 says 'ordered by time such that the first `before` equals the pre-run head'. The comment in the code justifies the skip by recovery, but the artifacts do not describe it. The behaviour is fail-closed in the common case, so this is a documentation gap only.",
-      "id": "chain-leading-receipts-skipped",
+      "evidence": "template/scripts/model_routing.py, `_recover_claude_external_advance`: `for receipt in receipts: if receipt_time <= friction_time: raise RoutingError(\"the friction event does not predate integration advance receipts...\")`. This loops over every receipt in the log with no `opened_at` window. Once any unrelated older receipt exists, recovery is refused for good. design.md Decision 4 and specs/model-routing/spec.md (Scenario \"Historical false violation\") mention neither this refusal nor the actor-in-delegated-worktree refusal. Only docs/engineering/model-routing.md describes them.",
+      "id": "recovery-receipt-refusal-unspecified",
       "severity": "advisory",
-      "summary": "The classifier skips in-window receipts that come before the first receipt starting at the pre-run head. The design and spec require a chain whose first receipt `before` equals the pre-run head."
+      "summary": "The Claude recovery refusals on receipts are implemented and documented, but the design and spec don't state them. The refusal on any receipt dated at or before the friction event is also unwindowed, so it is broader than the \"before receipts existed\" wording."
     },
     {
-      "evidence": "specs/model-routing/spec.md says chain receipts only need an acting worktree outside the delegated one. The code and docs/engineering/model-routing.md also require `remote == 'origin'` and `after == origin_main == remote_main` on every receipt. The code also refuses recovery when a receipt is dated at or before the friction event or names the delegated worktree. The spec lists only 'evidence-bound recovery'. The contract is therefore stricter in code than in the accepted spec, but no behaviour contradicts it.",
-      "id": "spec-omits-origin-and-recovery-refusals",
+      "evidence": "template/scripts/delegation_containment.py, `_receipt_chain`: `first = next((i for i, r in enumerate(ordered_receipts) if r[\"before\"] == start_head), None); chain = ordered_receipts[first:]`. The comment says earlier in-window receipts are skipped, for example moves that a recovery already accounted for. design.md Decision 2 and the spec's \"unbroken receipt chain from the pre-run head\" don't describe this tolerance.",
+      "id": "chain-start-skips-earlier-receipts",
       "severity": "advisory",
-      "summary": "The normative spec text omits two enforced rules that the design and docs state: the origin-only receipt rule, and the receipt-based refusals in recovery."
+      "summary": "The detection-only receipt chain starts at the first receipt whose `before` equals the pre-run head. Windowed receipts that come earlier in time are skipped. design.md Decision 2 says the first `before` must equal the pre-run head."
     }
   ],
-  "launched_at": "2026-10-09T19:24:50+00:00",
-  "output_sha256": "3289ffa2a4233005402c9171ec5e991784c759d141aa6dc6e1858d5c1176e437",
+  "launched_at": "2026-10-09T20:05:03+00:00",
+  "output_sha256": "d1afbaecaf2bd8165deebf218d6ab3c126191da360e7dcbd69c7c5a100df1f38",
   "perspective": "spec-fidelity",
-  "request_id": "71b4a737-d834-478c-ab75-f7fef6df1336",
+  "request_id": "5ee6833e-f93f-4e3a-922c-8f7f52f9168a",
   "reviewer": {
-    "context_id": "68c32139-d357-4c27-adfd-1d39519ec8f3",
+    "context_id": "91612474-a7c2-4b63-89af-6ffc2a57f85c",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-06c41339-48cd-4b92-bae9-a44a3b0cf722",
+    "launch_id": "platform-launch-b63b36a8-f619-492a-90ac-8284eb5e6721",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -48,41 +48,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 50375
+        "value": 45741
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 314582
+        "value": 59001
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 28390
+        "value": 21443
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 30489
+        "value": 21768
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 16
+        "value": 6
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 11
+        "value": 6
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2889
+        "value": 2311
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "447c497767b7174d854a45d5892ffaf2a6f66b57f4cab208b466dfdf8c340fbf"
+  "task_content_digest": "b8bf124a45f6ff925003d077fffee364c49e89f002397151bbaeabd208283852"
 }

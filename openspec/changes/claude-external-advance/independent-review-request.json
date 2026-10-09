@@ -1,9 +1,9 @@
 {
   "candidate": {
-    "base_head": "f18050510249ffd58b05af3ed9e7f0bfe548f2cc",
+    "base_head": "5f621c9e91c4a2862d66c7581b22146d61faf5b4",
     "base_ref": "origin/main",
-    "candidate_head": "d27205787ed5cdc7d897fb4730f28234be09d4d9",
-    "diff_sha256": "71d6cdb7b4da8f42aa9dbe6f034d4181b649e559fc8139fb83b6af03c57cbbc4"
+    "candidate_head": "4ed538372b96f69069e4960dc85c5022b43f5d4b",
+    "diff_sha256": "3e05b9a6eff09c8e336ef07683b77e9158aa1e5ae145f30f1eb9aaaa85f28f36"
   },
   "change": "openspec/changes/claude-external-advance",
   "excluded_lifecycle_paths": [
@@ -37,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-09T19:24:39+00:00",
+  "prepared_at": "2026-10-09T20:04:56+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/claude-external-advance/independent-reviews",
     "required_perspectives": [
@@ -46,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "71b4a737-d834-478c-ab75-f7fef6df1336",
+  "request_id": "5ee6833e-f93f-4e3a-922c-8f7f52f9168a",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -58,8 +58,8 @@
   },
   "schema_version": 1,
   "task_content": {
-    "base": "f18050510249ffd58b05af3ed9e7f0bfe548f2cc",
-    "digest": "447c497767b7174d854a45d5892ffaf2a6f66b57f4cab208b466dfdf8c340fbf",
+    "base": "5f621c9e91c4a2862d66c7581b22146d61faf5b4",
+    "digest": "b8bf124a45f6ff925003d077fffee364c49e89f002397151bbaeabd208283852",
     "paths": {
       "dev-platform/checks.toml": "7185f0257fd5966c96b7bee6ac99f7fc19775826",
       "docs/engineering/model-routing.md": "eca2302b8c0780b5fc6db5c2e509fa0ac8f232b9",
@@ -80,7 +80,7 @@
       "tests/test_merge_lifecycle_resilience.py": "cfb63fcd670f9929bd61221efad0afa847c45d41",
       "tests/test_protected_main_zero_handoff.py": "69537933132d1c3f40a5f6e5f1f247b98d16a9bd",
       "tests/test_publication_recovery_cli.py": "5664fc351a57b5f620753da7d7dfb24cb7cb10e0",
-      "tests/test_shared_writer_guard.py": "25a29859faa27d03f375fdf98d2c7b8fe3f8ea6e"
+      "tests/test_shared_writer_guard.py": "e7db13cf037bf2eb6ac8110b60a259a7968fcc2b"
     },
     "scope": "independent-review-v1",
     "version": 1
