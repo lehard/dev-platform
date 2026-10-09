@@ -31,6 +31,7 @@ integration = load_platform_module("requirement_integration", SCRIPTS / "require
 workers = load_platform_module("lifecycle_workers", SCRIPTS / "lifecycle_workers.py")
 lifecycle = load_platform_module("openspec_lifecycle", SCRIPTS / "openspec_lifecycle.py")
 final = load_platform_module("post_review_finalization", SCRIPTS / "post_review_finalization.py")
+finish = load_platform_module("finish_task", SCRIPTS / "finish_task.py")
 
 POOL_ENV = machine_pool.POOL_ENV
 LEASE_ENV = machine_pool.LEASE_ENV
@@ -781,6 +782,17 @@ class IntegrationTests(PoolFixture):
         with self.assertRaisesRegex(machine_pool.PoolError, f"missing inherited descriptor.*{fd}"):
             machine_pool.child_lease_descriptors(env)
 
+    def test_pooled_lease_must_list_one_distinct_descriptor_per_token(self) -> None:
+        fd = os.open(self.config_path, os.O_RDONLY)
+        self.addCleanup(os.close, fd)
+        for fds in ([], [fd], [fd, fd], [fd, fd, fd]):
+            env = {LEASE_ENV: json.dumps({"id": "x", "pooled": True, "weight": 2, "fds": fds})}
+            with self.subTest(fds=fds), self.assertRaisesRegex(machine_pool.PoolError, "exactly 2 distinct descriptor"):
+                machine_pool.child_lease_descriptors(env)
+            with self.subTest(fds=fds, nested=True), self.assertRaisesRegex(machine_pool.PoolError, "exactly 2 distinct"):
+                with machine_pool.lease(1, "nested", environ=dict(env)):
+                    pass
+
     def check_lifecycle_child_reuses_lease(self, archive: bool) -> None:
         real_run = subprocess.run
         seen = []
@@ -821,6 +833,28 @@ class IntegrationTests(PoolFixture):
                     final.trusted_checks_runner(self.base, dict(os.environ))
             self.assertEqual(seen, [parent.fds])
             self.assertEqual(len(machine_pool.read_holders(self.config)), 1)
+        self.assertEqual(machine_pool.read_holders(self.config), [])
+
+    def test_finish_checks_child_reuses_pooled_lease(self) -> None:
+        real_popen = subprocess.Popen
+        seen = []
+        with self.patched_environment(), machine_pool.lease(2, "parent", hooks=fast_hooks()) as parent:
+            code = (
+                "import sys; "
+                f"sys.path.insert(0, {str(SCRIPTS)!r}); "
+                "import machine_pool; "
+                "inner = machine_pool.lease(99, 'probe').__enter__(); "
+                f"assert inner.nested and inner.id == {parent.id!r} and inner.weight == 2"
+            )
+
+            def popen(command, **kwargs):
+                self.assertTrue(any("select_checks.py" in str(arg) for arg in command))
+                seen.append(kwargs["pass_fds"])
+                return real_popen([sys.executable, "-c", code], **kwargs)
+
+            with mock.patch.object(finish.subprocess, "Popen", side_effect=popen):
+                finish.run_checks(self.base, "origin/main", False)
+            self.assertEqual(seen, [parent.fds])
         self.assertEqual(machine_pool.read_holders(self.config), [])
 
     def test_finalization_checks_child_reuses_pooled_lease(self) -> None:

@@ -608,6 +608,10 @@ def _parse_lease(value: str) -> dict[str, Any]:
         if not _is_int(payload.get("weight")) or payload["weight"] <= 0 or not isinstance(fds, list) \
                 or not all(_is_int(fd) and fd >= 0 for fd in fds):
             raise PoolError(f"{LEASE_ENV} describes a pooled lease without a positive weight and a list of descriptors")
+        # A pooled lease holds one locked slot descriptor per token; anything else cannot prove the tokens are held.
+        if len(fds) != payload["weight"] or len(set(fds)) != len(fds):
+            raise PoolError(f"{LEASE_ENV} pooled lease of weight {payload['weight']} must list exactly "
+                            f"{payload['weight']} distinct descriptor(s), got {fds}")
     return payload
 
 

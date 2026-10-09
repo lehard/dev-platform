@@ -168,6 +168,9 @@ def emit_finish_stage(label: str) -> None:
 def run_checks(root: Path, base: str, no_checks: bool) -> None:
     if no_checks:
         return
+    # Imported here: only a run that executes checks depends on the machine pool.
+    from machine_pool import child_lease_descriptors
+
     # Stream the child's combined output line-by-line so the per-command
     # (DEV_PLATFORM_CHECK_COMMAND / _RESULT) and per-test-group
     # (DEV_PLATFORM_TEST_GROUP*) progress lines reach the caller live during a
@@ -176,7 +179,7 @@ def run_checks(root: Path, base: str, no_checks: bool) -> None:
     proc = subprocess.Popen(
         ["python3", str(root / "scripts" / "select_checks.py"), "--base", base, "--execute"],
         cwd=root, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-        stdin=subprocess.DEVNULL,
+        stdin=subprocess.DEVNULL, pass_fds=child_lease_descriptors(),
     )
     chunks: list[str] = []
     assert proc.stdout is not None

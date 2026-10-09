@@ -8,8 +8,6 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from machine_pool import child_lease_descriptors
-
 from _platform_common import current_worktree_root, harness_mode, lifecycle_mode, read_platform_config, run_git
 try:
     from managed_task import ManagedTaskError, read_provenance, require_managed_checkout_identity, source_issue_for_provenance
@@ -590,6 +588,9 @@ def archive_change(root: Path, name: str, *, finalize: bool = False) -> int:
             require_automated_evidence(change, root=root)
         elif platform_owned:
             evidence = change / AUTOMATED_EVIDENCE_FILE
+            # Imported here: only an archive that executes checks depends on the machine pool.
+            from machine_pool import child_lease_descriptors
+
             env = archive_target_environment(root, name)
             run_checked(
                 ["python3", "scripts/select_checks.py", "--base", "origin/main", "--execute", "--evidence", str(evidence)],
