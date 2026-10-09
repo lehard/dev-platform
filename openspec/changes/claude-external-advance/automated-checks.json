@@ -9,19 +9,19 @@
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
-      "duration_seconds": 0.119,
+      "duration_seconds": 0.274,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 -m ruff check scripts template/scripts tests",
-      "duration_seconds": 0.13,
+      "duration_seconds": 0.225,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
-      "duration_seconds": 390.826,
+      "duration_seconds": 557.059,
       "outcome": "success",
       "exit_code": 0
     }
@@ -64,24 +64,24 @@
     "change": "claude-external-advance",
     "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/claude-external-advance",
     "branch": "agent/br-514-t1-claude-external-advance",
-    "head": "87c2243b01c0105691fa2b876d037896c63fe766",
+    "head": "6e328995a7cfc03cbccb81f1d062d17ce86e157f",
     "task_content": {
       "version": 1,
-      "digest": "f2b4e4e3fff5e9560c1df6faba52a05e72ed922dd286cc35c8d89701a5b5e39c",
+      "digest": "ba5c073a72cd05b0d1ccb5e7245ba89085407f4721c925168bf1379d3957fbf8",
       "paths": {
-        "dev-platform/checks.toml": "71c320d5f1d68680005499d9990950ab60e56458",
+        "dev-platform/checks.toml": "7185f0257fd5966c96b7bee6ac99f7fc19775826",
         "docs/engineering/model-routing.md": "2cd5a5c85ebd231182f59c14ec38fd225aa54dc5",
         "openspec/changes/claude-external-advance/.managed-task.json": "2ef9d1a8bb57c1fdebafba508fa5898a82f1d3c6",
         "openspec/changes/claude-external-advance/.openspec.yaml": "81264324b0500978f52f70d701b236a09cb1d808",
-        "openspec/changes/claude-external-advance/automated-checks.json": "688779c238ce761be85043e7a8d50809e64a5291",
+        "openspec/changes/claude-external-advance/automated-checks.json": "6e8b7f5731f7de2087e104917e0db7b3ab921d3a",
         "openspec/changes/claude-external-advance/design.md": "5d7b6e64536d43597fbd54e67d034b881d18807f",
-        "openspec/changes/claude-external-advance/independent-review-request.json": "1bc1a82cca832d9e36643f3085167dc2718e3e6c",
-        "openspec/changes/claude-external-advance/independent-reviews/engineering-quality.json": "26139a042212efcc4cbf60c6e23ca768f613e93b",
-        "openspec/changes/claude-external-advance/independent-reviews/spec-fidelity.json": "237675b0efa214d084b061628f46e5784fdb54cf",
+        "openspec/changes/claude-external-advance/independent-review-request.json": "b724e283df2e93ae9df248a86d4bfbcaccc7e722",
+        "openspec/changes/claude-external-advance/independent-reviews/engineering-quality.json": "9bc4c885c03f6b6d427c6307c3fc8fddd2c80805",
+        "openspec/changes/claude-external-advance/independent-reviews/spec-fidelity.json": "f0f13fae4de9e9220fa57c5ebb18f832a4fbbc16",
         "openspec/changes/claude-external-advance/proposal.md": "da10716dd8b5cce17ce2b8fb98c31f1b87595966",
         "openspec/changes/claude-external-advance/specs/model-routing/spec.md": "c5c487eba0d17a6898c1fd4d8470133bc4286e54",
         "openspec/changes/claude-external-advance/tasks.md": "c442ce20be2a8c870f79865a3ea49ae9d980ae93",
-        "openspec/changes/claude-external-advance/verification.md": "7ed0cb910df3ca5430c16995d4c08c3f9fb8ed47",
+        "openspec/changes/claude-external-advance/verification.md": "1b923ef9320649f58a0c6696342e3342fa494140",
         "template/docs/engineering/model-routing.md": "86210f344a8fba3806632b594d08f68611787c49",
         "template/scripts/delegated_write_guard.py": "b18fa8b42f714731bf53a0872741160039acd8f6",
         "template/scripts/delegation_containment.py": "c711eb606ffa624022269702bb286073572b5926",
@@ -93,16 +93,16 @@
         "tests/test_merge_lifecycle_resilience.py": "cfb63fcd670f9929bd61221efad0afa847c45d41",
         "tests/test_protected_main_zero_handoff.py": "69537933132d1c3f40a5f6e5f1f247b98d16a9bd",
         "tests/test_publication_recovery_cli.py": "5664fc351a57b5f620753da7d7dfb24cb7cb10e0",
-        "tests/test_shared_writer_guard.py": "f87b490799b373d348c798760cd56ff86b1d69e5"
+        "tests/test_shared_writer_guard.py": "25a29859faa27d03f375fdf98d2c7b8fe3f8ea6e"
       },
-      "base": "86dffdbf85b553774c4247b6c9f8e2c356dce760"
+      "base": "b93ffc444164bbf1a006d60f117e8378131a2924"
     }
   },
   "gate_task_content": {
     "version": 1,
-    "digest": "a5ccafa5a2a8f0befb7207e8cda0ab2dd226bd04689228575eb5f39cc9120f61",
+    "digest": "a0547e34e4296792ec3d2a39bd2b1aab553ee36919dd2cebbf16a20866dda095",
     "paths": {
-      "dev-platform/checks.toml": "71c320d5f1d68680005499d9990950ab60e56458",
+      "dev-platform/checks.toml": "7185f0257fd5966c96b7bee6ac99f7fc19775826",
       "docs/engineering/model-routing.md": "2cd5a5c85ebd231182f59c14ec38fd225aa54dc5",
       "openspec/changes/claude-external-advance/.managed-task.json": "2ef9d1a8bb57c1fdebafba508fa5898a82f1d3c6",
       "openspec/changes/claude-external-advance/.openspec.yaml": "81264324b0500978f52f70d701b236a09cb1d808",
@@ -121,14 +121,14 @@
       "tests/test_merge_lifecycle_resilience.py": "cfb63fcd670f9929bd61221efad0afa847c45d41",
       "tests/test_protected_main_zero_handoff.py": "69537933132d1c3f40a5f6e5f1f247b98d16a9bd",
       "tests/test_publication_recovery_cli.py": "5664fc351a57b5f620753da7d7dfb24cb7cb10e0",
-      "tests/test_shared_writer_guard.py": "f87b490799b373d348c798760cd56ff86b1d69e5"
+      "tests/test_shared_writer_guard.py": "25a29859faa27d03f375fdf98d2c7b8fe3f8ea6e"
     },
-    "base": "86dffdbf85b553774c4247b6c9f8e2c356dce760",
+    "base": "b93ffc444164bbf1a006d60f117e8378131a2924",
     "scope": "independent-review-v1"
   },
   "affected_precheck": {
     "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/delegated_write_guard.py --changed-file template/scripts/delegation_containment.py --changed-file template/scripts/finish_task.py --changed-file template/scripts/model_routing.py --changed-file template/scripts/project_sync.py --changed-file tests/test_git_lifecycle.py --changed-file tests/test_integration_advance_receipts.py --changed-file tests/test_merge_lifecycle_resilience.py --changed-file tests/test_protected_main_zero_handoff.py --changed-file tests/test_publication_recovery_cli.py --changed-file tests/test_shared_writer_guard.py",
-    "duration_seconds": 261.996,
+    "duration_seconds": 386.689,
     "outcome": "success",
     "exit_code": 0,
     "role": "affected-precheck feedback; not validation coverage"

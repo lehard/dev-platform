@@ -15,4 +15,4 @@ Independent review on the final content (all advisory, reported; each leaves the
 
 Pre-existing fallback reported, not changed: verify_remote_fast_forward and verify_historical_external_advance default main_branch to "main"; the new receipt code raises when main_branch is absent.
 
-Checks actually run: supervisor ran `python3 scripts/select_checks.py --base origin/main --execute --evidence openspec/changes/claude-external-advance/automated-checks.json` on head 87c2243 (reconciled with origin/main 86dffdb; proposal reworded to drop a private backlog identifier): compileall, ruff and `run_test_groups.py --all` (391 s) all success (see automated-checks.json). Earlier runs on prior heads also passed (559 s, 608 s).
+Checks actually run: supervisor ran `python3 scripts/select_checks.py --base origin/main --execute --evidence openspec/changes/claude-external-advance/automated-checks.json` on head 6e32899 (reconciled with origin/main b93ffc4, which carries the finalize source-contract fix): compileall, ruff and `run_test_groups.py --all` (557 s) all success (see automated-checks.json). Earlier heads also passed (559 s, 608 s, 391 s).
