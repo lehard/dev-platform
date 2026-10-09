@@ -15,4 +15,4 @@ Independent review (advisory findings, reported): (1) in direct publish a receip
 
 Pre-existing fallback reported, not changed: verify_remote_fast_forward and verify_historical_external_advance default main_branch to "main"; the new receipt code raises when main_branch is absent.
 
-Checks actually run: supervisor ran `python3 scripts/select_checks.py --base origin/main --execute --evidence openspec/changes/claude-external-advance/automated-checks.json` on head c7da00e: compileall, ruff and `run_test_groups.py --all` (559 s) all success (see automated-checks.json).
+Checks actually run: supervisor ran `python3 scripts/select_checks.py --base origin/main --execute --evidence openspec/changes/claude-external-advance/automated-checks.json` on head f4f3ca3 (task reconciled with origin/main 86dffdb): compileall, ruff and `run_test_groups.py --all` (608 s) all success (see automated-checks.json). An earlier run on the pre-reconcile head also passed (559 s).
