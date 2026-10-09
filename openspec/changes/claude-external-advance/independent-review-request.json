@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "fe3333ad33149dce98c5ece65805f6a0661ece4d",
     "base_ref": "origin/main",
-    "candidate_head": "c224e6e30a0b0b39a4f6a74793299a5ca4c2c2f4",
-    "diff_sha256": "14d9e71e3a0bb99e589824eac2274de71ee095b3ac0ec94616ef1d1bf07361f2"
+    "candidate_head": "5588fc6e8724d39cbb93503b6f20bf9621cdc7e8",
+    "diff_sha256": "ca8c6c864788db4d0f8a95a811899d8db6369b3de5467d6305ce7ae0f7319e3c"
   },
   "change": "openspec/changes/claude-external-advance",
   "excluded_lifecycle_paths": [
@@ -37,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-09T20:30:39+00:00",
+  "prepared_at": "2026-10-09T20:47:14+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/claude-external-advance/independent-reviews",
     "required_perspectives": [
@@ -46,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "e08eb335-15d6-4770-a7f6-8998922b3ff8",
+  "request_id": "d21fc643-c548-49ea-8313-3bdcf16229e9",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -58,25 +58,25 @@
   },
   "schema_version": 1,
   "task_content": {
-    "base": "5f621c9e91c4a2862d66c7581b22146d61faf5b4",
-    "digest": "b8bf124a45f6ff925003d077fffee364c49e89f002397151bbaeabd208283852",
+    "base": "fe3333ad33149dce98c5ece65805f6a0661ece4d",
+    "digest": "3bfc782409d0f6f3707511956aee918478b4d921abf262eb29d9eb64cea751a7",
     "paths": {
       "dev-platform/checks.toml": "7185f0257fd5966c96b7bee6ac99f7fc19775826",
-      "docs/engineering/model-routing.md": "eca2302b8c0780b5fc6db5c2e509fa0ac8f232b9",
+      "docs/engineering/model-routing.md": "e5673889d6adfc187f4756b7dcb6f7748e647b95",
       "openspec/changes/claude-external-advance/.managed-task.json": "2ef9d1a8bb57c1fdebafba508fa5898a82f1d3c6",
       "openspec/changes/claude-external-advance/.openspec.yaml": "81264324b0500978f52f70d701b236a09cb1d808",
-      "openspec/changes/claude-external-advance/design.md": "b2798f655a6a29c3c985844ff612d8eedd06ee98",
+      "openspec/changes/claude-external-advance/design.md": "ccaa7b374d472ff3be91f6c6d0131c336a99688d",
       "openspec/changes/claude-external-advance/proposal.md": "9c693bd81cba47641b811471442743b1d72ba5a9",
-      "openspec/changes/claude-external-advance/specs/model-routing/spec.md": "545d393768a66e14725cbc9422341a7af704159e",
+      "openspec/changes/claude-external-advance/specs/model-routing/spec.md": "c93599a7f1c622cb613766342483191e8344fda8",
       "openspec/changes/claude-external-advance/tasks.md": "c442ce20be2a8c870f79865a3ea49ae9d980ae93",
-      "template/docs/engineering/model-routing.md": "855fba127dc3210c737f6f7abf3f113d28070bd1",
+      "template/docs/engineering/model-routing.md": "2754d3d424a17a68eb03aae9f78c069af27f1e0e",
       "template/scripts/delegated_write_guard.py": "b18fa8b42f714731bf53a0872741160039acd8f6",
       "template/scripts/delegation_containment.py": "e984df4cbc470549928574c9987fd6230ec8f010",
       "template/scripts/finish_task.py": "4744834405aa7de64a805400da028fa4eb2cdd00",
-      "template/scripts/model_routing.py": "8fd2597e7b6f3c6b21ea787593be3af339ff8554",
+      "template/scripts/model_routing.py": "68aba9b9f9b70ad193c55f58475078adc99d92cb",
       "template/scripts/project_sync.py": "86219cb7fb65238eb6f3249c29333819a21b971b",
       "tests/test_git_lifecycle.py": "fb626763cd341bb30d6bf858981d3937c8646e29",
-      "tests/test_integration_advance_receipts.py": "ffd649ceb5cb2aec66b56b39c12b5adfc7d7e578",
+      "tests/test_integration_advance_receipts.py": "ed938ab0fb25e0c0b8b11c0f37ab540c115692d8",
       "tests/test_merge_lifecycle_resilience.py": "cfb63fcd670f9929bd61221efad0afa847c45d41",
       "tests/test_protected_main_zero_handoff.py": "69537933132d1c3f40a5f6e5f1f247b98d16a9bd",
       "tests/test_publication_recovery_cli.py": "5664fc351a57b5f620753da7d7dfb24cb7cb10e0",

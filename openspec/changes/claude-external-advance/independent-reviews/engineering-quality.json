@@ -3,57 +3,86 @@
   "candidate": {
     "base_head": "fe3333ad33149dce98c5ece65805f6a0661ece4d",
     "base_ref": "origin/main",
-    "candidate_head": "c224e6e30a0b0b39a4f6a74793299a5ca4c2c2f4",
-    "diff_sha256": "14d9e71e3a0bb99e589824eac2274de71ee095b3ac0ec94616ef1d1bf07361f2"
+    "candidate_head": "5588fc6e8724d39cbb93503b6f20bf9621cdc7e8",
+    "diff_sha256": "ca8c6c864788db4d0f8a95a811899d8db6369b3de5467d6305ce7ae0f7319e3c"
   },
-  "completed_at": "2026-10-09T20:33:00+00:00",
+  "completed_at": "2026-10-09T20:48:39+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/model_routing.py:974\u20131000 accepts ancestry, equality with origin/main, and an origin/main reflog entry during the delegation window; an absent receipt log passes the checks at lines 979\u2013989. A shell-capable child can accidentally run `git -C <integration> fetch origin` followed by `git -C <integration> merge --ff-only origin/main`. This leaves clean integration state, the required remote reflog evidence, and no receipt. The supervisor's resulting pure-head-move friction event satisfies recovery, although the child actually moved integration HEAD. Recovery then substitutes that head in subsequent postchecks, allowing execution to be recorded as clean. No receipt or reflog forgery is needed, and no cutoff proves the event predates receipt support. The postcheck occurring after the child returned does not establish who performed movement before that postcheck.",
-      "id": "claude-recovery-does-not-prove-external-writer",
-      "severity": "material",
-      "summary": "Claude recovery can reclassify an actual delegated integration write as a verified external advance."
+      "evidence": "template/scripts/finish_task.py:657-676. The `advanced_to` read, `_unrecorded_direct_advance` and `require_own_fast_forward` all run after `project_publish.py` returns. `_unrecorded_direct_advance` finds the old `merge <branch>: Fast-forward` entry deeper in the reflog. `require_own_fast_forward` (delegation_containment.py, `entries[0] != [after, ...]`) then requires that entry to be the newest, so it fails again. The failure is loud and fail-closed, but the finish is stuck on bookkeeping for an advance that is already published.",
+      "id": "direct-finish-receipt-fails-after-publish",
+      "severity": "advisory",
+      "summary": "Direct finish checks `require_own_fast_forward` only after the push. If a sibling advances main between the merge and that check, the command exits non-zero after publication succeeded. A retry hits the same check, because the newest reflog entry is still not this task's merge, so it can never write the receipt."
+    },
+    {
+      "evidence": "template/scripts/project_sync.py: `parser.add_argument(\"--lock-timeout\", type=float, default=60.0, ...)`, and `branch = str(config.get(\"main_branch\", \"main\"))` on a touched line. By contrast, `delegation_containment._configured_main_branch` fails explicitly when `main_branch` is missing, so the two code paths disagree on whether a missing `main_branch` is an error.",
+      "id": "project-sync-lock-timeout-default-literal",
+      "severity": "advisory",
+      "summary": "`project_sync.py` adds a `--lock-timeout` flag with a hard-coded default of 60.0. It sits next to the pre-existing `config.get(\"main_branch\", \"main\")` default, which the change leaves in place and does not report. A newly added default is a candidate for review under the no-silent-defaults rule."
     }
   ],
-  "launched_at": "2026-10-09T20:31:58+00:00",
-  "output_sha256": "b268811a09145737aa3d8e7c50f1ce78b8e8917620178acf461fa7229784160b",
+  "launched_at": "2026-10-09T20:47:59+00:00",
+  "output_sha256": "e2ca5c451f3e88e8f253b9a35e316dafca742d5cd6743f2e072a9c1524ec39f0",
   "perspective": "engineering-quality",
-  "request_id": "e08eb335-15d6-4770-a7f6-8998922b3ff8",
+  "request_id": "d21fc643-c548-49ea-8313-3bdcf16229e9",
   "reviewer": {
-    "context_id": "01a1225d-8e73-7940-9e8f-d51c07bf9bd0",
+    "context_id": "8cbcbe31-78cd-4da4-8cde-7c88e583de5b",
     "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-c95c969d-a2b2-4fa8-bf29-02321b969971",
+    "launch_id": "platform-launch-020cd802-c062-45d9-8e8b-016193abd569",
     "model": {
       "source": "selected",
-      "value": "gpt-6.1-sol"
+      "value": "sonnet"
     },
-    "provider": "codex",
-    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
-    "runtime": "codex-exec",
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
     "write_access": false
   },
   "runtime_usage": {
     "fields": {
-      "cached_input_tokens": {
+      "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 302464
+        "value": 52382
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 270643
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 34385
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 35787
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 359482
+        "value": 14
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1515
+        "value": 3804
       }
     },
-    "runtime": "codex-exec"
+    "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "b8bf124a45f6ff925003d077fffee364c49e89f002397151bbaeabd208283852"
+  "task_content_digest": "3bfc782409d0f6f3707511956aee918478b4d921abf262eb29d9eb64cea751a7"
 }
