@@ -1,38 +1,32 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "f3f4ffc6185ceeb803b8118e280b3d3c9db91472",
+    "base_head": "b93ffc444164bbf1a006d60f117e8378131a2924",
     "base_ref": "origin/main",
-    "candidate_head": "660468729bc3214e39143709bc1096ea0f078fb1",
-    "diff_sha256": "eee8448be759f41c1737a2c5320ac256b7c33a65f2c1e1636ba6e0d8d48b0e13"
+    "candidate_head": "b5af8c463eeb5f73efb5c4ba913ec2e5cd9366f3",
+    "diff_sha256": "ac6cf3e9df6e82825a8fd9e292ee14608b68b089f2e2ea8ed3f629460184cf69"
   },
-  "completed_at": "2026-10-09T09:42:57+00:00",
+  "completed_at": "2026-10-09T12:16:10+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/machine_pool.py `_open_descriptors` (diff ~873-887) does `os.fstat(fd)` and keeps any open descriptor. If the lease variable reaches a process whose fds were not inherited (a subprocess started without pass_fds, or a detached process), those numbers can refer to unrelated files. `select_checks`/`run_test_groups` then forward them with `pass_fds` to grandchildren. A process that keeps the exported lease variable after the leased run ends also bypasses the pool for every later heavy run, and nothing detects that the tokens are gone.",
-      "id": "nested-lease-trusts-env-fd-numbers",
+      "evidence": "template/scripts/machine_pool.py `_open_descriptors` skips every fd for which `os.fstat` raises, and `lease()` then yields `Lease(nested=True, fds=<possibly empty>)`. A caller that reaches a nested run through `subprocess.run` without `pass_fds` (the default `close_fds=True` closes the fds, but the environment still carries `DEV_PLATFORM_MACHINE_POOL_LEASE`) therefore runs under a lease it does not hold. Its own children get no fds. If the parent exits first, for example a detached worker that inherited the environment, heavy work runs outside the pool with no error. This conflicts with the stated 'fail explicitly' policy and the design claim that orphaned children keep their tokens. Consider failing, or at least printing a line, when the inherited lease's fds are not all present.",
+      "id": "nested-lease-silently-drops-missing-fds",
       "severity": "advisory",
-      "summary": "A nested run accepts the parent's lease from DEV_PLATFORM_MACHINE_POOL_LEASE and only checks that the listed fd numbers are open. It does not check that they are the pool slot files."
-    },
-    {
-      "evidence": "machine_pool.py `read_holders` calls `_try_lock(fd, path, shared=True)` then `LOCK_UN` on each free slot. A concurrent `_try_take_slots` for the same slot gets BlockingIOError and treats it as held. The effect is a transient `fewer than N free token(s)` delay of one poll interval. Because waiters call `read_holders` while reporting progress, the delay is more likely with many waiters. It is harmless but contradicts the doc's 'read-only' claim for `status`.",
-      "id": "status-probe-takes-shared-locks",
-      "severity": "advisory",
-      "summary": "The read-only `status` command and every waiter's `read_holders` probe slot files by briefly taking a shared flock. This can make the head waiter's non-blocking exclusive attempt fail spuriously."
+      "summary": "A nested run keeps reusing the parent lease even when none of the lease's file descriptors survived into the process. It does not fail, and it does not warn."
     }
   ],
-  "launched_at": "2026-10-09T09:42:13+00:00",
-  "output_sha256": "2c44b939a940abbd35e147aa1ca4c810a52c041f53ccbdf23b628138d17896e5",
+  "launched_at": "2026-10-09T12:15:15+00:00",
+  "output_sha256": "93a237e34416eb44a171da53f222d7f6f5f6cd12650dd324721aa707b7f7ddfd",
   "perspective": "engineering-quality",
-  "request_id": "dee67f8d-b6e9-4ec5-aee6-40d51716677a",
+  "request_id": "f8fcae54-5778-4038-8e07-8737b1805d85",
   "reviewer": {
-    "context_id": "5ba0b3f3-a779-4913-8a32-c5dbba842ee8",
+    "context_id": "ebef13c0-863f-45da-b580-9b6bf928b88e",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-4ce3907a-3ec7-43b8-9b87-388ad2192075",
+    "launch_id": "platform-launch-49fccbbf-535e-4dbf-863f-29c3052ad405",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -48,22 +42,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 46852
+        "value": 50576
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 158672
+        "value": 207917
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 39617
+        "value": 49133
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 41263
+        "value": 50258
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -73,16 +67,16 @@
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 7
+        "value": 8
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4202
+        "value": 4707
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "93984e180fc3d94c60ae46fbdd3a366c5aeb3baa1e66a866a0884fc3cad19605"
+  "task_content_digest": "261c5cb088f0a5f052e07a37c7925b12817c5088b52cc6a8ea75ab05bd37a9fc"
 }

@@ -1,9 +1,9 @@
 {
   "candidate": {
-    "base_head": "f3f4ffc6185ceeb803b8118e280b3d3c9db91472",
+    "base_head": "b93ffc444164bbf1a006d60f117e8378131a2924",
     "base_ref": "origin/main",
-    "candidate_head": "660468729bc3214e39143709bc1096ea0f078fb1",
-    "diff_sha256": "eee8448be759f41c1737a2c5320ac256b7c33a65f2c1e1636ba6e0d8d48b0e13"
+    "candidate_head": "b5af8c463eeb5f73efb5c4ba913ec2e5cd9366f3",
+    "diff_sha256": "ac6cf3e9df6e82825a8fd9e292ee14608b68b089f2e2ea8ed3f629460184cf69"
   },
   "change": "openspec/changes/machine-validation-pool",
   "excluded_lifecycle_paths": [
@@ -37,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-09T09:41:36+00:00",
+  "prepared_at": "2026-10-09T12:14:11+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/machine-validation-pool/independent-reviews",
     "required_perspectives": [
@@ -46,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "dee67f8d-b6e9-4ec5-aee6-40d51716677a",
+  "request_id": "f8fcae54-5778-4038-8e07-8737b1805d85",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -58,10 +58,10 @@
   },
   "schema_version": 1,
   "task_content": {
-    "base": "f3f4ffc6185ceeb803b8118e280b3d3c9db91472",
-    "digest": "93984e180fc3d94c60ae46fbdd3a366c5aeb3baa1e66a866a0884fc3cad19605",
+    "base": "b93ffc444164bbf1a006d60f117e8378131a2924",
+    "digest": "261c5cb088f0a5f052e07a37c7925b12817c5088b52cc6a8ea75ab05bd37a9fc",
     "paths": {
-      "dev-platform/checks.toml": "e6aa59c6c36e02772bc8c77c6df750fc9e294557",
+      "dev-platform/checks.toml": "cefa0fda3a0b24cd289ea6c564472cdef6c470f3",
       "docs/engineering/agent-workflow.md": "21fa7cccce916ed5750e1c8d0fa7860d153d6544",
       "openspec/changes/machine-validation-pool/.managed-task.json": "69bebd5fb688138f5886b54df363d1ccacc76210",
       "openspec/changes/machine-validation-pool/.openspec.yaml": "81264324b0500978f52f70d701b236a09cb1d808",
@@ -84,7 +84,7 @@
       "tests/test_requirement_integration.py": "c6c4c4fb309fcc01f2839d45a78364b0a3801d9e",
       "tests/test_run_test_groups.py": "5cd038ba1708c85a6c2bb70386f0069caccea805",
       "tests/test_select_checks.py": "53486fca8255065ef098e5cb95fffaf371b47dc4",
-      "tests/test_shared_writer_guard.py": "7e5a791019ac50eaba3d6ba86c31456ebd7600a1"
+      "tests/test_shared_writer_guard.py": "3d85352ab99e859a6a01be5a0e5817fc6c4b78e2"
     },
     "scope": "independent-review-v1",
     "version": 1

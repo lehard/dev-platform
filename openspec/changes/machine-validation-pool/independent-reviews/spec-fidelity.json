@@ -1,25 +1,32 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "f3f4ffc6185ceeb803b8118e280b3d3c9db91472",
+    "base_head": "b93ffc444164bbf1a006d60f117e8378131a2924",
     "base_ref": "origin/main",
-    "candidate_head": "660468729bc3214e39143709bc1096ea0f078fb1",
-    "diff_sha256": "eee8448be759f41c1737a2c5320ac256b7c33a65f2c1e1636ba6e0d8d48b0e13"
+    "candidate_head": "b5af8c463eeb5f73efb5c4ba913ec2e5cd9366f3",
+    "diff_sha256": "ac6cf3e9df6e82825a8fd9e292ee14608b68b089f2e2ea8ed3f629460184cf69"
   },
-  "completed_at": "2026-10-09T09:42:13+00:00",
-  "findings": [],
-  "launched_at": "2026-10-09T09:41:44+00:00",
-  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
+  "completed_at": "2026-10-09T12:15:15+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/machine_pool.py `lease()`: `if LEASE_ENV in environ: parent = _parse_lease(...); yield Lease(nested=True, ...)`. `_open_descriptors` silently skips descriptors that fail `os.fstat`, so a nested process whose inherited fds are gone still yields a pooled nested Lease and acquires nothing.",
+      "id": "nested-lease-trusts-env-without-verifying-held-tokens",
+      "severity": "advisory",
+      "summary": "A nested run reuses any DEV_PLATFORM_MACHINE_POOL_LEASE found in the environment without checking that the lease's slot descriptors are still held. A stale or leaked exported lease (for example an environment captured from a finished run, or a child started without pass_fds) makes the run proceed unpooled and silently. The spec says a run SHALL NOT run outside the pool, and nested reuse is only justified because the parent holds the tokens."
+    }
+  ],
+  "launched_at": "2026-10-09T12:14:23+00:00",
+  "output_sha256": "50e433022640eb73b8804303754fbfcdb4051c7d50f0eb09dd56590d163e00e3",
   "perspective": "spec-fidelity",
-  "request_id": "dee67f8d-b6e9-4ec5-aee6-40d51716677a",
+  "request_id": "f8fcae54-5778-4038-8e07-8737b1805d85",
   "reviewer": {
-    "context_id": "c80de234-f772-4407-9562-5abf6e1c2fa4",
+    "context_id": "4d0d9359-22de-4ca5-9141-19f8bcb48c1e",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-0b06a632-09f3-41a4-8ad0-a771d2ab1b0d",
+    "launch_id": "platform-launch-1611b8f1-5194-4f3d-aedb-d0a6aa5bdd76",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -35,41 +42,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 47954
+        "value": 58645
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 117234
+        "value": 219478
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 23440
+        "value": 47625
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 24509
+        "value": 48585
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10
+        "value": 12
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 11
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1645
+        "value": 4021
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "93984e180fc3d94c60ae46fbdd3a366c5aeb3baa1e66a866a0884fc3cad19605"
+  "task_content_digest": "261c5cb088f0a5f052e07a37c7925b12817c5088b52cc6a8ea75ab05bd37a9fc"
 }
