@@ -304,6 +304,13 @@ class ModelRoutingTests(unittest.TestCase):
             with self.assertRaisesRegex(routing.RoutingError, "exactly one materialized managed OpenSpec change"):
                 routing.prepare(self.task, provider="codex", profile="standard", rationale="ambiguous", evidence=[])
 
+    def test_task_state_without_change_is_rejected(self) -> None:
+        self.add_integrated_sibling()
+        (self.task / ".managed-task-state.json").write_text(json.dumps({"source_issue": "owner/backlog#7"}), encoding="utf-8")
+        with patch.object(routing, "main_root", return_value=self.integration):
+            with self.assertRaisesRegex(routing.RoutingError, "cannot read the managed task state"):
+                routing.prepare(self.task, provider="codex", profile="standard", rationale="ambiguous", evidence=[])
+
     def test_route_preparation_remains_rejected_after_archive(self) -> None:
         archived = self.task / "openspec" / "changes" / "archive" / "2026-09-19-routing-change"
         archived.parent.mkdir(parents=True)
