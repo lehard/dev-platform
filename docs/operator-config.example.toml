@@ -4,12 +4,11 @@
 # `config_env = "DEV_PLATFORM_OPERATOR_CONFIG"`. The environment variable is
 # ignored until that explicit project opt-in exists.
 
-[development_backlog]
-repository = "your-org/development-backlog"
-project_label = "project:your-project"
-default_priority = "P2"
-project_owner = "your-org"
-project_number = 1
+# Never add [development_backlog] here. Development Backlog identity
+# (repository, project_label, default_priority, project_owner, project_number)
+# belongs to each project's own `.dev-platform.toml`; one shared operator file
+# serves several projects and must not relabel their Requirements. Operator
+# tooling rejects the section, and a project read fails if it differs.
 
 [promotion]
 repo = "your-org/dev-platform"

@@ -494,7 +494,7 @@ For a coordinator-managed candidate, developer completion SHALL end at a handoff
 
 Independent Review for a coordinator-managed candidate SHALL run as a job on the exact PR head with the existing fresh-context, read-only and two-perspective guarantees. A fixable finding SHALL produce a bounded repair job executed without the original developer; changed task content SHALL make review stale. A proposal to reject a material finding, or exhausted repair rounds, SHALL move the candidate to blocked-escalation.
 
-Jobs SHALL retain the originating task's resolved reviewer provider or explicitly configured ordered providers across repair and retry. Workers SHALL NOT substitute their local route. Unavailable review SHALL retry at most three consecutive attempts, then remain blocked-retryable with unavailable evidence and no automatic job. Publication SHALL leave review-owned retry states untouched. Workers SHALL confirm unexpired ownership of the exact job and originating head immediately before push and candidate advancement; lost ownership SHALL abandon without further side effects. Repair SHALL reject lifecycle evidence paths at any depth, including evidence directories. A trusted repair completion published before interrupted advancement SHALL recover on the next run without rerunning the writer.
+Jobs SHALL retain the originating task's resolved reviewer provider or explicitly configured ordered providers across repair and retry until an operator re-offers the job on other supported providers. Workers SHALL NOT substitute their local route. An unavailable provider runtime (login, usage limit or failure to start) during review or repair SHALL leave the candidate blocked-retryable with a named provider-unavailable cause and SHALL NOT escalate it or spend a repair round. Unavailable review or repair SHALL retry the same round at most three consecutive attempts, then remain blocked-retryable with unavailable evidence and no automatic job until an operator resumes it. A repair writer that fails while its runtime is usable SHALL still be an operational escalation. Publication SHALL leave review-owned and repair-owned retry states untouched. Workers SHALL confirm unexpired ownership of the exact job and originating head immediately before push and candidate advancement; lost ownership SHALL abandon without further side effects. Repair SHALL reject lifecycle evidence paths at any depth, including evidence directories. A trusted repair completion published before interrupted advancement SHALL recover on the next run without rerunning the writer.
 
 #### Scenario: Finding is repaired
 - **GIVEN** review reports a fixable material finding
@@ -504,6 +504,25 @@ Jobs SHALL retain the originating task's resolved reviewer provider or explicitl
 #### Scenario: Rejection proposed
 - **WHEN** a worker proposes rejecting a material finding
 - **THEN** the candidate waits for a human decision
+
+#### Scenario: Provider limit during repair
+- **GIVEN** a repair writer exits non-zero and the provider runtime then fails its readiness probe
+- **WHEN** the worker records the outcome
+- **THEN** the candidate is blocked-retryable with a provider-unavailable cause naming the limitation
+- **AND** the repair round count is unchanged and the same round is offered again
+
+#### Scenario: Repair fails with a usable runtime
+- **GIVEN** a repair writer exits non-zero and the provider runtime passes its readiness probe
+- **WHEN** the worker records the outcome
+- **THEN** the candidate is blocked-escalation
+
+#### Scenario: Provider unavailable repeatedly
+- **WHEN** the same round is unavailable three consecutive attempts
+- **THEN** the candidate remains blocked-retryable with unavailable evidence and no automatic job
+
+#### Scenario: Unavailable runtime during review
+- **WHEN** a review finds its provider runtime unavailable
+- **THEN** the candidate is blocked-retryable and its record names the provider-unavailable cause and limitation
 
 ### Requirement: Gate evidence is reused for unchanged task content
 
@@ -619,3 +638,23 @@ For checkouts with private lineage enabled, the shared Requirement publisher SHA
 #### Scenario: Clean shared candidate
 - **WHEN** the early guard passes for a complete shared candidate
 - **THEN** the full mandatory checks still run and protected publication retains its privacy recheck
+
+### Requirement: Lifecycle behavior is selected from the committed contract before source-only logic
+
+Archive, publication and Requirement lifecycle entrypoints SHALL select portable or coordinator behavior from the committed `.dev-platform.toml` contract through one repository-owned selector before importing or evaluating any source-only coordinator logic. A downstream contract (`platform_version` other than `source`) SHALL select portable behavior. The source contract SHALL select coordinator behavior only for `harness_mode=platform`, `publish_mode=pr` and `scm_provider=github`; any other source combination, or a missing `platform_version`, SHALL fail with a named error and SHALL NOT switch to another path.
+
+#### Scenario: Downstream archive stays portable
+- **WHEN** a downstream-contract checkout runs `openspec_lifecycle.py archive` for a completed verified change and the coordinator modules are unavailable
+- **THEN** archive completes through the portable review and checks path without importing `pr_review_gate`, `publication_queue` or `lifecycle_workers`
+
+#### Scenario: Downstream ignores coordinator candidacy
+- **WHEN** a downstream-contract checkout has ambiguous or malformed managed provenance and the candidate question is asked
+- **THEN** it answers not-a-coordinator-candidate without resolving provenance and without raising
+
+#### Scenario: Unsupported source combination fails explicitly
+- **WHEN** the source contract declares `scm_provider=gitlab`, `publish_mode=direct` or `harness_mode=project`
+- **THEN** Requirement lifecycle selection raises an error naming the key and value and does not fall back to the legacy or portable path
+
+#### Scenario: Supported source contract keeps coordinator behavior
+- **WHEN** the source contract declares the supported combination
+- **THEN** coordinator candidacy and publication support are evaluated exactly as before, and provenance errors still propagate

@@ -139,7 +139,7 @@ class ArchiveFinalizeModeTests(unittest.TestCase):
             root = Path(tmp)
             tasks_state(root, "work", "- [x] done\n")
             (root / "openspec/changes/work/.managed-task.json").write_text("{}")
-            with mock.patch.object(lifecycle, "read_platform_config", return_value={"harness_mode": "platform"}), \
+            with mock.patch.object(lifecycle, "read_platform_config", return_value={"platform_version": "source", "harness_mode": "platform"}), \
                     mock.patch.object(lifecycle, "require_static_archive_readiness") as static, \
                     mock.patch.object(lifecycle, "require_managed_checkout_identity") as identity, \
                     mock.patch.object(lifecycle, "require_applicable_committed_diff") as diff, \
@@ -156,6 +156,50 @@ class ArchiveFinalizeModeTests(unittest.TestCase):
             self.assertFalse(static.call_args.kwargs["routing"])
             self.assertFalse(ready.call_args.kwargs["platform_owned"])
             self.assertIn("archive", run_checked.call_args_list[1].args[0])
+
+
+class ContributionFreshnessTests(unittest.TestCase):
+    def test_trusted_runner_passes_the_exact_contribution_base(self):
+        done = subprocess.CompletedProcess("checks", 0, stdout="", stderr="")
+        with mock.patch.object(final.subprocess, "run", return_value=done) as run:
+            final.trusted_checks_runner(Path("/checkout"), {}, contribution_base="abc123")
+            final.trusted_checks_runner(Path("/checkout"), {})
+        contribution, main = (call.args[0] for call in run.call_args_list)
+        self.assertEqual(contribution[-2:], ["--contribution-base", "abc123"])
+        self.assertNotIn("--contribution-base", main)
+
+    def finalize_runner(self, identity):
+        seen = []
+
+        def capture(checkout, gates, actual, head, runner):
+            seen.append(runner)
+            raise workers.WorkerError("stop after runner selection")
+
+        job = {"head": "h", "task_identity": identity}
+        with mock.patch.object(final.review_gate, "refresh_identity", return_value=identity), \
+                mock.patch.object(final, "equivalent_proofs", return_value=True), \
+                mock.patch.object(final, "reestablish_gates", side_effect=capture):
+            with self.assertRaises(workers.WorkerError):
+                final.execute_finalize(Path("/checkout"), job, {}, source_repo="r", branch="b", current_head=lambda: "h")
+        return seen
+
+    def test_contribution_finalize_checks_freshness_against_its_contribution_base(self):
+        identity = {"kind": "contribution", "change": "c", "task_content": {}, "contribution_base": "abc123"}
+        runner, = self.finalize_runner(identity)
+        self.assertIs(runner.func, final.trusted_checks_runner)
+        self.assertEqual(runner.keywords, {"contribution_base": "abc123"})
+
+    def test_contribution_without_base_fails_loudly(self):
+        identity = {"kind": "contribution", "change": "c", "task_content": {}}
+        with mock.patch.object(final.review_gate, "refresh_identity", return_value=identity), \
+                mock.patch.object(final, "equivalent_proofs", return_value=True):
+            with self.assertRaisesRegex(workers.WorkerError, "lacks its exact contribution base"):
+                final.execute_finalize(Path("/checkout"), {"head": "h", "task_identity": identity}, {},
+                                       source_repo="r", branch="b", current_head=lambda: "h")
+
+    def test_main_task_finalize_keeps_main_freshness(self):
+        runner, = self.finalize_runner({"change": "c", "task_content": {}})
+        self.assertIs(runner, final.trusted_checks_runner)
 
 
 class Remote:
@@ -255,7 +299,7 @@ class FinalizeTests(unittest.TestCase):
                 self.repo.root, "o/r", candidate, job, source_repo=self.repo.remote.as_uri(),
                 branch="agent/example", current_head=self.repo.head, workdir=workdir,
                 post_result=post or results.append, archiver=archiver or self.archiver,
-                claim_current=lambda: True, checks_runner=checks_runner)
+                claim_current=lambda: True, checks_runner=checks_runner, worker="w")
         fixture.head = self.repo.head()
         return outcome, results
 

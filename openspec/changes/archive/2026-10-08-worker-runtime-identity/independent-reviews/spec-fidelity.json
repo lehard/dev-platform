@@ -1,0 +1,94 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "82b289df5e24c3ef3198f0a6be7ea6742b9b6201",
+    "base_ref": "82b289df5e24c3ef3198f0a6be7ea6742b9b6201",
+    "candidate_head": "d259296df8111521ceaac2635a05346223275628",
+    "diff_sha256": "2a44dbdbdcaf73d1b2d1bc4701092d544693175fe057b488b95513022860572f"
+  },
+  "completed_at": "2026-10-08T18:35:21+00:00",
+  "findings": [
+    {
+      "evidence": "tasks.md line 3.1: \"Add `project_check_env` (purpose `project-check`) to `lifecycle_workers.py`\". In candidate.diff the function is defined at `template/scripts/_platform_common.py` (~line 689). `lifecycle_workers.py` imports `REFUSED_HOME_PATHS, ProjectCheckRuntimeError, check_runtime_declaration, project_check_env, refused_home_path` (diff line 1035). I found no use of them in the lifecycle_workers.py hunks. The task artifact and the code disagree, and the imports look unused.",
+      "id": "tasks-runtime-env-location-drift",
+      "severity": "advisory",
+      "summary": "tasks.md 3.1 says `project_check_env` is added to `lifecycle_workers.py`, but the candidate implements it in `_platform_common.py`. `lifecycle_workers.py` only imports it."
+    },
+    {
+      "evidence": "requirement_integration.py `_check_environment` (diff lines 2373-2378): `if runtime.get(\"home_paths\"): granted = _runtime_grant(...)`. A project that declares only `required_tools` or `required_env` never checks a grant file. A grant naming `.ssh` or one located inside the checkout passes silently in that case. The spec scenario \"Credential exposure is refused\" does not limit the refusal to projects that declare home paths.",
+      "id": "grant-file-not-validated-without-declared-home-paths",
+      "severity": "advisory",
+      "summary": "The spec says a grant naming a credential directory, or a grant file inside the checkout, fails explicitly. `_check_environment` reads and validates the grant file only when the project declares `home_paths`."
+    },
+    {
+      "evidence": "publication_queue.py `run_identity`: `f\"local:{socket.gethostname()}:{os.getpid()}:{uuid.uuid4().hex}\"` and `\"github-actions:\" + \":\".join(parts)`. `use_default_friction_sink` only checks that the value is a non-empty string. The lifecycle-workers spec requires identities to match `[A-Za-z0-9][A-Za-z0-9._:@-]{0,63}` and to use a sanitized host name. This applies to the lifecycle worker, so the coordinator path is arguably outside it, but the two identity schemes are inconsistent.",
+      "id": "coordinator-run-identity-unvalidated",
+      "severity": "advisory",
+      "summary": "The coordinator run identity is built in `run_identity` and never passes the worker identity validator. Its `local:` form embeds the raw host name, PID and a 32-hex uuid and can exceed 64 characters or contain disallowed characters. It is recorded as the `worker` field of durable evidence records."
+    }
+  ],
+  "launched_at": "2026-10-08T18:34:06+00:00",
+  "output_sha256": "7b525599e5646832d392cb9f671f27d90b34a017f769dc2424be20f089d7e638",
+  "perspective": "spec-fidelity",
+  "request_id": "057b5526-a68c-49e7-aa46-f6019a1aed97",
+  "reviewer": {
+    "context_id": "d1c5906e-decb-4579-8f16-440a218e9272",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-0639cfb6-4773-4cb0-9fb4-3865f4c90fd1",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 72157
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 345017
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 71332
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 72748
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 18
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 15
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6222
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "69f2e5a48de1db36999467319d87308e8fb0416fd6a24989eb1f45643cbfb392"
+}

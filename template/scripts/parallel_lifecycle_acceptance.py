@@ -34,6 +34,7 @@ from _platform_common import atomic_write_text
 
 SCRIPTS = Path(__file__).resolve().parent
 REPO = "acme/sandbox"
+ACCEPTANCE_PROVIDER = "codex"  # every scenario task is routed to, and every worker serves, this provider
 REQUIREMENT = "acme/backlog#353"
 ARCHIVE_DATE = "2026-01-01"
 CLOCK = "2026-01-01T00:00:00+0000"
@@ -58,6 +59,8 @@ CHECK = (
     "assert 'BUG' not in (root / 'shared.py').read_text()\n"
 )
 
+
+PR_INVENTORY_JQ = ".[] | [.number, .head.ref] | @tsv"
 
 class ScenarioError(RuntimeError):
     """The scenario did not deliver what the lifecycle promises."""
@@ -109,7 +112,7 @@ def build_seed(seed: Path) -> None:
     git(seed, "init", "-q", "-b", "main")
     git(seed, "config", "user.name", "Fixture")
     git(seed, "config", "user.email", "fixture@localhost")
-    put(seed / ".dev-platform.toml", '[independent_review]\nenabled = true\nprovider = "codex"\n')
+    put(seed / ".dev-platform.toml", 'main_branch = "main"\n[independent_review]\nenabled = true\nprovider = "codex"\n')
     put(seed / "check.py", CHECK)
     put(seed / "shared.py", SHARED)
     put(seed / "openspec/config.yaml", "schema: spec-driven\n")
@@ -257,12 +260,15 @@ class LocalGitHub:
             return 0, json.dumps(rows), ""
         if argv[:2] == ["pr", "view"]:
             data = self.pr_json(argv[2])
+            if argv[3:] == ["--json", "baseRefName"]:
+                return 0, json.dumps({"baseRefName": data["base"]["ref"]}), ""
             return 0, json.dumps({"state": data["state"].upper(), "headRefOid": data["head"]["sha"]}), ""
         if argv[:2] == ["pr", "checks"]:
             ok = self.checks_pass(self.head(argv[2]))
             rows = [{"name": "fixture-check", "state": "SUCCESS" if ok else "FAILURE", "workflow": "ci",
                      "link": "local://fixture-check"}]
-            return (0 if ok else 1), json.dumps(rows), ""
+            # Real ``gh pr checks --json`` exits 0 for passed, pending and failed lists.
+            return 0, json.dumps(rows), ""
         if argv[:2] == ["pr", "merge"]:
             return self.merge(argv, entry)
         if argv[:1] == ["api"]:
@@ -290,7 +296,7 @@ class LocalGitHub:
         return 0, "", ""
 
     def api(self, argv: list[str], entry: dict) -> tuple[int, str, str]:
-        method, fields, endpoint, items = "GET", {}, None, argv[1:]
+        method, fields, endpoint, items, slurp, jq = "GET", {}, None, argv[1:], False, None
         while items:
             item = items.pop(0)
             if item == "-X":
@@ -300,6 +306,10 @@ class LocalGitHub:
                 fields[key] = value
             elif item == "--paginate":
                 continue
+            elif item == "--slurp":
+                slurp = True
+            elif item == "--jq":
+                jq = items.pop(0)
             elif endpoint is None:
                 endpoint = item
             else:
@@ -316,13 +326,22 @@ class LocalGitHub:
             return 0, json.dumps(self.pr_json(match.group(1))), ""
         if path == "pulls" and method == "GET":
             wanted = urllib.parse.parse_qs(query).get("state", ["open"])[0]
-            rows = [self.pr_json(n) for n, pr in self.prs.items() if pr["merged"] == (wanted == "closed")]
-            return 0, json.dumps(rows), ""
+            rows = [self.pr_json(n) for n, pr in self.prs.items() if wanted == "all" or pr["merged"] == (wanted == "closed")]
+            if jq is None:
+                return 0, json.dumps(rows), ""
+            # Only the candidate inventory projection used by the publication queue is modelled.
+            if jq != PR_INVENTORY_JQ:
+                return self.unsupported(argv, entry)
+            return 0, "".join(f"{row['number']}\t{row['head']['ref']}\n" for row in rows), ""
+        if jq is not None:
+            return self.unsupported(argv, entry)
         match = re.fullmatch(r"issues/(\d+)/comments", path)
         if match and match.group(1) in self.prs:
             number = match.group(1)
             if method == "GET":
-                return 0, json.dumps(self.comments[number]), ""
+                # Real ``gh api --paginate --slurp`` returns one array per page.
+                rows = [self.comments[number]] if slurp else self.comments[number]
+                return 0, json.dumps(rows), ""
             if method == "POST":
                 self.next_id += 1
                 self.comments[number].append({
@@ -540,6 +559,11 @@ class Scenario:
         self.final, self.gate, self.queue, self.reviewer = (post_review_finalization, pr_review_gate,
                                                             publication_queue, independent_review_runner)
         self.reviewer.resolve_binary = lambda *a, **k: ("fake-codex", None)
+        import model_routing
+
+        # The scripted developers have no managed routing evidence: stand in for the durable route read.
+        model_routing.read_route_for_change = lambda root, change: {
+            "provider": ACCEPTANCE_PROVIDER, "profile": "standard", "change": change}
 
     # -- candidate admission by the (scripted) developer --
     def admit_all(self) -> None:
@@ -596,7 +620,7 @@ class Scenario:
             return self.gh_json("api", f"repos/{REPO}/pulls/{number}")["head"]["sha"]
 
         result = w.work_next(kinds, list_prs=list_prs, comments_for=comments_for, post_comment=post_comment,
-                             worker=worker, current_head=pr_head, **self.trust())
+                             worker=worker, provider=ACCEPTANCE_PROVIDER, current_head=pr_head, **self.trust())
         self.tick()
         if result["status"] == "idle":
             return None
@@ -616,7 +640,8 @@ class Scenario:
             outcome = self.gate.run_claimed(
                 self.root, REPO, candidate, job, source_repo=source, branch=branch, allowed_paths=["src_a.py", "src_b.py", "src_c.py"],
                 llm_command=[sys.executable, "-c", REPAIR_WRITER], current_head=current, post_result=post,
-                workdir=workdir, launcher=self.launcher(), worker=worker)
+                workdir=workdir, launcher=self.launcher(), worker=worker,
+                provider=ACCEPTANCE_PROVIDER)
         elif kind == "finalize":
             outcome = self.final.run_claimed_finalize(
                 self.root, REPO, candidate, job, source_repo=source, branch=branch, current_head=current,
@@ -625,7 +650,7 @@ class Scenario:
             outcome = self.contour.run_claimed_integration_repair(
                 self.root, REPO, candidate, job, source_repo=source, branch=branch, allowed_paths=[],
                 llm_command=[sys.executable, "-c", INTEGRATION_WRITER], current_head=current, post_result=post,
-                workdir=workdir, worker=worker)
+                workdir=workdir, worker=worker, provider=ACCEPTANCE_PROVIDER)
         elif kind in w.POST_MERGE_KINDS:
             outcome = self.contour.run_claimed_post_merge(
                 self.root, REPO, candidate, job, branch=branch, post_result=post, ops=self.ops(), worker=worker)

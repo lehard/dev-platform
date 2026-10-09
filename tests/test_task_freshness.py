@@ -95,6 +95,34 @@ class TaskFreshnessTests(unittest.TestCase):
         self.assertIn("Task freshness gate passed", retried.stdout)
         self.assertTrue((self.task / "validation-ran.txt").is_file())
 
+    def test_contribution_is_fresh_against_its_exact_base_while_main_moves(self) -> None:
+        base = git("rev-parse", "HEAD", cwd=self.task).stdout.strip()
+        (self.task / "task.txt").write_text("contribution\n", encoding="utf-8")
+        git("add", "task.txt", cwd=self.task)
+        git("commit", "-m", "contribution", cwd=self.task)
+        self.advance_main()
+
+        result = run(
+            "python3", str(SCRIPTS / "select_checks.py"), "--mode", "protected-full", "--execute",
+            "--contribution-base", base, cwd=self.task, check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+        self.assertIn(f"HEAD contains its exact contribution base ({base})", result.stdout)
+        self.assertTrue((self.task / "validation-ran.txt").is_file())
+
+    def test_contribution_missing_its_exact_base_stops_before_validation(self) -> None:
+        self.advance_main()
+        git("fetch", "origin", cwd=self.task)
+        foreign = git("rev-parse", "origin/main", cwd=self.task).stdout.strip()
+
+        result = run(
+            "python3", str(SCRIPTS / "select_checks.py"), "--mode", "protected-full", "--execute",
+            "--contribution-base", foreign, cwd=self.task, check=False,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(f"HEAD does not contain its exact contribution base {foreign}", result.stderr + result.stdout)
+        self.assertFalse((self.task / "validation-ran.txt").exists())
+
     def test_unavailable_remote_never_claims_the_task_is_fresh(self) -> None:
         git("remote", "set-url", "origin", str(self.base / "missing.git"), cwd=self.task)
 

@@ -122,6 +122,8 @@ Recommended setup:
 
 Never commit the private key or a long-lived installation token.
 
+The publication coordinator proves this configuration before it observes any candidate: `python3 scripts/publication_queue.py preflight --mode ci|local --phase inputs|runtime|all` (both flags required). The `publication-queue` workflow runs the `inputs` phase before minting the App token, passing only boolean presence flags for `DEV_PLATFORM_APP_CLIENT_ID` and `DEV_PLATFORM_APP_PRIVATE_KEY` so the key never reaches the preflight process, and the `runtime` phase after it (token, App slug, trust configuration, installation scope and write permission). A failure exits 2 naming the input, for example an unset variable, an empty App slug or a slug that contradicts `[publication] coordinator_app`; it prints no credential value. `worker --mode ci|local` runs the full preflight itself.
+
 Each cross-repository job creates separately down-scoped short-lived tokens: read-only platform source access, target-repository write access, and read/write access to the private operator repository's registry as each workflow needs it. No PAT is required.
 
 ## Adding a new project

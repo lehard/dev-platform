@@ -1,0 +1,103 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.178,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.165,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1058.748,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "tests/test_capability_manager.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_0930e58ad6bb1dabe0c771d8f1f5bfcf",
+    "change": "capability-metadata",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/capability-metadata",
+    "branch": "agent/br-415-t1-capability-metadata",
+    "head": "82eb8c1a07b5fd44680dc4f9c4bcc3ba30ee4c7c",
+    "task_content": {
+      "version": 1,
+      "digest": "765553ff74ec62b344c402d2366d6b56792252105c98e85a915cdcc256a8994d",
+      "paths": {
+        "dev-platform/evals/add-intents-pilot.json": "5256c47f2aa02da3c12aa39657650c4faf94a766",
+        "dev-platform/evals/interoperable-agent-handoff-pilot.json": "09d732cff9bfdedbc0885bde0adb51a249158de5",
+        "dev-platform/requirement-integrations/private-lineage-pln_d6af8d84cd0d3242b993ec5adfcee1c4-integration.json": "3cbbbee855a1648c32af3f34a79bc424abba3bbd",
+        "openspec/changes/capability-metadata/.managed-task.json": "04a655e0c4c4ca4d63393d5012a3a7ea13a105f5",
+        "openspec/changes/capability-metadata/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+        "openspec/changes/capability-metadata/automated-checks.json": "98ea16d3a811f12c5a2acb0646389f8bc57f2837",
+        "openspec/changes/capability-metadata/design.md": "11a43397e0ebd79615c9fb06d4a4865ad0192e7a",
+        "openspec/changes/capability-metadata/proposal.md": "a9253ae02c1b348326cbce2b2d1da587a1040d6a",
+        "openspec/changes/capability-metadata/specs/engineering-capabilities/spec.md": "c7663d75a0dcafc34cfa9f72c3dfdb0ed56509e7",
+        "openspec/changes/capability-metadata/tasks.md": "8a4a7c377a62c385e3846b6c31c808cf2c62a831",
+        "openspec/changes/capability-metadata/verification.md": "0ce8cb0bc395d85ec475550b943c41768daad224",
+        "template/dev-platform/evals/add-intents-pilot.json": "5256c47f2aa02da3c12aa39657650c4faf94a766",
+        "tests/test_capability_manager.py": "a00664671a8694afa94eb71a48a6f36e0d97536f"
+      },
+      "base": "a8d83e5cbd97037b242daf30557f4b1e3b03ae7c"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "81d5b046be48fc830e268710e1c08abaed6aaa7068a9f974f3b9f3605a44c458",
+    "paths": {
+      "dev-platform/evals/add-intents-pilot.json": "5256c47f2aa02da3c12aa39657650c4faf94a766",
+      "dev-platform/evals/interoperable-agent-handoff-pilot.json": "09d732cff9bfdedbc0885bde0adb51a249158de5",
+      "openspec/changes/capability-metadata/.managed-task.json": "04a655e0c4c4ca4d63393d5012a3a7ea13a105f5",
+      "openspec/changes/capability-metadata/.openspec.yaml": "a26662f7a5fbb4bd9478c4326f881270484497df",
+      "openspec/changes/capability-metadata/design.md": "11a43397e0ebd79615c9fb06d4a4865ad0192e7a",
+      "openspec/changes/capability-metadata/proposal.md": "a9253ae02c1b348326cbce2b2d1da587a1040d6a",
+      "openspec/changes/capability-metadata/specs/engineering-capabilities/spec.md": "c7663d75a0dcafc34cfa9f72c3dfdb0ed56509e7",
+      "openspec/changes/capability-metadata/tasks.md": "8a4a7c377a62c385e3846b6c31c808cf2c62a831",
+      "template/dev-platform/evals/add-intents-pilot.json": "5256c47f2aa02da3c12aa39657650c4faf94a766",
+      "tests/test_capability_manager.py": "a00664671a8694afa94eb71a48a6f36e0d97536f"
+    },
+    "base": "d65a678effb9ac7f3903972f3f630b57401ca929",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file tests/test_capability_manager.py",
+    "duration_seconds": 13.109,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}

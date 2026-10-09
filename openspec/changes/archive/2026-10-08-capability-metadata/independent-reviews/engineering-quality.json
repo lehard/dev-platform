@@ -1,0 +1,82 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "c0b0b01b44ff8808dc02522078fa5d5d20f67f4f",
+    "base_ref": "origin/main",
+    "candidate_head": "b25aff1a6834d263f1a7c1a0bb22711f55eba5e5",
+    "diff_sha256": "166825f56d5a6b9799331de0ef01ddf28482f7b756dcfbef77d7cbce5062e199"
+  },
+  "completed_at": "2026-10-08T18:50:17+00:00",
+  "findings": [
+    {
+      "evidence": "tests/test_capability_manager.py (candidate.diff ~10353-10362) test_fixture_without_descriptor_fails_explicitly. The shipped-fixture test's `if capability_id not in registry: self.fail(...)` path has no negative coverage.",
+      "id": "orphan-descriptor-test-not-exercising-loop",
+      "severity": "advisory",
+      "summary": "The 'fixture without descriptor' negative test checks only evaluate_existing's capability-mismatch error. It does not exercise the registry-lookup `self.fail` branch of the shipped-fixture loop, which is the actual guard for a fixture with no descriptor."
+    }
+  ],
+  "launched_at": "2026-10-08T18:49:52+00:00",
+  "output_sha256": "8b78c5040f0e6ffadb1f8dbb66a9595c380a609d4266c3fa9bad35af32c5fc73",
+  "perspective": "engineering-quality",
+  "request_id": "3bf67a70-d4c7-422f-b324-e95a33c78f96",
+  "reviewer": {
+    "context_id": "38ccab03-c1a7-4681-87f4-4f6c39228b24",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-d21189ed-451b-4627-a4c9-39487e8d2942",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 26836
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 112673
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 21975
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 22577
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1656
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "c90f2dd15e332bf334b487ef8a868b1ff5a8acc209dd30de9ebe116f17e313e6"
+}

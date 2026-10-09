@@ -14,14 +14,18 @@ from datetime import datetime, timezone
 import json
 import os
 import re
+import secrets
 import shlex
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
 from typing import Any, Callable
 
+from _platform_common import (REFUSED_HOME_PATHS, ProjectCheckRuntimeError, check_runtime_declaration,
+                              credential_free_env, project_check_env, refused_home_path)
 from candidate_lifecycle import derive_candidate, trusted_marker_comment
 import disposable_repository_sandbox
 
@@ -41,17 +45,39 @@ SAFE_GIT = ("-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false")
 # Harness merges and commits never depend on an ambient git identity (CI runners have none).
 HARNESS_IDENTITY = ("-c", "user.name=Lifecycle harness", "-c", "user.email=lifecycle@localhost")
 EVIDENCE_NAMES = ("verification.md", "automated-checks.json")
-CREDENTIAL_VARS = frozenset({
-    "GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN",
-    "GIT_ASKPASS", "SSH_ASKPASS", "SSH_AUTH_SOCK", "GH_HOST_TOKEN", "GITHUB_PAT",
-    "DEV_PLATFORM_COORDINATOR_APP_KEY", "GCM_CREDENTIAL_CACHE_OPTIONS"})
-# Any GitHub-scoped variable (GH_*, GITHUB_*, *_GITHUB_TOKEN/API_KEY...) is dropped; the LLM
-# provider's own key (e.g. ANTHROPIC_API_KEY) is not a repository credential and is kept.
-_CREDENTIAL_PATTERN = re.compile(r"^(GH|GITHUB)_|(GH|GITHUB)\w*_(TOKEN|API_KEY)$|^(GIT|SSH)_ASKPASS$")
 
 
 class WorkerError(RuntimeError):
     pass
+
+
+# ---- worker identity ------------------------------------------------------
+
+WORKER_IDENTITY = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:@-]{0,63}")
+WORKER_ENV = "DEV_PLATFORM_WORKER"
+
+
+def validate_worker_identity(value: Any) -> str:
+    """The one identity validator; every claim and result record passes through it."""
+    if not isinstance(value, str) or WORKER_IDENTITY.fullmatch(value) is None:
+        raise WorkerError(f"invalid worker identity {value!r}: expected {WORKER_IDENTITY.pattern}")
+    return value
+
+
+def resolve_worker_identity(explicit: str | None, environ: dict[str, str], *, hostname: str, pid: int, nonce: str) -> str:
+    """The single identity of one run: explicit option, then ``DEV_PLATFORM_WORKER``, else generated.
+
+    An invalid explicit value is never replaced by a generated one. The generated form
+    ``worker-<host>-<pid>-<nonce>`` is unique across hosts, reused PIDs and relaunches.
+    """
+    if explicit is not None:
+        return validate_worker_identity(explicit)
+    if WORKER_ENV in environ:
+        return validate_worker_identity(environ[WORKER_ENV])
+    if not isinstance(hostname, str) or not hostname.strip():
+        raise WorkerError("cannot generate a worker identity: the host name is empty; pass --worker")
+    host = re.sub(r"[^a-z0-9.-]", "-", hostname.strip().lower())[:24]
+    return validate_worker_identity(f"worker-{host}-{pid}-{nonce}")
 
 
 def _now(now: datetime | None) -> datetime:
@@ -70,10 +96,13 @@ def _parse_time(value: Any) -> datetime | None:
 
 def job_id(job: dict) -> str:
     suffix = ":t" + job["target_head"] if job.get("target_head") else ""
-    return f"pr{job['number']}:{job['kind']}:{job['head']}:a{job['attempt']}" + suffix + (":pre-merge" if job.get("phase") == "pre-merge" else "")
+    reoffer = f":r{job['reoffer']['seq']}" if isinstance(job.get("reoffer"), dict) else ""
+    return (f"pr{job['number']}:{job['kind']}:{job['head']}:a{job['attempt']}" + reoffer + suffix
+            + (":pre-merge" if job.get("phase") == "pre-merge" else ""))
 
 
-def job_record(kind: str, head: str, task_identity: str | dict, attempt: int, *, providers=None, target_head=None, phase=None) -> dict:
+def job_record(kind: str, head: str, task_identity: str | dict, attempt: int, *, providers=None, target_head=None, phase=None,
+               reoffer=None) -> dict:
     """The explicit ``next_job`` a coordinator publishes in a handoff record."""
     if kind not in JOB_KINDS or not HEAD.fullmatch(str(head)) or type(attempt) is not int or attempt < 0:
         raise ValueError("invalid job record")
@@ -83,9 +112,13 @@ def job_record(kind: str, head: str, task_identity: str | dict, attempt: int, *,
         raise ValueError("contribution integration job requires exact target head")
     if phase is not None and (phase != "pre-merge" or kind != "retrospective"):
         raise ValueError("invalid job phase")
+    if reoffer is not None and (not isinstance(reoffer, dict) or type(reoffer.get("seq")) is not int or reoffer["seq"] < 1
+                                or kind not in {"review", "repair"}):
+        raise ValueError("invalid job re-offer")
     return {"kind": kind, "head": head, "task_identity": task_identity, "attempt": attempt,
             **({"phase": phase} if phase else {}),
             **({"providers": list(providers)} if providers is not None else {}),
+            **({"reoffer": dict(reoffer)} if reoffer is not None else {}),
             **({"target_head": target_head} if target_head is not None else {})}
 
 
@@ -115,15 +148,74 @@ def build_job(candidate: dict) -> dict | None:
         attempt = candidate.get("attempts", {}).get(kind, 0)
     return {"kind": kind, "number": candidate["number"], "head": job_head,
             "task_identity": explicit.get("task_identity", candidate.get("task_identity")), "attempt": attempt,
-            **{key: explicit[key] for key in ("provider", "providers", "target_head", "phase") if key in explicit}}
+            **{key: explicit[key] for key in ("provider", "providers", "target_head", "phase", "reoffer") if key in explicit}}
 
 
-def claim_body(job: dict, worker: str, expires_at: str) -> str:
+def job_providers(job: dict) -> list[str]:
+    """The validated provider list of a job, or a ``WorkerError`` naming the pull request."""
+    from model_routing import PROVIDERS
+
+    where = f"PR #{job.get('number')} {job.get('kind')} job"
+    providers, single = job.get("providers"), job.get("provider")
+    if providers is None and single is None:
+        raise WorkerError(f"{where} has no provider")
+    if providers is None:
+        providers = [single]
+    if (not isinstance(providers, list) or not providers
+            or any(not isinstance(name, str) or name not in PROVIDERS for name in providers)):
+        raise WorkerError(f"{where} has an empty or unsupported provider list {providers!r}")
+    if single is not None and single not in providers:
+        raise WorkerError(f"{where} provider {single!r} contradicts its provider list {providers!r}")
+    return list(providers)
+
+
+REOFFER_AUTHORIZING_ACTIONS = ("switch-provider", "retry-unavailable")
+
+
+def authorized_repair_providers(route: dict | None, providers: list[str], reoffer: Any, where: str, *,
+                                switched: list[str] | None = None) -> list[str]:
+    """The single provider a repair job may run on.
+
+    The default is the originating route provider recorded on the candidate handoff. An explicit recorded
+    operator re-offer (``switch-provider``; an unavailable-runtime retry only repeats an already authorized
+    list) naming exactly the job's provider authorizes it. Anything else fails.
+    """
+    if not isinstance(route, dict) or not route.get("provider"):
+        raise WorkerError(f"{where} has no originating task route; re-run developer handoff")
+    if len(providers) != 1:
+        raise WorkerError(f"{where} must name exactly one provider, got {providers!r}")
+    if providers == [route["provider"]]:
+        return providers
+    if (isinstance(reoffer, dict) and reoffer.get("action") in REOFFER_AUTHORIZING_ACTIONS
+            and reoffer.get("to") == providers):
+        return providers
+    if switched is not None and list(switched) == providers:
+        return providers  # the operator's recorded switch persists for later repair rounds of the candidate
+    raise WorkerError(f"{where} provider {providers[0]!r} is neither the originating route provider "
+                      f"{route['provider']!r} nor named by a recorded operator re-offer")
+
+
+def require_job_provider(job: dict, worker_provider: str | None) -> str:
+    """Repair work names exactly one provider and only a worker serving it may run the job."""
+    providers = job_providers(job)
+    if len(providers) != 1:
+        raise WorkerError(f"PR #{job.get('number')} {job.get('kind')} job must name exactly one provider, got {providers!r}")
+    if worker_provider is None:
+        raise WorkerError("--provider is required for repair kinds")
+    if worker_provider != providers[0]:
+        raise WorkerError(f"PR #{job.get('number')} {job.get('kind')} job requires provider {providers[0]}, "
+                          f"this worker serves {worker_provider}")
+    return providers[0]
+
+
+def claim_body(job: dict, worker: str, expires_at: str, provider: str | None = None) -> str:
     if job.get("kind") not in JOB_KINDS or not HEAD.fullmatch(str(job.get("head", ""))):
         raise ValueError("invalid job")
     if _parse_time(expires_at) is None:
         raise ValueError("invalid expiry")
-    record = {"job": job_id(job), "worker": worker, "head": job["head"], "expires_at": expires_at}
+    record = {"job": job_id(job), "worker": validate_worker_identity(worker), "head": job["head"], "expires_at": expires_at}
+    if provider is not None:
+        record["provider"] = provider
     return CLAIM_PREFIX + json.dumps(record, sort_keys=True, separators=(",", ":"))
 
 
@@ -161,7 +253,7 @@ def job_completed(job: dict, comments: list[dict], *, trusted_apps=frozenset(), 
     """Whether a trusted result was already recorded for this exact job (head and attempt).
 
     A completed job is not offered again after its claim expires; a new attempt or
-    a new head is a different job. A discarded result (head moved) completes nothing.
+    a new head is a different job. A discarded result (head moved) and an unavailable provider runtime complete nothing.
     """
     for row in comments:
         body = row.get("body")
@@ -175,7 +267,7 @@ def job_completed(job: dict, comments: list[dict], *, trusted_apps=frozenset(), 
             continue
         if (isinstance(record, dict) and record.get("job") == job_id(job) and record.get("head") == job["head"]
                 and record.get("outcome") != "validated-push"
-                and not str(record.get("outcome", "")).startswith("discarded")):
+                and not str(record.get("outcome", "")).startswith(("discarded", "unavailable"))):
             return True
     return False
 
@@ -196,19 +288,6 @@ def result_is_current(job: dict, result_head: str, current_head: str) -> bool:
 
 
 # ---- environment ----------------------------------------------------------
-
-def credential_free_env(env: dict[str, str], home: Path | None = None) -> dict[str, str]:
-    clean = {key: value for key, value in env.items()
-             if key not in CREDENTIAL_VARS and not _CREDENTIAL_PATTERN.search(key)
-             and not key.startswith("GIT_CONFIG_")}
-    clean.update(GIT_TERMINAL_PROMPT="0", GIT_CONFIG_GLOBAL=os.devnull,
-                 GIT_CONFIG_SYSTEM=os.devnull, GIT_CONFIG_NOSYSTEM="1")
-    if home is not None:
-        # A scratch home: the operator's ~/.config/gh, ~/.ssh and git config are absent.
-        clean.update(HOME=str(home), XDG_CONFIG_HOME=str(home / ".config"), XDG_DATA_HOME=str(home / ".local/share"),
-                     XDG_CACHE_HOME=str(home / ".cache"), GH_CONFIG_DIR=str(home / ".config" / "gh-disabled"))
-    return clean
-
 
 def scratch_home(root: Path, home_files: list[str] | tuple[str, ...] = (), *, source_home: Path | None = None) -> Path:
     """Create a scratch HOME holding only the LLM CLI's own login files (relative to the real HOME)."""
@@ -231,6 +310,33 @@ def run_llm(command: list[str], checkout: Path, *, env: dict[str, str] | None = 
     """Run the LLM command in a checkout with no credential, a scratch home and no inherited stdin."""
     return runner(command, cwd=checkout, env=credential_free_env(dict(os.environ if env is None else env), home),
                   stdin=subprocess.DEVNULL, capture_output=True, text=True, check=False, timeout=timeout)
+
+
+def provider_readiness(root: Path, providers, *, workdir, home_files=(), probe=None) -> dict[str, str | None]:
+    """Probe each provider once in the scratch environment its job would use: ``{provider: limitation or None}``."""
+    import independent_review_runner as runner
+
+    probe = probe or runner.preflight
+    unsupported = [provider for provider in providers if provider not in runner.PROVIDERS]
+    if unsupported:
+        raise WorkerError(f"unsupported provider {unsupported[0]!r}; use one of {', '.join(runner.PROVIDERS)}")
+    clean = credential_free_env(dict(os.environ), scratch_home(Path(workdir), home_files))
+    launcher = lambda argv, cwd, timeout: runner.subprocess_launcher(argv, cwd, timeout, env=clean)
+    base = {key: value for key, value in runner.settings(root).items() if key not in {"provider", "providers"}}
+    readiness = {}
+    for provider in dict.fromkeys(providers):
+        result = probe(root, config={**base, "provider": provider}, launcher=launcher)
+        readiness[provider] = None if result.get("ready") else str(result.get("limitation") or f"the {provider} readiness probe reported not ready without stating a limitation")
+    return readiness
+
+
+def job_eligible(job: dict, *, review_ready=None, repair_ready=None) -> bool:
+    """Whether a worker that proved these providers can run the job; ``None`` means that kind is unfiltered."""
+    ready = {"review": review_ready, "repair": repair_ready}.get(job["kind"])
+    if ready is None:
+        return True
+    named = job.get("providers", [job["provider"]] if "provider" in job else [])
+    return bool(set(named) & set(ready))
 
 
 def prepare_checkout(source: str, root: str, name: str, head: str) -> Path:
@@ -348,12 +454,32 @@ def push_validated(repo: Path, branch: str, expected_head: str, result_head: str
 # ---- work-next ------------------------------------------------------------
 
 def select_job(candidates: list[dict], kinds: frozenset[str], claims_by_pr: dict[int, list[dict]], *,
-               now: datetime | None = None, trusted_apps=frozenset(), trusted_writers=frozenset()) -> dict | None:
+               now: datetime | None = None, trusted_apps=frozenset(), trusted_writers=frozenset(),
+               only_prs: frozenset[int] | None = None, eligible: Callable[[dict], bool] | None = None,
+               executor_provider: str | None = None, unauthorized: list[dict] | None = None) -> dict | None:
+    """The first claimable job of the requested kinds.
+
+    A repair job is validated (one supported provider) and offered only to a worker serving that
+    provider; other workers see it listed in ``unauthorized`` and it stays claimable for a match.
+    """
     for candidate in sorted(candidates, key=lambda item: item.get("number", 0)):
+        if only_prs is not None and candidate.get("number") not in only_prs:
+            continue
         job = build_job(candidate)
-        if job and job["kind"] in kinds and is_claimable(
+        if job and job["kind"] in kinds and (eligible is None or eligible(job)) and is_claimable(
                 job, claims_by_pr.get(job["number"], []), now=now,
                 trusted_apps=trusted_apps, trusted_writers=trusted_writers):
+            if job["kind"] in WRITE_KINDS:
+                if executor_provider is None:
+                    raise WorkerError("--provider is required for repair kinds")
+                providers = job_providers(job)
+                authorized_repair_providers(candidate.get("route"), providers, job.get("reoffer"),
+                                            f"PR #{job['number']} {job['kind']} job",
+                                            switched=(candidate.get("provider_switch") or {}).get("repair"))
+                if providers[0] != executor_provider:
+                    if unauthorized is not None:
+                        unauthorized.append({"number": job["number"], "kind": job["kind"], "required_provider": providers[0]})
+                    continue
             return job
     return None
 
@@ -361,8 +487,9 @@ def select_job(candidates: list[dict], kinds: frozenset[str], claims_by_pr: dict
 def work_next(kinds: frozenset[str], *, list_prs: Callable[[], list[dict]],
               comments_for: Callable[[int], list[dict]], post_comment: Callable[[int, str], None],
               worker: str, ttl_seconds: int = 1800, dry_run: bool = False, now: datetime | None = None,
-              current_head: Callable[[int], str] | None = None,
-              trusted_apps=frozenset(), trusted_writers=frozenset()) -> dict:
+              current_head: Callable[[int], str] | None = None, provider: str | None = None,
+              trusted_apps=frozenset(), trusted_writers=frozenset(),
+              only_prs: frozenset[int] | None = None, eligible: Callable[[dict], bool] | None = None) -> dict:
     """Select, claim, re-read and confirm one job; abandon if another worker won."""
     unknown = kinds - JOB_KINDS
     if unknown:
@@ -375,19 +502,23 @@ def work_next(kinds: frozenset[str], *, list_prs: Callable[[], list[dict]],
 
     candidates, claims, all_writers = [], {}, set()
     for pr in list_prs():
+        if only_prs is not None and pr["number"] not in only_prs:
+            continue
         comments = comments_for(pr["number"])
         claims[pr["number"]] = comments
         proven = writers(comments)
         all_writers |= proven
         candidates.append(derive_candidate(pr, comments, trusted_apps=trusted_apps, trusted_writers=proven))
     trust = dict(now=current, trusted_apps=trusted_apps, trusted_writers=frozenset(all_writers))
-    job = select_job(candidates, kinds, claims, **trust)
+    unauthorized: list[dict] = []
+    job = select_job(candidates, kinds, claims, only_prs=only_prs, eligible=eligible,
+                     executor_provider=provider, unauthorized=unauthorized, **trust)
     if job is None:
-        return {"status": "idle", "job": None}
+        return {"status": "idle", "job": None, **({"unauthorized": unauthorized} if unauthorized else {})}
     if dry_run:
         return {"status": "dry-run", "job": job}
     expires = datetime.fromtimestamp(current.timestamp() + ttl_seconds, timezone.utc).isoformat().replace("+00:00", "Z")
-    post_comment(job["number"], claim_body(job, worker, expires))
+    post_comment(job["number"], claim_body(job, worker, expires, provider if job["kind"] in WRITE_KINDS else None))
     reread = comments_for(job["number"])
     trust["trusted_writers"] = frozenset(all_writers) | writers(reread)
     if not i_won(job, worker, reread, **trust):
@@ -397,9 +528,12 @@ def work_next(kinds: frozenset[str], *, list_prs: Callable[[], list[dict]],
     return {"status": "claimed", "job": job, "expires_at": expires}
 
 
-def result_body(job: dict, worker: str, outcome: str, pushed_head: str | None = None, *, task_identity=None) -> str:
-    record = {"job": job_id(job), "worker": worker, "head": job["head"], "outcome": outcome,
+def result_body(job: dict, worker: str, outcome: str, pushed_head: str | None = None, *, task_identity=None,
+                provider: str | None = None) -> str:
+    record = {"job": job_id(job), "worker": validate_worker_identity(worker), "head": job["head"], "outcome": outcome,
               "pushed_head": pushed_head}
+    if provider is not None:
+        record["provider"] = provider
     if task_identity is not None:
         record["task_identity"] = task_identity
     return RESULT_PREFIX + json.dumps(record, sort_keys=True, separators=(",", ":"))
@@ -506,12 +640,13 @@ def prepare_harness(source_repo: str, checkout: Path, root: Path, result_head: s
 
 def execute_job(job: dict, *, source_repo: str, branch: str, allowed_paths, llm_command,
                 current_head: Callable[[], str], post_result: Callable[[str], None], workdir: str,
-                kind: str | None = None, worker: str = "worker",
+                worker: str, kind: str | None = None, provider: str | None = None,
                 runner: Callable[..., Any] = subprocess.run, env: dict[str, str] | None = None,
                 push_env: dict[str, str] | None = None, home_files: list[str] | tuple[str, ...] = (),
                 review_handler: Callable[[Path], dict] | None = None,
                 before_push: Callable[[Path, str], None] | None = None,
-                claim_current: Callable[[], bool] = lambda: True) -> dict:
+                claim_current: Callable[[], bool] = lambda: True,
+                runtime_check: Callable[[], str | None] | None = None) -> dict:
     """Run one claimed job. The LLM only ever touches its own disposable checkout.
 
     Validation and the only push happen in a separate harness-owned clone that
@@ -521,6 +656,9 @@ def execute_job(job: dict, *, source_repo: str, branch: str, allowed_paths, llm_
     kind = kind or job["kind"]
     if kind != job["kind"] or kind not in WRITE_KINDS | {"review"}:
         raise WorkerError(f"no executor for {kind} jobs")
+    if kind in WRITE_KINDS:
+        require_job_provider(job, provider)
+    result_provider = provider if kind in WRITE_KINDS else None
     command = shlex.split(llm_command) if isinstance(llm_command, str) else list(llm_command)
     root = Path(workdir).resolve()
     checkout = prepare_checkout(source_repo, str(root), "llm-checkout", job["head"])
@@ -528,18 +666,27 @@ def execute_job(job: dict, *, source_repo: str, branch: str, allowed_paths, llm_
     def finish(outcome: str, pushed: str | None = None, status: str | None = None) -> dict:
         if not claim_current():
             return {"status": "discarded"}
-        post_result(result_body(job, worker, outcome, pushed))
+        post_result(result_body(job, worker, outcome, pushed, provider=result_provider))
         return {"status": status or outcome.split(":")[0], "outcome": outcome, "pushed_head": pushed}
 
     if kind == "review" and review_handler is not None:
         outcome = review_handler(checkout)
         if outcome["status"] == "discarded" or not claim_current():
             return {"status": "discarded"}
-        post_result(result_body(job, worker, outcome["status"], outcome.get("pushed_head")))
+        post_result(result_body(job, worker, outcome["status"], outcome.get("pushed_head"), provider=result_provider))
         return outcome
     before = (_git(checkout, "rev-parse", "HEAD").strip(), tree_snapshot(checkout))
-    done = run_llm(command, checkout, env=env, runner=runner, home=scratch_home(root, home_files))
+    try:
+        done = run_llm(command, checkout, env=env, runner=runner, home=scratch_home(root, home_files))
+    except OSError as exc:
+        if kind != "repair" or runtime_check is None:
+            raise  # only the repair gate handles an unavailable runtime
+        return finish(f"unavailable: cannot start the llm command: {exc}"[:300], status="unavailable")
     if done.returncode:
+        # A runtime that no longer passes its readiness probe (login, usage limit) is unavailable, not a failed result.
+        limitation = runtime_check() if runtime_check is not None else None
+        if limitation:
+            return finish(f"unavailable: {limitation}"[:300], status="unavailable")
         return finish("failed: llm exited %s" % done.returncode, status="failed")
     if kind == "review":
         if (harness_git(checkout, "rev-parse", "HEAD").strip(), tree_snapshot(checkout)) != before:
@@ -609,12 +756,17 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     nxt = sub.add_parser("work-next")
     nxt.add_argument("--kinds", required=True)
-    nxt.add_argument("--worker", default=os.environ.get("DEV_PLATFORM_WORKER", f"worker-{os.getpid()}"))
+    nxt.add_argument("--worker", help=f"worker identity (default: ${WORKER_ENV}, else generated host-pid-nonce)")
+    nxt.add_argument("--provider", choices=("codex", "claude"),
+                     help="provider of the executor behind --llm-command; required for repair kinds")
     nxt.add_argument("--repo", required=True, help="owner/repo")
     nxt.add_argument("--ttl", type=int, default=1800)
     nxt.add_argument("--dry-run", action="store_true")
     nxt.add_argument("--run", action="store_true", help="execute the claimed job")
     nxt.add_argument("--llm-command")
+    nxt.add_argument("--pr", type=int, action="append", help="select only jobs of this PR (repeatable)")
+    nxt.add_argument("--providers", help="comma list of review providers this worker offers; each must pass a readiness probe")
+    nxt.add_argument("--repair-provider", help="provider behind --llm-command; required to claim repair with --run or --providers")
     nxt.add_argument("--source", help="repository URL or absolute path (default: the GitHub repo)")
     nxt.add_argument("--branch", help="candidate branch (default: the PR head ref)")
     nxt.add_argument("--allow", action="append", default=[], help="path a write result may change (repeatable)")
@@ -622,6 +774,14 @@ def main(argv: list[str] | None = None) -> int:
                      help="file under HOME the LLM CLI needs for its own login, e.g. .codex/auth.json (repeatable)")
     args = parser.parse_args(argv)
     repo = args.repo
+    try:
+        args.worker = resolve_worker_identity(args.worker, os.environ, hostname=socket.gethostname(),
+                                              pid=os.getpid(), nonce=secrets.token_hex(6))
+        if set(args.kinds.split(",")) & WRITE_KINDS and args.provider is None:
+            raise WorkerError("--provider is required for repair kinds")
+    except WorkerError as exc:
+        print(f"lifecycle worker: {exc}", file=sys.stderr)
+        return 2
 
     def list_prs() -> list[dict]:
         listed = _gh_json("api", "--paginate", f"repos/{repo}/pulls?state=open&per_page=100")
@@ -643,6 +803,17 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         needs_writer = set(args.kinds.split(",")) - {"review", "finalize", "integration-repair", "contribution-integration"} - POST_MERGE_KINDS
+        kinds = set(args.kinds.split(","))
+        if "repair" in kinds and (args.run or args.providers) and not args.repair_provider:
+            raise WorkerError("claiming repair jobs with --run or --providers needs --repair-provider (the provider behind --llm-command)")
+        if args.repair_provider and "repair" not in kinds:
+            raise WorkerError("--repair-provider applies only when claiming repair jobs")
+        if args.repair_provider and args.provider and args.repair_provider != args.provider:
+            raise WorkerError(f"--repair-provider {args.repair_provider} disagrees with --provider {args.provider}; "
+                              "both name the provider behind --llm-command")
+        review_names = [name for name in (args.providers or "").split(",") if name]
+        if args.providers is not None and not review_names:
+            raise WorkerError("--providers needs at least one provider")
         if args.run and "integration-repair" in args.kinds.split(",") and not args.llm_command:
             raise WorkerError("--run needs --llm-command for integration repair")
         if args.run and needs_writer and (not args.llm_command or not args.allow):
@@ -650,10 +821,22 @@ def main(argv: list[str] | None = None) -> int:
         if args.run:
             import publication_queue
 
-            publication_queue.use_default_friction_sink(Path.cwd())
+            publication_queue.use_default_friction_sink(Path.cwd(), worker=args.worker)
+        readiness: dict[str, str | None] | None = None
+        review_ready = repair_ready = None
+        if review_names or args.repair_provider:
+            with tempfile.TemporaryDirectory(prefix="lifecycle-preflight-") as scratch:
+                readiness = provider_readiness(Path.cwd(), [*review_names, *([args.repair_provider] if args.repair_provider else [])],
+                                               workdir=scratch, home_files=args.llm_home_file)
+            if review_names:
+                review_ready = frozenset(name for name in review_names if readiness[name] is None)
+            if args.repair_provider:
+                repair_ready = frozenset([args.repair_provider]) if readiness[args.repair_provider] is None else frozenset()
         result = work_next(frozenset(k for k in args.kinds.split(",") if k), list_prs=list_prs,
+                           only_prs=frozenset(args.pr) if args.pr else None,
+                           eligible=lambda job: job_eligible(job, review_ready=review_ready, repair_ready=repair_ready),
                            comments_for=comments_for, post_comment=post_comment, worker=args.worker,
-                           ttl_seconds=args.ttl, dry_run=args.dry_run,
+                           ttl_seconds=args.ttl, dry_run=args.dry_run, provider=args.provider,
                            current_head=lambda n: pr_info(n)["head"]["sha"],
                            **_coordinator_trust(Path.cwd(), repo))
         if args.run and result["status"] == "claimed":
@@ -665,13 +848,16 @@ def main(argv: list[str] | None = None) -> int:
 
                     candidate = publication_queue.candidate_status(Path.cwd(), job["number"], repo=repo)
                     outcome = run_claimed(
-                        Path.cwd(), repo, candidate, job,
+                        Path.cwd(), repo, candidate, job, review_ready=review_ready,
+                        repair_runtime_check=(lambda: provider_readiness(
+                            Path.cwd(), [args.repair_provider], workdir=workdir, home_files=args.llm_home_file)[args.repair_provider])
+                        if args.repair_provider else None,
                         source_repo=args.source or f"https://github.com/{repo}.git",
                         branch=args.branch or pr_info(job["number"])["head"]["ref"],
                         allowed_paths=args.allow, llm_command=args.llm_command,
                         current_head=lambda: pr_info(job["number"])["head"]["sha"],
                         post_result=lambda body: post_comment(job["number"], body),
-                        workdir=workdir, home_files=args.llm_home_file, worker=args.worker)
+                        workdir=workdir, home_files=args.llm_home_file, worker=args.worker, provider=args.provider)
                 elif job["kind"] == "finalize" and isinstance(job["task_identity"], dict) and job["task_identity"].get("change"):
                     from post_review_finalization import run_claimed_finalize
                     import publication_queue
@@ -712,7 +898,7 @@ def main(argv: list[str] | None = None) -> int:
                         allowed_paths=args.allow, llm_command=args.llm_command,
                         current_head=lambda: pr_info(job["number"])["head"]["sha"],
                         post_result=lambda body: post_comment(job["number"], body),
-                        workdir=workdir, home_files=args.llm_home_file, worker=args.worker)
+                        workdir=workdir, home_files=args.llm_home_file, worker=args.worker, provider=args.provider)
                 elif (job["kind"] == "retrospective" and isinstance(job["task_identity"], dict) and job["task_identity"].get("kind") == "requirement-composition"
                       and job.get("phase") == "pre-merge" and not pr_info(job["number"]).get("merged")):
                     from requirement_composition import run_claimed_retrospective
@@ -734,10 +920,15 @@ def main(argv: list[str] | None = None) -> int:
                     outcome = execute_job(
                         job, source_repo=args.source or f"https://github.com/{repo}.git",
                         branch=args.branch or pr_info(job["number"])["head"]["ref"], allowed_paths=args.allow,
-                        llm_command=args.llm_command, worker=args.worker, workdir=workdir, home_files=args.llm_home_file,
+                        llm_command=args.llm_command, worker=args.worker, provider=args.provider, workdir=workdir,
+                        home_files=args.llm_home_file,
                         current_head=lambda: pr_info(job["number"])["head"]["sha"],
                         post_result=lambda body: post_comment(job["number"], body))
             result = {**result, "execution": outcome}
+        if readiness is not None:
+            result = {**result, "providers": {"ready": sorted(name for name, limitation in readiness.items() if limitation is None),
+                                              "unavailable": {name: limitation for name, limitation in readiness.items() if limitation}}}
+        result = {**result, "worker": args.worker}
     except (WorkerError, ValueError) as exc:
         print(f"lifecycle worker: {exc}", file=sys.stderr)
         return 2

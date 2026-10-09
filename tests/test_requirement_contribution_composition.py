@@ -31,6 +31,15 @@ def git(root, *args):
                           text=True, capture_output=True, check=True).stdout.strip()
 
 
+def setUpModule() -> None:
+    # Local-log scenarios: durable coordinator evidence (GitHub) is covered by the
+    # coordinator-operations tests, so these scenarios never reach GitHub.
+    for module in {sys.modules["agent_friction"]}:
+        patcher = mock.patch.object(module, "read_durable_events", return_value=[])
+        patcher.start()
+        unittest.addModuleCleanup(patcher.stop)
+
+
 class Repository:
     def __init__(self, root):
         self.root = root
@@ -142,7 +151,7 @@ class ContributionTests(unittest.TestCase):
                 outcome = finalization.run_claimed_finalize(fixture.root, "acme/project", candidate, job,
                     source_repo=str(fixture.root), branch="agent/first", current_head=lambda: head,
                     post_result=mock.Mock(), workdir=workdir, adapter=adapter, claim_current=lambda: True,
-                    checks_runner=checks, archiver=archive)
+                    checks_runner=checks, archiver=archive, worker="w")
             self.assertEqual(outcome["status"], "blocked-retryable")
             self.assertIn("fresh semantic verification", outcome["reason"])
             self.assertEqual(adapter._transition.call_args.kwargs["red_gate"]["name"], "semantic-verification")
@@ -159,7 +168,7 @@ class ContributionTests(unittest.TestCase):
             record = lifecycle.build_handoff_record(number=8, state="contribution-integration-pending", head=head,
                 task_identity=identity, gates=candidate["gates"], red_gate=None, not_reverified=[], attempts={},
                 next_job=workers.job_record("contribution-integration", head, identity, 1, target_head=fixture.boundary),
-                at="2026-10-06T00:00:00Z")
+                at="2026-10-06T00:00:00Z", route={"provider": "codex", "profile": "standard", "change": "first"})
             comments = [{"id": 1, "author_association": "OWNER", "body": lifecycle.marker_body(record)}]
             pr = {"number": 8, "state": "open", "head": {"sha": head, "ref": "agent/first"},
                   "labels": [], "base": {"ref": "requirement/BR-7"}}
@@ -187,7 +196,44 @@ class ContributionTests(unittest.TestCase):
             self.assertEqual(discovered["red_gate"]["name"], "required-checks")
             self.assertEqual(review_gate.repair_brief(discovered)["findings"][0]["id"], "required-checks-failed")
 
-    def test_composition_full_checks_use_credential_free_isolated_home(self):
+    def test_composition_full_checks_use_the_project_check_environment(self):
+        import os
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as outside:
+            root, operator = Path(tmp), Path(outside)
+            (operator / "home" / ".cache" / "uv").mkdir(parents=True)
+            (operator / "home" / ".cache" / "uv" / "marker").write_text("cache")
+            (operator / "bin").mkdir()
+            tool = operator / "bin" / "uv"
+            tool.write_text("#!/bin/sh\n")
+            tool.chmod(0o755)
+            (root / "dev-platform").mkdir()
+            (root / "dev-platform" / "checks.toml").write_text(
+                '[runtime]\nrequired_tools = ["uv"]\nrequired_env = ["APP_DB"]\nhome_paths = [".cache/uv"]\n')
+            grant = operator / "grant.toml"
+            grant.write_text('allow_home_paths = [".cache/uv"]\n')
+            observed = []
+            def command(*args, **kwargs):
+                env = kwargs["env"]
+                home = Path(env["HOME"])
+                observed.append((env, (home / ".cache" / "uv" / "marker").read_text()))
+                self.assertNotEqual(env["HOME"], str(operator / "home"))
+                for key in ("GH_TOKEN", "GITHUB_TOKEN", "SSH_AUTH_SOCK", "GIT_CONFIG_COUNT"):
+                    self.assertNotIn(key, env)
+                self.assertEqual(env["APP_DB"], "postgres://x")
+                self.assertEqual(kwargs["stdin"], subprocess.DEVNULL)
+                return SimpleNamespace(returncode=0)
+            environ = {"HOME": str(operator / "home"), "PATH": f"{operator / 'bin'}:/usr/bin", "GH_TOKEN": "secret",
+                       "GITHUB_TOKEN": "secret", "SSH_AUTH_SOCK": "/agent", "APP_DB": "postgres://x",
+                       "DEV_PLATFORM_PROJECT_RUNTIME_FILE": str(grant)}
+            with mock.patch.dict(os.environ, environ, clear=True), \
+                 mock.patch.object(integration, "_full_check_commands", return_value=["candidate-check"]), \
+                 mock.patch.object(integration.subprocess, "run", side_effect=command):
+                integration._run_full_checks(root)
+            self.assertEqual(len(observed), 1)
+            self.assertEqual(observed[0][1], "cache")
+            self.assertFalse(Path(observed[0][0]["HOME"]).exists())
+
+    def test_composition_full_checks_without_runtime_use_credential_free_isolated_home(self):
         import os
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -196,6 +242,7 @@ class ContributionTests(unittest.TestCase):
                 env = kwargs["env"]
                 observed.append(env)
                 self.assertTrue(Path(env["HOME"]).is_dir())
+                self.assertEqual(list(Path(env["HOME"]).iterdir()), [])
                 self.assertNotEqual(env["HOME"], "/operator-home")
                 for key in ("GH_TOKEN", "GITHUB_TOKEN", "SSH_AUTH_SOCK"):
                     self.assertNotIn(key, env)
@@ -409,7 +456,7 @@ class CompositionTests(unittest.TestCase):
                     "agent_friction.record_checkpoint"
                 ) as checkpoint:
                     result = contour.run_claimed_post_merge(fixture.root, "acme/project", candidate, job,
-                        branch="requirement/BR-7", post_result=post, ops=ops, claim_current=lambda: True)
+                        branch="requirement/BR-7", post_result=post, ops=ops, claim_current=lambda: True, worker="w")
                     self.assertEqual(result["status"], "done")
                     if kind == "retrospective":
                         self.assertEqual([(c.args[0], c.kwargs["head"]) for c in checkpoint.call_args_list],
@@ -420,12 +467,12 @@ class CompositionTests(unittest.TestCase):
                         ops.cleanup.reset_mock()
                         ops.cleanup.side_effect = [{"errors": [{"error": "active-writer"}]}]
                         blocked = contour.run_claimed_post_merge(fixture.root, "acme/project", candidate, job,
-                            branch="requirement/BR-7", post_result=post, ops=ops, claim_current=lambda: True)
+                            branch="requirement/BR-7", post_result=post, ops=ops, claim_current=lambda: True, worker="w")
                         self.assertEqual(blocked["status"], "blocked")
                         self.assertEqual(ops.cleanup.call_count, 1)
                         ops.cleanup.side_effect = None
                         resumed = contour.run_claimed_post_merge(fixture.root, "acme/project", candidate, job,
-                            branch="requirement/BR-7", post_result=post, ops=ops, claim_current=lambda: True)
+                            branch="requirement/BR-7", post_result=post, ops=ops, claim_current=lambda: True, worker="w")
                         self.assertEqual(resumed["status"], "done")
 
     def test_three_child_composition_preserves_parallel_and_dependent_ancestry(self):
@@ -678,7 +725,7 @@ class CompositionTests(unittest.TestCase):
                     retrospective, "require_checkpoint", return_value={"result": "none"}
                 ), mock.patch.object(composition, "advance_final_publication", return_value={"status": "queued"}) as publish:
                     outcome = composition.run_claimed_retrospective(fixture.root, "acme/project", candidate, job,
-                        source_repo=str(fixture.root), adapter=adapter, ops=ops, post_result=post, claim_current=lambda: True)
+                        source_repo=str(fixture.root), adapter=adapter, ops=ops, post_result=post, claim_current=lambda: True, worker="w")
                 self.assertEqual(outcome["status"], "queued")
                 checkpoint.assert_called_once_with(ops, fixture.root, REQUIREMENT, ["acme/backlog#8", "acme/backlog#9"])
                 self.assertIn("requirement-retrospective", adapter._transition.call_args.kwargs["gates"])

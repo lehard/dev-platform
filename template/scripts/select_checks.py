@@ -441,6 +441,15 @@ def write_evidence(
 def main() -> int:
     parser = argparse.ArgumentParser(description="Select conservative project checks from changed files.")
     parser.add_argument("--base", help="Git base ref, e.g. origin/main")
+    parser.add_argument(
+        "--contribution-base",
+        metavar="SHA",
+        help=(
+            "Requirement contribution candidate: its freshness is the exact recorded integration "
+            "base it contributes onto (HEAD must contain this commit), not current main. Current "
+            "main is validated later by the Requirement composition candidate."
+        ),
+    )
     parser.add_argument("--changed-file", action="append", default=[])
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--execute", action="store_true")
@@ -501,13 +510,21 @@ def main() -> int:
         except ManagedTaskError as exc:
             raise SystemExit("Managed checkout identity gate blocked validation before any expensive command started: " + str(exc)) from exc
         if harness == "platform" and requires_task_freshness(checks):
-            try:
-                observed = require_fresh_task_base(root, "origin", str(read_platform_config(root).get("main_branch", "main")))
-            except TaskFreshnessError as exc:
-                raise SystemExit(
-                    "Task freshness gate blocked full/protected validation before any expensive command started: " + str(exc)
-                ) from exc
-            print(f"Task freshness gate passed: HEAD contains freshly observed origin/{read_platform_config(root).get('main_branch', 'main')} ({observed}).")
+            if args.contribution_base:
+                if run_git(["merge-base", "--is-ancestor", args.contribution_base, "HEAD"], cwd=root, check=False).returncode:
+                    raise SystemExit(
+                        "Task freshness gate blocked full/protected validation before any expensive command started: "
+                        f"HEAD does not contain its exact contribution base {args.contribution_base}"
+                    )
+                print(f"Task freshness gate passed: HEAD contains its exact contribution base ({args.contribution_base}).")
+            else:
+                try:
+                    observed = require_fresh_task_base(root, "origin", str(read_platform_config(root).get("main_branch", "main")))
+                except TaskFreshnessError as exc:
+                    raise SystemExit(
+                        "Task freshness gate blocked full/protected validation before any expensive command started: " + str(exc)
+                    ) from exc
+                print(f"Task freshness gate passed: HEAD contains freshly observed origin/{read_platform_config(root).get('main_branch', 'main')} ({observed}).")
             branch = run_git(["branch", "--show-current"], cwd=root).stdout.strip()
             try:
                 enforce_scope_gate(main_root(), root, branch)

@@ -1,0 +1,88 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "c0b0b01b44ff8808dc02522078fa5d5d20f67f4f",
+    "base_ref": "origin/main",
+    "candidate_head": "b25aff1a6834d263f1a7c1a0bb22711f55eba5e5",
+    "diff_sha256": "166825f56d5a6b9799331de0ef01ddf28482f7b756dcfbef77d7cbce5062e199"
+  },
+  "completed_at": "2026-10-08T18:51:20+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/run_test_groups.py, new `require_early_routing_gate`: `if not has_managed_task or importlib.util.find_spec(\"model_routing\") is None: return`. A checkout with `.managed-task-state.json` but no importable routing module runs all groups with the gate silently bypassed. The spec's fresh-checkout scenario only requires checks to stay available when there is no local managed task state. It does not cover a missing module.",
+      "id": "test-groups-gate-silent-skip",
+      "severity": "advisory",
+      "summary": "The check/test entrypoint skips the early routing gate without any diagnostic when `model_routing` cannot be found. The spec says the gate SHALL run in the check/test execution entrypoint before any check executes."
+    },
+    {
+      "evidence": "template/scripts/model_routing.py, `record_claude_execution`: `legacy_claim = (route.execution_plan is None and ... route.execution.get(\"launched\") is True and \"outcome\" not in route.execution and route.execution.get(\"agent_id\") == agent_id.strip())`. When this is true the `_require_plan` and open-delegation check is skipped and the claim is normalized to outcome `claimed`. The spec's \"Execution recorded after the fact\" scenario and the requirement text give no legacy carve-out.",
+      "id": "claude-legacy-claim-bypasses-delegation",
+      "severity": "advisory",
+      "summary": "`record_claude_execution` accepts an existing plan-less launched claim without an open delegation. The spec says a Claude execution SHALL NOT be accepted without an open delegation. The legacy exemption is not in the spec."
+    }
+  ],
+  "launched_at": "2026-10-08T18:50:21+00:00",
+  "output_sha256": "b400a781f187856052f0288e3789440c9aa20e5d36d88060d8507f07ccd53fb0",
+  "perspective": "spec-fidelity",
+  "request_id": "4c7af409-fced-4a3c-98bd-517284626ced",
+  "reviewer": {
+    "context_id": "c1e700d5-ad6d-4256-a631-8fe4f145333b",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-d62dc8fd-90df-405d-b68c-6869c5df327f",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 45572
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 102009
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 56067
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 56964
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4348
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "27255f432e123a65d43e4ae9b548421afc68f1b1e63b82181cf68e6443958f80"
+}

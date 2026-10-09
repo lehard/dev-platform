@@ -20,6 +20,7 @@ HEAD, NEW = "a" * 40, "b" * 40
 NOW = datetime(2026, 10, 5, 9, 0, tzinfo=timezone.utc)
 LATER = "2026-10-05T09:30:00Z"
 PAST = "2026-10-05T08:30:00Z"
+ROUTE = {"provider": "claude", "profile": "standard", "change": "c"}
 JOB = {"kind": "review", "number": 7, "head": HEAD, "task_identity": "t", "attempt": 1}
 
 
@@ -29,10 +30,11 @@ def claim(worker, ident, *, head=HEAD, expires=LATER, assoc="OWNER", job=None):
     return {"id": ident, "author_association": assoc, "body": body}
 
 
-def handoff_comment(head=HEAD, state="review-pending"):
+def handoff_comment(head=HEAD, state="review-pending", route=None):
     record = lifecycle.build_handoff_record(
         number=7, state=state, head=head, task_identity="t", gates={}, red_gate=None,
-        not_reverified=[], attempts={"review": 1}, next_job={"kind": "review"}, at="2026-10-05T08:00:00Z")
+        not_reverified=[], attempts={"review": 1}, next_job={"kind": "review"}, at="2026-10-05T08:00:00Z",
+        route=route)
     return {"id": 1, "author_association": "OWNER", "body": lifecycle.marker_body(record)}
 
 
@@ -114,6 +116,239 @@ class ClaimTests(unittest.TestCase):
                                    post_comment=post, worker="w", dry_run=True, now=NOW)
         self.assertEqual(result["status"], "dry-run")
         self.assertEqual(result["job"]["head"], HEAD)
+
+
+def provider_comment(number, providers, head=HEAD):
+    record = lifecycle.build_handoff_record(
+        number=number, state="review-pending", head=head, task_identity="t", gates={}, red_gate=None,
+        not_reverified=[], attempts={"review": 1},
+        next_job={"kind": "review", "attempt": 1, "providers": providers}, at="2026-10-05T08:00:00Z")
+    return {"id": 1, "author_association": "OWNER", "body": lifecycle.marker_body(record)}
+
+
+class ProviderSelectionTests(unittest.TestCase):
+    def work(self, providers_by_pr, **options):
+        prs = [{"number": n, "head": {"sha": HEAD}, "state": "open"} for n in providers_by_pr]
+        store = {n: [provider_comment(n, p)] for n, p in providers_by_pr.items()}
+        posted = []
+        def post(number, body):
+            posted.append(number)
+            store[number].append({"id": 50 + len(posted), "author_association": "OWNER", "body": body})
+        result = workers.work_next(frozenset({"review"}), list_prs=lambda: prs, comments_for=lambda n: list(store[n]),
+                                   post_comment=post, worker="w", now=NOW, **options)
+        return result, posted
+
+    def test_reoffer_changes_job_identity_only_when_present(self):
+        job = {"kind": "repair", "number": 7, "head": HEAD, "attempt": 2}
+        reoffer = {"seq": 1, "action": "switch-provider", "from": ["codex"], "to": ["claude"], "reason": "r", "at": "x"}
+        self.assertEqual(workers.job_id(job), f"pr7:repair:{HEAD}:a2")
+        self.assertEqual(workers.job_id({**job, "reoffer": reoffer}), f"pr7:repair:{HEAD}:a2:r1")
+        with self.assertRaises(ValueError):
+            workers.job_record("finalize", HEAD, "t", 0, reoffer=reoffer)
+        with self.assertRaises(ValueError):
+            workers.job_record("review", HEAD, "t", 0, reoffer={"seq": 0})
+
+    def test_unavailable_result_does_not_complete_the_job(self):
+        row = {"id": 9, "author_association": "OWNER", "body": workers.result_body(JOB, "w", "unavailable: login")}
+        self.assertFalse(workers.job_completed(JOB, [row], trusted_apps=frozenset(), trusted_writers=frozenset()))
+        done = {**row, "body": workers.result_body(JOB, "w", "reviewed")}
+        self.assertTrue(workers.job_completed(JOB, [done], trusted_apps=frozenset(), trusted_writers=frozenset()))
+
+    def test_unrunnable_lowest_job_does_not_block_a_runnable_one(self):
+        eligible = lambda job: workers.job_eligible(job, review_ready=frozenset({"claude"}))
+        result, posted = self.work({5: ["codex"], 9: ["claude", "codex"]}, eligible=eligible)
+        self.assertEqual((result["status"], result["job"]["number"]), ("claimed", 9))
+        self.assertEqual(posted, [9])  # no claim, hold or comment on the unrunnable job
+
+    def test_unresolved_provider_is_not_eligible_for_a_filtering_worker(self):
+        eligible = lambda job: workers.job_eligible(job, review_ready=frozenset({"claude"}))
+        result, posted = self.work({5: ["unresolved-originating-task-route"]}, eligible=eligible)
+        self.assertEqual((result["status"], posted), ("idle", []))
+
+    def test_selection_by_pr_and_unfiltered_default(self):
+        self.assertEqual(self.work({5: ["codex"], 9: ["claude"]}, only_prs=frozenset({9}))[0]["job"]["number"], 9)
+        self.assertEqual(self.work({5: ["codex"], 9: ["claude"]})[0]["job"]["number"], 5)
+        self.assertEqual(self.work({5: ["codex"]}, only_prs=frozenset({9}))[0]["status"], "idle")
+
+    def test_repair_eligibility_uses_the_declared_writer_provider(self):
+        job = {"kind": "repair", "providers": ["codex"]}
+        self.assertTrue(workers.job_eligible(job, repair_ready=frozenset({"codex"})))
+        self.assertFalse(workers.job_eligible(job, repair_ready=frozenset()))
+        self.assertTrue(workers.job_eligible(job))
+
+    def test_readiness_reports_each_provider_from_the_probe(self):
+        calls = []
+        def probe(root, config, launcher):
+            calls.append(config["provider"])
+            return {"ready": config["provider"] == "claude", "limitation": "codex usage limit"}
+        with tempfile.TemporaryDirectory() as scratch:
+            readiness = workers.provider_readiness(ROOT, ["codex", "claude", "codex"], workdir=scratch, probe=probe)
+            self.assertEqual(readiness, {"codex": "codex usage limit", "claude": None})
+            self.assertEqual(calls, ["codex", "claude"])
+            with self.assertRaisesRegex(workers.WorkerError, "unsupported provider"):
+                workers.provider_readiness(ROOT, ["gemini"], workdir=scratch, probe=probe)
+
+    def test_cli_requires_repair_provider_and_reports_unready_providers(self):
+        with mock.patch.object(workers, "_gh_json", return_value=[]):
+            self.assertEqual(workers.main(["work-next", "--kinds", "repair", "--repo", "o/r", "--run",
+                                           "--llm-command", "x", "--allow", "src/"]), 2)
+            with mock.patch.object(workers, "_coordinator_trust", return_value={"trusted_apps": frozenset(),
+                                                                                  "trusted_writers": frozenset()}), \
+                 mock.patch.object(workers, "provider_readiness", return_value={"codex": "logged out", "claude": None}), \
+                 mock.patch("sys.stdout") as out:
+                self.assertEqual(workers.main(["work-next", "--kinds", "review", "--repo", "o/r", "--dry-run",
+                                               "--providers", "codex,claude", "--pr", "7"]), 0)
+            printed = "".join(call.args[0] for call in out.write.call_args_list)
+            self.assertIn('"unavailable": {"codex": "logged out"}', printed)
+            self.assertIn('"ready": ["claude"]', printed)
+
+def repair_comment(providers=("codex",), *, provider=None, reoffer=None):
+    job = workers.job_record("repair", HEAD, "t", 1, providers=list(providers), reoffer=reoffer)
+    if provider is not None:
+        job["provider"] = provider
+    record = lifecycle.build_handoff_record(
+        number=7, state="repair-pending", head=HEAD, task_identity="t", gates={}, red_gate=None,
+        not_reverified=[], attempts={"repair": 1}, next_job=job, at="2026-10-05T08:00:00Z",
+        route={"provider": "codex", "profile": "standard", "change": "c"})
+    return {"id": 1, "author_association": "OWNER", "body": lifecycle.marker_body(record)}
+
+
+class WorkerIdentityTests(unittest.TestCase):
+    def resolve(self, explicit=None, environ=None, **kwargs):
+        values = dict(hostname="host-a", pid=10, nonce="aa11")
+        values.update(kwargs)
+        return workers.resolve_worker_identity(explicit, environ or {}, **values)
+
+    def test_generated_identities_differ_by_host_pid_and_nonce(self):
+        base = self.resolve()
+        self.assertEqual(base, "worker-host-a-10-aa11")
+        self.assertEqual(len({base, self.resolve(hostname="host-b"), self.resolve(pid=11), self.resolve(nonce="bb22")}), 4)
+
+    def test_hostname_is_sanitized_and_empty_hostname_fails(self):
+        self.assertEqual(self.resolve(hostname="My Host/1"), "worker-my-host-1-10-aa11")
+        self.assertLessEqual(len(self.resolve(hostname="h" * 100)), 56)
+        with self.assertRaises(workers.WorkerError):
+            self.resolve(hostname="  ")
+
+    def test_option_wins_over_variable_and_variable_over_generated(self):
+        env = {"DEV_PLATFORM_WORKER": "from-env"}
+        self.assertEqual(self.resolve("from-flag", env), "from-flag")
+        self.assertEqual(self.resolve(None, env), "from-env")
+
+    def test_invalid_explicit_identities_fail_without_replacement(self):
+        for bad in ("", "x" * 65, "has space", "a/b", "-lead", "tab\tx", "new\nline"):
+            with self.subTest(bad=bad):
+                with self.assertRaises(workers.WorkerError):
+                    self.resolve(bad)
+        with self.assertRaises(workers.WorkerError):
+            self.resolve(None, {"DEV_PLATFORM_WORKER": ""})
+
+    def test_claim_and_result_bodies_validate_the_identity(self):
+        with self.assertRaises(workers.WorkerError):
+            workers.claim_body(JOB, "bad worker", LATER)
+        with self.assertRaises(workers.WorkerError):
+            workers.result_body(JOB, "", "reviewed")
+
+    def test_executors_have_no_worker_default(self):
+        import inspect
+
+        gate = load_platform_module("pr_review_gate", ROOT / "template/scripts/pr_review_gate.py")
+        contour = load_platform_module("integration_contour", ROOT / "template/scripts/integration_contour.py")
+        for function in (workers.execute_job, gate.run_claimed, contour.run_claimed_integration_repair,
+                         contour.run_claimed_post_merge):
+            self.assertIs(inspect.signature(function).parameters["worker"].default, inspect.Parameter.empty, function)
+
+    def test_earlier_identities_still_replay(self):
+        comments = [claim("worker-1234", 3)]
+        self.assertTrue(workers.i_won(JOB, "worker-1234", comments, now=NOW))
+        self.assertFalse(workers.i_won(JOB, "worker-1235", comments, now=NOW))
+
+    def test_cli_exits_2_on_invalid_identity_before_any_github_call(self):
+        with mock.patch.object(workers, "_gh_json", side_effect=AssertionError("no GitHub call")):
+            self.assertEqual(workers.main(["work-next", "--kinds", "review", "--repo", "o/r", "--worker", "bad worker"]), 2)
+
+    def test_cli_prints_the_resolved_identity(self):
+        out = mock.MagicMock()
+        with mock.patch.object(workers, "_coordinator_trust", return_value={}), \
+             mock.patch.object(workers, "_gh_json", return_value=[]), \
+             mock.patch("builtins.print", out):
+            self.assertEqual(workers.main(["work-next", "--kinds", "review", "--repo", "o/r", "--worker", "w-print"]), 0)
+        self.assertEqual(json.loads(out.call_args.args[0])["worker"], "w-print")
+
+
+class RepairProviderTests(unittest.TestCase):
+    def poll(self, provider, comments, **extra):
+        posted = []
+        def post(number, body):
+            posted.append(body)
+            comments.append({"id": 20 + len(posted), "author_association": "OWNER", "body": body})
+        pr = {"number": 7, "head": {"sha": HEAD}, "state": "open"}
+        result = workers.work_next(frozenset({"repair"}), list_prs=lambda: [pr], comments_for=lambda n: list(comments),
+                                   post_comment=post, worker="w1", provider=provider, now=NOW, **extra)
+        return result, posted
+
+    def test_matching_worker_claims_and_records_provider(self):
+        result, posted = self.poll("codex", [repair_comment()])
+        self.assertEqual(result["status"], "claimed")
+        self.assertEqual(json.loads(posted[0][len(workers.CLAIM_PREFIX):])["provider"], "codex")
+        self.assertEqual(json.loads(workers.result_body(result["job"], "w1", "pushed", provider="codex")[len(workers.RESULT_PREFIX):])["provider"], "codex")
+
+    def test_mismatched_worker_reports_unauthorized_and_posts_nothing(self):
+        comments = [repair_comment()]
+        result, posted = self.poll("claude", comments)
+        self.assertEqual((result["status"], posted), ("idle", []))
+        self.assertEqual(result["unauthorized"], [{"number": 7, "kind": "repair", "required_provider": "codex"}])
+        self.assertEqual(self.poll("codex", comments)[0]["status"], "claimed")
+
+    def test_recorded_operator_switch_authorizes_the_named_provider(self):
+        event = {"seq": 1, "action": "switch-provider", "from": ["codex"], "to": ["claude"], "reason": "quota"}
+        comments = [repair_comment(("claude",), reoffer=event)]
+        result, posted = self.poll("claude", comments)
+        self.assertEqual(result["status"], "claimed")
+        self.assertIn(":r1", workers.job_id(result["job"]))
+        self.assertEqual(json.loads(posted[0][len(workers.CLAIM_PREFIX):])["provider"], "claude")
+        # the route provider's worker is now unauthorized: exactly one provider runs the job
+        result, posted = self.poll("codex", [repair_comment(("claude",), reoffer=event)])
+        self.assertEqual((result["status"], posted), ("idle", []))
+        self.assertEqual(result["unauthorized"], [{"number": 7, "kind": "repair", "required_provider": "claude"}])
+
+    def test_non_route_provider_without_matching_recorded_switch_fails(self):
+        wrong = {"seq": 1, "action": "switch-provider", "from": ["codex"], "to": ["codex"], "reason": "x"}
+        unrelated = {"seq": 1, "action": "resume", "from": ["codex"], "to": ["claude"], "reason": "x"}
+        for reoffer in (None, wrong, unrelated):
+            with self.subTest(reoffer=reoffer), self.assertRaisesRegex(workers.WorkerError, "PR #7.*re-offer"):
+                self.poll("claude", [repair_comment(("claude",), reoffer=reoffer)])
+
+    def test_provider_is_required_for_repair_kinds(self):
+        with self.assertRaisesRegex(workers.WorkerError, "--provider is required"):
+            self.poll(None, [repair_comment()])
+        with mock.patch.object(workers, "_gh_json", side_effect=AssertionError("no GitHub call")):
+            self.assertEqual(workers.main(["work-next", "--kinds", "review,repair", "--repo", "o/r"]), 2)
+
+    def test_missing_unknown_or_contradictory_provider_fails_naming_the_pr(self):
+        bad = [workers.job_record("repair", HEAD, "t", 1, providers=[]),
+               workers.job_record("repair", HEAD, "t", 1, providers=["gemini"]),
+               workers.job_record("repair", HEAD, "t", 1, providers=["codex", "claude"]),
+               {**workers.job_record("repair", HEAD, "t", 1, providers=["codex"]), "provider": "claude"}]
+        for job in bad:
+            record = lifecycle.build_handoff_record(
+                number=7, state="repair-pending", head=HEAD, task_identity="t", gates={}, red_gate=None,
+                not_reverified=[], attempts={}, next_job=job, at="2026-10-05T08:00:00Z")
+            row = {"id": 1, "author_association": "OWNER", "body": lifecycle.marker_body(record)}
+            with self.subTest(job=job), self.assertRaisesRegex(workers.WorkerError, "PR #7"):
+                self.poll("codex", [row])
+        record = lifecycle.build_handoff_record(
+            number=7, state="repair-pending", head=HEAD, task_identity="t", gates={}, red_gate=None,
+            not_reverified=[], attempts={}, next_job={"kind": "repair", "head": HEAD}, at="2026-10-05T08:00:00Z")
+        with self.assertRaisesRegex(workers.WorkerError, "PR #7 repair job has no provider"):
+            self.poll("codex", [{"id": 1, "author_association": "OWNER", "body": lifecycle.marker_body(record)}])
+
+    def test_executor_refuses_a_job_for_another_provider(self):
+        job = {**JOB, "kind": "repair", "providers": ["codex"]}
+        with self.assertRaisesRegex(workers.WorkerError, "requires provider codex"):
+            workers.execute_job(job, source_repo="x", branch="b", allowed_paths=["a"], llm_command=["x"],
+                                current_head=lambda: HEAD, post_result=lambda b: None, workdir="w", worker="w1",
+                                provider="claude")
 
 
 class TrustResolutionTests(unittest.TestCase):
@@ -349,18 +584,111 @@ class JobRecordTests(unittest.TestCase):
         queue = load_platform_module("publication_queue", ROOT / "template/scripts/publication_queue.py")
         from unittest.mock import patch
         pr = {"number": 7, "head": {"sha": HEAD}, "state": "open"}
-        with patch.object(queue, "_pr", return_value=pr), patch.object(queue, "_comments", return_value=[handoff_comment()]), \
+        with patch.object(queue, "_pr", return_value=pr), patch.object(queue, "_comments", return_value=[handoff_comment(route=ROUTE)]), \
                 patch.object(queue, "_derive", wraps=lambda r, p, c, checks=None: lifecycle.derive_candidate(p, c)), \
                 patch.object(queue, "_transition", return_value={}) as transition:
-            queue.publish_job(Path("."), "o/r", 7, "repair", HEAD, task_identity="t", providers=["claude"])
+            queue.publish_job(Path("."), "o/r", 7, "repair", HEAD, task_identity="t")
         args, kwargs = transition.call_args
         self.assertEqual(args[3], "review-pending")
         self.assertEqual(kwargs["next_job"], workers.job_record("repair", HEAD, "t", 0, providers=["claude"]))
 
 
+class PublishJobRouteTests(unittest.TestCase):
+    """Provider resolution of published jobs comes from the candidate's recorded originating route."""
+
+    def setUp(self):
+        self.queue = load_platform_module("publication_queue", ROOT / "template/scripts/publication_queue.py")
+
+    def publish(self, kind, comments, *, settings=None, **kwargs):
+        pr = {"number": 7, "head": {"sha": HEAD}, "state": "open"}
+        runner = load_platform_module("independent_review_runner", ROOT / "template/scripts/independent_review_runner.py")
+        with mock.patch.object(self.queue, "_pr", return_value=pr), \
+             mock.patch.object(self.queue, "_comments", return_value=comments), \
+             mock.patch.object(self.queue, "_derive", wraps=lambda r, p, c, checks=None: lifecycle.derive_candidate(p, c)), \
+             mock.patch.object(self.queue, "emit_friction") as friction, \
+             mock.patch.object(runner, "settings", return_value=settings or {}), \
+             mock.patch.object(self.queue, "_transition", return_value={}) as transition:
+            self.queue.publish_job(Path("."), "o/r", 7, kind, HEAD, task_identity="t", **kwargs)
+        friction.assert_not_called()
+        return transition.call_args.kwargs["next_job"]
+
+    def test_coordinator_publishes_repair_and_integration_repair_from_the_recorded_route(self):
+        comments = [handoff_comment(route={"provider": "codex", "profile": "standard", "change": "c"})]
+        for kind in ("repair", "integration-repair"):
+            with self.subTest(kind):
+                job = self.publish(kind, comments)
+                self.assertEqual(job["providers"], ["codex"])
+                self.assertNotIn("unresolved-originating-task-route", json.dumps(job))
+
+    def test_repair_ignores_review_configuration(self):
+        comments = [handoff_comment(route=ROUTE)]
+        job = self.publish("repair", comments, settings={"providers": ["codex", "claude"]})
+        self.assertEqual(job["providers"], ["claude"])
+
+    def test_missing_unsupported_and_contradictory_routes_publish_nothing(self):
+        for kind in ("repair", "integration-repair"):
+            with self.subTest(kind, case="missing"), self.assertRaisesRegex(self.queue.QueueError, "no originating task route"):
+                self.publish(kind, [handoff_comment()])
+        with self.assertRaisesRegex(self.queue.QueueError, "unsupported"):
+            self.publish("repair", [handoff_comment(route={"provider": "gemini", "profile": "p", "change": "c"})])
+        with self.assertRaisesRegex(self.queue.QueueError, "neither the originating route provider"):
+            self.publish("repair", [handoff_comment(route=ROUTE)], providers=["codex"])
+        with self.assertRaisesRegex(self.queue.QueueError, "exactly one provider"):
+            self.publish("repair", [handoff_comment(route=ROUTE)], providers=["claude", "codex"])
+
+    def test_publish_accepts_a_non_route_provider_only_with_its_recorded_switch(self):
+        comments = [handoff_comment(route=ROUTE)]
+        event = {"seq": 2, "action": "switch-provider", "from": ["claude"], "to": ["codex"], "reason": "quota"}
+        job = self.publish("repair", comments, providers=["codex"], reoffer=event)
+        self.assertEqual((job["providers"], job["reoffer"]), (["codex"], event))
+        with self.assertRaisesRegex(self.queue.QueueError, "neither the originating route provider"):
+            self.publish("repair", comments, providers=["codex"], reoffer={**event, "to": ["claude"]})
+
+    def test_task_change_without_matching_route_is_contradictory(self):
+        identity = {"change": "other", "task_content": {"digest": "d"}}
+        record = lifecycle.build_handoff_record(
+            number=7, state="review-pending", head=HEAD, task_identity=identity, gates={}, red_gate=None,
+            not_reverified=[], attempts={}, next_job={"kind": "review"}, at="2026-10-05T08:00:00Z", route=ROUTE)
+        comments = [{"id": 1, "author_association": "OWNER", "body": lifecycle.marker_body(record)}]
+        with self.assertRaisesRegex(self.queue.QueueError, "contradicts"):
+            self.publish("repair", comments)
+
+    def test_review_uses_configured_ordered_list_else_the_route_and_never_a_default(self):
+        route_comments = [handoff_comment(route=ROUTE)]
+        self.assertEqual(self.publish("review", route_comments, settings={"providers": ["codex", "claude"]})["providers"],
+                         ["codex", "claude"])
+        self.assertEqual(self.publish("review", route_comments)["providers"], ["claude"])
+        with self.assertRaisesRegex(self.queue.QueueError, "no originating task route"):
+            self.publish("review", [handoff_comment()])
+
+    def test_transition_records_and_inherits_the_route_across_heads(self):
+        queue = self.queue
+        posted = []
+        first = lifecycle.build_handoff_record(
+            number=7, state="review-pending", head=HEAD, task_identity={"change": "c"}, gates={}, red_gate=None,
+            not_reverified=[], attempts={}, next_job=None, at="2026-10-05T08:00:00Z", route=ROUTE)
+        comments = [{"id": 1, "author_association": "OWNER", "body": lifecycle.marker_body(first)}]
+        def run(head, identity):
+            observed = {"number": 7, "state": "open", "head": {"sha": head}, "labels": []}
+            with mock.patch.object(queue, "_gh", side_effect=lambda _r, *a, data=None: posted.append(data["body"])), \
+                 mock.patch.object(queue, "_label"), mock.patch.object(queue, "_pr", return_value=observed), \
+                 mock.patch.object(queue, "_comments", return_value=comments), \
+                 mock.patch.object(queue, "trusted_apps", return_value=frozenset()), \
+                 mock.patch.object(queue, "trusted_writers", return_value=frozenset()), \
+                 mock.patch.object(queue.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, "", "")):
+                return queue._transition(Path("."), "o/r", 7, "review-pending", head, task_identity=identity, inherit_identity=False)
+        moved = run(NEW, {"change": "c", "task_content": {"digest": "e"}})
+        self.assertEqual(moved["route"], ROUTE)
+        with self.assertRaisesRegex(queue.QueueError, "contradicts"):
+            run(NEW, {"change": "other", "task_content": {"digest": "e"}})
+        self.assertEqual(len(posted), 1)
+
+
 FAKE_LLM = r"""
 import os, subprocess, sys
 mode = os.environ.get("FAKE_MODE", "commit")
+if mode == "fail":
+    sys.exit(1)
 def g(*a): subprocess.run(["git", *a], check=True, env={**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"})
 if mode == "review-write":
     open("src/a.py", "w").write("dirty")
@@ -400,7 +728,8 @@ class ExecuteJobTests(unittest.TestCase):
         self.work = base / "work"
         self.work.mkdir()
         self.mark = base / "mark"
-        self.job = {"kind": "repair", "number": 7, "head": self.head, "task_identity": "t", "attempt": 1}
+        self.job = {"kind": "repair", "number": 7, "head": self.head, "task_identity": "t", "attempt": 1,
+                    "providers": ["codex"]}
         self.posted = []
         script = base / "llm.py"
         script.write_text(FAKE_LLM)
@@ -414,7 +743,7 @@ class ExecuteJobTests(unittest.TestCase):
         return workers.execute_job(
             job, source_repo=str(self.src), branch="task", allowed_paths=list(allow),
             llm_command=[sys.executable, str(self.script)], current_head=lambda: head or self.head,
-            post_result=self.posted.append, workdir=str(self.work), worker="w1",
+            post_result=self.posted.append, workdir=str(self.work), worker="w1", provider="codex",
             env={**os.environ}, push_env={**os.environ, "GIT_CONFIG_GLOBAL": os.devnull})
 
     def test_repair_pushes_through_harness(self):
@@ -425,6 +754,40 @@ class ExecuteJobTests(unittest.TestCase):
         self.assertNotEqual(remote, self.head)
         self.assertTrue(self.posted[-1].startswith(workers.RESULT_PREFIX))
         self.assertEqual(json.loads(self.posted[-1][len(workers.RESULT_PREFIX):])["pushed_head"], remote)
+
+    def test_unusable_runtime_after_failure_is_unavailable_and_claimable_again(self):
+        os.environ["FAKE_MODE"] = "fail"
+        self.addCleanup(lambda: os.environ.pop("FAKE_MODE", None))
+        def run(check):
+            workdir = Path(tempfile.mkdtemp(dir=self.tmp.name))
+            return workers.execute_job(
+                self.job, source_repo=str(self.src), branch="task", allowed_paths=["src/"],
+                llm_command=[sys.executable, str(self.script)], current_head=lambda: self.head,
+                post_result=self.posted.append, workdir=str(workdir), worker="w1", provider="codex", env={**os.environ},
+                runtime_check=check)
+        usable = run(lambda: None)
+        self.assertEqual(usable["status"], "failed")  # a usable runtime keeps the failure real
+        limited = run(lambda: "codex usage limit reached")
+        self.assertEqual(limited["status"], "unavailable")
+        row = {"id": 1, "author_association": "OWNER", "body": self.posted[-1]}
+        self.assertIn("usage limit", self.posted[-1])
+        self.assertTrue(workers.is_claimable(self.job, [], trusted_apps=frozenset(), trusted_writers=frozenset()))
+        self.assertFalse(workers.job_completed(self.job, [row], trusted_apps=frozenset(), trusted_writers=frozenset()))
+
+    def test_command_that_cannot_start_is_unavailable(self):
+        result = workers.execute_job(
+            self.job, source_repo=str(self.src), branch="task", allowed_paths=["src/"],
+            llm_command=["/nonexistent/writer"], current_head=lambda: self.head, post_result=self.posted.append,
+            workdir=str(self.work), worker="w1", provider="codex", env={**os.environ}, runtime_check=lambda: None)
+        self.assertEqual(result["status"], "unavailable")
+        self.assertIn("cannot start", self.posted[-1])
+
+    def test_unstartable_command_outside_the_repair_gate_still_raises(self):
+        with self.assertRaises(OSError):
+            workers.execute_job(
+                dict(self.job, kind="integration-repair"), source_repo=str(self.src), branch="task",
+                allowed_paths=["src/"], llm_command=["/nonexistent/writer"], current_head=lambda: self.head,
+                post_result=self.posted.append, workdir=str(self.work), worker="w1", provider="codex", env={**os.environ})
 
     def test_head_moved_discards_result(self):
         result = self.run_job("commit", head=NEW)

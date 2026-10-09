@@ -1,0 +1,14 @@
+OpenSpec-Verify: PASS
+Verification-Method: semantic OpenSpec review (completeness, correctness, coherence) of integration head d259296 against the coordinator-operations delta (publication-queue, platform-lifecycle), proposal, design and tasks, performed by a delegated read-only Sonnet verifier with the supervisor reviewing its report; plus the repository full suite on the same head
+Independent-Review-Evidence: independent-review-request.json
+Automated-Checks-Evidence: automated-checks.json
+
+Scope. The change was ported by three-way merge from its prepared candidate onto requirement/BR-415 (after publication-observation, downstream-boundary, early-routing-gate and a main merge carrying BR-439); the two port conflicts (worker friction sink, preflight and switch-provider subcommands) kept both sides.
+
+Completeness and correctness: every requirement and scenario of the delta maps to an implementation and a test (preflight in publication_queue.preflight/run_worker and tests/test_coordinator_preflight.py; evidence:v1 records, durable friction sink and requirement_evidence in tests/test_coordinator_evidence.py, test_publication_queue, test_autonomous_integration_contour, test_requirement_retrospective, test_retrospective_attribution). The `worker` command requires `--mode` and runs preflight before observing candidates; every `use_default_friction_sink` caller passes `worker=`. No material findings. No new fallbacks; `tolerate_durable_gap` is the spec-authorized explicit path and defaults to raising.
+
+Checks actually run on d259296 and, through the platform selector (`select_checks.py --base origin/main --contribution-base 82b289d --mode protected-full --execute`, recorded in automated-checks.json), on 4f57f19 (`python3 scripts/managed_projects.py validate` could not run here: operator configuration is not enabled on this workstation and was not changed): `python3 -m compileall -q template/scripts scripts`, `python3 -m ruff check scripts template/scripts tests` (pass), `python3 scripts/run_test_groups.py --all` (17 groups, 0 failed). The acceptance fake gh gained the candidate PR inventory call (`pulls?state=all --jq`) that the retrospective's coordinator-evidence read now issues.
+
+Independent review (one round, claude, base 82b289d, head d259296): spec-fidelity no findings; engineering-quality three advisories (select_job raising on one invalid repair job stalls work-next; post_evidence dedupe is check-then-post, not atomic; admit resolves the route before its idempotency check). No material finding; advisories are recorded as follow-ups, not changed here.
+
+Not checked: a real GitHub App token probe and the publication-queue workflow on GitHub Actions. Pre-existing behavior reported, not changed: the `merged` transition swallows QueueError, and some `worker()` contribution paths convert QueueError into a skipped entry.

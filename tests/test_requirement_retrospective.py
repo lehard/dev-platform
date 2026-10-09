@@ -20,6 +20,15 @@ def parent(children: tuple[int, ...] = (8, 9), *, outcome: str = "Improve proces
     return {"body": f"## Outcome\n\n{outcome}\n\n## Target repository\n\n`acme/project`\n\n<!-- requirement-children:start -->\n{lines}\n<!-- requirement-children:end -->"}
 
 
+def setUpModule() -> None:
+    # Local-log scenarios: durable coordinator evidence (GitHub) is covered by the
+    # coordinator-operations tests, so these scenarios never reach GitHub.
+    for module in {retrospective.agent_friction}:
+        patcher = mock.patch.object(module, "read_durable_events", return_value=[])
+        patcher.start()
+        unittest.addModuleCleanup(patcher.stop)
+
+
 class RequirementRetrospectiveTests(unittest.TestCase):
     def test_early_and_cross_child_findings_survive_clean_child_outcomes(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -84,6 +93,7 @@ class RequirementRetrospectiveTests(unittest.TestCase):
     def test_terminal_reconciliation_checks_parent_before_mutation(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
+            (root / ".dev-platform.toml").write_text('platform_version = "1.0.0"\n', encoding="utf-8")
             with mock.patch.object(requirement_terminal.subprocess, "run", return_value=mock.Mock(stdout="main", returncode=0)), mock.patch.object(
                 requirement_terminal.requirement_target_lifecycle, "require_local_target_support"
             ), mock.patch.object(
@@ -98,6 +108,7 @@ class RequirementRetrospectiveTests(unittest.TestCase):
     def test_terminal_reconciliation_refuses_unsupported_target_before_parent_mutation(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
+            (root / ".dev-platform.toml").write_text('platform_version = "1.0.0"\n', encoding="utf-8")
             unsupported = requirement_terminal.requirement_target_lifecycle.RequirementTargetLifecycleError("missing terminal path")
             with mock.patch.object(requirement_terminal.subprocess, "run", return_value=mock.Mock(stdout="main", returncode=0)), mock.patch.object(
                 requirement_terminal.requirement_intake, "fetch_issue", return_value={**parent(), "labels": [{"name": "type:requirement"}]}

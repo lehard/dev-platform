@@ -14,6 +14,7 @@ so callers and tests can inject it.
 """
 from __future__ import annotations
 
+import functools
 import os
 import re
 import shutil
@@ -117,10 +118,17 @@ def trusted_archiver(checkout: Path, change: str, env: dict[str, str]) -> None:
         raise workers.WorkerError("archive failed: " + (done.stderr.strip() or done.stdout.strip())[-400:])
 
 
-def trusted_checks_runner(checkout: Path, env: dict[str, str]) -> None:
-    """Run the platform's selected checks (trusted script) in the disposable checkout."""
+def trusted_checks_runner(checkout: Path, env: dict[str, str], *, contribution_base: str | None = None) -> None:
+    """Run the platform's selected checks (trusted script) in the disposable checkout.
+
+    A Requirement contribution is fresh against its exact recorded integration base, not
+    current main; main is validated by the Requirement composition candidate.
+    """
     script = Path(__file__).resolve().with_name("select_checks.py")
-    done = subprocess.run([sys.executable, str(script), "--base", "origin/main", "--execute"], cwd=checkout, env=env,
+    command = [sys.executable, str(script), "--base", "origin/main", "--execute"]
+    if contribution_base is not None:
+        command += ["--contribution-base", contribution_base]
+    done = subprocess.run(command, cwd=checkout, env=env,
                           stdin=subprocess.DEVNULL, text=True, capture_output=True, check=False)
     if done.returncode:
         raise workers.WorkerError("selected checks failed: " + (done.stderr.strip() or done.stdout.strip())[-400:])
@@ -162,7 +170,15 @@ def execute_finalize(checkout: Path, job: dict, gates: dict, *, source_repo: str
     actual = review_gate.refresh_identity(checkout, identity)
     if not equivalent_proofs(checkout, identity.get("task_content"), actual["task_content"]):
         return {"status": "changed", "identity": actual}
-    gates = reestablish_gates(checkout, gates, actual, job["head"], checks_runner or trusted_checks_runner)
+    if checks_runner is None:
+        if actual.get("kind") == "contribution":
+            base = actual.get("contribution_base")
+            if not isinstance(base, str) or not base:
+                raise workers.WorkerError("contribution candidate identity lacks its exact contribution base")
+            checks_runner = functools.partial(trusted_checks_runner, contribution_base=base)
+        else:
+            checks_runner = trusted_checks_runner
+    gates = reestablish_gates(checkout, gates, actual, job["head"], checks_runner)
     problems = verify_reused_evidence(checkout, gates, actual)
     if problems:
         raise workers.WorkerError("finalization cannot reuse evidence: " + "; ".join(problems))
@@ -209,8 +225,8 @@ def return_to_review(root: Path, repo: str, candidate: dict, head: str, fresh: d
 
 
 def run_claimed_finalize(root: Path, repo: str, candidate: dict, job: dict, *, source_repo: str, branch: str,
-                         current_head, post_result, workdir: str, adapter=queue, runner=None, archiver=None,
-                         worker: str = "worker", claim_current=None, push_env=None, checks_runner=None) -> dict:
+                         current_head, post_result, workdir: str, worker: str, adapter=queue, runner=None, archiver=None,
+                         claim_current=None, push_env=None, checks_runner=None) -> dict:
     """Execute and advance one claimed exact-head finalize job, without the developer."""
     if job["kind"] != "finalize":
         raise workers.WorkerError(f"no finalization executor for {job['kind']}")
