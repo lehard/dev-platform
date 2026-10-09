@@ -21,6 +21,8 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+
+from machine_pool import child_lease_descriptors
 from typing import Callable
 
 from task_content_identity import equivalent_proofs
@@ -130,7 +132,7 @@ def trusted_checks_runner(checkout: Path, env: dict[str, str], *, contribution_b
         command += ["--contribution-base", contribution_base]
     # Finalization checks are admitted ahead of development runs by the machine pool.
     env = {**env, "DEV_PLATFORM_CHECK_CLASS": "finalize"}
-    done = subprocess.run(command, cwd=checkout, env=env,
+    done = subprocess.run(command, cwd=checkout, env=env, pass_fds=child_lease_descriptors(env),
                           stdin=subprocess.DEVNULL, text=True, capture_output=True, check=False)
     if done.returncode:
         raise workers.WorkerError("selected checks failed: " + (done.stderr.strip() or done.stdout.strip())[-400:])

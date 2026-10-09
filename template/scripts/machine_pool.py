@@ -625,6 +625,15 @@ def _open_descriptors(fds: list[int]) -> tuple[int, ...]:
     return tuple(fds)
 
 
+def child_lease_descriptors(environ: MutableMapping[str, str] | None = None) -> tuple[int, ...]:
+    """Return exported lease descriptors for a child, failing if pooled descriptors are closed."""
+    environ = os.environ if environ is None else environ
+    if LEASE_ENV not in environ:
+        return ()
+    parent = _parse_lease(environ[LEASE_ENV])
+    return _open_descriptors(parent["fds"]) if parent["pooled"] else ()
+
+
 @contextlib.contextmanager
 def lease(weight: int, purpose: str, *, bounded: bool = False, check_class: str | None = None,
           root: Path | None = None, environ: MutableMapping[str, str] | None = None,

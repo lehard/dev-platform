@@ -29,6 +29,7 @@ run_test_groups = load_platform_module("run_test_groups", SCRIPTS / "run_test_gr
 select_checks = load_platform_module("select_checks", SCRIPTS / "select_checks.py")
 integration = load_platform_module("requirement_integration", SCRIPTS / "requirement_integration.py")
 workers = load_platform_module("lifecycle_workers", SCRIPTS / "lifecycle_workers.py")
+lifecycle = load_platform_module("openspec_lifecycle", SCRIPTS / "openspec_lifecycle.py")
 final = load_platform_module("post_review_finalization", SCRIPTS / "post_review_finalization.py")
 
 POOL_ENV = machine_pool.POOL_ENV
@@ -766,6 +767,67 @@ class IntegrationTests(PoolFixture):
                 contextlib.redirect_stdout(io.StringIO()):
             with self.assertRaisesRegex(integration.RequirementIntegrationError, "machine pool.*absent.toml"):
                 integration._run_full_checks(self.base)
+
+    def test_child_lease_descriptors_without_a_pooled_lease(self) -> None:
+        self.assertEqual(machine_pool.child_lease_descriptors({}), ())
+        self.assertEqual(machine_pool.child_lease_descriptors({LEASE_ENV: json.dumps({"id": "x", "pooled": False})}), ())
+        with self.assertRaises(machine_pool.PoolError):
+            machine_pool.child_lease_descriptors({LEASE_ENV: "invalid"})
+
+    def test_child_lease_descriptors_rejects_closed_descriptors(self) -> None:
+        fd = os.open(self.config_path, os.O_RDONLY)
+        os.close(fd)
+        env = {LEASE_ENV: json.dumps({"id": "x", "pooled": True, "weight": 1, "fds": [fd]})}
+        with self.assertRaisesRegex(machine_pool.PoolError, f"missing inherited descriptor.*{fd}"):
+            machine_pool.child_lease_descriptors(env)
+
+    def check_lifecycle_child_reuses_lease(self, archive: bool) -> None:
+        real_run = subprocess.run
+        seen = []
+        with self.patched_environment(), machine_pool.lease(2, "parent", hooks=fast_hooks()) as parent:
+            self.assertEqual(machine_pool.child_lease_descriptors(), parent.fds)
+            code = (
+                "import sys; "
+                f"sys.path.insert(0, {str(SCRIPTS)!r}); "
+                "import machine_pool, select_checks; "
+                f"from pathlib import Path; root = Path({str(self.base)!r}); "
+                "select_checks.resolve_jobs = lambda: 99; "
+                "result = select_checks.execute(root, [{'id': 'nested', 'commands': ['true']}]); "
+                "assert result == 0; "
+                "inner = machine_pool.lease(99, 'probe').__enter__(); "
+                f"assert inner.nested and inner.id == {parent.id!r} and inner.weight == 2"
+            )
+
+            def run(command, **kwargs):
+                if any("select_checks.py" in str(arg) for arg in command):
+                    seen.append(kwargs["pass_fds"])
+                    return real_run([sys.executable, "-c", code], **kwargs)
+                return subprocess.CompletedProcess(command, 0)
+
+            with mock.patch.object(subprocess, "run", side_effect=run):
+                if archive:
+                    with contextlib.ExitStack() as stack:
+                        for name in ("require_archive_target", "require_static_archive_readiness",
+                                     "require_applicable_committed_diff", "ensure_review_evidence", "require_ready"):
+                            stack.enter_context(mock.patch.object(lifecycle, name))
+                        stack.enter_context(mock.patch.object(lifecycle, "read_platform_config", return_value={}))
+                        stack.enter_context(mock.patch.object(lifecycle, "harness_mode", return_value="platform"))
+                        stack.enter_context(mock.patch.object(lifecycle, "lifecycle_mode", return_value="direct"))
+                        import private_lineage
+                        stack.enter_context(mock.patch.object(private_lineage, "require_clean_candidate"))
+                        stack.enter_context(mock.patch.object(lifecycle.shutil, "which", return_value="openspec"))
+                        self.assertEqual(lifecycle.archive_change(self.base, "test"), 0)
+                else:
+                    final.trusted_checks_runner(self.base, dict(os.environ))
+            self.assertEqual(seen, [parent.fds])
+            self.assertEqual(len(machine_pool.read_holders(self.config)), 1)
+        self.assertEqual(machine_pool.read_holders(self.config), [])
+
+    def test_finalization_checks_child_reuses_pooled_lease(self) -> None:
+        self.check_lifecycle_child_reuses_lease(archive=False)
+
+    def test_archive_checks_child_reuses_pooled_lease(self) -> None:
+        self.check_lifecycle_child_reuses_lease(archive=True)
 
     def test_finalization_checks_runner_declares_the_finalize_class_and_keeps_the_pool_variables(self) -> None:
         done = subprocess.CompletedProcess("checks", 0, stdout="", stderr="")

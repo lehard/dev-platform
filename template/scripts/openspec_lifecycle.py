@@ -8,6 +8,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from machine_pool import child_lease_descriptors
+
 from _platform_common import current_worktree_root, harness_mode, lifecycle_mode, read_platform_config, run_git
 try:
     from managed_task import ManagedTaskError, read_provenance, require_managed_checkout_identity, source_issue_for_provenance
@@ -519,9 +521,9 @@ def require_applicable_committed_diff(root: Path) -> None:
         raise SystemExit("OpenSpec archive could not determine committed diff against origin/main.")
 
 
-def run_checked(command: list[str], root: Path, *, env: dict[str, str] | None = None) -> None:
+def run_checked(command: list[str], root: Path, *, env: dict[str, str] | None = None, pass_fds: tuple[int, ...] = ()) -> None:
     print("+ " + " ".join(command), flush=True)
-    result = subprocess.run(command, cwd=root, stdin=subprocess.DEVNULL, env=env)
+    result = subprocess.run(command, cwd=root, stdin=subprocess.DEVNULL, env=env, pass_fds=pass_fds)
     if result.returncode != 0:
         raise SystemExit(result.returncode)
 
@@ -588,10 +590,12 @@ def archive_change(root: Path, name: str, *, finalize: bool = False) -> int:
             require_automated_evidence(change, root=root)
         elif platform_owned:
             evidence = change / AUTOMATED_EVIDENCE_FILE
+            env = archive_target_environment(root, name)
             run_checked(
                 ["python3", "scripts/select_checks.py", "--base", "origin/main", "--execute", "--evidence", str(evidence)],
                 root,
-                env=archive_target_environment(root, name),
+                env=env,
+                pass_fds=child_lease_descriptors(env),
             )
     require_ready(change, platform_owned=platform_owned and not finalize, reviewed_composition=bool(composition))
     executable = shutil.which("openspec")
