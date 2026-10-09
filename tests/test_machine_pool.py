@@ -328,6 +328,29 @@ class LeaseTests(PoolFixture):
         self.assertEqual(self.queue_names(), [])
         self.assertTrue(any("queue position 1 of 1" in line and "holders:" in line for line in lines), lines)
 
+    def test_tokens_freed_after_wait_timeout_are_not_acquired(self) -> None:
+        clock = FakeClock()
+        lines: list[str] = []
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(machine_pool.lease(
+                self.config.tokens, "holder", environ=dict(self.environ), hooks=fast_hooks()))
+
+            def release_after_deadline(seconds: float) -> None:
+                clock.now += self.config.wait_timeout_seconds + seconds
+                stack.close()
+                self.assertEqual(machine_pool.read_holders(self.config), [])
+
+            hooks = fake_hooks(clock, lines)
+            hooks = machine_pool.Hooks(
+                monotonic=hooks.monotonic, sleep=release_after_deadline, poll_interval=hooks.poll_interval,
+                progress_interval=hooks.progress_interval, load_per_cpu=hooks.load_per_cpu,
+                available_memory_mb=hooks.available_memory_mb, out=hooks.out)
+            with self.assertRaisesRegex(machine_pool.PoolTimeout, "timed out after 200s"):
+                with machine_pool.lease(1, "waiter", environ=dict(self.environ), hooks=hooks):
+                    self.fail("must not acquire after the deadline even when tokens are free")
+        self.assertEqual(self.queue_names(), [])
+        self.assertFalse(any("acquired" in line for line in lines), lines)
+
     def test_progress_is_reported_at_start_and_every_sixty_seconds(self) -> None:
         lines: list[str] = []
         clock = FakeClock()

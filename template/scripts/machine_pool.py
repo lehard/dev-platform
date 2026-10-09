@@ -537,6 +537,10 @@ def _acquire(config: PoolConfig, weight: int, check_class: str, purpose: str, ro
         next_progress = started
         first = True
         while True:
+            if not first and hooks.monotonic() - started >= config.wait_timeout_seconds:
+                raise PoolTimeout(
+                    f"machine pool wait timed out after {config.wait_timeout_seconds}s for {weight} token(s) as class "
+                    f"{check_class} (queue position {position}; {reason}); holders: {describe_holders(read_holders(config))}")
             live = [name for name, _ in _scan_queue(config, remove_dead=True, own=ticket.name)]
             if ticket.name not in live:
                 raise PoolError(f"queue ticket {ticket.path} disappeared while waiting")
