@@ -1,12 +1,16 @@
 {
   "candidate": {
-    "base_head": "5b6a6098ce8239f506d60e1b3d680d3b0d2b06a4",
+    "base_head": "e5b3f9d549216bc58f635e28278add2c07580e3b",
     "base_ref": "origin/main",
-    "candidate_head": "d597df761902dec04a72d8d50a3b2972a0566d4a",
-    "diff_sha256": "e3f5d4c3692705d86b51fe21facff5a9d4033e83c0e5321781917a440c8f2455"
+    "candidate_head": "9d3592f77061b5e7eb5037e4eb5cbc56b72b97de",
+    "diff_sha256": "22e56a5e6de7ba2f0d688723a4dcbae416496ac8e33261e0e3447dad1f37d9cd"
   },
   "change": "openspec/changes/owner-approved-supervisor-diff",
-  "excluded_lifecycle_paths": [],
+  "excluded_lifecycle_paths": [
+    "openspec/changes/owner-approved-supervisor-diff/independent-review-request.json",
+    "openspec/changes/owner-approved-supervisor-diff/independent-reviews/engineering-quality.json",
+    "openspec/changes/owner-approved-supervisor-diff/independent-reviews/spec-fidelity.json"
+  ],
   "fresh_context_required": true,
   "perspectives": {
     "engineering-quality": {
@@ -31,7 +35,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-09T10:31:06+00:00",
+  "prepared_at": "2026-10-09T10:33:38+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/owner-approved-supervisor-diff/independent-reviews",
     "required_perspectives": [
@@ -40,7 +44,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "2389995e-a52f-4292-8253-3d41fb0c8761",
+  "request_id": "3defd8ea-20c5-437c-aef4-71728bb0bb29",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -53,18 +57,18 @@
   "schema_version": 1,
   "task_content": {
     "base": "5b6a6098ce8239f506d60e1b3d680d3b0d2b06a4",
-    "digest": "0e263db5250b7ff8242e3e794badc2d357f2d52224c2fa36b4b35cdff3c6607c",
+    "digest": "d2c7f59c0224c57d2d31c29ab5e4b880921ec60eb60efe7489cfc25ddcfcf135",
     "paths": {
       "docs/engineering/model-routing.md": "0bcacfe87d122d8b40aaae06026ee471cfd1feda",
       "openspec/changes/owner-approved-supervisor-diff/.managed-task.json": "cfa8245ee640096608122892d5677aa9f0797840",
       "openspec/changes/owner-approved-supervisor-diff/.openspec.yaml": "81264324b0500978f52f70d701b236a09cb1d808",
-      "openspec/changes/owner-approved-supervisor-diff/design.md": "ed23dcaff052fd687f0aa6d09d6575cfdac198fe",
+      "openspec/changes/owner-approved-supervisor-diff/design.md": "d55bc68210222d4a4bceedc365ac5663eadd3c43",
       "openspec/changes/owner-approved-supervisor-diff/proposal.md": "53fe8bc0b4514a92d4e27162221672f7420f76fa",
       "openspec/changes/owner-approved-supervisor-diff/specs/model-routing/spec.md": "2d83b5d0d901ab8102b13d5c10eb83c924eaef68",
       "openspec/changes/owner-approved-supervisor-diff/tasks.md": "f4cdeafe616980c28758845ab76d6745f77f8bdc",
       "template/docs/engineering/model-routing.md": "31ad82c45b957b9a38a724429a412d3d7932da70",
-      "template/scripts/model_routing.py": "43bfc6b3796e68d36687f017273cf96f885f4b57",
-      "tests/test_model_routing.py": "121fc208d91c1c34a018857b63208849153b5007"
+      "template/scripts/model_routing.py": "a8b2e5507ccfc65da015e8009461abedb1002060",
+      "tests/test_model_routing.py": "36ca325296cceb336fb1014f1522023c6b36b514"
     },
     "scope": "independent-review-v1",
     "version": 1

@@ -1,38 +1,25 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "5b6a6098ce8239f506d60e1b3d680d3b0d2b06a4",
+    "base_head": "e5b3f9d549216bc58f635e28278add2c07580e3b",
     "base_ref": "origin/main",
-    "candidate_head": "d597df761902dec04a72d8d50a3b2972a0566d4a",
-    "diff_sha256": "e3f5d4c3692705d86b51fe21facff5a9d4033e83c0e5321781917a440c8f2455"
+    "candidate_head": "9d3592f77061b5e7eb5037e4eb5cbc56b72b97de",
+    "diff_sha256": "22e56a5e6de7ba2f0d688723a4dcbae416496ac8e33261e0e3447dad1f37d9cd"
   },
-  "completed_at": "2026-10-09T10:31:52+00:00",
-  "findings": [
-    {
-      "evidence": "template/scripts/model_routing.py:713-717 checks only retained.role and retained.policy == _retention_policy(route). The design says the archive gate accepts the retained execution 'by the same policy equality check', so execution.retained.owner_approval is never required or compared with execution_plan.owner_approval. _validate_execution_plan covers only the plan. An execution record that omits or alters the approval still passes the archive gate.",
-      "id": "archive-gate-skips-owner-approval-in-execution",
-      "severity": "advisory",
-      "summary": "The archive gate accepts an owner-approved retained execution without checking that execution.retained carries the owner_approval."
-    },
-    {
-      "evidence": "approve_supervisor_diff (model_routing.py, about line 1136) only checks that the strings are non-empty. design.md Risks acknowledges this, so the only safeguard is documentation. This reopens the late-legalization path that the v1.9.0 gate closed, and the early gate now points agents to the command in its own error message.",
-      "id": "approval-unverifiable-agent-callable",
-      "severity": "advisory",
-      "summary": "Any agent can call the command with a free-text --approval, and nothing ties the record to a real owner decision."
-    }
-  ],
-  "launched_at": "2026-10-09T10:31:32+00:00",
-  "output_sha256": "57630ec1a6bb09d56e21d904e171fbb6a3957dcd36b5ee6d1956cc961dbd2d16",
+  "completed_at": "2026-10-09T10:34:12+00:00",
+  "findings": [],
+  "launched_at": "2026-10-09T10:34:03+00:00",
+  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "engineering-quality",
-  "request_id": "2389995e-a52f-4292-8253-3d41fb0c8761",
+  "request_id": "3defd8ea-20c5-437c-aef4-71728bb0bb29",
   "reviewer": {
-    "context_id": "a5d9ff8f-80ce-4349-8f63-5b01bd83e418",
+    "context_id": "1590bf10-194f-4696-ad86-8c4e47123426",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-73453b78-6958-4ab5-b2bd-95abe9b05c08",
+    "launch_id": "platform-launch-c7c6f2df-45ab-497a-b509-e396b7fa005b",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -48,41 +35,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 27056
+        "value": 25385
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 77836
+        "value": 17739
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 17282
+        "value": 6142
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 17817
+        "value": 6713
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 4
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 3
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1775
+        "value": 470
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "0e263db5250b7ff8242e3e794badc2d357f2d52224c2fa36b4b35cdff3c6607c"
+  "task_content_digest": "d2c7f59c0224c57d2d31c29ab5e4b880921ec60eb60efe7489cfc25ddcfcf135"
 }
