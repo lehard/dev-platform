@@ -2,14 +2,16 @@
   "candidate": {
     "base_head": "e5b3f9d549216bc58f635e28278add2c07580e3b",
     "base_ref": "origin/main",
-    "candidate_head": "9d3592f77061b5e7eb5037e4eb5cbc56b72b97de",
-    "diff_sha256": "22e56a5e6de7ba2f0d688723a4dcbae416496ac8e33261e0e3447dad1f37d9cd"
+    "candidate_head": "e4866ef62e71ea0f06aeb22a9b34c977ae6122d4",
+    "diff_sha256": "47607ed3a0fbf664e5c2f5fc3a334a9a7a93dbae173a8968cdb00c1e7baa231d"
   },
   "change": "openspec/changes/owner-approved-supervisor-diff",
   "excluded_lifecycle_paths": [
+    "openspec/changes/owner-approved-supervisor-diff/automated-checks.json",
     "openspec/changes/owner-approved-supervisor-diff/independent-review-request.json",
     "openspec/changes/owner-approved-supervisor-diff/independent-reviews/engineering-quality.json",
-    "openspec/changes/owner-approved-supervisor-diff/independent-reviews/spec-fidelity.json"
+    "openspec/changes/owner-approved-supervisor-diff/independent-reviews/spec-fidelity.json",
+    "openspec/changes/owner-approved-supervisor-diff/verification.md"
   ],
   "fresh_context_required": true,
   "perspectives": {
@@ -35,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-09T10:33:38+00:00",
+  "prepared_at": "2026-10-09T10:56:53+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/owner-approved-supervisor-diff/independent-reviews",
     "required_perspectives": [
@@ -44,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "3defd8ea-20c5-437c-aef4-71728bb0bb29",
+  "request_id": "09c1f968-9ae4-44b5-aead-87d3a8f83d61",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -56,8 +58,8 @@
   },
   "schema_version": 1,
   "task_content": {
-    "base": "5b6a6098ce8239f506d60e1b3d680d3b0d2b06a4",
-    "digest": "d2c7f59c0224c57d2d31c29ab5e4b880921ec60eb60efe7489cfc25ddcfcf135",
+    "base": "e5b3f9d549216bc58f635e28278add2c07580e3b",
+    "digest": "c265224919566edc8c2a9446d0ac87dbb74f79f0bedd5b53f86780fe855580ba",
     "paths": {
       "docs/engineering/model-routing.md": "0bcacfe87d122d8b40aaae06026ee471cfd1feda",
       "openspec/changes/owner-approved-supervisor-diff/.managed-task.json": "cfa8245ee640096608122892d5677aa9f0797840",
@@ -65,7 +67,7 @@
       "openspec/changes/owner-approved-supervisor-diff/design.md": "d55bc68210222d4a4bceedc365ac5663eadd3c43",
       "openspec/changes/owner-approved-supervisor-diff/proposal.md": "53fe8bc0b4514a92d4e27162221672f7420f76fa",
       "openspec/changes/owner-approved-supervisor-diff/specs/model-routing/spec.md": "2d83b5d0d901ab8102b13d5c10eb83c924eaef68",
-      "openspec/changes/owner-approved-supervisor-diff/tasks.md": "f4cdeafe616980c28758845ab76d6745f77f8bdc",
+      "openspec/changes/owner-approved-supervisor-diff/tasks.md": "a2913f50acac6a8fb327173d422a1b09f4d9f58f",
       "template/docs/engineering/model-routing.md": "31ad82c45b957b9a38a724429a412d3d7932da70",
       "template/scripts/model_routing.py": "a8b2e5507ccfc65da015e8009461abedb1002060",
       "tests/test_model_routing.py": "36ca325296cceb336fb1014f1522023c6b36b514"
