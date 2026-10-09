@@ -32,17 +32,23 @@ import public_distribution  # noqa: E402
 # gates with no dependency on the original checkout's untracked/local state.
 # The extracted tree has no .dev-platform.toml and fresh history, so lifecycle
 # hygiene cannot infer its stage: the caller passes the CI event's stage.
+# The public snapshot deliberately excludes `.managed-task.json` provenance, so
+# inside it the candidate exemption for a completed managed change cannot be
+# evaluated. Candidate-stage hygiene is therefore enforced only on the real
+# checkout (the CI hygiene step); the snapshot runs strict hygiene at integration.
 LIFECYCLE_STAGES = ("candidate", "integration")
 
 
 def extracted_check_commands(lifecycle_stage: str) -> tuple[tuple[str, ...], ...]:
     if lifecycle_stage not in LIFECYCLE_STAGES:
         raise SystemExit(f"unsupported lifecycle stage: {lifecycle_stage!r}")
-    return (
+    commands: tuple[tuple[str, ...], ...] = (
         ("python3", "-m", "compileall", "-q", "template/scripts", "scripts"),
         ("python3", "scripts/run_test_groups.py", "--all"),
-        ("python3", "template/scripts/openspec_lifecycle.py", "check", "--stage", lifecycle_stage),
     )
+    if lifecycle_stage == "integration":
+        commands += (("python3", "template/scripts/openspec_lifecycle.py", "check", "--stage", "integration"),)
+    return commands
 
 # Paths whose presence in the extracted snapshot root is required evidence
 # that the packaging boundary retained what this change's proposal requires:
