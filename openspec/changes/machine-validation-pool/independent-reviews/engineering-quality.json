@@ -1,23 +1,36 @@
 {
-  "availability": "unavailable",
+  "availability": "available",
   "candidate": {
-    "base_head": "37363a11c3aac90c4232dd1cbd140df274f28f80",
+    "base_head": "7c83a854522a5defca480e5a86bae580de0a43c1",
     "base_ref": "origin/main",
-    "candidate_head": "4ea24c159169d5405d89a08eab7da251fe18cf87",
-    "diff_sha256": "dc556bbb718427c16ca804c2357eaeef3a076692a9ee965719152e9206434c45"
+    "candidate_head": "73e1ae792bd3b5ced90b4bb7e24e5bf395c8402d",
+    "diff_sha256": "416dac5df1a6bfa9ea44650c2a6c3d352b6739cba44e065939b9ef49516ac77b"
   },
-  "completed_at": "2026-10-09T13:39:21+00:00",
-  "findings": [],
-  "launched_at": "2026-10-09T13:37:55+00:00",
-  "limitation": "codex reviewer exited with status 1 (You\u2019ve hit your usage limit. Upgrade to Pro (https://chatgpt.com/explore/pro), visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at 7:59 PM.); check the CLI login and the [model_routing] model for this account, then rerun",
+  "completed_at": "2026-10-09T17:06:11+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/select_checks.py:370 now requires inherited lease descriptors through machine_pool.lease(), but template/scripts/finish_task.py:176-181 launches select_checks with subprocess.Popen without pass_fds. When finish runs inside a pooled lease, the child inherits DEV_PLATFORM_MACHINE_POOL_LEASE while Popen closes its descriptors; machine_pool.py:614-624 then raises PoolError. The documented nested finish \u2192 selected-check path therefore cannot reuse its lease.",
+      "id": "finish-drops-inherited-lease",
+      "severity": "material",
+      "summary": "Nested finish validation loses the parent's lease descriptors and fails before checks run."
+    },
+    {
+      "evidence": "template/scripts/machine_pool.py:606-610 accepts an empty or duplicate descriptor list regardless of weight, and lines 614-625 only call os.fstat. For example, a pooled payload with positive weight and fds=[] passes validation and lines 649-654 skip acquisition entirely. Reused descriptor numbers pointing to unrelated files also pass, so malformed or stale inherited state can silently run without holding the claimed tokens.",
+      "id": "lease-descriptors-not-validated",
+      "severity": "advisory",
+      "summary": "Inherited lease validation accepts descriptors that do not represent the claimed token lease."
+    }
+  ],
+  "launched_at": "2026-10-09T17:04:38+00:00",
+  "output_sha256": "ee94818504f61920e4ea6856e39b7f22d9a6321b1b9f27ec8feea5fab65bad08",
   "perspective": "engineering-quality",
-  "request_id": "906438da-568f-4eff-a151-7abc85221d3f",
+  "request_id": "3af8c9ee-de01-4314-a7a3-12fa886f61ad",
   "reviewer": {
-    "context_id": "platform-launch-08e0548b-bb00-4967-aa10-a00e93718d19",
-    "context_id_source": "platform-launch",
+    "context_id": "01a1219f-bb10-7750-9936-a4c08336aa80",
+    "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-08e0548b-bb00-4967-aa10-a00e93718d19",
+    "launch_id": "platform-launch-9aa94d47-4e6e-43df-b433-5a0ec3643fea",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -26,6 +39,26 @@
     "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
     "runtime": "codex-exec",
     "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cached_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 283008
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 351762
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1861
+      }
+    },
+    "runtime": "codex-exec"
   },
   "schema_version": 1,
   "task_content_digest": "416264028c511c4506dad2f2358250099394a35b3045650a96bfe94a698a5216"

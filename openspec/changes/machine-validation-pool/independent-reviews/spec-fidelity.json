@@ -1,30 +1,30 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "37363a11c3aac90c4232dd1cbd140df274f28f80",
+    "base_head": "7c83a854522a5defca480e5a86bae580de0a43c1",
     "base_ref": "origin/main",
-    "candidate_head": "4ea24c159169d5405d89a08eab7da251fe18cf87",
-    "diff_sha256": "dc556bbb718427c16ca804c2357eaeef3a076692a9ee965719152e9206434c45"
+    "candidate_head": "73e1ae792bd3b5ced90b4bb7e24e5bf395c8402d",
+    "diff_sha256": "416dac5df1a6bfa9ea44650c2a6c3d352b6739cba44e065939b9ef49516ac77b"
   },
-  "completed_at": "2026-10-09T13:37:55+00:00",
+  "completed_at": "2026-10-09T17:04:38+00:00",
   "findings": [
     {
-      "evidence": "design.md decision 4 explicitly requires finish \u2192 select_checks \u2192 run_test_groups to reuse the parent lease. However, template/scripts/finish_task.py:176\u2013180 starts select_checks.py with subprocess.Popen without pass_fds, while inheriting DEV_PLATFORM_MACHINE_POOL_LEASE through the environment. Python closes the lease descriptors in that child. The new template/scripts/machine_pool.py:649\u2013654 then attempts nested reuse, and _open_descriptors at lines 614\u2013624 raises 'missing inherited descriptor(s)'. Thus invoking finish inside a pooled run blocks validation instead of satisfying the nested-invocation contract.",
-      "id": "finish-drops-inherited-lease",
+      "evidence": "The active design.md decision 4 explicitly requires finish \u2192 select_checks \u2192 run_test_groups to reuse the parent lease. However, template/scripts/finish_task.py:176-180 launches select_checks with subprocess.Popen without pass_fds. The child inherits DEV_PLATFORM_MACHINE_POOL_LEASE through its environment while Popen closes the lease descriptors. template/scripts/machine_pool.py:649-653 then attempts nested reuse, and lines 622-624 reject the missing descriptors. Consequently, invoking finish inside a pooled run blocks validation instead of reusing its tokens.",
+      "id": "finish-drops-parent-lease",
       "severity": "material",
-      "summary": "Nested finish validation drops the parent lease descriptors instead of reusing the lease, causing selected checks to fail."
+      "summary": "Nested finish validation fails because finish_task does not forward the parent lease descriptors to selected checks."
     }
   ],
-  "launched_at": "2026-10-09T13:36:13+00:00",
-  "output_sha256": "ff20856b86ea1662ab2aa000aac48f2a9d752fb7dd0e9d47f78d6923a1534cbe",
+  "launched_at": "2026-10-09T17:03:27+00:00",
+  "output_sha256": "c5e7f131c9099475de96e1871179e242d061003eac83c311447722f0dcd6582d",
   "perspective": "spec-fidelity",
-  "request_id": "906438da-568f-4eff-a151-7abc85221d3f",
+  "request_id": "3af8c9ee-de01-4314-a7a3-12fa886f61ad",
   "reviewer": {
-    "context_id": "01a120e0-ed5d-7712-86b9-8cc974903cb1",
+    "context_id": "01a1219e-a95a-7810-939b-6fa10a74c630",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-fd470911-4bed-467c-b542-882da449a3aa",
+    "launch_id": "platform-launch-33edc152-e7a2-476d-96c7-e3b419517130",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -39,17 +39,17 @@
       "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 341632
+        "value": 237952
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 386235
+        "value": 299988
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1573
+        "value": 1401
       }
     },
     "runtime": "codex-exec"
