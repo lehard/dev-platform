@@ -17,10 +17,13 @@ import re
 import secrets
 import shlex
 import shutil
+import signal
 import socket
+import stat
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 from typing import Any, Callable
 
@@ -40,11 +43,18 @@ STATE_KIND = {"review-pending": "review", "reviewing": "review", "repair-pending
               "contribution-integration-pending": "contribution-integration"}
 HEAD = re.compile(r"[0-9a-f]{40}")
 RESULT_PREFIX = "dev-platform-lifecycle-result:v1 "
-# Hardening for every harness git invocation (never trust repo-local hooks or fsmonitor).
-SAFE_GIT = ("-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false")
+# Hardening for every harness git invocation (never trust repo-local hooks or fsmonitor, never recurse into
+# submodules). ``diff.ignoreSubmodules`` is deliberately not set here: it would hide gitlinks from result validation.
+SAFE_GIT = ("-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false", "-c", "submodule.recurse=false")
 # Harness merges and commits never depend on an ambient git identity (CI runners have none).
 HARNESS_IDENTITY = ("-c", "user.name=Lifecycle harness", "-c", "user.email=lifecycle@localhost")
 EVIDENCE_NAMES = ("verification.md", "automated-checks.json")
+# Files the harness itself installs into a writer checkout; never candidate content.
+INSTALLED_FILES = (".dev-platform.toml", disposable_repository_sandbox.MARKER)
+# Bounded writer stdout/stderr kept in the local job result only, never in a posted record.
+WRITER_OUTPUT_TAIL = 4000
+# Bound of an outcome text a job posts (rejection reasons can quote writer-chosen paths).
+POSTED_OUTCOME_LIMIT = 300
 
 
 class WorkerError(RuntimeError):
@@ -304,12 +314,71 @@ def scratch_home(root: Path, home_files: list[str] | tuple[str, ...] = (), *, so
     return home
 
 
-def run_llm(command: list[str], checkout: Path, *, env: dict[str, str] | None = None,
-            runner: Callable[..., Any] = subprocess.run, timeout: int | None = None,
+def kill_process_group(pgid: int) -> None:
+    """SIGKILL a whole process group; a group that is already gone is the only tolerated failure."""
+    try:
+        os.killpg(pgid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass  # no member is left
+
+
+def run_in_session(command: list[str], *, capture_output: bool = False, check: bool = False,
+                   timeout: float | None = None, **popen: Any) -> subprocess.CompletedProcess:
+    """``subprocess.run`` in a new session whose whole process group is killed when the leader exits.
+
+    A writer cannot leave a same-group background process running past its own exit (to tamper with
+    harness clones later), nor hold the output pipes open: once the leader has exited the group is
+    killed and the remaining output drained. On timeout or any error the group is killed too. A child
+    that starts its own session escapes the group; only an OS sandbox contains that.
+    """
+    if capture_output:
+        popen.update(stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    process = subprocess.Popen(command, start_new_session=True, **popen)
+    deadline = None if timeout is None else time.monotonic() + timeout
+    try:
+        while True:
+            try:
+                stdout, stderr = process.communicate(timeout=0.2)
+                break
+            except subprocess.TimeoutExpired:
+                if process.poll() is not None:
+                    kill_process_group(process.pid)  # the leader exited; a group member still holds a pipe
+                elif deadline is not None and time.monotonic() >= deadline:
+                    kill_process_group(process.pid)
+                    process.communicate()
+                    raise subprocess.TimeoutExpired(command, timeout) from None
+    finally:
+        kill_process_group(process.pid)
+        if process.poll() is None:
+            process.wait()
+    if check and process.returncode:
+        raise subprocess.CalledProcessError(process.returncode, command, stdout, stderr)
+    return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
+
+
+def writer_tmp(root: Path) -> Path:
+    """A fresh writer temporary directory beside, never above, the harness clones of ``root``."""
+    tmp = root / "llm-tmp"
+    if tmp.exists():
+        shutil.rmtree(tmp)
+    tmp.mkdir(parents=True)
+    return tmp
+
+
+def run_llm(command: list[str], checkout: Path, *, tmp: Path, env: dict[str, str] | None = None,
+            runner: Callable[..., Any] = run_in_session, timeout: int | None = None,
             home: Path | None = None) -> Any:
-    """Run the LLM command in a checkout with no credential, a scratch home and no inherited stdin."""
-    return runner(command, cwd=checkout, env=credential_free_env(dict(os.environ if env is None else env), home),
-                  stdin=subprocess.DEVNULL, capture_output=True, text=True, check=False, timeout=timeout)
+    """Run the LLM command in a checkout with no credential, a scratch home, a dedicated ``TMPDIR`` and no stdin.
+
+    The inherited ``TMPDIR`` would make the harness work directory writable to a sandboxed writer, so the
+    writer gets ``tmp`` (from ``writer_tmp``) instead. The runner must contain the writer's process group.
+    """
+    if runner is subprocess.run:
+        raise WorkerError("the writer runner must kill its process group; use run_in_session")
+    clean = credential_free_env(dict(os.environ if env is None else env), home)
+    clean.update(TMPDIR=str(tmp), TMP=str(tmp), TEMP=str(tmp))
+    return runner(command, cwd=checkout, env=clean, stdin=subprocess.DEVNULL, capture_output=True, text=True,
+                  check=False, timeout=timeout)
 
 
 def provider_readiness(root: Path, providers, *, workdir, home_files=(), probe=None) -> dict[str, str | None]:
@@ -407,6 +476,20 @@ def _allowed(path: str, allowed_paths) -> bool:
     return any(path == a or path.startswith(a.rstrip("/") + "/") for a in allowed_paths)
 
 
+def _refusal(reason: str, paths: list[str]) -> WorkerError:
+    """One bounded refusal: the first offending path plus how many more there are."""
+    more = f" (+{len(paths) - 1} more)" if len(paths) > 1 else ""
+    return WorkerError(f"{reason}: {paths[0]}{more}")
+
+
+def refuse_write_paths(paths, allowed_paths) -> None:
+    """Raise one bounded ``WorkerError`` when any path is a forbidden edit or outside the candidate scope."""
+    refused = [(_forbidden(path) or "path outside candidate scope", path) for path in paths
+               if _forbidden(path) or not _allowed(path, allowed_paths)]
+    if refused:
+        raise _refusal(refused[0][0], [path for _, path in refused])
+
+
 def validate_worker_result(repo: Path, expected_head: str, result_head: str,
                            allowed_paths, kind: str = "repair") -> list[str]:
     """Return the changed paths of an acceptable result or raise WorkerError."""
@@ -421,14 +504,20 @@ def validate_worker_result(repo: Path, expected_head: str, result_head: str,
                           capture_output=True, check=False, stdin=subprocess.DEVNULL)
     if done.returncode != 0:
         raise WorkerError("result is not a fast-forward from the expected head")
-    changed = [p for p in _git(repo, "diff", "--name-only", "--no-renames", "-z",
-                               expected_head, result_head).split("\0") if p]
-    for path in changed:
-        reason = _forbidden(path)
-        if reason:
-            raise WorkerError(f"{reason}: {path}")
-        if not _allowed(path, allowed_paths):
-            raise WorkerError(f"path outside candidate scope: {path}")
+    fields = _git(repo, "diff", "--raw", "--no-renames", "-z", expected_head, result_head).split("\0")
+    if fields and fields[-1] == "":
+        fields.pop()
+    if len(fields) % 2:
+        raise WorkerError("cannot parse the result diff")
+    changed, gitlinks = [], []
+    for meta, path in zip(fields[0::2], fields[1::2]):
+        old_mode, new_mode = meta.lstrip(":").split(" ")[:2]
+        if "160000" in (old_mode, new_mode):
+            gitlinks.append(path)  # a submodule pointer is never a writer result
+        changed.append(path)
+    if gitlinks:
+        raise _refusal("gitlink not allowed", gitlinks)
+    refuse_write_paths(changed, allowed_paths)
     return changed
 
 
@@ -567,28 +656,45 @@ def harness_git(repo: Path, *args: str) -> str:
 
     Every git command that runs after a writer or reviewer touched a checkout uses this (and only
     on a harness-owned clone), so configuration planted in the writer's checkout is never consulted.
+    Ambient author/committer variables are dropped so a harness commit carries ``HARNESS_IDENTITY`` only.
     """
+    env = {key: value for key, value in credential_free_env(dict(os.environ), repo.parent / "harness-home").items()
+           if key not in {"GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL"}}
     done = subprocess.run(["git", *SAFE_GIT, *args], cwd=repo, text=True, capture_output=True, check=False,
-                          stdin=subprocess.DEVNULL, env=credential_free_env(dict(os.environ), repo.parent / "harness-home"))
+                          stdin=subprocess.DEVNULL, env=env)
     if done.returncode:
         raise WorkerError(f"git {' '.join(args)} failed: {done.stderr.strip() or done.stdout.strip()}")
     return done.stdout
 
 
+def _walk_error(error: OSError) -> None:
+    raise WorkerError(f"cannot read the working tree: {error}")
+
+
 def tree_snapshot(path: Path) -> str:
-    """A content digest of a working tree read from the filesystem only (no git, no filters), excluding ``.git``."""
+    """A content digest of a working tree read from the filesystem only (no git, no filters), excluding the root ``.git``.
+
+    Symlinks are hashed by their target text whatever they point to (never followed); a FIFO, socket or
+    device is refused without being opened, so writer content can neither block nor hide from the digest.
+    """
     import hashlib
 
     digest = hashlib.sha256()
-    for directory, names, files in os.walk(path):
-        names[:] = sorted(name for name in names if name != ".git")
-        for name in sorted(files):
-            target = Path(directory) / name
-            digest.update(str(target.relative_to(path)).encode() + b"\0")
-            if target.is_symlink():
+    for directory, names, files in os.walk(path, onerror=_walk_error):
+        here = Path(directory)
+        links = [name for name in names if (here / name).is_symlink()]
+        names[:] = sorted(name for name in names if name not in links and not (here == path and name == ".git"))
+        for name in sorted(files + links):
+            target = here / name
+            relative = str(target.relative_to(path))
+            mode = target.lstat().st_mode
+            digest.update(relative.encode() + b"\0")
+            if stat.S_ISLNK(mode):
                 digest.update(b"L" + os.readlink(target).encode())
+            elif stat.S_ISREG(mode):
+                digest.update(b"F" + str(mode & 0o111).encode() + target.read_bytes())
             else:
-                digest.update(b"F" + str(target.stat().st_mode & 0o111).encode() + target.read_bytes())
+                raise WorkerError(f"unsupported file type: {relative}")
     return digest.hexdigest()
 
 
@@ -611,14 +717,46 @@ def _clear(path: Path) -> None:
         shutil.rmtree(path)
 
 
+def check_import_source(source: Path, target: Path) -> None:
+    """Refuse a writer tree the harness cannot import faithfully and safely, before anything is copied.
+
+    Only the root ``.git`` directory may exist: a ``.git`` entry of any type anywhere else (gitfile, nested
+    repository, symlink) would make harness git recurse into writer-controlled metadata and run its filters.
+    Only regular files, directories and symlinks are importable. A name differing only in case from an
+    existing harness entry that the writer tree no longer has (``src`` -> ``SRC``) would, on a case-insensitive
+    filesystem, delete the existing entry, so it is refused too.
+    """
+    for directory, names, files in os.walk(source, onerror=_walk_error):
+        here = Path(directory)
+        base = here.relative_to(source)
+        entries = names + files
+        if not base.parts and ".git" in entries and (".git" not in names or (here / ".git").is_symlink()):
+            raise WorkerError("git metadata replaced: .git")
+        names[:] = sorted(name for name in names if base.parts or name != ".git")
+        entries = [name for name in entries if base.parts or name != ".git"]
+        existing_dir = target / base
+        existing = (os.listdir(existing_dir) if existing_dir.is_dir() and not existing_dir.is_symlink() else [])
+        for name in sorted(entries):
+            relative = (base / name).as_posix()
+            if name.lower() == ".git":
+                raise WorkerError(f"nested git metadata: {relative}")
+            mode = (here / name).lstat().st_mode
+            if not (stat.S_ISREG(mode) or stat.S_ISDIR(mode) or stat.S_ISLNK(mode)):
+                raise WorkerError(f"unsupported file type: {relative}")
+            if any(other != name and other.lower() == name.lower() and other not in entries for other in existing):
+                raise WorkerError(f"case-only path collision: {relative}")
+
+
 def import_worktree(source: Path, target: Path) -> None:
     """Make ``target``'s working tree match ``source``'s files without running git in ``source``.
 
     Only file content, executable bits and symlinks are copied; ``.git`` of either side is never read
     or written, so a writer's repository configuration, attributes drivers or hooks cannot execute.
     Symlinks (to files or directories) are recreated as links and never followed on either side, so
-    writer content cannot be redirected outside the harness clone.
+    writer content cannot be redirected outside the harness clone. ``check_import_source`` refuses
+    nested git metadata, special files and case-only collisions first (``WorkerError``).
     """
+    check_import_source(source, target)
     wanted: set[Path] = set()
     for directory, names, files in os.walk(source):
         base = Path(directory).relative_to(source)
@@ -648,9 +786,9 @@ def import_worktree(source: Path, target: Path) -> None:
                 (Path(directory) / name).unlink()
 
 
-def prepare_harness(source_repo: str, checkout: Path, root: Path, result_head: str) -> Path:
+def prepare_harness(source_repo: str, checkout: Path, root: Path, result_head: str, name: str = "harness") -> Path:
     """Import only result commits into a separate trusted clone for validation/push."""
-    harness = root / "harness"
+    harness = root / name
     for step in (["clone", "--no-local", "--no-checkout", source_repo, str(harness)],
                  ["fetch", "--no-tags", str(checkout), result_head]):
         cwd = harness if step[0] == "fetch" else root
@@ -661,10 +799,42 @@ def prepare_harness(source_repo: str, checkout: Path, root: Path, result_head: s
     return harness
 
 
+def worktree_changes(repo: Path) -> list[str]:
+    """Every tracked modification, deletion and untracked (not ignored) path of a harness-owned clone."""
+    out = harness_git(repo, "-c", "diff.ignoreSubmodules=all", "status", "--porcelain=v1", "-z",
+                      "--untracked-files=all", "--no-renames", "--ignore-submodules=all")
+    return sorted(entry[3:] for entry in out.split("\0") if entry)
+
+
+def commit_writer_worktree(stage: Path, checkout: Path, expected_head: str, result_head: str, allowed_paths,
+                           message: str) -> str:
+    """The writer's result head, committing edits it left uncommitted (a sandbox may keep ``.git`` read-only).
+
+    The writer checkout stays data only: its files are imported into a harness-owned staging clone at the
+    writer's HEAD and git runs only there, so planted config, attributes drivers and hooks never execute. Every
+    changed path must pass the write rules before anything is staged. A writer either commits its result
+    or leaves it in the working tree, never both: edits left beside its own commit are rejected
+    explicitly rather than pushed without them.
+    """
+    harness_git(stage, "checkout", "-q", "--detach", result_head)
+    with (stage / ".git" / "info" / "exclude").open("a", encoding="utf-8") as handle:
+        handle.write("".join(f"\n/{name}" for name in INSTALLED_FILES) + "\n")
+    import_worktree(checkout, stage)
+    changed = worktree_changes(stage)
+    if not changed:
+        return result_head
+    if result_head != expected_head:
+        raise _refusal("writer committed and also left uncommitted changes", changed)
+    refuse_write_paths(changed, allowed_paths)
+    harness_git(stage, "--literal-pathspecs", "add", "--", *changed)
+    harness_git(stage, *HARNESS_IDENTITY, "commit", "-q", "--no-verify", "-m", message)
+    return harness_git(stage, "rev-parse", "HEAD").strip()
+
+
 def execute_job(job: dict, *, source_repo: str, branch: str, allowed_paths, llm_command,
                 current_head: Callable[[], str], post_result: Callable[[str], None], workdir: str,
                 worker: str, kind: str | None = None, provider: str | None = None,
-                runner: Callable[..., Any] = subprocess.run, env: dict[str, str] | None = None,
+                runner: Callable[..., Any] = run_in_session, env: dict[str, str] | None = None,
                 push_env: dict[str, str] | None = None, home_files: list[str] | tuple[str, ...] = (),
                 review_handler: Callable[[Path], dict] | None = None,
                 before_push: Callable[[Path, str], None] | None = None,
@@ -674,7 +844,9 @@ def execute_job(job: dict, *, source_repo: str, branch: str, allowed_paths, llm_
 
     Validation and the only push happen in a separate harness-owned clone that
     receives nothing but the result commit, so hooks, remotes and credential
-    settings planted in the LLM checkout are never consulted.
+    settings planted in the LLM checkout are never consulted. A write job's task
+    is the final argv element of ``llm_command``; the writer either commits or
+    leaves its edits in the working tree for the harness to commit.
     """
     kind = kind or job["kind"]
     if kind != job["kind"] or kind not in WRITE_KINDS | {"review"}:
@@ -683,14 +855,23 @@ def execute_job(job: dict, *, source_repo: str, branch: str, allowed_paths, llm_
         require_job_provider(job, provider)
     result_provider = provider if kind in WRITE_KINDS else None
     command = shlex.split(llm_command) if isinstance(llm_command, str) else list(llm_command)
+    if kind in WRITE_KINDS and (not command or not str(command[-1]).strip()):
+        raise WorkerError(f"PR #{job['number']} {kind} job has an empty writer task: the final llm command argument is blank")
     root = Path(workdir).resolve()
     checkout = prepare_checkout(source_repo, str(root), "llm-checkout", job["head"])
+
+    writer_output: dict[str, str] = {}
 
     def finish(outcome: str, pushed: str | None = None, status: str | None = None) -> dict:
         if not claim_current():
             return {"status": "discarded"}
+        outcome = outcome[:POSTED_OUTCOME_LIMIT]  # posted publicly, also through red-gate evidence
         post_result(result_body(job, worker, outcome, pushed, provider=result_provider))
-        return {"status": status or outcome.split(":")[0], "outcome": outcome, "pushed_head": pushed}
+        status = status or outcome.split(":")[0]
+        # Writer output stays local (operator console, not the posted record): it may hold sensitive text.
+        local = {"writer_output": dict(writer_output)} if writer_output and status in {
+            "failed", "no-change", "rejected", "unavailable"} else {}
+        return {"status": status, "outcome": outcome, "pushed_head": pushed, **local}
 
     if kind == "review" and review_handler is not None:
         outcome = review_handler(checkout)
@@ -700,19 +881,26 @@ def execute_job(job: dict, *, source_repo: str, branch: str, allowed_paths, llm_
         return outcome
     before = (_git(checkout, "rev-parse", "HEAD").strip(), tree_snapshot(checkout))
     try:
-        done = run_llm(command, checkout, env=env, runner=runner, home=scratch_home(root, home_files))
+        done = run_llm(command, checkout, tmp=writer_tmp(root), env=env, runner=runner,
+                       home=scratch_home(root, home_files))
     except OSError as exc:
         if kind != "repair" or runtime_check is None:
             raise  # only the repair gate handles an unavailable runtime
         return finish(f"unavailable: cannot start the llm command: {exc}"[:300], status="unavailable")
+    writer_output.update(stdout=done.stdout[-WRITER_OUTPUT_TAIL:], stderr=done.stderr[-WRITER_OUTPUT_TAIL:])
     if done.returncode:
         # A runtime that no longer passes its readiness probe (login, usage limit) is unavailable, not a failed result.
         limitation = runtime_check() if runtime_check is not None else None
         if limitation:
             return finish(f"unavailable: {limitation}"[:300], status="unavailable")
         return finish("failed: llm exited %s" % done.returncode, status="failed")
+    try:
+        after = tree_snapshot(checkout)
+    except WorkerError as exc:
+        verdict = "failed" if kind == "review" else "rejected"
+        return finish(f"{verdict}: {exc}", status=verdict)
     if kind == "review":
-        if (harness_git(checkout, "rev-parse", "HEAD").strip(), tree_snapshot(checkout)) != before:
+        if (harness_git(checkout, "rev-parse", "HEAD").strip(), after) != before:
             return finish("failed: review modified the checkout", status="failed")
         return finish("reviewed", status="reviewed")
     try:
@@ -722,14 +910,21 @@ def execute_job(job: dict, *, source_repo: str, branch: str, allowed_paths, llm_
     if isinstance(proposal, dict) and proposal.get("reject_material") is True:
         return finish("proposed-rejection", status="proposed-rejection")
     result_head = harness_git(checkout, "rev-parse", "HEAD").strip()
-    if result_head == job["head"]:
+    if result_head == job["head"] and after == before[1]:
         return finish("no-change", status="no-change")
     if current_head() != job["head"]:
         return finish("discarded: head moved", status="discarded")
     try:
-        harness = prepare_harness(source_repo, checkout, root, result_head)
+        # The writer's commits and files pass through a staging clone; the harness clone then receives
+        # nothing but the (possibly harness-committed) result commit, exactly as for a writer commit.
+        stage = prepare_harness(source_repo, checkout, root, result_head, name="writer-stage")
+        result_head = commit_writer_worktree(stage, checkout, job["head"], result_head, allowed_paths,
+                                             f"Apply {kind} writer edits for {job_id(job)}")
+        harness = prepare_harness(source_repo, stage, root, result_head) if result_head != job["head"] else None
     except WorkerError as exc:
         return finish(f"rejected: {exc}", status="rejected")
+    if harness is None:
+        return finish("no-change", status="no-change")  # only ignored files changed
     try:
         validate_worker_result(harness, job["head"], result_head, allowed_paths, kind=kind)
         if before_push is not None:
