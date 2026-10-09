@@ -1,23 +1,30 @@
 {
-  "availability": "unavailable",
+  "availability": "available",
   "candidate": {
     "base_head": "ea4da7e3b67067896161daf40fc8aaab5276bd75",
     "base_ref": "origin/main",
-    "candidate_head": "51479d115437a9b38669502ca8396b4322aadde4",
-    "diff_sha256": "090a105042704b06939181328bed3249a9e318ce47f69d28812eecc103ce5ae4"
+    "candidate_head": "44a0894d4e5acdfc6d78e8b0e32f9c8f7417d258",
+    "diff_sha256": "e8cdf1fa5286d88a5cf86891b17b156f2b58b39da149b6755f7c92be1a4312f6"
   },
-  "completed_at": "2026-10-09T21:36:23+00:00",
-  "findings": [],
-  "launched_at": "2026-10-09T21:36:23+00:00",
-  "limitation": "codex reviewer runtime with model 'gpt-6.1-sol' is not ready: probe exited with status 1 (You\u2019ve hit your usage limit. Upgrade to Pro (https://chatgpt.com/explore/pro), visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at 1:02 AM.); next: log the codex CLI in on this host, or change the [model_routing] / [independent_review] binding for this account (no other model or provider is tried), then rerun python3 scripts/independent_review.py preflight",
+  "completed_at": "2026-10-09T22:05:44+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/model_routing.py:1903 snapshots integration before checking receipts, without acquiring the integration lock. template/scripts/delegation_containment.py:452 reads the log without the writer's receipt lock, and :513 consumes every subsequent receipt through EOF. A sibling can therefore advance HEAD before its receipt is appended, or append another advance after the snapshot; classification then sees a missing chain or a chain ending beyond the captured head (:533). Reading during an append can also produce a transient malformed-line error. These cases leave valid Claude execution unrecorded and emit containment friction; retrying after publication settles can succeed.",
+      "id": "unsynchronized-advance-postcheck",
+      "severity": "advisory",
+      "summary": "Concurrent receipt writes can cause a valid sibling advance to be reported as a containment violation."
+    }
+  ],
+  "launched_at": "2026-10-09T22:05:04+00:00",
+  "output_sha256": "a701c0f139255390d0dfc8e5ddd98c43a4b1de0ce33558684ba46679272e2f85",
   "perspective": "engineering-quality",
-  "request_id": "fcc42e88-3a1b-4b45-861b-c49a49f14429",
+  "request_id": "36755942-4847-4fea-a628-58d466f98172",
   "reviewer": {
-    "context_id": "platform-launch-a406f2b3-cbcb-4376-955f-521ad4a8aaa1",
-    "context_id_source": "platform-launch",
+    "context_id": "01a122b2-c85d-7d51-b971-54d851223ece",
+    "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-a406f2b3-cbcb-4376-955f-521ad4a8aaa1",
+    "launch_id": "platform-launch-975b525b-eccd-4e6f-a905-aeeed04e9e0f",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -26,6 +33,26 @@
     "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
     "runtime": "codex-exec",
     "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cached_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 178688
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 242685
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1162
+      }
+    },
+    "runtime": "codex-exec"
   },
   "schema_version": 1,
   "task_content_digest": "3bfc782409d0f6f3707511956aee918478b4d921abf262eb29d9eb64cea751a7"
