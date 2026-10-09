@@ -31,6 +31,7 @@ import contextlib
 import dataclasses
 import getpass
 import json
+import math
 import os
 import re
 import secrets
@@ -139,8 +140,8 @@ def load_config(environ: MutableMapping[str, str] | None = None) -> PoolConfig |
     if not os.access(directory, os.R_OK | os.W_OK | os.X_OK):
         raise PoolConfigError(f"machine pool configuration {path}: directory {directory} is not readable and writable by this account")
     load = data["max_load_per_cpu"]
-    if isinstance(load, bool) or not isinstance(load, (int, float)) or load <= 0:
-        raise PoolConfigError(f"machine pool configuration {path}: max_load_per_cpu must be a positive number, got {load!r}")
+    if isinstance(load, bool) or not isinstance(load, (int, float)) or not math.isfinite(load) or load <= 0:
+        raise PoolConfigError(f"machine pool configuration {path}: max_load_per_cpu must be a finite positive number, got {load!r}")
     return PoolConfig(
         path=path,
         directory=directory,
@@ -611,20 +612,17 @@ def _parse_lease(value: str) -> dict[str, Any]:
 
 
 def _open_descriptors(fds: list[int]) -> tuple[int, ...]:
-    """The parent's lease descriptors that this process inherited.
-
-    A nested process owns no tokens; its parent holds them for as long as it runs.  The descriptors are only
-    carried onward so grandchildren that outlive the parent keep the tokens, and a descriptor the chain did not
-    pass on cannot be carried.
-    """
-    present = []
+    """Require every parent lease descriptor to be open so this process keeps its tokens."""
+    missing = []
     for fd in fds:
         try:
             os.fstat(fd)
         except OSError:
-            continue
-        present.append(fd)
-    return tuple(present)
+            missing.append(fd)
+    if missing:
+        raise PoolError(f"{LEASE_ENV} pooled lease is missing inherited descriptor(s): "
+                        f"{', '.join(map(str, missing))}; pass every lease descriptor with pass_fds")
+    return tuple(fds)
 
 
 @contextlib.contextmanager

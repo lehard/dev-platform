@@ -61,7 +61,8 @@ with machine_pool.lease(weight, "test", check_class=check_class, root=root, hook
             "l = machine_pool.lease(1, 'inner').__enter__();"
             "print('NESTED', l.nested, l.weight)"
         )
-        done = subprocess.run([sys.executable, "-c", code, sys.argv[1]], capture_output=True, text=True, timeout=20)
+        done = subprocess.run([sys.executable, "-c", code, sys.argv[1]], capture_output=True, text=True, timeout=20,
+                              pass_fds=lease.fds)
         print(done.stdout.strip() + done.stderr.strip(), flush=True)
 """
 
@@ -237,6 +238,15 @@ class ConfigurationTests(PoolFixture):
         self.write_config(directory=str(self.base / "file"))
         self.expect_error("not an existing directory")
 
+    def test_non_finite_load_limits_fail_naming_the_key(self) -> None:
+        for value in ("nan", "+nan", "-nan", "inf", "+inf", "-inf"):
+            with self.subTest(value=value):
+                self.write_config()
+                text = self.config_path.read_text(encoding="utf-8")
+                self.config_path.write_text(text.replace("max_load_per_cpu = 2.0", f"max_load_per_cpu = {value}"),
+                                            encoding="utf-8")
+                self.expect_error("max_load_per_cpu")
+
     @unittest.skipIf(os.geteuid() == 0, "root bypasses directory permissions")
     def test_unwritable_directory_fails(self) -> None:
         self.directory.chmod(0o555)
@@ -370,6 +380,38 @@ class LeaseTests(PoolFixture):
             with self.subTest(value=value), self.assertRaisesRegex(machine_pool.PoolError, LEASE_ENV):
                 with machine_pool.lease(1, "t", environ={LEASE_ENV: value}, hooks=fast_hooks()):
                     self.fail("must not run")
+
+    def test_nested_lease_fails_naming_every_missing_descriptor(self) -> None:
+        with machine_pool.lease(1, "outer", environ=dict(self.environ), hooks=fast_hooks()) as outer:
+            # Obtain closed descriptor numbers after the parent's files have opened.
+            missing = os.pipe()
+            for fd in missing:
+                os.close(fd)
+            for fds in (list(missing), [outer.fds[0], *missing]):
+                with self.subTest(fds=fds):
+                    environ = {LEASE_ENV: json.dumps({"id": outer.id, "pooled": True,
+                                                     "weight": len(fds), "fds": fds})}
+                    with self.assertRaises(machine_pool.PoolError) as caught:
+                        with machine_pool.lease(1, "inner", environ=environ, hooks=fast_hooks()):
+                            self.fail("must not run with missing descriptors")
+                    self.assertIn(LEASE_ENV, str(caught.exception))
+                    for fd in missing:
+                        self.assertIn(str(fd), str(caught.exception))
+
+    def test_nested_process_without_pass_fds_fails(self) -> None:
+        environ = self.process_environment()
+        with machine_pool.lease(2, "outer", environ=environ, hooks=fast_hooks()) as outer:
+            code = (
+                "import sys; sys.path.insert(0, sys.argv[1]); import machine_pool;"
+                "machine_pool.lease(1, 'inner').__enter__()"
+            )
+            done = subprocess.run([sys.executable, "-c", code, str(SCRIPTS)], env=environ,
+                                  capture_output=True, text=True, timeout=20)
+            self.assertNotEqual(done.returncode, 0)
+            self.assertIn("PoolError", done.stderr)
+            self.assertIn(LEASE_ENV, done.stderr)
+            for fd in outer.fds:
+                self.assertIn(str(fd), done.stderr)
 
     def test_files_are_usable_by_other_accounts_whatever_the_umask(self) -> None:
         previous = os.umask(0o077)
