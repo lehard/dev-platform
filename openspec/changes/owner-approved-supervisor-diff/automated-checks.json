@@ -9,19 +9,19 @@
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
-      "duration_seconds": 0.186,
+      "duration_seconds": 0.121,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 -m ruff check scripts template/scripts tests",
-      "duration_seconds": 0.065,
+      "duration_seconds": 0.132,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
-      "duration_seconds": 281.498,
+      "duration_seconds": 291.192,
       "outcome": "success",
       "exit_code": 0
     }
@@ -54,24 +54,24 @@
     "change": "owner-approved-supervisor-diff",
     "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/owner-approved-supervisor-diff",
     "branch": "agent/br-522-t1-owner-approved-supervisor-diff",
-    "head": "3cfe941c17c754e71bee7d74eb021d68bc65e307",
+    "head": "91fa65ffceb6021b802a6f99c0a190f570418252",
     "task_content": {
       "version": 1,
-      "digest": "3056eaf9a817e72fd10bbe5b85b94d32c9f14425b2c7a350eee8623215041147",
+      "digest": "f3041ac8b1c1a3fb445336da507482aa36a4ef8322bd2b80c1236668132fe3b8",
       "paths": {
-        "docs/engineering/model-routing.md": "0bcacfe87d122d8b40aaae06026ee471cfd1feda",
+        "docs/engineering/model-routing.md": "b56bd0b284001f07ab78ee15bcb396156ed5f462",
         "openspec/changes/owner-approved-supervisor-diff/.managed-task.json": "cfa8245ee640096608122892d5677aa9f0797840",
         "openspec/changes/owner-approved-supervisor-diff/.openspec.yaml": "81264324b0500978f52f70d701b236a09cb1d808",
-        "openspec/changes/owner-approved-supervisor-diff/automated-checks.json": "d5e93929c9b604371c45ae172fa37a5606f9fc6b",
-        "openspec/changes/owner-approved-supervisor-diff/design.md": "d55bc68210222d4a4bceedc365ac5663eadd3c43",
-        "openspec/changes/owner-approved-supervisor-diff/independent-review-request.json": "c98c49ff6178f1d1611bb845fd8e80221d41e61c",
-        "openspec/changes/owner-approved-supervisor-diff/independent-reviews/engineering-quality.json": "80b498b045a0385206b1a9c188d0d585343deb08",
-        "openspec/changes/owner-approved-supervisor-diff/independent-reviews/spec-fidelity.json": "faf99a91e30c92acecc5f3e265edbe5588a055dd",
+        "openspec/changes/owner-approved-supervisor-diff/automated-checks.json": "dcbd7f979a95e417f3a65030ee596db6b55f796d",
+        "openspec/changes/owner-approved-supervisor-diff/design.md": "08c790898978178b408d4b4b7e0f7c14050e5731",
+        "openspec/changes/owner-approved-supervisor-diff/independent-review-request.json": "0f5a54b35ce9fa3253e59f086897820eb1133df2",
+        "openspec/changes/owner-approved-supervisor-diff/independent-reviews/engineering-quality.json": "bc55947f4a0e14377b849605eecf407dcc8cf1d1",
+        "openspec/changes/owner-approved-supervisor-diff/independent-reviews/spec-fidelity.json": "568e3d69d1782eb256f7e17fa7574670dc14b7bd",
         "openspec/changes/owner-approved-supervisor-diff/proposal.md": "53fe8bc0b4514a92d4e27162221672f7420f76fa",
-        "openspec/changes/owner-approved-supervisor-diff/specs/model-routing/spec.md": "2d83b5d0d901ab8102b13d5c10eb83c924eaef68",
+        "openspec/changes/owner-approved-supervisor-diff/specs/model-routing/spec.md": "812708ac6c534aad686dfbbb094aff6a3f93ff74",
         "openspec/changes/owner-approved-supervisor-diff/tasks.md": "a2913f50acac6a8fb327173d422a1b09f4d9f58f",
-        "openspec/changes/owner-approved-supervisor-diff/verification.md": "a6cc8f45b5e7ecbbf2f539e75dd6cc4d7f9bb3d4",
-        "template/docs/engineering/model-routing.md": "159e42fd7ecf59e7dcb9c8c342229e011a3062b9",
+        "openspec/changes/owner-approved-supervisor-diff/verification.md": "360ecd79f3d687dae5ea903137d13c0f7acc40a6",
+        "template/docs/engineering/model-routing.md": "fc6a50bd4acf643f02cc78cf2deb46796a4ef33a",
         "template/scripts/model_routing.py": "54997af55db3c9f58a31ee0b3fa734cf6ba45c24",
         "tests/test_model_routing.py": "94eb3081b2b11cf4d7f03e3b4dacfe07ed10bce9"
       },
@@ -80,16 +80,16 @@
   },
   "gate_task_content": {
     "version": 1,
-    "digest": "38892463c37f9a160bdc08a5ac93a0b8797d6cbab859d1f2ff6ebaa3a66021d2",
+    "digest": "0327892d1d350171f88faf37a714b438cbc6e3c05e047899d7075b7009edd3b9",
     "paths": {
-      "docs/engineering/model-routing.md": "0bcacfe87d122d8b40aaae06026ee471cfd1feda",
+      "docs/engineering/model-routing.md": "b56bd0b284001f07ab78ee15bcb396156ed5f462",
       "openspec/changes/owner-approved-supervisor-diff/.managed-task.json": "cfa8245ee640096608122892d5677aa9f0797840",
       "openspec/changes/owner-approved-supervisor-diff/.openspec.yaml": "81264324b0500978f52f70d701b236a09cb1d808",
-      "openspec/changes/owner-approved-supervisor-diff/design.md": "d55bc68210222d4a4bceedc365ac5663eadd3c43",
+      "openspec/changes/owner-approved-supervisor-diff/design.md": "08c790898978178b408d4b4b7e0f7c14050e5731",
       "openspec/changes/owner-approved-supervisor-diff/proposal.md": "53fe8bc0b4514a92d4e27162221672f7420f76fa",
-      "openspec/changes/owner-approved-supervisor-diff/specs/model-routing/spec.md": "2d83b5d0d901ab8102b13d5c10eb83c924eaef68",
+      "openspec/changes/owner-approved-supervisor-diff/specs/model-routing/spec.md": "812708ac6c534aad686dfbbb094aff6a3f93ff74",
       "openspec/changes/owner-approved-supervisor-diff/tasks.md": "a2913f50acac6a8fb327173d422a1b09f4d9f58f",
-      "template/docs/engineering/model-routing.md": "159e42fd7ecf59e7dcb9c8c342229e011a3062b9",
+      "template/docs/engineering/model-routing.md": "fc6a50bd4acf643f02cc78cf2deb46796a4ef33a",
       "template/scripts/model_routing.py": "54997af55db3c9f58a31ee0b3fa734cf6ba45c24",
       "tests/test_model_routing.py": "94eb3081b2b11cf4d7f03e3b4dacfe07ed10bce9"
     },
@@ -98,7 +98,7 @@
   },
   "affected_precheck": {
     "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/model_routing.py --changed-file tests/test_model_routing.py",
-    "duration_seconds": 75.233,
+    "duration_seconds": 79.175,
     "outcome": "success",
     "exit_code": 0,
     "role": "affected-precheck feedback; not validation coverage"
