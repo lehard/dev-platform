@@ -3,28 +3,28 @@
   "candidate": {
     "base_head": "b93ffc444164bbf1a006d60f117e8378131a2924",
     "base_ref": "origin/main",
-    "candidate_head": "884ff62129285dbceb35a18cac781a2591abc51a",
-    "diff_sha256": "5b9f847b16eb622dd3854f3b2e8cbf7624f938f11c25c08f5d93f252ce1b6996"
+    "candidate_head": "dd9ac3d165855dfe19f29bec85b9f6ed7a545002",
+    "diff_sha256": "be62cb9b334bf541c982625c93b3f46bc5f7d2a7ab672eef4f244af5314777fc"
   },
-  "completed_at": "2026-10-09T12:35:20+00:00",
+  "completed_at": "2026-10-09T12:51:02+00:00",
   "findings": [
     {
-      "evidence": "template/docs/engineering/model-routing.md:67 states that a retained plan is declared at route time and 'a delegated plan is never converted afterwards'. Line 71 describes converting that same plan through approve-supervisor-diff. The active delta explicitly permits this exception in openspec/changes/owner-approved-supervisor-diff/specs/model-routing/spec.md under 'Retained execution is declared up front and recovery never fabricates evidence'.",
-      "id": "template-retention-guidance-contradicts-owner-exception",
-      "severity": "advisory",
-      "summary": "The downstream routing guide retains an absolute prohibition that contradicts the new owner-approved retention path."
+      "evidence": "template/scripts/model_routing.py:1166\u20131175 exempts `_unlaunched_attempt` from the existing-execution refusal; lines 1647\u20131651 also permit retained finalization of that receipt. The added requirement in openspec/changes/owner-approved-supervisor-diff/specs/model-routing/spec.md:5 explicitly requires refusal, writing nothing, when 'an execution exists', and design.md:9 requires 'no execution recorded'. Meanwhile, the delta's 'Unlaunched Codex attempt' scenario permits explicit owner-approved retention after such an attempt. The candidate implements that exception without reconciling the contradictory requirement and design.",
+      "id": "unlaunched-execution-contract-conflict",
+      "severity": "material",
+      "summary": "Owner-approved retention accepts an existing unlaunched execution despite the explicit no-execution precondition."
     }
   ],
-  "launched_at": "2026-10-09T12:34:34+00:00",
-  "output_sha256": "2b4d935ede7b39a933661b56240db7ecede5778689ff4d5164f981062838fe41",
+  "launched_at": "2026-10-09T12:50:17+00:00",
+  "output_sha256": "031c8373eacfe6e7a96d9b788558d7ec0c8d315cb71076331312e0fffd5b23fb",
   "perspective": "spec-fidelity",
-  "request_id": "bc1417d4-4d66-41db-b573-24b03e08f8ff",
+  "request_id": "0d5e05c7-0769-4182-8394-66569cb1d543",
   "reviewer": {
-    "context_id": "01a120a8-7b3a-7000-aa65-4a76377c68e1",
+    "context_id": "01a120b6-df4e-7033-b073-f4569f9c569e",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-22478b84-80fa-4d18-ba5c-8d07d6879525",
+    "launch_id": "platform-launch-9e81db6c-87ef-4379-b85c-dbb19a13525e",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -39,21 +39,21 @@
       "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 123904
+        "value": 120704
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 169982
+        "value": 168337
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 935
+        "value": 812
       }
     },
     "runtime": "codex-exec"
   },
   "schema_version": 1,
-  "task_content_digest": "55f01ca01ea4f152ffc8387bf8714e5c810fb9ab466ed43220c27b7b44018741"
+  "task_content_digest": "38892463c37f9a160bdc08a5ac93a0b8797d6cbab859d1f2ff6ebaa3a66021d2"
 }

@@ -3,28 +3,28 @@
   "candidate": {
     "base_head": "b93ffc444164bbf1a006d60f117e8378131a2924",
     "base_ref": "origin/main",
-    "candidate_head": "884ff62129285dbceb35a18cac781a2591abc51a",
-    "diff_sha256": "5b9f847b16eb622dd3854f3b2e8cbf7624f938f11c25c08f5d93f252ce1b6996"
+    "candidate_head": "dd9ac3d165855dfe19f29bec85b9f6ed7a545002",
+    "diff_sha256": "be62cb9b334bf541c982625c93b3f46bc5f7d2a7ab672eef4f244af5314777fc"
   },
-  "completed_at": "2026-10-09T12:36:19+00:00",
+  "completed_at": "2026-10-09T12:51:53+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/model_routing.py:1156-1157 rejects every non-null route.execution. However, _run_delegated_codex at lines 1396-1399 persists execution evidence even when execution['launched'] is false, alongside a closed 'not-launched' delegation. If the supervisor subsequently writes task content, the early gate directs the owner to approve-supervisor-diff, but that command refuses; escalation also refuses the diverged undelegated content. Thus the ordinary recorded pre-launch failure path cannot reach the owner-approved recovery promised by the delta's 'Unlaunched Codex attempt' scenario.",
-      "id": "unlaunched-attempt-blocks-owner-approval",
-      "severity": "material",
-      "summary": "Owner-approved recovery remains blocked after a recorded Codex attempt that never launched."
+      "evidence": "template/scripts/model_routing.py:1173\u20131175 invokes postcheck directly or through _require_recovery_safety. On a containment violation, postcheck at line 1702 calls record_containment_friction before raising. template/scripts/delegation_containment.py:365\u2013390 runs agent_friction.py record with production routing enabled; its documented behavior includes a local JSONL append and the normal GitHub gate. Thus an integration change causes the approval command to perform side effects before refusing, contrary to its docstring and documented refusal behavior.",
+      "id": "approval-refusal-has-side-effects",
+      "severity": "advisory",
+      "summary": "A containment refusal can write friction state and attempt GitHub routing despite the command's promise that every refusal writes nothing."
     }
   ],
-  "launched_at": "2026-10-09T12:35:20+00:00",
-  "output_sha256": "b6d3c723b7ab706c82f4d39af0b78629bceec30f5977e1d2305528c6a07874e0",
+  "launched_at": "2026-10-09T12:51:02+00:00",
+  "output_sha256": "97c891eaf118a78280a500e3eef44b167747afa791ea29af7a7a750b1070daa3",
   "perspective": "engineering-quality",
-  "request_id": "bc1417d4-4d66-41db-b573-24b03e08f8ff",
+  "request_id": "0d5e05c7-0769-4182-8394-66569cb1d543",
   "reviewer": {
-    "context_id": "01a120a9-2e22-7371-afec-4d47d35adc74",
+    "context_id": "01a120b7-8e6d-7150-bfee-df4d944841b5",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-4726e712-3faf-4233-bdad-3ae19adcbd88",
+    "launch_id": "platform-launch-4891f719-59ed-416f-9777-b3d2de151892",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -39,21 +39,21 @@
       "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 236288
+        "value": 170624
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 282799
+        "value": 220876
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1144
+        "value": 933
       }
     },
     "runtime": "codex-exec"
   },
   "schema_version": 1,
-  "task_content_digest": "55f01ca01ea4f152ffc8387bf8714e5c810fb9ab466ed43220c27b7b44018741"
+  "task_content_digest": "38892463c37f9a160bdc08a5ac93a0b8797d6cbab859d1f2ff6ebaa3a66021d2"
 }

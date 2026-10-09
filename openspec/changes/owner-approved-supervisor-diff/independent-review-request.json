@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "b93ffc444164bbf1a006d60f117e8378131a2924",
     "base_ref": "origin/main",
-    "candidate_head": "884ff62129285dbceb35a18cac781a2591abc51a",
-    "diff_sha256": "5b9f847b16eb622dd3854f3b2e8cbf7624f938f11c25c08f5d93f252ce1b6996"
+    "candidate_head": "dd9ac3d165855dfe19f29bec85b9f6ed7a545002",
+    "diff_sha256": "be62cb9b334bf541c982625c93b3f46bc5f7d2a7ab672eef4f244af5314777fc"
   },
   "change": "openspec/changes/owner-approved-supervisor-diff",
   "excluded_lifecycle_paths": [
@@ -37,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-09T12:34:24+00:00",
+  "prepared_at": "2026-10-09T12:50:08+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/owner-approved-supervisor-diff/independent-reviews",
     "required_perspectives": [
@@ -46,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "bc1417d4-4d66-41db-b573-24b03e08f8ff",
+  "request_id": "0d5e05c7-0769-4182-8394-66569cb1d543",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -59,7 +59,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "b93ffc444164bbf1a006d60f117e8378131a2924",
-    "digest": "55f01ca01ea4f152ffc8387bf8714e5c810fb9ab466ed43220c27b7b44018741",
+    "digest": "38892463c37f9a160bdc08a5ac93a0b8797d6cbab859d1f2ff6ebaa3a66021d2",
     "paths": {
       "docs/engineering/model-routing.md": "0bcacfe87d122d8b40aaae06026ee471cfd1feda",
       "openspec/changes/owner-approved-supervisor-diff/.managed-task.json": "cfa8245ee640096608122892d5677aa9f0797840",
@@ -68,9 +68,9 @@
       "openspec/changes/owner-approved-supervisor-diff/proposal.md": "53fe8bc0b4514a92d4e27162221672f7420f76fa",
       "openspec/changes/owner-approved-supervisor-diff/specs/model-routing/spec.md": "2d83b5d0d901ab8102b13d5c10eb83c924eaef68",
       "openspec/changes/owner-approved-supervisor-diff/tasks.md": "a2913f50acac6a8fb327173d422a1b09f4d9f58f",
-      "template/docs/engineering/model-routing.md": "31ad82c45b957b9a38a724429a412d3d7932da70",
-      "template/scripts/model_routing.py": "6388ad5efb9edac8cf40000428b56d4ea301f2f3",
-      "tests/test_model_routing.py": "5285344d61a0ccf0426d74449cbbfca252d2e665"
+      "template/docs/engineering/model-routing.md": "159e42fd7ecf59e7dcb9c8c342229e011a3062b9",
+      "template/scripts/model_routing.py": "54997af55db3c9f58a31ee0b3fa734cf6ba45c24",
+      "tests/test_model_routing.py": "94eb3081b2b11cf4d7f03e3b4dacfe07ed10bce9"
     },
     "scope": "independent-review-v1",
     "version": 1
