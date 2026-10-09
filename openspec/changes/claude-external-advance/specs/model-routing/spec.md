@@ -2,7 +2,7 @@
 
 ### Requirement: Detection-only delegated writers accept a recorded integration advance
 
-Every platform fast-forward of the integration checkout's main branch SHALL append an integration-advance receipt naming before and after heads, the recorded remote-tracking main, the acting worktree, tool and time. For a detection-only delegated writer the platform SHALL classify integration-head movement as a verified concurrent advance only when no integration path was created, changed or disappeared, the new head is a fast-forward descendant equal to the recorded remote-tracking main, and an unbroken receipt chain from the pre-run head to the new head exists whose every acting worktree is outside the delegated worktree. The raw observation SHALL be preserved beside the classification. Missing, broken, malformed or self-attributed evidence SHALL remain a containment violation. A historical false violation recorded before receipts existed MAY be recovered only through an evidence-bound recovery tied to the exact friction event, the route's open delegation timing and the remote-tracking reflog.
+Every platform fast-forward of the integration checkout's main branch SHALL append an integration-advance receipt naming before and after heads, the recorded remote-tracking main, the acting worktree, tool and time. For a detection-only delegated writer the platform SHALL classify integration-head movement as a verified concurrent advance only when no integration path was created, changed or disappeared, the new head is a fast-forward descendant equal to the recorded remote-tracking main, and an unbroken receipt chain from the pre-run head to the new head exists whose every acting worktree is outside the delegated worktree. The raw observation SHALL be preserved beside the classification. Missing, broken, malformed or self-attributed evidence SHALL remain a containment violation. A historical violation recorded before receipts existed MAY be recovered only through an evidence-bound recovery tied to the exact friction event, the route's open delegation timing and the remote-tracking reflog, and only with an explicit recorded owner risk acceptance, because without receipts the platform cannot prove who moved integration main. Such a recovery SHALL be classified as an owner-authorized historical recovery, kept apart from any verified concurrent advance, and SHALL NOT be recorded as verified. Integration advances that carry receipts SHALL be classified without any owner input.
 
 #### Scenario: Sibling merge during a Claude delegation
 
@@ -19,9 +19,21 @@ Every platform fast-forward of the integration checkout's main branch SHALL appe
 #### Scenario: Historical false violation
 
 - **GIVEN** a Claude delegation failed recording because of a pure head move before receipts existed
-- **WHEN** recovery is requested with the exact friction event and heads proven by the remote-tracking reflog within the delegation window
-- **THEN** a recovery record is stored without creating an execution
+- **WHEN** recovery is requested with the exact friction event, heads proven by the remote-tracking reflog within the delegation window and the owner's explicit risk acceptance
+- **THEN** an owner-authorized historical recovery record, not marked verified, is stored without creating an execution
+- **AND** the later execution keeps that recovery apart from any verified advance
 - **AND** later recording classifies any further movement only through receipts
+
+#### Scenario: Historical recovery without owner risk acceptance
+
+- **WHEN** recovery is requested without the owner's explicit risk acceptance
+- **THEN** it is refused and nothing is written
+
+#### Scenario: Receipted parallel merge needs no owner input
+
+- **GIVEN** a Claude delegation is open
+- **WHEN** another lifecycle fast-forwards integration main and writes a receipt
+- **THEN** the execution is recorded with a verified concurrent advance without any recovery or owner approval
 
 ## MODIFIED Requirements
 

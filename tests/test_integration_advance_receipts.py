@@ -79,6 +79,9 @@ class ReceiptSchemaTests(unittest.TestCase):
                 tool="test", actor_worktree=Path("/actor"))
 
 
+OWNER_APPROVAL = "Owner accepts the bounded risk of this one historical recovery"
+
+
 class IntegrationRepoMixin:
     """A temporary integration repo with a registered sibling worktree and helpers to advance main."""
 
@@ -395,6 +398,18 @@ class ClaudeRecordingTests(ClaudeRoutingFixture, unittest.TestCase):
         with patch.object(routing, "main_root", return_value=self.integration):
             routing.require_routing_gate(self.task, "owner/backlog#7", "routing-change")
 
+    def test_normal_parallel_merge_needs_no_owner_input(self) -> None:
+        # A sibling lifecycle fast-forwards integration main while the Claude delegation is open: the platform
+        # verifies it from receipts alone, with no recovery, owner approval or friction event.
+        before, after = self.advance()
+        self.receipt(before, after)
+        with patch.object(routing, "record_containment_friction") as friction:
+            execution = self.record()
+        friction.assert_not_called()
+        self.assertEqual(execution["postcheck"]["integration_advance"]["classification"], guard.CLASSIFICATION_VERIFIED_EXTERNAL_ADVANCE)
+        self.assertNotIn("historical_recovery", execution)
+        self.assertNotIn("owner_approval", json.dumps(self.saved()))
+
     def test_several_sibling_merges_form_a_verified_chain(self) -> None:
         first = self.advance()
         self.receipt(*first)
@@ -483,7 +498,8 @@ class ClaudeRecoveryTests(ClaudeRoutingFixture, unittest.TestCase):
         return entry["id"]
 
     def recover(self, **kwargs):
-        arguments = {"friction_event": "claude-event-1", "before_head": self.pre_head, "after_head": rev(self.integration)}
+        arguments = {"friction_event": "claude-event-1", "before_head": self.pre_head, "after_head": rev(self.integration),
+                     "owner_approval": OWNER_APPROVAL}
         arguments.update(kwargs)
         with patch.object(agent_friction, "main_root", return_value=self.integration):
             return routing.recover_external_advance(self.task, **arguments)
@@ -497,7 +513,11 @@ class ClaudeRecoveryTests(ClaudeRoutingFixture, unittest.TestCase):
     def test_recovery_stores_a_record_on_the_open_delegation_without_an_execution(self) -> None:
         self.friction()
         recovery = self.recover()
-        self.assertEqual(recovery["classification"], guard.CLASSIFICATION_VERIFIED_EXTERNAL_ADVANCE)
+        # An owner risk acceptance, never recorded as a machine-verified advance.
+        self.assertEqual(recovery["classification"], routing.CLASSIFICATION_OWNER_AUTHORIZED_RECOVERY)
+        self.assertNotEqual(recovery["classification"], guard.CLASSIFICATION_VERIFIED_EXTERNAL_ADVANCE)
+        self.assertIs(recovery["verified"], False)
+        self.assertEqual(recovery["owner_approval"]["approval"], OWNER_APPROVAL)
         saved = self.saved()
         self.assertIsNone(saved["execution"])
         delegation = saved["execution_plan"]["delegation"]
@@ -516,6 +536,25 @@ class ClaudeRecoveryTests(ClaudeRoutingFixture, unittest.TestCase):
         self.assertEqual(recovery["after_head"], current)
         execution = self.record()
         self.assertEqual(execution["postcheck"]["containment"], "clean")
+        self.assertNotIn("integration_advance", execution["postcheck"])
+
+    def test_recovery_without_owner_approval_refuses_without_writing(self) -> None:
+        self.friction()
+        for approval in (None, "", "   "):
+            with self.subTest(approval=approval):
+                self.assert_refused("requires --owner-approval", owner_approval=approval)
+
+    def test_owner_approval_is_refused_for_codex_recovery(self) -> None:
+        self.friction()
+        with patch.object(routing, "_read_route", return_value=(routing.Route(**{**self.saved(), "provider": "codex"}), self.record_path())):
+            with self.assertRaisesRegex(routing.RoutingError, "applies only to the Claude historical recovery"):
+                self.recover()
+
+    def test_execution_after_recovery_keeps_the_owner_authorized_base_apart(self) -> None:
+        self.friction()
+        self.recover()
+        execution = self.record()
+        self.assertEqual(execution["historical_recovery"]["classification"], routing.CLASSIFICATION_OWNER_AUTHORIZED_RECOVERY)
         self.assertNotIn("integration_advance", execution["postcheck"])
 
     def test_recording_after_recovery_starts_from_the_recovered_head(self) -> None:

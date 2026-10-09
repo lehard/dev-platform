@@ -78,6 +78,8 @@ PLAN_DELEGATED = "delegated-child"
 PLAN_RETAINED = "supervisor-retained"
 PLAN_MODES = (PLAN_DELEGATED, PLAN_RETAINED)
 OWNER_APPROVED_POLICY = "owner-approved"
+# A historical Claude recovery the platform cannot prove: an explicit owner risk acceptance, never a verified advance.
+CLASSIFICATION_OWNER_AUTHORIZED_RECOVERY = "owner-authorized-historical-recovery"
 DELEGATION_STATES = ("open", "closed")
 LAUNCH_EVIDENCE_SELF_REPORTED = "self-reported"
 LAUNCH_EVIDENCE_PLATFORM_OBSERVED = "platform-observed"
@@ -890,9 +892,16 @@ def _read_friction_log(root: Path) -> list[dict[str, Any]]:
 
 
 def _recover_claude_external_advance(
-    route: Route, path: Path, *, friction_event: str, before_head: str, after_head: str
+    route: Route, path: Path, *, friction_event: str, before_head: str, after_head: str, owner_approval: str | None
 ) -> dict[str, Any]:
-    """Bounded recovery of a historical Claude pure-head-move false violation.
+    """Owner-authorized recovery of a historical Claude pure-head-move violation.
+
+    Without receipts the platform cannot prove who moved integration main: a
+    detection-only child running ``git fetch`` and ``git merge --ff-only`` in the
+    integration checkout leaves the same remote-tracking reflog evidence as a
+    sibling lifecycle. The recovery is therefore an explicit, recorded owner risk
+    acceptance (``owner-authorized-historical-recovery``), never a
+    ``verified_external_advance``, and it still requires every check below.
 
     Applies to a Claude route whose delegation is still open with no execution
     (a violating `record-claude-execution` wrote nothing and left it open). It
@@ -907,6 +916,11 @@ def _recover_claude_external_advance(
     that `after_head` is both the current integration head and the local
     remote-tracking main. Later movement is classified only through receipts.
     """
+    if not (isinstance(owner_approval, str) and owner_approval.strip()):
+        raise RoutingError(
+            "Claude historical recovery cannot be machine-verified (no integration-advance receipts existed); "
+            "it requires --owner-approval with the owner's explicit risk acceptance given in chat"
+        )
     _refuse_child_writer_on_standalone_clone(route)
     plan = _require_plan(route, "recovering an external advance")
     delegation = plan.get("delegation")
@@ -997,14 +1011,17 @@ def _recover_claude_external_advance(
     recovery = {
         "recovered_at": recovered_at,
         "friction_event": friction_event,
-        "classification": CLASSIFICATION_VERIFIED_EXTERNAL_ADVANCE,
+        "classification": CLASSIFICATION_OWNER_AUTHORIZED_RECOVERY,
+        "verified": False,
         "before_head": before_head,
         "after_head": after_head,
+        "owner_approval": {"approval": owner_approval.strip(), "approved_at": recovered_at},
         "reason": (
-            "Verified concurrent integration advance recorded before receipts existed: the flagged postcheck's only observed "
-            "change was integration HEAD moving with no path mutation; after_head is the current integration head, equals the "
-            "local remote-tracking main and was recorded in its reflog since the delegation opened. Any later movement is "
-            "classified only through integration-advance receipts."
+            "Owner-authorized historical recovery, not a verified advance: the flagged postcheck's only observed change was "
+            "integration HEAD moving with no path mutation before receipts existed; after_head is the current integration head, "
+            "equals the local remote-tracking main and was recorded in its reflog since the delegation opened, but who moved it "
+            "cannot be proven, so the owner accepted that risk. Any later movement is classified only through "
+            "integration-advance receipts."
         ),
     }
     next_route = Route(**{**asdict(route), "execution_plan": {**plan, "delegation": {**delegation, "recovery": recovery}}})
@@ -1012,7 +1029,9 @@ def _recover_claude_external_advance(
     return recovery
 
 
-def recover_external_advance(root: Path, *, friction_event: str, before_head: str, after_head: str) -> dict[str, Any]:
+def recover_external_advance(
+    root: Path, *, friction_event: str, before_head: str, after_head: str, owner_approval: str | None = None
+) -> dict[str, Any]:
     """Narrowly reviewed recovery for a historic pure-head-move false positive.
 
     This is not a generic routing override: every fact below must be proven or
@@ -1024,8 +1043,11 @@ def recover_external_advance(root: Path, *, friction_event: str, before_head: st
     route, path = _read_route(root)
     if route.provider == "claude":
         return _recover_claude_external_advance(
-            route, path, friction_event=friction_event, before_head=before_head, after_head=after_head
+            route, path, friction_event=friction_event, before_head=before_head, after_head=after_head,
+            owner_approval=owner_approval,
         )
+    if owner_approval is not None:
+        raise RoutingError("--owner-approval applies only to the Claude historical recovery; Codex recovery is machine-verified")
     execution = route.execution
     if not isinstance(execution, dict):
         raise RoutingError("recovery requires an existing recorded execution outcome; there is nothing to recover")
@@ -1777,6 +1799,9 @@ def record_claude_execution(root: Path, *, agent_id: str, summary: str | None = 
             "execution_id": {"value": agent_id.strip(), "kind": "claude-agent-id"},
         },
     }
+    if delegation is not None and delegation.get("recovery") is not None:
+        # Kept apart from the postcheck's integration_advance: the base it shifted is owner-authorized, not verified.
+        execution["historical_recovery"] = delegation["recovery"]
     next_route = Route(**{**asdict(route), "execution": execution, "execution_plan": None if legacy_claim else {**plan, "delegation": closed}})
     _write_route(path, next_route)
     _persist_completed_execution(next_route)
@@ -1865,9 +1890,11 @@ def _postcheck(route: Route, *, supervisor: bool) -> dict[str, Any]:
     pre_snapshot = route.pre_snapshot
     delegation = _claude_delegation(route)
     recovery = route.execution.get("recovery") if route.execution is not None else None
+    accepted = CLASSIFICATION_VERIFIED_EXTERNAL_ADVANCE  # a recorded Codex execution's machine-verified recovery
     if recovery is None and delegation is not None:
         recovery = delegation.get("recovery")
-    if isinstance(recovery, dict) and recovery.get("classification") == CLASSIFICATION_VERIFIED_EXTERNAL_ADVANCE:
+        accepted = CLASSIFICATION_OWNER_AUTHORIZED_RECOVERY  # the only recovery an open Claude delegation can carry
+    if isinstance(recovery, dict) and recovery.get("classification") == accepted:
         after_head = recovery.get("after_head")
         if not isinstance(after_head, str) or not after_head:
             raise RoutingError("verified containment recovery is missing after_head")
@@ -3678,6 +3705,10 @@ def main() -> int:
     recover_parser.add_argument("--friction-event", required=True, help="exact machine-local friction log entry id, never a GitHub issue number")
     recover_parser.add_argument("--before-head", required=True)
     recover_parser.add_argument("--after-head", required=True)
+    recover_parser.add_argument(
+        "--owner-approval",
+        help="Claude historical recovery only: the owner's explicit risk acceptance given in chat, recorded verbatim",
+    )
     verify_parser = subparsers.add_parser(
         "verify-routing",
         help="verify durable exact-task routing evidence without preparing or dispatching a route",
@@ -3761,7 +3792,8 @@ def main() -> int:
             output = record_retained_execution(root, reason=args.reason)
         elif args.command == "recover-external-advance":
             output = recover_external_advance(
-                root, friction_event=args.friction_event, before_head=args.before_head, after_head=args.after_head
+                root, friction_event=args.friction_event, before_head=args.before_head, after_head=args.after_head,
+                owner_approval=args.owner_approval,
             )
         elif args.command == "verify-routing":
             _early_routing_gate(root, args.source_issue, args.change)
