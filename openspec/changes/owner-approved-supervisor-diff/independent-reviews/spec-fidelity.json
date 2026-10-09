@@ -1,0 +1,82 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "5b6a6098ce8239f506d60e1b3d680d3b0d2b06a4",
+    "base_ref": "origin/main",
+    "candidate_head": "d597df761902dec04a72d8d50a3b2972a0566d4a",
+    "diff_sha256": "e3f5d4c3692705d86b51fe21facff5a9d4033e83c0e5321781917a440c8f2455"
+  },
+  "completed_at": "2026-10-09T10:31:32+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/model_routing.py:713-721. For outcome=retained the gate checks only role, policy equality (via _retention_policy, which returns owner-approved from the plan) and reason. It never requires retained[\"owner_approval\"]. record_retained_execution adds it at line 1642, but a hand-edited or legacy execution with policy owner-approved and no owner_approval would still pass the archive gate, because plan validation only checks the plan's own owner_approval. No test covers this case.",
+      "id": "archive-gate-no-owner-approval-in-execution",
+      "severity": "advisory",
+      "summary": "The archive gate accepts an owner-approved retained execution without checking that execution.retained carries the owner_approval. The spec says the retained execution SHALL carry the approval and that the archive gate accepts it, and the design's Verification section expects the approval in the execution."
+    }
+  ],
+  "launched_at": "2026-10-09T10:31:12+00:00",
+  "output_sha256": "26c5dd038191a71c9bbaa8b2ffddb2ace866407863bbf82e3c7d0832379c8144",
+  "perspective": "spec-fidelity",
+  "request_id": "2389995e-a52f-4292-8253-3d41fb0c8761",
+  "reviewer": {
+    "context_id": "42cdf301-88d9-4674-b492-e0f744e33738",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-9c25b699-645c-476c-8feb-2ebc2c169b93",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 30227
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 84281
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 17202
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 17539
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1847
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "0e263db5250b7ff8242e3e794badc2d357f2d52224c2fa36b4b35cdff3c6607c"
+}

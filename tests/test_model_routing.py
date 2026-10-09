@@ -2312,6 +2312,24 @@ class EarlyRoutingGateTests(unittest.TestCase):
         self.assertEqual(final.execution["retained"]["owner_approval"], plan["owner_approval"])
         self.assertEqual(routing._actual_route_of(routing.asdict(final))["owner_approved"], True)
 
+    def test_archive_gate_requires_the_plan_approval_in_the_retained_execution(self) -> None:
+        self.prepare()
+        self.write_content()
+        self.approve()
+        with patch.object(routing, "main_root", return_value=self.integration):
+            routing.record_retained_execution(self.task, reason="owner approved the supervisor-written diff")
+        durable = json.loads(self.durable_record_path().read_text(encoding="utf-8"))
+        for label, mutate in {
+            "missing": lambda retained: retained.pop("owner_approval"),
+            "altered": lambda retained: retained["owner_approval"].update(approval="someone else"),
+        }.items():
+            with self.subTest(label):
+                payload = json.loads(json.dumps(durable))
+                mutate(payload["execution"]["retained"])
+                self.durable_record_path().write_text(json.dumps(payload), encoding="utf-8")
+                with self.assertRaisesRegex(routing.RoutingError, "must carry exactly the owner approval"):
+                    self.archive_gate()
+
     def test_owner_approval_refusals_write_nothing(self) -> None:
         def assert_refused(pattern: str, **kwargs) -> None:
             before = self.record_path().read_text(encoding="utf-8")

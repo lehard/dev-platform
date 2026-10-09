@@ -717,6 +717,8 @@ def require_routing_gate(root: Path, source_issue: str, change: str) -> Route:
             raise RoutingError("routing evidence has unsupported or incomplete retained execution metadata")
         if execution.get("launched") is not False or not isinstance(retained.get("reason"), str) or not retained["reason"].strip():
             raise RoutingError("routing evidence must explicitly state a non-empty parent-retention reason")
+        if policy == OWNER_APPROVED_POLICY and retained.get("owner_approval") != route.execution_plan["owner_approval"]:
+            raise RoutingError("owner-approved retained execution must carry exactly the owner approval recorded in the execution plan")
         _require_clean_postcheck(execution, route.provider)
         return route
     if route.provider == "codex":
