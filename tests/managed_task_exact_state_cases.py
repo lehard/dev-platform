@@ -417,10 +417,32 @@ with managed_task.exact_target_context(Path(sys.argv[2]), sys.argv[3]) as worktr
                 leaf.mkdir()
             before = sorted(item.name for item in parent.iterdir())
             with self.subTest(leaf_exists=leaf_exists), \
-                    patch.object(managed_task, '_storage_component_foreign', side_effect=lambda path: path.resolve() == parent.resolve()):
+                    patch.object(managed_task, '_storage_component_foreign', side_effect=lambda path, group: path.resolve() == parent.resolve()):
                 with self.assertRaisesRegex(managed_task.ManagedTaskError, 'foreign ownership'):
                     managed_task.validation_storage(self.root)
             self.assertEqual(sorted(item.name for item in parent.iterdir()), before)
+
+    def test_storage_component_of_another_shared_workspace_account(self) -> None:
+        from types import SimpleNamespace
+
+        shared = managed_task.shared_workspace.SharedGroup(gid=os.getegid(), name='shared', source='test')
+        other = managed_task.shared_workspace.SharedGroup(gid=os.getegid() + 7, name='other', source='test')
+        directory = stat.S_IFDIR | 0o755
+        owner = os.geteuid() + 1
+        for info, group, foreign in (
+            (SimpleNamespace(st_uid=os.geteuid(), st_gid=os.getegid() + 1, st_mode=directory), None, False),
+            (SimpleNamespace(st_uid=owner, st_gid=shared.gid, st_mode=directory | 0o2070), shared, False),
+            (SimpleNamespace(st_uid=owner, st_gid=shared.gid, st_mode=directory | 0o0070), shared, True),
+            (SimpleNamespace(st_uid=owner, st_gid=shared.gid, st_mode=directory | 0o2050), shared, True),
+            (SimpleNamespace(st_uid=owner, st_gid=shared.gid + 1, st_mode=directory | 0o2070), shared, True),
+            (SimpleNamespace(st_uid=owner, st_gid=other.gid, st_mode=directory | 0o2070), other, True),
+            (SimpleNamespace(st_uid=owner, st_gid=shared.gid, st_mode=directory | 0o2070), None, True),
+        ):
+            with self.subTest(info=info, group=group), \
+                    patch.object(managed_task.shared_workspace, 'posix_available', return_value=True), \
+                    patch.object(Path, 'stat', return_value=info), \
+                    patch.object(managed_task.os, 'getgroups', return_value=[shared.gid]):
+                self.assertIs(managed_task._storage_component_foreign(self.root / 'component', group), foreign)
 
     def test_cleanup_rejects_foreign_contents_and_active_or_unknown_cwds(self) -> None:
         from types import SimpleNamespace
