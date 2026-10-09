@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/ci-safety/spec.md"
+  ],
+  "change": "platform-ci-runner-selection",
+  "imported_at": "2026-10-08T23:30:26+00:00",
+  "package_revision": "c4e7a6a392b230e8c4fa353e5d32daf684d21459e98a3a69b43ed751f00ea027",
+  "prepared_against": "2653b5883f96b67852aeffab89e007672f972e92",
+  "private_lineage_handle": "pln_0e6ac218ad11172a1ca855f164d89e08",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "7d73de9934c82875f7022f53fd071510d77711ce7e90f287dd098b45c593fec5",
+    "updated_at": "2026-10-08T23:22:36Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-503/T1"
+}

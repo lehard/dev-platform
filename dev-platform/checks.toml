@@ -131,6 +131,7 @@ targets = [
   "test_repository_goal_scan",
   "test_harness_replay",
   "test_platform_doctor_workflow_mode",
+  "test_ci_runner_selection",
   "test_pr_reconciliation_concurrency",
   "test_project_harness_doc_ownership",
   "test_protected_publish_contract",

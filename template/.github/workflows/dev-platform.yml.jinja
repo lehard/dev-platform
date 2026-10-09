@@ -1,4 +1,4 @@
-{% if scm_provider == 'github' %}
+{% if scm_provider == 'github' %}{% set runner_labels = ci_runner_labels.split(',') | map('trim') | list if ci_runner == 'self-hosted' else [] %}
 name: Dev Platform
 
 on:
@@ -23,7 +23,7 @@ concurrency:
 
 jobs:
   platform-ci:
-    runs-on: ubuntu-latest
+    runs-on: {{ 'ubuntu-latest' if ci_runner == 'github-hosted' else (runner_labels[0] if runner_labels | length == 1 else '[' ~ runner_labels | join(', ') ~ ']') }}
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -43,6 +43,11 @@ jobs:
         run: |
           umask 0002
           python3 scripts/capability_manager.py sync
+{%- if ci_runner == 'self-hosted' %}
+
+      - name: Repair shared-workspace permissions on self-hosted runners
+        run: python3 scripts/shared_workspace.py fix
+{%- endif %}
 
       - name: Validate platform contract
         run: python3 scripts/platform_doctor.py

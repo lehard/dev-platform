@@ -48,6 +48,16 @@ def copier_commit(root: Path) -> str | None:
     return None
 
 
+def copier_answer(root: Path, key: str) -> str | None:
+    answers = root / ".copier-answers.yml"
+    if not answers.exists():
+        return None
+    for line in answers.read_text(encoding="utf-8").splitlines():
+        if line.startswith(f"{key}:"):
+            return line.split(":", 1)[1].strip().strip("'\"")
+    return None
+
+
 def find_update_conflicts(root: Path) -> list[str]:
     issues: list[str] = []
     for path in root.rglob("*.rej"):
@@ -119,6 +129,66 @@ def check_rendered_workflow_mode(root: Path, config: dict, failures: list[int]) 
         fail(f"unknown publish_mode={mode!r}; expected 'direct' or 'pr'"); failures[0] += 1
     else:
         ok(f"rendered workflow agrees with publish_mode={mode}")
+
+
+CI_RUNNERS = ("github-hosted", "self-hosted")
+CI_RUNNER_LABEL_RE = re.compile(r"^[A-Za-z0-9._-]+$")
+REPAIR_STEP_NAME = "Repair shared-workspace permissions on self-hosted runners"
+PLATFORM_CI_RUNS_ON_RE = re.compile(r"^  platform-ci:\n(?:(?!^  \S).*\n)*?    runs-on:[ \t]*(.*?)[ \t]*$", re.MULTILINE)
+
+
+def check_ci_runner_agreement(root: Path, config: dict, failures: list[int]) -> None:
+    """Prove the committed platform-ci runner agrees with the recorded Copier answers."""
+    if scm_provider(config) == "gitlab":
+        return
+    if str(config.get("platform_version", "")) == "source":
+        return  # the source checkout is not a rendered project and records no Copier answers
+    kind = copier_answer(root, "ci_runner")
+    if kind not in CI_RUNNERS:
+        fail(f".copier-answers.yml ci_runner={kind!r}; expected one of {', '.join(CI_RUNNERS)} (record the answer or run copier update)")
+        failures[0] += 1
+        return
+    if kind == "self-hosted":
+        raw = copier_answer(root, "ci_runner_labels")
+        entries = [item.strip() for item in (raw or "").split(",")]
+        problems = []
+        if not raw or not raw.strip():
+            problems.append("is empty")
+        else:
+            if any(not item for item in entries):
+                problems.append("contains an empty entry")
+            bad = [item for item in entries if item and not CI_RUNNER_LABEL_RE.fullmatch(item)]
+            if bad:
+                problems.append(f"contains invalid labels {bad}; allowed characters are [A-Za-z0-9._-]")
+            if len({item for item in entries if item}) != len([item for item in entries if item]):
+                problems.append("contains duplicate labels")
+        if problems:
+            fail(f".copier-answers.yml ci_runner_labels={raw!r} {'; '.join(problems)}"); failures[0] += 1
+            return
+        expected = entries[0] if len(entries) == 1 else "[" + ", ".join(entries) + "]"
+    else:
+        expected = "ubuntu-latest"
+    workflow = root / ".github" / "workflows" / "dev-platform.yml"
+    if not workflow.exists():
+        return  # already reported by check_rendered_workflow_mode
+    text = workflow.read_text(encoding="utf-8")
+    match = PLATFORM_CI_RUNS_ON_RE.search(text)
+    if not match:
+        fail("dev-platform workflow platform-ci job has no runs-on to compare with ci_runner"); failures[0] += 1
+        return
+    before = failures[0]
+    found = match.group(1)
+    if found != expected:
+        fail(f"platform-ci runs-on mismatch for ci_runner={kind}: expected {expected!r}, found {found!r}"); failures[0] += 1
+    has_repair = f"- name: {REPAIR_STEP_NAME}" in text
+    if (kind == "self-hosted") != has_repair:
+        fail(
+            f"platform-ci shared-workspace repair step mismatch for ci_runner={kind}: "
+            f"expected {'present' if kind == 'self-hosted' else 'absent'}, found {'present' if has_repair else 'absent'}"
+        )
+        failures[0] += 1
+    if failures[0] == before:
+        ok(f"platform-ci runner agrees with ci_runner={kind} ({expected})")
 
 
 def check_development_backlog_config(config: dict, failures: list[int]) -> None:
@@ -398,6 +468,7 @@ def main() -> int:
 
     check_task_start_contract(root, config, harness, failures)
     check_rendered_workflow_mode(root, config, failures)
+    check_ci_runner_agreement(root, config, failures)
 
     commit = copier_commit(root)
     configured_version = str(config.get("platform_version", ""))

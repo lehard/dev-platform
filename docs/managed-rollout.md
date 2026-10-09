@@ -96,6 +96,17 @@ Generated agent integrations do not require platform edits to a mature project's
 
 After Copier renders or updates a stable release, `scripts/platform_bootstrap.py` synchronizes `.dev-platform.toml` `platform_version` from `.copier-answers.yml` `_commit`. Managed rollout and platform doctor both reject a stable-tag state where those two version records disagree.
 
+## Downstream CI runner selection
+
+Platform-rendered GitHub Actions jobs (`platform-ci` in `dev-platform.yml` and `provision` in `process-health-labels.yml`) take their `runs-on` from two recorded Copier answers instead of a hand edit:
+
+- `ci_runner`: `github-hosted` (default, renders `runs-on: ubuntu-latest`) or `self-hosted`.
+- `ci_runner_labels`: asked only for `self-hosted`; comma-separated runner labels. One label renders `runs-on: <label>`, several render a flow list such as `runs-on: [a, b]`. Each label must match `[A-Za-z0-9._-]+`, with no empty entries or duplicates.
+
+For `self-hosted`, `platform-ci` also runs `python3 scripts/shared_workspace.py fix` before `platform_doctor`. The label-provisioning job calls the GitHub REST API with `curl` for both runner kinds, so it needs no `gh` CLI on the runner. Copier records the answers in `.copier-answers.yml` and preserves them on update. `platform_doctor` fails explicitly when `ci_runner` is missing, the labels are malformed, or the committed `platform-ci` runner or repair step disagrees with the answers.
+
+A project that previously hand-edited `runs-on` in these platform-owned workflows must record the equivalent answers before the rollout that introduces this version: add `ci_runner: self-hosted` and `ci_runner_labels: <labels>` to `.copier-answers.yml`. The rollout then renders an equivalent workflow instead of resetting the runner to `ubuntu-latest`; without them the byte-sensitive ownership check blocks the rollout on the hand-edited file.
+
 ## One-time GitHub App setup
 
 The repository `GITHUB_TOKEN` is intentionally scoped to `dev-platform`, so cross-repository onboarding and rollout use a dedicated GitHub App.
