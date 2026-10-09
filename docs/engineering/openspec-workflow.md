@@ -195,7 +195,15 @@ own exact-head checks. A `finalize` job (`post_review_finalization.py`) then run
 `openspec_lifecycle.py archive <change> --finalize` in a disposable checkout,
 reusing the review and selected-check evidence for the unchanged task-content
 identity, and the candidate becomes `ready`; a later task-content change returns
-it to review. A completed-but-active change is blocked at integration admission
+it to review. When selected checks must be re-established because a review repair
+changed the task content, the finalize job runs the real selected checks under the
+bounded `select_checks.py --proven-base <sha>` contract, where `<sha>` is the
+task-content base of the identity it proved equivalent to the recorded one, instead
+of requiring the head to contain current `main`; the harness-executed evidence
+records that contract and base. Finalization never fetches or merges `main`: base
+actualization, the clean merge of current `main`, required CI on the merged head and
+integration repair belong to the integration contour (see
+[agent-workflow.md](agent-workflow.md#candidate-and-integration-contours)). A completed-but-active change is blocked at integration admission
 and merge (`openspec_lifecycle.py check --stage integration`, strict on `main`
 and for non-coordinator finish), not at PR publication. When main changed only
 the archive-derived current-spec paths of the candidate's own capabilities, the
