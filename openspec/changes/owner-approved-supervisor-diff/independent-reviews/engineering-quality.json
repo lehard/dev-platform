@@ -1,74 +1,31 @@
 {
-  "availability": "available",
+  "availability": "unavailable",
   "candidate": {
-    "base_head": "e5b3f9d549216bc58f635e28278add2c07580e3b",
+    "base_head": "b93ffc444164bbf1a006d60f117e8378131a2924",
     "base_ref": "origin/main",
-    "candidate_head": "e4866ef62e71ea0f06aeb22a9b34c977ae6122d4",
-    "diff_sha256": "47607ed3a0fbf664e5c2f5fc3a334a9a7a93dbae173a8968cdb00c1e7baa231d"
+    "candidate_head": "7ee9181a0c99ac676c44c1d7aa39f777a553831a",
+    "diff_sha256": "64bffb5876e9ce9e76957cbfb82069ff95d1a7ba4605bd326795e89cd716063b"
   },
-  "completed_at": "2026-10-09T10:57:42+00:00",
+  "completed_at": "2026-10-09T11:47:53+00:00",
   "findings": [],
-  "launched_at": "2026-10-09T10:57:18+00:00",
-  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
+  "launched_at": "2026-10-09T11:47:53+00:00",
+  "limitation": "claude reviewer runtime with model 'sonnet' is not ready: probe exited with status 1 (Not logged in \u00b7 Please run /login); next: log the claude CLI in on this host, point DEV_PLATFORM_CLAUDE_BIN at the Claude Code CLI, or change the [model_routing] / [independent_review] binding for this account (no other model or provider is tried), then rerun python3 scripts/independent_review.py preflight",
   "perspective": "engineering-quality",
-  "request_id": "09c1f968-9ae4-44b5-aead-87d3a8f83d61",
+  "request_id": "b94ecace-6f92-4f8b-8005-e264efef58fa",
   "reviewer": {
-    "context_id": "673112f9-941e-492d-84f9-935c1390e9e1",
-    "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
+    "context_id": "platform-launch-af14e5e7-f794-478a-98c1-3982afe58338",
+    "context_id_source": "platform-launch",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-cde5beff-62b8-4b64-979a-3b6095956f8b",
+    "launch_id": "platform-launch-af14e5e7-f794-478a-98c1-3982afe58338",
     "model": {
       "source": "selected",
       "value": "sonnet"
     },
     "provider": "claude",
     "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
     "runtime": "claude-code-print",
     "write_access": false
-  },
-  "runtime_usage": {
-    "fields": {
-      "cache_creation_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 26552
-      },
-      "cache_read_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 78776
-      },
-      "duration_api_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 12122
-      },
-      "duration_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 14252
-      },
-      "input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 8
-      },
-      "num_turns": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 5
-      },
-      "output_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 939
-      }
-    },
-    "runtime": "claude-code-print"
   },
   "schema_version": 1,
   "task_content_digest": "c265224919566edc8c2a9446d0ac87dbb74f79f0bedd5b53f86780fe855580ba"
