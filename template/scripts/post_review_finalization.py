@@ -324,13 +324,16 @@ def recover_finalization_push(root: Path, repo: str, number: int, observed: dict
     if current.get("state") != "ready":
         raise workers.WorkerError(f"recovered finalization push derived {current.get('state')!r}, not ready")
     head = current["head"]
-    lineage = adapter._latest(root, number, comments) or {}
+    lineage = adapter._latest(root, number, comments)
+    if not isinstance(lineage, dict) or not lineage.get("head"):
+        raise workers.WorkerError("recovered finalization push has no recorded lineage head")
     if not any(event.get("kind") == "update" and event.get("head") == head
                for event in adapter._events(root, repo, number)):
-        adapter._comment(root, repo, number, {"kind": "update", "previous": lineage.get("head"), "head": head,
+        adapter._comment(root, repo, number, {"kind": "update", "previous": lineage["head"], "head": head,
                                               "worker_job": "finalization-recovery"})
-    adapter._transition(root, repo, number, "ready", head, task_identity=identity,
-                        inherit_identity=False, gates=current["gates"])
+    if adapter._transition(root, repo, number, "ready", head, task_identity=identity,
+                           inherit_identity=False, gates=current["gates"]) is None:
+        raise workers.WorkerError("finalization recovery could not record ready: the PR head moved")
     return True
 
 

@@ -1692,7 +1692,8 @@ def worker(root: Path) -> dict[str, Any]:
             if recover_integration_repair(root, repo, number, pr, comments):
                 comments = _comments(root, repo, number)
                 current = _derive(root, pr, comments)
-        if has_v2 and str(current.get("reason", "")).startswith("recover validated finalization push"):
+        if (has_v2 and current.get("state") == "ready"
+                and str(current.get("reason", "")).startswith("recover validated finalization push")):
             # A finalize job pushed its validated archive but its ready record was lost: record it.
             from lifecycle_workers import WorkerError
             from post_review_finalization import recover_finalization_push
