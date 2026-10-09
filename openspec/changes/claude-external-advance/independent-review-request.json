@@ -1,9 +1,9 @@
 {
   "candidate": {
-    "base_head": "f3f4ffc6185ceeb803b8118e280b3d3c9db91472",
+    "base_head": "b93ffc444164bbf1a006d60f117e8378131a2924",
     "base_ref": "origin/main",
-    "candidate_head": "8da71f521570b5153cd4ed518bc900770c48f9ae",
-    "diff_sha256": "b057f9e1b073a1b1a145fea4ee4dd27a129e8289e3dd426f3d1128a50c00a9ad"
+    "candidate_head": "06cd97a0a01485134aeed7b5d7fbb8b0495231e5",
+    "diff_sha256": "5a3a6a83fb1af1f5771f165a5aba94a698a338cc0a06fd18f6a064f15e831974"
   },
   "change": "openspec/changes/claude-external-advance",
   "excluded_lifecycle_paths": [
@@ -37,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-09T09:33:12+00:00",
+  "prepared_at": "2026-10-09T12:54:25+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/claude-external-advance/independent-reviews",
     "required_perspectives": [
@@ -46,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "04d73593-1a2d-44bd-86f9-bfebe45cf5e5",
+  "request_id": "373b9925-7c35-41cf-becc-b9af4b1b075d",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -58,10 +58,10 @@
   },
   "schema_version": 1,
   "task_content": {
-    "base": "f3f4ffc6185ceeb803b8118e280b3d3c9db91472",
-    "digest": "a5ccafa5a2a8f0befb7207e8cda0ab2dd226bd04689228575eb5f39cc9120f61",
+    "base": "b93ffc444164bbf1a006d60f117e8378131a2924",
+    "digest": "a0547e34e4296792ec3d2a39bd2b1aab553ee36919dd2cebbf16a20866dda095",
     "paths": {
-      "dev-platform/checks.toml": "71c320d5f1d68680005499d9990950ab60e56458",
+      "dev-platform/checks.toml": "7185f0257fd5966c96b7bee6ac99f7fc19775826",
       "docs/engineering/model-routing.md": "2cd5a5c85ebd231182f59c14ec38fd225aa54dc5",
       "openspec/changes/claude-external-advance/.managed-task.json": "2ef9d1a8bb57c1fdebafba508fa5898a82f1d3c6",
       "openspec/changes/claude-external-advance/.openspec.yaml": "81264324b0500978f52f70d701b236a09cb1d808",
@@ -80,7 +80,7 @@
       "tests/test_merge_lifecycle_resilience.py": "cfb63fcd670f9929bd61221efad0afa847c45d41",
       "tests/test_protected_main_zero_handoff.py": "69537933132d1c3f40a5f6e5f1f247b98d16a9bd",
       "tests/test_publication_recovery_cli.py": "5664fc351a57b5f620753da7d7dfb24cb7cb10e0",
-      "tests/test_shared_writer_guard.py": "f87b490799b373d348c798760cd56ff86b1d69e5"
+      "tests/test_shared_writer_guard.py": "25a29859faa27d03f375fdf98d2c7b8fe3f8ea6e"
     },
     "scope": "independent-review-v1",
     "version": 1

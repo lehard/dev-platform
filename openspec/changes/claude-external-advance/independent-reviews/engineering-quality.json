@@ -1,85 +1,65 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "f3f4ffc6185ceeb803b8118e280b3d3c9db91472",
+    "base_head": "b93ffc444164bbf1a006d60f117e8378131a2924",
     "base_ref": "origin/main",
-    "candidate_head": "8da71f521570b5153cd4ed518bc900770c48f9ae",
-    "diff_sha256": "b057f9e1b073a1b1a145fea4ee4dd27a129e8289e3dd426f3d1128a50c00a9ad"
+    "candidate_head": "06cd97a0a01485134aeed7b5d7fbb8b0495231e5",
+    "diff_sha256": "5a3a6a83fb1af1f5771f165a5aba94a698a338cc0a06fd18f6a064f15e831974"
   },
-  "completed_at": "2026-10-09T09:34:28+00:00",
+  "completed_at": "2026-10-09T12:56:42+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/integration_state.py:168 runs `reset --mixed remote_main`. finish_task.py (diff lines ~568-579) wraps it with `record_integration_advance` whenever the head changed. `_receipt_chain` in delegation_containment.py checks only before/after continuity and `after == origin_main` per receipt. Ancestry is checked only end to end (`verify_remote_fast_forward(before_head, after_head)`), so a non-ff intermediate hop is accepted as long as the overall range is a descendant.",
-      "id": "normalize-reset-receipt-not-ff-checked",
-      "severity": "advisory",
-      "summary": "The equivalent-state normalization path records a receipt for a `reset --mixed` to `origin/<main>`, which is not a fast-forward. The per-receipt chain check never verifies that each receipt's before/after is an ancestry step."
+      "evidence": "template/scripts/model_routing.py:899\u2013936 checks pure head movement and a reflog entry anywhere between delegation opening and recovery, but never checks that the incident predates receipts or rejects self-attributed receipts. A delegated child can run project_sync.py from its assigned worktree, advancing integration main and producing a receipt naming itself. Normal recording correctly refuses this; recover-external-advance then accepts the resulting friction event and reflog, replaces the baseline head, and allows recording. No forged evidence is needed. The friction timestamp proves the child returned before the event, but does not establish who performed the earlier advance.",
+      "id": "claude-recovery-bypasses-actor-proof",
+      "severity": "material",
+      "summary": "Claude recovery can legalize a current, self-attributed containment violation rather than only a historical false positive."
     },
     {
-      "evidence": "In project_sync.py (diff ~846) and finish_task.py (diff ~554, ~573, ~589), `record_integration_advance` is called with no try/except. The docs say the failure is explicit, but the exception is a RuntimeError subclass that is not converted to SystemExit like the neighbouring failure paths.",
-      "id": "receipt-write-failure-uncaught-traceback",
-      "severity": "advisory",
-      "summary": "A `ContainmentError` from a failed receipt write is not handled at the call sites in `project_sync.py` and `finish_task.py`. The user sees a raw traceback after the fast-forward has already happened, not a clear message."
+      "evidence": "template/scripts/project_sync.py:20\u201341 accepts --remote, validates and fetches that selected remote, and fast-forwards successfully. Its new receipt call at lines 42\u201348 invokes template/scripts/delegation_containment.py:378, which unconditionally resolves refs/remotes/origin/<main>. With only an upstream remote, project_sync.py --remote upstream therefore raises after the merge and writes no receipt. Previously this supported invocation completed successfully; retrying now takes the equal-state return and never repairs the missing receipt.",
+      "id": "sync-custom-remote-regression",
+      "severity": "material",
+      "summary": "Synchronizing from a supported non-origin remote now fails after changing integration HEAD when origin/main is absent."
     }
   ],
-  "launched_at": "2026-10-09T09:33:53+00:00",
-  "output_sha256": "7bc668ba97f8d71340de316105b864a9881bb2ba74483bf69106a4bd47846a87",
+  "launched_at": "2026-10-09T12:55:36+00:00",
+  "output_sha256": "3a602765acbcf6e481e1213ced77958b9403a94b56fa4f1a93981be87bc5bb16",
   "perspective": "engineering-quality",
-  "request_id": "04d73593-1a2d-44bd-86f9-bfebe45cf5e5",
+  "request_id": "373b9925-7c35-41cf-becc-b9af4b1b075d",
   "reviewer": {
-    "context_id": "8b8b6535-d616-4cf3-9004-3fb1e6873fd6",
+    "context_id": "01a120bb-bbc0-70a2-95d9-406badf29a0d",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-581510b5-c6f9-4839-8c28-a0fce09bc69a",
+    "launch_id": "platform-launch-bea9b265-da66-4936-98d4-3e02a96ef8c8",
     "model": {
       "source": "selected",
-      "value": "sonnet"
+      "value": "gpt-6.1-sol"
     },
-    "provider": "claude",
-    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "runtime": "claude-code-print",
+    "provider": "codex",
+    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
+    "runtime": "codex-exec",
     "write_access": false
   },
   "runtime_usage": {
     "fields": {
-      "cache_creation_input_tokens": {
+      "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 50718
-      },
-      "cache_read_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 214209
-      },
-      "duration_api_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 31200
-      },
-      "duration_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 34071
+        "value": 209664
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 12
-      },
-      "num_turns": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 9
+        "value": 282972
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2781
+        "value": 1423
       }
     },
-    "runtime": "claude-code-print"
+    "runtime": "codex-exec"
   },
   "schema_version": 1,
-  "task_content_digest": "a5ccafa5a2a8f0befb7207e8cda0ab2dd226bd04689228575eb5f39cc9120f61"
+  "task_content_digest": "a0547e34e4296792ec3d2a39bd2b1aab553ee36919dd2cebbf16a20866dda095"
 }

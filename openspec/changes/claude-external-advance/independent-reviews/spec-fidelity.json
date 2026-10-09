@@ -1,72 +1,59 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "f3f4ffc6185ceeb803b8118e280b3d3c9db91472",
+    "base_head": "b93ffc444164bbf1a006d60f117e8378131a2924",
     "base_ref": "origin/main",
-    "candidate_head": "8da71f521570b5153cd4ed518bc900770c48f9ae",
-    "diff_sha256": "b057f9e1b073a1b1a145fea4ee4dd27a129e8289e3dd426f3d1128a50c00a9ad"
+    "candidate_head": "06cd97a0a01485134aeed7b5d7fbb8b0495231e5",
+    "diff_sha256": "5a3a6a83fb1af1f5771f165a5aba94a698a338cc0a06fd18f6a064f15e831974"
   },
-  "completed_at": "2026-10-09T09:33:53+00:00",
-  "findings": [],
-  "launched_at": "2026-10-09T09:33:25+00:00",
-  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
+  "completed_at": "2026-10-09T12:55:36+00:00",
+  "findings": [
+    {
+      "evidence": "The active delta in openspec/changes/claude-external-advance/specs/model-routing/spec.md permits recovery only for a historical false violation recorded before receipts existed and requires self-attributed evidence to remain a violation. template/scripts/model_routing.py:889\u2013949 checks the friction event, clean paths, ancestry, current origin/main and reflog timing, but never checks whether the incident predates receipts or whether existing receipts identify the delegated worktree. Consequently, a current self-attributed advance can fail record-claude-execution, produce the required friction event, and then pass recover-external-advance. Recovery replaces the postcheck baseline with that head (postcheck at lines 1728\u20131738), allowing subsequent recording to succeed without validating the rejected receipt chain.",
+      "id": "claude-recovery-bypasses-receipt-violations",
+      "severity": "material",
+      "summary": "Claude recovery is not restricted to historical violations from before receipts existed, so it can override current missing, broken or self-attributed receipt evidence."
+    }
+  ],
+  "launched_at": "2026-10-09T12:54:35+00:00",
+  "output_sha256": "60e4f6881d9c32f67ec096935ec029b0e79652af4105bcb7a6c540450acb1bed",
   "perspective": "spec-fidelity",
-  "request_id": "04d73593-1a2d-44bd-86f9-bfebe45cf5e5",
+  "request_id": "373b9925-7c35-41cf-becc-b9af4b1b075d",
   "reviewer": {
-    "context_id": "d7db6963-8a6e-4a48-bf7a-64c44e5ddd75",
+    "context_id": "01a120ba-cc4b-7bc2-a9b6-469c27592a27",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-7f433443-214d-48a8-bffe-d1147209d709",
+    "launch_id": "platform-launch-cc36c2e9-5122-4bf6-ab6f-d6de6a4dac7e",
     "model": {
       "source": "selected",
-      "value": "sonnet"
+      "value": "gpt-6.1-sol"
     },
-    "provider": "claude",
-    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "runtime": "claude-code-print",
+    "provider": "codex",
+    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
+    "runtime": "codex-exec",
     "write_access": false
   },
   "runtime_usage": {
     "fields": {
-      "cache_creation_input_tokens": {
+      "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 39712
-      },
-      "cache_read_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 93638
-      },
-      "duration_api_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 22062
-      },
-      "duration_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 24912
+        "value": 219520
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
-      },
-      "num_turns": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 8
+        "value": 275344
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1992
+        "value": 1251
       }
     },
-    "runtime": "claude-code-print"
+    "runtime": "codex-exec"
   },
   "schema_version": 1,
-  "task_content_digest": "a5ccafa5a2a8f0befb7207e8cda0ab2dd226bd04689228575eb5f39cc9120f61"
+  "task_content_digest": "a0547e34e4296792ec3d2a39bd2b1aab553ee36919dd2cebbf16a20866dda095"
 }
