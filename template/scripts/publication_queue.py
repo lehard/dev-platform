@@ -1095,7 +1095,14 @@ def status(root: Path, number: int) -> dict[str, Any]:
     blocks = [e for e in events if e.get("kind") == "block" and e.get("comment_id", 0) > admission["comment_id"]]
     if blocks:
         return {"state": "blocked", "number": number, "reason": blocks[-1].get("reason", "unknown")}
+    labels = {label.get("name") for label in pr.get("labels", []) if isinstance(label, dict)}
     queue = _queued(root, repo)
+    # The inventory comes from GitHub search, which indexes a just-added queue
+    # label with a delay; this PR's own label set is read directly and is
+    # authoritative for its membership, so admission is never misreported as
+    # "lacks queue label" while the index catches up.
+    if QUEUE in labels and number not in {candidate for _, candidate, _ in queue}:
+        queue = sorted([*queue, (admission["comment_id"], number, admission)])
     for index, (_, candidate, _) in enumerate(queue, 1):
         if candidate == number:
             awaiting = _awaiting_readmission(root, repo, number, pr, _comments(root, repo, number), admission)
@@ -1103,11 +1110,9 @@ def status(root: Path, number: int) -> dict[str, Any]:
                 # Kept "waiting" for existing consumers; the reason names the developer action it waits on.
                 return {"state": "waiting", "number": number, "position": index, "owner": "developer re-admission",
                         "reason": awaiting["reason"], "proven_head": awaiting["proven_head"], "head": awaiting["head"]}
-            labels = {label.get("name") for label in pr.get("labels", []) if isinstance(label, dict)}
             active = index == 1 and ACTIVE in labels
             return {"state": "active" if active else "waiting", "number": number, "position": index, "owner": "publication-queue workflow" if active else None}
     return {"state": "blocked", "number": number, "reason": "admitted PR lacks queue label"}
-
 
 
 def candidate_status(root: Path, number: int, *, repo: str | None = None) -> dict[str, Any]:

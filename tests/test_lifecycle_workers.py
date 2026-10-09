@@ -7,6 +7,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from unittest import mock
 
@@ -427,10 +428,36 @@ class EnvironmentTests(unittest.TestCase):
         def runner(command, **kwargs):
             seen.update(kwargs, command=command)
             return subprocess.CompletedProcess(command, 0, "", "")
-        workers.run_llm(["llm"], Path("/x"), env={"GH_TOKEN": "t", "PATH": "/bin"}, runner=runner)
+        workers.run_llm(["llm"], Path("/x"), tmp=Path("/w/llm-tmp"), env={"GH_TOKEN": "t", "PATH": "/bin"}, runner=runner)
         self.assertIs(seen["stdin"], subprocess.DEVNULL)
         self.assertNotIn("GH_TOKEN", seen["env"])
         self.assertEqual(seen["cwd"], Path("/x"))
+        self.assertEqual([seen["env"][k] for k in ("TMPDIR", "TMP", "TEMP")], ["/w/llm-tmp"] * 3)
+        with self.assertRaisesRegex(workers.WorkerError, "must kill its process group"):
+            workers.run_llm(["llm"], Path("/x"), tmp=Path("/w/llm-tmp"), runner=subprocess.run)
+
+    def test_run_in_session_kills_the_whole_group_after_the_leader_exits(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            marker, held = Path(tmp) / "late", Path(tmp) / "held"
+            sleeper = "import sys,time; time.sleep(1.5); open(sys.argv[1],'w').write('x')"
+            # one background child with closed pipes, one that keeps stdout open: neither outlives the leader
+            leader = ("import subprocess,sys; s=sys.argv[1]; "
+                      "subprocess.Popen([sys.executable,'-c',s,sys.argv[2]],stdin=subprocess.DEVNULL,"
+                      "stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL); "
+                      "subprocess.Popen([sys.executable,'-c',s,sys.argv[3]]); print('led')")
+            started = time.monotonic()
+            done = workers.run_in_session([sys.executable, "-c", leader, sleeper, str(marker), str(held)],
+                                          capture_output=True, text=True, stdin=subprocess.DEVNULL)
+            self.assertEqual((done.returncode, done.stdout), (0, "led\n"))
+            self.assertLess(time.monotonic() - started, 1.4)  # the pipe holder did not keep it waiting
+            time.sleep(2.5)
+            self.assertFalse(marker.exists())
+            self.assertFalse(held.exists())
+
+    def test_run_in_session_timeout_kills_the_group(self):
+        with self.assertRaises(subprocess.TimeoutExpired):
+            workers.run_in_session([sys.executable, "-c", "import time; time.sleep(30)"], capture_output=True,
+                                   timeout=0.5, stdin=subprocess.DEVNULL)
 
     def test_scratch_home_hides_operator_github_config(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -450,7 +477,7 @@ class EnvironmentTests(unittest.TestCase):
 
     def test_real_child_sees_no_credentials(self):
         code = "import os,json;print(json.dumps([k for k in os.environ if 'TOKEN' in k or k=='SSH_AUTH_SOCK']))"
-        done = workers.run_llm([sys.executable, "-c", code], Path.cwd(),
+        done = workers.run_llm([sys.executable, "-c", code], Path.cwd(), tmp=Path(tempfile.gettempdir()),
                                env={"PATH": os.environ.get("PATH", ""), "GH_TOKEN": "t", "SSH_AUTH_SOCK": "/s"})
         self.assertEqual(json.loads(done.stdout), [])
 
@@ -690,8 +717,54 @@ FAKE_LLM = r"""
 import os, subprocess, sys
 mode = os.environ.get("FAKE_MODE", "commit")
 if mode == "fail":
+    sys.stdout.write("OUT-" + "o" * 5000 + "-TAIL")
+    sys.stderr.write("ERR-" + "e" * 5000 + "-SECRET-TAIL")
     sys.exit(1)
+if mode.startswith("edit"):  # a sandboxed writer: edits the working tree, cannot commit
+    open(os.environ["PROMPT_SEEN"], "w").write(sys.argv[-1])
+    target = {"edit": "src/a.py", "edit-outside": "docs/x.md",
+              "edit-evidence": "openspec/changes/c/verification.md"}.get(mode, "src/a.py")
+    os.makedirs(os.path.dirname(target), exist_ok=True)
+    open(target, "w").write("fixed")
+    if mode == "edit-untracked":
+        open("src/new.py", "w").write("new")
+        os.remove("src/gone.py")
+    os.makedirs("src/__pycache__", exist_ok=True)
+    open("src/__pycache__/a.pyc", "w").write("ignored")
+    sys.exit(0)
+if mode == "ignored-only":
+    open("src/a.pyc", "w").write("ignored")
+    sys.exit(0)
 def g(*a): subprocess.run(["git", *a], check=True, env={**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"})
+if mode == "nested-gitfile":  # a gitfile into writer-made metadata whose filter would run on harness git status
+    g("init", "-q", "--bare", "src/evilgit")
+    g("--git-dir=src/evilgit", "config", "core.bare", "false")
+    g("--git-dir=src/evilgit", "config", "filter.pwn.clean", "touch " + os.environ["HOOK_MARK"] + " #")
+    os.makedirs("src/sub")
+    open("src/sub/.git", "w").write("gitdir: ../evilgit\n")
+    open("src/sub/.gitattributes", "w").write("* filter=pwn\n")
+    open("src/sub/x", "w").write("x")
+elif mode == "nested-repo":
+    g("init", "-q", "src/vendor")
+    open("src/vendor/lib.py", "w").write("vendored")
+elif mode == "gitlink":
+    g("update-index", "--add", "--cacheinfo", "160000," + subprocess.run(["git", "rev-parse", "HEAD"], check=True, capture_output=True, text=True).stdout.strip() + ",src/mod")
+    g("commit", "-qm", "add gitlink")
+elif mode == "sleeper":  # leaves a same-group background process that would tamper later
+    open(os.environ["PROMPT_SEEN"], "w").write(os.environ["TMPDIR"])
+    open("src/a.py", "w").write("fixed")
+    subprocess.Popen([sys.executable, "-c", "import sys,time; time.sleep(1.5); open(sys.argv[1],'w').write('x')",
+                      os.environ["HOOK_MARK"]], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+elif mode == "many-outside":
+    for index in range(1500):
+        os.makedirs("docs", exist_ok=True)
+        open("docs/f%04d-%s.md" % (index, "x" * 120), "w").write("x")
+elif mode == "case-rename":
+    os.rename("src", "SRC")
+elif mode == "fifo":
+    os.mkfifo("src/pipe")
+elif mode == "dir-symlink":
+    os.symlink("..", "src/link")
 if mode == "review-write":
     open("src/a.py", "w").write("dirty")
 elif mode == "review-filter":
@@ -710,6 +783,10 @@ elif mode in ("commit", "malicious", "workflow"):
         g("config", "credential.helper", "!touch " + os.environ["HOOK_MARK"])
         g("config", "core.hooksPath", ".git/hooks")
     g("add", "-A"); g("commit", "-qm", "fix")
+elif mode == "commit-and-leftover":
+    open("src/a.py", "w").write("fixed")
+    g("add", "-A"); g("commit", "-qm", "fix")
+    open("src/extra.py", "w").write("left behind")
 """
 
 
@@ -724,6 +801,8 @@ class ExecuteJobTests(unittest.TestCase):
         git(seed, "init", "-q", "-b", "task")
         (seed / "src").mkdir()
         (seed / "src/a.py").write_text("1")
+        (seed / "src/gone.py").write_text("old")
+        (seed / ".gitignore").write_text("__pycache__/\n*.pyc\n")
         (seed / ".dev-platform.toml").write_text('platform_version = "1.0.0"\n')  # committed project contract
         git(seed, "add", "-A"); git(seed, "commit", "-qm", "base")
         self.head = git(seed, "rev-parse", "HEAD")
@@ -731,6 +810,7 @@ class ExecuteJobTests(unittest.TestCase):
         self.work = base / "work"
         self.work.mkdir()
         self.mark = base / "mark"
+        self.prompt_seen = base / "prompt-seen"
         self.job = {"kind": "repair", "number": 7, "head": self.head, "task_identity": "t", "attempt": 1,
                     "providers": ["codex"]}
         self.posted = []
@@ -738,14 +818,16 @@ class ExecuteJobTests(unittest.TestCase):
         script.write_text(FAKE_LLM)
         self.script = script
 
-    def run_job(self, mode, *, kind="repair", head=None, allow=("src/",)):
+    def run_job(self, mode, *, kind="repair", head=None, allow=("src/",), prompt=None):
         os.environ["FAKE_MODE"] = mode
         os.environ["HOOK_MARK"] = str(self.mark)
-        self.addCleanup(lambda: [os.environ.pop(k, None) for k in ("FAKE_MODE", "HOOK_MARK")])
+        os.environ["PROMPT_SEEN"] = str(self.prompt_seen)
+        self.addCleanup(lambda: [os.environ.pop(k, None) for k in ("FAKE_MODE", "HOOK_MARK", "PROMPT_SEEN")])
         job = dict(self.job, kind=kind)
         return workers.execute_job(
             job, source_repo=str(self.src), branch="task", allowed_paths=list(allow),
-            llm_command=[sys.executable, str(self.script)], current_head=lambda: head or self.head,
+            llm_command=[sys.executable, str(self.script), *([prompt] if prompt is not None else [])],
+            current_head=lambda: head or self.head,
             post_result=self.posted.append, workdir=str(self.work), worker="w1", provider="codex",
             env={**os.environ}, push_env={**os.environ, "GIT_CONFIG_GLOBAL": os.devnull})
 
@@ -757,6 +839,178 @@ class ExecuteJobTests(unittest.TestCase):
         self.assertNotEqual(remote, self.head)
         self.assertTrue(self.posted[-1].startswith(workers.RESULT_PREFIX))
         self.assertEqual(json.loads(self.posted[-1][len(workers.RESULT_PREFIX):])["pushed_head"], remote)
+        self.assertEqual(git(self.src, "log", "-1", "--format=%an <%ae>", "refs/heads/task"), "t <t@t>")  # writer's own commit
+
+    def remote_head(self):
+        return git(self.src, "rev-parse", "refs/heads/task")
+
+    def remote_files(self):
+        return git(self.src, "ls-tree", "-r", "--name-only", "refs/heads/task").split("\n")
+
+    def test_uncommitted_writer_edits_are_committed_by_the_harness_identity(self):
+        result = self.run_job("edit", prompt="Repair the findings")
+        self.assertEqual(result["status"], "pushed")
+        self.assertEqual(self.prompt_seen.read_text(), "Repair the findings")  # the task is the final argument
+        self.assertEqual(self.remote_head(), result["pushed_head"])
+        self.assertEqual(git(self.src, "rev-parse", "refs/heads/task^"), self.head)
+        self.assertEqual(git(self.src, "log", "-1", "--format=%an <%ae>|%cn <%ce>", "refs/heads/task"),
+                         "Lifecycle harness <lifecycle@localhost>|Lifecycle harness <lifecycle@localhost>")
+        self.assertEqual(git(self.src, "show", "refs/heads/task:src/a.py"), "fixed")
+        self.assertNotIn("src/__pycache__/a.pyc", self.remote_files())  # ignored files are never committed
+        self.assertNotIn(".dev-platform-disposable-repository.json", self.remote_files())
+        self.assertNotIn("writer_output", result)
+
+    def test_harness_commit_includes_untracked_and_deleted_paths(self):
+        result = self.run_job("edit-untracked", prompt="task")
+        self.assertEqual(result["status"], "pushed")
+        files = self.remote_files()
+        self.assertIn("src/new.py", files)
+        self.assertNotIn("src/gone.py", files)
+        self.assertEqual(git(self.src, "diff", "--name-status", self.head, "refs/heads/task").split("\n"),
+                         ["M\tsrc/a.py", "D\tsrc/gone.py", "A\tsrc/new.py"])
+
+    def test_uncommitted_edit_outside_allowed_paths_is_rejected_without_commit(self):
+        result = self.run_job("edit-outside", prompt="task")
+        self.assertEqual(result["status"], "rejected")
+        self.assertEqual(result["outcome"], "rejected: path outside candidate scope: docs/x.md")
+        self.assertEqual(self.remote_head(), self.head)
+        stage = self.work / "writer-stage"
+        self.assertEqual(git(stage, "rev-parse", "HEAD"), self.head)  # nothing was committed
+        self.assertIn("writer_output", result)
+
+    def test_uncommitted_lifecycle_evidence_edit_is_rejected(self):
+        result = self.run_job("edit-evidence", allow=("src/", "openspec/"), prompt="task")
+        self.assertEqual(result["status"], "rejected")
+        self.assertEqual(result["outcome"], "rejected: lifecycle evidence edit: openspec/changes/c/verification.md")
+        self.assertEqual(self.remote_head(), self.head)
+
+    def test_clean_tree_and_ignored_only_changes_are_no_change(self):
+        for mode in ("noop", "ignored-only"):
+            with self.subTest(mode=mode):
+                self.work = Path(tempfile.mkdtemp(dir=self.tmp.name))
+                result = self.run_job(mode, prompt="task")
+                self.assertEqual(result["status"], "no-change")
+                self.assertEqual(result["writer_output"], {"stdout": "", "stderr": ""})
+                self.assertEqual(self.remote_head(), self.head)
+
+    def test_writer_commit_with_leftover_edits_is_rejected_not_dropped(self):
+        result = self.run_job("commit-and-leftover", prompt="task")
+        self.assertEqual(result["status"], "rejected")
+        self.assertEqual(result["outcome"], "rejected: writer committed and also left uncommitted changes: src/extra.py")
+        self.assertEqual(self.remote_head(), self.head)
+
+    def test_empty_writer_task_is_refused_before_launch(self):
+        for prompt in ("", "  \n\t"):
+            with self.subTest(prompt=prompt), self.assertRaisesRegex(workers.WorkerError, "empty writer task"):
+                self.run_job("edit", prompt=prompt)
+        self.assertFalse(self.prompt_seen.exists())
+        self.assertFalse((self.work / "llm-checkout").exists())
+        self.assertEqual(self.posted, [])
+
+    def test_failed_writer_output_tails_stay_local(self):
+        result = self.run_job("fail", prompt="task")
+        self.assertEqual(result["status"], "failed")
+        output = result["writer_output"]
+        self.assertEqual(len(output["stdout"]), workers.WRITER_OUTPUT_TAIL)
+        self.assertTrue(output["stdout"].endswith("-TAIL"))
+        self.assertTrue(output["stderr"].endswith("-SECRET-TAIL"))
+        self.assertNotIn("SECRET", self.posted[-1])
+        self.assertNotIn("ooo", self.posted[-1])
+        self.assertEqual(json.loads(self.posted[-1][len(workers.RESULT_PREFIX):])["outcome"], "failed: llm exited 1")
+
+    def assert_rejected_untouched(self, result, outcome):
+        self.assertEqual((result["status"], result["outcome"]), ("rejected", outcome))
+        self.assertEqual(self.remote_head(), self.head)
+        stage = self.work / "writer-stage"
+        if stage.exists():
+            self.assertEqual(git(stage, "rev-parse", "HEAD"), self.head)  # nothing was committed
+
+    def test_nested_gitfile_is_rejected_and_its_filter_never_runs(self):
+        result = self.run_job("nested-gitfile", prompt="task")
+        self.assert_rejected_untouched(result, "rejected: nested git metadata: src/sub/.git")
+        self.assertFalse(self.mark.exists())
+
+    def test_untracked_nested_repository_under_an_allowed_path_is_rejected(self):
+        result = self.run_job("nested-repo", prompt="task")
+        self.assert_rejected_untouched(result, "rejected: nested git metadata: src/vendor/.git")
+
+    def test_writer_committed_gitlink_under_an_allowed_path_is_rejected(self):
+        result = self.run_job("gitlink", prompt="task")
+        self.assertEqual((result["status"], result["outcome"]), ("rejected", "rejected: gitlink not allowed: src/mod"))
+        self.assertEqual(self.remote_head(), self.head)
+
+    def test_writer_background_process_dies_with_it_and_tmpdir_is_dedicated(self):
+        result = self.run_job("sleeper", prompt="task")
+        self.assertEqual(result["status"], "pushed")
+        tmp = Path(self.prompt_seen.read_text())
+        self.assertEqual(tmp, self.work.resolve() / "llm-tmp")
+        for clone in ("writer-stage", "harness", "llm-checkout"):
+            self.assertNotIn(tmp, (self.work.resolve() / clone).parents)
+        time.sleep(2.5)
+        self.assertFalse(self.mark.exists())
+
+    def test_many_refused_paths_name_the_first_with_a_count_and_the_posted_outcome_is_bounded(self):
+        result = self.run_job("many-outside", prompt="task")
+        first = "docs/f0000-" + "x" * 120 + ".md"
+        self.assertEqual(result["outcome"], f"rejected: path outside candidate scope: {first} (+1499 more)")
+        posted = json.loads(self.posted[-1][len(workers.RESULT_PREFIX):])["outcome"]
+        self.assertEqual(posted, result["outcome"])
+        self.assertLessEqual(len(posted), workers.POSTED_OUTCOME_LIMIT)
+        self.assertEqual(self.remote_head(), self.head)
+
+    def test_long_rejection_reasons_are_capped_when_posted(self):
+        with mock.patch.object(workers, "refuse_write_paths",
+                               side_effect=workers.WorkerError("git add failed: " + "p " * 5000)):
+            result = self.run_job("edit", prompt="task")
+        posted = json.loads(self.posted[-1][len(workers.RESULT_PREFIX):])["outcome"]
+        self.assertEqual(result["status"], "rejected")
+        self.assertEqual(len(posted), workers.POSTED_OUTCOME_LIMIT)
+        self.assertTrue(posted.startswith("rejected: git add failed: p p"))
+
+    def test_case_only_rename_is_rejected_on_any_filesystem(self):
+        # On a case-insensitive filesystem the import would otherwise delete src/; the rule is filesystem-independent.
+        result = self.run_job("case-rename", prompt="task")
+        self.assert_rejected_untouched(result, "rejected: case-only path collision: SRC")
+
+    def test_special_files_are_refused_without_being_read(self):
+        result = self.run_job("fifo", prompt="task")
+        self.assert_rejected_untouched(result, "rejected: unsupported file type: src/pipe")
+        self.work = Path(tempfile.mkdtemp(dir=self.tmp.name))
+        review = self.run_job("fifo", kind="review")
+        self.assertEqual((review["status"], review["outcome"]), ("failed", "failed: unsupported file type: src/pipe"))
+
+    def test_symlink_to_directory_alone_is_a_change(self):
+        result = self.run_job("dir-symlink", prompt="task")
+        self.assertEqual(result["status"], "pushed")
+        self.assertTrue(git(self.src, "ls-tree", "refs/heads/task", "src/link").startswith("120000 "))
+
+    def test_tree_snapshot_hashes_directory_symlinks_and_refuses_special_files(self):
+        root = Path(self.tmp.name) / "snap"
+        (root / "d").mkdir(parents=True)
+        first = workers.tree_snapshot(root)
+        (root / "link").symlink_to(root / "d")
+        self.assertNotEqual(workers.tree_snapshot(root), first)
+        os.mkfifo(root / "d/pipe")
+        with self.assertRaisesRegex(workers.WorkerError, "unsupported file type: d/pipe"):
+            workers.tree_snapshot(root)
+
+    def test_import_worktree_refuses_nested_git_metadata_before_copying(self):
+        root = Path(self.tmp.name)
+        src, dst = root / "ns", root / "nd"
+        (src / ".git").mkdir(parents=True), (dst / ".git").mkdir(parents=True)
+        (src / "a.txt").write_text("a")
+        for nested in ("sub/.git", "sub/.GIT"):
+            with self.subTest(nested=nested):
+                (src / "sub").mkdir(exist_ok=True)
+                (src / nested).write_text("gitdir: ../elsewhere\n")
+                with self.assertRaisesRegex(workers.WorkerError, "nested git metadata: " + nested.replace(".", "\\.")):
+                    workers.import_worktree(src, dst)
+                (src / nested).unlink()
+                self.assertFalse((dst / "a.txt").exists())
+        (src / ".git").rmdir()
+        (src / ".git").write_text("gitdir: /elsewhere\n")
+        with self.assertRaisesRegex(workers.WorkerError, "git metadata replaced: .git"):
+            workers.import_worktree(src, dst)
 
     def test_unusable_runtime_after_failure_is_unavailable_and_claimable_again(self):
         os.environ["FAKE_MODE"] = "fail"
