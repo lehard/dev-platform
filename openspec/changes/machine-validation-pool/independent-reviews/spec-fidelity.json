@@ -3,34 +3,28 @@
   "candidate": {
     "base_head": "b93ffc444164bbf1a006d60f117e8378131a2924",
     "base_ref": "origin/main",
-    "candidate_head": "87ef2507a5b2f0eee20f89402c3254299a560a05",
-    "diff_sha256": "61cdda2d7584dc4fbdc6287fc889a4cffcb1e14d8b28a38020f6e64ea8184761"
+    "candidate_head": "ea32bf4aef72aefff05acaa1aa11e0b16d6d086f",
+    "diff_sha256": "b05e9de820de63c523472e47a6b8f4dd7928d10072ba71f3d33f6401028c8f2c"
   },
-  "completed_at": "2026-10-09T12:31:51+00:00",
+  "completed_at": "2026-10-09T13:06:22+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/machine_pool.py:620\u2013627 silently drops closed descriptors; lines 642\u2013647 then yield a pooled nested lease without acquiring tokens or verifying that its weight is actually held. A child launched through a subprocess boundary without pass_fds inherits DEV_PLATFORM_MACHINE_POOL_LEASE but loses the locks. After the original holders exit, that child continues validation while another run can acquire the same tokens. This contradicts the active spec requirement to hold inherited kernel leases until every holder exits.",
-      "id": "nested-lease-without-locks",
+      "evidence": "The active design.md decision 4 explicitly requires nesting across finish \u2192 select_checks \u2192 run_test_groups. However, template/scripts/post_review_finalization.py:133-134 starts selected checks without pass_fds; template/scripts/openspec_lifecycle.py:524 likewise omits pass_fds when invoking selected checks for archive. When invoked inside a pooled run, these subprocesses inherit DEV_PLATFORM_MACHINE_POOL_LEASE but subprocess.run closes the referenced descriptors. template/scripts/machine_pool.py:614-625 and 640-644 then reject the nested acquisition with 'pooled lease is missing inherited descriptor(s)'. This contradicts the active spec requirement that nested runs reuse the parent lease.",
+      "id": "nested-lifecycle-drops-lease-descriptors",
       "severity": "material",
-      "summary": "Nested runs proceed as pooled even when they inherited none of the lease descriptors, allowing validation to continue after its tokens are released."
-    },
-    {
-      "evidence": "template/scripts/machine_pool.py:141\u2013143 validates max_load_per_cpu using load <= 0, which is false for TOML nan. The admission comparison in _acquire, load > config.max_load_per_cpu, is also always false with NaN. Thus max_load_per_cpu = nan runs checks regardless of load instead of failing explicitly for an invalid positive-number configuration, as required by design decision 1 and the active spec.",
-      "id": "nan-load-limit-accepted",
-      "severity": "advisory",
-      "summary": "A NaN load limit is accepted as valid configuration and disables load admission."
+      "summary": "Nested lifecycle execution propagates the lease environment but drops its descriptors, causing selected checks to fail instead of reusing the parent lease."
     }
   ],
-  "launched_at": "2026-10-09T12:31:08+00:00",
-  "output_sha256": "7c19e67c82af237440c4ae398be6b9fcbc078c7a9c79792a319720f8c608e32b",
+  "launched_at": "2026-10-09T13:05:03+00:00",
+  "output_sha256": "2df8fad9eaaa667218035bf49fb6f35afab2856bacc129ca774a2c52bf65fbf8",
   "perspective": "spec-fidelity",
-  "request_id": "9e008122-6abf-4687-a477-ca551f9a9cc8",
+  "request_id": "8e977d08-d8e0-4795-a2c7-59706d64c7f3",
   "reviewer": {
-    "context_id": "01a120a5-5557-7ad1-a7d4-d4cbe7a9c0bd",
+    "context_id": "01a120c4-641a-7023-bf58-250bacbda6b0",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-95549b6e-7277-4615-8407-810825cb2d12",
+    "launch_id": "platform-launch-4650987b-a330-4ad1-91ed-18a60adb441d",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -45,21 +39,21 @@
       "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 125824
+        "value": 243712
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 172722
+        "value": 307400
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 931
+        "value": 1624
       }
     },
     "runtime": "codex-exec"
   },
   "schema_version": 1,
-  "task_content_digest": "261c5cb088f0a5f052e07a37c7925b12817c5088b52cc6a8ea75ab05bd37a9fc"
+  "task_content_digest": "4032ee42aacff3cd0c2a5b57f1e1d6ce3256f098a2bca4c1cff21ccad030a3e2"
 }

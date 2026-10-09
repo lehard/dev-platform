@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "b93ffc444164bbf1a006d60f117e8378131a2924",
     "base_ref": "origin/main",
-    "candidate_head": "87ef2507a5b2f0eee20f89402c3254299a560a05",
-    "diff_sha256": "61cdda2d7584dc4fbdc6287fc889a4cffcb1e14d8b28a38020f6e64ea8184761"
+    "candidate_head": "ea32bf4aef72aefff05acaa1aa11e0b16d6d086f",
+    "diff_sha256": "b05e9de820de63c523472e47a6b8f4dd7928d10072ba71f3d33f6401028c8f2c"
   },
   "change": "openspec/changes/machine-validation-pool",
   "excluded_lifecycle_paths": [
@@ -37,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-09T12:30:58+00:00",
+  "prepared_at": "2026-10-09T13:04:54+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/machine-validation-pool/independent-reviews",
     "required_perspectives": [
@@ -46,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "9e008122-6abf-4687-a477-ca551f9a9cc8",
+  "request_id": "8e977d08-d8e0-4795-a2c7-59706d64c7f3",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -59,7 +59,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "b93ffc444164bbf1a006d60f117e8378131a2924",
-    "digest": "261c5cb088f0a5f052e07a37c7925b12817c5088b52cc6a8ea75ab05bd37a9fc",
+    "digest": "4032ee42aacff3cd0c2a5b57f1e1d6ce3256f098a2bca4c1cff21ccad030a3e2",
     "paths": {
       "dev-platform/checks.toml": "cefa0fda3a0b24cd289ea6c564472cdef6c470f3",
       "docs/engineering/agent-workflow.md": "21fa7cccce916ed5750e1c8d0fa7860d153d6544",
@@ -71,7 +71,7 @@
       "openspec/changes/machine-validation-pool/tasks.md": "49caeb5557c8d2cf4a48feefb316bb28ae2cb39a",
       "scripts/machine_pool.py": "cb57831157d3d0bb1b6513e695275f1e45b5c39f",
       "template/docs/engineering/agent-workflow.md.jinja": "6c66a5ab713d3883a0e30f9008376ab3bec8a72d",
-      "template/scripts/machine_pool.py": "bf65f7e7ff2ef600a5c4accd988edc9f463e1056",
+      "template/scripts/machine_pool.py": "7e952e985246f65f4a4ac39c685be2b95fb7fe26",
       "template/scripts/post_review_finalization.py": "618ec66c4a4fc7b87c68c58f33a8fb9d7134ea9b",
       "template/scripts/requirement_integration.py": "00df7ab907f8246e656aaf8ce69e6030f3f9b678",
       "template/scripts/run_test_groups.py": "baa7ece7b853ae58c41a2d0b0d6e026f183ab300",
@@ -79,7 +79,7 @@
       "tests/_platform_modules.py": "0030f17cc17f3b84ecaaebcf7bf42b3e0cfd8969",
       "tests/test_affected_precheck.py": "81e92f95f8a01a51c845056bd60cb6ecb43d1d97",
       "tests/test_git_lifecycle.py": "fa9b5f08d7e69914f90ce18ff023ae676e42aee8",
-      "tests/test_machine_pool.py": "97e17a4f86caa85604b046058d7f0dbdec5b0c9e",
+      "tests/test_machine_pool.py": "04ccc1d5751f773836d6c726ee7253c2c8e7b8bb",
       "tests/test_post_review_finalization.py": "ee2f622ff067943f866684997d9e61f7692b4739",
       "tests/test_requirement_integration.py": "c6c4c4fb309fcc01f2839d45a78364b0a3801d9e",
       "tests/test_run_test_groups.py": "5cd038ba1708c85a6c2bb70386f0069caccea805",
