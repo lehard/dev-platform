@@ -3,7 +3,7 @@
 - `delegation_containment.check_containment(before, after)` reports path changes and `head_moved`; `verify_remote_fast_forward` proves ancestry and equality with the local `refs/remotes/origin/<main>` without network; `verify_historical_external_advance` proves a historical `after_head` through the `origin/<main>` reflog inside a time window.
 - `delegated_write_guard._classify_containment` applies the verified rule to native-hard Codex runs; `model_routing.recover_external_advance` handles a historical Codex execution flagged as violation.
 - `model_routing.postcheck` raises on any violation; `record_claude_execution` therefore leaves the delegation open and records nothing.
-- Integration main is fast-forwarded by `finish_task.py` (`merge --ff-only` of the task branch or merged remote main into the integration checkout), `project_sync.py`, and `publication_queue.py` when it reconciles the integration checkout.
+- Integration main is fast-forwarded by `finish_task.py` (`merge --ff-only` of the task branch or merged remote main into the integration checkout), and `project_sync.py`. `publication_queue.py` fast-forwards only task branches in task worktrees, never integration main.
 
 ## Decisions
 

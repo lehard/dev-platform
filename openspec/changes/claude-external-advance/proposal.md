@@ -17,7 +17,7 @@
 
 ## Impact
 
-`template/scripts/delegation_containment.py`, `template/scripts/delegated_write_guard.py`, `template/scripts/model_routing.py`, the integration fast-forward sites (`finish_task.py`, `project_sync.py`, `publication_queue.py` when it advances the integration checkout), tests (`tests/test_model_routing.py`, `tests/test_delegated_write_guard.py`, new tests), `docs/engineering/model-routing.md`.
+`template/scripts/delegation_containment.py`, `template/scripts/delegated_write_guard.py`, `template/scripts/model_routing.py`, the integration fast-forward sites (`finish_task.py`, `project_sync.py`, which now takes the shared integration lock with a `--lock-timeout` flag; `publication_queue.py` advances only task branches and is unchanged), tests (`tests/test_model_routing.py`, `tests/test_delegated_write_guard.py`, new tests), `docs/engineering/model-routing.md`.
 
 ## Non-goals
 
