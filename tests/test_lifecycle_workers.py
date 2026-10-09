@@ -718,6 +718,9 @@ if mode == "nested-gitfile":  # a gitfile into writer-made metadata whose filter
 elif mode == "nested-repo":
     g("init", "-q", "src/vendor")
     open("src/vendor/lib.py", "w").write("vendored")
+elif mode == "gitlink":
+    g("update-index", "--add", "--cacheinfo", "160000," + subprocess.run(["git", "rev-parse", "HEAD"], check=True, capture_output=True, text=True).stdout.strip() + ",src/mod")
+    g("commit", "-qm", "add gitlink")
 elif mode == "case-rename":
     os.rename("src", "SRC")
 elif mode == "fifo":
@@ -892,6 +895,11 @@ class ExecuteJobTests(unittest.TestCase):
     def test_untracked_nested_repository_under_an_allowed_path_is_rejected(self):
         result = self.run_job("nested-repo", prompt="task")
         self.assert_rejected_untouched(result, "rejected: nested git metadata: src/vendor/.git")
+
+    def test_writer_committed_gitlink_under_an_allowed_path_is_rejected(self):
+        result = self.run_job("gitlink", prompt="task")
+        self.assertEqual((result["status"], result["outcome"]), ("rejected", "rejected: gitlink not allowed: src/mod"))
+        self.assertEqual(self.remote_head(), self.head)
 
     def test_case_only_rename_is_rejected_on_any_filesystem(self):
         # On a case-insensitive filesystem the import would otherwise delete src/; the rule is filesystem-independent.

@@ -427,8 +427,17 @@ def validate_worker_result(repo: Path, expected_head: str, result_head: str,
                           capture_output=True, check=False, stdin=subprocess.DEVNULL)
     if done.returncode != 0:
         raise WorkerError("result is not a fast-forward from the expected head")
-    changed = [p for p in _git(repo, "diff", "--name-only", "--no-renames", "-z",
-                               expected_head, result_head).split("\0") if p]
+    fields = _git(repo, "diff", "--raw", "--no-renames", "-z", expected_head, result_head).split("\0")
+    if fields and fields[-1] == "":
+        fields.pop()
+    if len(fields) % 2:
+        raise WorkerError("cannot parse the result diff")
+    changed = []
+    for meta, path in zip(fields[0::2], fields[1::2]):
+        old_mode, new_mode = meta.lstrip(":").split(" ")[:2]
+        if "160000" in (old_mode, new_mode):
+            raise WorkerError(f"gitlink not allowed: {path}")  # a submodule pointer is never a writer result
+        changed.append(path)
     for path in changed:
         reason = _forbidden(path)
         if reason:
