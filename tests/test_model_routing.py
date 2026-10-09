@@ -2519,6 +2519,42 @@ class EarlyRoutingGateTests(unittest.TestCase):
         )
         self.assertEqual(self.archive_gate().execution["retained"]["policy"], "complex-parent")
 
+    def test_retained_execution_after_a_real_delegation_refuses_an_integration_fast_forward(self) -> None:
+        self.handoff()
+        routing.begin_claude_delegation(self.task)
+        routing.escalate(self.task, "child hit a material cross-cutting contract conflict; reviewed")
+        self.write_content()
+        self.advance_integration_main()
+        self.assertEqual(self.plan()["delegation"]["state"], "open")
+        with patch.object(routing, "main_root", return_value=self.integration), patch.object(routing, "record_containment_friction") as recorded:
+            with self.assertRaisesRegex(routing.RoutingError, "containment violation"):
+                routing.record_retained_execution(self.task, reason="retained after a real delegation")
+        recorded.assert_called_once()
+        self.assertIsNone(routing._read_route(self.task)[0].execution)
+
+    def test_owner_approval_integration_advance_must_be_exact(self) -> None:
+        self.prepare()
+        self.write_content()
+        self.advance_integration_main()
+        self.approve()
+        original = self.record_path().read_text(encoding="utf-8")
+        routing._read_route(self.task)
+        cases = {
+            "not an object": lambda advance: "verified",
+            "wrong classification": lambda advance: {**advance, "classification": routing.CLASSIFICATION_VIOLATION},
+            "empty before_head": lambda advance: {**advance, "before_head": ""},
+            "missing after_head": lambda advance: {key: value for key, value in advance.items() if key != "after_head"},
+            "extra key": lambda advance: {**advance, "note": "x"},
+        }
+        for name, change in cases.items():
+            with self.subTest(name):
+                payload = json.loads(original)
+                approval = payload["execution_plan"]["owner_approval"]
+                approval["integration_advance"] = change(approval["integration_advance"])
+                self.record_path().write_text(json.dumps(payload), encoding="utf-8")
+                with self.assertRaisesRegex(routing.RoutingError, "owner_approval.integration_advance"):
+                    routing._read_route(self.task)
+
     def test_retained_execution_refuses_an_unpublished_integration_move(self) -> None:
         self.prepare(profile="complex")
         self.write_content()

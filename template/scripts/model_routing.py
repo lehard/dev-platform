@@ -363,6 +363,17 @@ def _validate_owner_approved_plan(plan: dict[str, Any]) -> None:
         raise RoutingError(f"routing record execution_plan.switched_from must record a switch from {PLAN_DELEGATED} for policy {OWNER_APPROVED_POLICY}")
     if switched_from.get("delegation_recorded") is not False:
         raise RoutingError(f"routing record execution_plan.switched_from.delegation_recorded must be false for policy {OWNER_APPROVED_POLICY}")
+    if "integration_advance" in approval:
+        advance = approval["integration_advance"]
+        if (
+            not isinstance(advance, dict) or set(advance) != {"classification", "before_head", "after_head"}
+            or advance["classification"] != CLASSIFICATION_VERIFIED_EXTERNAL_ADVANCE
+            or not all(isinstance(advance[field], str) and advance[field] for field in ("before_head", "after_head"))
+        ):
+            raise RoutingError(
+                "routing record execution_plan.owner_approval.integration_advance must be exactly "
+                f"{{classification: {CLASSIFICATION_VERIFIED_EXTERNAL_ADVANCE!r}, before_head, after_head}} with non-empty heads"
+            )
 
 
 def _require_plan(route: Route, action: str) -> dict[str, Any]:
@@ -1142,6 +1153,14 @@ def escalate(root: Path, reason: str) -> Route:
     return next_route
 
 
+def _no_delegated_child_ran(route: Route, plan: dict[str, Any]) -> bool:
+    """True only when no delegated child writer can have run: no plan delegation, or a closed never-launched one."""
+    delegation = plan.get("delegation")
+    execution = route.execution
+    no_child = delegation is None or (isinstance(delegation, dict) and delegation.get("state") == "closed" and delegation.get("outcome") == "not-launched")
+    return no_child and (execution is None or (isinstance(execution, dict) and execution.get("launched") is False))
+
+
 def _unlaunched_attempt(route: Route, plan: dict[str, Any]) -> bool:
     """True when the only recorded execution is a closed child attempt that never launched."""
     delegation = plan.get("delegation")
@@ -1176,8 +1195,8 @@ def approve_supervisor_diff(root: Path, *, approval: str, reason: str) -> Route:
     if not unlaunched:
         # route.execution is None here: keep the open-Codex-delegation refusal of _require_recovery_safety.
         _require_no_open_codex_delegation(route)
-    # No child writer ever ran, so only the integration containment boundary needs proof.
-    check = _supervisor_postcheck(route)
+    # Only the integration containment boundary needs proof; a verified fast-forward is accepted only when no delegated child ran.
+    check = _postcheck(route, supervisor=_no_delegated_child_ran(route, plan))
     diverged = _task_content_diverged(route)
     if not diverged:
         raise RoutingError("task content is unchanged from the plan pre-snapshot; use escalate instead of owner-approved retention")
@@ -1664,7 +1683,7 @@ def record_retained_execution(root: Path, *, reason: str) -> dict[str, Any]:
         "outcome": "retained",
         "launched": False,
         "retained": {"role": "supervisor", "policy": policy, "reason": reason.strip()},
-        "postcheck": _supervisor_postcheck(route),
+        "postcheck": _postcheck(route, supervisor=_no_delegated_child_ran(route, plan)),
         "recorded_at": utc_now(),
     }
     if policy == OWNER_APPROVED_POLICY:
@@ -1690,18 +1709,16 @@ def postcheck(route: Route) -> dict[str, Any]:
     return _postcheck(route, supervisor=False)
 
 
-def _supervisor_postcheck(route: Route) -> dict[str, Any]:
-    """Postcheck for a supervisor-only path where no child writer ran.
-
-    Additionally accepts a pure integration HEAD move that is a verified
-    fast-forward equal to the local remote-tracking main (the Codex
-    ``CLASSIFICATION_VERIFIED_EXTERNAL_ADVANCE`` rule) and records it as
-    ``integration_advance``; any path change stays a violation.
-    """
-    return _postcheck(route, supervisor=True)
-
-
 def _postcheck(route: Route, *, supervisor: bool) -> dict[str, Any]:
+    """Integration containment postcheck.
+
+    With ``supervisor`` (only for routes where no delegated child ran, see
+    ``_no_delegated_child_ran``) it additionally accepts a pure integration
+    HEAD move that is a verified fast-forward equal to the checkout's local
+    remote-tracking main (the Codex ``CLASSIFICATION_VERIFIED_EXTERNAL_ADVANCE``
+    rule) and records it as ``integration_advance``; any path change stays a
+    violation.
+    """
     pre_snapshot = route.pre_snapshot
     recovery = route.execution.get("recovery") if route.execution is not None else None
     if isinstance(recovery, dict) and recovery.get("classification") == CLASSIFICATION_VERIFIED_EXTERNAL_ADVANCE:
