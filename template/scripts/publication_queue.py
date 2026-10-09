@@ -850,8 +850,10 @@ def _descends(root: Path, ancestor: str, head: str) -> bool:
 
 
 def _supersession(root: Path, repo: str, number: int, pr: dict[str, Any], proven: str, head: str,
-                  identity: Any) -> dict[str, Any]:
+                  identity: Any) -> tuple[dict[str, Any], dict[str, Any]]:
     """The explicit supersession of the admitted ``proven`` head by a developer handoff at ``head``.
+
+    Returns the ``supersedes`` payload and the superseded lineage record.
 
     Allowed only when the latest trusted record is bound to the proven head in a state of
     ``READMISSION_STATES``, names the same task, and its offered job holds no live claim, and
@@ -907,7 +909,22 @@ def _supersession(root: Path, repo: str, number: int, pr: dict[str, Any], proven
             raise refuse(f"its {job['kind']} job is claimed by {claim['worker']} until {claim['expires_at']}")
     if not _descends(root, proven, head):
         raise refuse("the new head does not descend from the admitted head; push a fast-forward or merge, not a rewrite")
-    return {"head": proven, "state": lineage["state"], "reason": "fresh developer handoff for a descendant head"}
+    return {"head": proven, "state": lineage["state"], "reason": "fresh developer handoff for a descendant head"}, lineage
+
+
+def _carried_gates(root: Path, lineage: dict[str, Any], identity: dict[str, Any], handoff_gates: dict[str, Any]) -> dict[str, Any]:
+    """Lineage gates still provably bound to the re-admitted identity, rebound to it.
+
+    ``required-checks`` is bound to an integration head and main, and fresh handoff evidence
+    wins, so neither is carried. Only passed gates are reusable, so a failed review never is.
+    """
+    from pr_review_gate import reusable
+
+    gates = lineage.get("gates") or {}
+    if not isinstance(gates, dict):
+        raise QueueError("superseded coordinator record has malformed gates")
+    return {name: {**gate, "identity": identity} for name, gate in gates.items()
+            if name != "required-checks" and name not in handoff_gates and reusable(root, gate, identity)}
 
 
 def _awaiting_readmission(root: Path, repo: str, number: int, pr: dict[str, Any], comments: list[dict[str, Any]],
@@ -1017,7 +1034,13 @@ def admit(root: Path, number: int, expected_head: str, *, handoff: dict | None =
         if proven != expected_head and not handoff:
             raise QueueError("PR has an earlier or ambiguous admission; resolve it before re-admission")
         if proven != expected_head:
-            supersedes = _supersession(root, repo, number, pr, str(proven), expected_head, identity)
+            supersedes, lineage = _supersession(root, repo, number, pr, str(proven), expected_head, identity)
+            handoff_gates = resolved_handoff.get("gates")
+            if not isinstance(handoff_gates, dict):
+                raise QueueError("re-admission handoff carries no gates")
+            # A passed review of unchanged task content survives the new head; the review job reuses it.
+            resolved_handoff = {**resolved_handoff,
+                                "gates": {**_carried_gates(root, lineage, identity, handoff_gates), **handoff_gates}}
             base = identity["contribution_base"] if identity.get("kind") == "contribution" else _main(root)
             # Off the queue until the fresh review record exists: no worker integrates the unreviewed head.
             _label(root, repo, number, QUEUE, present=False)
