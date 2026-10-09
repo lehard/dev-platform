@@ -639,13 +639,16 @@ Absence of a child launch alone SHALL NOT imply retained success.
 The platform SHALL retain raw observation of integration `HEAD` movement during
 a delegated write, but it MAY classify a pure head movement as a verified
 concurrent integration advance rather than a containment violation only when
-the writer had native hard containment, no integration path was created,
+the writer had native hard containment or detection-only movement was verified
+under "Detection-only delegated writers accept a recorded integration advance",
+no integration path was created,
 changed or disappeared, the new head is a fast-forward descendant of the
 pre-run head, and it exactly equals the integration checkout's recorded
 remote-tracking base-branch ref. The routing execution receipt SHALL preserve
 the before/after heads and explicit classification.
 
-All other integration-head movement, including detection-only execution,
+All other integration-head movement, including detection-only execution not verified
+under "Detection-only delegated writers accept a recorded integration advance",
 non-fast-forward movement, unverified/missing remote refs, or any path-level
 change, SHALL remain a containment violation.
 
@@ -664,7 +667,8 @@ change, SHALL remain a containment violation.
 
 - **GIVEN** a delegated writer observes integration-head movement
 - **WHEN** a path changed, the move is not a fast-forward, the remote ref does
-  not exactly match, or containment is not native hard
+  not exactly match, or containment is neither native hard nor detection-only
+  verified under "Detection-only delegated writers accept a recorded integration advance"
 - **THEN** the containment result remains failed
 - **AND** normal friction recording remains available for the violation
 
@@ -980,7 +984,7 @@ The platform SHALL fail closed, through a shared read-only early gate, when a de
 
 ### Requirement: Retained execution is declared up front and recovery never fabricates evidence
 
-Recording a retained outcome SHALL require a supervisor-retained plan declared at route time and SHALL only finalize it with the containment postcheck. The platform SHALL NOT convert a delegated-child plan into retained execution after task content changed, SHALL NOT accept a Claude execution without an open delegation, and SHALL NOT permit an escalation to a supervisor-retained plan without a real recorded delegation or unchanged task content. No recovery path SHALL write a launch claim, retrospective delegation or escalation trigger that did not occur.
+Recording a retained outcome SHALL require a supervisor-retained plan declared at route time, or recorded through an explicit owner-approved retention, and SHALL only finalize it with the containment postcheck. Apart from that explicit owner-approved retention, the platform SHALL NOT convert a delegated-child plan into retained execution after task content changed, SHALL NOT accept a Claude execution without an open delegation, and SHALL NOT permit an escalation to a supervisor-retained plan without a real recorded delegation or unchanged task content. No recovery path SHALL write a launch claim, retrospective delegation or escalation trigger that did not occur.
 
 #### Scenario: Retained outcome after up-front plan
 
@@ -992,7 +996,7 @@ Recording a retained outcome SHALL require a supervisor-retained plan declared a
 
 - **GIVEN** a delegated-child plan with diverged task content and no delegation
 - **WHEN** a retained outcome or escalation to retention is attempted
-- **THEN** the operation is refused and the user must decide how to proceed
+- **THEN** the operation is refused and names the explicit owner-approved retention as the only way to record the owner's decision
 
 #### Scenario: Escalation after a real delegation
 
@@ -1004,7 +1008,7 @@ Recording a retained outcome SHALL require a supervisor-retained plan declared a
 
 - **WHEN** Codex is refused or fails before its child process starts
 - **THEN** the attempt is closed with outcome not-launched and no open delegation remains
-- **AND** subsequent supervisor writes fail the early gate and cannot authorize retention or escalation
+- **AND** subsequent supervisor writes fail the early gate and cannot authorize retention or escalation without an explicit owner-approved retention
 
 #### Scenario: Lifecycle rename hides a source deletion
 
@@ -1035,3 +1039,65 @@ Recording a retained outcome SHALL require a supervisor-retained plan declared a
 
 - **WHEN** an attributable failed Codex child is re-routed
 - **THEN** the complete prior route including executor identity, execution and escalation history remains in retry provenance and subsequent durable records
+
+### Requirement: An owner-approved supervisor-written diff can be retained explicitly
+
+The platform SHALL provide one explicit routing command that, on the owner's explicit decision, switches a delegated-child plan with no recorded delegation, no execution other than a closed child attempt that never launched, and task content diverged from the pre-snapshot to a supervisor-retained plan with policy owner-approved. The command SHALL require a non-empty owner approval statement and reason and SHALL record them with the approval time and the diverged paths in the plan. It SHALL NOT record a delegation, launch claim or escalation and SHALL leave the routed profile unchanged. It SHALL be refused, leaving the routing record unchanged, when the plan is already supervisor-retained, a real delegation was recorded, an execution other than a closed never-launched child attempt exists, task content is unchanged, or the approval or reason is empty. A never-launched attempt SHALL be kept as prior execution of the retained outcome. A retained execution recorded under this policy SHALL carry the approval, the early and archive routing gates SHALL accept it, and routing reports SHALL mark the record owner-approved. A plan claiming the owner-approved policy without a complete recorded approval SHALL be invalid.
+
+#### Scenario: Owner approves a supervisor-written diff
+
+- **GIVEN** a delegated-child plan with no delegation and diverged task content
+- **WHEN** the owner-approved retention is recorded with the owner's statement and a reason
+- **THEN** the plan becomes supervisor-retained with policy owner-approved and the recorded approval
+- **AND** the early gate passes, the retained execution records the approval and the archive gate passes
+
+#### Scenario: Approval refused
+
+- **WHEN** the approval or reason is empty, the plan is already retained, a real delegation or an execution other than a never-launched attempt exists, or task content is unchanged
+- **THEN** the command fails naming the reason and the routing record is unchanged
+
+#### Scenario: Approval after a never-launched child attempt
+
+- **GIVEN** a delegated-child plan whose only recorded execution is a closed child attempt that never launched, and diverged task content
+- **WHEN** the owner-approved retention is recorded and finalized
+- **THEN** the plan becomes supervisor-retained with policy owner-approved and the retained execution keeps the attempt as prior execution
+
+#### Scenario: Forged policy
+
+- **WHEN** a routing record claims the owner-approved policy without a complete recorded approval
+- **THEN** reading the record fails plan validation
+
+### Requirement: Detection-only delegated writers accept a recorded integration advance
+
+Every platform fast-forward of the integration checkout's main branch SHALL append an integration-advance receipt naming before and after heads, the recorded remote-tracking main, the acting worktree, tool and time. For a detection-only delegated writer the platform SHALL classify integration-head movement as a verified concurrent advance only when no integration path was created, changed or disappeared, the new head is a fast-forward descendant equal to the recorded remote-tracking main, and an unbroken receipt chain from the pre-run head to the new head exists whose every acting worktree is outside the delegated worktree. The raw observation SHALL be preserved beside the classification. Missing, broken, malformed or self-attributed evidence SHALL remain a containment violation. A historical violation recorded before receipts existed MAY be recovered only through an evidence-bound recovery tied to the exact friction event, the route's open delegation timing and the remote-tracking reflog, and only with an explicit recorded owner risk acceptance, because without receipts the platform cannot prove who moved integration main. Such a recovery SHALL be classified as an owner-authorized historical recovery, kept apart from any verified concurrent advance, and SHALL NOT be recorded as verified. Integration advances that carry receipts SHALL be classified without any owner input.
+
+#### Scenario: Sibling merge during a Claude delegation
+
+- **GIVEN** a Claude delegation is open
+- **AND** another task's finish fast-forwards integration main to the recorded remote-tracking main and writes a receipt
+- **WHEN** the supervisor records the execution
+- **THEN** the execution is recorded with a verified concurrent advance and the raw head movement
+
+#### Scenario: Unproven movement
+
+- **WHEN** a path changed, the move is not a fast-forward, the head differs from remote-tracking main, a receipt is missing or the chain names the delegated worktree
+- **THEN** recording fails as a containment violation
+
+#### Scenario: Historical false violation
+
+- **GIVEN** a Claude delegation failed recording because of a pure head move before receipts existed
+- **WHEN** recovery is requested with the exact friction event, heads proven by the remote-tracking reflog within the delegation window and the owner's explicit risk acceptance
+- **THEN** an owner-authorized historical recovery record, not marked verified, is stored without creating an execution
+- **AND** the later execution keeps that recovery apart from any verified advance
+- **AND** later recording classifies any further movement only through receipts
+
+#### Scenario: Historical recovery without owner risk acceptance
+
+- **WHEN** recovery is requested without the owner's explicit risk acceptance
+- **THEN** it is refused and nothing is written
+
+#### Scenario: Receipted parallel merge needs no owner input
+
+- **GIVEN** a Claude delegation is open
+- **WHEN** another lifecycle fast-forwards integration main and writes a receipt
+- **THEN** the execution is recorded with a verified concurrent advance without any recovery or owner approval

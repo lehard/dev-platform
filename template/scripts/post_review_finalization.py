@@ -303,6 +303,40 @@ def run_claimed_finalize(root: Path, repo: str, candidate: dict, job: dict, *, s
     return {"status": "finalized", "pushed_head": outcome.get("pushed_head")}
 
 
+def recover_finalization_push(root: Path, repo: str, number: int, observed: dict, comments: list[dict],
+                              *, adapter=queue) -> bool:
+    """Persist a validated finalization push of a main-integration candidate whose ``ready`` record was lost.
+
+    The finalize harness publishes its ``validated-push`` receipt before pushing and records
+    ``ready`` only after observing the pushed head; when that observation is interrupted or
+    stale the candidate keeps a ``finalize-pending`` record on the pre-archive head and
+    ``derive_candidate`` already recovers it as ready. Record the update marker and the
+    ``ready`` record so the queue integrates it. Contribution and composition candidates
+    advance through their own jobs and are refused. Idempotent; returns whether it recorded.
+    """
+    current = adapter._derive(root, observed, comments)
+    if not str(current.get("reason", "")).startswith("recover validated finalization push"):
+        return False
+    identity = current.get("task_identity")
+    kind = identity.get("kind") if isinstance(identity, dict) else None
+    if kind in {"contribution", "requirement-composition"}:
+        raise workers.WorkerError(f"a {kind} finalization push is not recovered as a main integration candidate")
+    if current.get("state") != "ready":
+        raise workers.WorkerError(f"recovered finalization push derived {current.get('state')!r}, not ready")
+    head = current["head"]
+    lineage = adapter._latest(root, number, comments)
+    if not isinstance(lineage, dict) or not lineage.get("head"):
+        raise workers.WorkerError("recovered finalization push has no recorded lineage head")
+    if not any(event.get("kind") == "update" and event.get("head") == head
+               for event in adapter._events(root, repo, number)):
+        adapter._comment(root, repo, number, {"kind": "update", "previous": lineage["head"], "head": head,
+                                              "worker_job": "finalization-recovery"})
+    if adapter._transition(root, repo, number, "ready", head, task_identity=identity,
+                           inherit_identity=False, gates=current["gates"]) is None:
+        raise workers.WorkerError("finalization recovery could not record ready: the PR head moved")
+    return True
+
+
 # ---- archive-derived spec re-derivation ---------------------------------------
 
 def _openspec(checkout: Path, *args: str) -> None:

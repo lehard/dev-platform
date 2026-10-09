@@ -71,11 +71,11 @@ from delegation_containment import (
     ContainmentError,
     ContainmentResult,
     check_containment,
+    classify_head_move,
     format_violation_message,
     record_containment_friction,
     resolve_assigned_worktree,
     snapshot,
-    verify_remote_fast_forward,
 )
 
 
@@ -182,8 +182,10 @@ def _classify_containment(
     if not containment.head_moved:
         return CLASSIFICATION_VIOLATION
     if tier != EnforcementTier.HARD:
+        # Detection-only writers (Claude) are classified by `model_routing.postcheck`,
+        # which owns the delegation window and receipts the shared classifier needs.
         return CLASSIFICATION_VIOLATION
-    if verify_remote_fast_forward(integration_root, before_head, after_head):
+    if classify_head_move(integration_root, before_head, after_head, containment=containment, tier=EnforcementTier.HARD.value):
         return CLASSIFICATION_VERIFIED_EXTERNAL_ADVANCE
     return CLASSIFICATION_VIOLATION
 

@@ -25,6 +25,7 @@ from _platform_common import (
     run_git,
     preflight,
 )
+from delegation_containment import ContainmentError, read_integration_advances, record_integration_advance, require_own_fast_forward
 from integration_state import (
     dirty_paths,
     fcntl,
@@ -115,6 +116,8 @@ except ModuleNotFoundError:  # Compatibility while a pre-managed-intake render i
 
 
 ALLOW_NO_CHECKS_ENV = "DEV_PLATFORM_ALLOW_NO_CHECKS"
+# The rendered lifecycle entrypoint; it reconciles quick and managed tasks.
+RECONCILE_COMMAND = "python3 scripts/finish_task.py --reconcile"
 DIRECT_PUBLISH_GUARD = "DEV_PLATFORM_VALIDATED_DIRECT_PUBLISH"
 
 
@@ -486,7 +489,7 @@ def run_status(work: Path, integration: Path, config: dict, *, as_json: bool) ->
         else:
             print(f"task freshness: {freshness['task_freshness']} relative to origin/{main_branch}")
             if freshness["reconcile_required"]:
-                print("reconcile required before expensive validation: python3 scripts/finish_task.py --reconcile")
+                print(f"reconcile required before expensive validation: {RECONCILE_COMMAND}")
         provenance = freshness.get("managed_provenance")
         if provenance:
             print(f"managed provenance: {provenance}")
@@ -503,9 +506,29 @@ def run_status(work: Path, integration: Path, config: dict, *, as_json: bool) ->
     return 0
 
 
+def _unrecorded_direct_advance(integration: Path, main_branch: str, branch: str, head: str) -> str | None:
+    """The head an earlier direct finish fast-forwarded main from to ``head``, unless already receipted.
+
+    ``None`` when main's reflog shows no fast-forward of ``branch`` to ``head`` (this task did not
+    advance main) or when a receipt for that advance already exists.
+    """
+    if any(receipt["after"] == head for receipt in read_integration_advances(integration)):
+        return None
+    lines = run_git(["log", "-g", "--format=%H%x00%gs", f"refs/heads/{main_branch}"], cwd=integration).stdout.splitlines()
+    entries = [line.split("\x00", 1) for line in lines]
+    for index, (new, subject) in enumerate(entries):
+        if new == head and subject == f"merge {branch}: Fast-forward":
+            if index + 1 == len(entries):
+                raise SystemExit(f"Reflog of {main_branch} records the fast-forward to {head[:12]} without its previous head; "
+                                 "the integration advance receipt cannot be written.")
+            return entries[index + 1][0]
+    return None
+
+
 def integrate_and_publish_direct(work: Path, integration: Path, config: dict, branch: str, main_branch: str) -> None:
     fetch_main(integration, "origin", main_branch)
     remote_main = f"origin/{main_branch}"
+    advanced_from: str | None = None
     if branch != main_branch:
         if not clean(integration):
             raise SystemExit("Integration copy is dirty. Resolve it before direct integration.")
@@ -517,11 +540,32 @@ def integrate_and_publish_direct(work: Path, integration: Path, config: dict, br
             raise SystemExit(f"Local {main_branch} is not safely based on current {remote_main}.")
         if run_git(["merge-base", "--is-ancestor", main_branch, branch], cwd=integration, check=False).returncode != 0:
             raise SystemExit(f"{branch} is stale relative to current local {main_branch}. Rebase/update explicitly and rerun checks.")
+        advanced_from = run_git(["rev-parse", "HEAD"], cwd=integration).stdout.strip()
         run_git(["merge", "--ff-only", branch], cwd=integration)
         print(f"Integrated {branch} -> {main_branch} locally.")
     env = os.environ.copy()
     env[DIRECT_PUBLISH_GUARD] = "1"
     subprocess.run(["python3", str(integration / "scripts" / "project_publish.py"), "--mode", "direct"], cwd=integration, check=True, env=env, stdin=subprocess.DEVNULL)
+    advanced_to = run_git(["rev-parse", "HEAD"], cwd=integration).stdout.strip()
+    if advanced_from is not None and advanced_from == advanced_to:
+        # A retry after a failed publication finds main already advanced by the
+        # earlier run; main's reflog proves where that run started.
+        advanced_from = _unrecorded_direct_advance(integration, main_branch, branch, advanced_to)
+    if advanced_from is not None and advanced_from != advanced_to:
+        try:
+            require_own_fast_forward(integration, main_branch, advanced_from, advanced_to, branch)
+        except ContainmentError as exc:
+            raise SystemExit(str(exc)) from exc
+        # Direct publication fast-forwards the local main before the push, so the
+        # receipt is written once the push made `origin/<main>` equal the new head.
+        record_integration_advance(
+            integration,
+            advanced_from,
+            advanced_to,
+            tool="finish_task.integrate_and_publish_direct",
+            actor_worktree=work,
+            remote="origin",
+        )
 
 
 def sync_after_remote_pr_merge(work: Path, integration: Path, config: dict, main_branch: str) -> None:
@@ -538,7 +582,19 @@ def sync_after_remote_pr_merge(work: Path, integration: Path, config: dict, main
                 "Leave it untouched and synchronize main manually after resolving local state. Affected paths: "
                 + ", ".join(paths)
             )
+        normalize_head = run_git(["rev-parse", "HEAD"], cwd=integration).stdout.strip()
+        normalize_on_main = current_branch(integration) == main_branch
         normalize_equivalent_remote_state(integration, remote_main)
+        normalized_head = run_git(["rev-parse", "HEAD"], cwd=integration).stdout.strip()
+        if normalize_on_main and normalized_head != normalize_head:
+            record_integration_advance(
+                integration,
+                normalize_head,
+                normalized_head,
+                tool="finish_task.sync_after_remote_pr_merge.normalize",
+                actor_worktree=work,
+                remote="origin",
+            )
         print(f"Normalized integration index to the already-merged {remote_main}; local content was proven equivalent.")
     remote_main = f"origin/{main_branch}"
     if work == integration:
@@ -547,7 +603,21 @@ def sync_after_remote_pr_merge(work: Path, integration: Path, config: dict, main
         raise SystemExit(f"Remote PR merged, but integration copy must have {main_branch!r} checked out before synchronization.")
     state = relation(integration, main_branch, remote_main)
     if state == "behind":
+        before_head = run_git(["rev-parse", "HEAD"], cwd=integration).stdout.strip()
         run_git(["merge", "--ff-only", remote_main], cwd=integration)
+        after_head = run_git(["rev-parse", "HEAD"], cwd=integration).stdout.strip()
+        try:
+            require_own_fast_forward(integration, main_branch, before_head, after_head, remote_main)
+        except ContainmentError as exc:
+            raise SystemExit(str(exc)) from exc
+        record_integration_advance(
+            integration,
+            before_head,
+            after_head,
+            tool="finish_task.sync_after_remote_pr_merge",
+            actor_worktree=work,
+            remote="origin",
+        )
         print(f"Fast-forwarded local {main_branch} to merged {remote_main}.")
     elif state == "equal":
         print(f"Local {main_branch} already equals merged {remote_main}.")
@@ -751,7 +821,7 @@ def observe_completion_blockers(
         blockers.append((
             "task-freshness",
             f"{branch} is {freshness_state} relative to freshly observed {remote_main}. "
-            "Reconcile before expensive validation: python3 scripts/finish_task.py --reconcile",
+            f"Reconcile before expensive validation: {RECONCILE_COMMAND}",
         ))
 
     if (
@@ -762,7 +832,7 @@ def observe_completion_blockers(
     ):
         blockers.append((
             "branch-base",
-            f"{branch} is stale relative to {remote_main}. Rebase/update explicitly, rerun checks, then finish.",
+            f"{branch} is stale relative to {remote_main}. Reconcile explicitly ({RECONCILE_COMMAND}), rerun checks, then finish.",
         ))
 
     try:
@@ -854,7 +924,7 @@ def main() -> int:
     parser.add_argument("--body")
     parser.add_argument("--merge-timeout", type=float, default=60.0)
     parser.add_argument("--status", action="store_true", help="Read-only publication status; makes no mutations.")
-    parser.add_argument("--reconcile", action="store_true", help="Safely merge authoritative main into the current managed task before validation.")
+    parser.add_argument("--reconcile", action="store_true", help="Safely merge authoritative main into the current quick or managed task before validation.")
     parser.add_argument("--json", action="store_true", help="Emit --status output as JSON.")
     args = parser.parse_args()
     if args.json and not args.status:
@@ -1054,7 +1124,7 @@ def main() -> int:
         if branch == main_branch:
             raise SystemExit("publish_mode=pr requires a feature branch. Use standard/multi-agent profile or switch publish_mode deliberately.")
         if exact_open_pr is None and run_git(["merge-base", "--is-ancestor", remote_main, branch], cwd=work, check=False).returncode != 0:
-            raise SystemExit(f"{branch} is stale relative to {remote_main}. Rebase/update explicitly, rerun checks, then finish.")
+            raise SystemExit(f"{branch} is stale relative to {remote_main}. Reconcile explicitly ({RECONCILE_COMMAND}), rerun checks, then finish.")
         if exact_open_pr is not None:
             print(f"Resuming existing exact-head PR: {exact_open_pr.get('url')}")
         command = ["python3", str(work / "scripts" / "project_publish.py"), "--mode", "pr"]
@@ -1072,6 +1142,8 @@ def main() -> int:
                     if queued is not None and queued["state"] in {"active", "waiting"}:
                         print(f"Publication queued at position {queued.get('position')}; rerun finish after remote merge.")
                         return 2
+                    if queued is not None and queued["state"] == "blocked":
+                        raise SystemExit("Publication queue reports blocked: " + str(queued.get("reason")))
             if task_pr_is_already_merged(work, branch, main_branch):
                 reconcile_confirmed_remote_pr_merge(
                     work, integration, config, branch, main_branch, prof,

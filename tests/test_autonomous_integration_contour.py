@@ -362,6 +362,28 @@ class IntegrationRepairTests(RepairFixture):
             self.assertEqual(outcome["status"], "integrated")
             self.assertFalse(sentinel.exists())
 
+    def test_nested_git_metadata_in_the_writer_tree_is_refused_and_its_filter_never_runs(self):
+        sentinel = Path(self.tmp.name) / "sentinel"
+
+        def plant(checkout: Path) -> None:
+            resolve_value(checkout)
+            evil = checkout / "evilgit"
+            subprocess.run(["git", "init", "-q", "--bare", str(evil)], check=True)
+            for key, value in (("core.bare", "false"), ("filter.pwn.clean", f"touch {sentinel} #")):
+                subprocess.run(["git", "--git-dir", str(evil), "config", key, value], check=True)
+            (checkout / "sub").mkdir()
+            (checkout / "sub/.git").write_text("gitdir: ../evilgit\n")
+            (checkout / "sub/.gitattributes").write_text("* filter=pwn\n")
+            (checkout / "sub/x").write_text("x")
+
+        with RemoteFixture(self.repo) as fixture:
+            self.offer(fixture)
+            before = self.repo.head("agent/example")
+            outcome = self.repair(fixture, plant, allowed_paths=["sub/", "evilgit/"])
+            self.assertEqual(outcome, {"status": "failed", "reason": "nested git metadata: sub/.git"})
+            self.assertEqual(self.repo.head("agent/example"), before)
+            self.assertFalse(sentinel.exists())
+
     def test_lost_claim_prevents_the_push(self):
         with RemoteFixture(self.repo) as fixture:
             self.offer(fixture)

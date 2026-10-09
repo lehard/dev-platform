@@ -420,3 +420,49 @@ class PublicDistributionTests(unittest.TestCase):
             commands = [call.args[0] for call in run.call_args_list]
             self.assertIn(["git", "cat-file", "--batch"], commands)
             self.assertLessEqual(len(commands), 5)
+
+
+SMOKE_SPEC = importlib.util.spec_from_file_location("snapshot_smoke_test", ROOT / "tests" / "public_distribution_snapshot_smoke.py")
+assert SMOKE_SPEC and SMOKE_SPEC.loader
+
+
+class SnapshotSmokeStageTests(unittest.TestCase):
+    def load_smoke(self):
+        module = importlib.util.module_from_spec(SMOKE_SPEC)
+        SMOKE_SPEC.loader.exec_module(module)
+        return module
+
+    def hygiene_commands(self, stage: str) -> list[tuple[str, ...]]:
+        smoke = self.load_smoke()
+        return [c for c in smoke.extracted_check_commands(stage) if "template/scripts/openspec_lifecycle.py" in c]
+
+    def test_integration_runs_strict_hygiene_in_the_snapshot(self) -> None:
+        self.assertEqual(
+            [("python3", "template/scripts/openspec_lifecycle.py", "check", "--stage", "integration")],
+            self.hygiene_commands("integration"),
+        )
+
+    def test_candidate_leaves_hygiene_to_the_real_checkout(self) -> None:
+        # The snapshot strips `.managed-task.json`, so the candidate exemption is unknowable there.
+        self.assertEqual([], self.hygiene_commands("candidate"))
+        ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        self.assertIn(
+            "python3 template/scripts/openspec_lifecycle.py check --stage "
+            "\"${{ github.event_name == 'pull_request' && 'candidate' || 'integration' }}\"",
+            ci,
+        )
+
+    def test_stage_is_required_and_bounded(self) -> None:
+        smoke = self.load_smoke()
+        with self.assertRaises(SystemExit):
+            smoke.extracted_check_commands("strict")
+        with mock.patch("sys.stderr"), self.assertRaises(SystemExit):
+            smoke.main([])
+
+    def test_ci_passes_the_event_stage_to_the_smoke(self) -> None:
+        ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        self.assertIn(
+            "python3 tests/public_distribution_snapshot_smoke.py --lifecycle-stage "
+            "\"${{ github.event_name == 'pull_request' && 'candidate' || 'integration' }}\"",
+            ci,
+        )
