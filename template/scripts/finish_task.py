@@ -605,10 +605,15 @@ def sync_after_remote_pr_merge(work: Path, integration: Path, config: dict, main
     if state == "behind":
         before_head = run_git(["rev-parse", "HEAD"], cwd=integration).stdout.strip()
         run_git(["merge", "--ff-only", remote_main], cwd=integration)
+        after_head = run_git(["rev-parse", "HEAD"], cwd=integration).stdout.strip()
+        try:
+            require_own_fast_forward(integration, main_branch, before_head, after_head, remote_main)
+        except ContainmentError as exc:
+            raise SystemExit(str(exc)) from exc
         record_integration_advance(
             integration,
             before_head,
-            run_git(["rev-parse", "HEAD"], cwd=integration).stdout.strip(),
+            after_head,
             tool="finish_task.sync_after_remote_pr_merge",
             actor_worktree=work,
             remote="origin",
