@@ -95,6 +95,9 @@ def fast_hooks(lines: list[str] | None = None) -> object:
 
 
 class PoolFixture(unittest.TestCase):
+    # Unit tests inject load/memory readers; these defaults are compared against injected values.
+    MAX_LOAD_PER_CPU = 2.0
+    MIN_AVAILABLE_MEMORY_MB = 512
     TOKENS = 3
 
     def setUp(self) -> None:
@@ -113,7 +116,7 @@ class PoolFixture(unittest.TestCase):
     def write_config(self, **overrides: object) -> Path:
         values: dict[str, object] = {
             "directory": str(self.directory), "tokens": self.TOKENS, "wait_timeout_seconds": 200,
-            "max_load_per_cpu": 2.0, "min_available_memory_mb": 512,
+            "max_load_per_cpu": self.MAX_LOAD_PER_CPU, "min_available_memory_mb": self.MIN_AVAILABLE_MEMORY_MB,
         }
         values.update(overrides)
         lines = [f"{key} = {json.dumps(value)}" for key, value in values.items() if value is not None]
@@ -436,6 +439,9 @@ class QueueOrderTests(PoolFixture):
 
 
 class ProcessTests(PoolFixture):
+    # Real child processes measure the host; admission must never depend on how busy the test machine is.
+    MAX_LOAD_PER_CPU = 1_000_000.0
+    MIN_AVAILABLE_MEMORY_MB = 1
     TOKENS = 2
 
     def tearDown(self) -> None:
@@ -515,8 +521,8 @@ class ProcessTests(PoolFixture):
         output = done.stdout
         self.assertIn(f"{POOL_ENV}: {self.config_path}", output)
         self.assertIn("tokens: 2 (held 1, free 1)", output)
-        self.assertIn("max_load_per_cpu: 2; current load per CPU:", output)
-        self.assertIn("min_available_memory_mb: 512; current available memory MB:", output)
+        self.assertIn("max_load_per_cpu: 1e+06; current load per CPU:", output)
+        self.assertIn("min_available_memory_mb: 1; current available memory MB:", output)
         self.assertIn("class=development weight=1", output)
         self.assertIn("1. ", output.split("waiters:")[1])
         self.assertIn("class=finalize weight=2", output.split("waiters:")[1])
@@ -590,6 +596,9 @@ class EnvironmentPropagationTests(unittest.TestCase):
 
 
 class IntegrationTests(PoolFixture):
+    # Real child processes measure the host; admission must never depend on how busy the test machine is.
+    MAX_LOAD_PER_CPU = 1_000_000.0
+    MIN_AVAILABLE_MEMORY_MB = 1
     TOKENS = 3
 
     def patched_environment(self, **extra: str) -> mock._patch_dict:
