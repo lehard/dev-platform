@@ -135,10 +135,11 @@ CI_RUNNERS = ("github-hosted", "self-hosted")
 CI_RUNNER_LABEL_RE = re.compile(r"^[A-Za-z0-9._-]+$")
 REPAIR_STEP_NAME = "Repair shared-workspace permissions on self-hosted runners"
 PLATFORM_CI_RUNS_ON_RE = re.compile(r"^  platform-ci:\n(?:(?!^  \S).*\n)*?    runs-on:[ \t]*(.*?)[ \t]*$", re.MULTILINE)
+PROVISION_RUNS_ON_RE = re.compile(r"^  provision:\n(?:(?!^  \S).*\n)*?    runs-on:[ \t]*(.*?)[ \t]*$", re.MULTILINE)
 
 
 def check_ci_runner_agreement(root: Path, config: dict, failures: list[int]) -> None:
-    """Prove the committed platform-ci runner agrees with the recorded Copier answers."""
+    """Prove the committed platform-ci and label-provision runners agree with the recorded Copier answers."""
     if scm_provider(config) == "gitlab":
         return
     if str(config.get("platform_version", "")) == "source":
@@ -187,8 +188,19 @@ def check_ci_runner_agreement(root: Path, config: dict, failures: list[int]) -> 
             f"expected {'present' if kind == 'self-hosted' else 'absent'}, found {'present' if has_repair else 'absent'}"
         )
         failures[0] += 1
+    provision = root / ".github" / "workflows" / "process-health-labels.yml"
+    if not provision.exists():
+        fail("managed workflow .github/workflows/process-health-labels.yml is missing; its provision runner cannot be compared with ci_runner (run copier update)")
+        failures[0] += 1
+    else:
+        provision_match = PROVISION_RUNS_ON_RE.search(provision.read_text(encoding="utf-8"))
+        if not provision_match:
+            fail("process-health-labels workflow provision job has no runs-on to compare with ci_runner"); failures[0] += 1
+        elif provision_match.group(1) != expected:
+            fail(f"provision runs-on mismatch for ci_runner={kind}: expected {expected!r}, found {provision_match.group(1)!r}")
+            failures[0] += 1
     if failures[0] == before:
-        ok(f"platform-ci runner agrees with ci_runner={kind} ({expected})")
+        ok(f"platform-ci and provision runners agree with ci_runner={kind} ({expected})")
 
 
 def check_development_backlog_config(config: dict, failures: list[int]) -> None:

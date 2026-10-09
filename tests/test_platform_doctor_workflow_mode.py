@@ -78,11 +78,17 @@ def self_hosted_workflow(runs_on: str, repair: bool = True) -> str:
 
 
 class CiRunnerAgreementTests(unittest.TestCase):
-    def _check(self, answers: str | None, workflow: str, config: dict | None = None) -> int:
+    def _check(self, answers: str | None, workflow: str, config: dict | None = None, provision: str | None = "same") -> int:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / ".github" / "workflows").mkdir(parents=True)
             (root / ".github" / "workflows" / "dev-platform.yml").write_text(workflow, encoding="utf-8")
+            ci_match = platform_doctor.PLATFORM_CI_RUNS_ON_RE.search(workflow)
+            if provision is not None and ci_match is not None:
+                # "same" mirrors the platform-ci runner so a test isolates the platform-ci comparison.
+                runner = ci_match.group(1) if provision == "same" else provision
+                (root / ".github" / "workflows" / "process-health-labels.yml").write_text(
+                    f"jobs:\n  provision:\n    runs-on: {runner}\n    timeout-minutes: 5\n", encoding="utf-8")
             if answers is not None:
                 (root / ".copier-answers.yml").write_text(answers, encoding="utf-8")
             failures = [0]
@@ -104,14 +110,21 @@ class CiRunnerAgreementTests(unittest.TestCase):
         self.assertEqual(self._check("ci_runner: self-hosted\nci_runner_labels: a, b\n", self_hosted_workflow("[a, b]")), 0)
 
     def test_runner_mismatch_fails(self) -> None:
-        self.assertEqual(self._check("ci_runner: self-hosted\nci_runner_labels: alters\n", self_hosted_workflow("ubuntu-latest")), 1)
-        self.assertEqual(self._check("ci_runner: github-hosted\n", self_hosted_workflow("alters", repair=False)), 1)
+        self.assertEqual(self._check("ci_runner: self-hosted\nci_runner_labels: alters\n", self_hosted_workflow("ubuntu-latest"), provision="alters"), 1)
+        self.assertEqual(self._check("ci_runner: github-hosted\n", self_hosted_workflow("alters", repair=False), provision="ubuntu-latest"), 1)
 
     def test_invalid_labels_fail_naming_ci_runner_labels(self) -> None:
         for labels in ("''", "'a,,b'", "'a b'", "'a,a'", "'a;b'"):
             with self.subTest(labels=labels):
                 self.assertEqual(self._check(f"ci_runner: self-hosted\nci_runner_labels: {labels}\n", self_hosted_workflow("a")), 1)
         self.assertEqual(self._check("ci_runner: self-hosted\n", self_hosted_workflow("a")), 1)
+
+    def test_provision_runner_mismatch_fails(self) -> None:
+        self.assertEqual(self._check("ci_runner: self-hosted\nci_runner_labels: alters\n", self_hosted_workflow("alters"), provision="ubuntu-latest"), 1)
+        self.assertEqual(self._check("ci_runner: github-hosted\n", GITHUB_HOSTED_WORKFLOW, provision="alters"), 1)
+
+    def test_missing_provision_workflow_fails(self) -> None:
+        self.assertEqual(self._check("ci_runner: github-hosted\n", GITHUB_HOSTED_WORKFLOW, provision=None), 1)
 
     def test_self_hosted_without_repair_step_fails(self) -> None:
         self.assertEqual(self._check("ci_runner: self-hosted\nci_runner_labels: alters\n", self_hosted_workflow("alters", repair=False)), 1)
