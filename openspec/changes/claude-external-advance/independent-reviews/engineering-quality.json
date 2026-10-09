@@ -1,36 +1,36 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "37363a11c3aac90c4232dd1cbd140df274f28f80",
+    "base_head": "7c83a854522a5defca480e5a86bae580de0a43c1",
     "base_ref": "origin/main",
-    "candidate_head": "2df1aa19dff7a31455913a851ff4ae227771e3f8",
-    "diff_sha256": "c395423650602eff4781c6ed5e05847dca64ed07a7efe790c74172b33d598185"
+    "candidate_head": "c835a30df513586bf0345c7dcea493abdabf3719",
+    "diff_sha256": "37a3b82a4d88827557f03b3d944c027009f399dce88d48e1cc43cc25a650088f"
   },
-  "completed_at": "2026-10-09T13:38:30+00:00",
+  "completed_at": "2026-10-09T17:10:36+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/finish_task.py:522\u2013534 sets advanced_from whenever branch != main_branch, including when integration main already equals the task branch. If the first invocation merges successfully but project_publish fails, retrying performs an already-up-to-date merge and then calls record_integration_advance with identical heads. template/scripts/delegation_containment.py:373\u2013374 rejects that call. The exception prevents subsequent completion bookkeeping, and further retries encounter the same failure.",
-      "id": "direct-publication-retry-rejects-noop",
+      "evidence": "template/scripts/project_sync.py:40\u201348 reads HEAD, merges, reads HEAD again and writes an actor receipt without holding serialized_integration. If a delegated child advances integration from A to origin/main B after a sibling sync reads A, the sibling's merge succeeds as an 'Already up to date' no-op and emits A\u2192B naming the sibling. The receipt then passes delegation_containment.py's chain and actor checks despite the child having moved integration. Two legitimate concurrent syncs can likewise emit duplicate A\u2192B receipts and break the chain. The receipt append lock does not protect the HEAD observation and merge.",
+      "id": "sync-receipt-attribution-race",
       "severity": "material",
-      "summary": "Retrying direct publication after a failed push now fails even when the retry successfully publishes."
+      "summary": "Unserialized project sync can attribute another process's integration advance to the caller, defeating detection-only containment."
     },
     {
-      "evidence": "template/scripts/delegation_containment.py:434 reads the complete append-only log into memory, and lines 438 onward parse every historical receipt. Time filtering happens only afterward in _receipt_chain. openspec/changes/claude-external-advance/design.md states 'Receipt log growth: append-only small lines; bounded reading by time window,' but no bounded reading or retention mechanism is implemented.",
-      "id": "receipt-history-read-unbounded",
+      "evidence": "template/scripts/delegation_containment.py:434 reads the whole log with read_text().splitlines(), and read_integration_advances parses every entry before _receipt_chain filters by delegation time. Consequently memory and classification cost grow with all historical advances, despite design.md describing 'bounded reading by time window' as the mitigation for receipt log growth.",
+      "id": "unbounded-receipt-log-read",
       "severity": "advisory",
-      "summary": "Receipt processing grows with the entire lifetime of the integration checkout despite the documented bounded-reading mitigation."
+      "summary": "Every classification loads and parses the entire append-only integration history."
     }
   ],
-  "launched_at": "2026-10-09T13:37:32+00:00",
-  "output_sha256": "913b90e0dcad22ed553653812540d187875397106c0e814638baa428a32fd6b9",
+  "launched_at": "2026-10-09T17:09:27+00:00",
+  "output_sha256": "0a5da38d20385227737e78ce863541171137bcd18f3f5b73eca91f74e1a240c3",
   "perspective": "engineering-quality",
-  "request_id": "aa5f3196-41c9-4176-84e1-911a9e5c0e9d",
+  "request_id": "c3276462-7a55-4655-a82b-96d7c2e1b425",
   "reviewer": {
-    "context_id": "01a120e2-1fa0-7f20-baaf-f5c78c198573",
+    "context_id": "01a121a4-24f1-7122-a332-523b66a36f94",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-5392a9a7-9e97-4ea3-9b53-e17e294574f8",
+    "launch_id": "platform-launch-d25d4c6f-c908-4f53-836f-03168bb32850",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -45,21 +45,21 @@
       "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 231168
+        "value": 237696
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 292109
+        "value": 300040
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1306
+        "value": 1243
       }
     },
     "runtime": "codex-exec"
   },
   "schema_version": 1,
-  "task_content_digest": "bf8ca3c43b346e68241ec891fec87d6045a0166c2a7cb0ecd04afd855b73cf4a"
+  "task_content_digest": "f6754cded28682df32fddc0eea9dc725dc75b21c5358bd8e3e4ed2fbd7342303"
 }

@@ -1,36 +1,30 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "37363a11c3aac90c4232dd1cbd140df274f28f80",
+    "base_head": "7c83a854522a5defca480e5a86bae580de0a43c1",
     "base_ref": "origin/main",
-    "candidate_head": "2df1aa19dff7a31455913a851ff4ae227771e3f8",
-    "diff_sha256": "c395423650602eff4781c6ed5e05847dca64ed07a7efe790c74172b33d598185"
+    "candidate_head": "c835a30df513586bf0345c7dcea493abdabf3719",
+    "diff_sha256": "37a3b82a4d88827557f03b3d944c027009f399dce88d48e1cc43cc25a650088f"
   },
-  "completed_at": "2026-10-09T13:37:32+00:00",
+  "completed_at": "2026-10-09T17:09:27+00:00",
   "findings": [
     {
-      "evidence": "openspec/changes/claude-external-advance/specs/model-routing/spec.md:1 declares only ADDED Requirements, and line 5 requires receipt-backed detection-only advances to be classified as verified. openspec/specs/model-routing/spec.md:639\u2013650 still permits verified advances only with native hard containment and mandates that all detection-only movement remain a violation. The delta does not modify or remove that existing requirement, leaving contradictory mandatory behavior.",
-      "id": "contradictory-detection-only-contract",
+      "evidence": "The active delta requires every platform fast-forward of integration main to append a receipt (openspec/changes/claude-external-advance/specs/model-routing/spec.md:5). In template/scripts/finish_task.py:522\u2013529, main advances before publication, but a publication exception exits before the receipt is written. On retry, advanced_from already equals advanced_to, so the receipt is skipped even after publication succeeds. tests/test_git_lifecycle.py explicitly confirms this behavior in test_publication_failure_then_unchanged_head_retry_succeeds with receipt.assert_not_called(). The resulting missing chain makes Claude recording fail despite a legitimate sibling advance.",
+      "id": "direct-publication-retry-loses-advance-receipt",
       "severity": "material",
-      "summary": "The added requirement contradicts an existing requirement that explicitly forbids accepting detection-only head movement."
-    },
-    {
-      "evidence": "template/scripts/finish_task.py:522 records advanced_from whenever branch differs from main_branch, even when both branches already point to the same commit. After the no-op merge and successful publication, lines 528\u2013537 unconditionally call record_integration_advance. template/scripts/delegation_containment.py:373\u2013374 rejects identical before/after heads. Thus retrying after a pending Project reconciliation (finish_task.py:1147\u20131156), or finishing a branch with no new commits, raises before completion reconciliation can proceed despite no integration advance occurring.",
-      "id": "direct-finish-retry-rejects-unchanged-head",
-      "severity": "material",
-      "summary": "Direct finish fails after successful publication when retrying an already-integrated task branch."
+      "summary": "A failed direct publication followed by a successful retry permanently omits the required integration-advance receipt, stranding overlapping Claude delegations."
     }
   ],
-  "launched_at": "2026-10-09T13:36:07+00:00",
-  "output_sha256": "9be61f4915af550b982ebd9670ab3d78a19f5446085069b307d9eee85920f5e1",
+  "launched_at": "2026-10-09T17:08:08+00:00",
+  "output_sha256": "2b096c8b0745e1c3b5f40bb12f8025220d32558efc95665720aba6094ac32262",
   "perspective": "spec-fidelity",
-  "request_id": "aa5f3196-41c9-4176-84e1-911a9e5c0e9d",
+  "request_id": "c3276462-7a55-4655-a82b-96d7c2e1b425",
   "reviewer": {
-    "context_id": "01a120e0-d413-7242-a9d1-9fc92d547071",
+    "context_id": "01a121a2-ee44-7b81-a93c-72ca169f1814",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-e872b468-6e61-4c5a-a261-1ab616421ded",
+    "launch_id": "platform-launch-fcacca12-4097-48a7-982b-10a7cb318a4d",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -45,21 +39,21 @@
       "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 289152
+        "value": 383232
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 353470
+        "value": 450884
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1693
+        "value": 1537
       }
     },
     "runtime": "codex-exec"
   },
   "schema_version": 1,
-  "task_content_digest": "bf8ca3c43b346e68241ec891fec87d6045a0166c2a7cb0ecd04afd855b73cf4a"
+  "task_content_digest": "f6754cded28682df32fddc0eea9dc725dc75b21c5358bd8e3e4ed2fbd7342303"
 }
