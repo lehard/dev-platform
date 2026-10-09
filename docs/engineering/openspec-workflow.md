@@ -203,7 +203,9 @@ of requiring the head to contain current `main`; the harness-executed evidence
 records that contract and base. Finalization never fetches or merges `main`: base
 actualization, the clean merge of current `main`, required CI on the merged head and
 integration repair belong to the integration contour (see
-[agent-workflow.md](agent-workflow.md#candidate-and-integration-contours)). A completed-but-active change is blocked at integration admission
+[agent-workflow.md](agent-workflow.md#candidate-and-integration-contours)). A developer
+re-admission of a descendant head with unchanged task content keeps the passed review,
+so the review job completes without launching a reviewer. A completed-but-active change is blocked at integration admission
 and merge (`openspec_lifecycle.py check --stage integration`, strict on `main`
 and for non-coordinator finish), not at PR publication. When main changed only
 the archive-derived current-spec paths of the candidate's own capabilities, the
