@@ -159,16 +159,36 @@ class ArchiveFinalizeModeTests(unittest.TestCase):
 
 
 class ContributionFreshnessTests(unittest.TestCase):
-    def test_trusted_runner_passes_the_exact_contribution_base(self):
+    def test_trusted_runner_passes_exactly_one_freshness_contract_and_describes_it(self):
         done = subprocess.CompletedProcess("checks", 0, stdout="", stderr="")
         with mock.patch.object(final.subprocess, "run", return_value=done) as run:
-            final.trusted_checks_runner(Path("/checkout"), {}, contribution_base="abc123")
-            final.trusted_checks_runner(Path("/checkout"), {})
-        contribution, main = (call.args[0] for call in run.call_args_list)
-        self.assertEqual(contribution[-2:], ["--contribution-base", "abc123"])
-        self.assertNotIn("--contribution-base", main)
+            contribution = final.trusted_checks_runner(Path("/checkout"), {}, contribution_base="abc123")
+            proven = final.trusted_checks_runner(Path("/checkout"), {}, proven_base="f" * 40)
+        contribution_command, proven_command = (call.args[0] for call in run.call_args_list)
+        self.assertEqual(contribution_command[-2:], ["--contribution-base", "abc123"])
+        self.assertNotIn("--proven-base", contribution_command)
+        self.assertEqual(proven_command[-2:], ["--proven-base", "f" * 40])
+        self.assertNotIn("--contribution-base", proven_command)
+        self.assertIn("--execute", proven_command)
+        self.assertEqual(contribution["freshness"], {"contract": "contribution-base", "base": "abc123"})
+        self.assertEqual(proven["freshness"], {"contract": "proven-base", "base": "f" * 40})
+        self.assertEqual(proven["command"], ["select_checks.py", "--base", "origin/main", "--execute",
+                                             "--proven-base", "f" * 40])
 
-    def finalize_runner(self, identity):
+    def test_trusted_runner_refuses_neither_or_both_contracts(self):
+        with mock.patch.object(final.subprocess, "run") as run:
+            for keywords in ({}, {"contribution_base": "abc123", "proven_base": "f" * 40}):
+                with self.subTest(keywords=keywords), self.assertRaisesRegex(workers.WorkerError, "exactly one"):
+                    final.trusted_checks_runner(Path("/checkout"), {}, **keywords)
+        run.assert_not_called()
+
+    def test_failing_selected_check_under_the_proven_base_escalates(self):
+        done = subprocess.CompletedProcess("checks", 1, stdout="", stderr="DEV_PLATFORM_CHECK_FAILURE: full")
+        with mock.patch.object(final.subprocess, "run", return_value=done):
+            with self.assertRaisesRegex(workers.WorkerError, "selected checks failed: DEV_PLATFORM_CHECK_FAILURE"):
+                final.trusted_checks_runner(Path("/checkout"), {}, proven_base="f" * 40)
+
+    def finalize_runner(self, identity, checks_runner=None):
         seen = []
 
         def capture(checkout, gates, actual, head, runner):
@@ -180,7 +200,8 @@ class ContributionFreshnessTests(unittest.TestCase):
                 mock.patch.object(final, "equivalent_proofs", return_value=True), \
                 mock.patch.object(final, "reestablish_gates", side_effect=capture):
             with self.assertRaises(workers.WorkerError):
-                final.execute_finalize(Path("/checkout"), job, {}, source_repo="r", branch="b", current_head=lambda: "h")
+                final.execute_finalize(Path("/checkout"), job, {}, source_repo="r", branch="b", current_head=lambda: "h",
+                                       checks_runner=checks_runner)
         return seen
 
     def test_contribution_finalize_checks_freshness_against_its_contribution_base(self):
@@ -197,9 +218,40 @@ class ContributionFreshnessTests(unittest.TestCase):
                 final.execute_finalize(Path("/checkout"), {"head": "h", "task_identity": identity}, {},
                                        source_repo="r", branch="b", current_head=lambda: "h")
 
-    def test_main_task_finalize_keeps_main_freshness(self):
-        runner, = self.finalize_runner({"change": "c", "task_content": {}})
-        self.assertIs(runner, final.trusted_checks_runner)
+    def test_main_task_finalize_runs_checks_on_the_proven_base_of_its_identity(self):
+        base = "e" * 40
+        runner, = self.finalize_runner({"change": "c", "task_content": {"base": base}})
+        self.assertIs(runner.func, final.trusted_checks_runner)
+        self.assertEqual(runner.keywords, {"proven_base": base})
+
+    def test_injected_runner_receives_the_same_proven_base(self):
+        injected = mock.Mock()
+        runner, = self.finalize_runner({"change": "c", "task_content": {"base": "e" * 40}}, checks_runner=injected)
+        self.assertIs(runner.func, injected)
+        self.assertEqual(runner.keywords, {"proven_base": "e" * 40})
+
+    def test_main_task_without_a_proven_base_fails_loudly(self):
+        for task_content in ({}, {"base": None}, {"base": "abc123"}, {"base": "E" * 40}):
+            identity = {"change": "c", "task_content": task_content}
+            with self.subTest(task_content=task_content), \
+                    mock.patch.object(final.review_gate, "refresh_identity", return_value=identity), \
+                    mock.patch.object(final, "equivalent_proofs", return_value=True), \
+                    mock.patch.object(final, "reestablish_gates") as reestablish:
+                with self.assertRaisesRegex(workers.WorkerError, "lacks its proven task-content base"):
+                    final.execute_finalize(Path("/checkout"), {"head": "h", "task_identity": identity}, {},
+                                           source_repo="r", branch="b", current_head=lambda: "h")
+                reestablish.assert_not_called()
+
+    def test_runner_without_a_description_is_an_error(self):
+        identity = {"change": "c", "task_content": {"base": "e" * 40}}
+        with mock.patch.object(final.review_gate, "reusable", side_effect=lambda root, gate, ident: gate is not None), \
+                mock.patch.object(final.workers, "credential_free_env", return_value={}):
+            for description in (None, {"command": ["x"]}, {"command": "x", "freshness": {"contract": "c", "base": "b"}},
+                                {"command": ["x"], "freshness": {"contract": "proven-base"}}):
+                with self.subTest(description=description), \
+                        self.assertRaisesRegex(workers.WorkerError, "no command and freshness description"):
+                    final.reestablish_gates(Path("/checkout"), {"review": {"result": "passed"}}, identity, "h",
+                                            lambda checkout, env, d=description: d)
 
 
 class Remote:
@@ -250,12 +302,18 @@ class RemoteFixture(QueueFixture):
         pass
 
 
-class FinalizeTests(unittest.TestCase):
+class CandidateCase(unittest.TestCase):
+    """A pushed managed candidate ``agent/example`` and real finalization helpers."""
+
+    def prepare_main(self, root: Path) -> None:
+        """Hook: commit what main carries before the candidate forks."""
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.repo = Remote(Path(self.tmp.name))
         root = self.repo.root
+        self.prepare_main(root)
         git(root, "checkout", "-qb", "agent/example")
         change = root / "openspec/changes/example"
         (change / "specs/cap").mkdir(parents=True)
@@ -307,6 +365,8 @@ class FinalizeTests(unittest.TestCase):
         queue._transition(self.repo.root, "o/r", 7, "finalize-pending", fixture.head, task_identity=self.identity,
                           inherit_identity=False, gates=self.gates() if gates is None else gates)
 
+
+class FinalizeTests(CandidateCase):
     def test_review_passes_then_finalize_archives_and_candidate_is_ready(self):
         with RemoteFixture(self.repo) as fixture:
             self.offer(fixture)
@@ -356,7 +416,9 @@ class FinalizeTests(unittest.TestCase):
         with RemoteFixture(self.repo) as fixture:
             self.offer(fixture, gates={"review": self.gates()["review"]})
             ran = []
-            outcome, _ = self.finalize(fixture, checks_runner=lambda checkout, env: ran.append(checkout))
+            outcome, _ = self.finalize(fixture, checks_runner=lambda checkout, env, **freshness: ran.append(checkout)
+                                       or {"command": ["scripted"], "freshness": {"contract": "proven-base",
+                                                                                   "base": freshness["proven_base"]}})
             self.assertEqual(outcome["status"], "blocked-retryable")
             self.assertEqual(len(ran), 1)
             candidate = fixture.candidate()
@@ -366,7 +428,7 @@ class FinalizeTests(unittest.TestCase):
             self.assertIsNone(candidate["next_job"])
 
     def test_failing_checks_or_missing_review_block_without_archiving(self):
-        def failing(checkout, env):
+        def failing(checkout, env, **freshness):
             raise workers.WorkerError("selected checks failed")
 
         for gates, runner in (({"review": self.gates()["review"]}, failing), ({}, lambda *a: None)):
@@ -436,6 +498,185 @@ class FinalizeTests(unittest.TestCase):
             self.assertEqual(candidate["state"], "ready")
             self.assertEqual(candidate["next_action"], "await integration")
             self.assertEqual(sorted(candidate["gates"]), ["review", "selected-checks", "semantic-verification"])
+
+
+SOURCE_CONTRACT = """platform_version = "source"
+main_branch = "main"
+workflow_profile = "standard"
+harness_mode = "platform"
+publish_mode = "pr"
+scm_provider = "github"
+"""
+
+
+class ProvenBaseFinalizeTests(CandidateCase):
+    """Main advances between review and finalize: real checks on the proven base, no main merge, no developer."""
+
+    def prepare_main(self, root: Path) -> None:
+        self.ran = Path(self.tmp.name) / "selected-checks.log"
+        (root / ".dev-platform.toml").write_text(SOURCE_CONTRACT)
+        (root / "dev-platform").mkdir()
+        (root / "dev-platform/checks.toml").write_text(f'[settings]\nfull_commands = ["printf ran >> {self.ran}"]\n')
+        git(root, "add", "-A")
+        git(root, "commit", "-qm", "source contract")
+        git(root, "push", "-q", "origin", "HEAD:main")
+        git(root, "fetch", "-q", "origin")
+        self.reviewed_main = git(root, "rev-parse", "HEAD")
+
+    def advance_main(self, path: str = "main.txt", text: str = "advanced\n") -> str:
+        """Another PR merges: main moves on the remote after the candidate was reviewed."""
+        other = Path(self.tmp.name) / "other"
+        if not other.exists():
+            git(Path(self.tmp.name), "clone", "-q", str(self.repo.remote), str(other))
+            git(other, "config", "user.name", "Other")
+            git(other, "config", "user.email", "other@localhost")
+        git(other, "pull", "-q", "--ff-only", "origin", "main")
+        (other / path).write_text(text)
+        git(other, "add", "-A")
+        git(other, "commit", "-qm", f"another PR changes {path}")
+        git(other, "push", "-q", "origin", "HEAD:main")
+        return git(other, "rev-parse", "HEAD")
+
+    def contains(self, ancestor: str, head: str) -> bool:
+        return subprocess.run(["git", "merge-base", "--is-ancestor", ancestor, head], cwd=self.repo.remote,
+                              capture_output=True, check=False).returncode == 0
+
+    def test_identity_base_is_the_reviewed_main(self):
+        self.assertEqual(self.identity["task_content"]["base"], self.reviewed_main)
+
+    def test_repaired_candidate_runs_real_checks_on_its_proven_base_after_main_moved(self):
+        with RemoteFixture(self.repo) as fixture:
+            self.offer(fixture, gates={"review": self.gates()["review"]})
+            before = self.repo.head()
+            moved = self.advance_main()
+            self.assertFalse(self.contains(moved, before))
+            outcome, results = self.finalize(fixture)
+            self.assertEqual(outcome["status"], "blocked-retryable", outcome)
+            self.assertEqual(self.ran.read_text(), "ran")  # the real selected command actually ran
+            candidate = fixture.candidate()
+            self.assertEqual(candidate["state"], "blocked-retryable")
+            self.assertEqual(candidate["red_gate"]["name"], "semantic-verification")  # not a freshness block
+            self.assertEqual(self.repo.head(), before)
+            self.assertIn("fresh semantic verification required", results[-1])
+
+    def test_repaired_candidate_with_bound_receipt_is_ready_without_merging_main(self):
+        with RemoteFixture(self.repo) as fixture:
+            self.offer(fixture, gates=self.gates(omit=("selected-checks",)))
+            claimed = self.repo.head()
+            moved = self.advance_main()
+            outcome, _ = self.finalize(fixture)
+            self.assertEqual(outcome["status"], "finalized", outcome)
+            self.assertEqual(self.ran.read_text(), "ran")
+            candidate = fixture.candidate()
+            self.assertEqual(candidate["state"], "ready")
+            evidence = candidate["gates"]["selected-checks"]["evidence"]
+            self.assertTrue(evidence["harness_executed"])
+            self.assertEqual(evidence["freshness"], {"contract": "proven-base", "base": self.reviewed_main})
+            self.assertEqual(evidence["command"][-2:], ["--proven-base", self.reviewed_main])
+            pushed = self.repo.head()
+            self.assertEqual(git(self.repo.remote, "rev-list", "--parents", "-n", "1", pushed).split()[1:], [claimed])
+            self.assertFalse(self.contains(moved, pushed))  # finalization never actualizes the base
+
+    def test_failing_check_under_the_proven_base_escalates_finalize(self):
+        (self.repo.root / "dev-platform/checks.toml").write_text('[settings]\nfull_commands = ["exit 3"]\n')
+        git(self.repo.root, "commit", "-qam", "candidate check fails")
+        self.repo.push("agent/example")
+        self.identity = gate.task_identity(self.repo.root, "example")
+        with RemoteFixture(self.repo) as fixture:
+            self.offer(fixture, gates=self.gates(omit=("selected-checks",)))
+            before = self.repo.head()
+            self.advance_main()
+            outcome, results = self.finalize(fixture, archiver=lambda *a: self.fail("must not archive"))
+            self.assertEqual(outcome["status"], "blocked-escalation")
+            self.assertIn("selected checks failed", outcome["reason"])
+            self.assertNotIn("freshness gate blocked", outcome["reason"])
+            self.assertEqual(fixture.candidate()["red_gate"]["name"], "finalize")
+            self.assertEqual(self.repo.head(), before)
+
+    def update_branch(self, fixture):
+        """GitHub ``update-branch``: merge current main into the PR branch; other calls are comments."""
+        def gh(root, *args, data=None, **kwargs):
+            if not str(args[3]).endswith("/update-branch"):
+                return fixture.post(*args, data=data, **kwargs)
+            work = Path(self.tmp.name) / "github"
+            if not work.exists():
+                git(Path(self.tmp.name), "clone", "-q", str(self.repo.remote), str(work))
+            git(work, "fetch", "-q", "origin")
+            git(work, "checkout", "-q", "--detach", data["expected_head_sha"])
+            git(work, "-c", "user.name=GitHub", "-c", "user.email=github@localhost", "merge", "-q", "--no-edit",
+                "origin/main")
+            git(work, "push", "-q", "origin", "HEAD:refs/heads/agent/example")
+        return gh
+
+    def prepare(self, fixture, finalized: str, moved: str):
+        git(self.repo.root, "fetch", "-q", "origin")
+        task_paths = set(git(self.repo.root, "diff", "--name-only", f"{self.reviewed_main}...{finalized}").splitlines())
+        admission = {"head": finalized, "base": self.reviewed_main, "comment_id": 0}
+        with mock.patch.object(queue, "_gh", side_effect=self.update_branch(fixture)) as gh, \
+                mock.patch.object(queue, "_events", return_value=[]), \
+                mock.patch.object(queue, "_main", return_value=moved), \
+                mock.patch.object(queue, "_task_paths", return_value=task_paths), \
+                mock.patch.object(queue, "_raise_if_owned_elsewhere"), \
+                mock.patch.object(queue.time, "sleep"):
+            try:
+                return queue._prepare(self.repo.root, "o/r", 7, admission, queue._pr(self.repo.root, "o/r", 7)), gh
+            except queue.QueueError as exc:
+                return exc, gh
+
+    def test_reviewed_candidate_finalizes_and_integrates_after_another_merge_without_developer(self):
+        with RemoteFixture(self.repo) as fixture:
+            self.offer(fixture)
+            claimed = self.repo.head()
+            moved = self.advance_main()  # candidate A merged and advanced main
+            outcome, _ = self.finalize(fixture, checks_runner=lambda *a, **k: self.fail("reused gates run no checks"))
+            self.assertEqual(outcome["status"], "finalized")
+            finalized = self.repo.head()
+            self.assertEqual(git(self.repo.remote, "rev-list", "--parents", "-n", "1", finalized).split()[1:], [claimed])
+            self.assertFalse(self.contains(moved, finalized))
+            self.assertEqual(fixture.candidate()["state"], "ready")
+            # The integration contour alone actualizes the base: a clean merge of current main.
+            (head, base), _ = self.prepare(fixture, finalized, moved)
+            self.assertEqual(base, moved)
+            self.assertEqual(head, self.repo.head())
+            self.assertEqual(git(self.repo.remote, "rev-list", "--parents", "-n", "1", head).split()[1:], [finalized, moved])
+            updates = [json.loads(c["body"][len(queue.PREFIX):]) for c in fixture.comments
+                       if c["body"].startswith(queue.PREFIX)]
+            self.assertIn({"version": 1, "number": 7, "kind": "update", "previous": finalized, "head": head,
+                           "base": moved}, updates)
+            self.assertFalse(self.ran.exists())
+
+    def test_real_conflict_with_new_main_is_integration_repair_not_a_finalize_block(self):
+        with RemoteFixture(self.repo) as fixture:
+            self.offer(fixture)
+            moved = self.advance_main("src.py", "value = 7\n")  # another PR edits the candidate's line
+            outcome, _ = self.finalize(fixture)
+            self.assertEqual(outcome["status"], "finalized")
+            finalized = self.repo.head()
+            result, gh = self.prepare(fixture, finalized, moved)
+            self.assertIsInstance(result, queue.IntegrationRepairNeeded)
+            self.assertIn("src.py", str(result))
+            self.assertFalse([c for c in gh.call_args_list if str(c.args[4]).endswith("/update-branch")])
+            self.assertEqual(self.repo.head(), finalized)
+
+    def test_main_merge_overlapping_task_paths_returns_to_review(self):
+        self.advance_main("src.py", "value = 7\n")
+        root = self.repo.root
+        git(root, "fetch", "-q", "origin")
+        merge = subprocess.run(["git", "merge", "-q", "--no-edit", "origin/main"], cwd=root, capture_output=True, check=False)
+        self.assertNotEqual(merge.returncode, 0)  # a real conflict in a task path
+        (root / "src.py").write_text("value = 8\n")
+        git(root, "add", "src.py")
+        git(root, "commit", "-qm", "resolve conflict with main")
+        self.repo.push("agent/example")
+        with RemoteFixture(self.repo) as fixture:
+            self.offer(fixture)
+            outcome, _ = self.finalize(fixture, archiver=lambda *a: self.fail("must not archive"))
+            self.assertEqual(outcome["status"], "returned-to-review")
+            candidate = fixture.candidate()
+            self.assertEqual(candidate["state"], "review-pending")
+            self.assertNotIn("review", candidate["gates"])
+            self.assertEqual(candidate["next_job"]["kind"], "review")
+            self.assertFalse(self.ran.exists())
 
 
 class RederivationTests(unittest.TestCase):

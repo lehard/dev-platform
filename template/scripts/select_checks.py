@@ -10,11 +10,14 @@ from pathlib import Path
 from typing import Any
 
 from _platform_common import (
+    PlatformConfigError,
     TaskFreshnessError,
     current_worktree_root,
+    lifecycle_mode,
     main_root,
     read_platform_config,
     require_fresh_task_base,
+    require_proven_task_base,
     run_git,
     validation_subprocess_env,
 )
@@ -438,6 +441,33 @@ def write_evidence(
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
+def require_proven_base_contract(root: Path, args: argparse.Namespace) -> str:
+    """Validate the bounded coordinator-finalization freshness contract before any command starts."""
+    refused = "Proven-base freshness contract refused before any command started: "
+    if not args.execute:
+        raise SystemExit(refused + "--proven-base requires --execute")
+    if args.evidence is not None:
+        raise SystemExit(refused + "--proven-base never produces handoff evidence and is refused with --evidence")
+    if args.contribution_base is not None:
+        raise SystemExit(refused + "--proven-base is refused with --contribution-base")
+    if args.mode == "protected-full":
+        raise SystemExit(refused + "--proven-base is refused in protected-full mode")
+    platform = read_platform_config(root)
+    try:
+        mode = lifecycle_mode(platform)
+    except PlatformConfigError as exc:
+        raise SystemExit(refused + f"lifecycle mode is not determinable: {exc}") from exc
+    if mode != "coordinator":
+        raise SystemExit(refused + f"--proven-base is accepted only in coordinator lifecycle mode (found {mode})")
+    main_branch = platform.get("main_branch")
+    if not isinstance(main_branch, str) or not main_branch:
+        raise SystemExit(refused + "main_branch must be a non-empty string in .dev-platform.toml")
+    try:
+        return require_proven_task_base(root, args.proven_base, "origin", main_branch)
+    except TaskFreshnessError as exc:
+        raise SystemExit(refused + str(exc)) from exc
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Select conservative project checks from changed files.")
     parser.add_argument("--base", help="Git base ref, e.g. origin/main")
@@ -448,6 +478,16 @@ def main() -> int:
             "Requirement contribution candidate: its freshness is the exact recorded integration "
             "base it contributes onto (HEAD must contain this commit), not current main. Current "
             "main is validated later by the Requirement composition candidate."
+        ),
+    )
+    parser.add_argument(
+        "--proven-base",
+        metavar="SHA",
+        help=(
+            "Coordinator finalization only: HEAD must fork from exactly this commit on origin/<main> "
+            "(merge-base(HEAD, origin/<main>) == SHA) instead of containing current main. Requires "
+            "--execute in coordinator lifecycle mode; refused with --evidence, --contribution-base "
+            "and protected-full."
         ),
     )
     parser.add_argument("--changed-file", action="append", default=[])
@@ -474,6 +514,7 @@ def main() -> int:
         args.mode = "protected-full"
 
     root = current_worktree_root()
+    proven_main = require_proven_base_contract(root, args) if args.proven_base is not None else None
     config = load_config(root)
     paths = [] if args.mode == "protected-full" else changed_files(root, args.base, args.changed_file)
     checks = (
@@ -510,7 +551,12 @@ def main() -> int:
         except ManagedTaskError as exc:
             raise SystemExit("Managed checkout identity gate blocked validation before any expensive command started: " + str(exc)) from exc
         if harness == "platform" and requires_task_freshness(checks):
-            if args.contribution_base:
+            if proven_main is not None:
+                print(
+                    "Task freshness gate passed (coordinator-finalization proven-base contract): "
+                    f"HEAD forks from its proven base {args.proven_base} on origin/{read_platform_config(root)['main_branch']} ({proven_main})."
+                )
+            elif args.contribution_base:
                 if run_git(["merge-base", "--is-ancestor", args.contribution_base, "HEAD"], cwd=root, check=False).returncode:
                     raise SystemExit(
                         "Task freshness gate blocked full/protected validation before any expensive command started: "
