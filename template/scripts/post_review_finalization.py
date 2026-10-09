@@ -22,8 +22,6 @@ import subprocess
 import sys
 from pathlib import Path
 from typing import Callable
-
-from machine_pool import child_lease_descriptors
 from task_content_identity import equivalent_proofs
 import lifecycle_workers as workers
 import pr_review_gate as review_gate
@@ -131,6 +129,9 @@ def trusted_checks_runner(checkout: Path, env: dict[str, str], *, contribution_b
         command += ["--contribution-base", contribution_base]
     # Finalization checks are admitted ahead of development runs by the machine pool.
     env = {**env, "DEV_PLATFORM_CHECK_CLASS": "finalize"}
+    # Imported here, like the other lifecycle callers: only a run that executes checks depends on the pool.
+    from machine_pool import child_lease_descriptors
+
     done = subprocess.run(command, cwd=checkout, env=env, pass_fds=child_lease_descriptors(env),
                           stdin=subprocess.DEVNULL, text=True, capture_output=True, check=False)
     if done.returncode:
