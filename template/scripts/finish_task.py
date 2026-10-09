@@ -25,7 +25,7 @@ from _platform_common import (
     run_git,
     preflight,
 )
-from delegation_containment import record_integration_advance
+from delegation_containment import ContainmentError, read_integration_advances, record_integration_advance, require_own_fast_forward
 from integration_state import (
     dirty_paths,
     fcntl,
@@ -504,6 +504,25 @@ def run_status(work: Path, integration: Path, config: dict, *, as_json: bool) ->
     return 0
 
 
+def _unrecorded_direct_advance(integration: Path, main_branch: str, branch: str, head: str) -> str | None:
+    """The head an earlier direct finish fast-forwarded main from to ``head``, unless already receipted.
+
+    ``None`` when main's reflog shows no fast-forward of ``branch`` to ``head`` (this task did not
+    advance main) or when a receipt for that advance already exists.
+    """
+    if any(receipt["after"] == head for receipt in read_integration_advances(integration)):
+        return None
+    lines = run_git(["log", "-g", "--format=%H%x00%gs", f"refs/heads/{main_branch}"], cwd=integration).stdout.splitlines()
+    entries = [line.split("\x00", 1) for line in lines]
+    for index, (new, subject) in enumerate(entries):
+        if new == head and subject == f"merge {branch}: Fast-forward":
+            if index + 1 == len(entries):
+                raise SystemExit(f"Reflog of {main_branch} records the fast-forward to {head[:12]} without its previous head; "
+                                 "the integration advance receipt cannot be written.")
+            return entries[index + 1][0]
+    return None
+
+
 def integrate_and_publish_direct(work: Path, integration: Path, config: dict, branch: str, main_branch: str) -> None:
     fetch_main(integration, "origin", main_branch)
     remote_main = f"origin/{main_branch}"
@@ -526,7 +545,15 @@ def integrate_and_publish_direct(work: Path, integration: Path, config: dict, br
     env[DIRECT_PUBLISH_GUARD] = "1"
     subprocess.run(["python3", str(integration / "scripts" / "project_publish.py"), "--mode", "direct"], cwd=integration, check=True, env=env, stdin=subprocess.DEVNULL)
     advanced_to = run_git(["rev-parse", "HEAD"], cwd=integration).stdout.strip()
+    if advanced_from is not None and advanced_from == advanced_to:
+        # A retry after a failed publication finds main already advanced by the
+        # earlier run; main's reflog proves where that run started.
+        advanced_from = _unrecorded_direct_advance(integration, main_branch, branch, advanced_to)
     if advanced_from is not None and advanced_from != advanced_to:
+        try:
+            require_own_fast_forward(integration, main_branch, advanced_from, advanced_to, branch)
+        except ContainmentError as exc:
+            raise SystemExit(str(exc)) from exc
         # Direct publication fast-forwards the local main before the push, so the
         # receipt is written once the push made `origin/<main>` equal the new head.
         record_integration_advance(

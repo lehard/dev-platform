@@ -21,64 +21,89 @@ import finish_task  # noqa: E402
 
 
 class DirectFinishRetryTests(unittest.TestCase):
-    def test_already_integrated_branch_retries_without_a_receipt(self) -> None:
-        work = Path("/task")
-        integration = Path("/integration")
-        head = "a" * 40
-        with (
-            mock.patch.object(finish_task, "fetch_main"),
-            mock.patch.object(finish_task, "clean", return_value=True),
-            mock.patch.object(finish_task, "current_branch", return_value="main"),
-            mock.patch.object(finish_task, "run_git", return_value=subprocess.CompletedProcess([], 0, head)) as git_call,
-            mock.patch.object(finish_task.subprocess, "run") as publish,
-            mock.patch.object(finish_task, "record_integration_advance") as receipt,
-        ):
-            # Both a publication retry and a later bookkeeping retry see the
-            # task branch already integrated into main.
-            for _ in range(2):
-                finish_task.integrate_and_publish_direct(work, integration, {}, "agent/task", "main")
-            self.assertEqual(publish.call_count, 2)
-            self.assertEqual(sum(call.args[0] == ["merge", "--ff-only", "agent/task"] for call in git_call.call_args_list), 2)
-            receipt.assert_not_called()
+    """Direct finish against a real integration repo whose publication can be made to fail."""
 
-    def test_publication_failure_then_unchanged_head_retry_succeeds(self) -> None:
-        before, after = "a" * 40, "b" * 40
-        heads = iter((before, after, after))
+    PUBLISH = (
+        "import pathlib, subprocess, sys\n"
+        "if pathlib.Path('.fail-publish').exists():\n"
+        "    sys.exit(1)\n"
+        "subprocess.run(['git', 'update-ref', 'refs/remotes/origin/main', 'HEAD'], check=True)\n"
+    )
 
-        def git_result(args, **kwargs):
-            return subprocess.CompletedProcess(args, 0, next(heads) if args == ["rev-parse", "HEAD"] else "")
+    def setUp(self) -> None:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.integration = Path(tmp.name).resolve() / "integration"
+        self.integration.mkdir()
+        git("init", "-q", "-b", "main", cwd=self.integration)
+        configure(self.integration)
+        (self.integration / ".git" / "info" / "exclude").write_text("scripts/\n.claude/\n.fail-publish\n", encoding="utf-8")
+        (self.integration / "scripts").mkdir()
+        (self.integration / "scripts" / "project_publish.py").write_text(self.PUBLISH, encoding="utf-8")
+        (self.integration / "base.txt").write_text("base\n", encoding="utf-8")
+        git("add", "base.txt", cwd=self.integration)
+        git("commit", "-qm", "base", cwd=self.integration)
+        self.base = git("rev-parse", "HEAD", cwd=self.integration).stdout.strip()
+        git("update-ref", "refs/remotes/origin/main", self.base, cwd=self.integration)
+        git("branch", "agent/task", cwd=self.integration)
+        git("switch", "-q", "agent/task", cwd=self.integration)
+        (self.integration / "task.txt").write_text("task\n", encoding="utf-8")
+        git("add", "task.txt", cwd=self.integration)
+        git("commit", "-qm", "task", cwd=self.integration)
+        self.task = git("rev-parse", "HEAD", cwd=self.integration).stdout.strip()
+        git("switch", "-q", "main", cwd=self.integration)
+        self.work = Path(tmp.name).resolve() / "task-worktree"
+        fetch = mock.patch.object(finish_task, "fetch_main")
+        fetch.start()
+        self.addCleanup(fetch.stop)
 
-        with (
-            mock.patch.object(finish_task, "fetch_main"),
-            mock.patch.object(finish_task, "clean", return_value=True),
-            mock.patch.object(finish_task, "current_branch", return_value="main"),
-            mock.patch.object(finish_task, "run_git", side_effect=git_result),
-            mock.patch.object(finish_task.subprocess, "run", side_effect=[subprocess.CalledProcessError(1, "publish"), None]),
-            mock.patch.object(finish_task, "record_integration_advance") as receipt,
-        ):
-            with self.assertRaises(subprocess.CalledProcessError):
-                finish_task.integrate_and_publish_direct(Path("/task"), Path("/integration"), {}, "agent/task", "main")
-            finish_task.integrate_and_publish_direct(Path("/task"), Path("/integration"), {}, "agent/task", "main")
-            receipt.assert_not_called()
+    def finish(self, branch: str = "agent/task") -> None:
+        finish_task.integrate_and_publish_direct(self.work, self.integration, {}, branch, "main")
 
-    def test_actual_advance_records_explicit_origin(self) -> None:
-        before, after = "a" * 40, "b" * 40
-        heads = iter((before, after))
+    def receipts(self) -> list[dict]:
+        return finish_task.read_integration_advances(self.integration)
 
-        def git_result(args, **kwargs):
-            return subprocess.CompletedProcess(args, 0, next(heads) if args == ["rev-parse", "HEAD"] else "")
+    def test_actual_advance_records_one_origin_receipt(self) -> None:
+        self.finish()
+        [receipt] = self.receipts()
+        self.assertEqual((receipt["before"], receipt["after"], receipt["remote"], receipt["origin_main"], receipt["tool"]),
+                         (self.base, self.task, "origin", self.task, "finish_task.integrate_and_publish_direct"))
+        self.assertEqual(receipt["actor_worktree"], str(self.work))
 
-        with (
-            mock.patch.object(finish_task, "fetch_main"),
-            mock.patch.object(finish_task, "clean", return_value=True),
-            mock.patch.object(finish_task, "current_branch", return_value="main"),
-            mock.patch.object(finish_task, "run_git", side_effect=git_result),
-            mock.patch.object(finish_task.subprocess, "run"),
-            mock.patch.object(finish_task, "record_integration_advance") as receipt,
-        ):
-            finish_task.integrate_and_publish_direct(Path("/task"), Path("/integration"), {}, "agent/task", "main")
-            receipt.assert_called_once_with(Path("/integration"), before, after,
-                tool="finish_task.integrate_and_publish_direct", actor_worktree=Path("/task"), remote="origin")
+    def test_publication_failure_then_retry_records_the_advance_once(self) -> None:
+        (self.integration / ".fail-publish").write_text("", encoding="utf-8")
+        with self.assertRaises(subprocess.CalledProcessError):
+            self.finish()
+        self.assertEqual(git("rev-parse", "main", cwd=self.integration).stdout.strip(), self.task)
+        self.assertEqual(self.receipts(), [])
+        (self.integration / ".fail-publish").unlink()
+        self.finish()
+        [receipt] = self.receipts()
+        self.assertEqual((receipt["before"], receipt["after"]), (self.base, self.task))
+        # A later bookkeeping retry finds the advance already receipted.
+        self.finish()
+        self.assertEqual(len(self.receipts()), 1)
+
+    def test_branch_already_equal_to_main_records_nothing(self) -> None:
+        git("branch", "agent/empty", "main", cwd=self.integration)
+        self.finish("agent/empty")
+        self.assertEqual(self.receipts(), [])
+
+    def test_concurrent_main_move_writes_no_receipt(self) -> None:
+        # Another writer moves main between this run's head read and its merge: the merge is then
+        # an up-to-date no-op and the reflog does not prove this run's fast-forward.
+        real_run_git = finish_task.run_git
+
+        def racing_run_git(args, **kwargs):
+            if args == ["merge", "--ff-only", "agent/task"]:
+                real_run_git(["update-ref", "refs/heads/main", self.task], **kwargs)
+                real_run_git(["reset", "-q", "--hard"], **kwargs)
+            return real_run_git(args, **kwargs)
+
+        with mock.patch.object(finish_task, "run_git", side_effect=racing_run_git):
+            with self.assertRaisesRegex(SystemExit, "moved concurrently"):
+                self.finish()
+        self.assertEqual(self.receipts(), [])
 
 
 def run(*args: str, cwd: Path, check: bool = True, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
@@ -160,6 +185,16 @@ class GitLifecycleTests(unittest.TestCase):
         retry = run("python3", "scripts/project_sync.py", "--remote", "upstream", cwd=self.repo)
         self.assertIn("already synchronized", retry.stdout)
         self.assertEqual(len(self._receipts()), 1)
+
+    def test_sync_waits_for_the_integration_lock(self) -> None:
+        import integration_state
+        before = git("rev-parse", "HEAD", cwd=self.repo).stdout.strip()
+        with integration_state.serialized_integration(self.repo, {}, 0):
+            result = run("python3", "scripts/project_sync.py", "--lock-timeout", "0", cwd=self.repo, check=False)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Another agent is still integrating", result.stderr + result.stdout)
+        self.assertEqual(git("rev-parse", "HEAD", cwd=self.repo).stdout.strip(), before)
+        self.assertEqual(self._receipts(), [])
 
     def test_sync_refuses_local_ahead(self) -> None:
         (self.repo / "local.txt").write_text("local\n", encoding="utf-8"); git("add", "local.txt", cwd=self.repo); git("commit", "-m", "local", cwd=self.repo)

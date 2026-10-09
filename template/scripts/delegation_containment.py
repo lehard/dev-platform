@@ -425,6 +425,21 @@ def _parse_receipt_time(value: Any, where: str) -> datetime:
     return parsed
 
 
+def require_own_fast_forward(integration_root: Path, branch: str, before: str, after: str, source: str) -> None:
+    """Prove from ``branch``'s reflog that this caller's ``git merge --ff-only <source>`` moved it ``before`` -> ``after``.
+
+    A concurrent writer that advanced ``branch`` between the caller's head read and its merge leaves a
+    different newest entry (an up-to-date merge writes none), so the advance cannot be misattributed.
+    """
+    lines = run_git(integration_root, "log", "-g", "-2", "--format=%H%x00%gs", f"refs/heads/{branch}").stdout.splitlines()
+    entries = [line.split("\x00", 1) for line in lines]
+    if len(entries) != 2 or entries[0] != [after, f"merge {source}: Fast-forward"] or entries[1][0] != before:
+        raise ContainmentError(
+            f"{branch} reflog does not show this caller's fast-forward {before[:12]}..{after[:12]} from {source}; "
+            "integration moved concurrently, so no integration advance receipt is written"
+        )
+
+
 def read_integration_advances(integration_root: Path) -> list[dict[str, Any]]:
     """Read every receipt, strictly. An absent log is an empty list; any malformed line raises."""
     log = integration_advance_log(integration_root)
