@@ -25,6 +25,7 @@ from _platform_common import (
     run_git,
     preflight,
 )
+from delegation_containment import ContainmentError, read_integration_advances, record_integration_advance, require_own_fast_forward
 from integration_state import (
     dirty_paths,
     fcntl,
@@ -508,9 +509,29 @@ def run_status(work: Path, integration: Path, config: dict, *, as_json: bool) ->
     return 0
 
 
+def _unrecorded_direct_advance(integration: Path, main_branch: str, branch: str, head: str) -> str | None:
+    """The head an earlier direct finish fast-forwarded main from to ``head``, unless already receipted.
+
+    ``None`` when main's reflog shows no fast-forward of ``branch`` to ``head`` (this task did not
+    advance main) or when a receipt for that advance already exists.
+    """
+    if any(receipt["after"] == head for receipt in read_integration_advances(integration)):
+        return None
+    lines = run_git(["log", "-g", "--format=%H%x00%gs", f"refs/heads/{main_branch}"], cwd=integration).stdout.splitlines()
+    entries = [line.split("\x00", 1) for line in lines]
+    for index, (new, subject) in enumerate(entries):
+        if new == head and subject == f"merge {branch}: Fast-forward":
+            if index + 1 == len(entries):
+                raise SystemExit(f"Reflog of {main_branch} records the fast-forward to {head[:12]} without its previous head; "
+                                 "the integration advance receipt cannot be written.")
+            return entries[index + 1][0]
+    return None
+
+
 def integrate_and_publish_direct(work: Path, integration: Path, config: dict, branch: str, main_branch: str) -> None:
     fetch_main(integration, "origin", main_branch)
     remote_main = f"origin/{main_branch}"
+    advanced_from: str | None = None
     if branch != main_branch:
         if not clean(integration):
             raise SystemExit("Integration copy is dirty. Resolve it before direct integration.")
@@ -522,11 +543,32 @@ def integrate_and_publish_direct(work: Path, integration: Path, config: dict, br
             raise SystemExit(f"Local {main_branch} is not safely based on current {remote_main}.")
         if run_git(["merge-base", "--is-ancestor", main_branch, branch], cwd=integration, check=False).returncode != 0:
             raise SystemExit(f"{branch} is stale relative to current local {main_branch}. Rebase/update explicitly and rerun checks.")
+        advanced_from = run_git(["rev-parse", "HEAD"], cwd=integration).stdout.strip()
         run_git(["merge", "--ff-only", branch], cwd=integration)
         print(f"Integrated {branch} -> {main_branch} locally.")
     env = os.environ.copy()
     env[DIRECT_PUBLISH_GUARD] = "1"
     subprocess.run(["python3", str(integration / "scripts" / "project_publish.py"), "--mode", "direct"], cwd=integration, check=True, env=env, stdin=subprocess.DEVNULL)
+    advanced_to = run_git(["rev-parse", "HEAD"], cwd=integration).stdout.strip()
+    if advanced_from is not None and advanced_from == advanced_to:
+        # A retry after a failed publication finds main already advanced by the
+        # earlier run; main's reflog proves where that run started.
+        advanced_from = _unrecorded_direct_advance(integration, main_branch, branch, advanced_to)
+    if advanced_from is not None and advanced_from != advanced_to:
+        try:
+            require_own_fast_forward(integration, main_branch, advanced_from, advanced_to, branch)
+        except ContainmentError as exc:
+            raise SystemExit(str(exc)) from exc
+        # Direct publication fast-forwards the local main before the push, so the
+        # receipt is written once the push made `origin/<main>` equal the new head.
+        record_integration_advance(
+            integration,
+            advanced_from,
+            advanced_to,
+            tool="finish_task.integrate_and_publish_direct",
+            actor_worktree=work,
+            remote="origin",
+        )
 
 
 def sync_after_remote_pr_merge(work: Path, integration: Path, config: dict, main_branch: str) -> None:
@@ -543,7 +585,19 @@ def sync_after_remote_pr_merge(work: Path, integration: Path, config: dict, main
                 "Leave it untouched and synchronize main manually after resolving local state. Affected paths: "
                 + ", ".join(paths)
             )
+        normalize_head = run_git(["rev-parse", "HEAD"], cwd=integration).stdout.strip()
+        normalize_on_main = current_branch(integration) == main_branch
         normalize_equivalent_remote_state(integration, remote_main)
+        normalized_head = run_git(["rev-parse", "HEAD"], cwd=integration).stdout.strip()
+        if normalize_on_main and normalized_head != normalize_head:
+            record_integration_advance(
+                integration,
+                normalize_head,
+                normalized_head,
+                tool="finish_task.sync_after_remote_pr_merge.normalize",
+                actor_worktree=work,
+                remote="origin",
+            )
         print(f"Normalized integration index to the already-merged {remote_main}; local content was proven equivalent.")
     remote_main = f"origin/{main_branch}"
     if work == integration:
@@ -552,7 +606,21 @@ def sync_after_remote_pr_merge(work: Path, integration: Path, config: dict, main
         raise SystemExit(f"Remote PR merged, but integration copy must have {main_branch!r} checked out before synchronization.")
     state = relation(integration, main_branch, remote_main)
     if state == "behind":
+        before_head = run_git(["rev-parse", "HEAD"], cwd=integration).stdout.strip()
         run_git(["merge", "--ff-only", remote_main], cwd=integration)
+        after_head = run_git(["rev-parse", "HEAD"], cwd=integration).stdout.strip()
+        try:
+            require_own_fast_forward(integration, main_branch, before_head, after_head, remote_main)
+        except ContainmentError as exc:
+            raise SystemExit(str(exc)) from exc
+        record_integration_advance(
+            integration,
+            before_head,
+            after_head,
+            tool="finish_task.sync_after_remote_pr_merge",
+            actor_worktree=work,
+            remote="origin",
+        )
         print(f"Fast-forwarded local {main_branch} to merged {remote_main}.")
     elif state == "equal":
         print(f"Local {main_branch} already equals merged {remote_main}.")

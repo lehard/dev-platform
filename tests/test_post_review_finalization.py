@@ -331,6 +331,46 @@ class FinalizeTests(unittest.TestCase):
             self.assertEqual(lifecycle.completed_active_changes_at(self.repo.remote, self.repo.head()), [])
             self.assertEqual(json.loads(results[-1][len(workers.RESULT_PREFIX):])["outcome"], "finalized")
 
+    def test_stale_head_observation_after_push_is_recovered_as_ready_by_the_queue(self):
+        with RemoteFixture(self.repo) as fixture:
+            self.offer(fixture)
+            before = self.repo.head()
+            candidate = fixture.candidate()
+            job = workers.build_job(candidate)
+            results = []
+            with tempfile.TemporaryDirectory(dir=self.tmp.name) as workdir:
+                # GitHub still reports the pre-push head right after the archive push.
+                outcome = final.run_claimed_finalize(
+                    self.repo.root, "o/r", candidate, job, source_repo=self.repo.remote.as_uri(),
+                    branch="agent/example", current_head=lambda: before, workdir=workdir,
+                    post_result=results.append, archiver=self.archiver, claim_current=lambda: True, worker="w")
+            self.assertEqual(outcome["status"], "discarded")
+            pushed = self.repo.head()
+            self.assertNotEqual(pushed, before)
+            receipt = next(body for body in results if '"validated-push"' in body)
+            fixture.comments.append({"id": 900, "author_association": "OWNER", "body": receipt})
+            self.assertEqual(queue._latest(self.repo.root, 7, list(fixture.comments))["state"], "finalize-pending")
+            derived = fixture.candidate()
+            self.assertEqual((derived["state"], derived["reason"]), ("ready", "recover validated finalization push"))
+            pr = queue._pr(self.repo.root, "o/r", 7)
+            self.assertTrue(final.recover_finalization_push(self.repo.root, "o/r", 7, pr, list(fixture.comments)))
+            latest = queue._latest(self.repo.root, 7, list(fixture.comments))
+            self.assertEqual((latest["state"], latest["head"]), ("ready", pushed))
+            self.assertEqual(sorted(fixture.candidate()["gates"]), ["review", "selected-checks", "semantic-verification"])
+            count = len(fixture.comments)
+            self.assertFalse(final.recover_finalization_push(self.repo.root, "o/r", 7, pr, list(fixture.comments)))
+            self.assertEqual(len(fixture.comments), count)
+
+    def test_finalization_recovery_refuses_contribution_and_composition_candidates(self):
+        for kind in ("contribution", "requirement-composition"):
+            with self.subTest(kind=kind):
+                derived = {"state": "ready", "reason": "recover validated finalization push", "head": "a" * 40,
+                           "task_identity": {"kind": kind}, "gates": {}}
+                adapter = mock.Mock(_derive=mock.Mock(return_value=derived))
+                with self.assertRaisesRegex(workers.WorkerError, "not recovered as a main integration candidate"):
+                    final.recover_finalization_push(self.repo.root, "o/r", 7, {}, [], adapter=adapter)
+                adapter._transition.assert_not_called()
+
     def test_finalize_is_idempotent_when_already_archived(self):
         with RemoteFixture(self.repo) as fixture:
             self.offer(fixture)
