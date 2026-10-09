@@ -1,23 +1,30 @@
 {
-  "availability": "unavailable",
+  "availability": "available",
   "candidate": {
     "base_head": "b93ffc444164bbf1a006d60f117e8378131a2924",
     "base_ref": "origin/main",
-    "candidate_head": "f110af65c8e085f0e51cedccd5a09e2865fcfa70",
-    "diff_sha256": "dd5ac1f88776df691fa5cb71b555be4df7d36fba5dd935013404a410271a8860"
+    "candidate_head": "630c82861f829f289332e07c6950eb4474eb71cc",
+    "diff_sha256": "f636c43a711b06fa0e95ddabfc1babbd128db90c25ce60fac635c14bc67febb2"
   },
-  "completed_at": "2026-10-09T11:51:46+00:00",
-  "findings": [],
-  "launched_at": "2026-10-09T11:51:46+00:00",
-  "limitation": "codex reviewer runtime with model 'gpt-6.1-sol' is not ready: probe exited with status 1 (You\u2019ve hit your usage limit. Upgrade to Pro (https://chatgpt.com/explore/pro), visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at Oct 14th, 2026 8:27 AM.); next: log the codex CLI in on this host, or change the [model_routing] / [independent_review] binding for this account (no other model or provider is tried), then rerun python3 scripts/independent_review.py preflight",
+  "completed_at": "2026-10-09T12:01:31+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/model_routing.py:1130 spreads the existing plan and replaces its policy with complex-parent, preserving owner_approval; line 1134 writes it without validation. For a standard route accepted by approve_supervisor_diff, a subsequent escalate therefore succeeds but leaves a record that _validate_execution_plan rejects at lines 314\u2013317 because owner_approval is only valid with owner-approved. This contradicts the proposal's non-goal of changing ordinary escalation rules and prevents record-retained-execution from completing the approved route.",
+      "id": "escalation-invalidates-owner-approved-plan",
+      "severity": "material",
+      "summary": "Escalating an owner-approved route writes an invalid routing record, blocking subsequent finalization and lifecycle commands."
+    }
+  ],
+  "launched_at": "2026-10-09T12:00:53+00:00",
+  "output_sha256": "f2222194bba5965bdec4c1aed37cdfd9598914ff08977ff9725edc8d815e8ce4",
   "perspective": "spec-fidelity",
-  "request_id": "418ffa19-3e21-4c4d-84e8-9352ff50c76d",
+  "request_id": "6c1b5529-2b46-4650-a9de-e919253a51ff",
   "reviewer": {
-    "context_id": "platform-launch-9404ce7b-0e7a-44c0-99ca-78a98c4a16d2",
-    "context_id_source": "platform-launch",
+    "context_id": "01a12089-a3e8-71e3-b9d8-23d64cd45e19",
+    "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-9404ce7b-0e7a-44c0-99ca-78a98c4a16d2",
+    "launch_id": "platform-launch-821e5a34-cf58-48f5-aa94-58a7ab4097a5",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -26,6 +33,26 @@
     "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
     "runtime": "codex-exec",
     "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cached_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 122624
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 167206
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 698
+      }
+    },
+    "runtime": "codex-exec"
   },
   "schema_version": 1,
   "task_content_digest": "c265224919566edc8c2a9446d0ac87dbb74f79f0bedd5b53f86780fe855580ba"
