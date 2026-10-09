@@ -152,4 +152,4 @@ jobs:
         run: python3 tests/rollout_recopy_smoke.py
 
       - name: Smoke-test public distribution snapshot completeness
-        run: python3 tests/public_distribution_snapshot_smoke.py
+        run: python3 tests/public_distribution_snapshot_smoke.py --lifecycle-stage "${{ github.event_name == 'pull_request' && 'candidate' || 'integration' }}"
