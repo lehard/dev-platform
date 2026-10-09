@@ -1,0 +1,83 @@
+{
+  "candidate": {
+    "base_head": "3df526d8aa798ad591f02c59d2e55448ce40ff32",
+    "base_ref": "3df526d8aa798ad591f02c59d2e55448ce40ff32",
+    "candidate_head": "d5592874e2f62f8a4277ec35e1c8fd39d686f06b",
+    "diff_sha256": "63a13a060f0002775fd40c2866aea9ed5d238e28a23d8d965cb7a735de562318"
+  },
+  "change": "openspec/changes/add-platform-explorer-foundation",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/add-platform-explorer-foundation/automated-checks.json",
+    "openspec/changes/add-platform-explorer-foundation/independent-review-request.json",
+    "openspec/changes/add-platform-explorer-foundation/independent-reviews/engineering-quality.json",
+    "openspec/changes/add-platform-explorer-foundation/independent-reviews/spec-fidelity.json",
+    "openspec/changes/add-platform-explorer-foundation/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/add-platform-explorer-foundation/design.md",
+        "openspec/changes/add-platform-explorer-foundation/proposal.md",
+        "openspec/changes/add-platform-explorer-foundation/specs/platform-explorer/spec.md",
+        "openspec/changes/add-platform-explorer-foundation/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/add-platform-explorer-foundation/proposal.md",
+        "openspec/changes/add-platform-explorer-foundation/design.md",
+        "openspec/changes/add-platform-explorer-foundation/tasks.md",
+        "openspec/changes/add-platform-explorer-foundation/specs/platform-explorer/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-08T08:23:54+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/add-platform-explorer-foundation/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "448d42bf-b838-4c62-81de-e585237b0553",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "3df526d8aa798ad591f02c59d2e55448ce40ff32",
+    "digest": "e0d6fc16d814e46197569f3ead11649b94461a50ac887934c037e4587fe88962",
+    "paths": {
+      ".gitignore": "5dd410f152bbf7a0491796d19e663852f2eeff6e",
+      "dev-platform/checks.toml": "57455afb0206e393f3e6721dcfa110438ffa0284",
+      "docs/engineering/explorer.md": "f334d3b3d1d220339f84439dfdea66d48aa7d1ca",
+      "docs/ownership.md": "e7234bc48957e3960ce43cf6796d9740fdfbd9b5",
+      "explorer/assets/explorer.css": "8a1ac05f65f805adcf4d3515c3cf230ff8f016fe",
+      "explorer/assets/explorer.js": "f421972e06be222ad3d65f8aaa7917c7640f4207",
+      "explorer/map.toml": "a661e4e12a81f150c61974dc6ff351cfe1902d5e",
+      "openspec/changes/add-platform-explorer-foundation/.managed-task.json": "fd37e2e9a16205aadd09239c18aba137ec940bfb",
+      "openspec/changes/add-platform-explorer-foundation/.openspec.yaml": "01660bab056db86b8ce3c840115bb6b57cd15555",
+      "openspec/changes/add-platform-explorer-foundation/design.md": "5d46a4b0a1f2542735948b97f795113b9edaf7a8",
+      "openspec/changes/add-platform-explorer-foundation/proposal.md": "382efdd4d4e4a42932521c7f7bace8ccc0293ddf",
+      "openspec/changes/add-platform-explorer-foundation/specs/platform-explorer/spec.md": "a61e4577f55d37ccb38e0ba535649fa5ced15a07",
+      "openspec/changes/add-platform-explorer-foundation/tasks.md": "ad757f2553aa9b572eca199ddeaf41074e32aabc",
+      "scripts/build_explorer.py": "8e12115cd651cd218284f21af99102c80b5fdc09",
+      "tests/test_build_explorer.py": "a59abe9a4a5b7f28abb16f1154db3a9ea362ba42"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

@@ -1,0 +1,341 @@
+# Dev Platform Explorer map: structure only.
+#
+# This file owns element identity, titles, hierarchy, order, relations and
+# source references. It carries no explanatory prose: every explanation is
+# rendered from the referenced git-tracked source file (`path` or
+# `path#Heading`). Contract: docs/engineering/explorer.md.
+
+[site]
+title = "Dev Platform Explorer"
+
+# --- Platform overview ------------------------------------------------------
+
+[[element]]
+id = "overview"
+title = "Platform overview"
+order = 10
+sources = ["README.md#Why a platform instead of `AGENTS.md` + scripts?"]
+related = ["agent-process"]
+
+[[element]]
+id = "core-capabilities"
+title = "Core capabilities"
+parent = "overview"
+order = 10
+sources = ["README.md#Core capabilities"]
+
+[[element]]
+id = "how-it-works"
+title = "How a change moves through the platform"
+parent = "overview"
+order = 20
+sources = ["README.md#How it works"]
+related = ["agent-workflow", "openspec-workflow", "model-routing"]
+
+[[element]]
+id = "agent-interoperability"
+title = "Agent interoperability"
+parent = "overview"
+order = 30
+sources = ["README.md#Agent interoperability"]
+related = ["model-routing", "agent-instructions"]
+
+[[element]]
+id = "workflow-profiles"
+title = "Workflow profiles"
+parent = "overview"
+order = 40
+sources = ["README.md#Workflow profiles"]
+
+[[element]]
+id = "architecture"
+title = "Architecture"
+parent = "overview"
+order = 50
+sources = ["README.md#Architecture"]
+
+[[element]]
+id = "safety-reliability"
+title = "Safety and reliability"
+parent = "overview"
+order = 60
+sources = ["README.md#Safety and reliability"]
+
+[[element]]
+id = "friction-loop"
+title = "Continuous improvement loop"
+parent = "overview"
+order = 70
+sources = ["README.md#Continuous improvement / friction loop"]
+related = ["process-improvement", "promotion-loop"]
+
+[[element]]
+id = "repository-structure"
+title = "Repository structure"
+parent = "overview"
+order = 80
+sources = ["README.md#Repository structure"]
+related = ["ownership-model"]
+
+# --- Adoption -----------------------------------------------------------------
+
+[[element]]
+id = "adoption-area"
+title = "Adopting the platform"
+order = 20
+sources = ["README.md#Quick start"]
+
+[[element]]
+id = "adoption-guide"
+title = "Adoption guide"
+parent = "adoption-area"
+order = 10
+sources = ["docs/adoption.md"]
+related = ["managed-rollout", "release-policy"]
+
+[[element]]
+id = "project-owned-config"
+title = "Project-owned platform configuration"
+parent = "adoption-area"
+order = 20
+sources = ["docs/project-owned-config.md"]
+related = ["ownership-model"]
+
+# --- Ownership, release and rollout -------------------------------------------
+
+[[element]]
+id = "ownership-model"
+title = "Platform ownership model"
+order = 30
+sources = ["docs/ownership.md"]
+related = ["project-owned-config", "explorer"]
+
+[[element]]
+id = "release-area"
+title = "Release and rollout"
+order = 40
+sources = ["docs/release-policy.md#Release identity"]
+
+[[element]]
+id = "release-policy"
+title = "Platform release policy"
+parent = "release-area"
+order = 10
+sources = ["docs/release-policy.md"]
+related = ["managed-rollout", "adoption-guide"]
+
+[[element]]
+id = "managed-rollout"
+title = "Managed project rollout"
+parent = "release-area"
+order = 20
+sources = ["docs/managed-rollout.md"]
+related = ["release-policy"]
+
+[[element]]
+id = "public-cutover"
+title = "Public distribution cutover"
+parent = "release-area"
+order = 30
+sources = ["docs/public-cutover.md"]
+
+# --- Agent process --------------------------------------------------------------
+
+[[element]]
+id = "agent-process"
+title = "Agent process"
+order = 50
+sources = ["AGENTS.md#Sources of truth"]
+related = ["overview"]
+
+[[element]]
+id = "task-intake"
+title = "Managed task intake"
+parent = "agent-process"
+order = 10
+sources = ["docs/engineering/task-intake.md"]
+related = ["agent-workflow", "chatgpt-project-protocol"]
+
+[[element]]
+id = "agent-workflow"
+title = "Agent workflow"
+parent = "agent-process"
+order = 20
+sources = ["docs/engineering/agent-workflow.md"]
+related = ["task-intake", "openspec-workflow", "model-routing"]
+
+[[element]]
+id = "openspec-workflow"
+title = "OpenSpec workflow"
+parent = "agent-process"
+order = 30
+sources = ["docs/engineering/openspec-workflow.md"]
+related = ["agent-workflow", "specs"]
+
+[[element]]
+id = "model-routing"
+title = "Model routing and delegated containment"
+parent = "agent-process"
+order = 40
+sources = ["docs/engineering/model-routing.md"]
+related = ["agent-workflow"]
+
+[[element]]
+id = "agent-instructions"
+title = "Agent-facing instruction architecture"
+parent = "agent-process"
+order = 50
+sources = ["docs/engineering/agent-instructions.md"]
+related = ["agent-interoperability"]
+
+[[element]]
+id = "chatgpt-project-protocol"
+title = "ChatGPT Project protocol"
+parent = "agent-process"
+order = 60
+sources = ["docs/engineering/chatgpt-project-protocol.md"]
+related = ["task-intake"]
+
+[[element]]
+id = "local-workspace"
+title = "Operator-local workspace attachment"
+parent = "agent-process"
+order = 70
+sources = ["docs/engineering/local-workspace.md"]
+
+# --- Verification and capabilities -------------------------------------------------
+
+[[element]]
+id = "verification-area"
+title = "Verification and engineering capabilities"
+order = 60
+sources = ["docs/engineering/engineering-capabilities.md#Source and selection"]
+
+[[element]]
+id = "engineering-capabilities"
+title = "Optional engineering capabilities"
+parent = "verification-area"
+order = 10
+sources = ["docs/engineering/engineering-capabilities.md"]
+related = ["capabilities"]
+
+[[element]]
+id = "browser-verification"
+title = "Browser verification adapter"
+parent = "verification-area"
+order = 20
+sources = ["docs/engineering/browser-verification.md"]
+related = ["engineering-capabilities"]
+
+[[element]]
+id = "frontend-design-capabilities"
+title = "Frontend design capabilities"
+parent = "verification-area"
+order = 30
+sources = ["docs/engineering/frontend-design-capabilities.md"]
+related = ["engineering-capabilities"]
+
+[[element]]
+id = "code-erosion"
+title = "Code erosion signal"
+parent = "verification-area"
+order = 40
+sources = ["docs/engineering/code-erosion.md"]
+
+[[element]]
+id = "upstream-substitution"
+title = "Upstream substitution gate"
+parent = "verification-area"
+order = 50
+sources = ["docs/engineering/upstream-substitution.md"]
+related = ["decisions"]
+
+[[element]]
+id = "harness-replay-lab"
+title = "Harness Replay Lab"
+parent = "verification-area"
+order = 60
+sources = ["docs/engineering/harness-replay-lab.md"]
+
+[[element]]
+id = "deepseek-harness-runtime"
+title = "Experimental DeepSeek Harness runtime adapter"
+parent = "verification-area"
+order = 70
+sources = ["docs/engineering/deepseek-harness-runtime.md"]
+
+# --- Process improvement ------------------------------------------------------------
+
+[[element]]
+id = "process-improvement"
+title = "Process improvement"
+order = 70
+
+[[element]]
+id = "promotion-loop"
+title = "Promotion loop"
+parent = "process-improvement"
+order = 10
+sources = ["docs/promotion-loop.md"]
+
+[[element]]
+id = "platform-health-review"
+title = "Private Platform Health Review"
+parent = "process-improvement"
+order = 20
+sources = ["docs/private-platform-health-review.md"]
+
+[[element]]
+id = "agentic-workflows"
+title = "GitHub Agentic Workflows pilot"
+parent = "process-improvement"
+order = 30
+sources = ["docs/agentic-workflows.md"]
+
+# --- Explorer itself -----------------------------------------------------------------
+
+[[element]]
+id = "explorer"
+title = "This Explorer"
+order = 80
+sources = ["docs/engineering/explorer.md"]
+related = ["ownership-model"]
+
+# --- Contracts and records (enumerated automatically) -----------------------------------
+
+[[element]]
+id = "contracts"
+title = "Contracts and records"
+order = 90
+sources = ["docs/decisions/README.md#Decision registry"]
+
+[[collection]]
+id = "specs"
+title = "Accepted OpenSpec specifications"
+parent = "contracts"
+order = 10
+glob = "openspec/specs/*/spec.md"
+title_from = "slug"
+summary_from = "section:Purpose"
+slug_from = "parent"
+
+[[collection]]
+id = "capabilities"
+title = "Optional engineering capability descriptors"
+parent = "contracts"
+order = 20
+glob = "dev-platform/capabilities/*.toml"
+title_from = "toml:capability.name"
+summary_from = "toml:capability.description"
+slug_from = "stem"
+companions = ["dev-platform/capabilities/{stem}.md"]
+
+[[collection]]
+id = "decisions"
+title = "Decision records"
+parent = "contracts"
+order = 30
+glob = "docs/decisions/????-*.md"
+title_from = "heading"
+summary_from = "section:Accepted current decision"
+slug_from = "stem"

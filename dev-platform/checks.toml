@@ -119,6 +119,7 @@ targets = [
   "test_br_publication_identity",
   "test_requirement_flow_e2e",
   "test_requirement_card_claim",
+  "test_build_explorer",
 ]
 mode = "parallel"
 
