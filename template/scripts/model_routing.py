@@ -50,6 +50,7 @@ from delegation_containment import (
     resolve_assigned_worktree,
     snapshot,
     verify_historical_external_advance,
+    verify_remote_fast_forward,
 )
 from start_tier_routing import tier_to_profile
 from task_content_identity import _canonical_path, review_content_identity
@@ -1038,15 +1039,19 @@ def prepare(root: Path, *, provider: str, profile: str | None, rationale: str, e
     return route
 
 
+def _require_no_open_codex_delegation(route: Route) -> None:
+    plan = route.execution_plan
+    if isinstance(plan, dict):
+        delegation = plan.get("delegation")
+        if isinstance(delegation, dict) and delegation.get("provider") == "codex" and delegation.get("state") == "open":
+            raise RoutingError("recovery requires a released Codex writer; the child delegation is still open")
+
+
 def _require_recovery_safety(route: Route) -> None:
     """Keep the original child safety boundary through recovery transitions."""
     execution = route.execution
     if execution is None:
-        plan = route.execution_plan
-        if isinstance(plan, dict):
-            delegation = plan.get("delegation")
-            if isinstance(delegation, dict) and delegation.get("provider") == "codex" and delegation.get("state") == "open":
-                raise RoutingError("recovery requires a released Codex writer; the child delegation is still open")
+        _require_no_open_codex_delegation(route)
         postcheck(route)
         return
     if route.provider == "codex":
@@ -1168,16 +1173,19 @@ def approve_supervisor_diff(root: Path, *, approval: str, reason: str) -> Route:
         raise RoutingError("routing record already has execution evidence; owner-approved retention cannot overwrite it")
     if _has_real_delegation(route):
         raise RoutingError("a real delegation was recorded for this plan; use escalate with a concrete reason instead of owner-approved retention")
-    if unlaunched:
-        # No child writer ever ran, so only the integration containment boundary needs proof.
-        postcheck(route)
-    else:
-        _require_recovery_safety(route)
+    if not unlaunched:
+        # route.execution is None here: keep the open-Codex-delegation refusal of _require_recovery_safety.
+        _require_no_open_codex_delegation(route)
+    # No child writer ever ran, so only the integration containment boundary needs proof.
+    check = _supervisor_postcheck(route)
     diverged = _task_content_diverged(route)
     if not diverged:
         raise RoutingError("task content is unchanged from the plan pre-snapshot; use escalate instead of owner-approved retention")
     now = utc_now()
-    next_plan = {**plan, "mode": PLAN_RETAINED, "policy": OWNER_APPROVED_POLICY, "switched_from": {"mode": PLAN_DELEGATED, "at": now, "delegation_recorded": False}, "owner_approval": {"approval": approval.strip(), "reason": reason.strip(), "approved_at": now, "diverged_paths": diverged}}
+    owner_approval = {"approval": approval.strip(), "reason": reason.strip(), "approved_at": now, "diverged_paths": diverged}
+    if "integration_advance" in check:
+        owner_approval["integration_advance"] = check["integration_advance"]
+    next_plan = {**plan, "mode": PLAN_RETAINED, "policy": OWNER_APPROVED_POLICY, "switched_from": {"mode": PLAN_DELEGATED, "at": now, "delegation_recorded": False}, "owner_approval": owner_approval}
     next_route = Route(**{**asdict(route), "execution_plan": next_plan})
     _write_route(path, next_route)
     return next_route
@@ -1656,7 +1664,7 @@ def record_retained_execution(root: Path, *, reason: str) -> dict[str, Any]:
         "outcome": "retained",
         "launched": False,
         "retained": {"role": "supervisor", "policy": policy, "reason": reason.strip()},
-        "postcheck": postcheck(route),
+        "postcheck": _supervisor_postcheck(route),
         "recorded_at": utc_now(),
     }
     if policy == OWNER_APPROVED_POLICY:
@@ -1679,6 +1687,21 @@ def _without_platform_lifecycle_entries(state: GitSnapshot, change: str) -> GitS
 
 
 def postcheck(route: Route) -> dict[str, Any]:
+    return _postcheck(route, supervisor=False)
+
+
+def _supervisor_postcheck(route: Route) -> dict[str, Any]:
+    """Postcheck for a supervisor-only path where no child writer ran.
+
+    Additionally accepts a pure integration HEAD move that is a verified
+    fast-forward equal to the local remote-tracking main (the Codex
+    ``CLASSIFICATION_VERIFIED_EXTERNAL_ADVANCE`` rule) and records it as
+    ``integration_advance``; any path change stays a violation.
+    """
+    return _postcheck(route, supervisor=True)
+
+
+def _postcheck(route: Route, *, supervisor: bool) -> dict[str, Any]:
     pre_snapshot = route.pre_snapshot
     recovery = route.execution.get("recovery") if route.execution is not None else None
     if isinstance(recovery, dict) and recovery.get("classification") == CLASSIFICATION_VERIFIED_EXTERNAL_ADVANCE:
@@ -1697,11 +1720,18 @@ def postcheck(route: Route) -> dict[str, Any]:
         before = _without_platform_lifecycle_entries(before, route.change)
         after = _without_platform_lifecycle_entries(after, route.change)
     result = check_containment(before, after)
-    if result.violated:
+    verified_advance = (
+        supervisor and result.violated and result.head_moved and not result.new_changes and not result.disappeared_changes
+        and verify_remote_fast_forward(Path(route.integration_root), before.head, after.head)
+    )
+    if result.violated and not verified_advance:
         assigned = Path(route.task_worktree)
         record_containment_friction(Path(route.integration_root), assigned, result, task=route.source_issue, enforcement_tier="native-worktree")
         raise RoutingError(format_violation_message(assigned, result))
-    return {"containment": "clean", "pre_existing_changes": list(result.pre_existing_changes)}
+    check = {"containment": "clean", "pre_existing_changes": list(result.pre_existing_changes)}
+    if verified_advance:
+        check["integration_advance"] = {"classification": CLASSIFICATION_VERIFIED_EXTERNAL_ADVANCE, "before_head": before.head, "after_head": after.head}
+    return check
 
 
 def _worktree_roots(root: Path) -> list[Path]:
