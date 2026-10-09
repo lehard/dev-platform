@@ -3,79 +3,56 @@
   "candidate": {
     "base_head": "b93ffc444164bbf1a006d60f117e8378131a2924",
     "base_ref": "origin/main",
-    "candidate_head": "d9a71e8c65b39b4940a700e051a6399cd8a2dedb",
-    "diff_sha256": "302a96791d381ac1df4aca7bb1addcff621bebaa84b1a4bf2f96bba46423f747"
+    "candidate_head": "884ff62129285dbceb35a18cac781a2591abc51a",
+    "diff_sha256": "5b9f847b16eb622dd3854f3b2e8cbf7624f938f11c25c08f5d93f252ce1b6996"
   },
-  "completed_at": "2026-10-09T12:30:02+00:00",
+  "completed_at": "2026-10-09T12:36:19+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/model_routing.py `approve_supervisor_diff` stores `owner_approval.diverged_paths` and `approved_at`. It stores no content hash of the approved state. `record_retained_execution` copies the approval without comparing the current divergence to the approved paths. A digest check at finalization would prevent this.",
-      "id": "approval-not-bound-to-content",
-      "severity": "advisory",
-      "summary": "The owner approval is recorded as a list of diverged paths. It is not bound to a content digest. After approval the plan is `supervisor-retained`, so the early gate no longer checks divergence. Any supervisor edits made after the owner approved are silently covered by the approval."
+      "evidence": "template/scripts/model_routing.py:1156-1157 rejects every non-null route.execution. However, _run_delegated_codex at lines 1396-1399 persists execution evidence even when execution['launched'] is false, alongside a closed 'not-launched' delegation. If the supervisor subsequently writes task content, the early gate directs the owner to approve-supervisor-diff, but that command refuses; escalation also refuses the diverged undelegated content. Thus the ordinary recorded pre-launch failure path cannot reach the owner-approved recovery promised by the delta's 'Unlaunched Codex attempt' scenario.",
+      "id": "unlaunched-attempt-blocks-owner-approval",
+      "severity": "material",
+      "summary": "Owner-approved recovery remains blocked after a recorded Codex attempt that never launched."
     }
   ],
-  "launched_at": "2026-10-09T12:29:50+00:00",
-  "output_sha256": "b073fac6d487488ed6bb532af4c055ac6bd7654dd05f2bfe2150644829c0d88f",
+  "launched_at": "2026-10-09T12:35:20+00:00",
+  "output_sha256": "b6d3c723b7ab706c82f4d39af0b78629bceec30f5977e1d2305528c6a07874e0",
   "perspective": "engineering-quality",
-  "request_id": "acf7743b-d036-4699-8cc6-682d2ed0ce32",
+  "request_id": "bc1417d4-4d66-41db-b573-24b03e08f8ff",
   "reviewer": {
-    "context_id": "6f0692dd-4a8a-4b29-8d7d-4d9b4ee5dfab",
+    "context_id": "01a120a9-2e22-7371-afec-4d47d35adc74",
     "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-a37fd475-c596-4c2e-8234-11ee2c9159fa",
+    "launch_id": "platform-launch-4726e712-3faf-4233-bdad-3ae19adcbd88",
     "model": {
       "source": "selected",
-      "value": "sonnet"
+      "value": "gpt-6.1-sol"
     },
-    "provider": "claude",
-    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
-    "runtime": "claude-code-print",
+    "provider": "codex",
+    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
+    "runtime": "codex-exec",
     "write_access": false
   },
   "runtime_usage": {
     "fields": {
-      "cache_creation_input_tokens": {
+      "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 25930
-      },
-      "cache_read_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 17795
-      },
-      "duration_api_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 9634
-      },
-      "duration_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 10086
+        "value": 236288
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4
-      },
-      "num_turns": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 3
+        "value": 282799
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 854
+        "value": 1144
       }
     },
-    "runtime": "claude-code-print"
+    "runtime": "codex-exec"
   },
   "schema_version": 1,
   "task_content_digest": "55f01ca01ea4f152ffc8387bf8714e5c810fb9ab466ed43220c27b7b44018741"

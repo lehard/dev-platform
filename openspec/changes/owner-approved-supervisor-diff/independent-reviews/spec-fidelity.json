@@ -3,72 +3,56 @@
   "candidate": {
     "base_head": "b93ffc444164bbf1a006d60f117e8378131a2924",
     "base_ref": "origin/main",
-    "candidate_head": "d9a71e8c65b39b4940a700e051a6399cd8a2dedb",
-    "diff_sha256": "302a96791d381ac1df4aca7bb1addcff621bebaa84b1a4bf2f96bba46423f747"
+    "candidate_head": "884ff62129285dbceb35a18cac781a2591abc51a",
+    "diff_sha256": "5b9f847b16eb622dd3854f3b2e8cbf7624f938f11c25c08f5d93f252ce1b6996"
   },
-  "completed_at": "2026-10-09T12:29:50+00:00",
-  "findings": [],
-  "launched_at": "2026-10-09T12:29:34+00:00",
-  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
+  "completed_at": "2026-10-09T12:35:20+00:00",
+  "findings": [
+    {
+      "evidence": "template/docs/engineering/model-routing.md:67 states that a retained plan is declared at route time and 'a delegated plan is never converted afterwards'. Line 71 describes converting that same plan through approve-supervisor-diff. The active delta explicitly permits this exception in openspec/changes/owner-approved-supervisor-diff/specs/model-routing/spec.md under 'Retained execution is declared up front and recovery never fabricates evidence'.",
+      "id": "template-retention-guidance-contradicts-owner-exception",
+      "severity": "advisory",
+      "summary": "The downstream routing guide retains an absolute prohibition that contradicts the new owner-approved retention path."
+    }
+  ],
+  "launched_at": "2026-10-09T12:34:34+00:00",
+  "output_sha256": "2b4d935ede7b39a933661b56240db7ecede5778689ff4d5164f981062838fe41",
   "perspective": "spec-fidelity",
-  "request_id": "acf7743b-d036-4699-8cc6-682d2ed0ce32",
+  "request_id": "bc1417d4-4d66-41db-b573-24b03e08f8ff",
   "reviewer": {
-    "context_id": "e7466887-b283-49b1-a6a1-0271b7da4952",
+    "context_id": "01a120a8-7b3a-7000-aa65-4a76377c68e1",
     "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-83795388-c23d-48bb-8170-034583b9bbac",
+    "launch_id": "platform-launch-22478b84-80fa-4d18-ba5c-8d07d6879525",
     "model": {
       "source": "selected",
-      "value": "sonnet"
+      "value": "gpt-6.1-sol"
     },
-    "provider": "claude",
-    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
-    "runtime": "claude-code-print",
+    "provider": "codex",
+    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
+    "runtime": "codex-exec",
     "write_access": false
   },
   "runtime_usage": {
     "fields": {
-      "cache_creation_input_tokens": {
+      "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 31312
-      },
-      "cache_read_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 51871
-      },
-      "duration_api_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 13629
-      },
-      "duration_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 13802
+        "value": 123904
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
-      },
-      "num_turns": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 6
+        "value": 169982
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1034
+        "value": 935
       }
     },
-    "runtime": "claude-code-print"
+    "runtime": "codex-exec"
   },
   "schema_version": 1,
   "task_content_digest": "55f01ca01ea4f152ffc8387bf8714e5c810fb9ab466ed43220c27b7b44018741"
