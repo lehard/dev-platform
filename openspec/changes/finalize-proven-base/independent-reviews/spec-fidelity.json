@@ -1,0 +1,82 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "5f76443bf244cf5ddddee0276751057f59189e4d",
+    "base_ref": "origin/main",
+    "candidate_head": "7c58f224bdd1d35abe518f285976bc74e2a6839f",
+    "diff_sha256": "ba12848b7113c35fdea39468c87fcd23dee802a91a1d7400e6352a9d740ec0a3"
+  },
+  "completed_at": "2026-10-09T23:53:23+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/post_review_finalization.py in candidate.diff, lines ~602-614. The base is validated and `functools.partial(..., proven_base=base)` is built before `reestablish_gates` decides whether the runner is needed. design.md decision 2 and the completion-lifecycle spec (\"When selected checks must be re-established during finalization\u2026\") scope the base to that case. A reused-evidence finalize with a missing or malformed identity base would now fail where it previously archived.",
+      "id": "finalize-base-required-when-checks-reusable",
+      "severity": "advisory",
+      "summary": "execute_finalize now requires a 40-hex task-content base and raises WorkerError even when selected-checks are reusable and no check will run. The spec and design only require the proven base when selected checks must be re-established."
+    }
+  ],
+  "launched_at": "2026-10-09T23:52:58+00:00",
+  "output_sha256": "894b6522388cf511999e16d3b4bf6a01514b1df74b6640cff2857ea58471a91c",
+  "perspective": "spec-fidelity",
+  "request_id": "e0f561c1-c880-4184-a8cc-01fbc74ea317",
+  "reviewer": {
+    "context_id": "60011473-b6b1-457f-bb3f-302bb4dddb35",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-4abceaf6-65bb-4bd9-b629-2fa09fe53ae5",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 52435
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 117265
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 22445
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 22674
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2476
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "2531635faaa5fb1cd46148db1e8ff20a1fa37fc5c93d81c20f90d2cb606c9c71"
+}

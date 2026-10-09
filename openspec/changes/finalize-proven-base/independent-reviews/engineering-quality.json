@@ -1,0 +1,88 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "5f76443bf244cf5ddddee0276751057f59189e4d",
+    "base_ref": "origin/main",
+    "candidate_head": "7c58f224bdd1d35abe518f285976bc74e2a6839f",
+    "diff_sha256": "ba12848b7113c35fdea39468c87fcd23dee802a91a1d7400e6352a9d740ec0a3"
+  },
+  "completed_at": "2026-10-09T23:53:45+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/post_review_finalization.py, checks_env(): `env[\"PYTHONUSERBASE\"] = site.getuserbase()`, added on top of `workers.credential_free_env(dict(os.environ), checkout.parent / \"llm-home\")`. The docstring says the user base holds no credentials. That is an assumption, and the code does not check it. The change also applies to hosted workers.",
+      "id": "checks-env-pins-operator-user-site",
+      "severity": "advisory",
+      "summary": "The harness now pins the operator's Python user base (PYTHONUSERBASE) for finalize selected checks. Those checks run candidate-controlled code. It can now import any package in the operator's user site, which is a wider trust surface than the scratch-home isolation gave before."
+    },
+    {
+      "evidence": "tests/test_central_dogfood_lifecycle.py and tests/test_deepseek_harness_runtime.py: `if (ROOT / \".dev-platform.toml\").read_text() == (ROOT / \"dev-platform\" / \"source-contract.toml\").read_text(): self.skipTest(...)`.",
+      "id": "central-config-tests-skip-by-content-equality",
+      "severity": "advisory",
+      "summary": "Three central-checkout tests now skip whenever `.dev-platform.toml` is byte-identical to `dev-platform/source-contract.toml`. This removes their coverage in any checkout where the two files match, not only in disposable finalize checkouts. The skip is a guard decided by content comparison. A central config that drifts to equal the public contract would silently disable the assertions."
+    }
+  ],
+  "launched_at": "2026-10-09T23:53:23+00:00",
+  "output_sha256": "b352b321c15cc2ff297c941ef4cc50f62664cd4efa4ff85b933c0650ca7f1d9e",
+  "perspective": "engineering-quality",
+  "request_id": "e0f561c1-c880-4184-a8cc-01fbc74ea317",
+  "reviewer": {
+    "context_id": "d16b100e-790c-4a43-9968-ed7864513537",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-4d429849-7c45-4c04-b92d-4544d2cc4581",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 41473
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 53031
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 19021
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 20050
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1904
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "2531635faaa5fb1cd46148db1e8ff20a1fa37fc5c93d81c20f90d2cb606c9c71"
+}
