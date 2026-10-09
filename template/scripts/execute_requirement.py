@@ -308,6 +308,10 @@ def _single_child_in_flight(worktree: Path, *, adapter=None) -> bool:
         current = adapter._derive(worktree, pr, comments)
         if adapter._malformed(current):
             raise RequirementExecutionError(f"malformed coordinator ownership for single-child PR #{number}")
+        if pr.get("state") not in {"open", "closed"} or not isinstance(pr.get("merged"), bool):
+            raise RequirementExecutionError(f"single-child PR #{number} has no observable open/closed and merged state")
+        if pr["state"] == "closed" and not pr["merged"]:
+            continue  # closed without merge: an abandoned (superseded) candidate owns nothing
         if (adapter._latest(worktree, number, comments) is not None
                 or adapter._admission(adapter._events(worktree, repo, number), number) is not None
                 or pr["head"]["sha"] != head):

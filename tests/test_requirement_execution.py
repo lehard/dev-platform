@@ -497,7 +497,7 @@ class RequirementExecutionTests(unittest.TestCase):
                     adapter = SimpleNamespace(
                         _repo=lambda *a: "acme/project", _gh=lambda *a: [{"number": 8}],
                         _pr=lambda *a: {"head": {"ref": "agent/first", "sha": remote_head},
-                                       "base": {"ref": "main"}},
+                                       "base": {"ref": "main"}, "state": "open", "merged": False},
                         _comments=lambda *a: [], _derive=lambda *a: {}, _malformed=lambda *a: False,
                         _latest=lambda *a: {"state": state} if state else None,
                         _events=lambda *a: [], _admission=lambda *a: None)
@@ -511,6 +511,25 @@ class RequirementExecutionTests(unittest.TestCase):
                         self.assertTrue(execution._publish_active_child(root, "acme/backlog#8", "first"))
                         finish.assert_not_called()
                         provenance.assert_not_called()
+
+    def test_single_child_ignores_closed_superseded_pr_but_refuses_two_owned_open_prs(self):
+        def observe(prs, malformed=()):
+            adapter = SimpleNamespace(
+                _repo=lambda *a: "acme/project", _gh=lambda *a: [{"number": n} for n in prs],
+                _pr=lambda _w, _r, n: {"head": {"ref": "agent/first", "sha": "a" * 40}, "base": {"ref": "main"}, **prs[n]},
+                _comments=lambda *a: [], _derive=lambda _w, pr, _c: pr, _malformed=lambda pr: pr.get("number") in malformed,
+                _latest=lambda *a: {"state": "repair-pending"}, _events=lambda *a: [], _admission=lambda *a: None)
+            with mock.patch.object(execution, "_git", side_effect=["agent/first", "a" * 40]):
+                return execution._single_child_in_flight(Path("/unused"), adapter=adapter)
+
+        closed = {"state": "closed", "merged": False, "number": 436}
+        self.assertTrue(observe({436: closed, 443: {"state": "open", "merged": False}}))
+        with self.assertRaisesRegex(execution.RequirementExecutionError, "multiple coordinator candidates"):
+            observe({443: {"state": "open", "merged": False}, 446: {"state": "open", "merged": False}})
+        with self.assertRaisesRegex(execution.RequirementExecutionError, "malformed coordinator ownership"):
+            observe({436: closed, 443: {"state": "open", "merged": False}}, malformed={436})
+        with self.assertRaisesRegex(execution.RequirementExecutionError, "no observable open/closed"):
+            observe({443: {"merged": False}})
 
     def test_dependent_child_gets_predecessor_receipt_when_change_names_differ_from_intents(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

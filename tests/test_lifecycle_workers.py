@@ -145,7 +145,9 @@ class ProviderSelectionTests(unittest.TestCase):
         self.assertEqual(workers.job_id(job), f"pr7:repair:{HEAD}:a2")
         self.assertEqual(workers.job_id({**job, "reoffer": reoffer}), f"pr7:repair:{HEAD}:a2:r1")
         with self.assertRaises(ValueError):
-            workers.job_record("finalize", HEAD, "t", 0, reoffer=reoffer)
+            workers.job_record("integration-repair", HEAD, "t", 0, reoffer=reoffer)
+        # An operator resume of an operational finalize escalation re-offers the finalize job.
+        self.assertEqual(workers.job_record("finalize", HEAD, "t", 0, reoffer=reoffer)["reoffer"]["seq"], 1)
         with self.assertRaises(ValueError):
             workers.job_record("review", HEAD, "t", 0, reoffer={"seq": 0})
 

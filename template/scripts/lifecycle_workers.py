@@ -123,7 +123,7 @@ def job_record(kind: str, head: str, task_identity: str | dict, attempt: int, *,
     if phase is not None and (phase != "pre-merge" or kind != "retrospective"):
         raise ValueError("invalid job phase")
     if reoffer is not None and (not isinstance(reoffer, dict) or type(reoffer.get("seq")) is not int or reoffer["seq"] < 1
-                                or kind not in {"review", "repair"}):
+                                or kind not in {"review", "repair", "finalize"}):
         raise ValueError("invalid job re-offer")
     return {"kind": kind, "head": head, "task_identity": task_identity, "attempt": attempt,
             **({"phase": phase} if phase else {}),
