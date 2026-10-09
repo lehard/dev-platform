@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from delegation_containment import record_integration_advance
 from _platform_common import current_worktree_root, fetch_main, main_root, preflight, read_platform_config, relation, require_origin, run_git
 
 
@@ -36,7 +37,15 @@ def main() -> int:
         print(f"{branch} is already synchronized with {remote_branch}.")
         return 0
     if state == "behind":
+        before_head = run_git(["rev-parse", "HEAD"], cwd=integration).stdout.strip()
         run_git(["merge", "--ff-only", remote_branch], cwd=integration)
+        record_integration_advance(
+            integration,
+            before_head,
+            run_git(["rev-parse", "HEAD"], cwd=integration).stdout.strip(),
+            tool="project_sync",
+            actor_worktree=caller,
+        )
         print(f"Fast-forwarded {branch} to {remote_branch}.")
         return 0
     if state == "ahead":

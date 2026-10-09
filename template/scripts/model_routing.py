@@ -41,15 +41,19 @@ from delegated_write_guard import (
     run_observed_delegation,
 )
 from delegation_containment import (
+    CLASSIFICATION_VERIFIED_EXTERNAL_ADVANCE as ADVANCE_CLASSIFICATION,
+    TIER_DETECTION_ONLY,
     ContainmentError,
     GitSnapshot,
     PathState,
+    assess_head_move,
     check_containment,
     format_violation_message,
     record_containment_friction,
     resolve_assigned_worktree,
     snapshot,
     verify_historical_external_advance,
+    verify_remote_fast_forward,
 )
 from start_tier_routing import tier_to_profile
 from task_content_identity import _canonical_path, review_content_identity
@@ -843,6 +847,116 @@ def _read_friction_log(root: Path) -> list[dict[str, Any]]:
     return entries
 
 
+def _recover_claude_external_advance(
+    route: Route, path: Path, *, friction_event: str, before_head: str, after_head: str
+) -> dict[str, Any]:
+    """Bounded recovery of a historical Claude pure-head-move false violation.
+
+    Applies to a Claude route whose delegation is still open with no execution
+    (a violating `record-claude-execution` wrote nothing and left it open). It
+    stores a `recovery` record on the open delegation -- it neither closes the
+    delegation nor creates an execution -- and every refusal writes nothing.
+
+    The friction event is written by the postcheck, which runs only after the
+    native Agent call returned, so integration movement after its time cannot be
+    the delegated child's. Recovery therefore proves `after_head` against the
+    remote-tracking reflog over `[delegation opened_at, now]`, and additionally
+    requires that integration is path-clean relative to the route pre-snapshot and
+    that `after_head` is both the current integration head and the local
+    remote-tracking main. Later movement is classified only through receipts.
+    """
+    _refuse_child_writer_on_standalone_clone(route)
+    plan = _require_plan(route, "recovering an external advance")
+    delegation = plan.get("delegation")
+    if (
+        plan["mode"] != PLAN_DELEGATED
+        or not isinstance(delegation, dict)
+        or delegation.get("state") != "open"
+        or delegation.get("provider") != "claude"
+    ):
+        raise RoutingError("Claude recovery requires a delegated-child plan with an open Claude delegation")
+    if route.execution is not None:
+        raise RoutingError("Claude recovery applies only before any execution is recorded; this route already has execution evidence")
+    if delegation.get("recovery") is not None:
+        raise RoutingError("this delegation already has a recorded recovery; recovery is not repeatable")
+    opened_at = delegation.get("opened_at")
+    if not (isinstance(opened_at, str) and opened_at):
+        raise RoutingError("the open delegation has no opened_at; cannot bind historical evidence")
+    recorded_before = route.pre_snapshot.get("head") if isinstance(route.pre_snapshot, dict) else None
+    if recorded_before != before_head:
+        raise RoutingError(f"supplied --before-head does not match this route's recorded pre-execution head ({recorded_before!r})")
+
+    friction = next((entry for entry in _read_friction_log(Path(route.task_worktree)) if entry.get("id") == friction_event), None)
+    if friction is None:
+        raise RoutingError(f"no machine-local friction event with id {friction_event!r} was found")
+    friction_source_issue = friction.get("task") or (friction.get("run") or {}).get("source_issue")
+    if friction_source_issue != route.source_issue:
+        raise RoutingError("the supplied friction event does not identify this exact managed task")
+    if friction.get("category") != "delegated-write-containment-violation":
+        raise RoutingError("the supplied friction event is not a delegated-write-containment-violation")
+    if route.task_worktree not in str(friction.get("observation", "")):
+        raise RoutingError("the supplied friction event does not identify this exact assigned worktree")
+    parsed = _parse_containment_friction_evidence(str(friction.get("evidence", "")))
+    if parsed is None:
+        raise RoutingError(
+            "the supplied friction event's evidence is not the exact structured containment format; "
+            "cannot prove pure-head-move facts from prose"
+        )
+    new_changes, disappeared_changes, head_moved, _tier = parsed
+    if new_changes or disappeared_changes or not head_moved:
+        raise RoutingError("the supplied friction event does not describe a pure integration-head move with no path mutation")
+    friction_at = friction.get("at")
+    try:
+        friction_time = datetime.fromisoformat(friction_at) if isinstance(friction_at, str) else None
+        opened_time = datetime.fromisoformat(opened_at)
+    except ValueError as exc:
+        raise RoutingError(f"cannot compare friction time {friction_at!r} with delegation opened_at {opened_at!r}: {exc}") from exc
+    if friction_time is None or friction_time.tzinfo is None or opened_time.tzinfo is None:
+        raise RoutingError("the supplied friction event has no timezone-aware time to compare with the delegation opening")
+    if friction_time < opened_time:
+        raise RoutingError("the supplied friction event predates the open delegation")
+
+    integration_root = Path(route.integration_root)
+    current = snapshot(integration_root)
+    observed = check_containment(_snapshot_from_dict(route.pre_snapshot), current)
+    if observed.new_changes or observed.disappeared_changes:
+        raise RoutingError(
+            "integration paths changed relative to the route pre-snapshot "
+            f"({_format_paths(list(observed.new_changes) + list(observed.disappeared_changes))}); "
+            "a path change is a real containment violation and cannot be recovered"
+        )
+    if after_head == before_head:
+        raise RoutingError("--after-head equals --before-head; there is no head movement to recover")
+    if after_head != current.head:
+        raise RoutingError("supplied --after-head is not the current integration head")
+    if not verify_remote_fast_forward(integration_root, before_head, after_head):
+        raise RoutingError("supplied --after-head is not a fast-forward of --before-head equal to the local remote-tracking main")
+    recovered_at = utc_now()
+    if not verify_historical_external_advance(
+        integration_root, before_head, after_head, not_before=opened_at, not_after=recovered_at
+    ):
+        raise RoutingError(
+            "cannot prove --after-head was this checkout's recorded remote-tracking main between the delegation opening and now "
+            "(ancestry and current-main containment alone are not sufficient historical provenance)"
+        )
+    recovery = {
+        "recovered_at": recovered_at,
+        "friction_event": friction_event,
+        "classification": CLASSIFICATION_VERIFIED_EXTERNAL_ADVANCE,
+        "before_head": before_head,
+        "after_head": after_head,
+        "reason": (
+            "Verified concurrent integration advance recorded before receipts existed: the flagged postcheck's only observed "
+            "change was integration HEAD moving with no path mutation; after_head is the current integration head, equals the "
+            "local remote-tracking main and was recorded in its reflog since the delegation opened. Any later movement is "
+            "classified only through integration-advance receipts."
+        ),
+    }
+    next_route = Route(**{**asdict(route), "execution_plan": {**plan, "delegation": {**delegation, "recovery": recovery}}})
+    _write_route(path, next_route)
+    return recovery
+
+
 def recover_external_advance(root: Path, *, friction_event: str, before_head: str, after_head: str) -> dict[str, Any]:
     """Narrowly reviewed recovery for a historic pure-head-move false positive.
 
@@ -853,6 +967,10 @@ def recover_external_advance(root: Path, *, friction_event: str, before_head: st
     so the historical failed observation stays intact and auditable.
     """
     route, path = _read_route(root)
+    if route.provider == "claude":
+        return _recover_claude_external_advance(
+            route, path, friction_event=friction_event, before_head=before_head, after_head=after_head
+        )
     execution = route.execution
     if not isinstance(execution, dict):
         raise RoutingError("recovery requires an existing recorded execution outcome; there is nothing to recover")
@@ -1593,9 +1711,23 @@ def _without_platform_lifecycle_entries(state: GitSnapshot, change: str) -> GitS
     return GitSnapshot(head=state.head, paths=kept)
 
 
+def _claude_delegation(route: Route) -> dict[str, Any] | None:
+    """The route's recorded Claude delegation (open or closed), or None."""
+    plan = route.execution_plan
+    if route.provider != "claude" or not isinstance(plan, dict):
+        return None
+    delegation = plan.get("delegation")
+    if isinstance(delegation, dict) and delegation.get("provider") == "claude" and isinstance(delegation.get("opened_at"), str):
+        return delegation
+    return None
+
+
 def postcheck(route: Route) -> dict[str, Any]:
     pre_snapshot = route.pre_snapshot
+    delegation = _claude_delegation(route)
     recovery = route.execution.get("recovery") if route.execution is not None else None
+    if recovery is None and delegation is not None:
+        recovery = delegation.get("recovery")
     if isinstance(recovery, dict) and recovery.get("classification") == CLASSIFICATION_VERIFIED_EXTERNAL_ADVANCE:
         after_head = recovery.get("after_head")
         if not isinstance(after_head, str) or not after_head:
@@ -1612,10 +1744,42 @@ def postcheck(route: Route) -> dict[str, Any]:
         before = _without_platform_lifecycle_entries(before, route.change)
         after = _without_platform_lifecycle_entries(after, route.change)
     result = check_containment(before, after)
+    refusal = None
+    if result.violated and delegation is not None and result.head_moved:
+        # Detection-only writer: a pure head move is accepted only with an unbroken
+        # chain of platform-written integration-advance receipts since the delegation
+        # opened. Everything else (and any unproven chain) stays a violation.
+        assessment = assess_head_move(
+            Path(route.integration_root),
+            before.head,
+            after.head,
+            containment=result,
+            tier=TIER_DETECTION_ONLY,
+            delegated_worktree=Path(route.task_worktree),
+            window_start=delegation["opened_at"],
+        )
+        if assessment.verified:
+            return {
+                "containment": "clean",
+                "pre_existing_changes": list(result.pre_existing_changes),
+                "integration_advance": {
+                    "classification": ADVANCE_CLASSIFICATION,
+                    "before": before.head,
+                    "after": after.head,
+                    "receipts": assessment.evidence["receipts"],
+                    "raw_observation": {
+                        "head_moved": result.head_moved,
+                        "new_changes": list(result.new_changes),
+                        "disappeared_changes": list(result.disappeared_changes),
+                    },
+                },
+            }
+        refusal = assessment.reason
     if result.violated:
         assigned = Path(route.task_worktree)
         record_containment_friction(Path(route.integration_root), assigned, result, task=route.source_issue, enforcement_tier="native-worktree")
-        raise RoutingError(format_violation_message(assigned, result))
+        message = format_violation_message(assigned, result)
+        raise RoutingError(f"{message} Head movement was not accepted as a verified concurrent advance: {refusal}." if refusal else message)
     return {"containment": "clean", "pre_existing_changes": list(result.pre_existing_changes)}
 
 
@@ -3359,7 +3523,7 @@ def main() -> int:
     retained_parser.add_argument("--reason", required=True)
     recover_parser = subparsers.add_parser(
         "recover-external-advance",
-        help="narrowly reviewed recovery for a historic pure-head-move containment false positive",
+        help="narrowly reviewed recovery for a historic pure-head-move containment false positive (recorded Codex execution, or open Claude delegation)",
     )
     recover_parser.add_argument("--friction-event", required=True, help="exact machine-local friction log entry id, never a GitHub issue number")
     recover_parser.add_argument("--before-head", required=True)

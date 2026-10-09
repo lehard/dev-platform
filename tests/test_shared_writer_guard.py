@@ -82,6 +82,9 @@ REVIEWED_BASELINE: dict[str, int] = {
     'capability_manager.py:sync:write_text': 1,
     'capability_manager.py:write_selection:write_text': 1,
     'capability_manager.py:create_from_descriptor:copyfile': 2,
+    # Append-only integration-advance receipts: flock-serialized single-line appends with the shared-path
+    # permission repair, like the friction log (a whole-file atomic rewrite cannot express an append).
+    'delegation_containment.py:record_integration_advance:open': 2,
     'delegated_write_guard.py:_write_writer_state:open': 1,
     'delegated_write_guard.py:_write_writer_state:replace': 1,
     'delegated_write_guard.py:acquire:open': 1,

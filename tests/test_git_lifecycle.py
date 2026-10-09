@@ -31,7 +31,7 @@ def configure(repo: Path) -> None:
 
 def install_scripts(repo: Path, profile: str = "light", publish: str = "direct") -> None:
     target = repo / "scripts"; target.mkdir(exist_ok=True)
-    for name in ("_platform_common.py", "integration_state.py", "project_sync.py", "project_publish.py", "publication_state.py", "task_reconciliation.py", "managed_project_status.py", "finish_task.py", "openspec_lifecycle.py", "requirement_integration.py"): shutil.copy2(SCRIPT_SOURCE / name, target / name)
+    for name in ("_platform_common.py", "delegation_containment.py", "integration_state.py", "project_sync.py", "project_publish.py", "publication_state.py", "task_reconciliation.py", "managed_project_status.py", "finish_task.py", "openspec_lifecycle.py", "requirement_integration.py"): shutil.copy2(SCRIPT_SOURCE / name, target / name)
     (repo / ".dev-platform.toml").write_text(f'platform_version = "1.0.0"\nmain_branch = "main"\nworkflow_profile = "{profile}"\nharness_mode = "platform"\npublish_mode = "{publish}"\n', encoding="utf-8")
 
 
@@ -67,10 +67,20 @@ class GitLifecycleTests(unittest.TestCase):
 
     def tearDown(self) -> None: self.tmp.cleanup()
 
+    def _receipts(self) -> list[dict]:
+        log = self.repo / ".claude" / "integration-advances.jsonl"
+        return [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()] if log.exists() else []
+
+
     def test_sync_fast_forwards_behind_main(self) -> None:
         other = self.base / "other"; run("git", "clone", str(self.remote), str(other), cwd=self.base); configure(other)
         (other / "remote.txt").write_text("new\n", encoding="utf-8"); git("add", "remote.txt", cwd=other); git("commit", "-m", "remote", cwd=other); git("push", cwd=other)
+        before = git("rev-parse", "HEAD", cwd=self.repo).stdout.strip()
         result = run("python3", "scripts/project_sync.py", cwd=self.repo); self.assertIn("Fast-forwarded", result.stdout); self.assertTrue((self.repo / "remote.txt").exists())
+        after = git("rev-parse", "HEAD", cwd=self.repo).stdout.strip()
+        (receipt,) = self._receipts()
+        self.assertEqual((receipt["before"], receipt["after"], receipt["origin_main"], receipt["tool"]), (before, after, after, "project_sync"))
+        self.assertEqual(receipt["actor_worktree"], str(self.repo.resolve()))
 
     def test_sync_refuses_local_ahead(self) -> None:
         (self.repo / "local.txt").write_text("local\n", encoding="utf-8"); git("add", "local.txt", cwd=self.repo); git("commit", "-m", "local", cwd=self.repo)
@@ -251,6 +261,9 @@ class GitLifecycleTests(unittest.TestCase):
         git("switch", "-c", "agent/test", cwd=self.repo); (self.repo / "feature.txt").write_text("feature\n", encoding="utf-8"); git("add", "feature.txt", cwd=self.repo); git("commit", "-m", "feature", cwd=self.repo)
         result = run("python3", "scripts/finish_task.py", "--no-checks", cwd=self.repo, env=explicit_bypass_env()); self.assertIn("Integrated agent/test -> main", result.stdout); self.assertEqual(git("branch", "--show-current", cwd=self.repo).stdout.strip(), "main")
         remote_sha = run("git", "--git-dir", str(self.remote), "rev-parse", "main", cwd=self.base).stdout.strip(); local_sha = git("rev-parse", "main", cwd=self.repo).stdout.strip(); self.assertEqual(remote_sha, local_sha)
+        # The direct fast-forward precedes the push, so the receipt is written once origin/main equals the new head.
+        (receipt,) = self._receipts()
+        self.assertEqual((receipt["after"], receipt["origin_main"], receipt["tool"]), (local_sha, local_sha, "finish_task.integrate_and_publish_direct"))
 
     def test_standard_pr_finish_returns_to_main(self) -> None:
         (self.repo / ".dev-platform.toml").write_text('platform_version = "1.0.0"\nmain_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\npublish_mode = "pr"\n', encoding="utf-8"); git("add", ".dev-platform.toml", cwd=self.repo); git("commit", "-m", "pr profile", cwd=self.repo); git("push", cwd=self.repo)
@@ -438,6 +451,22 @@ class GitLifecycleTests(unittest.TestCase):
         self.assertFalse(run("git", "status", "--porcelain", cwd=self.repo).stdout.strip())
         self.assertEqual((self.repo / "feature.txt").read_text(encoding="utf-8"), "authoritative result\n")
         self.assertEqual(git("rev-parse", "main", cwd=self.repo).stdout.strip(), run("git", "--git-dir", str(self.remote), "rev-parse", "main", cwd=self.base).stdout.strip())
+        (receipt,) = self._receipts()
+        self.assertEqual(receipt["tool"], "finish_task.sync_after_remote_pr_merge.normalize")
+        self.assertEqual(receipt["after"], receipt["origin_main"])
+        self.assertEqual(receipt["actor_worktree"], str(worktree.resolve()))
+
+    def test_remote_merge_fast_forward_writes_a_receipt(self) -> None:
+        worktree = self._push_remote_feature("authoritative result\n")
+        before = git("rev-parse", "HEAD", cwd=self.repo).stdout.strip()
+
+        finish_task.sync_after_remote_pr_merge(worktree, self.repo, {"paths": {"main_merge_lock": ".claude/main-merge.lock"}}, "main")
+
+        after = git("rev-parse", "HEAD", cwd=self.repo).stdout.strip()
+        (receipt,) = self._receipts()
+        self.assertEqual((receipt["before"], receipt["after"], receipt["origin_main"]), (before, after, after))
+        self.assertEqual(receipt["tool"], "finish_task.sync_after_remote_pr_merge")
+        self.assertEqual(receipt["actor_worktree"], str(worktree.resolve()))
 
     def test_remote_merged_divergent_local_content_remains_a_blocker(self) -> None:
         worktree = self._push_remote_feature("authoritative result\n")
