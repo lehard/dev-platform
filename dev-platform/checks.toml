@@ -74,6 +74,7 @@ targets = [
   "test_coordinator_evidence",
   "test_pr_review_gate",
   "test_post_review_finalization",
+  "test_worker_checkout_contract",
   "test_autonomous_integration_contour",
   "test_independent_review",
   "test_docs_semantic_checks",

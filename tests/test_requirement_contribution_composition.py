@@ -47,6 +47,7 @@ class Repository:
         git(root, "config", "user.name", "Test")
         git(root, "config", "user.email", "test@example.test")
         (root / "AGENTS.md").write_text("Bounded test repository\n")
+        (root / ".dev-platform.toml").write_text('platform_version = "1.0.0"\n')  # committed project contract
         self.base = self.commit("base")
         self.manifest = contributions.seal({"version": 2, "requirement": REQUIREMENT,
             "repository": "acme/project", "work_identity": "BR-7", "base": self.base,
@@ -327,6 +328,7 @@ class ContributionTests(unittest.TestCase):
             git(seed, "init", "-b", "main")
             git(seed, "config", "user.name", "Test"); git(seed, "config", "user.email", "test@example.test")
             (seed / "AGENTS.md").write_text("test\n")
+            (seed / ".dev-platform.toml").write_text('platform_version = "1.0.0"\n')  # committed project contract
             git(seed, "add", "."); git(seed, "commit", "-m", "base")
             git(seed, "remote", "add", "origin", str(remote)); git(seed, "push", "origin", "main")
             kwargs = {"requirement": REQUIREMENT, "repository": "acme/project", "expected_changes": ["first", "second"],

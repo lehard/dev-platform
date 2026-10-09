@@ -355,7 +355,30 @@ def prepare_checkout(source: str, root: str, name: str, head: str) -> Path:
                               capture_output=True, check=False, stdin=subprocess.DEVNULL)
         if done.returncode:
             raise WorkerError(f"git {step[0]} failed for {head}: {done.stderr.strip()}")
+    install_source_contract(path)
     return path
+
+
+SOURCE_CONTRACT = Path("dev-platform") / "source-contract.toml"
+
+
+def install_source_contract(checkout: Path) -> None:
+    """Give a clean checkout the committed contract, exactly as the CI publication queue does.
+
+    A project commits `.dev-platform.toml`. The source repository does not (its installed
+    contract carries operator-only sections) and commits its public part as
+    `dev-platform/source-contract.toml` instead. A checkout with neither has no contract.
+    """
+    contract = checkout / ".dev-platform.toml"
+    if contract.exists():
+        return
+    public = checkout / SOURCE_CONTRACT
+    if not public.is_file():
+        raise WorkerError(f"checkout {checkout} has neither .dev-platform.toml nor {SOURCE_CONTRACT}; no platform contract")
+    shutil.copyfile(public, contract)
+    # Installed, never candidate content: the source repository excludes it only locally.
+    with (checkout / ".git" / "info" / "exclude").open("a", encoding="utf-8") as handle:
+        handle.write("\n.dev-platform.toml\n")
 
 
 # ---- harness validation and push -------------------------------------------

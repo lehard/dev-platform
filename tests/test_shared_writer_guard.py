@@ -69,6 +69,9 @@ REVIEWED_BASELINE: dict[str, int] = {
     'machine_pool.py:_open_shared:open': 1,
     'machine_pool.py:_scan_queue:open': 1,
     'machine_pool.py:read_holders:open': 1,
+    # Disposable worker checkouts: install the committed public source contract and exclude it locally.
+    'lifecycle_workers.py:install_source_contract:copyfile': 1,
+    'lifecycle_workers.py:install_source_contract:open': 1,
     # Trusted harness manifests/evidence and private reviewer scratch inputs.
     'requirement_composition.py:execute_composition_review:write_text': 4,
     'requirement_composition.py:run_child_review:write_text': 2,
