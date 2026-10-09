@@ -11,4 +11,4 @@
 
 - [x] 3.1 Regression tests for every scenario in design Verification.
 - [x] 3.2 Document receipts, classification and recovery in `docs/engineering/model-routing.md` (and template copy).
-- [ ] 3.3 Required platform checks, truthful verification, archive, retrospectives, publication.
+- [x] 3.3 Required platform checks, truthful verification, archive, retrospectives, publication.
