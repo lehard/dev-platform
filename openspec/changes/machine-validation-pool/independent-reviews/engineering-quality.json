@@ -1,0 +1,82 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "c4c25e08d961a12383be245c3a2dd91f0897a3fb",
+    "base_ref": "origin/main",
+    "candidate_head": "8f6e7c6e3c07e928ebcb9e786b5766e96729a96d",
+    "diff_sha256": "1b1d23413210cc64a2794cfb1bdc24a3f598326b3a2388d41c463a59799243cd"
+  },
+  "completed_at": "2026-10-09T08:03:01+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/machine_pool.py `lease()` (the `if LEASE_ENV in environ:` branch) yields a nested Lease from the env JSON alone. `_open_descriptors` only calls `os.fstat(fd)`, so it never checks that the descriptor is a locked slot file. A process that inherits the env but outlives the leased parent (a detached worker or daemon) would start heavy runs outside the pool and take no tokens. Descriptor numbers that were not passed on, or were reused for unrelated files, are not detected, and `pass_fds` could then forward an unrelated descriptor. One cheap check would be to compare each fd's inode to the lease's slot file and confirm the lock is held.",
+      "id": "nested-lease-not-verified",
+      "severity": "advisory",
+      "summary": "A nested run trusts DEV_PLATFORM_MACHINE_POOL_LEASE without checking that its tokens are still held, so it can run heavy work with no tokens."
+    }
+  ],
+  "launched_at": "2026-10-09T08:02:17+00:00",
+  "output_sha256": "a271e04d94a864cdc9cf70a34c81d63ecec12fc08c7c63a3eadc79ddf27038d4",
+  "perspective": "engineering-quality",
+  "request_id": "dfd485cc-258c-460c-86df-0a224bc159f6",
+  "reviewer": {
+    "context_id": "230fc54d-dac2-4986-8865-4ae35c475896",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-fd2fad3c-4e63-4dd5-b2d4-0f701a69c6de",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 51795
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 160239
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 40681
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 41742
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 7
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4042
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "fab7276b03387f4ddca893cbde4cf33bde2a7579a1d911e1cca4743f5c2fdb0f"
+}

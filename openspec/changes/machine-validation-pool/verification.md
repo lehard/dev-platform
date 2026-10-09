@@ -1,0 +1,18 @@
+OpenSpec-Verify: PASS
+Verification-Method: supervisor semantic OpenSpec review (completeness, correctness, coherence) of the full implementation diff at 8f6e7c6 against the platform-lifecycle delta, proposal, design and tasks; independent review (spec-fidelity, engineering-quality) on the same content; repository-owned selected checks on the committed head
+Automated-Checks-Evidence: automated-checks.json
+Independent-Review-Evidence: independent-review-request.json
+
+Implementation: a delegated native Claude executor (standard profile) wrote `template/scripts/machine_pool.py`, its `scripts/` shim, the four integration points, tests and docs; its execution was recorded with a clean containment postcheck. The supervisor then made two test-only follow-ups, disclosed here: `tests/test_git_lifecycle.py` fixtures that copy `select_checks.py` into a sandbox now also copy `machine_pool.py` and `run_test_groups.py` (the selector imports them), and `tests/test_shared_writer_guard.py` lists the pool's three reviewed direct file-creation sites (machine-local slot/queue files outside the repository).
+
+Completeness: tasks 1.1, 2.1, 3.1 and 3.2 are implemented. Every scenario of the delta maps to tests in `tests/test_machine_pool.py`: busy pool waits and reports holders and position, then acquires or times out naming holders; a killed holder (and its children) frees tokens; finalize before development, FIFO within a class; nested runs reuse the lease without acquiring; unset configuration prints `DEV_PLATFORM_MACHINE_POOL: not configured` and runs unpooled; missing/invalid configuration fails naming the key or path; load and available-memory admission (Linux MemAvailable, macOS vm_stat) with explicit failure when memory cannot be measured; read-only status.
+
+Correctness: acquisition is all-or-nothing and attempted only by the head ticket; dead tickets are removed only after taking their lock; lease descriptors are passed to children with pass_fds; weight equals the runner's resolved parallelism bounded by tokens, and the runner's jobs never exceed the lease weight. select_checks takes one lease per top-level run before the affected precheck; Requirement full-candidate validation takes a finalize lease; lifecycle finalization passes the finalize class. No new default substitutes for a missing required input; the declared unpooled mode and the documented development class are contract semantics.
+
+Coherence: design decision 5 was amended before implementation to include available-memory admission so the Requirement's load/memory acceptance is met.
+
+Independent review: spec-fidelity reported no findings. Engineering-quality reported one advisory finding: a nested run reuses an inherited lease marker without proving the inherited descriptors are still held, so a process that outlives its leasing parent runs without tokens and without the not-configured line. Accepted as reported: the parent holds the tokens for its lifetime and descriptors are passed onward; tightening it is a follow-up, not a contract mismatch.
+
+Pre-existing fallbacks touched but not extended (reported): select_checks still continues to the full set when the affected precheck is unavailable, and keeps its ManagedTaskError compatibility import.
+
+Checks actually run: supervisor ran `python3 scripts/select_checks.py --base origin/main --execute --evidence openspec/changes/machine-validation-pool/automated-checks.json` on head 8f6e7c6: compileall, ruff and `run_test_groups.py --all` (413 s) all success (see automated-checks.json). Earlier runs on prior heads failed and were fixed by the two disclosed test-only follow-ups.
