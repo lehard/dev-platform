@@ -1,87 +1,58 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "5f621c9e91c4a2862d66c7581b22146d61faf5b4",
+    "base_head": "fe3333ad33149dce98c5ece65805f6a0661ece4d",
     "base_ref": "origin/main",
-    "candidate_head": "4ed538372b96f69069e4960dc85c5022b43f5d4b",
-    "diff_sha256": "3e05b9a6eff09c8e336ef07683b77e9158aa1e5ae145f30f1eb9aaaa85f28f36"
+    "candidate_head": "c224e6e30a0b0b39a4f6a74793299a5ca4c2c2f4",
+    "diff_sha256": "14d9e71e3a0bb99e589824eac2274de71ee095b3ac0ec94616ef1d1bf07361f2"
   },
-  "completed_at": "2026-10-09T20:05:28+00:00",
+  "completed_at": "2026-10-09T20:31:58+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/model_routing.py, `_recover_claude_external_advance`: `for receipt in receipts: if receipt_time <= friction_time: raise RoutingError(\"the friction event does not predate integration advance receipts...\")`. This loops over every receipt in the log with no `opened_at` window. Once any unrelated older receipt exists, recovery is refused for good. design.md Decision 4 and specs/model-routing/spec.md (Scenario \"Historical false violation\") mention neither this refusal nor the actor-in-delegated-worktree refusal. Only docs/engineering/model-routing.md describes them.",
-      "id": "recovery-receipt-refusal-unspecified",
+      "evidence": "openspec/changes/claude-external-advance/design.md:20 states 'bounded reading by time window'. However, template/scripts/delegation_containment.py:452 reads the entire append-only log, and lines 455\u2013483 parse and retain every receipt. The time-window filter runs only afterward at line 504, so each detection-only classification processes the checkout's complete receipt history.",
+      "id": "receipt-reading-is-unbounded",
       "severity": "advisory",
-      "summary": "The Claude recovery refusals on receipts are implemented and documented, but the design and spec don't state them. The refusal on any receipt dated at or before the friction event is also unwindowed, so it is broader than the \"before receipts existed\" wording."
-    },
-    {
-      "evidence": "template/scripts/delegation_containment.py, `_receipt_chain`: `first = next((i for i, r in enumerate(ordered_receipts) if r[\"before\"] == start_head), None); chain = ordered_receipts[first:]`. The comment says earlier in-window receipts are skipped, for example moves that a recovery already accounted for. design.md Decision 2 and the spec's \"unbroken receipt chain from the pre-run head\" don't describe this tolerance.",
-      "id": "chain-start-skips-earlier-receipts",
-      "severity": "advisory",
-      "summary": "The detection-only receipt chain starts at the first receipt whose `before` equals the pre-run head. Windowed receipts that come earlier in time are skipped. design.md Decision 2 says the first `before` must equal the pre-run head."
+      "summary": "Receipt reading does not implement the design's stated time-window bound."
     }
   ],
-  "launched_at": "2026-10-09T20:05:03+00:00",
-  "output_sha256": "d1afbaecaf2bd8165deebf218d6ab3c126191da360e7dcbd69c7c5a100df1f38",
+  "launched_at": "2026-10-09T20:30:48+00:00",
+  "output_sha256": "a6560cb2fbb0e70daa412463ef94c37818ca3ddec90d1546effdfabf00904b04",
   "perspective": "spec-fidelity",
-  "request_id": "5ee6833e-f93f-4e3a-922c-8f7f52f9168a",
+  "request_id": "e08eb335-15d6-4770-a7f6-8998922b3ff8",
   "reviewer": {
-    "context_id": "91612474-a7c2-4b63-89af-6ffc2a57f85c",
+    "context_id": "01a1225c-7df0-74c3-b63f-d9cfa02fbcd0",
     "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-b63b36a8-f619-492a-90ac-8284eb5e6721",
+    "launch_id": "platform-launch-61f0b585-dbbc-4dc4-b057-deb8a2b47ebb",
     "model": {
       "source": "selected",
-      "value": "sonnet"
+      "value": "gpt-6.1-sol"
     },
-    "provider": "claude",
-    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
-    "runtime": "claude-code-print",
+    "provider": "codex",
+    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
+    "runtime": "codex-exec",
     "write_access": false
   },
   "runtime_usage": {
     "fields": {
-      "cache_creation_input_tokens": {
+      "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 45741
-      },
-      "cache_read_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 59001
-      },
-      "duration_api_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 21443
-      },
-      "duration_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 21768
+        "value": 297600
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
-      },
-      "num_turns": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 6
+        "value": 377165
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2311
+        "value": 1764
       }
     },
-    "runtime": "claude-code-print"
+    "runtime": "codex-exec"
   },
   "schema_version": 1,
   "task_content_digest": "b8bf124a45f6ff925003d077fffee364c49e89f002397151bbaeabd208283852"

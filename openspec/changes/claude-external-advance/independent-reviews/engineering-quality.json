@@ -1,87 +1,58 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "5f621c9e91c4a2862d66c7581b22146d61faf5b4",
+    "base_head": "fe3333ad33149dce98c5ece65805f6a0661ece4d",
     "base_ref": "origin/main",
-    "candidate_head": "4ed538372b96f69069e4960dc85c5022b43f5d4b",
-    "diff_sha256": "3e05b9a6eff09c8e336ef07683b77e9158aa1e5ae145f30f1eb9aaaa85f28f36"
+    "candidate_head": "c224e6e30a0b0b39a4f6a74793299a5ca4c2c2f4",
+    "diff_sha256": "14d9e71e3a0bb99e589824eac2274de71ee095b3ac0ec94616ef1d1bf07361f2"
   },
-  "completed_at": "2026-10-09T20:05:53+00:00",
+  "completed_at": "2026-10-09T20:33:00+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/delegation_containment.py: `record_integration_advance` uses `.replace(microsecond=0)`. `_receipt_chain` filters with `_parse_receipt_time(r['at']) >= window_start`. This fails closed, so it is a false negative, not a safety hole.",
-      "id": "receipt-second-truncation-window",
-      "severity": "advisory",
-      "summary": "Receipt timestamps are truncated to whole seconds but are compared against the delegation's `opened_at`, which can carry microseconds. A legitimate sibling advance in the same second as the opening can be dated before the window start. It is then dropped from the chain, and the move is refused as a violation."
-    },
-    {
-      "evidence": "template/scripts/project_sync.py: `branch = str(config.get(\"main_branch\", \"main\"))`. template/scripts/delegation_containment.py `_configured_main_branch` raises ContainmentError when `main_branch` is missing, and `record_integration_advance` calls it after the merge.",
-      "id": "main-branch-default-inconsistency",
-      "severity": "advisory",
-      "summary": "`project_sync` defaults a missing `main_branch` to \"main\". The new receipt path (`_configured_main_branch`) raises when it is absent. The sync's fast-forward would then succeed and the command would fail afterwards, with no receipt written."
+      "evidence": "template/scripts/model_routing.py:974\u20131000 accepts ancestry, equality with origin/main, and an origin/main reflog entry during the delegation window; an absent receipt log passes the checks at lines 979\u2013989. A shell-capable child can accidentally run `git -C <integration> fetch origin` followed by `git -C <integration> merge --ff-only origin/main`. This leaves clean integration state, the required remote reflog evidence, and no receipt. The supervisor's resulting pure-head-move friction event satisfies recovery, although the child actually moved integration HEAD. Recovery then substitutes that head in subsequent postchecks, allowing execution to be recorded as clean. No receipt or reflog forgery is needed, and no cutoff proves the event predates receipt support. The postcheck occurring after the child returned does not establish who performed movement before that postcheck.",
+      "id": "claude-recovery-does-not-prove-external-writer",
+      "severity": "material",
+      "summary": "Claude recovery can reclassify an actual delegated integration write as a verified external advance."
     }
   ],
-  "launched_at": "2026-10-09T20:05:28+00:00",
-  "output_sha256": "acb1461eeff7b2347c43fff65dc21dc67c82f99090e641726f59f1908aee57af",
+  "launched_at": "2026-10-09T20:31:58+00:00",
+  "output_sha256": "b268811a09145737aa3d8e7c50f1ce78b8e8917620178acf461fa7229784160b",
   "perspective": "engineering-quality",
-  "request_id": "5ee6833e-f93f-4e3a-922c-8f7f52f9168a",
+  "request_id": "e08eb335-15d6-4770-a7f6-8998922b3ff8",
   "reviewer": {
-    "context_id": "e4c4dc9d-9c57-4c38-8d75-716eb51de96b",
+    "context_id": "01a1225d-8e73-7940-9e8f-d51c07bf9bd0",
     "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-2f0f72ce-3d62-485c-83b3-156587e5c5c2",
+    "launch_id": "platform-launch-c95c969d-a2b2-4fa8-bf29-02321b969971",
     "model": {
       "source": "selected",
-      "value": "sonnet"
+      "value": "gpt-6.1-sol"
     },
-    "provider": "claude",
-    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
-    "runtime": "claude-code-print",
+    "provider": "codex",
+    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
+    "runtime": "codex-exec",
     "write_access": false
   },
   "runtime_usage": {
     "fields": {
-      "cache_creation_input_tokens": {
+      "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 45469
-      },
-      "cache_read_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 104014
-      },
-      "duration_api_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 20764
-      },
-      "duration_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 21514
+        "value": 302464
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
-      },
-      "num_turns": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 5
+        "value": 359482
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2120
+        "value": 1515
       }
     },
-    "runtime": "claude-code-print"
+    "runtime": "codex-exec"
   },
   "schema_version": 1,
   "task_content_digest": "b8bf124a45f6ff925003d077fffee364c49e89f002397151bbaeabd208283852"
