@@ -1,6 +1,6 @@
 ## Why
 
-`model_routing.postcheck` (used by `record_claude_execution`) treats any integration `HEAD` movement as a containment violation. Codex has a narrow classification (`delegated_write_guard._classify_containment` with `verify_remote_fast_forward`) because native hard containment proves the child could not write the integration checkout. Claude delegations are detection-only: the child has a shell, so matching `origin/main` alone does not prove who moved `HEAD`. On a shared integration checkout sibling tasks merge routinely, so correct contained Claude work is stranded (lehard/development-backlog#510).
+`model_routing.postcheck` (used by `record_claude_execution`) treats any integration `HEAD` movement as a containment violation. Codex has a narrow classification (`delegated_write_guard._classify_containment` with `verify_remote_fast_forward`) because native hard containment proves the child could not write the integration checkout. Claude delegations are detection-only: the child has a shell, so matching `origin/main` alone does not prove who moved `HEAD`. On a shared integration checkout sibling tasks merge routinely, so correct contained Claude work is stranded (an observed runner-selection child task).
 
 ## What Changes
 
