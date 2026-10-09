@@ -9,6 +9,7 @@ import os
 import re
 import shutil
 import shlex
+import stat
 import subprocess
 import sys
 import tempfile
@@ -638,9 +639,22 @@ VALIDATION_RECEIPT = "validation-owner.json"
 VALIDATION_DIRECTORY_RE = re.compile(r"dev-platform-authoring-validate-[a-z0-9_]+")
 
 
-def _storage_component_foreign(path: Path) -> bool:
-    """True when a POSIX storage path component is not owned by the current user."""
-    return shared_workspace.posix_available() and path.stat().st_uid != os.geteuid()
+def _storage_component_foreign(path: Path, group: shared_workspace.SharedGroup | None) -> bool:
+    """True when a POSIX storage component is neither the current user's nor a shared-group directory.
+
+    In a shared local workspace another account may own a component: it is
+    accepted only when it carries the resolved shared group with group
+    rwx+setgid and the current user belongs to that group.
+    """
+    if not shared_workspace.posix_available():
+        return False
+    info = path.stat()
+    if info.st_uid == os.geteuid():
+        return False
+    if group is None or group.gid not in set(os.getgroups()) | {os.getegid()}:
+        return True
+    required = stat.S_IRWXG | stat.S_ISGID
+    return info.st_gid != group.gid or info.st_mode & required != required
 
 
 def validation_storage(root: Path) -> tuple[Path, Path]:
@@ -673,7 +687,7 @@ def validation_storage(root: Path) -> tuple[Path, Path]:
             shared_workspace.verify_shared_output(current, group=group)
         if not current.is_dir():
             raise ManagedTaskError(f"validation storage is not a directory: {current}")
-        if _storage_component_foreign(current):
+        if _storage_component_foreign(current, group):
             raise ManagedTaskError(f"validation storage has foreign ownership: {current}")
     shared_workspace.verify_shared_output(current, group=group)
     return integration, current
