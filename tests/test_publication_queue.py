@@ -198,6 +198,29 @@ class AdmissionTests(unittest.TestCase):
              patch.object(queue, "_queued", return_value=[(20, 1, admission(1, 20))]):
             self.assertEqual(queue.status(ROOT_PATH, 1)["state"], "active")
 
+    def test_just_labeled_pr_missing_from_lagging_search_inventory_is_still_queued(self) -> None:
+        # Regression (PR 450): admit() labels the PR and finish immediately asks
+        # for its status; the search-backed inventory had not indexed the label.
+        with patch.object(queue, "_repo", return_value=REPO), \
+             patch.object(queue, "_pr", return_value=pr(2, labels=(queue.QUEUE,))), \
+             patch.object(queue, "_events", return_value=[admission(2, 30)]), \
+             patch.object(queue, "_queued", return_value=[(20, 1, admission(1, 20))]):
+            observed = queue.status(ROOT_PATH, 2)
+        self.assertEqual((observed["state"], observed["position"]), ("waiting", 2))
+        with patch.object(queue, "_repo", return_value=REPO), \
+             patch.object(queue, "_pr", return_value=pr(2, labels=(queue.QUEUE,))), \
+             patch.object(queue, "_events", return_value=[admission(2, 30)]), \
+             patch.object(queue, "_queued", return_value=[]):
+            self.assertEqual(queue.status(ROOT_PATH, 2)["position"], 1)
+
+    def test_admitted_pr_without_its_own_queue_label_stays_blocked(self) -> None:
+        with patch.object(queue, "_repo", return_value=REPO), \
+             patch.object(queue, "_pr", return_value=pr(2)), \
+             patch.object(queue, "_events", return_value=[admission(2, 30)]), \
+             patch.object(queue, "_queued", return_value=[]):
+            observed = queue.status(ROOT_PATH, 2)
+        self.assertEqual((observed["state"], observed["reason"]), ("blocked", "admitted PR lacks queue label"))
+
 
 class WorkerTests(unittest.TestCase):
     def setUp(self) -> None:
