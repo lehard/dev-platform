@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import os
 import unittest
 from unittest import mock
 
@@ -365,6 +366,20 @@ class CandidateCase(unittest.TestCase):
     def offer(self, fixture, gates=None):
         queue._transition(self.repo.root, "o/r", 7, "finalize-pending", fixture.head, task_identity=self.identity,
                           inherit_identity=False, gates=self.gates() if gates is None else gates)
+
+
+class ChecksEnvTests(unittest.TestCase):
+    def test_finalize_checks_keep_the_python_user_base_without_credentials(self):
+        import site
+        with tempfile.TemporaryDirectory() as tmp:
+            checkout = Path(tmp) / "finalize-checkout"
+            checkout.mkdir()
+            with mock.patch.dict(os.environ, {"GH_TOKEN": "secret", "HOME": "/operator/home"}):
+                env = final.checks_env(checkout)
+            self.assertEqual(env["PYTHONUSERBASE"], site.getuserbase())
+            self.assertEqual(env["HOME"], str(Path(tmp) / "llm-home"))
+            self.assertNotIn("GH_TOKEN", env)
+            self.assertEqual(env["GIT_CONFIG_GLOBAL"], os.devnull)
 
 
 class FinalizeTests(CandidateCase):

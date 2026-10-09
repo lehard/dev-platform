@@ -18,6 +18,7 @@ import functools
 import os
 import re
 import shutil
+import site
 import subprocess
 import sys
 from pathlib import Path
@@ -141,6 +142,18 @@ def trusted_checks_runner(checkout: Path, env: dict[str, str], *, contribution_b
     return {"command": ["select_checks.py", *arguments], "freshness": {"contract": contract, "base": base}}
 
 
+def checks_env(checkout: Path) -> dict[str, str]:
+    """Credential-free environment for harness-run selected checks.
+
+    The scratch home hides the operator's credentials, but Python resolves user-installed
+    tooling (``pip install --user``, e.g. ``copier``) through the home-derived user base;
+    pin that base explicitly so the project's real checks can run. It holds no credentials.
+    """
+    env = workers.credential_free_env(dict(os.environ), checkout.parent / "llm-home")
+    env["PYTHONUSERBASE"] = site.getuserbase()
+    return env
+
+
 def reestablish_gates(checkout: Path, gates: dict, identity: dict, head: str,
                       checks_runner: Callable[..., dict]) -> dict:
     """Rerun selected checks; semantic evidence must already bind the repaired content."""
@@ -148,7 +161,7 @@ def reestablish_gates(checkout: Path, gates: dict, identity: dict, head: str,
     if not review_gate.reusable(checkout, gates.get("review"), identity):
         raise workers.WorkerError("review evidence is missing or not bound to the current task content")
     if not review_gate.reusable(checkout, gates.get("selected-checks"), identity):
-        env = workers.credential_free_env(dict(os.environ), checkout.parent / "llm-home")
+        env = checks_env(checkout)
         description = checks_runner(checkout, env)
         if not (isinstance(description, dict) and isinstance(description.get("command"), list)
                 and isinstance(freshness := description.get("freshness"), dict)
