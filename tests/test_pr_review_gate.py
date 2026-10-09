@@ -779,6 +779,52 @@ class ReadmissionAndFinalizeResumeTests(unittest.TestCase):
                 self.readmit(fixture)  # changed content supersedes it
                 self.assert_superseded(fixture, "blocked-escalation")
 
+    def test_material_findings_need_changed_content_but_operational_states_do_not(self):
+        for escalate in (False, True):  # repair-pending, then an operational repair escalation keeping the failed review
+            with self.subTest(escalate=escalate), QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
+                self.admitted_repair_pending(fixture, stack)
+                if escalate:
+                    queue._transition(ROOT, "o/r", 7, "blocked-escalation", HEAD, task_identity=IDENTITY,
+                                      red_gate={"name": "repair", "identity": IDENTITY, "evidence": "failed: llm exited 1"})
+                fixture.head = self.NEW_HEAD
+                count = len(fixture.comments)
+                with self.assertRaisesRegex(queue.QueueError, "material review findings of the admitted head needs changed task content"):
+                    queue.admit(ROOT, 7, self.NEW_HEAD, handoff={"task_identity": IDENTITY, "gates": {}})
+                self.assertEqual(len(fixture.comments), count)
+                self.readmit(fixture)
+                self.assert_superseded(fixture, "blocked-escalation" if escalate else "repair-pending")
+        with QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
+            self.admitted_repair_pending(fixture, stack)  # sets up admission; replace the review outcome
+            queue._transition(ROOT, "o/r", 7, "reviewing", HEAD, task_identity=IDENTITY, inherit_identity=False)
+            gate.complete_review(ROOT, "o/r", {**fixture.candidate(), "gates": {}},
+                                 {"s": {"availability": "unavailable", "limitation": "login expired"}}, HEAD)
+            self.assertEqual(fixture.candidate()["state"], "blocked-retryable")
+            fixture.head = self.NEW_HEAD
+            queue.admit(ROOT, 7, self.NEW_HEAD, handoff={"task_identity": IDENTITY, "gates": {}})  # same content
+            self.assertEqual((fixture.candidate()["state"], fixture.candidate()["head"]), ("review-pending", self.NEW_HEAD))
+
+    def test_status_names_a_pushed_head_awaiting_readmission(self):
+        from types import SimpleNamespace
+
+        with QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
+            self.admitted_repair_pending(fixture, stack)
+            fixture.head = self.NEW_HEAD
+            slot = queue._admission(queue._events(ROOT, "o/r", 7), 7)
+            with mock.patch.object(queue, "_queued", return_value=[(slot["comment_id"], 7, slot)]):
+                observed = queue.status(ROOT, 7)
+            self.assertEqual((observed["state"], observed["owner"], observed["proven_head"], observed["head"]),
+                             ("waiting", "developer re-admission", HEAD, self.NEW_HEAD))
+            self.assertIn("new head awaits developer re-admission", observed["reason"])
+            checks = SimpleNamespace(cause=None, kind="pending", detail="", checks=())
+            with mock.patch.object(queue, "required_check_state_for_ref", return_value=checks):
+                candidate = queue.candidate_status(ROOT, 7, repo="o/r")
+            self.assertIn(f"proven head {HEAD}, PR head {self.NEW_HEAD}", candidate["reason"])
+            self.assertEqual(candidate["awaiting_readmission"]["state"], "repair-pending")
+            self.assertIn("developer re-admission", candidate["next_action"])
+            self.readmit(fixture)
+            with mock.patch.object(queue, "required_check_state_for_ref", return_value=checks):
+                self.assertNotIn("awaiting_readmission", queue.candidate_status(ROOT, 7, repo="o/r"))
+
     def test_admission_slot_accepts_only_a_supersession_of_the_proven_head(self):
         new = "c" * 40
         admit = {"kind": "admit", "comment_id": 1, "head": HEAD, "branch": "agent/x", "base": HEAD}
