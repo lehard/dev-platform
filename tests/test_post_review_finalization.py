@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -509,18 +510,24 @@ scm_provider = "github"
 """
 
 
+def commit_source_contract(root: Path, tmp: Path) -> Path:
+    """Commit a coordinator source contract with one full check to main; return the check's log path."""
+    ran = tmp / "selected-checks.log"
+    (root / ".dev-platform.toml").write_text(SOURCE_CONTRACT)
+    (root / "dev-platform").mkdir()
+    (root / "dev-platform/checks.toml").write_text(f'[settings]\nfull_commands = ["printf ran >> {ran}"]\n')
+    git(root, "add", "-A")
+    git(root, "commit", "-qm", "source contract")
+    git(root, "push", "-q", "origin", "HEAD:main")
+    git(root, "fetch", "-q", "origin")
+    return ran
+
+
 class ProvenBaseFinalizeTests(CandidateCase):
     """Main advances between review and finalize: real checks on the proven base, no main merge, no developer."""
 
     def prepare_main(self, root: Path) -> None:
-        self.ran = Path(self.tmp.name) / "selected-checks.log"
-        (root / ".dev-platform.toml").write_text(SOURCE_CONTRACT)
-        (root / "dev-platform").mkdir()
-        (root / "dev-platform/checks.toml").write_text(f'[settings]\nfull_commands = ["printf ran >> {self.ran}"]\n')
-        git(root, "add", "-A")
-        git(root, "commit", "-qm", "source contract")
-        git(root, "push", "-q", "origin", "HEAD:main")
-        git(root, "fetch", "-q", "origin")
+        self.ran = commit_source_contract(root, Path(self.tmp.name))
         self.reviewed_main = git(root, "rev-parse", "HEAD")
 
     def advance_main(self, path: str = "main.txt", text: str = "advanced\n") -> str:
@@ -677,6 +684,56 @@ class ProvenBaseFinalizeTests(CandidateCase):
             self.assertNotIn("review", candidate["gates"])
             self.assertEqual(candidate["next_job"]["kind"], "review")
             self.assertFalse(self.ran.exists())
+
+
+class LegacyDependentFinalizeTests(CandidateCase):
+    """A legacy dependent child's proven base is its predecessor-based review identity base."""
+
+    def prepare_main(self, root: Path) -> None:
+        self.ran = commit_source_contract(root, Path(self.tmp.name))
+        self.main_base = git(root, "rev-parse", "HEAD")
+        git(root, "checkout", "-qb", "agent/predecessor")
+        (root / "predecessor.py").write_text("before = 1\n")
+        git(root, "add", "-A")
+        git(root, "commit", "-qm", "predecessor")
+        self.predecessor = git(root, "rev-parse", "HEAD")
+        self.repo.push("agent/predecessor")
+
+    def checkout(self) -> Path:
+        """A finalize checkout at the candidate head carrying the child's legacy dependent context."""
+        checkout = Path(self.tmp.name) / "finalize-checkout"
+        git(Path(self.tmp.name), "clone", "-q", str(self.repo.remote), str(checkout))
+        git(checkout, "checkout", "-q", "--detach", self.repo.head())
+        context = checkout / ".claude/requirement-child-context/example.json"
+        context.parent.mkdir(parents=True)
+        context.write_text(json.dumps({"change": "example", "dependencies": [{"head": self.predecessor}]}))
+        return checkout
+
+    def test_finalize_runs_real_checks_on_the_predecessor_review_base(self):
+        checkout = self.checkout()
+        identity = gate.task_identity(checkout, "example")
+        self.assertEqual(identity["task_content"]["base"], self.predecessor)
+        self.assertNotEqual(self.predecessor, self.main_base)
+        seen = []
+
+        def runner(checkout, env, **freshness):
+            seen.append(freshness)
+            return final.trusted_checks_runner(checkout, env, **freshness)
+
+        gates = {"review": {"result": "passed", "identity": identity, "evidence": {}}}
+        with self.assertRaises(final.SemanticVerificationRequired):
+            final.execute_finalize(checkout, {"head": self.repo.head(), "task_identity": identity}, gates,
+                                   source_repo=self.repo.remote.as_uri(), branch="agent/example",
+                                   current_head=self.repo.head, checks_runner=runner)
+        self.assertEqual(seen, [{"proven_base": self.predecessor}])
+        self.assertEqual(self.ran.read_text(), "ran")  # select_checks accepted the legacy review base
+
+    def test_main_merge_base_is_refused_for_a_legacy_dependent(self):
+        checkout = self.checkout()
+        with self.assertRaisesRegex(workers.WorkerError, "legacy dependent change example has review base"):
+            final.trusted_checks_runner(checkout, workers.credential_free_env(dict(os.environ), Path(self.tmp.name) / "home"),
+                                        proven_base=self.main_base)
+        self.assertFalse(self.ran.exists())
 
 
 class RederivationTests(unittest.TestCase):

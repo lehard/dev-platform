@@ -503,19 +503,44 @@ def require_fresh_task_base(
     return remote_sha
 
 
-def require_proven_task_base(
-    root: Path,
-    sha: str,
-    remote: str,
-    main_branch: str,
-    *,
-    task_ref: str = "HEAD",
-) -> str:
-    """Fail closed unless the task forks from exactly ``sha`` on the observed remote main history.
+def _legacy_dependent_change(root: Path) -> str | None:
+    """The change of this checkout's legacy dependent child context, or ``None`` without one.
+
+    A legacy dependent child is a ``requirement-child-context`` with predecessor
+    ``dependencies`` and no ``contribution``; its review identity is based on the
+    predecessor head (``task_content_identity._review_base``). Ambiguous or malformed
+    context fails; a contribution context is refused (it uses ``--contribution-base``).
+    """
+    directory = root / ".claude" / "requirement-child-context"
+    contexts = sorted(directory.glob("*.json")) if directory.is_dir() else []
+    if len(contexts) > 1:
+        raise TaskFreshnessError(
+            f"{len(contexts)} requirement child contexts in {directory}; the proven base needs exactly one review identity"
+        )
+    if not contexts:
+        return None
+    path = contexts[0]
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise TaskFreshnessError(f"requirement child context {path} is unreadable: {exc}") from exc
+    if not isinstance(payload, dict) or payload.get("change") != path.stem:
+        raise TaskFreshnessError(f"requirement child context {path} does not name its change {path.stem!r}")
+    if payload.get("contribution"):
+        raise TaskFreshnessError(
+            f"requirement child context {path} is a contribution; its freshness is --contribution-base, not a proven base"
+        )
+    return path.stem if payload.get("dependencies") else None
+
+
+def require_proven_task_base(root: Path, sha: str, remote: str, main_branch: str) -> str:
+    """Fail closed unless HEAD's reviewed task content is based on exactly ``sha``; describe that base.
 
     Coordinator finalization proves reviewed task content on its proven base and never
-    fetches or merges main, so this compares with the checkout's existing remote-tracking
-    ref: ``merge-base(task_ref, <remote>/<main>)`` must equal ``sha``. Returns the main sha.
+    fetches or merges main, so this reads the checkout's existing remote-tracking ref.
+    Every candidate requires ``merge-base(HEAD, <remote>/<main>) == sha``, except a legacy
+    dependent child, whose review identity is based on its single predecessor head: there
+    ``sha`` must equal the base ``review_content_identity`` recomputes for HEAD.
     """
     authoritative = f"{remote}/{main_branch}"
     if not re.fullmatch(r"[0-9a-f]{40}", sha):
@@ -523,15 +548,30 @@ def require_proven_task_base(
     main_sha = ref_sha(root, remote_ref(remote, main_branch))
     if not main_sha:
         raise TaskFreshnessError(f"{authoritative} is not observed in this checkout; cannot prove the task base {sha}")
-    result = run_git(["merge-base", task_ref, main_sha], cwd=root, check=False)
+    change = _legacy_dependent_change(root)
+    if change is not None:
+        if authoritative != "origin/main":
+            raise TaskFreshnessError(f"legacy dependent review identity is defined against origin/main, not {authoritative}")
+        from task_content_identity import review_content_identity
+
+        try:
+            proof = review_content_identity(root, change)
+        except ValueError as exc:
+            raise TaskFreshnessError(f"legacy dependent change {change} has no provable review base: {exc}") from exc
+        if proof is None:
+            raise TaskFreshnessError(f"legacy dependent change {change} has no provable review base")
+        if proof["base"] != sha:
+            raise TaskFreshnessError(
+                f"legacy dependent change {change} has review base {proof['base']}, not its proven base {sha}"
+            )
+        return f"review base of legacy dependent change {change} (origin/main {main_sha})"
+    result = run_git(["merge-base", "HEAD", main_sha], cwd=root, check=False)
     observed = result.stdout.strip()
     if result.returncode or not observed:
-        raise TaskFreshnessError(f"task {task_ref!r} has no merge base with {authoritative} ({main_sha}); cannot prove base {sha}")
+        raise TaskFreshnessError(f"HEAD has no merge base with {authoritative} ({main_sha}); cannot prove base {sha}")
     if observed != sha:
-        raise TaskFreshnessError(
-            f"task {task_ref!r} forks from {observed} on {authoritative} ({main_sha}), not from its proven base {sha}"
-        )
-    return main_sha
+        raise TaskFreshnessError(f"HEAD forks from {observed} on {authoritative} ({main_sha}), not from its proven base {sha}")
+    return f"merge base of HEAD and {authoritative} ({main_sha})"
 
 
 def require_origin(root: Path, remote: str = "origin") -> None:

@@ -514,7 +514,7 @@ def main() -> int:
         args.mode = "protected-full"
 
     root = current_worktree_root()
-    proven_main = require_proven_base_contract(root, args) if args.proven_base is not None else None
+    proven_description = require_proven_base_contract(root, args) if args.proven_base is not None else None
     config = load_config(root)
     paths = [] if args.mode == "protected-full" else changed_files(root, args.base, args.changed_file)
     checks = (
@@ -551,10 +551,10 @@ def main() -> int:
         except ManagedTaskError as exc:
             raise SystemExit("Managed checkout identity gate blocked validation before any expensive command started: " + str(exc)) from exc
         if harness == "platform" and requires_task_freshness(checks):
-            if proven_main is not None:
+            if proven_description is not None:
                 print(
                     "Task freshness gate passed (coordinator-finalization proven-base contract): "
-                    f"HEAD forks from its proven base {args.proven_base} on origin/{read_platform_config(root)['main_branch']} ({proven_main})."
+                    f"proven base {args.proven_base} is the {proven_description}."
                 )
             elif args.contribution_base:
                 if run_git(["merge-base", "--is-ancestor", args.contribution_base, "HEAD"], cwd=root, check=False).returncode:
