@@ -3,79 +3,62 @@
   "candidate": {
     "base_head": "b93ffc444164bbf1a006d60f117e8378131a2924",
     "base_ref": "origin/main",
-    "candidate_head": "b5af8c463eeb5f73efb5c4ba913ec2e5cd9366f3",
-    "diff_sha256": "ac6cf3e9df6e82825a8fd9e292ee14608b68b089f2e2ea8ed3f629460184cf69"
+    "candidate_head": "87ef2507a5b2f0eee20f89402c3254299a560a05",
+    "diff_sha256": "61cdda2d7584dc4fbdc6287fc889a4cffcb1e14d8b28a38020f6e64ea8184761"
   },
-  "completed_at": "2026-10-09T12:15:15+00:00",
+  "completed_at": "2026-10-09T12:31:51+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/machine_pool.py `lease()`: `if LEASE_ENV in environ: parent = _parse_lease(...); yield Lease(nested=True, ...)`. `_open_descriptors` silently skips descriptors that fail `os.fstat`, so a nested process whose inherited fds are gone still yields a pooled nested Lease and acquires nothing.",
-      "id": "nested-lease-trusts-env-without-verifying-held-tokens",
+      "evidence": "template/scripts/machine_pool.py:620\u2013627 silently drops closed descriptors; lines 642\u2013647 then yield a pooled nested lease without acquiring tokens or verifying that its weight is actually held. A child launched through a subprocess boundary without pass_fds inherits DEV_PLATFORM_MACHINE_POOL_LEASE but loses the locks. After the original holders exit, that child continues validation while another run can acquire the same tokens. This contradicts the active spec requirement to hold inherited kernel leases until every holder exits.",
+      "id": "nested-lease-without-locks",
+      "severity": "material",
+      "summary": "Nested runs proceed as pooled even when they inherited none of the lease descriptors, allowing validation to continue after its tokens are released."
+    },
+    {
+      "evidence": "template/scripts/machine_pool.py:141\u2013143 validates max_load_per_cpu using load <= 0, which is false for TOML nan. The admission comparison in _acquire, load > config.max_load_per_cpu, is also always false with NaN. Thus max_load_per_cpu = nan runs checks regardless of load instead of failing explicitly for an invalid positive-number configuration, as required by design decision 1 and the active spec.",
+      "id": "nan-load-limit-accepted",
       "severity": "advisory",
-      "summary": "A nested run reuses any DEV_PLATFORM_MACHINE_POOL_LEASE found in the environment without checking that the lease's slot descriptors are still held. A stale or leaked exported lease (for example an environment captured from a finished run, or a child started without pass_fds) makes the run proceed unpooled and silently. The spec says a run SHALL NOT run outside the pool, and nested reuse is only justified because the parent holds the tokens."
+      "summary": "A NaN load limit is accepted as valid configuration and disables load admission."
     }
   ],
-  "launched_at": "2026-10-09T12:14:23+00:00",
-  "output_sha256": "50e433022640eb73b8804303754fbfcdb4051c7d50f0eb09dd56590d163e00e3",
+  "launched_at": "2026-10-09T12:31:08+00:00",
+  "output_sha256": "7c19e67c82af237440c4ae398be6b9fcbc078c7a9c79792a319720f8c608e32b",
   "perspective": "spec-fidelity",
-  "request_id": "f8fcae54-5778-4038-8e07-8737b1805d85",
+  "request_id": "9e008122-6abf-4687-a477-ca551f9a9cc8",
   "reviewer": {
-    "context_id": "4d0d9359-22de-4ca5-9141-19f8bcb48c1e",
+    "context_id": "01a120a5-5557-7ad1-a7d4-d4cbe7a9c0bd",
     "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-1611b8f1-5194-4f3d-aedb-d0a6aa5bdd76",
+    "launch_id": "platform-launch-95549b6e-7277-4615-8407-810825cb2d12",
     "model": {
       "source": "selected",
-      "value": "sonnet"
+      "value": "gpt-6.1-sol"
     },
-    "provider": "claude",
-    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
-    "runtime": "claude-code-print",
+    "provider": "codex",
+    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
+    "runtime": "codex-exec",
     "write_access": false
   },
   "runtime_usage": {
     "fields": {
-      "cache_creation_input_tokens": {
+      "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 58645
-      },
-      "cache_read_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 219478
-      },
-      "duration_api_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 47625
-      },
-      "duration_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 48585
+        "value": 125824
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 12
-      },
-      "num_turns": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 11
+        "value": 172722
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4021
+        "value": 931
       }
     },
-    "runtime": "claude-code-print"
+    "runtime": "codex-exec"
   },
   "schema_version": 1,
   "task_content_digest": "261c5cb088f0a5f052e07a37c7925b12817c5088b52cc6a8ea75ab05bd37a9fc"

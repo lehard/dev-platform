@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "b93ffc444164bbf1a006d60f117e8378131a2924",
     "base_ref": "origin/main",
-    "candidate_head": "b5af8c463eeb5f73efb5c4ba913ec2e5cd9366f3",
-    "diff_sha256": "ac6cf3e9df6e82825a8fd9e292ee14608b68b089f2e2ea8ed3f629460184cf69"
+    "candidate_head": "87ef2507a5b2f0eee20f89402c3254299a560a05",
+    "diff_sha256": "61cdda2d7584dc4fbdc6287fc889a4cffcb1e14d8b28a38020f6e64ea8184761"
   },
   "change": "openspec/changes/machine-validation-pool",
   "excluded_lifecycle_paths": [
@@ -37,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-09T12:14:11+00:00",
+  "prepared_at": "2026-10-09T12:30:58+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/machine-validation-pool/independent-reviews",
     "required_perspectives": [
@@ -46,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "f8fcae54-5778-4038-8e07-8737b1805d85",
+  "request_id": "9e008122-6abf-4687-a477-ca551f9a9cc8",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
