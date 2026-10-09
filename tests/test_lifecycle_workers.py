@@ -688,7 +688,24 @@ FAKE_LLM = r"""
 import os, subprocess, sys
 mode = os.environ.get("FAKE_MODE", "commit")
 if mode == "fail":
+    sys.stdout.write("OUT-" + "o" * 5000 + "-TAIL")
+    sys.stderr.write("ERR-" + "e" * 5000 + "-SECRET-TAIL")
     sys.exit(1)
+if mode.startswith("edit"):  # a sandboxed writer: edits the working tree, cannot commit
+    open(os.environ["PROMPT_SEEN"], "w").write(sys.argv[-1])
+    target = {"edit": "src/a.py", "edit-outside": "docs/x.md",
+              "edit-evidence": "openspec/changes/c/verification.md"}.get(mode, "src/a.py")
+    os.makedirs(os.path.dirname(target), exist_ok=True)
+    open(target, "w").write("fixed")
+    if mode == "edit-untracked":
+        open("src/new.py", "w").write("new")
+        os.remove("src/gone.py")
+    os.makedirs("src/__pycache__", exist_ok=True)
+    open("src/__pycache__/a.pyc", "w").write("ignored")
+    sys.exit(0)
+if mode == "ignored-only":
+    open("src/a.pyc", "w").write("ignored")
+    sys.exit(0)
 def g(*a): subprocess.run(["git", *a], check=True, env={**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"})
 if mode == "review-write":
     open("src/a.py", "w").write("dirty")
@@ -708,6 +725,10 @@ elif mode in ("commit", "malicious", "workflow"):
         g("config", "credential.helper", "!touch " + os.environ["HOOK_MARK"])
         g("config", "core.hooksPath", ".git/hooks")
     g("add", "-A"); g("commit", "-qm", "fix")
+elif mode == "commit-and-leftover":
+    open("src/a.py", "w").write("fixed")
+    g("add", "-A"); g("commit", "-qm", "fix")
+    open("src/extra.py", "w").write("left behind")
 """
 
 
@@ -722,6 +743,8 @@ class ExecuteJobTests(unittest.TestCase):
         git(seed, "init", "-q", "-b", "task")
         (seed / "src").mkdir()
         (seed / "src/a.py").write_text("1")
+        (seed / "src/gone.py").write_text("old")
+        (seed / ".gitignore").write_text("__pycache__/\n*.pyc\n")
         (seed / ".dev-platform.toml").write_text('platform_version = "1.0.0"\n')  # committed project contract
         git(seed, "add", "-A"); git(seed, "commit", "-qm", "base")
         self.head = git(seed, "rev-parse", "HEAD")
@@ -729,6 +752,7 @@ class ExecuteJobTests(unittest.TestCase):
         self.work = base / "work"
         self.work.mkdir()
         self.mark = base / "mark"
+        self.prompt_seen = base / "prompt-seen"
         self.job = {"kind": "repair", "number": 7, "head": self.head, "task_identity": "t", "attempt": 1,
                     "providers": ["codex"]}
         self.posted = []
@@ -736,14 +760,16 @@ class ExecuteJobTests(unittest.TestCase):
         script.write_text(FAKE_LLM)
         self.script = script
 
-    def run_job(self, mode, *, kind="repair", head=None, allow=("src/",)):
+    def run_job(self, mode, *, kind="repair", head=None, allow=("src/",), prompt=None):
         os.environ["FAKE_MODE"] = mode
         os.environ["HOOK_MARK"] = str(self.mark)
-        self.addCleanup(lambda: [os.environ.pop(k, None) for k in ("FAKE_MODE", "HOOK_MARK")])
+        os.environ["PROMPT_SEEN"] = str(self.prompt_seen)
+        self.addCleanup(lambda: [os.environ.pop(k, None) for k in ("FAKE_MODE", "HOOK_MARK", "PROMPT_SEEN")])
         job = dict(self.job, kind=kind)
         return workers.execute_job(
             job, source_repo=str(self.src), branch="task", allowed_paths=list(allow),
-            llm_command=[sys.executable, str(self.script)], current_head=lambda: head or self.head,
+            llm_command=[sys.executable, str(self.script), *([prompt] if prompt is not None else [])],
+            current_head=lambda: head or self.head,
             post_result=self.posted.append, workdir=str(self.work), worker="w1", provider="codex",
             env={**os.environ}, push_env={**os.environ, "GIT_CONFIG_GLOBAL": os.devnull})
 
@@ -755,6 +781,84 @@ class ExecuteJobTests(unittest.TestCase):
         self.assertNotEqual(remote, self.head)
         self.assertTrue(self.posted[-1].startswith(workers.RESULT_PREFIX))
         self.assertEqual(json.loads(self.posted[-1][len(workers.RESULT_PREFIX):])["pushed_head"], remote)
+        self.assertEqual(git(self.src, "log", "-1", "--format=%an <%ae>", "refs/heads/task"), "t <t@t>")  # writer's own commit
+
+    def remote_head(self):
+        return git(self.src, "rev-parse", "refs/heads/task")
+
+    def remote_files(self):
+        return git(self.src, "ls-tree", "-r", "--name-only", "refs/heads/task").split("\n")
+
+    def test_uncommitted_writer_edits_are_committed_by_the_harness_identity(self):
+        result = self.run_job("edit", prompt="Repair the findings")
+        self.assertEqual(result["status"], "pushed")
+        self.assertEqual(self.prompt_seen.read_text(), "Repair the findings")  # the task is the final argument
+        self.assertEqual(self.remote_head(), result["pushed_head"])
+        self.assertEqual(git(self.src, "rev-parse", "refs/heads/task^"), self.head)
+        self.assertEqual(git(self.src, "log", "-1", "--format=%an <%ae>|%cn <%ce>", "refs/heads/task"),
+                         "Lifecycle harness <lifecycle@localhost>|Lifecycle harness <lifecycle@localhost>")
+        self.assertEqual(git(self.src, "show", "refs/heads/task:src/a.py"), "fixed")
+        self.assertNotIn("src/__pycache__/a.pyc", self.remote_files())  # ignored files are never committed
+        self.assertNotIn(".dev-platform-disposable-repository.json", self.remote_files())
+        self.assertNotIn("writer_output", result)
+
+    def test_harness_commit_includes_untracked_and_deleted_paths(self):
+        result = self.run_job("edit-untracked", prompt="task")
+        self.assertEqual(result["status"], "pushed")
+        files = self.remote_files()
+        self.assertIn("src/new.py", files)
+        self.assertNotIn("src/gone.py", files)
+        self.assertEqual(git(self.src, "diff", "--name-status", self.head, "refs/heads/task").split("\n"),
+                         ["M\tsrc/a.py", "D\tsrc/gone.py", "A\tsrc/new.py"])
+
+    def test_uncommitted_edit_outside_allowed_paths_is_rejected_without_commit(self):
+        result = self.run_job("edit-outside", prompt="task")
+        self.assertEqual(result["status"], "rejected")
+        self.assertEqual(result["outcome"], "rejected: path outside candidate scope: docs/x.md")
+        self.assertEqual(self.remote_head(), self.head)
+        stage = self.work / "writer-stage"
+        self.assertEqual(git(stage, "rev-parse", "HEAD"), self.head)  # nothing was committed
+        self.assertIn("writer_output", result)
+
+    def test_uncommitted_lifecycle_evidence_edit_is_rejected(self):
+        result = self.run_job("edit-evidence", allow=("src/", "openspec/"), prompt="task")
+        self.assertEqual(result["status"], "rejected")
+        self.assertEqual(result["outcome"], "rejected: lifecycle evidence edit: openspec/changes/c/verification.md")
+        self.assertEqual(self.remote_head(), self.head)
+
+    def test_clean_tree_and_ignored_only_changes_are_no_change(self):
+        for mode in ("noop", "ignored-only"):
+            with self.subTest(mode=mode):
+                self.work = Path(tempfile.mkdtemp(dir=self.tmp.name))
+                result = self.run_job(mode, prompt="task")
+                self.assertEqual(result["status"], "no-change")
+                self.assertEqual(result["writer_output"], {"stdout": "", "stderr": ""})
+                self.assertEqual(self.remote_head(), self.head)
+
+    def test_writer_commit_with_leftover_edits_is_rejected_not_dropped(self):
+        result = self.run_job("commit-and-leftover", prompt="task")
+        self.assertEqual(result["status"], "rejected")
+        self.assertEqual(result["outcome"], "rejected: writer committed and also left uncommitted changes: src/extra.py")
+        self.assertEqual(self.remote_head(), self.head)
+
+    def test_empty_writer_task_is_refused_before_launch(self):
+        for prompt in ("", "  \n\t"):
+            with self.subTest(prompt=prompt), self.assertRaisesRegex(workers.WorkerError, "empty writer task"):
+                self.run_job("edit", prompt=prompt)
+        self.assertFalse(self.prompt_seen.exists())
+        self.assertFalse((self.work / "llm-checkout").exists())
+        self.assertEqual(self.posted, [])
+
+    def test_failed_writer_output_tails_stay_local(self):
+        result = self.run_job("fail", prompt="task")
+        self.assertEqual(result["status"], "failed")
+        output = result["writer_output"]
+        self.assertEqual(len(output["stdout"]), workers.WRITER_OUTPUT_TAIL)
+        self.assertTrue(output["stdout"].endswith("-TAIL"))
+        self.assertTrue(output["stderr"].endswith("-SECRET-TAIL"))
+        self.assertNotIn("SECRET", self.posted[-1])
+        self.assertNotIn("ooo", self.posted[-1])
+        self.assertEqual(json.loads(self.posted[-1][len(workers.RESULT_PREFIX):])["outcome"], "failed: llm exited 1")
 
     def test_unusable_runtime_after_failure_is_unavailable_and_claimable_again(self):
         os.environ["FAKE_MODE"] = "fail"

@@ -45,6 +45,10 @@ SAFE_GIT = ("-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false")
 # Harness merges and commits never depend on an ambient git identity (CI runners have none).
 HARNESS_IDENTITY = ("-c", "user.name=Lifecycle harness", "-c", "user.email=lifecycle@localhost")
 EVIDENCE_NAMES = ("verification.md", "automated-checks.json")
+# Files the harness itself installs into a writer checkout; never candidate content.
+INSTALLED_FILES = (".dev-platform.toml", disposable_repository_sandbox.MARKER)
+# Bounded writer stdout/stderr kept in the local job result only, never in a posted record.
+WRITER_OUTPUT_TAIL = 4000
 
 
 class WorkerError(RuntimeError):
@@ -567,9 +571,12 @@ def harness_git(repo: Path, *args: str) -> str:
 
     Every git command that runs after a writer or reviewer touched a checkout uses this (and only
     on a harness-owned clone), so configuration planted in the writer's checkout is never consulted.
+    Ambient author/committer variables are dropped so a harness commit carries ``HARNESS_IDENTITY`` only.
     """
+    env = {key: value for key, value in credential_free_env(dict(os.environ), repo.parent / "harness-home").items()
+           if key not in {"GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL"}}
     done = subprocess.run(["git", *SAFE_GIT, *args], cwd=repo, text=True, capture_output=True, check=False,
-                          stdin=subprocess.DEVNULL, env=credential_free_env(dict(os.environ), repo.parent / "harness-home"))
+                          stdin=subprocess.DEVNULL, env=env)
     if done.returncode:
         raise WorkerError(f"git {' '.join(args)} failed: {done.stderr.strip() or done.stdout.strip()}")
     return done.stdout
@@ -648,9 +655,9 @@ def import_worktree(source: Path, target: Path) -> None:
                 (Path(directory) / name).unlink()
 
 
-def prepare_harness(source_repo: str, checkout: Path, root: Path, result_head: str) -> Path:
+def prepare_harness(source_repo: str, checkout: Path, root: Path, result_head: str, name: str = "harness") -> Path:
     """Import only result commits into a separate trusted clone for validation/push."""
-    harness = root / "harness"
+    harness = root / name
     for step in (["clone", "--no-local", "--no-checkout", source_repo, str(harness)],
                  ["fetch", "--no-tags", str(checkout), result_head]):
         cwd = harness if step[0] == "fetch" else root
@@ -659,6 +666,42 @@ def prepare_harness(source_repo: str, checkout: Path, root: Path, result_head: s
         if proc.returncode:
             raise WorkerError(proc.stderr.strip()[:200])
     return harness
+
+
+def worktree_changes(repo: Path) -> list[str]:
+    """Every tracked modification, deletion and untracked (not ignored) path of a harness-owned clone."""
+    out = harness_git(repo, "status", "--porcelain=v1", "-z", "--untracked-files=all", "--no-renames")
+    return sorted(entry[3:] for entry in out.split("\0") if entry)
+
+
+def commit_writer_worktree(stage: Path, checkout: Path, expected_head: str, result_head: str, allowed_paths,
+                           message: str) -> str:
+    """The writer's result head, committing edits it left uncommitted (a sandbox may keep ``.git`` read-only).
+
+    The writer checkout stays data only: its files are imported into a harness-owned staging clone at the
+    writer's HEAD and git runs only there, so planted config, attributes drivers and hooks never execute. Every
+    changed path must pass the write rules before anything is staged. A writer either commits its result
+    or leaves it in the working tree, never both: edits left beside its own commit are rejected
+    explicitly rather than pushed without them.
+    """
+    harness_git(stage, "checkout", "-q", "--detach", result_head)
+    with (stage / ".git" / "info" / "exclude").open("a", encoding="utf-8") as handle:
+        handle.write("".join(f"\n/{name}" for name in INSTALLED_FILES) + "\n")
+    import_worktree(checkout, stage)
+    changed = worktree_changes(stage)
+    if not changed:
+        return result_head
+    if result_head != expected_head:
+        raise WorkerError(f"writer committed and also left uncommitted changes: {changed[0]}")
+    for path in changed:
+        reason = _forbidden(path)
+        if reason:
+            raise WorkerError(f"{reason}: {path}")
+        if not _allowed(path, allowed_paths):
+            raise WorkerError(f"path outside candidate scope: {path}")
+    harness_git(stage, "--literal-pathspecs", "add", "--", *changed)
+    harness_git(stage, *HARNESS_IDENTITY, "commit", "-q", "--no-verify", "-m", message)
+    return harness_git(stage, "rev-parse", "HEAD").strip()
 
 
 def execute_job(job: dict, *, source_repo: str, branch: str, allowed_paths, llm_command,
@@ -674,7 +717,9 @@ def execute_job(job: dict, *, source_repo: str, branch: str, allowed_paths, llm_
 
     Validation and the only push happen in a separate harness-owned clone that
     receives nothing but the result commit, so hooks, remotes and credential
-    settings planted in the LLM checkout are never consulted.
+    settings planted in the LLM checkout are never consulted. A write job's task
+    is the final argv element of ``llm_command``; the writer either commits or
+    leaves its edits in the working tree for the harness to commit.
     """
     kind = kind or job["kind"]
     if kind != job["kind"] or kind not in WRITE_KINDS | {"review"}:
@@ -683,14 +728,22 @@ def execute_job(job: dict, *, source_repo: str, branch: str, allowed_paths, llm_
         require_job_provider(job, provider)
     result_provider = provider if kind in WRITE_KINDS else None
     command = shlex.split(llm_command) if isinstance(llm_command, str) else list(llm_command)
+    if kind in WRITE_KINDS and (not command or not str(command[-1]).strip()):
+        raise WorkerError(f"PR #{job['number']} {kind} job has an empty writer task: the final llm command argument is blank")
     root = Path(workdir).resolve()
     checkout = prepare_checkout(source_repo, str(root), "llm-checkout", job["head"])
+
+    writer_output: dict[str, str] = {}
 
     def finish(outcome: str, pushed: str | None = None, status: str | None = None) -> dict:
         if not claim_current():
             return {"status": "discarded"}
         post_result(result_body(job, worker, outcome, pushed, provider=result_provider))
-        return {"status": status or outcome.split(":")[0], "outcome": outcome, "pushed_head": pushed}
+        status = status or outcome.split(":")[0]
+        # Writer output stays local (operator console, not the posted record): it may hold sensitive text.
+        local = {"writer_output": dict(writer_output)} if writer_output and status in {
+            "failed", "no-change", "rejected", "unavailable"} else {}
+        return {"status": status, "outcome": outcome, "pushed_head": pushed, **local}
 
     if kind == "review" and review_handler is not None:
         outcome = review_handler(checkout)
@@ -705,6 +758,7 @@ def execute_job(job: dict, *, source_repo: str, branch: str, allowed_paths, llm_
         if kind != "repair" or runtime_check is None:
             raise  # only the repair gate handles an unavailable runtime
         return finish(f"unavailable: cannot start the llm command: {exc}"[:300], status="unavailable")
+    writer_output.update(stdout=done.stdout[-WRITER_OUTPUT_TAIL:], stderr=done.stderr[-WRITER_OUTPUT_TAIL:])
     if done.returncode:
         # A runtime that no longer passes its readiness probe (login, usage limit) is unavailable, not a failed result.
         limitation = runtime_check() if runtime_check is not None else None
@@ -722,14 +776,21 @@ def execute_job(job: dict, *, source_repo: str, branch: str, allowed_paths, llm_
     if isinstance(proposal, dict) and proposal.get("reject_material") is True:
         return finish("proposed-rejection", status="proposed-rejection")
     result_head = harness_git(checkout, "rev-parse", "HEAD").strip()
-    if result_head == job["head"]:
+    if result_head == job["head"] and tree_snapshot(checkout) == before[1]:
         return finish("no-change", status="no-change")
     if current_head() != job["head"]:
         return finish("discarded: head moved", status="discarded")
     try:
-        harness = prepare_harness(source_repo, checkout, root, result_head)
+        # The writer's commits and files pass through a staging clone; the harness clone then receives
+        # nothing but the (possibly harness-committed) result commit, exactly as for a writer commit.
+        stage = prepare_harness(source_repo, checkout, root, result_head, name="writer-stage")
+        result_head = commit_writer_worktree(stage, checkout, job["head"], result_head, allowed_paths,
+                                             f"Apply {kind} writer edits for {job_id(job)}")
+        harness = prepare_harness(source_repo, stage, root, result_head) if result_head != job["head"] else None
     except WorkerError as exc:
         return finish(f"rejected: {exc}", status="rejected")
+    if harness is None:
+        return finish("no-change", status="no-change")  # only ignored files changed
     try:
         validate_worker_result(harness, job["head"], result_head, allowed_paths, kind=kind)
         if before_push is not None:
