@@ -1,65 +1,94 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "7c83a854522a5defca480e5a86bae580de0a43c1",
+    "base_head": "f18050510249ffd58b05af3ed9e7f0bfe548f2cc",
     "base_ref": "origin/main",
-    "candidate_head": "c835a30df513586bf0345c7dcea493abdabf3719",
-    "diff_sha256": "37a3b82a4d88827557f03b3d944c027009f399dce88d48e1cc43cc25a650088f"
+    "candidate_head": "d27205787ed5cdc7d897fb4730f28234be09d4d9",
+    "diff_sha256": "71d6cdb7b4da8f42aa9dbe6f034d4181b649e559fc8139fb83b6af03c57cbbc4"
   },
-  "completed_at": "2026-10-09T17:10:36+00:00",
+  "completed_at": "2026-10-09T19:25:55+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/project_sync.py:40\u201348 reads HEAD, merges, reads HEAD again and writes an actor receipt without holding serialized_integration. If a delegated child advances integration from A to origin/main B after a sibling sync reads A, the sibling's merge succeeds as an 'Already up to date' no-op and emits A\u2192B naming the sibling. The receipt then passes delegation_containment.py's chain and actor checks despite the child having moved integration. Two legitimate concurrent syncs can likewise emit duplicate A\u2192B receipts and break the chain. The receipt append lock does not protect the HEAD observation and merge.",
-      "id": "sync-receipt-attribution-race",
-      "severity": "material",
-      "summary": "Unserialized project sync can attribute another process's integration advance to the caller, defeating detection-only containment."
+      "evidence": "template/scripts/delegation_containment.py: `record_integration_advance` uses `datetime.now(timezone.utc).replace(microsecond=0)`. `_receipt_chain` filters with `_parse_receipt_time(r[\"at\"], ...) >= window_start`, where `window_start` is `delegation[\"opened_at\"]`. If `opened_at` carries sub-second precision, this comparison is unsafe.",
+      "id": "receipt-second-truncation-vs-window-start",
+      "severity": "advisory",
+      "summary": "Receipt timestamps are truncated to whole seconds but are compared with `>= window_start` against the delegation's `opened_at`. A receipt written in the same second as the delegation opening can compare as earlier than `opened_at`, so a legitimate advance is dropped. The result is a false containment violation, not an unsafe acceptance."
     },
     {
-      "evidence": "template/scripts/delegation_containment.py:434 reads the whole log with read_text().splitlines(), and read_integration_advances parses every entry before _receipt_chain filters by delegation time. Consequently memory and classification cost grow with all historical advances, despite design.md describing 'bounded reading by time window' as the mitigation for receipt log growth.",
-      "id": "unbounded-receipt-log-read",
+      "evidence": "template/scripts/model_routing.py `_recover_claude_external_advance`: `for receipt in receipts: ... if receipt_time <= friction_time: raise RoutingError(\"the friction event does not predate integration advance receipts; historical recovery is forbidden\")`. The check is not limited to the opened_at..recovery window.",
+      "id": "recovery-refuses-on-any-older-receipt",
       "severity": "advisory",
-      "summary": "Every classification loads and parses the entire append-only integration history."
+      "summary": "Claude historical recovery scans the whole receipt log and refuses on any receipt dated at or before the friction event, even one unrelated to this delegation window. Once the log has older entries, recovery for a pre-receipt false violation is blocked more broadly than the stated purpose requires."
+    },
+    {
+      "evidence": "template/scripts/finish_task.py `integrate_and_publish_direct`: `require_own_fast_forward(...)` is called after `project_publish.py` ran. `_unrecorded_direct_advance` only matches a reflog entry whose new head equals the *current* head, so once main has moved on it returns None.",
+      "id": "direct-finish-receipt-after-failed-own-ff-check",
+      "severity": "advisory",
+      "summary": "In direct finish, the own-fast-forward proof and the receipt write both run after the push. If the proof fails (for example, a sibling advanced main right after the push), the command exits with SystemExit after publication has already happened, and a retry cannot re-derive the advance. The chain stays permanently unreceipted, which is fail-closed but not recoverable by retry."
     }
   ],
-  "launched_at": "2026-10-09T17:09:27+00:00",
-  "output_sha256": "0a5da38d20385227737e78ce863541171137bcd18f3f5b73eca91f74e1a240c3",
+  "launched_at": "2026-10-09T19:25:26+00:00",
+  "output_sha256": "65bb46815e6f9b921a39daca0ec08d010a28f7a8b8bbf3056beffe048a79d910",
   "perspective": "engineering-quality",
-  "request_id": "c3276462-7a55-4655-a82b-96d7c2e1b425",
+  "request_id": "71b4a737-d834-478c-ab75-f7fef6df1336",
   "reviewer": {
-    "context_id": "01a121a4-24f1-7122-a332-523b66a36f94",
+    "context_id": "b1458764-98e0-4f88-b9cb-2c7c1cac0e72",
     "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-d25d4c6f-c908-4f53-836f-03168bb32850",
+    "launch_id": "platform-launch-2618e6b7-234b-48cf-8ed7-3b30f3762470",
     "model": {
       "source": "selected",
-      "value": "gpt-6.1-sol"
+      "value": "sonnet"
     },
-    "provider": "codex",
-    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
-    "runtime": "codex-exec",
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
     "write_access": false
   },
   "runtime_usage": {
     "fields": {
-      "cached_input_tokens": {
+      "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 237696
+        "value": 44032
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 55268
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 22741
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 23879
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 300040
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1243
+        "value": 2521
       }
     },
-    "runtime": "codex-exec"
+    "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "f6754cded28682df32fddc0eea9dc725dc75b21c5358bd8e3e4ed2fbd7342303"
+  "task_content_digest": "447c497767b7174d854a45d5892ffaf2a6f66b57f4cab208b466dfdf8c340fbf"
 }

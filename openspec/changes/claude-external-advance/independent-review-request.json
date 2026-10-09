@@ -1,9 +1,9 @@
 {
   "candidate": {
-    "base_head": "7c83a854522a5defca480e5a86bae580de0a43c1",
+    "base_head": "f18050510249ffd58b05af3ed9e7f0bfe548f2cc",
     "base_ref": "origin/main",
-    "candidate_head": "c835a30df513586bf0345c7dcea493abdabf3719",
-    "diff_sha256": "37a3b82a4d88827557f03b3d944c027009f399dce88d48e1cc43cc25a650088f"
+    "candidate_head": "d27205787ed5cdc7d897fb4730f28234be09d4d9",
+    "diff_sha256": "71d6cdb7b4da8f42aa9dbe6f034d4181b649e559fc8139fb83b6af03c57cbbc4"
   },
   "change": "openspec/changes/claude-external-advance",
   "excluded_lifecycle_paths": [
@@ -37,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-09T17:07:50+00:00",
+  "prepared_at": "2026-10-09T19:24:39+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/claude-external-advance/independent-reviews",
     "required_perspectives": [
@@ -46,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "c3276462-7a55-4655-a82b-96d7c2e1b425",
+  "request_id": "71b4a737-d834-478c-ab75-f7fef6df1336",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -58,25 +58,25 @@
   },
   "schema_version": 1,
   "task_content": {
-    "base": "b93ffc444164bbf1a006d60f117e8378131a2924",
-    "digest": "f6754cded28682df32fddc0eea9dc725dc75b21c5358bd8e3e4ed2fbd7342303",
+    "base": "f18050510249ffd58b05af3ed9e7f0bfe548f2cc",
+    "digest": "447c497767b7174d854a45d5892ffaf2a6f66b57f4cab208b466dfdf8c340fbf",
     "paths": {
       "dev-platform/checks.toml": "7185f0257fd5966c96b7bee6ac99f7fc19775826",
-      "docs/engineering/model-routing.md": "a1b760a4d91fc7ecbfee4e16beaa94b1d4563971",
+      "docs/engineering/model-routing.md": "eca2302b8c0780b5fc6db5c2e509fa0ac8f232b9",
       "openspec/changes/claude-external-advance/.managed-task.json": "2ef9d1a8bb57c1fdebafba508fa5898a82f1d3c6",
       "openspec/changes/claude-external-advance/.openspec.yaml": "81264324b0500978f52f70d701b236a09cb1d808",
-      "openspec/changes/claude-external-advance/design.md": "5d7b6e64536d43597fbd54e67d034b881d18807f",
-      "openspec/changes/claude-external-advance/proposal.md": "da10716dd8b5cce17ce2b8fb98c31f1b87595966",
+      "openspec/changes/claude-external-advance/design.md": "b2798f655a6a29c3c985844ff612d8eedd06ee98",
+      "openspec/changes/claude-external-advance/proposal.md": "9c693bd81cba47641b811471442743b1d72ba5a9",
       "openspec/changes/claude-external-advance/specs/model-routing/spec.md": "545d393768a66e14725cbc9422341a7af704159e",
       "openspec/changes/claude-external-advance/tasks.md": "c442ce20be2a8c870f79865a3ea49ae9d980ae93",
-      "template/docs/engineering/model-routing.md": "bd054aa241a9326f23491fcb6002ddc40a2019cb",
+      "template/docs/engineering/model-routing.md": "855fba127dc3210c737f6f7abf3f113d28070bd1",
       "template/scripts/delegated_write_guard.py": "b18fa8b42f714731bf53a0872741160039acd8f6",
-      "template/scripts/delegation_containment.py": "e6130aca95c09fd650000f584dc7279b281aaf48",
-      "template/scripts/finish_task.py": "3ffa54a7b3733b8f2fafd42192acf390919ce47c",
-      "template/scripts/model_routing.py": "d0d232e9a143153afb45408af9d9eba967916126",
-      "template/scripts/project_sync.py": "1abcf78c8514c5ba01dcb66fb0b8dba9c9cbf36d",
-      "tests/test_git_lifecycle.py": "25ef6fd9a92260592d185249cf80bdfd705c0f57",
-      "tests/test_integration_advance_receipts.py": "c69da53997c77808a2675c6a2c2f28ee8c708e26",
+      "template/scripts/delegation_containment.py": "e984df4cbc470549928574c9987fd6230ec8f010",
+      "template/scripts/finish_task.py": "4744834405aa7de64a805400da028fa4eb2cdd00",
+      "template/scripts/model_routing.py": "8fd2597e7b6f3c6b21ea787593be3af339ff8554",
+      "template/scripts/project_sync.py": "86219cb7fb65238eb6f3249c29333819a21b971b",
+      "tests/test_git_lifecycle.py": "fb626763cd341bb30d6bf858981d3937c8646e29",
+      "tests/test_integration_advance_receipts.py": "ffd649ceb5cb2aec66b56b39c12b5adfc7d7e578",
       "tests/test_merge_lifecycle_resilience.py": "cfb63fcd670f9929bd61221efad0afa847c45d41",
       "tests/test_protected_main_zero_handoff.py": "69537933132d1c3f40a5f6e5f1f247b98d16a9bd",
       "tests/test_publication_recovery_cli.py": "5664fc351a57b5f620753da7d7dfb24cb7cb10e0",

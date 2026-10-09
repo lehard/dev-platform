@@ -1,59 +1,88 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "7c83a854522a5defca480e5a86bae580de0a43c1",
+    "base_head": "f18050510249ffd58b05af3ed9e7f0bfe548f2cc",
     "base_ref": "origin/main",
-    "candidate_head": "c835a30df513586bf0345c7dcea493abdabf3719",
-    "diff_sha256": "37a3b82a4d88827557f03b3d944c027009f399dce88d48e1cc43cc25a650088f"
+    "candidate_head": "d27205787ed5cdc7d897fb4730f28234be09d4d9",
+    "diff_sha256": "71d6cdb7b4da8f42aa9dbe6f034d4181b649e559fc8139fb83b6af03c57cbbc4"
   },
-  "completed_at": "2026-10-09T17:09:27+00:00",
+  "completed_at": "2026-10-09T19:25:26+00:00",
   "findings": [
     {
-      "evidence": "The active delta requires every platform fast-forward of integration main to append a receipt (openspec/changes/claude-external-advance/specs/model-routing/spec.md:5). In template/scripts/finish_task.py:522\u2013529, main advances before publication, but a publication exception exits before the receipt is written. On retry, advanced_from already equals advanced_to, so the receipt is skipped even after publication succeeds. tests/test_git_lifecycle.py explicitly confirms this behavior in test_publication_failure_then_unchanged_head_retry_succeeds with receipt.assert_not_called(). The resulting missing chain makes Claude recording fail despite a legitimate sibling advance.",
-      "id": "direct-publication-retry-loses-advance-receipt",
-      "severity": "material",
-      "summary": "A failed direct publication followed by a successful retry permanently omits the required integration-advance receipt, stranding overlapping Claude delegations."
+      "evidence": "delegation_containment.py `_receipt_chain` picks `first = next(i for i,r in enumerate(ordered_receipts) if r['before'] == start_head)` and drops everything before it. design.md Decision 2 says 'ordered by time such that the first `before` equals the pre-run head'. The comment in the code justifies the skip by recovery, but the artifacts do not describe it. The behaviour is fail-closed in the common case, so this is a documentation gap only.",
+      "id": "chain-leading-receipts-skipped",
+      "severity": "advisory",
+      "summary": "The classifier skips in-window receipts that come before the first receipt starting at the pre-run head. The design and spec require a chain whose first receipt `before` equals the pre-run head."
+    },
+    {
+      "evidence": "specs/model-routing/spec.md says chain receipts only need an acting worktree outside the delegated one. The code and docs/engineering/model-routing.md also require `remote == 'origin'` and `after == origin_main == remote_main` on every receipt. The code also refuses recovery when a receipt is dated at or before the friction event or names the delegated worktree. The spec lists only 'evidence-bound recovery'. The contract is therefore stricter in code than in the accepted spec, but no behaviour contradicts it.",
+      "id": "spec-omits-origin-and-recovery-refusals",
+      "severity": "advisory",
+      "summary": "The normative spec text omits two enforced rules that the design and docs state: the origin-only receipt rule, and the receipt-based refusals in recovery."
     }
   ],
-  "launched_at": "2026-10-09T17:08:08+00:00",
-  "output_sha256": "2b096c8b0745e1c3b5f40bb12f8025220d32558efc95665720aba6094ac32262",
+  "launched_at": "2026-10-09T19:24:50+00:00",
+  "output_sha256": "3289ffa2a4233005402c9171ec5e991784c759d141aa6dc6e1858d5c1176e437",
   "perspective": "spec-fidelity",
-  "request_id": "c3276462-7a55-4655-a82b-96d7c2e1b425",
+  "request_id": "71b4a737-d834-478c-ab75-f7fef6df1336",
   "reviewer": {
-    "context_id": "01a121a2-ee44-7b81-a93c-72ca169f1814",
+    "context_id": "68c32139-d357-4c27-adfd-1d39519ec8f3",
     "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-fcacca12-4097-48a7-982b-10a7cb318a4d",
+    "launch_id": "platform-launch-06c41339-48cd-4b92-bae9-a44a3b0cf722",
     "model": {
       "source": "selected",
-      "value": "gpt-6.1-sol"
+      "value": "sonnet"
     },
-    "provider": "codex",
-    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
-    "runtime": "codex-exec",
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
     "write_access": false
   },
   "runtime_usage": {
     "fields": {
-      "cached_input_tokens": {
+      "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 383232
+        "value": 50375
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 314582
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 28390
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 30489
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 450884
+        "value": 16
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 11
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1537
+        "value": 2889
       }
     },
-    "runtime": "codex-exec"
+    "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "f6754cded28682df32fddc0eea9dc725dc75b21c5358bd8e3e4ed2fbd7342303"
+  "task_content_digest": "447c497767b7174d854a45d5892ffaf2a6f66b57f4cab208b466dfdf8c340fbf"
 }
