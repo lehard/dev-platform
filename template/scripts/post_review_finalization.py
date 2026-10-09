@@ -128,6 +128,8 @@ def trusted_checks_runner(checkout: Path, env: dict[str, str], *, contribution_b
     command = [sys.executable, str(script), "--base", "origin/main", "--execute"]
     if contribution_base is not None:
         command += ["--contribution-base", contribution_base]
+    # Finalization checks are admitted ahead of development runs by the machine pool.
+    env = {**env, "DEV_PLATFORM_CHECK_CLASS": "finalize"}
     done = subprocess.run(command, cwd=checkout, env=env,
                           stdin=subprocess.DEVNULL, text=True, capture_output=True, check=False)
     if done.returncode:

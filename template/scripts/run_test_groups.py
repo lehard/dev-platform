@@ -34,6 +34,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
+import machine_pool
 from _platform_common import current_worktree_root, read_platform_config, validation_subprocess_env
 
 DEFAULT_START_DIR = "tests"
@@ -175,14 +176,14 @@ def group_env(root: Path, start_dir: str, git_template: Path) -> dict[str, str]:
 
 
 def run_group(root: Path, start_dir: str, group_id: str, rule: dict[str, Any], verbose: bool,
-              git_template: Path) -> dict[str, Any]:
+              git_template: Path, pass_fds: tuple[int, ...] = ()) -> dict[str, Any]:
     command = [sys.executable, "-m", "unittest"]
     if verbose:
         command.append("-v")
     command.extend(rule["targets"])
     started = time.monotonic()
     result = subprocess.run(command, cwd=root, capture_output=True, text=True,
-                            env=group_env(root, start_dir, git_template))
+                            env=group_env(root, start_dir, git_template), pass_fds=pass_fds)
     duration = time.monotonic() - started
     return {
         "group": group_id,
@@ -202,7 +203,8 @@ def report_group(record: dict[str, Any]) -> None:
         print(record["output"].rstrip(), flush=True)
 
 
-def execute(root: Path, start_dir: str, groups: dict[str, dict[str, Any]], jobs: int, verbose: bool) -> list[dict[str, Any]]:
+def execute(root: Path, start_dir: str, groups: dict[str, dict[str, Any]], jobs: int, verbose: bool,
+            pass_fds: tuple[int, ...] = ()) -> list[dict[str, Any]]:
     parallel = {gid: rule for gid, rule in groups.items() if rule["mode"] == PARALLEL}
     serial = {gid: rule for gid, rule in groups.items() if rule["mode"] == SERIAL}
     records: list[dict[str, Any]] = []
@@ -214,7 +216,7 @@ def execute(root: Path, start_dir: str, groups: dict[str, dict[str, Any]], jobs:
             for group_id in sorted(parallel):
                 print(f"DEV_PLATFORM_TEST_GROUP_START: {group_id} (parallel)", flush=True)
             with ThreadPoolExecutor(max_workers=workers) as pool:
-                futures = {gid: pool.submit(run_group, root, start_dir, gid, rule, verbose, git_template)
+                futures = {gid: pool.submit(run_group, root, start_dir, gid, rule, verbose, git_template, pass_fds)
                            for gid, rule in parallel.items()}
                 for group_id in sorted(futures):
                     record = futures[group_id].result()
@@ -223,7 +225,7 @@ def execute(root: Path, start_dir: str, groups: dict[str, dict[str, Any]], jobs:
 
         for group_id in sorted(serial):
             print(f"DEV_PLATFORM_TEST_GROUP_START: {group_id} (serial)", flush=True)
-            record = run_group(root, start_dir, group_id, serial[group_id], verbose, git_template)
+            record = run_group(root, start_dir, group_id, serial[group_id], verbose, git_template, pass_fds)
             report_group(record)
             records.append(record)
 
@@ -344,7 +346,14 @@ def main() -> int:
         print(f"Early routing gate blocked execution: {exc}", file=sys.stderr)
         return 2
 
-    records = execute(root, start_dir, selected, jobs, not args.quiet)
+    try:
+        with machine_pool.lease(weight=jobs, purpose="run_test_groups", bounded=True, root=root) as pool_lease:
+            if pool_lease.weight is not None:
+                jobs = min(jobs, pool_lease.weight)
+            records = execute(root, start_dir, selected, jobs, not args.quiet, pool_lease.fds)
+    except machine_pool.PoolError as exc:
+        print(f"Machine pool blocked execution: {exc}", file=sys.stderr)
+        return 2
     failed = [record["group"] for record in records if record["outcome"] == "failure"]
     total = round(sum(record["duration_seconds"] for record in records), 3)
     slowest = max((record["duration_seconds"] for record in records), default=0.0)

@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "template/scripts"
 sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(ROOT / "tests"))
-from _platform_modules import load_platform_module  # noqa: E402
+from _platform_modules import isolate_machine_pool_environment, load_platform_module  # noqa: E402
 
 gate = load_platform_module("pr_review_gate", SCRIPTS / "pr_review_gate.py")
 queue = load_platform_module("publication_queue", SCRIPTS / "publication_queue.py")
@@ -50,6 +50,10 @@ def tasks_state(root: Path, name: str, body: str) -> None:
     change = root / "openspec/changes" / name
     change.mkdir(parents=True, exist_ok=True)
     (change / "tasks.md").write_text(body)
+
+
+def setUpModule() -> None:
+    isolate_machine_pool_environment()
 
 
 class HygieneStageTests(unittest.TestCase):

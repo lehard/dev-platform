@@ -15,9 +15,13 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "template" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 import _platform_common  # noqa: E402
-from _platform_modules import load_platform_module  # noqa: E402
+from _platform_modules import isolate_machine_pool_environment, load_platform_module  # noqa: E402
 
 select_checks = load_platform_module("select_checks", SCRIPTS / "select_checks.py")
+
+
+def setUpModule() -> None:
+    isolate_machine_pool_environment()
 
 
 class SelectChecksTests(unittest.TestCase):

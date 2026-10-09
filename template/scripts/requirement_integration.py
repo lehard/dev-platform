@@ -828,13 +828,24 @@ def _check_environment(root: Path, scratch: Path) -> dict[str, str]:
 
 def _run_full_checks(root: Path) -> None:
     commands = _full_check_commands(root)
-    with tempfile.TemporaryDirectory(prefix="composition-check-home-") as temporary:
-        env = _check_environment(root, Path(temporary))
-        for command in commands:
-            print("Requirement integration validation:", command, flush=True)
-            result = subprocess.run(command, cwd=root, shell=True, stdin=subprocess.DEVNULL, env=env)
-            if result.returncode:
-                raise RequirementIntegrationError(f"full candidate validation failed: {command} (exit {result.returncode})")
+    import machine_pool
+    from run_test_groups import resolve_jobs
+
+    # One finalize-class machine-pool lease around the whole command loop; the check environment is built inside
+    # it so it carries the exported lease and nested test-group runs reuse it.
+    try:
+        with machine_pool.lease(weight=resolve_jobs()[0], purpose="requirement-integration", bounded=True,
+                                check_class="finalize", root=root) as pool_lease, \
+                tempfile.TemporaryDirectory(prefix="composition-check-home-") as temporary:
+            env = _check_environment(root, Path(temporary))
+            for command in commands:
+                print("Requirement integration validation:", command, flush=True)
+                result = subprocess.run(command, cwd=root, shell=True, stdin=subprocess.DEVNULL, env=env,
+                                        pass_fds=pool_lease.fds)
+                if result.returncode:
+                    raise RequirementIntegrationError(f"full candidate validation failed: {command} (exit {result.returncode})")
+    except machine_pool.PoolError as exc:
+        raise RequirementIntegrationError(f"full candidate validation blocked by the machine pool: {exc}") from exc
 
 
 def _reconcile_exact_merged(root: Path, integration: Path, manifest: dict[str, Any], branch: str, head: str) -> dict[str, Any] | None:
