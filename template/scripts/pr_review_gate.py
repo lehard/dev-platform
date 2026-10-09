@@ -439,7 +439,8 @@ def _repair_status(red_gate: dict) -> str:
 def reoffer(root: Path, repo: str, number: int, *, action: str, providers, reason: str, adapter=None) -> dict:
     """Re-offer the open review or repair job of a candidate, optionally on other providers.
 
-    ``resume`` also re-offers the finalize job of an operational finalize escalation at the same head.
+    ``resume`` also re-offers the finalize job of a finalize escalation at the same head; the job
+    re-verifies every gate itself, so the resume decides nothing a finding needs.
 
     One appended record keeps identity, gates, findings and every attempt counter, so the same round is
     offered again and no budget is spent; the distinct job id comes from the ``reoffers`` sequence.
@@ -480,7 +481,9 @@ def reoffer(root: Path, repo: str, number: int, *, action: str, providers, reaso
                 "push a fix, record a disposition for the finding, or close the PR")
         kind = "repair"
     elif state == "blocked-escalation" and red.get("name") == "finalize" and action == "resume":
-        # A finalize job judges no finding: its escalation is a harness or environment failure.
+        # Finalize escalations are not all operational (failed selected checks, missing or unbound
+        # evidence, changed identity, archive leftovers), but resume is safe: the re-offered finalize
+        # job re-verifies every gate from scratch at the exact head and escalates again if one fails.
         kind = "finalize"
     else:
         raise adapter.QueueError(f"PR #{number} is {state}; {action} applies only to an unfinished review or repair job"

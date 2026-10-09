@@ -72,7 +72,8 @@ class AdmissionTests(unittest.TestCase):
         with patch.object(queue, "_repo", return_value=REPO), patch.object(queue, "_pr", return_value=observed), \
              patch.object(queue, "_events", side_effect=lambda *a: list(events)), patch.object(queue, "_comment", side_effect=comment), \
              patch.object(queue, "_latest", return_value=prior), patch.object(queue, "_derive", return_value={}), \
-             patch.object(queue, "_ensure_labels"), patch.object(queue, "_label"):
+             patch.object(queue, "_ensure_labels"), patch.object(queue, "_label"), \
+             patch.object(queue, "_require_handoff_progress"):  # exact-head progress: tests/test_pr_review_gate.py
             # A review red gate on blocked-retryable is an ordinary supersession now (tests/test_pr_review_gate.py).
             for bad in ({**prior, "state": "reviewing"}, {**prior, "task_identity": {**old, "change": "different"}}):
                 with patch.object(queue, "_latest", return_value=bad), self.assertRaisesRegex(queue.QueueError, "earlier or ambiguous"):
@@ -1363,6 +1364,7 @@ class ManagedProvenanceTests(unittest.TestCase):
              patch.object(queue, "_latest", return_value={"state": "review-pending"}), \
              patch.object(queue, "_ensure_labels"), patch.object(queue, "_comment"), patch.object(queue, "_label"), \
              patch.object(queue, "publish_job"), patch.object(queue, "_transition") as transition, \
+             patch.object(queue, "_require_handoff_progress"), \
              patch("model_routing.read_route_for_change", return_value={"provider": "codex", "profile": "standard", "change": "c"}) as resolve, \
              patch.object(queue, "_admission_handoff") as derived:
             # contribution identity requires contribution_base; supply it.
