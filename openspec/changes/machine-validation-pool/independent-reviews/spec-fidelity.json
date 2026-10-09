@@ -1,30 +1,23 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "f18050510249ffd58b05af3ed9e7f0bfe548f2cc",
+    "base_head": "5f621c9e91c4a2862d66c7581b22146d61faf5b4",
     "base_ref": "origin/main",
-    "candidate_head": "acbd11999c3cc153eb0e8556cc6a0bb0dfa4a163",
-    "diff_sha256": "e50355fcfa00c37b50e7b6b88a505ca3643ad46d4e25f97ebe413d5bc72c92ba"
+    "candidate_head": "20a1aef71c7380f00ce988d9cbef22b0bd97c414",
+    "diff_sha256": "4cf9c4f199be716e4a88a4dc91a509c5ec1bb186a7e991e012ef035888b99d6b"
   },
-  "completed_at": "2026-10-09T19:26:56+00:00",
-  "findings": [
-    {
-      "evidence": "template/scripts/machine_pool.py:558\u2013567 attempts acquisition and returns a granted lease before checking elapsed time at lines 569\u2013573. If tokens become available after the deadline, including while the waiter is descheduled, the run starts instead of failing. This contradicts design.md decision 6 and the active delta's requirement to fail after the configured wait timeout.",
-      "id": "admission-after-wait-timeout",
-      "severity": "advisory",
-      "summary": "A waiting run can acquire tokens after its configured wait timeout has expired."
-    }
-  ],
-  "launched_at": "2026-10-09T19:25:51+00:00",
-  "output_sha256": "ef8f5b8fd3eab35fef228c5863dd6020903f787f99f3c31c6f16dc7917784bf8",
+  "completed_at": "2026-10-09T19:37:03+00:00",
+  "findings": [],
+  "launched_at": "2026-10-09T19:36:05+00:00",
+  "output_sha256": "6e96a492bc9fa40d22212c5be0396a203f3dbd4916cf97ebe2f66b6d54fa4a9a",
   "perspective": "spec-fidelity",
-  "request_id": "947f4915-68fd-4dd0-ace8-25ab97d0ffaf",
+  "request_id": "e31a1de2-ee1f-49e7-a7db-913babf20c42",
   "reviewer": {
-    "context_id": "01a12221-062b-71d2-95b5-057a373c6caa",
+    "context_id": "01a1222a-63d9-7500-8c3f-415af514d1c9",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-2d54cbf8-e036-4ec9-85fd-c0b2372f6321",
+    "launch_id": "platform-launch-db7111a3-3d8c-4f11-83c5-68d903ef32b0",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -39,21 +32,21 @@
       "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 248832
+        "value": 186880
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 313509
+        "value": 252711
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1474
+        "value": 1228
       }
     },
     "runtime": "codex-exec"
   },
   "schema_version": 1,
-  "task_content_digest": "e86be9d17c4dd371a4e7a02b3a59902b89065b84bbf73e3f3ed3aa4d714915c5"
+  "task_content_digest": "19766e1ce33c4333914dde7701bf3d7d2f480aeb33e6ac641e08700b0d99179c"
 }
