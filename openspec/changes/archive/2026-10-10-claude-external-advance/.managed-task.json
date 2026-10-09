@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/model-routing/spec.md"
+  ],
+  "change": "claude-external-advance",
+  "imported_at": "2026-10-09T07:10:57+00:00",
+  "package_revision": "9d5372a08dda771e25cace858777a9861e54e7d1902faa15ed16720cac693ab1",
+  "prepared_against": "c4c25e08d961a12383be245c3a2dd91f0897a3fb",
+  "private_lineage_handle": "pln_c95f3798b6e07e7ec2cfb44d33c7ab58",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "19a014a4d8b021ba96741d471b3a814c9c9f49119c97a56696ac0395c722693b",
+    "updated_at": "2026-10-09T07:04:33Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-514/T1"
+}
