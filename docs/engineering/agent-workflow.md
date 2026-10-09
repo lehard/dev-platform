@@ -387,5 +387,5 @@ re-offers the finalize job at the same head with the reason recorded on the job.
 operational (failed selected checks, missing or unbound evidence, changed task identity and archive leftovers escalate
 too), but resume is safe because the re-offered finalize re-verifies every gate from scratch and escalates again if one
 still fails; resume it after fixing the cause, such as a missing source contract in the disposable checkout. Finding-level escalations (a proposed rejection, exhausted repair rounds, a rejected review) are not
-resumed: push a fix, record a disposition for the finding, or close the PR. A candidate escalated before providers were
+resumed: push a fix that changes the task content (re-admission refuses an unchanged digest over material findings), or close the PR. A candidate escalated before providers were
 recorded needs an explicit `--provider`.
