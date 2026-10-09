@@ -1,0 +1,106 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.121,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.132,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 291.192,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/model_routing.py",
+        "tests/test_model_routing.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_b6ba8f0d029426a543dc9d77afe33643",
+    "change": "owner-approved-supervisor-diff",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/owner-approved-supervisor-diff",
+    "branch": "agent/br-522-t1-owner-approved-supervisor-diff",
+    "head": "91fa65ffceb6021b802a6f99c0a190f570418252",
+    "task_content": {
+      "version": 1,
+      "digest": "f3041ac8b1c1a3fb445336da507482aa36a4ef8322bd2b80c1236668132fe3b8",
+      "paths": {
+        "docs/engineering/model-routing.md": "b56bd0b284001f07ab78ee15bcb396156ed5f462",
+        "openspec/changes/owner-approved-supervisor-diff/.managed-task.json": "cfa8245ee640096608122892d5677aa9f0797840",
+        "openspec/changes/owner-approved-supervisor-diff/.openspec.yaml": "81264324b0500978f52f70d701b236a09cb1d808",
+        "openspec/changes/owner-approved-supervisor-diff/automated-checks.json": "dcbd7f979a95e417f3a65030ee596db6b55f796d",
+        "openspec/changes/owner-approved-supervisor-diff/design.md": "08c790898978178b408d4b4b7e0f7c14050e5731",
+        "openspec/changes/owner-approved-supervisor-diff/independent-review-request.json": "0f5a54b35ce9fa3253e59f086897820eb1133df2",
+        "openspec/changes/owner-approved-supervisor-diff/independent-reviews/engineering-quality.json": "bc55947f4a0e14377b849605eecf407dcc8cf1d1",
+        "openspec/changes/owner-approved-supervisor-diff/independent-reviews/spec-fidelity.json": "568e3d69d1782eb256f7e17fa7574670dc14b7bd",
+        "openspec/changes/owner-approved-supervisor-diff/proposal.md": "53fe8bc0b4514a92d4e27162221672f7420f76fa",
+        "openspec/changes/owner-approved-supervisor-diff/specs/model-routing/spec.md": "812708ac6c534aad686dfbbb094aff6a3f93ff74",
+        "openspec/changes/owner-approved-supervisor-diff/tasks.md": "a2913f50acac6a8fb327173d422a1b09f4d9f58f",
+        "openspec/changes/owner-approved-supervisor-diff/verification.md": "360ecd79f3d687dae5ea903137d13c0f7acc40a6",
+        "template/docs/engineering/model-routing.md": "fc6a50bd4acf643f02cc78cf2deb46796a4ef33a",
+        "template/scripts/model_routing.py": "54997af55db3c9f58a31ee0b3fa734cf6ba45c24",
+        "tests/test_model_routing.py": "94eb3081b2b11cf4d7f03e3b4dacfe07ed10bce9"
+      },
+      "base": "b93ffc444164bbf1a006d60f117e8378131a2924"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "0327892d1d350171f88faf37a714b438cbc6e3c05e047899d7075b7009edd3b9",
+    "paths": {
+      "docs/engineering/model-routing.md": "b56bd0b284001f07ab78ee15bcb396156ed5f462",
+      "openspec/changes/owner-approved-supervisor-diff/.managed-task.json": "cfa8245ee640096608122892d5677aa9f0797840",
+      "openspec/changes/owner-approved-supervisor-diff/.openspec.yaml": "81264324b0500978f52f70d701b236a09cb1d808",
+      "openspec/changes/owner-approved-supervisor-diff/design.md": "08c790898978178b408d4b4b7e0f7c14050e5731",
+      "openspec/changes/owner-approved-supervisor-diff/proposal.md": "53fe8bc0b4514a92d4e27162221672f7420f76fa",
+      "openspec/changes/owner-approved-supervisor-diff/specs/model-routing/spec.md": "812708ac6c534aad686dfbbb094aff6a3f93ff74",
+      "openspec/changes/owner-approved-supervisor-diff/tasks.md": "a2913f50acac6a8fb327173d422a1b09f4d9f58f",
+      "template/docs/engineering/model-routing.md": "fc6a50bd4acf643f02cc78cf2deb46796a4ef33a",
+      "template/scripts/model_routing.py": "54997af55db3c9f58a31ee0b3fa734cf6ba45c24",
+      "tests/test_model_routing.py": "94eb3081b2b11cf4d7f03e3b4dacfe07ed10bce9"
+    },
+    "base": "b93ffc444164bbf1a006d60f117e8378131a2924",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/model_routing.py --changed-file tests/test_model_routing.py",
+    "duration_seconds": 79.175,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/model-routing/spec.md"
+  ],
+  "change": "owner-approved-supervisor-diff",
+  "imported_at": "2026-10-09T10:10:04+00:00",
+  "package_revision": "de71bfc0ce4cc77ff21c68d6b4dd3da3da00b5a9996062c808974afd384bdcc6",
+  "prepared_against": "5b6a6098ce8239f506d60e1b3d680d3b0d2b06a4",
+  "private_lineage_handle": "pln_b6ba8f0d029426a543dc9d77afe33643",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "4e69a85f82ffddc437fc0bf63fd1c03457bd36350a568561d92db8bc88b1869e",
+    "updated_at": "2026-10-09T10:01:59Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-522/T1"
+}
