@@ -51,6 +51,8 @@ except ImportError:  # no flock on this platform; only a configured pool needs i
 POOL_ENV = "DEV_PLATFORM_MACHINE_POOL"
 LEASE_ENV = "DEV_PLATFORM_MACHINE_POOL_LEASE"
 CHECK_CLASS_ENV = "DEV_PLATFORM_CHECK_CLASS"
+# Every variable through which a process sees the pool; test processes run without them.
+POOL_VARIABLES = (POOL_ENV, LEASE_ENV, CHECK_CLASS_ENV)
 NOT_CONFIGURED_LINE = "DEV_PLATFORM_MACHINE_POOL: not configured"
 # Priority classes; lower rank is admitted first.  An absent DEV_PLATFORM_CHECK_CLASS
 # means `development` by contract.

@@ -21,10 +21,9 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-
-from machine_pool import child_lease_descriptors
 from typing import Callable
 
+from machine_pool import child_lease_descriptors
 from task_content_identity import equivalent_proofs
 import lifecycle_workers as workers
 import pr_review_gate as review_gate

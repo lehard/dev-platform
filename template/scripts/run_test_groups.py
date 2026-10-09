@@ -168,6 +168,10 @@ def write_git_template(directory: Path) -> Path:
 
 def group_env(root: Path, start_dir: str, git_template: Path) -> dict[str, str]:
     env = validation_subprocess_env()
+    # Tests never see the pool: the runner holds the tokens and passes their descriptors only so an
+    # orphaned test process keeps them; lifecycle scripts a test spawns must not reuse or queue on them.
+    for name in machine_pool.POOL_VARIABLES:
+        env.pop(name, None)
     start = str((root / start_dir).resolve())
     existing = env.get("PYTHONPATH", "")
     env["PYTHONPATH"] = start + (os.pathsep + existing if existing else "")

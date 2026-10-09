@@ -835,6 +835,13 @@ class IntegrationTests(PoolFixture):
             self.assertEqual(len(machine_pool.read_holders(self.config)), 1)
         self.assertEqual(machine_pool.read_holders(self.config), [])
 
+    def test_test_processes_run_without_the_pool_variables(self) -> None:
+        with self.patched_environment(), machine_pool.lease(2, "parent", hooks=fast_hooks()):
+            os.environ[machine_pool.CHECK_CLASS_ENV] = "finalize"
+            self.assertTrue(all(name in os.environ for name in machine_pool.POOL_VARIABLES))
+            env = run_test_groups.group_env(self.base, "tests", self.base / "git-template")
+            self.assertEqual([name for name in machine_pool.POOL_VARIABLES if name in env], [])
+
     def test_finish_checks_child_reuses_pooled_lease(self) -> None:
         real_popen = subprocess.Popen
         seen = []
