@@ -2330,6 +2330,17 @@ class EarlyRoutingGateTests(unittest.TestCase):
                 with self.assertRaisesRegex(routing.RoutingError, "must carry exactly the owner approval"):
                     self.archive_gate()
 
+    def test_escalation_of_an_owner_approved_plan_is_refused(self) -> None:
+        self.prepare()
+        self.write_content()
+        self.approve()
+        before = self.record_path().read_text(encoding="utf-8")
+        with patch.object(routing, "main_root", return_value=self.integration):
+            with self.assertRaisesRegex(routing.RoutingError, "owner-approved retention; escalation does not apply"):
+                routing.escalate(self.task, "late trigger")
+        self.assertEqual(self.record_path().read_text(encoding="utf-8"), before)
+        self.gate()
+
     def test_owner_approval_refusals_write_nothing(self) -> None:
         def assert_refused(pattern: str, **kwargs) -> None:
             before = self.record_path().read_text(encoding="utf-8")

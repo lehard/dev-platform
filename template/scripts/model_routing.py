@@ -1117,6 +1117,8 @@ def escalate(root: Path, reason: str) -> Route:
     if not reason.strip():
         raise RoutingError("escalation requires a concrete reason")
     plan = _require_plan(route, "escalating")
+    if plan.get("policy") == OWNER_APPROVED_POLICY:
+        raise RoutingError("the plan is already supervisor-retained by an owner-approved retention; escalation does not apply, finalize with record-retained-execution")
     _require_recovery_safety(route)
     if plan["mode"] == PLAN_DELEGATED and not _has_real_delegation(route):
         diverged = _task_content_diverged(route)
