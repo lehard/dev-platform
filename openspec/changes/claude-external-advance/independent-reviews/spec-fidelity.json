@@ -1,0 +1,82 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "c4c25e08d961a12383be245c3a2dd91f0897a3fb",
+    "base_ref": "origin/main",
+    "candidate_head": "c7da00e502242da8ddce6538e45eef257ebd1675",
+    "diff_sha256": "0beea9fcd918281e39ad83ed8e83e5160f9cf9bead7d5d847c0c06bb0ee846e2"
+  },
+  "completed_at": "2026-10-09T07:53:10+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/delegation_containment.py `_receipt_chain` (candidate.diff ~L418-425): `first = next((i for i, r in enumerate(ordered_receipts) if r['before'] == start_head), None)`; `chain = ordered_receipts[first:]`. The code comment justifies it as 'moves that a recovery already accounted for'. Design.md Decision 2 and docs/engineering/model-routing.md say the first receipt's `before` equals the pre-run head and describe an 'unbroken receipt chain from the pre-run head'. Skipped earlier receipts are neither checked for self-attribution nor reported in the evidence. The movement they cover is still bounded, because `start_head` must be matched and the chain must end at the current head. The artifacts should state the skipping rule, or the code should match them.",
+      "id": "receipt-chain-skips-leading-receipts",
+      "severity": "advisory",
+      "summary": "The implemented chain rule is looser than the contract wording. The contract says the chain runs from the pre-run head, and design Decision 2 says the first windowed receipt's `before` equals the pre-run head. The implementation instead skips any windowed receipts that come before the first one whose `before` equals the pre-run head. The docs and spec don't mention this leniency."
+    }
+  ],
+  "launched_at": "2026-10-09T07:52:39+00:00",
+  "output_sha256": "1dca33a539d133be4530ffd5794a61188039b05304d44a9ac9b81457fba0365e",
+  "perspective": "spec-fidelity",
+  "request_id": "11d351ea-0a0b-4213-a811-dcb2d14e4077",
+  "reviewer": {
+    "context_id": "dbeb96fc-7ae0-4b56-a86b-44bd2c66f01a",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-5b23d171-714a-4cb5-997a-acf7b94931af",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 55416
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 229418
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 26911
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 28498
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2728
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "09fe39eccec1d7377abca4caa92c3c555770fbaaf7f39c6feaad6c38da2f6dd2"
+}
