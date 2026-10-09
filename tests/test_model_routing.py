@@ -2341,6 +2341,24 @@ class EarlyRoutingGateTests(unittest.TestCase):
         self.assertEqual(self.record_path().read_text(encoding="utf-8"), before)
         self.gate()
 
+    def test_owner_approval_after_an_unlaunched_codex_attempt(self) -> None:
+        route = self.prepare()
+        with patch.object(routing, "run_codex", return_value={"launched": False, "outcome": "abnormal", "writer_state": "unavailable"}):
+            routing._run_delegated_codex(self.task, route, "implement", None)
+        self.assertEqual(self.plan()["delegation"]["outcome"], "not-launched")
+        self.write_content()
+        with self.assertRaisesRegex(routing.RoutingError, "approve-supervisor-diff"):
+            self.gate()
+        with patch.object(routing, "main_root", return_value=self.integration):
+            approved = self.approve()
+            self.assertEqual(approved.execution_plan["policy"], routing.OWNER_APPROVED_POLICY)
+            self.assertIs(approved.execution["launched"], False)
+            self.gate()
+            execution = routing.record_retained_execution(self.task, reason="owner approved after an unlaunched attempt")
+        self.assertEqual(execution["retained"]["owner_approval"], approved.execution_plan["owner_approval"])
+        self.assertIs(execution["prior_execution"]["launched"], False)
+        self.archive_gate()
+
     def test_owner_approval_refusals_write_nothing(self) -> None:
         def assert_refused(pattern: str, **kwargs) -> None:
             before = self.record_path().read_text(encoding="utf-8")

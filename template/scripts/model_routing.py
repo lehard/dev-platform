@@ -1137,6 +1137,16 @@ def escalate(root: Path, reason: str) -> Route:
     return next_route
 
 
+def _unlaunched_attempt(route: Route, plan: dict[str, Any]) -> bool:
+    """True when the only recorded execution is a closed child attempt that never launched."""
+    delegation = plan.get("delegation")
+    execution = route.execution
+    return (
+        isinstance(execution, dict) and execution.get("launched") is False and execution.get("outcome") != "retained"
+        and isinstance(delegation, dict) and delegation.get("state") == "closed" and delegation.get("outcome") == "not-launched"
+    )
+
+
 def approve_supervisor_diff(root: Path, *, approval: str, reason: str) -> Route:
     """Record the owner's explicit decision to keep a supervisor-written diff under a delegated-child plan.
 
@@ -1153,11 +1163,16 @@ def approve_supervisor_diff(root: Path, *, approval: str, reason: str) -> Route:
         raise RoutingError("owner-approved retention requires a concrete non-empty reason")
     if plan["mode"] != PLAN_DELEGATED:
         raise RoutingError("the execution plan is already supervisor-retained; owner-approved retention applies only to a delegated-child plan (use record-retained-execution)")
-    if route.execution is not None:
+    unlaunched = _unlaunched_attempt(route, plan)
+    if route.execution is not None and not unlaunched:
         raise RoutingError("routing record already has execution evidence; owner-approved retention cannot overwrite it")
     if _has_real_delegation(route):
         raise RoutingError("a real delegation was recorded for this plan; use escalate with a concrete reason instead of owner-approved retention")
-    _require_recovery_safety(route)
+    if unlaunched:
+        # No child writer ever ran, so only the integration containment boundary needs proof.
+        postcheck(route)
+    else:
+        _require_recovery_safety(route)
     diverged = _task_content_diverged(route)
     if not diverged:
         raise RoutingError("task content is unchanged from the plan pre-snapshot; use escalate instead of owner-approved retention")
@@ -1630,9 +1645,11 @@ def record_retained_execution(root: Path, *, reason: str) -> dict[str, Any]:
         )
     if route.execution is not None:
         switched_from = plan.get("switched_from")
-        if not route.escalations or not isinstance(switched_from, dict) or switched_from.get("mode") != PLAN_DELEGATED or route.execution.get("outcome") == "retained":
+        owner_approved_unlaunched = policy == OWNER_APPROVED_POLICY and _unlaunched_attempt(route, plan)
+        if (not route.escalations and not owner_approved_unlaunched) or not isinstance(switched_from, dict) or switched_from.get("mode") != PLAN_DELEGATED or route.execution.get("outcome") == "retained":
             raise RoutingError("routing record already has execution evidence; do not overwrite a real child outcome with parent retention")
-        _require_recovery_safety(route)
+        if not owner_approved_unlaunched:
+            _require_recovery_safety(route)
     if not reason.strip():
         raise RoutingError("recording retained execution requires a concrete non-empty reason")
     execution = {
