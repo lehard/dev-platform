@@ -2,7 +2,7 @@
 
 ### Requirement: An owner-approved supervisor-written diff can be retained explicitly
 
-The platform SHALL provide one explicit routing command that, on the owner's explicit decision, switches a delegated-child plan with no recorded delegation, no execution and task content diverged from the pre-snapshot to a supervisor-retained plan with policy owner-approved. The command SHALL require a non-empty owner approval statement and reason and SHALL record them with the approval time and the diverged paths in the plan. It SHALL NOT record a delegation, launch claim or escalation and SHALL leave the routed profile unchanged. It SHALL be refused, writing nothing, when the plan is already supervisor-retained, a real delegation was recorded, an execution exists, task content is unchanged, or the approval or reason is empty. A retained execution recorded under this policy SHALL carry the approval, the early and archive routing gates SHALL accept it, and routing reports SHALL mark the record owner-approved. A plan claiming the owner-approved policy without a complete recorded approval SHALL be invalid.
+The platform SHALL provide one explicit routing command that, on the owner's explicit decision, switches a delegated-child plan with no recorded delegation, no execution other than a closed child attempt that never launched, and task content diverged from the pre-snapshot to a supervisor-retained plan with policy owner-approved. The command SHALL require a non-empty owner approval statement and reason and SHALL record them with the approval time and the diverged paths in the plan. It SHALL NOT record a delegation, launch claim or escalation and SHALL leave the routed profile unchanged. It SHALL be refused, leaving the routing record unchanged, when the plan is already supervisor-retained, a real delegation was recorded, an execution other than a closed never-launched child attempt exists, task content is unchanged, or the approval or reason is empty. A never-launched attempt SHALL be kept as prior execution of the retained outcome. A retained execution recorded under this policy SHALL carry the approval, the early and archive routing gates SHALL accept it, and routing reports SHALL mark the record owner-approved. A plan claiming the owner-approved policy without a complete recorded approval SHALL be invalid.
 
 #### Scenario: Owner approves a supervisor-written diff
 
@@ -13,8 +13,14 @@ The platform SHALL provide one explicit routing command that, on the owner's exp
 
 #### Scenario: Approval refused
 
-- **WHEN** the approval or reason is empty, the plan is already retained, a real delegation or an execution exists, or task content is unchanged
+- **WHEN** the approval or reason is empty, the plan is already retained, a real delegation or an execution other than a never-launched attempt exists, or task content is unchanged
 - **THEN** the command fails naming the reason and the routing record is unchanged
+
+#### Scenario: Approval after a never-launched child attempt
+
+- **GIVEN** a delegated-child plan whose only recorded execution is a closed child attempt that never launched, and diverged task content
+- **WHEN** the owner-approved retention is recorded and finalized
+- **THEN** the plan becomes supervisor-retained with policy owner-approved and the retained execution keeps the attempt as prior execution
 
 #### Scenario: Forged policy
 
