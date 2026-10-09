@@ -12,6 +12,8 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "template" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
+import finish_task  # noqa: E402
+import managed_task  # noqa: E402
 import publication_state  # noqa: E402
 import task_reconciliation  # noqa: E402
 
@@ -60,7 +62,7 @@ class TaskReconciliationTests(unittest.TestCase):
         git("add", filename, cwd=other); git("commit", "-m", "advance main", cwd=other); git("push", cwd=other)
 
     def reconcile(self) -> task_reconciliation.Freshness:
-        with mock.patch.object(task_reconciliation, "_require_managed_lineage"):
+        with mock.patch.object(task_reconciliation, "task_kind", return_value="managed"):
             return task_reconciliation.reconcile(self.task)
 
     def test_unpublished_task_merges_authoritative_main_without_rewriting_history(self) -> None:
@@ -131,7 +133,7 @@ class TaskReconciliationTests(unittest.TestCase):
             },
         )
         with (
-            mock.patch.object(task_reconciliation, "_require_managed_lineage"),
+            mock.patch.object(task_reconciliation, "task_kind", return_value="managed"),
             mock.patch.object(task_reconciliation, "github_cli_env", return_value={}),
             mock.patch.object(task_reconciliation.publication_state, "find_exact_head_pr", return_value=exact),
             mock.patch.object(task_reconciliation.publication_state, "github_repo_name", return_value="owner/repo"),
@@ -161,7 +163,7 @@ class TaskReconciliationTests(unittest.TestCase):
             },
         )
         with (
-            mock.patch.object(task_reconciliation, "_require_managed_lineage"),
+            mock.patch.object(task_reconciliation, "task_kind", return_value="managed"),
             mock.patch.object(task_reconciliation, "github_cli_env", return_value={}),
             mock.patch.object(task_reconciliation.publication_state, "find_exact_head_pr", return_value=exact),
             mock.patch.object(task_reconciliation.publication_state, "github_repo_name", return_value="owner/repo"),
@@ -194,7 +196,7 @@ class TaskReconciliationTests(unittest.TestCase):
             },
         )
         with (
-            mock.patch.object(task_reconciliation, "_require_managed_lineage"),
+            mock.patch.object(task_reconciliation, "task_kind", return_value="managed"),
             mock.patch.object(task_reconciliation, "github_cli_env", return_value={}),
             mock.patch.object(task_reconciliation.publication_state, "find_exact_head_pr", return_value=merged),
         ):
@@ -220,7 +222,7 @@ class TaskReconciliationTests(unittest.TestCase):
         git("add", "local.txt", cwd=self.task); git("commit", "-m", "local only", cwd=self.task)
 
         with (
-            mock.patch.object(task_reconciliation, "_require_managed_lineage"),
+            mock.patch.object(task_reconciliation, "task_kind", return_value="managed"),
             mock.patch.object(task_reconciliation, "github_cli_env", return_value={}),
             mock.patch.object(
                 task_reconciliation.publication_state,
@@ -230,6 +232,97 @@ class TaskReconciliationTests(unittest.TestCase):
         ):
             with self.assertRaisesRegex(SystemExit, "remote task branch head differs"):
                 task_reconciliation.reconcile(self.task)
+
+    def commit_task_work(self) -> str:
+        (self.task / "task.txt").write_text("task\n", encoding="utf-8")
+        git("add", "task.txt", cwd=self.task); git("commit", "-m", "task work", cwd=self.task)
+        return git("rev-parse", "HEAD", cwd=self.task).stdout.strip()
+
+    def test_quick_task_is_classified_and_merges_authoritative_main(self) -> None:
+        task_head = self.commit_task_work()
+        self.advance_main()
+
+        self.assertEqual(task_reconciliation.task_kind(self.task, "main"), task_reconciliation.TASK_KIND_QUICK)
+        result = task_reconciliation.reconcile(self.task)
+
+        self.assertEqual(result.state, "ahead")
+        self.assertEqual(git("merge-base", "--is-ancestor", task_head, "HEAD", cwd=self.task).returncode, 0)
+        self.assertEqual(git("merge-base", "--is-ancestor", "origin/main", "HEAD", cwd=self.task).returncode, 0)
+
+    def test_quick_task_reconcile_cli_named_by_blockers_works(self) -> None:
+        config = self.task / ".dev-platform.toml"
+        config.write_text(config.read_text(encoding="utf-8") + 'platform_version = "1.9.3"\n', encoding="utf-8")
+        git("add", ".dev-platform.toml", cwd=self.task); git("commit", "-m", "pin platform version", cwd=self.task)
+        task_head = self.commit_task_work()
+        self.advance_main()
+
+        result = run("python3", str(SCRIPTS / "finish_task.py"), "--reconcile", cwd=self.task, check=False)
+
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+        self.assertIn("Task reconciliation: quick task.", result.stdout)
+        self.assertEqual(finish_task.RECONCILE_COMMAND, task_reconciliation.RECONCILE_COMMAND)
+        self.assertEqual(git("merge-base", "--is-ancestor", task_head, "HEAD", cwd=self.task).returncode, 0)
+        self.assertEqual(git("merge-base", "--is-ancestor", "origin/main", "HEAD", cwd=self.task).returncode, 0)
+
+    def test_quick_dirty_task_is_refused_untouched(self) -> None:
+        before = self.commit_task_work()
+        self.advance_main()
+        (self.task / "dirty.txt").write_text("keep\n", encoding="utf-8")
+
+        with self.assertRaisesRegex(SystemExit, "dirty.*automatic stash/reset"):
+            task_reconciliation.reconcile(self.task)
+
+        self.assertTrue((self.task / "dirty.txt").is_file())
+        self.assertEqual(git("rev-parse", "HEAD", cwd=self.task).stdout.strip(), before)
+
+    def test_managed_lineage_is_classified_managed(self) -> None:
+        with mock.patch.object(managed_task, "resolve_canonical_provenance", return_value=object()):
+            self.assertEqual(task_reconciliation.task_kind(self.task, "main"), task_reconciliation.TASK_KIND_MANAGED)
+
+    def test_ambiguous_managed_lineage_stops_before_any_merge(self) -> None:
+        self.commit_task_work()
+        self.advance_main()
+        before = git("rev-parse", "HEAD", cwd=self.task).stdout.strip()
+        with mock.patch.object(managed_task, "resolve_canonical_provenance", side_effect=managed_task.ManagedTaskError("two lineages")):
+            with self.assertRaisesRegex(SystemExit, "cannot determine the task kind: two lineages"):
+                task_reconciliation.reconcile(self.task)
+        self.assertEqual(git("rev-parse", "HEAD", cwd=self.task).stdout.strip(), before)
+
+    def test_orphan_active_openspec_change_is_not_classified_quick(self) -> None:
+        change = self.task / "openspec" / "changes" / "orphan"
+        change.mkdir(parents=True)
+        (change / "proposal.md").write_text("orphan\n", encoding="utf-8")
+        git("add", ".", cwd=self.task); git("commit", "-m", "orphan change", cwd=self.task)
+
+        with self.assertRaisesRegex(SystemExit, "cannot determine the task kind: active OpenSpec change lacks managed-task provenance"):
+            task_reconciliation.task_kind(self.task, "main")
+
+    def test_branch_added_managed_provenance_without_state_is_not_classified_quick(self) -> None:
+        archived = self.task / "openspec" / "changes" / "archive" / "2026-01-01-change"
+        archived.mkdir(parents=True)
+        (archived / ".managed-task.json").write_text("{}\n", encoding="utf-8")
+        git("add", ".", cwd=self.task); git("commit", "-m", "archived managed change", cwd=self.task)
+
+        with self.assertRaisesRegex(SystemExit, "adds managed OpenSpec provenance without a managed task state record"):
+            task_reconciliation.task_kind(self.task, "main")
+
+    def test_freshness_blockers_name_the_working_reconcile_command(self) -> None:
+        self.commit_task_work()
+        self.advance_main()
+        git("fetch", "origin", cwd=self.task)
+        with (
+            mock.patch.object(finish_task, "run_openspec_hygiene", return_value=None),
+            mock.patch.object(finish_task, "observe_friction_checkpoint_blocker", return_value=None),
+            mock.patch.object(finish_task, "enforce_scope_gate"),
+            mock.patch.object(finish_task, "observe_private_reference_blocker", return_value=None),
+        ):
+            blockers = dict(finish_task.observe_completion_blockers(
+                self.task, self.task, "agent/task", "main", "origin/main", "pr", None
+            ))
+
+        self.assertIn("Reconcile before expensive validation: python3 scripts/finish_task.py --reconcile", blockers["task-freshness"])
+        self.assertIn("python3 scripts/finish_task.py --reconcile", blockers["branch-base"])
+        self.assertNotIn("Rebase", blockers["branch-base"])
 
     def test_read_only_status_detects_advanced_main_without_updating_origin_main(self) -> None:
         observed_before = git("rev-parse", "origin/main", cwd=self.task).stdout.strip()
