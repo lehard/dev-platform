@@ -722,6 +722,7 @@ class ExecuteJobTests(unittest.TestCase):
         git(seed, "init", "-q", "-b", "task")
         (seed / "src").mkdir()
         (seed / "src/a.py").write_text("1")
+        (seed / ".dev-platform.toml").write_text('platform_version = "1.0.0"\n')  # committed project contract
         git(seed, "add", "-A"); git(seed, "commit", "-qm", "base")
         self.head = git(seed, "rev-parse", "HEAD")
         subprocess.run(["git", "clone", "-q", "--bare", str(seed), str(self.src)], check=True)

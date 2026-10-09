@@ -64,6 +64,9 @@ def creation_calls(scripts: Path = SCRIPTS) -> collections.Counter[str]:
 # Existing direct creation sites, reviewed when this guard was introduced.
 # Keep the counts exact: adding a call inside an existing function also fails.
 REVIEWED_BASELINE: dict[str, int] = {
+    # Disposable worker checkouts: install the committed public source contract and exclude it locally.
+    'lifecycle_workers.py:install_source_contract:copyfile': 1,
+    'lifecycle_workers.py:install_source_contract:open': 1,
     # Trusted harness manifests/evidence and private reviewer scratch inputs.
     'requirement_composition.py:execute_composition_review:write_text': 4,
     'requirement_composition.py:run_child_review:write_text': 2,

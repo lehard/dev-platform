@@ -159,9 +159,25 @@ def review_content_identity(root: Path, change: str, base_ref: str = "origin/mai
     if base_ref == "origin/main":
         context = root / ".claude/requirement-child-context" / f"{change}.json"
         if context.is_file():
-            contribution = json.loads(context.read_text()).get("contribution")
+            payload = json.loads(context.read_text())
+            contribution = payload.get("contribution")
             if contribution:
                 base_ref = contribution["head"]
+            elif payload.get("dependencies"):
+                # Legacy receipt path: a dependent child's task content starts
+                # after its single predecessor's exact head.
+                dependencies = payload["dependencies"]
+                if not isinstance(dependencies, list):
+                    raise ValueError(f"{context} 'dependencies' is not a list")
+                if len(dependencies) != 1:
+                    raise ValueError(
+                        f"{context} lists {len(dependencies)} dependencies without a contribution; "
+                        "the legacy receipt path allows exactly one predecessor"
+                    )
+                head = dependencies[0].get("head") if isinstance(dependencies[0], dict) else None
+                if not isinstance(head, str) or not head:
+                    raise ValueError(f"{context} dependency has no non-empty string 'head'")
+                base_ref = head
     return content_identity(
         root, change, base_ref, exclude=review_exclusion(root, change, base_ref), scope=REVIEW_SCOPE
     )
