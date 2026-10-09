@@ -3,28 +3,28 @@
   "candidate": {
     "base_head": "b93ffc444164bbf1a006d60f117e8378131a2924",
     "base_ref": "origin/main",
-    "candidate_head": "7ee9181a0c99ac676c44c1d7aa39f777a553831a",
-    "diff_sha256": "64bffb5876e9ce9e76957cbfb82069ff95d1a7ba4605bd326795e89cd716063b"
+    "candidate_head": "f110af65c8e085f0e51cedccd5a09e2865fcfa70",
+    "diff_sha256": "dd5ac1f88776df691fa5cb71b555be4df7d36fba5dd935013404a410271a8860"
   },
-  "completed_at": "2026-10-09T11:47:53+00:00",
+  "completed_at": "2026-10-09T11:51:46+00:00",
   "findings": [],
-  "launched_at": "2026-10-09T11:47:53+00:00",
-  "limitation": "claude reviewer runtime with model 'sonnet' is not ready: probe exited with status 1 (Not logged in \u00b7 Please run /login); next: log the claude CLI in on this host, point DEV_PLATFORM_CLAUDE_BIN at the Claude Code CLI, or change the [model_routing] / [independent_review] binding for this account (no other model or provider is tried), then rerun python3 scripts/independent_review.py preflight",
+  "launched_at": "2026-10-09T11:51:46+00:00",
+  "limitation": "codex reviewer runtime with model 'gpt-6.1-sol' is not ready: probe exited with status 1 (You\u2019ve hit your usage limit. Upgrade to Pro (https://chatgpt.com/explore/pro), visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at Oct 14th, 2026 8:27 AM.); next: log the codex CLI in on this host, or change the [model_routing] / [independent_review] binding for this account (no other model or provider is tried), then rerun python3 scripts/independent_review.py preflight",
   "perspective": "engineering-quality",
-  "request_id": "b94ecace-6f92-4f8b-8005-e264efef58fa",
+  "request_id": "418ffa19-3e21-4c4d-84e8-9352ff50c76d",
   "reviewer": {
-    "context_id": "platform-launch-af14e5e7-f794-478a-98c1-3982afe58338",
+    "context_id": "platform-launch-d926085d-243c-4914-a632-353221ce5421",
     "context_id_source": "platform-launch",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-af14e5e7-f794-478a-98c1-3982afe58338",
+    "launch_id": "platform-launch-d926085d-243c-4914-a632-353221ce5421",
     "model": {
       "source": "selected",
-      "value": "sonnet"
+      "value": "gpt-6.1-sol"
     },
-    "provider": "claude",
-    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "runtime": "claude-code-print",
+    "provider": "codex",
+    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
+    "runtime": "codex-exec",
     "write_access": false
   },
   "schema_version": 1,
