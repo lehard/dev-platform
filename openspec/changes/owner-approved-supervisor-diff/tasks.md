@@ -7,4 +7,4 @@
 
 - [x] 2.1 Regression tests for every scenario in design Verification.
 - [x] 2.2 Document the path and its limits in `docs/engineering/model-routing.md` (and template copy).
-- [ ] 2.3 Required platform checks, truthful verification, archive, retrospectives, publication.
+- [x] 2.3 Required platform checks, truthful verification, archive, retrospectives, publication.
