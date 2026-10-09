@@ -3,72 +3,56 @@
   "candidate": {
     "base_head": "f18050510249ffd58b05af3ed9e7f0bfe548f2cc",
     "base_ref": "origin/main",
-    "candidate_head": "3a5590bfcaf1c53d9fda98c31d94c9f158240171",
-    "diff_sha256": "87075422b22800ced2d94f520b99b1c6a29047106785fd3d08552cc84bc1361e"
+    "candidate_head": "acbd11999c3cc153eb0e8556cc6a0bb0dfa4a163",
+    "diff_sha256": "e50355fcfa00c37b50e7b6b88a505ca3643ad46d4e25f97ebe413d5bc72c92ba"
   },
-  "completed_at": "2026-10-09T18:45:02+00:00",
-  "findings": [],
-  "launched_at": "2026-10-09T18:44:19+00:00",
-  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
+  "completed_at": "2026-10-09T19:26:56+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/machine_pool.py:558\u2013567 attempts acquisition and returns a granted lease before checking elapsed time at lines 569\u2013573. If tokens become available after the deadline, including while the waiter is descheduled, the run starts instead of failing. This contradicts design.md decision 6 and the active delta's requirement to fail after the configured wait timeout.",
+      "id": "admission-after-wait-timeout",
+      "severity": "advisory",
+      "summary": "A waiting run can acquire tokens after its configured wait timeout has expired."
+    }
+  ],
+  "launched_at": "2026-10-09T19:25:51+00:00",
+  "output_sha256": "ef8f5b8fd3eab35fef228c5863dd6020903f787f99f3c31c6f16dc7917784bf8",
   "perspective": "spec-fidelity",
-  "request_id": "42f1baa9-f057-4c0c-927f-8e997fcc5b47",
+  "request_id": "947f4915-68fd-4dd0-ace8-25ab97d0ffaf",
   "reviewer": {
-    "context_id": "16039a88-e7f2-4eb0-be79-6e1bf7d0fca7",
+    "context_id": "01a12221-062b-71d2-95b5-057a373c6caa",
     "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-b4f6db3d-80f6-4d96-992d-f22eec328ce0",
+    "launch_id": "platform-launch-2d54cbf8-e036-4ec9-85fd-c0b2372f6321",
     "model": {
       "source": "selected",
-      "value": "sonnet"
+      "value": "gpt-6.1-sol"
     },
-    "provider": "claude",
-    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
-    "runtime": "claude-code-print",
+    "provider": "codex",
+    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
+    "runtime": "codex-exec",
     "write_access": false
   },
   "runtime_usage": {
     "fields": {
-      "cache_creation_input_tokens": {
+      "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 55783
-      },
-      "cache_read_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 173570
-      },
-      "duration_api_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 29644
-      },
-      "duration_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 32877
+        "value": 248832
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10
-      },
-      "num_turns": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 8
+        "value": 313509
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2684
+        "value": 1474
       }
     },
-    "runtime": "claude-code-print"
+    "runtime": "codex-exec"
   },
   "schema_version": 1,
   "task_content_digest": "e86be9d17c4dd371a4e7a02b3a59902b89065b84bbf73e3f3ed3aa4d714915c5"

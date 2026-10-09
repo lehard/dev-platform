@@ -3,85 +3,56 @@
   "candidate": {
     "base_head": "f18050510249ffd58b05af3ed9e7f0bfe548f2cc",
     "base_ref": "origin/main",
-    "candidate_head": "3a5590bfcaf1c53d9fda98c31d94c9f158240171",
-    "diff_sha256": "87075422b22800ced2d94f520b99b1c6a29047106785fd3d08552cc84bc1361e"
+    "candidate_head": "acbd11999c3cc153eb0e8556cc6a0bb0dfa4a163",
+    "diff_sha256": "e50355fcfa00c37b50e7b6b88a505ca3643ad46d4e25f97ebe413d5bc72c92ba"
   },
-  "completed_at": "2026-10-09T18:46:00+00:00",
+  "completed_at": "2026-10-09T19:28:11+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/machine_pool.py `_git_branch`/`_metadata`: `if done.returncode: raise PoolError(f\"cannot determine the task branch in {root}...\")`. `_metadata` runs at the start of `_acquire`, before the ticket is created. Callers such as `requirement_integration._run_full_checks` and `run_test_groups` pass arbitrary roots.",
-      "id": "pool-metadata-git-failure-blocks-validation",
-      "severity": "advisory",
-      "summary": "Display-only holder metadata calls `git branch --show-current` and raises PoolError if it fails. In a pooled configuration this blocks a validation run whose root is not a usable git checkout, even though the branch is only used for the holders report."
-    },
-    {
-      "evidence": "template/scripts/machine_pool.py `_open_descriptors` only calls `os.fstat(fd)`. `lease()` returns `nested=True` and acquires nothing based on that check alone.",
-      "id": "pool-lease-fd-validation-shallow",
-      "severity": "advisory",
-      "summary": "A nested run accepts an inherited `DEV_PLATFORM_MACHINE_POOL_LEASE` as proof of held tokens if the listed descriptors are merely open. It does not check that they are the locked slot files. A stray exported lease variable whose fd numbers happen to be open (stdio-adjacent fds, for example) would make a run skip the pool silently."
+      "evidence": "template/scripts/run_test_groups.py:189-190 passes lease descriptors only to the immediate unittest process. Tests then launch further workers without pass_fds\u2014for example tests/test_parallel_lifecycle_acceptance.py:20 launches parallel_lifecycle_acceptance.py through subprocess.Popen. Those launches close the lease descriptors by default. If the runner and unittest process are killed, the surviving validation worker holds no lease, so another run can acquire the tokens while that worker continues. This contradicts the documented guarantee that tokens remain held until the run and every child it started have exited; the orphan test in tests/test_machine_pool.py covers only a direct child explicitly given pass_fds.",
+      "id": "descendant-processes-lose-leases",
+      "severity": "material",
+      "summary": "Pool tokens can be released while validation descendants are still running after their parents are killed."
     }
   ],
-  "launched_at": "2026-10-09T18:45:02+00:00",
-  "output_sha256": "ab5497091040741a0725090d14fcb85d3d65e96f6876637c6c5c09f4ed9b4a8d",
+  "launched_at": "2026-10-09T19:26:56+00:00",
+  "output_sha256": "a9a5dd51b5cab3a09f261f46551d299e528d8b99e04b593e7d9dfe8794c6e5b9",
   "perspective": "engineering-quality",
-  "request_id": "42f1baa9-f057-4c0c-927f-8e997fcc5b47",
+  "request_id": "947f4915-68fd-4dd0-ace8-25ab97d0ffaf",
   "reviewer": {
-    "context_id": "12b73306-d1ec-45d9-9b06-0556a569ed6a",
+    "context_id": "01a12222-03e2-7ed2-8cdf-2948f47be30d",
     "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-d9c55892-43c0-4944-b8a1-ae6072302ec1",
+    "launch_id": "platform-launch-462c3a6e-2201-4692-9a48-21e147dc2329",
     "model": {
       "source": "selected",
-      "value": "sonnet"
+      "value": "gpt-6.1-sol"
     },
-    "provider": "claude",
-    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
-    "runtime": "claude-code-print",
+    "provider": "codex",
+    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
+    "runtime": "codex-exec",
     "write_access": false
   },
   "runtime_usage": {
     "fields": {
-      "cache_creation_input_tokens": {
+      "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 45321
-      },
-      "cache_read_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 104862
-      },
-      "duration_api_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 42993
-      },
-      "duration_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 46081
+        "value": 235776
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10
-      },
-      "num_turns": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 6
+        "value": 294541
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 3332
+        "value": 1725
       }
     },
-    "runtime": "claude-code-print"
+    "runtime": "codex-exec"
   },
   "schema_version": 1,
   "task_content_digest": "e86be9d17c4dd371a4e7a02b3a59902b89065b84bbf73e3f3ed3aa4d714915c5"
