@@ -151,5 +151,8 @@ jobs:
       - name: Smoke-test project-harness smart-update fallback
         run: python3 tests/rollout_recopy_smoke.py
 
+      # On pull requests the snapshot skips lifecycle hygiene: the snapshot strips
+      # .managed-task.json, and candidate hygiene already runs on the real checkout
+      # in the hygiene step above. Pushes keep strict integration hygiene in the snapshot.
       - name: Smoke-test public distribution snapshot completeness
-        run: python3 tests/public_distribution_snapshot_smoke.py
+        run: python3 tests/public_distribution_snapshot_smoke.py --lifecycle-stage "${{ github.event_name == 'pull_request' && 'candidate' || 'integration' }}"
