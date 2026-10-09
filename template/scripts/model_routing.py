@@ -77,6 +77,7 @@ STANDALONE_CLONE = "standalone-clone"
 PLAN_DELEGATED = "delegated-child"
 PLAN_RETAINED = "supervisor-retained"
 PLAN_MODES = (PLAN_DELEGATED, PLAN_RETAINED)
+OWNER_APPROVED_POLICY = "owner-approved"
 DELEGATION_STATES = ("open", "closed")
 LAUNCH_EVIDENCE_SELF_REPORTED = "self-reported"
 LAUNCH_EVIDENCE_PLATFORM_OBSERVED = "platform-observed"
@@ -315,6 +316,10 @@ def _validate_execution_plan(plan: Any) -> None:
         raise RoutingError(f"routing record execution_plan.mode must be one of {', '.join(PLAN_MODES)}")
     if plan["mode"] == PLAN_RETAINED and not (isinstance(plan.get("policy"), str) and plan["policy"]):
         raise RoutingError("routing record execution_plan.policy is required for a supervisor-retained plan")
+    if plan.get("policy") == OWNER_APPROVED_POLICY:
+        _validate_owner_approved_plan(plan)
+    elif "owner_approval" in plan:
+        raise RoutingError(f"routing record execution_plan.owner_approval is only valid with policy {OWNER_APPROVED_POLICY}")
     if not isinstance(plan.get("declared_at"), str) or not plan["declared_at"]:
         raise RoutingError("routing record execution_plan.declared_at is missing")
     pre = plan.get("task_content_pre")
@@ -343,6 +348,36 @@ def _validate_execution_plan(plan: Any) -> None:
             raise RoutingError("routing record execution_plan.delegation.task_content_post is missing")
         if delegation["provider"] == "codex" and not (isinstance(delegation.get("outcome"), str) and delegation["outcome"]):
             raise RoutingError("routing record execution_plan.delegation.outcome is missing")
+
+
+def _validate_owner_approved_plan(plan: dict[str, Any]) -> None:
+    if plan["mode"] != PLAN_RETAINED:
+        raise RoutingError(f"routing record execution_plan.policy {OWNER_APPROVED_POLICY} requires a supervisor-retained plan")
+    approval = plan.get("owner_approval")
+    if not isinstance(approval, dict):
+        raise RoutingError(f"routing record execution_plan.owner_approval is required and must be an object for policy {OWNER_APPROVED_POLICY}")
+    for field in ("approval", "reason", "approved_at"):
+        if not isinstance(approval.get(field), str) or not approval[field].strip():
+            raise RoutingError(f"routing record execution_plan.owner_approval.{field} must be a non-empty string")
+    paths = approval.get("diverged_paths")
+    if not isinstance(paths, list) or not paths or not all(isinstance(item, str) and item for item in paths):
+        raise RoutingError("routing record execution_plan.owner_approval.diverged_paths must be a non-empty list of strings")
+    switched_from = plan.get("switched_from")
+    if not isinstance(switched_from, dict) or switched_from.get("mode") != PLAN_DELEGATED:
+        raise RoutingError(f"routing record execution_plan.switched_from must record a switch from {PLAN_DELEGATED} for policy {OWNER_APPROVED_POLICY}")
+    if switched_from.get("delegation_recorded") is not False:
+        raise RoutingError(f"routing record execution_plan.switched_from.delegation_recorded must be false for policy {OWNER_APPROVED_POLICY}")
+    if "integration_advance" in approval:
+        advance = approval["integration_advance"]
+        if (
+            not isinstance(advance, dict) or set(advance) != {"classification", "before_head", "after_head"}
+            or advance["classification"] != CLASSIFICATION_VERIFIED_EXTERNAL_ADVANCE
+            or not all(isinstance(advance[field], str) and advance[field] for field in ("before_head", "after_head"))
+        ):
+            raise RoutingError(
+                "routing record execution_plan.owner_approval.integration_advance must be exactly "
+                f"{{classification: {CLASSIFICATION_VERIFIED_EXTERNAL_ADVANCE!r}, before_head, after_head}} with non-empty heads"
+            )
 
 
 def _require_plan(route: Route, action: str) -> dict[str, Any]:
@@ -579,6 +614,9 @@ def _retention_policy_for(profile: str, topology: str) -> str | None:
 
 
 def _retention_policy(route: Route) -> str | None:
+    plan = route.execution_plan
+    if isinstance(plan, dict) and plan.get("policy") == OWNER_APPROVED_POLICY:
+        return OWNER_APPROVED_POLICY
     return _retention_policy_for(route.profile, route.topology)
 
 
@@ -695,6 +733,8 @@ def require_routing_gate(root: Path, source_issue: str, change: str) -> Route:
             raise RoutingError("routing evidence has unsupported or incomplete retained execution metadata")
         if execution.get("launched") is not False or not isinstance(retained.get("reason"), str) or not retained["reason"].strip():
             raise RoutingError("routing evidence must explicitly state a non-empty parent-retention reason")
+        if policy == OWNER_APPROVED_POLICY and retained.get("owner_approval") != route.execution_plan["owner_approval"]:
+            raise RoutingError("owner-approved retained execution must carry exactly the owner approval recorded in the execution plan")
         _require_clean_postcheck(execution, route.provider)
         return route
     if route.provider == "codex":
@@ -792,7 +832,8 @@ def _early_routing_gate(root: Path, source_issue: str, change: str) -> Route | N
             f"the execution plan for managed change {change} is a delegated child, but no delegation is open and task content "
             f"changed ({_format_paths(diverged)}). Supervisor-written content under a child-executor plan is blocked: "
             "open the delegation first (begin-claude-delegation or route-codex) before the child writes; a supervisor-written "
-            "diff cannot be legalized afterwards and the user must decide how to proceed."
+            "diff cannot be legalized by the supervisor alone: the owner must decide explicitly in chat, and only "
+            "`model_routing.py approve-supervisor-diff --approval \"<owner statement>\" --reason \"<reason>\"` records that decision."
         )
     return route
 
@@ -1140,15 +1181,19 @@ def prepare(root: Path, *, provider: str, profile: str | None, rationale: str, e
     return route
 
 
+def _require_no_open_codex_delegation(route: Route) -> None:
+    plan = route.execution_plan
+    if isinstance(plan, dict):
+        delegation = plan.get("delegation")
+        if isinstance(delegation, dict) and delegation.get("provider") == "codex" and delegation.get("state") == "open":
+            raise RoutingError("recovery requires a released Codex writer; the child delegation is still open")
+
+
 def _require_recovery_safety(route: Route) -> None:
     """Keep the original child safety boundary through recovery transitions."""
     execution = route.execution
     if execution is None:
-        plan = route.execution_plan
-        if isinstance(plan, dict):
-            delegation = plan.get("delegation")
-            if isinstance(delegation, dict) and delegation.get("provider") == "codex" and delegation.get("state") == "open":
-                raise RoutingError("recovery requires a released Codex writer; the child delegation is still open")
+        _require_no_open_codex_delegation(route)
         postcheck(route)
         return
     if route.provider == "codex":
@@ -1219,6 +1264,8 @@ def escalate(root: Path, reason: str) -> Route:
     if not reason.strip():
         raise RoutingError("escalation requires a concrete reason")
     plan = _require_plan(route, "escalating")
+    if plan.get("policy") == OWNER_APPROVED_POLICY:
+        raise RoutingError("the plan is already supervisor-retained by an owner-approved retention; escalation does not apply, finalize with record-retained-execution")
     _require_recovery_safety(route)
     if plan["mode"] == PLAN_DELEGATED and not _has_real_delegation(route):
         diverged = _task_content_diverged(route)
@@ -1226,12 +1273,70 @@ def escalate(root: Path, reason: str) -> Route:
             raise RoutingError(
                 "refusing to escalate to supervisor retention: the plan is a delegated child, no delegation was ever "
                 f"opened, and task content already changed ({_format_paths(diverged)}). An escalation trigger cannot be "
-                "invented after supervisor-written work; the user must decide how to proceed."
+                "invented after supervisor-written work; only `model_routing.py approve-supervisor-diff --approval \"<owner statement>\" "
+                "--reason \"<reason>\"` records the owner's explicit decision to keep it."
             )
     next_plan = {**plan, "mode": PLAN_RETAINED, "policy": "complex-parent"}
     if plan["mode"] == PLAN_DELEGATED:
         next_plan["switched_from"] = {"mode": PLAN_DELEGATED, "at": utc_now(), "delegation_recorded": _has_real_delegation(route)}
     next_route = Route(**{**asdict(route), "profile": "complex", "executor_model": _model_for(read_platform_config(root), route.provider, "complex"), "freshness": "escalated", "escalations": route.escalations + ({"at": utc_now(), "from": route.profile, "reason": reason.strip()},), "execution_plan": next_plan})
+    _write_route(path, next_route)
+    return next_route
+
+
+def _no_delegated_child_ran(route: Route, plan: dict[str, Any]) -> bool:
+    """True only when no delegated child writer can have run: no plan delegation, or a closed never-launched one."""
+    delegation = plan.get("delegation")
+    execution = route.execution
+    no_child = delegation is None or (isinstance(delegation, dict) and delegation.get("state") == "closed" and delegation.get("outcome") == "not-launched")
+    return no_child and (execution is None or (isinstance(execution, dict) and execution.get("launched") is False))
+
+
+def _unlaunched_attempt(route: Route, plan: dict[str, Any]) -> bool:
+    """True when the only recorded execution is a closed child attempt that never launched."""
+    delegation = plan.get("delegation")
+    execution = route.execution
+    return (
+        isinstance(execution, dict) and execution.get("launched") is False and execution.get("outcome") != "retained"
+        and isinstance(delegation, dict) and delegation.get("state") == "closed" and delegation.get("outcome") == "not-launched"
+    )
+
+
+def approve_supervisor_diff(root: Path, *, approval: str, reason: str) -> Route:
+    """Record the owner's explicit decision to keep a supervisor-written diff under a delegated-child plan.
+
+    Switches an undelegated delegated-child plan with diverged task content to a
+    supervisor-retained plan with policy ``owner-approved``. It never records a
+    delegation, launch or escalation, and leaves the routed profile unchanged.
+    Every refusal raises before anything is written.
+    """
+    route, path = _read_route(root)
+    plan = _require_plan(route, "recording an owner-approved supervisor diff")
+    if not approval.strip():
+        raise RoutingError("owner-approved retention requires the owner's non-empty explicit approval statement")
+    if not reason.strip():
+        raise RoutingError("owner-approved retention requires a concrete non-empty reason")
+    if plan["mode"] != PLAN_DELEGATED:
+        raise RoutingError("the execution plan is already supervisor-retained; owner-approved retention applies only to a delegated-child plan (use record-retained-execution)")
+    unlaunched = _unlaunched_attempt(route, plan)
+    if route.execution is not None and not unlaunched:
+        raise RoutingError("routing record already has execution evidence; owner-approved retention cannot overwrite it")
+    if _has_real_delegation(route):
+        raise RoutingError("a real delegation was recorded for this plan; use escalate with a concrete reason instead of owner-approved retention")
+    if not unlaunched:
+        # route.execution is None here: keep the open-Codex-delegation refusal of _require_recovery_safety.
+        _require_no_open_codex_delegation(route)
+    # Only the integration containment boundary needs proof; a verified fast-forward is accepted only when no delegated child ran.
+    check = _postcheck(route, supervisor=_no_delegated_child_ran(route, plan))
+    diverged = _task_content_diverged(route)
+    if not diverged:
+        raise RoutingError("task content is unchanged from the plan pre-snapshot; use escalate instead of owner-approved retention")
+    now = utc_now()
+    owner_approval = {"approval": approval.strip(), "reason": reason.strip(), "approved_at": now, "diverged_paths": diverged}
+    if "integration_advance" in check:
+        owner_approval["integration_advance"] = check["integration_advance"]
+    next_plan = {**plan, "mode": PLAN_RETAINED, "policy": OWNER_APPROVED_POLICY, "switched_from": {"mode": PLAN_DELEGATED, "at": now, "delegation_recorded": False}, "owner_approval": owner_approval}
+    next_route = Route(**{**asdict(route), "execution_plan": next_plan})
     _write_route(path, next_route)
     return next_route
 
@@ -1692,22 +1797,28 @@ def record_retained_execution(root: Path, *, reason: str) -> dict[str, Any]:
         raise RoutingError(
             "this route's execution plan is not supervisor-retained: retention must be declared up front at route time "
             "(policy-permitted complex or parent-only-topology) and is never converted from a delegated-child plan after the fact; "
-            "record the real child execution or, with a real recorded delegation or unchanged task content, escalate first"
+            "record the real child execution or, with a real recorded delegation or unchanged task content, escalate first; "
+            "for an owner-approved supervisor-written diff, only `model_routing.py approve-supervisor-diff --approval \"<owner statement>\" "
+            "--reason \"<reason>\"` records the owner's explicit decision"
         )
     if route.execution is not None:
         switched_from = plan.get("switched_from")
-        if not route.escalations or not isinstance(switched_from, dict) or switched_from.get("mode") != PLAN_DELEGATED or route.execution.get("outcome") == "retained":
+        owner_approved_unlaunched = policy == OWNER_APPROVED_POLICY and _unlaunched_attempt(route, plan)
+        if (not route.escalations and not owner_approved_unlaunched) or not isinstance(switched_from, dict) or switched_from.get("mode") != PLAN_DELEGATED or route.execution.get("outcome") == "retained":
             raise RoutingError("routing record already has execution evidence; do not overwrite a real child outcome with parent retention")
-        _require_recovery_safety(route)
+        if not owner_approved_unlaunched:
+            _require_recovery_safety(route)
     if not reason.strip():
         raise RoutingError("recording retained execution requires a concrete non-empty reason")
     execution = {
         "outcome": "retained",
         "launched": False,
         "retained": {"role": "supervisor", "policy": policy, "reason": reason.strip()},
-        "postcheck": postcheck(route),
+        "postcheck": _postcheck(route, supervisor=_no_delegated_child_ran(route, plan)),
         "recorded_at": utc_now(),
     }
+    if policy == OWNER_APPROVED_POLICY:
+        execution["retained"]["owner_approval"] = plan["owner_approval"]
     if route.execution is not None:
         execution["prior_execution"] = route.execution
     next_route = Route(**{**asdict(route), "execution": execution})
@@ -1737,6 +1848,20 @@ def _claude_delegation(route: Route) -> dict[str, Any] | None:
 
 
 def postcheck(route: Route) -> dict[str, Any]:
+    return _postcheck(route, supervisor=False)
+
+
+def _postcheck(route: Route, *, supervisor: bool) -> dict[str, Any]:
+    """Integration containment postcheck.
+
+    With ``supervisor`` (only for routes where no delegated child ran, see
+    ``_no_delegated_child_ran``) it additionally accepts a pure integration
+    HEAD move that is a verified fast-forward equal to the checkout's local
+    remote-tracking main (the Codex ``CLASSIFICATION_VERIFIED_EXTERNAL_ADVANCE``
+    rule) and records it as ``integration_advance``; any path change stays a
+    violation. With an open Claude (detection-only) delegation a pure head move
+    is accepted only through the integration-advance receipt chain.
+    """
     pre_snapshot = route.pre_snapshot
     delegation = _claude_delegation(route)
     recovery = route.execution.get("recovery") if route.execution is not None else None
@@ -1758,8 +1883,12 @@ def postcheck(route: Route) -> dict[str, Any]:
         before = _without_platform_lifecycle_entries(before, route.change)
         after = _without_platform_lifecycle_entries(after, route.change)
     result = check_containment(before, after)
+    verified_advance = (
+        supervisor and result.violated and result.head_moved and not result.new_changes and not result.disappeared_changes
+        and verify_remote_fast_forward(Path(route.integration_root), before.head, after.head)
+    )
     refusal = None
-    if result.violated and delegation is not None and result.head_moved:
+    if result.violated and not verified_advance and delegation is not None and result.head_moved:
         # Detection-only writer: a pure head move is accepted only with an unbroken
         # chain of platform-written integration-advance receipts since the delegation
         # opened. Everything else (and any unproven chain) stays a violation.
@@ -1789,12 +1918,15 @@ def postcheck(route: Route) -> dict[str, Any]:
                 },
             }
         refusal = assessment.reason
-    if result.violated:
+    if result.violated and not verified_advance:
         assigned = Path(route.task_worktree)
         record_containment_friction(Path(route.integration_root), assigned, result, task=route.source_issue, enforcement_tier="native-worktree")
         message = format_violation_message(assigned, result)
         raise RoutingError(f"{message} Head movement was not accepted as a verified concurrent advance: {refusal}." if refusal else message)
-    return {"containment": "clean", "pre_existing_changes": list(result.pre_existing_changes)}
+    check = {"containment": "clean", "pre_existing_changes": list(result.pre_existing_changes)}
+    if verified_advance:
+        check["integration_advance"] = {"classification": CLASSIFICATION_VERIFIED_EXTERNAL_ADVANCE, "before_head": before.head, "after_head": after.head}
+    return check
 
 
 def _worktree_roots(root: Path) -> list[Path]:
@@ -2090,6 +2222,7 @@ def _actual_route_of(record: dict[str, Any]) -> dict[str, Any]:
         "escalated": escalated,
         "frontier_profile": final_profile == "complex",
         "escalation_reasons": _escalation_reasons(record),
+        "owner_approved": isinstance(record.get("execution_plan"), dict) and record["execution_plan"].get("policy") == OWNER_APPROVED_POLICY,
     }
 
 
@@ -3487,6 +3620,9 @@ def main() -> int:
     subparsers.add_parser("context", help="emit bounded executor/supervisor hand-off context")
     escalate_parser = subparsers.add_parser("escalate", help="promote routine/standard work to the strong profile")
     escalate_parser.add_argument("--reason", required=True)
+    approve_parser = subparsers.add_parser("approve-supervisor-diff", help="record the owner's explicit decision to keep a supervisor-written diff under a delegated-child plan")
+    approve_parser.add_argument("--approval", required=True, help="the owner's explicit approval statement")
+    approve_parser.add_argument("--reason", required=True)
     codex_parser = subparsers.add_parser("codex-argv", help="emit a native-sandbox Codex invocation without launching it")
     codex_parser.add_argument("--prompt", required=True)
     codex_parser.add_argument("--codex-bin")
@@ -3599,6 +3735,7 @@ def main() -> int:
         if args.command == "prepare": output: Any = asdict(prepare(root, provider=args.provider, profile=args.profile, rationale=args.rationale, evidence=args.evidence))
         elif args.command == "context": output = escalation_context(_read_route(root)[0])
         elif args.command == "escalate": output = asdict(escalate(root, args.reason))
+        elif args.command == "approve-supervisor-diff": output = asdict(approve_supervisor_diff(root, approval=args.approval, reason=args.reason))
         elif args.command == "codex-argv":
             argv, mechanism = codex_argv(_read_route(root)[0], args.prompt, args.codex_bin); output = {"argv": argv, "mechanism": mechanism}
         elif args.command == "run-codex":

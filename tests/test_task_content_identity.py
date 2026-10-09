@@ -9,7 +9,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "template" / "scripts"))
-from task_content_identity import content_identity, equivalent_proofs, review_content_identity  # noqa: E402
+from task_content_identity import (  # noqa: E402
+    REVIEW_SCOPE,
+    content_identity,
+    equivalent_proofs,
+    review_content_identity,
+    review_exclusion,
+    review_path_partition,
+)
 
 
 def git(root: Path, *args: str) -> str:
@@ -171,6 +178,108 @@ class ReviewContentIdentityBaseTests(unittest.TestCase):
         self.assertEqual(set(proof["paths"]), {"own.txt"})
         explicit = review_content_identity(self.root, self.CHANGE, "HEAD~2")
         self.assertEqual(set(explicit["paths"]), {"predecessor.txt", "own.txt"})
+
+    def advance_main_and_merge(self) -> None:
+        """Main moves past the predecessor's fork and the child merges it."""
+        git(self.root, "switch", "main")
+        (self.root / "main-only.txt").write_text("main\n", encoding="utf-8")
+        (self.root / "base.txt").write_text("base from main\n", encoding="utf-8")
+        self.commit("main advance")
+        git(self.root, "branch", "-f", "origin/main", "main")
+        git(self.root, "switch", "agent/dependent")
+        git(self.root, "merge", "main", "--no-edit")
+
+    def reviewed_paths(self, proof: dict) -> list[str]:
+        reviewed, lifecycle = review_path_partition(self.root, self.CHANGE, "origin/main", str(proof["base"]))
+        # Main-delivered paths are neither reviewed nor reported as lifecycle evidence.
+        self.assertEqual(lifecycle, [])
+        return reviewed
+
+    def merge_main_over_predecessor_edit(self, main_change: str) -> None:
+        """Predecessor and main both touch base.txt; the child resolves in main's favour."""
+        git(self.root, "switch", "-C", "agent/dependent", "origin/main")
+        (self.root / "base.txt").write_text("predecessor\n", encoding="utf-8")
+        self.commit("predecessor edits base")
+        self.predecessor_head = git(self.root, "rev-parse", "HEAD")
+        (self.root / "own.txt").write_text("own\n", encoding="utf-8")
+        self.commit("own")
+        git(self.root, "switch", "main")
+        if main_change == "modify":
+            (self.root / "base.txt").write_text("base from main\n", encoding="utf-8")
+        else:
+            (self.root / "base.txt").unlink()
+        self.commit("main advance")
+        git(self.root, "branch", "-f", "origin/main", "main")
+        git(self.root, "switch", "agent/dependent")
+        merge = subprocess.run(["git", "merge", "main", "--no-edit"], cwd=self.root, text=True, capture_output=True)
+        self.assertNotEqual(merge.returncode, 0, "the fixture must produce a merge conflict")
+        if main_change == "modify":
+            git(self.root, "checkout", "--theirs", "base.txt")
+            git(self.root, "add", "base.txt")
+        else:
+            git(self.root, "rm", "-q", "base.txt")
+        git(self.root, "commit", "--no-edit")
+        self.write_context({"dependencies": [self.dependency(self.predecessor_head)]})
+
+    def test_legacy_dependent_child_excludes_main_delivered_paths(self) -> None:
+        self.write_context({"dependencies": [self.dependency(self.predecessor_head)]})
+        self.advance_main_and_merge()
+        proof = review_content_identity(self.root, self.CHANGE)
+        self.assertEqual(set(proof["paths"]), {"own.txt"})
+        self.assertEqual(proof["base"], self.predecessor_head)
+        self.assertEqual(self.reviewed_paths(proof), sorted(proof["paths"]))
+
+    def test_legacy_dependent_child_keeps_its_edit_of_a_main_changed_path(self) -> None:
+        self.write_context({"dependencies": [self.dependency(self.predecessor_head)]})
+        self.advance_main_and_merge()
+        (self.root / "base.txt").write_text("base from child\n", encoding="utf-8")
+        self.commit("child edits a main-changed file")
+        proof = review_content_identity(self.root, self.CHANGE)
+        self.assertEqual(set(proof["paths"]), {"own.txt", "base.txt"})
+        self.assertEqual(self.reviewed_paths(proof), sorted(proof["paths"]))
+
+    def test_predecessor_path_resolved_in_mains_favour_stays_bound(self) -> None:
+        self.merge_main_over_predecessor_edit("modify")
+        proof = review_content_identity(self.root, self.CHANGE)
+        self.assertEqual(set(proof["paths"]), {"own.txt", "base.txt"})
+        self.assertEqual(self.reviewed_paths(proof), sorted(proof["paths"]))
+
+    def test_predecessor_path_deleted_by_main_merge_stays_bound(self) -> None:
+        self.merge_main_over_predecessor_edit("delete")
+        proof = review_content_identity(self.root, self.CHANGE)
+        self.assertEqual(proof["paths"], {"own.txt": git(self.root, "rev-parse", "HEAD:own.txt"), "base.txt": None})
+        self.assertEqual(self.reviewed_paths(proof), sorted(proof["paths"]))
+
+    def test_legacy_dependent_child_without_main_merge_keeps_predecessor_diff_digest(self) -> None:
+        # A child that reverts predecessor content still owns that path.
+        (self.root / "predecessor.txt").unlink()
+        self.commit("child removes predecessor file")
+        self.write_context({"dependencies": [self.dependency(self.predecessor_head)]})
+        plain = content_identity(
+            self.root, self.CHANGE, self.predecessor_head,
+            exclude=review_exclusion(self.root, self.CHANGE, self.predecessor_head), scope=REVIEW_SCOPE,
+        )
+        proof = review_content_identity(self.root, self.CHANGE)
+        self.assertEqual(set(plain["paths"]), {"own.txt", "predecessor.txt"})
+        self.assertEqual(proof, plain)
+        self.assertEqual(self.reviewed_paths(proof), sorted(plain["paths"]))
+
+    def test_legacy_dependent_child_without_main_merge_base_fails(self) -> None:
+        self.write_context({"dependencies": [self.dependency(self.predecessor_head)]})
+        git(self.root, "branch", "-D", "origin/main")
+        with self.assertRaisesRegex(ValueError, r"cannot compute merge-base\(HEAD, origin/main\)"):
+            review_content_identity(self.root, self.CHANGE)
+        with self.assertRaisesRegex(ValueError, r"cannot compute merge-base\(HEAD, origin/main\)"):
+            review_path_partition(self.root, self.CHANGE, "origin/main", self.predecessor_head)
+
+    def test_main_merge_without_context_keeps_origin_main_behavior(self) -> None:
+        self.advance_main_and_merge()
+        proof = review_content_identity(self.root, self.CHANGE)
+        self.assertEqual(set(proof["paths"]), {"predecessor.txt", "own.txt"})
+        plain = content_identity(
+            self.root, self.CHANGE, exclude=review_exclusion(self.root, self.CHANGE), scope=REVIEW_SCOPE,
+        )
+        self.assertEqual(proof, plain)
 
 
 if __name__ == "__main__":

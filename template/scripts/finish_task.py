@@ -116,6 +116,8 @@ except ModuleNotFoundError:  # Compatibility while a pre-managed-intake render i
 
 
 ALLOW_NO_CHECKS_ENV = "DEV_PLATFORM_ALLOW_NO_CHECKS"
+# The rendered lifecycle entrypoint; it reconciles quick and managed tasks.
+RECONCILE_COMMAND = "python3 scripts/finish_task.py --reconcile"
 DIRECT_PUBLISH_GUARD = "DEV_PLATFORM_VALIDATED_DIRECT_PUBLISH"
 
 
@@ -487,7 +489,7 @@ def run_status(work: Path, integration: Path, config: dict, *, as_json: bool) ->
         else:
             print(f"task freshness: {freshness['task_freshness']} relative to origin/{main_branch}")
             if freshness["reconcile_required"]:
-                print("reconcile required before expensive validation: python3 scripts/finish_task.py --reconcile")
+                print(f"reconcile required before expensive validation: {RECONCILE_COMMAND}")
         provenance = freshness.get("managed_provenance")
         if provenance:
             print(f"managed provenance: {provenance}")
@@ -814,7 +816,7 @@ def observe_completion_blockers(
         blockers.append((
             "task-freshness",
             f"{branch} is {freshness_state} relative to freshly observed {remote_main}. "
-            "Reconcile before expensive validation: python3 scripts/finish_task.py --reconcile",
+            f"Reconcile before expensive validation: {RECONCILE_COMMAND}",
         ))
 
     if (
@@ -825,7 +827,7 @@ def observe_completion_blockers(
     ):
         blockers.append((
             "branch-base",
-            f"{branch} is stale relative to {remote_main}. Rebase/update explicitly, rerun checks, then finish.",
+            f"{branch} is stale relative to {remote_main}. Reconcile explicitly ({RECONCILE_COMMAND}), rerun checks, then finish.",
         ))
 
     try:
@@ -917,7 +919,7 @@ def main() -> int:
     parser.add_argument("--body")
     parser.add_argument("--merge-timeout", type=float, default=60.0)
     parser.add_argument("--status", action="store_true", help="Read-only publication status; makes no mutations.")
-    parser.add_argument("--reconcile", action="store_true", help="Safely merge authoritative main into the current managed task before validation.")
+    parser.add_argument("--reconcile", action="store_true", help="Safely merge authoritative main into the current quick or managed task before validation.")
     parser.add_argument("--json", action="store_true", help="Emit --status output as JSON.")
     args = parser.parse_args()
     if args.json and not args.status:
@@ -1117,7 +1119,7 @@ def main() -> int:
         if branch == main_branch:
             raise SystemExit("publish_mode=pr requires a feature branch. Use standard/multi-agent profile or switch publish_mode deliberately.")
         if exact_open_pr is None and run_git(["merge-base", "--is-ancestor", remote_main, branch], cwd=work, check=False).returncode != 0:
-            raise SystemExit(f"{branch} is stale relative to {remote_main}. Rebase/update explicitly, rerun checks, then finish.")
+            raise SystemExit(f"{branch} is stale relative to {remote_main}. Reconcile explicitly ({RECONCILE_COMMAND}), rerun checks, then finish.")
         if exact_open_pr is not None:
             print(f"Resuming existing exact-head PR: {exact_open_pr.get('url')}")
         command = ["python3", str(work / "scripts" / "project_publish.py"), "--mode", "pr"]
@@ -1135,6 +1137,8 @@ def main() -> int:
                     if queued is not None and queued["state"] in {"active", "waiting"}:
                         print(f"Publication queued at position {queued.get('position')}; rerun finish after remote merge.")
                         return 2
+                    if queued is not None and queued["state"] == "blocked":
+                        raise SystemExit("Publication queue reports blocked: " + str(queued.get("reason")))
             if task_pr_is_already_merged(work, branch, main_branch):
                 reconcile_confirmed_remote_pr_merge(
                     work, integration, config, branch, main_branch, prof,

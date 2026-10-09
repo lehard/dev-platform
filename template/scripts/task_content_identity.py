@@ -147,23 +147,76 @@ def review_path_partition(
     if changed.returncode != 0:
         return None
     exclude = review_exclusion(root, change, base_ref)
+    _, main_delivered = _review_base(root, change, base_ref)
     reviewed: list[str] = []
     excluded: list[str] = []
     for raw in sorted(dict.fromkeys(item for item in changed.stdout.split("\0") if item)):
-        (excluded if exclude(_canonical_path(raw, change), raw) else reviewed).append(raw)
+        canonical = _canonical_path(raw, change)
+        # Main-delivered paths are neither task content nor lifecycle evidence.
+        if main_delivered is not None and main_delivered(canonical, raw):
+            continue
+        (excluded if exclude(canonical, raw) else reviewed).append(raw)
     return reviewed, excluded
 
 
-def review_content_identity(root: Path, change: str, base_ref: str = "origin/main") -> dict[str, object] | None:
-    """Task-content identity that independent review evidence binds to."""
+def _either(first: Callable[[str, str], bool], second: Callable[[str, str], bool]) -> Callable[[str, str], bool]:
+    def exclude(canonical: str, raw: str) -> bool:
+        return first(canonical, raw) or second(canonical, raw)
+
+    return exclude
+
+
+def _merge_base(root: Path, left: str, right: str, purpose: str) -> str:
+    result = run_git(["merge-base", left, right], cwd=root, check=False)
+    if result.returncode != 0 or not result.stdout.strip():
+        raise ValueError(f"cannot compute merge-base({left}, {right}) for {purpose}: {result.stderr.strip()}")
+    return result.stdout.strip()
+
+
+def _changed_paths(root: Path, old: str, new: str, purpose: str) -> set[str]:
+    result = run_git(["diff", "--name-only", "--no-renames", "-z", old, new], cwd=root, check=False)
+    if result.returncode != 0:
+        raise ValueError(f"cannot list paths changed between {old} and {new} for {purpose}: {result.stderr.strip()}")
+    return {item for item in result.stdout.split("\0") if item}
+
+
+def main_delivered_exclusion(root: Path, predecessor_head: str, main_ref: str = "origin/main") -> Callable[[str, str], bool]:
+    """Exclude paths a legacy dependent child only received by merging main.
+
+    The predecessor head may lag main; once the child merges main, every path
+    main changed since the predecessor's fork from main would otherwise count
+    as the child's task content.  A path is main-delivered when main changed
+    it since that fork, the predecessor did not, and its content at ``HEAD``
+    still equals the main merge base (both absent included).  A path the
+    predecessor changed stays bound even when the child's main merge resolved
+    it in main's favour, so a regression of predecessor work is never hidden.
+    Without a main merge main changed nothing since the fork, so the bound set
+    is exactly the plain predecessor diff.
+    """
+    purpose = "the legacy dependent review main-delta exclusion"
+    main_base = _merge_base(root, "HEAD", main_ref, purpose)
+    fork = _merge_base(root, predecessor_head, main_base, purpose)
+    main_changed = _changed_paths(root, fork, main_base, purpose)
+    child_differs = _changed_paths(root, main_base, "HEAD", purpose)
+    predecessor_changed = _changed_paths(root, fork, predecessor_head, purpose)
+    delivered = main_changed - child_differs - predecessor_changed
+
+    def exclude(canonical: str, raw: str) -> bool:
+        return raw in delivered
+
+    return exclude
+
+
+def _review_base(root: Path, change: str, base_ref: str) -> tuple[str, Callable[[str, str], bool] | None]:
+    """Resolve the review base and, on the legacy path, its main-delta exclusion."""
     if base_ref == "origin/main":
         context = root / ".claude/requirement-child-context" / f"{change}.json"
         if context.is_file():
             payload = json.loads(context.read_text())
             contribution = payload.get("contribution")
             if contribution:
-                base_ref = contribution["head"]
-            elif payload.get("dependencies"):
+                return contribution["head"], None
+            if payload.get("dependencies"):
                 # Legacy receipt path: a dependent child's task content starts
                 # after its single predecessor's exact head.
                 dependencies = payload["dependencies"]
@@ -177,10 +230,17 @@ def review_content_identity(root: Path, change: str, base_ref: str = "origin/mai
                 head = dependencies[0].get("head") if isinstance(dependencies[0], dict) else None
                 if not isinstance(head, str) or not head:
                     raise ValueError(f"{context} dependency has no non-empty string 'head'")
-                base_ref = head
-    return content_identity(
-        root, change, base_ref, exclude=review_exclusion(root, change, base_ref), scope=REVIEW_SCOPE
-    )
+                return head, main_delivered_exclusion(root, head, base_ref)
+    return base_ref, None
+
+
+def review_content_identity(root: Path, change: str, base_ref: str = "origin/main") -> dict[str, object] | None:
+    """Task-content identity that independent review evidence binds to."""
+    base_ref, main_delivered = _review_base(root, change, base_ref)
+    exclude = review_exclusion(root, change, base_ref)
+    if main_delivered is not None:
+        exclude = _either(exclude, main_delivered)
+    return content_identity(root, change, base_ref, exclude=exclude, scope=REVIEW_SCOPE)
 
 
 def equivalent_proofs(root: Path, recorded: object, current: object) -> bool:
