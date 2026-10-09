@@ -231,19 +231,34 @@ def _events(root: Path, repo: str, number: int) -> list[dict[str, Any]]:
 
 
 def _admission(events: list[dict[str, Any]], number: int) -> dict[str, Any] | None:
-    """Concurrent retries share a slot; a blocked candidate may start a new one."""
+    """Concurrent retries share a slot; a blocked candidate may start a new one.
+
+    An admission carrying ``supersedes`` opens the next slot only when it names the
+    head the current slot proves (its admission or latest coordinator update) and a
+    reason, on the same branch; any other differing admission is conflicting evidence.
+    """
     blocks = [event["comment_id"] for event in events if event.get("kind") == "block" and isinstance(event.get("comment_id"), int)]
     cutoff = max(blocks, default=0)
-    admissions = [event for event in events if event.get("kind") == "admit" and isinstance(event.get("comment_id"), int) and event["comment_id"] > cutoff]
-    if not admissions:
-        return None
-    first = min(admissions, key=lambda event: event["comment_id"])
-    if not all(
-        all(event.get(key) == first.get(key) for key in ("head", "branch"))
-        for event in admissions
-    ):
-        raise QueueError(f"PR #{number} has conflicting admission evidence")
-    return first
+    slot: dict[str, Any] | None = None
+    proven: Any = None
+    for event in sorted((event for event in events if isinstance(event.get("comment_id"), int) and event["comment_id"] > cutoff),
+                        key=lambda event: event["comment_id"]):
+        if event.get("kind") == "update" and slot is not None:
+            proven = event.get("head")
+        if event.get("kind") != "admit":
+            continue
+        supersedes = event.get("supersedes")
+        if slot is None and supersedes is None:
+            slot, proven = event, event.get("head")
+        elif slot is not None and all(event.get(key) == slot.get(key) for key in ("head", "branch")):
+            continue  # a concurrent retry of the same admission shares its slot
+        elif (slot is not None and isinstance(supersedes, dict) and supersedes.get("head") == proven
+              and event.get("head") != proven and event.get("branch") == slot.get("branch")
+              and isinstance(supersedes.get("reason"), str) and supersedes["reason"].strip()):
+            slot, proven = event, event.get("head")
+        else:
+            raise QueueError(f"PR #{number} has conflicting admission evidence")
+    return slot
 
 
 def _comment(root: Path, repo: str, number: int, payload: dict[str, Any]) -> None:
@@ -787,6 +802,60 @@ def _handoff_route(root: Path, identity: Any) -> dict[str, str]:
         raise QueueError(f"handoff cannot resolve the originating task route for {change}: {exc}") from exc
 
 
+# Candidate states a fresh developer handoff for a new head may supersede: they wait on a human
+# or a retry, not on an in-flight job. Every other state keeps the admitted head.
+READMISSION_STATES = frozenset({"repair-pending", "blocked-retryable", "blocked-escalation"})
+_SAME_TASK_KEYS = ("kind", "change", "requirement", "source_issue", "work_identity", "target_branch", "contribution_base")
+
+
+def _descends(root: Path, ancestor: str, head: str) -> bool:
+    """Whether ``head`` contains ``ancestor`` (a fast-forward or a merge); unreadable history raises."""
+    done = run_git(["merge-base", "--is-ancestor", ancestor, head], cwd=root, check=False)
+    if done.returncode not in (0, 1):
+        raise QueueError(f"cannot prove that {head} descends from {ancestor}: "
+                         + (done.stderr or done.stdout).strip()[:200])
+    return done.returncode == 0
+
+
+def _supersession(root: Path, repo: str, number: int, pr: dict[str, Any], proven: str, head: str,
+                  identity: Any) -> dict[str, Any]:
+    """The explicit supersession of the admitted ``proven`` head by a developer handoff at ``head``.
+
+    Allowed only when the latest trusted record is bound to the proven head in a state of
+    ``READMISSION_STATES``, names the same task, and its offered job holds no live claim, and
+    when ``head`` descends from ``proven``: coordinator updates and harness pushes on the
+    admitted head are never discarded by a history rewrite. Anything else is a named refusal.
+    """
+    from lifecycle_workers import CLAIM_PREFIX, build_job, winning_claim
+
+    def refuse(cause: str) -> QueueError:
+        return QueueError(f"PR has an earlier or ambiguous admission at {proven[:12]}; "
+                          f"re-admission of {head[:12]} refused: {cause}")
+
+    comments = _comments(root, repo, number)
+    if _malformed(_derive(root, pr, comments)):
+        raise refuse("a coordinator record is malformed")
+    lineage = _latest(root, number, comments)
+    if lineage is None or lineage.get("head") != proven:
+        raise refuse("the latest coordinator record is not bound to the admitted head")
+    if lineage.get("state") not in READMISSION_STATES:
+        raise refuse(f"the candidate is {lineage.get('state')}; only "
+                     f"{', '.join(sorted(READMISSION_STATES))} accept a new developer head")
+    old = lineage.get("task_identity")
+    if (not isinstance(old, dict) or not old.get("change") or not isinstance(identity, dict)
+            or any(old.get(key) != identity.get(key) for key in _SAME_TASK_KEYS)):
+        raise refuse("the handoff does not name the same task as the admitted candidate")
+    job = build_job({**lineage, "number": number})
+    if job is not None:
+        claim = winning_claim(job, comments, trusted_apps=trusted_apps(root),
+                              trusted_writers=trusted_writers(root, comments, (CLAIM_PREFIX,), repo=repo))
+        if claim is not None:
+            raise refuse(f"its {job['kind']} job is claimed by {claim['worker']} until {claim['expires_at']}")
+    if not _descends(root, proven, head):
+        raise refuse("the new head does not descend from the admitted head; push a fast-forward or merge, not a rewrite")
+    return {"head": proven, "state": lineage["state"], "reason": "fresh developer handoff for a descendant head"}
+
+
 def admit(root: Path, number: int, expected_head: str, *, handoff: dict | None = None) -> dict[str, Any]:
     repo = _repo(root)
     pr = _pr(root, repo, number)
@@ -835,8 +904,19 @@ def admit(root: Path, number: int, expected_head: str, *, handoff: dict | None =
         updates = [event for event in events if event.get("kind") == "update"
                    and event.get("comment_id", 0) > admitted.get("comment_id", 0)]
         proven = updates[-1].get("head") if updates else admitted.get("head")
-        if proven != expected_head:
+        if proven != expected_head and not handoff:
             raise QueueError("PR has an earlier or ambiguous admission; resolve it before re-admission")
+        if proven != expected_head:
+            supersedes = _supersession(root, repo, number, pr, str(proven), expected_head, identity)
+            base = identity["contribution_base"] if identity.get("kind") == "contribution" else _main(root)
+            # Off the queue until the fresh review record exists: no worker integrates the unreviewed head.
+            _label(root, repo, number, QUEUE, present=False)
+            _comment(root, repo, number, {"kind": "admit", "head": expected_head, "base": base, "branch": branch,
+                                          "supersedes": supersedes})
+            admitted = _admission(_events(root, repo, number), number)
+            if admitted is None or admitted.get("head") != expected_head:
+                raise QueueError("superseding admission comment was not confirmed")
+            _label(root, repo, number, BLOCKED, present=False)
     else:
         base = identity["contribution_base"] if identity.get("kind") == "contribution" else _main(root)
         _ensure_labels(root)
@@ -1696,7 +1776,7 @@ def main() -> int:
     check.add_argument("--mode", choices=PREFLIGHT_MODES, required=True)
     check.add_argument("--phase", choices=PREFLIGHT_PHASES, required=True)
     for name, summary in (("switch-provider", "re-offer an unfinished review or repair job on other providers"),
-                          ("resume", "re-offer a retryable or operationally escalated review/repair job after a human decision")):
+                          ("resume", "re-offer a retryable or operationally escalated review/repair/finalize job after a human decision")):
         operator = sub.add_parser(name, help=summary)
         operator.add_argument("--pr", type=int, required=True)
         operator.add_argument("--provider", action="append", required=name == "switch-provider",

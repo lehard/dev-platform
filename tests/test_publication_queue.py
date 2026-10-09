@@ -73,8 +73,8 @@ class AdmissionTests(unittest.TestCase):
              patch.object(queue, "_events", side_effect=lambda *a: list(events)), patch.object(queue, "_comment", side_effect=comment), \
              patch.object(queue, "_latest", return_value=prior), patch.object(queue, "_derive", return_value={}), \
              patch.object(queue, "_ensure_labels"), patch.object(queue, "_label"):
-            for bad in ({**prior, "state": "reviewing"}, {**prior, "red_gate": {"name": "review", "identity": old}},
-                        {**prior, "task_identity": {**old, "change": "different"}}):
+            # A review red gate on blocked-retryable is an ordinary supersession now (tests/test_pr_review_gate.py).
+            for bad in ({**prior, "state": "reviewing"}, {**prior, "task_identity": {**old, "change": "different"}}):
                 with patch.object(queue, "_latest", return_value=bad), self.assertRaisesRegex(queue.QueueError, "earlier or ambiguous"):
                     queue.admit(ROOT_PATH, 1, NEW_HEAD, handoff=handoff)
             # Return the refreshed review record for confirmation after the transition.

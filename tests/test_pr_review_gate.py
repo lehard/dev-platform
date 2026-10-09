@@ -612,6 +612,166 @@ class ProviderSwitchTests(unittest.TestCase):
             self.assertEqual(workers.build_job(resumed)["providers"], ["claude"])
 
 
+class ReadmissionAndFinalizeResumeTests(unittest.TestCase):
+    NEW_HEAD = "c" * 40
+    NEW_IDENTITY = {**IDENTITY, "task_content": {**IDENTITY["task_content"], "digest": "proof-2"}}
+
+    def admitted_repair_pending(self, fixture, stack):
+        stack.enter_context(mock.patch.object(queue, "_repo", return_value="o/r"))
+        stack.enter_context(mock.patch.object(queue, "_ensure_labels"))
+        self.labels = stack.enter_context(mock.patch.object(queue, "_label"))
+        stack.enter_context(mock.patch.object(queue, "_main", return_value=HEAD))
+        stack.enter_context(mock.patch("model_routing.read_route_for_change", return_value=ROUTE))
+        self.descends = stack.enter_context(mock.patch.object(queue, "_descends", return_value=True))
+        original_pr = queue._pr.side_effect
+        queue._pr.side_effect = lambda *a: {**original_pr(*a), "base": {"ref": "main"}}
+        queue.admit(ROOT, 7, HEAD, handoff={"task_identity": IDENTITY, "gates": {}})
+        queue._transition(ROOT, "o/r", 7, "reviewing", HEAD, task_identity=IDENTITY)
+        gate.complete_review(ROOT, "o/r", fixture.candidate(), ProviderSwitchTests.MATERIAL, HEAD)
+        self.assertEqual(fixture.candidate()["state"], "repair-pending")
+
+    def readmit(self, fixture):
+        fixture.head = self.NEW_HEAD
+        return queue.admit(ROOT, 7, self.NEW_HEAD, handoff={"task_identity": self.NEW_IDENTITY, "gates": {}})
+
+    def assert_superseded(self, fixture, state):
+        candidate = fixture.candidate()
+        self.assertEqual((candidate["state"], candidate["head"], candidate["task_identity"]),
+                         ("review-pending", self.NEW_HEAD, self.NEW_IDENTITY))
+        job = workers.build_job(candidate)
+        self.assertEqual((job["kind"], job["head"]), ("review", self.NEW_HEAD))
+        events = queue._events(ROOT, "o/r", 7)
+        admission = queue._admission(events, 7)
+        self.assertEqual(admission["head"], self.NEW_HEAD)
+        self.assertEqual((admission["supersedes"]["head"], admission["supersedes"]["state"]), (HEAD, state))
+        self.assertTrue(admission["supersedes"]["reason"])
+        self.descends.assert_called_with(ROOT, HEAD, self.NEW_HEAD)
+        # The candidate leaves the queue before the superseding admission and rejoins after its review record.
+        queued = [call.kwargs["present"] for call in self.labels.call_args_list if call.args[3] == queue.QUEUE]
+        self.assertEqual(queued[-2:], [False, True])
+
+    def test_new_developer_head_supersedes_a_repair_pending_admission(self):
+        with QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
+            self.admitted_repair_pending(fixture, stack)
+            self.readmit(fixture)
+            self.assert_superseded(fixture, "repair-pending")
+            count = len(fixture.comments)
+            self.readmit(fixture)  # a repeat of the same handoff is idempotent
+            self.assertEqual(len(fixture.comments), count)
+
+    def test_new_developer_head_supersedes_a_proposed_rejection_escalation(self):
+        with QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
+            self.admitted_repair_pending(fixture, stack)
+            queue._transition(ROOT, "o/r", 7, "blocked-escalation", HEAD, task_identity=IDENTITY,
+                              red_gate={"name": "repair", "identity": IDENTITY,
+                                        "evidence": {"status": "proposed-rejection"}})
+            self.readmit(fixture)
+            self.assert_superseded(fixture, "blocked-escalation")
+
+    def test_readmission_refuses_in_flight_work_rewrites_and_another_task(self):
+        with QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
+            self.admitted_repair_pending(fixture, stack)
+            job = workers.build_job(fixture.candidate())
+            fixture.comments.append({"id": len(fixture.comments) + 1, "author_association": "OWNER",
+                                     "body": workers.claim_body(job, "busy", "2099-01-01T00:00:00Z", provider=PROVIDER)})
+            count = len(fixture.comments)
+            with self.assertRaisesRegex(queue.QueueError, "earlier or ambiguous.*repair job is claimed by busy"):
+                self.readmit(fixture)
+            self.assertEqual(len(fixture.comments), count)
+            fixture.head = HEAD
+            queue._transition(ROOT, "o/r", 7, "repairing", HEAD, task_identity=IDENTITY)
+            with self.assertRaisesRegex(queue.QueueError, "candidate is repairing; only blocked-escalation"):
+                self.readmit(fixture)
+            fixture.head = HEAD
+            queue._transition(ROOT, "o/r", 7, "blocked-escalation", HEAD, task_identity=IDENTITY,
+                              red_gate={"name": "repair", "identity": IDENTITY, "evidence": "failed: llm exited 1"})
+            count = len(fixture.comments)
+            self.descends.return_value = False
+            with self.assertRaisesRegex(queue.QueueError, "does not descend from the admitted head"):
+                self.readmit(fixture)
+            self.descends.return_value = True
+            with self.assertRaisesRegex(queue.QueueError, "does not name the same task"):
+                queue.admit(ROOT, 7, self.NEW_HEAD, handoff={"task_identity": {**self.NEW_IDENTITY, "change": "other"},
+                                                            "gates": {}})
+            self.assertEqual(len(fixture.comments), count)
+            # Without a developer handoff a changed head never supersedes an admission.
+            with mock.patch.object(queue, "_admission_handoff", return_value={"task_identity": self.NEW_IDENTITY, "gates": {}}), \
+                    self.assertRaisesRegex(queue.QueueError, "earlier or ambiguous admission; resolve"):
+                queue.admit(ROOT, 7, self.NEW_HEAD)
+
+    def test_admission_slot_accepts_only_a_supersession_of_the_proven_head(self):
+        new = "c" * 40
+        admit = {"kind": "admit", "comment_id": 1, "head": HEAD, "branch": "agent/x", "base": HEAD}
+        update = {"kind": "update", "comment_id": 2, "previous": HEAD, "head": "b" * 40}
+        supersede = {**admit, "comment_id": 3, "head": new, "supersedes": {"head": "b" * 40, "reason": "fresh"}}
+        self.assertEqual(queue._admission([admit, update, supersede, {**supersede, "comment_id": 4}], 7)["comment_id"], 3)
+        for bad in ({**supersede, "supersedes": {"head": HEAD, "reason": "stale head"}},
+                    {**supersede, "supersedes": {"head": "b" * 40, "reason": " "}},
+                    {**supersede, "branch": "agent/y"}, {**admit, "comment_id": 3, "head": new}):
+            with self.assertRaisesRegex(queue.QueueError, "conflicting admission evidence"):
+                queue._admission([admit, update, bad], 7)
+        with self.assertRaisesRegex(queue.QueueError, "conflicting admission evidence"):
+            queue._admission([{**supersede, "comment_id": 1}], 7)
+
+    def test_descends_accepts_fast_forward_and_merge_and_refuses_a_rewrite(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            git(repo, "init", "-q", "-b", "main")
+            commit = lambda message: (git(repo, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q",
+                                          "--allow-empty", "-m", message), git(repo, "rev-parse", "HEAD"))[1]
+            base = commit("base")
+            admitted = commit("admitted")
+            forward = commit("developer fix")
+            git(repo, "checkout", "-q", "-b", "side", base)
+            rewrite = commit("rewritten")
+            git(repo, "checkout", "-q", "main")
+            git(repo, "-c", "user.name=t", "-c", "user.email=t@t", "merge", "-q", "--no-edit", "side")
+            merged = git(repo, "rev-parse", "HEAD")
+            self.assertTrue(queue._descends(repo, admitted, forward))
+            self.assertTrue(queue._descends(repo, admitted, merged))
+            self.assertFalse(queue._descends(repo, admitted, rewrite))
+            with self.assertRaisesRegex(queue.QueueError, "cannot prove"):
+                queue._descends(repo, "d" * 40, merged)
+
+    def escalated_finalize(self, fixture):
+        passed = {"result": "passed", "identity": IDENTITY, "evidence": "review ok"}
+        queue._transition(ROOT, "o/r", 7, "finalize-pending", HEAD, task_identity=IDENTITY, inherit_identity=False,
+                          gates={"review": passed}, next_job=workers.job_record("finalize", HEAD, IDENTITY, 0))
+        job = workers.build_job(fixture.candidate())
+        fixture.comments.append({"id": len(fixture.comments) + 1, "author_association": "OWNER",
+                                 "body": workers.result_body(job, "w", "failed: missing source contract")})
+        queue._transition(ROOT, "o/r", 7, "blocked-escalation", HEAD, task_identity=IDENTITY, inherit_identity=False,
+                          red_gate={"name": "finalize", "identity": IDENTITY, "evidence": "missing source contract"})
+        return job
+
+    def test_resume_reoffers_an_operational_finalize_escalation_at_the_same_head(self):
+        with QueueFixture(ROOT, HEAD) as fixture:
+            failed = self.escalated_finalize(fixture)
+            self.assertTrue(workers.job_completed(failed, fixture.comments))
+            with self.assertRaisesRegex(queue.QueueError, "omit --provider"):
+                gate.reoffer(ROOT, "o/r", 7, action="resume", providers=["codex"], reason="contract restored")
+            with self.assertRaisesRegex(queue.QueueError, "operational repair and finalize escalations"):
+                gate.reoffer(ROOT, "o/r", 7, action="switch-provider", providers=["codex"], reason="x")
+            result = gate.reoffer(ROOT, "o/r", 7, action="resume", providers=None, reason="contract restored")
+            resumed = fixture.candidate()
+            job = workers.build_job(resumed)
+            self.assertEqual((result["state"], resumed["state"], resumed["red_gate"]), ("finalize-pending", "finalize-pending", None))
+            self.assertEqual((job["kind"], job["head"], job["attempt"]), ("finalize", HEAD, failed["attempt"]))
+            self.assertEqual((job["reoffer"]["action"], job["reoffer"]["reason"]), ("resume", "contract restored"))
+            self.assertNotEqual(workers.job_id(job), workers.job_id(failed))
+            self.assertFalse(workers.job_completed(job, fixture.comments))
+            self.assertEqual(resumed["gates"]["review"]["result"], "passed")
+
+    def test_finding_level_escalation_is_still_not_resumed(self):
+        with QueueFixture(ROOT, HEAD) as fixture:
+            self.escalated_finalize(fixture)
+            queue._transition(ROOT, "o/r", 7, "blocked-escalation", HEAD, task_identity=IDENTITY,
+                              red_gate={"name": "repair", "identity": IDENTITY, "evidence": {"status": "proposed-rejection"}})
+            with self.assertRaisesRegex(queue.QueueError, "finding-level reason \\(proposed-rejection\\)"):
+                gate.reoffer(ROOT, "o/r", 7, action="resume", providers=["codex"], reason="retry")
+            self.assertEqual(fixture.candidate()["state"], "blocked-escalation")
+
+
 class ProviderSwitchCommandTests(unittest.TestCase):
     def test_cli_switch_and_resume_call_the_gate_with_the_operator_reason(self):
         for command, extra, provider_required in (("switch-provider", ["--provider", "claude", "--provider", "codex"], True),

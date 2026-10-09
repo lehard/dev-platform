@@ -439,6 +439,8 @@ def _repair_status(red_gate: dict) -> str:
 def reoffer(root: Path, repo: str, number: int, *, action: str, providers, reason: str, adapter=None) -> dict:
     """Re-offer the open review or repair job of a candidate, optionally on other providers.
 
+    ``resume`` also re-offers the finalize job of an operational finalize escalation at the same head.
+
     One appended record keeps identity, gates, findings and every attempt counter, so the same round is
     offered again and no budget is spent; the distinct job id comes from the ``reoffers`` sequence.
     """
@@ -477,9 +479,13 @@ def reoffer(root: Path, repo: str, number: int, *, action: str, providers, reaso
                 f"PR #{number} is escalated for a finding-level reason ({reason_}); resume does not decide it: "
                 "push a fix, record a disposition for the finding, or close the PR")
         kind = "repair"
+    elif state == "blocked-escalation" and red.get("name") == "finalize" and action == "resume":
+        # A finalize job judges no finding: its escalation is a harness or environment failure.
+        kind = "finalize"
     else:
         raise adapter.QueueError(f"PR #{number} is {state}; {action} applies only to an unfinished review or repair job"
-                                 + (" (resume covers operational repair escalations)" if state == "blocked-escalation" else ""))
+                                 + (" (resume covers operational repair and finalize escalations)"
+                                    if state == "blocked-escalation" else ""))
     from lifecycle_workers import CLAIM_PREFIX, build_job, winning_claim
     job = build_job(candidate)
     if job is not None:
@@ -488,6 +494,22 @@ def reoffer(root: Path, repo: str, number: int, *, action: str, providers, reaso
         if claim is not None:
             raise adapter.QueueError(f"PR #{number} job is claimed by {claim['worker']} until {claim['expires_at']}; "
                                      "wait for the claim to expire or finish")
+    attempts = candidate.get("attempts", {})
+    if kind == "finalize":
+        if providers is not None:
+            raise adapter.QueueError(f"PR #{number} finalize job runs in the trusted harness; omit --provider")
+        if not isinstance(identity, dict) or not identity:
+            raise adapter.QueueError(f"PR #{number} finalize escalation carries no task identity to finalize")
+        seq = attempts.get("reoffers", 0) + 1
+        event = {"seq": seq, "action": action, "reason": reason.strip()[:300],
+                 "at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+        record = adapter._transition(
+            root, repo, number, "finalize-pending", head, task_identity=identity, inherit_identity=False,
+            set_attempts={"reoffers": seq},
+            next_job=job_record("finalize", head, identity, attempts.get("finalize", 0), reoffer=event))
+        if record is None:
+            raise adapter.QueueError(f"PR #{number} head moved; rerun")
+        return {"state": record["state"], "number": number, "changed": True, "job": record["next_job"]}
     unavailable = (candidate.get("gates", {}).get("repair") or {}).get("evidence")
     previous = (current_job.get("providers") or red.get("providers")
                 or (unavailable.get("providers") if isinstance(unavailable, dict) else None) or [])
@@ -502,7 +524,6 @@ def reoffer(root: Path, repo: str, number: int, *, action: str, providers, reaso
         raise adapter.QueueError(f"PR #{number} repair job runs on exactly one provider; pass a single --provider")
     if action == "switch-provider" and state in pending and providers == previous:
         return {"state": state, "number": number, "changed": False, "providers": providers}
-    attempts = candidate.get("attempts", {})
     gates = candidate.get("gates", {})
     if kind == "repair":
         if red.get("name") not in {None, "repair"} and state != "blocked-escalation":
