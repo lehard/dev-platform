@@ -1,51 +1,42 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "86dffdbf85b553774c4247b6c9f8e2c356dce760",
+    "base_head": "f3f4ffc6185ceeb803b8118e280b3d3c9db91472",
     "base_ref": "origin/main",
-    "candidate_head": "87c2243b01c0105691fa2b876d037896c63fe766",
-    "diff_sha256": "4afba9f6c566cacf28cc0217d4fef092b02b68c16fc2b2e8d29c448eed7aed66"
+    "candidate_head": "8da71f521570b5153cd4ed518bc900770c48f9ae",
+    "diff_sha256": "b057f9e1b073a1b1a145fea4ee4dd27a129e8289e3dd426f3d1128a50c00a9ad"
   },
-  "completed_at": "2026-10-09T09:03:44+00:00",
+  "completed_at": "2026-10-09T09:34:28+00:00",
   "findings": [
     {
-      "evidence": "model_routing.py:1124 sets pre_snapshot at prepare; model_routing.py:1582 sets opened_at later. delegation_containment._receipt_chain filters `at >= window_start`, then raises \"no receipt starts at the pre-run head\". This fails closed and is not unsafe, but it is an unrecoverable false positive: the new recovery handles only an open delegation whose friction event is dated after opened_at, which this case may not meet. Consider anchoring the window at the pre-snapshot time (prepared_at), or documenting the gap.",
-      "id": "receipt-window-gap-before-opened-at",
+      "evidence": "template/scripts/integration_state.py:168 runs `reset --mixed remote_main`. finish_task.py (diff lines ~568-579) wraps it with `record_integration_advance` whenever the head changed. `_receipt_chain` in delegation_containment.py checks only before/after continuity and `after == origin_main` per receipt. Ancestry is checked only end to end (`verify_remote_fast_forward(before_head, after_head)`), so a non-ff intermediate hop is accepted as long as the overall range is a descendant.",
+      "id": "normalize-reset-receipt-not-ff-checked",
       "severity": "advisory",
-      "summary": "The Claude route's pre-snapshot head is taken at prepare, but the receipt window starts at the delegation's opened_at, which is set later by begin_claude_delegation. A sibling advance between those two moments leaves a receipt dated before opened_at. That receipt is filtered out, no receipt starts at the pre-run head, and a benign advance becomes a containment violation."
+      "summary": "The equivalent-state normalization path records a receipt for a `reset --mixed` to `origin/<main>`, which is not a fast-forward. The per-receipt chain check never verifies that each receipt's before/after is an ancestry step."
     },
     {
-      "evidence": "finish_task.py ~L519-538 (diff lines 541-560): `run_git([\"merge\",\"--ff-only\",branch])`, then subprocess.run(project_publish, check=True), then record_integration_advance. Any failure between the merge and the receipt leaves an unreceipted move. Overlapping Claude delegations then fail closed, and the only recovery is the historical-recovery form, which applies once. The design accepts this, but retry or resume paths do not backfill the receipt.",
-      "id": "direct-publish-receipt-after-push-failure-window",
+      "evidence": "In project_sync.py (diff ~846) and finish_task.py (diff ~554, ~573, ~589), `record_integration_advance` is called with no try/except. The docs say the failure is explicit, but the exception is a RuntimeError subclass that is not converted to SystemExit like the neighbouring failure paths.",
+      "id": "receipt-write-failure-uncaught-traceback",
       "severity": "advisory",
-      "summary": "In integrate_and_publish_direct, local main is fast-forwarded first. The receipt is written only after project_publish.py succeeds. If publish fails (check=True raises) or the process dies after the push, main stays advanced with no receipt. If the receipt write itself fails, finish exits non-zero after a successful push."
-    },
-    {
-      "evidence": "finish_task.py diff lines 568-579 call normalize_equivalent_remote_state (integration_state.py:166, `reset --mixed`) and then record_integration_advance without checking ancestry. docs/engineering/model-routing.md describes these paths as fast-forwards.",
-      "id": "normalize-reset-receipt-not-ff-guarded",
-      "severity": "advisory",
-      "summary": "The normalize path records a receipt for any HEAD change made by `git reset --mixed <remote_main>`, which is not guaranteed to be a fast-forward. The tool name suggests an advance, so the log can hold a non-ff entry. The classifier rejects it through the ancestry check, so this fails closed, and the doc's \"fast-forwards\" wording is slightly imprecise."
+      "summary": "A `ContainmentError` from a failed receipt write is not handled at the call sites in `project_sync.py` and `finish_task.py`. The user sees a raw traceback after the fast-forward has already happened, not a clear message."
     }
   ],
-  "launched_at": "2026-10-09T09:02:44+00:00",
-  "output_sha256": "7988dae103d21f9e13b7e0372f5df74dceff6cd6bdc691b5b89069e76bc8d82c",
+  "launched_at": "2026-10-09T09:33:53+00:00",
+  "output_sha256": "7bc668ba97f8d71340de316105b864a9881bb2ba74483bf69106a4bd47846a87",
   "perspective": "engineering-quality",
-  "request_id": "ee04c1de-40ca-401c-b645-fe5172cc616d",
+  "request_id": "04d73593-1a2d-44bd-86f9-bfebe45cf5e5",
   "reviewer": {
-    "context_id": "8765a961-f7a0-485b-aebe-6cdfa6344b48",
+    "context_id": "8b8b6535-d616-4cf3-9004-3fb1e6873fd6",
     "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-7d1f1749-51ae-474e-8ebe-31f4ebc89ce1",
+    "launch_id": "platform-launch-581510b5-c6f9-4839-8c28-a0fce09bc69a",
     "model": {
       "source": "selected",
       "value": "sonnet"
     },
     "provider": "claude",
     "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
     "runtime": "claude-code-print",
     "write_access": false
   },
@@ -54,37 +45,37 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 58757
+        "value": 50718
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 516324
+        "value": 214209
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 53634
+        "value": 31200
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 55029
+        "value": 34071
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 22
+        "value": 12
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 15
+        "value": 9
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 5631
+        "value": 2781
       }
     },
     "runtime": "claude-code-print"

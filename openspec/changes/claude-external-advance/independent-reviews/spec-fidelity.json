@@ -1,39 +1,29 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "86dffdbf85b553774c4247b6c9f8e2c356dce760",
+    "base_head": "f3f4ffc6185ceeb803b8118e280b3d3c9db91472",
     "base_ref": "origin/main",
-    "candidate_head": "87c2243b01c0105691fa2b876d037896c63fe766",
-    "diff_sha256": "4afba9f6c566cacf28cc0217d4fef092b02b68c16fc2b2e8d29c448eed7aed66"
+    "candidate_head": "8da71f521570b5153cd4ed518bc900770c48f9ae",
+    "diff_sha256": "b057f9e1b073a1b1a145fea4ee4dd27a129e8289e3dd426f3d1128a50c00a9ad"
   },
-  "completed_at": "2026-10-09T09:02:44+00:00",
-  "findings": [
-    {
-      "evidence": "template/scripts/publication_queue.py:1056 (sync_merged_task) runs `git merge --ff-only remote_head` on a clean task branch worktree, not on the integration main. The candidate's receipt sites are finish_task.py (direct, remote-merge ff, normalize) and project_sync.py. The spec's \"every platform fast-forward of the integration checkout's main branch\" is met by those sites. The proposal and design wording about publication_queue.py is stale or ambiguous.",
-      "id": "design-names-publication-queue-site-without-receipt",
-      "severity": "advisory",
-      "summary": "proposal.md (Impact) and design.md (Context) list publication_queue.py as an integration main fast-forward site that records a receipt \"when it advances the integration checkout\". The candidate does not touch it, and the docs don't say why not."
-    }
-  ],
-  "launched_at": "2026-10-09T09:02:11+00:00",
-  "output_sha256": "58566c6ef844bc5e631a22db886a3cc875fb0976b72b8539f6384bc2429c9e3c",
+  "completed_at": "2026-10-09T09:33:53+00:00",
+  "findings": [],
+  "launched_at": "2026-10-09T09:33:25+00:00",
+  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "spec-fidelity",
-  "request_id": "ee04c1de-40ca-401c-b645-fe5172cc616d",
+  "request_id": "04d73593-1a2d-44bd-86f9-bfebe45cf5e5",
   "reviewer": {
-    "context_id": "229cc85a-87c1-4fd6-ab18-e017c2c4e220",
+    "context_id": "d7db6963-8a6e-4a48-bf7a-64c44e5ddd75",
     "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-6ebb643f-3866-4470-a806-ccbc74167fcb",
+    "launch_id": "platform-launch-7f433443-214d-48a8-bffe-d1147209d709",
     "model": {
       "source": "selected",
       "value": "sonnet"
     },
     "provider": "claude",
     "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
     "runtime": "claude-code-print",
     "write_access": false
   },
@@ -42,37 +32,37 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 52895
+        "value": 39712
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 223633
+        "value": 93638
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 27983
+        "value": 22062
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 29966
+        "value": 24912
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 12
+        "value": 8
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10
+        "value": 8
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2951
+        "value": 1992
       }
     },
     "runtime": "claude-code-print"
