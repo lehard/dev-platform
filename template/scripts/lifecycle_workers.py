@@ -17,11 +17,13 @@ import re
 import secrets
 import shlex
 import shutil
+import signal
 import socket
 import stat
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 from typing import Any, Callable
 
@@ -51,6 +53,8 @@ EVIDENCE_NAMES = ("verification.md", "automated-checks.json")
 INSTALLED_FILES = (".dev-platform.toml", disposable_repository_sandbox.MARKER)
 # Bounded writer stdout/stderr kept in the local job result only, never in a posted record.
 WRITER_OUTPUT_TAIL = 4000
+# Bound of an outcome text a job posts (rejection reasons can quote writer-chosen paths).
+POSTED_OUTCOME_LIMIT = 300
 
 
 class WorkerError(RuntimeError):
@@ -310,12 +314,71 @@ def scratch_home(root: Path, home_files: list[str] | tuple[str, ...] = (), *, so
     return home
 
 
-def run_llm(command: list[str], checkout: Path, *, env: dict[str, str] | None = None,
-            runner: Callable[..., Any] = subprocess.run, timeout: int | None = None,
+def kill_process_group(pgid: int) -> None:
+    """SIGKILL a whole process group; a group that is already gone is the only tolerated failure."""
+    try:
+        os.killpg(pgid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass  # no member is left
+
+
+def run_in_session(command: list[str], *, capture_output: bool = False, check: bool = False,
+                   timeout: float | None = None, **popen: Any) -> subprocess.CompletedProcess:
+    """``subprocess.run`` in a new session whose whole process group is killed when the leader exits.
+
+    A writer cannot leave a same-group background process running past its own exit (to tamper with
+    harness clones later), nor hold the output pipes open: once the leader has exited the group is
+    killed and the remaining output drained. On timeout or any error the group is killed too. A child
+    that starts its own session escapes the group; only an OS sandbox contains that.
+    """
+    if capture_output:
+        popen.update(stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    process = subprocess.Popen(command, start_new_session=True, **popen)
+    deadline = None if timeout is None else time.monotonic() + timeout
+    try:
+        while True:
+            try:
+                stdout, stderr = process.communicate(timeout=0.2)
+                break
+            except subprocess.TimeoutExpired:
+                if process.poll() is not None:
+                    kill_process_group(process.pid)  # the leader exited; a group member still holds a pipe
+                elif deadline is not None and time.monotonic() >= deadline:
+                    kill_process_group(process.pid)
+                    process.communicate()
+                    raise subprocess.TimeoutExpired(command, timeout) from None
+    finally:
+        kill_process_group(process.pid)
+        if process.poll() is None:
+            process.wait()
+    if check and process.returncode:
+        raise subprocess.CalledProcessError(process.returncode, command, stdout, stderr)
+    return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
+
+
+def writer_tmp(root: Path) -> Path:
+    """A fresh writer temporary directory beside, never above, the harness clones of ``root``."""
+    tmp = root / "llm-tmp"
+    if tmp.exists():
+        shutil.rmtree(tmp)
+    tmp.mkdir(parents=True)
+    return tmp
+
+
+def run_llm(command: list[str], checkout: Path, *, tmp: Path, env: dict[str, str] | None = None,
+            runner: Callable[..., Any] = run_in_session, timeout: int | None = None,
             home: Path | None = None) -> Any:
-    """Run the LLM command in a checkout with no credential, a scratch home and no inherited stdin."""
-    return runner(command, cwd=checkout, env=credential_free_env(dict(os.environ if env is None else env), home),
-                  stdin=subprocess.DEVNULL, capture_output=True, text=True, check=False, timeout=timeout)
+    """Run the LLM command in a checkout with no credential, a scratch home, a dedicated ``TMPDIR`` and no stdin.
+
+    The inherited ``TMPDIR`` would make the harness work directory writable to a sandboxed writer, so the
+    writer gets ``tmp`` (from ``writer_tmp``) instead. The runner must contain the writer's process group.
+    """
+    if runner is subprocess.run:
+        raise WorkerError("the writer runner must kill its process group; use run_in_session")
+    clean = credential_free_env(dict(os.environ if env is None else env), home)
+    clean.update(TMPDIR=str(tmp), TMP=str(tmp), TEMP=str(tmp))
+    return runner(command, cwd=checkout, env=clean, stdin=subprocess.DEVNULL, capture_output=True, text=True,
+                  check=False, timeout=timeout)
 
 
 def provider_readiness(root: Path, providers, *, workdir, home_files=(), probe=None) -> dict[str, str | None]:
@@ -413,6 +476,20 @@ def _allowed(path: str, allowed_paths) -> bool:
     return any(path == a or path.startswith(a.rstrip("/") + "/") for a in allowed_paths)
 
 
+def _refusal(reason: str, paths: list[str]) -> WorkerError:
+    """One bounded refusal: the first offending path plus how many more there are."""
+    more = f" (+{len(paths) - 1} more)" if len(paths) > 1 else ""
+    return WorkerError(f"{reason}: {paths[0]}{more}")
+
+
+def refuse_write_paths(paths, allowed_paths) -> None:
+    """Raise one bounded ``WorkerError`` when any path is a forbidden edit or outside the candidate scope."""
+    refused = [(_forbidden(path) or "path outside candidate scope", path) for path in paths
+               if _forbidden(path) or not _allowed(path, allowed_paths)]
+    if refused:
+        raise _refusal(refused[0][0], [path for _, path in refused])
+
+
 def validate_worker_result(repo: Path, expected_head: str, result_head: str,
                            allowed_paths, kind: str = "repair") -> list[str]:
     """Return the changed paths of an acceptable result or raise WorkerError."""
@@ -432,18 +509,15 @@ def validate_worker_result(repo: Path, expected_head: str, result_head: str,
         fields.pop()
     if len(fields) % 2:
         raise WorkerError("cannot parse the result diff")
-    changed = []
+    changed, gitlinks = [], []
     for meta, path in zip(fields[0::2], fields[1::2]):
         old_mode, new_mode = meta.lstrip(":").split(" ")[:2]
         if "160000" in (old_mode, new_mode):
-            raise WorkerError(f"gitlink not allowed: {path}")  # a submodule pointer is never a writer result
+            gitlinks.append(path)  # a submodule pointer is never a writer result
         changed.append(path)
-    for path in changed:
-        reason = _forbidden(path)
-        if reason:
-            raise WorkerError(f"{reason}: {path}")
-        if not _allowed(path, allowed_paths):
-            raise WorkerError(f"path outside candidate scope: {path}")
+    if gitlinks:
+        raise _refusal("gitlink not allowed", gitlinks)
+    refuse_write_paths(changed, allowed_paths)
     return changed
 
 
@@ -750,13 +824,8 @@ def commit_writer_worktree(stage: Path, checkout: Path, expected_head: str, resu
     if not changed:
         return result_head
     if result_head != expected_head:
-        raise WorkerError(f"writer committed and also left uncommitted changes: {changed[0]}")
-    for path in changed:
-        reason = _forbidden(path)
-        if reason:
-            raise WorkerError(f"{reason}: {path}")
-        if not _allowed(path, allowed_paths):
-            raise WorkerError(f"path outside candidate scope: {path}")
+        raise _refusal("writer committed and also left uncommitted changes", changed)
+    refuse_write_paths(changed, allowed_paths)
     harness_git(stage, "--literal-pathspecs", "add", "--", *changed)
     harness_git(stage, *HARNESS_IDENTITY, "commit", "-q", "--no-verify", "-m", message)
     return harness_git(stage, "rev-parse", "HEAD").strip()
@@ -765,7 +834,7 @@ def commit_writer_worktree(stage: Path, checkout: Path, expected_head: str, resu
 def execute_job(job: dict, *, source_repo: str, branch: str, allowed_paths, llm_command,
                 current_head: Callable[[], str], post_result: Callable[[str], None], workdir: str,
                 worker: str, kind: str | None = None, provider: str | None = None,
-                runner: Callable[..., Any] = subprocess.run, env: dict[str, str] | None = None,
+                runner: Callable[..., Any] = run_in_session, env: dict[str, str] | None = None,
                 push_env: dict[str, str] | None = None, home_files: list[str] | tuple[str, ...] = (),
                 review_handler: Callable[[Path], dict] | None = None,
                 before_push: Callable[[Path, str], None] | None = None,
@@ -796,6 +865,7 @@ def execute_job(job: dict, *, source_repo: str, branch: str, allowed_paths, llm_
     def finish(outcome: str, pushed: str | None = None, status: str | None = None) -> dict:
         if not claim_current():
             return {"status": "discarded"}
+        outcome = outcome[:POSTED_OUTCOME_LIMIT]  # posted publicly, also through red-gate evidence
         post_result(result_body(job, worker, outcome, pushed, provider=result_provider))
         status = status or outcome.split(":")[0]
         # Writer output stays local (operator console, not the posted record): it may hold sensitive text.
@@ -811,7 +881,8 @@ def execute_job(job: dict, *, source_repo: str, branch: str, allowed_paths, llm_
         return outcome
     before = (_git(checkout, "rev-parse", "HEAD").strip(), tree_snapshot(checkout))
     try:
-        done = run_llm(command, checkout, env=env, runner=runner, home=scratch_home(root, home_files))
+        done = run_llm(command, checkout, tmp=writer_tmp(root), env=env, runner=runner,
+                       home=scratch_home(root, home_files))
     except OSError as exc:
         if kind != "repair" or runtime_check is None:
             raise  # only the repair gate handles an unavailable runtime

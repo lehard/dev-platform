@@ -7,6 +7,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from unittest import mock
 
@@ -425,10 +426,36 @@ class EnvironmentTests(unittest.TestCase):
         def runner(command, **kwargs):
             seen.update(kwargs, command=command)
             return subprocess.CompletedProcess(command, 0, "", "")
-        workers.run_llm(["llm"], Path("/x"), env={"GH_TOKEN": "t", "PATH": "/bin"}, runner=runner)
+        workers.run_llm(["llm"], Path("/x"), tmp=Path("/w/llm-tmp"), env={"GH_TOKEN": "t", "PATH": "/bin"}, runner=runner)
         self.assertIs(seen["stdin"], subprocess.DEVNULL)
         self.assertNotIn("GH_TOKEN", seen["env"])
         self.assertEqual(seen["cwd"], Path("/x"))
+        self.assertEqual([seen["env"][k] for k in ("TMPDIR", "TMP", "TEMP")], ["/w/llm-tmp"] * 3)
+        with self.assertRaisesRegex(workers.WorkerError, "must kill its process group"):
+            workers.run_llm(["llm"], Path("/x"), tmp=Path("/w/llm-tmp"), runner=subprocess.run)
+
+    def test_run_in_session_kills_the_whole_group_after_the_leader_exits(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            marker, held = Path(tmp) / "late", Path(tmp) / "held"
+            sleeper = "import sys,time; time.sleep(1.5); open(sys.argv[1],'w').write('x')"
+            # one background child with closed pipes, one that keeps stdout open: neither outlives the leader
+            leader = ("import subprocess,sys; s=sys.argv[1]; "
+                      "subprocess.Popen([sys.executable,'-c',s,sys.argv[2]],stdin=subprocess.DEVNULL,"
+                      "stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL); "
+                      "subprocess.Popen([sys.executable,'-c',s,sys.argv[3]]); print('led')")
+            started = time.monotonic()
+            done = workers.run_in_session([sys.executable, "-c", leader, sleeper, str(marker), str(held)],
+                                          capture_output=True, text=True, stdin=subprocess.DEVNULL)
+            self.assertEqual((done.returncode, done.stdout), (0, "led\n"))
+            self.assertLess(time.monotonic() - started, 1.4)  # the pipe holder did not keep it waiting
+            time.sleep(2.5)
+            self.assertFalse(marker.exists())
+            self.assertFalse(held.exists())
+
+    def test_run_in_session_timeout_kills_the_group(self):
+        with self.assertRaises(subprocess.TimeoutExpired):
+            workers.run_in_session([sys.executable, "-c", "import time; time.sleep(30)"], capture_output=True,
+                                   timeout=0.5, stdin=subprocess.DEVNULL)
 
     def test_scratch_home_hides_operator_github_config(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -448,7 +475,7 @@ class EnvironmentTests(unittest.TestCase):
 
     def test_real_child_sees_no_credentials(self):
         code = "import os,json;print(json.dumps([k for k in os.environ if 'TOKEN' in k or k=='SSH_AUTH_SOCK']))"
-        done = workers.run_llm([sys.executable, "-c", code], Path.cwd(),
+        done = workers.run_llm([sys.executable, "-c", code], Path.cwd(), tmp=Path(tempfile.gettempdir()),
                                env={"PATH": os.environ.get("PATH", ""), "GH_TOKEN": "t", "SSH_AUTH_SOCK": "/s"})
         self.assertEqual(json.loads(done.stdout), [])
 
@@ -721,6 +748,15 @@ elif mode == "nested-repo":
 elif mode == "gitlink":
     g("update-index", "--add", "--cacheinfo", "160000," + subprocess.run(["git", "rev-parse", "HEAD"], check=True, capture_output=True, text=True).stdout.strip() + ",src/mod")
     g("commit", "-qm", "add gitlink")
+elif mode == "sleeper":  # leaves a same-group background process that would tamper later
+    open(os.environ["PROMPT_SEEN"], "w").write(os.environ["TMPDIR"])
+    open("src/a.py", "w").write("fixed")
+    subprocess.Popen([sys.executable, "-c", "import sys,time; time.sleep(1.5); open(sys.argv[1],'w').write('x')",
+                      os.environ["HOOK_MARK"]], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+elif mode == "many-outside":
+    for index in range(1500):
+        os.makedirs("docs", exist_ok=True)
+        open("docs/f%04d-%s.md" % (index, "x" * 120), "w").write("x")
 elif mode == "case-rename":
     os.rename("src", "SRC")
 elif mode == "fifo":
@@ -900,6 +936,34 @@ class ExecuteJobTests(unittest.TestCase):
         result = self.run_job("gitlink", prompt="task")
         self.assertEqual((result["status"], result["outcome"]), ("rejected", "rejected: gitlink not allowed: src/mod"))
         self.assertEqual(self.remote_head(), self.head)
+
+    def test_writer_background_process_dies_with_it_and_tmpdir_is_dedicated(self):
+        result = self.run_job("sleeper", prompt="task")
+        self.assertEqual(result["status"], "pushed")
+        tmp = Path(self.prompt_seen.read_text())
+        self.assertEqual(tmp, self.work.resolve() / "llm-tmp")
+        for clone in ("writer-stage", "harness", "llm-checkout"):
+            self.assertNotIn(tmp, (self.work.resolve() / clone).parents)
+        time.sleep(2.5)
+        self.assertFalse(self.mark.exists())
+
+    def test_many_refused_paths_name_the_first_with_a_count_and_the_posted_outcome_is_bounded(self):
+        result = self.run_job("many-outside", prompt="task")
+        first = "docs/f0000-" + "x" * 120 + ".md"
+        self.assertEqual(result["outcome"], f"rejected: path outside candidate scope: {first} (+1499 more)")
+        posted = json.loads(self.posted[-1][len(workers.RESULT_PREFIX):])["outcome"]
+        self.assertEqual(posted, result["outcome"])
+        self.assertLessEqual(len(posted), workers.POSTED_OUTCOME_LIMIT)
+        self.assertEqual(self.remote_head(), self.head)
+
+    def test_long_rejection_reasons_are_capped_when_posted(self):
+        with mock.patch.object(workers, "refuse_write_paths",
+                               side_effect=workers.WorkerError("git add failed: " + "p " * 5000)):
+            result = self.run_job("edit", prompt="task")
+        posted = json.loads(self.posted[-1][len(workers.RESULT_PREFIX):])["outcome"]
+        self.assertEqual(result["status"], "rejected")
+        self.assertEqual(len(posted), workers.POSTED_OUTCOME_LIMIT)
+        self.assertTrue(posted.startswith("rejected: git add failed: p p"))
 
     def test_case_only_rename_is_rejected_on_any_filesystem(self):
         # On a case-insensitive filesystem the import would otherwise delete src/; the rule is filesystem-independent.

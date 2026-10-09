@@ -331,7 +331,7 @@ def run_claimed(root: Path, repo: str, candidate: dict, job: dict, *, source_rep
         complete_review(root, repo, running, reports, job["head"], adapter=adapter)
         post_result(workers.result_body(job, worker, "reused-review"))
         return {"status": "reused", "pushed_head": job["head"]}
-    runner = runner or subprocess.run
+    runner = runner or workers.run_in_session  # the writer's process group never outlives it
 
     from independent_review_runner import settings
 
