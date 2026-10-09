@@ -148,12 +148,14 @@ def review_path_partition(
         return None
     exclude = review_exclusion(root, change, base_ref)
     _, main_delivered = _review_base(root, change, base_ref)
-    if main_delivered is not None:
-        exclude = _either(exclude, main_delivered)
     reviewed: list[str] = []
     excluded: list[str] = []
     for raw in sorted(dict.fromkeys(item for item in changed.stdout.split("\0") if item)):
-        (excluded if exclude(_canonical_path(raw, change), raw) else reviewed).append(raw)
+        canonical = _canonical_path(raw, change)
+        # Main-delivered paths are neither task content nor lifecycle evidence.
+        if main_delivered is not None and main_delivered(canonical, raw):
+            continue
+        (excluded if exclude(canonical, raw) else reviewed).append(raw)
     return reviewed, excluded
 
 
@@ -184,16 +186,20 @@ def main_delivered_exclusion(root: Path, predecessor_head: str, main_ref: str = 
     The predecessor head may lag main; once the child merges main, every path
     main changed since the predecessor's fork from main would otherwise count
     as the child's task content.  A path is main-delivered when main changed
-    it since that fork and its content at ``HEAD`` still equals the main merge
-    base (both absent included).  Without a main merge main changed nothing
-    since the fork, so the bound set is exactly the plain predecessor diff.
+    it since that fork, the predecessor did not, and its content at ``HEAD``
+    still equals the main merge base (both absent included).  A path the
+    predecessor changed stays bound even when the child's main merge resolved
+    it in main's favour, so a regression of predecessor work is never hidden.
+    Without a main merge main changed nothing since the fork, so the bound set
+    is exactly the plain predecessor diff.
     """
     purpose = "the legacy dependent review main-delta exclusion"
     main_base = _merge_base(root, "HEAD", main_ref, purpose)
     fork = _merge_base(root, predecessor_head, main_base, purpose)
     main_changed = _changed_paths(root, fork, main_base, purpose)
     child_differs = _changed_paths(root, main_base, "HEAD", purpose)
-    delivered = main_changed - child_differs
+    predecessor_changed = _changed_paths(root, fork, predecessor_head, purpose)
+    delivered = main_changed - child_differs - predecessor_changed
 
     def exclude(canonical: str, raw: str) -> bool:
         return raw in delivered
