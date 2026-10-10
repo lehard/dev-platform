@@ -1,52 +1,75 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "5f621c9e91c4a2862d66c7581b22146d61faf5b4",
+    "base_head": "5f76443bf244cf5ddddee0276751057f59189e4d",
     "base_ref": "origin/main",
-    "candidate_head": "20a1aef71c7380f00ce988d9cbef22b0bd97c414",
-    "diff_sha256": "4cf9c4f199be716e4a88a4dc91a509c5ec1bb186a7e991e012ef035888b99d6b"
+    "candidate_head": "a7369272890e7b1c3ddac2bb44b2c15236b67073",
+    "diff_sha256": "0e8af1a4aba4a7ca95e3ae653d91a1425c211675d1c8789ad9b9fddb7fb1b781"
   },
-  "completed_at": "2026-10-09T19:37:03+00:00",
+  "completed_at": "2026-10-09T23:53:24+00:00",
   "findings": [],
-  "launched_at": "2026-10-09T19:36:05+00:00",
-  "output_sha256": "6e96a492bc9fa40d22212c5be0396a203f3dbd4916cf97ebe2f66b6d54fa4a9a",
+  "launched_at": "2026-10-09T23:53:08+00:00",
+  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "spec-fidelity",
-  "request_id": "e31a1de2-ee1f-49e7-a7db-913babf20c42",
+  "request_id": "9bfd5122-05ac-4bcf-bb51-d610813d9dd9",
   "reviewer": {
-    "context_id": "01a1222a-63d9-7500-8c3f-415af514d1c9",
+    "context_id": "34041253-087b-464d-b274-bca6b634ddd9",
     "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-db7111a3-3d8c-4f11-83c5-68d903ef32b0",
+    "launch_id": "platform-launch-e1c109d1-1e2b-473f-b899-dbe258bbe8d7",
     "model": {
       "source": "selected",
-      "value": "gpt-6.1-sol"
+      "value": "sonnet"
     },
-    "provider": "codex",
-    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
-    "runtime": "codex-exec",
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
     "write_access": false
   },
   "runtime_usage": {
     "fields": {
-      "cached_input_tokens": {
+      "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 186880
+        "value": 45218
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 55582
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14176
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14641
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 252711
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1228
+        "value": 1313
       }
     },
-    "runtime": "codex-exec"
+    "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "19766e1ce33c4333914dde7701bf3d7d2f480aeb33e6ac641e08700b0d99179c"
+  "task_content_digest": "2aa74cc07f36f924cf7c4d65eb44435268d03d9ab226f1e9b3c87cd64d921523"
 }
