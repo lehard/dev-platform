@@ -1,0 +1,65 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+    "base_ref": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+    "candidate_head": "aa1686b0eb1634b10d816b02098df20fe1350ddf",
+    "diff_sha256": "be1d59219cbf8d13bd808e65f2557b0dfaa6df3abf91de768f40d81f86fbfde0"
+  },
+  "completed_at": "2026-10-10T12:42:19+00:00",
+  "findings": [
+    {
+      "evidence": "openspec/changes/add-explorer-lifecycle-journey/design.md:8 says a stage id \u201cmay not collide\u201d with an element id. docs/engineering/explorer.md explicitly allows equal ids, and tests/test_build_explorer.py::test_stage_may_share_an_id_with_an_element requires the build to accept them.",
+      "id": "stage-id-contract-contradiction",
+      "severity": "advisory",
+      "summary": "The design contradicts the implemented stage-id namespace rule."
+    },
+    {
+      "evidence": "openspec/changes/add-explorer-lifecycle-journey/design.md:6 requires an ordered list rendered as connected steps. explorer/assets/explorer.css:100\u2013104 renders separated grid cards; the only connector rule appears at line 118 inside the max-width:52rem media query, so wide-screen steps have no connections.",
+      "id": "wide-flow-missing-connections",
+      "severity": "advisory",
+      "summary": "The wide-screen lifecycle flow lacks the connected steps promised by the design."
+    }
+  ],
+  "launched_at": "2026-10-10T12:41:42+00:00",
+  "output_sha256": "76da09363e0f5e81e07df3d464c062ac8af025c78c816f4e6c10d0f8749ba307",
+  "perspective": "spec-fidelity",
+  "request_id": "017e5bd4-2949-4fe2-9cf0-795ee0cca4bb",
+  "reviewer": {
+    "context_id": "01a125d5-5e1c-7121-aff0-73954c78a9af",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-ed52e2da-6484-4279-ad6b-bc992b1ee6c4",
+    "model": {
+      "source": "selected",
+      "value": "gpt-6.1-sol"
+    },
+    "provider": "codex",
+    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
+    "runtime": "codex-exec",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cached_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 85376
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 160970
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 845
+      }
+    },
+    "runtime": "codex-exec"
+  },
+  "schema_version": 1,
+  "task_content_digest": "e36f3147bbcef228643538d62814a6ef122ef78a2b74b08e9d6e868473fd239e"
+}

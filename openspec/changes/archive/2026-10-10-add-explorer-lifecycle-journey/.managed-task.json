@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/platform-explorer/spec.md",
+    "tasks.md"
+  ],
+  "change": "add-explorer-lifecycle-journey",
+  "imported_at": "2026-10-10T11:06:29+00:00",
+  "package_revision": "2ad768123e09a5bbfeb1b8416a7bec541c473d6310595216bddaf62bee376882",
+  "prepared_against": "6c96df65b6d7f4f4d4ee0c30e2d81880190b7dd0",
+  "private_lineage_handle": "pln_b376b70307206f190d2b5614ff1caa35",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "72ed4bddcd26f51884a3d4aef902776a61b086d386f22329a65799713862575c",
+    "updated_at": "2026-10-07T21:32:40Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-441/T2"
+}

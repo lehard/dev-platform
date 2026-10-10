@@ -17,6 +17,8 @@ The platform owns reusable process contracts and mechanisms:
 
 These files may be updated by Copier and should remain generic.
 
+The Platform Explorer (`explorer/`, `scripts/build_explorer.py`) is also platform-owned, but it is a platform-only view of this repository: it is never rendered into or updated in downstream projects. See [engineering/explorer.md](engineering/explorer.md).
+
 ## Project-owned
 
 Each project owns its product and implementation reality:

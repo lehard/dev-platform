@@ -1,0 +1,59 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+    "base_ref": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+    "candidate_head": "aa1686b0eb1634b10d816b02098df20fe1350ddf",
+    "diff_sha256": "be1d59219cbf8d13bd808e65f2557b0dfaa6df3abf91de768f40d81f86fbfde0"
+  },
+  "completed_at": "2026-10-10T12:43:06+00:00",
+  "findings": [
+    {
+      "evidence": "explorer/assets/explorer.css:100\u2013104 defines a grid of bordered cards without connectors. The only connector rule, `.flow li + li::before`, is inside the `max-width: 52rem` media query at lines 112\u2013118, so wider viewports have no arrows or connecting lines. design.md decision 2 describes the overview as connected steps.",
+      "id": "desktop-flow-disconnected",
+      "severity": "advisory",
+      "summary": "The desktop lifecycle flow renders as disconnected cards, weakening the visual progression between stages."
+    }
+  ],
+  "launched_at": "2026-10-10T12:42:19+00:00",
+  "output_sha256": "32482fdaeecfd132b8afc4925f6d34ac10f27ebf473a7d29eb07f74a50513c0e",
+  "perspective": "engineering-quality",
+  "request_id": "017e5bd4-2949-4fe2-9cf0-795ee0cca4bb",
+  "reviewer": {
+    "context_id": "01a125d5-ee14-7183-b2a8-5701c90a80af",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-4c8e27cd-3128-493a-b12d-221c9d15baf9",
+    "model": {
+      "source": "selected",
+      "value": "gpt-6.1-sol"
+    },
+    "provider": "codex",
+    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
+    "runtime": "codex-exec",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cached_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 239104
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 297459
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 914
+      }
+    },
+    "runtime": "codex-exec"
+  },
+  "schema_version": 1,
+  "task_content_digest": "e36f3147bbcef228643538d62814a6ef122ef78a2b74b08e9d6e868473fd239e"
+}
