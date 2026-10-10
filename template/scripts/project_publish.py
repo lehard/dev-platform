@@ -11,6 +11,10 @@ from pathlib import Path
 from typing import Callable, ContextManager
 
 from _platform_common import (
+    RECONCILE_COMMAND,
+    TASK_BASE_BEHIND_DISJOINT,
+    TaskFreshnessError,
+    classify_task_base_currency,
     current_worktree_root,
     fetch_main,
     github_cli_env,
@@ -124,7 +128,8 @@ def _validate_feature_branch(root: Path, remote: str, main_branch: str) -> str:
     return current
 
 
-def push_feature_branch(root: Path, remote: str, main_branch: str, *, require_fresh_base: bool) -> str:
+def push_feature_branch(root: Path, remote: str, main_branch: str, *, require_fresh_base: bool,
+                        coordinator_handoff: bool = False) -> str:
     """Push the validated feature branch; the push itself is always safe/idempotent.
 
     `require_fresh_base` gates only the first-publication precondition that the
@@ -134,12 +139,28 @@ def push_feature_branch(root: Path, remote: str, main_branch: str, *, require_fr
     already-published branch must not be blocked from resuming merely because
     the base advanced after that PR was opened -- pushing again is a harmless
     no-op fast-forward to the same commit.
+
+    `coordinator_handoff` is the developer handoff of a proven coordinator
+    candidate: the publication queue merges main into it and gates on the
+    integrated head, so a branch behind a disjoint, cleanly mergeable main
+    passes and the contract is printed. Overlap or conflict still blocks.
     """
     preflight(root)
     current = _validate_feature_branch(root, remote, main_branch)
-    fetch_main(root, remote, main_branch)
-    if require_fresh_base and run_git(["merge-base", "--is-ancestor", f"{remote}/{main_branch}", current], cwd=root, check=False).returncode != 0:
-        raise SystemExit(f"{current} does not contain current {remote}/{main_branch}. Rebase/update explicitly, rerun checks, then publish.")
+    main_sha = fetch_main(root, remote, main_branch)
+    if require_fresh_base and run_git(["merge-base", "--is-ancestor", main_sha, current], cwd=root, check=False).returncode != 0:
+        if not coordinator_handoff:
+            raise SystemExit(f"{current} does not contain current {remote}/{main_branch}. Rebase/update explicitly, rerun checks, then publish.")
+        authoritative = f"{remote}/{main_branch}"
+        try:
+            currency = classify_task_base_currency(root, main_sha, task_ref=current)
+        except TaskFreshnessError as exc:
+            raise SystemExit(f"Developer handoff blocked: {exc}") from exc
+        if currency.state != TASK_BASE_BEHIND_DISJOINT:
+            raise SystemExit(f"Developer handoff blocked: {current}: {currency.describe(authoritative)}. "
+                             f"Reconcile explicitly ({RECONCILE_COMMAND}), rerun checks, then hand off.")
+        print(f"Task base contract behind-disjoint: {currency.describe(authoritative)}; "
+              f"merge base {currency.base}; the publication queue merges main before integration.")
     run_git(["push", "-u", remote, current], cwd=root)
     print(f"Published feature branch {current} -> {remote}/{current}.")
     return current
@@ -600,7 +621,8 @@ def publish_pr(
     grows_existing = shared_manifest is not None and lookup.stale_open is not None
     if lookup.exact_merged is None:
         push_feature_branch(root, remote, main_branch, require_fresh_base=lookup.exact_open is None and not grows_existing
-                            and not (developer_handoff and handoff_identity.get("kind") == "contribution"))
+                            and not (developer_handoff and handoff_identity.get("kind") == "contribution"),
+                            coordinator_handoff=developer_handoff)
         if grows_existing:
             lookup = find_exact_head_pr(root, env, current, main_branch, expected_head)
             if not lookup.available or lookup.exact_open is None:

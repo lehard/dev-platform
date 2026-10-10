@@ -12,6 +12,7 @@ from typing import Any
 
 import machine_pool
 from _platform_common import (
+    TASK_BASE_FRESH,
     PlatformConfigError,
     TaskFreshnessError,
     current_worktree_root,
@@ -19,6 +20,7 @@ from _platform_common import (
     main_root,
     read_platform_config,
     require_fresh_task_base,
+    require_handoff_task_base,
     require_proven_task_base,
     run_git,
     validation_subprocess_env,
@@ -357,12 +359,14 @@ def execute(
     evidence_path: Path | None = None,
     managed_checkout: object | None = None,
     precheck: list[str] | None = None,
+    base_contract: dict[str, str] | None = None,
 ) -> int:
     commands = commands_for(checks)
     if not commands:
         print("No applicable commands selected.")
         if evidence_path is not None:
-            write_evidence(evidence_path, checks, selection_status(checks), [], "not-applicable", managed_checkout)
+            write_evidence(evidence_path, checks, selection_status(checks), [], "not-applicable", managed_checkout,
+                           base_contract=base_contract)
         return 0
 
     from run_test_groups import resolve_jobs
@@ -371,7 +375,8 @@ def execute(
     # commands' test-group runs are nested and reuse it, so a top-level run acquires exactly once.
     try:
         with machine_pool.lease(weight=resolve_jobs()[0], purpose="select_checks", bounded=True, root=root) as pool_lease:
-            return _execute_commands(root, checks, commands, evidence_path, managed_checkout, precheck, pool_lease.fds)
+            return _execute_commands(root, checks, commands, evidence_path, managed_checkout, precheck, pool_lease.fds,
+                                     base_contract)
     except machine_pool.PoolError as exc:
         print(f"Machine pool blocked validation before any command started: {exc}", file=sys.stderr, flush=True)
         return 2
@@ -385,6 +390,7 @@ def _execute_commands(
     managed_checkout: object | None,
     precheck: list[str] | None,
     pass_fds: tuple[int, ...],
+    base_contract: dict[str, str] | None,
 ) -> int:
     records: list[dict[str, Any]] = []
     outcome = "success"
@@ -398,7 +404,8 @@ def _execute_commands(
             print("Affected-test precheck was unavailable (exit %d); continuing with the full set." % result.returncode, flush=True)
     if precheck_record is not None and precheck_record["outcome"] == "failure":
         if evidence_path is not None:
-            write_evidence(evidence_path, checks, selection_status(checks), records, "failure", managed_checkout, precheck_record)
+            write_evidence(evidence_path, checks, selection_status(checks), records, "failure", managed_checkout, precheck_record,
+                           base_contract=base_contract)
         descriptor = failure_descriptor(checks, precheck_record["command"], result)
         descriptor["phase"] = "affected-precheck"
         print("DEV_PLATFORM_CHECK_FAILURE: " + json.dumps(descriptor, ensure_ascii=False, sort_keys=True), flush=True)
@@ -426,14 +433,16 @@ def _execute_commands(
         if result.returncode != 0:
             outcome = "failure"
             if evidence_path is not None:
-                write_evidence(evidence_path, checks, selection_status(checks), records, outcome, managed_checkout, precheck_record)
+                write_evidence(evidence_path, checks, selection_status(checks), records, outcome, managed_checkout, precheck_record,
+                           base_contract=base_contract)
             print("DEV_PLATFORM_CHECK_FAILURE: " + json.dumps(failure_descriptor(checks, command, result), ensure_ascii=False, sort_keys=True), flush=True)
             detail = diagnostic_tail((result.stdout or "") + (result.stderr or ""))
             if detail:
                 print("DEV_PLATFORM_CHECK_DIAGNOSTIC:\n" + detail.rstrip(), flush=True)
             return result.returncode
     if evidence_path is not None:
-        write_evidence(evidence_path, checks, selection_status(checks), records, outcome, managed_checkout, precheck_record)
+        write_evidence(evidence_path, checks, selection_status(checks), records, outcome, managed_checkout, precheck_record,
+                           base_contract=base_contract)
     return 0
 
 
@@ -445,6 +454,8 @@ def write_evidence(
     outcome: str,
     managed_checkout: object | None = None,
     precheck: dict[str, Any] | None = None,
+    *,
+    base_contract: dict[str, str] | None = None,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
@@ -463,7 +474,18 @@ def write_evidence(
             payload["gate_task_content"] = review_content_identity(managed_checkout.worktree, change)
     if precheck is not None:
         payload["affected_precheck"] = precheck
+    if base_contract is not None:
+        # The head did not contain main: a reviewer of the evidence sees which contract passed it.
+        payload["task_base"] = base_contract
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def coordinator_contract(root: Path) -> bool:
+    """Whether the committed contract is the coordinator one; an undeterminable contract stops."""
+    try:
+        return lifecycle_mode(read_platform_config(root)) == "coordinator"
+    except PlatformConfigError as exc:
+        raise SystemExit(f"Task freshness gate blocked: lifecycle mode is not determinable: {exc}") from exc
 
 
 def require_proven_base_contract(root: Path, args: argparse.Namespace) -> str:
@@ -575,7 +597,11 @@ def main() -> int:
             managed_checkout = require_managed_checkout_identity(root)
         except ManagedTaskError as exc:
             raise SystemExit("Managed checkout identity gate blocked validation before any expensive command started: " + str(exc)) from exc
-        if harness == "platform" and requires_task_freshness(checks):
+        base_contract = None
+        # Narrow mapped selections that produce coordinator handoff evidence need the
+        # same currency classification as full selections.
+        handoff_evidence = bool(checks) and evidence_path is not None and args.mode == "local-affected" and coordinator_contract(root)
+        if harness == "platform" and (requires_task_freshness(checks) or handoff_evidence):
             if proven_description is not None:
                 print(
                     "Task freshness gate passed (coordinator-finalization proven-base contract): "
@@ -588,6 +614,27 @@ def main() -> int:
                         f"HEAD does not contain its exact contribution base {args.contribution_base}"
                     )
                 print(f"Task freshness gate passed: HEAD contains its exact contribution base ({args.contribution_base}).")
+            elif evidence_path is not None and args.mode == "local-affected" and coordinator_contract(root):
+                # Developer handoff evidence: a coordinator candidate behind a disjoint,
+                # cleanly mergeable main passes; the queue merges main and gates on the
+                # integrated head. Any other head keeps the fresh-base rule.
+                main_branch = read_platform_config(root).get("main_branch")
+                if not isinstance(main_branch, str) or not main_branch:
+                    raise SystemExit("Task freshness gate blocked: main_branch must be a non-empty string in .dev-platform.toml")
+                try:
+                    currency = require_handoff_task_base(root, "origin", main_branch)
+                except TaskFreshnessError as exc:
+                    raise SystemExit(
+                        "Task freshness gate blocked full/protected validation before any expensive command started: " + str(exc)
+                    ) from exc
+                if currency.state == TASK_BASE_FRESH:
+                    print(f"Task freshness gate passed: HEAD contains freshly observed origin/{main_branch} ({currency.main}).")
+                else:
+                    base_contract = currency.evidence()
+                    print(
+                        "Task freshness gate passed (coordinator-candidate behind-disjoint contract): "
+                        f"{currency.describe('origin/' + main_branch)}; merge base {currency.base}."
+                    )
             else:
                 try:
                     observed = require_fresh_task_base(root, "origin", str(read_platform_config(root).get("main_branch", "main")))
@@ -602,7 +649,7 @@ def main() -> int:
             except HardScopeOverlap as exc:
                 block_for_scope_conflict(root, str(exc))
                 raise SystemExit(str(exc)) from exc
-        return execute(root, checks, evidence_path, managed_checkout, precheck_paths(config, checks))
+        return execute(root, checks, evidence_path, managed_checkout, precheck_paths(config, checks), base_contract)
     return 0
 
 

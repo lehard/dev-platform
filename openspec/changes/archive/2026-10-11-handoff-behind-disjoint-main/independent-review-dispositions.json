@@ -1,0 +1,14 @@
+{
+  "dispositions": [
+    {
+      "finding": "status-candidacy-lookup-can-raise-for-stale-head",
+      "perspective": "spec-fidelity",
+      "rationale": "Candidacy reads lifecycle_mode, which raises only when platform_version is missing or the source contract is unsupported. Every supported render commits platform_version, and finish already requires it on every path (finish_task.py:980), so a stale task in a valid checkout gets behind/behind-disjoint as before. A missing contract failing explicitly is the platform's no-fallback rule, not a regression, and status remains resumable.",
+      "recorded_at": "2026-10-10T20:59:36+00:00",
+      "report_sha256": "8612c98cdcacd2227d7f2acb743fcd405e9f6baa74e554df7e03670271b84cf0",
+      "request_id": "2503f1a0-e0c5-4dc4-a848-d77893760622",
+      "status": "rejected"
+    }
+  ],
+  "schema_version": 1
+}
