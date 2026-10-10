@@ -3,57 +3,80 @@
   "candidate": {
     "base_head": "401f3ce699a1aee6c0131a6b321a5eedfb973fb8",
     "base_ref": "origin/main",
-    "candidate_head": "7edae3ff124e7a03f5d0155d76c8e0b50720c00e",
-    "diff_sha256": "56a1247a52032f51497f3cc7ec1de9368cfcf24f4c8afae0a5a8101e0c70667c"
+    "candidate_head": "8f2043d916d15a6fbc22355a73df1a578bccea65",
+    "diff_sha256": "3c6e645824becc6f761e9fc559d5487648528c199bc0417310a30ba1bd8f4711"
   },
-  "completed_at": "2026-10-10T07:07:39+00:00",
+  "completed_at": "2026-10-10T07:48:44+00:00",
   "findings": [
     {
-      "evidence": "docs/managed-rollout.md:108 says adding the runner answers before rollout is sufficient. However, design.md identifies the existing edit as `runs-on: alters`, while template/.github/workflows/dev-platform.yml.jinja:26 now renders `runs-on: \"alters\"`. Copier reapplies the downstream patch from the old `ubuntu-latest` baseline onto the new rendering; the unquoted customization conflicts with the quoted target. scripts/rollout_project.py:1413\u20131431 refuses recovery because the customized workflow differs from its old template baseline. The migration test at tests/test_ci_runner_selection.py:227\u2013235 only adds answers and never makes the existing workflow hand edit, so it misses this failure. The stated adoption path therefore still blocks the motivating project.",
-      "id": "hand-edited-runner-migration-conflicts",
-      "severity": "material",
-      "summary": "The documented migration does not unblock the existing hand-edited self-hosted workflow."
+      "evidence": "template/.github/workflows/process-health-labels.yml.jinja: `curl -fsS -H \"$AUTH\" \"https://api.github.com/repos/${REPOSITORY}/labels/process%3Amanaged\"`. This matters only for a GitHub Enterprise Server project with scm_provider=github. The change removes the `gh` dependency for every runner kind, not only self-hosted ones.",
+      "id": "provision-curl-hardcodes-github-com",
+      "severity": "advisory",
+      "summary": "The label-provisioning job now calls the GitHub REST API at a hard-coded https://api.github.com. The previous `gh api` call honoured GH_HOST/GHES and handled auth and API headers itself. The curl form drops that and sends no Accept or API-version header."
     }
   ],
-  "launched_at": "2026-10-10T07:06:00+00:00",
-  "output_sha256": "0231a32aec6396ff15cc859ebb798e6020626b9ef84d8564165c35f86b709384",
+  "launched_at": "2026-10-10T07:48:14+00:00",
+  "output_sha256": "67b5f9b709dbbc540d12aadc0373c4c3c60fb796ee36912ed93331b52432ad65",
   "perspective": "engineering-quality",
-  "request_id": "adaa14b9-031f-40e8-8b91-e2ff2357919e",
+  "request_id": "fab4a410-552a-4aec-adc3-e318d938d89e",
   "reviewer": {
-    "context_id": "01a124a2-07d7-7c01-ba19-eb604bb361b6",
+    "context_id": "cf0589bd-bff0-4c14-bdd3-cd70f1771ac5",
     "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-218c47bf-0d82-42fb-ad2c-0aea24f5b1e7",
+    "launch_id": "platform-launch-fee2cad4-1a5d-4efe-ab66-c297465716f5",
     "model": {
       "source": "selected",
-      "value": "gpt-6.1-sol"
+      "value": "sonnet"
     },
-    "provider": "codex",
-    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
-    "runtime": "codex-exec",
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
     "write_access": false
   },
   "runtime_usage": {
     "fields": {
-      "cached_input_tokens": {
+      "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 503808
+        "value": 45810
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 78727
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 26709
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 27732
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 573570
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1963
+        "value": 2964
       }
     },
-    "runtime": "codex-exec"
+    "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "0aaaeeaa36a065eacd7f828a9bab3d78504af43426f5ddebeaed4fe172f4b1b3"
+  "task_content_digest": "2f34bc77f41900a030f81070dbf68fb3a4cd24965039f84a31b88d000fac92b0"
 }

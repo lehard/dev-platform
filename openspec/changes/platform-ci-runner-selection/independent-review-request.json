@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "401f3ce699a1aee6c0131a6b321a5eedfb973fb8",
     "base_ref": "origin/main",
-    "candidate_head": "7edae3ff124e7a03f5d0155d76c8e0b50720c00e",
-    "diff_sha256": "56a1247a52032f51497f3cc7ec1de9368cfcf24f4c8afae0a5a8101e0c70667c"
+    "candidate_head": "8f2043d916d15a6fbc22355a73df1a578bccea65",
+    "diff_sha256": "3c6e645824becc6f761e9fc559d5487648528c199bc0417310a30ba1bd8f4711"
   },
   "change": "openspec/changes/platform-ci-runner-selection",
   "excluded_lifecycle_paths": [
@@ -24,6 +24,7 @@
         "openspec/changes/platform-ci-runner-selection/design.md",
         "openspec/changes/platform-ci-runner-selection/proposal.md",
         "openspec/changes/platform-ci-runner-selection/specs/ci-safety/spec.md",
+        "openspec/changes/platform-ci-runner-selection/specs/platform-rollout/spec.md",
         "openspec/changes/platform-ci-runner-selection/tasks.md"
       ]
     },
@@ -33,11 +34,12 @@
         "openspec/changes/platform-ci-runner-selection/proposal.md",
         "openspec/changes/platform-ci-runner-selection/design.md",
         "openspec/changes/platform-ci-runner-selection/tasks.md",
-        "openspec/changes/platform-ci-runner-selection/specs/ci-safety/spec.md"
+        "openspec/changes/platform-ci-runner-selection/specs/ci-safety/spec.md",
+        "openspec/changes/platform-ci-runner-selection/specs/platform-rollout/spec.md"
       ]
     }
   },
-  "prepared_at": "2026-10-10T07:04:52+00:00",
+  "prepared_at": "2026-10-10T07:47:44+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/platform-ci-runner-selection/independent-reviews",
     "required_perspectives": [
@@ -46,7 +48,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "adaa14b9-031f-40e8-8b91-e2ff2357919e",
+  "request_id": "fab4a410-552a-4aec-adc3-e318d938d89e",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -59,23 +61,26 @@
   "schema_version": 1,
   "task_content": {
     "base": "401f3ce699a1aee6c0131a6b321a5eedfb973fb8",
-    "digest": "0aaaeeaa36a065eacd7f828a9bab3d78504af43426f5ddebeaed4fe172f4b1b3",
+    "digest": "2f34bc77f41900a030f81070dbf68fb3a4cd24965039f84a31b88d000fac92b0",
     "paths": {
       "copier.yml": "8460e2ac45f3fb9740f5621b8293f13eb5429bbb",
       "dev-platform/checks.toml": "4b00e1dd434912c950d9aea3dfeab8c9d1208a67",
-      "docs/managed-rollout.md": "9e49826d7754feb9da2f8439ca14ba92c064fb19",
+      "docs/managed-rollout.md": "2ec194040281de805f5eae58d7f29ff362dd4f2f",
       "openspec/changes/platform-ci-runner-selection/.managed-task.json": "472f6d923804386db3fa005c5a8db96c76c89760",
       "openspec/changes/platform-ci-runner-selection/.openspec.yaml": "81264324b0500978f52f70d701b236a09cb1d808",
-      "openspec/changes/platform-ci-runner-selection/design.md": "73bab2d8d4ea501ef751693b1f8f5c204e25d95f",
-      "openspec/changes/platform-ci-runner-selection/proposal.md": "af9f66be27275f5486cbe0cb32920b6883deca81",
+      "openspec/changes/platform-ci-runner-selection/design.md": "88acc70d99e7d31e45268103459b2eada369b5c4",
+      "openspec/changes/platform-ci-runner-selection/proposal.md": "49a68de9bcec4818b559a7eab034a7ff37323fd3",
       "openspec/changes/platform-ci-runner-selection/specs/ci-safety/spec.md": "21a4f8d12037152eb142da4bd960fb771eb566ff",
-      "openspec/changes/platform-ci-runner-selection/tasks.md": "3ad71f7651ae0ec5a038912739514c33469f8888",
-      "template/.github/workflows/dev-platform.yml.jinja": "dc714a5e71300782820d51c6b3ceeb392409c2ae",
-      "template/.github/workflows/process-health-labels.yml.jinja": "23c7f58d495f6102102f8b7282665f0b74403c5b",
-      "template/scripts/platform_doctor.py": "90075bedb8ff9dfd38200f59f82c1f3f4044bd33",
+      "openspec/changes/platform-ci-runner-selection/specs/platform-rollout/spec.md": "bf59486fa23bb008dafb23371f270abbbfd00271",
+      "openspec/changes/platform-ci-runner-selection/tasks.md": "1e7f6b23fd7a769dad0d8602e19ceedde80a5393",
+      "scripts/rollout_project.py": "80295f87c9fe62934e87a78ca1686dd8b9baf2db",
+      "template/.github/workflows/dev-platform.yml.jinja": "21156f3e506ec0baee93daa4c1234f8a75f977db",
+      "template/.github/workflows/process-health-labels.yml.jinja": "a50a33654ee7b7c1eeb29ce0ea7b6147c21b7fa8",
+      "template/scripts/platform_doctor.py": "50d3241703f74a05941e6e7a0f85d1f7d38755a2",
       "tests/test_ci_guardrails.py": "810716be0f6cd558719c4babaa1afc2b4597e485",
-      "tests/test_ci_runner_selection.py": "c2b67a78af39525235862e35bfc65d344e193b39",
-      "tests/test_platform_doctor_workflow_mode.py": "4adbb3afdc7f410768c2fb570b74f3c6052c7016"
+      "tests/test_ci_runner_selection.py": "6fea82e313dd4e035bff7a382c0b2f1006390c22",
+      "tests/test_platform_doctor_workflow_mode.py": "6f7f2f52c0df1db96ea57dbaa978aac64e0bb6d2",
+      "tests/test_rollout_recopy.py": "d7296351a6e8dbaabc249b3848ff3cc19e6a299a"
     },
     "scope": "independent-review-v1",
     "version": 1
