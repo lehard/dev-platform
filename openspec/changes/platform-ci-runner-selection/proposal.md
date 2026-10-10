@@ -19,7 +19,7 @@
 
 ## Impact
 
-`copier.yml`, `template/.github/workflows/dev-platform.yml.jinja`, `template/.github/workflows/process-health-labels.yml.jinja`, `template/scripts/platform_doctor.py` (and its `scripts/` mirror if present), tests for render/update/doctor, `docs/release-policy.md` or `docs/managed-rollout.md`. Existing projects without an answer keep `ubuntu-latest` through Copier's recorded default.
+`copier.yml`, `template/.github/workflows/dev-platform.yml.jinja`, `template/.github/workflows/process-health-labels.yml.jinja`, `template/scripts/platform_doctor.py` (and its `scripts/` mirror if present), tests for render/update/doctor, `docs/release-policy.md` or `docs/managed-rollout.md`. On Copier update an existing project records the new answers (an accepted default records `github-hosted`, which renders `ubuntu-latest`); `platform_doctor` fails explicitly when the recorded `ci_runner` answer is missing.
 
 ## Non-goals
 
