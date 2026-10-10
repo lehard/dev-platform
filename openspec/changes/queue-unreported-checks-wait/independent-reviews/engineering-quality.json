@@ -3,23 +3,23 @@
   "candidate": {
     "base_head": "44dc97b736e67edd6c31812a1a4ebf872b7b991a",
     "base_ref": "origin/main",
-    "candidate_head": "8eaa44cf4fca6094935ebcec9480f602734ea8ac",
-    "diff_sha256": "af52282a3167753708808f4959c4e989c7bd8cbeda015077313251dc6ffc2b19"
+    "candidate_head": "69af2484906bdd48c6dbe0c24d2ccb019d2743fa",
+    "diff_sha256": "a2e89b2446a1d4ea8039dc7f844a8acc5fde61b852a1e84d7690d4a2699d29f8"
   },
-  "completed_at": "2026-10-10T11:16:59+00:00",
+  "completed_at": "2026-10-10T11:18:27+00:00",
   "findings": [],
-  "launched_at": "2026-10-10T11:16:46+00:00",
+  "launched_at": "2026-10-10T11:18:17+00:00",
   "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "engineering-quality",
-  "request_id": "5ed6e42a-bbee-45b1-9b6d-55b547d9d389",
+  "request_id": "ba24f066-00f7-4433-bbc6-c0d3345b27d5",
   "reviewer": {
-    "context_id": "8c35243f-d1f0-4639-a515-8e9bfe575af5",
+    "context_id": "3499319a-8649-4883-996e-e14fe064894b",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-860a19a3-6b16-4fd4-986e-361714dcd395",
+    "launch_id": "platform-launch-86bc34f4-1ddb-4f91-b51b-a3dc72f9bfd9",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -35,22 +35,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 21303
+        "value": 20057
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 41711
+        "value": 41937
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 9303
+        "value": 6993
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 9859
+        "value": 7512
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -60,16 +60,16 @@
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 5
+        "value": 4
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 714
+        "value": 536
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "cac1e6e2b001ae13e3dc7f607d44545ffffc3c6a739f9fda0c6d117c43c2a710"
+  "task_content_digest": "26ba7acd0ca607aa0e0ec03665e62490e296fc6453711809b96ab5da77c0cbaa"
 }
