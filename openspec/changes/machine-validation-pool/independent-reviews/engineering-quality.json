@@ -3,91 +3,56 @@
   "candidate": {
     "base_head": "5f76443bf244cf5ddddee0276751057f59189e4d",
     "base_ref": "origin/main",
-    "candidate_head": "a7369272890e7b1c3ddac2bb44b2c15236b67073",
-    "diff_sha256": "0e8af1a4aba4a7ca95e3ae653d91a1425c211675d1c8789ad9b9fddb7fb1b781"
+    "candidate_head": "c7d8c18b233afdc9aaf3fc63c509282d271f8c6d",
+    "diff_sha256": "2b15c924eff9a7209758264128eb410a675a0eeb4ad6bed0d2e982e92fa437ee"
   },
-  "completed_at": "2026-10-09T23:54:09+00:00",
+  "completed_at": "2026-10-10T00:25:31+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/select_checks.py:~1266-1271 in the diff. The `except machine_pool.PoolError` wraps the `with machine_pool.lease(...)` block, and that block also contains `_execute_commands`. A PoolError raised later (for example a nested lease with closed descriptors) would print \"Machine pool blocked validation before any command started\" and return 2, which is misleading. Catching only around lease acquisition would be more accurate.",
-      "id": "pool-error-mislabelled-as-pre-start",
+      "evidence": "template/scripts/machine_pool.py:350-356 creates the queue with mode 0777 and chmods an owned existing queue to 0777. Under a group-writable, setgid pool directory with mode 02775, non-group accounts can traverse the parent and delete live queue tickets or insert stray entries. _acquire fails when its ticket disappears, and _ticket_order at lines 363-366 rejects stray entries, so these actions can stop participating runs. docs/engineering/agent-workflow.md presents shared-group setup separately from world-writable setup for machines where every account is trusted.",
+      "id": "queue-permissions-widen-trust-boundary",
       "severity": "advisory",
-      "summary": "select_checks.execute reports every PoolError raised inside the lease body as \"blocked validation before any command started\", even when commands already ran."
-    },
-    {
-      "evidence": "template/scripts/machine_pool.py `_acquire` locks the slots in `_try_take_slots`, then rewrites their contents with `_write_json`, which does ftruncate and pwrite. In between, `read_holders` reports a locked slot with the old lease's content, so the wrong holder can be named. The window is short. The design says a free slot's content is ignored, but it doesn't cover content that is stale at the moment of locking.",
-      "id": "holder-metadata-stale-window",
-      "severity": "advisory",
-      "summary": "A newly granted slot can briefly show the previous holder's metadata in status and in waiter reports."
-    },
-    {
-      "evidence": "`read_holders` calls `_try_lock(..., shared=True)` on each slot, and `_scan_queue(remove_dead=False)` does the same on tickets. A concurrent head waiter's LOCK_EX|LOCK_NB then fails and reads as \"fewer than N free tokens\" until the next poll. The effect is a delay of one poll interval, not a failure. A new ticket that is probed at that moment also causes a retry through `_create_ticket`. The documentation calls status read-only without noting that it locks.",
-      "id": "readers-take-transient-locks",
-      "severity": "advisory",
-      "summary": "The \"read-only\" status command and the waiters' holder reports take transient shared flocks, which can make the head waiter's non-blocking acquire fail."
+      "summary": "The queue becomes world-writable even when the operator chooses the documented shared-group setup, allowing unrelated local accounts to disrupt validation."
     }
   ],
-  "launched_at": "2026-10-09T23:53:24+00:00",
-  "output_sha256": "89d15645dcde40df0893616488b4d9f78377776220820d8b2c651958fb3a4f80",
+  "launched_at": "2026-10-10T00:21:40+00:00",
+  "output_sha256": "2862f0b5abade01da8121f165fc4807dcf062c450c5a49e3f3950f99ea27b64c",
   "perspective": "engineering-quality",
-  "request_id": "9bfd5122-05ac-4bcf-bb51-d610813d9dd9",
+  "request_id": "1df62669-8e80-432c-bac6-a2f65afb3581",
   "reviewer": {
-    "context_id": "0a8e8760-a580-4a05-b762-bb1636a6700f",
+    "context_id": "01a1232f-d9cc-7940-8375-c75203218000",
     "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-5fda13ed-80fc-47cd-b5c7-8c9ac69adbd5",
+    "launch_id": "platform-launch-4bd5fba9-5a25-43f4-afd5-9decb8d58054",
     "model": {
       "source": "selected",
-      "value": "sonnet"
+      "value": "gpt-6.1-sol"
     },
-    "provider": "claude",
-    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
-    "runtime": "claude-code-print",
+    "provider": "codex",
+    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
+    "runtime": "codex-exec",
     "write_access": false
   },
   "runtime_usage": {
     "fields": {
-      "cache_creation_input_tokens": {
+      "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 54236
-      },
-      "cache_read_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 280680
-      },
-      "duration_api_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 40686
-      },
-      "duration_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 42820
+        "value": 194560
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 14
-      },
-      "num_turns": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 9
+        "value": 250146
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4483
+        "value": 1365
       }
     },
-    "runtime": "claude-code-print"
+    "runtime": "codex-exec"
   },
   "schema_version": 1,
   "task_content_digest": "2aa74cc07f36f924cf7c4d65eb44435268d03d9ab226f1e9b3c87cd64d921523"

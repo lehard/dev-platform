@@ -3,72 +3,56 @@
   "candidate": {
     "base_head": "5f76443bf244cf5ddddee0276751057f59189e4d",
     "base_ref": "origin/main",
-    "candidate_head": "a7369272890e7b1c3ddac2bb44b2c15236b67073",
-    "diff_sha256": "0e8af1a4aba4a7ca95e3ae653d91a1425c211675d1c8789ad9b9fddb7fb1b781"
+    "candidate_head": "c7d8c18b233afdc9aaf3fc63c509282d271f8c6d",
+    "diff_sha256": "2b15c924eff9a7209758264128eb410a675a0eeb4ad6bed0d2e982e92fa437ee"
   },
-  "completed_at": "2026-10-09T23:53:24+00:00",
-  "findings": [],
-  "launched_at": "2026-10-09T23:53:08+00:00",
-  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
+  "completed_at": "2026-10-10T00:21:40+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/machine_pool.py:548\u2013566 reads the queue and determines its head, then measures load and memory before taking slots without rechecking or protecting the queue. A development waiter can observe itself as head while tokens remain occupied; a finalize ticket can then join and wait; after the current holder releases tokens, the development waiter acquires using its stale queue position. Both runs were waiting when tokens became free, but development starts first, contradicting the active delta's 'Finalization waits behind development' scenario and design.md decision 3, which permits only the current head ticket to acquire.",
+      "id": "priority-admission-race",
+      "severity": "material",
+      "summary": "A development waiter can acquire tokens ahead of an already-waiting finalize run because queue inspection and admission are not synchronized."
+    }
+  ],
+  "launched_at": "2026-10-10T00:20:52+00:00",
+  "output_sha256": "8a53470fbd7cdcadb60cdddd757ef921c432c0c2dfc4f45530f4bbed8f6e1a79",
   "perspective": "spec-fidelity",
-  "request_id": "9bfd5122-05ac-4bcf-bb51-d610813d9dd9",
+  "request_id": "1df62669-8e80-432c-bac6-a2f65afb3581",
   "reviewer": {
-    "context_id": "34041253-087b-464d-b274-bca6b634ddd9",
+    "context_id": "01a1232f-1ef6-7452-ad99-9286fd500027",
     "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-e1c109d1-1e2b-473f-b899-dbe258bbe8d7",
+    "launch_id": "platform-launch-436e6df0-15bb-4fb2-bcce-f9f3961e8ea5",
     "model": {
       "source": "selected",
-      "value": "sonnet"
+      "value": "gpt-6.1-sol"
     },
-    "provider": "claude",
-    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
-    "runtime": "claude-code-print",
+    "provider": "codex",
+    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
+    "runtime": "codex-exec",
     "write_access": false
   },
   "runtime_usage": {
     "fields": {
-      "cache_creation_input_tokens": {
+      "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 45218
-      },
-      "cache_read_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 55582
-      },
-      "duration_api_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 14176
-      },
-      "duration_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 14641
+        "value": 241152
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
-      },
-      "num_turns": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 5
+        "value": 301789
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1313
+        "value": 1641
       }
     },
-    "runtime": "claude-code-print"
+    "runtime": "codex-exec"
   },
   "schema_version": 1,
   "task_content_digest": "2aa74cc07f36f924cf7c4d65eb44435268d03d9ab226f1e9b3c87cd64d921523"
