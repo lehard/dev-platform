@@ -13,6 +13,8 @@ Coherence: the delta adds the bounded behind-disjoint exception to "Expensive va
 
 Independent review (final content): engineering-quality two non-material findings; spec-fidelity one material finding (status candidacy lookup can raise on a checkout without a lifecycle contract) disposed as rejected with rationale: every supported render commits `platform_version`, `finish` already requires it, and an explicit failure on a missing contract is the no-fallback rule.
 
+Coordinator review and repair: the coordinator Codex review raised one material spec-fidelity finding (narrow coordinator evidence selections skipped the currency contract). A Claude repair job extended the `select_checks` freshness gate to every evidence-producing `local-affected` selection of a coordinator candidate (`handoff_evidence`), so narrow handoff evidence is classified and recorded or blocked exactly like a full selection. The supervisor verified the repaired content semantically against the delta's "evidence-producing selected checks" scenarios; protected-full, non-evidence and non-coordinator paths are unchanged. The Claude re-review returned only advisory findings.
+
 Readiness: the real handoff-behind-disjoint-main-and-queue-merge observation can only happen after this change is on main; it is recorded in the Requirement retrospective (task 4.1).
 
 Checks actually run: `python3 scripts/select_checks.py --base origin/main --execute --evidence openspec/changes/handoff-behind-disjoint-main/automated-checks.json` on the head containing origin/main 28ecf66, after the final independent review: affected precheck success, compileall success, ruff success, `run_test_groups.py --all` success (658 s).
