@@ -598,7 +598,10 @@ def main() -> int:
         except ManagedTaskError as exc:
             raise SystemExit("Managed checkout identity gate blocked validation before any expensive command started: " + str(exc)) from exc
         base_contract = None
-        if harness == "platform" and requires_task_freshness(checks):
+        # Narrow mapped selections that produce coordinator handoff evidence need the
+        # same currency classification as full selections.
+        handoff_evidence = bool(checks) and evidence_path is not None and args.mode == "local-affected" and coordinator_contract(root)
+        if harness == "platform" and (requires_task_freshness(checks) or handoff_evidence):
             if proven_description is not None:
                 print(
                     "Task freshness gate passed (coordinator-finalization proven-base contract): "
