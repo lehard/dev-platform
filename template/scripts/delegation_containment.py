@@ -19,14 +19,21 @@ repository.
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import re
 import stat
 import subprocess
 import sys
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
+
+try:
+    import fcntl
+except ImportError:  # pragma: no cover - receipts require POSIX locking; writing one fails explicitly without it.
+    fcntl = None  # type: ignore[assignment]
 
 
 class ContainmentError(RuntimeError):
@@ -322,6 +329,283 @@ def verify_historical_external_advance(
         return False
     except Exception:
         return False
+
+
+# --- Integration-advance receipts and the shared head-move classifier ----------
+
+INTEGRATION_ADVANCE_LOG = Path(".claude") / "integration-advances.jsonl"
+# Same string value as `delegated_write_guard.CLASSIFICATION_VERIFIED_EXTERNAL_ADVANCE`;
+# a test pins the equality because the guard imports this module, not the reverse.
+CLASSIFICATION_VERIFIED_EXTERNAL_ADVANCE = "verified_external_advance"
+TIER_HARD = "hard"
+TIER_DETECTION_ONLY = "detection-only"
+_RECEIPT_FIELDS = ("before", "after", "remote", "remote_main", "actor_worktree", "tool", "pid", "at")
+
+
+def integration_advance_log(integration_root: Path) -> Path:
+    return integration_root / INTEGRATION_ADVANCE_LOG
+
+
+def _configured_main_branch(integration_root: Path) -> str:
+    from _platform_common import read_platform_config  # local import: keep this module importable without platform config.
+
+    branch = read_platform_config(integration_root).get("main_branch")
+    if not isinstance(branch, str) or not branch:
+        raise ContainmentError(f"platform config for {integration_root} does not name main_branch; cannot record an integration advance")
+    return branch
+
+
+def record_integration_advance(
+    integration_root: Path, before: str, after: str, *, tool: str, actor_worktree: Path, remote: str
+) -> dict[str, Any]:
+    """Append a receipt for a fast-forward of the integration checkout's main branch.
+
+    Call only after the fast-forward succeeded, from the code path that performed
+    it. The receipt records the local remote-tracking main as read right now, so a
+    later detection-only classification can prove the move landed on the
+    already-recorded remote main and who performed it. Raises `ContainmentError`
+    on any failure: the advance already happened, so a missing receipt must be
+    loud (a delegation overlapping it stays fail-closed) rather than silently
+    unclassifiable.
+    """
+    if not before or not after:
+        raise ContainmentError("integration advance receipt requires non-empty before and after heads")
+    if before == after:
+        raise ContainmentError("integration advance receipt requires a head that actually moved")
+    from _platform_common import cooperative_umask, ensure_shared_path  # local import, see above.
+
+    if fcntl is None:
+        raise ContainmentError(
+            f"integration advance {before[:12]}..{after[:12]} happened but its receipt cannot be written: "
+            "receipts require POSIX fcntl locking, which this platform lacks"
+        )
+    branch = _configured_main_branch(integration_root)
+    remote_main = run_git(integration_root, "rev-parse", f"refs/remotes/{remote}/{branch}").stdout.strip()
+    receipt = {
+        "before": before,
+        "after": after,
+        "remote": remote,
+        "remote_main": remote_main,
+        **({"origin_main": remote_main} if remote == "origin" else {}),
+        "actor_worktree": str(Path(actor_worktree).resolve()),
+        "tool": tool,
+        "pid": os.getpid(),
+        "at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+    }
+    log = integration_advance_log(integration_root)
+    lock = log.with_suffix(log.suffix + ".lock")
+    try:
+        cooperative_umask()
+        log.parent.mkdir(parents=True, exist_ok=True)
+        ensure_shared_path(log.parent)
+        with lock.open("a+", encoding="utf-8") as lock_file:
+            ensure_shared_path(lock)
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+            try:
+                with log.open("a", encoding="utf-8") as handle:
+                    handle.write(json.dumps(receipt, sort_keys=True) + "\n")
+                    handle.flush()
+                    os.fsync(handle.fileno())
+                ensure_shared_path(log)
+            finally:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+    except OSError as exc:
+        raise ContainmentError(
+            f"integration advance {before[:12]}..{after[:12]} happened but its receipt could not be written to {log}: {exc}"
+        ) from exc
+    return receipt
+
+
+def _parse_receipt_time(value: Any, where: str) -> datetime:
+    if not isinstance(value, str):
+        raise ContainmentError(f"{where}: timestamp is not a string")
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError as exc:
+        raise ContainmentError(f"{where}: unparseable timestamp {value!r}") from exc
+    if parsed.tzinfo is None:
+        raise ContainmentError(f"{where}: timestamp {value!r} has no timezone")
+    return parsed
+
+
+def require_own_fast_forward(integration_root: Path, branch: str, before: str, after: str, source: str) -> None:
+    """Prove from ``branch``'s reflog that this caller's ``git merge --ff-only <source>`` moved it ``before`` -> ``after``.
+
+    A concurrent writer that advanced ``branch`` between the caller's head read and its merge leaves a
+    different newest entry (an up-to-date merge writes none), so the advance cannot be misattributed.
+    """
+    lines = run_git(integration_root, "log", "-g", "-2", "--format=%H%x00%gs", f"refs/heads/{branch}").stdout.splitlines()
+    entries = [line.split("\x00", 1) for line in lines]
+    if len(entries) != 2 or entries[0] != [after, f"merge {source}: Fast-forward"] or entries[1][0] != before:
+        raise ContainmentError(
+            f"{branch} reflog does not show this caller's fast-forward {before[:12]}..{after[:12]} from {source}; "
+            "integration moved concurrently, so no integration advance receipt is written"
+        )
+
+
+def read_integration_advances(integration_root: Path) -> list[dict[str, Any]]:
+    """Read every receipt, strictly. An absent log is an empty list; any malformed line raises."""
+    log = integration_advance_log(integration_root)
+    if not log.exists():
+        return []
+    try:
+        lines = log.read_text(encoding="utf-8").splitlines()
+    except OSError as exc:
+        raise ContainmentError(f"cannot read integration advance log {log}: {exc}") from exc
+    receipts: list[dict[str, Any]] = []
+    for number, line in enumerate(lines, start=1):
+        if not line.strip():
+            continue
+        where = f"{log}:{number}"
+        try:
+            receipt = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise ContainmentError(f"{where}: malformed integration advance receipt: {exc}") from exc
+        if not isinstance(receipt, dict):
+            raise ContainmentError(f"{where}: integration advance receipt is not an object")
+        fields = _RECEIPT_FIELDS
+        if receipt.get("remote") == "origin":
+            fields = (*fields, "origin_main")
+        elif "origin_main" in receipt:
+            raise ContainmentError(f"{where}: origin_main is only valid for remote 'origin'")
+        for key in fields:
+            if key not in receipt:
+                raise ContainmentError(f"{where}: integration advance receipt lacks {key!r}")
+        for key in fields:
+            if key in ("pid", "at"):
+                continue
+            if not isinstance(receipt[key], str) or not receipt[key]:
+                raise ContainmentError(f"{where}: integration advance receipt field {key!r} is not a non-empty string")
+        if not isinstance(receipt["pid"], int) or isinstance(receipt["pid"], bool):
+            raise ContainmentError(f"{where}: integration advance receipt field 'pid' is not an integer")
+        _parse_receipt_time(receipt["at"], where)
+        receipts.append(receipt)
+    return receipts
+
+
+@dataclass(frozen=True)
+class HeadMoveAssessment:
+    verified: bool
+    reason: str | None
+    evidence: dict[str, Any] | None
+
+
+def _refused(reason: str) -> HeadMoveAssessment:
+    return HeadMoveAssessment(verified=False, reason=reason, evidence=None)
+
+
+def _inside(path: Path, parent: Path) -> bool:
+    return path == parent or parent in path.parents
+
+
+def _receipt_chain(
+    receipts: list[dict[str, Any]], start_head: str, current_head: str, window_start: datetime, delegated: Path
+) -> list[dict[str, Any]]:
+    windowed = [r for r in receipts if _parse_receipt_time(r["at"], "receipt") >= window_start]
+    ordered = sorted(enumerate(windowed), key=lambda pair: (_parse_receipt_time(pair[1]["at"], "receipt"), pair[0]))
+    ordered_receipts = [receipt for _, receipt in ordered]
+    # Receipts that predate `start_head` inside the window (for example moves that a
+    # recovery already accounted for) are skipped; from the first receipt starting at
+    # `start_head` onward every receipt must chain, with no gap or extra entry.
+    first = next((i for i, r in enumerate(ordered_receipts) if r["before"] == start_head), None)
+    if first is None:
+        raise ContainmentError(f"no receipt starts at the pre-run head {start_head[:12]}")
+    chain = ordered_receipts[first:]
+    expected = start_head
+    for receipt in chain:
+        if receipt["before"] != expected:
+            raise ContainmentError(
+                f"receipt chain is broken: expected a receipt starting at {expected[:12]}, found {receipt['before'][:12]}"
+            )
+        if receipt["remote"] != "origin":
+            raise ContainmentError("receipt records a non-origin remote; detection-only verification requires origin main")
+        if receipt["after"] != receipt["origin_main"] or (
+            receipt["after"] != receipt["remote_main"]
+        ):
+            raise ContainmentError(
+                f"receipt {receipt['before'][:12]}..{receipt['after'][:12]} did not land on the origin main it recorded"
+            )
+        if _inside(Path(receipt["actor_worktree"]).resolve(), delegated):
+            raise ContainmentError(
+                f"receipt {receipt['before'][:12]}..{receipt['after'][:12]} names the delegated worktree {delegated} as its actor"
+            )
+        expected = receipt["after"]
+    if expected != current_head:
+        raise ContainmentError(
+            f"receipt chain ends at {expected[:12]} but the integration head is {current_head[:12]}"
+        )
+    return chain
+
+
+def assess_head_move(
+    integration_root: Path,
+    before_head: str,
+    after_head: str,
+    *,
+    containment: ContainmentResult,
+    tier: str,
+    delegated_worktree: Path | None = None,
+    window_start: str | None = None,
+) -> HeadMoveAssessment:
+    """Decide whether a pure integration-head move is a verified concurrent advance.
+
+    Common facts for every tier: the move is the only observed change (no new,
+    changed or disappeared path), `before_head` is an ancestor of `after_head`,
+    and `after_head` equals the local `refs/remotes/origin/<main>`.
+
+    `hard` (native containment, Codex): those facts suffice, because the child
+    provably could not write the integration checkout.
+
+    `detection-only` (Claude): the child has a shell, so those facts do not say who
+    moved the head. Additionally an unbroken chain of platform-written
+    integration-advance receipts must lead from `before_head` to `after_head`,
+    each dated at or after `window_start`, each landing on the origin main it
+    recorded, and none acted from inside `delegated_worktree`. Unreadable or
+    malformed receipts, and any gap, make the move unverified.
+    """
+    if tier not in (TIER_HARD, TIER_DETECTION_ONLY):
+        raise ContainmentError(f"unknown enforcement tier {tier!r} for head-move classification")
+    if containment.new_changes or containment.disappeared_changes:
+        return _refused("integration paths were created, changed or disappeared")
+    if not containment.head_moved:
+        return _refused("integration head did not move")
+    if not verify_remote_fast_forward(integration_root, before_head, after_head):
+        return _refused("integration head is not a fast-forward equal to the recorded remote-tracking main")
+    if tier == TIER_HARD:
+        return HeadMoveAssessment(True, None, {"tier": tier, "before": before_head, "after": after_head, "receipts": []})
+    if delegated_worktree is None or window_start is None:
+        raise ContainmentError("detection-only head-move classification requires the delegated worktree and a window start")
+    try:
+        start = _parse_receipt_time(window_start, "window start")
+        chain = _receipt_chain(
+            read_integration_advances(integration_root), before_head, after_head, start, Path(delegated_worktree).resolve()
+        )
+    except ContainmentError as exc:
+        return _refused(f"no verified receipt chain: {exc}")
+    return HeadMoveAssessment(True, None, {"tier": tier, "before": before_head, "after": after_head, "receipts": chain})
+
+
+def classify_head_move(
+    integration_root: Path,
+    before_head: str,
+    after_head: str,
+    *,
+    containment: ContainmentResult,
+    tier: str,
+    delegated_worktree: Path | None = None,
+    window_start: str | None = None,
+) -> dict[str, Any] | None:
+    """Evidence for a verified concurrent advance, or `None` when the move is unproven."""
+    assessment = assess_head_move(
+        integration_root,
+        before_head,
+        after_head,
+        containment=containment,
+        tier=tier,
+        delegated_worktree=delegated_worktree,
+        window_start=window_start,
+    )
+    return assessment.evidence if assessment.verified else None
 
 
 def format_violation_message(assigned_worktree: Path, result: ContainmentResult) -> str:

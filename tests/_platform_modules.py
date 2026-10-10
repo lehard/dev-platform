@@ -66,3 +66,24 @@ def identity_violations(namespaces: dict[str, dict[str, object]]) -> list[str]:
             if registered is not None and registered is not value:
                 violations.append(f"{owner}.{attribute} holds a substituted {value.__name__} instance")
     return violations
+
+
+MACHINE_POOL_VARIABLES = ("DEV_PLATFORM_MACHINE_POOL", "DEV_PLATFORM_MACHINE_POOL_LEASE", "DEV_PLATFORM_CHECK_CLASS")
+
+
+def isolate_machine_pool_environment() -> None:
+    """Call from ``setUpModule``: run the module without a developer's machine-pool settings.
+
+    Tests that execute selected checks, the test-group runner or Requirement validation, or spawn them, must
+    not queue on, or inherit a lease from, the pool of the machine that happens to run them.  The original
+    environment is restored when the module finishes.
+    """
+    import os
+    import unittest
+    from unittest import mock
+
+    patcher = mock.patch.dict(os.environ)
+    patcher.start()
+    unittest.addModuleCleanup(patcher.stop)
+    for name in MACHINE_POOL_VARIABLES:
+        os.environ.pop(name, None)

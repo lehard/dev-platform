@@ -47,6 +47,7 @@ class Repository:
         git(root, "config", "user.name", "Test")
         git(root, "config", "user.email", "test@example.test")
         (root / "AGENTS.md").write_text("Bounded test repository\n")
+        (root / ".dev-platform.toml").write_text('platform_version = "1.0.0"\n')  # committed project contract
         self.base = self.commit("base")
         self.manifest = contributions.seal({"version": 2, "requirement": REQUIREMENT,
             "repository": "acme/project", "work_identity": "BR-7", "base": self.base,
@@ -144,7 +145,8 @@ class ContributionTests(unittest.TestCase):
             job = workers.build_job(candidate)
             adapter = SimpleNamespace(_transition=mock.Mock(), publish_job=mock.Mock(),
                 _pr=lambda *a: {"head": {"sha": head}}, _comments=lambda *a: [], _derive=lambda *a: candidate)
-            checks, archive = mock.Mock(), mock.Mock()
+            checks, archive = mock.Mock(return_value={"command": ["scripted"], "freshness": {
+                "contract": "contribution-base", "base": identity["contribution_base"]}}), mock.Mock()
             receipt = fixture.root / "openspec/changes/first/verification.md"
             before = receipt.read_bytes()
             with tempfile.TemporaryDirectory() as workdir, mock.patch("openspec_lifecycle.verification_passed", return_value=True):
@@ -158,6 +160,8 @@ class ContributionTests(unittest.TestCase):
             self.assertEqual(receipt.read_bytes(), before)
             adapter.publish_job.assert_not_called()
             archive.assert_not_called()
+            checks.assert_called_once()
+            self.assertEqual(checks.call_args.kwargs, {"contribution_base": identity["contribution_base"]})
 
     def test_failed_contribution_checks_publish_discoverable_repair(self):
         import publication_queue as queue
@@ -327,6 +331,7 @@ class ContributionTests(unittest.TestCase):
             git(seed, "init", "-b", "main")
             git(seed, "config", "user.name", "Test"); git(seed, "config", "user.email", "test@example.test")
             (seed / "AGENTS.md").write_text("test\n")
+            (seed / ".dev-platform.toml").write_text('platform_version = "1.0.0"\n')  # committed project contract
             git(seed, "add", "."); git(seed, "commit", "-m", "base")
             git(seed, "remote", "add", "origin", str(remote)); git(seed, "push", "origin", "main")
             kwargs = {"requirement": REQUIREMENT, "repository": "acme/project", "expected_changes": ["first", "second"],

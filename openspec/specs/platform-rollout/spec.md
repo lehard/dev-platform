@@ -3,7 +3,9 @@
 ## Purpose
 
 Platform rollout SHALL keep shared workflow releases and downstream upgrades reproducible, reviewable and recoverable across new and existing repositories.
+
 ## Requirements
+
 ### Requirement: Copier upgrades are tested, not assumed
 
 Before a platform release is published, CI SHALL exercise a real Copier update from the latest stable platform template or an explicit bootstrap baseline to the candidate template. The smoke project SHALL contain project-owned modifications before update and SHALL fail validation if those modifications are lost or unresolved conflicts remain.
@@ -530,7 +532,7 @@ Every platform-owned Python helper invoked from a workflow job that checks out p
 
 ### Requirement: Historical Copier replay may recover only proven platform-owned state
 
-Managed rollout MAY use guarded Copier recopy to recover a smart-update conflict on a platform-owned harness only when every conflicted path is proven safe from immutable pre-update state. A conflict is safe when either (a) an explicitly reclaimed migration path already matches the exact target immutable template, or (b) the committed downstream path exactly matches the same path in the immutable platform template version recorded by `.copier-answers.yml`. Missing/missing SHALL count as baseline equivalence. Any currently divergent or otherwise unproven path SHALL remain fail-closed.
+Managed rollout MAY use guarded Copier recopy to recover a smart-update conflict on a platform-owned harness only when every conflicted path is proven safe from immutable pre-update state. A conflict is safe when either (a) an explicitly reclaimed migration path already matches the exact target immutable template, (b) the committed downstream path exactly matches the same path in the immutable platform template version recorded by `.copier-answers.yml`, or (c) the committed downstream path is a regular file byte-identical to the target immutable template rendered with the recorded answers, re-proven from committed `HEAD` after the reset and matched again after recopy. Missing/missing SHALL count as baseline equivalence. Any currently divergent or otherwise unproven path SHALL remain fail-closed.
 
 #### Scenario: Platform-owned file already equals target but historical replay conflicts
 - **GIVEN** a managed repository uses `harness_mode=platform`
@@ -563,13 +565,21 @@ Managed rollout MAY use guarded Copier recopy to recover a smart-update conflict
 
 #### Scenario: Platform-mode conflict contains real downstream customization
 - **GIVEN** a managed repository uses `harness_mode=platform`
-- **WHEN** any conflicted path differs from both its recorded old-template state and any applicable reclaimed target state
+- **WHEN** any conflicted path differs from its recorded old-template state, from any applicable reclaimed target state and from its target render with the recorded answers
 - **THEN** managed rollout fails closed without recopy
 
 #### Scenario: Baseline proof is computed after Copier mutates the worktree
 - **WHEN** rollout classifies conflicts after smart update has emitted `.rej` files
 - **THEN** downstream equivalence SHALL be derived from committed `HEAD` rather than current worktree bytes
 - **AND** the old side SHALL be read from the exact immutable tag recorded by `.copier-answers.yml`
+
+#### Scenario: Hand edit already equals the target render
+- **GIVEN** a managed repository uses `harness_mode=platform`
+- **AND** it hand-edited a platform-owned workflow and recorded the answers under which the target template renders exactly that edit
+- **WHEN** smart Copier update replays the edit from the recorded old template and emits a rejection because the target template changed the same lines
+- **THEN** the path is eligible for guarded recopy, because the committed file is byte-identical to the target render
+- **AND** after recopy the path SHALL match the target render
+- **AND** a hand edit that differs from the target render in any byte, or a path missing on either side, SHALL remain fail-closed
 
 ### Requirement: Managed rollout failures remain fail-closed and diagnosable
 
@@ -1039,4 +1049,3 @@ Reconciliation SHALL run periodically without requiring a later automated rollou
 
 - **WHEN** reconciliation repeats after an issue was closed
 - **THEN** it makes no further mutation or duplicate alert record
-

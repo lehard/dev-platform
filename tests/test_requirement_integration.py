@@ -11,7 +11,7 @@ from contextlib import nullcontext
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
-from _platform_modules import load_platform_module  # noqa: E402
+from _platform_modules import isolate_machine_pool_environment, load_platform_module  # noqa: E402
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -23,6 +23,10 @@ merge_recovery = load_platform_module("requirement_merge_recovery", HELPER.paren
 
 def git(root: Path, *args: str) -> str:
     return subprocess.run(["git", *args], cwd=root, check=True, text=True, capture_output=True).stdout.strip()
+
+
+def setUpModule() -> None:
+    isolate_machine_pool_environment()
 
 
 class RequirementIntegrationTests(unittest.TestCase):

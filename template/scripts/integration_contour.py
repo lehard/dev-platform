@@ -149,7 +149,7 @@ def _contains(checkout: Path, ancestor: str, descendant: str = "HEAD") -> bool:
 
 def execute_integration_repair(job: dict, brief: dict, *, source_repo: str, branch: str, allowed_paths,
                                llm_command, current_head: Callable[[], str], workdir: str,
-                               runner=subprocess.run, env: dict[str, str] | None = None,
+                               runner=workers.run_in_session, env: dict[str, str] | None = None,
                                push_env: dict[str, str] | None = None, home_files=(),
                                before_push: Callable[[Path, str], None] | None = None,
                                claim_current: Callable[[], bool] = lambda: True) -> dict:
@@ -175,7 +175,7 @@ def execute_integration_repair(job: dict, brief: dict, *, source_repo: str, bran
                   "both sides' intent, fix the failing integration check if one is named, and leave the result "
                   "in the working tree (do not rely on commits; only file content is taken). Do not edit workflow or lifecycle evidence files. Brief: "
                   + json.dumps({**brief, "conflicts": conflicted or brief.get("conflicts", [])}, sort_keys=True))
-        done = workers.run_llm([*command, prompt], checkout, env=env, runner=runner,
+        done = workers.run_llm([*command, prompt], checkout, tmp=workers.writer_tmp(root), env=env, runner=runner,
                                home=workers.scratch_home(root, home_files))
         if done.returncode:
             return {"status": "failed", "reason": f"llm exited {done.returncode}"}
@@ -269,7 +269,7 @@ def run_claimed_integration_repair(root: Path, repo: str, candidate: dict, job: 
     if workers.build_job(observed) != job:
         return {"status": "discarded"}
     spent = observed.get("attempts", {}).get("integration-repair", 0)
-    runner = runner or sp.run
+    runner = runner or workers.run_in_session  # the writer's process group never outlives it
 
     def before_push(harness, head):
         if not claim_current():

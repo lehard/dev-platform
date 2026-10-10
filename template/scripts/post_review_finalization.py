@@ -14,10 +14,12 @@ so callers and tests can inject it.
 """
 from __future__ import annotations
 
+import collections
 import functools
 import os
 import re
 import shutil
+import site
 import subprocess
 import sys
 from pathlib import Path
@@ -118,34 +120,84 @@ def trusted_archiver(checkout: Path, change: str, env: dict[str, str]) -> None:
         raise workers.WorkerError("archive failed: " + (done.stderr.strip() or done.stdout.strip())[-400:])
 
 
-def trusted_checks_runner(checkout: Path, env: dict[str, str], *, contribution_base: str | None = None) -> None:
+def trusted_checks_runner(checkout: Path, env: dict[str, str], *, contribution_base: str | None = None,
+                          proven_base: str | None = None) -> dict:
     """Run the platform's selected checks (trusted script) in the disposable checkout.
 
-    A Requirement contribution is fresh against its exact recorded integration base, not
-    current main; main is validated by the Requirement composition candidate.
+    Exactly one freshness contract applies. A Requirement contribution is fresh against its
+    exact recorded integration base; main is validated by the Requirement composition
+    candidate. Any other candidate runs on the proven base of its reviewed task content
+    (coordinator-finalization contract); finalization never fetches or merges main, and the
+    integration contour runs required CI on the actual merged head. Returns the command and
+    freshness description recorded as harness-executed evidence.
     """
+    if (contribution_base is None) == (proven_base is None):
+        raise workers.WorkerError("trusted selected checks need exactly one of contribution_base or proven_base")
+    contract, base = ("contribution-base", contribution_base) if contribution_base is not None else ("proven-base", proven_base)
+    arguments = ["--base", "origin/main", "--execute", f"--{contract}", base]
     script = Path(__file__).resolve().with_name("select_checks.py")
-    command = [sys.executable, str(script), "--base", "origin/main", "--execute"]
-    if contribution_base is not None:
-        command += ["--contribution-base", contribution_base]
-    done = subprocess.run(command, cwd=checkout, env=env,
-                          stdin=subprocess.DEVNULL, text=True, capture_output=True, check=False)
+    # Finalization checks are admitted ahead of development runs by the machine pool.
+    env = {**env, "DEV_PLATFORM_CHECK_CLASS": "finalize"}
+    # Imported here, like the other lifecycle callers: only a run that executes checks depends on the pool.
+    from machine_pool import child_lease_descriptors
+
+    done = stream_selected_checks([sys.executable, str(script), *arguments], cwd=checkout, env=env,
+                                  pass_fds=child_lease_descriptors(env))
     if done.returncode:
-        raise workers.WorkerError("selected checks failed: " + (done.stderr.strip() or done.stdout.strip())[-400:])
+        raise workers.WorkerError("selected checks failed: " + done.stdout.strip()[-400:])
+    return {"command": ["select_checks.py", *arguments], "freshness": {"contract": contract, "base": base}}
+
+
+POOL_DIAGNOSTIC_PREFIX = "DEV_PLATFORM_MACHINE_POOL"
+
+
+def stream_selected_checks(command: list[str], *, cwd: Path, env: dict[str, str],
+                           pass_fds: tuple[int, ...]) -> subprocess.CompletedProcess:
+    """Run selected checks, forwarding machine-pool diagnostics to this worker's stderr as they arrive.
+
+    The pool's waiting reports and its unconfigured notice must reach the operator while the run
+    waits, not only on failure. Merged output is kept (its tail) for the failure message; stdout of
+    the worker stays reserved for its own result.
+    """
+    tail: collections.deque[str] = collections.deque(maxlen=200)
+    with subprocess.Popen(command, cwd=cwd, env=env, pass_fds=pass_fds, stdin=subprocess.DEVNULL,
+                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as process:
+        for line in process.stdout:
+            tail.append(line)
+            if line.startswith(POOL_DIAGNOSTIC_PREFIX):
+                sys.stderr.write(line)
+                sys.stderr.flush()
+    return subprocess.CompletedProcess(command, process.returncode, stdout="".join(tail), stderr="")
+
+
+def checks_env(checkout: Path) -> dict[str, str]:
+    """Credential-free environment for harness-run selected checks.
+
+    The scratch home hides the operator's credentials, but Python resolves user-installed
+    tooling (``pip install --user``, e.g. ``copier``) through the home-derived user base;
+    pin that base explicitly so the project's real checks can run. It holds no credentials.
+    """
+    env = workers.credential_free_env(dict(os.environ), checkout.parent / "llm-home")
+    env["PYTHONUSERBASE"] = site.getuserbase()
+    return env
 
 
 def reestablish_gates(checkout: Path, gates: dict, identity: dict, head: str,
-                      checks_runner: Callable[..., None]) -> dict:
+                      checks_runner: Callable[..., dict]) -> dict:
     """Rerun selected checks; semantic evidence must already bind the repaired content."""
     gates = dict(gates)
     if not review_gate.reusable(checkout, gates.get("review"), identity):
         raise workers.WorkerError("review evidence is missing or not bound to the current task content")
     if not review_gate.reusable(checkout, gates.get("selected-checks"), identity):
-        env = workers.credential_free_env(dict(os.environ), checkout.parent / "llm-home")
-        checks_runner(checkout, env)
+        env = checks_env(checkout)
+        description = checks_runner(checkout, env)
+        if not (isinstance(description, dict) and isinstance(description.get("command"), list)
+                and isinstance(freshness := description.get("freshness"), dict)
+                and freshness.get("contract") and freshness.get("base")):
+            raise workers.WorkerError("selected-checks runner returned no command and freshness description")
         gates["selected-checks"] = {"result": "passed", "identity": identity, "evidence": {
             "harness_executed": True, "head": workers._git(checkout, "rev-parse", "HEAD").strip(),
-            "command": "select_checks --base origin/main --execute"}}
+            "command": description["command"], "freshness": freshness}}
     if not review_gate.reusable(checkout, gates.get("semantic-verification"), identity):
         raise SemanticVerificationRequired(
             "fresh semantic verification required for changed task content; the developer must "
@@ -156,7 +208,7 @@ def reestablish_gates(checkout: Path, gates: dict, identity: dict, head: str,
 def execute_finalize(checkout: Path, job: dict, gates: dict, *, source_repo: str, branch: str, current_head,
                      runner=subprocess.run, archiver: Callable[..., None] | None = None, push_env=None,
                      before_push=None, claim_current=lambda: True,
-                     checks_runner: Callable[..., None] | None = None) -> dict:
+                     checks_runner: Callable[..., dict] | None = None) -> dict:
     """Archive the reviewed candidate in its disposable checkout; only the harness commits and pushes."""
     if job["task_identity"].get("kind") == "requirement-composition":
         from requirement_composition import execute_composition_finalize
@@ -170,14 +222,19 @@ def execute_finalize(checkout: Path, job: dict, gates: dict, *, source_repo: str
     actual = review_gate.refresh_identity(checkout, identity)
     if not equivalent_proofs(checkout, identity.get("task_content"), actual["task_content"]):
         return {"status": "changed", "identity": actual}
-    if checks_runner is None:
-        if actual.get("kind") == "contribution":
-            base = actual.get("contribution_base")
-            if not isinstance(base, str) or not base:
-                raise workers.WorkerError("contribution candidate identity lacks its exact contribution base")
-            checks_runner = functools.partial(trusted_checks_runner, contribution_base=base)
-        else:
-            checks_runner = trusted_checks_runner
+    if actual.get("kind") == "contribution":
+        base = actual.get("contribution_base")
+        if not isinstance(base, str) or not base:
+            raise workers.WorkerError("contribution candidate identity lacks its exact contribution base")
+        freshness = {"contribution_base": base}
+    else:
+        # ``actual`` is proven equivalent to the recorded identity, so its base is the
+        # proven base of the reviewed task content.
+        base = (actual.get("task_content") or {}).get("base")
+        if not isinstance(base, str) or not re.fullmatch(r"[0-9a-f]{40}", base):
+            raise workers.WorkerError("candidate identity lacks its proven task-content base")
+        freshness = {"proven_base": base}
+    checks_runner = functools.partial(checks_runner or trusted_checks_runner, **freshness)
     gates = reestablish_gates(checkout, gates, actual, job["head"], checks_runner)
     problems = verify_reused_evidence(checkout, gates, actual)
     if problems:
@@ -301,6 +358,40 @@ def run_claimed_finalize(root: Path, repo: str, candidate: dict, job: dict, *, s
         adapter.publish_job(root, repo, number, "retrospective", head, task_identity=fresh, phase="pre-merge")
     post_result(workers.result_body(job, worker, "finalized", outcome.get("pushed_head")))
     return {"status": "finalized", "pushed_head": outcome.get("pushed_head")}
+
+
+def recover_finalization_push(root: Path, repo: str, number: int, observed: dict, comments: list[dict],
+                              *, adapter=queue) -> bool:
+    """Persist a validated finalization push of a main-integration candidate whose ``ready`` record was lost.
+
+    The finalize harness publishes its ``validated-push`` receipt before pushing and records
+    ``ready`` only after observing the pushed head; when that observation is interrupted or
+    stale the candidate keeps a ``finalize-pending`` record on the pre-archive head and
+    ``derive_candidate`` already recovers it as ready. Record the update marker and the
+    ``ready`` record so the queue integrates it. Contribution and composition candidates
+    advance through their own jobs and are refused. Idempotent; returns whether it recorded.
+    """
+    current = adapter._derive(root, observed, comments)
+    if not str(current.get("reason", "")).startswith("recover validated finalization push"):
+        return False
+    identity = current.get("task_identity")
+    kind = identity.get("kind") if isinstance(identity, dict) else None
+    if kind in {"contribution", "requirement-composition"}:
+        raise workers.WorkerError(f"a {kind} finalization push is not recovered as a main integration candidate")
+    if current.get("state") != "ready":
+        raise workers.WorkerError(f"recovered finalization push derived {current.get('state')!r}, not ready")
+    head = current["head"]
+    lineage = adapter._latest(root, number, comments)
+    if not isinstance(lineage, dict) or not lineage.get("head"):
+        raise workers.WorkerError("recovered finalization push has no recorded lineage head")
+    if not any(event.get("kind") == "update" and event.get("head") == head
+               for event in adapter._events(root, repo, number)):
+        adapter._comment(root, repo, number, {"kind": "update", "previous": lineage["head"], "head": head,
+                                              "worker_job": "finalization-recovery"})
+    if adapter._transition(root, repo, number, "ready", head, task_identity=identity,
+                           inherit_identity=False, gates=current["gates"]) is None:
+        raise workers.WorkerError("finalization recovery could not record ready: the PR head moved")
+    return True
 
 
 # ---- archive-derived spec re-derivation ---------------------------------------

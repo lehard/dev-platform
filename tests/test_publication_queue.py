@@ -72,9 +72,10 @@ class AdmissionTests(unittest.TestCase):
         with patch.object(queue, "_repo", return_value=REPO), patch.object(queue, "_pr", return_value=observed), \
              patch.object(queue, "_events", side_effect=lambda *a: list(events)), patch.object(queue, "_comment", side_effect=comment), \
              patch.object(queue, "_latest", return_value=prior), patch.object(queue, "_derive", return_value={}), \
-             patch.object(queue, "_ensure_labels"), patch.object(queue, "_label"):
-            for bad in ({**prior, "state": "reviewing"}, {**prior, "red_gate": {"name": "review", "identity": old}},
-                        {**prior, "task_identity": {**old, "change": "different"}}):
+             patch.object(queue, "_ensure_labels"), patch.object(queue, "_label"), \
+             patch.object(queue, "_require_handoff_progress"):  # exact-head progress: tests/test_pr_review_gate.py
+            # A review red gate on blocked-retryable is an ordinary supersession now (tests/test_pr_review_gate.py).
+            for bad in ({**prior, "state": "reviewing"}, {**prior, "task_identity": {**old, "change": "different"}}):
                 with patch.object(queue, "_latest", return_value=bad), self.assertRaisesRegex(queue.QueueError, "earlier or ambiguous"):
                     queue.admit(ROOT_PATH, 1, NEW_HEAD, handoff=handoff)
             # Return the refreshed review record for confirmation after the transition.
@@ -197,6 +198,29 @@ class AdmissionTests(unittest.TestCase):
              patch.object(queue, "_events", return_value=[admission(1, 20)]), \
              patch.object(queue, "_queued", return_value=[(20, 1, admission(1, 20))]):
             self.assertEqual(queue.status(ROOT_PATH, 1)["state"], "active")
+
+    def test_just_labeled_pr_missing_from_lagging_search_inventory_is_still_queued(self) -> None:
+        # Regression (PR 450): admit() labels the PR and finish immediately asks
+        # for its status; the search-backed inventory had not indexed the label.
+        with patch.object(queue, "_repo", return_value=REPO), \
+             patch.object(queue, "_pr", return_value=pr(2, labels=(queue.QUEUE,))), \
+             patch.object(queue, "_events", return_value=[admission(2, 30)]), \
+             patch.object(queue, "_queued", return_value=[(20, 1, admission(1, 20))]):
+            observed = queue.status(ROOT_PATH, 2)
+        self.assertEqual((observed["state"], observed["position"]), ("waiting", 2))
+        with patch.object(queue, "_repo", return_value=REPO), \
+             patch.object(queue, "_pr", return_value=pr(2, labels=(queue.QUEUE,))), \
+             patch.object(queue, "_events", return_value=[admission(2, 30)]), \
+             patch.object(queue, "_queued", return_value=[]):
+            self.assertEqual(queue.status(ROOT_PATH, 2)["position"], 1)
+
+    def test_admitted_pr_without_its_own_queue_label_stays_blocked(self) -> None:
+        with patch.object(queue, "_repo", return_value=REPO), \
+             patch.object(queue, "_pr", return_value=pr(2)), \
+             patch.object(queue, "_events", return_value=[admission(2, 30)]), \
+             patch.object(queue, "_queued", return_value=[]):
+            observed = queue.status(ROOT_PATH, 2)
+        self.assertEqual((observed["state"], observed["reason"]), ("blocked", "admitted PR lacks queue label"))
 
 
 class WorkerTests(unittest.TestCase):
@@ -1363,6 +1387,7 @@ class ManagedProvenanceTests(unittest.TestCase):
              patch.object(queue, "_latest", return_value={"state": "review-pending"}), \
              patch.object(queue, "_ensure_labels"), patch.object(queue, "_comment"), patch.object(queue, "_label"), \
              patch.object(queue, "publish_job"), patch.object(queue, "_transition") as transition, \
+             patch.object(queue, "_require_handoff_progress"), \
              patch("model_routing.read_route_for_change", return_value={"provider": "codex", "profile": "standard", "change": "c"}) as resolve, \
              patch.object(queue, "_admission_handoff") as derived:
             # contribution identity requires contribution_base; supply it.
