@@ -72,6 +72,7 @@ def project_owned_paths() -> set[str]:
     (and must be classified) for the default `platform` mode.
     """
     config = yaml.safe_load((ROOT / "copier.yml").read_text(encoding="utf-8"))
+    every, _ = rendered_template_paths()
     owned: set[str] = set()
     for key in ("_skip_if_exists", "_exclude"):
         for entry in config[key]:
@@ -80,6 +81,10 @@ def project_owned_paths() -> set[str]:
                     raise AssertionError(f"copier.yml {key} entry {entry!r} has a form this test cannot classify")
                 continue
             owned.add(entry)
+            if "/" not in entry:
+                # Copier applies gitignore semantics: a slashless name matches at any depth
+                # (`README.md` keeps an existing `docs/README.md`), so those files are project-owned too.
+                owned |= {path for path in every if path.rsplit("/", 1)[-1] == entry}
     return owned
 
 
@@ -169,6 +174,11 @@ class ProtectedSurfaceTests(unittest.TestCase):
                     any(glob_regex(glob).match(path) for glob in globs for path in self.every),
                     f"category {category!r} has no existing protected path",
                 )
+
+    def test_slashless_copier_skip_entries_own_nested_files(self) -> None:
+        # `README.md` in _skip_if_exists is a gitignore-style pattern, so Copier also keeps an existing docs/README.md.
+        self.assertIn("docs/README.md", self.owned)
+        self.assertNotIn("docs/README.md", self.surface["hotfixable"])
 
     def test_project_owned_files_are_never_classified_hotfixable(self) -> None:
         self.assertTrue(self.owned, "copier.yml declares no project-owned files")

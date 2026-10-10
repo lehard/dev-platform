@@ -11,6 +11,7 @@ import tomllib
 from pathlib import Path
 
 from _platform_common import SharedWorkspaceError, harness_mode, read_platform_config, scm_provider
+from platform_divergence import check as check_platform_divergence
 from shared_workspace import audit as audit_shared_workspace
 from shared_workspace import verify_shared_repository
 
@@ -482,6 +483,20 @@ def check_engineering_capabilities(root: Path, failures: list[int]) -> None:
     failures[0] += 1
 
 
+def check_platform_divergence_contract(root: Path, config: dict, failures: list[int]) -> None:
+    """Fail on undeclared or unsafe local divergence from the installed release (see platform_divergence.py)."""
+    if str(config.get("platform_version", "")) == "source":
+        return  # the source checkout is not a rendered project and carries no release manifest
+    result = check_platform_divergence(root)
+    for problem in result.problems:
+        fail(str(problem))
+    failures[0] += len(result.problems)
+    if not result.problems:
+        ok(f"platform-owned files match the release manifest ({len(result.hotfixes)} declared temporary hotfix(es))")
+        for hotfix in result.hotfixes:
+            warn(f"temporary local hotfix: {hotfix.path} (patched from platform {hotfix.platform_version}; not an official release)")
+
+
 def main() -> int:
     root = Path.cwd().resolve()
     failures = [0]
@@ -530,6 +545,7 @@ def main() -> int:
     check_task_start_contract(root, config, harness, failures)
     check_rendered_workflow_mode(root, config, failures)
     check_ci_runner_agreement(root, config, failures)
+    check_platform_divergence_contract(root, config, failures)
 
     commit = copier_commit(root)
     configured_version = str(config.get("platform_version", ""))
