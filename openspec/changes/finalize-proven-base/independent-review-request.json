@@ -2,11 +2,17 @@
   "candidate": {
     "base_head": "5f76443bf244cf5ddddee0276751057f59189e4d",
     "base_ref": "origin/main",
-    "candidate_head": "7c58f224bdd1d35abe518f285976bc74e2a6839f",
-    "diff_sha256": "ba12848b7113c35fdea39468c87fcd23dee802a91a1d7400e6352a9d740ec0a3"
+    "candidate_head": "6df204360d05e0540c7cf02ac3f35cdfcfe1d8f5",
+    "diff_sha256": "2ba674ca85dc0c99b0463b1b4d63f015d8c55ca8b29496946eea85dd5ed9955f"
   },
   "change": "openspec/changes/finalize-proven-base",
-  "excluded_lifecycle_paths": [],
+  "excluded_lifecycle_paths": [
+    "openspec/changes/finalize-proven-base/automated-checks.json",
+    "openspec/changes/finalize-proven-base/independent-review-request.json",
+    "openspec/changes/finalize-proven-base/independent-reviews/engineering-quality.json",
+    "openspec/changes/finalize-proven-base/independent-reviews/spec-fidelity.json",
+    "openspec/changes/finalize-proven-base/verification.md"
+  ],
   "fresh_context_required": true,
   "perspectives": {
     "engineering-quality": {
@@ -35,7 +41,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-09T23:52:52+00:00",
+  "prepared_at": "2026-10-10T00:22:37+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/finalize-proven-base/independent-reviews",
     "required_perspectives": [
@@ -44,7 +50,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "e0f561c1-c880-4184-a8cc-01fbc74ea317",
+  "request_id": "3f19c313-9a4d-4c32-9950-cbe024be9b75",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -57,18 +63,18 @@
   "schema_version": 1,
   "task_content": {
     "base": "5f76443bf244cf5ddddee0276751057f59189e4d",
-    "digest": "2531635faaa5fb1cd46148db1e8ff20a1fa37fc5c93d81c20f90d2cb606c9c71",
+    "digest": "4291441bbdc9ff8db741b085d7fc2b2a7236218d8a19b31c8a23739f7739add1",
     "paths": {
       "docs/engineering/agent-workflow.md": "04c9b8446ea54662834ddfb7b6524e2b7bddc53f",
       "docs/engineering/openspec-workflow.md": "353367ec42c3e2eb561bb7186bcd443faad8d441",
       "openspec/changes/finalize-proven-base/.managed-task.json": "67e139b2d18bbf81fa52e4171b8d9ca3c351b7a4",
       "openspec/changes/finalize-proven-base/.openspec.yaml": "81264324b0500978f52f70d701b236a09cb1d808",
-      "openspec/changes/finalize-proven-base/design.md": "2bcbdcc82750b36682c7fd755202f8e43aad1feb",
+      "openspec/changes/finalize-proven-base/design.md": "c2123be75825b284e9ac9c935130880c0da60b32",
       "openspec/changes/finalize-proven-base/proposal.md": "1eb12e9a4fd22e23dc5602ba61d29a0f085092f8",
       "openspec/changes/finalize-proven-base/specs/completion-lifecycle/spec.md": "8c36cf2a9da35f89a7306f1ece08329740cf4136",
       "openspec/changes/finalize-proven-base/specs/platform-lifecycle/spec.md": "268a95b89497346767b539cb2d908480338b8c29",
       "openspec/changes/finalize-proven-base/specs/publication-queue/spec.md": "02365ec8743e454b7a6338d5cef7c2187bf6b69b",
-      "openspec/changes/finalize-proven-base/tasks.md": "be2fdee1388179e12b95e075644b41e7bdf49c5c",
+      "openspec/changes/finalize-proven-base/tasks.md": "0bc2279da9a1d360ea4d204c851e0f38bea16df8",
       "template/scripts/_platform_common.py": "d83f74f296e0066f9715c6ccf4ee0abb9dc3ad0f",
       "template/scripts/parallel_lifecycle_acceptance.py": "98edd990989f19749b335b907a6ee64d21c028e0",
       "template/scripts/post_review_finalization.py": "9a2365c7d61ff4a9d35385baf588836725f3dfd2",
@@ -76,6 +82,7 @@
       "template/scripts/select_checks.py": "92a3aad28832016e8facb7c776a4168847268633",
       "tests/test_central_dogfood_lifecycle.py": "4f04e98afb357bb0ce3ceba3269971815cf956b3",
       "tests/test_deepseek_harness_runtime.py": "798ae0c81059293d853470b0ab9cee134ba73b41",
+      "tests/test_lifecycle_workers.py": "46a1d1af5ad96be5e77898aa90407c9196989428",
       "tests/test_parallel_lifecycle_acceptance.py": "b96b2d5aaa6006f2d625bea7414ab058c30b9c96",
       "tests/test_post_review_finalization.py": "7f5db71d513794a8538f064cfcecc7b1021b579d",
       "tests/test_pr_review_gate.py": "5ee733df447a4e9645a26836ee2283811290e43d",
