@@ -1,0 +1,76 @@
+{
+  "candidate": {
+    "base_head": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+    "base_ref": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+    "candidate_head": "5c5069fc7eefa4cc2b1f8725080f077dbb40930c",
+    "diff_sha256": "6edf3cf27a7e82de87629056fa040a3feb6ca95fdd0e6869e6d4d86ee8524a17"
+  },
+  "change": "openspec/changes/add-explorer-lifecycle-journey",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/add-explorer-lifecycle-journey/automated-checks.json",
+    "openspec/changes/add-explorer-lifecycle-journey/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/add-explorer-lifecycle-journey/design.md",
+        "openspec/changes/add-explorer-lifecycle-journey/proposal.md",
+        "openspec/changes/add-explorer-lifecycle-journey/specs/platform-explorer/spec.md",
+        "openspec/changes/add-explorer-lifecycle-journey/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/add-explorer-lifecycle-journey/proposal.md",
+        "openspec/changes/add-explorer-lifecycle-journey/design.md",
+        "openspec/changes/add-explorer-lifecycle-journey/tasks.md",
+        "openspec/changes/add-explorer-lifecycle-journey/specs/platform-explorer/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-10T12:38:27+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/add-explorer-lifecycle-journey/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "b1d78fde-8d59-4022-abed-7976fe85e9b4",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+    "digest": "e36f3147bbcef228643538d62814a6ef122ef78a2b74b08e9d6e868473fd239e",
+    "paths": {
+      "docs/engineering/explorer.md": "9d43b51fdd9c7f0cb1056625a39be0ac94e8625c",
+      "explorer/assets/explorer.css": "98e62c2c594b0c0d9bab33ddef4ec285b2307771",
+      "explorer/map.toml": "69aca51d929f622211f6dc065d1f650430b875be",
+      "openspec/changes/add-explorer-lifecycle-journey/.managed-task.json": "c17b23b9e15dd19facf51b6bedcd320a3784d2c6",
+      "openspec/changes/add-explorer-lifecycle-journey/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
+      "openspec/changes/add-explorer-lifecycle-journey/design.md": "a7071d963fec9b8ea433c4f7a78b7c46371c45e3",
+      "openspec/changes/add-explorer-lifecycle-journey/proposal.md": "7e016dfc744f3574c646f8b080b9e4c9215ce4f1",
+      "openspec/changes/add-explorer-lifecycle-journey/specs/platform-explorer/spec.md": "9e89db929c9d01200923747ab2ea254e9d8f3b4c",
+      "openspec/changes/add-explorer-lifecycle-journey/tasks.md": "2c609db9d04edeae7b3747be0be45110e002c08c",
+      "scripts/build_explorer.py": "d5ad147790017107d91a9eabe97eec703e519d89",
+      "tests/test_build_explorer.py": "32135c7da8781c525e1db027a71d23ddd8f00db1"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}
