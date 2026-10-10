@@ -3,85 +3,62 @@
   "candidate": {
     "base_head": "5f76443bf244cf5ddddee0276751057f59189e4d",
     "base_ref": "origin/main",
-    "candidate_head": "beb2ae7b5615908efbdc1b86094748e5a0ace7ec",
-    "diff_sha256": "da22c876dd55f5b3df29fc5011a470c0679e45b9379ab740fc684060ce866764"
+    "candidate_head": "5fb8b0e42cac43ac4798dc5f98ba33796608398f",
+    "diff_sha256": "6c362629610c233301c22bfd476c00449975474c41577a6a9779cecd56c36bd2"
   },
-  "completed_at": "2026-10-10T00:10:07+00:00",
+  "completed_at": "2026-10-10T00:36:50+00:00",
   "findings": [
     {
-      "evidence": "copier.yml:21 validator is `{% if not ci_runner_labels | trim %}...`. The template renders `'[' ~ runner_labels | join(', ') ~ ']'` with no validation. The spec scenario 'Invalid self-hosted labels' says `rendering or platform_doctor fails`, and the render test covers only blank labels (tests/test_ci_runner_selection.py:533-537). Moving the grammar check into the validator would fail at the source.",
-      "id": "copier-validator-label-grammar-gap",
-      "severity": "advisory",
-      "summary": "The Copier validator only rejects an empty `ci_runner_labels` value. The label grammar (`[A-Za-z0-9._-]+`, no empty entries, no duplicates) is enforced only later by `platform_doctor`. Rendering therefore accepts labels such as `a,,b`, `a b`, `a]` or `a,a` and writes them into `runs-on` unescaped. The malformed workflow is committed and only fails when the doctor runs."
+      "evidence": "template/.github/workflows/dev-platform.yml.jinja:26 and template/.github/workflows/process-health-labels.yml.jinja:12 interpolate labels without quoting. Labels such as `null`, `true`, and `123` pass the grammar in template/scripts/platform_doctor.py:135 but render as null, boolean, or integer values rather than runner-label strings. An in-memory YAML check confirmed these conversions, including `[self-hosted, true]`. The doctor's textual comparison at lines 170\u2013184 accepts the same invalid rendering.",
+      "id": "unquoted-runner-labels",
+      "severity": "material",
+      "summary": "Valid self-hosted labels can render as non-string YAML values and break both workflows."
     },
     {
-      "evidence": "template dev-platform.yml.jinja line `runs-on: {{ ... runner_labels[0] ... }}`. CI_RUNNER_LABEL_RE in platform_doctor.py allows `[A-Za-z0-9._-]+`. The tests only use `alters`, `a` and `self-hosted,linux`.",
-      "id": "runs-on-yaml-scalar-typing",
+      "evidence": "template/scripts/platform_doctor.py:187\u2013197 checks only the step name and its position before the doctor. Keeping `name: Repair shared-workspace permissions on self-hosted runners` while changing its command to `run: echo skipped`, or adding `if: false`, still satisfies this check. Consequently, the claimed preparation-step agreement does not verify that `python3 scripts/shared_workspace.py fix` executes.",
+      "id": "repair-check-only-verifies-name",
       "severity": "advisory",
-      "summary": "A single label is rendered as a bare YAML scalar. Labels the grammar allows can parse as non-strings: `true`, `null`, `1.5` and `on` become bool, null or number, and `-` is a sequence indicator. The doctor compares raw text, so it would not catch this. Multi-label lists have the same issue per element."
+      "summary": "The doctor can accept a repair step that never performs the required repair."
     }
   ],
-  "launched_at": "2026-10-10T00:09:40+00:00",
-  "output_sha256": "9010bfcd6b2de7fbd30b7a41d6fbbb21bab4007a7ed73d3e2f0e039d95dd591c",
+  "launched_at": "2026-10-10T00:36:24+00:00",
+  "output_sha256": "f0d07ad80f85b6b6dfe1900bd725f1d4015fff5499f66b0caa29aaa4dc32042e",
   "perspective": "engineering-quality",
-  "request_id": "ddb90abf-eeaa-4d7d-9031-1f211fba4a36",
+  "request_id": "700d5af6-20e0-4ffb-979d-d5c87c91f5b4",
   "reviewer": {
-    "context_id": "53ce48c4-bb13-4e9b-8929-72db71c44472",
+    "context_id": "01a1233d-577c-74a2-b90f-b334d653edea",
     "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-2d958bc8-2481-4ea0-8aa9-c5c48dba6721",
+    "launch_id": "platform-launch-689c96bb-1147-4401-985f-1759dde9be2e",
     "model": {
       "source": "selected",
-      "value": "sonnet"
+      "value": "gpt-6.1-sol"
     },
-    "provider": "claude",
-    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
-    "runtime": "claude-code-print",
+    "provider": "codex",
+    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
+    "runtime": "codex-exec",
     "write_access": false
   },
   "runtime_usage": {
     "fields": {
-      "cache_creation_input_tokens": {
+      "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 30777
-      },
-      "cache_read_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 52165
-      },
-      "duration_api_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 20935
-      },
-      "duration_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 21804
+        "value": 84608
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
-      },
-      "num_turns": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 4
+        "value": 127546
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2394
+        "value": 769
       }
     },
-    "runtime": "claude-code-print"
+    "runtime": "codex-exec"
   },
   "schema_version": 1,
   "task_content_digest": "2f09327ecfe50a21d2badfb6a62ec1b4527baab85b29978b1ce01e582e0df7a3"
