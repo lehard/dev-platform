@@ -1385,7 +1385,11 @@ def _prepare(root: Path, repo: str, number: int, admission: dict[str, Any], pr: 
         raise QueueError("admission base is invalid")
     current_main = _main(root)
     if current_main == base and head == admission.get("head"):
-        return head, current_main
+        # The admission base is main as observed at admission, not proof that the head contains
+        # it (a Requirement composition head can be admitted on an older main): check ancestry.
+        run_git(["fetch", "origin", pr["head"]["ref"]], cwd=root)
+        if run_git(["merge-base", "--is-ancestor", current_main, head], cwd=root, check=False).returncode == 0:
+            return head, current_main
     run_git(["fetch", "origin", "main"], cwd=root)
     if run_git(["merge-base", "--is-ancestor", base, current_main], cwd=root, check=False).returncode:
         raise QueueError("main no longer descends from admitted base")

@@ -316,6 +316,35 @@ class WorkerTests(unittest.TestCase):
         self.assertIn("update-branch", gh.call_args.args[-1])
         comment.assert_called_once()
 
+    def test_admitted_head_lacking_its_recorded_base_is_updated(self) -> None:
+        # A composition head admitted on an older main records the then-current main as its base.
+        from subprocess import CompletedProcess
+        def git(args: list[str], **_kwargs: object) -> CompletedProcess[str]:
+            if args[0] == "merge-base" and args[1] == "--is-ancestor" and args[2] == BASE and args[3] == HEAD:
+                return CompletedProcess(args, 1, "", "")
+            if args[0] == "diff":
+                return CompletedProcess(args, 0, "", "")
+            return CompletedProcess(args, 0, "", "")
+        with patch.object(queue, "_events", return_value=[admission(1, 20)]), \
+             patch.object(queue, "_main", return_value=BASE), \
+             patch.object(queue, "run_git", side_effect=git), \
+             patch.object(queue, "_task_paths", return_value={"task.py"}), \
+             patch.object(queue, "merge_conflicts", return_value=[]), \
+             patch.object(queue, "_gh") as gh, \
+             patch.object(queue, "_pr", return_value=pr(1, NEW_HEAD)), \
+             patch.object(queue, "_comment") as comment:
+            self.assertEqual(queue._prepare(ROOT_PATH, REPO, 1, admission(1, 20), pr(1)), (NEW_HEAD, BASE))
+        self.assertIn("update-branch", gh.call_args.args[-1])
+        comment.assert_called_once()
+
+    def test_admitted_head_containing_its_base_is_not_updated(self) -> None:
+        with patch.object(queue, "_events", return_value=[admission(1, 20)]), \
+             patch.object(queue, "_main", return_value=BASE), \
+             patch.object(queue, "run_git", return_value=__import__("subprocess").CompletedProcess([], 0, "", "")), \
+             patch.object(queue, "_gh") as gh:
+            self.assertEqual(queue._prepare(ROOT_PATH, REPO, 1, admission(1, 20), pr(1)), (HEAD, BASE))
+        gh.assert_not_called()
+
     def test_runner_restart_proves_unrecorded_clean_branch_update(self) -> None:
         from subprocess import CompletedProcess
         tree = "d" * 40
