@@ -3,30 +3,23 @@
   "candidate": {
     "base_head": "401f3ce699a1aee6c0131a6b321a5eedfb973fb8",
     "base_ref": "origin/main",
-    "candidate_head": "82627658b7ca1f8773a4e6aaab699f471b4dd96a",
-    "diff_sha256": "411936d3124285b73cf0b00d8fdc00edb2f4dc61bccb9780e4ed86410be361df"
+    "candidate_head": "93eb7d2b5899f0eb8b5eccfea3ae5615444e1403",
+    "diff_sha256": "ba7a867753983ff675f7243c88840f8603f1c93c2c5dfa99073149d04e549401"
   },
-  "completed_at": "2026-10-10T07:05:37+00:00",
-  "findings": [
-    {
-      "evidence": "template/scripts/machine_pool.py `_queueing_timeout` (candidate.diff ~771-773) reports only \"{config.admission_lock} stayed locked by another run\". The admission-phase timeouts in `_acquire` call `describe_holders(read_holders(config))`. The same applies to the \"queued only after waiting\" branch, which names only the lock. Spec: \"SHALL fail explicitly naming the holders after the configured wait timeout\"; the design repeats it at point 6.",
-      "id": "queueing-timeout-omits-holders",
-      "severity": "advisory",
-      "summary": "The spec says a run SHALL fail naming the holders after the wait timeout. The timeout raised while waiting for the admission lock does not name the pool holders."
-    }
-  ],
-  "launched_at": "2026-10-10T07:05:22+00:00",
-  "output_sha256": "b19082990b86d73173e763ade56d81fa5391e5ad7dc0241db3ec635accde3e7f",
+  "completed_at": "2026-10-10T07:20:47+00:00",
+  "findings": [],
+  "launched_at": "2026-10-10T07:20:27+00:00",
+  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "spec-fidelity",
-  "request_id": "f4c9d174-1321-4b1d-b2d2-c9988a65ebcc",
+  "request_id": "4c6d94fe-0198-492f-b823-7a4bfb8ad8e4",
   "reviewer": {
-    "context_id": "d5d5e217-bf7a-4801-b64f-3375de3e293a",
+    "context_id": "08f9d4a7-32a0-4894-a1a3-9774ef9af10f",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-7b8718c8-c504-4951-bb0f-e1afc4778dc9",
+    "launch_id": "platform-launch-99b10703-3885-463d-84be-b6e2252efe85",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -42,41 +35,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 49651
+        "value": 53709
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 55758
+        "value": 115563
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 12192
+        "value": 16834
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 12709
+        "value": 17579
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 8
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 5
+        "value": 7
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1223
+        "value": 1784
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "9bc94184fd4b8acf875e5819fae9fa0719ed493c8fe08184b2697a64421dd591"
+  "task_content_digest": "b4aaa33fe1ab2e36a79637cd792c27413d7c3760709cf827cc17de3b802c407b"
 }
