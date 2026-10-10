@@ -3,42 +3,23 @@
   "candidate": {
     "base_head": "401f3ce699a1aee6c0131a6b321a5eedfb973fb8",
     "base_ref": "origin/main",
-    "candidate_head": "0530f64b96751eea2bb44e30dce5935d55298383",
-    "diff_sha256": "4dbae2d62637828e845af3eda0d14c3f4309eb695445fb2802009321359a063e"
+    "candidate_head": "82627658b7ca1f8773a4e6aaab699f471b4dd96a",
+    "diff_sha256": "411936d3124285b73cf0b00d8fdc00edb2f4dc61bccb9780e4ed86410be361df"
   },
-  "completed_at": "2026-10-10T07:03:17+00:00",
-  "findings": [
-    {
-      "evidence": "template/scripts/machine_pool.py `_open_descriptors` only calls `os.fstat(fd)`. If a long-lived process keeps a stale DEV_PLATFORM_MACHINE_POOL_LEASE in its environment and the numbers are reused by unrelated files, the check passes without holding any tokens. The run would then proceed unpooled without saying so.",
-      "id": "lease-descriptor-check-only-fstat",
-      "severity": "advisory",
-      "summary": "A nested run accepts an inherited lease if each listed descriptor number is merely open. It does not check that the descriptor is a locked slot file."
-    },
-    {
-      "evidence": "`_ticket_order` raises PoolError for names that don't match `_TICKET_RE`, and `_list_tickets` sorts every entry through it. A stray `.DS_Store` or editor temp file in `directory/queue` blocks all acquisitions on the machine until someone removes it by hand. This is explicit rather than a silent fallback, but it is a wide blast radius for a shared directory.",
-      "id": "queue-stray-entry-breaks-all-runs",
-      "severity": "advisory",
-      "summary": "Any non-ticket file in the shared queue directory makes every pooled run and `status` fail."
-    },
-    {
-      "evidence": "template/scripts/post_review_finalization.py hunk @@ -23,7 +23,6: the blank line between `from typing import Callable` and `from task_content_identity import equivalent_proofs` is deleted.",
-      "id": "unrelated-import-blank-line-removed",
-      "severity": "advisory",
-      "summary": "The diff removes a blank line between import groups in post_review_finalization.py. The change has nothing to do with the pool."
-    }
-  ],
-  "launched_at": "2026-10-10T07:02:31+00:00",
-  "output_sha256": "c8a47ad4984b64b84c04b617403d9925870ed121297a19a8f2f0d64522f6aae2",
+  "completed_at": "2026-10-10T07:06:15+00:00",
+  "findings": [],
+  "launched_at": "2026-10-10T07:05:37+00:00",
+  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "engineering-quality",
-  "request_id": "64fdc616-c531-47d2-9ab0-c029ecb03d38",
+  "request_id": "f4c9d174-1321-4b1d-b2d2-c9988a65ebcc",
   "reviewer": {
-    "context_id": "86ad1f4c-67c6-4890-afe1-671dcc71b011",
+    "context_id": "d43812e0-b10d-43ad-8875-ddcdbd79f930",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-c99068fb-ee1e-4aee-b968-9c7cc62b3ae4",
+    "launch_id": "platform-launch-10c6a7ca-040e-4f74-bb80-aa923a520ec9",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -54,41 +35,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 43323
+        "value": 51997
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 63428
+        "value": 214280
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 41472
+        "value": 34513
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 43295
+        "value": 35843
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 14
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 5
+        "value": 10
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4670
+        "value": 3617
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "27b434e5372eb091b936bfa9abc921c16465547c76edf7d568b0a13a97d5210e"
+  "task_content_digest": "9bc94184fd4b8acf875e5819fae9fa0719ed493c8fe08184b2697a64421dd591"
 }
