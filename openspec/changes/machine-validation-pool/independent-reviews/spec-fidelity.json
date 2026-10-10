@@ -1,25 +1,32 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "5f76443bf244cf5ddddee0276751057f59189e4d",
+    "base_head": "401f3ce699a1aee6c0131a6b321a5eedfb973fb8",
     "base_ref": "origin/main",
-    "candidate_head": "505d6d5b5d34431c0fec31d372dd059d29d66975",
-    "diff_sha256": "2f7429b40369016849a58c27f9687ea7a814b63553da0500dfe11c6c23f2c9d1"
+    "candidate_head": "924cca36668b8035e5290e11df28a6751dea0396",
+    "diff_sha256": "9924c8e7f96291c0da9894603ac7d2e3d9325aafe319b4c04e96996659d99e9e"
   },
-  "completed_at": "2026-10-10T00:48:04+00:00",
-  "findings": [],
-  "launched_at": "2026-10-10T00:47:43+00:00",
-  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
+  "completed_at": "2026-10-10T01:40:45+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/machine_pool.py read_holders: `if _try_lock(fd, path, shared=True): fcntl.flock(fd, fcntl.LOCK_UN)`. _try_take_slots uses LOCK_EX|LOCK_NB on the same slot files. _scan_queue(remove_dead=False) takes the same kind of shared lock on tickets.",
+      "id": "holder-probe-contends-with-acquire",
+      "severity": "advisory",
+      "summary": "The read-only holder probe (status and the waiting report) takes a shared flock on each slot file. A concurrent head's non-blocking exclusive attempt on that slot can fail spuriously, so a free token looks busy until the next poll. The spec requires read-only status and all-or-nothing acquisition, and the result is only a delayed admission, not a contract violation."
+    }
+  ],
+  "launched_at": "2026-10-10T01:40:22+00:00",
+  "output_sha256": "4e501bb5f9c501ba4c7805aa4d41baec35326e62891158cfad0a84372f00fb43",
   "perspective": "spec-fidelity",
-  "request_id": "e9c8af54-419a-4e6b-a056-ed6ff8e50f27",
+  "request_id": "c393c508-da0b-42f8-b51f-c953d7e2616a",
   "reviewer": {
-    "context_id": "6d507d57-b743-467c-bf16-6d81614002db",
+    "context_id": "1cbf04d5-ea14-40b3-b0e5-0e9c1ef23f4a",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-7b2bd353-84da-4443-95d2-1b0b90e01290",
+    "launch_id": "platform-launch-276f446a-9834-4287-b0b7-bdce4c9b4018",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -35,22 +42,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 60147
+        "value": 50967
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 105534
+        "value": 110162
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 18810
+        "value": 21256
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 19365
+        "value": 21774
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -65,11 +72,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1916
+        "value": 2184
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "7c599dd4712fed8f3978f5fb44d030e70bf7fb9b255631a32485dd5ac3c9c094"
+  "task_content_digest": "0cc32c280b23675d3f0cdd68f20898c38ea4793ce3842434124aeddae50292b7"
 }
