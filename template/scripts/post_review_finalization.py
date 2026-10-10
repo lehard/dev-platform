@@ -14,6 +14,7 @@ so callers and tests can inject it.
 """
 from __future__ import annotations
 
+import collections
 import functools
 import os
 import re
@@ -140,12 +141,33 @@ def trusted_checks_runner(checkout: Path, env: dict[str, str], *, contribution_b
     # Imported here, like the other lifecycle callers: only a run that executes checks depends on the pool.
     from machine_pool import child_lease_descriptors
 
-    done = subprocess.run([sys.executable, str(script), *arguments], cwd=checkout, env=env,
-                          pass_fds=child_lease_descriptors(env),
-                          stdin=subprocess.DEVNULL, text=True, capture_output=True, check=False)
+    done = stream_selected_checks([sys.executable, str(script), *arguments], cwd=checkout, env=env,
+                                  pass_fds=child_lease_descriptors(env))
     if done.returncode:
-        raise workers.WorkerError("selected checks failed: " + (done.stderr.strip() or done.stdout.strip())[-400:])
+        raise workers.WorkerError("selected checks failed: " + done.stdout.strip()[-400:])
     return {"command": ["select_checks.py", *arguments], "freshness": {"contract": contract, "base": base}}
+
+
+POOL_DIAGNOSTIC_PREFIX = "DEV_PLATFORM_MACHINE_POOL"
+
+
+def stream_selected_checks(command: list[str], *, cwd: Path, env: dict[str, str],
+                           pass_fds: tuple[int, ...]) -> subprocess.CompletedProcess:
+    """Run selected checks, forwarding machine-pool diagnostics to this worker's stderr as they arrive.
+
+    The pool's waiting reports and its unconfigured notice must reach the operator while the run
+    waits, not only on failure. Merged output is kept (its tail) for the failure message; stdout of
+    the worker stays reserved for its own result.
+    """
+    tail: collections.deque[str] = collections.deque(maxlen=200)
+    with subprocess.Popen(command, cwd=cwd, env=env, pass_fds=pass_fds, stdin=subprocess.DEVNULL,
+                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as process:
+        for line in process.stdout:
+            tail.append(line)
+            if line.startswith(POOL_DIAGNOSTIC_PREFIX):
+                sys.stderr.write(line)
+                sys.stderr.flush()
+    return subprocess.CompletedProcess(command, process.returncode, stdout="".join(tail), stderr="")
 
 
 def checks_env(checkout: Path) -> dict[str, str]:
