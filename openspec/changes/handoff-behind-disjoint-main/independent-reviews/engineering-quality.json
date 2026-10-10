@@ -1,0 +1,88 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "28ecf66b9e7593ed80bb0b8560bc2129fa304791",
+    "base_ref": "origin/main",
+    "candidate_head": "abd25ede6c872333e5f9490ddb5bdbaa2163f9fa",
+    "diff_sha256": "1711ae19df783bc78fc0547757d1acd26b4c3107b63c5ffd03093ac05236d984"
+  },
+  "completed_at": "2026-10-10T20:59:09+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/select_checks.py (new elif branch) wraps require_handoff_task_base in `except TaskFreshnessError` only. require_handoff_task_base calls coordinator_candidate -> pr_review_gate.managed_candidate, which calls resolve_canonical_provenance, queue.enabled and lifecycle_mode. Those can raise ManagedTaskError or PlatformConfigError, and neither is caught there. The same applies in task_reconciliation.observe_candidate, which status_payload calls. The test change in tests/test_task_reconciliation.py (adding platform_version just to keep read-only status working for a behind head) shows that status for a behind head can now raise on a config problem it never read before.",
+      "id": "candidacy-errors-escape-freshness-gate",
+      "severity": "advisory",
+      "summary": "A failing candidacy probe surfaces as a raw traceback instead of the bounded 'Task freshness gate blocked' message on the evidence path."
+    },
+    {
+      "evidence": "design.md Risks and decision 5 accept this. Developer-side full checks now run on a tree that lacks main's changes, and evidence records `task_base` only as a note. The queue's integrated-head CI is the only gate. If the queue's required checks were weaker than the developer's selected checks, the behind-disjoint evidence would give false assurance. The delta does not state that the queue's required checks are a superset.",
+      "id": "disjoint-files-semantic-risk-only-ci-gated",
+      "severity": "advisory",
+      "summary": "Disjointness plus a clean trial merge is a textual criterion only. A semantic break caused by main is detected only after admission."
+    }
+  ],
+  "launched_at": "2026-10-10T20:58:44+00:00",
+  "output_sha256": "c5760e2023cd6c2ea40a4544402ab692c0c6910a8ef6ac789dc38e2c7cd42a12",
+  "perspective": "engineering-quality",
+  "request_id": "2503f1a0-e0c5-4dc4-a848-d77893760622",
+  "reviewer": {
+    "context_id": "44bc915f-4a4b-40cd-be68-a62bae6e526b",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-14fcf8b2-9c50-4f1d-8dba-007b3225d011",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 44804
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 104216
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 22572
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 23122
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2535
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "f65328c29d5dcfb583979fc3b81962b0e6dffcac7dce4c83ba86007537d8129f"
+}

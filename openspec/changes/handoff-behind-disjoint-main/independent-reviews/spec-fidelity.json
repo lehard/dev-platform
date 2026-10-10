@@ -1,0 +1,94 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "28ecf66b9e7593ed80bb0b8560bc2129fa304791",
+    "base_ref": "origin/main",
+    "candidate_head": "abd25ede6c872333e5f9490ddb5bdbaa2163f9fa",
+    "diff_sha256": "1711ae19df783bc78fc0547757d1acd26b4c3107b63c5ffd03093ac05236d984"
+  },
+  "completed_at": "2026-10-10T20:58:44+00:00",
+  "findings": [
+    {
+      "evidence": "task_reconciliation.observe_candidate calls coordinator_candidate(root) whenever freshness.reconcile_required. The existing test test_read_only_status_detects_advanced_main_without_updating_origin_main had to be edited to append 'platform_version = \"1.9.3\"' to .dev-platform.toml, with the comment 'A head behind main reads the lifecycle contract (portable here) to decide candidacy.' Without that edit the previous status path would fail. The spec says a stale observation 'SHALL remain resumable' and that the rule is 'unchanged' outside the exceptions.",
+      "id": "status-candidacy-lookup-can-raise-for-stale-head",
+      "severity": "material",
+      "summary": "For any head behind main, status now evaluates coordinator_candidate(root). The design says a missing or unsupported contract raises. A stale non-coordinator task whose config lacks a determinable lifecycle contract can therefore get a status error where it used to get 'reconcile required'. That conflicts with the requirement that status expose freshness drift, and with keeping the fresh-base behavior unchanged outside the coordinator exception."
+    },
+    {
+      "evidence": "tasks.md: '- [x] 4.1 Real dogfood is observed after this change reaches main: a coordinator candidate handed off behind a disjoint main ... It is recorded in the Requirement retrospective, because it can only happen after this change merges.'",
+      "id": "tasks-4-1-checked-before-observable",
+      "severity": "advisory",
+      "summary": "tasks.md marks 4.1 as done, but the task itself says the dogfood can only be observed after this change reaches main. The checkbox claims readiness evidence that cannot exist at this candidate."
+    },
+    {
+      "evidence": "select_checks.py: `elif evidence_path is not None and args.mode == \"local-affected\" and coordinator_contract(root):`. agent-workflow.md says 'evidence-producing `select_checks.py --execute --evidence` and the handoff push accept a head that does not contain current `main`'.",
+      "id": "docs-evidence-scope-broader-than-code",
+      "severity": "advisory",
+      "summary": "The docs and the design describe the evidence-producing gate loosely. The code applies the behind-disjoint exception only for --evidence together with local-affected mode and a coordinator lifecycle mode. Other evidence-producing runs keep the fresh-base rule. The docs sentence 'evidence-producing select_checks.py --execute --evidence ... accept a head' omits the local-affected restriction that the design states."
+    }
+  ],
+  "launched_at": "2026-10-10T20:58:21+00:00",
+  "output_sha256": "bf0da600e2ee8f6b731158d118097d8ad618d46639eec6fc2fe99e68152abe9e",
+  "perspective": "spec-fidelity",
+  "request_id": "2503f1a0-e0c5-4dc4-a848-d77893760622",
+  "reviewer": {
+    "context_id": "87c27006-4b48-4248-8409-dadd8b57f4c9",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-67cb4aab-db35-481c-9a4b-78b8523415ec",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 46483
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 58176
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 19888
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 20059
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2426
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "f65328c29d5dcfb583979fc3b81962b0e6dffcac7dce4c83ba86007537d8129f"
+}
