@@ -343,6 +343,11 @@ class DeepSeekHarnessDistributionTests(unittest.TestCase):
             # config until cutover generates one, so this central-checkout-
             # specific assertion does not apply there.
             self.skipTest("central .dev-platform.toml is not present in this checkout")
+        if (ROOT / ".dev-platform.toml").read_text(encoding="utf-8") == (ROOT / "dev-platform" / "source-contract.toml").read_text(encoding="utf-8"):
+            # A disposable lifecycle checkout installs the committed public source contract
+            # as `.dev-platform.toml` (lifecycle_workers.install_source_contract); it carries
+            # no operator sections, so the central-checkout assertion does not apply there.
+            self.skipTest("installed public source contract, not the central operator config")
         requirements = (ROOT / "template" / "requirements" / "deepseek-harness.txt").read_text(encoding="utf-8")
         central_config = (ROOT / ".dev-platform.toml").read_text(encoding="utf-8")
         template_config = (ROOT / "template" / ".dev-platform.toml.jinja").read_text(encoding="utf-8")

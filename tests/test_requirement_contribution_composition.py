@@ -145,7 +145,8 @@ class ContributionTests(unittest.TestCase):
             job = workers.build_job(candidate)
             adapter = SimpleNamespace(_transition=mock.Mock(), publish_job=mock.Mock(),
                 _pr=lambda *a: {"head": {"sha": head}}, _comments=lambda *a: [], _derive=lambda *a: candidate)
-            checks, archive = mock.Mock(), mock.Mock()
+            checks, archive = mock.Mock(return_value={"command": ["scripted"], "freshness": {
+                "contract": "contribution-base", "base": identity["contribution_base"]}}), mock.Mock()
             receipt = fixture.root / "openspec/changes/first/verification.md"
             before = receipt.read_bytes()
             with tempfile.TemporaryDirectory() as workdir, mock.patch("openspec_lifecycle.verification_passed", return_value=True):
@@ -159,6 +160,8 @@ class ContributionTests(unittest.TestCase):
             self.assertEqual(receipt.read_bytes(), before)
             adapter.publish_job.assert_not_called()
             archive.assert_not_called()
+            checks.assert_called_once()
+            self.assertEqual(checks.call_args.kwargs, {"contribution_base": identity["contribution_base"]})
 
     def test_failed_contribution_checks_publish_discoverable_repair(self):
         import publication_queue as queue

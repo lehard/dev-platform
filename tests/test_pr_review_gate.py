@@ -623,6 +623,12 @@ class ReadmissionAndFinalizeResumeTests(unittest.TestCase):
     NEW_IDENTITY = {**IDENTITY, "task_content": {**IDENTITY["task_content"], "digest": "proof-2"}}
 
     def admitted_repair_pending(self, fixture, stack):
+        self.admitted(fixture, stack)
+        queue._transition(ROOT, "o/r", 7, "reviewing", HEAD, task_identity=IDENTITY)
+        gate.complete_review(ROOT, "o/r", fixture.candidate(), ProviderSwitchTests.MATERIAL, HEAD)
+        self.assertEqual(fixture.candidate()["state"], "repair-pending")
+
+    def admitted(self, fixture, stack):
         stack.enter_context(mock.patch.object(queue, "_repo", return_value="o/r"))
         stack.enter_context(mock.patch.object(queue, "_ensure_labels"))
         self.labels = stack.enter_context(mock.patch.object(queue, "_label"))
@@ -632,9 +638,6 @@ class ReadmissionAndFinalizeResumeTests(unittest.TestCase):
         original_pr = queue._pr.side_effect
         queue._pr.side_effect = lambda *a: {**original_pr(*a), "base": {"ref": "main"}}
         queue.admit(ROOT, 7, HEAD, handoff={"task_identity": IDENTITY, "gates": {}})
-        queue._transition(ROOT, "o/r", 7, "reviewing", HEAD, task_identity=IDENTITY)
-        gate.complete_review(ROOT, "o/r", fixture.candidate(), ProviderSwitchTests.MATERIAL, HEAD)
-        self.assertEqual(fixture.candidate()["state"], "repair-pending")
 
     def readmit(self, fixture):
         fixture.head = self.NEW_HEAD
@@ -652,9 +655,103 @@ class ReadmissionAndFinalizeResumeTests(unittest.TestCase):
         self.assertEqual((admission["supersedes"]["head"], admission["supersedes"]["state"]), (HEAD, state))
         self.assertTrue(admission["supersedes"]["reason"])
         self.descends.assert_called_with(ROOT, HEAD, self.NEW_HEAD)
+        self.assertNotIn("review", candidate["gates"])  # changed content or a failed review is never carried
         # The candidate leaves the queue before the superseding admission and rejoins after its review record.
         queued = [call.kwargs["present"] for call in self.labels.call_args_list if call.args[3] == queue.QUEUE]
         self.assertEqual(queued[-2:], [False, True])
+
+    def passed_review_awaiting_semantic_handoff(self, fixture, stack):
+        """Finalize stopped a reviewed candidate at the developer's semantic-verification gate."""
+        self.admitted(fixture, stack)
+        queue._transition(ROOT, "o/r", 7, "reviewing", HEAD, task_identity=IDENTITY)
+        gate.complete_review(ROOT, "o/r", fixture.candidate(), {"s": {"availability": "available", "findings": []}}, HEAD)
+        self.assertEqual(fixture.candidate()["state"], "finalize-pending")
+        passed = {"result": "passed", "identity": IDENTITY, "evidence": {"head": HEAD}}
+        queue._transition(ROOT, "o/r", 7, "blocked-retryable", HEAD, task_identity=IDENTITY, inherit_identity=False,
+                          gates={**fixture.candidate()["gates"], "required-checks": passed,
+                                 "selected-checks": {**passed, "evidence": {"harness_executed": True}}},
+                          red_gate={"name": "semantic-verification", "identity": IDENTITY, "evidence": "fresh receipt"})
+
+    def handoff(self, identity):
+        fresh = {"result": "passed", "identity": identity, "evidence": {"sha256": "fresh", "head": self.NEW_HEAD}}
+        return {"task_identity": identity, "gates": {name: fresh for name in
+                                                     ("developer-friction", "selected-checks", "semantic-verification")}}
+
+    def run_review(self, fixture, posted):
+        candidate = fixture.candidate()
+        job = workers.build_job(candidate)
+        self.assertEqual((job["kind"], job["head"]), ("review", self.NEW_HEAD))
+        with mock.patch.object(workers, "execute_job", side_effect=AssertionError("a reviewer was launched")):
+            return gate.run_claimed(ROOT, "o/r", candidate, job, source_repo="fixture", branch="agent/example",
+                                    allowed_paths=[], llm_command=None, current_head=lambda: self.NEW_HEAD,
+                                    post_result=posted.append, workdir="/unused", worker="w", provider=PROVIDER,
+                                    claim_current=lambda: True)
+
+    def test_readmission_with_unchanged_task_content_carries_the_passed_review(self):
+        unchanged = json.loads(json.dumps(IDENTITY))
+        with QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
+            self.passed_review_awaiting_semantic_handoff(fixture, stack)
+            review = fixture.candidate()["gates"]["review"]
+            fixture.head = self.NEW_HEAD
+            queue.admit(ROOT, 7, self.NEW_HEAD, handoff=self.handoff(unchanged))
+            candidate = fixture.candidate()
+            self.assertEqual((candidate["state"], candidate["head"]), ("review-pending", self.NEW_HEAD))
+            self.assertEqual(sorted(candidate["gates"]),
+                             ["developer-friction", "review", "selected-checks", "semantic-verification"])
+            self.assertEqual(candidate["gates"]["review"], {**review, "identity": unchanged})  # rebound, not reset
+            self.assertEqual(candidate["gates"]["selected-checks"]["evidence"]["sha256"], "fresh")  # handoff wins
+            self.assertNotIn("required-checks", candidate["gates"])
+            posted = []
+            outcome = self.run_review(fixture, posted)
+            self.assertEqual(outcome["status"], "reused")
+            self.assertEqual(json.loads(posted[-1][len(workers.RESULT_PREFIX):])["outcome"], "reused-review")
+            finalize = fixture.candidate()
+            self.assertEqual(finalize["state"], "finalize-pending")
+            self.assertEqual(workers.build_job(finalize)["kind"], "finalize")
+
+    def test_interrupted_readmission_retry_preserves_reusable_review(self):
+        for identity in (IDENTITY, self.NEW_IDENTITY):
+            with self.subTest(identity=identity), QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
+                self.passed_review_awaiting_semantic_handoff(fixture, stack)
+                review = fixture.candidate()["gates"]["review"]
+                fixture.head = self.NEW_HEAD
+                with mock.patch.object(queue, "_transition", side_effect=RuntimeError("interrupted")):
+                    with self.assertRaisesRegex(RuntimeError, "interrupted"):
+                        queue.admit(ROOT, 7, self.NEW_HEAD, handoff=self.handoff(identity))
+                admission = queue._admission(queue._events(ROOT, "o/r", 7), 7)
+                self.assertEqual(admission["head"], self.NEW_HEAD)
+                queue.admit(ROOT, 7, self.NEW_HEAD, handoff=self.handoff(identity))
+                candidate = fixture.candidate()
+                self.assertEqual(candidate["state"], "review-pending")
+                self.assertEqual(candidate["gates"]["selected-checks"]["evidence"]["sha256"], "fresh")
+                self.assertNotIn("required-checks", candidate["gates"])
+                if identity == IDENTITY:
+                    self.assertEqual(candidate["gates"]["review"], {**review, "identity": identity})
+                    self.assertEqual(self.run_review(fixture, [])["status"], "reused")
+                else:
+                    self.assertNotIn("review", candidate["gates"])
+                    with self.assertRaisesRegex(AssertionError, "a reviewer was launched"):
+                        self.run_review(fixture, [])
+
+    def test_readmission_with_changed_task_content_runs_a_new_review(self):
+        with QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
+            self.passed_review_awaiting_semantic_handoff(fixture, stack)
+            fixture.head = self.NEW_HEAD
+            queue.admit(ROOT, 7, self.NEW_HEAD, handoff=self.handoff(self.NEW_IDENTITY))
+            candidate = fixture.candidate()
+            self.assertEqual(candidate["state"], "review-pending")
+            self.assertEqual(sorted(candidate["gates"]), ["developer-friction", "selected-checks", "semantic-verification"])
+            with self.assertRaisesRegex(AssertionError, "a reviewer was launched"):
+                self.run_review(fixture, [])
+
+    def test_readmission_without_handoff_gates_fails_loudly(self):
+        with QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
+            self.passed_review_awaiting_semantic_handoff(fixture, stack)
+            fixture.head = self.NEW_HEAD
+            count = len(fixture.comments)
+            with self.assertRaisesRegex(queue.QueueError, "re-admission handoff carries no gates"):
+                queue.admit(ROOT, 7, self.NEW_HEAD, handoff={"task_identity": IDENTITY})
+            self.assertEqual(len(fixture.comments), count)
 
     def test_new_developer_head_supersedes_a_repair_pending_admission(self):
         with QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:

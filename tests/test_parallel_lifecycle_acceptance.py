@@ -62,6 +62,10 @@ class ScenarioTests(unittest.TestCase):
                 claims = [e[2].split(":")[0] for e in run["transitions"] if e[:2] == ["C", "claim"]]
                 self.assertEqual(claims.count("review"), 2)  # the finalized C is reviewed again after integration repair
                 self.assertEqual(claims.count("finalize"), 3)  # initial, blocked on semantic handoff, final
+                # Finalize re-establishes checks on the identity's proven base, also after main moved.
+                self.assertEqual([c["candidate"] for c in run["finalize_checks"]], ["B", "C"])
+                self.assertTrue(all(c["proven_base_is_recorded_base"] for c in run["finalize_checks"]))
+                self.assertTrue(any(c["main_moved"] for c in run["finalize_checks"]))
                 self.assertEqual(acceptance.structure_problems(run), [])
                 self.assertEqual(run["unsupported_gh_calls"], [])
                 self.assertEqual(acceptance.post_merge_problems(run["transitions"]), [])
@@ -91,7 +95,7 @@ class ScenarioTests(unittest.TestCase):
             github.run(post)
             self.assertEqual(len(github.operator_actions), 1)
             summary = {"unsupported_gh_calls": [], "merged": {}, "states_before_first_merge": {}, "transitions": [],
-                       "merge_operations": [], "operator_actions": github.operator_actions}
+                       "merge_operations": [], "operator_actions": github.operator_actions, "finalize_checks": []}
             self.assertTrue(any("operator completion actions" in p for p in acceptance.structure_problems(summary)))
 
     def test_failed_run_still_cleans_sandboxes_and_records_the_failure(self):
@@ -213,6 +217,16 @@ class LocalGitHubTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("merge conflict", err)
         self.assertEqual(acceptance.git(self.remote, "rev-parse", "refs/heads/agent/one"), head)
+
+    def test_scripted_finalize_checks_require_the_proven_base(self):
+        base = acceptance.git(self.work, "merge-base", "HEAD", "origin/main")
+        self.move_main()
+        acceptance.git(self.work, "checkout", "-q", "agent/one")
+        for wrong in ("0" * 40, acceptance.git(self.work, "rev-parse", "origin/main")):
+            with self.subTest(wrong=wrong), self.assertRaisesRegex(acceptance.ScenarioError, "proven base"):
+                acceptance.checks_runner(self.work, dict(os.environ), proven_base=wrong)
+        self.assertEqual(acceptance.checks_runner(self.work, dict(os.environ), proven_base=base)["freshness"],
+                         {"contract": "proven-base", "base": base})
 
     def test_unsupported_calls_fail_and_are_recorded(self):
         for argv in (["issue", "list"], ["api", "repos/other/repo/pulls/1"], ["api", f"repos/{acceptance.REPO}/rulesets"],

@@ -419,11 +419,19 @@ def archiver(checkout: Path, change: str, env: dict) -> None:
         put(checkout / "openspec/specs" / spec.parent.name / "spec.md", SPEC.format(cap=spec.parent.name, title=title))
 
 
-def checks_runner(checkout: Path, env: dict) -> None:
+def checks_runner(checkout: Path, env: dict, *, proven_base: str) -> dict:
+    """Scripted selected checks under the real coordinator-finalization proven-base contract."""
+    from _platform_common import TaskFreshnessError, require_proven_task_base
+
+    try:
+        require_proven_task_base(checkout, proven_base, "origin", "main")
+    except TaskFreshnessError as exc:
+        raise ScenarioError(f"finalize checks did not receive the identity's proven base: {exc}") from exc
     done = subprocess.run([sys.executable, "check.py"], cwd=checkout, env=env, stdin=subprocess.DEVNULL,
                           capture_output=True, text=True, check=False, timeout=60)
     if done.returncode:
         raise ScenarioError("selected fixture check failed: " + done.stderr[-300:])
+    return {"command": ["check.py"], "freshness": {"contract": "proven-base", "base": proven_base}}
 
 
 # ---- the scenario ------------------------------------------------------------------
@@ -474,6 +482,11 @@ def structure_problems(summary: dict) -> list[str]:
         problems.append(f"merges were not sequential A, B, C: {summary['merge_operations']}")
     if summary["operator_actions"]:
         problems.append(f"operator completion actions were required: {summary['operator_actions']}")
+    checks = summary["finalize_checks"]
+    if not any(check["main_moved"] for check in checks):
+        problems.append("no finalize re-established selected checks after main moved")
+    if not all(check["proven_base_is_recorded_base"] for check in checks):
+        problems.append(f"finalize checks ran on a base other than the identity's proven base: {checks}")
     return problems
 
 
@@ -487,6 +500,7 @@ class Scenario:
         self.llm_calls: list[list[str]] = []
         self.closed: set[str] = set()
         self.checkpointed = False
+        self.finalize_checks: list[dict] = []
 
     # -- setup --
     def setup(self) -> None:
@@ -643,9 +657,22 @@ class Scenario:
                 workdir=workdir, launcher=self.launcher(), worker=worker,
                 provider=ACCEPTANCE_PROVIDER)
         elif kind == "finalize":
+            letter = next(name for name, value in self.numbers.items() if value == number)
+            recorded = job["task_identity"]["task_content"]["base"]
+
+            def finalize_checks(checkout: Path, env: dict, *, proven_base: str) -> dict:
+                main = git(checkout, "rev-parse", "origin/main")
+                self.finalize_checks.append({
+                    "candidate": letter, "proven_base_is_recorded_base": proven_base == recorded,
+                    "main_moved": main != self.initial_main,
+                    "head_contains_main": subprocess.run(["git", "merge-base", "--is-ancestor", main, "HEAD"],
+                                                         cwd=checkout, capture_output=True, check=False,
+                                                         stdin=subprocess.DEVNULL).returncode == 0})
+                return checks_runner(checkout, env, proven_base=proven_base)
+
             outcome = self.final.run_claimed_finalize(
                 self.root, REPO, candidate, job, source_repo=source, branch=branch, current_head=current,
-                post_result=post, workdir=workdir, archiver=archiver, checks_runner=checks_runner, worker=worker)
+                post_result=post, workdir=workdir, archiver=archiver, checks_runner=finalize_checks, worker=worker)
         elif kind == "integration-repair":
             outcome = self.contour.run_claimed_integration_repair(
                 self.root, REPO, candidate, job, source_repo=source, branch=branch, allowed_paths=[],
@@ -779,7 +806,7 @@ class Scenario:
         try:
             self.setup()
             self.modules()
-            initial_main = self.remote_head("main")
+            initial_main = self.initial_main = self.remote_head("main")
             self.admit_all()
             admitted_states = {c["number"]: c["state"] for c in self.candidates()}
             self.settle()
@@ -861,6 +888,7 @@ class Scenario:
             "unsupported_gh_calls": [c["argv"] for c in self.github.calls if c.get("unsupported")],
             "gh_calls": len(self.github.calls),
             "reviewer_contexts": sum(1 for call in self.llm_calls if call == ["reviewer-context"]),
+            "finalize_checks": self.finalize_checks,
         }
 
     def verify(self, summary: dict) -> None:
