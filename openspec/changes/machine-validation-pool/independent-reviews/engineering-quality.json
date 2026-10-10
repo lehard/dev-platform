@@ -3,79 +3,56 @@
   "candidate": {
     "base_head": "401f3ce699a1aee6c0131a6b321a5eedfb973fb8",
     "base_ref": "origin/main",
-    "candidate_head": "93eb7d2b5899f0eb8b5eccfea3ae5615444e1403",
-    "diff_sha256": "ba7a867753983ff675f7243c88840f8603f1c93c2c5dfa99073149d04e549401"
+    "candidate_head": "43ca9588724e4cd791338bc796b5727945083669",
+    "diff_sha256": "bc6b173cf8777b2db31cbce568168f51dfc918b1b1b4804d6896866ea284282a"
   },
-  "completed_at": "2026-10-10T07:21:28+00:00",
+  "completed_at": "2026-10-10T07:42:23+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/machine_pool.py `_open_shared` calls `os.open(path, O_RDWR|O_CREAT, 0o666)` and then `_share_mode(fd)` (fchmod). Under a typical umask of 022 the file is briefly 0644. In that window, `_try_take_slots` in another account raises `_permission_error` on `os.open(O_RDWR)`. `_scan_queue` (called outside the admission lock) and `read_holders` do the same on `os.open(O_RDONLY)`; the O_RDONLY open fails only if the file is created without read access for other accounts. The docs promise files are readable and writable for other accounts regardless of umask, but this first-creation race can still surface as a spurious multi-account failure. Creating the files with the umask cleared, or retrying only this bounded case, would close the window. Retrying counts as a fallback under the repo's rules, so this needs an explicit decision.",
-      "id": "shared-file-chmod-race-across-accounts",
+      "evidence": "template/scripts/machine_pool.py:343-345 creates the queue with mode 0777 and explicitly restores that mode regardless of umask. docs/engineering/agent-workflow.md recommends a group-writable setgid parent directory without requiring removal of other-account traversal permissions. With a parent such as 02775, an account outside the shared group can delete live queue tickets; template/scripts/machine_pool.py:615-616 then aborts the affected validation because its ticket disappeared.",
+      "id": "queue-permissions-exceed-shared-group",
       "severity": "advisory",
-      "summary": "Slot and ticket files are created with the process umask and only widened to 0666 by a later fchmod. In that window another account's open can fail with PermissionError, and the run then fails hard instead of retrying."
+      "summary": "The queue grants write access to accounts outside the configured shared group, allowing them to disrupt validation."
     }
   ],
-  "launched_at": "2026-10-10T07:20:47+00:00",
-  "output_sha256": "bdb2dcfa2ec375698fa37b6660b3a2ebc297385d390a99f6b9cf5ce7c8e5d68e",
+  "launched_at": "2026-10-10T07:41:17+00:00",
+  "output_sha256": "82c5caeb6f421444f23ec8114d11346e402600c389fdb0c63699439107592600",
   "perspective": "engineering-quality",
-  "request_id": "4c6d94fe-0198-492f-b823-7a4bfb8ad8e4",
+  "request_id": "e9a3927d-10f8-4290-8637-47f1c3aa4605",
   "reviewer": {
-    "context_id": "1eec57d2-fd18-4368-83bc-f406870cd275",
+    "context_id": "01a124c2-55f7-7b30-99c7-22bcc564b6de",
     "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-212a8055-0e0a-4cfd-a68a-23ac96d08c96",
+    "launch_id": "platform-launch-6f437ae4-ca79-4e1e-bad7-9d2cafa43330",
     "model": {
       "source": "selected",
-      "value": "sonnet"
+      "value": "gpt-6.1-sol"
     },
-    "provider": "claude",
-    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
-    "runtime": "claude-code-print",
+    "provider": "codex",
+    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
+    "runtime": "codex-exec",
     "write_access": false
   },
   "runtime_usage": {
     "fields": {
-      "cache_creation_input_tokens": {
+      "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 45691
-      },
-      "cache_read_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 54728
-      },
-      "duration_api_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 35993
-      },
-      "duration_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 37298
+        "value": 180608
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
-      },
-      "num_turns": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 4
+        "value": 240482
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4038
+        "value": 1547
       }
     },
-    "runtime": "claude-code-print"
+    "runtime": "codex-exec"
   },
   "schema_version": 1,
   "task_content_digest": "b4aaa33fe1ab2e36a79637cd792c27413d7c3760709cf827cc17de3b802c407b"

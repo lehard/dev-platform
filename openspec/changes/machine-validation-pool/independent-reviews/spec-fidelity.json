@@ -3,72 +3,56 @@
   "candidate": {
     "base_head": "401f3ce699a1aee6c0131a6b321a5eedfb973fb8",
     "base_ref": "origin/main",
-    "candidate_head": "93eb7d2b5899f0eb8b5eccfea3ae5615444e1403",
-    "diff_sha256": "ba7a867753983ff675f7243c88840f8603f1c93c2c5dfa99073149d04e549401"
+    "candidate_head": "43ca9588724e4cd791338bc796b5727945083669",
+    "diff_sha256": "bc6b173cf8777b2db31cbce568168f51dfc918b1b1b4804d6896866ea284282a"
   },
-  "completed_at": "2026-10-10T07:20:47+00:00",
-  "findings": [],
-  "launched_at": "2026-10-10T07:20:27+00:00",
-  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
+  "completed_at": "2026-10-10T07:41:17+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/post_review_finalization.py:143-148 runs selected checks with capture_output=True and discards stdout on success. Consequently, pool holder/queue reports emitted at the start and every 60 seconds never reach the operator during finalization, and a successful unpooled run never exposes `DEV_PLATFORM_MACHINE_POOL: not configured`. This contradicts design.md decisions 1 and 6 and the active delta's busy-pool and unconfigured-pool scenarios.",
+      "id": "finalization-hides-pool-diagnostics",
+      "severity": "material",
+      "summary": "Finalization suppresses the required pool waiting diagnostics and unconfigured-mode notice."
+    }
+  ],
+  "launched_at": "2026-10-10T07:40:31+00:00",
+  "output_sha256": "e1b4ec7a8b645e4fb5435c15126a41966a103eca8ff2ba551131cb11d77e6307",
   "perspective": "spec-fidelity",
-  "request_id": "4c6d94fe-0198-492f-b823-7a4bfb8ad8e4",
+  "request_id": "e9a3927d-10f8-4290-8637-47f1c3aa4605",
   "reviewer": {
-    "context_id": "08f9d4a7-32a0-4894-a1a3-9774ef9af10f",
+    "context_id": "01a124c1-9f5f-7172-990d-0c7a628bd551",
     "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-99b10703-3885-463d-84be-b6e2252efe85",
+    "launch_id": "platform-launch-1f4e0107-d49c-4f59-9bb4-e6d2eda61d69",
     "model": {
       "source": "selected",
-      "value": "sonnet"
+      "value": "gpt-6.1-sol"
     },
-    "provider": "claude",
-    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
-    "runtime": "claude-code-print",
+    "provider": "codex",
+    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
+    "runtime": "codex-exec",
     "write_access": false
   },
   "runtime_usage": {
     "fields": {
-      "cache_creation_input_tokens": {
+      "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 53709
-      },
-      "cache_read_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 115563
-      },
-      "duration_api_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 16834
-      },
-      "duration_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 17579
+        "value": 179456
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
-      },
-      "num_turns": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 7
+        "value": 235324
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1784
+        "value": 1050
       }
     },
-    "runtime": "claude-code-print"
+    "runtime": "codex-exec"
   },
   "schema_version": 1,
   "task_content_digest": "b4aaa33fe1ab2e36a79637cd792c27413d7c3760709cf827cc17de3b802c407b"
