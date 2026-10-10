@@ -3,72 +3,56 @@
   "candidate": {
     "base_head": "5f76443bf244cf5ddddee0276751057f59189e4d",
     "base_ref": "origin/main",
-    "candidate_head": "b3ed473f6ca97bf18f3f770d5947d328cadb406d",
-    "diff_sha256": "523829f0bd714574f747bad89a022b8dbda785e98cf1773ebdc3fd1fecaa6538"
+    "candidate_head": "5606df9f6c80418420a38a3fa71840dbf7377506",
+    "diff_sha256": "7abe8af153f41023cdcae3dcd9fa54e1689830101912953902a1e28ab9a91aa0"
   },
-  "completed_at": "2026-10-10T00:46:30+00:00",
-  "findings": [],
-  "launched_at": "2026-10-10T00:46:12+00:00",
-  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
+  "completed_at": "2026-10-10T01:05:14+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/platform_doctor.py:55-57 reads only the physical line beginning with ci_runner_labels:, while template/.copier-answers.yml.jinja:2 serializes answers using to_nice_yaml. A valid value such as 'self-hosted, linux, production-network, dedicated-platform-validation, company-build-runner' can serialize across two lines. Reproducing with PyYAML's default serializer wraps after 'dedicated-platform-validation,', leaving 'company-build-runner' on the continuation line. The doctor reads the truncated value ending in a comma and reports an empty entry, although the YAML value and rendered runner list are valid. Parse the complete YAML scalar rather than extracting its first line.",
+      "id": "parse-complete-yaml-runner-answer",
+      "severity": "material",
+      "summary": "The doctor truncates valid multiline YAML label answers, causing correctly rendered self-hosted projects to fail CI."
+    }
+  ],
+  "launched_at": "2026-10-10T01:04:31+00:00",
+  "output_sha256": "e36116f79a6dd4d94294a252e5793d6baeb364198dca72d09d00560d9cc04286",
   "perspective": "engineering-quality",
-  "request_id": "d48dc078-daaa-48a0-9f10-ea5eaa96a8e0",
+  "request_id": "921611b7-12e6-4880-8f8d-3b24862049a8",
   "reviewer": {
-    "context_id": "0dd98c28-1f5e-4146-bf9b-79d7f02cb4e6",
+    "context_id": "01a12357-12a6-7391-bd1d-21ec54331b26",
     "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-db9b5b53-9df9-49c0-88d6-7f0304b94f56",
+    "launch_id": "platform-launch-c1b17b67-5e6f-426f-a7ca-a56c7ebabea1",
     "model": {
       "source": "selected",
-      "value": "sonnet"
+      "value": "gpt-6.1-sol"
     },
-    "provider": "claude",
-    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
-    "runtime": "claude-code-print",
+    "provider": "codex",
+    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
+    "runtime": "codex-exec",
     "write_access": false
   },
   "runtime_usage": {
     "fields": {
-      "cache_creation_input_tokens": {
+      "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 31512
-      },
-      "cache_read_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 53533
-      },
-      "duration_api_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 14595
-      },
-      "duration_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 15118
+        "value": 232576
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
-      },
-      "num_turns": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 5
+        "value": 287069
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1506
+        "value": 1265
       }
     },
-    "runtime": "claude-code-print"
+    "runtime": "codex-exec"
   },
   "schema_version": 1,
   "task_content_digest": "504a89d40410f052f6cea049ecc021f25f1db1e0d62938bdfe251251106a35da"

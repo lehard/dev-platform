@@ -3,72 +3,56 @@
   "candidate": {
     "base_head": "5f76443bf244cf5ddddee0276751057f59189e4d",
     "base_ref": "origin/main",
-    "candidate_head": "b3ed473f6ca97bf18f3f770d5947d328cadb406d",
-    "diff_sha256": "523829f0bd714574f747bad89a022b8dbda785e98cf1773ebdc3fd1fecaa6538"
+    "candidate_head": "5606df9f6c80418420a38a3fa71840dbf7377506",
+    "diff_sha256": "7abe8af153f41023cdcae3dcd9fa54e1689830101912953902a1e28ab9a91aa0"
   },
-  "completed_at": "2026-10-10T00:46:12+00:00",
-  "findings": [],
-  "launched_at": "2026-10-10T00:46:01+00:00",
-  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
+  "completed_at": "2026-10-10T01:04:31+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/platform_doctor.py:155 reads ci_runner_labels through copier_answer, which returns only the first physical line (lines 55\u201357). A valid YAML answer such as `ci_runner_labels: runner-label-0, runner-label-1,\\n  runner-label-2` represents three valid labels, but the doctor reads a trailing comma and reports an empty entry at lines 161\u2013169. Longer comma-and-space label lists can be wrapped this way by YAML serialization; template/.copier-answers.yml.jinja:2 serializes answers with to_nice_yaml. This blocks valid rendered projects despite the active contract permitting multiple well-formed labels.",
+      "id": "wrapped-runner-labels-rejected",
+      "severity": "material",
+      "summary": "Doctor rejects valid self-hosted labels when the recorded YAML value spans multiple lines."
+    }
+  ],
+  "launched_at": "2026-10-10T01:03:53+00:00",
+  "output_sha256": "2ec437c983f53c9bdb22235d592f848839414350a2adc11860aa47a7105d03a4",
   "perspective": "spec-fidelity",
-  "request_id": "d48dc078-daaa-48a0-9f10-ea5eaa96a8e0",
+  "request_id": "921611b7-12e6-4880-8f8d-3b24862049a8",
   "reviewer": {
-    "context_id": "f17885a8-7153-4358-b516-594bc6ab1040",
+    "context_id": "01a12356-80f9-7920-a826-788d33496000",
     "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-4b8e121c-c049-428d-9c30-314a7abd7dc1",
+    "launch_id": "platform-launch-26f1de5e-1574-4de8-952f-979d066511ed",
     "model": {
       "source": "selected",
-      "value": "sonnet"
+      "value": "gpt-6.1-sol"
     },
-    "provider": "claude",
-    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
-    "runtime": "claude-code-print",
+    "provider": "codex",
+    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
+    "runtime": "codex-exec",
     "write_access": false
   },
   "runtime_usage": {
     "fields": {
-      "cache_creation_input_tokens": {
+      "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 34004
-      },
-      "cache_read_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 56264
-      },
-      "duration_api_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 9226
-      },
-      "duration_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 9387
+        "value": 167552
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
-      },
-      "num_turns": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 6
+        "value": 213299
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 896
+        "value": 1033
       }
     },
-    "runtime": "claude-code-print"
+    "runtime": "codex-exec"
   },
   "schema_version": 1,
   "task_content_digest": "504a89d40410f052f6cea049ecc021f25f1db1e0d62938bdfe251251106a35da"

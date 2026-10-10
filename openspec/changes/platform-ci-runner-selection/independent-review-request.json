@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "5f76443bf244cf5ddddee0276751057f59189e4d",
     "base_ref": "origin/main",
-    "candidate_head": "b3ed473f6ca97bf18f3f770d5947d328cadb406d",
-    "diff_sha256": "523829f0bd714574f747bad89a022b8dbda785e98cf1773ebdc3fd1fecaa6538"
+    "candidate_head": "5606df9f6c80418420a38a3fa71840dbf7377506",
+    "diff_sha256": "7abe8af153f41023cdcae3dcd9fa54e1689830101912953902a1e28ab9a91aa0"
   },
   "change": "openspec/changes/platform-ci-runner-selection",
   "excluded_lifecycle_paths": [
@@ -37,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-10T00:45:54+00:00",
+  "prepared_at": "2026-10-10T01:03:46+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/platform-ci-runner-selection/independent-reviews",
     "required_perspectives": [
@@ -46,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "d48dc078-daaa-48a0-9f10-ea5eaa96a8e0",
+  "request_id": "921611b7-12e6-4880-8f8d-3b24862049a8",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
