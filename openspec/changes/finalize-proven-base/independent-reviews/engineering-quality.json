@@ -3,91 +3,56 @@
   "candidate": {
     "base_head": "5f76443bf244cf5ddddee0276751057f59189e4d",
     "base_ref": "origin/main",
-    "candidate_head": "6df204360d05e0540c7cf02ac3f35cdfcfe1d8f5",
-    "diff_sha256": "2ba674ca85dc0c99b0463b1b4d63f015d8c55ca8b29496946eea85dd5ed9955f"
+    "candidate_head": "7b48b9d304f781454d3f3b530269f924942f1b04",
+    "diff_sha256": "37091b86a027b217debc971b1247fc61900700190594df6168b9b346730a234c"
   },
-  "completed_at": "2026-10-10T00:23:24+00:00",
+  "completed_at": "2026-10-10T00:41:43+00:00",
   "findings": [
     {
-      "evidence": "tests/test_central_dogfood_lifecycle.py and tests/test_deepseek_harness_runtime.py: `if (ROOT / \".dev-platform.toml\").read_text(...) == (ROOT / \"dev-platform\" / \"source-contract.toml\").read_text(...): self.skipTest(...)`.",
-      "id": "central-config-skip-unguarded-read",
+      "evidence": "template/scripts/publication_queue.py:1036\u20131048 computes carried gates only when proven != expected_head, then publishes the new admission before persisting those gates in the transition at lines 1070\u20131071. If execution fails after the admission comment succeeds but before that transition, a retry sees proven == expected_head, skips _carried_gates, and recovers the missing review-pending record using only the original handoff gates with inherit_identity=False. The passed review is consequently dropped.",
+      "id": "readmission-retry-loses-carried-review",
       "severity": "advisory",
-      "summary": "The new skip guard in two central-config tests reads dev-platform/source-contract.toml unconditionally. It raises FileNotFoundError, with no explicit message, if that file is absent. It also makes the tests skip in any checkout where the two files are byte-identical, which weakens the central-config assertion."
-    },
-    {
-      "evidence": "tests/test_lifecycle_workers.py: `def setUpModule(): sys.path.insert(0, str(ROOT / \"template\" / \"scripts\"))`, with no teardown.",
-      "id": "setupmodule-syspath-hack",
-      "severity": "advisory",
-      "summary": "The test fix inserts template/scripts at the front of sys.path in setUpModule and never removes it. This works around import-order pollution from other test modules and can mask the same ordering fragility elsewhere. It leaks global state across test modules."
-    },
-    {
-      "evidence": "template/scripts/post_review_finalization.py `checks_env`: `env[\"PYTHONUSERBASE\"] = site.getuserbase()`.",
-      "id": "checks-env-pins-operator-user-base",
-      "severity": "advisory",
-      "summary": "Finalization's harness-run selected checks now see the operator's Python user site (`PYTHONUSERBASE=site.getuserbase()`). This lets operator-installed packages influence check results and weakens the isolation of the credential-free scratch home. The design documents this as intentional, but it makes finalize results machine-dependent."
+      "summary": "An interrupted re-admission loses the reusable review gate when finish is retried, causing another full review of unchanged content."
     }
   ],
-  "launched_at": "2026-10-10T00:23:01+00:00",
-  "output_sha256": "009b72217745f03d2c18343ac2a377b8d02fef0290cd097c4efa3f54a82ba7b3",
+  "launched_at": "2026-10-10T00:40:58+00:00",
+  "output_sha256": "2ce0bf6d8469ebcf0dfe842557859a65d18d90e28c4c3e111cab13d5f3ca531e",
   "perspective": "engineering-quality",
-  "request_id": "3f19c313-9a4d-4c32-9950-cbe024be9b75",
+  "request_id": "f3d74002-0c08-47f1-8042-28d921b77aa4",
   "reviewer": {
-    "context_id": "653fbcf1-eab2-4eb0-b055-9dabeb509114",
+    "context_id": "01a12341-8606-7d92-82e8-b6de644cea1e",
     "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-899782a7-cf9c-4067-a402-d5f30f1d64f7",
+    "launch_id": "platform-launch-9f28fc2c-b668-4bd4-9f85-5aafa61311e1",
     "model": {
       "source": "selected",
-      "value": "sonnet"
+      "value": "gpt-6.1-sol"
     },
-    "provider": "claude",
-    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
-    "runtime": "claude-code-print",
+    "provider": "codex",
+    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
+    "runtime": "codex-exec",
     "write_access": false
   },
   "runtime_usage": {
     "fields": {
-      "cache_creation_input_tokens": {
+      "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 43895
-      },
-      "cache_read_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 99080
-      },
-      "duration_api_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 19920
-      },
-      "duration_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 20596
+        "value": 380928
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
-      },
-      "num_turns": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 5
+        "value": 461795
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2065
+        "value": 1398
       }
     },
-    "runtime": "claude-code-print"
+    "runtime": "codex-exec"
   },
   "schema_version": 1,
   "task_content_digest": "4291441bbdc9ff8db741b085d7fc2b2a7236218d8a19b31c8a23739f7739add1"
