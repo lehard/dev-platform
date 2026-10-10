@@ -6,6 +6,7 @@ import argparse
 import contextlib
 import hashlib
 import json
+import re
 from pathlib import Path
 from typing import Any, Iterator
 
@@ -18,6 +19,17 @@ class RequirementRetrospectiveError(RuntimeError):
     pass
 
 
+_CHILD_CHECKBOX_RE = re.compile(r"^([ \t]*- \[)[xX](\] \S+/\S+#\d+\s*)$", re.MULTILINE)
+
+
+def _identity_body(body: str) -> str:
+    """Child checkboxes are lifecycle-owned progress, so terminal reconciliation cannot stale its own checkpoint."""
+    start, end = body.find(requirement_intake.CHILDREN_START), body.find(requirement_intake.CHILDREN_END)
+    if start < 0 or end < start:
+        raise RequirementRetrospectiveError("Requirement retrospective needs the requirement-children block")
+    return body[:start] + _CHILD_CHECKBOX_RE.sub(r"\1 \2", body[start:end]) + body[end:]
+
+
 def _identity(requirement: str, parent: dict[str, Any]) -> dict[str, Any]:
     number = requirement_intake.issue_ref(requirement)[1]
     body = str(parent.get("body") or "")
@@ -27,7 +39,7 @@ def _identity(requirement: str, parent: dict[str, Any]) -> dict[str, Any]:
     return {
         "requirement": requirement,
         "number": number,
-        "parent_body_sha256": hashlib.sha256(body.encode("utf-8")).hexdigest(),
+        "parent_body_sha256": hashlib.sha256(_identity_body(body).encode("utf-8")).hexdigest(),
         "children": children,
     }
 
