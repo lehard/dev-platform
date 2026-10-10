@@ -278,6 +278,28 @@ For a bounded local change, prefer `python3 scripts/select_checks.py --base orig
 
 When `[settings] affected_precheck = true` (enabled in this repository), that full run is preceded by an affected-test precheck: the test modules that directly import or name a changed Python file run first, inside their canonical groups, and a failure stops before the expensive full set. Run the same feedback manually with `python3 scripts/run_test_groups.py --changed-file <path> [--changed-file <path> ...]`. Precheck results are recorded separately as `affected_precheck` feedback; the complete set still runs and remains the only validation evidence. Tests register platform modules only through `tests/_platform_modules.py` so a test process holds one instance per module; `test_platform_module_identity` guards this.
 
+## Machine validation pool
+
+Several agents and lifecycle workers on one machine can start full validation at once; parallelism is capped only inside a single run, so N runs use N times the workers and timeout-sensitive tests then fail from contention. `machine_pool.py` is an opt-in, machine-wide counting pool that serializes that load. It is off unless the machine opts in: with `DEV_PLATFORM_MACHINE_POOL` unset, each top-level heavy run prints `DEV_PLATFORM_MACHINE_POOL: not configured` and runs unpooled.
+
+**Configuration.** `DEV_PLATFORM_MACHINE_POOL` names an absolute machine-local TOML file (keep it outside every checkout) with exactly these keys:
+
+```toml
+directory = "/var/tmp/dev-platform-pool"   # existing absolute directory shared by every participating account
+tokens = 8                                  # positive integer: total tokens on this machine
+wait_timeout_seconds = 3600                 # positive integer: give up and fail after this wait
+max_load_per_cpu = 1.5                      # positive number: admit only while load average (1 min) / CPUs <= this
+min_available_memory_mb = 4096              # positive integer: admit only while available memory >= this
+```
+
+Missing or unknown keys, wrong types, a missing file, or a missing or unwritable directory fail explicitly, naming the key or path. Available memory is Linux `MemAvailable` or, on macOS, `vm_stat` free + inactive + speculative pages; on any other platform, or when the value cannot be read, the run fails instead of assuming enough memory.
+
+**Multi-account setup.** Agents under different OS accounts must see the same configuration and directory. Create the directory once, writable by every participating account (for example group-writable with the setgid bit under a shared group, or world-writable when every account on the machine is trusted; do not set the sticky bit, because waiters remove other accounts' dead tickets), and export `DEV_PLATFORM_MACHINE_POOL` in each account's agent environment. Slot, ticket and queue files are created readable and writable for other accounts regardless of umask; a permission error fails naming the file. An agent whose environment lacks the variable runs unpooled and prints the `not configured` line, so the gap is visible.
+
+**How a run is admitted.** A heavy run holds `weight` tokens, where `weight` is its test parallelism (`DEV_PLATFORM_TEST_JOBS` or the automatic cap) bounded by `tokens`. `select_checks.py --execute`, `run_test_groups.py` (`--all`, `--group`, `--changed-file`) and Requirement full-candidate validation each acquire once per top-level run. Waiting runs take a ticket in `directory/queue`; only the head ticket may acquire, all or nothing, and only while load and memory admit it; ticket creation and the head's admission are serialized by `directory/admission.lock` (never waited on: a busy lock is retried on the next poll within the wait timeout), so the head decision never uses a stale queue. Order is by class, then arrival: `finalize` (lifecycle finalization and Requirement integration, via `DEV_PLATFORM_CHECK_CLASS=finalize`) before `development` (the default when the variable is absent); any other class value fails. Tokens are kernel `flock` leases on `directory/slot-<i>.lock` passed to child processes, so they are released only when the run and every child it started have exited, including after SIGKILL; a dead waiter's ticket is removed by the next waiter. The lease is exported as `DEV_PLATFORM_MACHINE_POOL_LEASE`: a nested run (finish, selected checks, test groups) reuses it and acquires nothing, and the test runner never exceeds the lease weight.
+
+**Visibility and failure.** A waiting run prints who holds the tokens (account, project, branch, class, age) and its queue position at start and every 60 seconds. After `wait_timeout_seconds` it fails naming the holders; it never runs outside the pool. A process that hangs keeps its tokens, so the waiters fail visibly naming it rather than starting. `python3 scripts/machine_pool.py status` is read-only and prints the configuration, holders, waiters (and dead tickets awaiting removal), the current load per CPU and available memory.
+
 ## Friction routing
 
 Raw friction evidence stays machine-local. Record high-signal events through `scripts/agent_friction.py`; the normal path automatically upserts a bounded sanitized, fingerprinted process issue in the configured project or platform repository. Retry failure is durable and non-blocking for safe delivery. Process issues are evidence only: cloud triage/review must never create managed tasks, OpenSpec, implementation PRs, or code changes.

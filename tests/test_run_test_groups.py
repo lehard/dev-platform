@@ -11,11 +11,19 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_ROOT = ROOT / "template" / "scripts"
 if str(SCRIPT_ROOT) not in sys.path:
     sys.path.insert(0, str(SCRIPT_ROOT))
+if str(ROOT / "tests") not in sys.path:
+    sys.path.insert(0, str(ROOT / "tests"))
+from _platform_modules import isolate_machine_pool_environment, load_platform_module  # noqa: E402
 
-SPEC = importlib.util.spec_from_file_location("run_test_groups", SCRIPT_ROOT / "run_test_groups.py")
-assert SPEC and SPEC.loader
-run_test_groups = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(run_test_groups)
+# Registered first: run_test_groups imports machine_pool by name, and another module of the same
+# process may have put the executable scripts/ shims ahead of template/scripts on sys.path.
+load_platform_module("machine_pool", SCRIPT_ROOT / "machine_pool.py")
+# The registered instance: select_checks and the machine pool import run_test_groups by name.
+run_test_groups = load_platform_module("run_test_groups", SCRIPT_ROOT / "run_test_groups.py")
+
+
+def setUpModule() -> None:
+    isolate_machine_pool_environment()
 
 
 PASSING_MODULE = """

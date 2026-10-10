@@ -305,7 +305,7 @@ class GitLifecycleTests(unittest.TestCase):
 
     def test_protected_full_validation_blocks_before_costly_commands_run(self) -> None:
         """dev-platform#220: the gate must trigger before costly validation runs, not only at finish."""
-        for name in ("agent_board.py", "select_checks.py"):
+        for name in ("agent_board.py", "select_checks.py", "machine_pool.py", "run_test_groups.py"):
             shutil.copy2(SCRIPT_SOURCE / name, self.repo / "scripts" / name)
         config = (
             'platform_version = "1.0.0"\nmain_branch = "main"\n'
@@ -606,7 +606,7 @@ class GitLifecycleTests(unittest.TestCase):
         and exits ``sentinel_exit`` so any test can prove whether expensive
         validation was ever reached.
         """
-        for name in ("agent_board.py", "select_checks.py"):
+        for name in ("agent_board.py", "select_checks.py", "machine_pool.py", "run_test_groups.py"):
             shutil.copy2(SCRIPT_SOURCE / name, self.repo / "scripts" / name)
         (self.repo / ".dev-platform.toml").write_text(
             'platform_version = "1.0.0"\nmain_branch = "main"\n'
@@ -697,7 +697,7 @@ class GitLifecycleTests(unittest.TestCase):
 
     def test_private_reference_preflight_blocks_evidence_and_commit_before_validation(self) -> None:
         """The source-owned guard rejects observable public leakage before checks."""
-        for name in ("select_checks.py",):
+        for name in ("select_checks.py", "machine_pool.py", "run_test_groups.py"):
             shutil.copy2(SCRIPT_SOURCE / name, self.repo / "scripts" / name)
         shutil.copy2(ROOT / "scripts" / "check_private_backlog_refs.py", self.repo / "scripts" / "check_private_backlog_refs.py")
         (self.repo / ".dev-platform.toml").write_text(
@@ -735,7 +735,7 @@ class GitLifecycleTests(unittest.TestCase):
 
     def test_clean_preflight_streams_stage_and_validation_progress_then_publishes(self) -> None:
         """A clean preflight runs real checks and surfaces ordered stage progress."""
-        for name in ("select_checks.py",):
+        for name in ("select_checks.py", "machine_pool.py", "run_test_groups.py"):
             shutil.copy2(SCRIPT_SOURCE / name, self.repo / "scripts" / name)
         shutil.copy2(ROOT / "scripts" / "check_private_backlog_refs.py", self.repo / "scripts" / "check_private_backlog_refs.py")
         (self.repo / ".dev-platform.toml").write_text(

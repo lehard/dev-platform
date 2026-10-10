@@ -12,7 +12,7 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "template" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
-from _platform_modules import load_platform_module  # noqa: E402
+from _platform_modules import isolate_machine_pool_environment, load_platform_module  # noqa: E402
 
 affected = load_platform_module("affected_test_groups", SCRIPTS / "affected_test_groups.py")
 select_checks = load_platform_module("select_checks", SCRIPTS / "select_checks.py")
@@ -36,6 +36,10 @@ def fixture(root: Path) -> dict[str, dict[str, object]]:
         "one": {"targets": ["test_uses_alpha", "test_unrelated"], "mode": "parallel"},
         "two": {"targets": ["test_names_beta.T"], "mode": "serial"},
     }
+
+
+def setUpModule() -> None:
+    isolate_machine_pool_environment()
 
 
 class AffectedMappingTests(unittest.TestCase):

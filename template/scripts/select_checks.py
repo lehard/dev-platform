@@ -5,10 +5,12 @@ import fnmatch
 import json
 import shlex
 import subprocess
+import sys
 import time
 from pathlib import Path
 from typing import Any
 
+import machine_pool
 from _platform_common import (
     PlatformConfigError,
     TaskFreshnessError,
@@ -227,11 +229,12 @@ def precheck_paths(config: dict[str, Any], checks: list[dict[str, Any]]) -> list
     return paths
 
 
-def run_precheck(root: Path, paths: list[str]) -> tuple[dict[str, Any], subprocess.CompletedProcess[str]]:
+def run_precheck(root: Path, paths: list[str], pass_fds: tuple[int, ...] = ()) -> tuple[dict[str, Any], subprocess.CompletedProcess[str]]:
     command = "python3 scripts/run_test_groups.py --quiet " + " ".join(f"--changed-file {shlex.quote(path)}" for path in paths)
     print(f"DEV_PLATFORM_PRECHECK_COMMAND: {command}", flush=True)
     started = time.monotonic()
-    result = subprocess.run(command, cwd=root, shell=True, capture_output=True, text=True, env=validation_subprocess_env())
+    result = subprocess.run(command, cwd=root, shell=True, capture_output=True, text=True, env=validation_subprocess_env(),
+                            pass_fds=pass_fds)
     record = command_result(command, result, time.monotonic() - started)
     record["role"] = "affected-precheck feedback; not validation coverage"
     print("DEV_PLATFORM_PRECHECK_RESULT: " + json.dumps(record, ensure_ascii=False), flush=True)
@@ -356,17 +359,38 @@ def execute(
     precheck: list[str] | None = None,
 ) -> int:
     commands = commands_for(checks)
-    records: list[dict[str, Any]] = []
-    outcome = "success"
     if not commands:
         print("No applicable commands selected.")
         if evidence_path is not None:
-            write_evidence(evidence_path, checks, selection_status(checks), records, "not-applicable", managed_checkout)
+            write_evidence(evidence_path, checks, selection_status(checks), [], "not-applicable", managed_checkout)
         return 0
 
+    from run_test_groups import resolve_jobs
+
+    # One lease around the whole execution (affected-test precheck and command loop): the precheck's and the
+    # commands' test-group runs are nested and reuse it, so a top-level run acquires exactly once.
+    try:
+        with machine_pool.lease(weight=resolve_jobs()[0], purpose="select_checks", bounded=True, root=root) as pool_lease:
+            return _execute_commands(root, checks, commands, evidence_path, managed_checkout, precheck, pool_lease.fds)
+    except machine_pool.PoolError as exc:
+        print(f"Machine pool blocked validation before any command started: {exc}", file=sys.stderr, flush=True)
+        return 2
+
+
+def _execute_commands(
+    root: Path,
+    checks: list[dict[str, Any]],
+    commands: list[str],
+    evidence_path: Path | None,
+    managed_checkout: object | None,
+    precheck: list[str] | None,
+    pass_fds: tuple[int, ...],
+) -> int:
+    records: list[dict[str, Any]] = []
+    outcome = "success"
     precheck_record = None
     if precheck:
-        precheck_record, result = run_precheck(root, precheck)
+        precheck_record, result = run_precheck(root, precheck, pass_fds)
         precheck_record["outcome"] = precheck_outcome(result)
         if precheck_record["outcome"] == "unavailable":
             # A runner/configuration error leaves no feedback; the full set
@@ -394,6 +418,7 @@ def execute(
             capture_output=True,
             text=True,
             env=validation_subprocess_env(),
+            pass_fds=pass_fds,
         )
         evidence = command_result(command, result, time.monotonic() - started)
         records.append(evidence)
