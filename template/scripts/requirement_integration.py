@@ -834,12 +834,12 @@ def _runtime_grant(root: Path, environ: dict[str, str]) -> list[str]:
 
 def _check_environment(root: Path, scratch: Path) -> dict[str, str]:
     """Build the ``project-check`` environment once, failing before any command on an unmet requirement."""
-    from _platform_common import (ProjectCheckRuntimeError, check_runtime_declaration, credential_free_env,
+    from _platform_common import (ProjectCheckRuntimeError, check_runtime_declaration, credential_free_check_env,
                                   project_check_env)
 
     runtime = _project_runtime(root)
     if not runtime:
-        return credential_free_env(dict(os.environ), scratch)
+        return credential_free_check_env(dict(os.environ), scratch)
     try:
         check_runtime_declaration(runtime)
         if runtime.get("home_paths"):

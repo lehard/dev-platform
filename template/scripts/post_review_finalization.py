@@ -19,7 +19,6 @@ import functools
 import os
 import re
 import shutil
-import site
 import subprocess
 import sys
 from pathlib import Path
@@ -171,15 +170,10 @@ def stream_selected_checks(command: list[str], *, cwd: Path, env: dict[str, str]
 
 
 def checks_env(checkout: Path) -> dict[str, str]:
-    """Credential-free environment for harness-run selected checks.
+    """Credential-free environment for harness-run selected checks (see credential_free_check_env)."""
+    from _platform_common import credential_free_check_env
 
-    The scratch home hides the operator's credentials, but Python resolves user-installed
-    tooling (``pip install --user``, e.g. ``copier``) through the home-derived user base;
-    pin that base explicitly so the project's real checks can run. It holds no credentials.
-    """
-    env = workers.credential_free_env(dict(os.environ), checkout.parent / "llm-home")
-    env["PYTHONUSERBASE"] = site.getuserbase()
-    return env
+    return credential_free_check_env(dict(os.environ), checkout.parent / "llm-home")
 
 
 def reestablish_gates(checkout: Path, gates: dict, identity: dict, head: str,
