@@ -3,21 +3,21 @@
   "candidate": {
     "base_head": "6c96df65b6d7f4f4d4ee0c30e2d81880190b7dd0",
     "base_ref": "6c96df65b6d7f4f4d4ee0c30e2d81880190b7dd0",
-    "candidate_head": "f9a741681fadd44eda51573a4edd50fbde1b687e",
-    "diff_sha256": "2ac0632ac0e2ca8a157f9ddc7743f00832deebfb70fed99645c29407fce6f339"
+    "candidate_head": "d3d6b2f09e3f2a8df84b459bcdf38b1a90a77369",
+    "diff_sha256": "e8652f27a7296a63e63081902b864bcf63f0fe584b1ed5bb489ff347f7782270"
   },
-  "completed_at": "2026-10-10T19:06:20+00:00",
+  "completed_at": "2026-10-10T19:35:55+00:00",
   "findings": [],
-  "launched_at": "2026-10-10T19:05:49+00:00",
+  "launched_at": "2026-10-10T19:35:09+00:00",
   "output_sha256": "6e96a492bc9fa40d22212c5be0396a203f3dbd4916cf97ebe2f66b6d54fa4a9a",
   "perspective": "engineering-quality",
-  "request_id": "c77921bb-c77f-46d3-b588-d856cafa164d",
+  "request_id": "b7ea70b0-51fd-4a5f-95b9-6cd569eeb98f",
   "reviewer": {
-    "context_id": "01a12735-0867-77b0-ae92-ece4952374b9",
+    "context_id": "01a1274f-e3cf-72b0-88e3-c1d197d25eb4",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-9b5baefa-7616-45fc-a4b3-25d04538dcc0",
+    "launch_id": "platform-launch-6f98cd95-2da5-4eed-bce1-5622ef25d6d0",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -32,17 +32,17 @@
       "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 97536
+        "value": 256256
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 175810
+        "value": 316792
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 611
+        "value": 1112
       }
     },
     "runtime": "codex-exec"
