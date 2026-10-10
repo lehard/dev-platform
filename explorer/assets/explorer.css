@@ -97,10 +97,24 @@ main h2 { margin-top: 2rem; border-bottom: 1px solid var(--border); padding-bott
 .cards li { border: 1px solid var(--border); border-radius: 6px; padding: 0.6rem 0.9rem; }
 .cards .summary { display: block; color: var(--muted); font-size: 0.9rem; margin-top: 0.2rem; }
 
+.flow { list-style: none; padding: 0; margin: 1rem 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); gap: 1.25rem; }
+.flow li { position: relative; display: flex; gap: 0.6rem; align-items: flex-start; border: 1px solid var(--border); border-radius: 6px; padding: 0.6rem 0.9rem; background: var(--panel); }
+.flow-number { flex: 0 0 auto; width: 1.7rem; height: 1.7rem; border-radius: 50%; background: var(--accent); color: var(--bg); font-weight: 700; text-align: center; line-height: 1.7rem; font-size: 0.9rem; }
+.flow-body { min-width: 0; }
+.flow .summary { display: block; color: var(--muted); font-size: 0.9rem; margin-top: 0.2rem; }
+
+.stage-position { color: var(--muted); font-size: 0.9rem; margin: 0; }
+.stage-pager ul { list-style: none; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.75rem; padding: 0; margin: 2rem 0 0; }
+.stage-pager li { border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem 0.9rem; }
+
 .site-footer { border-top: 1px solid var(--border); padding: 1rem 1.25rem; color: var(--muted); font-size: 0.85rem; }
 
 @media (max-width: 52rem) {
   .layout { display: block; }
   nav.tree { position: static; max-width: none; max-height: none; border-right: 0; border-bottom: 1px solid var(--border); }
   main { padding: 1rem; }
+  .flow { display: block; }
+  .flow li + li { margin-top: 1.5rem; }
+  .flow li + li::before { content: "\2193"; position: absolute; left: 1.15rem; top: -1.4rem; color: var(--muted); }
+  .stage-pager ul { flex-direction: column; }
 }

@@ -1,7 +1,7 @@
 # Dev Platform Explorer map: structure only.
 #
-# This file owns element identity, titles, hierarchy, order, relations and
-# source references. It carries no explanatory prose: every explanation is
+# This file owns element identity, titles, hierarchy, order, relations,
+# lifecycle stage order and element links, and source references. It carries no explanatory prose: every explanation is
 # rendered from the referenced git-tracked source file (`path` or
 # `path#Heading`). Contract: docs/engineering/explorer.md.
 
@@ -339,3 +339,66 @@ glob = "docs/decisions/????-*.md"
 title_from = "heading"
 summary_from = "section:Accepted current decision"
 slug_from = "stem"
+
+# --- Lifecycle journey ---------------------------------------------------------------------
+#
+# Ordered stages of how a change moves through the platform. A stage names the
+# component elements it involves and the canonical sources that explain it; its
+# prose is rendered from those sources, never stored here. Orders run from 1
+# without gaps.
+
+[[stage]]
+id = "requirement-intent"
+title = "Requirement and intent"
+order = 1
+elements = ["task-intake", "chatgpt-project-protocol", "agent-process"]
+sources = ["docs/engineering/task-intake.md#Intent boundary"]
+
+[[stage]]
+id = "specification"
+title = "Specification"
+order = 2
+elements = ["openspec-workflow", "specs"]
+sources = ["docs/engineering/openspec-workflow.md#Author the outcome contract"]
+
+[[stage]]
+id = "routing"
+title = "Routing"
+order = 3
+elements = ["model-routing"]
+sources = ["docs/engineering/model-routing.md#Start-tier authoring (`R1`/`R2`/`R3`)"]
+
+[[stage]]
+id = "isolated-implementation"
+title = "Isolated implementation"
+order = 4
+elements = ["agent-workflow", "local-workspace"]
+sources = ["docs/engineering/agent-workflow.md#Central source dogfood lifecycle"]
+
+[[stage]]
+id = "verification"
+title = "Verification"
+order = 5
+elements = ["agent-workflow", "openspec-workflow", "engineering-capabilities", "browser-verification", "code-erosion"]
+sources = ["docs/engineering/agent-workflow.md#Validation"]
+
+[[stage]]
+id = "publication-integration"
+title = "Publication and integration"
+order = 6
+elements = ["agent-workflow", "openspec-workflow"]
+sources = ["docs/engineering/agent-workflow.md#Completion"]
+
+[[stage]]
+id = "release-rollout"
+title = "Release and rollout"
+order = 7
+elements = ["release-policy", "managed-rollout", "adoption-guide"]
+sources = ["docs/release-policy.md#Managed rollout", "docs/managed-rollout.md#Automatic release rollout"]
+
+[[stage]]
+id = "feedback-learning"
+title = "Feedback and learning"
+order = 8
+elements = ["friction-loop", "process-improvement", "promotion-loop"]
+sources = ["README.md#Continuous improvement / friction loop", "docs/engineering/agent-workflow.md#Friction routing"]

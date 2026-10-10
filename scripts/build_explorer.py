@@ -13,6 +13,10 @@ unsupported Markdown construct in an included excerpt, a dangling link or
 relation, prohibited operator state in the generated output, or running
 outside a git checkout aborts with a message naming what failed, and nothing
 is written.
+
+Besides the element tree, the map declares an ordered lifecycle of ``[[stage]]``
+entries. A stage names the component elements it involves and the canonical
+sources that explain it; its prose is always rendered from those sources.
 """
 from __future__ import annotations
 
@@ -39,6 +43,7 @@ REPOSITORY_URL = f"https://github.com/{public_distribution.CANONICAL_PRODUCT_REP
 
 ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
+LIFECYCLE_INDEX = "lifecycle/index.html"
 
 
 class ExplorerError(Exception):
@@ -817,6 +822,16 @@ class Node:
 
 
 @dataclasses.dataclass
+class Stage:
+    id: str
+    title: str
+    order: int
+    elements: list[str]
+    sources: list[SourceRef]
+    summary: str | None = None
+
+
+@dataclasses.dataclass
 class Excerpt:
     ref: SourceRef
     kind: str  # markdown | toml
@@ -830,8 +845,9 @@ ELEMENT_REQUIRED = {"id", "title", "order"}
 ELEMENT_OPTIONAL = {"parent", "sources", "related"}
 COLLECTION_REQUIRED = {"id", "title", "order", "glob", "title_from", "summary_from", "slug_from"}
 COLLECTION_OPTIONAL = {"parent", "companions"}
+STAGE_REQUIRED = {"id", "title", "order", "elements", "sources"}
 SITE_REQUIRED = {"title"}
-TOP_LEVEL = {"site", "element", "collection"}
+TOP_LEVEL = {"site", "element", "collection", "stage"}
 TITLE_FROM_RE = re.compile(r"^(?:heading|slug|toml:[A-Za-z0-9_.-]+)$")
 SUMMARY_FROM_RE = re.compile(r"^(?:first-paragraph|section:.+|toml:[A-Za-z0-9_.-]+)$")
 
@@ -866,6 +882,13 @@ def _integer(table: dict, key: str, context: str) -> int:
     return value
 
 
+def _nonempty_string_list(table: dict, key: str, context: str) -> list[str]:
+    value = _string_list(table, key, context)
+    if not value:
+        raise ExplorerError(f"{context}: '{key}' must not be empty")
+    return value
+
+
 def parse_source_ref(raw: str, context: str) -> SourceRef:
     path, separator, heading = raw.partition("#")
     if not path or path.startswith("/") or posixpath.normpath(path) != path or path.startswith("../") or path == "..":
@@ -875,8 +898,49 @@ def parse_source_ref(raw: str, context: str) -> SourceRef:
     return SourceRef(path, heading if separator else None)
 
 
-def load_map(repo: Repo) -> tuple[str, list[Node], list[Node]]:
-    """Load and strictly validate the structure-only map; return (title, elements, collections)."""
+def load_stages(raw_stages: object) -> list[Stage]:
+    """Validate the ordered ``[[stage]]`` entries; return them sorted by order."""
+    if not isinstance(raw_stages, list) or not raw_stages:
+        raise ExplorerError(f"{MAP_PATH}: at least one [[stage]] is required")
+    stages: list[Stage] = []
+    for position, table in enumerate(raw_stages, start=1):
+        label = f"{MAP_PATH} stage #{position}"
+        if not isinstance(table, dict):
+            raise ExplorerError(f"{label}: must be a table")
+        if isinstance(table.get("id"), str) and table["id"].strip():
+            label = f"{MAP_PATH} stage '{table['id']}'"
+        _check_keys(table, STAGE_REQUIRED, set(), label)
+        identifier = _string(table, "id", label)
+        label = f"{MAP_PATH} stage '{identifier}'"
+        if not ID_RE.match(identifier):
+            raise ExplorerError(f"{label}: id must be lowercase kebab-case")
+        if any(stage.id == identifier for stage in stages):
+            raise ExplorerError(f"{MAP_PATH}: duplicate stage id '{identifier}'")
+        order = _integer(table, "order", label)
+        if order < 1:
+            raise ExplorerError(f"{label}: 'order' must be a positive integer")
+        for other in stages:
+            if other.order == order:
+                raise ExplorerError(f"{label}: order {order} duplicates stage '{other.id}'")
+        elements = _nonempty_string_list(table, "elements", label)
+        if len(set(elements)) != len(elements):
+            raise ExplorerError(f"{label}: lists an element id more than once")
+        refs = [parse_source_ref(raw, label) for raw in _nonempty_string_list(table, "sources", label)]
+        if len({ref.label for ref in refs}) != len(refs):
+            raise ExplorerError(f"{label}: duplicate source reference")
+        stages.append(Stage(identifier, _string(table, "title", label), order, elements, refs))
+    stages.sort(key=lambda stage: (stage.order, stage.id))
+    for expected, stage in enumerate(stages, start=1):
+        if stage.order != expected:
+            raise ExplorerError(
+                f"{MAP_PATH} stage '{stage.id}': order {stage.order} is not contiguous; expected {expected} "
+                "(stage orders must run from 1 to the number of stages without gaps)"
+            )
+    return stages
+
+
+def load_map(repo: Repo) -> tuple[str, list[Node], list[Node], list[Stage]]:
+    """Load and strictly validate the structure-only map; return (title, elements, collections, stages)."""
     require_source(repo, MAP_PATH, "Explorer map")
     try:
         data = tomllib.loads((repo.root / MAP_PATH).read_text(encoding="utf-8"))
@@ -960,7 +1024,7 @@ def load_map(repo: Repo) -> tuple[str, list[Node], list[Node]]:
                 "companions": companions,
             },
         ))
-    return title, elements, collections
+    return title, elements, collections, load_stages(data.get("stage"))
 
 
 def _glob_regex(glob: str) -> re.Pattern[str]:
@@ -1071,14 +1135,17 @@ class Site:
     def __init__(self, repo: Repo):
         self.repo = repo
         self.corpus = Corpus(repo)
-        self.title, elements, collections = load_map(repo)
+        self.title, elements, collections, self.stages = load_map(repo)
         self.nodes: dict[str, Node] = {}
         self._register(elements, collections)
+        self._register_stages()
         self._link_tree()
         self.order: list[str] = []
         self._depth_first(self.roots)
         self.excerpts: dict[str, list[Excerpt]] = {}
+        self.stage_excerpts: dict[str, list[Excerpt]] = {}
         self._assemble()
+        self._assemble_stages()
         self._index_links()
 
     # -- structure ---------------------------------------------------------
@@ -1107,6 +1174,14 @@ class Site:
                     raise ExplorerError(f"{MAP_PATH}: '{node.id}' relates to itself")
             if len(set(node.related)) != len(node.related):
                 raise ExplorerError(f"{MAP_PATH}: '{node.id}' lists a related id more than once")
+
+    def _register_stages(self) -> None:
+        self.stage_usage: dict[str, list[Stage]] = {}
+        for stage in self.stages:
+            for target in stage.elements:
+                if target not in self.nodes:
+                    raise ExplorerError(f"{MAP_PATH} stage '{stage.id}': references unknown element '{target}'")
+                self.stage_usage.setdefault(target, []).append(stage)
 
     def _enumerate(self, collection: Node) -> None:
         spec = collection.collection
@@ -1200,33 +1275,45 @@ class Site:
 
     # -- pass 1: excerpts, summaries, heading ids ----------------------------
 
+    def _excerpts_for(self, context: str, sources: list[SourceRef]) -> tuple[list[Excerpt], str | None]:
+        """Resolve sources into excerpts; the summary is the first paragraph of a leading Markdown source."""
+        excerpts: list[Excerpt] = []
+        summary: str | None = None
+        used: dict[str, int] = {}
+        for position, ref in enumerate(sources):
+            source_context = f"{context} source '{ref.label}'"
+            if ref.path.endswith(".toml"):
+                self.corpus.toml(ref.path, source_context)
+                text = read_text(self.repo, ref.path, source_context)
+                excerpts.append(Excerpt(ref, "toml", [], 1, text.rstrip("\n"), {}))
+                continue
+            blocks, base = self.corpus.excerpt(ref, source_context)
+            heading_ids: dict[str, str] = {}
+            for block in blocks:
+                if isinstance(block, Heading):
+                    stem = f"s-{block.slug or 'section'}"
+                    count = used.get(stem, 0)
+                    used[stem] = count + 1
+                    heading_ids[block.slug] = stem if count == 0 else f"{stem}-{count + 1}"
+            excerpts.append(Excerpt(ref, "markdown", blocks, base, "", heading_ids))
+            if position == 0:
+                paragraph = first_paragraph(blocks)
+                if paragraph is not None:
+                    summary = summarize(inline_plain(paragraph.text, ref.path, paragraph.line, source_context))
+        return excerpts, summary
+
     def _assemble(self) -> None:
         for identifier in self.order:
             node = self.nodes[identifier]
-            context = f"{node.kind} '{node.id}'"
-            excerpts: list[Excerpt] = []
-            used: dict[str, int] = {}
-            for position, ref in enumerate(node.sources):
-                source_context = f"{context} source '{ref.label}'"
-                if ref.path.endswith(".toml"):
-                    self.corpus.toml(ref.path, source_context)
-                    text = read_text(self.repo, ref.path, source_context)
-                    excerpts.append(Excerpt(ref, "toml", [], 1, text.rstrip("\n"), {}))
-                    continue
-                blocks, base = self.corpus.excerpt(ref, source_context)
-                heading_ids: dict[str, str] = {}
-                for block in blocks:
-                    if isinstance(block, Heading):
-                        stem = f"s-{block.slug or 'section'}"
-                        count = used.get(stem, 0)
-                        used[stem] = count + 1
-                        heading_ids[block.slug] = stem if count == 0 else f"{stem}-{count + 1}"
-                excerpts.append(Excerpt(ref, "markdown", blocks, base, "", heading_ids))
-                if position == 0 and node.kind == "element":
-                    paragraph = first_paragraph(blocks)
-                    if paragraph is not None:
-                        node.summary = summarize(inline_plain(paragraph.text, ref.path, paragraph.line, source_context))
+            excerpts, summary = self._excerpts_for(f"{node.kind} '{node.id}'", node.sources)
+            if node.kind == "element" and summary is not None:
+                node.summary = summary
             self.excerpts[identifier] = excerpts
+
+    def _assemble_stages(self) -> None:
+        for stage in self.stages:
+            excerpts, stage.summary = self._excerpts_for(f"stage '{stage.id}'", stage.sources)
+            self.stage_excerpts[stage.id] = excerpts
 
     def _index_links(self) -> None:
         self.whole_file: dict[str, str] = {}
@@ -1245,6 +1332,9 @@ class Site:
 
     def page_path(self, identifier: str | None) -> str:
         return "index.html" if identifier is None else f"e/{identifier}/index.html"
+
+    def stage_path(self, identifier: str) -> str:
+        return f"lifecycle/{identifier}/index.html"
 
     def relative(self, target: str, page_dir: str) -> str:
         return posixpath.relpath(target, page_dir or ".")
@@ -1292,6 +1382,9 @@ class Site:
         pages: dict[str, str] = {"index.html": self._render_index()}
         for identifier in self.order:
             pages[self.page_path(identifier)] = self._render_node(identifier)
+        pages[LIFECYCLE_INDEX] = self._render_lifecycle()
+        for index, stage in enumerate(self.stages):
+            pages[self.stage_path(stage.id)] = self._render_stage(index)
         outputs = {path: text.encode("utf-8") for path, text in pages.items()}
         outputs.update(self._assets())
         return outputs
@@ -1317,7 +1410,7 @@ class Site:
         scripts = self.relative("assets/explorer.js", page_dir)
         return styles, scripts
 
-    def _layout(self, title: str, page_dir: str, identifier: str | None, body: str, description: str | None) -> str:
+    def _layout(self, title: str, page_dir: str, view: tuple[str, str | None], body: str, description: str | None) -> str:
         styles, scripts = self._asset_tags(page_dir)
         home = self.relative("index.html", page_dir)
         short = self.repo.commit[:7]
@@ -1334,7 +1427,7 @@ class Site:
             '<a class="skip" href="#content">Skip to content</a>\n'
             f'<header class="site-header"><a href="{html.escape(home)}">{html.escape(self.title)}</a></header>\n'
             '<div class="layout">\n'
-            f'<nav class="tree" aria-label="Platform map">\n{self._nav(identifier, page_dir)}</nav>\n'
+            f'<nav class="tree" aria-label="Platform map">\n{self._nav(view, page_dir)}</nav>\n'
             f'<main id="content">\n{body}</main>\n'
             "</div>\n"
             '<footer class="site-footer">'
@@ -1344,20 +1437,41 @@ class Site:
             "</footer>\n</body>\n</html>\n"
         )
 
-    def _nav(self, current: str | None, page_dir: str) -> str:
+    def _nav(self, view: tuple[str, str | None], page_dir: str) -> str:
+        kind, current = view
         ancestors: set[str] = set()
-        cursor = current
+        cursor = current if kind == "node" else None
         while cursor is not None:
             ancestors.add(cursor)
             cursor = self.nodes[cursor].parent
 
+        def lifecycle_branch(depth: int) -> str:
+            pad = "  " * depth
+            href = html.escape(self.relative(LIFECYCLE_INDEX, page_dir))
+            aria = ' aria-current="page"' if kind == "lifecycle" else ""
+            opened = " open" if kind in ("lifecycle", "stage") else ""
+            lines = [
+                f'{pad}<li><details{opened}><summary><a href="{href}"{aria}>Lifecycle</a></summary>',
+                f"{pad}  <ul>",
+            ]
+            for stage in self.stages:
+                stage_href = html.escape(self.relative(self.stage_path(stage.id), page_dir))
+                stage_aria = ' aria-current="page"' if kind == "stage" and stage.id == current else ""
+                label = html.escape(f"{stage.order}. {stage.title}")
+                lines.append(f'{pad}    <li><a href="{stage_href}"{stage_aria}>{label}</a></li>')
+            lines.append(f"{pad}  </ul>")
+            lines.append(f"{pad}</details></li>")
+            return "\n".join(lines)
+
         def branch(identifiers: list[str], depth: int) -> str:
             pad = "  " * depth
             lines = [f"{pad}<ul>"]
+            if depth == 1:
+                lines.append(lifecycle_branch(depth + 1))
             for identifier in identifiers:
                 node = self.nodes[identifier]
                 href = html.escape(self.relative(self.page_path(identifier), page_dir))
-                aria = ' aria-current="page"' if identifier == current else ""
+                aria = ' aria-current="page"' if kind == "node" and identifier == current else ""
                 link = f'<a href="{href}"{aria}>{html.escape(node.title)}</a>'
                 if node.children:
                     opened = " open" if identifier in ancestors else ""
@@ -1383,10 +1497,12 @@ class Site:
     def _render_index(self) -> str:
         body = (
             f"<h1>{html.escape(self.title)}</h1>\n"
+            '<section id="lifecycle">\n<h2>Platform lifecycle</h2>\n'
+            f"{self._flow('')}</section>\n"
             '<section id="in-this-area">\n<h2>Platform areas</h2>\n'
             f"{self._child_list(self.roots, '')}</section>\n"
         )
-        return self._layout("Overview", "", None, body, None)
+        return self._layout("Overview", "", ("home", None), body, None)
 
     def incoming(self, identifier: str) -> list[str]:
         return [
@@ -1399,7 +1515,7 @@ class Site:
         page_dir = f"e/{identifier}"
         parts = [f"{self._breadcrumb(identifier, page_dir)}<h1>{html.escape(node.title)}</h1>\n"]
         for excerpt in self.excerpts[identifier]:
-            parts.append(self._render_excerpt(node, excerpt, page_dir))
+            parts.append(self._render_excerpt(f"{node.kind} '{node.id}'", excerpt, page_dir))
         if node.children:
             parts.append(
                 '<section id="in-this-area">\n<h2>In this area</h2>\n'
@@ -1408,6 +1524,16 @@ class Site:
         related = node.related + self.incoming(identifier)
         if related:
             parts.append(f'<section id="related">\n<h2>Related</h2>\n{self._child_list(related, page_dir)}</section>\n')
+        used_in = self.stage_usage.get(identifier, [])
+        if used_in:
+            entries = []
+            for stage in used_in:
+                href = html.escape(self.relative(self.stage_path(stage.id), page_dir))
+                entries.append(f'<li><a href="{href}">Stage {stage.order}: {html.escape(stage.title)}</a></li>')
+            parts.append(
+                '<section id="lifecycle-usage">\n<h2>Used in lifecycle stages</h2>\n<ul>\n'
+                + "\n".join(entries) + "\n</ul>\n</section>\n"
+            )
         if node.sources:
             entries = []
             for ref in node.sources:
@@ -1417,7 +1543,7 @@ class Site:
                 '<section id="sources">\n<h2>Sources</h2>\n<ul>\n' + "\n".join(entries) + "\n</ul>\n</section>\n"
             )
         description = node.summary
-        return self._layout(node.title, page_dir, identifier, "".join(parts), description)
+        return self._layout(node.title, page_dir, ("node", identifier), "".join(parts), description)
 
     def _breadcrumb(self, identifier: str, page_dir: str) -> str:
         chain: list[str] = []
@@ -1436,19 +1562,83 @@ class Site:
                 items.append(f'<li><a href="{href}">{title}</a></li>')
         return '<nav class="breadcrumb" aria-label="Where it fits"><ol>' + "".join(items) + "</ol></nav>\n"
 
-    def _render_excerpt(self, node: Node, excerpt: Excerpt, page_dir: str) -> str:
+    def _render_excerpt(self, owner: str, excerpt: Excerpt, page_dir: str) -> str:
         label = html.escape(excerpt.ref.label)
         if excerpt.kind == "toml":
             return (
                 f'<section class="excerpt"><p class="excerpt-source">From <code>{label}</code></p>\n'
                 f'<pre><code class="language-toml">{html.escape(excerpt.code)}</code></pre></section>\n'
             )
-        context = f"{node.kind} '{node.id}' source '{excerpt.ref.label}'"
+        context = f"{owner} source '{excerpt.ref.label}'"
         renderer = Renderer(self, excerpt, page_dir, context)
         return (
             f'<section class="excerpt"><p class="excerpt-source">From <code>{label}</code></p>\n'
             f'<div class="prose">\n{renderer.blocks(excerpt.blocks)}</div></section>\n'
         )
+
+    # -- lifecycle -----------------------------------------------------------
+
+    def _flow(self, page_dir: str) -> str:
+        entries = []
+        for stage in self.stages:
+            href = html.escape(self.relative(self.stage_path(stage.id), page_dir))
+            summary = f' <span class="summary">{html.escape(stage.summary)}</span>' if stage.summary else ""
+            entries.append(
+                f'<li><span class="flow-number" aria-hidden="true">{stage.order}</span>'
+                f'<span class="flow-body"><a href="{href}">{html.escape(stage.title)}</a>{summary}</span></li>'
+            )
+        return '<ol class="flow">\n' + "\n".join(entries) + "\n</ol>\n"
+
+    def _lifecycle_breadcrumb(self, page_dir: str, stage: Stage | None) -> str:
+        items = [f'<li><a href="{html.escape(self.relative("index.html", page_dir))}">{html.escape(self.title)}</a></li>']
+        if stage is None:
+            items.append("<li aria-current=\"page\">Lifecycle</li>")
+        else:
+            href = html.escape(self.relative(LIFECYCLE_INDEX, page_dir))
+            items.append(f'<li><a href="{href}">Lifecycle</a></li>')
+            items.append(f'<li aria-current="page">{html.escape(stage.title)}</li>')
+        return '<nav class="breadcrumb" aria-label="Where it fits"><ol>' + "".join(items) + "</ol></nav>\n"
+
+    def _render_lifecycle(self) -> str:
+        page_dir = "lifecycle"
+        body = (
+            f"{self._lifecycle_breadcrumb(page_dir, None)}<h1>Platform lifecycle</h1>\n"
+            '<section id="stages">\n<h2>Stages in order</h2>\n'
+            f"{self._flow(page_dir)}</section>\n"
+        )
+        return self._layout("Platform lifecycle", page_dir, ("lifecycle", None), body, None)
+
+    def _render_stage(self, index: int) -> str:
+        stage = self.stages[index]
+        page_dir = f"lifecycle/{stage.id}"
+        parts = [
+            f"{self._lifecycle_breadcrumb(page_dir, stage)}<h1>{html.escape(stage.title)}</h1>\n"
+            f'<p class="stage-position">Stage {stage.order} of {len(self.stages)}</p>\n'
+        ]
+        for excerpt in self.stage_excerpts[stage.id]:
+            parts.append(self._render_excerpt(f"stage '{stage.id}'", excerpt, page_dir))
+        parts.append(
+            '<section id="components">\n<h2>Components in this stage</h2>\n'
+            f"{self._child_list(stage.elements, page_dir)}</section>\n"
+        )
+        entries = []
+        for ref in stage.sources:
+            url = f"{REPOSITORY_URL}/blob/{self.repo.commit}/{ref.path}"
+            entries.append(f'<li><a href="{html.escape(url)}" rel="noopener noreferrer"><code>{html.escape(ref.label)}</code></a></li>')
+        parts.append('<section id="sources">\n<h2>Sources</h2>\n<ul>\n' + "\n".join(entries) + "\n</ul>\n</section>\n")
+        pager = []
+        if index > 0:
+            previous = self.stages[index - 1]
+            href = html.escape(self.relative(self.stage_path(previous.id), page_dir))
+            pager.append(f'<li class="pager-prev"><a rel="prev" href="{href}">Previous: {html.escape(previous.title)}</a></li>')
+        overview = html.escape(self.relative(LIFECYCLE_INDEX, page_dir))
+        pager.append(f'<li class="pager-all"><a href="{overview}">All stages</a></li>')
+        if index + 1 < len(self.stages):
+            following = self.stages[index + 1]
+            href = html.escape(self.relative(self.stage_path(following.id), page_dir))
+            pager.append(f'<li class="pager-next"><a rel="next" href="{href}">Next: {html.escape(following.title)}</a></li>')
+        parts.append('<nav class="stage-pager" aria-label="Lifecycle stages"><ul>' + "".join(pager) + "</ul></nav>\n")
+        return self._layout(stage.title, page_dir, ("stage", stage.id), "".join(parts), stage.summary)
 
 
 class Renderer:
@@ -1617,7 +1807,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     pages = sum(1 for path in outputs if path.endswith(".html"))
     verb = "built" if args.command == "build" else "checked"
-    print(f"explorer {verb}: {pages} pages, {len(site.nodes)} elements at commit {site.repo.commit[:7]}")
+    print(f"explorer {verb}: {pages} pages, {len(site.nodes)} elements, {len(site.stages)} lifecycle stages at commit {site.repo.commit[:7]}")
     return 0
 
 
