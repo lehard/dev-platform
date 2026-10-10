@@ -271,6 +271,50 @@ class ContributionTests(unittest.TestCase):
             self.assertEqual(len(observed), 1)
             self.assertFalse(Path(observed[0]["HOME"]).exists())
 
+    def platform_layout(self, root, registry_source):
+        (root / "template" / "scripts").mkdir(parents=True)
+        (root / "scripts").mkdir()
+        (root / "scripts" / "managed_projects.py").write_text("")
+        trusted = root / "trusted"
+        (trusted / "scripts").mkdir(parents=True)
+        (trusted / "scripts" / "managed_projects.py").write_text(registry_source)
+        return trusted
+
+    def test_composition_full_checks_validate_the_trusted_registry_without_showing_it(self):
+        import contextlib
+        import io
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            trusted = self.platform_layout(root, "from pathlib import Path\n"
+                                           "def configured_registry(*, root):\n    return Path(root) / 'op dir' / 'registry.toml'\n")
+            secret = str(trusted / "op dir" / "registry.toml")
+            commands = integration._full_check_commands(root, trusted)
+            self.assertIn(f"python3 scripts/managed_projects.py --registry '{secret}' validate", commands)
+            self.assertEqual(integration._full_check_commands(root), list(integration.PLATFORM_FULL_CHECK_COMMANDS))
+            ran = []
+            def command(cmd, **kwargs):
+                ran.append(cmd)
+                return SimpleNamespace(returncode=2 if "managed_projects.py" in cmd else 0)
+            out = io.StringIO()
+            with mock.patch.object(integration.subprocess, "run", side_effect=command), contextlib.redirect_stdout(out):
+                with self.assertRaises(integration.RequirementIntegrationError) as raised:
+                    integration._run_full_checks(root, trusted_root=trusted)
+            self.assertTrue(any(secret in cmd for cmd in ran))
+            self.assertNotIn(secret, str(raised.exception))
+            self.assertNotIn(secret, out.getvalue())
+            self.assertIn("--registry <operator>", str(raised.exception))
+            self.assertIn("--registry <operator>", out.getvalue())
+
+    def test_unconfigured_trusted_registry_fails_explicitly(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            trusted = self.platform_layout(root, "def configured_registry(*, root):\n    raise ValueError('operator configuration is not enabled')\n")
+            with self.assertRaisesRegex(integration.RequirementIntegrationError, "trusted managed project registry is unavailable"):
+                integration._full_check_commands(root, trusted)
+            (trusted / "scripts" / "managed_projects.py").unlink()
+            with self.assertRaisesRegex(integration.RequirementIntegrationError, "no managed project registry tooling"):
+                integration._full_check_commands(root, trusted)
+
     def test_interrupted_merge_append_is_idempotent_and_preserves_ancestry(self):
         with tempfile.TemporaryDirectory() as tmp:
             fixture = Repository(Path(tmp))
@@ -864,9 +908,15 @@ class CompositionTests(unittest.TestCase):
                 result = composition.advance_final_publication(fixture.root, "acme/project", fixture.manifest, head, 11, **kwargs)
                 self.assertEqual(result["status"], "queued")
                 self.assertEqual(events, ["checkpoint", "checks", "ready", "undraft", "admit"])
+                self.assertEqual(candidate["gates"]["full-checks"]["evidence"], {"head": head})
                 events.clear()
                 composition.advance_final_publication(fixture.root, "acme/project", fixture.manifest, head, 11, **kwargs)
                 self.assertNotIn("checks", events)
+                candidate["gates"].pop("full-checks")
+                default = {k: v for k, v in kwargs.items() if k != "full_checks"}
+                with mock.patch.object(integration, "_run_full_checks") as checks:
+                    composition.advance_final_publication(fixture.root, "acme/project", fixture.manifest, head, 11, **default)
+                self.assertEqual(checks.call_args.kwargs, {"trusted_root": fixture.root})
 
 
 class SupervisorTests(unittest.TestCase):
