@@ -14,6 +14,9 @@ from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "template" / "scripts"))
+if str(ROOT / "tests") not in sys.path:
+    sys.path.insert(0, str(ROOT / "tests"))
+from _platform_modules import isolate_machine_pool_environment  # noqa: E402
 import requirement_contributions as contributions
 import requirement_composition as composition
 import execute_requirement as execution
@@ -32,6 +35,9 @@ def git(root, *args):
 
 
 def setUpModule() -> None:
+    # Full-check scenarios mock subprocess.run; an enabled machine pool would otherwise
+    # acquire through that mock and see the operator's environment.
+    isolate_machine_pool_environment()
     # Local-log scenarios: durable coordinator evidence (GitHub) is covered by the
     # coordinator-operations tests, so these scenarios never reach GitHub.
     for module in {sys.modules["agent_friction"]}:
