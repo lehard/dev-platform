@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   provision:
-    runs-on: {{ 'ubuntu-latest' if ci_runner == 'github-hosted' else (runner_labels[0] if runner_labels | length == 1 else '[' ~ runner_labels | join(', ') ~ ']') }}
+    runs-on: {{ 'ubuntu-latest' if ci_runner == 'github-hosted' else (runner_labels[0] | tojson if runner_labels | length == 1 else runner_labels | tojson) }}
     timeout-minutes: 5
     steps:
       - name: Ensure bounded lifecycle label exists

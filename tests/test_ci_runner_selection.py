@@ -84,7 +84,7 @@ class CiRunnerRenderTests(unittest.TestCase):
         target = self.render("single", {"ci_runner": "self-hosted", "ci_runner_labels": "alters"})
         text = (target / ".github" / "workflows" / "dev-platform.yml").read_text(encoding="utf-8")
         repair = f"      - name: {REPAIR_NAME}\n        run: python3 scripts/shared_workspace.py fix\n\n"
-        self.assertEqual(text.replace(repair, "").replace("runs-on: alters", "runs-on: ubuntu-latest"), hosted)
+        self.assertEqual(text.replace(repair, "").replace('runs-on: "alters"', "runs-on: ubuntu-latest"), hosted)
         jobs = load_jobs(target, "dev-platform.yml")
         self.assertEqual(jobs["platform-ci"]["runs-on"], "alters")
         names = step_names(jobs["platform-ci"])
@@ -95,9 +95,17 @@ class CiRunnerRenderTests(unittest.TestCase):
 
     def test_self_hosted_multiple_labels_render_flow_list(self) -> None:
         target = self.render("multi", {"ci_runner": "self-hosted", "ci_runner_labels": " self-hosted , linux "})
-        self.assertIn("    runs-on: [self-hosted, linux]\n", (target / ".github" / "workflows" / "dev-platform.yml").read_text(encoding="utf-8"))
+        self.assertIn('    runs-on: ["self-hosted", "linux"]\n', (target / ".github" / "workflows" / "dev-platform.yml").read_text(encoding="utf-8"))
         self.assertEqual(load_jobs(target, "dev-platform.yml")["platform-ci"]["runs-on"], ["self-hosted", "linux"])
         self.assertEqual(load_jobs(target, "process-health-labels.yml")["provision"]["runs-on"], ["self-hosted", "linux"])
+
+    def test_yaml_ambiguous_labels_render_as_strings(self) -> None:
+        target = self.render("ambiguous", {"ci_runner": "self-hosted", "ci_runner_labels": "true, 123, null"})
+        for name, job in (("dev-platform.yml", "platform-ci"), ("process-health-labels.yml", "provision")):
+            self.assertEqual(load_jobs(target, name)[job]["runs-on"], ["true", "123", "null"])
+        single = self.render("ambiguous-single", {"ci_runner": "self-hosted", "ci_runner_labels": "on"})
+        self.assertEqual(load_jobs(single, "dev-platform.yml")["platform-ci"]["runs-on"], "on")
+        self.assertEqual(self.doctor_failures(single), 0)
 
     def test_label_provisioning_uses_curl_without_gh_for_both_runner_kinds(self) -> None:
         for name, extra in (("curl-hosted", {}), ("curl-self", {"ci_runner": "self-hosted", "ci_runner_labels": "alters"})):

@@ -23,7 +23,7 @@ concurrency:
 
 jobs:
   platform-ci:
-    runs-on: {{ 'ubuntu-latest' if ci_runner == 'github-hosted' else (runner_labels[0] if runner_labels | length == 1 else '[' ~ runner_labels | join(', ') ~ ']') }}
+    runs-on: {{ 'ubuntu-latest' if ci_runner == 'github-hosted' else (runner_labels[0] | tojson if runner_labels | length == 1 else runner_labels | tojson) }}
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6

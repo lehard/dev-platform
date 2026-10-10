@@ -134,6 +134,7 @@ def check_rendered_workflow_mode(root: Path, config: dict, failures: list[int]) 
 CI_RUNNERS = ("github-hosted", "self-hosted")
 CI_RUNNER_LABEL_RE = re.compile(r"^[A-Za-z0-9._-]+$")
 REPAIR_STEP_NAME = "Repair shared-workspace permissions on self-hosted runners"
+REPAIR_STEP_TEXT = f"- name: {REPAIR_STEP_NAME}\n        run: python3 scripts/shared_workspace.py fix"
 PLATFORM_CI_JOB_RE = re.compile(r"^  platform-ci:\n((?:(?!^  \S).*\n?)*)", re.MULTILINE)
 PLATFORM_CI_RUNS_ON_RE = re.compile(r"^  platform-ci:\n(?:(?!^  \S).*\n)*?    runs-on:[ \t]*(.*?)[ \t]*$", re.MULTILINE)
 PROVISION_RUNS_ON_RE = re.compile(r"^  provision:\n(?:(?!^  \S).*\n)*?    runs-on:[ \t]*(.*?)[ \t]*$", re.MULTILINE)
@@ -167,7 +168,8 @@ def check_ci_runner_agreement(root: Path, config: dict, failures: list[int]) -> 
         if problems:
             fail(f".copier-answers.yml ci_runner_labels={raw!r} {'; '.join(problems)}"); failures[0] += 1
             return
-        expected = entries[0] if len(entries) == 1 else "[" + ", ".join(entries) + "]"
+        # Labels render as quoted YAML strings, so a label such as `true` or `123` stays a string.
+        expected = json.dumps(entries[0]) if len(entries) == 1 else json.dumps(entries)
     else:
         expected = "ubuntu-latest"
     workflow = root / ".github" / "workflows" / "dev-platform.yml"
@@ -182,9 +184,16 @@ def check_ci_runner_agreement(root: Path, config: dict, failures: list[int]) -> 
     found = match.group(1)
     if found != expected:
         fail(f"platform-ci runs-on mismatch for ci_runner={kind}: expected {expected!r}, found {found!r}"); failures[0] += 1
-    # The repair step counts only inside the platform-ci job and before the job runs platform_doctor.
+    # The repair step counts only inside the platform-ci job and before the job runs platform_doctor, and only in
+    # its exact rendered form: a changed command, a condition or any other key would let it skip the repair.
     job = PLATFORM_CI_JOB_RE.search(text).group(1)
     repair_at = job.find(f"- name: {REPAIR_STEP_NAME}")
+    if repair_at != -1:
+        step_end = job.find("\n      - ", repair_at)
+        step = job[repair_at:] if step_end == -1 else job[repair_at:step_end]
+        if step.rstrip("\n") != REPAIR_STEP_TEXT:
+            fail(f"platform-ci shared-workspace repair step must be exactly {REPAIR_STEP_TEXT!r}; found {step.rstrip()!r}")
+            failures[0] += 1
     doctor_at = job.find("scripts/platform_doctor.py")
     has_repair = repair_at != -1
     if (kind == "self-hosted") != has_repair:
