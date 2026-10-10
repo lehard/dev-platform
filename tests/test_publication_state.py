@@ -430,9 +430,12 @@ class RequiredCheckStateForRefTests(PublicationStateTestCase):
                 result = self.observe(self.gh(base="requirement/BR-415", api=(0, json.dumps(payload), "")))
                 self.assertEqual((result.kind, result.cause), ("unknown", "malformed"))
 
-    def test_no_required_checks_while_base_requires_some_is_malformed(self) -> None:
+    def test_no_required_checks_while_base_requires_some_is_pending_expected(self) -> None:
+        # A fresh head GitHub has not attached checks to yet: the required contexts are pending, not unusable.
         result = self.observe(self.gh(checks=(1, ""), api=(0, REQUIRED_VALIDATE, "")))
-        self.assertEqual((result.kind, result.cause), ("unknown", "malformed"))
+        self.assertEqual((result.kind, result.cause), ("pending", ""))
+        self.assertEqual(result.checks, ({"name": "validate", "state": "EXPECTED"},))
+        self.assertIn("validate", result.detail)
 
     def test_protection_api_failure_is_transport(self) -> None:
         result = self.observe(self.gh(checks=(1, ""), api=(1, "", "gh: Server Error (HTTP 500)")))
@@ -486,7 +489,10 @@ class RequiredCheckStateForRefTests(PublicationStateTestCase):
         for name, (rows, kind) in cases.items():
             with self.subTest(name):
                 env = self.gh(base=base, all_checks=(0, json.dumps(rows)), api=(0, REQUIRED_VALIDATE, ""))
-                self.assertEqual(self.observe(env).kind, kind)
+                result = self.observe(env)
+                self.assertEqual(result.kind, kind)
+                if name in {"missing required row", "no rows"}:
+                    self.assertEqual(result.checks, ({"name": "validate", "state": "EXPECTED"},))
                 log = self.calls.read_text()
                 self.assertIn("api repos/{owner}/{repo}/branches/main\n", log)
                 self.assertNotIn("/protection", log)
@@ -509,7 +515,11 @@ class RequiredCheckStateForRefTests(PublicationStateTestCase):
             with self.subTest(runs=runs):
                 env = self.gh(base="requirement/BR-415", all_checks=(0, json.dumps([SUCCESS_ROW])),
                               api=(0, protection, ""), runs=(0, json.dumps([{"check_runs": []}, {"check_runs": runs}])))
-                self.assertEqual(self.observe(env).kind, expected)
+                result = self.observe(env)
+                self.assertEqual(result.kind, expected)
+                if runs == [run(2)]:
+                    # The required App's missing run is unreported, not a run in progress.
+                    self.assertEqual(result.checks, ({"name": "validate", "state": "EXPECTED"},))
                 self.assertIn("--paginate --slurp", self.calls.read_text())
                 self.assertIn("commits/abc123/check-runs", self.calls.read_text())
 

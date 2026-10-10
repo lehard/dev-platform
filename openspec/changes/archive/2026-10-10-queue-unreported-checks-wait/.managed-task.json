@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/publication-queue/spec.md"
+  ],
+  "change": "queue-unreported-checks-wait",
+  "imported_at": "2026-10-10T10:43:25+00:00",
+  "package_revision": "94004f347c487093e50e484ce78144122ecf9b1d659da1feac7ca4b6ee94b2d5",
+  "prepared_against": "b0e3752b5cd563320756d1aa3159ae92da317d7d",
+  "private_lineage_handle": "pln_9a89a571f73030ba84b10147aff810ad",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "b63b7711580b17b5d6d84b3f00b03351ed3424290f9933868649a4dacc3978ec",
+    "updated_at": "2026-10-10T10:36:07Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-549/T1"
+}

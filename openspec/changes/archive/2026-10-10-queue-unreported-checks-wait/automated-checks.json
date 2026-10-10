@@ -1,0 +1,108 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.131,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.104,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 489.82,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/publication_queue.py",
+        "template/scripts/publication_state.py",
+        "tests/test_publication_queue.py",
+        "tests/test_publication_state.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_9a89a571f73030ba84b10147aff810ad",
+    "change": "queue-unreported-checks-wait",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/queue-unreported-checks-wait",
+    "branch": "agent/br-549-t1-queue-unreported-checks-wait",
+    "head": "efe993e1e17a4a250f5395718639409063e830ee",
+    "task_content": {
+      "version": 1,
+      "digest": "376445d98ef2e2d35b413a77f7b9d967a3493cf0de1e640468eb7ffebffe3fcb",
+      "paths": {
+        "openspec/changes/queue-unreported-checks-wait/.managed-task.json": "437348b687ed639304319376d129009b846f1642",
+        "openspec/changes/queue-unreported-checks-wait/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
+        "openspec/changes/queue-unreported-checks-wait/automated-checks.json": "848ad92b1314d1f102d42bd0ca366573442f4d63",
+        "openspec/changes/queue-unreported-checks-wait/design.md": "2ebc35869b945bb9e205a2008fa611a3719f5f3f",
+        "openspec/changes/queue-unreported-checks-wait/independent-review-request.json": "95e4712a3318ee7b1d5b55021e6cb115bca58819",
+        "openspec/changes/queue-unreported-checks-wait/independent-reviews/engineering-quality.json": "7f7d45a58b5f9e094b9892580512b7e6c7ea8e6f",
+        "openspec/changes/queue-unreported-checks-wait/independent-reviews/spec-fidelity.json": "ab2d0c587787b4e3b5ef9f025ed9794124f6191d",
+        "openspec/changes/queue-unreported-checks-wait/proposal.md": "8d6d27a78a20556098e01836d228a839feec4d97",
+        "openspec/changes/queue-unreported-checks-wait/specs/publication-queue/spec.md": "dd6e2565ed0791e5b7923c9089cea89df41c4a55",
+        "openspec/changes/queue-unreported-checks-wait/tasks.md": "256eff2190f61cf8bc997f46af81514a3593e146",
+        "openspec/changes/queue-unreported-checks-wait/verification.md": "78f463bef7c341dcfe7bbdd29225af69465dc86c",
+        "template/scripts/publication_queue.py": "2f06bad7dcb5537c01b969db0590b0abddd276aa",
+        "template/scripts/publication_state.py": "1196ea54ea5b07c9ae2b9b9fafcadfd6d7644ef9",
+        "tests/test_publication_queue.py": "a104f2f5dabe4bcc3dd96f5d40e241eecfebca0f",
+        "tests/test_publication_state.py": "c8b6f6163c9dd393e2faa43a55e1032fea255180"
+      },
+      "base": "1b032a6356a6fbfbdb7c3af811e624908abfeb2d"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "38315c67cf1d1dcfa2768b0f0c4025066124712d7f424f86cdd94bca3533479c",
+    "paths": {
+      "openspec/changes/queue-unreported-checks-wait/.managed-task.json": "437348b687ed639304319376d129009b846f1642",
+      "openspec/changes/queue-unreported-checks-wait/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
+      "openspec/changes/queue-unreported-checks-wait/design.md": "2ebc35869b945bb9e205a2008fa611a3719f5f3f",
+      "openspec/changes/queue-unreported-checks-wait/proposal.md": "8d6d27a78a20556098e01836d228a839feec4d97",
+      "openspec/changes/queue-unreported-checks-wait/specs/publication-queue/spec.md": "dd6e2565ed0791e5b7923c9089cea89df41c4a55",
+      "openspec/changes/queue-unreported-checks-wait/tasks.md": "256eff2190f61cf8bc997f46af81514a3593e146",
+      "template/scripts/publication_queue.py": "2f06bad7dcb5537c01b969db0590b0abddd276aa",
+      "template/scripts/publication_state.py": "1196ea54ea5b07c9ae2b9b9fafcadfd6d7644ef9",
+      "tests/test_publication_queue.py": "a104f2f5dabe4bcc3dd96f5d40e241eecfebca0f",
+      "tests/test_publication_state.py": "c8b6f6163c9dd393e2faa43a55e1032fea255180"
+    },
+    "base": "1b032a6356a6fbfbdb7c3af811e624908abfeb2d",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/publication_queue.py --changed-file template/scripts/publication_state.py --changed-file tests/test_publication_queue.py --changed-file tests/test_publication_state.py",
+    "duration_seconds": 169.341,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
