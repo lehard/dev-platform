@@ -53,7 +53,7 @@ The Explorer is platform-owned and is not distributed. Its map, assets, build en
 
 ### One-time operator step
 
-An operator must enable Pages once: repository **Settings -> Pages -> Build and deployment -> Source: GitHub Actions**. The workflow never changes repository settings and has no other publication path. When Pages is not enabled, `actions/configure-pages` (used without its `enablement` input) fails the `deploy` job with an explicit error and nothing is published; enable the setting and re-run the job.
+An operator must enable Pages once: repository **Settings -> Pages -> Build and deployment -> Source: GitHub Actions**. The workflow never changes repository settings and has no other publication path. Before `actions/configure-pages` (used without its `enablement` input), the `deploy` job reads the repository's Pages source and fails with an explicit error unless it is GitHub Actions, including when Pages is not enabled at all; nothing is published. Enable the setting and re-run the job.
 
 ### Reproducing the published site
 

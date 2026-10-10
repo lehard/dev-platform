@@ -10,6 +10,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "explorer.yml"
 BUILD_COMMAND = "python3 scripts/build_explorer.py build --out build/explorer"
+PAGES_SOURCE_STEP = "Require the GitHub Actions Pages source"
 PINNED_USES = re.compile(r"^[\w.-]+/[\w./-]+@[0-9a-f]{40} # v\d+(\.\d+)*$")
 EXPECTED_PR_PATHS = {
     "explorer/**",
@@ -98,6 +99,19 @@ class ExplorerWorkflowTests(unittest.TestCase):
         configure = [s for s in self.deploy["steps"] if s.get("uses", "").startswith("actions/configure-pages@")]
         self.assertEqual(len(configure), 1)
         self.assertNotIn("with", configure[0])
+
+    def test_deploy_requires_the_github_actions_pages_source_first(self) -> None:
+        # configure-pages accepts an existing branch-built site, so the source is checked explicitly.
+        steps = self.deploy["steps"]
+        guard = steps[0]
+        self.assertEqual(guard["name"], PAGES_SOURCE_STEP)
+        self.assertTrue(steps[1]["uses"].startswith("actions/configure-pages@"))
+        self.assertEqual(guard["env"]["GH_TOKEN"], "${{ github.token }}")
+        self.assertIn('gh api "repos/${REPOSITORY}/pages" --jq .build_type', guard["run"])
+        self.assertIn('[ "${build_type}" != "workflow" ]', guard["run"])
+        self.assertIn("exit 1", guard["run"])
+        self.assertNotIn("-X", guard["run"])
+        self.assertNotIn("--method", guard["run"])
         deploy_steps = [s for s in self.deploy["steps"] if s.get("uses", "").startswith("actions/deploy-pages@")]
         self.assertEqual(len(deploy_steps), 1)
         self.assertEqual(deploy_steps[0]["id"], "deployment")
@@ -118,8 +132,8 @@ class ExplorerWorkflowTests(unittest.TestCase):
         self.assertTrue(python["uses"].startswith("actions/setup-python@"))
         self.assertEqual(python["with"]["python-version"], "3.11")
 
-        run_steps = [s["run"] for job in (self.build, self.deploy) for s in job["steps"] if "run" in s]
-        self.assertEqual(run_steps, [BUILD_COMMAND])
+        self.assertEqual([s["run"] for s in self.build["steps"] if "run" in s], [BUILD_COMMAND])
+        self.assertEqual([s["name"] for s in self.deploy["steps"] if "run" in s], [PAGES_SOURCE_STEP])
         self.assertTrue((ROOT / "scripts" / "build_explorer.py").is_file())
         for forbidden in ("|", "&&", ";", "pip install", "npm ", "git "):
             self.assertNotIn(forbidden, BUILD_COMMAND)

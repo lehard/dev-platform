@@ -64,8 +64,20 @@ jobs:
       group: pages
       cancel-in-progress: false
     steps:
-      # Deliberately no inputs: when Pages is not set to the GitHub Actions
-      # source this step fails explicitly instead of changing repository settings.
+      # configure-pages accepts an existing branch-built site, so the Pages
+      # source is required explicitly; a missing site fails the API call.
+      - name: Require the GitHub Actions Pages source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          build_type="$(gh api "repos/${REPOSITORY}/pages" --jq .build_type)"
+          if [ "${build_type}" != "workflow" ]; then
+            echo "::error::GitHub Pages source is '${build_type}', not GitHub Actions. Set Settings -> Pages -> Source: GitHub Actions."
+            exit 1
+          fi
+
+      # Deliberately no inputs: the workflow never changes repository settings.
       - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
 
       - id: deployment
