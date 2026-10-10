@@ -483,6 +483,36 @@ class QueueOrderTests(PoolFixture):
         self.assertEqual(order, ["fin", "dev-1", "dev-2"])
         self.assertEqual(self.queue_names(), [])
 
+    def test_development_head_does_not_admit_after_a_finalize_run_joined(self) -> None:
+        holder = machine_pool.lease(1, "holder", environ=dict(self.environ), hooks=fast_hooks())
+        holder.__enter__()
+        machine_pool._ensure_queue(self.config)
+        finalize = self.config.queue / "0-00000000000000000001-4242-abcd1234.json"
+        joined: list[int] = []
+
+        def load_per_cpu() -> float:
+            # The development waiter measures load once it read itself as head; at that moment a finalize run
+            # joins the queue and the token frees, before the development waiter's admission attempt.
+            if not joined:
+                fd = os.open(finalize, os.O_CREAT | os.O_RDWR, 0o666)
+                machine_pool.fcntl.flock(fd, machine_pool.fcntl.LOCK_EX | machine_pool.fcntl.LOCK_NB)
+                joined.append(fd)
+                holder.__exit__(None, None, None)
+            return 0.0
+
+        ticks = iter(range(10_000))
+        hooks = machine_pool.Hooks(monotonic=lambda: float(next(ticks)) * 50.0, sleep=lambda _: None, poll_interval=0.0,
+                                   progress_interval=1e9, load_per_cpu=load_per_cpu, available_memory_mb=lambda: 1e6,
+                                   out=lambda _: None)
+        try:
+            with self.assertRaisesRegex(machine_pool.PoolTimeout, r"queue position 2; waiting behind 1 earlier"):
+                with machine_pool.lease(1, "dev", environ=dict(self.environ), hooks=hooks):
+                    self.fail("development must not be admitted ahead of the waiting finalize run")
+            self.assertEqual(machine_pool.read_holders(self.config), [])
+        finally:
+            for fd in joined:
+                os.close(fd)
+
     def test_dead_tickets_are_removed_only_after_their_lock_is_taken(self) -> None:
         machine_pool._ensure_queue(self.config)
         dead = self.config.queue / "1-00000000000000000001-4242-abcd1234.json"

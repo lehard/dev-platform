@@ -92,6 +92,10 @@ class PoolConfig:
     def slot(self, index: int) -> Path:
         return self.directory / f"slot-{index}.lock"
 
+    @property
+    def admission_lock(self) -> Path:
+        return self.directory / "admission.lock"
+
 
 # ---------------------------------------------------------------- configuration
 
@@ -427,7 +431,43 @@ class _Ticket:
             os.close(self.fd)
 
 
+@contextlib.contextmanager
+def _admission(config: PoolConfig) -> Iterator[None]:
+    """Serialize ticket creation with admission so a head decision never uses a stale queue."""
+    _require_flock()
+    path = config.admission_lock
+    fd = _open_shared(path)
+    try:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX)
+        except OSError as exc:
+            raise PoolError(f"cannot lock pool file {path}: {exc}") from exc
+        yield
+    finally:
+        os.close(fd)  # closing the descriptor releases the lock
+
+
+def _admit_if_head(config: PoolConfig, own: str, weight: int) -> tuple[bool, list[tuple[int, Path]] | None]:
+    """Under the admission lock, re-read the queue and take slots only while ``own`` is still its head.
+
+    Returns ``(still_head, held)``: a ticket that joined ahead of ``own`` (a finalize run) since the last poll
+    makes ``still_head`` false and nothing is taken.
+    """
+    with _admission(config):
+        live = [name for name, _ in _scan_queue(config, remove_dead=True, own=own)]
+        if own not in live:
+            raise PoolError(f"queue ticket {config.queue / own} disappeared while waiting")
+        if live[0] != own:
+            return False, None
+        return True, _try_take_slots(config, weight)
+
+
 def _create_ticket(config: PoolConfig, check_class: str, metadata: dict[str, Any]) -> _Ticket:
+    with _admission(config):
+        return _create_ticket_unlocked(config, check_class, metadata)
+
+
+def _create_ticket_unlocked(config: PoolConfig, check_class: str, metadata: dict[str, Any]) -> _Ticket:
     rank = CLASS_RANKS[check_class]
     for _ in range(_TICKET_ATTEMPTS):
         name = f"{rank}-{time.time_ns():020d}-{os.getpid()}-{secrets.token_hex(4)}.json"
@@ -563,7 +603,7 @@ def _acquire(config: PoolConfig, weight: int, check_class: str, purpose: str, ro
             elif memory < config.min_available_memory_mb:
                 reason = f"available memory {memory:.0f} MB is below the minimum {config.min_available_memory_mb} MB"
             else:
-                held = _try_take_slots(config, weight)
+                still_head, held = _admit_if_head(config, ticket.name, weight)
                 if held is not None:
                     try:
                         for fd, path in held:
@@ -573,7 +613,7 @@ def _acquire(config: PoolConfig, weight: int, check_class: str, purpose: str, ro
                             os.close(fd)
                         raise
                     return [fd for fd, _ in held]
-                reason = f"fewer than {weight} free token(s)"
+                reason = f"fewer than {weight} free token(s)" if still_head else "an earlier-ranked run joined the queue"
             now = hooks.monotonic()
             if now - started >= config.wait_timeout_seconds:
                 raise PoolTimeout(
