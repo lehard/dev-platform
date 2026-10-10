@@ -730,11 +730,77 @@ class CompositionTests(unittest.TestCase):
             ), mock.patch.object(workers, "_git", side_effect=worker_git), mock.patch.object(_platform_common, "run_git", side_effect=common_git):
                 outcome = composition.execute_composition_review(checkout, {"head": head, "task_identity": identity},
                     source_repo=remote.as_uri(), branch="requirement/BR-7", current_head=lambda: head,
-                    review_config={}, launcher=mock.Mock())
+                    trusted_root=seed, review_config={}, launcher=mock.Mock())
             self.assertEqual(outcome["status"], "reviewed")
             self.assertNotEqual(outcome["pushed_head"], head)
             self.assertEqual(len(outcome["reports"]), 2)
             self.assertNotIn("malicious-hooks", (root / "harness/.git/config").read_text())
+
+    def run_private_composition_review(self, root, body):
+        """Review a private-lineage composition; returns (outcome, remote) with the trusted root configured."""
+        import independent_review as review
+        import independent_review_runner as reviewer
+        import managed_task
+        seed = root / "seed"; seed.mkdir()
+        fixture = self.fixture(seed)
+        head = git(seed, "rev-parse", "HEAD")
+        identity = composition.composition_identity(seed, fixture.manifest)
+        remote = root / "remote.git"
+        git(root, "clone", "--bare", str(seed), str(remote))
+        checkout = workers.prepare_checkout(remote.as_uri(), str(root), "llm", head)
+        trusted = root / "trusted"; (trusted / "scripts").mkdir(parents=True)
+        (trusted / "scripts/check_private_backlog_refs.py").write_text(
+            (Path(__file__).resolve().parents[1] / "scripts/check_private_backlog_refs.py").read_text())
+        (trusted / ".dev-platform.toml").write_text('[development_backlog]\nrepository = "acme/private-backlog"\n')
+        def perspective(path, request, name, **kwargs):
+            return reviewer._report(request, name, {
+                "runtime": "test-runtime", "context_id": name, "fresh_context": True, "write_access": False,
+                "launch_evidence": review.PLATFORM_OBSERVED, "read_only_mechanism": "test-readonly",
+                "model": {"value": "test-model", "source": "test"}}, launched_at="2026-10-06T00:00:00Z", output_sha256="a" * 64)
+        resolved = []
+        def private_requirement(trusted_root, manifest):
+            resolved.append(trusted_root)
+            return REQUIREMENT
+        with mock.patch.object(reviewer, "preflight", return_value={"ready": True, "provider": "codex", "model": "test-model", "binary": "test-cli"}), \
+                mock.patch.object(reviewer, "run_perspective", side_effect=perspective), \
+                mock.patch.object(managed_task, "fetch_issue", return_value={"body": body}) as fetch, \
+                mock.patch.object(composition, "private_lineage_requirement", return_value=True), \
+                mock.patch.object(contributions, "private_requirement", side_effect=private_requirement):
+            try:
+                outcome = composition.execute_composition_review(checkout, {"head": head, "task_identity": identity},
+                    source_repo=remote.as_uri(), branch="requirement/BR-7", current_head=lambda: head,
+                    trusted_root=trusted, review_config={}, launcher=mock.Mock())
+            finally:
+                self.assertEqual(resolved, [trusted])
+                self.assertEqual(fetch.call_args.args[0], trusted)
+        return outcome, remote, head
+
+    def test_private_composition_review_publishes_only_the_outcome(self):
+        body = "## Outcome\n\nDeliver both children together.\n\n## Children\n\n- acme/private-backlog#8\n- acme/private-backlog#9\n"
+        with tempfile.TemporaryDirectory() as tmp:
+            outcome, remote, head = self.run_private_composition_review(Path(tmp), body)
+            self.assertEqual(outcome["status"], "reviewed")
+            pushed = outcome["pushed_head"]
+            published = git(Path(tmp), "--git-dir", str(remote), "diff", head, pushed)
+            self.assertIn("Deliver both children together.", published)
+            self.assertNotIn("private-backlog#", published)
+            self.assertNotIn("private-backlog#", git(Path(tmp), "--git-dir", str(remote), "log", "--format=%B", f"{head}..{pushed}"))
+
+    def test_private_reference_in_the_outcome_blocks_composition_evidence(self):
+        body = "## Outcome\n\nFinish what acme/private-backlog#8 started.\n"
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(workers.WorkerError, "direct private Backlog reference"):
+                self.run_private_composition_review(Path(tmp), body)
+            remote = Path(tmp) / "remote.git"
+            self.assertEqual(git(Path(tmp), "--git-dir", str(remote), "rev-list", "--count", "--all", "--not",
+                                 git(Path(tmp), "--git-dir", str(remote), "rev-parse", "requirement/BR-7")), "0")
+
+    def test_requirement_outcome_requires_its_section(self):
+        self.assertEqual(composition.requirement_outcome("Intro\n## Outcome\nShip it.\n## Context\nx\n"), "Ship it.")
+        with self.assertRaisesRegex(workers.WorkerError, "no `## Outcome` section"):
+            composition.requirement_outcome("## Context\nx\n")
+        with self.assertRaisesRegex(workers.WorkerError, "section is empty"):
+            composition.requirement_outcome("## Outcome\n\n## Context\nx\n")
 
     def test_finalized_composition_offers_and_runs_premerge_parent_retrospective(self):
         import integration_contour as contour
