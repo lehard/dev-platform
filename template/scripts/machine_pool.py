@@ -486,7 +486,8 @@ def _create_ticket(config: PoolConfig, check_class: str, metadata: dict[str, Any
 
 def _queueing_timeout(config: PoolConfig) -> PoolTimeout:
     return PoolTimeout(f"machine pool wait timed out after {config.wait_timeout_seconds}s before queueing: "
-                       f"{config.admission_lock} stayed locked by another run")
+                       f"{config.admission_lock} stayed locked by another run; "
+                       f"holders: {describe_holders(read_holders(config))}")
 
 
 def _create_ticket_unlocked(config: PoolConfig, check_class: str, metadata: dict[str, Any]) -> _Ticket:

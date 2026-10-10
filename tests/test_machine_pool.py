@@ -527,7 +527,7 @@ class QueueOrderTests(PoolFixture):
 
     def test_a_held_admission_lock_never_blocks_past_the_wait_timeout(self) -> None:
         self.held_admission_lock()
-        with self.assertRaisesRegex(machine_pool.PoolTimeout, "admission.lock stayed locked"):
+        with self.assertRaisesRegex(machine_pool.PoolTimeout, "admission.lock stayed locked by another run; holders: none"):
             with machine_pool.lease(1, "dev", environ=dict(self.environ), hooks=self.ticking_hooks()):
                 self.fail("must not run while admission is locked")
         self.assertEqual(self.queue_names(), [])
