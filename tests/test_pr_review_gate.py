@@ -1141,7 +1141,7 @@ class EndToEndTests(unittest.TestCase):
                 self.assertFalse((checkout / ".claude/model-routing").exists())
                 outcome = gate.execute_review(checkout, job, source_repo=self.remote.as_uri(),
                                               branch="agent/example", current_head=self.remote_head,
-                                              runner=subprocess.run, launcher=launch, review_config={"provider": "codex"})
+                                              runner=subprocess.run, trusted_root=Path(self.tmp.name), launcher=launch, review_config={"provider": "codex"})
                 self.assertEqual(outcome["status"], "reviewed")
                 self.assertEqual(len(calls), 2)
             job["head"] = self.remote_head()
@@ -1149,7 +1149,7 @@ class EndToEndTests(unittest.TestCase):
                 checkout = workers.prepare_checkout(self.remote.as_uri(), workdir, "review", job["head"])
                 outcome = gate.execute_review(checkout, job, source_repo=self.remote.as_uri(),
                                               branch="agent/example", current_head=self.remote_head,
-                                              runner=subprocess.run, launcher=launch,
+                                              runner=subprocess.run, trusted_root=Path(self.tmp.name), launcher=launch,
                                               review_config={"provider": "unresolved-worker-route"})
                 self.assertTrue(all(r["availability"] == "unavailable" for r in outcome["reports"].values()))
                 self.assertTrue(all("unresolved-worker-route" in r["limitation"] for r in outcome["reports"].values()))
@@ -1218,7 +1218,7 @@ class EndToEndTests(unittest.TestCase):
             checkout = workers.prepare_checkout(self.remote.as_uri(), workdir, "review", job["head"])
             self.assertFalse((checkout / "openspec/changes/example").exists())
             outcome = gate.execute_review(checkout, job, source_repo=self.remote.as_uri(), branch="agent/example",
-                                          current_head=self.remote_head, runner=subprocess.run, launcher=launch,
+                                          current_head=self.remote_head, runner=subprocess.run, trusted_root=Path(self.tmp.name), launcher=launch,
                                           review_config={"provider": "codex"})
             self.assertEqual(outcome["status"], "reviewed")
             self.assertEqual(len(calls), 2)

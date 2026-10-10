@@ -220,8 +220,8 @@ def current_rejections(reports: dict, dispositions: list[dict]) -> bool:
 
 
 def execute_review(checkout: Path, job: dict, *, source_repo: str, branch: str,
-                   current_head, runner, push_env=None, launcher=None, review_config=None, before_push=None,
-                   claim_current=lambda: True) -> dict:
+                   current_head, runner, trusted_root: Path, push_env=None, launcher=None, review_config=None,
+                   before_push=None, claim_current=lambda: True) -> dict:
     """Run the existing reviewer; only the harness commits and pushes evidence."""
     import lifecycle_workers as workers
     from requirement_composition import run_child_review
@@ -230,7 +230,8 @@ def execute_review(checkout: Path, job: dict, *, source_repo: str, branch: str,
     if job["task_identity"].get("kind") == "requirement-composition":
         from requirement_composition import execute_composition_review
         return execute_composition_review(checkout, job, source_repo=source_repo, branch=branch,
-                                          current_head=current_head, runner=runner, launcher=launcher,
+                                          current_head=current_head, trusted_root=trusted_root,
+                                          runner=runner, launcher=launcher,
                                           review_config=review_config, before_push=before_push,
                                           claim_current=claim_current, push_env=push_env)
     checkout = checkout.resolve()
@@ -353,7 +354,7 @@ def run_claimed(root: Path, repo: str, candidate: dict, job: dict, *, source_rep
     def review_handler(checkout):
         workers.scratch_home(Path(workdir), home_files)
         return execute_review(checkout, job, source_repo=source_repo, branch=branch,
-                              current_head=current_head, runner=runner, launcher=launcher,
+                              current_head=current_head, runner=runner, trusted_root=root, launcher=launcher,
                               review_config=review_config, before_push=before_push, claim_current=claim_current)
 
     if kind == "repair":
