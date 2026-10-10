@@ -1034,13 +1034,10 @@ def admit(root: Path, number: int, expected_head: str, *, handoff: dict | None =
         if proven != expected_head and not handoff:
             raise QueueError("PR has an earlier or ambiguous admission; resolve it before re-admission")
         if proven != expected_head:
-            supersedes, lineage = _supersession(root, repo, number, pr, str(proven), expected_head, identity)
+            supersedes, _ = _supersession(root, repo, number, pr, str(proven), expected_head, identity)
             handoff_gates = resolved_handoff.get("gates")
             if not isinstance(handoff_gates, dict):
                 raise QueueError("re-admission handoff carries no gates")
-            # A passed review of unchanged task content survives the new head; the review job reuses it.
-            resolved_handoff = {**resolved_handoff,
-                                "gates": {**_carried_gates(root, lineage, identity, handoff_gates), **handoff_gates}}
             base = identity["contribution_base"] if identity.get("kind") == "contribution" else _main(root)
             # Off the queue until the fresh review record exists: no worker integrates the unreviewed head.
             _label(root, repo, number, QUEUE, present=False)
@@ -1064,6 +1061,16 @@ def admit(root: Path, number: int, expected_head: str, *, handoff: dict | None =
     current = _derive(root, _pr(root, repo, number), comments)
     stale = _earlier_slot_record(root, repo, number, comments, expected_head, admitted)
     if current.get("task_identity") is None or current.get("head") != expected_head or stale:
+        # Recover carry-forward from the persisted supersession even when an earlier
+        # attempt published admission but stopped before writing the review record.
+        supersedes = admitted.get("supersedes")
+        if handoff and isinstance(supersedes, dict):
+            lineage = _latest(root, number, comments, supersedes["head"]) or {}
+            handoff_gates = resolved_handoff.get("gates")
+            if not isinstance(handoff_gates, dict):
+                raise QueueError("re-admission handoff carries no gates")
+            resolved_handoff = {**resolved_handoff,
+                                "gates": {**_carried_gates(root, lineage, identity, handoff_gates), **handoff_gates}}
         try:
             # A record of an earlier slot (written before this admission, or the projection of a
             # block this admission follows) is never later lifecycle work: only claims refuse.

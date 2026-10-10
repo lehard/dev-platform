@@ -709,6 +709,30 @@ class ReadmissionAndFinalizeResumeTests(unittest.TestCase):
             self.assertEqual(finalize["state"], "finalize-pending")
             self.assertEqual(workers.build_job(finalize)["kind"], "finalize")
 
+    def test_interrupted_readmission_retry_preserves_reusable_review(self):
+        for identity in (IDENTITY, self.NEW_IDENTITY):
+            with self.subTest(identity=identity), QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
+                self.passed_review_awaiting_semantic_handoff(fixture, stack)
+                review = fixture.candidate()["gates"]["review"]
+                fixture.head = self.NEW_HEAD
+                with mock.patch.object(queue, "_transition", side_effect=RuntimeError("interrupted")):
+                    with self.assertRaisesRegex(RuntimeError, "interrupted"):
+                        queue.admit(ROOT, 7, self.NEW_HEAD, handoff=self.handoff(identity))
+                admission = queue._admission(queue._events(ROOT, "o/r", 7), 7)
+                self.assertEqual(admission["head"], self.NEW_HEAD)
+                queue.admit(ROOT, 7, self.NEW_HEAD, handoff=self.handoff(identity))
+                candidate = fixture.candidate()
+                self.assertEqual(candidate["state"], "review-pending")
+                self.assertEqual(candidate["gates"]["selected-checks"]["evidence"]["sha256"], "fresh")
+                self.assertNotIn("required-checks", candidate["gates"])
+                if identity == IDENTITY:
+                    self.assertEqual(candidate["gates"]["review"], {**review, "identity": identity})
+                    self.assertEqual(self.run_review(fixture, [])["status"], "reused")
+                else:
+                    self.assertNotIn("review", candidate["gates"])
+                    with self.assertRaisesRegex(AssertionError, "a reviewer was launched"):
+                        self.run_review(fixture, [])
+
     def test_readmission_with_changed_task_content_runs_a_new_review(self):
         with QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
             self.passed_review_awaiting_semantic_handoff(fixture, stack)
