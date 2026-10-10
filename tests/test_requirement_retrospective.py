@@ -61,6 +61,19 @@ class RequirementRetrospectiveTests(unittest.TestCase):
             with self.assertRaisesRegex(retrospective.RequirementRetrospectiveError, "stale"):
                 retrospective.require_checkpoint(root, requirement=REQUIREMENT, parent=parent(outcome="Changed intent"))
 
+    def test_child_completion_checkboxes_do_not_stale_the_checkpoint(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with mock.patch.object(retrospective.requirement_intake, "fetch_issue", return_value=parent()), mock.patch.object(
+                retrospective.agent_friction, "read_events", return_value=[]
+            ):
+                retrospective.checkpoint(root, requirement=REQUIREMENT, result="none", event_ids=[], review_note="Reviewed intake, handoff, children and delivery.")
+            done = {"body": parent()["body"].replace("- [ ] acme/backlog#8", "- [x] acme/backlog#8").replace("- [ ] acme/backlog#9", "- [X] acme/backlog#9")}
+            self.assertEqual(retrospective.require_checkpoint(root, requirement=REQUIREMENT, parent=done)["result"], "none")
+            outside = {"body": done["body"].replace("Improve process", "Improve process\n- [x] acme/backlog#8")}
+            with self.assertRaisesRegex(retrospective.RequirementRetrospectiveError, "stale"):
+                retrospective.require_checkpoint(root, requirement=REQUIREMENT, parent=outside)
+
     def test_parent_none_rejects_recorded_recurrence_even_when_child_is_clean(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
