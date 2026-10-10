@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "401f3ce699a1aee6c0131a6b321a5eedfb973fb8",
     "base_ref": "origin/main",
-    "candidate_head": "353db381c999e2bad615b7620b8ab0a22a8a329d",
-    "diff_sha256": "268f0b4f5ce80672fd0894f463fc7301c2f9c1b5c51e37bb1d9000a95eace3db"
+    "candidate_head": "0530f64b96751eea2bb44e30dce5935d55298383",
+    "diff_sha256": "4dbae2d62637828e845af3eda0d14c3f4309eb695445fb2802009321359a063e"
   },
   "change": "openspec/changes/machine-validation-pool",
   "excluded_lifecycle_paths": [
@@ -37,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-10T06:42:45+00:00",
+  "prepared_at": "2026-10-10T07:01:59+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/machine-validation-pool/independent-reviews",
     "required_perspectives": [
@@ -46,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "37c8ed25-b3dc-48d5-bcef-c6605a3533b2",
+  "request_id": "64fdc616-c531-47d2-9ab0-c029ecb03d38",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -59,20 +59,20 @@
   "schema_version": 1,
   "task_content": {
     "base": "401f3ce699a1aee6c0131a6b321a5eedfb973fb8",
-    "digest": "0cc32c280b23675d3f0cdd68f20898c38ea4793ce3842434124aeddae50292b7",
+    "digest": "27b434e5372eb091b936bfa9abc921c16465547c76edf7d568b0a13a97d5210e",
     "paths": {
       "dev-platform/checks.toml": "5c0b1035090382800030235ef1f74d48a26aeab2",
       "docs/engineering/agent-workflow.md": "77b3ff865d852cbd157940fe9dc8021c93576cb6",
       "openspec/changes/machine-validation-pool/.managed-task.json": "69bebd5fb688138f5886b54df363d1ccacc76210",
       "openspec/changes/machine-validation-pool/.openspec.yaml": "81264324b0500978f52f70d701b236a09cb1d808",
-      "openspec/changes/machine-validation-pool/design.md": "0908209404bf37c6a17d8c9483e307e661b84fe6",
+      "openspec/changes/machine-validation-pool/design.md": "13897d47d4636b28572da31e3e8a4f59543fb157",
       "openspec/changes/machine-validation-pool/proposal.md": "e239a3252d846237e634f1005c9ba9d654d69d92",
       "openspec/changes/machine-validation-pool/specs/platform-lifecycle/spec.md": "324389d5f5653f0dff53f5120239cd82c769a625",
       "openspec/changes/machine-validation-pool/tasks.md": "49caeb5557c8d2cf4a48feefb316bb28ae2cb39a",
       "scripts/machine_pool.py": "cb57831157d3d0bb1b6513e695275f1e45b5c39f",
       "template/docs/engineering/agent-workflow.md.jinja": "90b2de32c77d8b18284731cef2fecdceeade74ba",
       "template/scripts/finish_task.py": "1c4fadadc680292763a931c3f509614f1c58a260",
-      "template/scripts/machine_pool.py": "dcfb585c273db47a520f955e65e1c9cfd6474c2b",
+      "template/scripts/machine_pool.py": "226a8f4781fdca9345589fc1376d0e745235e555",
       "template/scripts/openspec_lifecycle.py": "921f0eaad48e733034ea947e1efe97640c6a1b8d",
       "template/scripts/post_review_finalization.py": "1c871ba0027b5044633548e371da7e4b3f10a16e",
       "template/scripts/requirement_integration.py": "00df7ab907f8246e656aaf8ce69e6030f3f9b678",
@@ -81,7 +81,7 @@
       "tests/_platform_modules.py": "0030f17cc17f3b84ecaaebcf7bf42b3e0cfd8969",
       "tests/test_affected_precheck.py": "81e92f95f8a01a51c845056bd60cb6ecb43d1d97",
       "tests/test_git_lifecycle.py": "fe1d5f6b1ca78fae7d9df1e157a908b3b54a8665",
-      "tests/test_machine_pool.py": "f09891e7f1c628bc7b0ce9ccf6b683fad580d185",
+      "tests/test_machine_pool.py": "e543ba9804b57190141f1833f11fd24cde4720f2",
       "tests/test_post_review_finalization.py": "9083d556e065d327371cfda8c11920f40ab3f70d",
       "tests/test_requirement_integration.py": "c6c4c4fb309fcc01f2839d45a78364b0a3801d9e",
       "tests/test_run_test_groups.py": "f806a2be627dfff685c79913b070488188194583",

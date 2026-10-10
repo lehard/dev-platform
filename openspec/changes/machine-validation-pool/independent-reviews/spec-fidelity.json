@@ -3,57 +3,73 @@
   "candidate": {
     "base_head": "401f3ce699a1aee6c0131a6b321a5eedfb973fb8",
     "base_ref": "origin/main",
-    "candidate_head": "353db381c999e2bad615b7620b8ab0a22a8a329d",
-    "diff_sha256": "268f0b4f5ce80672fd0894f463fc7301c2f9c1b5c51e37bb1d9000a95eace3db"
+    "candidate_head": "0530f64b96751eea2bb44e30dce5935d55298383",
+    "diff_sha256": "4dbae2d62637828e845af3eda0d14c3f4309eb695445fb2802009321359a063e"
   },
-  "completed_at": "2026-10-10T06:44:17+00:00",
-  "findings": [
-    {
-      "evidence": "template/scripts/machine_pool.py:469\u2013479 gives _create_ticket its own wait_timeout_seconds budget; _acquire calls it at line 584 and resets started at line 586 before applying another full budget. The delta requires failure after the configured wait timeout. A read-only mocked-clock reproduction with a 10-second timeout and 9 seconds spent creating the ticket failed at 19 seconds while reporting 'timed out after 10s'. A run can likewise be admitted after its overall configured deadline.",
-      "id": "acquisition-timeout-restarts-after-queueing",
-      "severity": "material",
-      "summary": "Acquisition restarts the configured timeout after ticket creation, allowing a run to wait almost twice the promised limit."
-    }
-  ],
-  "launched_at": "2026-10-10T06:42:55+00:00",
-  "output_sha256": "22329d6ba7e91504111a409b40a53829ebbbb28fc0058f968a0d2a6529b2103b",
+  "completed_at": "2026-10-10T07:02:31+00:00",
+  "findings": [],
+  "launched_at": "2026-10-10T07:02:09+00:00",
+  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "spec-fidelity",
-  "request_id": "37c8ed25-b3dc-48d5-bcef-c6605a3533b2",
+  "request_id": "64fdc616-c531-47d2-9ab0-c029ecb03d38",
   "reviewer": {
-    "context_id": "01a1248c-e45a-7cc2-ad33-45bb1a3fd4f4",
+    "context_id": "1b903a7e-83a4-4cba-910f-96f4b9b6dbff",
     "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-ce64e95d-ede5-4869-ac88-cc57079b9d8b",
+    "launch_id": "platform-launch-d7da392d-c5e3-4929-b00f-a8bec309c92f",
     "model": {
       "source": "selected",
-      "value": "gpt-6.1-sol"
+      "value": "sonnet"
     },
-    "provider": "codex",
-    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
-    "runtime": "codex-exec",
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
     "write_access": false
   },
   "runtime_usage": {
     "fields": {
-      "cached_input_tokens": {
+      "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 312832
+        "value": 51232
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 110334
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 17268
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 17943
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 379011
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1992
+        "value": 1693
       }
     },
-    "runtime": "codex-exec"
+    "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "0cc32c280b23675d3f0cdd68f20898c38ea4793ce3842434124aeddae50292b7"
+  "task_content_digest": "27b434e5372eb091b936bfa9abc921c16465547c76edf7d568b0a13a97d5210e"
 }
