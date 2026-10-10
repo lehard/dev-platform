@@ -3,30 +3,30 @@
   "candidate": {
     "base_head": "401f3ce699a1aee6c0131a6b321a5eedfb973fb8",
     "base_ref": "origin/main",
-    "candidate_head": "8f2043d916d15a6fbc22355a73df1a578bccea65",
-    "diff_sha256": "3c6e645824becc6f761e9fc559d5487648528c199bc0417310a30ba1bd8f4711"
+    "candidate_head": "f531d752e322fc67b0ea5a8492ee3e74fa2a09e4",
+    "diff_sha256": "fe5ffe81b254522987ea6dbcc9acf3e950979ad90387d1a294b4c66d7449b96a"
   },
-  "completed_at": "2026-10-10T07:48:44+00:00",
+  "completed_at": "2026-10-10T08:15:15+00:00",
   "findings": [
     {
-      "evidence": "template/.github/workflows/process-health-labels.yml.jinja: `curl -fsS -H \"$AUTH\" \"https://api.github.com/repos/${REPOSITORY}/labels/process%3Amanaged\"`. This matters only for a GitHub Enterprise Server project with scm_provider=github. The change removes the `gh` dependency for every runner kind, not only self-hosted ones.",
-      "id": "provision-curl-hardcodes-github-com",
+      "evidence": "scripts/rollout_project.py:1564-1570 calls rendered_template_fingerprints(version, answers_before, baseline_conflicts | target_conflicts, env=env, operator_integration=...). target_equivalent_conflict_paths (line 1110-1117) and the retarget proof pass legacy_repository=legacy_repository. The omission predates this change for baseline_conflicts, but this change extends the set the call covers.",
+      "id": "post-recopy-render-omits-legacy-repository",
       "severity": "advisory",
-      "summary": "The label-provisioning job now calls the GitHub REST API at a hard-coded https://api.github.com. The previous `gh api` call honoured GH_HOST/GHES and handled auth and API headers itself. The curl form drops that and sends no Accept or API-version header."
+      "summary": "The post-recopy target render now also covers target-equivalent paths, but it omits `legacy_repository`, which the pre-recopy proof passes. If `legacy_repository` affects a rendered path, the proof could pass and the post-recopy match could then fail. That would block the rollout without any data loss."
     }
   ],
-  "launched_at": "2026-10-10T07:48:14+00:00",
-  "output_sha256": "67b5f9b709dbbc540d12aadc0373c4c3c60fb796ee36912ed93331b52432ad65",
+  "launched_at": "2026-10-10T08:14:52+00:00",
+  "output_sha256": "aa0c099d23a0cf6686bf3cfb7ace51c69a94f8cd58644cecf396b06489695cb3",
   "perspective": "engineering-quality",
-  "request_id": "fab4a410-552a-4aec-adc3-e318d938d89e",
+  "request_id": "c714230c-884e-4a7b-9c5f-195d750d2072",
   "reviewer": {
-    "context_id": "cf0589bd-bff0-4c14-bdd3-cd70f1771ac5",
+    "context_id": "a6fa93e5-150e-4770-9561-29d2969f19b4",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-fee2cad4-1a5d-4efe-ab66-c297465716f5",
+    "launch_id": "platform-launch-54983330-fa0e-4128-92d9-21109ff87dd2",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -42,22 +42,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 45810
+        "value": 29832
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 78727
+        "value": 64072
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 26709
+        "value": 18794
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 27732
+        "value": 19671
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -67,16 +67,16 @@
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 5
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2964
+        "value": 1954
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "2f34bc77f41900a030f81070dbf68fb3a4cd24965039f84a31b88d000fac92b0"
+  "task_content_digest": "2d8a5fb65696f6d30913aaed34861818f9ac9cd84f73d7d33c606c56ca3ef37a"
 }

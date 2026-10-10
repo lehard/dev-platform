@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "401f3ce699a1aee6c0131a6b321a5eedfb973fb8",
     "base_ref": "origin/main",
-    "candidate_head": "8f2043d916d15a6fbc22355a73df1a578bccea65",
-    "diff_sha256": "3c6e645824becc6f761e9fc559d5487648528c199bc0417310a30ba1bd8f4711"
+    "candidate_head": "f531d752e322fc67b0ea5a8492ee3e74fa2a09e4",
+    "diff_sha256": "fe5ffe81b254522987ea6dbcc9acf3e950979ad90387d1a294b4c66d7449b96a"
   },
   "change": "openspec/changes/platform-ci-runner-selection",
   "excluded_lifecycle_paths": [
@@ -39,7 +39,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-10T07:47:44+00:00",
+  "prepared_at": "2026-10-10T08:14:24+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/platform-ci-runner-selection/independent-reviews",
     "required_perspectives": [
@@ -48,7 +48,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "fab4a410-552a-4aec-adc3-e318d938d89e",
+  "request_id": "c714230c-884e-4a7b-9c5f-195d750d2072",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -61,7 +61,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "401f3ce699a1aee6c0131a6b321a5eedfb973fb8",
-    "digest": "2f34bc77f41900a030f81070dbf68fb3a4cd24965039f84a31b88d000fac92b0",
+    "digest": "2d8a5fb65696f6d30913aaed34861818f9ac9cd84f73d7d33c606c56ca3ef37a",
     "paths": {
       "copier.yml": "8460e2ac45f3fb9740f5621b8293f13eb5429bbb",
       "dev-platform/checks.toml": "4b00e1dd434912c950d9aea3dfeab8c9d1208a67",
@@ -77,6 +77,7 @@
       "template/.github/workflows/dev-platform.yml.jinja": "21156f3e506ec0baee93daa4c1234f8a75f977db",
       "template/.github/workflows/process-health-labels.yml.jinja": "a50a33654ee7b7c1eeb29ce0ea7b6147c21b7fa8",
       "template/scripts/platform_doctor.py": "50d3241703f74a05941e6e7a0f85d1f7d38755a2",
+      "tests/test_agent_instruction_architecture.py": "50ca892c11ceb1d0a337c785cc8a4998a930c0d8",
       "tests/test_ci_guardrails.py": "810716be0f6cd558719c4babaa1afc2b4597e485",
       "tests/test_ci_runner_selection.py": "6fea82e313dd4e035bff7a382c0b2f1006390c22",
       "tests/test_platform_doctor_workflow_mode.py": "6f7f2f52c0df1db96ea57dbaa978aac64e0bb6d2",
