@@ -1,6 +1,290 @@
 {
   "base": "3533c299f356265154c811491070132e071c95f0",
-  "children": [],
+  "children": [
+    {
+      "change": "downstream-change-classes",
+      "contribution_base": "a4d99eab8579e170648f02d1675cd8dde0bfd44b",
+      "gates": {
+        "developer-friction": {
+          "evidence": {
+            "command": [
+              "python3",
+              "/Users/Shared/Workspace/dev-platform/.claude/worktrees/downstream-change-classes/scripts/agent_friction.py",
+              "assert-checkpoint",
+              "--exact-head"
+            ],
+            "head": "ccd1943affcc3cfbe71eacc1c6062caa5f75635e"
+          },
+          "identity": {
+            "change": "downstream-change-classes",
+            "contribution_base": "a4d99eab8579e170648f02d1675cd8dde0bfd44b",
+            "kind": "contribution",
+            "requirement": "pln_09fc13764e27cbaeb1e7e34d776228ed",
+            "source_issue": "pln_1eae5c277ccecb82dda5ceb2a5740403",
+            "target_branch": "requirement/BR-526",
+            "task_content": {
+              "base": "a4d99eab8579e170648f02d1675cd8dde0bfd44b",
+              "digest": "99f7a57f63a95546962f0918ad32cb06edd7cefea0d9939cb808ceccf3c7a54c",
+              "paths": {
+                "AGENTS.md": "98100e4a692dc603838a5d783446a940f0d79325",
+                "dev-platform/checks.toml": "59d346b8228e790bb5abf06d3a8f5d40861cada4",
+                "docs/ownership.md": "52aa74336fbe2c5273724e8c85e5f9b2dfbb5fb2",
+                "openspec/changes/downstream-change-classes/.managed-task.json": "0461309ff5eb827019ce8a8f1a2fe4fcdabea36f",
+                "openspec/changes/downstream-change-classes/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
+                "openspec/changes/downstream-change-classes/design.md": "8a879c03fd49545ef3b2e600f64b3042fb80d395",
+                "openspec/changes/downstream-change-classes/proposal.md": "cace9a641bcbb5fffc6b879dc585887ab53f455f",
+                "openspec/changes/downstream-change-classes/specs/downstream-change-classes/spec.md": "78ca8ba841373772159ea82344f38a13ae13b7ea",
+                "openspec/changes/downstream-change-classes/tasks.md": "a3afe6b56a5ffb8772717cd662a5b8797fc0d663",
+                "template/AGENTS.md.jinja": "a6585c1761e540ecaaf90db5623587433d094876",
+                "template/dev-platform/protected-surface.toml": "fb9152faf3ee0570092096d233ae731acefb2b5e",
+                "template/docs/README.md": "5fd713497943db5385ce2bac3b5e5089ef1c16d9",
+                "template/docs/engineering/change-classes.md": "359ba7fb4688010846537e1bcf0523e02394e8c6",
+                "tests/test_protected_surface.py": "6c75a0b23a98d30550440f09dc88046c021d298c",
+                "tests/test_root_guidance_contract.py": "daf251b2524ed2bd7695573ce7078df119ac3f1a",
+                "tests/test_template_contract.py": "272e6bb28c08c92f82d8dab190ea0d255bcd10bd",
+                "tests/upgrade_smoke.py": "b58faaf460e90458e55baae3bcf95684a4e3e27c"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-526/T1"
+          },
+          "result": "passed"
+        },
+        "required-checks": {
+          "evidence": {
+            "checks": [
+              {
+                "name": "validate",
+                "state": "success"
+              }
+            ],
+            "detail": "",
+            "head": "a0d221172060743da307e8fa2a550cb6e5e8aef1",
+            "kind": "passed"
+          },
+          "identity": {
+            "change": "downstream-change-classes",
+            "contribution_base": "a4d99eab8579e170648f02d1675cd8dde0bfd44b",
+            "kind": "contribution",
+            "requirement": "pln_09fc13764e27cbaeb1e7e34d776228ed",
+            "source_issue": "pln_1eae5c277ccecb82dda5ceb2a5740403",
+            "target_branch": "requirement/BR-526",
+            "task_content": {
+              "base": "a4d99eab8579e170648f02d1675cd8dde0bfd44b",
+              "digest": "99f7a57f63a95546962f0918ad32cb06edd7cefea0d9939cb808ceccf3c7a54c",
+              "paths": {
+                "AGENTS.md": "98100e4a692dc603838a5d783446a940f0d79325",
+                "dev-platform/checks.toml": "59d346b8228e790bb5abf06d3a8f5d40861cada4",
+                "docs/ownership.md": "52aa74336fbe2c5273724e8c85e5f9b2dfbb5fb2",
+                "openspec/changes/downstream-change-classes/.managed-task.json": "0461309ff5eb827019ce8a8f1a2fe4fcdabea36f",
+                "openspec/changes/downstream-change-classes/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
+                "openspec/changes/downstream-change-classes/design.md": "8a879c03fd49545ef3b2e600f64b3042fb80d395",
+                "openspec/changes/downstream-change-classes/proposal.md": "cace9a641bcbb5fffc6b879dc585887ab53f455f",
+                "openspec/changes/downstream-change-classes/specs/downstream-change-classes/spec.md": "78ca8ba841373772159ea82344f38a13ae13b7ea",
+                "openspec/changes/downstream-change-classes/tasks.md": "a3afe6b56a5ffb8772717cd662a5b8797fc0d663",
+                "template/AGENTS.md.jinja": "a6585c1761e540ecaaf90db5623587433d094876",
+                "template/dev-platform/protected-surface.toml": "fb9152faf3ee0570092096d233ae731acefb2b5e",
+                "template/docs/README.md": "5fd713497943db5385ce2bac3b5e5089ef1c16d9",
+                "template/docs/engineering/change-classes.md": "359ba7fb4688010846537e1bcf0523e02394e8c6",
+                "tests/test_protected_surface.py": "6c75a0b23a98d30550440f09dc88046c021d298c",
+                "tests/test_root_guidance_contract.py": "daf251b2524ed2bd7695573ce7078df119ac3f1a",
+                "tests/test_template_contract.py": "272e6bb28c08c92f82d8dab190ea0d255bcd10bd",
+                "tests/upgrade_smoke.py": "b58faaf460e90458e55baae3bcf95684a4e3e27c"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-526/T1"
+          },
+          "result": "passed"
+        },
+        "review": {
+          "evidence": {
+            "engineering-quality": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": "template/dev-platform/protected-surface.toml lists scripts/agent_friction.py, scripts/requirement_retrospective.py, scripts/requirement_intake.py, scripts/execute_managed_task.py and scripts/orchestrate_pre_authoring.py under `hotfixable`. AGENTS.md makes the friction and retrospective checkpoints and the intake flow mandatory completion gates. Protected siblings such as requirement_composition.py and managed_task.py cover adjacent lifecycle steps. The design says the protected globs are 'delibe",
+                  "id": "hotfixable-gate-scripts-unreviewed",
+                  "severity": "advisory",
+                  "summary": "Several gate-adjacent scripts are classified hotfixable even though they appear to enforce guarantees that the protected categories are meant to cover, such as friction and retrospective checkpoints and lifecycle intake. The classification rationale is not recorded."
+                }
+              ],
+              "perspective": "engineering-quality",
+              "report_sha256": "c00afc40cfc1563119fffc3aed00c2e638839f6a68619105109724e2c5c87bf8"
+            },
+            "spec-fidelity": {
+              "availability": "available",
+              "findings": [],
+              "perspective": "spec-fidelity",
+              "report_sha256": "b6cb3a11805908c1abee3b0658231c3d242e9681f9a71e403a961cd99800bf70"
+            }
+          },
+          "identity": {
+            "change": "downstream-change-classes",
+            "contribution_base": "a4d99eab8579e170648f02d1675cd8dde0bfd44b",
+            "kind": "contribution",
+            "requirement": "pln_09fc13764e27cbaeb1e7e34d776228ed",
+            "source_issue": "pln_1eae5c277ccecb82dda5ceb2a5740403",
+            "target_branch": "requirement/BR-526",
+            "task_content": {
+              "base": "a4d99eab8579e170648f02d1675cd8dde0bfd44b",
+              "digest": "99f7a57f63a95546962f0918ad32cb06edd7cefea0d9939cb808ceccf3c7a54c",
+              "paths": {
+                "AGENTS.md": "98100e4a692dc603838a5d783446a940f0d79325",
+                "dev-platform/checks.toml": "59d346b8228e790bb5abf06d3a8f5d40861cada4",
+                "docs/ownership.md": "52aa74336fbe2c5273724e8c85e5f9b2dfbb5fb2",
+                "openspec/changes/downstream-change-classes/.managed-task.json": "0461309ff5eb827019ce8a8f1a2fe4fcdabea36f",
+                "openspec/changes/downstream-change-classes/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
+                "openspec/changes/downstream-change-classes/design.md": "8a879c03fd49545ef3b2e600f64b3042fb80d395",
+                "openspec/changes/downstream-change-classes/proposal.md": "cace9a641bcbb5fffc6b879dc585887ab53f455f",
+                "openspec/changes/downstream-change-classes/specs/downstream-change-classes/spec.md": "78ca8ba841373772159ea82344f38a13ae13b7ea",
+                "openspec/changes/downstream-change-classes/tasks.md": "a3afe6b56a5ffb8772717cd662a5b8797fc0d663",
+                "template/AGENTS.md.jinja": "a6585c1761e540ecaaf90db5623587433d094876",
+                "template/dev-platform/protected-surface.toml": "fb9152faf3ee0570092096d233ae731acefb2b5e",
+                "template/docs/README.md": "5fd713497943db5385ce2bac3b5e5089ef1c16d9",
+                "template/docs/engineering/change-classes.md": "359ba7fb4688010846537e1bcf0523e02394e8c6",
+                "tests/test_protected_surface.py": "6c75a0b23a98d30550440f09dc88046c021d298c",
+                "tests/test_root_guidance_contract.py": "daf251b2524ed2bd7695573ce7078df119ac3f1a",
+                "tests/test_template_contract.py": "272e6bb28c08c92f82d8dab190ea0d255bcd10bd",
+                "tests/upgrade_smoke.py": "b58faaf460e90458e55baae3bcf95684a4e3e27c"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-526/T1"
+          },
+          "result": "passed"
+        },
+        "selected-checks": {
+          "evidence": {
+            "bytes": 5933,
+            "path": "openspec/changes/downstream-change-classes/automated-checks.json",
+            "sha256": "b9db48fe893d0a1b1dabff54510830dcb33c074bd0ec961ed8240cdee0d85e3e"
+          },
+          "identity": {
+            "change": "downstream-change-classes",
+            "contribution_base": "a4d99eab8579e170648f02d1675cd8dde0bfd44b",
+            "kind": "contribution",
+            "requirement": "pln_09fc13764e27cbaeb1e7e34d776228ed",
+            "source_issue": "pln_1eae5c277ccecb82dda5ceb2a5740403",
+            "target_branch": "requirement/BR-526",
+            "task_content": {
+              "base": "a4d99eab8579e170648f02d1675cd8dde0bfd44b",
+              "digest": "99f7a57f63a95546962f0918ad32cb06edd7cefea0d9939cb808ceccf3c7a54c",
+              "paths": {
+                "AGENTS.md": "98100e4a692dc603838a5d783446a940f0d79325",
+                "dev-platform/checks.toml": "59d346b8228e790bb5abf06d3a8f5d40861cada4",
+                "docs/ownership.md": "52aa74336fbe2c5273724e8c85e5f9b2dfbb5fb2",
+                "openspec/changes/downstream-change-classes/.managed-task.json": "0461309ff5eb827019ce8a8f1a2fe4fcdabea36f",
+                "openspec/changes/downstream-change-classes/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
+                "openspec/changes/downstream-change-classes/design.md": "8a879c03fd49545ef3b2e600f64b3042fb80d395",
+                "openspec/changes/downstream-change-classes/proposal.md": "cace9a641bcbb5fffc6b879dc585887ab53f455f",
+                "openspec/changes/downstream-change-classes/specs/downstream-change-classes/spec.md": "78ca8ba841373772159ea82344f38a13ae13b7ea",
+                "openspec/changes/downstream-change-classes/tasks.md": "a3afe6b56a5ffb8772717cd662a5b8797fc0d663",
+                "template/AGENTS.md.jinja": "a6585c1761e540ecaaf90db5623587433d094876",
+                "template/dev-platform/protected-surface.toml": "fb9152faf3ee0570092096d233ae731acefb2b5e",
+                "template/docs/README.md": "5fd713497943db5385ce2bac3b5e5089ef1c16d9",
+                "template/docs/engineering/change-classes.md": "359ba7fb4688010846537e1bcf0523e02394e8c6",
+                "tests/test_protected_surface.py": "6c75a0b23a98d30550440f09dc88046c021d298c",
+                "tests/test_root_guidance_contract.py": "daf251b2524ed2bd7695573ce7078df119ac3f1a",
+                "tests/test_template_contract.py": "272e6bb28c08c92f82d8dab190ea0d255bcd10bd",
+                "tests/upgrade_smoke.py": "b58faaf460e90458e55baae3bcf95684a4e3e27c"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-526/T1"
+          },
+          "result": "passed"
+        },
+        "semantic-verification": {
+          "evidence": {
+            "bytes": 4079,
+            "path": "openspec/changes/downstream-change-classes/verification.md",
+            "sha256": "ac7c3dcb0df246feaf7f8ed8a5ac22ba41b66730b767c0ccace978cfcd223002"
+          },
+          "identity": {
+            "change": "downstream-change-classes",
+            "contribution_base": "a4d99eab8579e170648f02d1675cd8dde0bfd44b",
+            "kind": "contribution",
+            "requirement": "pln_09fc13764e27cbaeb1e7e34d776228ed",
+            "source_issue": "pln_1eae5c277ccecb82dda5ceb2a5740403",
+            "target_branch": "requirement/BR-526",
+            "task_content": {
+              "base": "a4d99eab8579e170648f02d1675cd8dde0bfd44b",
+              "digest": "99f7a57f63a95546962f0918ad32cb06edd7cefea0d9939cb808ceccf3c7a54c",
+              "paths": {
+                "AGENTS.md": "98100e4a692dc603838a5d783446a940f0d79325",
+                "dev-platform/checks.toml": "59d346b8228e790bb5abf06d3a8f5d40861cada4",
+                "docs/ownership.md": "52aa74336fbe2c5273724e8c85e5f9b2dfbb5fb2",
+                "openspec/changes/downstream-change-classes/.managed-task.json": "0461309ff5eb827019ce8a8f1a2fe4fcdabea36f",
+                "openspec/changes/downstream-change-classes/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
+                "openspec/changes/downstream-change-classes/design.md": "8a879c03fd49545ef3b2e600f64b3042fb80d395",
+                "openspec/changes/downstream-change-classes/proposal.md": "cace9a641bcbb5fffc6b879dc585887ab53f455f",
+                "openspec/changes/downstream-change-classes/specs/downstream-change-classes/spec.md": "78ca8ba841373772159ea82344f38a13ae13b7ea",
+                "openspec/changes/downstream-change-classes/tasks.md": "a3afe6b56a5ffb8772717cd662a5b8797fc0d663",
+                "template/AGENTS.md.jinja": "a6585c1761e540ecaaf90db5623587433d094876",
+                "template/dev-platform/protected-surface.toml": "fb9152faf3ee0570092096d233ae731acefb2b5e",
+                "template/docs/README.md": "5fd713497943db5385ce2bac3b5e5089ef1c16d9",
+                "template/docs/engineering/change-classes.md": "359ba7fb4688010846537e1bcf0523e02394e8c6",
+                "tests/test_protected_surface.py": "6c75a0b23a98d30550440f09dc88046c021d298c",
+                "tests/test_root_guidance_contract.py": "daf251b2524ed2bd7695573ce7078df119ac3f1a",
+                "tests/test_template_contract.py": "272e6bb28c08c92f82d8dab190ea0d255bcd10bd",
+                "tests/upgrade_smoke.py": "b58faaf460e90458e55baae3bcf95684a4e3e27c"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-526/T1"
+          },
+          "result": "passed"
+        }
+      },
+      "head": "a0d221172060743da307e8fa2a550cb6e5e8aef1",
+      "integrated_head": "a1f905ce313cf30b20b182dc2e45a55d3675e538",
+      "pr_number": 473,
+      "reviewed_evidence_digest": "34c6e9fc99f0e968f36bed8159d27f4bdcbae3f4ddd0fb13cf98a96522385792",
+      "source_branch": "agent/br-526-t1-downstream-change-classes",
+      "source_issue": "pln_1eae5c277ccecb82dda5ceb2a5740403",
+      "task_identity": {
+        "change": "downstream-change-classes",
+        "contribution_base": "a4d99eab8579e170648f02d1675cd8dde0bfd44b",
+        "kind": "contribution",
+        "requirement": "pln_09fc13764e27cbaeb1e7e34d776228ed",
+        "source_issue": "pln_1eae5c277ccecb82dda5ceb2a5740403",
+        "target_branch": "requirement/BR-526",
+        "task_content": {
+          "base": "a4d99eab8579e170648f02d1675cd8dde0bfd44b",
+          "digest": "99f7a57f63a95546962f0918ad32cb06edd7cefea0d9939cb808ceccf3c7a54c",
+          "paths": {
+            "AGENTS.md": "98100e4a692dc603838a5d783446a940f0d79325",
+            "dev-platform/checks.toml": "59d346b8228e790bb5abf06d3a8f5d40861cada4",
+            "docs/ownership.md": "52aa74336fbe2c5273724e8c85e5f9b2dfbb5fb2",
+            "openspec/changes/downstream-change-classes/.managed-task.json": "0461309ff5eb827019ce8a8f1a2fe4fcdabea36f",
+            "openspec/changes/downstream-change-classes/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
+            "openspec/changes/downstream-change-classes/design.md": "8a879c03fd49545ef3b2e600f64b3042fb80d395",
+            "openspec/changes/downstream-change-classes/proposal.md": "cace9a641bcbb5fffc6b879dc585887ab53f455f",
+            "openspec/changes/downstream-change-classes/specs/downstream-change-classes/spec.md": "78ca8ba841373772159ea82344f38a13ae13b7ea",
+            "openspec/changes/downstream-change-classes/tasks.md": "a3afe6b56a5ffb8772717cd662a5b8797fc0d663",
+            "template/AGENTS.md.jinja": "a6585c1761e540ecaaf90db5623587433d094876",
+            "template/dev-platform/protected-surface.toml": "fb9152faf3ee0570092096d233ae731acefb2b5e",
+            "template/docs/README.md": "5fd713497943db5385ce2bac3b5e5089ef1c16d9",
+            "template/docs/engineering/change-classes.md": "359ba7fb4688010846537e1bcf0523e02394e8c6",
+            "tests/test_protected_surface.py": "6c75a0b23a98d30550440f09dc88046c021d298c",
+            "tests/test_root_guidance_contract.py": "daf251b2524ed2bd7695573ce7078df119ac3f1a",
+            "tests/test_template_contract.py": "272e6bb28c08c92f82d8dab190ea0d255bcd10bd",
+            "tests/upgrade_smoke.py": "b58faaf460e90458e55baae3bcf95684a4e3e27c"
+          },
+          "scope": "independent-review-v1",
+          "version": 1
+        },
+        "work_identity": "BR-526/T1"
+      },
+      "work_identity": "BR-526/T1"
+    }
+  ],
   "dependencies": {
     "blocking-check-recoverability": [
       "local-platform-hotfix"
@@ -10,7 +294,7 @@
       "downstream-change-classes"
     ]
   },
-  "digest": "7863d93afdea752419e2aa955c50c44e3c6e205c7c237d29ad5d683891254146",
+  "digest": "5ef8f2f480454ebb0bbd9e1ebcd43a0d2201251c212e53d79d2fc9de31ae0535",
   "expected_changes": [
     "downstream-change-classes",
     "local-platform-hotfix",
