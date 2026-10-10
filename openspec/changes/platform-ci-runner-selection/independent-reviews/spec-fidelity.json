@@ -3,72 +3,56 @@
   "candidate": {
     "base_head": "401f3ce699a1aee6c0131a6b321a5eedfb973fb8",
     "base_ref": "origin/main",
-    "candidate_head": "f3d4937595041e6d6a6018361751fb154b929b50",
-    "diff_sha256": "13db183ab21caf394eb21d6c6d81cccad168cce9f5569b0284eef0749df94def"
+    "candidate_head": "7edae3ff124e7a03f5d0155d76c8e0b50720c00e",
+    "diff_sha256": "56a1247a52032f51497f3cc7ec1de9368cfcf24f4c8afae0a5a8101e0c70667c"
   },
-  "completed_at": "2026-10-10T06:29:18+00:00",
-  "findings": [],
-  "launched_at": "2026-10-10T06:29:01+00:00",
-  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
+  "completed_at": "2026-10-10T07:06:00+00:00",
+  "findings": [
+    {
+      "evidence": "docs/managed-rollout.md:108 and design.md decision 6 say pre-seeding the answers makes rollout render an equivalent workflow without conflict. However, design.md:8 identifies the existing edit as `runs-on: alters`, while template/.github/workflows/dev-platform.yml.jinja:26 now renders `runs-on: \"alters\"`. Copier must replay the downstream ubuntu-latest\u2192alters edit onto a target that independently changes that same line to quoted alters. Guarded recovery in scripts/rollout_project.py:1413\u20131431 accepts only baseline-equivalent or narrowly reclaimed conflicts; the hand-edited workflow differs from its old baseline. Even if replay preserves the unquoted line, template/scripts/platform_doctor.py rejects it because it compares against json.dumps('alters'). The migration tests pre-seed answers but never reproduce the existing workflow edits (tests/test_ci_runner_selection.py, CiRunnerMigrationTests.migrate), so they do not cover the promised transition.",
+      "id": "hand-edited-runner-migration-conflicts",
+      "severity": "material",
+      "summary": "Recording runner answers alone does not enable the promised migration of existing hand-edited workflows."
+    }
+  ],
+  "launched_at": "2026-10-10T07:05:02+00:00",
+  "output_sha256": "7259bcc320c693ad825bdc6bed858fd2e46421c059483ee54e257c87ed63537f",
   "perspective": "spec-fidelity",
-  "request_id": "d4193501-ab97-4370-b28b-ddf7eb837a0a",
+  "request_id": "adaa14b9-031f-40e8-8b91-e2ff2357919e",
   "reviewer": {
-    "context_id": "0ea75edc-46d8-41bf-ba3c-683d5a4119d5",
+    "context_id": "01a124a1-2536-7010-b3cf-f7241e266465",
     "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-bc854999-27f8-45c9-aae3-928e61426b2a",
+    "launch_id": "platform-launch-cd254447-97fd-4125-9618-5e78307ed541",
     "model": {
       "source": "selected",
-      "value": "sonnet"
+      "value": "gpt-6.1-sol"
     },
-    "provider": "claude",
-    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
-    "runtime": "claude-code-print",
+    "provider": "codex",
+    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
+    "runtime": "codex-exec",
     "write_access": false
   },
   "runtime_usage": {
     "fields": {
-      "cache_creation_input_tokens": {
+      "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 35877
-      },
-      "cache_read_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 98083
-      },
-      "duration_api_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 11361
-      },
-      "duration_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 11811
+        "value": 132096
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
-      },
-      "num_turns": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 7
+        "value": 239408
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1184
+        "value": 1163
       }
     },
-    "runtime": "claude-code-print"
+    "runtime": "codex-exec"
   },
   "schema_version": 1,
   "task_content_digest": "0aaaeeaa36a065eacd7f828a9bab3d78504af43426f5ddebeaed4fe172f4b1b3"

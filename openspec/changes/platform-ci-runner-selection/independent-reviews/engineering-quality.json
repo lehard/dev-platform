@@ -3,72 +3,56 @@
   "candidate": {
     "base_head": "401f3ce699a1aee6c0131a6b321a5eedfb973fb8",
     "base_ref": "origin/main",
-    "candidate_head": "f3d4937595041e6d6a6018361751fb154b929b50",
-    "diff_sha256": "13db183ab21caf394eb21d6c6d81cccad168cce9f5569b0284eef0749df94def"
+    "candidate_head": "7edae3ff124e7a03f5d0155d76c8e0b50720c00e",
+    "diff_sha256": "56a1247a52032f51497f3cc7ec1de9368cfcf24f4c8afae0a5a8101e0c70667c"
   },
-  "completed_at": "2026-10-10T06:29:34+00:00",
-  "findings": [],
-  "launched_at": "2026-10-10T06:29:18+00:00",
-  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
+  "completed_at": "2026-10-10T07:07:39+00:00",
+  "findings": [
+    {
+      "evidence": "docs/managed-rollout.md:108 says adding the runner answers before rollout is sufficient. However, design.md identifies the existing edit as `runs-on: alters`, while template/.github/workflows/dev-platform.yml.jinja:26 now renders `runs-on: \"alters\"`. Copier reapplies the downstream patch from the old `ubuntu-latest` baseline onto the new rendering; the unquoted customization conflicts with the quoted target. scripts/rollout_project.py:1413\u20131431 refuses recovery because the customized workflow differs from its old template baseline. The migration test at tests/test_ci_runner_selection.py:227\u2013235 only adds answers and never makes the existing workflow hand edit, so it misses this failure. The stated adoption path therefore still blocks the motivating project.",
+      "id": "hand-edited-runner-migration-conflicts",
+      "severity": "material",
+      "summary": "The documented migration does not unblock the existing hand-edited self-hosted workflow."
+    }
+  ],
+  "launched_at": "2026-10-10T07:06:00+00:00",
+  "output_sha256": "0231a32aec6396ff15cc859ebb798e6020626b9ef84d8564165c35f86b709384",
   "perspective": "engineering-quality",
-  "request_id": "d4193501-ab97-4370-b28b-ddf7eb837a0a",
+  "request_id": "adaa14b9-031f-40e8-8b91-e2ff2357919e",
   "reviewer": {
-    "context_id": "e7cd9c45-1fda-412d-9fc4-3ef3b2d91bdb",
+    "context_id": "01a124a2-07d7-7c01-ba19-eb604bb361b6",
     "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-635b26d2-1786-4a7c-a7f2-101ddd9c8985",
+    "launch_id": "platform-launch-218c47bf-0d82-42fb-ad2c-0aea24f5b1e7",
     "model": {
       "source": "selected",
-      "value": "sonnet"
+      "value": "gpt-6.1-sol"
     },
-    "provider": "claude",
-    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
-    "runtime": "claude-code-print",
+    "provider": "codex",
+    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
+    "runtime": "codex-exec",
     "write_access": false
   },
   "runtime_usage": {
     "fields": {
-      "cache_creation_input_tokens": {
+      "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 32704
-      },
-      "cache_read_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 54916
-      },
-      "duration_api_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 10840
-      },
-      "duration_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 11532
+        "value": 503808
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
-      },
-      "num_turns": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 5
+        "value": 573570
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1054
+        "value": 1963
       }
     },
-    "runtime": "claude-code-print"
+    "runtime": "codex-exec"
   },
   "schema_version": 1,
   "task_content_digest": "0aaaeeaa36a065eacd7f828a9bab3d78504af43426f5ddebeaed4fe172f4b1b3"
