@@ -3,79 +3,56 @@
   "candidate": {
     "base_head": "401f3ce699a1aee6c0131a6b321a5eedfb973fb8",
     "base_ref": "origin/main",
-    "candidate_head": "f531d752e322fc67b0ea5a8492ee3e74fa2a09e4",
-    "diff_sha256": "fe5ffe81b254522987ea6dbcc9acf3e950979ad90387d1a294b4c66d7449b96a"
+    "candidate_head": "1be606453cea9b08828a99c1974face9fd6eb057",
+    "diff_sha256": "3d2fa97adaa6539a19f0fc59524aed82ae970fbfb783989bacca0dc3bbc39bf9"
   },
-  "completed_at": "2026-10-10T08:15:15+00:00",
+  "completed_at": "2026-10-10T08:37:00+00:00",
   "findings": [
     {
-      "evidence": "scripts/rollout_project.py:1564-1570 calls rendered_template_fingerprints(version, answers_before, baseline_conflicts | target_conflicts, env=env, operator_integration=...). target_equivalent_conflict_paths (line 1110-1117) and the retarget proof pass legacy_repository=legacy_repository. The omission predates this change for baseline_conflicts, but this change extends the set the call covers.",
-      "id": "post-recopy-render-omits-legacy-repository",
+      "evidence": "copier.yml:126 validates only that ci_runner_labels is nonblank. template/.github/workflows/dev-platform.yml.jinja:1,26 splits and renders the labels without further validation. A read-only render with ci_runner_labels='a,,b' produced runs-on: [\"a\", \"\", \"b\"]. The empty label prevents matching an intended runner, so the platform_doctor validation inside that job cannot provide the promised diagnostic. Validate the complete label grammar, empty entries and duplicates during Copier intake.",
+      "id": "validate-labels-before-scheduling",
       "severity": "advisory",
-      "summary": "The post-recopy target render now also covers target-equivalent paths, but it omits `legacy_repository`, which the pre-recopy proof passes. If `legacy_repository` affects a rendered path, the proof could pass and the post-recopy match could then fail. That would block the rollout without any data loss."
+      "summary": "Malformed runner labels pass rendering and can prevent CI from reaching the doctor diagnostic."
     }
   ],
-  "launched_at": "2026-10-10T08:14:52+00:00",
-  "output_sha256": "aa0c099d23a0cf6686bf3cfb7ace51c69a94f8cd58644cecf396b06489695cb3",
+  "launched_at": "2026-10-10T08:35:47+00:00",
+  "output_sha256": "1aaed3c0850a506e82da421cfff56f128747d976660c15e853400e533f9e9d53",
   "perspective": "engineering-quality",
-  "request_id": "c714230c-884e-4a7b-9c5f-195d750d2072",
+  "request_id": "d34feb72-afcd-4b04-9531-bb10b75eae14",
   "reviewer": {
-    "context_id": "a6fa93e5-150e-4770-9561-29d2969f19b4",
+    "context_id": "01a124f4-3ae3-78a2-8ff3-3a891ff7bad0",
     "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-54983330-fa0e-4128-92d9-21109ff87dd2",
+    "launch_id": "platform-launch-0ecdf50a-a2f2-4088-ae32-be3732d03b05",
     "model": {
       "source": "selected",
-      "value": "sonnet"
+      "value": "gpt-6.1-sol"
     },
-    "provider": "claude",
-    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
-    "runtime": "claude-code-print",
+    "provider": "codex",
+    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
+    "runtime": "codex-exec",
     "write_access": false
   },
   "runtime_usage": {
     "fields": {
-      "cache_creation_input_tokens": {
+      "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 29832
-      },
-      "cache_read_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 64072
-      },
-      "duration_api_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 18794
-      },
-      "duration_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 19671
+        "value": 360704
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
-      },
-      "num_turns": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 5
+        "value": 425815
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1954
+        "value": 1672
       }
     },
-    "runtime": "claude-code-print"
+    "runtime": "codex-exec"
   },
   "schema_version": 1,
   "task_content_digest": "2d8a5fb65696f6d30913aaed34861818f9ac9cd84f73d7d33c606c56ca3ef37a"
