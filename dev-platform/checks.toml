@@ -190,7 +190,7 @@ targets = ["test_publication_queue"]
 mode = "parallel"
 
 [test_groups.merge_lifecycle_resilience]
-targets = ["test_merge_lifecycle_resilience"]
+targets = ["test_merge_lifecycle_resilience", "test_finish_merged_queue"]
 mode = "parallel"
 
 [test_groups.delegated_write_guard]
