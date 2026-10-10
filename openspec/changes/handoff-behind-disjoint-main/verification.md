@@ -17,4 +17,4 @@ Coordinator review and repair: the coordinator Codex review raised one material 
 
 Readiness: the real handoff-behind-disjoint-main-and-queue-merge observation can only happen after this change is on main; it is recorded in the Requirement retrospective (task 4.1).
 
-Checks actually run: `python3 scripts/select_checks.py --base origin/main --execute --evidence openspec/changes/handoff-behind-disjoint-main/automated-checks.json` on the head containing origin/main 28ecf66, after the final independent review: affected precheck success, compileall success, ruff success, `run_test_groups.py --all` success (658 s).
+Checks actually run: `python3 scripts/select_checks.py --base origin/main --execute --evidence openspec/changes/handoff-behind-disjoint-main/automated-checks.json` on the repaired head (merge base 28ecf66; behind a disjoint main, recorded as the behind-disjoint task_base contract), after the Claude re-review: affected precheck success, compileall success, ruff success, `run_test_groups.py --all` success (446 s).
