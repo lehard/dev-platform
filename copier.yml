@@ -111,6 +111,20 @@ platform_ci_ref:
   help: Legacy schema-v2 CI metadata retained for v1 compatibility; self-contained CI does not execute this ref
   default: dab74494c9a6ad9a77d99e73bb36774a6d42350d
 
+ci_runner:
+  type: str
+  help: Runner kind for platform-rendered GitHub Actions jobs (GitHub-hosted ubuntu-latest or self-hosted labels)
+  choices:
+    - github-hosted
+    - self-hosted
+  default: github-hosted
+
+ci_runner_labels:
+  type: str
+  help: Comma-separated self-hosted runner labels for platform-rendered GitHub Actions jobs (for example "my-runner" or "self-hosted,linux")
+  when: "{{ ci_runner == 'self-hosted' }}"
+  validator: "{% if not ci_runner_labels | trim %}ci_runner_labels must list at least one runner label when ci_runner=self-hosted{% endif %}"
+
 agent_tools:
   type: str
   help: Comma-separated OpenSpec tool IDs

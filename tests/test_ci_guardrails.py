@@ -78,11 +78,11 @@ class CiGuardrailTests(unittest.TestCase):
         generated = ROOT / "template" / ".github" / "workflows"
         project_ci = (generated / "dev-platform.yml.jinja").read_text(encoding="utf-8")
         self.assertIn("permissions:\n  contents: read", project_ci)
-        self.assertIn("  platform-ci:\n    runs-on: ubuntu-latest\n    timeout-minutes: 90", project_ci)
+        self.assertRegex(project_ci, r"  platform-ci:\n    runs-on: \{\{ [^\n]*ubuntu-latest[^\n]*\}\}\n    timeout-minutes: 90")
 
         labels = (generated / "process-health-labels.yml.jinja").read_text(encoding="utf-8")
         self.assertIn("permissions:\n  issues: write", labels)
-        self.assertIn("  provision:\n    runs-on: ubuntu-latest\n    timeout-minutes: 5", labels)
+        self.assertRegex(labels, r"  provision:\n    runs-on: \{\{ [^\n]*ubuntu-latest[^\n]*\}\}\n    timeout-minutes: 5")
 
     def test_agentic_sources_keep_declared_permissions_and_time_limits(self) -> None:
         for name in (
