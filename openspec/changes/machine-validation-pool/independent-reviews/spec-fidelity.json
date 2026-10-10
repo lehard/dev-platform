@@ -3,72 +3,56 @@
   "candidate": {
     "base_head": "401f3ce699a1aee6c0131a6b321a5eedfb973fb8",
     "base_ref": "origin/main",
-    "candidate_head": "713858237f6b6c93db0046b49a4f17e7fd2c9fa6",
-    "diff_sha256": "ac4ccde6ee72c1f575b94e5510b35f815fe22201ce48ecf47ed2694c9dc51d35"
+    "candidate_head": "39d10803d935acaec720be5f81e4b0510d895734",
+    "diff_sha256": "61d26ac3306dde9981ff5c3b178e2cc4452e7e5ee53978c98c321ddb79135aab"
   },
-  "completed_at": "2026-10-10T07:48:06+00:00",
-  "findings": [],
-  "launched_at": "2026-10-10T07:47:51+00:00",
-  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
+  "completed_at": "2026-10-10T08:18:17+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/machine_pool.py:469\u2013486: _create_ticket retries a busy admission.lock with hooks.sleep but never calls hooks.out. Progress reporting begins only after ticket creation in _acquire. A stopped admission-lock holder therefore leaves a validation run silent until its configured timeout, contrary to design.md decision 6, which requires waiting reports at start and every 60 seconds.",
+      "id": "silent-admission-lock-wait",
+      "severity": "advisory",
+      "summary": "Waiting to create a queue ticket omits the promised initial and periodic progress reports."
+    }
+  ],
+  "launched_at": "2026-10-10T08:17:26+00:00",
+  "output_sha256": "2f44c6b518585700d84af193c11916ae6f02175f339b9c96b898cef4d28c81fd",
   "perspective": "spec-fidelity",
-  "request_id": "f9b117c1-69dd-4fad-99ea-d592e84c6b65",
+  "request_id": "58b940a7-a8dc-4a13-aa6d-498f8c4738a5",
   "reviewer": {
-    "context_id": "c2d0b22a-2f12-4316-aec1-fce0e0376ed1",
+    "context_id": "01a124e3-6c27-7d01-b951-695f0089f318",
     "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-1fba5dff-3622-453f-b788-9240a137569c",
+    "launch_id": "platform-launch-714f4b71-4678-4822-b319-50be2d44bb50",
     "model": {
       "source": "selected",
-      "value": "sonnet"
+      "value": "gpt-6.1-sol"
     },
-    "provider": "claude",
-    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
-    "runtime": "claude-code-print",
+    "provider": "codex",
+    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
+    "runtime": "codex-exec",
     "write_access": false
   },
   "runtime_usage": {
     "fields": {
-      "cache_creation_input_tokens": {
+      "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 49849
-      },
-      "cache_read_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 55763
-      },
-      "duration_api_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 11418
-      },
-      "duration_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 12041
+        "value": 175872
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
-      },
-      "num_turns": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 5
+        "value": 236445
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1107
+        "value": 1017
       }
     },
-    "runtime": "claude-code-print"
+    "runtime": "codex-exec"
   },
   "schema_version": 1,
   "task_content_digest": "3451188b1be6d94190e3524a511aa55d902955fc0330f62cf288cf20b8b1989c"

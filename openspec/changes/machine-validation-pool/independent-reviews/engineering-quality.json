@@ -3,79 +3,56 @@
   "candidate": {
     "base_head": "401f3ce699a1aee6c0131a6b321a5eedfb973fb8",
     "base_ref": "origin/main",
-    "candidate_head": "713858237f6b6c93db0046b49a4f17e7fd2c9fa6",
-    "diff_sha256": "ac4ccde6ee72c1f575b94e5510b35f815fe22201ce48ecf47ed2694c9dc51d35"
+    "candidate_head": "39d10803d935acaec720be5f81e4b0510d895734",
+    "diff_sha256": "61d26ac3306dde9981ff5c3b178e2cc4452e7e5ee53978c98c321ddb79135aab"
   },
-  "completed_at": "2026-10-10T07:49:02+00:00",
+  "completed_at": "2026-10-10T08:19:38+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/machine_pool.py read_holders: `_try_lock(fd, path, shared=True)` then `fcntl.flock(fd, fcntl.LOCK_UN)`. _try_take_slots uses LOCK_EX|LOCK_NB, which fails against a shared lock. The effect is bounded because the waiter retries on its next poll (1s), and `status` is documented as read-only. Delay of one poll only; no correctness loss.",
-      "id": "holder-probe-transient-slot-lock",
+      "evidence": "template/scripts/machine_pool.py:695\u2013706 validates descriptors solely with os.fstat(fd), and lease() reuses them without acquiring tokens. A pooled payload listing unrelated open descriptors (including stdin/stdout), or distinct descriptors duplicating one slot, passes validation. Descriptor reuse after an intermediate process closes inherited descriptors can therefore silently admit validation without the claimed token coverage.",
+      "id": "lease-descriptor-identity",
       "severity": "advisory",
-      "summary": "The read-only holder scan briefly takes a shared flock on each free slot. A head waiter that tries to take the same slot at that instant gets a spurious failure, so status and waiting reports can delay admission."
+      "summary": "Nested lease validation checks descriptor numbers are open, but does not establish that they hold the claimed pool tokens."
     }
   ],
-  "launched_at": "2026-10-10T07:48:06+00:00",
-  "output_sha256": "c71627da47aefa489e6a8449891909e7b2a430bf56c2466d45a252b53f9fba42",
+  "launched_at": "2026-10-10T08:18:17+00:00",
+  "output_sha256": "37c2b583b18d4270d0ddbe6acc051d073c89d1d73ed93c4ce801c7f0c771a197",
   "perspective": "engineering-quality",
-  "request_id": "f9b117c1-69dd-4fad-99ea-d592e84c6b65",
+  "request_id": "58b940a7-a8dc-4a13-aa6d-498f8c4738a5",
   "reviewer": {
-    "context_id": "635591a3-d074-45b4-b392-26d98680aa86",
+    "context_id": "01a124e4-33a2-7a92-a89c-d817ff6482bb",
     "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-d1f0fe9b-4aac-4ebd-ac53-cdcaa8e7ecf4",
+    "launch_id": "platform-launch-a92f04f3-b58f-4173-b280-e317dfa2bb19",
     "model": {
       "source": "selected",
-      "value": "sonnet"
+      "value": "gpt-6.1-sol"
     },
-    "provider": "claude",
-    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
-    "runtime": "claude-code-print",
+    "provider": "codex",
+    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
+    "runtime": "codex-exec",
     "write_access": false
   },
   "runtime_usage": {
     "fields": {
-      "cache_creation_input_tokens": {
+      "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 56444
-      },
-      "cache_read_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 283934
-      },
-      "duration_api_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 45692
-      },
-      "duration_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 53710
+        "value": 245888
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 14
-      },
-      "num_turns": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 11
+        "value": 293878
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 5288
+        "value": 1533
       }
     },
-    "runtime": "claude-code-print"
+    "runtime": "codex-exec"
   },
   "schema_version": 1,
   "task_content_digest": "3451188b1be6d94190e3524a511aa55d902955fc0330f62cf288cf20b8b1989c"
