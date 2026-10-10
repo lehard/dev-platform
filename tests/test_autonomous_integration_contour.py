@@ -770,7 +770,7 @@ class PostMergeJobTests(FrictionFixture):
         self.assertIn("inside", posted[0])
         self.assertNotIn("older", posted[0])
 
-    def test_requirement_window_starts_at_its_pre_authoring(self):
+    def test_requirement_window_starts_at_its_creation(self):
         self.unattributed("older", "2026-10-01T00:00:00+00:00")
         ops = FakeOps(started="2026-10-02T00:00:00+00:00")
         contour.ensure_requirement_checkpoint(ops, self.root, REQUIREMENT, CHILDREN)
@@ -780,13 +780,17 @@ class PostMergeJobTests(FrictionFixture):
             contour.ensure_requirement_checkpoint(ops, self.root, REQUIREMENT, CHILDREN)
 
     def test_unknown_lifecycle_start_blocks_explicitly(self):
-        with self.assertRaisesRegex(contour.JobBlocked, "cannot prove when acme/backlog#7 started"):
-            contour.LifecycleOps().requirement_started_at(self.root, REQUIREMENT)
-        state = self.root / ".claude/pre-authoring/requirement-7/state.json"
-        state.parent.mkdir(parents=True)
-        state.write_text(json.dumps({"created_at": "2026-10-02T00:00:00+00:00"}))
-        self.assertEqual(contour.LifecycleOps().requirement_started_at(self.root, REQUIREMENT),
-                         friction.parse_time("2026-10-02T00:00:00+00:00"))
+        import managed_task
+        with mock.patch.object(managed_task, "fetch_issue", return_value={}):
+            with self.assertRaisesRegex(contour.JobBlocked, "cannot prove when acme/backlog#7 started"):
+                contour.LifecycleOps().requirement_started_at(self.root, REQUIREMENT)
+        with mock.patch.object(managed_task, "fetch_issue", side_effect=managed_task.ManagedTaskError("no gh")):
+            with self.assertRaisesRegex(contour.JobBlocked, "cannot prove when acme/backlog#7 started: no gh"):
+                contour.LifecycleOps().requirement_started_at(self.root, REQUIREMENT)
+        with mock.patch.object(managed_task, "fetch_issue", return_value={"created_at": "2026-10-02T00:00:00Z"}) as fetch:
+            self.assertEqual(contour.LifecycleOps().requirement_started_at(self.root, REQUIREMENT),
+                             friction.parse_time("2026-10-02T00:00:00+00:00"))
+        self.assertEqual(fetch.call_args.args[1:], ("acme/backlog", 7))
         with mock.patch.object(queue, "_repo", return_value="o/r"), mock.patch.object(queue, "_comments", return_value=[]), \
                 mock.patch.object(queue, "trusted_apps", return_value=frozenset()), \
                 mock.patch.object(queue, "trusted_writers", return_value=frozenset()):

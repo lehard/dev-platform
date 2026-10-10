@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+from datetime import datetime, timezone
 import os
 import re
 import signal
@@ -494,6 +495,8 @@ class Scenario:
     def __init__(self, output: Path, *, max_actions: int = MAX_ACTIONS):
         self.output = output.resolve()
         self.max_actions = max_actions
+        # The scenario's Requirement exists only from this run onward.
+        self.requirement_started = datetime.now(timezone.utc)
         self.actions = 0
         self.developer_actions: list[dict] = []
         self.workers = 0
@@ -712,6 +715,10 @@ class Scenario:
         class Ops(contour.LifecycleOps):
             def lineage(self, root, branch):
                 return {"requirement": REQUIREMENT, "child": by_branch[branch]}
+
+            def requirement_started_at(self, root, requirement):
+                return scenario.requirement_started
+
 
             def children(self, root, requirement):
                 return sorted(by_branch.values())

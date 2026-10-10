@@ -348,17 +348,15 @@ class LifecycleOps:
     """Operator-side adapters for post-merge jobs; tests and callers may replace any method."""
 
     def requirement_started_at(self, root: Path, requirement: str) -> datetime:
-        """When pre-authoring of ``requirement`` was initialized; an unprovable start blocks."""
-        import orchestrate_pre_authoring
+        """When the Requirement Issue was created: nothing of the Requirement predates it; unprovable blocks."""
+        import managed_task
         from agent_friction import parse_time
 
-        number = requirement.rsplit("#", 1)[-1]
-        path = orchestrate_pre_authoring.state_path(orchestrate_pre_authoring.default_base_dir(root) / f"requirement-{number}")
         try:
-            created = json.loads(path.read_text(encoding="utf-8"))["created_at"]
-            return parse_time(created)
-        except (OSError, KeyError, TypeError, ValueError) as exc:
-            raise JobBlocked(f"cannot prove when {requirement} started (pre-authoring state {path}): {exc}") from exc
+            repository, number = managed_task.issue_ref(requirement)
+            return parse_time(managed_task.fetch_issue(root, repository, number)["created_at"])
+        except (managed_task.ManagedTaskError, KeyError, TypeError, ValueError) as exc:
+            raise JobBlocked(f"cannot prove when {requirement} started: {exc}") from exc
 
     def candidate_admitted_at(self, root: Path, number: int) -> datetime:
         """When PR #number received its first trusted coordinator record; an unprovable start blocks."""
