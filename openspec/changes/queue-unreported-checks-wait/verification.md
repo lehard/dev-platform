@@ -11,8 +11,8 @@ Correctness: transport, malformed payload, head-mismatch and unsupported-state c
 
 Coherence: the delta replaces the spec clause that called this condition unusable with a pending scenario and a bounded-expiry scenario; code and tests match it.
 
-Independent review (final content): spec-fidelity and engineering-quality, no findings (run twice; second run after the design/tasks alignment).
+Independent review (final content): spec-fidelity and engineering-quality, no findings (run three times: initial package, after the design/tasks alignment, and on the reconciled package with tasks complete).
 
 Readiness: the publication-queue workflow runs only protected-main code, so the real-integration observation is recorded in the Requirement retrospective after merge (design.md, Readiness).
 
-Checks actually run: `python3 scripts/select_checks.py --base origin/main --execute --evidence openspec/changes/queue-unreported-checks-wait/automated-checks.json` on the reconciled head (contains origin/main 44dc97b): affected precheck success, compileall success, ruff success, `run_test_groups.py --all` success (628 s).
+Checks actually run: `python3 scripts/select_checks.py --base origin/main --execute --evidence openspec/changes/queue-unreported-checks-wait/automated-checks.json` on the reconciled head (contains origin/main 71b1d58), after the final independent review: affected precheck success, compileall success, ruff success, `run_test_groups.py --all` success (592 s).

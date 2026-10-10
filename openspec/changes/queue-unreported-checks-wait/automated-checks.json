@@ -9,19 +9,19 @@
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
-      "duration_seconds": 0.156,
+      "duration_seconds": 0.166,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 -m ruff check scripts template/scripts tests",
-      "duration_seconds": 0.097,
+      "duration_seconds": 0.149,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
-      "duration_seconds": 553.631,
+      "duration_seconds": 592.361,
       "outcome": "success",
       "exit_code": 0
     }
@@ -56,18 +56,18 @@
     "change": "queue-unreported-checks-wait",
     "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/queue-unreported-checks-wait",
     "branch": "agent/br-549-t1-queue-unreported-checks-wait",
-    "head": "5a45720f198f0fef685b2332c2a9feddee934941",
+    "head": "d01c140b8065a4e2d49da5ab3e67400f35f7cdc6",
     "task_content": {
       "version": 1,
-      "digest": "3cd5a7669f27a6de7de6600abe4d539e0c6cb850cd1db4d4a31034fc27f3f15e",
+      "digest": "f0930206eed21ab7d3afa0a6fefc0893e2c39fecbf3376dd64f98d387397b977",
       "paths": {
         "openspec/changes/queue-unreported-checks-wait/.managed-task.json": "437348b687ed639304319376d129009b846f1642",
         "openspec/changes/queue-unreported-checks-wait/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
-        "openspec/changes/queue-unreported-checks-wait/automated-checks.json": "8a042646cdb64bbf3ed60422df3617cf802a82a8",
+        "openspec/changes/queue-unreported-checks-wait/automated-checks.json": "1d70a2c2c1b5b30d3261c11e96da2e2eb4657686",
         "openspec/changes/queue-unreported-checks-wait/design.md": "2ebc35869b945bb9e205a2008fa611a3719f5f3f",
-        "openspec/changes/queue-unreported-checks-wait/independent-review-request.json": "bed1935ab2c622a87c2227ec0e84c3006c3141a7",
-        "openspec/changes/queue-unreported-checks-wait/independent-reviews/engineering-quality.json": "165ea77cf467be64727c4aa4fb52fd86bbc032ba",
-        "openspec/changes/queue-unreported-checks-wait/independent-reviews/spec-fidelity.json": "f1eecd0f8e411b1c49006921acb490a92563f152",
+        "openspec/changes/queue-unreported-checks-wait/independent-review-request.json": "95e4712a3318ee7b1d5b55021e6cb115bca58819",
+        "openspec/changes/queue-unreported-checks-wait/independent-reviews/engineering-quality.json": "7f7d45a58b5f9e094b9892580512b7e6c7ea8e6f",
+        "openspec/changes/queue-unreported-checks-wait/independent-reviews/spec-fidelity.json": "ab2d0c587787b4e3b5ef9f025ed9794124f6191d",
         "openspec/changes/queue-unreported-checks-wait/proposal.md": "8d6d27a78a20556098e01836d228a839feec4d97",
         "openspec/changes/queue-unreported-checks-wait/specs/publication-queue/spec.md": "dd6e2565ed0791e5b7923c9089cea89df41c4a55",
         "openspec/changes/queue-unreported-checks-wait/tasks.md": "256eff2190f61cf8bc997f46af81514a3593e146",
@@ -100,7 +100,7 @@
   },
   "affected_precheck": {
     "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/publication_queue.py --changed-file template/scripts/publication_state.py --changed-file tests/test_publication_queue.py --changed-file tests/test_publication_state.py",
-    "duration_seconds": 204.073,
+    "duration_seconds": 190.685,
     "outcome": "success",
     "exit_code": 0,
     "role": "affected-precheck feedback; not validation coverage"
