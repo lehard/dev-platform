@@ -8,4 +8,4 @@
 
 ## 3. Tests, documentation and delivery
 - [x] 3.1 Add tests for stage validation failures, ordering, cross-links, determinism, no-JavaScript and subpath-relative behavior.
-- [ ] 3.2 Update `docs/engineering/explorer.md`; run compile, ruff, full test groups and docs link checks; run semantic OpenSpec verification and complete the authorized lifecycle handoff.
+- [x] 3.2 Update `docs/engineering/explorer.md`; run compile, ruff, full test groups and docs link checks; run semantic OpenSpec verification and complete the authorized lifecycle handoff.
