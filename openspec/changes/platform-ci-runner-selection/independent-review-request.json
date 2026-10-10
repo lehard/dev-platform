@@ -1,9 +1,9 @@
 {
   "candidate": {
-    "base_head": "5f76443bf244cf5ddddee0276751057f59189e4d",
+    "base_head": "401f3ce699a1aee6c0131a6b321a5eedfb973fb8",
     "base_ref": "origin/main",
-    "candidate_head": "b154b5fc5b1d12dbf389a6b465fb2eca7b6f4218",
-    "diff_sha256": "09f7be1afb09e361a85ab6965ba9b0f6ecb42582473bfb3b92b357306ef16996"
+    "candidate_head": "f3d4937595041e6d6a6018361751fb154b929b50",
+    "diff_sha256": "13db183ab21caf394eb21d6c6d81cccad168cce9f5569b0284eef0749df94def"
   },
   "change": "openspec/changes/platform-ci-runner-selection",
   "excluded_lifecycle_paths": [
@@ -37,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-10T01:14:29+00:00",
+  "prepared_at": "2026-10-10T06:28:48+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/platform-ci-runner-selection/independent-reviews",
     "required_perspectives": [
@@ -46,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "b31de023-9516-4c42-acef-5dd266850ee8",
+  "request_id": "d4193501-ab97-4370-b28b-ddf7eb837a0a",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -58,16 +58,16 @@
   },
   "schema_version": 1,
   "task_content": {
-    "base": "5f76443bf244cf5ddddee0276751057f59189e4d",
-    "digest": "c30f0bb1970aaf959524303efc26f79c0c8c07a8699fcb5616496038bd8b6d94",
+    "base": "401f3ce699a1aee6c0131a6b321a5eedfb973fb8",
+    "digest": "0aaaeeaa36a065eacd7f828a9bab3d78504af43426f5ddebeaed4fe172f4b1b3",
     "paths": {
       "copier.yml": "8460e2ac45f3fb9740f5621b8293f13eb5429bbb",
       "dev-platform/checks.toml": "4b00e1dd434912c950d9aea3dfeab8c9d1208a67",
-      "docs/managed-rollout.md": "6e9a32cfe04099da70993d5404e02f9e44bda7b8",
+      "docs/managed-rollout.md": "9e49826d7754feb9da2f8439ca14ba92c064fb19",
       "openspec/changes/platform-ci-runner-selection/.managed-task.json": "472f6d923804386db3fa005c5a8db96c76c89760",
       "openspec/changes/platform-ci-runner-selection/.openspec.yaml": "81264324b0500978f52f70d701b236a09cb1d808",
-      "openspec/changes/platform-ci-runner-selection/design.md": "f252e9c7dcaca1074f0d404caed88e9eba5f074a",
-      "openspec/changes/platform-ci-runner-selection/proposal.md": "b0d2e1c1ccef1b72c0ffa7a566473bc7ac18535e",
+      "openspec/changes/platform-ci-runner-selection/design.md": "73bab2d8d4ea501ef751693b1f8f5c204e25d95f",
+      "openspec/changes/platform-ci-runner-selection/proposal.md": "af9f66be27275f5486cbe0cb32920b6883deca81",
       "openspec/changes/platform-ci-runner-selection/specs/ci-safety/spec.md": "21a4f8d12037152eb142da4bd960fb771eb566ff",
       "openspec/changes/platform-ci-runner-selection/tasks.md": "3ad71f7651ae0ec5a038912739514c33469f8888",
       "template/.github/workflows/dev-platform.yml.jinja": "dc714a5e71300782820d51c6b3ceeb392409c2ae",

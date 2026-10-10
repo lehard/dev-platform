@@ -1,32 +1,25 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "5f76443bf244cf5ddddee0276751057f59189e4d",
+    "base_head": "401f3ce699a1aee6c0131a6b321a5eedfb973fb8",
     "base_ref": "origin/main",
-    "candidate_head": "b154b5fc5b1d12dbf389a6b465fb2eca7b6f4218",
-    "diff_sha256": "09f7be1afb09e361a85ab6965ba9b0f6ecb42582473bfb3b92b357306ef16996"
+    "candidate_head": "f3d4937595041e6d6a6018361751fb154b929b50",
+    "diff_sha256": "13db183ab21caf394eb21d6c6d81cccad168cce9f5569b0284eef0749df94def"
   },
-  "completed_at": "2026-10-10T06:26:44+00:00",
-  "findings": [
-    {
-      "evidence": "copier.yml:21 validator is `{% if not ci_runner_labels | trim %}...`. The `[A-Za-z0-9._-]+` grammar, empty-entry and duplicate checks exist only in template/scripts/platform_doctor.py (check_ci_runner_agreement, around lines 1369-1385 of the diff). A bad answer therefore produces a committed workflow first and a doctor failure second. Mirroring the grammar in the validator would fail at the point of entry.",
-      "id": "copier-validator-label-grammar-gap",
-      "severity": "advisory",
-      "summary": "The Copier validator for ci_runner_labels only rejects an empty value. Labels with invalid characters, empty entries or duplicates render into the workflows and are caught only later by platform_doctor."
-    }
-  ],
-  "launched_at": "2026-10-10T06:26:14+00:00",
-  "output_sha256": "d54611250f985c64a9266c08a27c2a217af2ad907e138d74459b7c5850336fc5",
+  "completed_at": "2026-10-10T06:29:34+00:00",
+  "findings": [],
+  "launched_at": "2026-10-10T06:29:18+00:00",
+  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "engineering-quality",
-  "request_id": "b31de023-9516-4c42-acef-5dd266850ee8",
+  "request_id": "d4193501-ab97-4370-b28b-ddf7eb837a0a",
   "reviewer": {
-    "context_id": "1e9ed310-b823-4fb8-8199-1a4ba0329c30",
+    "context_id": "e7cd9c45-1fda-412d-9fc4-3ef3b2d91bdb",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-21cc75de-4bc9-45e9-90a8-83b3448135f7",
+    "launch_id": "platform-launch-635b26d2-1786-4a7c-a7f2-101ddd9c8985",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -42,41 +35,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 45699
+        "value": 32704
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 91606
+        "value": 54916
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 22527
+        "value": 10840
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 24035
+        "value": 11532
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 6
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 7
+        "value": 5
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2362
+        "value": 1054
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "c30f0bb1970aaf959524303efc26f79c0c8c07a8699fcb5616496038bd8b6d94"
+  "task_content_digest": "0aaaeeaa36a065eacd7f828a9bab3d78504af43426f5ddebeaed4fe172f4b1b3"
 }
