@@ -341,6 +341,9 @@ class TaskReconciliationTests(unittest.TestCase):
         self.assertNotIn("Rebase", blockers["branch-base"])
 
     def test_read_only_status_detects_advanced_main_without_updating_origin_main(self) -> None:
+        # A head behind main reads the lifecycle contract (portable here) to decide candidacy.
+        config = self.task / ".dev-platform.toml"
+        config.write_text(config.read_text(encoding="utf-8") + 'platform_version = "1.9.3"\n', encoding="utf-8")
         observed_before = git("rev-parse", "origin/main", cwd=self.task).stdout.strip()
         self.advance_main()
 

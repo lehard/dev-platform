@@ -10,7 +10,7 @@ import tempfile
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterator, Mapping
+from typing import Any, Iterator, Mapping, NamedTuple
 
 
 CREDENTIAL_VARS = frozenset({
@@ -516,6 +516,180 @@ def require_fresh_task_base(
             "rebase/reconcile first, then retry"
         )
     return remote_sha
+
+
+# A coordinator candidate's developer handoff names this when its head must be reconciled.
+RECONCILE_COMMAND = "python3 scripts/finish_task.py --reconcile"
+
+TASK_BASE_FRESH = "fresh"
+TASK_BASE_BEHIND_DISJOINT = "behind-disjoint"
+TASK_BASE_RECONCILE_REQUIRED = "reconcile-required"
+# ``git merge-tree --write-tree`` (the trial merge) first shipped in git 2.38.
+TRIAL_MERGE_MIN_GIT = (2, 38)
+REPORTED_PATH_LIMIT = 20
+
+
+# A NamedTuple, not a dataclass: tests load this module by path without registering it.
+class TaskBaseCurrency(NamedTuple):
+    """How a task head stands against one observed main commit.
+
+    ``fresh``: the head contains main. ``behind-disjoint``: it does not, but the
+    files main changed since their merge base are disjoint from the task's and a
+    trial merge is clean. ``reconcile-required``: overlapping files or a
+    conflicting trial merge, named in ``overlapping``/``conflicts``.
+    """
+
+    state: str
+    main: str
+    base: str
+    overlapping: tuple[str, ...] = ()
+    conflicts: tuple[str, ...] = ()
+
+    def evidence(self) -> dict[str, str]:
+        if self.state != TASK_BASE_BEHIND_DISJOINT:
+            raise ValueError(f"only a behind-disjoint task base is recorded as a freshness contract, not {self.state}")
+        return {"contract": TASK_BASE_BEHIND_DISJOINT, "main": self.main, "base": self.base}
+
+    def describe(self, authoritative: str) -> str:
+        if self.state == TASK_BASE_FRESH:
+            return f"HEAD contains {authoritative} ({self.main})"
+        behind = f"HEAD does not contain {authoritative} ({self.main}); since merge base {self.base}"
+        if self.state == TASK_BASE_BEHIND_DISJOINT:
+            return f"{behind} main changed only files the task did not change and a trial merge is clean"
+        if self.overlapping:
+            return f"{behind} main and the task both changed {_bounded_paths(self.overlapping)}"
+        if self.conflicts:
+            return f"{behind} a trial merge conflicts in {_bounded_paths(self.conflicts)}"
+        return f"{behind} a trial merge conflicts"
+
+
+def _bounded_paths(paths: tuple[str, ...]) -> str:
+    shown = ", ".join(paths[:REPORTED_PATH_LIMIT])
+    hidden = len(paths) - REPORTED_PATH_LIMIT
+    return shown + (f" (+{hidden} more)" if hidden > 0 else "")
+
+
+def _changed_paths(root: Path, base: str, tip: str) -> set[str]:
+    # --no-renames reports a rename as its old and its new path, so both count.
+    try:
+        output = run_git(["diff", "--no-renames", "--name-only", "-z", base, tip], cwd=root).stdout
+    except GitCommandError as exc:
+        raise TaskFreshnessError(f"unable to list the files {tip} changed since {base}: {exc}") from exc
+    return {path for path in output.split("\0") if path}
+
+
+def _require_trial_merge_support(root: Path) -> None:
+    output = run_git(["version"], cwd=root).stdout.strip()
+    match = re.match(r"git version (\d+)\.(\d+)", output)
+    if match is None:
+        raise TaskFreshnessError(f"cannot determine the git version from {output!r}; a trial merge needs git >= 2.38")
+    if (int(match[1]), int(match[2])) < TRIAL_MERGE_MIN_GIT:
+        raise TaskFreshnessError(
+            f"git {match[1]}.{match[2]} cannot run a trial merge (git merge-tree --write-tree needs git >= 2.38)"
+        )
+
+
+def classify_task_base_currency(root: Path, main_sha: str, *, task_ref: str = "HEAD") -> TaskBaseCurrency:
+    """Classify ``task_ref`` against a main commit already present in this checkout.
+
+    Never merges or moves a ref. A missing merge base, an unsupported git or a
+    failing git command raises ``TaskFreshnessError``; nothing is assumed.
+    """
+    state = relation(root, task_ref, main_sha)
+    if state == "missing":
+        raise TaskFreshnessError(f"unable to compare task ref {task_ref!r} with main {main_sha}; retry after repairing local Git refs")
+    if state in {"equal", "ahead"}:
+        return TaskBaseCurrency(TASK_BASE_FRESH, main_sha, main_sha)
+    result = run_git(["merge-base", task_ref, main_sha], cwd=root, check=False)
+    base = result.stdout.strip()
+    if result.returncode or not base:
+        raise TaskFreshnessError(
+            f"task ref {task_ref!r} has no merge base with main {main_sha}; reconcile first ({RECONCILE_COMMAND})"
+        )
+    overlapping = tuple(sorted(_changed_paths(root, base, main_sha) & _changed_paths(root, base, task_ref)))
+    if overlapping:
+        return TaskBaseCurrency(TASK_BASE_RECONCILE_REQUIRED, main_sha, base, overlapping=overlapping)
+    _require_trial_merge_support(root)
+    merged = run_git(["merge-tree", "--write-tree", "--name-only", "--no-messages", task_ref, main_sha], cwd=root, check=False)
+    if merged.returncode == 0:
+        return TaskBaseCurrency(TASK_BASE_BEHIND_DISJOINT, main_sha, base)
+    if merged.returncode == 1:
+        # Output: the merged tree id, then one conflicted path per line, then a blank line.
+        lines = merged.stdout.splitlines()[1:]
+        conflicts = tuple(sorted(lines[:lines.index("")] if "" in lines else lines))
+        return TaskBaseCurrency(TASK_BASE_RECONCILE_REQUIRED, main_sha, base, conflicts=conflicts)
+    raise TaskFreshnessError(f"trial merge of {task_ref!r} with main {main_sha} failed: {GitCommandError(merged.args[1:], root, merged)}")
+
+
+def fetch_commit_objects(root: Path, remote: str, main_branch: str, sha: str) -> None:
+    """Make an advertised main commit present without updating any ref or FETCH_HEAD."""
+    if run_git(["cat-file", "-e", f"{sha}^{{commit}}"], cwd=root, check=False).returncode == 0:
+        return
+    result = run_git(["fetch", "--no-write-fetch-head", "--refmap=", remote, f"refs/heads/{main_branch}"], cwd=root, check=False)
+    if result.returncode:
+        raise TaskFreshnessError(
+            f"unable to fetch {remote}/{main_branch} objects without updating refs: {GitCommandError(result.args[1:], root, result)}"
+        )
+    if run_git(["cat-file", "-e", f"{sha}^{{commit}}"], cwd=root, check=False).returncode:
+        raise TaskFreshnessError(f"observed {remote}/{main_branch} commit {sha} is still absent after fetching it; retry")
+
+
+def observe_task_base_currency(
+    root: Path,
+    remote: str,
+    main_branch: str,
+    *,
+    task_ref: str = "HEAD",
+    read_only: bool = False,
+) -> TaskBaseCurrency:
+    """Observe authoritative main once and classify ``task_ref`` against it.
+
+    ``read_only`` observes main through ``ls-remote`` and fetches only its
+    objects, so status never moves the remote-tracking ref.
+    """
+    if read_only:
+        state, main_sha = observe_task_base_freshness_readonly(root, remote, main_branch, task_ref=task_ref)
+        if state not in {"equal", "ahead"}:
+            fetch_commit_objects(root, remote, main_branch, main_sha)
+    else:
+        state, main_sha = observe_task_base_freshness(root, remote, main_branch, task_ref=task_ref)
+    return classify_task_base_currency(root, main_sha, task_ref=task_ref)
+
+
+def coordinator_candidate(root: Path) -> bool:
+    """Whether ``root`` is a coordinator-managed candidate.
+
+    This is the one predicate ``finish`` uses to route a task to the developer
+    handoff and publication-queue admission: coordinator lifecycle mode, the
+    queue enabled on authoritative main and an active canonical managed change.
+    A missing or unsupported contract raises instead of answering.
+    """
+    from pr_review_gate import managed_candidate
+
+    return managed_candidate(root)
+
+
+def require_handoff_task_base(root: Path, remote: str, main_branch: str) -> TaskBaseCurrency:
+    """Fresh-base gate of developer evidence-producing validation.
+
+    A head containing freshly fetched main passes. Otherwise only a coordinator
+    candidate passes, and only when its head is ``behind-disjoint``: the queue
+    merges main and gates on the integrated head. Every other head fails as
+    ``require_fresh_task_base`` does; candidacy is consulted only then.
+    """
+    authoritative = f"{remote}/{main_branch}"
+    state, main_sha = observe_task_base_freshness(root, remote, main_branch)
+    if state in {"equal", "ahead"}:
+        return TaskBaseCurrency(TASK_BASE_FRESH, main_sha, main_sha)
+    if not coordinator_candidate(root):
+        raise TaskFreshnessError(
+            f"task 'HEAD' is {state} relative to freshly observed {authoritative} ({main_sha}); "
+            "rebase/reconcile first, then retry"
+        )
+    currency = classify_task_base_currency(root, main_sha)
+    if currency.state != TASK_BASE_BEHIND_DISJOINT:
+        raise TaskFreshnessError(f"{currency.describe(authoritative)}; reconcile first ({RECONCILE_COMMAND}), then retry")
+    return currency
 
 
 def require_proven_task_base(root: Path, sha: str, remote: str, main_branch: str) -> str:

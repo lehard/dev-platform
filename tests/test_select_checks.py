@@ -8,6 +8,8 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stdout
+from io import StringIO
 from unittest import mock
 from pathlib import Path
 
@@ -430,6 +432,124 @@ class ProvenBaseContractTests(unittest.TestCase):
         self.git(self.task, "update-ref", "-d", "refs/remotes/origin/main")
         self.assert_refused_before_commands(self.select("--execute", "--proven-base", self.proven),
                                             "origin/main is not observed in this checkout")
+
+class BehindDisjointEvidenceTests(unittest.TestCase):
+    """Developer evidence of a coordinator candidate behind a disjoint main, on real Git history."""
+
+    def git(self, cwd: Path, *args: str) -> str:
+        return subprocess.run(["git", *args], cwd=cwd, text=True, capture_output=True, check=True).stdout.strip()
+
+    def setUp(self) -> None:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.base = Path(tmp.name)
+        self.remote = self.base / "remote.git"
+        self.git(self.base, "init", "-q", "--bare", "-b", "main", str(self.remote))
+        self.task = self.base / "task"
+        self.git(self.base, "clone", "-q", str(self.remote), str(self.task))
+        self.git(self.task, "config", "user.email", "disjoint@example.invalid")
+        self.git(self.task, "config", "user.name", "Behind Disjoint")
+        self.git(self.task, "checkout", "-q", "-b", "main")
+        (self.task / ".dev-platform.toml").write_text(SOURCE_CONTRACT, encoding="utf-8")
+        checks = self.task / "dev-platform/checks.toml"
+        checks.parent.mkdir()
+        checks.write_text('[settings]\nfull_commands = ["printf ran > validation-ran.txt"]\n', encoding="utf-8")
+        (self.task / "shared.txt").write_text("one\ntwo\nthree\n", encoding="utf-8")
+        self.git(self.task, "add", "-A")
+        self.git(self.task, "commit", "-qm", "seed")
+        self.git(self.task, "push", "-q", "-u", "origin", "main")
+        self.seed = self.git(self.task, "rev-parse", "HEAD")
+        self.git(self.task, "checkout", "-q", "-b", "agent/task")
+        (self.task / ".git/info/exclude").write_text("validation-ran.txt\nevidence.json\n", encoding="utf-8")
+        self.other = self.base / "other"
+        self.git(self.base, "clone", "-q", str(self.remote), str(self.other))
+
+    def commit(self, root: Path, name: str, content: str) -> None:
+        (root / name).write_text(content, encoding="utf-8")
+        self.git(root, "add", name)
+        self.git(root, "-c", "user.name=T", "-c", "user.email=t@example.invalid", "commit", "-qm", f"change {name}")
+
+    def advance_main(self, name: str, content: str) -> str:
+        self.commit(self.other, name, content)
+        self.git(self.other, "push", "-q", "origin", "HEAD:main")
+        return self.git(self.other, "rev-parse", "HEAD")
+
+    def select(self, *args: str, candidate: bool) -> tuple[int, str]:
+        output = StringIO()
+        previous = Path.cwd()
+        os.chdir(self.task)
+        self.addCleanup(os.chdir, previous)
+        argv = ["select_checks.py", "--base", "origin/main", "--execute", *args]
+        with mock.patch.object(sys, "argv", argv), redirect_stdout(output), \
+                mock.patch.object(_platform_common, "coordinator_candidate", return_value=candidate) as predicate:
+            try:
+                code = select_checks.main()
+            except SystemExit as exc:
+                code, message = 1, str(exc)
+                output.write(message)
+        self.predicate = predicate
+        return code, output.getvalue()
+
+    def test_candidate_behind_a_disjoint_main_runs_checks_and_records_the_contract(self) -> None:
+        self.commit(self.task, "task.txt", "task\n")
+        main = self.advance_main("main.txt", "main\n")
+
+        code, output = self.select("--evidence", "evidence.json", candidate=True)
+
+        self.assertEqual(code, 0, output)
+        self.assertIn("coordinator-candidate behind-disjoint contract", output)
+        self.assertIn(f"origin/main ({main})", output)
+        self.assertIn(f"merge base {self.seed}", output)
+        self.assertEqual((self.task / "validation-ran.txt").read_text(), "ran")
+        evidence = json.loads((self.task / "evidence.json").read_text())
+        self.assertEqual(evidence["outcome"], "success")
+        self.assertEqual(evidence["task_base"], {"contract": "behind-disjoint", "main": main, "base": self.seed})
+
+    def test_candidate_overlapping_main_is_blocked_before_any_command_naming_the_file(self) -> None:
+        self.commit(self.task, "shared.txt", "ONE\ntwo\nthree\n")
+        self.advance_main("shared.txt", "one\ntwo\nTHREE\n")
+
+        code, output = self.select("--evidence", "evidence.json", candidate=True)
+
+        self.assertNotEqual(code, 0, output)
+        self.assertIn("before any expensive command started", output)
+        self.assertIn("both changed shared.txt", output)
+        self.assertIn("python3 scripts/finish_task.py --reconcile", output)
+        self.assertNotIn("DEV_PLATFORM_CHECK_COMMAND", output)
+        self.assertFalse((self.task / "validation-ran.txt").exists())
+        self.assertFalse((self.task / "evidence.json").exists())
+
+    def test_non_candidate_behind_a_disjoint_main_keeps_the_fresh_base_rule(self) -> None:
+        self.commit(self.task, "task.txt", "task\n")
+        self.advance_main("main.txt", "main\n")
+
+        code, output = self.select("--evidence", "evidence.json", candidate=False)
+
+        self.assertNotEqual(code, 0, output)
+        self.assertIn("diverged relative to freshly observed origin/main", output)
+        self.assertNotIn("DEV_PLATFORM_CHECK_COMMAND", output)
+        self.assertFalse((self.task / "validation-ran.txt").exists())
+
+    def test_without_evidence_a_candidate_keeps_the_fresh_base_rule(self) -> None:
+        self.commit(self.task, "task.txt", "task\n")
+        self.advance_main("main.txt", "main\n")
+
+        code, output = self.select(candidate=True)
+
+        self.assertNotEqual(code, 0, output)
+        self.assertIn("diverged relative to freshly observed origin/main", output)
+        self.predicate.assert_not_called()
+
+    def test_fresh_head_never_consults_candidacy_and_records_no_contract(self) -> None:
+        self.commit(self.task, "task.txt", "task\n")
+
+        code, output = self.select("--evidence", "evidence.json", candidate=True)
+
+        self.assertEqual(code, 0, output)
+        self.assertIn(f"HEAD contains freshly observed origin/main ({self.seed})", output)
+        self.predicate.assert_not_called()
+        self.assertNotIn("task_base", json.loads((self.task / "evidence.json").read_text()))
+
 
 if __name__ == "__main__":
     unittest.main()
