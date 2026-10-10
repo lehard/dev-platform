@@ -549,6 +549,19 @@ class TemplateContractTests(unittest.TestCase):
         for script in set(re.findall(r"scripts/([a-z_]+\.py)", workflow + docs_map)):
             with self.subTest(script=script): self.assertTrue((template / "scripts" / script).exists(), script)
 
+    def test_change_class_contract_is_platform_owned_pointed_to_and_delivered(self) -> None:
+        copier = (ROOT / "copier.yml").read_text(encoding="utf-8")
+        for relative in ("dev-platform/protected-surface.toml", "docs/engineering/change-classes.md"):
+            with self.subTest(relative=relative):
+                self.assertTrue((ROOT / "template" / relative).is_file(), relative)
+                self.assertNotIn(relative, copier, "the change-class contract must be overwritten by Copier updates, never skipped")
+        agents = (ROOT / "template" / "AGENTS.md.jinja").read_text(encoding="utf-8")
+        self.assertIn("(docs/engineering/change-classes.md)", agents)
+        self.assertIn("(engineering/change-classes.md)", (ROOT / "template" / "docs" / "README.md").read_text(encoding="utf-8"))
+        smoke = (ROOT / "tests" / "upgrade_smoke.py").read_text(encoding="utf-8")
+        self.assertIn("protected-surface.toml", smoke)
+        self.assertIn("change-classes.md", smoke)
+
     def test_upgrade_smoke_is_part_of_ci(self) -> None:
         ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"); self.assertIn("tests/upgrade_smoke.py", ci); self.assertIn("fetch-depth: 0", ci)
 

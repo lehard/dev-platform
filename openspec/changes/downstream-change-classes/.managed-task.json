@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/downstream-change-classes/spec.md",
+    "tasks.md"
+  ],
+  "change": "downstream-change-classes",
+  "imported_at": "2026-10-10T10:05:43+00:00",
+  "package_revision": "6e0b0379a3970794a4b22bd624e2495c094c5af744662c8c8a6100aa81aa6085",
+  "prepared_against": "401f3ce699a1aee6c0131a6b321a5eedfb973fb8",
+  "private_lineage_handle": "pln_1eae5c277ccecb82dda5ceb2a5740403",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "582e43fdafa9802cd848a7ad225a5dccebccb8baf0777edd2730531ef5500325",
+    "updated_at": "2026-10-10T07:36:21Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-526/T1"
+}

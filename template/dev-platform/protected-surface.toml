@@ -1,0 +1,343 @@
+# Protected surface of the Dev Platform downstream contract.
+#
+# This file is platform-owned. It is shipped only by immutable platform releases
+# (Copier render and update) and is never edited in a downstream project: neither
+# the protected list nor the hotfixable list may be changed locally, and an agent
+# must never reclassify a file or rule on its own assumption.
+#
+# Every plain-copied platform-owned file is either matched by a `[[protected]]`
+# glob or listed in `hotfixable`. There is no default class: a platform file that
+# is neither is a platform validation failure. See docs/engineering/change-classes.md.
+#
+# Paths are project-root-relative rendered paths. In a glob, `*` and `?` do not
+# cross `/`; `**` does.
+
+# Plain-copied platform-owned files that are not protected rules. Each entry is an explicit path.
+hotfixable = [
+  "dev-platform/capabilities/add-intents.md",
+  "dev-platform/capabilities/add-intents.toml",
+  "dev-platform/capabilities/architecture-health-review.md",
+  "dev-platform/capabilities/architecture-health-review.toml",
+  "dev-platform/capabilities/bounded-prototype.md",
+  "dev-platform/capabilities/bounded-prototype.toml",
+  "dev-platform/capabilities/browser-verification.md",
+  "dev-platform/capabilities/browser-verification.toml",
+  "dev-platform/capabilities/capability-catalog.md",
+  "dev-platform/capabilities/capability-catalog.toml",
+  "dev-platform/capabilities/frontend-design.md",
+  "dev-platform/capabilities/frontend-design.toml",
+  "dev-platform/capabilities/high-end-visual-design.md",
+  "dev-platform/capabilities/high-end-visual-design.toml",
+  "dev-platform/capabilities/interoperable-agent-handoff.md",
+  "dev-platform/capabilities/interoperable-agent-handoff.toml",
+  "dev-platform/capabilities/project-evidence-snapshots.md",
+  "dev-platform/capabilities/project-evidence-snapshots.toml",
+  "dev-platform/capabilities/react-next-best-practices.md",
+  "dev-platform/capabilities/react-next-best-practices.toml",
+  "dev-platform/capabilities/react-next-best-practices/bundle-and-code-splitting.md",
+  "dev-platform/capabilities/react-next-best-practices/data-fetching-and-waterfalls.md",
+  "dev-platform/capabilities/react-next-best-practices/rendering-and-re-renders.md",
+  "dev-platform/capabilities/react-next-best-practices/server-client-components.md",
+  "dev-platform/capabilities/repository-goal-scan.md",
+  "dev-platform/capabilities/repository-goal-scan.toml",
+  "dev-platform/capabilities/repository-hygiene.md",
+  "dev-platform/capabilities/repository-hygiene.toml",
+  "dev-platform/capabilities/selective-domain-interrogation.md",
+  "dev-platform/capabilities/selective-domain-interrogation.toml",
+  "dev-platform/capabilities/systematic-bug-diagnosis.md",
+  "dev-platform/capabilities/systematic-bug-diagnosis.toml",
+  "dev-platform/capabilities/ui-quality-review.md",
+  "dev-platform/capabilities/ui-quality-review.toml",
+  "dev-platform/deepseek-harness-observation.cordis.yml",
+  "dev-platform/evals/add-intents-pilot.json",
+  "dev-platform/evals/architecture-health-review-pilot.json",
+  "dev-platform/evals/bounded-prototype-pilot.json",
+  "dev-platform/evals/browser-verification-pilot.json",
+  "dev-platform/evals/capability-catalog-pilot.json",
+  "dev-platform/evals/frontend-design-pilot.json",
+  "dev-platform/evals/high-end-visual-design-pilot.json",
+  "dev-platform/evals/interoperable-agent-handoff-pilot.json",
+  "dev-platform/evals/react-next-best-practices-pilot.json",
+  "dev-platform/evals/repository-goal-scan-pilot.json",
+  "dev-platform/evals/selective-domain-interrogation-pilot.json",
+  "dev-platform/evals/systematic-bug-diagnosis-pilot.json",
+  "dev-platform/evals/ui-quality-review-pilot.json",
+  "docs/README.md",
+  "docs/engineering/agent-instructions.md",
+  "docs/engineering/browser-verification.md",
+  "docs/engineering/chatgpt-project-protocol.md",
+  "docs/engineering/deepseek-harness-runtime.md",
+  "docs/engineering/engineering-capabilities.md",
+  "docs/engineering/frontend-design-capabilities.md",
+  "docs/engineering/harness-replay-lab.md",
+  "docs/engineering/local-workspace.md",
+  "docs/engineering/model-routing.md",
+  "docs/engineering/openspec-workflow.md",
+  "requirements/deepseek-harness.txt",
+  "scripts/add_intents.py",
+  "scripts/affected_test_groups.py",
+  "scripts/agent_board.py",
+  "scripts/agent_friction.py",
+  "scripts/browser_verification.py",
+  "scripts/capability_evals.py",
+  "scripts/capability_manager.py",
+  "scripts/check_docs_links.py",
+  "scripts/deepseek_harness_adapter.py",
+  "scripts/dev.py",
+  "scripts/execute_managed_task.py",
+  "scripts/harness_replay.py",
+  "scripts/machine_pool.py",
+  "scripts/managed_project_status.py",
+  "scripts/orchestrate_pre_authoring.py",
+  "scripts/parallel_lifecycle_acceptance.py",
+  "scripts/platform_bootstrap.py",
+  "scripts/project_context.py",
+  "scripts/render_agents_md_smoke.py",
+  "scripts/repository_goal_scan.py",
+  "scripts/requirement_board.py",
+  "scripts/requirement_intake.py",
+  "scripts/requirement_metrics.py",
+  "scripts/requirement_retrospective.py",
+  "scripts/run_test_groups.py",
+  "scripts/select_checks.py",
+]
+
+[categories]
+independent-review = "Review evidence and the review gate must come from an independent, platform-observed reviewer, never from the implementing agent."
+protected-publication = "Work reaches the integration branch only through the protected publication path, its required checks and its exact-head binding."
+worktree-isolation = "An agent works only in its own worktree and never touches, takes over or cleans up another agent's state."
+credentials = "Publication and repository credentials are never exposed to agent, project-check or delegated processes."
+routing-provenance-evidence = "Routing decisions, task and lineage identity and verification evidence stay authentic and bound to exact content."
+git-history = "Shared Git history is never rewritten, and the guards that keep integration state clean stay in force."
+immutable-releases = "Release refs and the platform contract (including this surface) arrive only through immutable releases and are never edited downstream."
+
+# independent-review
+[[protected]]
+path = "scripts/independent_review*.py"
+category = "independent-review"
+
+[[protected]]
+path = "scripts/pr_review_gate.py"
+category = "independent-review"
+
+[[protected]]
+path = "scripts/post_review_finalization.py"
+category = "independent-review"
+
+[[protected]]
+path = "scripts/requirement_composition.py"
+category = "independent-review"
+
+[[protected]]
+path = "scripts/candidate_lifecycle.py"
+category = "independent-review"
+
+# protected-publication
+[[protected]]
+path = "scripts/publication_*.py"
+category = "protected-publication"
+
+[[protected]]
+path = "scripts/project_publish.py"
+category = "protected-publication"
+
+[[protected]]
+path = "scripts/project_sync.py"
+category = "protected-publication"
+
+[[protected]]
+path = "scripts/merge_to_main.py"
+category = "protected-publication"
+
+[[protected]]
+path = "scripts/finish_task.py"
+category = "protected-publication"
+
+[[protected]]
+path = "scripts/gitlab_delivery.py"
+category = "protected-publication"
+
+[[protected]]
+path = "scripts/lifecycle_workers.py"
+category = "protected-publication"
+
+[[protected]]
+path = "scripts/integration_contour.py"
+category = "protected-publication"
+
+[[protected]]
+path = "scripts/integration_state.py"
+category = "protected-publication"
+
+[[protected]]
+path = "scripts/project_terminal_reconciliation.py"
+category = "protected-publication"
+
+[[protected]]
+path = "scripts/reconcile_task.py"
+category = "protected-publication"
+
+[[protected]]
+path = "scripts/task_reconciliation.py"
+category = "protected-publication"
+
+[[protected]]
+path = "scripts/execute_requirement.py"
+category = "protected-publication"
+
+[[protected]]
+path = "scripts/requirement_integration.py"
+category = "protected-publication"
+
+[[protected]]
+path = "scripts/requirement_contributions.py"
+category = "protected-publication"
+
+[[protected]]
+path = "scripts/requirement_merge_recovery.py"
+category = "protected-publication"
+
+[[protected]]
+path = "scripts/requirement_terminal.py"
+category = "protected-publication"
+
+[[protected]]
+path = "scripts/requirement_target_lifecycle.py"
+category = "protected-publication"
+
+[[protected]]
+path = ".github/workflows/dev-platform.yml"
+category = "protected-publication"
+
+[[protected]]
+path = ".gitlab-ci.yml"
+category = "protected-publication"
+
+# worktree-isolation
+[[protected]]
+path = "scripts/shared_workspace.py"
+category = "worktree-isolation"
+
+[[protected]]
+path = "scripts/worktree_cleanup.py"
+category = "worktree-isolation"
+
+[[protected]]
+path = "scripts/delegation_containment.py"
+category = "worktree-isolation"
+
+[[protected]]
+path = "scripts/delegated_write_guard.py"
+category = "worktree-isolation"
+
+[[protected]]
+path = "scripts/start_worktree.py"
+category = "worktree-isolation"
+
+[[protected]]
+path = "scripts/start_task.py"
+category = "worktree-isolation"
+
+[[protected]]
+path = "scripts/start_managed_task.py"
+category = "worktree-isolation"
+
+[[protected]]
+path = "scripts/local_workspace.py"
+category = "worktree-isolation"
+
+[[protected]]
+path = "scripts/disposable_repository_sandbox.py"
+category = "worktree-isolation"
+
+# credentials
+[[protected]]
+path = "scripts/_platform_common.py"
+category = "credentials"
+
+[[protected]]
+path = "scripts/lifecycle_workers.py"
+category = "credentials"
+
+[[protected]]
+path = "scripts/independent_review_runner.py"
+category = "credentials"
+
+# routing-provenance-evidence
+[[protected]]
+path = "scripts/model_routing.py"
+category = "routing-provenance-evidence"
+
+[[protected]]
+path = "scripts/start_tier_routing.py"
+category = "routing-provenance-evidence"
+
+[[protected]]
+path = "scripts/private_lineage.py"
+category = "routing-provenance-evidence"
+
+[[protected]]
+path = "scripts/managed_work_identity.py"
+category = "routing-provenance-evidence"
+
+[[protected]]
+path = "scripts/task_content_identity.py"
+category = "routing-provenance-evidence"
+
+[[protected]]
+path = "scripts/project_evidence.py"
+category = "routing-provenance-evidence"
+
+[[protected]]
+path = "scripts/openspec_lifecycle.py"
+category = "routing-provenance-evidence"
+
+[[protected]]
+path = "scripts/requirement_child_context.py"
+category = "routing-provenance-evidence"
+
+[[protected]]
+path = "scripts/managed_task.py"
+category = "routing-provenance-evidence"
+
+# git-history
+[[protected]]
+path = "scripts/git_hooks/*"
+category = "git-history"
+
+[[protected]]
+path = "scripts/agent_doctor.py"
+category = "git-history"
+
+[[protected]]
+path = "scripts/finish_task.py"
+category = "git-history"
+
+[[protected]]
+path = "scripts/task_reconciliation.py"
+category = "git-history"
+
+[[protected]]
+path = "scripts/requirement_merge_recovery.py"
+category = "git-history"
+
+# immutable-releases
+[[protected]]
+path = "scripts/rollout_identity.py"
+category = "immutable-releases"
+
+[[protected]]
+path = "scripts/rollout_preflight.py"
+category = "immutable-releases"
+
+[[protected]]
+path = "scripts/platform_doctor.py"
+category = "immutable-releases"
+
+[[protected]]
+path = "dev-platform/protected-surface.toml"
+category = "immutable-releases"
+
+[[protected]]
+path = "docs/engineering/change-classes.md"
+category = "immutable-releases"

@@ -167,6 +167,7 @@ targets = [
   "test_shared_writer_guard",
   "test_task_freshness",
   "test_template_contract",
+  "test_protected_surface",
   "test_task_content_identity",
   "test_module_isolation",
 ]

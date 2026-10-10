@@ -91,6 +91,7 @@ python3 template/scripts/openspec_lifecycle.py check
 | Evaluating an external upstream as a substitute for own infrastructure | [docs/engineering/upstream-substitution.md](docs/engineering/upstream-substitution.md) |
 | Informational PR code-erosion signal, its limits and baseline | [docs/engineering/code-erosion.md](docs/engineering/code-erosion.md) |
 | Provider-local executor selection, escalation, delegated write containment | [docs/engineering/model-routing.md](docs/engineering/model-routing.md) |
+| Downstream change classes and the shipped protected surface | [template/docs/engineering/change-classes.md](template/docs/engineering/change-classes.md) |
 | Product/domain semantics, architecture invariants, anti-patterns or representative examples | [docs/context/README.md](docs/context/README.md) when that concern is reached |
 | Consequential decision history, rejected alternatives and revisit triggers | [docs/decisions/README.md](docs/decisions/README.md) when the decision's concern is reached |
 | Release identity, downstream CI ownership, rollout registry, upgrade safety | [docs/release-policy.md](docs/release-policy.md) |

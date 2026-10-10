@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "a4d99eab8579e170648f02d1675cd8dde0bfd44b",
+    "base_ref": "a4d99eab8579e170648f02d1675cd8dde0bfd44b",
+    "candidate_head": "02f17f777ed812ab59c96687436d44cec52ef8b3",
+    "diff_sha256": "4011281597c22ece6010a9c4230d376c5cc01ceefa543fe62ed242c359c6739f"
+  },
+  "completed_at": "2026-10-10T20:04:05+00:00",
+  "findings": [
+    {
+      "evidence": "template/dev-platform/protected-surface.toml lists scripts/agent_friction.py, scripts/requirement_retrospective.py, scripts/requirement_intake.py, scripts/execute_managed_task.py and scripts/orchestrate_pre_authoring.py under `hotfixable`. AGENTS.md makes the friction and retrospective checkpoints and the intake flow mandatory completion gates. Protected siblings such as requirement_composition.py and managed_task.py cover adjacent lifecycle steps. The design says the protected globs are 'deliberately broad', yet the hotfixable entries have no per-file justification. Because the test only requires that each file is classified, nothing checks that a hotfixable file does not carry a protected guarantee. This is low risk now, since the hotfix mechanism ships in a later change, but the classification should be reviewed before that gate relies on it.",
+      "id": "hotfixable-gate-scripts-unreviewed",
+      "severity": "advisory",
+      "summary": "Several gate-adjacent scripts are classified hotfixable even though they appear to enforce guarantees that the protected categories are meant to cover, such as friction and retrospective checkpoints and lifecycle intake. The classification rationale is not recorded."
+    }
+  ],
+  "launched_at": "2026-10-10T20:03:48+00:00",
+  "output_sha256": "f5c97b8307ce315ead04304388e16b653423fda7c08d17213cd24d04328727b2",
+  "perspective": "engineering-quality",
+  "request_id": "ae64b2fa-2cc2-4ab2-9abb-dedff449cf19",
+  "reviewer": {
+    "context_id": "832917ef-431a-43cc-98a0-3593d6b7d9c1",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-5a9ca284-2032-44d8-803f-b409732a8fc4",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 29122
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 49301
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16020
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 15733
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1688
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "99f7a57f63a95546962f0918ad32cb06edd7cefea0d9939cb808ceccf3c7a54c"
+}
