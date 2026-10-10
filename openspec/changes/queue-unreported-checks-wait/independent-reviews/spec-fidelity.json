@@ -1,25 +1,25 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "44dc97b736e67edd6c31812a1a4ebf872b7b991a",
+    "base_head": "71b1d5857021ec4f0a932c08ad98e245ef5a7933",
     "base_ref": "origin/main",
-    "candidate_head": "69af2484906bdd48c6dbe0c24d2ccb019d2743fa",
-    "diff_sha256": "a2e89b2446a1d4ea8039dc7f844a8acc5fde61b852a1e84d7690d4a2699d29f8"
+    "candidate_head": "5a45720f198f0fef685b2332c2a9feddee934941",
+    "diff_sha256": "10f99599b8ac6896b61cdc41617455ae7b7e74baa66411f18d6bbab67cea1cb1"
   },
-  "completed_at": "2026-10-10T11:18:17+00:00",
+  "completed_at": "2026-10-10T12:14:17+00:00",
   "findings": [],
-  "launched_at": "2026-10-10T11:18:04+00:00",
+  "launched_at": "2026-10-10T12:14:06+00:00",
   "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "spec-fidelity",
-  "request_id": "ba24f066-00f7-4433-bbc6-c0d3345b27d5",
+  "request_id": "770dcb79-4a6b-4397-8522-d4698df124fa",
   "reviewer": {
-    "context_id": "aa7580ac-44d5-4973-9e4d-7ece6f213f46",
+    "context_id": "888ec8a1-989e-404f-82d8-f13daed4a4a1",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-322b4624-3fa0-4ec3-9385-d268a8652b73",
+    "launch_id": "platform-launch-8a54e16b-6dd5-482d-b52b-833a410a0af1",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -35,22 +35,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 24546
+        "value": 25002
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 45221
+        "value": 45415
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10972
+        "value": 8154
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 11146
+        "value": 8338
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -65,11 +65,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 980
+        "value": 889
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "26ba7acd0ca607aa0e0ec03665e62490e296fc6453711809b96ab5da77c0cbaa"
+  "task_content_digest": "38315c67cf1d1dcfa2768b0f0c4025066124712d7f424f86cdd94bca3533479c"
 }

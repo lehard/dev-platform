@@ -1,15 +1,17 @@
 {
   "candidate": {
-    "base_head": "44dc97b736e67edd6c31812a1a4ebf872b7b991a",
+    "base_head": "71b1d5857021ec4f0a932c08ad98e245ef5a7933",
     "base_ref": "origin/main",
-    "candidate_head": "69af2484906bdd48c6dbe0c24d2ccb019d2743fa",
-    "diff_sha256": "a2e89b2446a1d4ea8039dc7f844a8acc5fde61b852a1e84d7690d4a2699d29f8"
+    "candidate_head": "5a45720f198f0fef685b2332c2a9feddee934941",
+    "diff_sha256": "10f99599b8ac6896b61cdc41617455ae7b7e74baa66411f18d6bbab67cea1cb1"
   },
   "change": "openspec/changes/queue-unreported-checks-wait",
   "excluded_lifecycle_paths": [
+    "openspec/changes/queue-unreported-checks-wait/automated-checks.json",
     "openspec/changes/queue-unreported-checks-wait/independent-review-request.json",
     "openspec/changes/queue-unreported-checks-wait/independent-reviews/engineering-quality.json",
-    "openspec/changes/queue-unreported-checks-wait/independent-reviews/spec-fidelity.json"
+    "openspec/changes/queue-unreported-checks-wait/independent-reviews/spec-fidelity.json",
+    "openspec/changes/queue-unreported-checks-wait/verification.md"
   ],
   "fresh_context_required": true,
   "perspectives": {
@@ -35,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-10T11:17:57+00:00",
+  "prepared_at": "2026-10-10T12:13:59+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/queue-unreported-checks-wait/independent-reviews",
     "required_perspectives": [
@@ -44,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "ba24f066-00f7-4433-bbc6-c0d3345b27d5",
+  "request_id": "770dcb79-4a6b-4397-8522-d4698df124fa",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -56,15 +58,15 @@
   },
   "schema_version": 1,
   "task_content": {
-    "base": "b0e3752b5cd563320756d1aa3159ae92da317d7d",
-    "digest": "26ba7acd0ca607aa0e0ec03665e62490e296fc6453711809b96ab5da77c0cbaa",
+    "base": "71b1d5857021ec4f0a932c08ad98e245ef5a7933",
+    "digest": "38315c67cf1d1dcfa2768b0f0c4025066124712d7f424f86cdd94bca3533479c",
     "paths": {
       "openspec/changes/queue-unreported-checks-wait/.managed-task.json": "437348b687ed639304319376d129009b846f1642",
       "openspec/changes/queue-unreported-checks-wait/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
       "openspec/changes/queue-unreported-checks-wait/design.md": "2ebc35869b945bb9e205a2008fa611a3719f5f3f",
       "openspec/changes/queue-unreported-checks-wait/proposal.md": "8d6d27a78a20556098e01836d228a839feec4d97",
       "openspec/changes/queue-unreported-checks-wait/specs/publication-queue/spec.md": "dd6e2565ed0791e5b7923c9089cea89df41c4a55",
-      "openspec/changes/queue-unreported-checks-wait/tasks.md": "398c30783aaaa3cbc54cfee54a1efa0bce7e9696",
+      "openspec/changes/queue-unreported-checks-wait/tasks.md": "256eff2190f61cf8bc997f46af81514a3593e146",
       "template/scripts/publication_queue.py": "2f06bad7dcb5537c01b969db0590b0abddd276aa",
       "template/scripts/publication_state.py": "1196ea54ea5b07c9ae2b9b9fafcadfd6d7644ef9",
       "tests/test_publication_queue.py": "a104f2f5dabe4bcc3dd96f5d40e241eecfebca0f",
