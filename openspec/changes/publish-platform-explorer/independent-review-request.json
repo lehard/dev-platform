@@ -1,0 +1,75 @@
+{
+  "candidate": {
+    "base_head": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+    "base_ref": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+    "candidate_head": "82e53603e1533acd200b0ac4667c904bce5bcc88",
+    "diff_sha256": "28445da1bf64e2b4b076a888518e0c932a2fc4996af622fd9181bf6ae867e932"
+  },
+  "change": "openspec/changes/publish-platform-explorer",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/publish-platform-explorer/automated-checks.json",
+    "openspec/changes/publish-platform-explorer/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/publish-platform-explorer/design.md",
+        "openspec/changes/publish-platform-explorer/proposal.md",
+        "openspec/changes/publish-platform-explorer/specs/explorer-publication/spec.md",
+        "openspec/changes/publish-platform-explorer/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/publish-platform-explorer/proposal.md",
+        "openspec/changes/publish-platform-explorer/design.md",
+        "openspec/changes/publish-platform-explorer/tasks.md",
+        "openspec/changes/publish-platform-explorer/specs/explorer-publication/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-10T12:38:27+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/publish-platform-explorer/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "269a932b-1017-4fd7-86fb-20612b954a6e",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+    "digest": "f41f80acee61e1ca0e1e86fc4de53c8061ac08012b4060297c488a665f6b70a3",
+    "paths": {
+      ".github/workflows/explorer.yml": "5437e3a4eedb32a490e9b08f660007014509f4f8",
+      "dev-platform/checks.toml": "a5cb110eaa5b6b0169714dfa47c560ed4030f3da",
+      "docs/engineering/explorer.md": "0d1f7bde4d157061cda213673e9d688df0c09f59",
+      "openspec/changes/publish-platform-explorer/.managed-task.json": "97a85c1afd208da12e56e5520d310090a84cc2c7",
+      "openspec/changes/publish-platform-explorer/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
+      "openspec/changes/publish-platform-explorer/design.md": "531879c14ca4bb23ce2a2a8d70dc3286d6bf627c",
+      "openspec/changes/publish-platform-explorer/proposal.md": "4f65573bb6b695a027c411d47a1d278aa72366fa",
+      "openspec/changes/publish-platform-explorer/specs/explorer-publication/spec.md": "1fb0aa10693620c191df44481c530501c193abc4",
+      "openspec/changes/publish-platform-explorer/tasks.md": "144fd572bf46bcf52e1159074b1d4386d3e96797",
+      "tests/test_explorer_workflow.py": "a55ce2e3f2fd4bd5baef5f92868b58ba704acb4e"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}
