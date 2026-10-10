@@ -1,0 +1,77 @@
+{
+  "candidate": {
+    "base_head": "5f76443bf244cf5ddddee0276751057f59189e4d",
+    "base_ref": "origin/main",
+    "candidate_head": "beb2ae7b5615908efbdc1b86094748e5a0ace7ec",
+    "diff_sha256": "da22c876dd55f5b3df29fc5011a470c0679e45b9379ab740fc684060ce866764"
+  },
+  "change": "openspec/changes/platform-ci-runner-selection",
+  "excluded_lifecycle_paths": [],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/platform-ci-runner-selection/design.md",
+        "openspec/changes/platform-ci-runner-selection/proposal.md",
+        "openspec/changes/platform-ci-runner-selection/specs/ci-safety/spec.md",
+        "openspec/changes/platform-ci-runner-selection/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/platform-ci-runner-selection/proposal.md",
+        "openspec/changes/platform-ci-runner-selection/design.md",
+        "openspec/changes/platform-ci-runner-selection/tasks.md",
+        "openspec/changes/platform-ci-runner-selection/specs/ci-safety/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-10T00:09:19+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/platform-ci-runner-selection/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "ddb90abf-eeaa-4d7d-9031-1f211fba4a36",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "5f76443bf244cf5ddddee0276751057f59189e4d",
+    "digest": "2f09327ecfe50a21d2badfb6a62ec1b4527baab85b29978b1ce01e582e0df7a3",
+    "paths": {
+      "copier.yml": "8460e2ac45f3fb9740f5621b8293f13eb5429bbb",
+      "dev-platform/checks.toml": "4b00e1dd434912c950d9aea3dfeab8c9d1208a67",
+      "docs/managed-rollout.md": "8e0c8ae89d1a1a03a490bb2ecfd7db6de59d50e4",
+      "openspec/changes/platform-ci-runner-selection/.managed-task.json": "472f6d923804386db3fa005c5a8db96c76c89760",
+      "openspec/changes/platform-ci-runner-selection/.openspec.yaml": "81264324b0500978f52f70d701b236a09cb1d808",
+      "openspec/changes/platform-ci-runner-selection/design.md": "82de099df84fa0a917b79480644b460a35493fe2",
+      "openspec/changes/platform-ci-runner-selection/proposal.md": "b0d2e1c1ccef1b72c0ffa7a566473bc7ac18535e",
+      "openspec/changes/platform-ci-runner-selection/specs/ci-safety/spec.md": "21a4f8d12037152eb142da4bd960fb771eb566ff",
+      "openspec/changes/platform-ci-runner-selection/tasks.md": "3ad71f7651ae0ec5a038912739514c33469f8888",
+      "template/.github/workflows/dev-platform.yml.jinja": "3ac8f546fa9b9c4674ccf1e3c4fa7aca47be2167",
+      "template/.github/workflows/process-health-labels.yml.jinja": "ef21c8797a6d25b3f414c2db8289702ddc6756b0",
+      "template/scripts/platform_doctor.py": "118ae4147c84e8c408b4cf5a1fa2b85ac19d1c67",
+      "tests/test_ci_guardrails.py": "810716be0f6cd558719c4babaa1afc2b4597e485",
+      "tests/test_ci_runner_selection.py": "e282ec5f351f3cd5c4dcc2d56842ff9530fbaa27",
+      "tests/test_platform_doctor_workflow_mode.py": "e8c6d5178334b1f5fec2e2efa91fdcf65a54caab"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

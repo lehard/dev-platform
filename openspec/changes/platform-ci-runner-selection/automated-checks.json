@@ -1,0 +1,116 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.13,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.152,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 563.558,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "template/.github/workflows/dev-platform.yml.jinja",
+        "template/.github/workflows/process-health-labels.yml.jinja",
+        "template/scripts/platform_doctor.py",
+        "tests/test_ci_guardrails.py",
+        "tests/test_ci_runner_selection.py",
+        "tests/test_platform_doctor_workflow_mode.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_0e6ac218ad11172a1ca855f164d89e08",
+    "change": "platform-ci-runner-selection",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/platform-ci-runner-selection",
+    "branch": "agent/br-503-t1-platform-ci-runner-selection",
+    "head": "beb2ae7b5615908efbdc1b86094748e5a0ace7ec",
+    "task_content": {
+      "version": 1,
+      "digest": "71c98c5e9e2b58e7a66d2ca7d7b56118f2f2088fc86e0febe1e222fa41d5ef04",
+      "paths": {
+        "copier.yml": "8460e2ac45f3fb9740f5621b8293f13eb5429bbb",
+        "dev-platform/checks.toml": "4b00e1dd434912c950d9aea3dfeab8c9d1208a67",
+        "docs/managed-rollout.md": "8e0c8ae89d1a1a03a490bb2ecfd7db6de59d50e4",
+        "openspec/changes/platform-ci-runner-selection/.managed-task.json": "472f6d923804386db3fa005c5a8db96c76c89760",
+        "openspec/changes/platform-ci-runner-selection/.openspec.yaml": "81264324b0500978f52f70d701b236a09cb1d808",
+        "openspec/changes/platform-ci-runner-selection/design.md": "82de099df84fa0a917b79480644b460a35493fe2",
+        "openspec/changes/platform-ci-runner-selection/proposal.md": "b0d2e1c1ccef1b72c0ffa7a566473bc7ac18535e",
+        "openspec/changes/platform-ci-runner-selection/specs/ci-safety/spec.md": "21a4f8d12037152eb142da4bd960fb771eb566ff",
+        "openspec/changes/platform-ci-runner-selection/tasks.md": "3ad71f7651ae0ec5a038912739514c33469f8888",
+        "template/.github/workflows/dev-platform.yml.jinja": "3ac8f546fa9b9c4674ccf1e3c4fa7aca47be2167",
+        "template/.github/workflows/process-health-labels.yml.jinja": "ef21c8797a6d25b3f414c2db8289702ddc6756b0",
+        "template/scripts/platform_doctor.py": "118ae4147c84e8c408b4cf5a1fa2b85ac19d1c67",
+        "tests/test_ci_guardrails.py": "810716be0f6cd558719c4babaa1afc2b4597e485",
+        "tests/test_ci_runner_selection.py": "e282ec5f351f3cd5c4dcc2d56842ff9530fbaa27",
+        "tests/test_platform_doctor_workflow_mode.py": "e8c6d5178334b1f5fec2e2efa91fdcf65a54caab"
+      },
+      "base": "5f76443bf244cf5ddddee0276751057f59189e4d"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "2f09327ecfe50a21d2badfb6a62ec1b4527baab85b29978b1ce01e582e0df7a3",
+    "paths": {
+      "copier.yml": "8460e2ac45f3fb9740f5621b8293f13eb5429bbb",
+      "dev-platform/checks.toml": "4b00e1dd434912c950d9aea3dfeab8c9d1208a67",
+      "docs/managed-rollout.md": "8e0c8ae89d1a1a03a490bb2ecfd7db6de59d50e4",
+      "openspec/changes/platform-ci-runner-selection/.managed-task.json": "472f6d923804386db3fa005c5a8db96c76c89760",
+      "openspec/changes/platform-ci-runner-selection/.openspec.yaml": "81264324b0500978f52f70d701b236a09cb1d808",
+      "openspec/changes/platform-ci-runner-selection/design.md": "82de099df84fa0a917b79480644b460a35493fe2",
+      "openspec/changes/platform-ci-runner-selection/proposal.md": "b0d2e1c1ccef1b72c0ffa7a566473bc7ac18535e",
+      "openspec/changes/platform-ci-runner-selection/specs/ci-safety/spec.md": "21a4f8d12037152eb142da4bd960fb771eb566ff",
+      "openspec/changes/platform-ci-runner-selection/tasks.md": "3ad71f7651ae0ec5a038912739514c33469f8888",
+      "template/.github/workflows/dev-platform.yml.jinja": "3ac8f546fa9b9c4674ccf1e3c4fa7aca47be2167",
+      "template/.github/workflows/process-health-labels.yml.jinja": "ef21c8797a6d25b3f414c2db8289702ddc6756b0",
+      "template/scripts/platform_doctor.py": "118ae4147c84e8c408b4cf5a1fa2b85ac19d1c67",
+      "tests/test_ci_guardrails.py": "810716be0f6cd558719c4babaa1afc2b4597e485",
+      "tests/test_ci_runner_selection.py": "e282ec5f351f3cd5c4dcc2d56842ff9530fbaa27",
+      "tests/test_platform_doctor_workflow_mode.py": "e8c6d5178334b1f5fec2e2efa91fdcf65a54caab"
+    },
+    "base": "5f76443bf244cf5ddddee0276751057f59189e4d",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/platform_doctor.py --changed-file tests/test_ci_guardrails.py --changed-file tests/test_ci_runner_selection.py --changed-file tests/test_platform_doctor_workflow_mode.py",
+    "duration_seconds": 132.905,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
