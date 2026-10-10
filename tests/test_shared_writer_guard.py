@@ -64,6 +64,11 @@ def creation_calls(scripts: Path = SCRIPTS) -> collections.Counter[str]:
 # Existing direct creation sites, reviewed when this guard was introduced.
 # Keep the counts exact: adding a call inside an existing function also fails.
 REVIEWED_BASELINE: dict[str, int] = {
+    # Machine pool: machine-local slot/queue files outside the repository, created with an explicit
+    # cross-account mode (fchmod 0o666) rather than shared-workspace semantics; reads only lock and inspect.
+    'machine_pool.py:_open_shared:open': 1,
+    'machine_pool.py:_scan_queue:open': 1,
+    'machine_pool.py:read_holders:open': 1,
     # Disposable worker checkouts: install the committed public source contract and exclude it locally.
     'lifecycle_workers.py:commit_writer_worktree:open': 1,
     'lifecycle_workers.py:install_source_contract:copyfile': 1,

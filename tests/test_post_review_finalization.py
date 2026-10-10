@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contextlib import ExitStack
+import io
 import json
 from pathlib import Path
 import shutil
@@ -15,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "template/scripts"
 sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(ROOT / "tests"))
-from _platform_modules import load_platform_module  # noqa: E402
+from _platform_modules import isolate_machine_pool_environment, load_platform_module  # noqa: E402
 
 gate = load_platform_module("pr_review_gate", SCRIPTS / "pr_review_gate.py")
 queue = load_platform_module("publication_queue", SCRIPTS / "publication_queue.py")
@@ -52,6 +53,10 @@ def tasks_state(root: Path, name: str, body: str) -> None:
     change = root / "openspec/changes" / name
     change.mkdir(parents=True, exist_ok=True)
     (change / "tasks.md").write_text(body)
+
+
+def setUpModule() -> None:
+    isolate_machine_pool_environment()
 
 
 class HygieneStageTests(unittest.TestCase):
@@ -163,7 +168,7 @@ class ArchiveFinalizeModeTests(unittest.TestCase):
 class ContributionFreshnessTests(unittest.TestCase):
     def test_trusted_runner_passes_exactly_one_freshness_contract_and_describes_it(self):
         done = subprocess.CompletedProcess("checks", 0, stdout="", stderr="")
-        with mock.patch.object(final.subprocess, "run", return_value=done) as run:
+        with mock.patch.object(final, "stream_selected_checks", return_value=done) as run:
             contribution = final.trusted_checks_runner(Path("/checkout"), {}, contribution_base="abc123")
             proven = final.trusted_checks_runner(Path("/checkout"), {}, proven_base="f" * 40)
         contribution_command, proven_command = (call.args[0] for call in run.call_args_list)
@@ -178,17 +183,28 @@ class ContributionFreshnessTests(unittest.TestCase):
                                              "--proven-base", "f" * 40])
 
     def test_trusted_runner_refuses_neither_or_both_contracts(self):
-        with mock.patch.object(final.subprocess, "run") as run:
+        with mock.patch.object(final, "stream_selected_checks") as run:
             for keywords in ({}, {"contribution_base": "abc123", "proven_base": "f" * 40}):
                 with self.subTest(keywords=keywords), self.assertRaisesRegex(workers.WorkerError, "exactly one"):
                     final.trusted_checks_runner(Path("/checkout"), {}, **keywords)
         run.assert_not_called()
 
     def test_failing_selected_check_under_the_proven_base_escalates(self):
-        done = subprocess.CompletedProcess("checks", 1, stdout="", stderr="DEV_PLATFORM_CHECK_FAILURE: full")
-        with mock.patch.object(final.subprocess, "run", return_value=done):
+        done = subprocess.CompletedProcess("checks", 1, stdout="DEV_PLATFORM_CHECK_FAILURE: full", stderr="")
+        with mock.patch.object(final, "stream_selected_checks", return_value=done):
             with self.assertRaisesRegex(workers.WorkerError, "selected checks failed: DEV_PLATFORM_CHECK_FAILURE"):
                 final.trusted_checks_runner(Path("/checkout"), {}, proven_base="f" * 40)
+
+    def test_streamed_checks_forward_only_pool_diagnostics_while_running(self):
+        code = ("import sys; print('DEV_PLATFORM_MACHINE_POOL: waiting for 2 of 6 token(s)', flush=True); "
+                "print('ordinary check output'); print('DEV_PLATFORM_CHECK_FAILURE: full', file=sys.stderr); sys.exit(3)")
+        stderr = io.StringIO()
+        with mock.patch.object(final.sys, "stderr", stderr):
+            done = final.stream_selected_checks([sys.executable, "-c", code], cwd=Path.cwd(), env=dict(os.environ), pass_fds=())
+        self.assertEqual(stderr.getvalue(), "DEV_PLATFORM_MACHINE_POOL: waiting for 2 of 6 token(s)\n")
+        self.assertEqual(done.returncode, 3)
+        self.assertIn("ordinary check output", done.stdout)
+        self.assertIn("DEV_PLATFORM_CHECK_FAILURE: full", done.stdout)
 
     def finalize_runner(self, identity, checks_runner=None):
         seen = []

@@ -161,6 +161,7 @@ targets = [
   "test_rollout_validation_ownership",
   "test_select_checks",
   "test_affected_precheck",
+  "test_machine_pool",
   "test_shared_workspace",
   "test_local_workspace",
   "test_shared_writer_guard",
