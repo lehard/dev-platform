@@ -1,0 +1,146 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.162,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.181,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 474.068,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "scripts/generate_platform_manifest.py",
+        "template/scripts/platform_divergence.py",
+        "template/scripts/platform_doctor.py",
+        "tests/test_platform_divergence.py",
+        "tests/test_platform_manifest.py",
+        "tests/test_protected_surface.py",
+        "tests/test_root_guidance_contract.py",
+        "tests/test_template_contract.py",
+        "tests/upgrade_smoke.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_20106e9811f812c090647ada5931f2e1",
+    "change": "local-platform-hotfix",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/local-platform-hotfix",
+    "branch": "agent/br-526-t3-local-platform-hotfix",
+    "head": "c647f7c30525d9b821304ee736d1eb73cf26a1a4",
+    "task_content": {
+      "version": 1,
+      "digest": "15163925124b1f6aa4412e95ee458840842d47f2e5fe4449b35f856e2fc42da8",
+      "paths": {
+        "AGENTS.md": "98100e4a692dc603838a5d783446a940f0d79325",
+        "copier.yml": "51b6d0aba53d89b6edeafa739c206c337616d3ec",
+        "dev-platform/checks.toml": "64294cbcada2ed6b76c73fbf6bb234baa444833e",
+        "dev-platform/requirement-integrations/private-lineage-pln_09fc13764e27cbaeb1e7e34d776228ed-integration.json": "edf71fdab34349540349fa939b7bbd86c06c5c50",
+        "docs/ownership.md": "4f69261228a53cce5fd9345dc07441cec4367eb1",
+        "openspec/changes/downstream-change-classes/.managed-task.json": "0461309ff5eb827019ce8a8f1a2fe4fcdabea36f",
+        "openspec/changes/downstream-change-classes/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
+        "openspec/changes/downstream-change-classes/automated-checks.json": "f9b936b203451ae4060162f59e9016f6c2677472",
+        "openspec/changes/downstream-change-classes/design.md": "8a879c03fd49545ef3b2e600f64b3042fb80d395",
+        "openspec/changes/downstream-change-classes/independent-review-request.json": "5c8b86484ebdc84e4d0f36fa63fc7ee6ddee9901",
+        "openspec/changes/downstream-change-classes/independent-reviews/engineering-quality.json": "459c101fe1a459751c63061580ab92be462a3e21",
+        "openspec/changes/downstream-change-classes/independent-reviews/spec-fidelity.json": "72738811ec17f050fadfd28a683b7fdb9039db41",
+        "openspec/changes/downstream-change-classes/proposal.md": "cace9a641bcbb5fffc6b879dc585887ab53f455f",
+        "openspec/changes/downstream-change-classes/specs/downstream-change-classes/spec.md": "78ca8ba841373772159ea82344f38a13ae13b7ea",
+        "openspec/changes/downstream-change-classes/tasks.md": "a3afe6b56a5ffb8772717cd662a5b8797fc0d663",
+        "openspec/changes/downstream-change-classes/verification.md": "9b81840ed2726ddf47c1bf314714e30ca7cc34db",
+        "openspec/changes/local-platform-hotfix/.managed-task.json": "674ed8a1f9d8c8c1896153ea7da6141e86e69ebc",
+        "openspec/changes/local-platform-hotfix/.openspec.yaml": "a369219628ff8b409dab0cc6549c53080045fd98",
+        "openspec/changes/local-platform-hotfix/design.md": "83dc9e09b13e8b6f761a12da7ca97979a837fef7",
+        "openspec/changes/local-platform-hotfix/proposal.md": "1391693cffd74179e3d8a7ef022010f1b30dd83e",
+        "openspec/changes/local-platform-hotfix/specs/local-platform-hotfix/spec.md": "2649512ffddd9bb9eeb04feeb967e6eaee85b3b7",
+        "openspec/changes/local-platform-hotfix/tasks.md": "745402f11c1cda23cb8d2d0d50c25e861c0f8b84",
+        "scripts/generate_platform_manifest.py": "d5bda2dc1adec8997cb23012cc372e277a1d2a61",
+        "template/AGENTS.md.jinja": "a6585c1761e540ecaaf90db5623587433d094876",
+        "template/dev-platform/local-hotfixes.toml": "0a9f888f75b8903622bd2b02463f87026bd59f5c",
+        "template/dev-platform/platform-manifest.json": "b9f0d993db12ca496e749a7021bfae82dcdbd286",
+        "template/dev-platform/protected-surface.toml": "2173a7d741d657485ce823d3582afc1940d5469f",
+        "template/docs/README.md": "5fd713497943db5385ce2bac3b5e5089ef1c16d9",
+        "template/docs/engineering/change-classes.md": "0d92a0b9bebe3e8e69fdf67e854a90d7d612622d",
+        "template/scripts/platform_divergence.py": "7e7303f0ecc02f11dc75d1f505c7bc71505d833a",
+        "template/scripts/platform_doctor.py": "bbb6b6433325595676da31657c1c1bdbc2cb09ab",
+        "tests/test_platform_divergence.py": "2b021e4deb67f69c3529ea06965f0ad2ee37d776",
+        "tests/test_platform_manifest.py": "446e39c5a3b9ef35f80b7cf71d7c37dd3002dc90",
+        "tests/test_protected_surface.py": "eaedd0ee75d1f2e3573675da414a4adb6f55a68b",
+        "tests/test_root_guidance_contract.py": "daf251b2524ed2bd7695573ce7078df119ac3f1a",
+        "tests/test_template_contract.py": "c2736cedd159ebc0ffd3f7a0a81d17b17e294de3",
+        "tests/upgrade_smoke.py": "10bb26a0ffedb52d8a5b6de21f1b3ba4556a65d7"
+      },
+      "base": "a8de1f5e65a81b30cea410825ad218496f40ffa9"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "6cf76453ad8e8e4bbf6bd3b1bbe02473c4581f3fb1ba920c0bcde84ba9100e10",
+    "paths": {
+      "copier.yml": "51b6d0aba53d89b6edeafa739c206c337616d3ec",
+      "dev-platform/checks.toml": "64294cbcada2ed6b76c73fbf6bb234baa444833e",
+      "openspec/changes/local-platform-hotfix/.managed-task.json": "674ed8a1f9d8c8c1896153ea7da6141e86e69ebc",
+      "openspec/changes/local-platform-hotfix/.openspec.yaml": "a369219628ff8b409dab0cc6549c53080045fd98",
+      "openspec/changes/local-platform-hotfix/design.md": "83dc9e09b13e8b6f761a12da7ca97979a837fef7",
+      "openspec/changes/local-platform-hotfix/proposal.md": "1391693cffd74179e3d8a7ef022010f1b30dd83e",
+      "openspec/changes/local-platform-hotfix/specs/local-platform-hotfix/spec.md": "2649512ffddd9bb9eeb04feeb967e6eaee85b3b7",
+      "openspec/changes/local-platform-hotfix/tasks.md": "745402f11c1cda23cb8d2d0d50c25e861c0f8b84",
+      "scripts/generate_platform_manifest.py": "d5bda2dc1adec8997cb23012cc372e277a1d2a61",
+      "template/dev-platform/local-hotfixes.toml": "0a9f888f75b8903622bd2b02463f87026bd59f5c",
+      "template/dev-platform/platform-manifest.json": "b9f0d993db12ca496e749a7021bfae82dcdbd286",
+      "template/dev-platform/protected-surface.toml": "2173a7d741d657485ce823d3582afc1940d5469f",
+      "template/docs/engineering/change-classes.md": "0d92a0b9bebe3e8e69fdf67e854a90d7d612622d",
+      "template/scripts/platform_divergence.py": "7e7303f0ecc02f11dc75d1f505c7bc71505d833a",
+      "template/scripts/platform_doctor.py": "bbb6b6433325595676da31657c1c1bdbc2cb09ab",
+      "tests/test_platform_divergence.py": "2b021e4deb67f69c3529ea06965f0ad2ee37d776",
+      "tests/test_platform_manifest.py": "446e39c5a3b9ef35f80b7cf71d7c37dd3002dc90",
+      "tests/test_protected_surface.py": "eaedd0ee75d1f2e3573675da414a4adb6f55a68b",
+      "tests/test_template_contract.py": "c2736cedd159ebc0ffd3f7a0a81d17b17e294de3",
+      "tests/upgrade_smoke.py": "10bb26a0ffedb52d8a5b6de21f1b3ba4556a65d7"
+    },
+    "base": "994174dcdcc7f7b1f473ea952fbc83ba88b7b190",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file scripts/generate_platform_manifest.py --changed-file template/scripts/platform_divergence.py --changed-file template/scripts/platform_doctor.py --changed-file tests/test_platform_divergence.py --changed-file tests/test_platform_manifest.py --changed-file tests/test_protected_surface.py --changed-file tests/test_root_guidance_contract.py --changed-file tests/test_template_contract.py --changed-file tests/upgrade_smoke.py",
+    "duration_seconds": 215.817,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
