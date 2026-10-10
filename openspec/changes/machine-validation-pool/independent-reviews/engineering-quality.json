@@ -3,72 +3,62 @@
   "candidate": {
     "base_head": "401f3ce699a1aee6c0131a6b321a5eedfb973fb8",
     "base_ref": "origin/main",
-    "candidate_head": "924cca36668b8035e5290e11df28a6751dea0396",
-    "diff_sha256": "9924c8e7f96291c0da9894603ac7d2e3d9325aafe319b4c04e96996659d99e9e"
+    "candidate_head": "353db381c999e2bad615b7620b8ab0a22a8a329d",
+    "diff_sha256": "268f0b4f5ce80672fd0894f463fc7301c2f9c1b5c51e37bb1d9000a95eace3db"
   },
-  "completed_at": "2026-10-10T01:41:19+00:00",
-  "findings": [],
-  "launched_at": "2026-10-10T01:40:45+00:00",
-  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
+  "completed_at": "2026-10-10T06:45:40+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/machine_pool.py:467\u2013477 gives admission-lock waiting its own wait_timeout_seconds budget. _acquire then calls _create_ticket at line 584 and resets started at line 586. With a 200-second timeout, ticket creation can take 190 seconds and token acquisition another 20 seconds, admitting the run after 210 seconds. Continued contention can delay failure to almost twice the configured timeout.",
+      "id": "acquisition-timeout-restarts-after-queueing",
+      "severity": "material",
+      "summary": "The acquisition timeout restarts after ticket creation, allowing admission after the configured wait deadline."
+    },
+    {
+      "evidence": "template/scripts/machine_pool.py:681\u2013692 checks descriptors only with os.fstat; lease at lines 712\u2013717 then skips acquisition. If a launcher propagates the lease environment without passing its descriptors and those descriptor numbers are reused for other files or sockets, validation succeeds despite holding no slot locks. The distinct-descriptor check at lines 673\u2013676 does not establish slot identity or lock ownership.",
+      "id": "inherited-descriptors-not-validated-as-slots",
+      "severity": "advisory",
+      "summary": "Nested lease validation accepts unrelated open descriptors as proof that pool tokens are held."
+    }
+  ],
+  "launched_at": "2026-10-10T06:44:17+00:00",
+  "output_sha256": "d843f7705135554b5e44d185ca4eae66d609bd1d676c9477c98e9b40b9839c04",
   "perspective": "engineering-quality",
-  "request_id": "c393c508-da0b-42f8-b51f-c953d7e2616a",
+  "request_id": "37c8ed25-b3dc-48d5-bcef-c6605a3533b2",
   "reviewer": {
-    "context_id": "c37ad8e1-6985-411b-b13d-caf7dc6cf79a",
+    "context_id": "01a1248e-247e-7003-922e-85ee3c07cf58",
     "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-3ac595e7-9485-483d-9d98-e04cb6ec8740",
+    "launch_id": "platform-launch-ad808492-75e6-454c-a53f-46faf751dedf",
     "model": {
       "source": "selected",
-      "value": "sonnet"
+      "value": "gpt-6.1-sol"
     },
-    "provider": "claude",
-    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
-    "runtime": "claude-code-print",
+    "provider": "codex",
+    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
+    "runtime": "codex-exec",
     "write_access": false
   },
   "runtime_usage": {
     "fields": {
-      "cache_creation_input_tokens": {
+      "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 54010
-      },
-      "cache_read_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 220024
-      },
-      "duration_api_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 30227
-      },
-      "duration_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 31603
+        "value": 243200
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 14
-      },
-      "num_turns": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 8
+        "value": 306714
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 3059
+        "value": 2202
       }
     },
-    "runtime": "claude-code-print"
+    "runtime": "codex-exec"
   },
   "schema_version": 1,
   "task_content_digest": "0cc32c280b23675d3f0cdd68f20898c38ea4793ce3842434124aeddae50292b7"

@@ -3,79 +3,56 @@
   "candidate": {
     "base_head": "401f3ce699a1aee6c0131a6b321a5eedfb973fb8",
     "base_ref": "origin/main",
-    "candidate_head": "924cca36668b8035e5290e11df28a6751dea0396",
-    "diff_sha256": "9924c8e7f96291c0da9894603ac7d2e3d9325aafe319b4c04e96996659d99e9e"
+    "candidate_head": "353db381c999e2bad615b7620b8ab0a22a8a329d",
+    "diff_sha256": "268f0b4f5ce80672fd0894f463fc7301c2f9c1b5c51e37bb1d9000a95eace3db"
   },
-  "completed_at": "2026-10-10T01:40:45+00:00",
+  "completed_at": "2026-10-10T06:44:17+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/machine_pool.py read_holders: `if _try_lock(fd, path, shared=True): fcntl.flock(fd, fcntl.LOCK_UN)`. _try_take_slots uses LOCK_EX|LOCK_NB on the same slot files. _scan_queue(remove_dead=False) takes the same kind of shared lock on tickets.",
-      "id": "holder-probe-contends-with-acquire",
-      "severity": "advisory",
-      "summary": "The read-only holder probe (status and the waiting report) takes a shared flock on each slot file. A concurrent head's non-blocking exclusive attempt on that slot can fail spuriously, so a free token looks busy until the next poll. The spec requires read-only status and all-or-nothing acquisition, and the result is only a delayed admission, not a contract violation."
+      "evidence": "template/scripts/machine_pool.py:469\u2013479 gives _create_ticket its own wait_timeout_seconds budget; _acquire calls it at line 584 and resets started at line 586 before applying another full budget. The delta requires failure after the configured wait timeout. A read-only mocked-clock reproduction with a 10-second timeout and 9 seconds spent creating the ticket failed at 19 seconds while reporting 'timed out after 10s'. A run can likewise be admitted after its overall configured deadline.",
+      "id": "acquisition-timeout-restarts-after-queueing",
+      "severity": "material",
+      "summary": "Acquisition restarts the configured timeout after ticket creation, allowing a run to wait almost twice the promised limit."
     }
   ],
-  "launched_at": "2026-10-10T01:40:22+00:00",
-  "output_sha256": "4e501bb5f9c501ba4c7805aa4d41baec35326e62891158cfad0a84372f00fb43",
+  "launched_at": "2026-10-10T06:42:55+00:00",
+  "output_sha256": "22329d6ba7e91504111a409b40a53829ebbbb28fc0058f968a0d2a6529b2103b",
   "perspective": "spec-fidelity",
-  "request_id": "c393c508-da0b-42f8-b51f-c953d7e2616a",
+  "request_id": "37c8ed25-b3dc-48d5-bcef-c6605a3533b2",
   "reviewer": {
-    "context_id": "1cbf04d5-ea14-40b3-b0e5-0e9c1ef23f4a",
+    "context_id": "01a1248c-e45a-7cc2-ad33-45bb1a3fd4f4",
     "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-276f446a-9834-4287-b0b7-bdce4c9b4018",
+    "launch_id": "platform-launch-ce64e95d-ede5-4869-ac88-cc57079b9d8b",
     "model": {
       "source": "selected",
-      "value": "sonnet"
+      "value": "gpt-6.1-sol"
     },
-    "provider": "claude",
-    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
-    "runtime": "claude-code-print",
+    "provider": "codex",
+    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
+    "runtime": "codex-exec",
     "write_access": false
   },
   "runtime_usage": {
     "fields": {
-      "cache_creation_input_tokens": {
+      "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 50967
-      },
-      "cache_read_input_tokens": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 110162
-      },
-      "duration_api_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 21256
-      },
-      "duration_ms": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 21774
+        "value": 312832
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
-      },
-      "num_turns": {
-        "source": "runtime-confirmed",
-        "status": "measured",
-        "value": 6
+        "value": 379011
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2184
+        "value": 1992
       }
     },
-    "runtime": "claude-code-print"
+    "runtime": "codex-exec"
   },
   "schema_version": 1,
   "task_content_digest": "0cc32c280b23675d3f0cdd68f20898c38ea4793ce3842434124aeddae50292b7"
