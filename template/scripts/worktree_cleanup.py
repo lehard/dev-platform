@@ -16,7 +16,8 @@ import publication_state
 
 DEFAULT_AGE_DAYS = 7
 MAX_GLOBAL_CLEANUP_CANDIDATES = 50
-PENDING_REASONS = {"dirty", "not-merged"}
+PENDING_REASONS = {"dirty", "not-merged", "composition-check-failed"}
+REQUIREMENT_MANIFESTS = "dev-platform/requirement-integrations"
 DEFERRED_CLEANUP_VERSION = 1
 
 
@@ -181,6 +182,54 @@ def _exact_worktree_pr_is_merged(root: Path, config: dict, worktree: Worktree, m
     return lookup.available and lookup.exact_merged is not None
 
 
+class CompositionEvidenceError(ValueError):
+    pass
+
+
+def _git_ok(root: Path, *args: str) -> bool:
+    return run_git(list(args), cwd=root, check=False).returncode == 0
+
+
+def _delivered_by_requirement_composition(root: Path, worktree: Worktree, main_branch: str) -> bool:
+    """Whether a Requirement manifest on main records this child branch at a head covering the worktree.
+
+    A child integrated into requirement/BR-N reaches main only through the
+    squash-merged composition, so neither ancestry nor an exact-head PR into
+    main can prove it. The composition's manifest lands on main with that merge
+    and records each child's source branch and integrated head; the worktree is
+    delivered when its head is contained in that head, or adds only empty
+    commits on top of it. An unreadable manifest is reported, never skipped.
+    """
+    if not worktree.branch:
+        return False
+    listing = run_git(["ls-tree", "--name-only", f"refs/heads/{main_branch}", f"{REQUIREMENT_MANIFESTS}/"], cwd=root, check=False)
+    if listing.returncode != 0:
+        raise CompositionEvidenceError((listing.stderr.strip() or "manifest listing failed")[-500:])
+    for path in listing.stdout.splitlines():
+        if not path.endswith(".json"):
+            continue
+        shown = run_git(["show", f"refs/heads/{main_branch}:{path}"], cwd=root, check=False)
+        try:
+            children = json.loads(shown.stdout)["children"] if shown.returncode == 0 else None
+        except (ValueError, KeyError, TypeError) as exc:
+            raise CompositionEvidenceError(f"{path}: {exc}") from exc
+        if not isinstance(children, list):
+            raise CompositionEvidenceError(f"{path}: no readable children list")
+        for child in children:
+            if not isinstance(child, dict) or child.get("source_branch") != worktree.branch:
+                continue
+            recorded = child.get("head")
+            if not isinstance(recorded, str) or not _git_ok(root, "cat-file", "-e", f"{recorded}^{{commit}}"):
+                continue
+            if _git_ok(root, "merge-base", "--is-ancestor", worktree.head, recorded):
+                return True
+            if _git_ok(root, "merge-base", "--is-ancestor", recorded, worktree.head) and _git_ok(
+                root, "diff", "--quiet", recorded, worktree.head
+            ):
+                return True
+    return False
+
+
 def classify(
     root: Path,
     worktree: Worktree,
@@ -220,7 +269,11 @@ def classify(
         return Decision(**common, eligible=False, reason="dirty")
     merged = run_git(["merge-base", "--is-ancestor", worktree.head, f"refs/heads/{main_branch}"], cwd=root, check=False)
     if merged.returncode == 1:
-        if not _exact_worktree_pr_is_merged(root, config, worktree, main_branch):
+        try:
+            composed = _delivered_by_requirement_composition(root, worktree, main_branch)
+        except CompositionEvidenceError as exc:
+            return Decision(**common, eligible=False, reason="composition-check-failed", detail=str(exc)[-500:])
+        if not composed and not _exact_worktree_pr_is_merged(root, config, worktree, main_branch):
             return Decision(**common, eligible=False, reason="not-merged")
     elif merged.returncode != 0:
         return Decision(**common, eligible=False, reason="merge-check-failed")
@@ -590,6 +643,14 @@ def _cleanup_target(root: Path, target: DeferredCleanupTarget) -> dict[str, obje
     config = read_platform_config(root)
     target = _normalized_target(target)
     removed, errors, matched = _cleanup_deferred_completed_tasks(root, config, target=target)
+    if not matched and any(
+        str(item.path) == target.path and item.branch == target.branch and item.head == target.head
+        for item in _list_worktrees(root)
+    ):
+        # The exact target still exists but finish never deferred it: saying
+        # "already-cleaned" would hide a live worktree.
+        errors = [{"path": target.path, "error": "not-deferred: no finish deferral records this worktree; use cleanup --all once scan reports it eligible"}]
+        return {"status": "refused", "scope": "target", "target": target.as_entry(), "matched": False, "removed": [], "errors": errors}
     return {
         "status": "completed" if errors else ("already-cleaned" if not matched else "completed"),
         "scope": "target",
@@ -663,7 +724,7 @@ def main() -> int:
         report = write_pending_report(root, decisions)
         payload = {"status": "scan", **summary(decisions), "pending_report": str(report), "decisions": [asdict(item) for item in decisions]}
     print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
-    return 0
+    return 1 if payload.get("scope") == "target" and payload["status"] == "refused" else 0
 
 
 if __name__ == "__main__":

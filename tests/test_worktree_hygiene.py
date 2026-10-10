@@ -191,6 +191,64 @@ class WorktreeCleanupTests(WorktreeHarnessCase):
         self.assertEqual(decision.reason, "merged-clean-inactive")
         lookup.assert_called_once_with(self.root, {}, "agent/squash-merged", "main", worktree.head)
 
+    def _compose_into_main(self, children: list[dict]) -> None:
+        # A squash-merged Requirement composition: main gains the manifest in a
+        # new commit that never has the child branch tips as ancestors.
+        manifests = self.root / "dev-platform" / "requirement-integrations"
+        manifests.mkdir(parents=True, exist_ok=True)
+        (manifests / "private-lineage-pln_x-integration.json").write_text(json.dumps({"children": children}), encoding="utf-8")
+        git(self.root, "add", ".")
+        git(self.root, "commit", "-m", "Compose BR-1")
+
+    def _classify_old(self, path: Path):
+        worktree = self.listed(path)
+        activity = worktree_cleanup._activity_timestamp(self.root, worktree)
+        return worktree_cleanup.classify(
+            self.root, worktree, config={}, managed_root=self.managed, main_branch="main",
+            active_board=set(), active_cwds=set(), older_than_days=7, now=activity + 8 * 86400,
+        )
+
+    def test_child_delivered_by_squash_composition_is_eligible(self) -> None:
+        behind = self.add_worktree("br-1-t1-behind")
+        recorded = self.listed(behind).head
+        # The lifecycle pushed one more commit to the child branch after the
+        # local worktree stopped; the manifest records that later head.
+        later = Path(self.tmp.name) / "later"
+        git(self.root, "worktree", "add", "--detach", str(later), recorded)
+        (later / "evidence.txt").write_text("evidence\n", encoding="utf-8")
+        git(later, "add", ".")
+        git(later, "-c", "user.name=T", "-c", "user.email=t@t.invalid", "commit", "-m", "evidence")
+        behind_recorded = git(later, "rev-parse", "HEAD").stdout.strip()
+        git(self.root, "worktree", "remove", str(later))
+        empty = self.add_worktree("br-1-t2-empty")
+        empty_recorded = self.listed(empty).head
+        git(empty, "commit", "--allow-empty", "-m", "ci: rerun")
+        extra = self.add_worktree("br-1-t3-extra")
+        extra_recorded = self.listed(extra).head
+        (extra / "undelivered.txt").write_text("undelivered\n", encoding="utf-8")
+        git(extra, "add", ".")
+        git(extra, "commit", "-m", "undelivered")
+        self._compose_into_main([
+            {"source_branch": "agent/br-1-t1-behind", "head": behind_recorded},
+            {"source_branch": "agent/br-1-t2-empty", "head": empty_recorded},
+            {"source_branch": "agent/br-1-t3-extra", "head": extra_recorded},
+        ])
+        self.assertEqual(self._classify_old(behind).reason, "merged-clean-inactive")
+        self.assertEqual(self._classify_old(empty).reason, "merged-clean-inactive")
+        self.assertEqual(self._classify_old(extra).reason, "not-merged")
+
+    def test_unreadable_composition_manifest_is_reported(self) -> None:
+        path = self.add_worktree("br-2-t1")
+        manifests = self.root / "dev-platform" / "requirement-integrations"
+        manifests.mkdir(parents=True)
+        (manifests / "broken.json").write_text("{not json", encoding="utf-8")
+        git(self.root, "add", ".")
+        git(self.root, "commit", "-m", "broken manifest")
+        decision = self._classify_old(path)
+        self.assertFalse(decision.eligible)
+        self.assertEqual(decision.reason, "composition-check-failed")
+        self.assertIn("broken.json", decision.detail)
+
     def test_open_pr_worktree_stays_ineligible(self) -> None:
         path = self.add_worktree("open-pr")
         worktree = self.listed(path)
@@ -375,6 +433,19 @@ class DeferredCompletedWorktreeCleanupTests(WorktreeHarnessCase):
             repeated = worktree_cleanup.cleanup(self.root, older_than_days=7, target=first_target)
         self.assertEqual(repeated["status"], "already-cleaned")
         self.assertTrue(replacement.exists())
+
+    def test_live_target_that_was_never_deferred_is_refused_not_already_cleaned(self) -> None:
+        worktree = self._merged_task("never-deferred")
+        target = worktree_cleanup.DeferredCleanupTarget(
+            path=str(worktree.resolve()), branch="agent/never-deferred",
+            head=git(self.root, "rev-parse", "agent/never-deferred").stdout.strip(),
+        )
+        with mock.patch.object(worktree_cleanup, "_active_cwds", return_value=set()):
+            result = worktree_cleanup.cleanup(self.root, older_than_days=7, target=target)
+        self.assertEqual(result["status"], "refused")
+        self.assertEqual(result["removed"], [])
+        self.assertIn("not-deferred", result["errors"][0]["error"])
+        self.assertTrue(worktree.exists())
 
     def test_global_cleanup_requires_explicit_preview_then_apply(self) -> None:
         first = self._merged_task("global-first")
