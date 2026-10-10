@@ -3,36 +3,23 @@
   "candidate": {
     "base_head": "5f76443bf244cf5ddddee0276751057f59189e4d",
     "base_ref": "origin/main",
-    "candidate_head": "beb2ae7b5615908efbdc1b86094748e5a0ace7ec",
-    "diff_sha256": "da22c876dd55f5b3df29fc5011a470c0679e45b9379ab740fc684060ce866764"
+    "candidate_head": "b3ed473f6ca97bf18f3f770d5947d328cadb406d",
+    "diff_sha256": "523829f0bd714574f747bad89a022b8dbda785e98cf1773ebdc3fd1fecaa6538"
   },
-  "completed_at": "2026-10-10T00:10:07+00:00",
-  "findings": [
-    {
-      "evidence": "copier.yml:21 validator is `{% if not ci_runner_labels | trim %}...`. The template renders `'[' ~ runner_labels | join(', ') ~ ']'` with no validation. The spec scenario 'Invalid self-hosted labels' says `rendering or platform_doctor fails`, and the render test covers only blank labels (tests/test_ci_runner_selection.py:533-537). Moving the grammar check into the validator would fail at the source.",
-      "id": "copier-validator-label-grammar-gap",
-      "severity": "advisory",
-      "summary": "The Copier validator only rejects an empty `ci_runner_labels` value. The label grammar (`[A-Za-z0-9._-]+`, no empty entries, no duplicates) is enforced only later by `platform_doctor`. Rendering therefore accepts labels such as `a,,b`, `a b`, `a]` or `a,a` and writes them into `runs-on` unescaped. The malformed workflow is committed and only fails when the doctor runs."
-    },
-    {
-      "evidence": "template dev-platform.yml.jinja line `runs-on: {{ ... runner_labels[0] ... }}`. CI_RUNNER_LABEL_RE in platform_doctor.py allows `[A-Za-z0-9._-]+`. The tests only use `alters`, `a` and `self-hosted,linux`.",
-      "id": "runs-on-yaml-scalar-typing",
-      "severity": "advisory",
-      "summary": "A single label is rendered as a bare YAML scalar. Labels the grammar allows can parse as non-strings: `true`, `null`, `1.5` and `on` become bool, null or number, and `-` is a sequence indicator. The doctor compares raw text, so it would not catch this. Multi-label lists have the same issue per element."
-    }
-  ],
-  "launched_at": "2026-10-10T00:09:40+00:00",
-  "output_sha256": "9010bfcd6b2de7fbd30b7a41d6fbbb21bab4007a7ed73d3e2f0e039d95dd591c",
+  "completed_at": "2026-10-10T00:46:30+00:00",
+  "findings": [],
+  "launched_at": "2026-10-10T00:46:12+00:00",
+  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "engineering-quality",
-  "request_id": "ddb90abf-eeaa-4d7d-9031-1f211fba4a36",
+  "request_id": "d48dc078-daaa-48a0-9f10-ea5eaa96a8e0",
   "reviewer": {
-    "context_id": "53ce48c4-bb13-4e9b-8929-72db71c44472",
+    "context_id": "0dd98c28-1f5e-4146-bf9b-79d7f02cb4e6",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-2d958bc8-2481-4ea0-8aa9-c5c48dba6721",
+    "launch_id": "platform-launch-db9b5b53-9df9-49c0-88d6-7f0304b94f56",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -48,22 +35,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 30777
+        "value": 31512
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 52165
+        "value": 53533
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 20935
+        "value": 14595
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 21804
+        "value": 15118
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -73,16 +60,16 @@
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4
+        "value": 5
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2394
+        "value": 1506
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "2f09327ecfe50a21d2badfb6a62ec1b4527baab85b29978b1ce01e582e0df7a3"
+  "task_content_digest": "504a89d40410f052f6cea049ecc021f25f1db1e0d62938bdfe251251106a35da"
 }

@@ -2,11 +2,17 @@
   "candidate": {
     "base_head": "5f76443bf244cf5ddddee0276751057f59189e4d",
     "base_ref": "origin/main",
-    "candidate_head": "beb2ae7b5615908efbdc1b86094748e5a0ace7ec",
-    "diff_sha256": "da22c876dd55f5b3df29fc5011a470c0679e45b9379ab740fc684060ce866764"
+    "candidate_head": "b3ed473f6ca97bf18f3f770d5947d328cadb406d",
+    "diff_sha256": "523829f0bd714574f747bad89a022b8dbda785e98cf1773ebdc3fd1fecaa6538"
   },
   "change": "openspec/changes/platform-ci-runner-selection",
-  "excluded_lifecycle_paths": [],
+  "excluded_lifecycle_paths": [
+    "openspec/changes/platform-ci-runner-selection/automated-checks.json",
+    "openspec/changes/platform-ci-runner-selection/independent-review-request.json",
+    "openspec/changes/platform-ci-runner-selection/independent-reviews/engineering-quality.json",
+    "openspec/changes/platform-ci-runner-selection/independent-reviews/spec-fidelity.json",
+    "openspec/changes/platform-ci-runner-selection/verification.md"
+  ],
   "fresh_context_required": true,
   "perspectives": {
     "engineering-quality": {
@@ -31,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-10T00:09:19+00:00",
+  "prepared_at": "2026-10-10T00:45:54+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/platform-ci-runner-selection/independent-reviews",
     "required_perspectives": [
@@ -40,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "ddb90abf-eeaa-4d7d-9031-1f211fba4a36",
+  "request_id": "d48dc078-daaa-48a0-9f10-ea5eaa96a8e0",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -53,23 +59,23 @@
   "schema_version": 1,
   "task_content": {
     "base": "5f76443bf244cf5ddddee0276751057f59189e4d",
-    "digest": "2f09327ecfe50a21d2badfb6a62ec1b4527baab85b29978b1ce01e582e0df7a3",
+    "digest": "504a89d40410f052f6cea049ecc021f25f1db1e0d62938bdfe251251106a35da",
     "paths": {
       "copier.yml": "8460e2ac45f3fb9740f5621b8293f13eb5429bbb",
       "dev-platform/checks.toml": "4b00e1dd434912c950d9aea3dfeab8c9d1208a67",
-      "docs/managed-rollout.md": "8e0c8ae89d1a1a03a490bb2ecfd7db6de59d50e4",
+      "docs/managed-rollout.md": "6e9a32cfe04099da70993d5404e02f9e44bda7b8",
       "openspec/changes/platform-ci-runner-selection/.managed-task.json": "472f6d923804386db3fa005c5a8db96c76c89760",
       "openspec/changes/platform-ci-runner-selection/.openspec.yaml": "81264324b0500978f52f70d701b236a09cb1d808",
-      "openspec/changes/platform-ci-runner-selection/design.md": "82de099df84fa0a917b79480644b460a35493fe2",
+      "openspec/changes/platform-ci-runner-selection/design.md": "9eb53265fab13c758a420bb090f6b5295ed5c0ca",
       "openspec/changes/platform-ci-runner-selection/proposal.md": "b0d2e1c1ccef1b72c0ffa7a566473bc7ac18535e",
       "openspec/changes/platform-ci-runner-selection/specs/ci-safety/spec.md": "21a4f8d12037152eb142da4bd960fb771eb566ff",
       "openspec/changes/platform-ci-runner-selection/tasks.md": "3ad71f7651ae0ec5a038912739514c33469f8888",
-      "template/.github/workflows/dev-platform.yml.jinja": "3ac8f546fa9b9c4674ccf1e3c4fa7aca47be2167",
-      "template/.github/workflows/process-health-labels.yml.jinja": "ef21c8797a6d25b3f414c2db8289702ddc6756b0",
-      "template/scripts/platform_doctor.py": "118ae4147c84e8c408b4cf5a1fa2b85ac19d1c67",
+      "template/.github/workflows/dev-platform.yml.jinja": "dc714a5e71300782820d51c6b3ceeb392409c2ae",
+      "template/.github/workflows/process-health-labels.yml.jinja": "23c7f58d495f6102102f8b7282665f0b74403c5b",
+      "template/scripts/platform_doctor.py": "a027712e7d7d0fb446494a26f97d9f3dd69ea146",
       "tests/test_ci_guardrails.py": "810716be0f6cd558719c4babaa1afc2b4597e485",
-      "tests/test_ci_runner_selection.py": "e282ec5f351f3cd5c4dcc2d56842ff9530fbaa27",
-      "tests/test_platform_doctor_workflow_mode.py": "e8c6d5178334b1f5fec2e2efa91fdcf65a54caab"
+      "tests/test_ci_runner_selection.py": "a68a70658a18f14a0ac8285d3dbd58d97124a298",
+      "tests/test_platform_doctor_workflow_mode.py": "62b35609af151f4200714a74776ae819440cd299"
     },
     "scope": "independent-review-v1",
     "version": 1
