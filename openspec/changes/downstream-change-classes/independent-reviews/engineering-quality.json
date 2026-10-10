@@ -1,0 +1,32 @@
+{
+  "availability": "unavailable",
+  "candidate": {
+    "base_head": "a4d99eab8579e170648f02d1675cd8dde0bfd44b",
+    "base_ref": "a4d99eab8579e170648f02d1675cd8dde0bfd44b",
+    "candidate_head": "ccd1943affcc3cfbe71eacc1c6062caa5f75635e",
+    "diff_sha256": "d8218832f22024c76be231a54c78b7be09e77b368ff2253782ae3bd2ce279c62"
+  },
+  "completed_at": "2026-10-10T19:58:40+00:00",
+  "findings": [],
+  "launched_at": "2026-10-10T19:58:40+00:00",
+  "limitation": "claude reviewer runtime with model 'sonnet' is not ready: probe exited with status 1 (Not logged in \u00b7 Please run /login); next: log the claude CLI in on this host, point DEV_PLATFORM_CLAUDE_BIN at the Claude Code CLI, or change the [model_routing] / [independent_review] binding for this account (no other model or provider is tried), then rerun python3 scripts/independent_review.py preflight",
+  "perspective": "engineering-quality",
+  "request_id": "fc9cb0b7-f7cf-428d-bdef-6dd6fedf3f05",
+  "reviewer": {
+    "context_id": "platform-launch-69d9edcf-a68a-41b9-9401-8c2430ddc0ec",
+    "context_id_source": "platform-launch",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-69d9edcf-a68a-41b9-9401-8c2430ddc0ec",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content_digest": "99f7a57f63a95546962f0918ad32cb06edd7cefea0d9939cb808ceccf3c7a54c"
+}
