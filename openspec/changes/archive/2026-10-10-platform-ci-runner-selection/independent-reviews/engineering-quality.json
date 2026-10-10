@@ -1,0 +1,59 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "401f3ce699a1aee6c0131a6b321a5eedfb973fb8",
+    "base_ref": "origin/main",
+    "candidate_head": "1be606453cea9b08828a99c1974face9fd6eb057",
+    "diff_sha256": "3d2fa97adaa6539a19f0fc59524aed82ae970fbfb783989bacca0dc3bbc39bf9"
+  },
+  "completed_at": "2026-10-10T08:37:00+00:00",
+  "findings": [
+    {
+      "evidence": "copier.yml:126 validates only that ci_runner_labels is nonblank. template/.github/workflows/dev-platform.yml.jinja:1,26 splits and renders the labels without further validation. A read-only render with ci_runner_labels='a,,b' produced runs-on: [\"a\", \"\", \"b\"]. The empty label prevents matching an intended runner, so the platform_doctor validation inside that job cannot provide the promised diagnostic. Validate the complete label grammar, empty entries and duplicates during Copier intake.",
+      "id": "validate-labels-before-scheduling",
+      "severity": "advisory",
+      "summary": "Malformed runner labels pass rendering and can prevent CI from reaching the doctor diagnostic."
+    }
+  ],
+  "launched_at": "2026-10-10T08:35:47+00:00",
+  "output_sha256": "1aaed3c0850a506e82da421cfff56f128747d976660c15e853400e533f9e9d53",
+  "perspective": "engineering-quality",
+  "request_id": "d34feb72-afcd-4b04-9531-bb10b75eae14",
+  "reviewer": {
+    "context_id": "01a124f4-3ae3-78a2-8ff3-3a891ff7bad0",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-0ecdf50a-a2f2-4088-ae32-be3732d03b05",
+    "model": {
+      "source": "selected",
+      "value": "gpt-6.1-sol"
+    },
+    "provider": "codex",
+    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
+    "runtime": "codex-exec",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cached_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 360704
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 425815
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1672
+      }
+    },
+    "runtime": "codex-exec"
+  },
+  "schema_version": 1,
+  "task_content_digest": "2d8a5fb65696f6d30913aaed34861818f9ac9cd84f73d7d33c606c56ca3ef37a"
+}
