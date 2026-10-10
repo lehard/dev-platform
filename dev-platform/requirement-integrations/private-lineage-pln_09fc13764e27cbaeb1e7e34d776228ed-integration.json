@@ -1,0 +1,24 @@
+{
+  "base": "3533c299f356265154c811491070132e071c95f0",
+  "children": [],
+  "dependencies": {
+    "blocking-check-recoverability": [
+      "local-platform-hotfix"
+    ],
+    "downstream-change-classes": [],
+    "local-platform-hotfix": [
+      "downstream-change-classes"
+    ]
+  },
+  "digest": "7863d93afdea752419e2aa955c50c44e3c6e205c7c237d29ad5d683891254146",
+  "expected_changes": [
+    "downstream-change-classes",
+    "local-platform-hotfix",
+    "blocking-check-recoverability"
+  ],
+  "integration_branch": "requirement/BR-526",
+  "repository": "lehard/dev-platform",
+  "requirement": "pln_09fc13764e27cbaeb1e7e34d776228ed",
+  "version": 2,
+  "work_identity": "BR-526"
+}
