@@ -121,6 +121,7 @@ targets = [
   "test_requirement_flow_e2e",
   "test_requirement_card_claim",
   "test_build_explorer",
+  "test_explorer_workflow",
 ]
 mode = "parallel"
 
