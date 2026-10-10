@@ -1,23 +1,36 @@
 {
-  "availability": "unavailable",
+  "availability": "available",
   "candidate": {
     "base_head": "fc92948c443c4dee53a39a56f367cd213a2096f7",
     "base_ref": "fc92948c443c4dee53a39a56f367cd213a2096f7",
-    "candidate_head": "5c5069fc7eefa4cc2b1f8725080f077dbb40930c",
-    "diff_sha256": "6edf3cf27a7e82de87629056fa040a3feb6ca95fdd0e6869e6d4d86ee8524a17"
+    "candidate_head": "aa1686b0eb1634b10d816b02098df20fe1350ddf",
+    "diff_sha256": "be1d59219cbf8d13bd808e65f2557b0dfaa6df3abf91de768f40d81f86fbfde0"
   },
-  "completed_at": "2026-10-10T12:38:54+00:00",
-  "findings": [],
-  "launched_at": "2026-10-10T12:38:54+00:00",
-  "limitation": "codex reviewer runtime with model 'gpt-6.1-sol' is not ready: probe exited with status 1 (Reconnecting... 2/5 (unexpected status 401 Unauthorized: Missing bearer or basic authentication in header, url: wss://api.openai.com/v1/responses, cf-ray: a485aec9ea834640-NQZ)); next: log the codex CLI in on this host, or change the [model_routing] / [independent_review] binding for this account (no other model or provider is tried), then rerun python3 scripts/independent_review.py preflight",
+  "completed_at": "2026-10-10T12:42:19+00:00",
+  "findings": [
+    {
+      "evidence": "openspec/changes/add-explorer-lifecycle-journey/design.md:8 says a stage id \u201cmay not collide\u201d with an element id. docs/engineering/explorer.md explicitly allows equal ids, and tests/test_build_explorer.py::test_stage_may_share_an_id_with_an_element requires the build to accept them.",
+      "id": "stage-id-contract-contradiction",
+      "severity": "advisory",
+      "summary": "The design contradicts the implemented stage-id namespace rule."
+    },
+    {
+      "evidence": "openspec/changes/add-explorer-lifecycle-journey/design.md:6 requires an ordered list rendered as connected steps. explorer/assets/explorer.css:100\u2013104 renders separated grid cards; the only connector rule appears at line 118 inside the max-width:52rem media query, so wide-screen steps have no connections.",
+      "id": "wide-flow-missing-connections",
+      "severity": "advisory",
+      "summary": "The wide-screen lifecycle flow lacks the connected steps promised by the design."
+    }
+  ],
+  "launched_at": "2026-10-10T12:41:42+00:00",
+  "output_sha256": "76da09363e0f5e81e07df3d464c062ac8af025c78c816f4e6c10d0f8749ba307",
   "perspective": "spec-fidelity",
-  "request_id": "b1d78fde-8d59-4022-abed-7976fe85e9b4",
+  "request_id": "017e5bd4-2949-4fe2-9cf0-795ee0cca4bb",
   "reviewer": {
-    "context_id": "platform-launch-044694b2-3adc-4a1b-8669-6da678634e5c",
-    "context_id_source": "platform-launch",
+    "context_id": "01a125d5-5e1c-7121-aff0-73954c78a9af",
+    "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-044694b2-3adc-4a1b-8669-6da678634e5c",
+    "launch_id": "platform-launch-ed52e2da-6484-4279-ad6b-bc992b1ee6c4",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -26,6 +39,26 @@
     "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
     "runtime": "codex-exec",
     "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cached_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 85376
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 160970
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 845
+      }
+    },
+    "runtime": "codex-exec"
   },
   "schema_version": 1,
   "task_content_digest": "e36f3147bbcef228643538d62814a6ef122ef78a2b74b08e9d6e868473fd239e"
