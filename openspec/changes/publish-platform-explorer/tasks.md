@@ -7,4 +7,4 @@
 - [x] 2.2 Document the one-time Pages enablement, explicit failure when disabled and local reproduction in `docs/engineering/explorer.md`.
 
 ## 3. Validation and delivery
-- [ ] 3.1 Run compile, ruff, full test groups, docs link checks and the OpenSpec lifecycle check; run semantic OpenSpec verification and complete the authorized lifecycle handoff.
+- [x] 3.1 Run compile, ruff, full test groups, docs link checks and the OpenSpec lifecycle check; run semantic OpenSpec verification and complete the authorized lifecycle handoff.
