@@ -263,13 +263,17 @@ class ContributionTests(unittest.TestCase):
                     self.assertNotIn(key, env)
                 self.assertEqual(kwargs["stdin"], subprocess.DEVNULL)
                 return SimpleNamespace(returncode=0)
+            import site
             with mock.patch.dict(os.environ, {"HOME": "/operator-home", "GH_TOKEN": "secret",
                     "GITHUB_TOKEN": "secret", "SSH_AUTH_SOCK": "/agent"}), \
+                 mock.patch.object(site, "getuserbase", return_value="/operator-home/Library/Python/3.13"), \
                  mock.patch.object(integration, "_full_check_commands", return_value=["candidate-check"]), \
                  mock.patch.object(integration.subprocess, "run", side_effect=command):
                 integration._run_full_checks(root)
             self.assertEqual(len(observed), 1)
             self.assertFalse(Path(observed[0]["HOME"]).exists())
+            # User-installed check tooling (copier, ruff) stays importable from the operator's user base.
+            self.assertEqual(observed[0]["PYTHONUSERBASE"], "/operator-home/Library/Python/3.13")
 
     def platform_layout(self, root, registry_source):
         (root / "template" / "scripts").mkdir(parents=True)
