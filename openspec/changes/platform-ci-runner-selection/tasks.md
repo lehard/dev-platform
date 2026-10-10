@@ -7,6 +7,8 @@
 
 - [x] 2.1 Add the doctor check that committed workflow runner and repair step agree with recorded answers and that labels are well formed; keep central and template copies identical.
 
+- [x] 2.2 Let guarded rollout recover a conflicted platform path whose committed file is byte-identical to its target render, re-proven after reset and matched after recopy; render a plain-safe single label plain so the hand edit matches.
+
 ## 3. Documentation and evidence
 
 - [x] 3.1 Document the answers and the migration for projects that hand-edited their runner.

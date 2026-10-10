@@ -8,6 +8,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from typing import Callable
 
 import yaml
 
@@ -84,7 +85,8 @@ class CiRunnerRenderTests(unittest.TestCase):
         target = self.render("single", {"ci_runner": "self-hosted", "ci_runner_labels": "alters"})
         text = (target / ".github" / "workflows" / "dev-platform.yml").read_text(encoding="utf-8")
         repair = f"      - name: {REPAIR_NAME}\n        run: python3 scripts/shared_workspace.py fix\n\n"
-        self.assertEqual(text.replace(repair, "").replace('runs-on: "alters"', "runs-on: ubuntu-latest"), hosted)
+        # A plain-safe single label renders plain: the same bytes as a hand-written `runs-on: alters`.
+        self.assertEqual(text.replace(repair, "").replace("runs-on: alters\n", "runs-on: ubuntu-latest\n"), hosted)
         jobs = load_jobs(target, "dev-platform.yml")
         self.assertEqual(jobs["platform-ci"]["runs-on"], "alters")
         names = step_names(jobs["platform-ci"])
@@ -114,6 +116,15 @@ class CiRunnerRenderTests(unittest.TestCase):
         single = self.render("ambiguous-single", {"ci_runner": "self-hosted", "ci_runner_labels": "on"})
         self.assertEqual(load_jobs(single, "dev-platform.yml")["platform-ci"]["runs-on"], "on")
         self.assertEqual(self.doctor_failures(single), 0)
+
+    def test_yaml_ambiguous_single_label_renders_quoted(self) -> None:
+        for label in ("true", "123", "null"):
+            with self.subTest(label=label):
+                target = self.render(f"ambiguous-{label}", {"ci_runner": "self-hosted", "ci_runner_labels": label})
+                for name, job in (("dev-platform.yml", "platform-ci"), ("process-health-labels.yml", "provision")):
+                    self.assertIn(f'    runs-on: "{label}"\n', (target / ".github" / "workflows" / name).read_text(encoding="utf-8"))
+                    self.assertEqual(load_jobs(target, name)[job]["runs-on"], label)
+                self.assertEqual(self.doctor_failures(target), 0)
 
     def test_label_provisioning_uses_curl_without_gh_for_both_runner_kinds(self) -> None:
         for name, extra in (("curl-hosted", {}), ("curl-self", {"ci_runner": "self-hosted", "ci_runner_labels": "alters"})):
@@ -190,7 +201,8 @@ def strip_runner_support(source: Path) -> None:
     for name in ("dev-platform.yml.jinja", "process-health-labels.yml.jinja"):
         path = source / "template" / ".github" / "workflows" / name
         body = path.read_text(encoding="utf-8")
-        body = re.sub(r"\{% set runner_labels = [^\n]*\n", "", body)
+        # The pre-feature templates: process-health-labels had no first line, dev-platform kept its `{% if %}` line.
+        body = re.sub(r"\{% set runner_labels = [^\n]*?-%\}\n|\{% set runner_labels = [^\n]*%\}", "", body)
         body = runs_on.sub(r"\1ubuntu-latest", body)
         body = re.sub(r"\{%- if ci_runner == 'self-hosted' %\}.*?\{%- endif %\}", "", body, flags=re.DOTALL)
         path.write_text(body, encoding="utf-8")
@@ -201,7 +213,7 @@ def strip_runner_support(source: Path) -> None:
 class CiRunnerMigrationTests(unittest.TestCase):
     """Rollout path: a project rendered before the runner questions existed is updated with the rollout's Copier flags."""
 
-    def migrate(self, preseed: dict[str, str] | None) -> Path:
+    def migrate(self, preseed: dict[str, str] | None, hand_edit: Callable[[Path], None] | None = None) -> Path:
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         tmp_path = Path(tmp.name).resolve()
@@ -233,6 +245,10 @@ class CiRunnerMigrationTests(unittest.TestCase):
         git(target, "init", "-q")
         git(target, "add", "-A")
         git(target, "commit", "-q", "-m", "baseline")
+        if hand_edit:
+            hand_edit(target)
+            git(target, "add", "-A")
+            git(target, "commit", "-q", "-m", "hand edit")
 
         (source / "copier.yml").write_text(current_copier, encoding="utf-8")
         for name, body in current_workflows.items():
@@ -258,6 +274,37 @@ class CiRunnerMigrationTests(unittest.TestCase):
         self.assertEqual(answers["ci_runner"], "github-hosted")
         self.assertEqual(load_jobs(target, "dev-platform.yml")["platform-ci"]["runs-on"], "ubuntu-latest")
         self.assertNotIn(REPAIR_NAME, step_names(load_jobs(target, "dev-platform.yml")["platform-ci"]))
+        self.assertEqual(self.doctor_failures(target), 0)
+
+    def test_hand_edited_runner_already_matches_the_target_render(self) -> None:
+        """The downstream hand edit plus equivalent answers is byte-identical to the target render.
+
+        Copier still rejects the replayed `ubuntu-latest -> alters` hunks (the target already changed those
+        lines), so guarded rollout recovers these paths only through the target-equivalence proof, whose
+        precondition is exactly this byte identity of the committed workflows.
+        """
+        edited: dict[str, str] = {}
+
+        def hand_edit(target: Path) -> None:
+            for name in ("dev-platform.yml", "process-health-labels.yml"):
+                path = target / ".github" / "workflows" / name
+                text = path.read_text(encoding="utf-8")
+                self.assertEqual(text.count("runs-on: ubuntu-latest\n"), 1)
+                text = text.replace("runs-on: ubuntu-latest\n", "runs-on: alters\n")
+                if name == "dev-platform.yml":
+                    # As in the downstream edit: the step replaces the redundant blank separator before the doctor.
+                    doctor = "\n\n\n      - name: Validate platform contract\n"
+                    self.assertEqual(text.count(doctor), 1)
+                    text = text.replace(doctor, f"\n\n      - name: {REPAIR_NAME}\n        run: python3 scripts/shared_workspace.py fix\n"
+                                        + doctor[2:])
+                path.write_text(text, encoding="utf-8")
+                edited[name] = text
+
+        target = self.migrate({"ci_runner": "self-hosted", "ci_runner_labels": "alters"}, hand_edit)
+        for name, text in edited.items():
+            with self.subTest(workflow=name):
+                self.assertEqual((target / ".github" / "workflows" / name).read_text(encoding="utf-8"), text)
+                self.assertTrue((target / ".github" / "workflows" / f"{name}.rej").exists())
         self.assertEqual(self.doctor_failures(target), 0)
 
     def test_preseeded_self_hosted_answer_renders_on_update(self) -> None:

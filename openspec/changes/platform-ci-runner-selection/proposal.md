@@ -16,10 +16,11 @@
 ### Modified Capabilities
 
 - `ci-safety`: the rendered platform workflow runner is a declared project answer checked by the doctor.
+- `platform-rollout`: guarded recopy may also recover a conflicted path whose committed file already equals the target render.
 
 ## Impact
 
-`copier.yml`, `template/.github/workflows/dev-platform.yml.jinja`, `template/.github/workflows/process-health-labels.yml.jinja`, `template/scripts/platform_doctor.py` (and its `scripts/` mirror if present), tests for render/update/doctor, `docs/release-policy.md` or `docs/managed-rollout.md`. On Copier update an existing project records the new answers (an accepted default records `github-hosted`, which renders `ubuntu-latest`); `platform_doctor` fails explicitly when the recorded `ci_runner` answer is missing.
+`copier.yml`, `template/.github/workflows/dev-platform.yml.jinja`, `template/.github/workflows/process-health-labels.yml.jinja`, `template/scripts/platform_doctor.py` (and its `scripts/` mirror if present), `scripts/rollout_project.py` (guarded recopy recovers a conflicted platform path already byte-identical to its target render, so a hand edit equivalent to the new answers migrates), tests for render/update/doctor/rollout, `docs/release-policy.md` or `docs/managed-rollout.md`. On Copier update an existing project records the new answers (an accepted default records `github-hosted`, which renders `ubuntu-latest`); `platform_doctor` fails explicitly when the recorded `ci_runner` answer is missing.
 
 ## Non-goals
 

@@ -111,21 +111,21 @@ class CiRunnerAgreementTests(unittest.TestCase):
         self.assertEqual(self._check("ci_runner: shared\n", GITHUB_HOSTED_WORKFLOW), 1)
 
     def test_self_hosted_single_and_multiple_labels_agree(self) -> None:
-        self.assertEqual(self._check("ci_runner: self-hosted\nci_runner_labels: alters\n", self_hosted_workflow('"alters"')), 0)
+        self.assertEqual(self._check("ci_runner: self-hosted\nci_runner_labels: alters\n", self_hosted_workflow("alters")), 0)
         self.assertEqual(self._check("ci_runner: self-hosted\nci_runner_labels: a, b\n", self_hosted_workflow('["a", "b"]')), 0)
 
     def test_runner_mismatch_fails(self) -> None:
-        self.assertEqual(self._check("ci_runner: self-hosted\nci_runner_labels: alters\n", self_hosted_workflow("ubuntu-latest"), provision='"alters"'), 1)
-        self.assertEqual(self._check("ci_runner: github-hosted\n", self_hosted_workflow('"alters"', repair=False), provision="ubuntu-latest"), 1)
+        self.assertEqual(self._check("ci_runner: self-hosted\nci_runner_labels: alters\n", self_hosted_workflow("ubuntu-latest"), provision="alters"), 1)
+        self.assertEqual(self._check("ci_runner: github-hosted\n", self_hosted_workflow("alters", repair=False), provision="ubuntu-latest"), 1)
 
     def test_invalid_labels_fail_naming_ci_runner_labels(self) -> None:
         for labels in ("''", "'a,,b'", "'a b'", "'a,a'", "'a;b'"):
             with self.subTest(labels=labels):
-                self.assertEqual(self._check(f"ci_runner: self-hosted\nci_runner_labels: {labels}\n", self_hosted_workflow('"a"')), 1)
-        self.assertEqual(self._check("ci_runner: self-hosted\n", self_hosted_workflow('"a"')), 1)
+                self.assertEqual(self._check(f"ci_runner: self-hosted\nci_runner_labels: {labels}\n", self_hosted_workflow("a")), 1)
+        self.assertEqual(self._check("ci_runner: self-hosted\n", self_hosted_workflow("a")), 1)
 
     def test_provision_runner_mismatch_fails(self) -> None:
-        self.assertEqual(self._check("ci_runner: self-hosted\nci_runner_labels: alters\n", self_hosted_workflow('"alters"'), provision="ubuntu-latest"), 1)
+        self.assertEqual(self._check("ci_runner: self-hosted\nci_runner_labels: alters\n", self_hosted_workflow("alters"), provision="ubuntu-latest"), 1)
         self.assertEqual(self._check("ci_runner: github-hosted\n", GITHUB_HOSTED_WORKFLOW, provision="alters"), 1)
 
     def test_missing_provision_workflow_fails(self) -> None:
@@ -137,7 +137,7 @@ class CiRunnerAgreementTests(unittest.TestCase):
                         REPAIR_STEP + "        if: false\n",
                         REPAIR_STEP + "        continue-on-error: true\n"):
             with self.subTest(step=changed):
-                self.assertEqual(self._check(answers, self_hosted_workflow('"alters"').replace(REPAIR_STEP, changed)), 1)
+                self.assertEqual(self._check(answers, self_hosted_workflow("alters").replace(REPAIR_STEP, changed)), 1)
 
     def test_wrapped_label_answer_is_read_whole(self) -> None:
         labels = ["runner-label-0", "runner-label-1", "runner-label-2"]
@@ -149,28 +149,38 @@ class CiRunnerAgreementTests(unittest.TestCase):
 
     def test_block_scalar_answer_fails_explicitly(self) -> None:
         with self.assertRaisesRegex(SystemExit, "block scalar"):
-            self._check("ci_runner: self-hosted\nci_runner_labels: |\n  alters\n", self_hosted_workflow('"alters"'))
+            self._check("ci_runner: self-hosted\nci_runner_labels: |\n  alters\n", self_hosted_workflow("alters"))
 
-    def test_unquoted_label_does_not_agree(self) -> None:
-        self.assertEqual(self._check("ci_runner: self-hosted\nci_runner_labels: alters\n", self_hosted_workflow("alters"), provision='"alters"'), 1)
+    def test_label_must_keep_its_rendered_form(self) -> None:
+        # A plain-safe single label renders plain; an ambiguous one renders quoted. Only the rendered form agrees.
+        answers = "ci_runner: self-hosted\nci_runner_labels: alters\n"
+        self.assertEqual(self._check(answers, self_hosted_workflow('"alters"'), provision="alters"), 1)
+        self.assertEqual(self._check(answers, self_hosted_workflow("alters"), provision='"alters"'), 1)
+        for label, rendered in (("true", '"true"'), ("Yes", '"Yes"'), ("123", '"123"'), ("null", '"null"'), ("1linux", '"1linux"'),
+                                ("self-hosted", "self-hosted"), ("macOS_arm.64", "macOS_arm.64")):
+            with self.subTest(label=label):
+                labelled = f"ci_runner: self-hosted\nci_runner_labels: '{label}'\n"
+                self.assertEqual(self._check(labelled, self_hosted_workflow(rendered), provision=rendered), 0)
+                other = rendered.strip('"') if rendered.startswith('"') else f'"{rendered}"'
+                self.assertEqual(self._check(labelled, self_hosted_workflow(other), provision=other), 2)
 
     def test_repair_step_after_platform_doctor_fails(self) -> None:
-        workflow = self_hosted_workflow('"alters"', repair=False).replace(DOCTOR_STEP, DOCTOR_STEP + REPAIR_STEP)
+        workflow = self_hosted_workflow("alters", repair=False).replace(DOCTOR_STEP, DOCTOR_STEP + REPAIR_STEP)
         self.assertEqual(self._check("ci_runner: self-hosted\nci_runner_labels: alters\n", workflow), 1)
 
     def test_repair_step_outside_platform_ci_does_not_count(self) -> None:
-        workflow = self_hosted_workflow('"alters"', repair=False) + "    steps:\n" + REPAIR_STEP
+        workflow = self_hosted_workflow("alters", repair=False) + "    steps:\n" + REPAIR_STEP
         self.assertEqual(self._check("ci_runner: self-hosted\nci_runner_labels: alters\n", workflow), 1)
         self.assertEqual(self._check("ci_runner: github-hosted\n", GITHUB_HOSTED_WORKFLOW + "  other:\n    steps:\n" + REPAIR_STEP), 0)
 
     def test_self_hosted_without_repair_step_fails(self) -> None:
-        self.assertEqual(self._check("ci_runner: self-hosted\nci_runner_labels: alters\n", self_hosted_workflow('"alters"', repair=False)), 1)
+        self.assertEqual(self._check("ci_runner: self-hosted\nci_runner_labels: alters\n", self_hosted_workflow("alters", repair=False)), 1)
 
     def test_github_hosted_with_repair_step_fails(self) -> None:
         self.assertEqual(self._check("ci_runner: github-hosted\n", self_hosted_workflow("ubuntu-latest")), 1)
 
     def test_runs_on_of_other_jobs_is_not_compared(self) -> None:
-        self.assertEqual(self._check("ci_runner: self-hosted\nci_runner_labels: alters\n", self_hosted_workflow('"alters"')), 0)
+        self.assertEqual(self._check("ci_runner: self-hosted\nci_runner_labels: alters\n", self_hosted_workflow("alters")), 0)
 
     def test_gitlab_and_source_are_unaffected(self) -> None:
         self.assertEqual(self._check(None, "", {"scm_provider": "gitlab", "platform_version": "1.0.0"}), 0)

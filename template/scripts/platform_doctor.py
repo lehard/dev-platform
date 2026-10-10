@@ -155,6 +155,25 @@ PLATFORM_CI_RUNS_ON_RE = re.compile(r"^  platform-ci:\n(?:(?!^  \S).*\n)*?    ru
 PROVISION_RUNS_ON_RE = re.compile(r"^  provision:\n(?:(?!^  \S).*\n)*?    runs-on:[ \t]*(.*?)[ \t]*$", re.MULTILINE)
 
 
+# YAML 1.1 words that a plain scalar would load as a boolean or null instead of a runner-label string.
+YAML_PLAIN_SPECIAL_WORDS = frozenset({"y", "n", "yes", "no", "true", "false", "on", "off", "null"})
+
+
+def rendered_runs_on(labels: list[str]) -> str:
+    """The `runs-on` value the workflow templates render for validated self-hosted labels.
+
+    A single label that YAML reads as a string renders plain, byte-identical to a hand-written
+    `runs-on: <label>`; any other single label (such as `true`, `123` or `null`) and every label list
+    render quoted, so each label stays a string.
+    """
+    if len(labels) == 1:
+        label = labels[0]
+        if label[:1].isalpha() and label.isascii() and label.lower() not in YAML_PLAIN_SPECIAL_WORDS:
+            return label
+        return json.dumps(label)
+    return json.dumps(labels)
+
+
 def check_ci_runner_agreement(root: Path, config: dict, failures: list[int]) -> None:
     """Prove the committed platform-ci and label-provision runners agree with the recorded Copier answers."""
     if scm_provider(config) == "gitlab":
@@ -183,8 +202,7 @@ def check_ci_runner_agreement(root: Path, config: dict, failures: list[int]) -> 
         if problems:
             fail(f".copier-answers.yml ci_runner_labels={raw!r} {'; '.join(problems)}"); failures[0] += 1
             return
-        # Labels render as quoted YAML strings, so a label such as `true` or `123` stays a string.
-        expected = json.dumps(entries[0]) if len(entries) == 1 else json.dumps(entries)
+        expected = rendered_runs_on(entries)
     else:
         expected = "ubuntu-latest"
     workflow = root / ".github" / "workflows" / "dev-platform.yml"

@@ -1,4 +1,4 @@
-{% if scm_provider == 'github' %}{% set runner_labels = ci_runner_labels.split(',') | map('trim') | list if ci_runner == 'self-hosted' else [] %}
+{% if scm_provider == 'github' %}{% set runner_labels = ci_runner_labels.split(',') | map('trim') | list if ci_runner == 'self-hosted' else [] %}{% set plain_label = runner_labels | length == 1 and runner_labels[0][:1].isalpha() and runner_labels[0].isascii() and runner_labels[0].replace('-', '').replace('_', '').replace('.', '').isalnum() and runner_labels[0].lower() not in ['y', 'n', 'yes', 'no', 'true', 'false', 'on', 'off', 'null'] %}
 name: Dev Platform
 
 on:
@@ -23,7 +23,7 @@ concurrency:
 
 jobs:
   platform-ci:
-    runs-on: {{ 'ubuntu-latest' if ci_runner == 'github-hosted' else (runner_labels[0] | tojson if runner_labels | length == 1 else runner_labels | tojson) }}
+    runs-on: {{ 'ubuntu-latest' if ci_runner == 'github-hosted' else (runner_labels[0] if plain_label else (runner_labels[0] | tojson if runner_labels | length == 1 else runner_labels | tojson)) }}
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
