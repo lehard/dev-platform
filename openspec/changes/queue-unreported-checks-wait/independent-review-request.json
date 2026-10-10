@@ -1,9 +1,9 @@
 {
   "candidate": {
-    "base_head": "71b1d5857021ec4f0a932c08ad98e245ef5a7933",
+    "base_head": "1b032a6356a6fbfbdb7c3af811e624908abfeb2d",
     "base_ref": "origin/main",
-    "candidate_head": "5a45720f198f0fef685b2332c2a9feddee934941",
-    "diff_sha256": "10f99599b8ac6896b61cdc41617455ae7b7e74baa66411f18d6bbab67cea1cb1"
+    "candidate_head": "013eb3800027cf47cbe44a4fa35cdee363186c29",
+    "diff_sha256": "4f68ce81d718865296b1600a0473676401c90ec09bcd2eec369eb9e668f8b3dc"
   },
   "change": "openspec/changes/queue-unreported-checks-wait",
   "excluded_lifecycle_paths": [
@@ -37,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-10T12:13:59+00:00",
+  "prepared_at": "2026-10-10T13:22:34+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/queue-unreported-checks-wait/independent-reviews",
     "required_perspectives": [
@@ -46,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "770dcb79-4a6b-4397-8522-d4698df124fa",
+  "request_id": "e49e966b-b3f0-44d2-9a71-172dd8504433",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -58,7 +58,7 @@
   },
   "schema_version": 1,
   "task_content": {
-    "base": "71b1d5857021ec4f0a932c08ad98e245ef5a7933",
+    "base": "1b032a6356a6fbfbdb7c3af811e624908abfeb2d",
     "digest": "38315c67cf1d1dcfa2768b0f0c4025066124712d7f424f86cdd94bca3533479c",
     "paths": {
       "openspec/changes/queue-unreported-checks-wait/.managed-task.json": "437348b687ed639304319376d129009b846f1642",
