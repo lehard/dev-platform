@@ -1,0 +1,121 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.135,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.148,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 658.525,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/_platform_common.py",
+        "template/scripts/finish_task.py",
+        "template/scripts/project_publish.py",
+        "template/scripts/select_checks.py",
+        "template/scripts/task_reconciliation.py",
+        "tests/test_select_checks.py",
+        "tests/test_task_freshness.py",
+        "tests/test_task_reconciliation.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_6a2f8aad9bfb1f2184e8ec5b2f8b3380",
+    "change": "handoff-behind-disjoint-main",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/handoff-behind-disjoint-main",
+    "branch": "agent/br-567-t1-handoff-behind-disjoint-main",
+    "head": "fe0f148264a2ae3389aa5232bb613f468ae2c59e",
+    "task_content": {
+      "version": 1,
+      "digest": "98ca137eee4f949c79268f653f5ad04535cacc0bf3844a01c0ad6d7df275eb57",
+      "paths": {
+        "docs/engineering/agent-workflow.md": "d3fd8a6fc18b111bad0d33851e6a5dc8dc7fb227",
+        "openspec/changes/handoff-behind-disjoint-main/.managed-task.json": "acb77a6e795b2cec8d4fdc3fa53943e36c48c9c4",
+        "openspec/changes/handoff-behind-disjoint-main/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
+        "openspec/changes/handoff-behind-disjoint-main/design.md": "1a4c9a7d158f5dcc7f9cb1ffc45f7e681b783c72",
+        "openspec/changes/handoff-behind-disjoint-main/independent-review-dispositions.json": "4602b37121f9f8f182da3a7389deb34c6ead4d87",
+        "openspec/changes/handoff-behind-disjoint-main/independent-review-request.json": "daa6e9062112a493a3e1aaefc17ccfcf92862e24",
+        "openspec/changes/handoff-behind-disjoint-main/independent-reviews/engineering-quality.json": "254342420715d1dc2516b371ed1222d5665d475b",
+        "openspec/changes/handoff-behind-disjoint-main/independent-reviews/spec-fidelity.json": "7b1e5151249d1f1c0292f28dde5d94e21c132129",
+        "openspec/changes/handoff-behind-disjoint-main/proposal.md": "b9aeec970c3257d56db9a691cbc04b314da578db",
+        "openspec/changes/handoff-behind-disjoint-main/specs/platform-lifecycle/spec.md": "bb4dfb27de09ef063a2f2251f8534f39a254bef6",
+        "openspec/changes/handoff-behind-disjoint-main/tasks.md": "24d367f9f47553688d10c0c19153fa5152f88702",
+        "template/scripts/_platform_common.py": "f500e6da88f0be7dca14cb361a21e7417c066104",
+        "template/scripts/finish_task.py": "c5a6587d4618d83d50279edf7ed13ded39043353",
+        "template/scripts/project_publish.py": "1998759bf8863b9ac34982942ac5795f20b1d88a",
+        "template/scripts/select_checks.py": "9eaf4148c91dedc8e218fc8e396f897f6dafb21b",
+        "template/scripts/task_reconciliation.py": "43f0cc2e14d26f2b5edd70773332810004b94228",
+        "tests/test_select_checks.py": "92b207ad510fc8d8de9b5f173b9872a838f51b57",
+        "tests/test_task_freshness.py": "106853fe3dd4fa4844b95878064cf8b18dd608d8",
+        "tests/test_task_reconciliation.py": "1f45b2cab33d4e8a0fac057ed4aadd04770f9be1"
+      },
+      "base": "28ecf66b9e7593ed80bb0b8560bc2129fa304791"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "f65328c29d5dcfb583979fc3b81962b0e6dffcac7dce4c83ba86007537d8129f",
+    "paths": {
+      "docs/engineering/agent-workflow.md": "d3fd8a6fc18b111bad0d33851e6a5dc8dc7fb227",
+      "openspec/changes/handoff-behind-disjoint-main/.managed-task.json": "acb77a6e795b2cec8d4fdc3fa53943e36c48c9c4",
+      "openspec/changes/handoff-behind-disjoint-main/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
+      "openspec/changes/handoff-behind-disjoint-main/design.md": "1a4c9a7d158f5dcc7f9cb1ffc45f7e681b783c72",
+      "openspec/changes/handoff-behind-disjoint-main/proposal.md": "b9aeec970c3257d56db9a691cbc04b314da578db",
+      "openspec/changes/handoff-behind-disjoint-main/specs/platform-lifecycle/spec.md": "bb4dfb27de09ef063a2f2251f8534f39a254bef6",
+      "openspec/changes/handoff-behind-disjoint-main/tasks.md": "24d367f9f47553688d10c0c19153fa5152f88702",
+      "template/scripts/_platform_common.py": "f500e6da88f0be7dca14cb361a21e7417c066104",
+      "template/scripts/finish_task.py": "c5a6587d4618d83d50279edf7ed13ded39043353",
+      "template/scripts/project_publish.py": "1998759bf8863b9ac34982942ac5795f20b1d88a",
+      "template/scripts/select_checks.py": "9eaf4148c91dedc8e218fc8e396f897f6dafb21b",
+      "template/scripts/task_reconciliation.py": "43f0cc2e14d26f2b5edd70773332810004b94228",
+      "tests/test_select_checks.py": "92b207ad510fc8d8de9b5f173b9872a838f51b57",
+      "tests/test_task_freshness.py": "106853fe3dd4fa4844b95878064cf8b18dd608d8",
+      "tests/test_task_reconciliation.py": "1f45b2cab33d4e8a0fac057ed4aadd04770f9be1"
+    },
+    "base": "28ecf66b9e7593ed80bb0b8560bc2129fa304791",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/_platform_common.py --changed-file template/scripts/finish_task.py --changed-file template/scripts/project_publish.py --changed-file template/scripts/select_checks.py --changed-file template/scripts/task_reconciliation.py --changed-file tests/test_select_checks.py --changed-file tests/test_task_freshness.py --changed-file tests/test_task_reconciliation.py",
+    "duration_seconds": 276.328,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
