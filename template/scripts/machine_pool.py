@@ -432,39 +432,49 @@ class _Ticket:
 
 
 @contextlib.contextmanager
-def _admission(config: PoolConfig) -> Iterator[None]:
-    """Serialize ticket creation with admission so a head decision never uses a stale queue."""
-    _require_flock()
+def _admission(config: PoolConfig) -> Iterator[bool]:
+    """Try the admission lock without blocking; yields whether it is held for the ``with`` body.
+
+    It serializes ticket creation with admission so a head decision never uses a stale queue. It is never
+    waited on: a stopped or hung holder must not stall waiters past their own wait timeout.
+    """
     path = config.admission_lock
     fd = _open_shared(path)
     try:
-        try:
-            fcntl.flock(fd, fcntl.LOCK_EX)
-        except OSError as exc:
-            raise PoolError(f"cannot lock pool file {path}: {exc}") from exc
-        yield
+        yield _try_lock(fd, path)
     finally:
         os.close(fd)  # closing the descriptor releases the lock
 
 
-def _admit_if_head(config: PoolConfig, own: str, weight: int) -> tuple[bool, list[tuple[int, Path]] | None]:
+def _admit_if_head(config: PoolConfig, own: str, weight: int) -> tuple[str | None, list[tuple[int, Path]] | None]:
     """Under the admission lock, re-read the queue and take slots only while ``own`` is still its head.
 
-    Returns ``(still_head, held)``: a ticket that joined ahead of ``own`` (a finalize run) since the last poll
-    makes ``still_head`` false and nothing is taken.
+    Returns ``(wait_reason, held)``: ``held`` when admitted; otherwise why not, including a ticket that joined
+    ahead of ``own`` (a finalize run) since the last poll or another run briefly holding the admission lock.
     """
-    with _admission(config):
+    with _admission(config) as locked:
+        if not locked:
+            return "another run is being admitted", None
         live = [name for name, _ in _scan_queue(config, remove_dead=True, own=own)]
         if own not in live:
             raise PoolError(f"queue ticket {config.queue / own} disappeared while waiting")
         if live[0] != own:
-            return False, None
-        return True, _try_take_slots(config, weight)
+            return "an earlier-ranked run joined the queue", None
+        held = _try_take_slots(config, weight)
+        return (None if held is not None else f"fewer than {weight} free token(s)"), held
 
 
-def _create_ticket(config: PoolConfig, check_class: str, metadata: dict[str, Any]) -> _Ticket:
-    with _admission(config):
-        return _create_ticket_unlocked(config, check_class, metadata)
+def _create_ticket(config: PoolConfig, check_class: str, metadata: dict[str, Any], hooks: Hooks) -> _Ticket:
+    started = hooks.monotonic()
+    while True:
+        with _admission(config) as locked:
+            if locked:
+                return _create_ticket_unlocked(config, check_class, metadata)
+        if hooks.monotonic() - started >= config.wait_timeout_seconds:
+            raise PoolTimeout(
+                f"machine pool wait timed out after {config.wait_timeout_seconds}s before queueing: "
+                f"{config.admission_lock} stayed locked by another run")
+        hooks.sleep(hooks.poll_interval)
 
 
 def _create_ticket_unlocked(config: PoolConfig, check_class: str, metadata: dict[str, Any]) -> _Ticket:
@@ -571,7 +581,7 @@ def _acquire(config: PoolConfig, weight: int, check_class: str, purpose: str, ro
              hooks: Hooks) -> list[int]:
     _ensure_queue(config)
     metadata = _metadata(lease_id, weight, check_class, purpose, root)
-    ticket = _create_ticket(config, check_class, metadata)
+    ticket = _create_ticket(config, check_class, metadata, hooks)
     try:
         started = hooks.monotonic()
         next_progress = started
@@ -603,7 +613,7 @@ def _acquire(config: PoolConfig, weight: int, check_class: str, purpose: str, ro
             elif memory < config.min_available_memory_mb:
                 reason = f"available memory {memory:.0f} MB is below the minimum {config.min_available_memory_mb} MB"
             else:
-                still_head, held = _admit_if_head(config, ticket.name, weight)
+                wait_reason, held = _admit_if_head(config, ticket.name, weight)
                 if held is not None:
                     try:
                         for fd, path in held:
@@ -613,7 +623,7 @@ def _acquire(config: PoolConfig, weight: int, check_class: str, purpose: str, ro
                             os.close(fd)
                         raise
                     return [fd for fd, _ in held]
-                reason = f"fewer than {weight} free token(s)" if still_head else "an earlier-ranked run joined the queue"
+                reason = wait_reason
             now = hooks.monotonic()
             if now - started >= config.wait_timeout_seconds:
                 raise PoolTimeout(

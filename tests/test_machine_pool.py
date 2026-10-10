@@ -513,6 +513,34 @@ class QueueOrderTests(PoolFixture):
             for fd in joined:
                 os.close(fd)
 
+    def held_admission_lock(self) -> int:
+        fd = os.open(self.config.admission_lock, os.O_CREAT | os.O_RDWR, 0o666)
+        self.addCleanup(os.close, fd)
+        machine_pool.fcntl.flock(fd, machine_pool.fcntl.LOCK_EX | machine_pool.fcntl.LOCK_NB)
+        return fd
+
+    def ticking_hooks(self, step: float = 50.0) -> object:
+        ticks = iter(range(10_000))
+        return machine_pool.Hooks(monotonic=lambda: float(next(ticks)) * step, sleep=lambda _: None, poll_interval=0.0,
+                                  progress_interval=1e9, load_per_cpu=lambda: 0.0, available_memory_mb=lambda: 1e6,
+                                  out=lambda _: None)
+
+    def test_a_held_admission_lock_never_blocks_past_the_wait_timeout(self) -> None:
+        self.held_admission_lock()
+        with self.assertRaisesRegex(machine_pool.PoolTimeout, "admission.lock stayed locked"):
+            with machine_pool.lease(1, "dev", environ=dict(self.environ), hooks=self.ticking_hooks()):
+                self.fail("must not run while admission is locked")
+        self.assertEqual(self.queue_names(), [])
+
+    def test_a_waiter_does_not_admit_while_another_run_holds_the_admission_lock(self) -> None:
+        machine_pool._ensure_queue(self.config)
+        hooks = self.ticking_hooks()
+        ticket = machine_pool._create_ticket(self.config, "development", {"lease": "x"}, hooks)
+        self.addCleanup(ticket.release)
+        self.held_admission_lock()
+        self.assertEqual(machine_pool._admit_if_head(self.config, ticket.path.name, 1), ("another run is being admitted", None))
+        self.assertEqual(machine_pool.read_holders(self.config), [])
+
     def test_dead_tickets_are_removed_only_after_their_lock_is_taken(self) -> None:
         machine_pool._ensure_queue(self.config)
         dead = self.config.queue / "1-00000000000000000001-4242-abcd1234.json"
