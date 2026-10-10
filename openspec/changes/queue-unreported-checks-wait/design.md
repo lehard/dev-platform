@@ -24,6 +24,10 @@
 - A GitHub Actions outage longer than 240 s blocks the candidate explicitly instead of retrying silently. This is the intended explicit failure, and the candidate is re-admitted through the existing path once CI recovers.
 - A downstream renderer reading `unknown/malformed` for this case now gets `pending`. Neither value authorizes publication.
 
+## Readiness
+
+The publication-queue workflow executes only protected-`main` code, so the new classification cannot run in a real integration before this change merges. The first real queue integration of a candidate after a `main` merge with this change on `main` is recorded in the Requirement retrospective, not as a package task.
+
 ## Recovery of lehard/dev-platform#469
 
 The candidate is re-admitted on a new head by its developer through the existing re-admission path. This change is not required for that recovery.

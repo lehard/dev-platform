@@ -1,0 +1,72 @@
+{
+  "candidate": {
+    "base_head": "44dc97b736e67edd6c31812a1a4ebf872b7b991a",
+    "base_ref": "origin/main",
+    "candidate_head": "8eaa44cf4fca6094935ebcec9480f602734ea8ac",
+    "diff_sha256": "af52282a3167753708808f4959c4e989c7bd8cbeda015077313251dc6ffc2b19"
+  },
+  "change": "openspec/changes/queue-unreported-checks-wait",
+  "excluded_lifecycle_paths": [],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/queue-unreported-checks-wait/design.md",
+        "openspec/changes/queue-unreported-checks-wait/proposal.md",
+        "openspec/changes/queue-unreported-checks-wait/specs/publication-queue/spec.md",
+        "openspec/changes/queue-unreported-checks-wait/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/queue-unreported-checks-wait/proposal.md",
+        "openspec/changes/queue-unreported-checks-wait/design.md",
+        "openspec/changes/queue-unreported-checks-wait/tasks.md",
+        "openspec/changes/queue-unreported-checks-wait/specs/publication-queue/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-10T11:16:23+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/queue-unreported-checks-wait/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "5ed6e42a-bbee-45b1-9b6d-55b547d9d389",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "b0e3752b5cd563320756d1aa3159ae92da317d7d",
+    "digest": "cac1e6e2b001ae13e3dc7f607d44545ffffc3c6a739f9fda0c6d117c43c2a710",
+    "paths": {
+      "openspec/changes/queue-unreported-checks-wait/.managed-task.json": "437348b687ed639304319376d129009b846f1642",
+      "openspec/changes/queue-unreported-checks-wait/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
+      "openspec/changes/queue-unreported-checks-wait/design.md": "af685e3fe0d2b9340e5fe92298f987da48efd9e3",
+      "openspec/changes/queue-unreported-checks-wait/proposal.md": "8d6d27a78a20556098e01836d228a839feec4d97",
+      "openspec/changes/queue-unreported-checks-wait/specs/publication-queue/spec.md": "dd6e2565ed0791e5b7923c9089cea89df41c4a55",
+      "openspec/changes/queue-unreported-checks-wait/tasks.md": "8507cd080dd8f75a9a12fa91612ed0e658f9868a",
+      "template/scripts/publication_queue.py": "2f06bad7dcb5537c01b969db0590b0abddd276aa",
+      "template/scripts/publication_state.py": "1196ea54ea5b07c9ae2b9b9fafcadfd6d7644ef9",
+      "tests/test_publication_queue.py": "a104f2f5dabe4bcc3dd96f5d40e241eecfebca0f",
+      "tests/test_publication_state.py": "c8b6f6163c9dd393e2faa43a55e1032fea255180"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}
