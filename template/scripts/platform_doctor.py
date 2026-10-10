@@ -134,6 +134,7 @@ def check_rendered_workflow_mode(root: Path, config: dict, failures: list[int]) 
 CI_RUNNERS = ("github-hosted", "self-hosted")
 CI_RUNNER_LABEL_RE = re.compile(r"^[A-Za-z0-9._-]+$")
 REPAIR_STEP_NAME = "Repair shared-workspace permissions on self-hosted runners"
+PLATFORM_CI_JOB_RE = re.compile(r"^  platform-ci:\n((?:(?!^  \S).*\n?)*)", re.MULTILINE)
 PLATFORM_CI_RUNS_ON_RE = re.compile(r"^  platform-ci:\n(?:(?!^  \S).*\n)*?    runs-on:[ \t]*(.*?)[ \t]*$", re.MULTILINE)
 PROVISION_RUNS_ON_RE = re.compile(r"^  provision:\n(?:(?!^  \S).*\n)*?    runs-on:[ \t]*(.*?)[ \t]*$", re.MULTILINE)
 
@@ -181,13 +182,19 @@ def check_ci_runner_agreement(root: Path, config: dict, failures: list[int]) -> 
     found = match.group(1)
     if found != expected:
         fail(f"platform-ci runs-on mismatch for ci_runner={kind}: expected {expected!r}, found {found!r}"); failures[0] += 1
-    has_repair = f"- name: {REPAIR_STEP_NAME}" in text
+    # The repair step counts only inside the platform-ci job and before the job runs platform_doctor.
+    job = PLATFORM_CI_JOB_RE.search(text).group(1)
+    repair_at = job.find(f"- name: {REPAIR_STEP_NAME}")
+    doctor_at = job.find("scripts/platform_doctor.py")
+    has_repair = repair_at != -1
     if (kind == "self-hosted") != has_repair:
         fail(
             f"platform-ci shared-workspace repair step mismatch for ci_runner={kind}: "
             f"expected {'present' if kind == 'self-hosted' else 'absent'}, found {'present' if has_repair else 'absent'}"
         )
         failures[0] += 1
+    elif has_repair and (doctor_at == -1 or repair_at > doctor_at):
+        fail("platform-ci shared-workspace repair step must run before platform_doctor in the platform-ci job"); failures[0] += 1
     provision = root / ".github" / "workflows" / "process-health-labels.yml"
     if not provision.exists():
         fail("managed workflow .github/workflows/process-health-labels.yml is missing; its provision runner cannot be compared with ci_runner (run copier update)")

@@ -69,10 +69,14 @@ REPAIR_STEP = (
 )
 
 
+DOCTOR_STEP = "      - run: python3 scripts/platform_doctor.py\n"
+
+
 def self_hosted_workflow(runs_on: str, repair: bool = True) -> str:
     return (
         f"jobs:\n  platform-ci:\n    runs-on: {runs_on}\n    timeout-minutes: 90\n    steps:\n      - run: true\n"
         + (REPAIR_STEP if repair else "")
+        + DOCTOR_STEP
         + "  other:\n    runs-on: ubuntu-latest\n"
     )
 
@@ -125,6 +129,15 @@ class CiRunnerAgreementTests(unittest.TestCase):
 
     def test_missing_provision_workflow_fails(self) -> None:
         self.assertEqual(self._check("ci_runner: github-hosted\n", GITHUB_HOSTED_WORKFLOW, provision=None), 1)
+
+    def test_repair_step_after_platform_doctor_fails(self) -> None:
+        workflow = self_hosted_workflow("alters", repair=False).replace(DOCTOR_STEP, DOCTOR_STEP + REPAIR_STEP)
+        self.assertEqual(self._check("ci_runner: self-hosted\nci_runner_labels: alters\n", workflow), 1)
+
+    def test_repair_step_outside_platform_ci_does_not_count(self) -> None:
+        workflow = self_hosted_workflow("alters", repair=False) + "    steps:\n" + REPAIR_STEP
+        self.assertEqual(self._check("ci_runner: self-hosted\nci_runner_labels: alters\n", workflow), 1)
+        self.assertEqual(self._check("ci_runner: github-hosted\n", GITHUB_HOSTED_WORKFLOW + "  other:\n    steps:\n" + REPAIR_STEP), 0)
 
     def test_self_hosted_without_repair_step_fails(self) -> None:
         self.assertEqual(self._check("ci_runner: self-hosted\nci_runner_labels: alters\n", self_hosted_workflow("alters", repair=False)), 1)
