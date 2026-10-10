@@ -49,12 +49,27 @@ def copier_commit(root: Path) -> str | None:
 
 
 def copier_answer(root: Path, key: str) -> str | None:
+    """Read one top-level scalar answer, including a value YAML serialization wrapped onto indented lines."""
     answers = root / ".copier-answers.yml"
     if not answers.exists():
         return None
-    for line in answers.read_text(encoding="utf-8").splitlines():
-        if line.startswith(f"{key}:"):
-            return line.split(":", 1)[1].strip().strip("'\"")
+    lines = answers.read_text(encoding="utf-8").splitlines()
+    for index, line in enumerate(lines):
+        if not line.startswith(f"{key}:"):
+            continue
+        parts = [line.split(":", 1)[1].strip()]
+        for continuation in lines[index + 1:]:
+            if not continuation[:1].isspace() or not continuation.strip():
+                break
+            parts.append(continuation.strip())  # a wrapped scalar folds its line breaks into single spaces
+        value = " ".join(part for part in parts if part)
+        if value[:1] in ("|", ">"):
+            raise SystemExit(f".copier-answers.yml {key} is a YAML block scalar, which platform_doctor does not read")
+        if len(value) >= 2 and value[0] == value[-1] == "'":
+            return value[1:-1].replace("''", "'")
+        if len(value) >= 2 and value[0] == value[-1] == '"':
+            return value[1:-1]
+        return value
     return None
 
 

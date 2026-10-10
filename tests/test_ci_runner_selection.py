@@ -99,6 +99,14 @@ class CiRunnerRenderTests(unittest.TestCase):
         self.assertEqual(load_jobs(target, "dev-platform.yml")["platform-ci"]["runs-on"], ["self-hosted", "linux"])
         self.assertEqual(load_jobs(target, "process-health-labels.yml")["provision"]["runs-on"], ["self-hosted", "linux"])
 
+    def test_long_label_list_wrapped_by_copier_passes_the_doctor(self) -> None:
+        labels = "self-hosted, linux, production-network, dedicated-platform-validation, company-build-runner"
+        target = self.render("long-labels", {"ci_runner": "self-hosted", "ci_runner_labels": labels})
+        recorded = (target / ".copier-answers.yml").read_text(encoding="utf-8")
+        self.assertEqual(yaml.safe_load(recorded)["ci_runner_labels"], labels)
+        self.assertRegex(recorded, r"ci_runner_labels: [^\n]*\n +\S")  # Copier wrapped the answer onto a second line
+        self.assertEqual(self.doctor_failures(target), 0)
+
     def test_yaml_ambiguous_labels_render_as_strings(self) -> None:
         target = self.render("ambiguous", {"ci_runner": "self-hosted", "ci_runner_labels": "true, 123, null"})
         for name, job in (("dev-platform.yml", "platform-ci"), ("process-health-labels.yml", "provision")):

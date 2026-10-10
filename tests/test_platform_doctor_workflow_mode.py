@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import sys
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -137,6 +138,18 @@ class CiRunnerAgreementTests(unittest.TestCase):
                         REPAIR_STEP + "        continue-on-error: true\n"):
             with self.subTest(step=changed):
                 self.assertEqual(self._check(answers, self_hosted_workflow('"alters"').replace(REPAIR_STEP, changed)), 1)
+
+    def test_wrapped_label_answer_is_read_whole(self) -> None:
+        labels = ["runner-label-0", "runner-label-1", "runner-label-2"]
+        workflow = self_hosted_workflow(json.dumps(labels))
+        for answers in ("ci_runner: self-hosted\nci_runner_labels: runner-label-0, runner-label-1,\n  runner-label-2\n",
+                        "ci_runner: self-hosted\nci_runner_labels: 'runner-label-0, runner-label-1,\n  runner-label-2'\n"):
+            with self.subTest(answers=answers):
+                self.assertEqual(self._check(answers, workflow), 0)
+
+    def test_block_scalar_answer_fails_explicitly(self) -> None:
+        with self.assertRaisesRegex(SystemExit, "block scalar"):
+            self._check("ci_runner: self-hosted\nci_runner_labels: |\n  alters\n", self_hosted_workflow('"alters"'))
 
     def test_unquoted_label_does_not_agree(self) -> None:
         self.assertEqual(self._check("ci_runner: self-hosted\nci_runner_labels: alters\n", self_hosted_workflow("alters"), provision='"alters"'), 1)
