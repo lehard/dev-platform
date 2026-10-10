@@ -14,6 +14,9 @@ from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "template" / "scripts"))
+if str(ROOT / "tests") not in sys.path:
+    sys.path.insert(0, str(ROOT / "tests"))
+from _platform_modules import isolate_machine_pool_environment  # noqa: E402
 import requirement_contributions as contributions
 import requirement_composition as composition
 import execute_requirement as execution
@@ -32,6 +35,9 @@ def git(root, *args):
 
 
 def setUpModule() -> None:
+    # Full-check scenarios mock subprocess.run; an enabled machine pool would otherwise
+    # acquire through that mock and see the operator's environment.
+    isolate_machine_pool_environment()
     # Local-log scenarios: durable coordinator evidence (GitHub) is covered by the
     # coordinator-operations tests, so these scenarios never reach GitHub.
     for module in {sys.modules["agent_friction"]}:
@@ -41,13 +47,18 @@ def setUpModule() -> None:
 
 
 class Repository:
-    def __init__(self, root):
+    def __init__(self, root, *, committed_contract=True):
         self.root = root
         git(root, "init", "-b", "main")
         git(root, "config", "user.name", "Test")
         git(root, "config", "user.email", "test@example.test")
         (root / "AGENTS.md").write_text("Bounded test repository\n")
         (root / ".dev-platform.toml").write_text('platform_version = "1.0.0"\n')  # committed project contract
+        if not committed_contract:
+            # A source-repository history from before its public contract was committed:
+            # the composition checkout only carries an installed, locally excluded contract.
+            with (root / ".git" / "info" / "exclude").open("a") as handle:
+                handle.write(".dev-platform.toml\n")
         self.base = self.commit("base")
         self.manifest = contributions.seal({"version": 2, "requirement": REQUIREMENT,
             "repository": "acme/project", "work_identity": "BR-7", "base": self.base,
@@ -252,13 +263,61 @@ class ContributionTests(unittest.TestCase):
                     self.assertNotIn(key, env)
                 self.assertEqual(kwargs["stdin"], subprocess.DEVNULL)
                 return SimpleNamespace(returncode=0)
+            import site
             with mock.patch.dict(os.environ, {"HOME": "/operator-home", "GH_TOKEN": "secret",
                     "GITHUB_TOKEN": "secret", "SSH_AUTH_SOCK": "/agent"}), \
+                 mock.patch.object(site, "getuserbase", return_value="/operator-home/Library/Python/3.13"), \
                  mock.patch.object(integration, "_full_check_commands", return_value=["candidate-check"]), \
                  mock.patch.object(integration.subprocess, "run", side_effect=command):
                 integration._run_full_checks(root)
             self.assertEqual(len(observed), 1)
             self.assertFalse(Path(observed[0]["HOME"]).exists())
+            # User-installed check tooling (copier, ruff) stays importable from the operator's user base.
+            self.assertEqual(observed[0]["PYTHONUSERBASE"], "/operator-home/Library/Python/3.13")
+
+    def platform_layout(self, root, registry_source):
+        (root / "template" / "scripts").mkdir(parents=True)
+        (root / "scripts").mkdir()
+        (root / "scripts" / "managed_projects.py").write_text("")
+        trusted = root / "trusted"
+        (trusted / "scripts").mkdir(parents=True)
+        (trusted / "scripts" / "managed_projects.py").write_text(registry_source)
+        return trusted
+
+    def test_composition_full_checks_validate_the_trusted_registry_without_showing_it(self):
+        import contextlib
+        import io
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            trusted = self.platform_layout(root, "from pathlib import Path\n"
+                                           "def configured_registry(*, root):\n    return Path(root) / 'op dir' / 'registry.toml'\n")
+            secret = str(trusted / "op dir" / "registry.toml")
+            commands = integration._full_check_commands(root, trusted)
+            self.assertIn(f"python3 scripts/managed_projects.py --registry '{secret}' validate", commands)
+            self.assertEqual(integration._full_check_commands(root), list(integration.PLATFORM_FULL_CHECK_COMMANDS))
+            ran = []
+            def command(cmd, **kwargs):
+                ran.append(cmd)
+                return SimpleNamespace(returncode=2 if "managed_projects.py" in cmd else 0)
+            out = io.StringIO()
+            with mock.patch.object(integration.subprocess, "run", side_effect=command), contextlib.redirect_stdout(out):
+                with self.assertRaises(integration.RequirementIntegrationError) as raised:
+                    integration._run_full_checks(root, trusted_root=trusted)
+            self.assertTrue(any(secret in cmd for cmd in ran))
+            self.assertNotIn(secret, str(raised.exception))
+            self.assertNotIn(secret, out.getvalue())
+            self.assertIn("--registry <operator>", str(raised.exception))
+            self.assertIn("--registry <operator>", out.getvalue())
+
+    def test_unconfigured_trusted_registry_fails_explicitly(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            trusted = self.platform_layout(root, "def configured_registry(*, root):\n    raise ValueError('operator configuration is not enabled')\n")
+            with self.assertRaisesRegex(integration.RequirementIntegrationError, "trusted managed project registry is unavailable"):
+                integration._full_check_commands(root, trusted)
+            (trusted / "scripts" / "managed_projects.py").unlink()
+            with self.assertRaisesRegex(integration.RequirementIntegrationError, "no managed project registry tooling"):
+                integration._full_check_commands(root, trusted)
 
     def test_interrupted_merge_append_is_idempotent_and_preserves_ancestry(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -275,6 +334,26 @@ class ContributionTests(unittest.TestCase):
             for child in (first, second):
                 git(fixture.root, "merge-base", "--is-ancestor", child["head"], "HEAD")
             composition.validate_children(fixture.root, fixture.manifest)
+
+    def test_children_reviewed_before_a_committed_contract_use_the_composition_contract(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = Repository(Path(tmp), committed_contract=False)
+            first, second = fixture.child("first", 8), fixture.child("second", 9)
+            fixture.integrate(first)
+            fixture.integrate(second)
+            for child in (first, second):
+                self.assertNotIn(".dev-platform.toml", git(fixture.root, "ls-tree", "--name-only", child["head"]).split())
+            composition.validate_children(fixture.root, fixture.manifest)
+
+    def test_composition_without_a_contract_fails_explicitly(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = Repository(Path(tmp), committed_contract=False)
+            first, second = fixture.child("first", 8), fixture.child("second", 9)
+            fixture.integrate(first)
+            fixture.integrate(second)
+            (fixture.root / ".dev-platform.toml").unlink()
+            with self.assertRaisesRegex(workers.WorkerError, "trusted platform contract .* is missing"):
+                composition.validate_children(fixture.root, fixture.manifest)
 
     def test_changed_removed_reordered_child_and_graph_are_refused(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -430,8 +509,8 @@ class CompositionTests(unittest.TestCase):
                 _pr=lambda *a: {}, _comments=lambda *a: [], _derive=lambda *a: {},
                 _transition=mock.Mock(return_value={}), publish_job=mock.Mock())
             original_checkout = workers.prepare_checkout
-            with mock.patch.object(workers, "prepare_checkout", side_effect=lambda source, temporary, name, ref:
-                original_checkout(source, temporary, name, ref) if "composition-child-" in temporary else fixture.root), mock.patch.object(
+            with mock.patch.object(workers, "prepare_checkout", side_effect=lambda source, temporary, name, ref, **options:
+                original_checkout(source, temporary, name, ref, **options) if "composition-child-" in temporary else fixture.root), mock.patch.object(
                 reviewer, "settings", return_value={}
             ), mock.patch.object(model_routing, "read_durable_route", side_effect=[
                 (SimpleNamespace(provider="codex"), None), (SimpleNamespace(provider="claude"), None)
@@ -699,11 +778,77 @@ class CompositionTests(unittest.TestCase):
             ), mock.patch.object(workers, "_git", side_effect=worker_git), mock.patch.object(_platform_common, "run_git", side_effect=common_git):
                 outcome = composition.execute_composition_review(checkout, {"head": head, "task_identity": identity},
                     source_repo=remote.as_uri(), branch="requirement/BR-7", current_head=lambda: head,
-                    review_config={}, launcher=mock.Mock())
+                    trusted_root=seed, review_config={}, launcher=mock.Mock())
             self.assertEqual(outcome["status"], "reviewed")
             self.assertNotEqual(outcome["pushed_head"], head)
             self.assertEqual(len(outcome["reports"]), 2)
             self.assertNotIn("malicious-hooks", (root / "harness/.git/config").read_text())
+
+    def run_private_composition_review(self, root, body):
+        """Review a private-lineage composition; returns (outcome, remote) with the trusted root configured."""
+        import independent_review as review
+        import independent_review_runner as reviewer
+        import managed_task
+        seed = root / "seed"; seed.mkdir()
+        fixture = self.fixture(seed)
+        head = git(seed, "rev-parse", "HEAD")
+        identity = composition.composition_identity(seed, fixture.manifest)
+        remote = root / "remote.git"
+        git(root, "clone", "--bare", str(seed), str(remote))
+        checkout = workers.prepare_checkout(remote.as_uri(), str(root), "llm", head)
+        trusted = root / "trusted"; (trusted / "scripts").mkdir(parents=True)
+        (trusted / "scripts/check_private_backlog_refs.py").write_text(
+            (Path(__file__).resolve().parents[1] / "scripts/check_private_backlog_refs.py").read_text())
+        (trusted / ".dev-platform.toml").write_text('[development_backlog]\nrepository = "acme/private-backlog"\n')
+        def perspective(path, request, name, **kwargs):
+            return reviewer._report(request, name, {
+                "runtime": "test-runtime", "context_id": name, "fresh_context": True, "write_access": False,
+                "launch_evidence": review.PLATFORM_OBSERVED, "read_only_mechanism": "test-readonly",
+                "model": {"value": "test-model", "source": "test"}}, launched_at="2026-10-06T00:00:00Z", output_sha256="a" * 64)
+        resolved = []
+        def private_requirement(trusted_root, manifest):
+            resolved.append(trusted_root)
+            return REQUIREMENT
+        with mock.patch.object(reviewer, "preflight", return_value={"ready": True, "provider": "codex", "model": "test-model", "binary": "test-cli"}), \
+                mock.patch.object(reviewer, "run_perspective", side_effect=perspective), \
+                mock.patch.object(managed_task, "fetch_issue", return_value={"body": body}) as fetch, \
+                mock.patch.object(composition, "private_lineage_requirement", return_value=True), \
+                mock.patch.object(contributions, "private_requirement", side_effect=private_requirement):
+            try:
+                outcome = composition.execute_composition_review(checkout, {"head": head, "task_identity": identity},
+                    source_repo=remote.as_uri(), branch="requirement/BR-7", current_head=lambda: head,
+                    trusted_root=trusted, review_config={}, launcher=mock.Mock())
+            finally:
+                self.assertEqual(resolved, [trusted])
+                self.assertEqual(fetch.call_args.args[0], trusted)
+        return outcome, remote, head
+
+    def test_private_composition_review_publishes_only_the_outcome(self):
+        body = "## Outcome\n\nDeliver both children together.\n\n## Children\n\n- acme/private-backlog#8\n- acme/private-backlog#9\n"
+        with tempfile.TemporaryDirectory() as tmp:
+            outcome, remote, head = self.run_private_composition_review(Path(tmp), body)
+            self.assertEqual(outcome["status"], "reviewed")
+            pushed = outcome["pushed_head"]
+            published = git(Path(tmp), "--git-dir", str(remote), "diff", head, pushed)
+            self.assertIn("Deliver both children together.", published)
+            self.assertNotIn("private-backlog#", published)
+            self.assertNotIn("private-backlog#", git(Path(tmp), "--git-dir", str(remote), "log", "--format=%B", f"{head}..{pushed}"))
+
+    def test_private_reference_in_the_outcome_blocks_composition_evidence(self):
+        body = "## Outcome\n\nFinish what acme/private-backlog#8 started.\n"
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(workers.WorkerError, "direct private Backlog reference"):
+                self.run_private_composition_review(Path(tmp), body)
+            remote = Path(tmp) / "remote.git"
+            self.assertEqual(git(Path(tmp), "--git-dir", str(remote), "rev-list", "--count", "--all", "--not",
+                                 git(Path(tmp), "--git-dir", str(remote), "rev-parse", "requirement/BR-7")), "0")
+
+    def test_requirement_outcome_requires_its_section(self):
+        self.assertEqual(composition.requirement_outcome("Intro\n## Outcome\nShip it.\n## Context\nx\n"), "Ship it.")
+        with self.assertRaisesRegex(workers.WorkerError, "no `## Outcome` section"):
+            composition.requirement_outcome("## Context\nx\n")
+        with self.assertRaisesRegex(workers.WorkerError, "section is empty"):
+            composition.requirement_outcome("## Outcome\n\n## Context\nx\n")
 
     def test_finalized_composition_offers_and_runs_premerge_parent_retrospective(self):
         import integration_contour as contour
@@ -718,8 +863,8 @@ class CompositionTests(unittest.TestCase):
             adapter = SimpleNamespace(_pr=lambda *a: {"head": {"sha": head}, "merged": False},
                 _comments=lambda *a: [], _derive=lambda *a: candidate, publish_job=mock.Mock(), _transition=mock.Mock())
             original_checkout = workers.prepare_checkout
-            with mock.patch.object(workers, "prepare_checkout", side_effect=lambda source, temporary, name, ref:
-                                   original_checkout(source, temporary, name, ref) if "composition-child-" in temporary else fixture.root):
+            with mock.patch.object(workers, "prepare_checkout", side_effect=lambda source, temporary, name, ref, **options:
+                                   original_checkout(source, temporary, name, ref, **options) if "composition-child-" in temporary else fixture.root):
                 result = composition.advance_final_publication(fixture.root, "acme/project", fixture.manifest, head, 11, adapter=adapter)
                 self.assertEqual(result["status"], "await-requirement-retrospective")
                 self.assertEqual(adapter.publish_job.call_args.args[3], "retrospective")
@@ -762,14 +907,20 @@ class CompositionTests(unittest.TestCase):
             kwargs = {"adapter": adapter, "checkpoint": lambda *a, **kw: (events.append("checkpoint") or {"result": "none"}),
                       "full_checks": lambda *args: events.append("checks")}
             original_checkout = workers.prepare_checkout
-            with mock.patch.object(workers, "prepare_checkout", side_effect=lambda source, temporary, name, ref:
-                                   original_checkout(source, temporary, name, ref) if "composition-child-" in temporary else fixture.root):
+            with mock.patch.object(workers, "prepare_checkout", side_effect=lambda source, temporary, name, ref, **options:
+                                   original_checkout(source, temporary, name, ref, **options) if "composition-child-" in temporary else fixture.root):
                 result = composition.advance_final_publication(fixture.root, "acme/project", fixture.manifest, head, 11, **kwargs)
                 self.assertEqual(result["status"], "queued")
                 self.assertEqual(events, ["checkpoint", "checks", "ready", "undraft", "admit"])
+                self.assertEqual(candidate["gates"]["full-checks"]["evidence"], {"head": head})
                 events.clear()
                 composition.advance_final_publication(fixture.root, "acme/project", fixture.manifest, head, 11, **kwargs)
                 self.assertNotIn("checks", events)
+                candidate["gates"].pop("full-checks")
+                default = {k: v for k, v in kwargs.items() if k != "full_checks"}
+                with mock.patch.object(integration, "_run_full_checks") as checks:
+                    composition.advance_final_publication(fixture.root, "acme/project", fixture.manifest, head, 11, **default)
+                self.assertEqual(checks.call_args.kwargs, {"trusted_root": fixture.root})
 
 
 class SupervisorTests(unittest.TestCase):

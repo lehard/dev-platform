@@ -987,6 +987,7 @@ def main() -> int:
     except (ManagedTaskError, RequirementIntegrationError) as exc:
         raise SystemExit("Managed task publication blocked: " + str(exc)) from exc
 
+    queue_merged = False
     if selected_mode == "coordinator" and mode == "pr" and branch != main_branch:
         from publication_queue import enabled as queue_enabled, local_status as queue_local_status, sync_merged_task
 
@@ -1006,6 +1007,7 @@ def main() -> int:
                         sync_merged_task(work, branch, queued["number"])
                     except Exception as exc:
                         raise SystemExit("Merged PR task synchronization blocked: " + str(exc)) from exc
+                    queue_merged = True
 
     # Durable remote auto-merge is its own resumable phase. Observe it before
     # local completion evidence/validation/publication so a bounded prior wait
@@ -1019,8 +1021,12 @@ def main() -> int:
             )
             return 2
 
+    # Pre-publication evidence gates a candidate before the queue merges it. A
+    # queue-merged head carries the coordinator's integration merge of main, so
+    # its content can no longer match that evidence; only terminal
+    # reconciliation of the proven merged head remains.
     try:
-        if delivery is not None:
+        if delivery is not None and not queue_merged:
             require_automated_evidence(delivery.path, root=work)
             require_publication_review_evidence(delivery.path, root=work)
             independent_reason = require_independent_publication_exception(work, delivery)

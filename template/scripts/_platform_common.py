@@ -36,6 +36,21 @@ def credential_free_env(env: dict[str, str], home: Path | None = None) -> dict[s
     return clean
 
 
+def credential_free_check_env(env: dict[str, str], home: Path) -> dict[str, str]:
+    """Credential-free environment for harness-run project checks.
+
+    The scratch home hides the operator's credentials, but Python resolves user-installed
+    tooling (``pip install --user``, e.g. ``copier``, ``ruff``) through the home-derived user
+    base; pin the operator's base explicitly so the project's real checks can run. It holds
+    no credentials. Finalization and Requirement composition share this one definition.
+    """
+    import site
+
+    clean = credential_free_env(env, home)
+    clean["PYTHONUSERBASE"] = site.getuserbase()
+    return clean
+
+
 # Home-relative locations that hold operator credentials and can never be exposed to project checks.
 REFUSED_HOME_PATHS = (".ssh", ".config/gh", ".gnupg", ".netrc", ".git-credentials", ".git-credential")
 

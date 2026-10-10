@@ -14,6 +14,7 @@ import json
 import os
 import re
 import shutil
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -721,14 +722,40 @@ PLATFORM_FULL_CHECK_COMMANDS = (
 )
 
 
-def _full_check_commands(root: Path) -> list[str]:
+OPERATOR_REGISTRY_PLACEHOLDER = "<operator>"
+
+
+def _trusted_registry(trusted_root: Path) -> Path:
+    """The managed-project registry configured in the trusted coordinator root; never guessed."""
+    import importlib.util
+
+    source = trusted_root / "scripts" / "managed_projects.py"
+    spec = importlib.util.spec_from_file_location("trusted_managed_projects", source)
+    if spec is None or not source.is_file():
+        raise RequirementIntegrationError(f"trusted root has no managed project registry tooling: {source}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    try:
+        return module.configured_registry(root=trusted_root)
+    except ValueError as exc:
+        raise RequirementIntegrationError(f"trusted managed project registry is unavailable: {exc}") from exc
+
+
+def _full_check_commands(root: Path, trusted_root: Path | None = None) -> list[str]:
     """Return the authoritative full validation set for this repository layout.
 
     The dev-platform repository dogfoods its own battery; an installed project
-    uses the same declared `[settings].full_commands` as task finish.
+    uses the same declared `[settings].full_commands` as task finish. A disposable
+    checkout carries only the public contract, so ``trusted_root`` supplies the
+    operator's registry to the registry validation explicitly.
     """
     if (root / "template" / "scripts").is_dir() and (root / "scripts" / "managed_projects.py").is_file():
-        return list(PLATFORM_FULL_CHECK_COMMANDS)
+        commands = list(PLATFORM_FULL_CHECK_COMMANDS)
+        if trusted_root is not None:
+            registry = shlex.quote(str(_trusted_registry(trusted_root)))
+            commands = [f"python3 scripts/managed_projects.py --registry {registry} validate"
+                        if command == "python3 scripts/managed_projects.py validate" else command for command in commands]
+        return commands
     from _platform_common import read_platform_config
 
     relative = str(read_platform_config(root).get("paths", {}).get("checks", "dev-platform/checks.toml"))
@@ -807,12 +834,12 @@ def _runtime_grant(root: Path, environ: dict[str, str]) -> list[str]:
 
 def _check_environment(root: Path, scratch: Path) -> dict[str, str]:
     """Build the ``project-check`` environment once, failing before any command on an unmet requirement."""
-    from _platform_common import (ProjectCheckRuntimeError, check_runtime_declaration, credential_free_env,
+    from _platform_common import (ProjectCheckRuntimeError, check_runtime_declaration, credential_free_check_env,
                                   project_check_env)
 
     runtime = _project_runtime(root)
     if not runtime:
-        return credential_free_env(dict(os.environ), scratch)
+        return credential_free_check_env(dict(os.environ), scratch)
     try:
         check_runtime_declaration(runtime)
         if runtime.get("home_paths"):
@@ -826,8 +853,16 @@ def _check_environment(root: Path, scratch: Path) -> dict[str, str]:
         raise RequirementIntegrationError(str(exc)) from exc
 
 
-def _run_full_checks(root: Path) -> None:
-    commands = _full_check_commands(root)
+_REGISTRY_ARGUMENT = re.compile(r"(--registry )(?:'[^']*'|\S+)")
+
+
+def _shown(command: str) -> str:
+    """A command for logs and errors: the registry path is machine-local operator state."""
+    return _REGISTRY_ARGUMENT.sub(r"\g<1>" + OPERATOR_REGISTRY_PLACEHOLDER, command)
+
+
+def _run_full_checks(root: Path, *, trusted_root: Path | None = None) -> None:
+    commands = _full_check_commands(root, trusted_root)
     import machine_pool
     from run_test_groups import resolve_jobs
 
@@ -839,11 +874,11 @@ def _run_full_checks(root: Path) -> None:
                 tempfile.TemporaryDirectory(prefix="composition-check-home-") as temporary:
             env = _check_environment(root, Path(temporary))
             for command in commands:
-                print("Requirement integration validation:", command, flush=True)
+                print("Requirement integration validation:", _shown(command), flush=True)
                 result = subprocess.run(command, cwd=root, shell=True, stdin=subprocess.DEVNULL, env=env,
                                         pass_fds=pool_lease.fds)
                 if result.returncode:
-                    raise RequirementIntegrationError(f"full candidate validation failed: {command} (exit {result.returncode})")
+                    raise RequirementIntegrationError(f"full candidate validation failed: {_shown(command)} (exit {result.returncode})")
     except machine_pool.PoolError as exc:
         raise RequirementIntegrationError(f"full candidate validation blocked by the machine pool: {exc}") from exc
 
