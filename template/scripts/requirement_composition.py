@@ -406,7 +406,11 @@ def advance_final_publication(root: Path, repo: str, manifest: dict, head: str, 
             return {"status": "await-requirement-retrospective", "head": head}
         full = candidate.get("gates", {}).get("full-checks", {})
         if full.get("evidence", {}).get("head") != head or not reusable(checkout, full, identity):
-            (full_checks or integration._run_full_checks)(checkout)
+            if full_checks is not None:
+                full_checks(checkout)
+            else:
+                # The disposable checkout has only the public contract; the trusted root supplies the registry.
+                integration._run_full_checks(checkout, trusted_root=root)
         if adapter._pr(root, repo, number).get("head", {}).get("sha") != head:
             return {"status": "discarded"}
         gates = {**candidate["gates"],
