@@ -43,6 +43,30 @@ Before anything is written, every generated file is scanned with the owner-refer
 
 The Explorer is platform-owned and is not distributed. Its map, assets, build entrypoint and generated output live outside `template/`, so a rendered project receives none of them, and `tests/test_build_explorer.py` renders a project and fails if any Explorer artifact appears or if one is placed under `template/`. See [ownership.md](../ownership.md).
 
+## Publication
+
+`.github/workflows/explorer.yml` publishes the Explorer to GitHub Pages. It only orchestrates: checkout with full history, Python 3.11, and the single repository command `python3 scripts/build_explorer.py build --out build/explorer`. No build or validation logic lives in the workflow.
+
+- **Pull requests** that change `explorer/`, the build script, `scripts/public_distribution.py`, `AGENTS.md`, `README.md`, `docs/`, `openspec/specs/`, `dev-platform/capabilities/`, `VERSION` or the workflow run the `build` job only. A failing build fails the check; nothing is uploaded or deployed.
+- **Pushes to `main` and manual dispatch on `main`** build, upload the Pages artifact (retained as the run's workflow artifact) and run the `deploy` job in the `github-pages` environment. Deployments share one `pages` concurrency group that never cancels a run in progress.
+- Workflow permissions are `contents: read`; only `deploy` adds `pages: write` and `id-token: write`. Third-party actions are pinned by commit SHA.
+
+### One-time operator step
+
+An operator must enable Pages once: repository **Settings -> Pages -> Build and deployment -> Source: GitHub Actions**. The workflow never changes repository settings and has no other publication path. When Pages is not enabled, `actions/configure-pages` (used without its `enablement` input) fails the `deploy` job with an explicit error and nothing is published; enable the setting and re-run the job.
+
+### Reproducing the published site
+
+Check out the published commit (the footer of every page shows the short commit) and run the same command:
+
+```bash
+python3 scripts/build_explorer.py build --out build/explorer
+```
+
+The build is deterministic, so the output matches the published artifact for that commit. Build from a clean checkout so the footer does not report uncommitted changes.
+
+`tests/test_explorer_workflow.py` checks the workflow contract: triggers, permissions, SHA pinning, default-branch-only deployment, the absence of `enablement`, the single build command, and that nothing under `template/` publishes the Explorer.
+
 ## Verification
 
 `tests/test_build_explorer.py` covers map validation, collection discovery, determinism, unsupported constructs, prohibited-state rejection, relative links under a subpath, and the downstream boundary. It also builds the committed map against the committed sources, so renaming a heading the map uses fails CI until the map is updated.
