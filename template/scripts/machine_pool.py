@@ -464,17 +464,29 @@ def _admit_if_head(config: PoolConfig, own: str, weight: int) -> tuple[str | Non
         return (None if held is not None else f"fewer than {weight} free token(s)"), held
 
 
-def _create_ticket(config: PoolConfig, check_class: str, metadata: dict[str, Any], hooks: Hooks) -> _Ticket:
-    started = hooks.monotonic()
+def _create_ticket(config: PoolConfig, check_class: str, metadata: dict[str, Any], hooks: Hooks,
+                   started: float) -> tuple[_Ticket, bool]:
+    """Queue a ticket within the run's single wait deadline measured from ``started``.
+
+    Returns the ticket and whether queueing had to wait for the admission lock.
+    """
+    waited = False
     while True:
+        # A deadline that passed while sleeping fails before another attempt.
+        if waited and hooks.monotonic() - started >= config.wait_timeout_seconds:
+            raise _queueing_timeout(config)
         with _admission(config) as locked:
             if locked:
-                return _create_ticket_unlocked(config, check_class, metadata)
+                return _create_ticket_unlocked(config, check_class, metadata), waited
+        waited = True
         if hooks.monotonic() - started >= config.wait_timeout_seconds:
-            raise PoolTimeout(
-                f"machine pool wait timed out after {config.wait_timeout_seconds}s before queueing: "
-                f"{config.admission_lock} stayed locked by another run")
+            raise _queueing_timeout(config)
         hooks.sleep(hooks.poll_interval)
+
+
+def _queueing_timeout(config: PoolConfig) -> PoolTimeout:
+    return PoolTimeout(f"machine pool wait timed out after {config.wait_timeout_seconds}s before queueing: "
+                       f"{config.admission_lock} stayed locked by another run")
 
 
 def _create_ticket_unlocked(config: PoolConfig, check_class: str, metadata: dict[str, Any]) -> _Ticket:
@@ -581,20 +593,23 @@ def _acquire(config: PoolConfig, weight: int, check_class: str, purpose: str, ro
              hooks: Hooks) -> list[int]:
     _ensure_queue(config)
     metadata = _metadata(lease_id, weight, check_class, purpose, root)
-    ticket = _create_ticket(config, check_class, metadata, hooks)
+    # One deadline covers queueing and admission, so waiting for the admission lock does not extend the limit.
+    started = hooks.monotonic()
+    ticket, queued_after_wait = _create_ticket(config, check_class, metadata, hooks, started)
     try:
-        started = hooks.monotonic()
-        next_progress = started
+        next_progress = hooks.monotonic()
         first = True
         # (queue position, wait reason) of the previous poll; None until the first poll waited.
         last_wait: tuple[int, str] | None = None
         while True:
-            # A deadline that passed while sleeping fails before any admission attempt.
-            if last_wait is not None and hooks.monotonic() - started >= config.wait_timeout_seconds:
+            # A deadline that passed while sleeping (or while queueing) fails before any admission attempt.
+            if (last_wait is not None or queued_after_wait) \
+                    and hooks.monotonic() - started >= config.wait_timeout_seconds:
+                where = (f"queue position {last_wait[0]}; {last_wait[1]}" if last_wait is not None
+                         else f"queued only after waiting for {config.admission_lock}")
                 raise PoolTimeout(
                     f"machine pool wait timed out after {config.wait_timeout_seconds}s for {weight} token(s) as class "
-                    f"{check_class} (queue position {last_wait[0]}; {last_wait[1]}); "
-                    f"holders: {describe_holders(read_holders(config))}")
+                    f"{check_class} ({where}); holders: {describe_holders(read_holders(config))}")
             live = [name for name, _ in _scan_queue(config, remove_dead=True, own=ticket.name)]
             if ticket.name not in live:
                 raise PoolError(f"queue ticket {ticket.path} disappeared while waiting")

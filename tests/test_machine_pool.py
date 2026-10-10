@@ -535,11 +535,63 @@ class QueueOrderTests(PoolFixture):
     def test_a_waiter_does_not_admit_while_another_run_holds_the_admission_lock(self) -> None:
         machine_pool._ensure_queue(self.config)
         hooks = self.ticking_hooks()
-        ticket = machine_pool._create_ticket(self.config, "development", {"lease": "x"}, hooks)
+        ticket, waited = machine_pool._create_ticket(self.config, "development", {"lease": "x"}, hooks, hooks.monotonic())
+        self.assertFalse(waited)
         self.addCleanup(ticket.release)
         self.held_admission_lock()
         self.assertEqual(machine_pool._admit_if_head(self.config, ticket.path.name, 1), ("another run is being admitted", None))
         self.assertEqual(machine_pool.read_holders(self.config), [])
+
+    def test_time_spent_queueing_counts_against_the_single_wait_deadline(self) -> None:
+        clock = FakeClock()
+        lines: list[str] = []
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(machine_pool.lease(
+                self.config.tokens, "holder", environ=dict(self.environ), hooks=fast_hooks()))
+            lock_fd = self.held_admission_lock()
+            sleeps: list[float] = []
+
+            def sleep(seconds: float) -> None:
+                sleeps.append(clock.now)
+                if not sleeps[:-1]:
+                    # The admission lock is held for most of the deadline, then released.
+                    clock.now += self.config.wait_timeout_seconds - 10
+                    machine_pool.fcntl.flock(lock_fd, machine_pool.fcntl.LOCK_UN)
+                else:
+                    clock.now += 20
+
+            base = fake_hooks(clock, lines)
+            hooks = machine_pool.Hooks(
+                monotonic=base.monotonic, sleep=sleep, poll_interval=base.poll_interval,
+                progress_interval=base.progress_interval, load_per_cpu=base.load_per_cpu,
+                available_memory_mb=base.available_memory_mb, out=base.out)
+            with self.assertRaisesRegex(machine_pool.PoolTimeout, "timed out after 200s.*fewer than 1 free token"):
+                with machine_pool.lease(1, "waiter", environ=dict(self.environ), hooks=hooks):
+                    self.fail("all tokens are held")
+            # Queued at 190s, then one poll; a restarted budget would keep polling until 390s.
+            self.assertEqual(sleeps, [0.0, 190.0])
+            self.assertEqual(clock.now, 210.0)
+        self.assertEqual(self.queue_names(), [])
+
+    def test_a_deadline_reached_while_queueing_fails_before_admission(self) -> None:
+        lock_fd = self.held_admission_lock()
+        clock = FakeClock()
+
+        def sleep(seconds: float) -> None:
+            # Released exactly at the deadline: the queued run must not be admitted although tokens are free.
+            clock.now += self.config.wait_timeout_seconds
+            machine_pool.fcntl.flock(lock_fd, machine_pool.fcntl.LOCK_UN)
+
+        base = fake_hooks(clock, [])
+        hooks = machine_pool.Hooks(
+            monotonic=base.monotonic, sleep=sleep, poll_interval=base.poll_interval,
+            progress_interval=base.progress_interval, load_per_cpu=base.load_per_cpu,
+            available_memory_mb=base.available_memory_mb, out=base.out)
+        with self.assertRaisesRegex(machine_pool.PoolTimeout, "admission.lock stayed locked"):
+            with machine_pool.lease(1, "dev", environ=dict(self.environ), hooks=hooks):
+                self.fail("must not run after the deadline")
+        self.assertEqual(machine_pool.read_holders(self.config), [])
+        self.assertEqual(self.queue_names(), [])
 
     def test_dead_tickets_are_removed_only_after_their_lock_is_taken(self) -> None:
         machine_pool._ensure_queue(self.config)
