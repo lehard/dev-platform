@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "a8de1f5e65a81b30cea410825ad218496f40ffa9",
     "base_ref": "origin/main",
-    "candidate_head": "68a4bf3589e83ad4c4e33a919f6ae6fd13c4cf1d",
-    "diff_sha256": "e2d65730d586082900143c8be75841dd7754a25d57f7643b7659aead329af6f5"
+    "candidate_head": "596428176d5485c93c046cdadac104abff9decf8",
+    "diff_sha256": "9d958e2c4a9ce5832142d34f0756a0d20cade2152988e90077df9d6f23cb5646"
   },
   "change": "openspec/changes/handoff-behind-disjoint-main",
   "excluded_lifecycle_paths": [
@@ -38,7 +38,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-10T21:31:23+00:00",
+  "prepared_at": "2026-10-10T22:08:20+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/handoff-behind-disjoint-main/independent-reviews",
     "required_perspectives": [
@@ -47,7 +47,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "34188586-dfeb-40a1-aeae-76b37caa3505",
+  "request_id": "e65ad4e6-0547-4f81-bfa6-fe1efa981c89",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -60,7 +60,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "28ecf66b9e7593ed80bb0b8560bc2129fa304791",
-    "digest": "f65328c29d5dcfb583979fc3b81962b0e6dffcac7dce4c83ba86007537d8129f",
+    "digest": "9b8d23bf13f44d1293186ab0829642a264fbf3ac58c243bee40fa0d7daeffa09",
     "paths": {
       "docs/engineering/agent-workflow.md": "d3fd8a6fc18b111bad0d33851e6a5dc8dc7fb227",
       "openspec/changes/handoff-behind-disjoint-main/.managed-task.json": "acb77a6e795b2cec8d4fdc3fa53943e36c48c9c4",
@@ -72,7 +72,7 @@
       "template/scripts/_platform_common.py": "f500e6da88f0be7dca14cb361a21e7417c066104",
       "template/scripts/finish_task.py": "c5a6587d4618d83d50279edf7ed13ded39043353",
       "template/scripts/project_publish.py": "1998759bf8863b9ac34982942ac5795f20b1d88a",
-      "template/scripts/select_checks.py": "9eaf4148c91dedc8e218fc8e396f897f6dafb21b",
+      "template/scripts/select_checks.py": "fe5cf96a199febd99db7957e475408d066553ee2",
       "template/scripts/task_reconciliation.py": "43f0cc2e14d26f2b5edd70773332810004b94228",
       "tests/test_select_checks.py": "92b207ad510fc8d8de9b5f173b9872a838f51b57",
       "tests/test_task_freshness.py": "106853fe3dd4fa4844b95878064cf8b18dd608d8",
