@@ -46,3 +46,5 @@ configuration remains portable and works when no operator file exists.
 A project may be stricter than the platform. It should not silently weaken platform safety rules.
 
 If a platform update conflicts with a real project invariant, do not force the update. Resolve the conflict explicitly and, if the invariant is broadly reusable, propose an upstream platform change.
+
+Which platform-owned files are protected rules and which are hotfixable is the platform-shipped `dev-platform/protected-surface.toml`; the downstream contract is [template/docs/engineering/change-classes.md](../template/docs/engineering/change-classes.md). An agent never reclassifies a file or rule on its own assumption.
