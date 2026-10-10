@@ -180,6 +180,11 @@ def main() -> int:
             raise SystemExit("Copier update did not materialize provider-local model routing")
         if not (target / "docs" / "engineering" / "model-routing.md").is_file():
             raise SystemExit("Copier update did not materialize model-routing guidance")
+        for delivered in ("dev-platform/protected-surface.toml", "docs/engineering/change-classes.md"):
+            if not (target / delivered).is_file():
+                raise SystemExit(f"Copier update did not deliver the change-class contract file {delivered}")
+            if (target / delivered).read_bytes() != (ROOT / "template" / delivered).read_bytes():
+                raise SystemExit(f"Copier update delivered a different {delivered} than the released template")
         if args.profile == "multi-agent":
             rendered_workflow = (target / "docs" / "engineering" / "agent-workflow.md").read_text(encoding="utf-8")
             if "unreadable or un-lockable board" not in rendered_workflow:

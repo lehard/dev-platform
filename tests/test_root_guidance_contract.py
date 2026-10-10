@@ -202,6 +202,8 @@ class RenderedRootGuidanceTests(unittest.TestCase):
         self.assertLessEqual(count, MAX_ROOT_GUIDANCE_LINES, f"{profile} render is {count} lines")
         for anchor in REQUIRED_ANCHORS:
             self.assertIn(anchor, text, f"{profile} render lost `{anchor}`")
+        for delivered in ("dev-platform/protected-surface.toml", "docs/engineering/change-classes.md"):
+            self.assertTrue((target / delivered).is_file(), f"{profile} render produced no {delivered}")
         if profile == "multi-agent":
             self.assertIn("degraded or terminal sibling", text)
             self.assertIn("unreadable or un-lockable board", text)
