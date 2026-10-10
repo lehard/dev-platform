@@ -1,12 +1,19 @@
 {
   "candidate": {
-    "base_head": "28ecf66b9e7593ed80bb0b8560bc2129fa304791",
+    "base_head": "a8de1f5e65a81b30cea410825ad218496f40ffa9",
     "base_ref": "origin/main",
-    "candidate_head": "abd25ede6c872333e5f9490ddb5bdbaa2163f9fa",
-    "diff_sha256": "1711ae19df783bc78fc0547757d1acd26b4c3107b63c5ffd03093ac05236d984"
+    "candidate_head": "68a4bf3589e83ad4c4e33a919f6ae6fd13c4cf1d",
+    "diff_sha256": "e2d65730d586082900143c8be75841dd7754a25d57f7643b7659aead329af6f5"
   },
   "change": "openspec/changes/handoff-behind-disjoint-main",
-  "excluded_lifecycle_paths": [],
+  "excluded_lifecycle_paths": [
+    "openspec/changes/handoff-behind-disjoint-main/automated-checks.json",
+    "openspec/changes/handoff-behind-disjoint-main/independent-review-dispositions.json",
+    "openspec/changes/handoff-behind-disjoint-main/independent-review-request.json",
+    "openspec/changes/handoff-behind-disjoint-main/independent-reviews/engineering-quality.json",
+    "openspec/changes/handoff-behind-disjoint-main/independent-reviews/spec-fidelity.json",
+    "openspec/changes/handoff-behind-disjoint-main/verification.md"
+  ],
   "fresh_context_required": true,
   "perspectives": {
     "engineering-quality": {
@@ -31,7 +38,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-10T20:58:14+00:00",
+  "prepared_at": "2026-10-10T21:31:23+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/handoff-behind-disjoint-main/independent-reviews",
     "required_perspectives": [
@@ -40,7 +47,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "2503f1a0-e0c5-4dc4-a848-d77893760622",
+  "request_id": "34188586-dfeb-40a1-aeae-76b37caa3505",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
