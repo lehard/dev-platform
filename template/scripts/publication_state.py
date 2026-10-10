@@ -213,9 +213,13 @@ def _observe_required_checks(root: Path, env: dict[str, str], ref: str, base: st
             return _classify_required_checks(_parse_check_rows(result))
         if result.returncode == 1 and not result.stdout.strip():
             # gh reports "no required checks" this way; decide it from the base's protection, not its wording.
-            if not _protected_required_contexts(root, env, base):
+            required = _protected_required_contexts(root, env, base)
+            if not required:
                 return RequiredCheckState("not_registered", f"base branch {base} requires no status checks")
-            raise _Unusable("malformed", f"gh reported no required checks while base {base} requires status checks")
+            # The base requires contexts GitHub has not attached to this head yet (a fresh head): pending, as EXPECTED.
+            names = sorted({name for name, _ in required})
+            return RequiredCheckState("pending", f"required checks not yet reported on head: {', '.join(names)}",
+                                      checks=tuple({"name": name, "state": "EXPECTED"} for name in names))
         raise _Unusable("transport", f"GitHub required-check state is unavailable (gh exit {result.returncode}): "
                                      f"{(result.stderr or result.stdout).strip()[:200]}")
     if REQUIREMENT_INTEGRATION_BASE.fullmatch(base):
@@ -233,7 +237,7 @@ def _observe_required_checks(root: Path, env: dict[str, str], ref: str, base: st
         unbound = {name for name, app in required if app is None}
         selected = [row for row in rows if row.get("name") in unbound]
         present = {row.get("name") for row in selected}
-        selected += [{"name": name, "state": "PENDING"} for name in sorted(unbound - present)]
+        selected += [{"name": name, "state": "EXPECTED"} for name in sorted(unbound - present)]
         if any(app is not None for _, app in required):
             runs = _bound_check_runs(root, env, head)
             for name, app in sorted(required, key=lambda item: item[0]):
@@ -241,7 +245,7 @@ def _observe_required_checks(root: Path, env: dict[str, str], ref: str, base: st
                     continue
                 matches = [run for run in runs if run["name"] == name and run["app"]["id"] == app]
                 if not matches:
-                    selected.append({"name": name, "state": "PENDING"})
+                    selected.append({"name": name, "state": "EXPECTED"})
                     continue
                 run = max(matches, key=lambda run: run["id"])
                 state = run["conclusion"] if run["status"] == "completed" else run["status"]

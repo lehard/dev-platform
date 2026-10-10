@@ -1832,6 +1832,12 @@ def _integrate(root: Path, repo: str, number: int, admission: dict[str, Any], pr
                                       "reason": f"required check observation unusable ({state.cause}): {state.detail}"})
                 raise QueueError(f"required check state is unknown ({state.cause}): {state.detail}")
             if time.monotonic() >= deadline:
+                if state.checks and all(check.get("state") == "EXPECTED" for check in state.checks):
+                    # GitHub never attached the required checks to this head within the bound: block, naming them.
+                    _raise_if_owned_elsewhere(root, repo, number, head)
+                    names = ", ".join(str(check.get("name")) for check in state.checks)
+                    return _released(_block(root, repo, number, "required checks were not reported on the integrated "
+                                            f"head within {CHECK_WAIT_SECONDS} s: {names}", head=head))
                 return {"state": "waiting", "number": number, "reason": "required CI pending"}
             time.sleep(10)
         if isinstance(identity, dict) and isinstance(identity.get("task_content"), dict):
