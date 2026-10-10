@@ -3,57 +3,80 @@
   "candidate": {
     "base_head": "401f3ce699a1aee6c0131a6b321a5eedfb973fb8",
     "base_ref": "origin/main",
-    "candidate_head": "43ca9588724e4cd791338bc796b5727945083669",
-    "diff_sha256": "bc6b173cf8777b2db31cbce568168f51dfc918b1b1b4804d6896866ea284282a"
+    "candidate_head": "713858237f6b6c93db0046b49a4f17e7fd2c9fa6",
+    "diff_sha256": "ac4ccde6ee72c1f575b94e5510b35f815fe22201ce48ecf47ed2694c9dc51d35"
   },
-  "completed_at": "2026-10-10T07:42:23+00:00",
+  "completed_at": "2026-10-10T07:49:02+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/machine_pool.py:343-345 creates the queue with mode 0777 and explicitly restores that mode regardless of umask. docs/engineering/agent-workflow.md recommends a group-writable setgid parent directory without requiring removal of other-account traversal permissions. With a parent such as 02775, an account outside the shared group can delete live queue tickets; template/scripts/machine_pool.py:615-616 then aborts the affected validation because its ticket disappeared.",
-      "id": "queue-permissions-exceed-shared-group",
+      "evidence": "template/scripts/machine_pool.py read_holders: `_try_lock(fd, path, shared=True)` then `fcntl.flock(fd, fcntl.LOCK_UN)`. _try_take_slots uses LOCK_EX|LOCK_NB, which fails against a shared lock. The effect is bounded because the waiter retries on its next poll (1s), and `status` is documented as read-only. Delay of one poll only; no correctness loss.",
+      "id": "holder-probe-transient-slot-lock",
       "severity": "advisory",
-      "summary": "The queue grants write access to accounts outside the configured shared group, allowing them to disrupt validation."
+      "summary": "The read-only holder scan briefly takes a shared flock on each free slot. A head waiter that tries to take the same slot at that instant gets a spurious failure, so status and waiting reports can delay admission."
     }
   ],
-  "launched_at": "2026-10-10T07:41:17+00:00",
-  "output_sha256": "82c5caeb6f421444f23ec8114d11346e402600c389fdb0c63699439107592600",
+  "launched_at": "2026-10-10T07:48:06+00:00",
+  "output_sha256": "c71627da47aefa489e6a8449891909e7b2a430bf56c2466d45a252b53f9fba42",
   "perspective": "engineering-quality",
-  "request_id": "e9a3927d-10f8-4290-8637-47f1c3aa4605",
+  "request_id": "f9b117c1-69dd-4fad-99ea-d592e84c6b65",
   "reviewer": {
-    "context_id": "01a124c2-55f7-7b30-99c7-22bcc564b6de",
+    "context_id": "635591a3-d074-45b4-b392-26d98680aa86",
     "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-6f437ae4-ca79-4e1e-bad7-9d2cafa43330",
+    "launch_id": "platform-launch-d1f0fe9b-4aac-4ebd-ac53-cdcaa8e7ecf4",
     "model": {
       "source": "selected",
-      "value": "gpt-6.1-sol"
+      "value": "sonnet"
     },
-    "provider": "codex",
-    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
-    "runtime": "codex-exec",
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
     "write_access": false
   },
   "runtime_usage": {
     "fields": {
-      "cached_input_tokens": {
+      "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 180608
+        "value": 56444
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 283934
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 45692
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 53710
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 240482
+        "value": 14
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 11
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1547
+        "value": 5288
       }
     },
-    "runtime": "codex-exec"
+    "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "b4aaa33fe1ab2e36a79637cd792c27413d7c3760709cf827cc17de3b802c407b"
+  "task_content_digest": "3451188b1be6d94190e3524a511aa55d902955fc0330f62cf288cf20b8b1989c"
 }
