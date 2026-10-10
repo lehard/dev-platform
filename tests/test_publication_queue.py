@@ -316,6 +316,35 @@ class WorkerTests(unittest.TestCase):
         self.assertIn("update-branch", gh.call_args.args[-1])
         comment.assert_called_once()
 
+    def test_admitted_head_lacking_its_recorded_base_is_updated(self) -> None:
+        # A composition head admitted on an older main records the then-current main as its base.
+        from subprocess import CompletedProcess
+        def git(args: list[str], **_kwargs: object) -> CompletedProcess[str]:
+            if args[0] == "merge-base" and args[1] == "--is-ancestor" and args[2] == BASE and args[3] == HEAD:
+                return CompletedProcess(args, 1, "", "")
+            if args[0] == "diff":
+                return CompletedProcess(args, 0, "", "")
+            return CompletedProcess(args, 0, "", "")
+        with patch.object(queue, "_events", return_value=[admission(1, 20)]), \
+             patch.object(queue, "_main", return_value=BASE), \
+             patch.object(queue, "run_git", side_effect=git), \
+             patch.object(queue, "_task_paths", return_value={"task.py"}), \
+             patch.object(queue, "merge_conflicts", return_value=[]), \
+             patch.object(queue, "_gh") as gh, \
+             patch.object(queue, "_pr", return_value=pr(1, NEW_HEAD)), \
+             patch.object(queue, "_comment") as comment:
+            self.assertEqual(queue._prepare(ROOT_PATH, REPO, 1, admission(1, 20), pr(1)), (NEW_HEAD, BASE))
+        self.assertIn("update-branch", gh.call_args.args[-1])
+        comment.assert_called_once()
+
+    def test_admitted_head_containing_its_base_is_not_updated(self) -> None:
+        with patch.object(queue, "_events", return_value=[admission(1, 20)]), \
+             patch.object(queue, "_main", return_value=BASE), \
+             patch.object(queue, "run_git", return_value=__import__("subprocess").CompletedProcess([], 0, "", "")), \
+             patch.object(queue, "_gh") as gh:
+            self.assertEqual(queue._prepare(ROOT_PATH, REPO, 1, admission(1, 20), pr(1)), (HEAD, BASE))
+        gh.assert_not_called()
+
     def test_runner_restart_proves_unrecorded_clean_branch_update(self) -> None:
         from subprocess import CompletedProcess
         tree = "d" * 40
@@ -1463,6 +1492,51 @@ class RequiredCheckObservationMappingTests(unittest.TestCase):
         self.assertEqual(result["reason"], "required CI pending")
         block.assert_not_called()
         repair.assert_not_called()
+
+    def test_unreported_checks_then_passed_integrate(self) -> None:
+        # GitHub attaches the first check run seconds after update-branch pushes the new head.
+        unreported = RequiredCheckState("pending", "required checks not yet reported on head: validate",
+                                        checks=({"name": "validate", "state": "EXPECTED"},))
+        from subprocess import CompletedProcess
+        with patch.object(queue, "_repo", return_value=REPO), \
+             patch.object(queue, "_queued", return_value=[(20, 1, admission(1, 20))]), \
+             patch.object(queue, "_pr", return_value=pr(1)), \
+             patch.object(queue, "_comments", return_value=[]), \
+             patch.object(queue, "_label"), patch.object(queue, "_transition", return_value=None), \
+             patch.object(queue, "_prepare", return_value=(HEAD, BASE)), \
+             patch.object(queue, "_main", return_value=BASE), \
+             patch.object(queue, "_raise_if_owned_elsewhere"), \
+             patch.object(queue.time, "sleep") as sleep, \
+             patch.object(queue, "required_check_state_for_ref",
+                          side_effect=[unreported, RequiredCheckState("passed")]) as observe, \
+             patch.object(queue, "_block") as block, \
+             patch.object(queue.subprocess, "run", return_value=CompletedProcess([], 0, "", "")) as process:
+            result = queue.worker(ROOT_PATH)
+        self.assertEqual(observe.call_count, 2)
+        sleep.assert_called_once_with(10)
+        block.assert_not_called()
+        self.assertEqual(process.call_args.args[0], ["gh", "pr", "merge", "1", "--squash", "--match-head-commit", HEAD])
+        self.assertEqual(result["reason"], "merge accepted; awaiting GitHub confirmation")
+
+    def test_checks_unreported_past_the_bound_block_naming_them(self) -> None:
+        unreported = RequiredCheckState("pending", "required checks not yet reported on head: lint, validate",
+                                        checks=({"name": "lint", "state": "EXPECTED"},
+                                                {"name": "validate", "state": "EXPECTED"}))
+        result, block, repair, _ = self.run_worker(unreported)
+        self.assertEqual(result["state"], "blocked")
+        repair.assert_not_called()
+        self.assertEqual(block.call_args.args[3],
+                         "required checks were not reported on the integrated head within 0 s: lint, validate")
+        self.assertEqual(block.call_args.kwargs["head"], HEAD)
+
+    def test_reported_pending_past_the_bound_still_waits(self) -> None:
+        for checks in (({"name": "validate", "state": "IN_PROGRESS"},),
+                       ({"name": "lint", "state": "EXPECTED"}, {"name": "validate", "state": "QUEUED"})):
+            with self.subTest(checks=checks):
+                result, block, repair, _ = self.run_worker(RequiredCheckState("pending", checks=checks))
+                self.assertEqual(result, {"state": "waiting", "number": 1, "reason": "required CI pending"})
+                block.assert_not_called()
+                repair.assert_not_called()
 
     def test_failed_enters_the_bounded_repair_not_a_block(self) -> None:
         result, block, repair, _ = self.run_worker(RequiredCheckState("failed", "validate"))

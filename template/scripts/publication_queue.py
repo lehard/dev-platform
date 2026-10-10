@@ -1385,7 +1385,11 @@ def _prepare(root: Path, repo: str, number: int, admission: dict[str, Any], pr: 
         raise QueueError("admission base is invalid")
     current_main = _main(root)
     if current_main == base and head == admission.get("head"):
-        return head, current_main
+        # The admission base is main as observed at admission, not proof that the head contains
+        # it (a Requirement composition head can be admitted on an older main): check ancestry.
+        run_git(["fetch", "origin", pr["head"]["ref"]], cwd=root)
+        if run_git(["merge-base", "--is-ancestor", current_main, head], cwd=root, check=False).returncode == 0:
+            return head, current_main
     run_git(["fetch", "origin", "main"], cwd=root)
     if run_git(["merge-base", "--is-ancestor", base, current_main], cwd=root, check=False).returncode:
         raise QueueError("main no longer descends from admitted base")
@@ -1832,6 +1836,12 @@ def _integrate(root: Path, repo: str, number: int, admission: dict[str, Any], pr
                                       "reason": f"required check observation unusable ({state.cause}): {state.detail}"})
                 raise QueueError(f"required check state is unknown ({state.cause}): {state.detail}")
             if time.monotonic() >= deadline:
+                if state.checks and all(check.get("state") == "EXPECTED" for check in state.checks):
+                    # GitHub never attached the required checks to this head within the bound: block, naming them.
+                    _raise_if_owned_elsewhere(root, repo, number, head)
+                    names = ", ".join(str(check.get("name")) for check in state.checks)
+                    return _released(_block(root, repo, number, "required checks were not reported on the integrated "
+                                            f"head within {CHECK_WAIT_SECONDS} s: {names}", head=head))
                 return {"state": "waiting", "number": number, "reason": "required CI pending"}
             time.sleep(10)
         if isinstance(identity, dict) and isinstance(identity.get("task_content"), dict):

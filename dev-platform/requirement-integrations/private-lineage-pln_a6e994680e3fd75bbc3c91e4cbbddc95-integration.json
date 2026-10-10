@@ -1,0 +1,790 @@
+{
+  "base": "6c96df65b6d7f4f4d4ee0c30e2d81880190b7dd0",
+  "children": [
+    {
+      "change": "add-platform-explorer-foundation",
+      "contribution_base": "3df526d8aa798ad591f02c59d2e55448ce40ff32",
+      "gates": {
+        "developer-friction": {
+          "evidence": {
+            "command": [
+              "python3",
+              "/Users/Shared/Workspace/dev-platform/.claude/worktrees/add-platform-explorer-foundation/scripts/agent_friction.py",
+              "assert-checkpoint",
+              "--exact-head"
+            ],
+            "head": "da278b0a25c14bfbfdacc5c3970bc8f8cd72f35e"
+          },
+          "identity": {
+            "change": "add-platform-explorer-foundation",
+            "contribution_base": "3df526d8aa798ad591f02c59d2e55448ce40ff32",
+            "kind": "contribution",
+            "requirement": "pln_a6e994680e3fd75bbc3c91e4cbbddc95",
+            "source_issue": "pln_168f9f35e5d4cb043d4cc7d42a012d9f",
+            "target_branch": "requirement/BR-441",
+            "task_content": {
+              "base": "3df526d8aa798ad591f02c59d2e55448ce40ff32",
+              "digest": "e0d6fc16d814e46197569f3ead11649b94461a50ac887934c037e4587fe88962",
+              "paths": {
+                ".gitignore": "5dd410f152bbf7a0491796d19e663852f2eeff6e",
+                "dev-platform/checks.toml": "57455afb0206e393f3e6721dcfa110438ffa0284",
+                "docs/engineering/explorer.md": "f334d3b3d1d220339f84439dfdea66d48aa7d1ca",
+                "docs/ownership.md": "e7234bc48957e3960ce43cf6796d9740fdfbd9b5",
+                "explorer/assets/explorer.css": "8a1ac05f65f805adcf4d3515c3cf230ff8f016fe",
+                "explorer/assets/explorer.js": "f421972e06be222ad3d65f8aaa7917c7640f4207",
+                "explorer/map.toml": "a661e4e12a81f150c61974dc6ff351cfe1902d5e",
+                "openspec/changes/add-platform-explorer-foundation/.managed-task.json": "fd37e2e9a16205aadd09239c18aba137ec940bfb",
+                "openspec/changes/add-platform-explorer-foundation/.openspec.yaml": "01660bab056db86b8ce3c840115bb6b57cd15555",
+                "openspec/changes/add-platform-explorer-foundation/design.md": "5d46a4b0a1f2542735948b97f795113b9edaf7a8",
+                "openspec/changes/add-platform-explorer-foundation/proposal.md": "382efdd4d4e4a42932521c7f7bace8ccc0293ddf",
+                "openspec/changes/add-platform-explorer-foundation/specs/platform-explorer/spec.md": "a61e4577f55d37ccb38e0ba535649fa5ced15a07",
+                "openspec/changes/add-platform-explorer-foundation/tasks.md": "ad757f2553aa9b572eca199ddeaf41074e32aabc",
+                "scripts/build_explorer.py": "8e12115cd651cd218284f21af99102c80b5fdc09",
+                "tests/test_build_explorer.py": "a59abe9a4a5b7f28abb16f1154db3a9ea362ba42"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-441/T1"
+          },
+          "result": "passed"
+        },
+        "required-checks": {
+          "evidence": {
+            "checks": [
+              {
+                "name": "validate",
+                "state": "success"
+              }
+            ],
+            "detail": "",
+            "head": "c5cc2941509d77ed1389b37fed8080b9f9636521",
+            "kind": "passed"
+          },
+          "identity": {
+            "change": "add-platform-explorer-foundation",
+            "contribution_base": "3df526d8aa798ad591f02c59d2e55448ce40ff32",
+            "kind": "contribution",
+            "requirement": "pln_a6e994680e3fd75bbc3c91e4cbbddc95",
+            "source_issue": "pln_168f9f35e5d4cb043d4cc7d42a012d9f",
+            "target_branch": "requirement/BR-441",
+            "task_content": {
+              "base": "3df526d8aa798ad591f02c59d2e55448ce40ff32",
+              "digest": "e0d6fc16d814e46197569f3ead11649b94461a50ac887934c037e4587fe88962",
+              "paths": {
+                ".gitignore": "5dd410f152bbf7a0491796d19e663852f2eeff6e",
+                "dev-platform/checks.toml": "57455afb0206e393f3e6721dcfa110438ffa0284",
+                "docs/engineering/explorer.md": "f334d3b3d1d220339f84439dfdea66d48aa7d1ca",
+                "docs/ownership.md": "e7234bc48957e3960ce43cf6796d9740fdfbd9b5",
+                "explorer/assets/explorer.css": "8a1ac05f65f805adcf4d3515c3cf230ff8f016fe",
+                "explorer/assets/explorer.js": "f421972e06be222ad3d65f8aaa7917c7640f4207",
+                "explorer/map.toml": "a661e4e12a81f150c61974dc6ff351cfe1902d5e",
+                "openspec/changes/add-platform-explorer-foundation/.managed-task.json": "fd37e2e9a16205aadd09239c18aba137ec940bfb",
+                "openspec/changes/add-platform-explorer-foundation/.openspec.yaml": "01660bab056db86b8ce3c840115bb6b57cd15555",
+                "openspec/changes/add-platform-explorer-foundation/design.md": "5d46a4b0a1f2542735948b97f795113b9edaf7a8",
+                "openspec/changes/add-platform-explorer-foundation/proposal.md": "382efdd4d4e4a42932521c7f7bace8ccc0293ddf",
+                "openspec/changes/add-platform-explorer-foundation/specs/platform-explorer/spec.md": "a61e4577f55d37ccb38e0ba535649fa5ced15a07",
+                "openspec/changes/add-platform-explorer-foundation/tasks.md": "ad757f2553aa9b572eca199ddeaf41074e32aabc",
+                "scripts/build_explorer.py": "8e12115cd651cd218284f21af99102c80b5fdc09",
+                "tests/test_build_explorer.py": "a59abe9a4a5b7f28abb16f1154db3a9ea362ba42"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-441/T1"
+          },
+          "result": "passed"
+        },
+        "review": {
+          "evidence": {
+            "engineering-quality": {
+              "availability": "available",
+              "findings": [],
+              "perspective": "engineering-quality",
+              "report_sha256": "dd3b1161b338d996f4ed86955dd4e171fc41c45c81a1a97981fcc8c2fe5c7bde"
+            },
+            "spec-fidelity": {
+              "availability": "available",
+              "findings": [],
+              "perspective": "spec-fidelity",
+              "report_sha256": "92a335b96c817fcd8621671387a7122bb99447c6aa9f09d48f9db0f6f105037c"
+            }
+          },
+          "identity": {
+            "change": "add-platform-explorer-foundation",
+            "contribution_base": "3df526d8aa798ad591f02c59d2e55448ce40ff32",
+            "kind": "contribution",
+            "requirement": "pln_a6e994680e3fd75bbc3c91e4cbbddc95",
+            "source_issue": "pln_168f9f35e5d4cb043d4cc7d42a012d9f",
+            "target_branch": "requirement/BR-441",
+            "task_content": {
+              "base": "3df526d8aa798ad591f02c59d2e55448ce40ff32",
+              "digest": "e0d6fc16d814e46197569f3ead11649b94461a50ac887934c037e4587fe88962",
+              "paths": {
+                ".gitignore": "5dd410f152bbf7a0491796d19e663852f2eeff6e",
+                "dev-platform/checks.toml": "57455afb0206e393f3e6721dcfa110438ffa0284",
+                "docs/engineering/explorer.md": "f334d3b3d1d220339f84439dfdea66d48aa7d1ca",
+                "docs/ownership.md": "e7234bc48957e3960ce43cf6796d9740fdfbd9b5",
+                "explorer/assets/explorer.css": "8a1ac05f65f805adcf4d3515c3cf230ff8f016fe",
+                "explorer/assets/explorer.js": "f421972e06be222ad3d65f8aaa7917c7640f4207",
+                "explorer/map.toml": "a661e4e12a81f150c61974dc6ff351cfe1902d5e",
+                "openspec/changes/add-platform-explorer-foundation/.managed-task.json": "fd37e2e9a16205aadd09239c18aba137ec940bfb",
+                "openspec/changes/add-platform-explorer-foundation/.openspec.yaml": "01660bab056db86b8ce3c840115bb6b57cd15555",
+                "openspec/changes/add-platform-explorer-foundation/design.md": "5d46a4b0a1f2542735948b97f795113b9edaf7a8",
+                "openspec/changes/add-platform-explorer-foundation/proposal.md": "382efdd4d4e4a42932521c7f7bace8ccc0293ddf",
+                "openspec/changes/add-platform-explorer-foundation/specs/platform-explorer/spec.md": "a61e4577f55d37ccb38e0ba535649fa5ced15a07",
+                "openspec/changes/add-platform-explorer-foundation/tasks.md": "ad757f2553aa9b572eca199ddeaf41074e32aabc",
+                "scripts/build_explorer.py": "8e12115cd651cd218284f21af99102c80b5fdc09",
+                "tests/test_build_explorer.py": "a59abe9a4a5b7f28abb16f1154db3a9ea362ba42"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-441/T1"
+          },
+          "result": "passed"
+        },
+        "selected-checks": {
+          "evidence": {
+            "bytes": 6090,
+            "path": "openspec/changes/add-platform-explorer-foundation/automated-checks.json",
+            "sha256": "d15b5f323726d93b346bcaf0b2eae3901865c8a0aae09b83be1e5a6cef623483"
+          },
+          "identity": {
+            "change": "add-platform-explorer-foundation",
+            "contribution_base": "3df526d8aa798ad591f02c59d2e55448ce40ff32",
+            "kind": "contribution",
+            "requirement": "pln_a6e994680e3fd75bbc3c91e4cbbddc95",
+            "source_issue": "pln_168f9f35e5d4cb043d4cc7d42a012d9f",
+            "target_branch": "requirement/BR-441",
+            "task_content": {
+              "base": "3df526d8aa798ad591f02c59d2e55448ce40ff32",
+              "digest": "e0d6fc16d814e46197569f3ead11649b94461a50ac887934c037e4587fe88962",
+              "paths": {
+                ".gitignore": "5dd410f152bbf7a0491796d19e663852f2eeff6e",
+                "dev-platform/checks.toml": "57455afb0206e393f3e6721dcfa110438ffa0284",
+                "docs/engineering/explorer.md": "f334d3b3d1d220339f84439dfdea66d48aa7d1ca",
+                "docs/ownership.md": "e7234bc48957e3960ce43cf6796d9740fdfbd9b5",
+                "explorer/assets/explorer.css": "8a1ac05f65f805adcf4d3515c3cf230ff8f016fe",
+                "explorer/assets/explorer.js": "f421972e06be222ad3d65f8aaa7917c7640f4207",
+                "explorer/map.toml": "a661e4e12a81f150c61974dc6ff351cfe1902d5e",
+                "openspec/changes/add-platform-explorer-foundation/.managed-task.json": "fd37e2e9a16205aadd09239c18aba137ec940bfb",
+                "openspec/changes/add-platform-explorer-foundation/.openspec.yaml": "01660bab056db86b8ce3c840115bb6b57cd15555",
+                "openspec/changes/add-platform-explorer-foundation/design.md": "5d46a4b0a1f2542735948b97f795113b9edaf7a8",
+                "openspec/changes/add-platform-explorer-foundation/proposal.md": "382efdd4d4e4a42932521c7f7bace8ccc0293ddf",
+                "openspec/changes/add-platform-explorer-foundation/specs/platform-explorer/spec.md": "a61e4577f55d37ccb38e0ba535649fa5ced15a07",
+                "openspec/changes/add-platform-explorer-foundation/tasks.md": "ad757f2553aa9b572eca199ddeaf41074e32aabc",
+                "scripts/build_explorer.py": "8e12115cd651cd218284f21af99102c80b5fdc09",
+                "tests/test_build_explorer.py": "a59abe9a4a5b7f28abb16f1154db3a9ea362ba42"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-441/T1"
+          },
+          "result": "passed"
+        },
+        "semantic-verification": {
+          "evidence": {
+            "bytes": 3061,
+            "path": "openspec/changes/add-platform-explorer-foundation/verification.md",
+            "sha256": "5fce71b96697da3eebef834ad298f7a3aa0733bc2319212c2465381a1d8353b3"
+          },
+          "identity": {
+            "change": "add-platform-explorer-foundation",
+            "contribution_base": "3df526d8aa798ad591f02c59d2e55448ce40ff32",
+            "kind": "contribution",
+            "requirement": "pln_a6e994680e3fd75bbc3c91e4cbbddc95",
+            "source_issue": "pln_168f9f35e5d4cb043d4cc7d42a012d9f",
+            "target_branch": "requirement/BR-441",
+            "task_content": {
+              "base": "3df526d8aa798ad591f02c59d2e55448ce40ff32",
+              "digest": "e0d6fc16d814e46197569f3ead11649b94461a50ac887934c037e4587fe88962",
+              "paths": {
+                ".gitignore": "5dd410f152bbf7a0491796d19e663852f2eeff6e",
+                "dev-platform/checks.toml": "57455afb0206e393f3e6721dcfa110438ffa0284",
+                "docs/engineering/explorer.md": "f334d3b3d1d220339f84439dfdea66d48aa7d1ca",
+                "docs/ownership.md": "e7234bc48957e3960ce43cf6796d9740fdfbd9b5",
+                "explorer/assets/explorer.css": "8a1ac05f65f805adcf4d3515c3cf230ff8f016fe",
+                "explorer/assets/explorer.js": "f421972e06be222ad3d65f8aaa7917c7640f4207",
+                "explorer/map.toml": "a661e4e12a81f150c61974dc6ff351cfe1902d5e",
+                "openspec/changes/add-platform-explorer-foundation/.managed-task.json": "fd37e2e9a16205aadd09239c18aba137ec940bfb",
+                "openspec/changes/add-platform-explorer-foundation/.openspec.yaml": "01660bab056db86b8ce3c840115bb6b57cd15555",
+                "openspec/changes/add-platform-explorer-foundation/design.md": "5d46a4b0a1f2542735948b97f795113b9edaf7a8",
+                "openspec/changes/add-platform-explorer-foundation/proposal.md": "382efdd4d4e4a42932521c7f7bace8ccc0293ddf",
+                "openspec/changes/add-platform-explorer-foundation/specs/platform-explorer/spec.md": "a61e4577f55d37ccb38e0ba535649fa5ced15a07",
+                "openspec/changes/add-platform-explorer-foundation/tasks.md": "ad757f2553aa9b572eca199ddeaf41074e32aabc",
+                "scripts/build_explorer.py": "8e12115cd651cd218284f21af99102c80b5fdc09",
+                "tests/test_build_explorer.py": "a59abe9a4a5b7f28abb16f1154db3a9ea362ba42"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-441/T1"
+          },
+          "result": "passed"
+        }
+      },
+      "head": "c5cc2941509d77ed1389b37fed8080b9f9636521",
+      "integrated_head": "67311b9b5eb6b94b6f0f6dd1c793c20b3c25f321",
+      "pr_number": 369,
+      "reviewed_evidence_digest": "d09538dfc75f89ebbeedc14d4ea79629a365d59e8e65201b080f52f100714ebd",
+      "source_branch": "agent/br-441-t1-add-platform-explorer-foundation",
+      "source_issue": "pln_168f9f35e5d4cb043d4cc7d42a012d9f",
+      "task_identity": {
+        "change": "add-platform-explorer-foundation",
+        "contribution_base": "3df526d8aa798ad591f02c59d2e55448ce40ff32",
+        "kind": "contribution",
+        "requirement": "pln_a6e994680e3fd75bbc3c91e4cbbddc95",
+        "source_issue": "pln_168f9f35e5d4cb043d4cc7d42a012d9f",
+        "target_branch": "requirement/BR-441",
+        "task_content": {
+          "base": "3df526d8aa798ad591f02c59d2e55448ce40ff32",
+          "digest": "e0d6fc16d814e46197569f3ead11649b94461a50ac887934c037e4587fe88962",
+          "paths": {
+            ".gitignore": "5dd410f152bbf7a0491796d19e663852f2eeff6e",
+            "dev-platform/checks.toml": "57455afb0206e393f3e6721dcfa110438ffa0284",
+            "docs/engineering/explorer.md": "f334d3b3d1d220339f84439dfdea66d48aa7d1ca",
+            "docs/ownership.md": "e7234bc48957e3960ce43cf6796d9740fdfbd9b5",
+            "explorer/assets/explorer.css": "8a1ac05f65f805adcf4d3515c3cf230ff8f016fe",
+            "explorer/assets/explorer.js": "f421972e06be222ad3d65f8aaa7917c7640f4207",
+            "explorer/map.toml": "a661e4e12a81f150c61974dc6ff351cfe1902d5e",
+            "openspec/changes/add-platform-explorer-foundation/.managed-task.json": "fd37e2e9a16205aadd09239c18aba137ec940bfb",
+            "openspec/changes/add-platform-explorer-foundation/.openspec.yaml": "01660bab056db86b8ce3c840115bb6b57cd15555",
+            "openspec/changes/add-platform-explorer-foundation/design.md": "5d46a4b0a1f2542735948b97f795113b9edaf7a8",
+            "openspec/changes/add-platform-explorer-foundation/proposal.md": "382efdd4d4e4a42932521c7f7bace8ccc0293ddf",
+            "openspec/changes/add-platform-explorer-foundation/specs/platform-explorer/spec.md": "a61e4577f55d37ccb38e0ba535649fa5ced15a07",
+            "openspec/changes/add-platform-explorer-foundation/tasks.md": "ad757f2553aa9b572eca199ddeaf41074e32aabc",
+            "scripts/build_explorer.py": "8e12115cd651cd218284f21af99102c80b5fdc09",
+            "tests/test_build_explorer.py": "a59abe9a4a5b7f28abb16f1154db3a9ea362ba42"
+          },
+          "scope": "independent-review-v1",
+          "version": 1
+        },
+        "work_identity": "BR-441/T1"
+      },
+      "work_identity": "BR-441/T1"
+    },
+    {
+      "change": "add-explorer-lifecycle-journey",
+      "contribution_base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+      "gates": {
+        "developer-friction": {
+          "evidence": {
+            "command": [
+              "python3",
+              "/Users/Shared/Workspace/dev-platform/.claude/worktrees/add-explorer-lifecycle-journey/scripts/agent_friction.py",
+              "assert-checkpoint",
+              "--exact-head"
+            ],
+            "head": "5c5069fc7eefa4cc2b1f8725080f077dbb40930c"
+          },
+          "identity": {
+            "change": "add-explorer-lifecycle-journey",
+            "contribution_base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+            "kind": "contribution",
+            "requirement": "pln_a6e994680e3fd75bbc3c91e4cbbddc95",
+            "source_issue": "pln_b376b70307206f190d2b5614ff1caa35",
+            "target_branch": "requirement/BR-441",
+            "task_content": {
+              "base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+              "digest": "e36f3147bbcef228643538d62814a6ef122ef78a2b74b08e9d6e868473fd239e",
+              "paths": {
+                "docs/engineering/explorer.md": "9d43b51fdd9c7f0cb1056625a39be0ac94e8625c",
+                "explorer/assets/explorer.css": "98e62c2c594b0c0d9bab33ddef4ec285b2307771",
+                "explorer/map.toml": "69aca51d929f622211f6dc065d1f650430b875be",
+                "openspec/changes/add-explorer-lifecycle-journey/.managed-task.json": "c17b23b9e15dd19facf51b6bedcd320a3784d2c6",
+                "openspec/changes/add-explorer-lifecycle-journey/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
+                "openspec/changes/add-explorer-lifecycle-journey/design.md": "a7071d963fec9b8ea433c4f7a78b7c46371c45e3",
+                "openspec/changes/add-explorer-lifecycle-journey/proposal.md": "7e016dfc744f3574c646f8b080b9e4c9215ce4f1",
+                "openspec/changes/add-explorer-lifecycle-journey/specs/platform-explorer/spec.md": "9e89db929c9d01200923747ab2ea254e9d8f3b4c",
+                "openspec/changes/add-explorer-lifecycle-journey/tasks.md": "2c609db9d04edeae7b3747be0be45110e002c08c",
+                "scripts/build_explorer.py": "d5ad147790017107d91a9eabe97eec703e519d89",
+                "tests/test_build_explorer.py": "32135c7da8781c525e1db027a71d23ddd8f00db1"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-441/T2"
+          },
+          "result": "passed"
+        },
+        "required-checks": {
+          "evidence": {
+            "checks": [
+              {
+                "name": "validate",
+                "state": "success"
+              }
+            ],
+            "detail": "",
+            "head": "ec1b2504624244d079fb1c73a997089cfbe1e0b7",
+            "kind": "passed"
+          },
+          "identity": {
+            "change": "add-explorer-lifecycle-journey",
+            "contribution_base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+            "kind": "contribution",
+            "requirement": "pln_a6e994680e3fd75bbc3c91e4cbbddc95",
+            "source_issue": "pln_b376b70307206f190d2b5614ff1caa35",
+            "target_branch": "requirement/BR-441",
+            "task_content": {
+              "base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+              "digest": "e36f3147bbcef228643538d62814a6ef122ef78a2b74b08e9d6e868473fd239e",
+              "paths": {
+                "docs/engineering/explorer.md": "9d43b51fdd9c7f0cb1056625a39be0ac94e8625c",
+                "explorer/assets/explorer.css": "98e62c2c594b0c0d9bab33ddef4ec285b2307771",
+                "explorer/map.toml": "69aca51d929f622211f6dc065d1f650430b875be",
+                "openspec/changes/add-explorer-lifecycle-journey/.managed-task.json": "c17b23b9e15dd19facf51b6bedcd320a3784d2c6",
+                "openspec/changes/add-explorer-lifecycle-journey/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
+                "openspec/changes/add-explorer-lifecycle-journey/design.md": "a7071d963fec9b8ea433c4f7a78b7c46371c45e3",
+                "openspec/changes/add-explorer-lifecycle-journey/proposal.md": "7e016dfc744f3574c646f8b080b9e4c9215ce4f1",
+                "openspec/changes/add-explorer-lifecycle-journey/specs/platform-explorer/spec.md": "9e89db929c9d01200923747ab2ea254e9d8f3b4c",
+                "openspec/changes/add-explorer-lifecycle-journey/tasks.md": "2c609db9d04edeae7b3747be0be45110e002c08c",
+                "scripts/build_explorer.py": "d5ad147790017107d91a9eabe97eec703e519d89",
+                "tests/test_build_explorer.py": "32135c7da8781c525e1db027a71d23ddd8f00db1"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-441/T2"
+          },
+          "result": "passed"
+        },
+        "review": {
+          "evidence": {
+            "engineering-quality": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": "explorer/assets/explorer.css:100\u2013104 defines a grid of bordered cards without connectors. The only connector rule, `.flow li + li::before`, is inside the `max-width: 52rem` media query at lines 112\u2013118, so wider viewports have no arrows or connecting lines. design.md decision 2 describes the overview as connected steps.",
+                  "id": "desktop-flow-disconnected",
+                  "severity": "advisory",
+                  "summary": "The desktop lifecycle flow renders as disconnected cards, weakening the visual progression between stages."
+                }
+              ],
+              "perspective": "engineering-quality",
+              "report_sha256": "178b5f72eda4409d85dac75c2884c61eb7faeabc2f5541ac091ee66b51f17146"
+            },
+            "spec-fidelity": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": "openspec/changes/add-explorer-lifecycle-journey/design.md:8 says a stage id \u201cmay not collide\u201d with an element id. docs/engineering/explorer.md explicitly allows equal ids, and tests/test_build_explorer.py::test_stage_may_share_an_id_with_an_element requires the build to accept them.",
+                  "id": "stage-id-contract-contradiction",
+                  "severity": "advisory",
+                  "summary": "The design contradicts the implemented stage-id namespace rule."
+                },
+                {
+                  "evidence": "openspec/changes/add-explorer-lifecycle-journey/design.md:6 requires an ordered list rendered as connected steps. explorer/assets/explorer.css:100\u2013104 renders separated grid cards; the only connector rule appears at line 118 inside the max-width:52rem media query, so wide-screen steps have no connections.",
+                  "id": "wide-flow-missing-connections",
+                  "severity": "advisory",
+                  "summary": "The wide-screen lifecycle flow lacks the connected steps promised by the design."
+                }
+              ],
+              "perspective": "spec-fidelity",
+              "report_sha256": "0bf6a7dc26d0c51b8c589d53ca2bbf6b267469406aac5d0c9511d0c4bfecc247"
+            }
+          },
+          "identity": {
+            "change": "add-explorer-lifecycle-journey",
+            "contribution_base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+            "kind": "contribution",
+            "requirement": "pln_a6e994680e3fd75bbc3c91e4cbbddc95",
+            "source_issue": "pln_b376b70307206f190d2b5614ff1caa35",
+            "target_branch": "requirement/BR-441",
+            "task_content": {
+              "base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+              "digest": "e36f3147bbcef228643538d62814a6ef122ef78a2b74b08e9d6e868473fd239e",
+              "paths": {
+                "docs/engineering/explorer.md": "9d43b51fdd9c7f0cb1056625a39be0ac94e8625c",
+                "explorer/assets/explorer.css": "98e62c2c594b0c0d9bab33ddef4ec285b2307771",
+                "explorer/map.toml": "69aca51d929f622211f6dc065d1f650430b875be",
+                "openspec/changes/add-explorer-lifecycle-journey/.managed-task.json": "c17b23b9e15dd19facf51b6bedcd320a3784d2c6",
+                "openspec/changes/add-explorer-lifecycle-journey/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
+                "openspec/changes/add-explorer-lifecycle-journey/design.md": "a7071d963fec9b8ea433c4f7a78b7c46371c45e3",
+                "openspec/changes/add-explorer-lifecycle-journey/proposal.md": "7e016dfc744f3574c646f8b080b9e4c9215ce4f1",
+                "openspec/changes/add-explorer-lifecycle-journey/specs/platform-explorer/spec.md": "9e89db929c9d01200923747ab2ea254e9d8f3b4c",
+                "openspec/changes/add-explorer-lifecycle-journey/tasks.md": "2c609db9d04edeae7b3747be0be45110e002c08c",
+                "scripts/build_explorer.py": "d5ad147790017107d91a9eabe97eec703e519d89",
+                "tests/test_build_explorer.py": "32135c7da8781c525e1db027a71d23ddd8f00db1"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-441/T2"
+          },
+          "result": "passed"
+        },
+        "selected-checks": {
+          "evidence": {
+            "bytes": 6457,
+            "path": "openspec/changes/add-explorer-lifecycle-journey/automated-checks.json",
+            "sha256": "61e8ec57d3f223daf66b9c56e60240c53e59f9cb0e9a7302c82ba16425dfed41"
+          },
+          "identity": {
+            "change": "add-explorer-lifecycle-journey",
+            "contribution_base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+            "kind": "contribution",
+            "requirement": "pln_a6e994680e3fd75bbc3c91e4cbbddc95",
+            "source_issue": "pln_b376b70307206f190d2b5614ff1caa35",
+            "target_branch": "requirement/BR-441",
+            "task_content": {
+              "base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+              "digest": "e36f3147bbcef228643538d62814a6ef122ef78a2b74b08e9d6e868473fd239e",
+              "paths": {
+                "docs/engineering/explorer.md": "9d43b51fdd9c7f0cb1056625a39be0ac94e8625c",
+                "explorer/assets/explorer.css": "98e62c2c594b0c0d9bab33ddef4ec285b2307771",
+                "explorer/map.toml": "69aca51d929f622211f6dc065d1f650430b875be",
+                "openspec/changes/add-explorer-lifecycle-journey/.managed-task.json": "c17b23b9e15dd19facf51b6bedcd320a3784d2c6",
+                "openspec/changes/add-explorer-lifecycle-journey/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
+                "openspec/changes/add-explorer-lifecycle-journey/design.md": "a7071d963fec9b8ea433c4f7a78b7c46371c45e3",
+                "openspec/changes/add-explorer-lifecycle-journey/proposal.md": "7e016dfc744f3574c646f8b080b9e4c9215ce4f1",
+                "openspec/changes/add-explorer-lifecycle-journey/specs/platform-explorer/spec.md": "9e89db929c9d01200923747ab2ea254e9d8f3b4c",
+                "openspec/changes/add-explorer-lifecycle-journey/tasks.md": "2c609db9d04edeae7b3747be0be45110e002c08c",
+                "scripts/build_explorer.py": "d5ad147790017107d91a9eabe97eec703e519d89",
+                "tests/test_build_explorer.py": "32135c7da8781c525e1db027a71d23ddd8f00db1"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-441/T2"
+          },
+          "result": "passed"
+        },
+        "semantic-verification": {
+          "evidence": {
+            "bytes": 2229,
+            "path": "openspec/changes/add-explorer-lifecycle-journey/verification.md",
+            "sha256": "ca988885ce4d664fffb9fc474145f6c0303575f5f5b3350f2b2bec50b35db98b"
+          },
+          "identity": {
+            "change": "add-explorer-lifecycle-journey",
+            "contribution_base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+            "kind": "contribution",
+            "requirement": "pln_a6e994680e3fd75bbc3c91e4cbbddc95",
+            "source_issue": "pln_b376b70307206f190d2b5614ff1caa35",
+            "target_branch": "requirement/BR-441",
+            "task_content": {
+              "base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+              "digest": "e36f3147bbcef228643538d62814a6ef122ef78a2b74b08e9d6e868473fd239e",
+              "paths": {
+                "docs/engineering/explorer.md": "9d43b51fdd9c7f0cb1056625a39be0ac94e8625c",
+                "explorer/assets/explorer.css": "98e62c2c594b0c0d9bab33ddef4ec285b2307771",
+                "explorer/map.toml": "69aca51d929f622211f6dc065d1f650430b875be",
+                "openspec/changes/add-explorer-lifecycle-journey/.managed-task.json": "c17b23b9e15dd19facf51b6bedcd320a3784d2c6",
+                "openspec/changes/add-explorer-lifecycle-journey/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
+                "openspec/changes/add-explorer-lifecycle-journey/design.md": "a7071d963fec9b8ea433c4f7a78b7c46371c45e3",
+                "openspec/changes/add-explorer-lifecycle-journey/proposal.md": "7e016dfc744f3574c646f8b080b9e4c9215ce4f1",
+                "openspec/changes/add-explorer-lifecycle-journey/specs/platform-explorer/spec.md": "9e89db929c9d01200923747ab2ea254e9d8f3b4c",
+                "openspec/changes/add-explorer-lifecycle-journey/tasks.md": "2c609db9d04edeae7b3747be0be45110e002c08c",
+                "scripts/build_explorer.py": "d5ad147790017107d91a9eabe97eec703e519d89",
+                "tests/test_build_explorer.py": "32135c7da8781c525e1db027a71d23ddd8f00db1"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-441/T2"
+          },
+          "result": "passed"
+        }
+      },
+      "head": "ec1b2504624244d079fb1c73a997089cfbe1e0b7",
+      "integrated_head": "acbe852ab9a0b80af2d2c556bad16073ace7daa6",
+      "pr_number": 475,
+      "reviewed_evidence_digest": "394ec274cb8d3609cd6d0e01eb93a790b716a0e8d427b40586e9cac309bfef16",
+      "source_branch": "agent/br-441-t2-add-explorer-lifecycle-journey",
+      "source_issue": "pln_b376b70307206f190d2b5614ff1caa35",
+      "task_identity": {
+        "change": "add-explorer-lifecycle-journey",
+        "contribution_base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+        "kind": "contribution",
+        "requirement": "pln_a6e994680e3fd75bbc3c91e4cbbddc95",
+        "source_issue": "pln_b376b70307206f190d2b5614ff1caa35",
+        "target_branch": "requirement/BR-441",
+        "task_content": {
+          "base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+          "digest": "e36f3147bbcef228643538d62814a6ef122ef78a2b74b08e9d6e868473fd239e",
+          "paths": {
+            "docs/engineering/explorer.md": "9d43b51fdd9c7f0cb1056625a39be0ac94e8625c",
+            "explorer/assets/explorer.css": "98e62c2c594b0c0d9bab33ddef4ec285b2307771",
+            "explorer/map.toml": "69aca51d929f622211f6dc065d1f650430b875be",
+            "openspec/changes/add-explorer-lifecycle-journey/.managed-task.json": "c17b23b9e15dd19facf51b6bedcd320a3784d2c6",
+            "openspec/changes/add-explorer-lifecycle-journey/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
+            "openspec/changes/add-explorer-lifecycle-journey/design.md": "a7071d963fec9b8ea433c4f7a78b7c46371c45e3",
+            "openspec/changes/add-explorer-lifecycle-journey/proposal.md": "7e016dfc744f3574c646f8b080b9e4c9215ce4f1",
+            "openspec/changes/add-explorer-lifecycle-journey/specs/platform-explorer/spec.md": "9e89db929c9d01200923747ab2ea254e9d8f3b4c",
+            "openspec/changes/add-explorer-lifecycle-journey/tasks.md": "2c609db9d04edeae7b3747be0be45110e002c08c",
+            "scripts/build_explorer.py": "d5ad147790017107d91a9eabe97eec703e519d89",
+            "tests/test_build_explorer.py": "32135c7da8781c525e1db027a71d23ddd8f00db1"
+          },
+          "scope": "independent-review-v1",
+          "version": 1
+        },
+        "work_identity": "BR-441/T2"
+      },
+      "work_identity": "BR-441/T2"
+    },
+    {
+      "change": "publish-platform-explorer",
+      "contribution_base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+      "gates": {
+        "developer-friction": {
+          "evidence": {
+            "command": [
+              "python3",
+              "/Users/Shared/Workspace/dev-platform/.claude/worktrees/publish-platform-explorer/scripts/agent_friction.py",
+              "assert-checkpoint",
+              "--exact-head"
+            ],
+            "head": "01073af9b1a9e3bf565c050a1653fedf8cfc139f"
+          },
+          "identity": {
+            "change": "publish-platform-explorer",
+            "contribution_base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+            "kind": "contribution",
+            "requirement": "pln_a6e994680e3fd75bbc3c91e4cbbddc95",
+            "source_issue": "pln_c16543f4159fb0aabefe7b0c56fa02ad",
+            "target_branch": "requirement/BR-441",
+            "task_content": {
+              "base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+              "digest": "4fef4afbd8caa9b92a230a1da1e3a153fb6cecf768e686d6f9cf0ee6bd055e63",
+              "paths": {
+                ".github/workflows/explorer.yml": "f94babca8b923a36cdaf364515d9f708eae56bc2",
+                "dev-platform/checks.toml": "a5cb110eaa5b6b0169714dfa47c560ed4030f3da",
+                "docs/engineering/explorer.md": "1e6d3c973312974bd44779679bd8496474a275f8",
+                "openspec/changes/publish-platform-explorer/.managed-task.json": "97a85c1afd208da12e56e5520d310090a84cc2c7",
+                "openspec/changes/publish-platform-explorer/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
+                "openspec/changes/publish-platform-explorer/design.md": "2ba65f428717ba55560ef0fd0e3269a54d4096c3",
+                "openspec/changes/publish-platform-explorer/proposal.md": "4f65573bb6b695a027c411d47a1d278aa72366fa",
+                "openspec/changes/publish-platform-explorer/specs/explorer-publication/spec.md": "1fb0aa10693620c191df44481c530501c193abc4",
+                "openspec/changes/publish-platform-explorer/tasks.md": "144fd572bf46bcf52e1159074b1d4386d3e96797",
+                "tests/test_explorer_workflow.py": "7c0c142a27ab49f3f9e1a9d4abb5c5f54d048a3d"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-441/T3"
+          },
+          "result": "passed"
+        },
+        "required-checks": {
+          "evidence": {
+            "checks": [
+              {
+                "name": "validate",
+                "state": "success"
+              }
+            ],
+            "detail": "",
+            "head": "1fe484e790994997d469cb9cb7bee4c3b0ee9ec2",
+            "kind": "passed"
+          },
+          "identity": {
+            "change": "publish-platform-explorer",
+            "contribution_base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+            "kind": "contribution",
+            "requirement": "pln_a6e994680e3fd75bbc3c91e4cbbddc95",
+            "source_issue": "pln_c16543f4159fb0aabefe7b0c56fa02ad",
+            "target_branch": "requirement/BR-441",
+            "task_content": {
+              "base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+              "digest": "4fef4afbd8caa9b92a230a1da1e3a153fb6cecf768e686d6f9cf0ee6bd055e63",
+              "paths": {
+                ".github/workflows/explorer.yml": "f94babca8b923a36cdaf364515d9f708eae56bc2",
+                "dev-platform/checks.toml": "a5cb110eaa5b6b0169714dfa47c560ed4030f3da",
+                "docs/engineering/explorer.md": "1e6d3c973312974bd44779679bd8496474a275f8",
+                "openspec/changes/publish-platform-explorer/.managed-task.json": "97a85c1afd208da12e56e5520d310090a84cc2c7",
+                "openspec/changes/publish-platform-explorer/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
+                "openspec/changes/publish-platform-explorer/design.md": "2ba65f428717ba55560ef0fd0e3269a54d4096c3",
+                "openspec/changes/publish-platform-explorer/proposal.md": "4f65573bb6b695a027c411d47a1d278aa72366fa",
+                "openspec/changes/publish-platform-explorer/specs/explorer-publication/spec.md": "1fb0aa10693620c191df44481c530501c193abc4",
+                "openspec/changes/publish-platform-explorer/tasks.md": "144fd572bf46bcf52e1159074b1d4386d3e96797",
+                "tests/test_explorer_workflow.py": "7c0c142a27ab49f3f9e1a9d4abb5c5f54d048a3d"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-441/T3"
+          },
+          "result": "passed"
+        },
+        "review": {
+          "evidence": {
+            "engineering-quality": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": ".github/workflows/explorer.yml:30-32 and 63-65 serialize build and deploy jobs separately, and the deployment condition at line 53 checks only branch and event. A delayed or rerun older workflow can therefore deploy after a newer commit has published, leaving Pages stale until another publication. GitHub documents that concurrency ordering follows when jobs begin waiting, rather than workflow dispatch order: [GitHub concurrency documentation](https://docs.github.com/en/actions/how-tos/write-work",
+                  "id": "stale-deployment-order",
+                  "severity": "advisory",
+                  "summary": "Deployment concurrency prevents overlap but does not prevent an older run from replacing a newer published site."
+                }
+              ],
+              "perspective": "engineering-quality",
+              "report_sha256": "fbe0bd3a56f65522ea69b6fe9c20e667e87be41734639a496c91feb8232ce69a"
+            },
+            "spec-fidelity": {
+              "availability": "available",
+              "findings": [],
+              "perspective": "spec-fidelity",
+              "report_sha256": "8932f22155e99af0504466fdd36433ccf324cc6fa40e7a8f25b78f502d34dea0"
+            }
+          },
+          "identity": {
+            "change": "publish-platform-explorer",
+            "contribution_base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+            "kind": "contribution",
+            "requirement": "pln_a6e994680e3fd75bbc3c91e4cbbddc95",
+            "source_issue": "pln_c16543f4159fb0aabefe7b0c56fa02ad",
+            "target_branch": "requirement/BR-441",
+            "task_content": {
+              "base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+              "digest": "4fef4afbd8caa9b92a230a1da1e3a153fb6cecf768e686d6f9cf0ee6bd055e63",
+              "paths": {
+                ".github/workflows/explorer.yml": "f94babca8b923a36cdaf364515d9f708eae56bc2",
+                "dev-platform/checks.toml": "a5cb110eaa5b6b0169714dfa47c560ed4030f3da",
+                "docs/engineering/explorer.md": "1e6d3c973312974bd44779679bd8496474a275f8",
+                "openspec/changes/publish-platform-explorer/.managed-task.json": "97a85c1afd208da12e56e5520d310090a84cc2c7",
+                "openspec/changes/publish-platform-explorer/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
+                "openspec/changes/publish-platform-explorer/design.md": "2ba65f428717ba55560ef0fd0e3269a54d4096c3",
+                "openspec/changes/publish-platform-explorer/proposal.md": "4f65573bb6b695a027c411d47a1d278aa72366fa",
+                "openspec/changes/publish-platform-explorer/specs/explorer-publication/spec.md": "1fb0aa10693620c191df44481c530501c193abc4",
+                "openspec/changes/publish-platform-explorer/tasks.md": "144fd572bf46bcf52e1159074b1d4386d3e96797",
+                "tests/test_explorer_workflow.py": "7c0c142a27ab49f3f9e1a9d4abb5c5f54d048a3d"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-441/T3"
+          },
+          "result": "passed"
+        },
+        "selected-checks": {
+          "evidence": {
+            "bytes": 7144,
+            "path": "openspec/changes/publish-platform-explorer/automated-checks.json",
+            "sha256": "5a15b3fa3146ea33d1cbeb666584f9beacd61b5078dc12e5f48d43592cbc4de4"
+          },
+          "identity": {
+            "change": "publish-platform-explorer",
+            "contribution_base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+            "kind": "contribution",
+            "requirement": "pln_a6e994680e3fd75bbc3c91e4cbbddc95",
+            "source_issue": "pln_c16543f4159fb0aabefe7b0c56fa02ad",
+            "target_branch": "requirement/BR-441",
+            "task_content": {
+              "base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+              "digest": "4fef4afbd8caa9b92a230a1da1e3a153fb6cecf768e686d6f9cf0ee6bd055e63",
+              "paths": {
+                ".github/workflows/explorer.yml": "f94babca8b923a36cdaf364515d9f708eae56bc2",
+                "dev-platform/checks.toml": "a5cb110eaa5b6b0169714dfa47c560ed4030f3da",
+                "docs/engineering/explorer.md": "1e6d3c973312974bd44779679bd8496474a275f8",
+                "openspec/changes/publish-platform-explorer/.managed-task.json": "97a85c1afd208da12e56e5520d310090a84cc2c7",
+                "openspec/changes/publish-platform-explorer/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
+                "openspec/changes/publish-platform-explorer/design.md": "2ba65f428717ba55560ef0fd0e3269a54d4096c3",
+                "openspec/changes/publish-platform-explorer/proposal.md": "4f65573bb6b695a027c411d47a1d278aa72366fa",
+                "openspec/changes/publish-platform-explorer/specs/explorer-publication/spec.md": "1fb0aa10693620c191df44481c530501c193abc4",
+                "openspec/changes/publish-platform-explorer/tasks.md": "144fd572bf46bcf52e1159074b1d4386d3e96797",
+                "tests/test_explorer_workflow.py": "7c0c142a27ab49f3f9e1a9d4abb5c5f54d048a3d"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-441/T3"
+          },
+          "result": "passed"
+        },
+        "semantic-verification": {
+          "evidence": {
+            "bytes": 3179,
+            "path": "openspec/changes/publish-platform-explorer/verification.md",
+            "sha256": "ab4d1d8ecf2523434989dc974d41984b85dc4183bf3b5b1d6d8a32c1dd9dfc86"
+          },
+          "identity": {
+            "change": "publish-platform-explorer",
+            "contribution_base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+            "kind": "contribution",
+            "requirement": "pln_a6e994680e3fd75bbc3c91e4cbbddc95",
+            "source_issue": "pln_c16543f4159fb0aabefe7b0c56fa02ad",
+            "target_branch": "requirement/BR-441",
+            "task_content": {
+              "base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+              "digest": "4fef4afbd8caa9b92a230a1da1e3a153fb6cecf768e686d6f9cf0ee6bd055e63",
+              "paths": {
+                ".github/workflows/explorer.yml": "f94babca8b923a36cdaf364515d9f708eae56bc2",
+                "dev-platform/checks.toml": "a5cb110eaa5b6b0169714dfa47c560ed4030f3da",
+                "docs/engineering/explorer.md": "1e6d3c973312974bd44779679bd8496474a275f8",
+                "openspec/changes/publish-platform-explorer/.managed-task.json": "97a85c1afd208da12e56e5520d310090a84cc2c7",
+                "openspec/changes/publish-platform-explorer/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
+                "openspec/changes/publish-platform-explorer/design.md": "2ba65f428717ba55560ef0fd0e3269a54d4096c3",
+                "openspec/changes/publish-platform-explorer/proposal.md": "4f65573bb6b695a027c411d47a1d278aa72366fa",
+                "openspec/changes/publish-platform-explorer/specs/explorer-publication/spec.md": "1fb0aa10693620c191df44481c530501c193abc4",
+                "openspec/changes/publish-platform-explorer/tasks.md": "144fd572bf46bcf52e1159074b1d4386d3e96797",
+                "tests/test_explorer_workflow.py": "7c0c142a27ab49f3f9e1a9d4abb5c5f54d048a3d"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-441/T3"
+          },
+          "result": "passed"
+        }
+      },
+      "head": "1fe484e790994997d469cb9cb7bee4c3b0ee9ec2",
+      "integrated_head": "bbf023afd24995ad5cc0e26d98aefb8454f93ca3",
+      "pr_number": 476,
+      "reviewed_evidence_digest": "0a37938c62ade94b8c73df8af0490db447f47114accb88e6e89f88c864bb1592",
+      "source_branch": "agent/br-441-t3-publish-platform-explorer",
+      "source_issue": "pln_c16543f4159fb0aabefe7b0c56fa02ad",
+      "task_identity": {
+        "change": "publish-platform-explorer",
+        "contribution_base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+        "kind": "contribution",
+        "requirement": "pln_a6e994680e3fd75bbc3c91e4cbbddc95",
+        "source_issue": "pln_c16543f4159fb0aabefe7b0c56fa02ad",
+        "target_branch": "requirement/BR-441",
+        "task_content": {
+          "base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+          "digest": "4fef4afbd8caa9b92a230a1da1e3a153fb6cecf768e686d6f9cf0ee6bd055e63",
+          "paths": {
+            ".github/workflows/explorer.yml": "f94babca8b923a36cdaf364515d9f708eae56bc2",
+            "dev-platform/checks.toml": "a5cb110eaa5b6b0169714dfa47c560ed4030f3da",
+            "docs/engineering/explorer.md": "1e6d3c973312974bd44779679bd8496474a275f8",
+            "openspec/changes/publish-platform-explorer/.managed-task.json": "97a85c1afd208da12e56e5520d310090a84cc2c7",
+            "openspec/changes/publish-platform-explorer/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
+            "openspec/changes/publish-platform-explorer/design.md": "2ba65f428717ba55560ef0fd0e3269a54d4096c3",
+            "openspec/changes/publish-platform-explorer/proposal.md": "4f65573bb6b695a027c411d47a1d278aa72366fa",
+            "openspec/changes/publish-platform-explorer/specs/explorer-publication/spec.md": "1fb0aa10693620c191df44481c530501c193abc4",
+            "openspec/changes/publish-platform-explorer/tasks.md": "144fd572bf46bcf52e1159074b1d4386d3e96797",
+            "tests/test_explorer_workflow.py": "7c0c142a27ab49f3f9e1a9d4abb5c5f54d048a3d"
+          },
+          "scope": "independent-review-v1",
+          "version": 1
+        },
+        "work_identity": "BR-441/T3"
+      },
+      "work_identity": "BR-441/T3"
+    }
+  ],
+  "dependencies": {
+    "add-explorer-lifecycle-journey": [
+      "add-platform-explorer-foundation"
+    ],
+    "add-platform-explorer-foundation": [],
+    "publish-platform-explorer": [
+      "add-platform-explorer-foundation"
+    ]
+  },
+  "digest": "c5ba8698988f8c62973a6a910605bf5051643e0ebfe500ec61076a9f742e10d5",
+  "expected_changes": [
+    "add-platform-explorer-foundation",
+    "add-explorer-lifecycle-journey",
+    "publish-platform-explorer"
+  ],
+  "integration_branch": "requirement/BR-441",
+  "repository": "lehard/dev-platform",
+  "requirement": "pln_a6e994680e3fd75bbc3c91e4cbbddc95",
+  "version": 2,
+  "work_identity": "BR-441"
+}

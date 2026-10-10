@@ -96,6 +96,17 @@ Generated agent integrations do not require platform edits to a mature project's
 
 After Copier renders or updates a stable release, `scripts/platform_bootstrap.py` synchronizes `.dev-platform.toml` `platform_version` from `.copier-answers.yml` `_commit`. Managed rollout and platform doctor both reject a stable-tag state where those two version records disagree.
 
+## Downstream CI runner selection
+
+Platform-rendered GitHub Actions jobs (`platform-ci` in `dev-platform.yml` and `provision` in `process-health-labels.yml`) take their `runs-on` from two recorded Copier answers instead of a hand edit:
+
+- `ci_runner`: `github-hosted` (default, renders `runs-on: ubuntu-latest`) or `self-hosted`.
+- `ci_runner_labels`: asked only for `self-hosted`; comma-separated runner labels. One label renders `runs-on: <label>` when YAML reads it as a string (it starts with a letter and is not a word such as `yes`, `on` or `null`) and quoted otherwise (`runs-on: "123"`); several render a JSON-style flow list such as `runs-on: ["a", "b"]`. Each label must match `[A-Za-z0-9._-]+`, with no empty entries or duplicates.
+
+For `self-hosted`, `platform-ci` also runs `python3 scripts/shared_workspace.py fix` before `platform_doctor`. The label-provisioning job calls the GitHub REST API with `curl` for both runner kinds, so it needs no `gh` CLI on the runner. Copier records the answers in `.copier-answers.yml` and preserves them on update. `platform_doctor` fails explicitly when `ci_runner` is missing, the labels are malformed, or the committed `platform-ci` runner or repair step, or the `provision` runner in `process-health-labels.yml` (which must exist), disagrees with the answers. The committed runner must keep its exact rendered form, and so must the repair step (no changed command or added condition) before `platform_doctor`.
+
+A project that previously hand-edited `runs-on` in these platform-owned workflows must record the equivalent answers before the rollout that introduces this version: add `ci_runner: self-hosted` and `ci_runner_labels: <labels>` to `.copier-answers.yml`. Copier still rejects the replayed hand edit, because the new template changed the same lines; guarded rollout recovers such a conflicted platform path only when the committed file is byte-identical to the new template rendered with the recorded answers, and then rewrites it to the same bytes. A hand edit that matches the rendered form (`runs-on: <label>`, the repair step with its exact name and command, directly before `platform_doctor`) migrates this way. Without the answers, or with a hand edit that differs in any byte, the byte-sensitive ownership check blocks the rollout instead of resetting the runner to `ubuntu-latest`.
+
 ## One-time GitHub App setup
 
 The repository `GITHUB_TOKEN` is intentionally scoped to `dev-platform`, so cross-repository onboarding and rollout use a dedicated GitHub App.

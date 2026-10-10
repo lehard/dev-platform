@@ -83,6 +83,7 @@ REVIEWED_BASELINE: dict[str, int] = {
     'agent_doctor.py:ensure_git_hooks:write_bytes': 1,
     'agent_friction.py:cmd_promote:NamedTemporaryFile': 1,
     'agent_friction.py:append_coordinator_event:open': 1,
+    'agent_friction.py:attribute_event:open': 1,
     'agent_friction.py:cmd_record:open': 1,
     'agent_friction.py:friction_lock:open': 1,
     'browser_verification.py:main:write_text': 1,

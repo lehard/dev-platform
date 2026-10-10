@@ -41,7 +41,10 @@ def validate_children(checkout: Path, manifest: dict) -> None:
         # Bind the reviewed identity to its preserved contribution head. Later
         # contributions and composition repairs may extend the same files.
         with tempfile.TemporaryDirectory(prefix="composition-child-") as temporary:
-            child_checkout = workers.prepare_checkout(str(checkout), temporary, "harness", child["head"])
+            # The harness contract comes from the trusted composition checkout: a child
+            # head reviewed before the public source contract existed carries none.
+            child_checkout = workers.prepare_checkout(str(checkout), temporary, "harness", child["head"],
+                                                      contract_from=checkout / ".dev-platform.toml")
             from task_content_identity import review_content_identity
             actual = review_content_identity(child_checkout, child["change"], child["contribution_base"])
             if actual != identity["task_content"]:
@@ -116,9 +119,49 @@ def review_diff_paths(checkout: Path, manifest: dict, identity: dict) -> list[st
     return paths
 
 
+def private_lineage_requirement(manifest: dict) -> bool:
+    """A Requirement published only through its opaque private-lineage handle."""
+    return not integration.ISSUE_RE.fullmatch(manifest["requirement"])
+
+
+def requirement_outcome(body: str) -> str:
+    """The `## Outcome` section of a Requirement body; a body without one fails."""
+    lines = body.splitlines()
+    try:
+        start = next(i for i, line in enumerate(lines) if line.strip() == "## Outcome") + 1
+    except StopIteration:
+        raise workers.WorkerError("Requirement body has no `## Outcome` section") from None
+    end = next((i for i in range(start, len(lines)) if lines[i].startswith("## ")), len(lines))
+    outcome = "\n".join(lines[start:end]).strip()
+    if not outcome:
+        raise workers.WorkerError("Requirement `## Outcome` section is empty")
+    return outcome
+
+
+def require_no_private_references(trusted_root: Path, evidence: list[Path]) -> None:
+    """Fail before committing composition evidence that names a private Backlog Issue directly."""
+    import importlib.util
+    from _platform_common import read_platform_config
+
+    guard_path = trusted_root / "scripts" / "check_private_backlog_refs.py"
+    if not guard_path.is_file():
+        raise workers.WorkerError("private lineage needs scripts/check_private_backlog_refs.py in the trusted root")
+    spec = importlib.util.spec_from_file_location("check_private_backlog_refs", guard_path)
+    guard = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(guard)
+    repository = read_platform_config(trusted_root).get("development_backlog", {}).get("repository")
+    if not repository:
+        raise workers.WorkerError("private-reference check needs the configured Backlog repository")
+    pattern = guard.private_reference_pattern(repository)
+    leaking = sorted(path.name for path in evidence if pattern.search(path.read_text(encoding="utf-8")))
+    if leaking:
+        raise workers.WorkerError("composition evidence would publish a direct private Backlog reference in "
+                                  + ", ".join(leaking))
+
+
 def execute_composition_review(checkout: Path, job: dict, *, source_repo: str, branch: str, current_head,
-                               runner=subprocess.run, launcher=None, review_config=None, before_push=None,
-                               claim_current=lambda: True, push_env=None) -> dict:
+                               trusted_root: Path, runner=subprocess.run, launcher=None, review_config=None,
+                               before_push=None, claim_current=lambda: True, push_env=None) -> dict:
     from independent_review import PERSPECTIVES, _validate_report
     import independent_review_runner as reviewer
 
@@ -127,10 +170,14 @@ def execute_composition_review(checkout: Path, job: dict, *, source_repo: str, b
     actual = composition_identity(checkout, manifest)
     if actual != identity:
         raise workers.WorkerError("composition content differs from the offered job")
-    # The Requirement outcome is obtained by trusted coordinator I/O before the LLM step.
+    # The Requirement outcome is obtained by trusted coordinator I/O before the LLM step: the
+    # disposable checkout carries only the public contract and must know nothing private.
     import managed_task
-    issue = managed_task.fetch_issue(checkout, *managed_task.issue_ref(contributions.private_requirement(checkout, manifest)))
-    request = prepare_request(checkout, manifest, str(issue.get("body") or ""))
+    private = private_lineage_requirement(manifest)
+    issue = managed_task.fetch_issue(trusted_root, *managed_task.issue_ref(contributions.private_requirement(trusted_root, manifest)))
+    body = str(issue.get("body") or "")
+    # A private Requirement contributes only its outcome; its body also lists private child Issues.
+    request = prepare_request(checkout, manifest, requirement_outcome(body) if private else body)
     validate_request(request, identity)
     config = reviewer.settings(checkout) if review_config is None else review_config
     clean = workers.credential_free_env(dict(os.environ), checkout.parent / "llm-home")
@@ -165,6 +212,8 @@ def execute_composition_review(checkout: Path, job: dict, *, source_repo: str, b
     (directory / "request.json").write_text(json.dumps(request, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     for perspective, report in reports.items():
         (directory / f"{perspective}.json").write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if private:
+        require_no_private_references(trusted_root, sorted(directory.glob("*.json")))
     workers.harness_git(harness, "add", "--", str(directory.relative_to(harness)))
     workers.harness_git(harness, "-c", "user.name=Lifecycle harness", "-c", "user.email=lifecycle@localhost",
                         "commit", "-m", "Record Requirement composition review")
@@ -357,7 +406,11 @@ def advance_final_publication(root: Path, repo: str, manifest: dict, head: str, 
             return {"status": "await-requirement-retrospective", "head": head}
         full = candidate.get("gates", {}).get("full-checks", {})
         if full.get("evidence", {}).get("head") != head or not reusable(checkout, full, identity):
-            (full_checks or integration._run_full_checks)(checkout)
+            if full_checks is not None:
+                full_checks(checkout)
+            else:
+                # The disposable checkout has only the public contract; the trusted root supplies the registry.
+                integration._run_full_checks(checkout, trusted_root=root)
         if adapter._pr(root, repo, number).get("head", {}).get("sha") != head:
             return {"status": "discarded"}
         gates = {**candidate["gates"],

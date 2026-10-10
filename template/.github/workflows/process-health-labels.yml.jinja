@@ -1,3 +1,4 @@
+{% set runner_labels = ci_runner_labels.split(',') | map('trim') | list if ci_runner == 'self-hosted' else [] %}{% set plain_label = runner_labels | length == 1 and runner_labels[0][:1].isalpha() and runner_labels[0].isascii() and runner_labels[0].replace('-', '').replace('_', '').replace('.', '').isalnum() and runner_labels[0].lower() not in ['y', 'n', 'yes', 'no', 'true', 'false', 'on', 'off', 'null'] -%}
 name: Provision Process Health Labels
 
 on:
@@ -8,7 +9,7 @@ permissions:
 
 jobs:
   provision:
-    runs-on: ubuntu-latest
+    runs-on: {{ 'ubuntu-latest' if ci_runner == 'github-hosted' else (runner_labels[0] if plain_label else (runner_labels[0] | tojson if runner_labels | length == 1 else runner_labels | tojson)) }}
     timeout-minutes: 5
     steps:
       - name: Ensure bounded lifecycle label exists
@@ -16,8 +17,9 @@ jobs:
           GH_TOKEN: {% raw %}${{ github.token }}{% endraw %}
           REPOSITORY: {% raw %}${{ github.repository }}{% endraw %}
         run: |
-          if ! gh api "repos/${REPOSITORY}/labels/process%3Amanaged" >/dev/null 2>&1; then
-            gh api --method POST "repos/${REPOSITORY}/labels" \
-              -f name='process:managed' -f color='1d76db' \
-              -f description='Process evidence linked to an active managed task'
+          AUTH="Authorization: Bearer ${GH_TOKEN}"
+          if ! curl -fsS -H "$AUTH" "https://api.github.com/repos/${REPOSITORY}/labels/process%3Amanaged" >/dev/null 2>&1; then
+            curl -fsS -X POST -H "$AUTH" -H 'Content-Type: application/json' \
+              "https://api.github.com/repos/${REPOSITORY}/labels" \
+              -d '{"name":"process:managed","color":"1d76db","description":"Process evidence linked to an active managed task"}'
           fi

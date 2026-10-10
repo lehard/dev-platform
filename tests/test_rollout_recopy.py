@@ -674,6 +674,94 @@ if __name__ == "__main__":
             {"scripts/finish_task.py", "tests/test_git_lifecycle.py"},
         )
 
+    def test_target_equivalence_accepts_only_files_identical_to_the_target_render(self) -> None:
+        downstream = {
+            ".github/workflows/dev-platform.yml": ("file", "target"),
+            ".github/workflows/process-health-labels.yml": ("file", "hand-edit"),
+            "scripts/removed.py": ("missing", ""),
+        }
+        target = {
+            ".github/workflows/dev-platform.yml": ("file", "target"),
+            ".github/workflows/process-health-labels.yml": ("file", "target"),
+            "scripts/removed.py": ("missing", ""),
+        }
+
+        def fake_git_tree(root, treeish, relative, *, normalize_baseline=False):
+            self.assertEqual(treeish, "HEAD")
+            self.assertFalse(normalize_baseline)
+            return downstream[relative]
+
+        def fake_render(tag, answers_text, relatives, *, env, baseline_equivalence=False, legacy_repository=None,
+                        operator_integration=False):
+            self.assertEqual(tag, "v1.9.5")
+            self.assertFalse(baseline_equivalence)
+            self.assertTrue(operator_integration)
+            self.assertEqual(relatives, set(downstream))
+            return target
+
+        with (
+            patch.object(rollout_project, "git_tree_path_fingerprint", side_effect=fake_git_tree),
+            patch.object(rollout_project, "rendered_template_fingerprints", side_effect=fake_render),
+        ):
+            proven = rollout_project.target_equivalent_conflict_paths(
+                self.root,
+                "v1.9.5",
+                set(downstream),
+                env=os.environ.copy(),
+                answers_text="_commit: v1.8.2\nci_runner: self-hosted\nci_runner_labels: alters\n",
+                operator_integration=True,
+            )
+        # A missing/missing pair is not proven: recopy could create the path.
+        self.assertEqual(proven, {".github/workflows/dev-platform.yml"})
+
+    def test_platform_mode_recovers_a_hand_edit_identical_to_the_target_render(self) -> None:
+        self.use_platform_mode()
+        workflow = ".github/workflows/dev-platform.yml"
+        commands: list[list[str]] = []
+        checked: list[dict] = []
+
+        def fake_run(command, cwd, **kwargs):
+            commands.append(command)
+            return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+
+        with (
+            patch.object(rollout_project, "run", side_effect=fake_run),
+            patch.object(rollout_project, "find_reject_files", side_effect=[[f"{workflow}.rej"], []]),
+            patch.object(rollout_project, "reset_failed_copier_update"),
+            patch.object(rollout_project, "baseline_equivalent_conflict_paths", return_value=set()),
+            patch.object(rollout_project, "target_equivalent_conflict_paths", return_value={workflow}) as proof,
+            patch.object(rollout_project, "rendered_template_fingerprints",
+                         side_effect=lambda tag, answers, relatives, **kwargs: {path: ("file", "t") for path in relatives}),
+            patch.object(rollout_project, "require_paths_match_rendered_template",
+                         side_effect=lambda root, expected: checked.append(expected)),
+        ):
+            strategy = rollout_project.copier_update_with_guarded_recopy(self.root, "v1.9.5", env=os.environ.copy())
+        self.assertEqual(strategy, "guarded-recopy")
+        self.assertTrue(any(command[:2] == ["copier", "recopy"] for command in commands))
+        # Proven before the reset and re-proven from HEAD after it, then the recopy result is checked.
+        self.assertEqual(proof.call_count, 2)
+        self.assertEqual(checked, [{workflow: ("file", "t")}])
+
+    def test_target_equivalence_that_changes_before_recopy_blocks(self) -> None:
+        self.use_platform_mode()
+        workflow = ".github/workflows/dev-platform.yml"
+        commands: list[list[str]] = []
+
+        def fake_run(command, cwd, **kwargs):
+            commands.append(command)
+            return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+
+        with (
+            patch.object(rollout_project, "run", side_effect=fake_run),
+            patch.object(rollout_project, "find_reject_files", return_value=[f"{workflow}.rej"]),
+            patch.object(rollout_project, "reset_failed_copier_update"),
+            patch.object(rollout_project, "baseline_equivalent_conflict_paths", return_value=set()),
+            patch.object(rollout_project, "target_equivalent_conflict_paths", side_effect=[{workflow}, set()]),
+        ):
+            with self.assertRaisesRegex(ValueError, "target-equivalent rollout proof changed before recopy"):
+                rollout_project.copier_update_with_guarded_recopy(self.root, "v1.9.5", env=os.environ.copy())
+        self.assertFalse(any(command[:2] == ["copier", "recopy"] for command in commands))
+
     def test_baseline_format_equivalence_allows_only_redundant_workflow_blank_lines(self) -> None:
         relative = ".github/workflows/dev-platform.yml"
         rendered = self.root / "rendered.yml"
@@ -960,6 +1048,7 @@ if __name__ == "__main__":
                 return_value=["scripts/project_publish.py.rej"],
             ),
             patch.object(rollout_project, "baseline_equivalent_conflict_paths", return_value=set()),
+            patch.object(rollout_project, "target_equivalent_conflict_paths", return_value=set()),
         ):
             with self.assertRaisesRegex(ValueError, "non-recoverable conflicts"):
                 rollout_project.copier_update_with_guarded_recopy(
@@ -1055,6 +1144,7 @@ if __name__ == "__main__":
                 return_value=["scripts/start_task.py.rej"],
             ),
             patch.object(rollout_project, "baseline_equivalent_conflict_paths", return_value=set()),
+            patch.object(rollout_project, "target_equivalent_conflict_paths", return_value=set()),
         ):
             with self.assertRaisesRegex(ValueError, "Copier left unresolved"):
                 rollout_project.copier_update_with_guarded_recopy(

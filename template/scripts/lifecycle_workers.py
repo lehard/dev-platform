@@ -408,8 +408,12 @@ def job_eligible(job: dict, *, review_ready=None, repair_ready=None) -> bool:
     return bool(set(named) & set(ready))
 
 
-def prepare_checkout(source: str, root: str, name: str, head: str) -> Path:
-    """Disposable checkout detached at the exact head (local sources reuse the sandbox helper)."""
+def prepare_checkout(source: str, root: str, name: str, head: str, *, contract_from: Path | None = None) -> Path:
+    """Disposable checkout detached at the exact head (local sources reuse the sandbox helper).
+
+    ``contract_from`` names the trusted installed contract to give a checkout that commits
+    none, instead of the head's own public contract (a historical head may predate it).
+    """
     if Path(source).is_absolute() and Path(source).is_dir():
         create = disposable_repository_sandbox.create
         path = create(source, root, name)
@@ -424,26 +428,32 @@ def prepare_checkout(source: str, root: str, name: str, head: str) -> Path:
                               capture_output=True, check=False, stdin=subprocess.DEVNULL)
         if done.returncode:
             raise WorkerError(f"git {step[0]} failed for {head}: {done.stderr.strip()}")
-    install_source_contract(path)
+    install_source_contract(path, contract_from)
     return path
 
 
 SOURCE_CONTRACT = Path("dev-platform") / "source-contract.toml"
 
 
-def install_source_contract(checkout: Path) -> None:
+def install_source_contract(checkout: Path, contract_from: Path | None = None) -> None:
     """Give a clean checkout the committed contract, exactly as the CI publication queue does.
 
     A project commits `.dev-platform.toml`. The source repository does not (its installed
     contract carries operator-only sections) and commits its public part as
     `dev-platform/source-contract.toml` instead. A checkout with neither has no contract.
+    With ``contract_from``, a checkout that commits no contract gets exactly that file.
     """
+    if contract_from is not None and not contract_from.is_file():
+        raise WorkerError(f"trusted platform contract {contract_from} is missing; cannot install it into {checkout}")
     contract = checkout / ".dev-platform.toml"
     if contract.exists():
         return
-    public = checkout / SOURCE_CONTRACT
-    if not public.is_file():
-        raise WorkerError(f"checkout {checkout} has neither .dev-platform.toml nor {SOURCE_CONTRACT}; no platform contract")
+    if contract_from is not None:
+        public = contract_from
+    else:
+        public = checkout / SOURCE_CONTRACT
+        if not public.is_file():
+            raise WorkerError(f"checkout {checkout} has neither .dev-platform.toml nor {SOURCE_CONTRACT}; no platform contract")
     shutil.copyfile(public, contract)
     # Installed, never candidate content: the source repository excludes it only locally.
     with (checkout / ".git" / "info" / "exclude").open("a", encoding="utf-8") as handle:

@@ -1084,6 +1084,45 @@ def baseline_equivalent_conflict_paths(
     return proven
 
 
+def target_equivalent_conflict_paths(
+    project_root: Path,
+    version: str,
+    relatives: set[str],
+    *,
+    env: dict[str, str],
+    answers_text: str,
+    legacy_repository: str | None = None,
+    operator_integration: bool = False,
+) -> set[str]:
+    """Prove the committed downstream file already equals its target template render.
+
+    Copier replays a downstream edit from the recorded old template and rejects a
+    hunk whose lines the target template itself changed, even when the edit and
+    the target agree (a customization the platform later absorbed into a recorded
+    answer, such as a self-hosted CI runner).  When the committed file is
+    byte-identical to the target render with the recorded answers, guarded recopy
+    rewrites it to the same bytes, so no downstream content is lost.  The proof
+    reads downstream HEAD; a path that is missing or not a regular file on either
+    side is not proven, because recopy would create, delete or retype it.
+    """
+    if not relatives:
+        return set()
+    target = rendered_template_fingerprints(
+        version,
+        answers_text,
+        relatives,
+        env=env,
+        legacy_repository=legacy_repository,
+        operator_integration=operator_integration,
+    )
+    proven: set[str] = set()
+    for relative in relatives:
+        downstream = git_tree_path_fingerprint(project_root, "HEAD", relative)
+        if downstream[0] == "file" and downstream == target[relative]:
+            proven.add(relative)
+    return proven
+
+
 def reclaimed_platform_path_matches_template(project_root: Path, relative: str) -> bool:
     if relative not in RECLAIMED_PLATFORM_ROLLOUT_PATHS:
         return False
@@ -1119,7 +1158,7 @@ def require_paths_match_rendered_template(
     )
     if mismatched:
         raise ValueError(
-            "baseline-equivalent conflict paths do not match the target template after recopy: "
+            "baseline- or target-equivalent conflict paths do not match the target template after recopy: "
             + ", ".join(mismatched[:10])
         )
 
@@ -1355,7 +1394,8 @@ def copier_update_with_guarded_recopy(
     Copier replays the downstream diff from the recorded old template onto the
     new template. Recovery is safe when a project-owned snapshot is preserved,
     a narrowly reclaimed path already equals the target, or (platform harness)
-    the committed downstream path still exactly equals its recorded old template.
+    the committed downstream path still exactly equals its recorded old template
+    or already exactly equals its target render.
     """
 
     mode = harness_mode(project_root)
@@ -1422,8 +1462,21 @@ def copier_update_with_guarded_recopy(
         if mode == "platform"
         else set()
     )
+    target_conflicts = (
+        target_equivalent_conflict_paths(
+            project_root,
+            version,
+            conflict_targets - reclaimed_conflicts - baseline_conflicts,
+            env=env,
+            answers_text=answers_before,
+            legacy_repository=legacy_repository,
+            operator_integration=operator_integration,
+        )
+        if mode == "platform"
+        else set()
+    )
     unexpected = sorted(
-        conflict_targets - recoverable_owned - reclaimed_conflicts - baseline_conflicts
+        conflict_targets - recoverable_owned - reclaimed_conflicts - baseline_conflicts - target_conflicts
     )
     if unexpected:
         detail = ", ".join(rejects[:10])
@@ -1433,7 +1486,8 @@ def copier_update_with_guarded_recopy(
     print(
         "Smart Copier update conflicted only on recoverable project-owned paths, "
         "proven reclaimed target paths, or platform paths still identical to their "
-        "recorded baseline; retrying with guarded recopy.",
+        "recorded baseline or already identical to the target render; retrying with "
+        "guarded recopy.",
         flush=True,
     )
     reset_failed_copier_update(project_root)
@@ -1453,6 +1507,21 @@ def copier_update_with_guarded_recopy(
         missing = sorted(baseline_conflicts - reproven)
         raise ValueError(
             "baseline-equivalent rollout proof changed before recopy: "
+            + ", ".join(missing[:10])
+        )
+    retarget = target_equivalent_conflict_paths(
+        project_root,
+        version,
+        target_conflicts,
+        env=env,
+        answers_text=answers_before,
+        legacy_repository=legacy_repository,
+        operator_integration=operator_integration,
+    )
+    if retarget != target_conflicts:
+        missing = sorted(target_conflicts - retarget)
+        raise ValueError(
+            "target-equivalent rollout proof changed before recopy: "
             + ", ".join(missing[:10])
         )
 
@@ -1495,7 +1564,7 @@ def copier_update_with_guarded_recopy(
     expected_target = rendered_template_fingerprints(
         version,
         answers_before,
-        baseline_conflicts,
+        baseline_conflicts | target_conflicts,
         env=env,
         operator_integration=operator_integration,
     )
