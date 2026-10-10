@@ -10,8 +10,11 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_ROOT = ROOT / "template" / "scripts"
-if str(SCRIPT_ROOT) not in sys.path:
-    sys.path.insert(0, str(SCRIPT_ROOT))
+# First, not merely present: a module earlier in the same test group may have put the repository's
+# scripts/ ahead, where `managed_task` and its imports are executable shims that run their CLI on import.
+while str(SCRIPT_ROOT) in sys.path:
+    sys.path.remove(str(SCRIPT_ROOT))
+sys.path.insert(0, str(SCRIPT_ROOT))
 
 import managed_task  # noqa: E402
 
