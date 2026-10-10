@@ -1,0 +1,121 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 1.04,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.146,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 511.77,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        ".github/workflows/explorer.yml",
+        "dev-platform/checks.toml",
+        "tests/test_explorer_workflow.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_c16543f4159fb0aabefe7b0c56fa02ad",
+    "change": "publish-platform-explorer",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/publish-platform-explorer",
+    "branch": "agent/br-441-t3-publish-platform-explorer",
+    "head": "bfde876e439214557c454995f8dee3411f70931e",
+    "task_content": {
+      "version": 1,
+      "digest": "ff195793c70e860afb4355ca0491b6838deed32f704551dae843e6fbd5fc639e",
+      "paths": {
+        ".github/workflows/explorer.yml": "5437e3a4eedb32a490e9b08f660007014509f4f8",
+        ".gitignore": "5dd410f152bbf7a0491796d19e663852f2eeff6e",
+        "dev-platform/checks.toml": "a5cb110eaa5b6b0169714dfa47c560ed4030f3da",
+        "dev-platform/requirement-integrations/private-lineage-pln_a6e994680e3fd75bbc3c91e4cbbddc95-integration.json": "3c8eaa34e91ba7fac354b589fa41755abd6f671b",
+        "docs/engineering/explorer.md": "0d1f7bde4d157061cda213673e9d688df0c09f59",
+        "docs/ownership.md": "e7234bc48957e3960ce43cf6796d9740fdfbd9b5",
+        "explorer/assets/explorer.css": "8a1ac05f65f805adcf4d3515c3cf230ff8f016fe",
+        "explorer/assets/explorer.js": "f421972e06be222ad3d65f8aaa7917c7640f4207",
+        "explorer/map.toml": "a661e4e12a81f150c61974dc6ff351cfe1902d5e",
+        "openspec/changes/add-platform-explorer-foundation/.managed-task.json": "fd37e2e9a16205aadd09239c18aba137ec940bfb",
+        "openspec/changes/add-platform-explorer-foundation/.openspec.yaml": "01660bab056db86b8ce3c840115bb6b57cd15555",
+        "openspec/changes/add-platform-explorer-foundation/automated-checks.json": "a6280acc59acc4982d6d951871b47bbc72d95557",
+        "openspec/changes/add-platform-explorer-foundation/design.md": "5d46a4b0a1f2542735948b97f795113b9edaf7a8",
+        "openspec/changes/add-platform-explorer-foundation/independent-review-request.json": "e1a8cbe86d9bfaf67f0d0a6b110aa470fc759b78",
+        "openspec/changes/add-platform-explorer-foundation/independent-reviews/engineering-quality.json": "ef15dc43f838536ffbe8cc2db4ef5c37376cbd5c",
+        "openspec/changes/add-platform-explorer-foundation/independent-reviews/spec-fidelity.json": "8c3ec7919356a379d6ba5ac04297c7a8d1a05ad1",
+        "openspec/changes/add-platform-explorer-foundation/proposal.md": "382efdd4d4e4a42932521c7f7bace8ccc0293ddf",
+        "openspec/changes/add-platform-explorer-foundation/specs/platform-explorer/spec.md": "a61e4577f55d37ccb38e0ba535649fa5ced15a07",
+        "openspec/changes/add-platform-explorer-foundation/tasks.md": "ad757f2553aa9b572eca199ddeaf41074e32aabc",
+        "openspec/changes/add-platform-explorer-foundation/verification.md": "d6646c265b386fff3ab8635f1efdd1ebf7af48b3",
+        "openspec/changes/publish-platform-explorer/.managed-task.json": "97a85c1afd208da12e56e5520d310090a84cc2c7",
+        "openspec/changes/publish-platform-explorer/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
+        "openspec/changes/publish-platform-explorer/design.md": "531879c14ca4bb23ce2a2a8d70dc3286d6bf627c",
+        "openspec/changes/publish-platform-explorer/proposal.md": "4f65573bb6b695a027c411d47a1d278aa72366fa",
+        "openspec/changes/publish-platform-explorer/specs/explorer-publication/spec.md": "1fb0aa10693620c191df44481c530501c193abc4",
+        "openspec/changes/publish-platform-explorer/tasks.md": "144fd572bf46bcf52e1159074b1d4386d3e96797",
+        "scripts/build_explorer.py": "8e12115cd651cd218284f21af99102c80b5fdc09",
+        "tests/test_build_explorer.py": "a59abe9a4a5b7f28abb16f1154db3a9ea362ba42",
+        "tests/test_explorer_workflow.py": "a55ce2e3f2fd4bd5baef5f92868b58ba704acb4e"
+      },
+      "base": "44dc97b736e67edd6c31812a1a4ebf872b7b991a"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "f41f80acee61e1ca0e1e86fc4de53c8061ac08012b4060297c488a665f6b70a3",
+    "paths": {
+      ".github/workflows/explorer.yml": "5437e3a4eedb32a490e9b08f660007014509f4f8",
+      "dev-platform/checks.toml": "a5cb110eaa5b6b0169714dfa47c560ed4030f3da",
+      "docs/engineering/explorer.md": "0d1f7bde4d157061cda213673e9d688df0c09f59",
+      "openspec/changes/publish-platform-explorer/.managed-task.json": "97a85c1afd208da12e56e5520d310090a84cc2c7",
+      "openspec/changes/publish-platform-explorer/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
+      "openspec/changes/publish-platform-explorer/design.md": "531879c14ca4bb23ce2a2a8d70dc3286d6bf627c",
+      "openspec/changes/publish-platform-explorer/proposal.md": "4f65573bb6b695a027c411d47a1d278aa72366fa",
+      "openspec/changes/publish-platform-explorer/specs/explorer-publication/spec.md": "1fb0aa10693620c191df44481c530501c193abc4",
+      "openspec/changes/publish-platform-explorer/tasks.md": "144fd572bf46bcf52e1159074b1d4386d3e96797",
+      "tests/test_explorer_workflow.py": "a55ce2e3f2fd4bd5baef5f92868b58ba704acb4e"
+    },
+    "base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file tests/test_explorer_workflow.py",
+    "duration_seconds": 3.547,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
