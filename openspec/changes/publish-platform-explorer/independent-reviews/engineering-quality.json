@@ -3,28 +3,28 @@
   "candidate": {
     "base_head": "fc92948c443c4dee53a39a56f367cd213a2096f7",
     "base_ref": "fc92948c443c4dee53a39a56f367cd213a2096f7",
-    "candidate_head": "cc7361b020e3fd1d01131037c12054a7f4baf0fd",
-    "diff_sha256": "bf47d6f67bfe7d9088843d8f7888ba36e45bbd8501ca8808d03a6622daaa0c3c"
+    "candidate_head": "01073af9b1a9e3bf565c050a1653fedf8cfc139f",
+    "diff_sha256": "8ff6eba68800e8755144c481da942768ca9ff2c08c230cc535774512b32afe22"
   },
-  "completed_at": "2026-10-10T12:43:36+00:00",
+  "completed_at": "2026-10-10T13:11:12+00:00",
   "findings": [
     {
-      "evidence": ".github/workflows/explorer.yml:67-69 states that configure-pages fails when the source is not GitHub Actions. The pinned action's findOrCreatePagesSite calls getPages and returns an existing site without checking its build_type; enablement=false only prevents creating a missing site. Thus an existing branch-configured site passes this step, and tests/test_explorer_workflow.py:97-102 only checks the absence of inputs. See the [pinned action implementation](https://github.com/actions/configure-pages/blob/45bfe0192ca1faeb007ade9deae92b16b8254a0d/src/api-client.js#L35-L70).",
-      "id": "pages-source-check-assumption",
+      "evidence": ".github/workflows/explorer.yml:30-32 and 63-65 serialize build and deploy jobs separately, and the deployment condition at line 53 checks only branch and event. A delayed or rerun older workflow can therefore deploy after a newer commit has published, leaving Pages stale until another publication. GitHub documents that concurrency ordering follows when jobs begin waiting, rather than workflow dispatch order: [GitHub concurrency documentation](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency).",
+      "id": "stale-deployment-order",
       "severity": "advisory",
-      "summary": "The workflow incorrectly claims configure-pages validates that the Pages source is GitHub Actions."
+      "summary": "Deployment concurrency prevents overlap but does not prevent an older run from replacing a newer published site."
     }
   ],
-  "launched_at": "2026-10-10T12:42:35+00:00",
-  "output_sha256": "4d29bd10a04b748e6125f46dc859f9bb71eeb1fce52ede318d6619dca7916014",
+  "launched_at": "2026-10-10T13:10:18+00:00",
+  "output_sha256": "500b228a53757ecfdee7cdf15f399427dd85547b108c15c5f5a34bdd577a1253",
   "perspective": "engineering-quality",
-  "request_id": "407f16b8-ff4d-4d89-ad7c-223183b113ca",
+  "request_id": "f2c5ea91-ae7b-4fae-b808-fab01e458e77",
   "reviewer": {
-    "context_id": "01a125d6-2cfa-70f0-b88a-c08621de6d0e",
+    "context_id": "01a125ef-8ef0-7b22-80d9-9d3ee25e898b",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-2d0b1c98-bcfc-42fa-8322-11aa8eaffa6e",
+    "launch_id": "platform-launch-23fe8692-38d1-4f1d-9ccb-31ac6a2d7097",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -39,21 +39,21 @@
       "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 205440
+        "value": 231680
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 262574
+        "value": 293580
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1178
+        "value": 1081
       }
     },
     "runtime": "codex-exec"
   },
   "schema_version": 1,
-  "task_content_digest": "f41f80acee61e1ca0e1e86fc4de53c8061ac08012b4060297c488a665f6b70a3"
+  "task_content_digest": "4fef4afbd8caa9b92a230a1da1e3a153fb6cecf768e686d6f9cf0ee6bd055e63"
 }
