@@ -911,7 +911,7 @@ class IntegrationTests(PoolFixture):
                         stack.enter_context(mock.patch.object(lifecycle.shutil, "which", return_value="openspec"))
                         self.assertEqual(lifecycle.archive_change(self.base, "test"), 0)
                 else:
-                    final.trusted_checks_runner(self.base, dict(os.environ))
+                    final.trusted_checks_runner(self.base, dict(os.environ), proven_base="0" * 40)
             self.assertEqual(seen, [parent.fds])
             self.assertEqual(len(machine_pool.read_holders(self.config)), 1)
         self.assertEqual(machine_pool.read_holders(self.config), [])
@@ -954,7 +954,7 @@ class IntegrationTests(PoolFixture):
     def test_finalization_checks_runner_declares_the_finalize_class_and_keeps_the_pool_variables(self) -> None:
         done = subprocess.CompletedProcess("checks", 0, stdout="", stderr="")
         with mock.patch.object(final.subprocess, "run", return_value=done) as run:
-            final.trusted_checks_runner(Path("/checkout"), {POOL_ENV: "/pool.toml", "KEEP": "1"})
+            final.trusted_checks_runner(Path("/checkout"), {POOL_ENV: "/pool.toml", "KEEP": "1"}, proven_base="0" * 40)
         env = run.call_args.kwargs["env"]
         self.assertEqual((env[CLASS_ENV], env[POOL_ENV], env["KEEP"]), ("finalize", "/pool.toml", "1"))
 

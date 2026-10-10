@@ -927,6 +927,8 @@ For a Development Backlog managed task, platform-owned terminal reconciliation S
 
 For platform-owned task execution, the lifecycle SHALL refresh its observation of the configured remote integration branch and verify that the current task head is based on the authoritative remote history before running expensive full/protected validation intended as delivery evidence.
 
+One bounded exception SHALL exist, for trusted coordinator finalization of a reviewed candidate. Selected-check execution SHALL accept an explicit proven base, and with it SHALL require that the head forks from exactly that commit on the remote integration branch's history, instead of requiring the head to contain the current remote integration branch. The proven base SHALL be accepted only for executed checks in the coordinator lifecycle mode. It SHALL be refused, before any command starts and with an error naming the violated condition, when combined with evidence output, a contribution base or protected-full validation, or when it is not the merge base of the head and the remote integration branch. Developer preflight, evidence-producing validation and protected CI SHALL keep the fresh-base requirement unchanged.
+
 #### Scenario: Task remains fresh before full validation
 
 - **GIVEN** the current task head contains the freshly fetched `origin/<main>` in its ancestry
@@ -955,6 +957,20 @@ For platform-owned task execution, the lifecycle SHALL refresh its observation o
 - **WHEN** the freshness check is repeated
 - **THEN** it succeeds if ancestry is now valid
 - **AND** the ordinary validation lifecycle resumes without a second special workflow
+
+#### Scenario: Coordinator finalization checks the reviewed content on its proven base
+
+- **GIVEN** a coordinator-mode finalization checkout of a reviewed candidate whose head forks from its proven base
+- **AND** `origin/<main>` has advanced past that base
+- **WHEN** selected checks are executed with that proven base
+- **THEN** the freshness gate passes, naming the coordinator-finalization contract and the base
+- **AND** the selected commands actually run and a failing command fails the invocation
+
+#### Scenario: Proven base is not a general freshness bypass
+
+- **WHEN** a proven base is passed together with evidence output, a contribution base or protected-full validation, without execution, outside the coordinator lifecycle mode, or with a commit that is not the merge base of the head and `origin/<main>`
+- **THEN** the invocation fails before any command starts, naming the violated condition
+- **AND** an invocation without a proven base on a stale head is still blocked by the fresh-base requirement
 
 ### Requirement: Task start establishes an explicit freshness observation
 

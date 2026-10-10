@@ -320,5 +320,116 @@ class SelectChecksTests(unittest.TestCase):
         self.assertNotIn("--base \"origin/${{ github.base_ref }}\" --execute", workflow)
 
 
+
+SOURCE_CONTRACT = (
+    'platform_version = "source"\nmain_branch = "main"\nworkflow_profile = "standard"\n'
+    'harness_mode = "platform"\npublish_mode = "pr"\nscm_provider = "github"\n'
+)
+
+
+class ProvenBaseContractTests(unittest.TestCase):
+    """The bounded coordinator-finalization freshness contract, exercised on real Git history."""
+
+    def git(self, cwd: Path, *args: str) -> str:
+        return subprocess.run(["git", *args], cwd=cwd, text=True, capture_output=True, check=True).stdout.strip()
+
+    def setUp(self) -> None:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.base = Path(tmp.name)
+        self.remote = self.base / "remote.git"
+        self.git(self.base, "init", "-q", "--bare", "-b", "main", str(self.remote))
+        self.task = self.base / "task"
+        self.git(self.base, "clone", "-q", str(self.remote), str(self.task))
+        self.git(self.task, "config", "user.email", "proven@example.invalid")
+        self.git(self.task, "config", "user.name", "Proven Base")
+        self.git(self.task, "checkout", "-q", "-b", "main")
+        (self.task / ".dev-platform.toml").write_text(SOURCE_CONTRACT, encoding="utf-8")
+        self.write_checks("printf ran > validation-ran.txt")
+        self.git(self.task, "add", "-A")
+        self.git(self.task, "commit", "-qm", "seed")
+        self.git(self.task, "push", "-q", "-u", "origin", "main")
+        self.proven = self.git(self.task, "rev-parse", "HEAD")
+        self.git(self.task, "checkout", "-q", "-b", "agent/task")
+        (self.task / "task.txt").write_text("task\n", encoding="utf-8")
+        self.git(self.task, "add", "task.txt")
+        self.git(self.task, "commit", "-qm", "task")
+        # Another PR merges after review: origin/main moves past the proven base.
+        other = self.base / "other"
+        self.git(self.base, "clone", "-q", str(self.remote), str(other))
+        self.git(other, "-c", "user.name=Other", "-c", "user.email=other@example.invalid", "commit", "-q",
+                 "--allow-empty", "-m", "advance main")
+        self.git(other, "push", "-q", "origin", "HEAD:main")
+        self.git(self.task, "fetch", "-q", "origin")
+        self.moved = self.git(self.task, "rev-parse", "origin/main")
+        (self.task / ".git/info/exclude").write_text("validation-ran.txt\n", encoding="utf-8")
+
+    def write_checks(self, command: str) -> None:
+        checks = self.task / "dev-platform/checks.toml"
+        checks.parent.mkdir(exist_ok=True)
+        checks.write_text(f'[settings]\nfull_commands = ["{command}"]\n', encoding="utf-8")
+
+    def select(self, *args: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run([sys.executable, str(SCRIPTS / "select_checks.py"), "--base", "origin/main", *args],
+                              cwd=self.task, text=True, capture_output=True, check=False)
+
+    def assert_refused_before_commands(self, result: subprocess.CompletedProcess[str], reason: str) -> None:
+        output = result.stdout + result.stderr
+        self.assertNotEqual(result.returncode, 0, output)
+        self.assertIn(reason, output)
+        self.assertNotIn("DEV_PLATFORM_CHECK_COMMAND", output)
+        self.assertFalse((self.task / "validation-ran.txt").exists())
+
+    def test_proven_base_runs_the_selected_commands_on_a_head_without_current_main(self) -> None:
+        result = self.select("--execute", "--proven-base", self.proven)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn(f"coordinator-finalization proven-base contract): proven base {self.proven} is the merge base "
+                      f"of HEAD and origin/main ({self.moved})", result.stdout)
+        self.assertIn("DEV_PLATFORM_CHECK_COMMAND: printf ran", result.stdout)
+        self.assertEqual((self.task / "validation-ran.txt").read_text(), "ran")
+        # The contract never fetches: remote-tracking main is exactly what finalization observed.
+        self.assertEqual(self.git(self.task, "rev-parse", "origin/main"), self.moved)
+
+    def test_failing_command_under_the_proven_base_fails_the_invocation(self) -> None:
+        self.write_checks("exit 3")
+        result = self.select("--execute", "--proven-base", self.proven)
+        self.assertEqual(result.returncode, 3, result.stdout + result.stderr)
+        self.assertIn("DEV_PLATFORM_CHECK_FAILURE", result.stdout)
+
+    def test_without_proven_base_a_stale_head_is_still_blocked(self) -> None:
+        result = self.select("--execute")
+        self.assert_refused_before_commands(
+            result, "Task freshness gate blocked full/protected validation before any expensive command started")
+
+    def test_misuse_is_refused_before_any_command_starts(self) -> None:
+        parent = self.git(self.task, "rev-parse", "HEAD~1")
+        head = self.git(self.task, "rev-parse", "HEAD")
+        cases = (
+            (("--proven-base", self.proven), "--proven-base requires --execute"),
+            (("--execute", "--proven-base", self.proven, "--evidence", "evidence.json"), "refused with --evidence"),
+            (("--execute", "--proven-base", self.proven, "--contribution-base", self.proven), "refused with --contribution-base"),
+            (("--execute", "--proven-base", self.proven, "--mode", "protected-full"), "refused in protected-full mode"),
+            (("--execute", "--proven-base", self.proven, "--protected-full"), "refused in protected-full mode"),
+            (("--execute", "--proven-base", self.proven, "--full"), "refused in protected-full mode"),
+            (("--execute", "--proven-base", self.moved), f"not from its proven base {self.moved}"),
+            (("--execute", "--proven-base", head), f"not from its proven base {head}"),
+            (("--execute", "--proven-base", self.proven[:12]), "is not a full 40-hex commit id"),
+        )
+        self.assertEqual(parent, self.proven)
+        for args, reason in cases:
+            with self.subTest(args=args):
+                self.assert_refused_before_commands(self.select(*args), reason)
+        self.assertFalse((self.task / "evidence.json").exists())
+
+    def test_portable_lifecycle_mode_refuses_the_proven_base(self) -> None:
+        (self.task / ".dev-platform.toml").write_text(SOURCE_CONTRACT.replace('"source"', '"v1.9.3"'), encoding="utf-8")
+        self.assert_refused_before_commands(self.select("--execute", "--proven-base", self.proven),
+                                            "accepted only in coordinator lifecycle mode (found portable)")
+
+    def test_missing_remote_main_cannot_prove_the_base(self) -> None:
+        self.git(self.task, "update-ref", "-d", "refs/remotes/origin/main")
+        self.assert_refused_before_commands(self.select("--execute", "--proven-base", self.proven),
+                                            "origin/main is not observed in this checkout")
+
 if __name__ == "__main__":
     unittest.main()

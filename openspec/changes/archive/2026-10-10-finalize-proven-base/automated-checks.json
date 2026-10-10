@@ -1,0 +1,146 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.309,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.14,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 510.286,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/_platform_common.py",
+        "template/scripts/parallel_lifecycle_acceptance.py",
+        "template/scripts/post_review_finalization.py",
+        "template/scripts/publication_queue.py",
+        "template/scripts/select_checks.py",
+        "tests/test_central_dogfood_lifecycle.py",
+        "tests/test_deepseek_harness_runtime.py",
+        "tests/test_lifecycle_workers.py",
+        "tests/test_parallel_lifecycle_acceptance.py",
+        "tests/test_post_review_finalization.py",
+        "tests/test_pr_review_gate.py",
+        "tests/test_requirement_contribution_composition.py",
+        "tests/test_select_checks.py",
+        "tests/test_template_contract.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_f32f0b55ee4b375417a30443a40e2a5b",
+    "change": "finalize-proven-base",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/finalize-proven-base",
+    "branch": "agent/br-536-t1-finalize-proven-base",
+    "head": "0e0380834d4ee3119c574dcedfc89aca6f00d362",
+    "task_content": {
+      "version": 1,
+      "digest": "5bba23be827f58305b11d572824a217be89053ce77a4c81862098588104f6927",
+      "paths": {
+        "docs/engineering/agent-workflow.md": "04c9b8446ea54662834ddfb7b6524e2b7bddc53f",
+        "docs/engineering/openspec-workflow.md": "353367ec42c3e2eb561bb7186bcd443faad8d441",
+        "openspec/changes/finalize-proven-base/.managed-task.json": "67e139b2d18bbf81fa52e4171b8d9ca3c351b7a4",
+        "openspec/changes/finalize-proven-base/.openspec.yaml": "81264324b0500978f52f70d701b236a09cb1d808",
+        "openspec/changes/finalize-proven-base/automated-checks.json": "aedfba6ecce070e78acec6f60fe0b8653f29062a",
+        "openspec/changes/finalize-proven-base/design.md": "c2123be75825b284e9ac9c935130880c0da60b32",
+        "openspec/changes/finalize-proven-base/independent-review-request.json": "6062fa8744fca445f6d6df12a72f48215c61a4c9",
+        "openspec/changes/finalize-proven-base/independent-reviews/engineering-quality.json": "4041e200117535b323ecfef95e1ad457b090ebf8",
+        "openspec/changes/finalize-proven-base/independent-reviews/spec-fidelity.json": "ba05128ef298baeacf9a8662763625e6a10eb6a6",
+        "openspec/changes/finalize-proven-base/proposal.md": "1eb12e9a4fd22e23dc5602ba61d29a0f085092f8",
+        "openspec/changes/finalize-proven-base/specs/completion-lifecycle/spec.md": "8c36cf2a9da35f89a7306f1ece08329740cf4136",
+        "openspec/changes/finalize-proven-base/specs/platform-lifecycle/spec.md": "268a95b89497346767b539cb2d908480338b8c29",
+        "openspec/changes/finalize-proven-base/specs/publication-queue/spec.md": "02365ec8743e454b7a6338d5cef7c2187bf6b69b",
+        "openspec/changes/finalize-proven-base/tasks.md": "0bc2279da9a1d360ea4d204c851e0f38bea16df8",
+        "openspec/changes/finalize-proven-base/verification.md": "437ee525502ff3a287b50018718973571070466e",
+        "template/scripts/_platform_common.py": "d83f74f296e0066f9715c6ccf4ee0abb9dc3ad0f",
+        "template/scripts/parallel_lifecycle_acceptance.py": "98edd990989f19749b335b907a6ee64d21c028e0",
+        "template/scripts/post_review_finalization.py": "9a2365c7d61ff4a9d35385baf588836725f3dfd2",
+        "template/scripts/publication_queue.py": "a674c56c48dd005c9fc5dc60c69604f630b25af8",
+        "template/scripts/select_checks.py": "92a3aad28832016e8facb7c776a4168847268633",
+        "tests/test_central_dogfood_lifecycle.py": "4f04e98afb357bb0ce3ceba3269971815cf956b3",
+        "tests/test_deepseek_harness_runtime.py": "798ae0c81059293d853470b0ab9cee134ba73b41",
+        "tests/test_lifecycle_workers.py": "46a1d1af5ad96be5e77898aa90407c9196989428",
+        "tests/test_parallel_lifecycle_acceptance.py": "b96b2d5aaa6006f2d625bea7414ab058c30b9c96",
+        "tests/test_post_review_finalization.py": "7f5db71d513794a8538f064cfcecc7b1021b579d",
+        "tests/test_pr_review_gate.py": "bea071651b878f1a4277f9e234225eea8ecc4238",
+        "tests/test_requirement_contribution_composition.py": "ac078097815168640e36c6fe67053e6eb0d4be01",
+        "tests/test_select_checks.py": "2b195e0636f08b0ad2f45af501ebf06c3e557869",
+        "tests/test_template_contract.py": "1698bdc07e2f4e60510092b48c9e321008d03932"
+      },
+      "base": "5f76443bf244cf5ddddee0276751057f59189e4d"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "8ad1280ae074830e2f42670043c2db948d9be8d6826ea5a4bc1c1ccdea021eaa",
+    "paths": {
+      "docs/engineering/agent-workflow.md": "04c9b8446ea54662834ddfb7b6524e2b7bddc53f",
+      "docs/engineering/openspec-workflow.md": "353367ec42c3e2eb561bb7186bcd443faad8d441",
+      "openspec/changes/finalize-proven-base/.managed-task.json": "67e139b2d18bbf81fa52e4171b8d9ca3c351b7a4",
+      "openspec/changes/finalize-proven-base/.openspec.yaml": "81264324b0500978f52f70d701b236a09cb1d808",
+      "openspec/changes/finalize-proven-base/design.md": "c2123be75825b284e9ac9c935130880c0da60b32",
+      "openspec/changes/finalize-proven-base/proposal.md": "1eb12e9a4fd22e23dc5602ba61d29a0f085092f8",
+      "openspec/changes/finalize-proven-base/specs/completion-lifecycle/spec.md": "8c36cf2a9da35f89a7306f1ece08329740cf4136",
+      "openspec/changes/finalize-proven-base/specs/platform-lifecycle/spec.md": "268a95b89497346767b539cb2d908480338b8c29",
+      "openspec/changes/finalize-proven-base/specs/publication-queue/spec.md": "02365ec8743e454b7a6338d5cef7c2187bf6b69b",
+      "openspec/changes/finalize-proven-base/tasks.md": "0bc2279da9a1d360ea4d204c851e0f38bea16df8",
+      "template/scripts/_platform_common.py": "d83f74f296e0066f9715c6ccf4ee0abb9dc3ad0f",
+      "template/scripts/parallel_lifecycle_acceptance.py": "98edd990989f19749b335b907a6ee64d21c028e0",
+      "template/scripts/post_review_finalization.py": "9a2365c7d61ff4a9d35385baf588836725f3dfd2",
+      "template/scripts/publication_queue.py": "a674c56c48dd005c9fc5dc60c69604f630b25af8",
+      "template/scripts/select_checks.py": "92a3aad28832016e8facb7c776a4168847268633",
+      "tests/test_central_dogfood_lifecycle.py": "4f04e98afb357bb0ce3ceba3269971815cf956b3",
+      "tests/test_deepseek_harness_runtime.py": "798ae0c81059293d853470b0ab9cee134ba73b41",
+      "tests/test_lifecycle_workers.py": "46a1d1af5ad96be5e77898aa90407c9196989428",
+      "tests/test_parallel_lifecycle_acceptance.py": "b96b2d5aaa6006f2d625bea7414ab058c30b9c96",
+      "tests/test_post_review_finalization.py": "7f5db71d513794a8538f064cfcecc7b1021b579d",
+      "tests/test_pr_review_gate.py": "bea071651b878f1a4277f9e234225eea8ecc4238",
+      "tests/test_requirement_contribution_composition.py": "ac078097815168640e36c6fe67053e6eb0d4be01",
+      "tests/test_select_checks.py": "2b195e0636f08b0ad2f45af501ebf06c3e557869",
+      "tests/test_template_contract.py": "1698bdc07e2f4e60510092b48c9e321008d03932"
+    },
+    "base": "5f76443bf244cf5ddddee0276751057f59189e4d",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/_platform_common.py --changed-file template/scripts/parallel_lifecycle_acceptance.py --changed-file template/scripts/post_review_finalization.py --changed-file template/scripts/publication_queue.py --changed-file template/scripts/select_checks.py --changed-file tests/test_central_dogfood_lifecycle.py --changed-file tests/test_deepseek_harness_runtime.py --changed-file tests/test_lifecycle_workers.py --changed-file tests/test_parallel_lifecycle_acceptance.py --changed-file tests/test_post_review_finalization.py --changed-file tests/test_pr_review_gate.py --changed-file tests/test_requirement_contribution_composition.py --changed-file tests/test_select_checks.py --changed-file tests/test_template_contract.py",
+    "duration_seconds": 295.884,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}

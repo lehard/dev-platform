@@ -503,6 +503,29 @@ def require_fresh_task_base(
     return remote_sha
 
 
+def require_proven_task_base(root: Path, sha: str, remote: str, main_branch: str) -> str:
+    """Fail closed unless HEAD forks from exactly ``sha`` on the observed remote main history; describe it.
+
+    Coordinator finalization proves reviewed task content on its proven base and never
+    fetches or merges main, so this reads the checkout's existing remote-tracking ref:
+    ``merge-base(HEAD, <remote>/<main>)`` must equal ``sha`` for every candidate. Checkout-local
+    context is never trusted to choose another base.
+    """
+    authoritative = f"{remote}/{main_branch}"
+    if not re.fullmatch(r"[0-9a-f]{40}", sha):
+        raise TaskFreshnessError(f"proven base {sha!r} is not a full 40-hex commit id")
+    main_sha = ref_sha(root, remote_ref(remote, main_branch))
+    if not main_sha:
+        raise TaskFreshnessError(f"{authoritative} is not observed in this checkout; cannot prove the task base {sha}")
+    result = run_git(["merge-base", "HEAD", main_sha], cwd=root, check=False)
+    observed = result.stdout.strip()
+    if result.returncode or not observed:
+        raise TaskFreshnessError(f"HEAD has no merge base with {authoritative} ({main_sha}); cannot prove base {sha}")
+    if observed != sha:
+        raise TaskFreshnessError(f"HEAD forks from {observed} on {authoritative} ({main_sha}), not from its proven base {sha}")
+    return f"merge base of HEAD and {authoritative} ({main_sha})"
+
+
 def require_origin(root: Path, remote: str = "origin") -> None:
     result = run_git(["remote", "get-url", remote], cwd=root, check=False)
     if result.returncode != 0:

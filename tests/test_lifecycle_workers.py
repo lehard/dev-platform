@@ -15,6 +15,13 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "template" / "scripts"))
 from _platform_modules import load_platform_module  # noqa: E402
 
+
+def setUpModule() -> None:
+    # The worker imports sibling modules lazily (model_routing, independent_review_runner, ...). Other test
+    # modules imported later put the source-checkout scripts/ wrappers, which run their CLI on import, ahead
+    # of template/scripts on sys.path; restore template/scripts first for this module's tests.
+    sys.path.insert(0, str(ROOT / "template" / "scripts"))
+
 lifecycle = load_platform_module("candidate_lifecycle", ROOT / "template/scripts/candidate_lifecycle.py")
 workers = load_platform_module("lifecycle_workers", ROOT / "template/scripts/lifecycle_workers.py")
 HEAD, NEW = "a" * 40, "b" * 40
